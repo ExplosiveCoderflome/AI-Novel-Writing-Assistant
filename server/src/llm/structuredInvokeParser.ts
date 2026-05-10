@@ -119,6 +119,65 @@ function tryUnwrapSingletonArrayWrapper<T>(
   };
 }
 
+function getObjectShape(schema: ZodType<unknown>): z.ZodRawShape | null {
+  const candidate = schema as z.ZodObject<z.ZodRawShape> & {
+    shape?: z.ZodRawShape | (() => z.ZodRawShape);
+    _def?: {
+      type?: unknown;
+      shape?: z.ZodRawShape | (() => z.ZodRawShape);
+    };
+  };
+
+  const isObjectSchema = schema instanceof z.ZodObject || candidate._def?.type === "object";
+  if (!isObjectSchema) {
+    return null;
+  }
+
+  const shapeSource = candidate.shape ?? candidate._def?.shape;
+  if (typeof shapeSource === "function") {
+    return shapeSource();
+  }
+  if (shapeSource && typeof shapeSource === "object" && !Array.isArray(shapeSource)) {
+    return shapeSource;
+  }
+  return null;
+}
+
+function tryWrapBareArrayIntoSingleArrayFieldObject<T>(
+  parsed: unknown,
+  schema: ZodType<T>,
+): { data: T; wrappedField: string } | null {
+  if (!Array.isArray(parsed)) {
+    return null;
+  }
+
+  const shape = getObjectShape(schema);
+  if (!shape) {
+    return null;
+  }
+  const entries = Object.entries(shape);
+  if (entries.length !== 1) {
+    return null;
+  }
+
+  const [fieldName, fieldSchema] = entries[0]!;
+  if (!(fieldSchema instanceof z.ZodArray)) {
+    return null;
+  }
+
+  const wrapped = schema.safeParse({
+    [fieldName]: parsed,
+  });
+  if (!wrapped.success) {
+    return null;
+  }
+
+  return {
+    data: wrapped.data as T,
+    wrappedField: fieldName,
+  };
+}
+
 function formatZodErrors(error: ZodError): string {
   return error.issues
     .map((issue) => {
@@ -332,6 +391,7 @@ function getRepairHelpers<T>() {
   return {
     tryParseStructuredJsonValue,
     tryUnwrapSingletonArrayWrapper,
+    tryWrapBareArrayIntoSingleArrayFieldObject,
     normalizeOversizedArrays,
     formatZodErrors,
     logStructuredInvokeEvent,
@@ -424,6 +484,24 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     });
     return {
       data: unwrappedInitial.data,
+      repairUsed: false,
+      repairAttempts: 0,
+      diagnostics,
+    };
+  }
+
+  const wrappedInitial = tryWrapBareArrayIntoSingleArrayFieldObject(parsed, runtimeSchema);
+  if (wrappedInitial) {
+    logStructuredInvokeEvent({
+      event: "wrapped_bare_array",
+      label: input.label,
+      provider: input.provider,
+      model: input.model,
+      taskType: input.taskType,
+      strategy: input.strategy,
+    });
+    return {
+      data: wrappedInitial.data,
       repairUsed: false,
       repairAttempts: 0,
       diagnostics,

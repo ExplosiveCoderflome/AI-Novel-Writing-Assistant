@@ -1,6 +1,32 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
+
+const prismaModulePath = require.resolve("../dist/db/prisma.js");
+require.cache[prismaModulePath] = {
+  id: prismaModulePath,
+  filename: prismaModulePath,
+  loaded: true,
+  exports: {
+    prisma: {
+      appSetting: {
+        findMany: async () => [],
+        findUnique: async () => null,
+        upsert: async () => null,
+        deleteMany: async () => null,
+      },
+      aPIKey: {
+        findMany: async () => [],
+      },
+      modelRouteConfig: {
+        findUnique: async () => null,
+        findMany: async () => [],
+        upsert: async () => null,
+      },
+    },
+  },
+};
+
 const { createApp } = require("../dist/app.js");
 const { AgentTraceStore } = require("../dist/agents/traceStore.js");
 const { creativeHubLangGraph } = require("../dist/creativeHub/CreativeHubLangGraph.js");
@@ -58,6 +84,34 @@ test("GET /api/llm/model-routes returns success payload", async () => {
     const payload = await response.json();
     assert.equal(payload.success, true);
     assert.ok(Array.isArray(payload.data.taskTypes));
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("PUT /api/llm/model-routes rejects openai-compatible provider with anthropic protocol", async () => {
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/llm/model-routes`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        taskType: "planner",
+        provider: "openai",
+        model: "gpt-5.4",
+        temperature: 0.7,
+        requestProtocol: "anthropic",
+        structuredResponseFormat: "prompt_json",
+      }),
+    });
+
+    assert.equal(response.status, 400);
+    const payload = await response.json();
+    assert.equal(payload.success, false);
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }

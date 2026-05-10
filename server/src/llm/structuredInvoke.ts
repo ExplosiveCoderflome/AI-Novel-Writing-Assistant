@@ -23,7 +23,7 @@ import {
   type StructuredOutputStrategy,
 } from "./structuredOutput";
 import { getStructuredFallbackSettings } from "./structuredFallbackSettings";
-import { runWithEnforcedTimeout } from "./invokeTimeout";
+import { normalizeEnforcedTimeoutMs, runWithEnforcedTimeout } from "./invokeTimeout";
 import {
   buildStructuredError,
   logStructuredInvokeEvent,
@@ -77,6 +77,11 @@ interface StructuredAttemptTarget {
   preferredStrategy: StructuredOutputStrategy | null;
 }
 
+interface OpenAICompatibleChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
 function buildInvokeMessages<T>(input: StructuredInvokeInput<T>): BaseMessage[] {
   if (Array.isArray(input.messages) && input.messages.length > 0) {
     return input.messages;
@@ -85,6 +90,46 @@ function buildInvokeMessages<T>(input: StructuredInvokeInput<T>): BaseMessage[] 
     return [new SystemMessage(input.systemPrompt), new HumanMessage(input.userPrompt)];
   }
   throw new Error(`[${input.label}] missing prompt messages.`);
+}
+
+function stringifyMessageContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content.map((part) => {
+      if (typeof part === "string") {
+        return part;
+      }
+      if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
+        return part.text;
+      }
+      return "";
+    }).join("\n");
+  }
+  return JSON.stringify(content ?? "");
+}
+
+function isTimeoutStructuredTransportError(error: StructuredOutputError): boolean {
+  return error.category === "transport_error"
+    && /timed out/i.test(error.message);
+}
+
+function toOpenAICompatibleChatMessages(messages: BaseMessage[]): OpenAICompatibleChatMessage[] {
+  return messages
+    .map((message) => {
+      const content = stringifyMessageContent(message.content).trim();
+      if (!content) {
+        return null;
+      }
+      const role = message instanceof SystemMessage || message.type === "system"
+        ? "system"
+        : message.type === "ai"
+          ? "assistant"
+          : "user";
+      return { role, content };
+    })
+    .filter((entry): entry is OpenAICompatibleChatMessage => Boolean(entry));
 }
 
 function buildStrategySequence<T>(
@@ -107,6 +152,159 @@ function computeAttemptTemperature(baseTemperature: number, strategyIndex: numbe
     return baseTemperature;
   }
   return Math.min(baseTemperature, 0.2);
+}
+
+function resolveStructuredAttemptTimeout(input: {
+  explicitTimeoutMs?: number;
+  resolvedTimeoutMs?: number;
+  strategy: StructuredOutputStrategy;
+  requestProtocol: ModelRouteRequestProtocol;
+}): number | undefined {
+  const explicitTimeoutMs = normalizeEnforcedTimeoutMs(input.explicitTimeoutMs);
+  if (typeof explicitTimeoutMs === "number") {
+    return explicitTimeoutMs;
+  }
+
+  const resolvedTimeoutMs = normalizeEnforcedTimeoutMs(input.resolvedTimeoutMs);
+  if (typeof resolvedTimeoutMs === "number") {
+    return resolvedTimeoutMs;
+  }
+
+  if (input.requestProtocol === "openai_compatible" && input.strategy === "prompt_json") {
+    return 45000;
+  }
+
+  return undefined;
+}
+
+function shouldUseDirectOpenAITransportFallback(input: {
+  strategy: StructuredOutputStrategy;
+  requestProtocol: ModelRouteRequestProtocol;
+  error: StructuredOutputError;
+}): boolean {
+  return input.strategy === "prompt_json"
+    && input.requestProtocol === "openai_compatible"
+    && input.error.category === "transport_error"
+    && !isTimeoutStructuredTransportError(input.error);
+}
+
+function shouldContinueAfterOpenAICompatibleTransportError(input: {
+  strategy: StructuredOutputStrategy;
+  requestProtocol: ModelRouteRequestProtocol;
+  error: StructuredOutputError;
+}): boolean {
+  return input.requestProtocol === "openai_compatible"
+    && input.error.category === "transport_error"
+    && !isTimeoutStructuredTransportError(input.error)
+    && input.strategy !== "prompt_json";
+}
+
+async function invokeStructuredPromptJsonViaDirectOpenAICompatible<T>(input: {
+  baseInput: StructuredInvokeInput<T>;
+  target: StructuredAttemptTarget;
+  resolved: ResolvedLLMClientOptions;
+  attemptTimeoutMs?: number;
+  fallbackAvailable: boolean;
+  fallbackUsed: boolean;
+}): Promise<StructuredInvokeResult<T>> {
+  const messages = buildInvokeMessages(input.baseInput);
+  const requestHeaders: Record<string, string> = {
+    "content-type": "application/json",
+    ...input.resolved.requestHeaders,
+  };
+  if (input.resolved.apiKey) {
+    requestHeaders.authorization = `Bearer ${input.resolved.apiKey}`;
+  }
+
+  const startedAt = Date.now();
+  try {
+    const response = await runWithEnforcedTimeout({
+      label: `${input.baseInput.label}.fallback`,
+      timeoutMs: input.attemptTimeoutMs,
+      signal: input.baseInput.signal,
+      run: (signal) => fetch(`${input.resolved.baseURL.replace(/\/+$/u, "")}/chat/completions`, {
+        method: "POST",
+        headers: requestHeaders,
+        body: JSON.stringify({
+          model: input.resolved.model,
+          temperature: input.resolved.temperature,
+          ...(typeof input.resolved.maxTokens === "number" ? { max_tokens: input.resolved.maxTokens } : {}),
+          messages: toOpenAICompatibleChatMessages(messages),
+        }),
+        signal,
+      }),
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      throw new Error(`[${input.baseInput.label}] direct transport fallback 请求失败 (${response.status}): ${detail || response.statusText}`);
+    }
+
+    const payload = await response.json() as {
+      choices?: Array<{
+        message?: {
+          content?: string | Array<{ text?: string; type?: string }>;
+        };
+      }>;
+    };
+    const rawContent = toText(payload.choices?.[0]?.message?.content).trim();
+    logStructuredInvokeEvent({
+      event: "invoke_done",
+      label: `${input.baseInput.label}.fallback`,
+      provider: input.resolved.provider,
+      model: input.resolved.model,
+      taskType: input.baseInput.taskType,
+      latencyMs: Date.now() - startedAt,
+      rawChars: rawContent.length,
+      strategy: "prompt_json",
+      fallbackUsed: input.fallbackUsed,
+      reasoningForcedOff: input.resolved.reasoningForcedOff,
+    });
+    return parseStructuredLlmRawContentDetailed({
+      rawContent,
+      schema: input.baseInput.schema,
+      provider: input.resolved.provider,
+      model: input.resolved.model,
+      apiKey: input.resolved.apiKey,
+      baseURL: input.resolved.baseURL,
+      temperature: input.resolved.temperature,
+      maxTokens: input.resolved.maxTokens,
+      timeoutMs: input.attemptTimeoutMs,
+      signal: input.baseInput.signal,
+      taskType: input.baseInput.taskType,
+      requestProtocol: input.resolved.requestProtocol,
+      label: `${input.baseInput.label}.fallback`,
+      maxRepairAttempts: input.baseInput.maxRepairAttempts,
+      promptMeta: input.baseInput.promptMeta,
+      strategy: "prompt_json",
+      profile: input.resolved.structuredProfile ?? input.target.profile,
+      fallbackAvailable: input.fallbackAvailable,
+      fallbackUsed: input.fallbackUsed,
+      reasoningForcedOff: input.resolved.reasoningForcedOff,
+    });
+  } catch (error) {
+    logStructuredInvokeEvent({
+      event: "invoke_error",
+      label: `${input.baseInput.label}.fallback`,
+      provider: input.resolved.provider,
+      model: input.resolved.model,
+      taskType: input.baseInput.taskType,
+      latencyMs: Date.now() - startedAt,
+      strategy: "prompt_json",
+      errorCategory: error instanceof StructuredOutputError ? error.category : classifyStructuredOutputFailure({ error }),
+      fallbackUsed: input.fallbackUsed,
+      reasoningForcedOff: input.resolved.reasoningForcedOff,
+    });
+    throw wrapStructuredInvokeError({
+      label: `${input.baseInput.label}.fallback`,
+      error,
+      strategy: "prompt_json",
+      profile: input.resolved.structuredProfile ?? input.target.profile,
+      reasoningForcedOff: input.resolved.reasoningForcedOff,
+      fallbackAvailable: input.fallbackAvailable,
+      fallbackUsed: input.fallbackUsed,
+    });
+  }
 }
 
 async function resolveAttemptTarget(input: {
@@ -191,6 +389,12 @@ async function invokeStructuredAttempt<T>(input: {
     requestProtocol: input.target.requestProtocol,
   });
   const llm = createLLMFromResolvedOptions(resolved);
+  const attemptTimeoutMs = resolveStructuredAttemptTimeout({
+    explicitTimeoutMs: input.baseInput.timeoutMs,
+    resolvedTimeoutMs: resolved.timeoutMs,
+    strategy: input.strategy,
+    requestProtocol: resolved.requestProtocol,
+  });
   const invokeOptions: Record<string, unknown> = {};
   const responseFormat = buildStructuredResponseFormat({
     strategy: input.strategy,
@@ -219,7 +423,7 @@ async function invokeStructuredAttempt<T>(input: {
   try {
     const result = await runWithEnforcedTimeout({
       label: input.baseInput.label,
-      timeoutMs: input.baseInput.timeoutMs,
+      timeoutMs: attemptTimeoutMs,
       signal: input.baseInput.signal,
       run: (signal) => llm.invoke(
         messages,
@@ -248,7 +452,7 @@ async function invokeStructuredAttempt<T>(input: {
       baseURL: resolved.baseURL,
       temperature: resolved.temperature,
       maxTokens: resolved.maxTokens,
-      timeoutMs: input.baseInput.timeoutMs,
+      timeoutMs: attemptTimeoutMs,
       signal: input.baseInput.signal,
       taskType: input.baseInput.taskType,
       requestProtocol: resolved.requestProtocol,
@@ -323,6 +527,48 @@ async function tryStructuredStrategies<T>(input: {
         fallbackAvailable: input.fallbackAvailable,
         fallbackUsed: input.fallbackUsed,
       });
+      if (shouldUseDirectOpenAITransportFallback({
+        strategy,
+        requestProtocol: input.target.requestProtocol,
+        error: lastError,
+      })) {
+        const resolved = await resolveLLMClientOptions(input.target.provider, {
+          fallbackProvider: "deepseek",
+          apiKey: input.target.apiKey,
+          baseURL: input.target.baseURL,
+          model: input.target.model,
+          temperature: computeAttemptTemperature(input.target.temperature, index),
+          maxTokens: input.target.maxTokens,
+          timeoutMs: input.baseInput.timeoutMs,
+          taskType: input.baseInput.taskType ?? "planner",
+          requestHeadersText: input.target.requestHeadersText,
+          promptMeta: input.baseInput.promptMeta,
+          executionMode: "structured",
+          structuredStrategy: "prompt_json",
+          requestProtocol: input.target.requestProtocol,
+        });
+        const attemptTimeoutMs = resolveStructuredAttemptTimeout({
+          explicitTimeoutMs: input.baseInput.timeoutMs,
+          resolvedTimeoutMs: resolved.timeoutMs,
+          strategy: "prompt_json",
+          requestProtocol: resolved.requestProtocol,
+        });
+        return await invokeStructuredPromptJsonViaDirectOpenAICompatible({
+          baseInput: input.baseInput,
+          target: input.target,
+          resolved,
+          attemptTimeoutMs,
+          fallbackAvailable: input.fallbackAvailable,
+          fallbackUsed: input.fallbackUsed,
+        });
+      }
+      if (shouldContinueAfterOpenAICompatibleTransportError({
+        strategy,
+        requestProtocol: input.target.requestProtocol,
+        error: lastError,
+      })) {
+        continue;
+      }
       if (lastError.category === "transport_error") {
         break;
       }

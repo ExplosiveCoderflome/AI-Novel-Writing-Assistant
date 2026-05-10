@@ -1,5 +1,21 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+
+const prismaModulePath = require.resolve("../dist/db/prisma.js");
+require.cache[prismaModulePath] = {
+  id: prismaModulePath,
+  filename: prismaModulePath,
+  loaded: true,
+  exports: {
+    prisma: {
+      modelRouteConfig: {
+        findUnique: async () => null,
+        upsert: async () => null,
+      },
+    },
+  },
+};
+
 const { prisma } = require("../dist/db/prisma.js");
 const { resolveModel } = require("../dist/llm/modelRouter.js");
 
@@ -116,12 +132,12 @@ test("resolveModel normalizes invalid protocol and structured response preferenc
   }
 });
 
-test("resolveModel constrains Anthropic protocol routes to prompt JSON", async () => {
+test("resolveModel constrains true Anthropic provider routes to prompt JSON", async () => {
   const originalFindUnique = prisma.modelRouteConfig.findUnique;
 
   prisma.modelRouteConfig.findUnique = async () => ({
     taskType: "planner",
-    provider: "openai",
+    provider: "anthropic",
     model: "claude-sonnet-4-5",
     temperature: 0.3,
     maxTokens: null,
@@ -200,6 +216,50 @@ test("resolveModel returns requestHeadersText and allows user override", async (
 
     const overrideReplaces = await resolveModel("planner", { requestHeadersText: "X-Test: 2" });
     assert.equal(overrideReplaces.requestHeadersText, "X-Test: 2");
+  } finally {
+    prisma.modelRouteConfig.findUnique = originalFindUnique;
+  }
+});
+
+test("resolveModel normalizes openai-compatible providers away from anthropic protocol", async () => {
+  const originalFindUnique = prisma.modelRouteConfig.findUnique;
+
+  prisma.modelRouteConfig.findUnique = async () => ({
+    taskType: "planner",
+    provider: "openai",
+    model: "gpt-5.4",
+    temperature: 0.7,
+    maxTokens: null,
+    requestProtocol: "anthropic",
+    structuredResponseFormat: "prompt_json",
+  });
+
+  try {
+    const resolved = await resolveModel("planner");
+    assert.equal(resolved.provider, "openai");
+    assert.equal(resolved.requestProtocol, "openai_compatible");
+  } finally {
+    prisma.modelRouteConfig.findUnique = originalFindUnique;
+  }
+});
+
+test("resolveModel normalizes custom openai-compatible providers away from anthropic protocol", async () => {
+  const originalFindUnique = prisma.modelRouteConfig.findUnique;
+
+  prisma.modelRouteConfig.findUnique = async () => ({
+    taskType: "planner",
+    provider: "custom-openai-like",
+    model: "gpt-5.4",
+    temperature: 0.7,
+    maxTokens: null,
+    requestProtocol: "anthropic",
+    structuredResponseFormat: "prompt_json",
+  });
+
+  try {
+    const resolved = await resolveModel("planner");
+    assert.equal(resolved.provider, "custom-openai-like");
+    assert.equal(resolved.requestProtocol, "openai_compatible");
   } finally {
     prisma.modelRouteConfig.findUnique = originalFindUnique;
   }

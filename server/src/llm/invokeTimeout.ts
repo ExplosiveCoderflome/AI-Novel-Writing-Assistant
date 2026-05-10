@@ -8,6 +8,13 @@ function createTimeoutError(timeoutMs: number, label?: string): Error {
   return error;
 }
 
+export function normalizeEnforcedTimeoutMs(value: number | undefined): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return undefined;
+  }
+  return Math.floor(value);
+}
+
 function createAbortError(reason?: unknown): Error {
   if (reason instanceof Error) {
     return reason;
@@ -26,9 +33,7 @@ export async function runWithEnforcedTimeout<T>(input: {
   signal?: AbortSignal;
   run: (signal?: AbortSignal) => Promise<T>;
 }): Promise<T> {
-  const timeoutMs = typeof input.timeoutMs === "number" && Number.isFinite(input.timeoutMs) && input.timeoutMs > 0
-    ? Math.floor(input.timeoutMs)
-    : null;
+  const timeoutMs = normalizeEnforcedTimeoutMs(input.timeoutMs) ?? null;
 
   if (!timeoutMs && !input.signal) {
     return input.run(undefined);

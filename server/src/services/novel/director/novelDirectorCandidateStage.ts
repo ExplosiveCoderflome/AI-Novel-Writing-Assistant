@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { AIMessage, SystemMessage, type BaseMessage } from "@langchain/core/messages";
 import {
   DIRECTOR_CANDIDATE_SETUP_STEPS,
   type DirectorCandidate,
@@ -15,7 +16,14 @@ import {
   type DirectorRefinementRequest,
 } from "@ai-novel/shared/types/novelDirector";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
-import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import { resolveLLMClientOptions } from "../../../llm/factory";
+import { parseStructuredLlmRawContentDetailed } from "../../../llm/structuredInvoke";
+import { extractStructuredOutputErrorCategory, resolveStructuredOutputProfile } from "../../../llm/structuredOutput";
+import {
+  preparePromptExecution,
+  runStructuredPrompt,
+} from "../../../prompting/core/promptRunner";
+import type { PromptAsset, PromptExecutionOptions, PromptRenderContext } from "../../../prompting/core/promptTypes";
 import {
   buildDirectorCandidateContextBlocks,
   directorCandidatePatchPrompt,
@@ -37,6 +45,149 @@ type WorkflowDependency = Pick<NovelWorkflowService, "bootstrapTask" | "markTask
 
 function clampTemperature(value: number | undefined, ceiling: number): number {
   return Math.min(value ?? ceiling, ceiling);
+}
+
+function stringifyMessageContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content.map((part) => {
+      if (typeof part === "string") {
+        return part;
+      }
+      if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
+        return part.text;
+      }
+      return "";
+    }).join("\n");
+  }
+  return "";
+}
+
+function toOpenAIChatMessages(messages: BaseMessage[]): Array<{ role: "system" | "user" | "assistant"; content: string }> {
+  return messages
+    .map((message) => {
+      const content = stringifyMessageContent(message.content).trim();
+      if (!content) {
+        return null;
+      }
+      const role = message instanceof SystemMessage || message.type === "system"
+        ? "system"
+        : message instanceof AIMessage || message.type === "ai"
+          ? "assistant"
+          : "user";
+      return { role, content };
+    })
+    .filter((entry): entry is { role: "system" | "user" | "assistant"; content: string } => Boolean(entry));
+}
+
+async function runStructuredPromptWithTransportFallback<I, O, R = O>(input: {
+  asset: PromptAsset<I, O, R>;
+  promptInput: I;
+  contextBlocks?: ReturnType<typeof buildDirectorCandidateContextBlocks>;
+  options?: PromptExecutionOptions;
+}): Promise<{
+  output: O;
+  meta: {
+    provider?: PromptExecutionOptions["provider"];
+    model?: string;
+    latencyMs: number;
+    invocation: ReturnType<typeof preparePromptExecution<I, O, R>>["invocation"];
+  };
+  context: PromptRenderContext;
+}> {
+  try {
+    return await runStructuredPrompt(input);
+  } catch (error) {
+    const category = extractStructuredOutputErrorCategory(error instanceof Error ? error.message : String(error));
+    if (category !== "transport_error") {
+      throw error;
+    }
+  }
+
+  const prepared = preparePromptExecution(input);
+  const repairAttempts = input.asset.repairPolicy?.maxAttempts ?? 1;
+
+  const resolved = await resolveLLMClientOptions(input.options?.provider, {
+    model: input.options?.model,
+    temperature: input.options?.temperature,
+    maxTokens: input.options?.maxTokens,
+    timeoutMs: input.options?.timeoutMs,
+    taskType: input.asset.taskType,
+    promptMeta: prepared.invocation,
+    executionMode: "plain",
+    structuredStrategy: "prompt_json",
+    requestProtocol: "openai_compatible",
+  });
+  const response = await fetch(`${resolved.baseURL.replace(/\/+$/u, "")}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(resolved.apiKey ? { authorization: `Bearer ${resolved.apiKey}` } : {}),
+      ...resolved.requestHeaders,
+    },
+    body: JSON.stringify({
+      model: resolved.model,
+      temperature: resolved.temperature,
+      ...(typeof resolved.maxTokens === "number" ? { max_tokens: resolved.maxTokens } : {}),
+      messages: toOpenAIChatMessages(prepared.messages),
+    }),
+    signal: input.options?.signal,
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`${input.asset.id} fallback 请求失败 (${response.status}): ${detail || response.statusText}`);
+  }
+  const payload = await response.json() as {
+    choices?: Array<{
+      message?: {
+        content?: string | Array<{ text?: string; type?: string }>;
+      };
+    }>;
+  };
+  const rawContent = typeof payload.choices?.[0]?.message?.content === "string"
+    ? payload.choices[0].message.content
+    : Array.isArray(payload.choices?.[0]?.message?.content)
+      ? payload.choices?.[0]?.message?.content
+        ?.map((part) => (typeof part?.text === "string" ? part.text : ""))
+        .join("\n") ?? ""
+      : "";
+  const parsed = await parseStructuredLlmRawContentDetailed({
+    rawContent,
+    schema: input.asset.outputSchema!,
+    provider: resolved.provider,
+    model: resolved.model,
+    apiKey: resolved.apiKey,
+    baseURL: resolved.baseURL,
+    temperature: resolved.temperature,
+    maxTokens: resolved.maxTokens,
+    taskType: input.asset.taskType,
+    label: `${input.asset.id}@${input.asset.version}.fallback`,
+    promptMeta: prepared.invocation,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: resolved.provider,
+      model: resolved.model,
+      baseURL: resolved.baseURL,
+      requestProtocol: resolved.requestProtocol,
+      executionMode: "structured",
+    }),
+    maxRepairAttempts: repairAttempts,
+  });
+  const output = input.asset.postValidate
+    ? input.asset.postValidate(parsed.data, input.promptInput, prepared.context)
+    : parsed.data as unknown as O;
+  return {
+    output,
+    meta: {
+      provider: input.options?.provider,
+      model: input.options?.model,
+      latencyMs: 0,
+      invocation: prepared.invocation,
+    },
+    context: prepared.context,
+  };
 }
 
 function buildFallbackTitleOption(candidate: DirectorCandidate): TitleFactorySuggestion {
@@ -166,7 +317,7 @@ export class NovelDirectorCandidateStageService {
       DIRECTOR_PROGRESS.candidateDirectionBatch,
     );
 
-    const parsed = await runStructuredPrompt({
+    const parsed = await runStructuredPromptWithTransportFallback({
       asset: directorCandidatePrompt,
       promptInput: {
         idea: context.idea,
@@ -394,7 +545,7 @@ export class NovelDirectorCandidateStageService {
       DIRECTOR_PROGRESS.candidateDirectionBatch,
     );
 
-    const parsed = await runStructuredPrompt({
+    const parsed = await runStructuredPromptWithTransportFallback({
       asset: directorCandidatePatchPrompt,
       promptInput: {
         idea: input.idea,

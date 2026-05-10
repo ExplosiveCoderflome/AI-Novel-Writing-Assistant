@@ -110,6 +110,9 @@ export const directorCandidatePrompt: PromptAsset<
     dropOrder: ["latest_batch"],
   },
   outputSchema: directorCandidateResponseSchema,
+  structuredOutputHint: {
+    mode: "off",
+  },
   render: (input, context) => [
     new SystemMessage([
       "你是长篇小说书级方向规划导演，服务对象是不懂写作流程的新手用户。",
@@ -197,6 +200,9 @@ export const directorCandidatePatchPrompt: PromptAsset<
     dropOrder: ["latest_batch"],
   },
   outputSchema: directorCandidateSchema,
+  structuredOutputHint: {
+    mode: "off",
+  },
   render: (input, context) => [
     new SystemMessage([
       "你是长篇小说书级方向修正导演，服务对象是不懂写作流程的新手用户。",
@@ -351,7 +357,7 @@ export const directorBookContractPrompt: PromptAsset<
   },
   outputSchema: directorBookContractSchema,
   structuredOutputHint: {
-    mode: "auto",
+    mode: "off",
     note: "absoluteRedLines 必须输出 2 到 6 条，超过 6 条时先合并相近禁区再输出。",
     example: {
       readingPromise: "示例：持续提供哪一种追读满足感。",
