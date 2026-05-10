@@ -143,12 +143,12 @@ interface NovelCharacterPanelProps {
   isSyncingAllTimeline: boolean;
   onEvolveCharacter: () => void;
   isEvolvingCharacter: boolean;
-  onGenerateVisibleProfile: () => void;
+  onGenerateVisibleProfile: (userGuidance?: string) => void;
   isGeneratingVisibleProfile: boolean;
   visibleProfileSuggestion?: CharacterVisibleProfileSuggestion | null;
   onApplyVisibleProfile: () => void;
   isApplyingVisibleProfile: boolean;
-  onGenerateBatchVisibleProfiles: () => void;
+  onGenerateBatchVisibleProfiles: (userGuidance?: string) => void;
   isGeneratingBatchVisibleProfiles: boolean;
   batchVisibleProfileResult?: CharacterVisibleProfileBatchResult | null;
   onApplyBatchVisibleProfiles: () => void;
@@ -379,7 +379,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
             </AiButton>
             <AiButton
               variant="outline"
-              onClick={onGenerateVisibleProfile}
+              onClick={() => onGenerateVisibleProfile()}
               disabled={isGeneratingVisibleProfile || !selectedCharacterId}
             >
               {isGeneratingVisibleProfile ? "生成中..." : "AI 补全外显资料"}

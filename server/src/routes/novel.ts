@@ -636,7 +636,6 @@ registerNovelCharacterVisibleProfileRoutes({
   novelService,
   idParamsSchema,
   characterParamsSchema,
-  llmGenerateSchema,
 });
 
 registerNovelStorylineRoutes({

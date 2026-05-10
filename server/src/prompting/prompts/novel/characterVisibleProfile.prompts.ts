@@ -20,6 +20,7 @@ export interface CharacterVisibleProfilePromptInput {
   existingCharacterProfile: string;
   existingVisibleProfile: string;
   relationText: string;
+  userGuidance: string;
 }
 
 export const characterVisibleProfileCompletionPrompt: PromptAsset<
@@ -61,6 +62,7 @@ export const characterVisibleProfileCompletionPrompt: PromptAsset<
       "4. 不得覆盖输入中已有的明确设定；如果已有内容清楚，应在同一方向上补得更可写，不要推翻。",
       "5. 外显资料必须服务题材、角色功能位、关系张力和书级承诺，不能只做静态人设图鉴。",
       "6. 不要把性格分析、剧情总结、成长弧分析写进外显字段。",
+      "7. 如果作者给了补全倾向，优先吸收为外显方向；但不能违背已给定的题材、身份、世界规则和明确角色资料。",
       "",
       "质量要求：",
       "1. appearance 要包含可视化记忆点，例如眉眼、肤色、发型、表情习惯中的具体组合。",
@@ -102,6 +104,9 @@ export const characterVisibleProfileCompletionPrompt: PromptAsset<
       "",
       "角色关系：",
       input.relationText || "暂无",
+      "",
+      "作者补全倾向：",
+      input.userGuidance || "暂无",
     ].join("\n")),
   ],
 };

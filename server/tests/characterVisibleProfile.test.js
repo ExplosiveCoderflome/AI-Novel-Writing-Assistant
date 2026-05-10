@@ -8,6 +8,9 @@ const {
 const {
   buildCharactersContextText,
 } = require("../dist/services/novel/runtime/runtimeContextBlocks");
+const {
+  characterVisibleProfileCompletionPrompt,
+} = require("../dist/prompting/prompts/novel/characterVisibleProfile.prompts");
 
 test("visible profile field selection preserves existing clear profile", () => {
   const result = pickApplicableVisibleProfileFields({
@@ -49,4 +52,28 @@ test("chapter character context includes compact visible profile summary", () =>
   assert.match(text, /样貌\/体态=/);
   assert.match(text, /标志=/);
   assert.match(text, /声音=/);
+});
+
+test("visible profile prompt carries author guidance into the request", () => {
+  const messages = characterVisibleProfileCompletionPrompt.render({
+    novelTitle: "测试小说",
+    genreName: "都市",
+    projectMode: "co_pilot",
+    storyModeBlock: "",
+    bookContractText: "",
+    bibleText: "",
+    storyMacroText: "",
+    characterName: "陈夏",
+    characterRole: "首席受益者",
+    characterFunction: "核心成员",
+    relationToProtagonist: "同伴",
+    existingCharacterProfile: "谨慎、负责",
+    existingVisibleProfile: "",
+    relationText: "",
+    userGuidance: "不要写成传统美人，要更有医疗队里的疲惫感。",
+  });
+  const rendered = messages.map((message) => String(message.content)).join("\n");
+
+  assert.match(rendered, /作者补全倾向/);
+  assert.match(rendered, /医疗队里的疲惫感/);
 });

@@ -152,11 +152,12 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
   });
 
   const generateVisibleProfileMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (userGuidance?: string) =>
       generateCharacterVisibleProfile(id, selectedCharacterId, {
         provider: llm.provider,
         model: llm.model,
         temperature: 0.45,
+        userGuidance: userGuidance?.trim() || undefined,
       }),
     onSuccess: (response) => {
       const count = Object.keys(response.data?.fields ?? {}).length;
@@ -183,11 +184,12 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
   });
 
   const generateBatchVisibleProfilesMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (userGuidance?: string) =>
       generateBatchCharacterVisibleProfiles(id, {
         provider: llm.provider,
         model: llm.model,
         temperature: 0.45,
+        userGuidance: userGuidance?.trim() || undefined,
       }),
     onSuccess: (response) => {
       const count = response.data?.results.filter((item) => item.hasApplicableChanges).length ?? 0;

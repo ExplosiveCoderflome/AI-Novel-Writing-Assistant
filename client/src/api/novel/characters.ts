@@ -326,6 +326,7 @@ export async function generateCharacterVisibleProfile(
     provider?: LLMProvider;
     model?: string;
     temperature?: number;
+    userGuidance?: string;
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<CharacterVisibleProfileSuggestion>>(
@@ -353,6 +354,7 @@ export async function generateBatchCharacterVisibleProfiles(
     provider?: LLMProvider;
     model?: string;
     temperature?: number;
+    userGuidance?: string;
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<CharacterVisibleProfileBatchResult>>(

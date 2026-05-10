@@ -29,12 +29,18 @@ const visibleProfileBatchApplySchema = z.object({
   })).min(1).max(80),
 });
 
+const visibleProfileGenerateSchema = z.object({
+  provider: z.string().trim().optional(),
+  model: z.string().trim().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  userGuidance: z.string().trim().max(1200).optional(),
+});
+
 interface RegisterNovelCharacterVisibleProfileRoutesInput {
   router: Router;
   novelService: NovelService;
   idParamsSchema: z.ZodType<{ id: string }>;
   characterParamsSchema: z.ZodType<{ id: string; charId: string }>;
-  llmGenerateSchema: z.ZodTypeAny;
 }
 
 export function registerNovelCharacterVisibleProfileRoutes(
@@ -45,12 +51,11 @@ export function registerNovelCharacterVisibleProfileRoutes(
     novelService,
     idParamsSchema,
     characterParamsSchema,
-    llmGenerateSchema,
   } = input;
 
   router.post(
     "/:id/characters/:charId/visible-profile/generate",
-    validate({ params: characterParamsSchema, body: llmGenerateSchema }),
+    validate({ params: characterParamsSchema, body: visibleProfileGenerateSchema }),
     async (req, res, next) => {
       try {
         const { id, charId } = req.params as z.infer<typeof characterParamsSchema>;
@@ -87,7 +92,7 @@ export function registerNovelCharacterVisibleProfileRoutes(
 
   router.post(
     "/:id/characters/visible-profile/batch-generate",
-    validate({ params: idParamsSchema, body: llmGenerateSchema }),
+    validate({ params: idParamsSchema, body: visibleProfileGenerateSchema }),
     async (req, res, next) => {
       try {
         const { id } = req.params as z.infer<typeof idParamsSchema>;

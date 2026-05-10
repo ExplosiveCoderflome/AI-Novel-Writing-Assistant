@@ -476,12 +476,12 @@ export interface CharacterTabViewProps {
   isSyncingAllTimeline: boolean;
   onEvolveCharacter: () => void;
   isEvolvingCharacter: boolean;
-  onGenerateVisibleProfile: () => void;
+  onGenerateVisibleProfile: (userGuidance?: string) => void;
   isGeneratingVisibleProfile: boolean;
   visibleProfileSuggestion?: CharacterVisibleProfileSuggestion | null;
   onApplyVisibleProfile: () => void;
   isApplyingVisibleProfile: boolean;
-  onGenerateBatchVisibleProfiles: () => void;
+  onGenerateBatchVisibleProfiles: (userGuidance?: string) => void;
   isGeneratingBatchVisibleProfiles: boolean;
   batchVisibleProfileResult?: CharacterVisibleProfileBatchResult | null;
   onApplyBatchVisibleProfiles: () => void;

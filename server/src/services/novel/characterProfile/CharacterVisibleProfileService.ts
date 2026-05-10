@@ -12,6 +12,10 @@ import { characterVisibleProfileCompletionPrompt } from "../../../prompting/prom
 import { normalizeStoryModeOutput, buildStoryModePromptBlock } from "../../storyMode/storyModeProfile";
 import type { LLMGenerateOptions } from "../novelCoreShared";
 
+export interface CharacterVisibleProfileGenerateOptions extends LLMGenerateOptions {
+  userGuidance?: string;
+}
+
 export const VISIBLE_PROFILE_FIELDS: CharacterVisibleProfileField[] = [
   "appearance",
   "physique",
@@ -164,7 +168,7 @@ export class CharacterVisibleProfileService {
   async generateCharacterVisibleProfile(
     novelId: string,
     characterId: string,
-    options: LLMGenerateOptions = {},
+    options: CharacterVisibleProfileGenerateOptions = {},
   ): Promise<CharacterVisibleProfileSuggestion> {
     const [novel, character, relations] = await Promise.all([
       prisma.novel.findUnique({
@@ -241,6 +245,7 @@ export class CharacterVisibleProfileService {
         existingCharacterProfile: buildCharacterProfileText(character),
         existingVisibleProfile: buildExistingVisibleProfileText(character),
         relationText,
+        userGuidance: compactText(options.userGuidance, 800),
       },
       options: {
         provider: options.provider,
@@ -289,7 +294,7 @@ export class CharacterVisibleProfileService {
 
   async generateBatchVisibleProfiles(
     novelId: string,
-    options: LLMGenerateOptions = {},
+    options: CharacterVisibleProfileGenerateOptions = {},
   ): Promise<CharacterVisibleProfileBatchResult> {
     const characters = await prisma.character.findMany({
       where: { novelId },
@@ -377,7 +382,7 @@ export class CharacterVisibleProfileService {
   async autoCompleteVisibleProfilesForCharacters(
     novelId: string,
     characterIds: string[],
-    options: LLMGenerateOptions = {},
+    options: CharacterVisibleProfileGenerateOptions = {},
   ): Promise<CharacterVisibleProfileBatchResult> {
     const uniqueIds = Array.from(new Set(characterIds.filter(Boolean)));
     const results: CharacterVisibleProfileSuggestion[] = [];

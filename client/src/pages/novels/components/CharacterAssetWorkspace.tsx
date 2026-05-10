@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type {
   Character,
   CharacterCastRole,
@@ -52,12 +52,12 @@ interface CharacterAssetWorkspaceProps {
   isSyncingAllTimeline: boolean;
   onWorldCheck: () => void;
   isCheckingWorld: boolean;
-  onGenerateVisibleProfile: () => void;
+  onGenerateVisibleProfile: (userGuidance?: string) => void;
   isGeneratingVisibleProfile: boolean;
   visibleProfileSuggestion?: CharacterVisibleProfileSuggestion | null;
   onApplyVisibleProfile: () => void;
   isApplyingVisibleProfile: boolean;
-  onGenerateBatchVisibleProfiles: () => void;
+  onGenerateBatchVisibleProfiles: (userGuidance?: string) => void;
   isGeneratingBatchVisibleProfiles: boolean;
   batchVisibleProfileResult?: CharacterVisibleProfileBatchResult | null;
   onApplyBatchVisibleProfiles: () => void;
@@ -232,6 +232,7 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
     onBackfillCharacterResources,
     isBackfillingCharacterResources = false,
   } = props;
+  const [visibleProfileGuidance, setVisibleProfileGuidance] = useState("");
 
   const lastAppearanceChapter = useMemo(
     () => getLastAppearanceChapter(timelineEvents),
@@ -383,7 +384,7 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                   <AiButton
                     size="sm"
                     variant="outline"
-                    onClick={onGenerateVisibleProfile}
+                    onClick={() => onGenerateVisibleProfile(visibleProfileGuidance)}
                     disabled={isGeneratingVisibleProfile || !selectedCharacterId}
                   >
                     {isGeneratingVisibleProfile ? "生成中..." : "AI 补全外显资料"}
@@ -391,11 +392,22 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                   <AiButton
                     size="sm"
                     variant="outline"
-                    onClick={onGenerateBatchVisibleProfiles}
+                    onClick={() => onGenerateBatchVisibleProfiles(visibleProfileGuidance)}
                     disabled={isGeneratingBatchVisibleProfiles || characters.length === 0}
                   >
                     {isGeneratingBatchVisibleProfiles ? "生成中..." : "批量补全角色外显资料"}
                   </AiButton>
+                </div>
+              </div>
+              <div className="mt-3">
+                <textarea
+                  className="min-h-[72px] w-full rounded-md border bg-background p-2 text-sm"
+                  placeholder="补全倾向（可选）：例如更有压迫感、带一点病弱感、声音更温和、不要写成传统美人"
+                  value={visibleProfileGuidance}
+                  onChange={(event) => setVisibleProfileGuidance(event.target.value)}
+                />
+                <div className="mt-1 text-xs text-muted-foreground">
+                  留空时按小说设定自动补齐；填写后，AI 会优先按你的倾向生成可写入建议。
                 </div>
               </div>
               {isGeneratingVisibleProfile ? (
