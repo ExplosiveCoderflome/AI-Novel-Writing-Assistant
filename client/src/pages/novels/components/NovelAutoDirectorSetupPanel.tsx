@@ -72,6 +72,7 @@ interface NovelAutoDirectorSetupPanelProps {
   isGenerating: boolean;
   batchCount: number;
   onGenerate: () => void;
+  onReviewCandidates?: () => void;
 }
 
 export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetupPanelProps) {
@@ -102,6 +103,7 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
     isGenerating,
     batchCount,
     onGenerate,
+    onReviewCandidates,
   } = props;
 
   const hasEditableBasicForm = typeof onBasicFormChange === "function";
@@ -323,6 +325,16 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
           </section>
 
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.actionRow}>
+            {batchCount > 0 && onReviewCandidates ? (
+              <Button
+                type="button"
+                variant="outline"
+                className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
+                onClick={onReviewCandidates}
+              >
+                查看已生成方案
+              </Button>
+            ) : null}
             <Button type="button" className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onGenerate} disabled={!canGenerate}>
               {isGenerating
                 ? "生成中..."

@@ -17,11 +17,6 @@ import {
 import { bootstrapNovelWorkflow, continueNovelWorkflow } from "@/api/novelWorkflow";
 import {
   confirmDirectorCandidate,
-  generateDirectorCandidates,
-  getDirectorCommandResult,
-  patchDirectorCandidate,
-  refineDirectorCandidateTitles,
-  refineDirectorCandidates,
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
 import { getStyleProfiles } from "@/api/styleEngine";
@@ -50,6 +45,7 @@ import {
   RUN_MODE_OPTIONS,
 } from "./NovelAutoDirectorDialog.shared";
 import NovelAutoDirectorCandidateSelectionContent from "./NovelAutoDirectorCandidateSelectionContent";
+import NovelAutoDirectorCandidateDialog from "./NovelAutoDirectorCandidateDialog";
 import {
   NovelAutoDirectorDialogDescription,
   NovelAutoDirectorDialogTitle,
@@ -66,6 +62,7 @@ import {
   toggleDirectorCorrectionPreset,
 } from "./directorCandidateSelectionHandlers";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
+import { useNovelAutoDirectorCandidateMutations } from "./useNovelAutoDirectorCandidateMutations";
 
 interface NovelAutoDirectorDialogProps {
   basicForm: NovelBasicFormState;
@@ -108,6 +105,7 @@ export default function NovelAutoDirectorDialog({
   const [batches, setBatches] = useState<DirectorCandidateBatch[]>([]);
   const [workflowTaskId, setWorkflowTaskId] = useState(workflowTaskIdProp ?? "");
   const [dialogMode, setDialogMode] = useState<DirectorDialogMode>("candidate_selection");
+  const [candidateDialogOpen, setCandidateDialogOpen] = useState(false);
   const [executionRequested, setExecutionRequested] = useState(false);
   const [pendingTitleHint, setPendingTitleHint] = useState("");
   const [executionError, setExecutionError] = useState("");
@@ -320,174 +318,38 @@ export default function NovelAutoDirectorDialog({
     }
   };
 
-  const waitForCandidateCommandResult = async <T extends { batch: DirectorCandidateBatch; workflowTaskId?: string }>(
-    commandId: string,
-  ): Promise<T> => {
-    for (let attempt = 0; attempt < 90; attempt += 1) {
-      const response = await getDirectorCommandResult<T>(commandId);
-      const result = response.data?.result;
-      if (result?.batch) {
-        return result;
-      }
-      const status = response.data?.status;
-      if (status === "failed" || status === "cancelled" || status === "stale") {
-        throw new Error(response.data?.errorMessage || "Director candidate command failed.");
-      }
-      await new Promise((resolve) => window.setTimeout(resolve, 2000));
-    }
-    throw new Error("Director candidate command timed out. Check Task Center for progress.");
-  };
+  const buildCandidateRequestPayload = (currentWorkflowTaskId: string) => buildAutoDirectorRequestPayload(
+    directorBasicForm,
+    idea,
+    llm,
+    runMode,
+    currentWorkflowTaskId,
+    { styleProfileId: selectedStyleProfileId },
+  );
 
-  const generateMutation = useMutation({
-    onMutate: () => {
-      setDialogMode("execution_progress");
-      setExecutionError("");
-    },
-    mutationFn: async () => {
-      const currentWorkflowTaskId = await ensureWorkflowTask();
-      const payload = buildAutoDirectorRequestPayload(
-        directorBasicForm,
-        idea,
-        llm,
-        runMode,
-        currentWorkflowTaskId,
-        { styleProfileId: selectedStyleProfileId },
-      );
-      const response = batches.length === 0
-        ? await generateDirectorCandidates(payload)
-        : await refineDirectorCandidates({
-          ...payload,
-          previousBatches: batches,
-          presets: selectedPresets,
-          feedback: feedback.trim() || undefined,
-        });
-      const command = response.data;
-      if (!command?.commandId) {
-        throw new Error("Director candidate command was not accepted.");
-      }
-      if (command.taskId && command.taskId !== currentWorkflowTaskId) {
-        setWorkflowTaskId(command.taskId);
-        onWorkflowTaskChange?.(command.taskId);
-      }
-      const result = await waitForCandidateCommandResult<{ batch: DirectorCandidateBatch; workflowTaskId?: string }>(
-        command.commandId,
-      );
-      return {
-        batch: result.batch ?? null,
-        workflowTaskId: result.workflowTaskId ?? command.taskId ?? currentWorkflowTaskId,
-      };
-    },
-    onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId }) => {
-      if (!batch) {
-        toast.error("自动导演没有返回可用方案。");
-        return;
-      }
-      if (nextWorkflowTaskId && nextWorkflowTaskId !== workflowTaskId) {
-        setWorkflowTaskId(nextWorkflowTaskId);
-        onWorkflowTaskChange?.(nextWorkflowTaskId);
-      }
-      setBatches((prev) => mergeDirectorCandidateBatches(prev, [batch]));
-      setFeedback("");
-      setSelectedPresets([]);
-      setDialogMode("candidate_selection");
-      setExecutionRequested(false);
-      setExecutionError("");
-      toast.success(`${batch.roundLabel} 已生成 ${batch.candidates.length} 套方案。`);
-    },
-    onError: (error) => {
-      setDialogMode("execution_failed");
-      setExecutionError(error instanceof Error ? error.message : "导演候选方案生成失败。");
-    },
-  });
-
-  const patchCandidateMutation = useMutation({
-    onMutate: () => {
-      setDialogMode("execution_progress");
-      setExecutionError("");
-    },
-    mutationFn: async (payload: { batchId: string; candidate: DirectorCandidate; feedback: string }) => {
-      const currentWorkflowTaskId = await ensureWorkflowTask();
-      const response = await patchDirectorCandidate({
-        ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId, {
-          styleProfileId: selectedStyleProfileId,
-        }),
-        previousBatches: batches,
-        batchId: payload.batchId,
-        candidateId: payload.candidate.id,
-        feedback: payload.feedback.trim(),
-      });
-      const command = response.data;
-      if (!command?.commandId) {
-        throw new Error("Director candidate patch command was not accepted.");
-      }
-      const result = await waitForCandidateCommandResult<{ batch: DirectorCandidateBatch; candidate: DirectorCandidate; workflowTaskId?: string }>(
-        command.commandId,
-      );
-      return {
-        batch: result.batch ?? null,
-        workflowTaskId: result.workflowTaskId ?? command.taskId ?? currentWorkflowTaskId,
-        candidateId: payload.candidate.id,
-      };
-    },
-    onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId, candidateId }) => {
-      if (!batch) {
-        toast.error("定向修正失败，未返回更新后的方案。");
-        return;
-      }
-      applyUpdatedBatch(batch, nextWorkflowTaskId);
-      setCandidatePatchFeedbacks((prev) => ({ ...prev, [candidateId]: "" }));
-      setDialogMode("candidate_selection");
-      toast.success("已按你的意见修正这套方案。");
-    },
-    onError: (error) => {
-      setDialogMode("execution_failed");
-      setExecutionError(error instanceof Error ? error.message : "定向修正方案失败。");
-    },
-  });
-
-  const refineTitleMutation = useMutation({
-    onMutate: () => {
-      setDialogMode("execution_progress");
-      setExecutionError("");
-    },
-    mutationFn: async (payload: { batchId: string; candidate: DirectorCandidate; feedback: string }) => {
-      const currentWorkflowTaskId = await ensureWorkflowTask();
-      const response = await refineDirectorCandidateTitles({
-        ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId, {
-          styleProfileId: selectedStyleProfileId,
-        }),
-        previousBatches: batches,
-        batchId: payload.batchId,
-        candidateId: payload.candidate.id,
-        feedback: payload.feedback.trim(),
-      });
-      const command = response.data;
-      if (!command?.commandId) {
-        throw new Error("Director title refinement command was not accepted.");
-      }
-      const result = await waitForCandidateCommandResult<{ batch: DirectorCandidateBatch; candidate: DirectorCandidate; workflowTaskId?: string }>(
-        command.commandId,
-      );
-      return {
-        batch: result.batch ?? null,
-        workflowTaskId: result.workflowTaskId ?? command.taskId ?? currentWorkflowTaskId,
-        candidateId: payload.candidate.id,
-      };
-    },
-    onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId, candidateId }) => {
-      if (!batch) {
-        toast.error("标题组修正失败，未返回更新后的书名组。");
-        return;
-      }
-      applyUpdatedBatch(batch, nextWorkflowTaskId);
-      setTitlePatchFeedbacks((prev) => ({ ...prev, [candidateId]: "" }));
-      setDialogMode("candidate_selection");
-      toast.success("已重做这套方案的标题组。");
-    },
-    onError: (error) => {
-      setDialogMode("execution_failed");
-      setExecutionError(error instanceof Error ? error.message : "标题组修正失败。");
-    },
+  const {
+    generateMutation,
+    patchCandidateMutation,
+    refineTitleMutation,
+  } = useNovelAutoDirectorCandidateMutations({
+    batches,
+    selectedPresets,
+    feedback,
+    workflowTaskId,
+    ensureWorkflowTask,
+    buildRequestPayload: buildCandidateRequestPayload,
+    applyUpdatedBatch,
+    onWorkflowTaskChange,
+    setWorkflowTaskId,
+    setBatches,
+    setFeedback,
+    setSelectedPresets,
+    setCandidatePatchFeedbacks,
+    setTitlePatchFeedbacks,
+    setDialogMode,
+    setCandidateDialogOpen,
+    setExecutionRequested,
+    setExecutionError,
   });
 
   const confirmMutation = useMutation({
@@ -601,6 +463,7 @@ export default function NovelAutoDirectorDialog({
     setBatches([]);
     setWorkflowTaskId("");
     setDialogMode("candidate_selection");
+    setCandidateDialogOpen(false);
     setExecutionRequested(false);
     setPendingTitleHint("");
     setExecutionError("");
@@ -649,6 +512,7 @@ export default function NovelAutoDirectorDialog({
     try {
       const currentWorkflowTaskId = await ensureWorkflowTask();
       setPendingTitleHint(candidate.workingTitle);
+      setCandidateDialogOpen(false);
       setDialogMode("execution_progress");
       setExecutionRequested(true);
       setExecutionError("");
@@ -745,37 +609,7 @@ export default function NovelAutoDirectorDialog({
                 isGenerating={generateMutation.isPending}
                 batchCount={batches.length}
                 onGenerate={() => generateMutation.mutate()}
-                batches={batches}
-                selectedPresets={selectedPresets}
-                feedback={feedback}
-                onFeedbackChange={setFeedback}
-                onTogglePreset={togglePreset}
-                candidatePatchFeedbacks={candidatePatchFeedbacks}
-                onCandidatePatchFeedbackChange={(candidateId, value) => setCandidatePatchFeedbacks((prev) => ({
-                  ...prev,
-                  [candidateId]: value,
-                }))}
-                titlePatchFeedbacks={titlePatchFeedbacks}
-                onTitlePatchFeedbackChange={(candidateId, value) => setTitlePatchFeedbacks((prev) => ({
-                  ...prev,
-                  [candidateId]: value,
-                }))}
-                isPatchingCandidate={patchCandidateMutation.isPending}
-                isRefiningTitle={refineTitleMutation.isPending}
-                isConfirming={confirmMutation.isPending}
-                onApplyCandidateTitleOption={applyCandidateTitleOption}
-                onPatchCandidate={(batchId, candidate, nextFeedback) => patchCandidateMutation.mutate({
-                  batchId,
-                  candidate,
-                  feedback: nextFeedback,
-                })}
-                onRefineTitle={(batchId, candidate, nextFeedback) => refineTitleMutation.mutate({
-                  batchId,
-                  candidate,
-                  feedback: nextFeedback,
-                })}
-                onConfirmCandidate={handleConfirmCandidate}
-                onGenerateNext={() => generateMutation.mutate()}
+                onReviewCandidates={() => setCandidateDialogOpen(true)}
               />
             ) : (
               <NovelAutoDirectorProgressPanel
@@ -789,9 +623,45 @@ export default function NovelAutoDirectorDialog({
                 isConfirmingAndContinuing={continueMutation.isPending}
                 onOpenTaskCenter={handleOpenTaskCenter}
               />
-            )}
+          )}
         </AppDialogContent>
       </Dialog>
+      <NovelAutoDirectorCandidateDialog
+        open={open && dialogMode === "candidate_selection" && candidateDialogOpen}
+        onOpenChange={setCandidateDialogOpen}
+        batches={batches}
+        selectedPresets={selectedPresets}
+        feedback={feedback}
+        onFeedbackChange={setFeedback}
+        onTogglePreset={togglePreset}
+        candidatePatchFeedbacks={candidatePatchFeedbacks}
+        onCandidatePatchFeedbackChange={(candidateId, value) => setCandidatePatchFeedbacks((prev) => ({
+          ...prev,
+          [candidateId]: value,
+        }))}
+        titlePatchFeedbacks={titlePatchFeedbacks}
+        onTitlePatchFeedbackChange={(candidateId, value) => setTitlePatchFeedbacks((prev) => ({
+          ...prev,
+          [candidateId]: value,
+        }))}
+        isGenerating={generateMutation.isPending}
+        isPatchingCandidate={patchCandidateMutation.isPending}
+        isRefiningTitle={refineTitleMutation.isPending}
+        isConfirming={confirmMutation.isPending}
+        onApplyCandidateTitleOption={applyCandidateTitleOption}
+        onPatchCandidate={(batchId, candidate, nextFeedback) => patchCandidateMutation.mutate({
+          batchId,
+          candidate,
+          feedback: nextFeedback,
+        })}
+        onRefineTitle={(batchId, candidate, nextFeedback) => refineTitleMutation.mutate({
+          batchId,
+          candidate,
+          feedback: nextFeedback,
+        })}
+        onConfirmCandidate={handleConfirmCandidate}
+        onGenerateNext={() => generateMutation.mutate()}
+      />
     </>
   );
 }
