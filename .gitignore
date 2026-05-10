@@ -27,6 +27,7 @@ server/src/prisma/dev.db-journal
 .histyory/
 .logs/
 .tmp/
+.trae/
 server/.tmp/
 desktop/build/
 desktop/runtime-migration-smoke/
