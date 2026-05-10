@@ -210,6 +210,9 @@ export const storyMacroDecompositionPrompt: PromptAsset<
     preferredGroups: ["project_context"],
   },
   outputSchema: STORY_MACRO_RESPONSE_SCHEMA,
+  structuredOutputHint: {
+    mode: "off",
+  },
   render: (input, context) => {
     const prompt = buildExpansionAndDecompositionPrompt(input.storyInput, input.projectContext);
     return [

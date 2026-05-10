@@ -64,7 +64,7 @@ function toErrorMessage(error: unknown): string {
 
 function getProtocolCandidates(preferred?: ModelRouteRequestProtocol): ModelRouteRequestProtocol[] {
   if (preferred === "openai_compatible" || preferred === "anthropic") {
-    return [preferred, preferred === "anthropic" ? "openai_compatible" : "anthropic"];
+    return [preferred];
   }
   return ["openai_compatible", "anthropic"];
 }
@@ -383,7 +383,8 @@ async function testModelRoutes(taskTypes: readonly ModelRouteTaskType[] = MODEL_
     )
       ? result.structured.strategy
       : route.structuredResponseFormat;
-    const shouldPersistProbeResult = result.structured?.ok === true
+    const shouldPersistProbeResult = route.requestProtocol === "auto"
+      && result.structured?.ok === true
       && (effectiveProtocol !== route.requestProtocol || effectiveFormat !== route.structuredResponseFormat);
     if (shouldPersistProbeResult) {
       await upsertModelRouteConfig(route.taskType, {

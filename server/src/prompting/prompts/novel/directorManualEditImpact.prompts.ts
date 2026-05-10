@@ -40,13 +40,15 @@ export const directorManualEditImpactDecisionSchema = z.object({
 }) satisfies z.ZodType<AiManualEditImpactDecision>;
 
 function formatManualEditContext(input: DirectorManualEditImpactPromptInput): string {
+  const changedChapters = input.editInventory.changedChapters ?? [];
+  const artifacts = input.inventory.artifacts ?? [];
   return JSON.stringify({
     novelId: input.inventory.novelId,
     novelTitle: input.inventory.novelTitle,
-    changedChapters: input.editInventory.changedChapters,
-    relatedArtifacts: input.inventory.artifacts
+    changedChapters,
+    relatedArtifacts: artifacts
       .filter((artifact) => (
-        input.editInventory.changedChapters.some((chapter) => (
+        changedChapters.some((chapter) => (
           chapter.relatedArtifactIds.includes(artifact.id)
           || artifact.targetId === chapter.chapterId
           || artifact.dependsOn?.some((dependency) => chapter.relatedArtifactIds.includes(dependency.artifactId))
@@ -114,20 +116,20 @@ export const directorManualEditImpactPrompt: PromptAsset<
   ],
   structuredOutputHint: {
     example: (input: DirectorManualEditImpactPromptInput) => ({
-      impactLevel: input.editInventory.changedChapters.length > 0 ? "low" : "none",
-      affectedArtifactIds: input.editInventory.changedChapters.flatMap((chapter) => chapter.relatedArtifactIds),
-      minimalRepairPath: input.editInventory.changedChapters.length > 0
+      impactLevel: (input.editInventory.changedChapters ?? []).length > 0 ? "low" : "none",
+      affectedArtifactIds: (input.editInventory.changedChapters ?? []).flatMap((chapter) => chapter.relatedArtifactIds),
+      minimalRepairPath: (input.editInventory.changedChapters ?? []).length > 0
         ? [{
           action: "review_recent_chapters",
           label: "复查最近修改章节",
           reason: "用户改过正文后，先确认本章连续性和审校结果是否仍可用。",
-          affectedScope: input.editInventory.changedChapters.map((chapter) => `chapter:${chapter.chapterId}`).join(","),
+          affectedScope: (input.editInventory.changedChapters ?? []).map((chapter) => "chapter:" + chapter.chapterId).join(","),
           requiresApproval: false,
         }]
         : [],
-      safeToContinue: input.editInventory.changedChapters.length === 0,
+      safeToContinue: (input.editInventory.changedChapters ?? []).length === 0,
       requiresApproval: false,
-      summary: input.editInventory.changedChapters.length > 0
+      summary: (input.editInventory.changedChapters ?? []).length > 0
         ? "检测到章节正文发生变化，建议先做局部复查。"
         : "没有检测到需要处理的手动正文改动。",
       riskNotes: [],

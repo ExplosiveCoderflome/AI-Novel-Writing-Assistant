@@ -26,7 +26,7 @@
     "db:studio": "pnpm --filter @ai-novel/server db:studio",
     "build": "pnpm --filter @ai-novel/shared build && pnpm --filter @ai-novel/server build && pnpm --filter @ai-novel/client build",
     "build:desktop": "pnpm --filter @ai-novel/desktop build",
-    "build:desktop:all": "pnpm --filter @ai-novel/shared build && pnpm --filter @ai-novel/server prisma:generate && pnpm --filter @ai-novel/server build && pnpm --filter @ai-novel/client build:desktop && pnpm --filter @ai-novel/desktop build",
+    "build:desktop:all": "pnpm --filter @ai-novel/shared build && pnpm --filter @ai-novel/server build && pnpm --filter @ai-novel/client build:desktop && pnpm --filter @ai-novel/desktop build",
     "stage:desktop": "pnpm run build:desktop:all && node desktop/scripts/stage-desktop.cjs",
     "dist:desktop:nsis": "pnpm run stage:desktop && node desktop/scripts/run-electron-builder.cjs --win nsis --x64",
     "dist:desktop:nsis:reuse-stage": "node desktop/scripts/run-electron-builder.cjs --win nsis --x64",

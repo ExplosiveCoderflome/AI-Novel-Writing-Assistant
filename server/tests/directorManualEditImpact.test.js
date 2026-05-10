@@ -1,11 +1,48 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
+const prismaModulePath = require.resolve("../dist/db/prisma.js");
+require.cache[prismaModulePath] = {
+  id: prismaModulePath,
+  filename: prismaModulePath,
+  loaded: true,
+  exports: {
+    prisma: {
+      chapter: { findMany: async () => [] },
+      novel: { findUnique: async () => null },
+      bookContract: { findUnique: async () => null },
+      storyMacroPlan: { findUnique: async () => null },
+      character: { count: async () => 0, findFirst: async () => null },
+      volumePlan: { findMany: async () => [] },
+      volumeChapterPlan: { count: async () => 0, findMany: async () => [] },
+      world: { findUnique: async () => null },
+      knowledgeDocument: { findUnique: async () => null },
+      bookAnalysis: { findUnique: async () => null },
+      qualityReport: { findMany: async () => [] },
+      auditReport: { findMany: async () => [] },
+      storyStateSnapshot: { findMany: async () => [] },
+      payoffLedgerItem: { findMany: async () => [] },
+      characterResourceLedgerItem: { findMany: async () => [] },
+      generationJob: { findFirst: async () => null },
+      novelWorkflowTask: { findFirst: async () => null },
+      directorArtifact: { findMany: async () => [] },
+    },
+  },
+};
+
 const {
   DirectorWorkspaceAnalyzer,
   buildManualEditFallbackDecision,
   buildManualEditInventoryFromArtifacts,
 } = require("../dist/services/novel/director/runtime/DirectorWorkspaceAnalyzer.js");
+const {
+  buildDirectorWorkspaceAnalysisContextBlocks,
+  directorWorkspaceAnalysisPrompt,
+} = require("../dist/prompting/prompts/novel/directorWorkspaceAnalysis.prompts.js");
+const {
+  buildDirectorManualEditImpactContextBlocks,
+  directorManualEditImpactPrompt,
+} = require("../dist/prompting/prompts/novel/directorManualEditImpact.prompts.js");
 const promptRunner = require("../dist/prompting/core/promptRunner.js");
 const promptContextResolution = require("../dist/prompting/context/promptContextResolution.js");
 
@@ -233,4 +270,111 @@ test("workspace analyzer defaults to deterministic inventory interpretation", as
   assert.equal(analysis.prompt, null);
   assert.equal(analysis.interpretation.productionStage, "has_seed");
   assert.equal(analysis.recommendation.action, "create_book_contract");
+});
+
+test("workspace analyzer deterministic interpretation tolerates legacy inventory snapshots missing array fields", () => {
+  const { computeWorkspaceInterpretation } = require("../dist/services/novel/director/runtime/DirectorWorkspaceAnalyzer.js");
+
+  const legacyInventory = {
+    novelId: "novel-1",
+    novelTitle: "测试小说",
+    hasBookContract: false,
+    hasStoryMacro: false,
+    hasCharacters: false,
+    hasVolumeStrategy: false,
+    hasChapterPlan: false,
+    chapterCount: 1,
+    draftedChapterCount: 1,
+    approvedChapterCount: 0,
+    pendingRepairChapterCount: 0,
+    hasActivePipelineJob: false,
+    hasActiveDirectorRun: false,
+    hasWorldBinding: false,
+    hasSourceKnowledge: false,
+    hasContinuationAnalysis: false,
+    missingArtifactTypes: ["book_contract"],
+  };
+
+  assert.doesNotThrow(() => computeWorkspaceInterpretation(legacyInventory));
+
+  const interpretation = computeWorkspaceInterpretation(legacyInventory);
+  assert.deepEqual(interpretation.staleArtifacts, []);
+  assert.deepEqual(interpretation.protectedUserContent, ["已有章节正文"]);
+});
+
+test("director workspace prompt tolerates legacy inventory snapshots missing array fields", () => {
+  const legacyInventory = {
+    novelId: "novel-1",
+    novelTitle: "测试小说",
+    hasBookContract: false,
+    hasStoryMacro: false,
+    hasCharacters: false,
+    hasVolumeStrategy: false,
+    hasChapterPlan: false,
+    chapterCount: 1,
+    draftedChapterCount: 1,
+    approvedChapterCount: 0,
+    pendingRepairChapterCount: 0,
+    hasActivePipelineJob: false,
+    hasActiveDirectorRun: false,
+    hasWorldBinding: false,
+    hasSourceKnowledge: false,
+    hasContinuationAnalysis: false,
+  };
+
+  assert.doesNotThrow(() => buildDirectorWorkspaceAnalysisContextBlocks({ inventory: legacyInventory }));
+
+  const example = directorWorkspaceAnalysisPrompt.structuredOutputHint.example({
+    inventory: legacyInventory,
+  });
+
+  assert.deepEqual(example.missingArtifacts, ["book_contract"]);
+  assert.deepEqual(example.staleArtifacts, []);
+  assert.deepEqual(example.protectedUserContent, ["已有章节正文"]);
+});
+
+test("director manual edit prompt tolerates legacy inventories missing artifact arrays", () => {
+  const legacyInventory = {
+    novelId: "novel-1",
+    novelTitle: "测试小说",
+    hasBookContract: true,
+    hasStoryMacro: true,
+    hasCharacters: true,
+    hasVolumeStrategy: true,
+    hasChapterPlan: true,
+    chapterCount: 1,
+    draftedChapterCount: 1,
+    approvedChapterCount: 0,
+    pendingRepairChapterCount: 0,
+    hasActivePipelineJob: false,
+    hasActiveDirectorRun: false,
+    hasWorldBinding: false,
+    hasSourceKnowledge: false,
+    hasContinuationAnalysis: false,
+  };
+  const editInventory = {
+    novelId: "novel-1",
+    generatedAt: "2026-04-28T01:01:00.000Z",
+    changedChapters: [
+      {
+        chapterId: "chapter-1",
+        title: "第一章",
+        order: 1,
+        relatedArtifactIds: ["chapter_draft:chapter:chapter-1:Chapter:chapter-1"],
+      },
+    ],
+  };
+
+  assert.doesNotThrow(() => buildDirectorManualEditImpactContextBlocks({
+    inventory: legacyInventory,
+    editInventory,
+  }));
+
+  const example = directorManualEditImpactPrompt.structuredOutputHint.example({
+    inventory: legacyInventory,
+    editInventory,
+  });
+
+  assert.equal(example.impactLevel, "low");
+  assert.deepEqual(example.affectedArtifactIds, ["chapter_draft:chapter:chapter-1:Chapter:chapter-1"]);
 });

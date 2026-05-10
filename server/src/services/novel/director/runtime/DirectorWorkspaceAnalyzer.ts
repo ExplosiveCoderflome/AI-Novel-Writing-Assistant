@@ -168,18 +168,20 @@ export function computeWorkspaceInterpretation(
 ): AiWorkspaceInterpretation {
   const stage = resolveProductionStage(inventory);
   const action = resolveRecommendedAction(inventory, stage);
+  const protectedUserContentArtifacts = inventory.protectedUserContentArtifacts ?? [];
+  const staleArtifacts = inventory.staleArtifacts ?? [];
   const protectedContent: string[] = [];
   if (inventory.draftedChapterCount > 0) {
     protectedContent.push("已有章节正文");
   }
-  for (const artifact of inventory.protectedUserContentArtifacts) {
+  for (const artifact of protectedUserContentArtifacts) {
     protectedContent.push(artifact.id);
   }
 
   return {
     productionStage: stage,
     missingArtifacts: inventory.missingArtifactTypes as AiWorkspaceInterpretation["missingArtifacts"],
-    staleArtifacts: inventory.staleArtifacts.map(
+    staleArtifacts: staleArtifacts.map(
       (a) => a.artifactType,
     ) as AiWorkspaceInterpretation["staleArtifacts"],
     protectedUserContent: protectedContent,
@@ -311,14 +313,16 @@ function buildDeterministicSummary(
 }
 
 function buildRiskNotes(inv: DirectorWorkspaceInventory): string[] {
+  const staleArtifacts = inv.staleArtifacts ?? [];
+  const protectedUserContentArtifacts = inv.protectedUserContentArtifacts ?? [];
   const notes: string[] = [];
-  if (inv.staleArtifacts.length > 0) {
-    notes.push(`${inv.staleArtifacts.length} 个资产已过期，可能需要更新。`);
+  if (staleArtifacts.length > 0) {
+    notes.push(`${staleArtifacts.length} 个资产已过期，可能需要更新。`);
   }
   if (inv.pendingRepairChapterCount > 5) {
     notes.push(`待修复章节较多 (${inv.pendingRepairChapterCount})，建议优先处理。`);
   }
-  if (inv.draftedChapterCount > 0 && inv.protectedUserContentArtifacts.length > 0) {
+  if (inv.draftedChapterCount > 0 && protectedUserContentArtifacts.length > 0) {
     notes.push("存在用户保护内容，修复时需避免覆盖。");
   }
   return notes;
@@ -468,7 +472,7 @@ export class DirectorWorkspaceAnalyzer {
     const impact: DirectorManualEditImpact = {
       novelId: input.novelId,
       changedChapters: editInventory.changedChapters,
-      affectedArtifacts: inventory.artifacts.filter((artifact) => affectedArtifactIds.has(artifact.id)),
+      affectedArtifacts: (inventory.artifacts ?? []).filter((artifact) => affectedArtifactIds.has(artifact.id)),
       generatedAt: editInventory.generatedAt,
       ...decision,
       affectedArtifactIds: [...affectedArtifactIds],
@@ -502,7 +506,7 @@ export class DirectorWorkspaceAnalyzer {
     focusedChapterId?: string | null;
     comparedAgainstTaskId?: string | null;
   }): Promise<DirectorManualEditInventory> {
-    const draftArtifacts = input.inventory.artifacts
+    const draftArtifacts = (input.inventory.artifacts ?? [])
       .filter((artifact) => artifact.artifactType === "chapter_draft" && artifact.targetType === "chapter" && artifact.targetId);
     const chapterIds = [...new Set(draftArtifacts.map((artifact) => artifact.targetId as string))];
     const chapters = chapterIds.length > 0
@@ -526,7 +530,7 @@ export class DirectorWorkspaceAnalyzer {
     ]));
     return buildManualEditInventoryFromArtifacts({
       novelId: input.novelId,
-      artifacts: input.inventory.artifacts,
+      artifacts: input.inventory.artifacts ?? [],
       previousArtifacts: input.previousArtifacts,
       focusedChapterId: input.focusedChapterId,
       comparedAgainstTaskId: input.comparedAgainstTaskId,
@@ -819,7 +823,7 @@ export class DirectorWorkspaceAnalyzer {
       activeDirectorTaskId: activeDirectorRun?.id ?? null,
       latestDirectorTaskId: latestDirectorRun?.id ?? null,
       ...artifactInventory.ledgerSummary,
-      artifacts: artifactInventory.artifacts,
+      artifacts: artifactInventory.artifacts ?? [],
     };
   }
 
@@ -878,7 +882,7 @@ export class DirectorWorkspaceAnalyzer {
       modelRoute: artifact.modelRoute,
       sourceStepRunId: artifact.sourceStepRunId,
       protectedUserContent: artifact.protectedUserContent,
-      dependsOn: artifact.dependencies.map((dependency) => ({
+      dependsOn: (artifact.dependencies ?? []).map((dependency) => ({
         artifactId: dependency.dependsOnArtifactId,
         version: dependency.dependsOnVersion,
       })),

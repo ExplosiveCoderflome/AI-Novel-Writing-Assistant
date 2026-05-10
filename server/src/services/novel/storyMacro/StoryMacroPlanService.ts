@@ -1,4 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import { AIMessage, SystemMessage, type BaseMessage } from "@langchain/core/messages";
 import type {
   StoryDecomposition,
   StoryExpansion,
@@ -10,7 +11,10 @@ import type {
   StoryMacroState,
 } from "@ai-novel/shared/types/storyMacro";
 import { prisma } from "../../../db/prisma";
-import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import { resolveLLMClientOptions } from "../../../llm/factory";
+import { invokeStructuredLlmDetailed, parseStructuredLlmRawContentDetailed } from "../../../llm/structuredInvoke";
+import { extractStructuredOutputErrorCategory, resolveStructuredOutputProfile } from "../../../llm/structuredOutput";
+import { preparePromptExecution, runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import {
   storyMacroDecompositionPrompt,
   storyMacroFieldRegenerationPrompt,
@@ -54,6 +58,41 @@ interface LLMOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+}
+
+function stringifyMessageContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content.map((part) => {
+      if (typeof part === "string") {
+        return part;
+      }
+      if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
+        return part.text;
+      }
+      return "";
+    }).join("\n");
+  }
+  return "";
+}
+
+function toOpenAIChatMessages(messages: BaseMessage[]): Array<{ role: "system" | "user" | "assistant"; content: string }> {
+  return messages
+    .map((message) => {
+      const content = stringifyMessageContent(message.content).trim();
+      if (!content) {
+        return null;
+      }
+      const role = message instanceof SystemMessage || message.type === "system"
+        ? "system"
+        : message instanceof AIMessage || message.type === "ai"
+          ? "assistant"
+          : "user";
+      return { role, content };
+    })
+    .filter((entry): entry is { role: "system" | "user" | "assistant"; content: string } => Boolean(entry));
 }
 
 export class StoryMacroPlanService {
@@ -184,21 +223,144 @@ export class StoryMacroPlanService {
     projectContext: string,
     options: LLMOptions,
   ): Promise<{ plan: StoryMacroEditablePlan; issues: StoryMacroIssue[] }> {
+    const promptInput = {
+      storyInput,
+      projectContext,
+    };
+    const contextBlocks = buildStoryMacroDecompositionContextBlocks({
+      storyInput,
+      projectContext,
+    });
     const parsed = await runStructuredPrompt({
       asset: storyMacroDecompositionPrompt,
-      promptInput: {
-        storyInput,
-        projectContext,
-      },
-      contextBlocks: buildStoryMacroDecompositionContextBlocks({
-        storyInput,
-        projectContext,
-      }),
+      promptInput,
+      contextBlocks,
       options: {
         provider: options.provider,
         model: options.model,
         temperature: options.temperature ?? 0.3,
       },
+    }).catch(async (error) => {
+      const category = extractStructuredOutputErrorCategory(error instanceof Error ? error.message : String(error));
+      if (category !== "transport_error") {
+        throw error;
+      }
+      const prepared = preparePromptExecution({
+        asset: storyMacroDecompositionPrompt,
+        promptInput,
+        contextBlocks,
+        options: {
+          provider: options.provider,
+          model: options.model,
+          temperature: options.temperature ?? 0.3,
+        },
+      });
+
+      try {
+        const fallback = await invokeStructuredLlmDetailed({
+          messages: prepared.messages,
+          schema: storyMacroDecompositionPrompt.outputSchema!,
+          provider: options.provider,
+          model: options.model,
+          temperature: options.temperature ?? 0.3,
+          taskType: storyMacroDecompositionPrompt.taskType,
+          label: `${storyMacroDecompositionPrompt.id}@${storyMacroDecompositionPrompt.version}`,
+          promptMeta: prepared.invocation,
+          structuredStrategy: "prompt_json",
+          maxRepairAttempts: storyMacroDecompositionPrompt.repairPolicy?.maxAttempts ?? 1,
+        });
+        return {
+          output: fallback.data,
+          meta: {
+            provider: options.provider,
+            model: options.model,
+            latencyMs: 0,
+            invocation: prepared.invocation,
+          },
+          context: prepared.context,
+        };
+      } catch (fallbackError) {
+        const fallbackCategory = extractStructuredOutputErrorCategory(
+          fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+        );
+        if (fallbackCategory !== "transport_error") {
+          throw fallbackError;
+        }
+      }
+
+      const resolved = await resolveLLMClientOptions(options.provider, {
+        model: options.model,
+        temperature: options.temperature ?? 0.3,
+        taskType: storyMacroDecompositionPrompt.taskType,
+        promptMeta: prepared.invocation,
+        executionMode: "plain",
+        structuredStrategy: "prompt_json",
+        requestProtocol: "openai_compatible",
+      });
+      const response = await fetch(`${resolved.baseURL.replace(/\/+$/u, "")}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(resolved.apiKey ? { authorization: `Bearer ${resolved.apiKey}` } : {}),
+          ...resolved.requestHeaders,
+        },
+        body: JSON.stringify({
+          model: resolved.model,
+          temperature: resolved.temperature,
+          ...(typeof resolved.maxTokens === "number" ? { max_tokens: resolved.maxTokens } : {}),
+          messages: toOpenAIChatMessages(prepared.messages),
+        }),
+      });
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new Error(`Story Macro fallback 请求失败 (${response.status}): ${detail || response.statusText}`);
+      }
+      const payload = await response.json() as {
+        choices?: Array<{
+          message?: {
+            content?: string | Array<{ text?: string; type?: string }>;
+          };
+        }>;
+      };
+      const rawContent = typeof payload.choices?.[0]?.message?.content === "string"
+        ? payload.choices[0].message.content
+        : Array.isArray(payload.choices?.[0]?.message?.content)
+          ? payload.choices?.[0]?.message?.content
+            ?.map((part) => (typeof part?.text === "string" ? part.text : ""))
+            .join("\n") ?? ""
+          : "";
+      const repaired = await parseStructuredLlmRawContentDetailed({
+        rawContent,
+        schema: storyMacroDecompositionPrompt.outputSchema!,
+        provider: resolved.provider,
+        model: resolved.model,
+        apiKey: resolved.apiKey,
+        baseURL: resolved.baseURL,
+        temperature: resolved.temperature,
+        maxTokens: resolved.maxTokens,
+        taskType: storyMacroDecompositionPrompt.taskType,
+        label: `${storyMacroDecompositionPrompt.id}@${storyMacroDecompositionPrompt.version}.fallback`,
+        promptMeta: prepared.invocation,
+        strategy: "prompt_json",
+        profile: resolveStructuredOutputProfile({
+          provider: resolved.provider,
+          model: resolved.model,
+          baseURL: resolved.baseURL,
+          requestProtocol: resolved.requestProtocol,
+          executionMode: "structured",
+        }),
+        maxRepairAttempts: storyMacroDecompositionPrompt.repairPolicy?.maxAttempts ?? 1,
+      });
+      return {
+        output: repaired.data,
+        meta: {
+          provider: options.provider,
+          model: options.model,
+          latencyMs: 0,
+          invocation: prepared.invocation,
+        },
+        context: prepared.context,
+      };
     });
     return {
       plan: {

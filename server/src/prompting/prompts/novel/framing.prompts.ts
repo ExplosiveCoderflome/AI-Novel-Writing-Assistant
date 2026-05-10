@@ -50,6 +50,9 @@ export const novelFramingSuggestionPrompt: PromptAsset<
   semanticRetryPolicy: {
     maxAttempts: 1,
   },
+  structuredOutputHint: {
+    mode: "off",
+  },
   outputSchema: novelFramingSuggestionSchema,
   render: (input) => [
     new SystemMessage([

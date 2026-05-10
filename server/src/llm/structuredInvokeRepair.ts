@@ -7,6 +7,7 @@ import { runWithEnforcedTimeout } from "./invokeTimeout";
 import { logStructuredRepairSession } from "./repairLogging";
 import type { TaskType } from "./modelRouter";
 import type { StructuredOutputStrategy } from "./structuredOutput";
+import { classifyStructuredOutputFailure } from "./structuredOutput";
 import { toText } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
 
@@ -34,6 +35,10 @@ interface ArrayLengthRepairHint {
 interface RepairHelpers<T> {
   tryParseStructuredJsonValue: (source: string) => { parsed: unknown } | { error: string };
   tryUnwrapSingletonArrayWrapper: (parsed: unknown, schema: ZodType<T>) => { data: T } | null;
+  tryWrapBareArrayIntoSingleArrayFieldObject: (
+    parsed: unknown,
+    schema: ZodType<T>,
+  ) => { data: T; wrappedField: string } | null;
   normalizeOversizedArrays: (
     parsed: unknown,
     error: ZodError,
@@ -124,6 +129,69 @@ function extractArrayLengthRepairHints(validationError: string): ArrayLengthRepa
   return hints;
 }
 
+function stringifyRepairMessageContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (!Array.isArray(content)) {
+    return "";
+  }
+  return content.map((part) => {
+    if (typeof part === "string") {
+      return part;
+    }
+    if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
+      return part.text;
+    }
+    return "";
+  }).join("\n");
+}
+
+function buildRepairInvokeOptions(signal?: AbortSignal): Record<string, unknown> {
+  return signal ? { signal } : {};
+}
+
+async function invokeRepairViaDirectChat(input: {
+  llmInput: StructuredRepairInput<unknown>;
+  repairSystem: string;
+  repairHuman: string;
+}): Promise<string> {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (input.llmInput.apiKey) {
+    headers.authorization = `Bearer ${input.llmInput.apiKey}`;
+  }
+
+  const response = await fetch(`${input.llmInput.baseURL?.replace(/\/+$/u, "")}/chat/completions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model: input.llmInput.model,
+      temperature: 0.15,
+      ...(typeof input.llmInput.maxTokens === "number" ? { max_tokens: input.llmInput.maxTokens } : {}),
+      messages: [
+        { role: "system", content: input.repairSystem },
+        { role: "user", content: input.repairHuman },
+      ],
+    }),
+    signal: input.llmInput.signal,
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`[${input.llmInput.label}] repair fallback 请求失败 (${response.status}): ${detail || response.statusText}`);
+  }
+
+  const payload = await response.json() as {
+    choices?: Array<{
+      message?: {
+        content?: string | Array<{ text?: string; type?: string }>;
+      };
+    }>;
+  };
+  return stringifyRepairMessageContent(payload.choices?.[0]?.message?.content).trim();
+}
+
 export async function repairWithLlm<T>(
   input: StructuredRepairInput<T>,
   rawContent: string,
@@ -212,20 +280,41 @@ export async function repairWithLlm<T>(
 
   const startedAt = Date.now();
   try {
-    const invokeOptions: Record<string, unknown> = {};
-    if (input.signal) {
-      invokeOptions.signal = input.signal;
+    let repairedRaw: string;
+    try {
+      const result = await runWithEnforcedTimeout({
+        label: `${input.label}#repair-${repairAttempt}`,
+        timeoutMs: input.timeoutMs,
+        signal: input.signal,
+        run: (signal) => llm.invoke(
+          [new SystemMessage(repairSystem), new HumanMessage(repairHuman)],
+          buildRepairInvokeOptions(signal ?? input.signal),
+        ),
+      });
+      repairedRaw = toText(result.content);
+    } catch (error) {
+      const canUseDirectFallback = input.requestProtocol !== "anthropic"
+        && Boolean(input.baseURL?.trim())
+        && Boolean(input.model?.trim());
+      if (!canUseDirectFallback || classifyStructuredOutputFailure({ error }) !== "transport_error") {
+        throw error;
+      }
+
+      repairedRaw = await runWithEnforcedTimeout({
+        label: `${input.label}#repair-${repairAttempt}-fallback`,
+        timeoutMs: input.timeoutMs,
+        signal: input.signal,
+        run: (signal) => invokeRepairViaDirectChat({
+          llmInput: {
+            ...input,
+            signal: signal ?? input.signal,
+          },
+          repairSystem,
+          repairHuman,
+        }),
+      });
     }
-    const result = await runWithEnforcedTimeout({
-      label: `${input.label}#repair-${repairAttempt}`,
-      timeoutMs: input.timeoutMs,
-      signal: input.signal,
-      run: (signal) => llm.invoke(
-        [new SystemMessage(repairSystem), new HumanMessage(repairHuman)],
-        signal ? { ...invokeOptions, signal } : invokeOptions,
-      ),
-    });
-    const repairedRaw = toText(result.content);
+
     const latencyMs = Date.now() - startedAt;
     helpers.logStructuredInvokeEvent({
       event: "repair_done",
@@ -271,6 +360,20 @@ export async function repairWithLlm<T>(
           strategy: "prompt_json",
         });
         return unwrapped.data;
+      }
+
+      const wrapped = helpers.tryWrapBareArrayIntoSingleArrayFieldObject(repairParse.parsed, input.schema);
+      if (wrapped) {
+        helpers.logStructuredInvokeEvent({
+          event: "repair_wrapped_bare_array",
+          label: input.label,
+          provider: input.provider,
+          model: input.model,
+          taskType: input.taskType,
+          repairAttempt,
+          strategy: "prompt_json",
+        });
+        return wrapped.data;
       }
 
       const normalized = helpers.normalizeOversizedArrays(repairParse.parsed, final.error, input.schema);

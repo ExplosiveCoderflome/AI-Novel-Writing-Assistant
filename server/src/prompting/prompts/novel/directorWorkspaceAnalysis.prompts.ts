@@ -56,6 +56,11 @@ export const directorWorkspaceInterpretationSchema = z.object({
 }) satisfies z.ZodType<AiWorkspaceInterpretation>;
 
 function formatInventory(inventory: DirectorWorkspaceInventory): string {
+  const missingArtifactTypes = inventory.missingArtifactTypes ?? [];
+  const staleArtifacts = inventory.staleArtifacts ?? [];
+  const protectedUserContentArtifacts = inventory.protectedUserContentArtifacts ?? [];
+  const needsRepairArtifacts = inventory.needsRepairArtifacts ?? [];
+  const artifacts = inventory.artifacts ?? [];
   return JSON.stringify({
     novelId: inventory.novelId,
     novelTitle: inventory.novelTitle,
@@ -74,28 +79,28 @@ function formatInventory(inventory: DirectorWorkspaceInventory): string {
     hasSourceKnowledge: inventory.hasSourceKnowledge,
     hasContinuationAnalysis: inventory.hasContinuationAnalysis,
     ledgerSummary: {
-      missingArtifactTypes: inventory.missingArtifactTypes,
-      staleArtifacts: inventory.staleArtifacts.map((artifact) => ({
+      missingArtifactTypes,
+      staleArtifacts: staleArtifacts.map((artifact) => ({
         id: artifact.id,
         artifactType: artifact.artifactType,
         targetType: artifact.targetType,
         targetId: artifact.targetId,
         dependsOn: artifact.dependsOn,
       })),
-      protectedUserContentArtifacts: inventory.protectedUserContentArtifacts.map((artifact) => ({
+      protectedUserContentArtifacts: protectedUserContentArtifacts.map((artifact) => ({
         id: artifact.id,
         artifactType: artifact.artifactType,
         targetType: artifact.targetType,
         targetId: artifact.targetId,
         source: artifact.source,
       })),
-      needsRepairArtifacts: inventory.needsRepairArtifacts.map((artifact) => ({
+      needsRepairArtifacts: needsRepairArtifacts.map((artifact) => ({
         id: artifact.id,
         targetType: artifact.targetType,
         targetId: artifact.targetId,
       })),
     },
-    artifactTypes: inventory.artifacts.map((artifact) => ({
+    artifactTypes: artifacts.map((artifact) => ({
       id: artifact.id,
       artifactType: artifact.artifactType,
       targetType: artifact.targetType,
@@ -147,12 +152,12 @@ export const directorWorkspaceAnalysisPrompt: PromptAsset<
   structuredOutputHint: {
     example: (input: DirectorWorkspaceAnalysisPromptInput) => ({
       productionStage: input.inventory.hasVolumeStrategy ? "has_volume_plan" : "has_seed",
-      missingArtifacts: input.inventory.missingArtifactTypes.length > 0
-        ? input.inventory.missingArtifactTypes
+      missingArtifacts: (input.inventory.missingArtifactTypes ?? []).length > 0
+        ? (input.inventory.missingArtifactTypes ?? [])
         : input.inventory.hasBookContract ? [] : ["book_contract"],
-      staleArtifacts: input.inventory.staleArtifacts.map((artifact) => artifact.artifactType),
-      protectedUserContent: input.inventory.protectedUserContentArtifacts.length > 0
-        ? input.inventory.protectedUserContentArtifacts.map((artifact) => artifact.id)
+      staleArtifacts: (input.inventory.staleArtifacts ?? []).map((artifact) => artifact.artifactType),
+      protectedUserContent: (input.inventory.protectedUserContentArtifacts ?? []).length > 0
+        ? (input.inventory.protectedUserContentArtifacts ?? []).map((artifact) => artifact.id)
         : input.inventory.draftedChapterCount > 0 ? ["已有章节正文"] : [],
       recommendedAction: {
         action: input.inventory.hasBookContract ? "continue_chapter_execution" : "create_book_contract",

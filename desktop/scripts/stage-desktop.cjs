@@ -1,6 +1,12 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { execSync } = require("node:child_process");
+const {
+  assertExists,
+  findMatchingGeneratedPrismaDir,
+  listStagedPrismaClientPackages,
+  listWorkspaceGeneratedPrismaCandidates,
+} = require("./stage-desktop-prisma.cjs");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const desktopDir = path.resolve(__dirname, "..");
@@ -19,6 +25,7 @@ const prismaClientEntrypointFiles = [
   { fileName: "index.js", generatedEntry: "./generated-client/index" },
   { fileName: "edge.js", generatedEntry: "./generated-client/edge" },
 ];
+const shouldSkipBuildDirClean = String(process.env.AI_NOVEL_STAGE_SKIP_CLEAN || "").trim().toLowerCase() === "true";
 
 function runPnpm(args, cwd = repoRoot) {
   const command = `pnpm ${args.map((arg) => `"${arg}"`).join(" ")}`;
@@ -31,7 +38,16 @@ function runPnpm(args, cwd = repoRoot) {
 }
 
 function ensureCleanDir(targetDir) {
-  fs.rmSync(targetDir, { recursive: true, force: true });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      fs.rmSync(targetDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+      break;
+    } catch (error) {
+      if (attempt === 2) {
+        throw error;
+      }
+    }
+  }
   fs.mkdirSync(targetDir, { recursive: true });
 }
 
@@ -77,40 +93,8 @@ function writeDesktopUpdaterConfig() {
   fs.writeFileSync(appUpdateConfigPath, config, "utf8");
 }
 
-function resolveWorkspacePrismaGeneratedDir() {
-  const pnpmVirtualStoreDir = path.join(repoRoot, "node_modules", ".pnpm");
-  assertExists(pnpmVirtualStoreDir, "workspace virtual store");
-
-  const prismaClientStoreEntries = fs
-    .readdirSync(pnpmVirtualStoreDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith("@prisma+client@"));
-
-  for (const entry of prismaClientStoreEntries) {
-    const generatedDir = path.join(pnpmVirtualStoreDir, entry.name, "node_modules", ".prisma");
-    if (fs.existsSync(path.join(generatedDir, "client", "default.js"))) {
-      return generatedDir;
-    }
-  }
-
-  throw new Error(`Expected a generated Prisma runtime directory under ${pnpmVirtualStoreDir}, but none was found.`);
-}
-
 function resolveStagedPrismaClientPackageDirs() {
-  const pnpmVirtualStoreDir = path.join(stagedNodeModulesDir, ".pnpm");
-  assertExists(pnpmVirtualStoreDir, "staged virtual store");
-
-  const prismaClientStoreEntries = fs
-    .readdirSync(pnpmVirtualStoreDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith("@prisma+client@"));
-
-  if (prismaClientStoreEntries.length === 0) {
-    throw new Error("Expected at least one staged @prisma/client package in the virtual store.");
-  }
-
-  return prismaClientStoreEntries.map((entry) => ({
-    storeEntryName: entry.name,
-    packageDir: path.join(pnpmVirtualStoreDir, entry.name, "node_modules", "@prisma", "client"),
-  }));
+  return listStagedPrismaClientPackages(stagedNodeModulesDir);
 }
 
 function resolveStagedPackageDirsByName(packageName) {
@@ -158,9 +142,12 @@ function embedPrismaGeneratedClient(prismaClientPackageDir, generatedPrismaDir) 
 }
 
 function syncPrismaRuntime() {
-  const generatedPrismaDir = resolveWorkspacePrismaGeneratedDir();
   const stagedTopLevelPrismaDir = path.join(stagedNodeModulesDir, ".prisma");
   const stagedPrismaClientPackages = resolveStagedPrismaClientPackageDirs();
+  const generatedPrismaDir = findMatchingGeneratedPrismaDir({
+    stagedPrismaClientVersions: stagedPrismaClientPackages.map((pkg) => pkg.version),
+    workspaceGeneratedCandidates: listWorkspaceGeneratedPrismaCandidates(repoRoot),
+  });
 
   copyDirectory(generatedPrismaDir, stagedTopLevelPrismaDir);
 
@@ -190,16 +177,15 @@ function detachStagedNativePackages() {
   }
 }
 
-function assertExists(targetPath, description) {
-  if (!fs.existsSync(targetPath)) {
-    throw new Error(`Expected ${description} at ${targetPath}, but it was not found.`);
-  }
-}
-
 function main() {
   assertExists(clientSourceDir, "built client assets");
 
-  ensureCleanDir(buildDir);
+  if (shouldSkipBuildDirClean) {
+    ensureDir(buildDir);
+  } else {
+    ensureCleanDir(buildDir);
+  }
+  ensureCleanDir(appDir);
   ensureDir(resourcesDir);
   ensureDir(path.dirname(clientTargetDir));
 
