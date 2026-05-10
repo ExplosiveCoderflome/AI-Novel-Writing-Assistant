@@ -238,7 +238,7 @@ test.skip("volume chapter list prompt retries semantically when titles are struc
   }
 });
 
-test.skip("volume chapter list prompt throws after semantic retries are exhausted", async () => {
+test("volume chapter list prompt degrades title diversity failure after semantic retries are exhausted", async () => {
   const calls = [];
 
   setPromptRunnerStructuredInvokerForTests(async (input) => {
@@ -261,6 +261,48 @@ test.skip("volume chapter list prompt throws after semantic retries are exhauste
   });
 
   try {
+    const result = await runStructuredPrompt({
+      asset: createVolumeChapterListPrompt({
+        targetChapterCount: 4,
+        targetBeatKey: "open_hook",
+        targetBeatLabel: "开卷抓手",
+      }),
+      promptInput: createPromptInput(4),
+    });
+
+    assert.equal(calls.length, 3);
+    assert.equal(result.output.chapters.length, 4);
+    assert.equal(result.output.chapters[0].title, "签下合同，甜蜜同居");
+    assert.equal(result.meta.invocation.semanticRetryUsed, true);
+    assert.equal(result.meta.invocation.semanticRetryAttempts, 2);
+  } finally {
+    setPromptRunnerStructuredInvokerForTests();
+  }
+});
+
+test("volume chapter list prompt keeps hard contract failures blocking after semantic retries", async () => {
+  const calls = [];
+
+  setPromptRunnerStructuredInvokerForTests(async (input) => {
+    calls.push(input);
+    return {
+      data: {
+        beatKey: "wrong_beat",
+        beatLabel: "开卷抓手",
+        chapterCount: 4,
+        chapters: [
+          { beatKey: "wrong_beat", title: "夜探旧温室", summary: "主角夜探温室，确认异常来源并推动探索线正式启动。" },
+          { beatKey: "wrong_beat", title: "掠夺者逼近", summary: "外部威胁压到眼前，当前卷的生存压力第一次真正落地。" },
+          { beatKey: "wrong_beat", title: "谁在回收种子？", summary: "主角发现有人暗中回收灵种，把悬疑线抬到台前。" },
+          { beatKey: "wrong_beat", title: "防线第一次成形", summary: "主角完成阶段性布防，让当前卷第一次出现可见成果。" },
+        ],
+      },
+      repairUsed: false,
+      repairAttempts: 0,
+    };
+  });
+
+  try {
     await assert.rejects(() => runStructuredPrompt({
       asset: createVolumeChapterListPrompt({
         targetChapterCount: 4,
@@ -268,7 +310,8 @@ test.skip("volume chapter list prompt throws after semantic retries are exhauste
         targetBeatLabel: "开卷抓手",
       }),
       promptInput: createPromptInput(4),
-    }), /章节标题结构过于集中|章节标题结构重复|X的Y \/ X中的Y/);
+    }), /beatKey 必须严格等于 open_hook/);
+
     assert.equal(calls.length, 3);
   } finally {
     setPromptRunnerStructuredInvokerForTests();
