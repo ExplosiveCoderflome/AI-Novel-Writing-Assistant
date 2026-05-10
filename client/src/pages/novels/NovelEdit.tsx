@@ -72,7 +72,7 @@ import type { ChapterReviewResult } from "./chapterPlanning.shared";
 import type { NovelEditTakeoverState, NovelTaskDrawerState } from "./components/NovelEditView.types";
 import NovelExistingProjectTakeoverDialog from "./components/NovelExistingProjectTakeoverDialog";
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
-import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorDisplayStage, tabFromDirectorProgress, tabFromScope } from "./novelWorkspaceNavigation";
+import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorDisplayStage, tabFromDirectorProgress, tabFromScope, type NovelWorkspaceFlowTab } from "./novelWorkspaceNavigation";
 import { resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
 import { resolveInternalNavigationTarget } from "@/lib/internalNavigation";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
@@ -775,6 +775,7 @@ export default function NovelEdit() {
   );
   const autoDirectorRefreshSignatureRef = useRef("");
   const autoDirectorArtifactSignatureRef = useRef("");
+  const autoDirectorWorkspaceSignatureRef = useRef("");
   const activeAutoDirectorRefreshSignature = useMemo(() => {
     if (!activeAutoDirectorTask) {
       return "";
@@ -817,6 +818,28 @@ export default function NovelEdit() {
     activeAutoDirectorTask?.meta,
     activeAutoDirectorTask?.status,
   ]);
+  const activeAutoDirectorWorkspaceSignature = useMemo(() => {
+    if (!activeAutoDirectorTask || !activeDirectorSnapshot) {
+      return "";
+    }
+    const latestEvent = activeDirectorSnapshot.recentEvents.at(-1);
+    const progressBreakdown = activeDirectorSnapshot.projection?.progressBreakdown;
+    return [
+      activeAutoDirectorTask.id,
+      activeAutoDirectorTask.status,
+      activeDirectorSnapshot.displayState.stageKey,
+      activeDirectorSnapshot.currentFactStepId ?? "",
+      activeDirectorSnapshot.displayState.progressPercent,
+      progressBreakdown?.planningPercent ?? "",
+      progressBreakdown?.chapterExecutionPercent ?? "",
+      progressBreakdown?.qualityRepairPercent ?? "",
+      progressBreakdown?.activeJobProgress ?? "",
+      latestEvent?.eventId ?? "",
+      activeDirectorSnapshot.artifacts.length,
+      activeDirectorSnapshot.task.currentItemKey ?? "",
+      activeDirectorSnapshot.task.checkpointType ?? "",
+    ].join("|");
+  }, [activeAutoDirectorTask, activeDirectorSnapshot]);
   const dismissTakeover = () => {
     if (!activeAutoDirectorRefreshSignature) {
       return;
@@ -862,21 +885,22 @@ export default function NovelEdit() {
     }
     await Promise.allSettled(invalidations);
   };
-  const invalidateVisibleWorkspaceData = async () => {
+  const invalidateWorkspaceDataForTabs = async (tabs: Array<NovelWorkspaceFlowTab | null | undefined>) => {
     const invalidations: Array<Promise<unknown>> = [];
-    if (activeTab === "basic") {
+    const targetTabs = new Set(tabs.filter((tab): tab is NovelWorkspaceFlowTab => Boolean(tab)));
+    if (targetTabs.has("basic")) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(id) }),
       );
     }
-    if (activeTab === "story_macro") {
+    if (targetTabs.has("story_macro")) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.storyMacro(id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.storyMacroState(id) }),
       );
     }
-    if (activeTab === "character") {
+    if (targetTabs.has("character")) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCastOptions(id) }),
@@ -886,13 +910,13 @@ export default function NovelEdit() {
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterResources(id) }),
       );
     }
-    if (activeTab === "outline" || activeTab === "structured") {
+    if (targetTabs.has("outline") || targetTabs.has("structured")) {
       invalidations.push(queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) }));
     }
-    if (activeTab === "structured") {
+    if (targetTabs.has("structured")) {
       invalidations.push(queryClient.invalidateQueries({ queryKey: queryKeys.novels.payoffLedger(id, payoffLedgerChapterOrder) }));
     }
-    if (activeTab === "chapter") {
+    if (targetTabs.has("chapter")) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.latestStateSnapshot(id) }),
@@ -907,7 +931,7 @@ export default function NovelEdit() {
         );
       }
     }
-    if (activeTab === "pipeline") {
+    if (targetTabs.has("pipeline")) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.latestStateSnapshot(id) }),
@@ -916,6 +940,9 @@ export default function NovelEdit() {
       );
     }
     await Promise.allSettled(invalidations);
+  };
+  const invalidateVisibleWorkspaceData = async () => {
+    await invalidateWorkspaceDataForTabs([isNovelWorkspaceFlowTab(activeTab) ? activeTab : null]);
   };
   const alignToAutoDirectorResumeTarget = () => {
     const target = activeAutoDirectorTask?.resumeTarget;
@@ -1819,6 +1846,34 @@ export default function NovelEdit() {
   }, [activeAutoDirectorRefreshSignature, activeAutoDirectorTask, id, queryClient]);
 
   useEffect(() => {
+    if (!id || !activeAutoDirectorTask || !activeAutoDirectorWorkspaceSignature) {
+      autoDirectorWorkspaceSignatureRef.current = activeAutoDirectorWorkspaceSignature;
+      return;
+    }
+    if (!autoDirectorWorkspaceSignatureRef.current) {
+      autoDirectorWorkspaceSignatureRef.current = activeAutoDirectorWorkspaceSignature;
+      return;
+    }
+    if (autoDirectorWorkspaceSignatureRef.current === activeAutoDirectorWorkspaceSignature) {
+      return;
+    }
+    autoDirectorWorkspaceSignatureRef.current = activeAutoDirectorWorkspaceSignature;
+    const recommendedTab = tabFromDirectorDisplayStage(activeDirectorSnapshot?.displayState.stageKey ?? null);
+    void invalidateWorkspaceDataForTabs([
+      isNovelWorkspaceFlowTab(activeTab) ? activeTab : null,
+      recommendedTab,
+      workflowCurrentTab,
+    ]);
+  }, [
+    activeAutoDirectorTask,
+    activeAutoDirectorWorkspaceSignature,
+    activeDirectorSnapshot?.displayState.stageKey,
+    activeTab,
+    id,
+    workflowCurrentTab,
+  ]);
+
+  useEffect(() => {
     if (!id || !activeAutoDirectorTask || !activeAutoDirectorArtifactSignature) {
       autoDirectorArtifactSignatureRef.current = activeAutoDirectorArtifactSignature;
       return;
@@ -1831,9 +1886,6 @@ export default function NovelEdit() {
       return;
     }
     autoDirectorArtifactSignatureRef.current = activeAutoDirectorArtifactSignature;
-    if (activeAutoDirectorTask.status === "queued" || activeAutoDirectorTask.status === "running") {
-      return;
-    }
     void invalidateVisibleWorkspaceData();
   }, [activeAutoDirectorArtifactSignature, activeAutoDirectorTask, id, queryClient, selectedChapterId]);
 
