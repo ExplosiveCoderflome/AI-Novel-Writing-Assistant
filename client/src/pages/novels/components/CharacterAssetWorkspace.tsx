@@ -252,6 +252,11 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
   const displayedResources = selectedCharacterResources
     .filter(resourceDisplayMode.shouldShowResource)
     .slice(0, resourceDisplayMode.limit);
+  const hasVisibleProfileSuggestionForSelected = Boolean(
+    visibleProfileSuggestion
+    && selectedCharacter
+    && visibleProfileSuggestion.characterId === selectedCharacter.id,
+  );
   const applicableVisibleProfileCount = Object.keys(visibleProfileSuggestion?.fields ?? {}).length;
   const batchApplicableCount = batchVisibleProfileResult?.results.filter((item) => item.hasApplicableChanges).length ?? 0;
 
@@ -393,21 +398,23 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                   </AiButton>
                 </div>
               </div>
-              <div className="mt-3 grid gap-2 lg:grid-cols-2">
-                {VISIBLE_PROFILE_FIELDS.map((field) => (
-                  <div key={field.key} className="rounded-lg border border-border/70 bg-muted/15 p-3">
-                    <div className="text-xs font-medium text-muted-foreground">{field.label}</div>
-                    <div className="mt-1 text-sm leading-6">{selectedCharacter[field.key] || "待补全"}</div>
-                  </div>
-                ))}
-              </div>
-              {visibleProfileSuggestion && visibleProfileSuggestion.characterId === selectedCharacter.id ? (
+              {isGeneratingVisibleProfile ? (
+                <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
+                  正在为“{selectedCharacter.name}”整理外貌、体态、声音和登场记忆点。
+                </div>
+              ) : null}
+              {hasVisibleProfileSuggestionForSelected && visibleProfileSuggestion ? (
                 <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-sm font-medium">
-                      {applicableVisibleProfileCount > 0
-                        ? `可写入 ${applicableVisibleProfileCount} 项外显资料`
-                        : "当前建议没有可写入内容"}
+                    <div>
+                      <div className="text-sm font-medium">
+                        {applicableVisibleProfileCount > 0
+                          ? `已为“${visibleProfileSuggestion.characterName}”生成 ${applicableVisibleProfileCount} 项可写入外显资料`
+                          : `“${visibleProfileSuggestion.characterName}”当前没有可写入的外显资料`}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        请先看下面差异，确认后点击写入当前角色。
+                      </div>
                     </div>
                     <Button
                       size="sm"
@@ -435,6 +442,11 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                       提醒：{visibleProfileSuggestion.warnings.join(" / ")}
                     </div>
                   ) : null}
+                </div>
+              ) : null}
+              {!isGeneratingVisibleProfile && !hasVisibleProfileSuggestionForSelected ? (
+                <div className="mt-3 rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                  点击“AI 补全外显资料”后，会先在这里显示即将写入的差异；确认后再写入角色卡。
                 </div>
               ) : null}
               {batchVisibleProfileResult ? (
@@ -471,6 +483,14 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                   </div>
                 </div>
               ) : null}
+              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                {VISIBLE_PROFILE_FIELDS.map((field) => (
+                  <div key={field.key} className="rounded-lg border border-border/70 bg-muted/15 p-3">
+                    <div className="text-xs font-medium text-muted-foreground">{field.label}</div>
+                    <div className="mt-1 text-sm leading-6">{selectedCharacter[field.key] || "待补全"}</div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="rounded-xl border p-3">
