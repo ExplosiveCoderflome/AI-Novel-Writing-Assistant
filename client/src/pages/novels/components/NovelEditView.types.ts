@@ -8,6 +8,8 @@ import type {
   StoryStateSnapshot,
   Character,
   CharacterTimeline,
+  CharacterVisibleProfileBatchResult,
+  CharacterVisibleProfileSuggestion,
   NovelBible,
   PayoffLedgerResponse,
   PipelineJob,
@@ -474,6 +476,16 @@ export interface CharacterTabViewProps {
   isSyncingAllTimeline: boolean;
   onEvolveCharacter: () => void;
   isEvolvingCharacter: boolean;
+  onGenerateVisibleProfile: () => void;
+  isGeneratingVisibleProfile: boolean;
+  visibleProfileSuggestion?: CharacterVisibleProfileSuggestion | null;
+  onApplyVisibleProfile: () => void;
+  isApplyingVisibleProfile: boolean;
+  onGenerateBatchVisibleProfiles: () => void;
+  isGeneratingBatchVisibleProfiles: boolean;
+  batchVisibleProfileResult?: CharacterVisibleProfileBatchResult | null;
+  onApplyBatchVisibleProfiles: () => void;
+  isApplyingBatchVisibleProfiles: boolean;
   onWorldCheck: () => void;
   isCheckingWorld: boolean;
   selectedCharacter?: Character;
@@ -486,11 +498,31 @@ export interface CharacterTabViewProps {
     personality: string;
     background: string;
     development: string;
+    appearance: string;
+    physique: string;
+    attireStyle: string;
+    signatureDetail: string;
+    voiceTexture: string;
+    presenceImpression: string;
     currentState: string;
     currentGoal: string;
   };
   onCharacterFormChange: (
-    field: "name" | "role" | "gender" | "personality" | "background" | "development" | "currentState" | "currentGoal",
+    field:
+      | "name"
+      | "role"
+      | "gender"
+      | "personality"
+      | "background"
+      | "development"
+      | "appearance"
+      | "physique"
+      | "attireStyle"
+      | "signatureDetail"
+      | "voiceTexture"
+      | "presenceImpression"
+      | "currentState"
+      | "currentGoal",
     value: string,
   ) => void;
   onSaveCharacter: () => void;

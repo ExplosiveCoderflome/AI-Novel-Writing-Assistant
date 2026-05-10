@@ -85,13 +85,28 @@ export function buildRecentChapterContentText(
 }
 
 export function buildCharactersContextText(
-  characters: Array<{ name: string; role: string; personality: string | null }>,
+  characters: Array<{
+    name: string;
+    role: string;
+    personality: string | null;
+    appearance?: string | null;
+    physique?: string | null;
+    signatureDetail?: string | null;
+    voiceTexture?: string | null;
+  }>,
 ): string {
   if (characters.length === 0) {
     return "";
   }
   return `角色底表：\n${characters
-    .map((item) => `- ${item.name}(${item.role})${item.personality ? ` ${compactText(item.personality, 80)}` : ""}`)
+    .map((item) => {
+      const visibleProfile = [
+        item.appearance || item.physique ? `样貌/体态=${compactText([item.appearance, item.physique].filter(Boolean).join("；"), 90)}` : "",
+        item.signatureDetail ? `标志=${compactText(item.signatureDetail, 60)}` : "",
+        item.voiceTexture ? `声音=${compactText(item.voiceTexture, 60)}` : "",
+      ].filter(Boolean).slice(0, 3).join(" | ");
+      return `- ${item.name}(${item.role})${item.personality ? ` ${compactText(item.personality, 80)}` : ""}${visibleProfile ? `；外显：${visibleProfile}` : ""}`;
+    })
     .join("\n")}`;
 }
 

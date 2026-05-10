@@ -31,6 +31,12 @@ export interface Character {
   secret?: string | null;
   moralLine?: string | null;
   firstImpression?: string | null;
+  appearance?: string | null;
+  physique?: string | null;
+  attireStyle?: string | null;
+  signatureDetail?: string | null;
+  voiceTexture?: string | null;
+  presenceImpression?: string | null;
   arcStart?: string | null;
   arcMidpoint?: string | null;
   arcClimax?: string | null;
@@ -42,6 +48,43 @@ export interface Character {
   baseCharacterId?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type CharacterVisibleProfileField =
+  | "appearance"
+  | "physique"
+  | "attireStyle"
+  | "signatureDetail"
+  | "voiceTexture"
+  | "presenceImpression";
+
+export type CharacterVisibleProfileFields = Partial<Record<CharacterVisibleProfileField, string | null>>;
+
+export interface CharacterVisibleProfileSuggestion {
+  characterId: string;
+  characterName: string;
+  fields: CharacterVisibleProfileFields;
+  skippedFields: Partial<Record<CharacterVisibleProfileField, string>>;
+  confidence: number;
+  warnings: string[];
+  hasApplicableChanges: boolean;
+}
+
+export interface CharacterVisibleProfileBatchResult {
+  novelId: string;
+  results: CharacterVisibleProfileSuggestion[];
+  skippedCharacters: Array<{
+    characterId: string;
+    characterName: string;
+    reason: string;
+  }>;
+}
+
+export interface CharacterVisibleProfileApplyResult {
+  character: Character;
+  appliedFields: CharacterVisibleProfileField[];
+  skippedFields: Partial<Record<CharacterVisibleProfileField, string>>;
+  warnings: string[];
 }
 
 export interface BaseCharacter {

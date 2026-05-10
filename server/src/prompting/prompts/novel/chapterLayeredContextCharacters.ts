@@ -4,6 +4,22 @@ import type {
 } from "@ai-novel/shared/types/chapterRuntime";
 import { compactText, takeUnique } from "./chapterLayeredContextShared";
 
+function buildVisibleProfileSummary(
+  character: GenerationContextPackage["characterRoster"][number] | undefined,
+): string | null {
+  if (!character) {
+    return null;
+  }
+  const parts = takeUnique([
+    character.appearance || character.physique
+      ? `样貌/体态=${compactText([character.appearance, character.physique].filter(Boolean).join("；"))}`
+      : "",
+    character.signatureDetail ? `标志=${compactText(character.signatureDetail)}` : "",
+    character.voiceTexture ? `声音=${compactText(character.voiceTexture)}` : "",
+  ], 3);
+  return parts.length > 0 ? parts.join(" | ") : null;
+}
+
 function absenceRiskRank(risk: "none" | "info" | "warn" | "high"): number {
   return ["none", "info", "warn", "high"].indexOf(risk);
 }
@@ -101,6 +117,7 @@ export function buildDynamicCharacterGuidance(
           volumeResponsibility: item.volumeResponsibility ?? null,
           currentGoal: roster?.currentGoal ?? item.currentGoal ?? null,
           currentState: roster?.currentState ?? item.currentState ?? null,
+          visibleProfileSummary: buildVisibleProfileSummary(roster),
           factionLabel: item.factionLabel ?? null,
           stanceLabel: item.stanceLabel ?? null,
           relationStageLabels: takeUnique(

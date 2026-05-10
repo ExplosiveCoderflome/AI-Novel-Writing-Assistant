@@ -1,0 +1,52 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+
+const {
+  isVagueVisibleProfileText,
+  pickApplicableVisibleProfileFields,
+} = require("../dist/services/novel/characterProfile/CharacterVisibleProfileService");
+const {
+  buildCharactersContextText,
+} = require("../dist/services/novel/runtime/runtimeContextBlocks");
+
+test("visible profile field selection preserves existing clear profile", () => {
+  const result = pickApplicableVisibleProfileFields({
+    existing: {
+      appearance: "眉骨很高，左眼下有一颗淡痣，笑时总像先看穿对方。",
+      physique: "",
+    },
+    suggested: {
+      appearance: "长得很好看",
+      physique: "肩背薄而挺，走路时习惯把重心压得很低。",
+    },
+  });
+
+  assert.equal(result.fields.appearance, undefined);
+  assert.equal(result.skippedFields.appearance, "已有明确资料");
+  assert.equal(result.fields.physique, "肩背薄而挺，走路时习惯把重心压得很低。");
+});
+
+test("visible profile validator treats generic prose as vague", () => {
+  assert.equal(isVagueVisibleProfileText("很好看"), true);
+  assert.equal(isVagueVisibleProfileText("气质独特"), true);
+  assert.equal(isVagueVisibleProfileText("嗓音低哑，句尾常轻轻压住，像把情绪先藏起来。"), false);
+});
+
+test("chapter character context includes compact visible profile summary", () => {
+  const text = buildCharactersContextText([
+    {
+      name: "林照",
+      role: "主角",
+      personality: "谨慎但不退让",
+      appearance: "眼尾狭长，额前总有被火燎卷的碎发",
+      physique: "少年感偏瘦，肩背却很稳",
+      signatureDetail: "思考时会用拇指摩挲旧铜戒",
+      voiceTexture: "声音偏低，短句多，越危险越慢",
+    },
+  ]);
+
+  assert.match(text, /外显/);
+  assert.match(text, /样貌\/体态=/);
+  assert.match(text, /标志=/);
+  assert.match(text, /声音=/);
+});

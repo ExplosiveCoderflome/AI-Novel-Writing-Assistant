@@ -1,11 +1,15 @@
 import { useMutation, useQuery, type QueryClient } from "@tanstack/react-query";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
+  applyBatchCharacterVisibleProfiles,
+  applyCharacterVisibleProfile,
   applySupplementalCharacter,
   checkCharacterAgainstWorld,
   createNovelCharacter,
   deleteNovelCharacter,
   evolveNovelCharacter,
+  generateBatchCharacterVisibleProfiles,
+  generateCharacterVisibleProfile,
   generateSupplementalCharacters,
   getCharacterTimeline,
   syncAllCharacterTimeline,
@@ -37,6 +41,12 @@ interface CharacterFormState {
   personality: string;
   background: string;
   development: string;
+  appearance: string;
+  physique: string;
+  attireStyle: string;
+  signatureDetail: string;
+  voiceTexture: string;
+  presenceImpression: string;
   currentState: string;
   currentGoal: string;
 }
@@ -141,6 +151,70 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
     },
   });
 
+  const generateVisibleProfileMutation = useMutation({
+    mutationFn: () =>
+      generateCharacterVisibleProfile(id, selectedCharacterId, {
+        provider: llm.provider,
+        model: llm.model,
+        temperature: 0.45,
+      }),
+    onSuccess: (response) => {
+      const count = Object.keys(response.data?.fields ?? {}).length;
+      setCharacterMessage(count > 0 ? `已生成 ${count} 项外显资料建议，请确认后写入。` : "当前角色没有可补写的外显资料。");
+    },
+    onError: (error) => {
+      setCharacterMessage(error instanceof Error ? error.message : "外显资料生成失败。");
+    },
+  });
+
+  const applyVisibleProfileMutation = useMutation({
+    mutationFn: () => {
+      const fields = generateVisibleProfileMutation.data?.data?.fields ?? {};
+      return applyCharacterVisibleProfile(id, selectedCharacterId, fields);
+    },
+    onSuccess: async (response) => {
+      const count = response.data?.appliedFields.length ?? 0;
+      setCharacterMessage(count > 0 ? `已写入 ${count} 项外显资料。` : "没有新的外显资料需要写入。");
+      await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
+    },
+    onError: (error) => {
+      setCharacterMessage(error instanceof Error ? error.message : "外显资料写入失败。");
+    },
+  });
+
+  const generateBatchVisibleProfilesMutation = useMutation({
+    mutationFn: () =>
+      generateBatchCharacterVisibleProfiles(id, {
+        provider: llm.provider,
+        model: llm.model,
+        temperature: 0.45,
+      }),
+    onSuccess: (response) => {
+      const count = response.data?.results.filter((item) => item.hasApplicableChanges).length ?? 0;
+      setCharacterMessage(count > 0 ? `已生成 ${count} 个角色的外显资料建议，请确认后写入。` : "当前角色资料暂时没有需要补写的外显内容。");
+    },
+    onError: (error) => {
+      setCharacterMessage(error instanceof Error ? error.message : "批量外显资料生成失败。");
+    },
+  });
+
+  const applyBatchVisibleProfilesMutation = useMutation({
+    mutationFn: () => {
+      const items = (generateBatchVisibleProfilesMutation.data?.data?.results ?? [])
+        .filter((item) => item.hasApplicableChanges)
+        .map((item) => ({ characterId: item.characterId, fields: item.fields }));
+      return applyBatchCharacterVisibleProfiles(id, items);
+    },
+    onSuccess: async (response) => {
+      const count = response.data?.results.reduce((sum, item) => sum + item.appliedFields.length, 0) ?? 0;
+      setCharacterMessage(count > 0 ? `已批量写入 ${count} 项外显资料。` : "没有新的外显资料需要批量写入。");
+      await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
+    },
+    onError: (error) => {
+      setCharacterMessage(error instanceof Error ? error.message : "批量外显资料写入失败。");
+    },
+  });
+
   const worldCheckMutation = useMutation({
     mutationFn: () =>
       checkCharacterAgainstWorld(id, selectedCharacterId, {
@@ -170,6 +244,12 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
         personality: characterForm.personality,
         background: characterForm.background,
         development: characterForm.development,
+        appearance: characterForm.appearance,
+        physique: characterForm.physique,
+        attireStyle: characterForm.attireStyle,
+        signatureDetail: characterForm.signatureDetail,
+        voiceTexture: characterForm.voiceTexture,
+        presenceImpression: characterForm.presenceImpression,
         currentState: characterForm.currentState,
         currentGoal: characterForm.currentGoal,
       }),
@@ -283,6 +363,10 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
     syncTimelineMutation,
     syncAllTimelineMutation,
     evolveCharacterMutation,
+    generateVisibleProfileMutation,
+    applyVisibleProfileMutation,
+    generateBatchVisibleProfilesMutation,
+    applyBatchVisibleProfilesMutation,
     worldCheckMutation,
     saveCharacterMutation,
     importBaseCharacterMutation,

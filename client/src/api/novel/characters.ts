@@ -14,6 +14,10 @@ import type {
   CharacterCastOption,
   CharacterRelation,
   CharacterTimeline,
+  CharacterVisibleProfileApplyResult,
+  CharacterVisibleProfileBatchResult,
+  CharacterVisibleProfileFields,
+  CharacterVisibleProfileSuggestion,
   SupplementalCharacterApplyResult,
   SupplementalCharacterCandidate,
   SupplementalCharacterGenerateInput,
@@ -191,6 +195,12 @@ export async function createNovelCharacter(
     secret?: string;
     moralLine?: string;
     firstImpression?: string;
+    appearance?: string;
+    physique?: string;
+    attireStyle?: string;
+    signatureDetail?: string;
+    voiceTexture?: string;
+    presenceImpression?: string;
     arcStart?: string;
     arcMidpoint?: string;
     arcClimax?: string;
@@ -225,6 +235,12 @@ export async function updateNovelCharacter(
     secret: string;
     moralLine: string;
     firstImpression: string;
+    appearance: string;
+    physique: string;
+    attireStyle: string;
+    signatureDetail: string;
+    voiceTexture: string;
+    presenceImpression: string;
     arcStart: string;
     arcMidpoint: string;
     arcClimax: string;
@@ -299,6 +315,63 @@ export async function evolveNovelCharacter(
   const { data } = await apiClient.post<ApiResponse<Character>>(
     `/novels/${id}/characters/${charId}/evolve`,
     payload ?? {},
+  );
+  return data;
+}
+
+export async function generateCharacterVisibleProfile(
+  id: string,
+  charId: string,
+  payload?: {
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<CharacterVisibleProfileSuggestion>>(
+    `/novels/${id}/characters/${charId}/visible-profile/generate`,
+    payload ?? {},
+  );
+  return data;
+}
+
+export async function applyCharacterVisibleProfile(
+  id: string,
+  charId: string,
+  fields: CharacterVisibleProfileFields,
+) {
+  const { data } = await apiClient.post<ApiResponse<CharacterVisibleProfileApplyResult>>(
+    `/novels/${id}/characters/${charId}/visible-profile/apply`,
+    { fields },
+  );
+  return data;
+}
+
+export async function generateBatchCharacterVisibleProfiles(
+  id: string,
+  payload?: {
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<CharacterVisibleProfileBatchResult>>(
+    `/novels/${id}/characters/visible-profile/batch-generate`,
+    payload ?? {},
+  );
+  return data;
+}
+
+export async function applyBatchCharacterVisibleProfiles(
+  id: string,
+  items: Array<{ characterId: string; fields: CharacterVisibleProfileFields }>,
+) {
+  const { data } = await apiClient.post<ApiResponse<{
+    novelId: string;
+    results: CharacterVisibleProfileApplyResult[];
+  }>>(
+    `/novels/${id}/characters/visible-profile/batch-apply`,
+    { items },
   );
   return data;
 }

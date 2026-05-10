@@ -23,6 +23,7 @@ import {
 import type { CharacterCastOptionResponseParsed } from "../../../prompting/prompts/novel/characterPreparation.promptSchemas";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import { NovelContextService } from "../NovelContextService";
+import { CharacterVisibleProfileService } from "../characterProfile/CharacterVisibleProfileService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { CharacterPreparationSupplementalService } from "./characterPreparationSupplemental";
 import {
@@ -194,6 +195,7 @@ function serializeCharacterCastOptionWithQuality(
 export class CharacterPreparationService {
   private readonly novelContextService = new NovelContextService();
   private readonly characterDynamicsService = new CharacterDynamicsService();
+  private readonly characterVisibleProfileService = new CharacterVisibleProfileService();
   private readonly supplementalService = new CharacterPreparationSupplementalService(
     this.novelContextService,
     this.characterDynamicsService,
@@ -648,6 +650,14 @@ export class CharacterPreparationService {
     await this.characterDynamicsService.rebuildDynamics(novelId, {
       sourceType: "cast_option_projection",
     }).catch(() => null);
+
+    await this.characterVisibleProfileService.autoCompleteVisibleProfilesForCharacters(
+      novelId,
+      uniqueCharacterIds,
+    ).catch((error) => {
+      console.warn("[character-visible-profile] 自动补齐外显资料失败", error);
+      return null;
+    });
 
     return {
       optionId: option.id,

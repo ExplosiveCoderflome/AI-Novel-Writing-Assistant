@@ -1,0 +1,6 @@
+ALTER TABLE "Character" ADD COLUMN IF NOT EXISTS "appearance" TEXT;
+ALTER TABLE "Character" ADD COLUMN IF NOT EXISTS "physique" TEXT;
+ALTER TABLE "Character" ADD COLUMN IF NOT EXISTS "attireStyle" TEXT;
+ALTER TABLE "Character" ADD COLUMN IF NOT EXISTS "signatureDetail" TEXT;
+ALTER TABLE "Character" ADD COLUMN IF NOT EXISTS "voiceTexture" TEXT;
+ALTER TABLE "Character" ADD COLUMN IF NOT EXISTS "presenceImpression" TEXT;

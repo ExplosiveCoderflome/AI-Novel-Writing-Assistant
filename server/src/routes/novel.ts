@@ -15,6 +15,7 @@ import { registerNovelCharacterDynamicsRoutes } from "./novelCharacterDynamicsRo
 import { registerNovelCharacterPreparationRoutes } from "./novelCharacterPreparationRoutes";
 import { registerNovelCharacterResourceRoutes } from "./novelCharacterResourceRoutes";
 import { registerNovelCharacterSyncRoutes } from "./novelCharacterSyncRoutes";
+import { registerNovelCharacterVisibleProfileRoutes } from "./novelCharacterVisibleProfileRoutes";
 import { registerNovelFramingRoutes } from "./novelFramingRoutes";
 import { registerNovelPlanningRoutes } from "./novelPlanningRoutes";
 import { registerNovelProductionRoutes } from "./novelProductionRoutes";
@@ -291,6 +292,12 @@ const characterSchema = z.object({
   secret: z.string().optional(),
   moralLine: z.string().optional(),
   firstImpression: z.string().optional(),
+  appearance: z.string().optional(),
+  physique: z.string().optional(),
+  attireStyle: z.string().optional(),
+  signatureDetail: z.string().optional(),
+  voiceTexture: z.string().optional(),
+  presenceImpression: z.string().optional(),
   arcStart: z.string().optional(),
   arcMidpoint: z.string().optional(),
   arcClimax: z.string().optional(),
@@ -318,6 +325,12 @@ const updateCharacterSchema = z.object({
   secret: z.string().optional(),
   moralLine: z.string().optional(),
   firstImpression: z.string().optional(),
+  appearance: z.string().optional(),
+  physique: z.string().optional(),
+  attireStyle: z.string().optional(),
+  signatureDetail: z.string().optional(),
+  voiceTexture: z.string().optional(),
+  presenceImpression: z.string().optional(),
   arcStart: z.string().optional(),
   arcMidpoint: z.string().optional(),
   arcClimax: z.string().optional(),
@@ -616,6 +629,14 @@ registerNovelCharacterResourceRoutes({
 registerNovelCharacterSyncRoutes({
   router,
   idParamsSchema,
+});
+
+registerNovelCharacterVisibleProfileRoutes({
+  router,
+  novelService,
+  idParamsSchema,
+  characterParamsSchema,
+  llmGenerateSchema,
 });
 
 registerNovelStorylineRoutes({

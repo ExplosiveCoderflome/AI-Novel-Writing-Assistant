@@ -7,6 +7,8 @@ import type {
   CharacterCastRole,
   CharacterGender,
   CharacterTimeline,
+  CharacterVisibleProfileBatchResult,
+  CharacterVisibleProfileSuggestion,
   SupplementalCharacterCandidate,
   SupplementalCharacterGenerateInput,
   SupplementalCharacterGenerationMode,
@@ -43,6 +45,12 @@ interface CharacterFormState {
   personality: string;
   background: string;
   development: string;
+  appearance: string;
+  physique: string;
+  attireStyle: string;
+  signatureDetail: string;
+  voiceTexture: string;
+  presenceImpression: string;
   currentState: string;
   currentGoal: string;
 }
@@ -135,6 +143,16 @@ interface NovelCharacterPanelProps {
   isSyncingAllTimeline: boolean;
   onEvolveCharacter: () => void;
   isEvolvingCharacter: boolean;
+  onGenerateVisibleProfile: () => void;
+  isGeneratingVisibleProfile: boolean;
+  visibleProfileSuggestion?: CharacterVisibleProfileSuggestion | null;
+  onApplyVisibleProfile: () => void;
+  isApplyingVisibleProfile: boolean;
+  onGenerateBatchVisibleProfiles: () => void;
+  isGeneratingBatchVisibleProfiles: boolean;
+  batchVisibleProfileResult?: CharacterVisibleProfileBatchResult | null;
+  onApplyBatchVisibleProfiles: () => void;
+  isApplyingBatchVisibleProfiles: boolean;
   onWorldCheck: () => void;
   isCheckingWorld: boolean;
   selectedCharacter?: Character;
@@ -184,6 +202,16 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
     isSyncingAllTimeline,
     onEvolveCharacter,
     isEvolvingCharacter,
+    onGenerateVisibleProfile,
+    isGeneratingVisibleProfile,
+    visibleProfileSuggestion,
+    onApplyVisibleProfile,
+    isApplyingVisibleProfile,
+    onGenerateBatchVisibleProfiles,
+    isGeneratingBatchVisibleProfiles,
+    batchVisibleProfileResult,
+    onApplyBatchVisibleProfiles,
+    isApplyingBatchVisibleProfiles,
     onWorldCheck,
     isCheckingWorld,
     selectedCharacter,
@@ -347,7 +375,14 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
               onClick={onEvolveCharacter}
               disabled={isEvolvingCharacter || !selectedCharacterId}
             >
-              {isEvolvingCharacter ? "补全中..." : "AI 补全当前角色"}
+              {isEvolvingCharacter ? "演进中..." : "AI 演进当前状态"}
+            </AiButton>
+            <AiButton
+              variant="outline"
+              onClick={onGenerateVisibleProfile}
+              disabled={isGeneratingVisibleProfile || !selectedCharacterId}
+            >
+              {isGeneratingVisibleProfile ? "生成中..." : "AI 补全外显资料"}
             </AiButton>
             <Badge variant="outline">低频入口：新增角色 / 导入角色 / 补充角色</Badge>
             <div className="text-xs text-muted-foreground">
@@ -705,6 +740,16 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
         isSyncingAllTimeline={isSyncingAllTimeline}
         onWorldCheck={onWorldCheck}
         isCheckingWorld={isCheckingWorld}
+        onGenerateVisibleProfile={onGenerateVisibleProfile}
+        isGeneratingVisibleProfile={isGeneratingVisibleProfile}
+        visibleProfileSuggestion={visibleProfileSuggestion}
+        onApplyVisibleProfile={onApplyVisibleProfile}
+        isApplyingVisibleProfile={isApplyingVisibleProfile}
+        onGenerateBatchVisibleProfiles={onGenerateBatchVisibleProfiles}
+        isGeneratingBatchVisibleProfiles={isGeneratingBatchVisibleProfiles}
+        batchVisibleProfileResult={batchVisibleProfileResult}
+        onApplyBatchVisibleProfiles={onApplyBatchVisibleProfiles}
+        isApplyingBatchVisibleProfiles={isApplyingBatchVisibleProfiles}
         characterResources={characterResources}
         pendingCharacterResourceCount={pendingCharacterResourceCount}
         onBackfillCharacterResources={onBackfillCharacterResources}

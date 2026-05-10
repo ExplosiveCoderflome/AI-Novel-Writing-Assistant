@@ -112,6 +112,12 @@ export interface CharacterInput {
   secret?: string;
   moralLine?: string;
   firstImpression?: string;
+  appearance?: string;
+  physique?: string;
+  attireStyle?: string;
+  signatureDetail?: string;
+  voiceTexture?: string;
+  presenceImpression?: string;
   arcStart?: string;
   arcMidpoint?: string;
   arcClimax?: string;
