@@ -162,6 +162,10 @@ function normalizeProviderId(value: string | null | undefined): LLMProvider {
   return trimmed || "deepseek";
 }
 
+function shouldUseAnthropicProtocol(provider: LLMProvider): boolean {
+  return provider === "anthropic";
+}
+
 function normalizeMaxTokens(provider: LLMProvider, maxTokens?: number): number | undefined {
   if (typeof maxTokens !== "number" || !Number.isFinite(maxTokens)) {
     return undefined;
@@ -195,14 +199,18 @@ export function normalizeStructuredResponseFormat(value?: string | null): ModelR
   return "auto";
 }
 
-function normalizeRoutePreferences(input: {
+function normalizeRoutePreferencesForProvider(input: {
+  provider: LLMProvider;
   requestProtocol?: string | null;
   structuredResponseFormat?: string | null;
 }): {
   requestProtocol: ModelRouteRequestProtocol;
   structuredResponseFormat: ModelRouteStructuredResponseFormat;
 } {
-  const requestProtocol = normalizeRequestProtocol(input.requestProtocol);
+  const normalizedProtocol = normalizeRequestProtocol(input.requestProtocol);
+  const requestProtocol = shouldUseAnthropicProtocol(input.provider)
+    ? (normalizedProtocol === "anthropic" ? "anthropic" : "auto")
+    : (normalizedProtocol === "anthropic" ? "openai_compatible" : normalizedProtocol);
   const structuredResponseFormat = requestProtocol === "anthropic"
     ? "prompt_json"
     : normalizeStructuredResponseFormat(input.structuredResponseFormat);
@@ -244,7 +252,8 @@ function applyOverrides(
       ? { requestHeadersText: normalizeRequestHeadersText(userOverride.requestHeadersText) }
       : null),
   };
-  const routePreferences = normalizeRoutePreferences({
+  const routePreferences = normalizeRoutePreferencesForProvider({
+    provider: merged.provider,
     requestProtocol: merged.requestProtocol,
     structuredResponseFormat: merged.structuredResponseFormat,
   });
@@ -293,7 +302,8 @@ export async function resolveModel(
     });
     if (row) {
       const provider = normalizeProviderId(row.provider);
-      const routePreferences = normalizeRoutePreferences({
+      const routePreferences = normalizeRoutePreferencesForProvider({
+        provider,
         requestProtocol: "requestProtocol" in row ? row.requestProtocol : null,
         structuredResponseFormat: "structuredResponseFormat" in row ? row.structuredResponseFormat : null,
       });
@@ -339,7 +349,8 @@ export async function listModelRouteConfigs(): Promise<Array<{
     });
     return rows.map((r) => {
       const provider = normalizeProviderId(r.provider);
-      const routePreferences = normalizeRoutePreferences({
+      const routePreferences = normalizeRoutePreferencesForProvider({
+        provider,
         requestProtocol: "requestProtocol" in r ? r.requestProtocol : null,
         structuredResponseFormat: "structuredResponseFormat" in r ? r.structuredResponseFormat : null,
       });
@@ -378,7 +389,8 @@ export async function upsertModelRouteConfig(
   const {
     requestProtocol,
     structuredResponseFormat,
-  } = normalizeRoutePreferences({
+  } = normalizeRoutePreferencesForProvider({
+    provider,
     requestProtocol: data.requestProtocol,
     structuredResponseFormat: data.structuredResponseFormat,
   });

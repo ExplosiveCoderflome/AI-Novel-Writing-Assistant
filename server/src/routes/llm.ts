@@ -170,6 +170,9 @@ router.put(
   async (req, res, next) => {
     try {
       const body = req.body as z.infer<typeof modelRouteUpsertSchema>;
+      if (body.requestProtocol === "anthropic" && body.provider !== "anthropic") {
+        throw new AppError("只有 Anthropic provider 可以保存为 anthropic 请求协议。", 400);
+      }
       await upsertModelRouteConfig(body.taskType, {
         provider: body.provider,
         model: body.model,

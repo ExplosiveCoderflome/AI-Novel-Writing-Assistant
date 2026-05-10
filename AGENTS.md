@@ -97,6 +97,26 @@
 - If a build is triggered manually or from a non-matching tag, treat it as verification or packaging only. It must not be treated as a valid public release upload.
 - If the required `vX.Y.Z` tag and `desktop/package.json` version are not aligned, stop before upload, fix the version/tag pair first, and then rerun the release flow.
 
+## Desktop Runtime Debugging Rules
+
+- For packaged desktop bugs, do not assume a source fix has reached the executable just because a rebuild or packaging command ran.
+- First verify the packaged runtime behavior from the actual desktop logs before changing more code.
+- For portable builds, inspect the runtime logs under the portable data directory beside the executable, for example `*-data/logs/desktop-main.log`.
+- When debugging packaged prompt or LLM issues, capture and compare at least:
+  - the concrete API route;
+  - the prompt id or task label when available;
+  - the structured strategy actually used, such as `json_schema`, `json_object`, or `prompt_json`;
+  - the latest error text, especially whether it changed after a rebuild.
+- If the packaged log shows the strategy or stack has changed, treat that as a new layer of failure and re-evaluate the root cause instead of continuing under the previous assumption.
+
+### Packaged Runtime Lessons
+
+- When multiple unpacked or packaged desktop instances exist, always identify the fresh runtime by its new startup timestamp and bound server port before trusting any later log line. Old `desktop-main.log` failure records can remain in the same file and must not be mistaken for the current run.
+- For live verification, pair desktop log inspection with runtime API checks such as `/api/llm/model-routes`, `/api/llm/structured-fallback`, and the active director task snapshot. This is the fastest way to prove whether route normalization, fallback policy, and the current failure layer actually changed in the packaged app.
+- For OpenAI-compatible structured prompts, the real packaged path may start at `json_schema` even when the stored route format is `prompt_json`. Shared transport resilience must therefore cover `json_schema -> json_object -> prompt_json -> direct chat fallback`, not only direct `prompt_json` failures.
+- Timeout-governance tests for structured calls must use real abort semantics. Test doubles that immediately throw `fetch failed` can hide timeout-specific behavior and produce false conclusions about whether direct fallback should run.
+- When shared structured fallback has demonstrably taken over a transport path, prefer removing duplicated service-local retries while preserving only the final prompt-family-specific direct-call hop needed for packaged-runtime parity.
+
 ## Prompt Governance
 
 - `server/src/prompting/` is the only allowed entrypoint for adding new product-level prompts.

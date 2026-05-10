@@ -1,7 +1,11 @@
 import type { BookContractDraft } from "@ai-novel/shared/types/novelWorkflow";
+import { AIMessage, SystemMessage, type BaseMessage } from "@langchain/core/messages";
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
-import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import { resolveLLMClientOptions } from "../../../llm/factory";
+import { parseStructuredLlmRawContentDetailed } from "../../../llm/structuredInvoke";
+import { extractStructuredOutputErrorCategory, resolveStructuredOutputProfile } from "../../../llm/structuredOutput";
+import { preparePromptExecution, runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import {
   buildDirectorBookContractContextBlocks,
   directorBookContractPrompt,
@@ -26,6 +30,112 @@ interface DirectorStoryMacroDependencies {
 
 interface DirectorStoryMacroCallbacks {
   markDirectorTaskRunning: DirectorMarkTaskRunningCallback;
+}
+
+function stringifyMessageContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content.map((part) => {
+      if (typeof part === "string") {
+        return part;
+      }
+      if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
+        return part.text;
+      }
+      return "";
+    }).join("\n");
+  }
+  return "";
+}
+
+function toOpenAIChatMessages(messages: BaseMessage[]): Array<{ role: "system" | "user" | "assistant"; content: string }> {
+  return messages
+    .map((message) => {
+      const content = stringifyMessageContent(message.content).trim();
+      if (!content) {
+        return null;
+      }
+      const role = message instanceof SystemMessage || message.type === "system"
+        ? "system"
+        : message instanceof AIMessage || message.type === "ai"
+          ? "assistant"
+          : "user";
+      return { role, content };
+    })
+    .filter((entry): entry is { role: "system" | "user" | "assistant"; content: string } => Boolean(entry));
+}
+
+async function generateDirectorBookContractViaDirectOpenAICompatibleCall(input: {
+  request: DirectorConfirmRequest;
+  messages: BaseMessage[];
+  promptMeta: ReturnType<typeof preparePromptExecution>["invocation"];
+}): Promise<BookContractDraft> {
+  const resolved = await resolveLLMClientOptions(input.request.provider, {
+    model: input.request.model,
+    temperature: Math.min(input.request.temperature ?? 0.4, 0.4),
+    taskType: directorBookContractPrompt.taskType,
+    promptMeta: input.promptMeta,
+    executionMode: "plain",
+    structuredStrategy: "prompt_json",
+    requestProtocol: "openai_compatible",
+  });
+  const response = await fetch(`${resolved.baseURL.replace(/\/+$/u, "")}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(resolved.apiKey ? { authorization: `Bearer ${resolved.apiKey}` } : {}),
+      ...resolved.requestHeaders,
+    },
+    body: JSON.stringify({
+      model: resolved.model,
+      temperature: resolved.temperature,
+      ...(typeof resolved.maxTokens === "number" ? { max_tokens: resolved.maxTokens } : {}),
+      messages: toOpenAIChatMessages(input.messages),
+    }),
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Book Contract fallback 请求失败 (${response.status}): ${detail || response.statusText}`);
+  }
+  const payload = await response.json() as {
+    choices?: Array<{
+      message?: {
+        content?: string | Array<{ text?: string; type?: string }>;
+      };
+    }>;
+  };
+  const rawContent = typeof payload.choices?.[0]?.message?.content === "string"
+    ? payload.choices[0].message.content
+    : Array.isArray(payload.choices?.[0]?.message?.content)
+      ? payload.choices?.[0]?.message?.content
+        ?.map((part) => (typeof part?.text === "string" ? part.text : ""))
+        .join("\n") ?? ""
+      : "";
+  const parsed = await parseStructuredLlmRawContentDetailed({
+    rawContent,
+    schema: directorBookContractPrompt.outputSchema!,
+    provider: resolved.provider,
+    model: resolved.model,
+    apiKey: resolved.apiKey,
+    baseURL: resolved.baseURL,
+    temperature: resolved.temperature,
+    maxTokens: resolved.maxTokens,
+    taskType: directorBookContractPrompt.taskType,
+    label: `${directorBookContractPrompt.id}@${directorBookContractPrompt.version}.fallback`,
+    promptMeta: input.promptMeta,
+    strategy: "prompt_json",
+    profile: resolveStructuredOutputProfile({
+      provider: resolved.provider,
+      model: resolved.model,
+      baseURL: resolved.baseURL,
+      requestProtocol: resolved.requestProtocol,
+      executionMode: "structured",
+    }),
+    maxRepairAttempts: directorBookContractPrompt.repairPolicy?.maxAttempts ?? 1,
+  });
+  return normalizeBookContract(parsed.data);
 }
 
 async function ensureDirectorConstraintEngine(
@@ -55,29 +165,60 @@ async function generateDirectorBookContract(input: {
   const storyInput = buildStoryInput(request, bookSpec);
   const requestedTemperature = request.temperature ?? 0.4;
   const temperature = Math.min(requestedTemperature, 0.4);
+  const promptInput = {
+    idea: storyInput,
+    context: request,
+    candidate: request.candidate,
+    storyMacroPlan,
+    targetChapterCount: request.estimatedChapterCount ?? bookSpec.targetChapterCount,
+  };
+  const contextBlocks = buildDirectorBookContractContextBlocks({
+    idea: storyInput,
+    context: request,
+    candidate: request.candidate,
+    storyMacroPlan,
+    targetChapterCount: request.estimatedChapterCount ?? bookSpec.targetChapterCount,
+  });
   const parsed = await runStructuredPrompt({
     asset: directorBookContractPrompt,
-    promptInput: {
-      idea: storyInput,
-      context: request,
-      candidate: request.candidate,
-      storyMacroPlan,
-      targetChapterCount: request.estimatedChapterCount ?? bookSpec.targetChapterCount,
-    },
-    contextBlocks: buildDirectorBookContractContextBlocks({
-      idea: storyInput,
-      context: request,
-      candidate: request.candidate,
-      storyMacroPlan,
-      targetChapterCount: request.estimatedChapterCount ?? bookSpec.targetChapterCount,
-    }),
+    promptInput,
+    contextBlocks,
     options: {
       provider: request.provider,
       model: request.model,
       temperature,
     },
-  });
-  return normalizeBookContract(parsed.output);
+    }).catch(async (error) => {
+      const category = extractStructuredOutputErrorCategory(error instanceof Error ? error.message : String(error));
+      if (category !== "transport_error") {
+        throw error;
+      }
+    const prepared = preparePromptExecution({
+      asset: directorBookContractPrompt,
+      promptInput,
+      contextBlocks,
+      options: {
+        provider: request.provider,
+        model: request.model,
+        temperature,
+      },
+    });
+      return {
+        output: await generateDirectorBookContractViaDirectOpenAICompatibleCall({
+          request,
+          messages: prepared.messages,
+          promptMeta: prepared.invocation,
+        }),
+        meta: {
+          provider: request.provider,
+          model: request.model,
+          latencyMs: 0,
+          invocation: prepared.invocation,
+        },
+        context: prepared.context,
+      };
+    });
+  return parsed.output;
 }
 
 export async function runDirectorStoryMacroAssetPhase(input: {
