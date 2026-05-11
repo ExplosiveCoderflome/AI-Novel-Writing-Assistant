@@ -8,6 +8,7 @@ const { StyleProfileService } = require("../dist/services/styleEngine/StyleProfi
 const { styleExtractionTaskService } = require("../dist/services/styleEngine/StyleExtractionTaskService.js");
 const { StyleBindingService } = require("../dist/services/styleEngine/StyleBindingService.js");
 const { StyleDetectionService } = require("../dist/services/styleEngine/StyleDetectionService.js");
+const { StyleRewriteService } = require("../dist/services/styleEngine/StyleRewriteService.js");
 const { AntiAiRuleService } = require("../dist/services/styleEngine/AntiAiRuleService.js");
 const { AntiAiPolicyResolver } = require("../dist/services/styleEngine/AntiAiPolicyResolver.js");
 const { prisma } = require("../dist/db/prisma.js");
@@ -401,6 +402,96 @@ test("AntiAiRuleService preserves rule switches when improving AI drafts", async
   }
 });
 
+test("StyleDetectionService can test preview anti-ai rules without a style profile", async () => {
+  const originalFindMany = prisma.antiAiRule.findMany;
+  let capturedWhere = null;
+  let capturedPrompt = "";
+
+  prisma.antiAiRule.findMany = async (args) => {
+    capturedWhere = args.where;
+    return [buildAntiAiRuleRow("preview-rule", {
+      globalBaselineEnabled: false,
+      enabled: false,
+      promptInstruction: "Preview anti-AI instruction.",
+    })];
+  };
+  promptRunner.setPromptRunnerStructuredInvokerForTests(async (input) => {
+    capturedPrompt = input.messages.map((message) => String(message.content)).join("\n");
+    return {
+      data: {
+        riskScore: 65,
+        summary: "命中临时测试规则。",
+        violations: [{
+          ruleId: "preview-rule",
+          ruleName: "Rule preview-rule",
+          ruleType: "risk",
+          severity: "medium",
+          issueCategory: "style_expression",
+          excerpt: "他突然明白了一切。",
+          reason: "解释腔偏重。",
+          suggestion: "改成动作和对白。",
+          canAutoRewrite: true,
+        }],
+        canAutoRewrite: true,
+      },
+      repairUsed: false,
+      repairAttempts: 0,
+    };
+  });
+
+  try {
+    const result = await new StyleDetectionService().check({
+      content: "他突然明白了一切。",
+      previewAntiAiRuleIds: ["preview-rule"],
+    });
+
+    assert.deepEqual(capturedWhere, { id: { in: ["preview-rule"] } });
+    assert.deepEqual(result.appliedRuleIds, ["preview-rule"]);
+    assert.match(capturedPrompt, /Temporary anti-AI test rules/);
+    assert.match(capturedPrompt, /Preview anti-AI instruction/);
+    assert.equal(result.violations[0].ruleId, "preview-rule");
+  } finally {
+    prisma.antiAiRule.findMany = originalFindMany;
+    promptRunner.setPromptRunnerStructuredInvokerForTests();
+  }
+});
+
+test("StyleRewriteService includes preview anti-ai rules in the repair prompt", async () => {
+  const originalFindMany = prisma.antiAiRule.findMany;
+  let capturedPrompt = "";
+
+  prisma.antiAiRule.findMany = async () => [buildAntiAiRuleRow("preview-rewrite", {
+    globalBaselineEnabled: false,
+    promptInstruction: "Preview rewrite instruction.",
+    rewriteSuggestion: "改成具体动作和对白。",
+  })];
+  promptRunner.setPromptRunnerLLMFactoryForTests(async () => ({
+    invoke: async (messages) => {
+      capturedPrompt = messages.map((message) => String(message.content)).join("\n");
+      return { content: "他扶住桌沿，半晌才开口。" };
+    },
+  }));
+
+  try {
+    const result = await new StyleRewriteService().rewrite({
+      content: "他突然明白了一切。",
+      previewAntiAiRuleIds: ["preview-rewrite"],
+      issues: [{
+        ruleName: "解释腔",
+        excerpt: "他突然明白了一切。",
+        suggestion: "改成具体动作和对白。",
+      }],
+    });
+
+    assert.match(capturedPrompt, /Temporary anti-AI test rules/);
+    assert.match(capturedPrompt, /Preview rewrite instruction/);
+    assert.equal(result.content, "他扶住桌沿，半晌才开口。");
+  } finally {
+    prisma.antiAiRule.findMany = originalFindMany;
+    promptRunner.setPromptRunnerLLMFactoryForTests();
+  }
+});
+
 test("knowledge document style extraction uses representative sample by default", () => {
   const sourceText = Array.from({ length: 90 }, (_, index) =>
     `第${index + 1}段：${"人物对话和场景推进。".repeat(160)}`).join("\n");
@@ -438,6 +529,7 @@ test("style engine routes return mocked payloads", async () => {
     generateAiDraft: AntiAiRuleService.prototype.generateAiDraft,
     resolveEffectiveRules: AntiAiPolicyResolver.prototype.resolveEffectiveRules,
     check: StyleDetectionService.prototype.check,
+    rewrite: StyleRewriteService.prototype.rewrite,
     getKnowledgeDocumentById: KnowledgeService.prototype.getDocumentById,
     getTaskDetail: taskCenterService.getTaskDetail,
   };
@@ -661,7 +753,11 @@ test("style engine routes return mocked payloads", async () => {
     effectiveStyleProfileId: input.styleProfileId ?? null,
     usesGlobalAntiAiBaseline: true,
   });
-  StyleDetectionService.prototype.check = async () => ({
+  let capturedDetectionInput = null;
+  let capturedRewriteInput = null;
+  StyleDetectionService.prototype.check = async (input) => {
+    capturedDetectionInput = input;
+    return {
     riskScore: 72,
     summary: "存在解释型心理描写。",
     violations: [{
@@ -676,7 +772,12 @@ test("style engine routes return mocked payloads", async () => {
     }],
     canAutoRewrite: true,
     appliedRuleIds: ["rule-1"],
-  });
+    };
+  };
+  StyleRewriteService.prototype.rewrite = async (input) => {
+    capturedRewriteInput = input;
+    return { content: "他扶住桌沿，低声开口。" };
+  };
 
   const app = createApp();
   const server = http.createServer(app);
@@ -786,11 +887,31 @@ test("style engine routes return mocked payloads", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         styleProfileId: fakeProfile.id,
+        previewAntiAiRuleIds: ["rule-preview"],
         content: "他感到一阵疲惫。",
       }),
     });
     assert.equal(detectResponse.status, 200);
     assert.equal((await detectResponse.json()).data.riskScore, 72);
+    assert.deepEqual(capturedDetectionInput.previewAntiAiRuleIds, ["rule-preview"]);
+
+    const rewriteResponse = await fetch(`http://127.0.0.1:${port}/api/style-detection/rewrite`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        styleProfileId: fakeProfile.id,
+        previewAntiAiRuleIds: ["rule-preview"],
+        content: "他感到一阵疲惫。",
+        issues: [{
+          ruleName: "禁止解释型心理描写",
+          excerpt: "他感到一阵疲惫。",
+          suggestion: "改成动作表达",
+        }],
+      }),
+    });
+    assert.equal(rewriteResponse.status, 200);
+    assert.equal((await rewriteResponse.json()).data.content, "他扶住桌沿，低声开口。");
+    assert.deepEqual(capturedRewriteInput.previewAntiAiRuleIds, ["rule-preview"]);
   } finally {
     Object.assign(StyleProfileService.prototype, {
       listProfiles: originalMethods.listProfiles,
@@ -811,6 +932,9 @@ test("style engine routes return mocked payloads", async () => {
     });
     Object.assign(StyleDetectionService.prototype, {
       check: originalMethods.check,
+    });
+    Object.assign(StyleRewriteService.prototype, {
+      rewrite: originalMethods.rewrite,
     });
     Object.assign(KnowledgeService.prototype, {
       getDocumentById: originalMethods.getKnowledgeDocumentById,

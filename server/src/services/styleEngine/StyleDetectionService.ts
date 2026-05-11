@@ -9,6 +9,12 @@ import {
   inferStyleViolationSource,
 } from "./styleContractText";
 import { StyleRuntimeResolver } from "./StyleRuntimeResolver";
+import {
+  buildAntiAiRuleCatalogText,
+  buildAntiAiRuleDirectiveText,
+  listPreviewAntiAiRules,
+  mergeAntiAiRules,
+} from "./antiAiPreviewRules";
 
 interface DetectionInput {
   content: string;
@@ -16,6 +22,7 @@ interface DetectionInput {
   novelId?: string;
   chapterId?: string;
   taskStyleProfileId?: string;
+  previewAntiAiRuleIds?: string[];
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
@@ -31,14 +38,18 @@ export class StyleDetectionService {
       chapterId: input.chapterId,
       taskStyleProfileId: input.taskStyleProfileId,
     });
-    const antiRules = resolved.antiAiRules;
+    const previewRules = await listPreviewAntiAiRules(input.previewAntiAiRuleIds);
+    const existingRuleIds = new Set(resolved.antiAiRules.map((rule) => rule.id));
+    const extraPreviewRules = previewRules.filter((rule) => !existingRuleIds.has(rule.id));
+    const antiRules = mergeAntiAiRules(resolved.antiAiRules, previewRules);
     const appliedRuleIds = antiRules.map((rule) => rule.id);
     const contract = resolved.context.compiledBlocks?.contract ?? null;
-    const styleContractText = buildFullStyleContractText(contract);
+    const styleContractText = [
+      buildFullStyleContractText(contract),
+      buildAntiAiRuleDirectiveText(extraPreviewRules),
+    ].filter(Boolean).join("\n\n");
     const styleContractMetaText = buildStyleContractMetaText(contract);
-    const antiRuleCatalogText = antiRules
-      .map((rule) => `- [${rule.id}] ${rule.name} (${rule.type}/${rule.severity}): ${rule.promptInstruction ?? rule.description}`)
-      .join("\n");
+    const antiRuleCatalogText = buildAntiAiRuleCatalogText(antiRules);
 
     if (!styleContractText && antiRules.length === 0) {
       return {

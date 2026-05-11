@@ -160,6 +160,7 @@ const detectionSchema = z.object({
   novelId: z.string().trim().optional(),
   chapterId: z.string().trim().optional(),
   taskStyleProfileId: z.string().trim().optional(),
+  previewAntiAiRuleIds: z.array(z.string().trim().min(1)).optional(),
   provider: llmProviderSchema.optional(),
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
@@ -171,6 +172,7 @@ const rewriteSchema = z.object({
   novelId: z.string().trim().optional(),
   chapterId: z.string().trim().optional(),
   taskStyleProfileId: z.string().trim().optional(),
+  previewAntiAiRuleIds: z.array(z.string().trim().min(1)).optional(),
   issues: z.array(z.object({
     ruleName: z.string().trim().min(1),
     excerpt: z.string().trim().min(1),

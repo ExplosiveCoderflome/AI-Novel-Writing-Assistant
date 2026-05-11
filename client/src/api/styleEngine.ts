@@ -297,6 +297,7 @@ export async function detectStyleIssues(payload: {
   novelId?: string;
   chapterId?: string;
   taskStyleProfileId?: string;
+  previewAntiAiRuleIds?: string[];
   provider?: string;
   model?: string;
   temperature?: number;
@@ -311,6 +312,7 @@ export async function rewriteStyleIssues(payload: {
   novelId?: string;
   chapterId?: string;
   taskStyleProfileId?: string;
+  previewAntiAiRuleIds?: string[];
   issues: Array<{
     ruleName: string;
     excerpt: string;
