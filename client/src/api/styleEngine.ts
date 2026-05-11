@@ -1,5 +1,6 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
+  AntiAiEffectiveRulesResult,
   AntiAiRule,
   StyleBinding,
   StyleDetectionReport,
@@ -194,6 +195,23 @@ export async function getAntiAiRules() {
   return data;
 }
 
+export async function createAntiAiRule(payload: {
+  key: string;
+  name: string;
+  type: AntiAiRule["type"];
+  severity: AntiAiRule["severity"];
+  description: string;
+  detectPatterns?: string[];
+  rewriteSuggestion?: string;
+  promptInstruction?: string;
+  autoRewrite?: boolean;
+  enabled?: boolean;
+  globalBaselineEnabled?: boolean;
+}) {
+  const { data } = await apiClient.post<ApiResponse<AntiAiRule>>("/anti-ai-rules", payload);
+  return data;
+}
+
 export async function updateAntiAiRule(id: string, payload: Partial<{
   key: string;
   name: string;
@@ -205,8 +223,19 @@ export async function updateAntiAiRule(id: string, payload: Partial<{
   promptInstruction: string;
   autoRewrite: boolean;
   enabled: boolean;
+  globalBaselineEnabled: boolean;
 }>) {
   const { data } = await apiClient.put<ApiResponse<AntiAiRule>>(`/anti-ai-rules/${id}`, payload);
+  return data;
+}
+
+export async function getEffectiveAntiAiRules(params?: {
+  novelId?: string;
+  chapterId?: string;
+  styleProfileId?: string;
+  taskStyleProfileId?: string;
+}) {
+  const { data } = await apiClient.get<ApiResponse<AntiAiEffectiveRulesResult>>("/anti-ai-rules/effective", { params });
   return data;
 }
 

@@ -8,6 +8,10 @@ const { StyleProfileService } = require("../dist/services/styleEngine/StyleProfi
 const { styleExtractionTaskService } = require("../dist/services/styleEngine/StyleExtractionTaskService.js");
 const { StyleBindingService } = require("../dist/services/styleEngine/StyleBindingService.js");
 const { StyleDetectionService } = require("../dist/services/styleEngine/StyleDetectionService.js");
+const { AntiAiRuleService } = require("../dist/services/styleEngine/AntiAiRuleService.js");
+const { AntiAiPolicyResolver } = require("../dist/services/styleEngine/AntiAiPolicyResolver.js");
+const { prisma } = require("../dist/db/prisma.js");
+const styleEngineSeedService = require("../dist/services/styleEngine/StyleEngineSeedService.js");
 const { KnowledgeService } = require("../dist/services/knowledge/KnowledgeService.js");
 const { taskCenterService } = require("../dist/services/task/TaskCenterService.js");
 
@@ -32,8 +36,56 @@ function buildRule(id) {
     promptInstruction: "直接解释人物心理。",
     autoRewrite: true,
     enabled: true,
+    globalBaselineEnabled: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+  };
+}
+
+function buildAntiAiRuleRow(id, overrides = {}) {
+  return {
+    id,
+    key: `rule-${id}`,
+    name: `Rule ${id}`,
+    type: "forbidden",
+    severity: "high",
+    description: "禁止直接解释人物心理。",
+    detectPatternsJson: "[]",
+    rewriteSuggestion: "改成动作与对白。",
+    promptInstruction: `Rule ${id} instruction.`,
+    autoRewrite: true,
+    enabled: true,
+    globalBaselineEnabled: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+function buildStyleProfileRow(id, antiAiRules = []) {
+  return {
+    id,
+    name: `Profile ${id}`,
+    description: null,
+    category: null,
+    tagsJson: "[]",
+    applicableGenresJson: "[]",
+    sourceType: "manual",
+    sourceRefId: null,
+    sourceContent: null,
+    extractedFeaturesJson: "[]",
+    extractionPresetsJson: "[]",
+    extractionAntiAiRuleKeysJson: "[]",
+    selectedExtractionPresetKey: null,
+    analysisMarkdown: null,
+    status: "active",
+    narrativeRulesJson: "{}",
+    characterRulesJson: "{}",
+    languageRulesJson: "{}",
+    rhythmRulesJson: "{}",
+    antiAiBindings: antiAiRules.map((antiAiRule) => ({ antiAiRule })),
+    createdAt: new Date(),
+    updatedAt: new Date(),
   };
 }
 
@@ -99,6 +151,157 @@ test("StyleCompiler emits layered binding context and section-level strength", (
   assert.match(compiled.character, /character\.emotionExpression: keep when natural 克制外露/);
 });
 
+test("StyleBindingService uses explicit global anti-ai baseline flag", async () => {
+  const originalEnsure = styleEngineSeedService.ensureStyleEngineSeedData;
+  const originalFindBindings = prisma.styleBinding.findMany;
+  const originalFindAntiAiRules = prisma.antiAiRule.findMany;
+  let capturedAntiAiWhere = null;
+
+  styleEngineSeedService.ensureStyleEngineSeedData = async () => ({});
+  prisma.styleBinding.findMany = async () => [];
+  prisma.antiAiRule.findMany = async (args) => {
+    capturedAntiAiWhere = args.where;
+    return [buildAntiAiRuleRow("global-baseline")];
+  };
+
+  try {
+    const resolved = await new StyleBindingService().resolveForGeneration({ novelId: "novel-1" });
+    assert.deepEqual(capturedAntiAiWhere, {
+      enabled: true,
+      globalBaselineEnabled: true,
+    });
+    assert.equal(resolved.usesGlobalAntiAiBaseline, true);
+    assert.deepEqual(resolved.globalAntiAiRuleIds, ["global-baseline"]);
+    assert.match(resolved.compiledBlocks.antiAi, /Rule global-baseline instruction/);
+  } finally {
+    styleEngineSeedService.ensureStyleEngineSeedData = originalEnsure;
+    prisma.styleBinding.findMany = originalFindBindings;
+    prisma.antiAiRule.findMany = originalFindAntiAiRules;
+  }
+});
+
+test("StyleBindingService keeps style-bound anti-ai rules outside global baseline", async () => {
+  const originalEnsure = styleEngineSeedService.ensureStyleEngineSeedData;
+  const originalFindBindings = prisma.styleBinding.findMany;
+  const originalFindAntiAiRules = prisma.antiAiRule.findMany;
+  const styleRule = buildAntiAiRuleRow("style-only", {
+    globalBaselineEnabled: false,
+    promptInstruction: "Style-only anti-AI instruction.",
+  });
+
+  styleEngineSeedService.ensureStyleEngineSeedData = async () => ({});
+  prisma.antiAiRule.findMany = async () => [];
+  prisma.styleBinding.findMany = async () => [{
+    id: "binding-1",
+    styleProfileId: "profile-1",
+    targetType: "novel",
+    targetId: "novel-1",
+    priority: 1,
+    weight: 1,
+    enabled: true,
+    styleProfile: buildStyleProfileRow("profile-1", [styleRule]),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }];
+
+  try {
+    const resolved = await new StyleBindingService().resolveForGeneration({ novelId: "novel-1" });
+    assert.equal(resolved.usesGlobalAntiAiBaseline, false);
+    assert.deepEqual(resolved.globalAntiAiRuleIds, []);
+    assert.deepEqual(resolved.styleAntiAiRuleIds, ["style-only"]);
+    assert.match(resolved.compiledBlocks.antiAi, /Style-only anti-AI instruction/);
+  } finally {
+    styleEngineSeedService.ensureStyleEngineSeedData = originalEnsure;
+    prisma.styleBinding.findMany = originalFindBindings;
+    prisma.antiAiRule.findMany = originalFindAntiAiRules;
+  }
+});
+
+test("AntiAiRuleService defaults new custom rules outside global baseline", async () => {
+  const originalCreate = prisma.antiAiRule.create;
+  let capturedData = null;
+  prisma.antiAiRule.create = async (args) => {
+    capturedData = args.data;
+    return buildAntiAiRuleRow("custom-rule", args.data);
+  };
+
+  try {
+    const created = await new AntiAiRuleService().createRule({
+      key: "custom-rule",
+      name: "自定义规则",
+      type: "forbidden",
+      severity: "medium",
+      description: "自定义禁用表达。",
+    });
+    assert.equal(capturedData.globalBaselineEnabled, false);
+    assert.equal(created.globalBaselineEnabled, false);
+  } finally {
+    prisma.antiAiRule.create = originalCreate;
+  }
+});
+
+test("AntiAiPolicyResolver separates global baseline and style-specific sources", async () => {
+  const originalEnsure = styleEngineSeedService.ensureStyleEngineSeedData;
+  const originalFindAntiAiRules = prisma.antiAiRule.findMany;
+  const globalRule = buildAntiAiRuleRow("global-rule", {
+    globalBaselineEnabled: true,
+    promptInstruction: "Global anti-AI instruction.",
+  });
+  const styleRule = buildAntiAiRuleRow("style-rule", {
+    globalBaselineEnabled: false,
+    promptInstruction: "Style-bound anti-AI instruction.",
+  });
+
+  styleEngineSeedService.ensureStyleEngineSeedData = async () => ({});
+  prisma.antiAiRule.findMany = async () => [globalRule];
+
+  try {
+    const resolved = await new AntiAiPolicyResolver().resolveFromBindings({
+      matchedBindings: [{
+        id: "binding-1",
+        styleProfileId: "profile-1",
+        targetType: "novel",
+        targetId: "novel-1",
+        priority: 1,
+        weight: 0.8,
+        enabled: true,
+        styleProfile: {
+          ...buildStyleProfileRow("profile-1", [styleRule]),
+          antiAiRules: [{
+            id: "style-rule",
+            key: "rule-style-rule",
+            name: "Rule style-rule",
+            type: "forbidden",
+            severity: "high",
+            description: "禁止直接解释人物心理。",
+            detectPatterns: [],
+            rewriteSuggestion: "改成动作与对白。",
+            promptInstruction: "Style-bound anti-AI instruction.",
+            autoRewrite: true,
+            enabled: true,
+            globalBaselineEnabled: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }],
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }],
+      effectiveStyleProfileId: "profile-1",
+    });
+
+    assert.deepEqual(resolved.globalBaselineRules.map((item) => item.rule.id), ["global-rule"]);
+    assert.deepEqual(resolved.styleSpecificRules.map((item) => item.rule.id), ["style-rule"]);
+    assert.deepEqual(resolved.effectiveRules.map((item) => item.rule.id), ["global-rule", "style-rule"]);
+    assert.equal(resolved.effectiveStyleProfileId, "profile-1");
+    assert.equal(resolved.usesGlobalAntiAiBaseline, true);
+    assert.equal(resolved.styleSpecificRules[0].source, "style_profile");
+  } finally {
+    styleEngineSeedService.ensureStyleEngineSeedData = originalEnsure;
+    prisma.antiAiRule.findMany = originalFindAntiAiRules;
+  }
+});
+
 test("knowledge document style extraction uses representative sample by default", () => {
   const sourceText = Array.from({ length: 90 }, (_, index) =>
     `第${index + 1}段：${"人物对话和场景推进。".repeat(160)}`).join("\n");
@@ -133,6 +336,7 @@ test("style engine routes return mocked payloads", async () => {
     createFromBookAnalysis: StyleProfileService.prototype.createFromBookAnalysis,
     createExtractionTask: styleExtractionTaskService.createTask,
     createBinding: StyleBindingService.prototype.createBinding,
+    resolveEffectiveRules: AntiAiPolicyResolver.prototype.resolveEffectiveRules,
     check: StyleDetectionService.prototype.check,
     getKnowledgeDocumentById: KnowledgeService.prototype.getDocumentById,
     getTaskDetail: taskCenterService.getTaskDetail,
@@ -286,6 +490,60 @@ test("style engine routes return mocked payloads", async () => {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
+  AntiAiPolicyResolver.prototype.resolveEffectiveRules = async (input) => ({
+    globalBaselineRules: [{
+      rule: buildRule("global-preview"),
+      source: "global_baseline",
+      sourceLabel: "全局默认",
+      styleProfileId: null,
+      styleProfileName: null,
+      bindingTargetType: null,
+      bindingTargetId: null,
+      weight: 1,
+    }],
+    styleSpecificRules: input.styleProfileId ? [{
+      rule: { ...buildRule("style-preview"), globalBaselineEnabled: false },
+      source: "style_profile",
+      sourceLabel: "现实流",
+      styleProfileId: input.styleProfileId,
+      styleProfileName: "现实流",
+      bindingTargetType: "task",
+      bindingTargetId: input.styleProfileId,
+      weight: 1,
+    }] : [],
+    effectiveRules: input.styleProfileId
+      ? [{
+        rule: buildRule("global-preview"),
+        source: "global_baseline",
+        sourceLabel: "全局默认",
+        styleProfileId: null,
+        styleProfileName: null,
+        bindingTargetType: null,
+        bindingTargetId: null,
+        weight: 1,
+      }, {
+        rule: { ...buildRule("style-preview"), globalBaselineEnabled: false },
+        source: "style_profile",
+        sourceLabel: "现实流",
+        styleProfileId: input.styleProfileId,
+        styleProfileName: "现实流",
+        bindingTargetType: "task",
+        bindingTargetId: input.styleProfileId,
+        weight: 1,
+      }]
+      : [{
+        rule: buildRule("global-preview"),
+        source: "global_baseline",
+        sourceLabel: "全局默认",
+        styleProfileId: null,
+        styleProfileName: null,
+        bindingTargetType: null,
+        bindingTargetId: null,
+        weight: 1,
+      }],
+    effectiveStyleProfileId: input.styleProfileId ?? null,
+    usesGlobalAntiAiBaseline: true,
+  });
   StyleDetectionService.prototype.check = async () => ({
     riskScore: 72,
     summary: "存在解释型心理描写。",
@@ -384,6 +642,15 @@ test("style engine routes return mocked payloads", async () => {
     assert.equal(bindingResponse.status, 201);
     assert.equal((await bindingResponse.json()).data.targetType, "chapter");
 
+    const effectiveRulesResponse = await fetch(`http://127.0.0.1:${port}/api/anti-ai-rules/effective?styleProfileId=${fakeProfile.id}`);
+    assert.equal(effectiveRulesResponse.status, 200);
+    const effectiveRulesPayload = await effectiveRulesResponse.json();
+    assert.equal(effectiveRulesPayload.data.effectiveStyleProfileId, fakeProfile.id);
+    assert.deepEqual(
+      effectiveRulesPayload.data.effectiveRules.map((item) => item.source),
+      ["global_baseline", "style_profile"],
+    );
+
     const detectResponse = await fetch(`http://127.0.0.1:${port}/api/style-detection/check`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -405,6 +672,9 @@ test("style engine routes return mocked payloads", async () => {
     styleExtractionTaskService.createTask = originalMethods.createExtractionTask;
     Object.assign(StyleBindingService.prototype, {
       createBinding: originalMethods.createBinding,
+    });
+    Object.assign(AntiAiPolicyResolver.prototype, {
+      resolveEffectiveRules: originalMethods.resolveEffectiveRules,
     });
     Object.assign(StyleDetectionService.prototype, {
       check: originalMethods.check,

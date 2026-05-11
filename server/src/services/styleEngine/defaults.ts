@@ -33,6 +33,7 @@ export interface DefaultAntiAiRuleDefinition {
   promptInstruction: string;
   autoRewrite: boolean;
   enabled: boolean;
+  globalBaselineEnabled: boolean;
 }
 
 export interface DefaultStarterStyleProfileDefinition {
@@ -458,6 +459,7 @@ export const DEFAULT_ANTI_AI_RULES: DefaultAntiAiRuleDefinition[] = [
     promptInstruction: "禁止直接解释人物心理，人物状态必须通过行为、动作、语气或环境反应体现。",
     autoRewrite: true,
     enabled: true,
+    globalBaselineEnabled: true,
   },
   {
     key: "forbid-ending-elevation",
@@ -470,6 +472,7 @@ export const DEFAULT_ANTI_AI_RULES: DefaultAntiAiRuleDefinition[] = [
     promptInstruction: "禁止段尾升华或总结主题，收尾必须落回具体情境。",
     autoRewrite: true,
     enabled: true,
+    globalBaselineEnabled: true,
   },
   {
     key: "forbid-theme-summary",
@@ -482,6 +485,7 @@ export const DEFAULT_ANTI_AI_RULES: DefaultAntiAiRuleDefinition[] = [
     promptInstruction: "不要总结主题，不要替读者提炼中心思想。",
     autoRewrite: true,
     enabled: true,
+    globalBaselineEnabled: true,
   },
   {
     key: "forbid-direct-preaching",
@@ -494,6 +498,7 @@ export const DEFAULT_ANTI_AI_RULES: DefaultAntiAiRuleDefinition[] = [
     promptInstruction: "禁止直接说教或价值判断，让意义落在事件本身。",
     autoRewrite: true,
     enabled: true,
+    globalBaselineEnabled: true,
   },
   {
     key: "risk-even-paragraph-length",
@@ -506,6 +511,7 @@ export const DEFAULT_ANTI_AI_RULES: DefaultAntiAiRuleDefinition[] = [
     promptInstruction: "注意避免每段都过于工整、平均和像标准作文。",
     autoRewrite: false,
     enabled: true,
+    globalBaselineEnabled: true,
   },
   {
     key: "risk-three-paragraphs-exposition",
@@ -518,6 +524,7 @@ export const DEFAULT_ANTI_AI_RULES: DefaultAntiAiRuleDefinition[] = [
     promptInstruction: "注意避免连续几段只有解释没有动作或对话。",
     autoRewrite: false,
     enabled: true,
+    globalBaselineEnabled: true,
   },
   {
     key: "risk-dialogue-too-functional",
@@ -530,6 +537,7 @@ export const DEFAULT_ANTI_AI_RULES: DefaultAntiAiRuleDefinition[] = [
     promptInstruction: "对话不要只承担推进剧情功能，要保留人物语气和生活噪音。",
     autoRewrite: false,
     enabled: true,
+    globalBaselineEnabled: true,
   },
   {
     key: "risk-repeated-sentence-structure",
@@ -542,6 +550,7 @@ export const DEFAULT_ANTI_AI_RULES: DefaultAntiAiRuleDefinition[] = [
     promptInstruction: "警惕连续句式重复和排比化表达。",
     autoRewrite: false,
     enabled: true,
+    globalBaselineEnabled: true,
   },
   {
     key: "encourage-useless-action",
@@ -554,6 +563,7 @@ export const DEFAULT_ANTI_AI_RULES: DefaultAntiAiRuleDefinition[] = [
     promptInstruction: "优先加入真实但不推动主线的小动作，增加生活感。",
     autoRewrite: false,
     enabled: true,
+    globalBaselineEnabled: false,
   },
   {
     key: "encourage-reality-gap",
@@ -566,6 +576,7 @@ export const DEFAULT_ANTI_AI_RULES: DefaultAntiAiRuleDefinition[] = [
     promptInstruction: "优先制造现实落差，让人物预期和结果不完全一致。",
     autoRewrite: false,
     enabled: true,
+    globalBaselineEnabled: false,
   },
   {
     key: "encourage-hard-mouth-compensation",
@@ -578,6 +589,7 @@ export const DEFAULT_ANTI_AI_RULES: DefaultAntiAiRuleDefinition[] = [
     promptInstruction: "人物吃瘪后可用嘴硬、转移或找补来补偿体面。",
     autoRewrite: false,
     enabled: true,
+    globalBaselineEnabled: false,
   },
   {
     key: "encourage-life-noise",
@@ -590,5 +602,6 @@ export const DEFAULT_ANTI_AI_RULES: DefaultAntiAiRuleDefinition[] = [
     promptInstruction: "适当保留生活噪音和无效信息，增强现场感。",
     autoRewrite: false,
     enabled: true,
+    globalBaselineEnabled: false,
   },
 ];

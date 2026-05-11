@@ -43,6 +43,7 @@ export const MOBILE_ROUTE_PATTERNS: MobileRoutePattern[] = [
   { key: "world-generator", pattern: /^\/worlds\/generator\/?$/, title: "世界生成", group: "more" },
   { key: "world-workspace", pattern: /^\/worlds\/[^/]+\/workspace\/?$/, title: "世界工作台", group: "more" },
   { key: "style-engine", pattern: /^\/style-engine\/?$/, title: "写法引擎", group: "more" },
+  { key: "anti-ai-rules", pattern: /^\/anti-ai-rules\/?$/, title: "反 AI 规则", group: "more" },
   { key: "base-characters", pattern: /^\/base-characters\/?$/, title: "基础角色", group: "more" },
 ];
 
@@ -72,6 +73,7 @@ const moreNavGroups: MobileNavGroup[] = [
       { key: "story-modes", label: "推进模式", to: "/story-modes", group: "more" },
       { key: "titles", label: "标题工坊", to: "/titles", group: "more" },
       { key: "style-engine", label: "写法引擎", to: "/style-engine", group: "more" },
+      { key: "anti-ai-rules", label: "反 AI 规则", to: "/anti-ai-rules", group: "more" },
       { key: "base-characters", label: "基础角色", to: "/base-characters", group: "more" },
     ],
   },

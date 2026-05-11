@@ -251,6 +251,7 @@ export function mapStyleProfileRow(row: {
       promptInstruction: string | null;
       autoRewrite: boolean;
       enabled: boolean;
+      globalBaselineEnabled: boolean;
       createdAt: Date;
       updatedAt: Date;
     };
@@ -340,6 +341,7 @@ export function mapAntiAiRuleRow(row: {
   promptInstruction: string | null;
   autoRewrite: boolean;
   enabled: boolean;
+  globalBaselineEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 }): AntiAiRule {
@@ -355,6 +357,7 @@ export function mapAntiAiRuleRow(row: {
     promptInstruction: row.promptInstruction,
     autoRewrite: row.autoRewrite,
     enabled: row.enabled,
+    globalBaselineEnabled: row.globalBaselineEnabled,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

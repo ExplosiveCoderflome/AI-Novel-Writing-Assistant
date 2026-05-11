@@ -413,6 +413,7 @@ function buildAntiAiRuleWriteData(rule: DefaultAntiAiRuleDefinition) {
     promptInstruction: rule.promptInstruction,
     autoRewrite: rule.autoRewrite,
     enabled: rule.enabled,
+    globalBaselineEnabled: rule.globalBaselineEnabled,
   };
 }
 

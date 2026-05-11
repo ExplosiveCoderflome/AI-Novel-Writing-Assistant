@@ -1185,11 +1185,13 @@ model AntiAiRule {
   promptInstruction String?
   autoRewrite      Boolean        @default(false)
   enabled          Boolean        @default(true)
+  globalBaselineEnabled Boolean   @default(false)
   profileBindings  StyleProfileAntiAiRule[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
   @@index([type, enabled])
+  @@index([globalBaselineEnabled, enabled])
 }
 
 model StyleProfileAntiAiRule {

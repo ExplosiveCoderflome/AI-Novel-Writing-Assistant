@@ -1,23 +1,8 @@
 import type { AntiAiRule, ResolvedStyleContext, StyleBinding, StyleProfile } from "@ai-novel/shared/types/styleEngine";
-import { prisma } from "../../db/prisma";
+import { AntiAiPolicyResolver } from "./AntiAiPolicyResolver";
 import { StyleBindingService } from "./StyleBindingService";
 import { StyleCompiler } from "./StyleCompiler";
-import { ensureStyleEngineSeedData } from "./StyleEngineSeedService";
-import { mapAntiAiRuleRow } from "./helpers";
 import { StyleProfileService } from "./StyleProfileService";
-
-function dedupeAntiAiRules(rules: AntiAiRule[]): AntiAiRule[] {
-  const seen = new Set<string>();
-  const result: AntiAiRule[] = [];
-  for (const rule of rules) {
-    if (seen.has(rule.id)) {
-      continue;
-    }
-    seen.add(rule.id);
-    result.push(rule);
-  }
-  return result;
-}
 
 function buildDirectTaskBinding(profile: StyleProfile): StyleBinding {
   const timestamp = new Date().toISOString();
@@ -39,18 +24,7 @@ export class StyleRuntimeResolver {
   private readonly bindingService = new StyleBindingService();
   private readonly profileService = new StyleProfileService();
   private readonly compiler = new StyleCompiler();
-
-  private async getGlobalAntiAiBaselineRules(): Promise<AntiAiRule[]> {
-    await ensureStyleEngineSeedData();
-    const rows = await prisma.antiAiRule.findMany({
-      where: {
-        enabled: true,
-        type: { in: ["forbidden", "risk"] },
-      },
-      orderBy: [{ type: "asc" }, { severity: "desc" }, { name: "asc" }],
-    });
-    return rows.map((row) => mapAntiAiRuleRow(row));
-  }
+  private readonly antiAiPolicyResolver = new AntiAiPolicyResolver();
 
   async resolve(input: {
     styleProfileId?: string;
@@ -64,12 +38,14 @@ export class StyleRuntimeResolver {
         throw new Error("写法资产不存在。");
       }
 
-      const baselineRules = await this.getGlobalAntiAiBaselineRules();
-      const antiAiRules = dedupeAntiAiRules([
-        ...baselineRules,
-        ...profile.antiAiRules,
-      ]);
       const matchedBindings = [buildDirectTaskBinding(profile)];
+      const antiAiPolicy = await this.antiAiPolicyResolver.resolveFromBindings({
+        matchedBindings,
+        effectiveStyleProfileId: profile.id,
+      });
+      const baselineRules = antiAiPolicy.globalBaselineRules.map((item) => item.rule);
+      const styleSpecificRules = antiAiPolicy.styleSpecificRules.map((item) => item.rule);
+      const antiAiRules = antiAiPolicy.effectiveRules.map((item) => item.rule);
       const compiledBlocks = this.compiler.compile({
         styleProfile: profile,
         antiAiRules,
@@ -88,7 +64,7 @@ export class StyleRuntimeResolver {
         activeSourceLabels: baselineRules.length > 0 ? ["TASK", "GLOBAL_BASELINE"] : ["TASK"],
         usesGlobalAntiAiBaseline: baselineRules.length > 0,
         globalAntiAiRuleIds: baselineRules.map((rule) => rule.id),
-        styleAntiAiRuleIds: profile.antiAiRules.map((rule) => rule.id),
+        styleAntiAiRuleIds: styleSpecificRules.map((rule) => rule.id),
       });
 
       return {
@@ -102,7 +78,7 @@ export class StyleRuntimeResolver {
           maturity: compiledBlocks.contract.meta.maturity,
           usesGlobalAntiAiBaseline: baselineRules.length > 0,
           globalAntiAiRuleIds: baselineRules.map((rule) => rule.id),
-          styleAntiAiRuleIds: profile.antiAiRules.map((rule) => rule.id),
+          styleAntiAiRuleIds: styleSpecificRules.map((rule) => rule.id),
         },
         antiAiRules,
         primaryProfile: profile,
@@ -134,25 +110,14 @@ export class StyleRuntimeResolver {
       taskStyleProfileId: input.taskStyleProfileId,
     });
     const primaryProfile = context.matchedBindings[0]?.styleProfile ?? null;
-    const antiAiRules = dedupeAntiAiRules(
-      context.matchedBindings.flatMap((binding) => binding.styleProfile?.antiAiRules ?? []),
-    );
-
-    if (context.compiledBlocks?.mergedRules && context.compiledBlocks.contract.meta.usesGlobalAntiAiBaseline) {
-      const baselineRules = await this.getGlobalAntiAiBaselineRules();
-      return {
-        context,
-        antiAiRules: dedupeAntiAiRules([
-          ...baselineRules,
-          ...antiAiRules,
-        ]),
-        primaryProfile,
-      };
-    }
+    const antiAiPolicy = await this.antiAiPolicyResolver.resolveFromBindings({
+      matchedBindings: context.matchedBindings,
+      effectiveStyleProfileId: context.effectiveStyleProfileId,
+    });
 
     return {
       context,
-      antiAiRules,
+      antiAiRules: antiAiPolicy.effectiveRules.map((item) => item.rule),
       primaryProfile,
     };
   }

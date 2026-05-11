@@ -21,6 +21,7 @@ const GenreManagementPage = lazy(() => import("@/pages/genres/GenreManagementPag
 const StoryModeManagementPage = lazy(() => import("@/pages/storyModes/StoryModeManagementPage"));
 const TitleStudioPage = lazy(() => import("@/pages/titles/TitleStudioPage"));
 const PromptWorkbenchPage = lazy(() => import("@/pages/promptWorkbench/PromptWorkbenchPage"));
+const AntiAiRulesPage = lazy(() => import("@/pages/antiAiRules/AntiAiRulesPage"));
 const ModelRoutesPage = lazy(() => import("@/pages/settings/ModelRoutesPage"));
 const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage"));
 const WorldList = lazy(() => import("@/pages/worlds/WorldList"));
@@ -54,6 +55,7 @@ const routes: RouteObject[] = [
       { path: "story-modes", element: <StoryModeManagementPage /> },
       { path: "titles", element: <TitleStudioPage /> },
       { path: "prompt-workbench", element: <PromptWorkbenchPage /> },
+      { path: "anti-ai-rules", element: <AntiAiRulesPage /> },
       { path: "settings/model-routes", element: <ModelRoutesPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "worlds", element: <WorldList /> },

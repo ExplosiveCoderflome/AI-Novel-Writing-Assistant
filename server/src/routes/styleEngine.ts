@@ -4,6 +4,7 @@ import { z } from "zod";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
+import { AntiAiPolicyResolver } from "../services/styleEngine/AntiAiPolicyResolver";
 import { AntiAiRuleService } from "../services/styleEngine/AntiAiRuleService";
 import { StyleBindingService } from "../services/styleEngine/StyleBindingService";
 import { StyleDetectionService } from "../services/styleEngine/StyleDetectionService";
@@ -15,6 +16,7 @@ import { StyleRewriteService } from "../services/styleEngine/StyleRewriteService
 const router = Router();
 const styleProfileService = new StyleProfileService();
 const antiAiRuleService = new AntiAiRuleService();
+const antiAiPolicyResolver = new AntiAiPolicyResolver();
 const styleBindingService = new StyleBindingService();
 const styleDetectionService = new StyleDetectionService();
 const styleRewriteService = new StyleRewriteService();
@@ -89,6 +91,7 @@ const antiAiRuleSchema = z.object({
   promptInstruction: z.string().trim().optional(),
   autoRewrite: z.boolean().optional(),
   enabled: z.boolean().optional(),
+  globalBaselineEnabled: z.boolean().optional(),
 });
 
 const antiAiRuleUpdateSchema = antiAiRuleSchema.partial().refine(
@@ -109,6 +112,13 @@ const bindingQuerySchema = z.object({
   targetType: z.enum(["novel", "chapter", "task"]).optional(),
   targetId: z.string().trim().optional(),
   styleProfileId: z.string().trim().optional(),
+});
+
+const effectiveAntiAiRulesQuerySchema = z.object({
+  novelId: z.string().trim().optional(),
+  chapterId: z.string().trim().optional(),
+  styleProfileId: z.string().trim().optional(),
+  taskStyleProfileId: z.string().trim().optional(),
 });
 
 const testWriteSchema = z.object({
@@ -310,6 +320,20 @@ router.get("/anti-ai-rules", async (_req, res, next) => {
       success: true,
       data,
       message: "获取反AI规则成功。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/anti-ai-rules/effective", validate({ query: effectiveAntiAiRulesQuerySchema }), async (req, res, next) => {
+  try {
+    const query = effectiveAntiAiRulesQuerySchema.parse(req.query);
+    const data = await antiAiPolicyResolver.resolveEffectiveRules(query);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "获取生效反 AI 规则成功。",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);

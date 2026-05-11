@@ -194,8 +194,30 @@ export interface AntiAiRule {
   promptInstruction?: string | null;
   autoRewrite: boolean;
   enabled: boolean;
+  globalBaselineEnabled: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export type AntiAiRuleSourceType = "global_baseline" | "style_profile";
+
+export interface AntiAiEffectiveRuleItem {
+  rule: AntiAiRule;
+  source: AntiAiRuleSourceType;
+  sourceLabel: string;
+  styleProfileId?: string | null;
+  styleProfileName?: string | null;
+  bindingTargetType?: StyleBindingTargetType | null;
+  bindingTargetId?: string | null;
+  weight: number;
+}
+
+export interface AntiAiEffectiveRulesResult {
+  globalBaselineRules: AntiAiEffectiveRuleItem[];
+  styleSpecificRules: AntiAiEffectiveRuleItem[];
+  effectiveRules: AntiAiEffectiveRuleItem[];
+  effectiveStyleProfileId?: string | null;
+  usesGlobalAntiAiBaseline: boolean;
 }
 
 export interface StyleProfile {

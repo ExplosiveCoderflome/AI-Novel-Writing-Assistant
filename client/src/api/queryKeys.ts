@@ -64,6 +64,7 @@ export const queryKeys = {
     profile: (id: string) => ["style-engine", "profile", id] as const,
     templates: ["style-engine", "templates"] as const,
     antiAiRules: ["style-engine", "anti-ai-rules"] as const,
+    effectiveAntiAiRules: (params: string) => ["style-engine", "anti-ai-rules", "effective", params] as const,
     bindings: (params: string) => ["style-engine", "bindings", params] as const,
   },
   genres: {

@@ -14,6 +14,7 @@ interface AntiAiRuleInput {
   promptInstruction?: string;
   autoRewrite?: boolean;
   enabled?: boolean;
+  globalBaselineEnabled?: boolean;
 }
 
 export class AntiAiRuleService {
@@ -38,6 +39,7 @@ export class AntiAiRuleService {
         promptInstruction: input.promptInstruction,
         autoRewrite: input.autoRewrite ?? false,
         enabled: input.enabled ?? true,
+        globalBaselineEnabled: input.globalBaselineEnabled ?? false,
       },
     });
     return mapAntiAiRuleRow(row);
@@ -57,6 +59,7 @@ export class AntiAiRuleService {
         promptInstruction: input.promptInstruction,
         autoRewrite: input.autoRewrite,
         enabled: input.enabled,
+        globalBaselineEnabled: input.globalBaselineEnabled,
       },
     });
     return mapAntiAiRuleRow(row);

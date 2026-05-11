@@ -1,11 +1,11 @@
-import type { AntiAiRule, ResolvedStyleContext, StyleBinding, StyleProfile, StyleRuleSet } from "@ai-novel/shared/types/styleEngine";
+import type { ResolvedStyleContext, StyleBinding, StyleProfile, StyleRuleSet } from "@ai-novel/shared/types/styleEngine";
 import { prisma } from "../../db/prisma";
+import { AntiAiPolicyResolver } from "./AntiAiPolicyResolver";
 import { StyleCompiler } from "./StyleCompiler";
 import { ensureStyleEngineSeedData } from "./StyleEngineSeedService";
 import {
   buildEmptyRuleSet,
   clamp,
-  mapAntiAiRuleRow,
   mapStyleProfileRow,
   mergeRuleObjects,
 } from "./helpers";
@@ -43,19 +43,6 @@ function assignRuleWeights(
   }
 }
 
-function dedupeAntiAiRules(rules: AntiAiRule[]): AntiAiRule[] {
-  const seen = new Set<string>();
-  const result: AntiAiRule[] = [];
-  for (const rule of rules) {
-    if (seen.has(rule.id)) {
-      continue;
-    }
-    seen.add(rule.id);
-    result.push(rule);
-  }
-  return result;
-}
-
 function sortMatchedBindings(bindings: StyleBinding[]): StyleBinding[] {
   return bindings.slice().sort((left, right) => {
     const targetDiff = TARGET_PRIORITY[right.targetType] - TARGET_PRIORITY[left.targetType];
@@ -68,6 +55,7 @@ function sortMatchedBindings(bindings: StyleBinding[]): StyleBinding[] {
 
 export class StyleBindingService {
   private readonly compiler = new StyleCompiler();
+  private readonly antiAiPolicyResolver = new AntiAiPolicyResolver();
 
   async listBindings(filter?: Partial<Pick<StyleBinding, "targetType" | "targetId" | "styleProfileId">>): Promise<StyleBinding[]> {
     await ensureStyleEngineSeedData();
@@ -142,35 +130,26 @@ export class StyleBindingService {
   }): Promise<ResolvedStyleContext> {
     await ensureStyleEngineSeedData();
 
-    const [bindings, baselineRuleRows] = await Promise.all([
-      prisma.styleBinding.findMany({
-        where: {
-          enabled: true,
-          OR: [
-            { targetType: "novel", targetId: input.novelId },
-            ...(input.chapterId ? [{ targetType: "chapter" as const, targetId: input.chapterId }] : []),
-          ],
-        },
-        include: {
-          styleProfile: {
-            include: {
-              antiAiBindings: {
-                where: { enabled: true },
-                include: { antiAiRule: true },
-              },
+    const bindings = await prisma.styleBinding.findMany({
+      where: {
+        enabled: true,
+        OR: [
+          { targetType: "novel", targetId: input.novelId },
+          ...(input.chapterId ? [{ targetType: "chapter" as const, targetId: input.chapterId }] : []),
+        ],
+      },
+      include: {
+        styleProfile: {
+          include: {
+            antiAiBindings: {
+              where: { enabled: true },
+              include: { antiAiRule: true },
             },
           },
         },
-        orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
-      }),
-      prisma.antiAiRule.findMany({
-        where: {
-          enabled: true,
-          type: { in: ["forbidden", "risk"] },
-        },
-        orderBy: [{ type: "asc" }, { severity: "desc" }, { name: "asc" }],
-      }),
-    ]);
+      },
+      orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+    });
 
     const matchedBindings: StyleBinding[] = bindings.map((row) => ({
       id: row.id,
@@ -222,7 +201,11 @@ export class StyleBindingService {
     const effectiveBinding = sortMatchedBindings(matchedBindings)[0] ?? null;
     const sourceTargets = Array.from(new Set(ordered.map((binding) => binding.targetType)));
     const sourceLabels = sourceTargets.map((targetType) => targetType.toUpperCase());
-    const baselineRules = baselineRuleRows.map((row) => mapAntiAiRuleRow(row));
+    const antiAiPolicy = await this.antiAiPolicyResolver.resolveFromBindings({
+      matchedBindings,
+      effectiveStyleProfileId: effectiveBinding?.styleProfileId ?? null,
+    });
+    const baselineRules = antiAiPolicy.globalBaselineRules.map((item) => item.rule);
 
     if (matchedBindings.length === 0) {
       if (baselineRules.length === 0) {
@@ -292,24 +275,12 @@ export class StyleBindingService {
       return acc;
     }, buildEmptyRuleWeightMap());
 
-    const styleSpecificRulesById = new Map<string, { rule: AntiAiRule; weight: number }>();
-    for (const binding of ordered) {
-      for (const rule of binding.styleProfile?.antiAiRules ?? []) {
-        const existing = styleSpecificRulesById.get(rule.id);
-        if (!existing || binding.weight >= existing.weight) {
-          styleSpecificRulesById.set(rule.id, { rule, weight: binding.weight });
-        }
-      }
-    }
-
-    const styleSpecificRules = Array.from(styleSpecificRulesById.values()).map((item) => item.rule);
-    const combinedAntiAiRules = dedupeAntiAiRules([
-      ...baselineRules,
-      ...styleSpecificRules,
-    ]);
+    const styleSpecificRules = antiAiPolicy.styleSpecificRules.map((item) => item.rule);
+    const styleSpecificWeights = new Map(antiAiPolicy.styleSpecificRules.map((item) => [item.rule.id, item.weight]));
+    const combinedAntiAiRules = antiAiPolicy.effectiveRules.map((item) => item.rule);
     const combinedRuleWeights = combinedAntiAiRules.reduce<Record<string, number>>((acc, rule) => {
-      if (styleSpecificRulesById.has(rule.id)) {
-        acc[rule.id] = styleSpecificRulesById.get(rule.id)!.weight;
+      if (styleSpecificWeights.has(rule.id)) {
+        acc[rule.id] = styleSpecificWeights.get(rule.id)!;
       } else {
         acc[rule.id] = 1;
       }
