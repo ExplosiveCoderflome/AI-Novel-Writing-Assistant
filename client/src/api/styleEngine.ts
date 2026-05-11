@@ -2,6 +2,8 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
   AntiAiEffectiveRulesResult,
   AntiAiRule,
+  AntiAiRuleAiDraftRequest,
+  AntiAiRuleAiDraftResult,
   StyleBinding,
   StyleDetectionReport,
   StyleExtractionDraft,
@@ -236,6 +238,15 @@ export async function getEffectiveAntiAiRules(params?: {
   taskStyleProfileId?: string;
 }) {
   const { data } = await apiClient.get<ApiResponse<AntiAiEffectiveRulesResult>>("/anti-ai-rules/effective", { params });
+  return data;
+}
+
+export async function generateAntiAiRuleDraft(payload: AntiAiRuleAiDraftRequest & {
+  provider?: string;
+  model?: string;
+  temperature?: number;
+}) {
+  const { data } = await apiClient.post<ApiResponse<AntiAiRuleAiDraftResult>>("/anti-ai-rules/ai-draft", payload);
   return data;
 }
 

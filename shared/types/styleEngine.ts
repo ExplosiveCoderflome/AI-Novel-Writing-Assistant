@@ -220,6 +220,32 @@ export interface AntiAiEffectiveRulesResult {
   usesGlobalAntiAiBaseline: boolean;
 }
 
+export interface AntiAiRuleDraftFields {
+  key: string;
+  name: string;
+  type: AntiAiRuleType;
+  severity: AntiAiSeverity;
+  description: string;
+  detectPatterns: string[];
+  promptInstruction?: string | null;
+  rewriteSuggestion?: string | null;
+  enabled: boolean;
+  globalBaselineEnabled: boolean;
+  autoRewrite: boolean;
+}
+
+export interface AntiAiRuleAiDraftRequest {
+  mode: "create" | "improve";
+  instruction: string;
+  currentRule?: AntiAiRuleDraftFields;
+}
+
+export interface AntiAiRuleAiDraftResult {
+  draft: AntiAiRuleDraftFields;
+  rationale: string;
+  safetyNotes: string[];
+}
+
 export interface StyleProfile {
   id: string;
   name: string;

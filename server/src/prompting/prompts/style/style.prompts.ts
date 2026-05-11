@@ -2,6 +2,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
 import {
+  antiAiRuleAiDraftSchema,
   styleDetectionPayloadSchema,
   styleProfileAntiAiSelectionSchema,
   styleGeneratedProfileSchema,
@@ -80,6 +81,12 @@ export interface StyleProfileSanitizeForGenerationPromptInput {
   profileName: string;
   styleContractText: string;
   sourceDigest: string;
+}
+
+export interface AntiAiRuleAiDraftPromptInput {
+  mode: "create" | "improve";
+  instruction: string;
+  currentRuleText?: string;
 }
 
 export const styleDetectionPrompt: PromptAsset<
@@ -714,5 +721,73 @@ export const styleProfileSanitizeForGenerationPrompt: PromptAsset<
       "源素材摘要：",
       input.sourceDigest,
     ].join("\n")),
+  ],
+};
+
+export const antiAiRuleAiDraftPrompt: PromptAsset<
+  AntiAiRuleAiDraftPromptInput,
+  z.infer<typeof antiAiRuleAiDraftSchema>
+> = {
+  id: "style.anti_ai_rule.draft",
+  version: "v1",
+  taskType: "planner",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: {
+    maxTokensBudget: 0,
+  },
+  outputSchema: antiAiRuleAiDraftSchema,
+  render: (input) => [
+    new SystemMessage([
+      "你是小说写作产品里的反 AI 规则编辑助手。",
+      "你的任务是把用户的自然语言需求整理成一条可执行、可编辑、可检测的反 AI 规则草稿。",
+      "",
+      "只输出一个合法 JSON 对象，不要输出 Markdown、解释、注释、代码块或额外文本。",
+      "输出字段必须且只能包括：draft, rationale, safetyNotes。",
+      "draft 必须且只能包含：key, name, type, severity, description, detectPatterns, promptInstruction, rewriteSuggestion。",
+      "",
+      "规则类型含义：",
+      "1. forbidden：明确禁止的 AI 味、模板痕迹或不适合正文生成的表达。",
+      "2. risk：常见风险，需要提醒模型规避，但允许在特定语境下自然出现。",
+      "3. encourage：鼓励采用的替代表达方式或正向写法。",
+      "",
+      "生成要求：",
+      "1. 所有文本字段必须使用简体中文，key 必须使用英文小写、数字和下划线。",
+      "2. 规则必须具体、可执行，不要写“提升真实感”“避免AI感”这类空泛要求。",
+      "3. detectPatterns 只放少量高价值短语，通常 3-8 个；不要堆砌同义词。",
+      "4. promptInstruction 要能直接进入正文生成约束，使用命令式表达。",
+      "5. rewriteSuggestion 要给出命中后如何改，不要只重复问题名称。",
+      "6. 不要生成会要求模型照搬某个具体作品、作者、角色、设定或标志性句子的规则。",
+      "7. 如果用户要求过宽，要收束成一条规则，不要一次做成多条规则。",
+      "",
+      input.mode === "improve"
+        ? [
+            "当前模式：优化已有规则。",
+            "你必须在当前规则基础上改得更清楚、更可执行。",
+            "除非用户明确要求改规则标识，否则 key 应尽量保持原值。",
+            "不要改变启用状态、全局默认状态或自动改写开关；这些开关由系统处理。",
+          ].join("\n")
+        : [
+            "当前模式：新建规则。",
+            "你要根据用户描述生成一条新的规则草稿。",
+            "不要假设这条规则会进入全局默认，也不要决定自动改写开关。",
+          ].join("\n"),
+      "",
+      "rationale 用一句话说明为什么这样组织规则。",
+      "safetyNotes 用 0-3 条说明使用风险，例如适合写法绑定、不建议全局默认、容易误伤的语境。",
+    ].join("\n")),
+    new HumanMessage([
+      `模式：${input.mode}`,
+      "",
+      input.currentRuleText
+        ? [
+            "当前规则：",
+            input.currentRuleText,
+            "",
+          ].join("\n")
+        : "",
+      "用户需求：",
+      input.instruction,
+    ].filter(Boolean).join("\n")),
   ],
 };

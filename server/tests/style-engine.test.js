@@ -12,6 +12,7 @@ const { AntiAiRuleService } = require("../dist/services/styleEngine/AntiAiRuleSe
 const { AntiAiPolicyResolver } = require("../dist/services/styleEngine/AntiAiPolicyResolver.js");
 const { prisma } = require("../dist/db/prisma.js");
 const styleEngineSeedService = require("../dist/services/styleEngine/StyleEngineSeedService.js");
+const promptRunner = require("../dist/prompting/core/promptRunner.js");
 const { KnowledgeService } = require("../dist/services/knowledge/KnowledgeService.js");
 const { taskCenterService } = require("../dist/services/task/TaskCenterService.js");
 
@@ -302,6 +303,104 @@ test("AntiAiPolicyResolver separates global baseline and style-specific sources"
   }
 });
 
+test("AntiAiRuleService generates safe AI drafts for new rules", async () => {
+  const originalEnsure = styleEngineSeedService.ensureStyleEngineSeedData;
+  const originalFindMany = prisma.antiAiRule.findMany;
+
+  styleEngineSeedService.ensureStyleEngineSeedData = async () => ({});
+  prisma.antiAiRule.findMany = async () => [{ key: "summary_ai" }];
+  promptRunner.setPromptRunnerStructuredInvokerForTests(async () => {
+    return {
+      data: {
+        draft: {
+          key: "summary ai",
+          name: "减少总结腔",
+          type: "risk",
+          severity: "medium",
+          description: "压制段尾空泛总结和模型复盘式表达。",
+          detectPatterns: ["总而言之", "这一刻他明白了"],
+          promptInstruction: "避免用段尾总结解释场景意义。",
+          rewriteSuggestion: "改成动作、对白或具体反应推动信息。",
+        },
+        rationale: "把用户需求收束为表达层风险规则。",
+        safetyNotes: ["适合先作为写法专属规则试用。"],
+      },
+      repairUsed: false,
+      repairAttempts: 0,
+    };
+  });
+
+  try {
+    const result = await new AntiAiRuleService().generateAiDraft({
+      mode: "create",
+      instruction: "减少 AI 总结腔",
+    });
+
+    assert.equal(result.draft.key, "summary_ai_2");
+    assert.equal(result.draft.enabled, true);
+    assert.equal(result.draft.globalBaselineEnabled, false);
+    assert.equal(result.draft.autoRewrite, false);
+    assert.deepEqual(result.draft.detectPatterns, ["总而言之", "这一刻他明白了"]);
+  } finally {
+    styleEngineSeedService.ensureStyleEngineSeedData = originalEnsure;
+    prisma.antiAiRule.findMany = originalFindMany;
+    promptRunner.setPromptRunnerStructuredInvokerForTests();
+  }
+});
+
+test("AntiAiRuleService preserves rule switches when improving AI drafts", async () => {
+  const originalEnsure = styleEngineSeedService.ensureStyleEngineSeedData;
+  styleEngineSeedService.ensureStyleEngineSeedData = async () => ({});
+  promptRunner.setPromptRunnerStructuredInvokerForTests(async () => ({
+    data: {
+      draft: {
+        key: "model_changed_key",
+        name: "优化后的心理解释规则",
+        type: "forbidden",
+        severity: "high",
+        description: "减少直接解释人物心理和动机的句子。",
+        detectPatterns: ["他意识到", "他明白自己"],
+        promptInstruction: "不要直接解释人物心理，优先落到动作和对白。",
+        rewriteSuggestion: "把心理判断替换成动作、停顿、视线和对白反应。",
+      },
+      rationale: "让规则更具体。",
+      safetyNotes: [],
+    },
+    repairUsed: false,
+    repairAttempts: 0,
+  }));
+
+  try {
+    const result = await new AntiAiRuleService().generateAiDraft({
+      mode: "improve",
+      instruction: "更具体一点",
+      currentRule: {
+        key: "direct_psychology_explain",
+        name: "直白心理解释",
+        type: "risk",
+        severity: "medium",
+        description: "避免直白心理解释。",
+        detectPatterns: ["意识到"],
+        promptInstruction: "少解释心理。",
+        rewriteSuggestion: "改成动作。",
+        enabled: false,
+        globalBaselineEnabled: true,
+        autoRewrite: true,
+      },
+    });
+
+    assert.equal(result.draft.key, "direct_psychology_explain");
+    assert.equal(result.draft.enabled, false);
+    assert.equal(result.draft.globalBaselineEnabled, true);
+    assert.equal(result.draft.autoRewrite, true);
+    assert.equal(result.draft.type, "forbidden");
+    assert.equal(result.draft.severity, "high");
+  } finally {
+    styleEngineSeedService.ensureStyleEngineSeedData = originalEnsure;
+    promptRunner.setPromptRunnerStructuredInvokerForTests();
+  }
+});
+
 test("knowledge document style extraction uses representative sample by default", () => {
   const sourceText = Array.from({ length: 90 }, (_, index) =>
     `第${index + 1}段：${"人物对话和场景推进。".repeat(160)}`).join("\n");
@@ -336,6 +435,7 @@ test("style engine routes return mocked payloads", async () => {
     createFromBookAnalysis: StyleProfileService.prototype.createFromBookAnalysis,
     createExtractionTask: styleExtractionTaskService.createTask,
     createBinding: StyleBindingService.prototype.createBinding,
+    generateAiDraft: AntiAiRuleService.prototype.generateAiDraft,
     resolveEffectiveRules: AntiAiPolicyResolver.prototype.resolveEffectiveRules,
     check: StyleDetectionService.prototype.check,
     getKnowledgeDocumentById: KnowledgeService.prototype.getDocumentById,
@@ -489,6 +589,23 @@ test("style engine routes return mocked payloads", async () => {
     styleProfile: fakeProfile,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+  });
+  AntiAiRuleService.prototype.generateAiDraft = async (input) => ({
+    draft: {
+      key: "route_ai_rule",
+      name: "路由 AI 草稿",
+      type: "risk",
+      severity: "medium",
+      description: input.instruction,
+      detectPatterns: ["模板感"],
+      promptInstruction: "减少模板感表达。",
+      rewriteSuggestion: "改成具体动作和对白。",
+      enabled: true,
+      globalBaselineEnabled: false,
+      autoRewrite: false,
+    },
+    rationale: "测试路由返回。",
+    safetyNotes: ["先检查后保存。"],
   });
   AntiAiPolicyResolver.prototype.resolveEffectiveRules = async (input) => ({
     globalBaselineRules: [{
@@ -651,6 +768,19 @@ test("style engine routes return mocked payloads", async () => {
       ["global_baseline", "style_profile"],
     );
 
+    const aiDraftResponse = await fetch(`http://127.0.0.1:${port}/api/anti-ai-rules/ai-draft`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "create",
+        instruction: "减少模板感表达",
+      }),
+    });
+    assert.equal(aiDraftResponse.status, 200);
+    const aiDraftPayload = await aiDraftResponse.json();
+    assert.equal(aiDraftPayload.data.draft.key, "route_ai_rule");
+    assert.equal(aiDraftPayload.data.draft.globalBaselineEnabled, false);
+
     const detectResponse = await fetch(`http://127.0.0.1:${port}/api/style-detection/check`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -672,6 +802,9 @@ test("style engine routes return mocked payloads", async () => {
     styleExtractionTaskService.createTask = originalMethods.createExtractionTask;
     Object.assign(StyleBindingService.prototype, {
       createBinding: originalMethods.createBinding,
+    });
+    Object.assign(AntiAiRuleService.prototype, {
+      generateAiDraft: originalMethods.generateAiDraft,
     });
     Object.assign(AntiAiPolicyResolver.prototype, {
       resolveEffectiveRules: originalMethods.resolveEffectiveRules,

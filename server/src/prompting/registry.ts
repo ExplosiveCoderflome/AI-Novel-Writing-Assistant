@@ -357,6 +357,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     key: "style.rewrite@v1",
     load: () => require("./prompts/style/style.prompts").styleRewritePrompt as UnknownPromptAsset,
   },
+  {
+    key: "style.anti_ai_rule.draft@v1",
+    load: () => require("./prompts/style/style.prompts").antiAiRuleAiDraftPrompt as UnknownPromptAsset,
+  },
     {
       key: "style.profile.extract@v2",
       load: () => require("./prompts/style/style.prompts").styleProfileExtractionPrompt as UnknownPromptAsset,

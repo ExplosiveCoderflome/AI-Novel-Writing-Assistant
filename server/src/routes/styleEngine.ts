@@ -99,6 +99,29 @@ const antiAiRuleUpdateSchema = antiAiRuleSchema.partial().refine(
   { message: "至少提供一个更新字段。" },
 );
 
+const antiAiRuleDraftFieldsSchema = z.object({
+  key: z.string().trim(),
+  name: z.string().trim(),
+  type: z.enum(["forbidden", "risk", "encourage"]),
+  severity: z.enum(["low", "medium", "high"]),
+  description: z.string().trim(),
+  detectPatterns: z.array(z.string().trim()).default([]),
+  rewriteSuggestion: z.string().trim().nullable().optional(),
+  promptInstruction: z.string().trim().nullable().optional(),
+  autoRewrite: z.boolean(),
+  enabled: z.boolean(),
+  globalBaselineEnabled: z.boolean(),
+});
+
+const antiAiRuleAiDraftSchema = z.object({
+  mode: z.enum(["create", "improve"]),
+  instruction: z.string().trim().min(1),
+  currentRule: antiAiRuleDraftFieldsSchema.optional(),
+  provider: llmProviderSchema.optional(),
+  model: z.string().trim().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+});
+
 const bindingSchema = z.object({
   styleProfileId: z.string().trim().min(1),
   targetType: z.enum(["novel", "chapter", "task"]),
@@ -334,6 +357,19 @@ router.get("/anti-ai-rules/effective", validate({ query: effectiveAntiAiRulesQue
       success: true,
       data,
       message: "获取生效反 AI 规则成功。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/anti-ai-rules/ai-draft", validate({ body: antiAiRuleAiDraftSchema }), async (req, res, next) => {
+  try {
+    const data = await antiAiRuleService.generateAiDraft(req.body as z.infer<typeof antiAiRuleAiDraftSchema>);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "反 AI 规则草稿已生成。",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);

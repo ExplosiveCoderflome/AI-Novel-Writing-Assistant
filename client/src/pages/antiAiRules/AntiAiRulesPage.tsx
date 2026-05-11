@@ -1,9 +1,10 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AntiAiEffectiveRuleItem, AntiAiRule } from "@ai-novel/shared/types/styleEngine";
-import { CheckCircle2, Edit3, FileText, Plus, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import { CheckCircle2, Edit3, FileText, Plus, ShieldCheck, SlidersHorizontal, Sparkles } from "lucide-react";
 import {
   createAntiAiRule,
+  generateAntiAiRuleDraft,
   getAntiAiRules,
   getEffectiveAntiAiRules,
   getStyleProfiles,
@@ -172,6 +173,7 @@ export default function AntiAiRulesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<AntiAiRule | null>(null);
   const [form, setForm] = useState<RuleFormState>(emptyForm);
+  const [aiInstruction, setAiInstruction] = useState("");
   const [previewStyleProfileId, setPreviewStyleProfileId] = useState("");
 
   const rulesQuery = useQuery({
@@ -240,15 +242,59 @@ export default function AntiAiRulesPage() {
     onError: (error) => toast.error(error instanceof Error ? error.message : "保存规则失败。"),
   });
 
+  const aiDraftMutation = useMutation({
+    mutationFn: () => generateAntiAiRuleDraft({
+      mode: editingRule ? "improve" : "create",
+      instruction: aiInstruction.trim(),
+      currentRule: editingRule ? {
+        key: form.key,
+        name: form.name,
+        type: form.type,
+        severity: form.severity,
+        description: form.description,
+        detectPatterns: parsePatternText(form.detectPatternsText),
+        promptInstruction: form.promptInstruction || null,
+        rewriteSuggestion: form.rewriteSuggestion || null,
+        enabled: form.enabled,
+        globalBaselineEnabled: form.globalBaselineEnabled,
+        autoRewrite: form.autoRewrite,
+      } : undefined,
+    }),
+    onSuccess: (response) => {
+      const result = response.data;
+      if (!result) {
+        toast.error("AI 没有返回可用草稿。");
+        return;
+      }
+      setForm({
+        key: result.draft.key,
+        name: result.draft.name,
+        type: result.draft.type,
+        severity: result.draft.severity,
+        description: result.draft.description,
+        detectPatternsText: result.draft.detectPatterns.join("\n"),
+        promptInstruction: result.draft.promptInstruction ?? "",
+        rewriteSuggestion: result.draft.rewriteSuggestion ?? "",
+        enabled: result.draft.enabled,
+        globalBaselineEnabled: result.draft.globalBaselineEnabled,
+        autoRewrite: result.draft.autoRewrite,
+      });
+      toast.success("草稿填入表单，请检查后保存。");
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "AI 生成草稿失败。"),
+  });
+
   const openCreateDialog = () => {
     setEditingRule(null);
     setForm(emptyForm);
+    setAiInstruction("");
     setDialogOpen(true);
   };
 
   const openEditDialog = (rule: AntiAiRule) => {
     setEditingRule(rule);
     setForm(ruleToForm(rule));
+    setAiInstruction("");
     setDialogOpen(true);
   };
 
@@ -271,6 +317,7 @@ export default function AntiAiRulesPage() {
   };
 
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isAiDrafting = aiDraftMutation.isPending;
 
   return (
     <div className="space-y-4">
@@ -473,6 +520,39 @@ export default function AntiAiRulesPage() {
           )}
         >
           <form id="anti-ai-rule-form" className="space-y-4" onSubmit={handleSubmit}>
+            <div className="rounded-lg border bg-muted/20 p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <Sparkles className="h-4 w-4" />
+                    AI 辅助
+                  </div>
+                  <div className="text-sm leading-6 text-muted-foreground">
+                    {editingRule
+                      ? "描述要调整的方向，AI 会基于当前表单优化规则内容。"
+                      : "描述想压制或鼓励的表达，AI 会生成一条可编辑规则草稿。"}
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={!aiInstruction.trim() || isAiDrafting}
+                  onClick={() => aiDraftMutation.mutate()}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {isAiDrafting ? "生成中..." : editingRule ? "AI 优化草稿" : "AI 生成草稿"}
+                </Button>
+              </div>
+              <textarea
+                className="mt-3 min-h-[84px] w-full rounded-md border bg-background p-3 text-sm"
+                value={aiInstruction}
+                placeholder={editingRule
+                  ? "例如：把这条规则改得更适合压制总结腔，但不要误伤正常心理描写。"
+                  : "例如：减少正文里那种空泛总结、解释人物心理、像模型在复盘剧情的表达。"}
+                onChange={(event) => setAiInstruction(event.target.value)}
+              />
+            </div>
+
             <div className="grid gap-3 md:grid-cols-2">
               <label className="space-y-1.5 text-sm">
                 <span className="font-medium">规则标识</span>

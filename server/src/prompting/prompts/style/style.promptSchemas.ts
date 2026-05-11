@@ -96,3 +96,20 @@ export const styleProfileSanitizeForGenerationSchema = z.object({
   forbiddenEntities: z.array(z.string().trim().min(1)).default([]),
   sourceRiskSummary: z.string().trim().optional().nullable(),
 }).passthrough();
+
+export const antiAiRuleDraftFieldsSchema = z.object({
+  key: z.string().trim().optional().default(""),
+  name: z.string().trim().min(1),
+  type: z.enum(["forbidden", "risk", "encourage"]),
+  severity: z.enum(["low", "medium", "high"]),
+  description: z.string().trim().min(1),
+  detectPatterns: z.array(z.string().trim().min(1)).max(12).optional().default([]),
+  promptInstruction: z.string().trim().optional().nullable(),
+  rewriteSuggestion: z.string().trim().optional().nullable(),
+}).passthrough();
+
+export const antiAiRuleAiDraftSchema = z.object({
+  draft: antiAiRuleDraftFieldsSchema,
+  rationale: z.string().trim().optional().default(""),
+  safetyNotes: z.array(z.string().trim().min(1)).max(6).optional().default([]),
+}).passthrough();
