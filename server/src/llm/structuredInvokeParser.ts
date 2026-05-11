@@ -6,6 +6,7 @@ import { relaxGeneratedContentSchema } from "./generatedContentSchema";
 import { repairWithLlm } from "./structuredInvokeRepair";
 import {
   classifyStructuredOutputFailure,
+  enrichErrorMessageWithCause,
   resolveStructuredOutputProfile,
   schemaAllowsTopLevelArray,
   selectStructuredOutputStrategy,
@@ -339,6 +340,7 @@ export function buildStructuredError(input: {
   reasoningForcedOff?: boolean;
   fallbackAvailable?: boolean;
   fallbackUsed?: boolean;
+  cause?: unknown;
 }): StructuredOutputError {
   return new StructuredOutputError({
     message: input.message,
@@ -351,6 +353,7 @@ export function buildStructuredError(input: {
       fallbackUsed: input.fallbackUsed,
       errorCategory: input.category,
     }),
+    cause: input.cause,
   });
 }
 
@@ -371,11 +374,10 @@ export function wrapStructuredInvokeError(input: {
     error: input.error,
     rawContent: input.rawContent,
   });
-  const message = input.error instanceof Error
-    ? input.error.message
-    : typeof input.error === "string"
-      ? input.error
-      : `[${input.label}] Structured output failed.`;
+  const message = enrichErrorMessageWithCause(
+    input.error,
+    `[${input.label}] Structured output failed.`,
+  );
   return buildStructuredError({
     message,
     category,
@@ -384,6 +386,7 @@ export function wrapStructuredInvokeError(input: {
     reasoningForcedOff: input.reasoningForcedOff,
     fallbackAvailable: input.fallbackAvailable,
     fallbackUsed: input.fallbackUsed,
+    cause: input.error,
   });
 }
 

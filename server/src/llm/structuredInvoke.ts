@@ -13,6 +13,8 @@ import { resolveModel, toStructuredOutputStrategy } from "./modelRouter";
 import {
   buildStructuredResponseFormat,
   classifyStructuredOutputFailure,
+  describeNetworkErrorCause,
+  enrichErrorMessageWithCause,
   extractStructuredOutputErrorCategory,
   resolveStructuredOutputProfile,
   schemaAllowsTopLevelArray,
@@ -82,6 +84,116 @@ interface OpenAICompatibleChatMessage {
   content: string;
 }
 
+function buildFallbackResponseDiagnostics(input: {
+  response: {
+    status?: number;
+    statusText?: string;
+    headers?: Headers;
+  };
+  bodyPreview?: string;
+}): string {
+  const contentType = input.response.headers?.get("content-type")?.trim() || "unknown";
+  const requestId = input.response.headers?.get("x-request-id")?.trim() || "unknown";
+  const bodyPreview = input.bodyPreview?.replace(/\s+/g, " ").trim() || "unavailable";
+  return [
+    `fallback_response_status=${input.response.status ?? "unknown"}`,
+    `fallback_response_status_text=${input.response.statusText || "unknown"}`,
+    `fallback_response_content_type=${contentType}`,
+    `fallback_response_request_id=${requestId}`,
+    `fallback_body_preview=${bodyPreview.slice(0, 240)}`,
+  ].join(" ");
+}
+
+function buildFallbackBodyPreview(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  try {
+    return JSON.stringify(value) ?? "unavailable";
+  } catch {
+    return "unavailable";
+  }
+}
+
+async function readSseChatCompletion(response: Response): Promise<{
+  content: string;
+  rawText: string;
+  finishReason: string | null;
+}> {
+  const body = (response as Response & { body?: ReadableStream<Uint8Array> | null }).body;
+  if (!body || typeof (body as ReadableStream<Uint8Array>).getReader !== "function") {
+    throw new Error("SSE response has no readable body.");
+  }
+  const reader = (body as ReadableStream<Uint8Array>).getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+  let content = "";
+  let rawText = "";
+  let finishReason: string | null = null;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+      const chunk = decoder.decode(value, { stream: true });
+      buffer += chunk;
+      rawText += chunk;
+      let separatorIdx: number;
+      while ((separatorIdx = buffer.indexOf("\n\n")) >= 0) {
+        const rawEvent = buffer.slice(0, separatorIdx);
+        buffer = buffer.slice(separatorIdx + 2);
+        for (const line of rawEvent.split("\n")) {
+          if (!line.startsWith("data:")) {
+            continue;
+          }
+          const data = line.slice(5).trim();
+          if (!data || data === "[DONE]") {
+            continue;
+          }
+          type ChatCompletionChunk = {
+            choices?: Array<{
+              delta?: { content?: string | Array<{ text?: string; type?: string }> };
+              finish_reason?: string | null;
+            }>;
+          };
+          let parsedEvent: ChatCompletionChunk | null = null;
+          try {
+            parsedEvent = JSON.parse(data) as ChatCompletionChunk;
+          } catch {
+            continue;
+          }
+          const choice = parsedEvent?.choices?.[0];
+          if (!choice) {
+            continue;
+          }
+          const delta = choice.delta?.content;
+          if (typeof delta === "string") {
+            content += delta;
+          } else if (Array.isArray(delta)) {
+            for (const part of delta) {
+              if (part && typeof part === "object" && typeof part.text === "string") {
+                content += part.text;
+              }
+            }
+          }
+          if (typeof choice.finish_reason === "string" && choice.finish_reason) {
+            finishReason = choice.finish_reason;
+          }
+        }
+      }
+    }
+    rawText += decoder.decode();
+  } finally {
+    try {
+      reader.releaseLock();
+    } catch {
+      /* ignore */
+    }
+  }
+  return { content, rawText, finishReason };
+}
+
 function buildInvokeMessages<T>(input: StructuredInvokeInput<T>): BaseMessage[] {
   if (Array.isArray(input.messages) && input.messages.length > 0) {
     return input.messages;
@@ -112,7 +224,7 @@ function stringifyMessageContent(content: unknown): string {
 
 function isTimeoutStructuredTransportError(error: StructuredOutputError): boolean {
   return error.category === "transport_error"
-    && /timed out/i.test(error.message);
+    && /timed out after \d+ms/i.test(error.message);
 }
 
 function toOpenAICompatibleChatMessages(messages: BaseMessage[]): OpenAICompatibleChatMessage[] {
@@ -170,6 +282,12 @@ function resolveStructuredAttemptTimeout(input: {
     return resolvedTimeoutMs;
   }
 
+  if (input.requestProtocol === "openai_compatible") {
+    if (input.strategy === "json_schema" || input.strategy === "json_object") {
+      return 45000;
+    }
+  }
+
   if (input.requestProtocol === "openai_compatible" && input.strategy === "prompt_json") {
     return 45000;
   }
@@ -177,15 +295,45 @@ function resolveStructuredAttemptTimeout(input: {
   return undefined;
 }
 
+function resolveDirectOpenAITransportFallbackTimeout(input: {
+  explicitTimeoutMs?: number;
+  resolvedTimeoutMs?: number;
+  strategyIndex: number;
+}): number | undefined {
+  const explicitTimeoutMs = normalizeEnforcedTimeoutMs(input.explicitTimeoutMs);
+  if (typeof explicitTimeoutMs === "number") {
+    return explicitTimeoutMs;
+  }
+
+  const resolvedTimeoutMs = normalizeEnforcedTimeoutMs(input.resolvedTimeoutMs);
+  if (typeof resolvedTimeoutMs === "number") {
+    return input.strategyIndex > 0
+      ? Math.max(resolvedTimeoutMs, 200000)
+      : resolvedTimeoutMs;
+  }
+
+  return input.strategyIndex > 0 ? 200000 : 45000;
+}
+
 function shouldUseDirectOpenAITransportFallback(input: {
   strategy: StructuredOutputStrategy;
   requestProtocol: ModelRouteRequestProtocol;
   error: StructuredOutputError;
+  strategyIndex: number;
 }): boolean {
-  return input.strategy === "prompt_json"
-    && input.requestProtocol === "openai_compatible"
-    && input.error.category === "transport_error"
-    && !isTimeoutStructuredTransportError(input.error);
+  if (
+    input.strategy !== "prompt_json"
+    || input.requestProtocol !== "openai_compatible"
+    || input.error.category !== "transport_error"
+  ) {
+    return false;
+  }
+
+  if (!isTimeoutStructuredTransportError(input.error)) {
+    return true;
+  }
+
+  return input.strategyIndex > 0;
 }
 
 function shouldContinueAfterOpenAICompatibleTransportError(input: {
@@ -195,7 +343,6 @@ function shouldContinueAfterOpenAICompatibleTransportError(input: {
 }): boolean {
   return input.requestProtocol === "openai_compatible"
     && input.error.category === "transport_error"
-    && !isTimeoutStructuredTransportError(input.error)
     && input.strategy !== "prompt_json";
 }
 
@@ -206,6 +353,7 @@ async function invokeStructuredPromptJsonViaDirectOpenAICompatible<T>(input: {
   attemptTimeoutMs?: number;
   fallbackAvailable: boolean;
   fallbackUsed: boolean;
+  retryBudget?: number;
 }): Promise<StructuredInvokeResult<T>> {
   const messages = buildInvokeMessages(input.baseInput);
   const requestHeaders: Record<string, string> = {
@@ -217,37 +365,136 @@ async function invokeStructuredPromptJsonViaDirectOpenAICompatible<T>(input: {
   }
 
   const startedAt = Date.now();
-  try {
-    const response = await runWithEnforcedTimeout({
-      label: `${input.baseInput.label}.fallback`,
-      timeoutMs: input.attemptTimeoutMs,
-      signal: input.baseInput.signal,
-      run: (signal) => fetch(`${input.resolved.baseURL.replace(/\/+$/u, "")}/chat/completions`, {
-        method: "POST",
-        headers: requestHeaders,
-        body: JSON.stringify({
-          model: input.resolved.model,
-          temperature: input.resolved.temperature,
-          ...(typeof input.resolved.maxTokens === "number" ? { max_tokens: input.resolved.maxTokens } : {}),
-          messages: toOpenAICompatibleChatMessages(messages),
-        }),
-        signal,
+  const runFallbackFetch = async (): Promise<Response> => runWithEnforcedTimeout({
+    label: `${input.baseInput.label}.fallback`,
+    timeoutMs: input.attemptTimeoutMs,
+    signal: input.baseInput.signal,
+    run: (signal) => fetch(`${input.resolved.baseURL.replace(/\/+$/u, "")}/chat/completions`, {
+      method: "POST",
+      headers: requestHeaders,
+      body: JSON.stringify({
+        model: input.resolved.model,
+        temperature: input.resolved.temperature,
+        ...(typeof input.resolved.maxTokens === "number" ? { max_tokens: input.resolved.maxTokens } : {}),
+        messages: toOpenAICompatibleChatMessages(messages),
+        stream: true,
       }),
-    });
+      signal,
+    }),
+  });
+  try {
+    let response: Response | null = null;
+    let lastFetchError: unknown = null;
+    const maxAttempts = (input.retryBudget ?? 0) > 0 ? 2 : 1;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        response = await runFallbackFetch();
+        lastFetchError = null;
+        break;
+      } catch (error) {
+        lastFetchError = error;
+        const isTransportError = classifyStructuredOutputFailure({ error }) === "transport_error";
+        const isGovernedTimeout = error instanceof Error
+          && /timed out after \d+ms/i.test(error.message);
+        const shouldRetry = attempt < maxAttempts - 1
+          && isTransportError
+          && !isGovernedTimeout;
+        if (!shouldRetry) {
+          if (error instanceof Error) {
+            const enriched = enrichErrorMessageWithCause(error);
+            if (enriched && enriched !== error.message) {
+              error.message = enriched;
+            }
+          }
+          throw error;
+        }
+      }
+    }
+
+    if (!response) {
+      const fallbackError = lastFetchError instanceof Error
+        ? lastFetchError
+        : new Error("fetch failed");
+      const enriched = enrichErrorMessageWithCause(fallbackError, "fetch failed");
+      if (enriched && enriched !== fallbackError.message) {
+        fallbackError.message = enriched;
+      }
+      throw fallbackError;
+    }
 
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
       throw new Error(`[${input.baseInput.label}] direct transport fallback 请求失败 (${response.status}): ${detail || response.statusText}`);
     }
 
-    const payload = await response.json() as {
+    const responseContentType = response.headers?.get?.("content-type")?.toLowerCase() ?? "";
+    const isSseResponse = responseContentType.includes("text/event-stream")
+      || responseContentType.includes("application/x-ndjson");
+    let payload: {
       choices?: Array<{
         message?: {
           content?: string | Array<{ text?: string; type?: string }>;
         };
       }>;
     };
-    const rawContent = toText(payload.choices?.[0]?.message?.content).trim();
+    let responseText = "";
+    let streamedContent: string | null = null;
+    try {
+      if (isSseResponse) {
+        const streamResult = await readSseChatCompletion(response);
+        streamedContent = streamResult.content;
+        responseText = streamResult.rawText.slice(0, 4096);
+        payload = {
+          choices: [{ message: { content: streamResult.content } }],
+        };
+      } else if (typeof response.json === "function") {
+        try {
+          payload = await response.json() as typeof payload;
+          responseText = buildFallbackBodyPreview(payload);
+        } catch (jsonError) {
+          if (typeof response.text === "function") {
+            responseText = await response.text();
+            if (responseText.trim()) {
+              payload = JSON.parse(responseText) as typeof payload;
+            } else {
+              throw jsonError;
+            }
+          } else {
+            throw jsonError;
+          }
+        }
+      } else if (typeof response.text === "function") {
+        responseText = await response.text();
+        if (!responseText.trim()) {
+          throw new Error("Fallback response body is empty.");
+        }
+        payload = JSON.parse(responseText) as typeof payload;
+      } else {
+        throw new Error("Fallback response does not expose text() or json().");
+      }
+    } catch (error) {
+      const diagnostics = buildFallbackResponseDiagnostics({
+        response,
+        bodyPreview: responseText,
+      });
+      logStructuredInvokeEvent({
+        event: "fallback_response_read_error",
+        label: `${input.baseInput.label}.fallback`,
+        provider: input.resolved.provider,
+        model: input.resolved.model,
+        taskType: input.baseInput.taskType,
+        strategy: "prompt_json",
+        errorCategory: classifyStructuredOutputFailure({ error }),
+        fallbackUsed: input.fallbackUsed,
+        reasoningForcedOff: input.resolved.reasoningForcedOff,
+      });
+      console.info(`[structured.invoke] ${diagnostics}`);
+      throw new Error(`${error instanceof Error ? error.message : String(error)} ${diagnostics}`);
+    }
+    const rawContent = (streamedContent !== null
+      ? streamedContent
+      : toText(payload.choices?.[0]?.message?.content)).trim();
     logStructuredInvokeEvent({
       event: "invoke_done",
       label: `${input.baseInput.label}.fallback`,
@@ -531,6 +778,7 @@ async function tryStructuredStrategies<T>(input: {
         strategy,
         requestProtocol: input.target.requestProtocol,
         error: lastError,
+        strategyIndex: index,
       })) {
         const resolved = await resolveLLMClientOptions(input.target.provider, {
           fallbackProvider: "deepseek",
@@ -557,9 +805,14 @@ async function tryStructuredStrategies<T>(input: {
           baseInput: input.baseInput,
           target: input.target,
           resolved,
-          attemptTimeoutMs,
+          attemptTimeoutMs: resolveDirectOpenAITransportFallbackTimeout({
+            explicitTimeoutMs: input.baseInput.timeoutMs,
+            resolvedTimeoutMs: attemptTimeoutMs,
+            strategyIndex: index,
+          }),
           fallbackAvailable: input.fallbackAvailable,
           fallbackUsed: input.fallbackUsed,
+          retryBudget: index > 0 ? 1 : 0,
         });
       }
       if (shouldContinueAfterOpenAICompatibleTransportError({
@@ -672,13 +925,21 @@ export function summarizeStructuredOutputFailure(input: {
   const incompleteJsonSummary = input.fallbackAvailable
     ? "模型输出的 JSON 被截断或不完整，可能是输出被截断或 token 上限不足；建议先重试，必要时切换更强模型或启用结构化备用模型。"
     : "模型输出的 JSON 被截断或不完整，可能是输出被截断或 token 上限不足；建议先重试，必要时切换更强模型。";
+  const transportSuffix = input.fallbackAvailable
+    ? "（建议检查上游/代理网络后重试，或启用结构化备用模型）。"
+    : "（建议检查上游/代理网络后重试）。";
+  const cause = describeNetworkErrorCause(input.error)
+    ?? (input.error instanceof StructuredOutputError
+      ? describeNetworkErrorCause((input.error as Error & { cause?: unknown }).cause)
+      : null);
+  const transportTail = cause ? `（cause: ${cause}）${transportSuffix}` : transportSuffix;
   const summaryMap: Record<StructuredOutputErrorCategory, string> = {
     unsupported_native_json: `当前模型端点不兼容原生 JSON 输出${suffix}`,
     thinking_pollution: `当前模型的思考内容污染了结构化输出${suffix}`,
     incomplete_json: incompleteJsonSummary,
     malformed_json: `模型输出的 JSON 格式不稳定${suffix}`,
     schema_mismatch: `模型输出未满足目标结构要求${suffix}`,
-    transport_error: `结构化调用过程发生传输或服务端错误${suffix}`,
+    transport_error: `结构化调用过程发生传输或服务端错误${transportTail}`,
   };
   return {
     category,

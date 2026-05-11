@@ -422,6 +422,74 @@ export function extractStructuredOutputErrorCategory(message?: string | null): S
   ].includes(category) ? category : null;
 }
 
+export function describeNetworkErrorCause(error: unknown): string | null {
+  const visited = new Set<unknown>();
+  let current: unknown = error;
+  let depth = 0;
+  while (
+    current
+    && typeof current === "object"
+    && !visited.has(current)
+    && depth < 6
+  ) {
+    visited.add(current);
+    const candidate = current as Record<string, unknown>;
+    const code = typeof candidate.code === "string" ? candidate.code : undefined;
+    const errno = (typeof candidate.errno === "string" || typeof candidate.errno === "number")
+      ? String(candidate.errno)
+      : undefined;
+    const syscall = typeof candidate.syscall === "string" ? candidate.syscall : undefined;
+    const hostname = typeof candidate.hostname === "string" ? candidate.hostname : undefined;
+    const address = typeof candidate.address === "string" ? candidate.address : undefined;
+    const port = (typeof candidate.port === "number" || typeof candidate.port === "string")
+      ? String(candidate.port)
+      : undefined;
+    if (code || errno || syscall || hostname || address) {
+      const parts: string[] = [];
+      if (code) {
+        parts.push(`code=${code}`);
+      }
+      if (errno && errno !== code) {
+        parts.push(`errno=${errno}`);
+      }
+      if (syscall) {
+        parts.push(`syscall=${syscall}`);
+      }
+      if (hostname) {
+        parts.push(`host=${hostname}`);
+      } else if (address) {
+        parts.push(`addr=${address}${port ? `:${port}` : ""}`);
+      }
+      if (parts.length > 0) {
+        return parts.join(" ");
+      }
+    }
+    if (candidate.cause && candidate.cause !== current) {
+      current = candidate.cause;
+      depth += 1;
+      continue;
+    }
+    break;
+  }
+  return null;
+}
+
+export function enrichErrorMessageWithCause(error: unknown, fallback?: string): string {
+  if (!(error instanceof Error)) {
+    const text = typeof error === "string" ? error : String(error ?? "");
+    return text || (fallback ?? "");
+  }
+  const baseMessage = error.message?.trim() || error.name || (fallback ?? "Error");
+  const cause = describeNetworkErrorCause(error);
+  if (!cause) {
+    return baseMessage;
+  }
+  if (baseMessage.toLowerCase().includes(cause.toLowerCase())) {
+    return baseMessage;
+  }
+  return `${baseMessage} (cause: ${cause})`;
+}
+
 export class StructuredOutputError extends Error {
   readonly category: StructuredOutputErrorCategory;
 
@@ -431,8 +499,12 @@ export class StructuredOutputError extends Error {
     message: string;
     category: StructuredOutputErrorCategory;
     diagnostics: StructuredOutputDiagnostics;
+    cause?: unknown;
   }) {
-    super(`[STRUCTURED_OUTPUT:${input.category}] ${input.message}`);
+    super(
+      `[STRUCTURED_OUTPUT:${input.category}] ${input.message}`,
+      input.cause !== undefined ? { cause: input.cause } : undefined,
+    );
     this.name = "StructuredOutputError";
     this.category = input.category;
     this.diagnostics = input.diagnostics;
