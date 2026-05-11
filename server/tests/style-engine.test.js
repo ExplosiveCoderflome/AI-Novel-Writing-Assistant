@@ -492,6 +492,44 @@ test("StyleRewriteService includes preview anti-ai rules in the repair prompt", 
   }
 });
 
+test("style detection prompt requires broad anti-ai recall and non-copyable suggestions", () => {
+  const rendered = promptRunner.preparePromptExecution({
+    asset: require("../dist/prompting/prompts/style/style.prompts.js").styleDetectionPrompt,
+    promptInput: {
+      styleContractText: "none",
+      styleContractMetaText: "none",
+      antiRuleCatalogText: "none",
+      content: "测试正文",
+    },
+  });
+  const promptText = rendered.messages.map((message) => String(message.content)).join("\n");
+
+  assert.match(promptText, /必须通读全文做召回/);
+  assert.match(promptText, /高频模板表达/);
+  assert.match(promptText, /仿佛、似乎、极其、完美、深不见底/);
+  assert.match(promptText, /通常不应低于 60/);
+  assert.match(promptText, /禁止输出完整可复制替换句/);
+});
+
+test("style rewrite prompt avoids suggestion copying and factual hook injection", () => {
+  const rendered = promptRunner.preparePromptExecution({
+    asset: require("../dist/prompting/prompts/style/style.prompts.js").styleRewritePrompt,
+    promptInput: {
+      styleContractText: "none",
+      content: "原文",
+      issuesBlock: "1. 模板化开头\n片段：明堂灯火通明\n修正建议：改为主角局部感知，例如：丝竹声传来，我跟着几位宗室伯爵走进明堂。",
+    },
+  });
+  const promptText = rendered.messages.map((message) => String(message.content)).join("\n");
+
+  assert.match(promptText, /suggestion 只表示修改方向/);
+  assert.match(promptText, /禁止直接照抄 suggestion/);
+  assert.match(promptText, /相邻段落存在同类明显 AI 痕迹/);
+  assert.match(promptText, /自然化不是口语化/);
+  assert.match(promptText, /不得新增事实型设定/);
+  assert.match(promptText, /地图批注、密信、死人、刺客、失踪者/);
+});
+
 test("knowledge document style extraction uses representative sample by default", () => {
   const sourceText = Array.from({ length: 90 }, (_, index) =>
     `第${index + 1}段：${"人物对话和场景推进。".repeat(160)}`).join("\n");
