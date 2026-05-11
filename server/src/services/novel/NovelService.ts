@@ -4,6 +4,7 @@ import { NovelCoreService } from "./NovelCoreService";
 import { NovelWorldSliceService } from "./storyWorldSlice/NovelWorldSliceService";
 import { CharacterPreparationService } from "./characterPrep/CharacterPreparationService";
 import { CharacterDynamicsService } from "./dynamics/CharacterDynamicsService";
+import { CharacterVisibleProfileService } from "./characterProfile/CharacterVisibleProfileService";
 import { buildManualProductionControlPolicy } from "./production/ChapterExecutionStageRunner";
 import { registerChapterPreparationStageRunner } from "./production/ChapterPreparationStageRunner";
 import { novelProductionOrchestrator } from "./production/NovelProductionOrchestrator";
@@ -16,6 +17,7 @@ export class NovelService extends NovelPipelineService {
   private readonly worldSliceService = new NovelWorldSliceService();
   private readonly characterPreparationService = new CharacterPreparationService();
   private readonly characterDynamicsService = new CharacterDynamicsService();
+  private readonly characterVisibleProfileService = new CharacterVisibleProfileService();
   private readonly volumeService = new NovelVolumeService();
   private readonly chapterEditorWorkspaceService = new ChapterEditorWorkspaceService();
   private readonly chapterEditorService = new NovelChapterEditorService();
@@ -300,6 +302,28 @@ export class NovelService extends NovelPipelineService {
     const updated = await this.core.updateCharacter(...args);
     await this.characterDynamicsService.rebuildDynamics(novelId, { sourceType: "rebuild_projection" }).catch(() => null);
     return updated;
+  }
+
+  generateCharacterVisibleProfile(...args: Parameters<CharacterVisibleProfileService["generateCharacterVisibleProfile"]>) {
+    return this.characterVisibleProfileService.generateCharacterVisibleProfile(...args);
+  }
+
+  generateBatchCharacterVisibleProfiles(...args: Parameters<CharacterVisibleProfileService["generateBatchVisibleProfiles"]>) {
+    return this.characterVisibleProfileService.generateBatchVisibleProfiles(...args);
+  }
+
+  async applyCharacterVisibleProfile(...args: Parameters<CharacterVisibleProfileService["applyCharacterVisibleProfile"]>) {
+    const [novelId] = args;
+    const result = await this.characterVisibleProfileService.applyCharacterVisibleProfile(...args);
+    await this.characterDynamicsService.rebuildDynamics(novelId, { sourceType: "rebuild_projection" }).catch(() => null);
+    return result;
+  }
+
+  async applyBatchCharacterVisibleProfiles(...args: Parameters<CharacterVisibleProfileService["applyBatchVisibleProfiles"]>) {
+    const [novelId] = args;
+    const result = await this.characterVisibleProfileService.applyBatchVisibleProfiles(...args);
+    await this.characterDynamicsService.rebuildDynamics(novelId, { sourceType: "rebuild_projection" }).catch(() => null);
+    return result;
   }
 
   async deleteCharacter(...args: Parameters<NovelCoreService["deleteCharacter"]>) {

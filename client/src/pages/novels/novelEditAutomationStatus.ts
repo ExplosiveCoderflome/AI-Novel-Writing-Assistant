@@ -45,6 +45,13 @@ export function buildDisplayAutoDirectorTask(
   if (!projectedStatus) {
     return task;
   }
+  const isLiveTask = task.status === "queued" || task.status === "running";
+  if (isLiveTask && projectedStatus === "succeeded") {
+    return {
+      ...task,
+      displayStatus: projection.status,
+    };
+  }
   const message = projectionMessage(projection);
   const pendingManualRecovery = projection.status === "waiting_recovery"
     ? true

@@ -5,7 +5,10 @@ import { createVolumeChapterBeatBlockSchema } from "../../../../services/novel/v
 import { type VolumeChapterListPromptInput } from "./shared";
 import { buildVolumeChapterListContextBlocks } from "./contextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
-import { getChapterTitleDiversityIssue } from "../../../../services/novel/volume/chapterTitleDiversity";
+import {
+  getChapterTitleDiversityIssue,
+  isChapterTitleDiversityIssue,
+} from "../../../../services/novel/volume/chapterTitleDiversity";
 
 function safeJsonStringify(value: unknown): string {
   try {
@@ -208,6 +211,12 @@ export function createVolumeChapterListPrompt(
         throw new Error(titleDiversityIssue);
       }
       return output;
+    },
+    postValidateFailureRecovery: ({ rawOutput, validationError }) => {
+      if (isChapterTitleDiversityIssue(validationError)) {
+        return rawOutput;
+      }
+      throw new Error(validationError);
     },
   };
 }

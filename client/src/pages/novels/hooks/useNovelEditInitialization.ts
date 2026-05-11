@@ -26,6 +26,12 @@ interface CharacterFormState {
   personality: string;
   background: string;
   development: string;
+  appearance: string;
+  physique: string;
+  attireStyle: string;
+  signatureDetail: string;
+  voiceTexture: string;
+  presenceImpression: string;
   currentState: string;
   currentGoal: string;
 }
@@ -60,6 +66,12 @@ const EMPTY_CHARACTER_FORM: CharacterFormState = {
   personality: "",
   background: "",
   development: "",
+  appearance: "",
+  physique: "",
+  attireStyle: "",
+  signatureDetail: "",
+  voiceTexture: "",
+  presenceImpression: "",
   currentState: "",
   currentGoal: "",
 };
@@ -196,6 +208,12 @@ export function useNovelEditInitialization({
       personality: selectedCharacter.personality ?? "",
       background: selectedCharacter.background ?? "",
       development: selectedCharacter.development ?? "",
+      appearance: selectedCharacter.appearance ?? "",
+      physique: selectedCharacter.physique ?? "",
+      attireStyle: selectedCharacter.attireStyle ?? "",
+      signatureDetail: selectedCharacter.signatureDetail ?? "",
+      voiceTexture: selectedCharacter.voiceTexture ?? "",
+      presenceImpression: selectedCharacter.presenceImpression ?? "",
       currentState: selectedCharacter.currentState ?? "",
       currentGoal: selectedCharacter.currentGoal ?? "",
     });

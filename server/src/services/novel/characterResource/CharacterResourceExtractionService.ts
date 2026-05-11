@@ -49,11 +49,12 @@ export class CharacterResourceExtractionService {
     chapterId: string;
     sourceType: string;
     sourceStage: string;
+    contentHash: string;
   }): Promise<boolean> {
     if (!DEDUPED_RESOURCE_SOURCE_TYPES.has(input.sourceType)) {
       return false;
     }
-    const processedCount = await prisma.stateChangeProposal.count({
+    const rows = await prisma.stateChangeProposal.findMany({
       where: {
         novelId: input.novelId,
         chapterId: input.chapterId,
@@ -61,8 +62,16 @@ export class CharacterResourceExtractionService {
         sourceStage: input.sourceStage,
         proposalType: { in: ["character_resource_update", RESOURCE_SYNC_CHECKPOINT_TYPE] },
       },
+      select: { payloadJson: true },
     });
-    return processedCount > 0;
+    return rows.some((row) => {
+      try {
+        const payload = JSON.parse(row.payloadJson) as { syncContentHash?: unknown };
+        return payload.syncContentHash === input.contentHash;
+      } catch {
+        return false;
+      }
+    });
   }
 
   private async markDedupedContentProcessed(input: {
@@ -146,6 +155,7 @@ export class CharacterResourceExtractionService {
         chapterId: chapter.id,
         sourceType,
         sourceStage,
+        contentHash,
       })) {
         return [];
       }

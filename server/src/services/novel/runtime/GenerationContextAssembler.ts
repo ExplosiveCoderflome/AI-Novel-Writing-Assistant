@@ -471,6 +471,12 @@ export class GenerationContextAssembler {
         personality: item.personality ?? null,
         currentState: canonicalCharacter?.currentState ?? item.currentState ?? null,
         currentGoal: canonicalCharacter?.currentGoal ?? item.currentGoal ?? null,
+        appearance: item.appearance ?? null,
+        physique: item.physique ?? null,
+        attireStyle: item.attireStyle ?? null,
+        signatureDetail: item.signatureDetail ?? null,
+        voiceTexture: item.voiceTexture ?? null,
+        presenceImpression: item.presenceImpression ?? null,
       };
     });
     const mappedCreativeDecisions = decisions.map((item) => ({
@@ -531,6 +537,10 @@ export class GenerationContextAssembler {
         name: item.name,
         role: item.role,
         personality: item.personality ?? null,
+        appearance: item.appearance ?? null,
+        physique: item.physique ?? null,
+        signatureDetail: item.signatureDetail ?? null,
+        voiceTexture: item.voiceTexture ?? null,
       })),
     );
     const characterDynamicsText = characterDynamics

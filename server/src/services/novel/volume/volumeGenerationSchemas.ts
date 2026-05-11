@@ -175,15 +175,44 @@ function normalizeBeatPayload(raw: unknown): unknown {
   };
 }
 
-function normalizeChapterListItemPayload(raw: unknown): unknown {
-  return normalizeObjectAlias(raw, {
+function normalizeChapterListItemPayload(raw: unknown, expectedBeatKey?: string): unknown {
+  const normalized = normalizeObjectAlias(raw, {
     title: ["chapterTitle", "name"],
     summary: ["description", "content", "outline"],
     beatKey: ["beat", "beat_key", "stageKey", "stage_key"],
   });
+  if (
+    expectedBeatKey
+    && normalized
+    && typeof normalized === "object"
+    && !Array.isArray(normalized)
+    && (normalized as Record<string, unknown>).beatKey == null
+  ) {
+    return {
+      ...normalized as Record<string, unknown>,
+      beatKey: expectedBeatKey,
+    };
+  }
+  return normalized;
 }
 
-function normalizeChapterBeatBlockPayload(raw: unknown): unknown {
+function normalizeChapterBeatBlockPayload(
+  raw: unknown,
+  config: {
+    expectedBeatKey?: string;
+    expectedBeatLabel?: string | null;
+  } = {},
+): unknown {
+  const expectedBeatLabel = config.expectedBeatLabel?.trim();
+  if (Array.isArray(raw) && config.expectedBeatKey && expectedBeatLabel) {
+    return {
+      beatKey: config.expectedBeatKey,
+      beatLabel: expectedBeatLabel,
+      chapterCount: raw.length,
+      chapters: raw.map((item) => normalizeChapterListItemPayload(item, config.expectedBeatKey)),
+    };
+  }
+
   const normalized = normalizeObjectAlias(raw, {
     beatKey: ["beat", "beat_key", "stageKey", "stage_key"],
     beatLabel: ["label", "beat", "beat_label", "stageLabel", "stage_label", "name", "title"],
@@ -200,7 +229,7 @@ function normalizeChapterBeatBlockPayload(raw: unknown): unknown {
     ...record,
     chapterCount: normalizeInteger(record.chapterCount),
     chapters: Array.isArray(record.chapters)
-      ? record.chapters.map((item) => normalizeChapterListItemPayload(item))
+      ? record.chapters.map((item) => normalizeChapterListItemPayload(item, config.expectedBeatKey))
       : record.chapters,
   };
 }
@@ -400,7 +429,7 @@ const generatedChapterListItemSchema = z.object({
   summary: z.string().trim().min(1),
 });
 
-const generatedChapterBeatBlockItemSchema = z.preprocess(normalizeChapterListItemPayload, z.object({
+const generatedChapterBeatBlockItemSchema = z.preprocess((raw) => normalizeChapterListItemPayload(raw), z.object({
   title: z.string().trim().min(1),
   summary: z.string().trim().min(1),
   beatKey: z.string().trim().min(1),
@@ -468,7 +497,9 @@ export function createVolumeChapterBeatBlockSchema(config: {
   expectedBeatLabel?: string | null;
 } = {}) {
   const { exactChapterCount, expectedBeatKey, expectedBeatLabel } = config;
-  return z.preprocess(normalizeChapterBeatBlockPayload, z.object({
+  return z.preprocess(
+    (raw) => normalizeChapterBeatBlockPayload(raw, { expectedBeatKey, expectedBeatLabel }),
+    z.object({
     beatKey: z.string().trim().min(1),
     beatLabel: z.string().trim().min(1),
     chapterCount: z.number().int().min(1),

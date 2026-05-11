@@ -1,5 +1,13 @@
-import { useMemo } from "react";
-import type { Character, CharacterCastRole, CharacterGender, CharacterTimeline } from "@ai-novel/shared/types/novel";
+import { useMemo, useState } from "react";
+import type {
+  Character,
+  CharacterCastRole,
+  CharacterGender,
+  CharacterTimeline,
+  CharacterVisibleProfileBatchResult,
+  CharacterVisibleProfileField,
+  CharacterVisibleProfileSuggestion,
+} from "@ai-novel/shared/types/novel";
 import type { CharacterResourceLedgerItem } from "@ai-novel/shared/types/characterResource";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +23,12 @@ interface CharacterFormState {
   personality: string;
   background: string;
   development: string;
+  appearance: string;
+  physique: string;
+  attireStyle: string;
+  signatureDetail: string;
+  voiceTexture: string;
+  presenceImpression: string;
   currentState: string;
   currentGoal: string;
 }
@@ -38,6 +52,16 @@ interface CharacterAssetWorkspaceProps {
   isSyncingAllTimeline: boolean;
   onWorldCheck: () => void;
   isCheckingWorld: boolean;
+  onGenerateVisibleProfile: (userGuidance?: string) => void;
+  isGeneratingVisibleProfile: boolean;
+  visibleProfileSuggestion?: CharacterVisibleProfileSuggestion | null;
+  onApplyVisibleProfile: () => void;
+  isApplyingVisibleProfile: boolean;
+  onGenerateBatchVisibleProfiles: (userGuidance?: string) => void;
+  isGeneratingBatchVisibleProfiles: boolean;
+  batchVisibleProfileResult?: CharacterVisibleProfileBatchResult | null;
+  onApplyBatchVisibleProfiles: () => void;
+  isApplyingBatchVisibleProfiles: boolean;
   characterResources?: CharacterResourceLedgerItem[];
   pendingCharacterResourceCount?: number;
   onBackfillCharacterResources?: () => void;
@@ -61,6 +85,15 @@ const CHARACTER_GENDER_LABELS: Record<CharacterGender, string> = {
   other: "其他",
   unknown: "未知",
 };
+
+const VISIBLE_PROFILE_FIELDS: Array<{ key: CharacterVisibleProfileField; label: string; placeholder: string }> = [
+  { key: "appearance", label: "样貌记忆点", placeholder: "眉眼、发型、表情习惯等能被读者记住的样貌特征" },
+  { key: "physique", label: "体态基底", placeholder: "年龄感、身形、行动姿态、身体状态基底" },
+  { key: "attireStyle", label: "常见穿着", placeholder: "日常穿着、身份外观、阶层或职业痕迹" },
+  { key: "signatureDetail", label: "标志细节", placeholder: "标志物、动作、微习惯、气味或反复可用的细节" },
+  { key: "voiceTexture", label: "声音口吻", placeholder: "声线、说话节奏、句式习惯、口吻" },
+  { key: "presenceImpression", label: "登场印象", placeholder: "首次或常规登场时给读者的直观感受" },
+];
 
 function getCastRoleLabel(castRole?: CharacterCastRole | null): string {
   if (!castRole) {
@@ -184,11 +217,22 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
     isSyncingAllTimeline,
     onWorldCheck,
     isCheckingWorld,
+    onGenerateVisibleProfile,
+    isGeneratingVisibleProfile,
+    visibleProfileSuggestion,
+    onApplyVisibleProfile,
+    isApplyingVisibleProfile,
+    onGenerateBatchVisibleProfiles,
+    isGeneratingBatchVisibleProfiles,
+    batchVisibleProfileResult,
+    onApplyBatchVisibleProfiles,
+    isApplyingBatchVisibleProfiles,
     characterResources = [],
     pendingCharacterResourceCount = 0,
     onBackfillCharacterResources,
     isBackfillingCharacterResources = false,
   } = props;
+  const [visibleProfileGuidance, setVisibleProfileGuidance] = useState("");
 
   const lastAppearanceChapter = useMemo(
     () => getLastAppearanceChapter(timelineEvents),
@@ -209,6 +253,13 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
   const displayedResources = selectedCharacterResources
     .filter(resourceDisplayMode.shouldShowResource)
     .slice(0, resourceDisplayMode.limit);
+  const hasVisibleProfileSuggestionForSelected = Boolean(
+    visibleProfileSuggestion
+    && selectedCharacter
+    && visibleProfileSuggestion.characterId === selectedCharacter.id,
+  );
+  const applicableVisibleProfileCount = Object.keys(visibleProfileSuggestion?.fields ?? {}).length;
+  const batchApplicableCount = batchVisibleProfileResult?.results.filter((item) => item.hasApplicableChanges).length ?? 0;
 
   return (
     <Card>
@@ -318,6 +369,141 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                 <div className="text-xs text-muted-foreground">成长弧：{selectedCharacter.development || "待补全"}</div>
                 <div className="text-xs text-muted-foreground">错误信念：{selectedCharacter.misbelief || "待补全"}</div>
                 <div className="text-xs text-muted-foreground">道德底线：{selectedCharacter.moralLine || "待补全"}</div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border p-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="text-sm font-medium">外显资料</div>
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                    补齐角色的外貌、体态、声音和登场记忆点，后续章节会优先带入高辨识信息。
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <AiButton
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onGenerateVisibleProfile(visibleProfileGuidance)}
+                    disabled={isGeneratingVisibleProfile || !selectedCharacterId}
+                  >
+                    {isGeneratingVisibleProfile ? "生成中..." : "AI 补全外显资料"}
+                  </AiButton>
+                  <AiButton
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onGenerateBatchVisibleProfiles(visibleProfileGuidance)}
+                    disabled={isGeneratingBatchVisibleProfiles || characters.length === 0}
+                  >
+                    {isGeneratingBatchVisibleProfiles ? "生成中..." : "批量补全角色外显资料"}
+                  </AiButton>
+                </div>
+              </div>
+              <div className="mt-3">
+                <textarea
+                  className="min-h-[72px] w-full rounded-md border bg-background p-2 text-sm"
+                  placeholder="补全倾向（可选）：例如更有压迫感、带一点病弱感、声音更温和、不要写成传统美人"
+                  value={visibleProfileGuidance}
+                  onChange={(event) => setVisibleProfileGuidance(event.target.value)}
+                />
+                <div className="mt-1 text-xs text-muted-foreground">
+                  留空时按小说设定自动补齐；填写后，AI 会优先按你的倾向生成可写入建议。
+                </div>
+              </div>
+              {isGeneratingVisibleProfile ? (
+                <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm text-muted-foreground">
+                  正在为“{selectedCharacter.name}”整理外貌、体态、声音和登场记忆点。
+                </div>
+              ) : null}
+              {hasVisibleProfileSuggestionForSelected && visibleProfileSuggestion ? (
+                <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-sm font-medium">
+                        {applicableVisibleProfileCount > 0
+                          ? `已为“${visibleProfileSuggestion.characterName}”生成 ${applicableVisibleProfileCount} 项可写入外显资料`
+                          : `“${visibleProfileSuggestion.characterName}”当前没有可写入的外显资料`}
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        请先看下面差异，确认后点击保存到角色卡。
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={onApplyVisibleProfile}
+                      disabled={isApplyingVisibleProfile || applicableVisibleProfileCount === 0}
+                    >
+                      {isApplyingVisibleProfile ? "保存中..." : "保存到角色卡"}
+                    </Button>
+                  </div>
+                  {visibleProfileSuggestion.warnings.length > 0 ? (
+                    <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs leading-5 text-amber-900">
+                      {visibleProfileSuggestion.warnings.map((warning) => (
+                        <div key={warning}>提醒：{warning}</div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="mt-2 grid gap-2 lg:grid-cols-2">
+                    {VISIBLE_PROFILE_FIELDS.map((field) => {
+                      const nextValue = visibleProfileSuggestion.fields[field.key];
+                      const skippedReason = visibleProfileSuggestion.skippedFields[field.key];
+                      return (
+                        <div key={field.key} className="rounded-md border bg-background/80 p-2 text-xs leading-5">
+                          <div className="font-medium">{field.label}</div>
+                          <div className="text-muted-foreground">当前：{selectedCharacter[field.key] || "待补全"}</div>
+                          <div>建议：{nextValue || skippedReason || "暂不写入"}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+              {!isGeneratingVisibleProfile && !hasVisibleProfileSuggestionForSelected ? (
+                <div className="mt-3 rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                  点击“AI 补全外显资料”后，会先在这里显示即将保存的差异；确认后再保存到角色卡。
+                </div>
+              ) : null}
+              {batchVisibleProfileResult ? (
+                <div className="mt-3 rounded-lg border border-border/70 p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm font-medium">
+                      批量建议：{batchApplicableCount} 个角色可写入
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={onApplyBatchVisibleProfiles}
+                      disabled={isApplyingBatchVisibleProfiles || batchApplicableCount === 0}
+                    >
+                      {isApplyingBatchVisibleProfiles ? "写入中..." : "写入批量结果"}
+                    </Button>
+                  </div>
+                  <div className="mt-2 max-h-64 space-y-2 overflow-auto pr-1">
+                    {batchVisibleProfileResult.results.map((result) => (
+                      <div key={result.characterId} className="rounded-md border bg-muted/10 p-2 text-xs leading-5">
+                        <div className="font-medium">{result.characterName}</div>
+                        <div className="text-muted-foreground">
+                          {result.hasApplicableChanges
+                            ? `可写入 ${Object.keys(result.fields).length} 项`
+                            : "没有可写入项"}
+                        </div>
+                        <div>{VISIBLE_PROFILE_FIELDS.map((field) => result.fields[field.key]).filter(Boolean).join(" / ")}</div>
+                      </div>
+                    ))}
+                    {batchVisibleProfileResult.skippedCharacters.map((item) => (
+                      <div key={item.characterId} className="rounded-md border border-dashed p-2 text-xs text-muted-foreground">
+                        {item.characterName}：{item.reason}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                {VISIBLE_PROFILE_FIELDS.map((field) => (
+                  <div key={field.key} className="rounded-lg border border-border/70 bg-muted/15 p-3">
+                    <div className="text-xs font-medium text-muted-foreground">{field.label}</div>
+                    <div className="mt-1 text-sm leading-6">{selectedCharacter[field.key] || "待补全"}</div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -433,6 +619,17 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                   value={characterForm.development}
                   onChange={(event) => onCharacterFormChange("development", event.target.value)}
                 />
+                <div className="grid gap-2 md:grid-cols-2">
+                  {VISIBLE_PROFILE_FIELDS.map((field) => (
+                    <textarea
+                      key={field.key}
+                      className="min-h-[72px] w-full rounded-md border bg-background p-2 text-sm"
+                      placeholder={`${field.label}：${field.placeholder}`}
+                      value={characterForm[field.key]}
+                      onChange={(event) => onCharacterFormChange(field.key, event.target.value)}
+                    />
+                  ))}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" onClick={onSaveCharacter} disabled={isSavingCharacter}>
                     {isSavingCharacter ? "保存中..." : "保存角色资产"}

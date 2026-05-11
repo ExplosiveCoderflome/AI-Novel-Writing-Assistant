@@ -338,6 +338,10 @@ export class DirectorBookAutomationProjectionService {
       ? "waiting_recovery"
       : workflowStatusToBookStatus(latestTask?.status);
     const runtimeStatus = runtimeProjection ? runtimeStatusToBookStatus(runtimeProjection.status) : "idle";
+    const isLiveWorkflowTask = taskStatus === "queued" || taskStatus === "running";
+    const effectiveRuntimeStatus = isLiveWorkflowTask && runtimeStatus === "completed"
+      ? "idle"
+      : runtimeStatus;
     const status: DirectorBookAutomationStatus = activeCommandCount > 0
       ? "running"
       : pendingCommandCount > 0
@@ -346,8 +350,8 @@ export class DirectorBookAutomationProjectionService {
           ? "waiting_recovery"
           : taskStatus === "cancelled"
             ? "cancelled"
-            : runtimeStatus !== "idle"
-              ? runtimeStatus
+            : effectiveRuntimeStatus !== "idle"
+              ? effectiveRuntimeStatus
               : taskStatus;
     const workerHealth = buildWorkerHealth({
       commands,

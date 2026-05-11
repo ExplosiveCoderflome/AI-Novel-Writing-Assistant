@@ -56,6 +56,36 @@ function findMissingSelectedChapterOrders(
   return missing;
 }
 
+async function syncPreparedChapterExecutionContext(input: {
+  novelId: string;
+  workspace: VolumePlanDocument;
+  targetVolumeId: string;
+  targetChapterId: string;
+  dependencies: DirectorPhaseDependencies;
+}): Promise<void> {
+  const targetVolume = input.workspace.volumes.find((volume) => volume.id === input.targetVolumeId);
+  const targetChapter = targetVolume?.chapters.find((chapter) => chapter.id === input.targetChapterId);
+  if (!targetChapter) {
+    return;
+  }
+  if (!targetChapter.taskSheet?.trim() && !targetChapter.sceneCards?.trim()) {
+    return;
+  }
+
+  await input.dependencies.volumeService.syncVolumeChaptersWithOptions(input.novelId, {
+    volumes: input.workspace.volumes,
+    preserveContent: true,
+    applyDeletes: false,
+    executionContractChapterRange: {
+      startOrder: targetChapter.chapterOrder,
+      endOrder: targetChapter.chapterOrder,
+    },
+  }, {
+    emitEvent: false,
+    syncPayoffLedger: false,
+  });
+}
+
 function buildStructuredOutlinePhaseUpdate(event: VolumeGenerationPhaseEvent): {
   itemKey: DirectorProgressItemKey;
   itemLabel: string;
@@ -387,6 +417,13 @@ export async function runDirectorStructuredOutlinePhase(input: {
           volumeId: recoveryCursor.volumeId,
           chapterId: recoveryCursor.chapterId,
         },
+      });
+      await syncPreparedChapterExecutionContext({
+        novelId,
+        workspace,
+        targetVolumeId,
+        targetChapterId,
+        dependencies,
       });
       continue;
     }

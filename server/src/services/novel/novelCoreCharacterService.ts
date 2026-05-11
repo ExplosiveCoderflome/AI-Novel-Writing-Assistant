@@ -32,6 +32,7 @@ export class NovelCoreCharacterService {
         personality: input.personality ?? baseCharacter.personality,
         background: input.background ?? baseCharacter.background,
         development: input.development ?? baseCharacter.development,
+        appearance: input.appearance ?? baseCharacter.appearance ?? undefined,
       };
     }
 

@@ -368,6 +368,44 @@ test("book automation projection keeps active work ahead of old stale commands",
   }
 });
 
+test("book automation projection keeps a running workflow ahead of a completed runtime snapshot", async () => {
+  const harness = createHarness({
+    commands: [],
+    latestTask: {
+      status: "running",
+      currentStage: "质量修复",
+      currentItemKey: "quality_repair",
+      currentItemLabel: "正在自动修复第 1-10 章",
+      checkpointType: null,
+      checkpointSummary: null,
+    },
+    runtimeProjection: {
+      runId: "run-1",
+      novelId: "novel-1",
+      status: "completed",
+      headline: "步骤完成：生成卷拆章列表",
+      detail: "Book contract artifact already exists and can be reused.",
+      requiresUserAction: false,
+      blockedReason: null,
+      nextActionLabel: "继续章节生成",
+      policyMode: "run_until_gate",
+      updatedAt: "2026-04-30T09:00:03.000Z",
+      recentEvents: [],
+    },
+  });
+  try {
+    const projection = await harness.service.getProjection("novel-1");
+
+    assert.equal(projection.latestTask.status, "running");
+    assert.equal(projection.status, "running");
+    assert.equal(projection.displayState, "processing");
+    assert.equal(projection.requiresUserAction, false);
+    assert.equal(projection.primaryAction.label, "查看推进状态");
+  } finally {
+    harness.restore();
+  }
+});
+
 test("book automation projection keeps waiting gates ahead of old stale commands", async () => {
   const harness = createHarness({
     runtimeProjection: null,

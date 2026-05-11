@@ -228,8 +228,16 @@ export function buildParticipantText(writeContext: ChapterWriteContext): string 
     "Participants:",
     ...writeContext.participants.map((character) => {
       const guide = guideByCharacterId.get(character.id);
+      const visibleProfile = takeUnique([
+        character.appearance || character.physique
+          ? `look=${compactText([character.appearance, character.physique].filter(Boolean).join("；"))}`
+          : "",
+        character.signatureDetail ? `signature=${compactText(character.signatureDetail)}` : "",
+        character.voiceTexture ? `voice=${compactText(character.voiceTexture)}` : "",
+      ], 3).join(" | ");
       const parts = takeUnique([
         character.role,
+        visibleProfile,
         guide?.volumeRoleLabel ? `volume role=${guide.volumeRoleLabel}` : "",
         guide?.volumeResponsibility ? `volume duty=${guide.volumeResponsibility}` : "",
         character.personality,
@@ -254,6 +262,7 @@ export function buildCharacterGuidanceText(writeContext: ChapterWriteContext): s
     ...writeContext.characterBehaviorGuides.map((guide) => {
       const parts = takeUnique([
         guide.isCoreInVolume ? "core in current volume" : "supporting in current volume",
+        guide.visibleProfileSummary ? `visible=${guide.visibleProfileSummary}` : "",
         guide.volumeRoleLabel ? `volume role=${guide.volumeRoleLabel}` : "",
         guide.volumeResponsibility ? `duty=${guide.volumeResponsibility}` : "",
         guide.currentGoal ? `goal=${guide.currentGoal}` : "",

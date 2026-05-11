@@ -520,6 +520,12 @@ model Character {
   secret          String?
   moralLine       String?
   firstImpression String?
+  appearance      String?
+  physique        String?
+  attireStyle     String?
+  signatureDetail String?
+  voiceTexture    String?
+  presenceImpression String?
   arcStart        String?
   arcMidpoint     String?
   arcClimax       String?

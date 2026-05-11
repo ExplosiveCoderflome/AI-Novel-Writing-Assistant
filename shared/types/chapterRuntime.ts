@@ -89,6 +89,12 @@ export const runtimeCharacterSchema = z.object({
   personality: z.string().nullable().optional(),
   currentState: z.string().nullable().optional(),
   currentGoal: z.string().nullable().optional(),
+  appearance: z.string().nullable().optional(),
+  physique: z.string().nullable().optional(),
+  attireStyle: z.string().nullable().optional(),
+  signatureDetail: z.string().nullable().optional(),
+  voiceTexture: z.string().nullable().optional(),
+  presenceImpression: z.string().nullable().optional(),
 });
 
 export const runtimeCreativeDecisionSchema = z.object({
@@ -534,6 +540,7 @@ export const chapterCharacterBehaviorGuideSchema = z.object({
   volumeResponsibility: z.string().nullable().optional(),
   currentGoal: z.string().nullable().optional(),
   currentState: z.string().nullable().optional(),
+  visibleProfileSummary: z.string().nullable().optional(),
   factionLabel: z.string().nullable().optional(),
   stanceLabel: z.string().nullable().optional(),
   relationStageLabels: z.array(z.string()).default([]),

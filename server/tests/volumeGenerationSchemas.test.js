@@ -264,6 +264,31 @@ test("volume chapter beat block schema normalizes beat aliases and enforces beat
   assert.equal(parsed.chapters[1].beatKey, "open_hook");
 });
 
+test("volume chapter beat block schema wraps top-level chapter arrays for the current beat", () => {
+  const schema = createVolumeChapterBeatBlockSchema({
+    exactChapterCount: 2,
+    expectedBeatKey: "open_hook",
+    expectedBeatLabel: "开卷抓手",
+  });
+  const parsed = schema.parse([
+    {
+      chapterTitle: "第一束异常光",
+      description: "主角第一次看见危险信号，把卷内压迫落到眼前。",
+    },
+    {
+      name: "封锁线内侧",
+      outline: "主角被迫进入更危险的区域，让本卷生存承诺正式成立。",
+    },
+  ]);
+
+  assert.equal(parsed.beatKey, "open_hook");
+  assert.equal(parsed.beatLabel, "开卷抓手");
+  assert.equal(parsed.chapterCount, 2);
+  assert.deepEqual(parsed.chapters.map((chapter) => chapter.beatKey), ["open_hook", "open_hook"]);
+  assert.equal(parsed.chapters[0].title, "第一束异常光");
+  assert.equal(parsed.chapters[1].summary, "主角被迫进入更危险的区域，让本卷生存承诺正式成立。");
+});
+
 test("chapter boundary schema normalizes structured boundary aliases", () => {
   const schema = createChapterBoundarySchema();
   const parsed = schema.parse({

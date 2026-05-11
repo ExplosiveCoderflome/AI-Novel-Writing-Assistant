@@ -72,7 +72,7 @@ import type { ChapterReviewResult } from "./chapterPlanning.shared";
 import type { NovelEditTakeoverState, NovelTaskDrawerState } from "./components/NovelEditView.types";
 import NovelExistingProjectTakeoverDialog from "./components/NovelExistingProjectTakeoverDialog";
 import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWorkflow.client";
-import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorDisplayStage, tabFromDirectorProgress, tabFromScope } from "./novelWorkspaceNavigation";
+import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorDisplayStage, tabFromDirectorProgress, tabFromScope, type NovelWorkspaceFlowTab } from "./novelWorkspaceNavigation";
 import { resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
 import { resolveInternalNavigationTarget } from "@/lib/internalNavigation";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
@@ -303,6 +303,12 @@ export default function NovelEdit() {
     personality: "",
     background: "",
     development: "",
+    appearance: "",
+    physique: "",
+    attireStyle: "",
+    signatureDetail: "",
+    voiceTexture: "",
+    presenceImpression: "",
     currentState: "",
     currentGoal: "",
   });
@@ -775,6 +781,7 @@ export default function NovelEdit() {
   );
   const autoDirectorRefreshSignatureRef = useRef("");
   const autoDirectorArtifactSignatureRef = useRef("");
+  const autoDirectorWorkspaceSignatureRef = useRef("");
   const activeAutoDirectorRefreshSignature = useMemo(() => {
     if (!activeAutoDirectorTask) {
       return "";
@@ -817,6 +824,28 @@ export default function NovelEdit() {
     activeAutoDirectorTask?.meta,
     activeAutoDirectorTask?.status,
   ]);
+  const activeAutoDirectorWorkspaceSignature = useMemo(() => {
+    if (!activeAutoDirectorTask || !activeDirectorSnapshot) {
+      return "";
+    }
+    const latestEvent = activeDirectorSnapshot.recentEvents.at(-1);
+    const progressBreakdown = activeDirectorSnapshot.projection?.progressBreakdown;
+    return [
+      activeAutoDirectorTask.id,
+      activeAutoDirectorTask.status,
+      activeDirectorSnapshot.displayState.stageKey,
+      activeDirectorSnapshot.currentFactStepId ?? "",
+      activeDirectorSnapshot.displayState.progressPercent,
+      progressBreakdown?.planningPercent ?? "",
+      progressBreakdown?.chapterExecutionPercent ?? "",
+      progressBreakdown?.qualityRepairPercent ?? "",
+      progressBreakdown?.activeJobProgress ?? "",
+      latestEvent?.eventId ?? "",
+      activeDirectorSnapshot.artifacts.length,
+      activeDirectorSnapshot.task.currentItemKey ?? "",
+      activeDirectorSnapshot.task.checkpointType ?? "",
+    ].join("|");
+  }, [activeAutoDirectorTask, activeDirectorSnapshot]);
   const dismissTakeover = () => {
     if (!activeAutoDirectorRefreshSignature) {
       return;
@@ -862,21 +891,22 @@ export default function NovelEdit() {
     }
     await Promise.allSettled(invalidations);
   };
-  const invalidateVisibleWorkspaceData = async () => {
+  const invalidateWorkspaceDataForTabs = async (tabs: Array<NovelWorkspaceFlowTab | null | undefined>) => {
     const invalidations: Array<Promise<unknown>> = [];
-    if (activeTab === "basic") {
+    const targetTabs = new Set(tabs.filter((tab): tab is NovelWorkspaceFlowTab => Boolean(tab)));
+    if (targetTabs.has("basic")) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(id) }),
       );
     }
-    if (activeTab === "story_macro") {
+    if (targetTabs.has("story_macro")) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.storyMacro(id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.storyMacroState(id) }),
       );
     }
-    if (activeTab === "character") {
+    if (targetTabs.has("character")) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterCastOptions(id) }),
@@ -886,13 +916,13 @@ export default function NovelEdit() {
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterResources(id) }),
       );
     }
-    if (activeTab === "outline" || activeTab === "structured") {
+    if (targetTabs.has("outline") || targetTabs.has("structured")) {
       invalidations.push(queryClient.invalidateQueries({ queryKey: queryKeys.novels.volumeWorkspace(id) }));
     }
-    if (activeTab === "structured") {
+    if (targetTabs.has("structured")) {
       invalidations.push(queryClient.invalidateQueries({ queryKey: queryKeys.novels.payoffLedger(id, payoffLedgerChapterOrder) }));
     }
-    if (activeTab === "chapter") {
+    if (targetTabs.has("chapter")) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.latestStateSnapshot(id) }),
@@ -907,7 +937,7 @@ export default function NovelEdit() {
         );
       }
     }
-    if (activeTab === "pipeline") {
+    if (targetTabs.has("pipeline")) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.latestStateSnapshot(id) }),
@@ -916,6 +946,9 @@ export default function NovelEdit() {
       );
     }
     await Promise.allSettled(invalidations);
+  };
+  const invalidateVisibleWorkspaceData = async () => {
+    await invalidateWorkspaceDataForTabs([isNovelWorkspaceFlowTab(activeTab) ? activeTab : null]);
   };
   const alignToAutoDirectorResumeTarget = () => {
     const target = activeAutoDirectorTask?.resumeTarget;
@@ -1819,6 +1852,34 @@ export default function NovelEdit() {
   }, [activeAutoDirectorRefreshSignature, activeAutoDirectorTask, id, queryClient]);
 
   useEffect(() => {
+    if (!id || !activeAutoDirectorTask || !activeAutoDirectorWorkspaceSignature) {
+      autoDirectorWorkspaceSignatureRef.current = activeAutoDirectorWorkspaceSignature;
+      return;
+    }
+    if (!autoDirectorWorkspaceSignatureRef.current) {
+      autoDirectorWorkspaceSignatureRef.current = activeAutoDirectorWorkspaceSignature;
+      return;
+    }
+    if (autoDirectorWorkspaceSignatureRef.current === activeAutoDirectorWorkspaceSignature) {
+      return;
+    }
+    autoDirectorWorkspaceSignatureRef.current = activeAutoDirectorWorkspaceSignature;
+    const recommendedTab = tabFromDirectorDisplayStage(activeDirectorSnapshot?.displayState.stageKey ?? null);
+    void invalidateWorkspaceDataForTabs([
+      isNovelWorkspaceFlowTab(activeTab) ? activeTab : null,
+      recommendedTab,
+      workflowCurrentTab,
+    ]);
+  }, [
+    activeAutoDirectorTask,
+    activeAutoDirectorWorkspaceSignature,
+    activeDirectorSnapshot?.displayState.stageKey,
+    activeTab,
+    id,
+    workflowCurrentTab,
+  ]);
+
+  useEffect(() => {
     if (!id || !activeAutoDirectorTask || !activeAutoDirectorArtifactSignature) {
       autoDirectorArtifactSignatureRef.current = activeAutoDirectorArtifactSignature;
       return;
@@ -1831,9 +1892,6 @@ export default function NovelEdit() {
       return;
     }
     autoDirectorArtifactSignatureRef.current = activeAutoDirectorArtifactSignature;
-    if (activeAutoDirectorTask.status === "queued" || activeAutoDirectorTask.status === "running") {
-      return;
-    }
     void invalidateVisibleWorkspaceData();
   }, [activeAutoDirectorArtifactSignature, activeAutoDirectorTask, id, queryClient, selectedChapterId]);
 
@@ -2043,6 +2101,10 @@ export default function NovelEdit() {
     syncTimelineMutation,
     syncAllTimelineMutation,
     evolveCharacterMutation,
+    generateVisibleProfileMutation,
+    applyVisibleProfileMutation,
+    generateBatchVisibleProfilesMutation,
+    applyBatchVisibleProfilesMutation,
     worldCheckMutation,
     saveCharacterMutation,
     importBaseCharacterMutation,
@@ -2335,7 +2397,64 @@ export default function NovelEdit() {
     directorTakeoverEntry: undefined,
   };
   const pipelineTab = { novelId: id, worldInjectionSummary, hasCharacters, onGoToCharacterTab: goToCharacterTab, pipelineForm, onPipelineFormChange: (field: "startOrder" | "endOrder" | "maxRetries" | "runMode" | "autoReview" | "autoRepair" | "skipCompleted" | "qualityThreshold" | "repairMode", value: number | boolean | string) => setPipelineForm((prev) => ({ ...prev, [field]: value } as typeof prev)), maxOrder, onGenerateBible: () => void bibleSSE.start(`/novels/${id}/bible/generate`, { provider: llm.provider, model: llm.model, temperature: 0.6 }), onAbortBible: bibleSSE.abort, isBibleStreaming: bibleSSE.isStreaming, bibleStreamContent: bibleSSE.content, onGenerateBeats: () => void beatsSSE.start(`/novels/${id}/beats/generate`, { provider: llm.provider, model: llm.model, targetChapters: pipelineForm.endOrder }), onAbortBeats: beatsSSE.abort, isBeatsStreaming: beatsSSE.isStreaming, beatsStreamContent: beatsSSE.content, onRunPipeline: (patch?: Partial<typeof pipelineForm>) => runPipelineMutation.mutate(patch), isRunningPipeline: runPipelineMutation.isPending, pipelineMessage, pipelineJob: pipelineJobQuery.data?.data, chapters, selectedChapterId, onSelectedChapterChange: setSelectedChapterId, onReviewChapter: () => reviewMutation.mutate(), isReviewing: reviewMutation.isPending, onRepairChapter: () => { setRepairBeforeContent(selectedChapter?.content ?? ""); setRepairAfterContent(""); setActiveRepairStream(selectedChapter ? { chapterId: selectedChapter.id, chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}` } : null); void repairSSE.start(`/novels/${id}/chapters/${selectedChapterId}/repair`, { provider: llm.provider, model: llm.model, reviewIssues: reviewResult?.issues ?? [], auditIssueIds: openAuditIssueIds }); }, isRepairing: repairSSE.isStreaming, onGenerateHook: () => hookMutation.mutate(), isGeneratingHook: hookMutation.isPending, reviewResult, repairBeforeContent, repairAfterContent, repairStreamContent: repairSSE.content, isRepairStreaming: repairSSE.isStreaming, onAbortRepair: handleAbortRepair, qualitySummary, chapterReports: qualityReportQuery.data?.data?.chapterReports ?? [], bible, plotBeats };
-  const characterTab = { novelId: id, llmProvider: llm.provider, llmModel: llm.model, characterMessage, quickCharacterForm, onQuickCharacterFormChange: (field: "name" | "role", value: string) => setQuickCharacterForm((prev) => ({ ...prev, [field]: value })), onQuickCreateCharacter: (payload: QuickCharacterCreatePayload) => quickCreateCharacterMutation.mutate(payload), isQuickCreating: quickCreateCharacterMutation.isPending, onGenerateSupplementalCharacters: generateSupplementalCharacterMutation.mutateAsync, isGeneratingSupplementalCharacters: generateSupplementalCharacterMutation.isPending, onApplySupplementalCharacter: applySupplementalCharacterMutation.mutateAsync, isApplyingSupplementalCharacter: applySupplementalCharacterMutation.isPending, characters, coreCharacterCount, baseCharacters, selectedBaseCharacterId, onSelectedBaseCharacterChange: setSelectedBaseCharacterId, selectedBaseCharacter, importedBaseCharacterIds, onImportBaseCharacter: () => importBaseCharacterMutation.mutate(), isImportingBaseCharacter: importBaseCharacterMutation.isPending, selectedCharacterId, onSelectedCharacterChange: setSelectedCharacterId, onDeleteCharacter: (characterId: string) => deleteCharacterMutation.mutate(characterId), isDeletingCharacter: deleteCharacterMutation.isPending, deletingCharacterId: deleteCharacterMutation.variables ?? "", onSyncTimeline: () => syncTimelineMutation.mutate(), isSyncingTimeline: syncTimelineMutation.isPending, onSyncAllTimeline: () => syncAllTimelineMutation.mutate(), isSyncingAllTimeline: syncAllTimelineMutation.isPending, onEvolveCharacter: () => evolveCharacterMutation.mutate(), isEvolvingCharacter: evolveCharacterMutation.isPending, onWorldCheck: () => worldCheckMutation.mutate(), isCheckingWorld: worldCheckMutation.isPending, selectedCharacter, characterResources, pendingCharacterResourceCount: pendingCharacterResourceProposals.length, onBackfillCharacterResources: () => backfillCharacterResourcesMutation.mutate(), isBackfillingCharacterResources: backfillCharacterResourcesMutation.isPending, characterForm, onCharacterFormChange: (field: "name" | "role" | "gender" | "personality" | "background" | "development" | "currentState" | "currentGoal", value: string) => setCharacterForm((prev) => ({ ...prev, [field]: value })), onSaveCharacter: () => saveCharacterMutation.mutate(), isSavingCharacter: saveCharacterMutation.isPending, timelineEvents: characterTimelineQuery.data?.data ?? [] };
+  const characterTab = {
+    novelId: id,
+    llmProvider: llm.provider,
+    llmModel: llm.model,
+    characterMessage,
+    quickCharacterForm,
+    onQuickCharacterFormChange: (field: "name" | "role", value: string) =>
+      setQuickCharacterForm((prev) => ({ ...prev, [field]: value })),
+    onQuickCreateCharacter: (payload: QuickCharacterCreatePayload) => quickCreateCharacterMutation.mutate(payload),
+    isQuickCreating: quickCreateCharacterMutation.isPending,
+    onGenerateSupplementalCharacters: generateSupplementalCharacterMutation.mutateAsync,
+    isGeneratingSupplementalCharacters: generateSupplementalCharacterMutation.isPending,
+    onApplySupplementalCharacter: applySupplementalCharacterMutation.mutateAsync,
+    isApplyingSupplementalCharacter: applySupplementalCharacterMutation.isPending,
+    characters,
+    coreCharacterCount,
+    baseCharacters,
+    selectedBaseCharacterId,
+    onSelectedBaseCharacterChange: setSelectedBaseCharacterId,
+    selectedBaseCharacter,
+    importedBaseCharacterIds,
+    onImportBaseCharacter: () => importBaseCharacterMutation.mutate(),
+    isImportingBaseCharacter: importBaseCharacterMutation.isPending,
+    selectedCharacterId,
+    onSelectedCharacterChange: setSelectedCharacterId,
+    onDeleteCharacter: (characterId: string) => deleteCharacterMutation.mutate(characterId),
+    isDeletingCharacter: deleteCharacterMutation.isPending,
+    deletingCharacterId: deleteCharacterMutation.variables ?? "",
+    onSyncTimeline: () => syncTimelineMutation.mutate(),
+    isSyncingTimeline: syncTimelineMutation.isPending,
+    onSyncAllTimeline: () => syncAllTimelineMutation.mutate(),
+    isSyncingAllTimeline: syncAllTimelineMutation.isPending,
+    onEvolveCharacter: () => evolveCharacterMutation.mutate(),
+    isEvolvingCharacter: evolveCharacterMutation.isPending,
+    onGenerateVisibleProfile: (userGuidance?: string) => generateVisibleProfileMutation.mutate(userGuidance),
+    isGeneratingVisibleProfile: generateVisibleProfileMutation.isPending,
+    visibleProfileSuggestion: generateVisibleProfileMutation.data?.data ?? null,
+    onApplyVisibleProfile: () => applyVisibleProfileMutation.mutate(),
+    isApplyingVisibleProfile: applyVisibleProfileMutation.isPending,
+    onGenerateBatchVisibleProfiles: (userGuidance?: string) => generateBatchVisibleProfilesMutation.mutate(userGuidance),
+    isGeneratingBatchVisibleProfiles: generateBatchVisibleProfilesMutation.isPending,
+    batchVisibleProfileResult: generateBatchVisibleProfilesMutation.data?.data ?? null,
+    onApplyBatchVisibleProfiles: () => applyBatchVisibleProfilesMutation.mutate(),
+    isApplyingBatchVisibleProfiles: applyBatchVisibleProfilesMutation.isPending,
+    onWorldCheck: () => worldCheckMutation.mutate(),
+    isCheckingWorld: worldCheckMutation.isPending,
+    selectedCharacter,
+    characterResources,
+    pendingCharacterResourceCount: pendingCharacterResourceProposals.length,
+    onBackfillCharacterResources: () => backfillCharacterResourcesMutation.mutate(),
+    isBackfillingCharacterResources: backfillCharacterResourcesMutation.isPending,
+    characterForm,
+    onCharacterFormChange: (field: keyof typeof characterForm, value: string) =>
+      setCharacterForm((prev) => ({ ...prev, [field]: value })),
+    onSaveCharacter: () => saveCharacterMutation.mutate(),
+    isSavingCharacter: saveCharacterMutation.isPending,
+    timelineEvents: characterTimelineQuery.data?.data ?? [],
+  };
 
   const activeStepTakeoverEntry = renderTakeoverEntry(
     activeTab === "story_macro"
