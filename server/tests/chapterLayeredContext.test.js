@@ -20,6 +20,9 @@ function createContextPackage() {
       content: null,
       expectation: "完成第一次明确反压",
       targetWordCount: 3000,
+      revealLevel: 2,
+      mustAvoid: "不要提前揭露幕后黑手",
+      hook: "下一章才展开幕后黑手反击",
       sceneCards: JSON.stringify({
         targetWordCount: 3000,
         lengthBudget: {
@@ -94,6 +97,13 @@ function createContextPackage() {
       targetConflicts: ["The first counterattack must land."],
       targetRelationships: ["Protagonist: tentative alliance"],
       targetPayoffs: ["First payoff after securing the key intel."],
+      targetPayoffDirectives: [{
+        title: "First payoff after securing the key intel.",
+        ledgerKey: "first-payoff",
+        operation: "pressure",
+        reason: "只允许加压，不允许直接兑现。",
+        forbiddenReveal: null,
+      }],
       protectedSecrets: ["Hidden mastermind identity"],
     },
     protectedSecrets: ["Hidden mastermind identity"],
@@ -547,7 +557,12 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.equal(writeContext.scenePlan.scenes.length, 3);
   assert.equal(writeContext.scenePlan.scenes[1].title, "第一次反压");
   assert.ok(writeContext.chapterStateGoal.summary.includes("visible gain"));
+  assert.deepEqual(writeContext.chapterMission.mustAdvance, ["The first counterattack must land.", "完成第一次明确反压"]);
+  assert.equal(writeContext.payoffDirectives[0].operation, "pressure");
+  assert.ok(writeContext.chapterBoundary.protectedReveals.includes("Hidden mastermind identity"));
+  assert.ok(writeContext.chapterBoundary.doNotCross.some((item) => item.includes("不要提前揭露幕后黑手")));
   assert.ok(reviewContext.structureObligations.includes("volume mission: 建立压迫源并完成第一次反压"));
+  assert.ok(reviewContext.structureObligations.some((item) => item.includes("payoff directive: pressure First payoff")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("pending payoff: 女二情报钥匙")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("urgent payoff: 黑市账户异常")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("overdue payoff: 第一次反压收益")));
@@ -563,6 +578,17 @@ test("chapter layered contexts carry volume mission, character duties and repair
   const reviewBlocks = buildChapterReviewContextBlocks(reviewContext);
   const repairBlocks = buildChapterRepairContextBlocks(repairContext);
 
+  assert.ok(writerBlocks.some((block) => (
+    block.id === "chapter_boundary"
+    && /Protected reveals/.test(block.content)
+    && /Hidden mastermind identity/.test(block.content)
+    && /Do not cross/.test(block.content)
+  )));
+  assert.ok(writerBlocks.some((block) => (
+    block.id === "payoff_directives"
+    && /First payoff after securing the key intel/.test(block.content)
+    && /\[pressure\]/.test(block.content)
+  )));
   assert.ok(writerBlocks.some((block) => (
     block.id === "scene_plan"
     && /Scene count: 3/.test(block.content)

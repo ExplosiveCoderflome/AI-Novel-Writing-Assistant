@@ -2,7 +2,9 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const { prisma } = require("../dist/db/prisma.js");
 const {
+  buildChapterExecutionContractHash,
   persistStoryPlan,
+  readPlanExecutionContractHash,
   STORY_PLAN_PERSISTENCE_TRANSACTION_TIMEOUT_MS,
 } = require("../dist/services/planner/plannerPersistence.js");
 const { parseChapterScenePlan } = require("../../shared/dist/types/chapterLengthControl.js");
@@ -75,6 +77,34 @@ test("persistStoryPlan uses an explicit timeout for planning writes", async () =
     prisma.storyPlan.findUnique = original.findUnique;
     prisma.$transaction = original.transaction;
   }
+});
+
+test("chapter execution contract hash is stable and readable from plan metadata", () => {
+  const hash = buildChapterExecutionContractHash({
+    expectation: "  第一章目标\n",
+    targetWordCount: 3000,
+    revealLevel: 1,
+    mustAvoid: "不要提前揭密",
+    taskSheet: "任务单\n必须推进",
+    sceneCards: "场景卡",
+    hook: "章末钩子",
+  });
+
+  assert.equal(hash.length, 64);
+  assert.equal(
+    hash,
+    buildChapterExecutionContractHash({
+      expectation: "第一章目标",
+      targetWordCount: 3000,
+      revealLevel: 1,
+      mustAvoid: "不要提前揭密",
+      taskSheet: "任务单 必须推进",
+      sceneCards: "场景卡",
+      hook: "章末钩子",
+    }),
+  );
+  assert.equal(readPlanExecutionContractHash(JSON.stringify({ executionContractHash: hash })), hash);
+  assert.equal(readPlanExecutionContractHash(JSON.stringify({ ok: true })), null);
 });
 
 test("persistStoryPlan syncs chapter assets and promotes empty chapters to pending_generation", async () => {

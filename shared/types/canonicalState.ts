@@ -93,6 +93,23 @@ export const canonicalPayoffStateSchema = z.object({
   updatedAt: z.string().nullable().optional(),
 });
 
+export const chapterPayoffDirectiveOperationSchema = z.enum([
+  "seed",
+  "touch",
+  "pressure",
+  "partial_reveal",
+  "payoff",
+  "forbid",
+]);
+
+export const chapterPayoffDirectiveSchema = z.object({
+  title: z.string(),
+  ledgerKey: z.string().nullable().optional(),
+  operation: chapterPayoffDirectiveOperationSchema,
+  reason: z.string(),
+  forbiddenReveal: z.string().nullable().optional(),
+});
+
 export const canonicalTimelineEventStateSchema = z.object({
   chapterId: z.string().nullable().optional(),
   chapterOrder: z.number().int().nullable().optional(),
@@ -187,6 +204,7 @@ export const stateGoalSchema = z.object({
   targetConflicts: z.array(z.string()).default([]),
   targetRelationships: z.array(z.string()).default([]),
   targetPayoffs: z.array(z.string()).default([]),
+  targetPayoffDirectives: z.array(chapterPayoffDirectiveSchema).default([]),
   protectedSecrets: z.array(z.string()).default([]),
 });
 
@@ -220,6 +238,8 @@ export type CanonicalWorldState = z.infer<typeof canonicalWorldStateSchema>;
 export type CanonicalCharacterRuntimeState = z.infer<typeof canonicalCharacterRuntimeStateSchema>;
 export type CanonicalOpenConflictState = z.infer<typeof canonicalOpenConflictStateSchema>;
 export type CanonicalPayoffState = z.infer<typeof canonicalPayoffStateSchema>;
+export type ChapterPayoffDirectiveOperation = z.infer<typeof chapterPayoffDirectiveOperationSchema>;
+export type ChapterPayoffDirective = z.infer<typeof chapterPayoffDirectiveSchema>;
 export type CanonicalTimelineEventState = z.infer<typeof canonicalTimelineEventStateSchema>;
 export type CanonicalNarrativeState = z.infer<typeof canonicalNarrativeStateSchema>;
 export type StateChangeProposal = z.infer<typeof stateChangeProposalSchema>;

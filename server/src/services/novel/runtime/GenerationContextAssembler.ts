@@ -53,6 +53,21 @@ import {
 const OPENING_COMPARE_LIMIT = 3;
 const OPENING_SLICE_LENGTH = 220;
 
+const runtimeChapterSelect = {
+  id: true,
+  title: true,
+  order: true,
+  content: true,
+  expectation: true,
+  targetWordCount: true,
+  conflictLevel: true,
+  revealLevel: true,
+  mustAvoid: true,
+  taskSheet: true,
+  sceneCards: true,
+  hook: true,
+} as const;
+
 export function buildBlockingPendingReviewProposalWhere(novelId: string, chapterId: string) {
   return {
     novelId,
@@ -244,10 +259,23 @@ export class GenerationContextAssembler {
     request: ChapterRuntimeRequestInput,
   ): Promise<{
     novel: { id: string; title: string };
-    chapter: { id: string; title: string; order: number; content: string | null; expectation: string | null; targetWordCount: number | null; sceneCards: string | null };
+    chapter: {
+      id: string;
+      title: string;
+      order: number;
+      content: string | null;
+      expectation: string | null;
+      targetWordCount: number | null;
+      conflictLevel: number | null;
+      revealLevel: number | null;
+      mustAvoid: string | null;
+      taskSheet: string | null;
+      sceneCards: string | null;
+      hook: string | null;
+    };
     contextPackage: GenerationContextPackage;
   }> {
-    const [novel, chapter] = await Promise.all([
+    let [novel, chapter] = await Promise.all([
       prisma.novel.findUnique({
         where: { id: novelId },
         include: {
@@ -294,15 +322,7 @@ export class GenerationContextAssembler {
       }),
       prisma.chapter.findFirst({
         where: { id: chapterId, novelId },
-        select: {
-          id: true,
-          title: true,
-          order: true,
-          content: true,
-          expectation: true,
-          targetWordCount: true,
-          sceneCards: true,
-        },
+        select: runtimeChapterSelect,
       }),
     ]);
 
@@ -311,6 +331,14 @@ export class GenerationContextAssembler {
     }
 
     const ensuredPlan = await plannerService.ensureChapterPlan(novelId, chapterId, request);
+    const refreshedChapter = await prisma.chapter.findFirst({
+      where: { id: chapterId, novelId },
+      select: runtimeChapterSelect,
+    });
+    if (!refreshedChapter) {
+      throw new Error("Novel or chapter not found.");
+    }
+    chapter = refreshedChapter;
     const pendingReviewProposalCountPromise = prisma.stateChangeProposal.count({
       where: buildBlockingPendingReviewProposalWhere(novelId, chapterId),
     });
@@ -590,7 +618,12 @@ export class GenerationContextAssembler {
         content: chapter.content ?? null,
         expectation: chapter.expectation ?? null,
         targetWordCount: chapter.targetWordCount ?? null,
+        conflictLevel: chapter.conflictLevel ?? null,
+        revealLevel: chapter.revealLevel ?? null,
+        mustAvoid: chapter.mustAvoid ?? null,
+        taskSheet: chapter.taskSheet ?? null,
         sceneCards: chapter.sceneCards ?? null,
+        hook: chapter.hook ?? null,
         supportingContextText: "",
       },
       plan: mappedPlan,
@@ -667,7 +700,12 @@ export class GenerationContextAssembler {
         content: chapter.content ?? null,
         expectation: chapter.expectation ?? null,
         targetWordCount: chapter.targetWordCount ?? null,
+        conflictLevel: chapter.conflictLevel ?? null,
+        revealLevel: chapter.revealLevel ?? null,
+        mustAvoid: chapter.mustAvoid ?? null,
+        taskSheet: chapter.taskSheet ?? null,
         sceneCards: chapter.sceneCards ?? null,
+        hook: chapter.hook ?? null,
         supportingContextText: buildSupportingContextText({
           worldBlock,
           storyModeBlock,
@@ -748,7 +786,12 @@ export class GenerationContextAssembler {
         content: chapter.content ?? null,
         expectation: chapter.expectation ?? null,
         targetWordCount: chapter.targetWordCount ?? null,
+        conflictLevel: chapter.conflictLevel ?? null,
+        revealLevel: chapter.revealLevel ?? null,
+        mustAvoid: chapter.mustAvoid ?? null,
+        taskSheet: chapter.taskSheet ?? null,
         sceneCards: chapter.sceneCards ?? null,
+        hook: chapter.hook ?? null,
       },
       contextPackage,
     };

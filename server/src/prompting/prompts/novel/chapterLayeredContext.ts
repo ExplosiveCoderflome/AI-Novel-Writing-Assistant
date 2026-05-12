@@ -164,7 +164,6 @@ export function buildChapterMissionContext(contextPackage: GenerationContextPack
     hookTarget: compactText(contextPackage.plan?.hookTarget, "Leave a fresh tension point at the ending."),
     mustAdvance: takeUnique([
       ...(stateGoal?.targetConflicts ?? []),
-      ...(stateGoal?.targetPayoffs ?? []),
       ...(contextPackage.plan?.mustAdvance ?? []),
     ], 5),
     mustPreserve: takeUnique([
@@ -175,6 +174,44 @@ export function buildChapterMissionContext(contextPackage: GenerationContextPack
       ...(contextPackage.protectedSecrets ?? []),
       ...(contextPackage.plan?.riskNotes ?? []),
     ], 5),
+  };
+}
+
+function buildChapterBoundaryContract(
+  contextPackage: GenerationContextPackage,
+  scenePlan: ReturnType<typeof parseChapterScenePlan>,
+): ChapterWriteContext["chapterBoundary"] {
+  const scenes = scenePlan?.scenes ?? [];
+  const firstScene = scenes[0] ?? null;
+  const lastScene = scenes[scenes.length - 1] ?? null;
+  const protectedReveals = takeUnique([
+    ...(contextPackage.protectedSecrets ?? []),
+    ...(contextPackage.chapterStateGoal?.protectedSecrets ?? []),
+  ], 8);
+  const doNotCross = takeUnique([
+    compactText(contextPackage.chapter.mustAvoid),
+    ...protectedReveals.map((item) => `不得提前揭露：${item}`),
+    ...scenes.flatMap((scene) => scene.forbiddenExpansion ?? []),
+    lastScene?.exitState ? `不得越过本章结束态：${lastScene.exitState}` : "",
+    contextPackage.chapter.hook ? `不得直接展开钩子之后的后续事件：${contextPackage.chapter.hook}` : "",
+  ], 12).filter(Boolean);
+
+  return {
+    exclusiveEvent: compactText(contextPackage.plan?.objective)
+      || compactText(contextPackage.chapter.expectation)
+      || compactText(contextPackage.plan?.title)
+      || null,
+    entryState: compactText(firstScene?.entryState) || null,
+    endingState: compactText(lastScene?.exitState)
+      || compactText(contextPackage.plan?.hookTarget)
+      || compactText(contextPackage.chapter.hook)
+      || null,
+    nextChapterEntryState: compactText(contextPackage.chapter.hook)
+      || compactText(contextPackage.plan?.hookTarget)
+      || null,
+    doNotCross,
+    protectedReveals,
+    allowedRevealLevel: contextPackage.chapter.revealLevel ?? null,
   };
 }
 
@@ -196,6 +233,8 @@ export function buildChapterWriteContext(input: {
     nextAction: input.contextPackage.nextAction,
     chapterStateGoal: input.contextPackage.chapterStateGoal ?? null,
     protectedSecrets: input.contextPackage.protectedSecrets ?? [],
+    payoffDirectives: input.contextPackage.chapterStateGoal?.targetPayoffDirectives ?? [],
+    chapterBoundary: buildChapterBoundaryContract(input.contextPackage, scenePlan),
     lengthBudget: resolveLengthBudgetContract(input.contextPackage.chapter.targetWordCount),
     scenePlan,
     participants: buildParticipants(input.contextPackage, dynamicCharacterGuidance.characterBehaviorGuides),
@@ -227,8 +266,9 @@ export function buildChapterReviewContext(
     structureObligations: takeUnique([
       ...writeContext.chapterMission.mustAdvance,
       ...writeContext.chapterMission.mustPreserve,
-      ...(writeContext.chapterStateGoal?.targetPayoffs ?? []).map((item) => `state payoff: ${item}`),
+      ...writeContext.payoffDirectives.map((item) => `payoff directive: ${item.operation} ${item.title}${item.forbiddenReveal ? ` / protected: ${item.forbiddenReveal}` : ""}`),
       ...(writeContext.chapterStateGoal?.targetConflicts ?? []).map((item) => `state conflict: ${item}`),
+      ...(writeContext.chapterBoundary?.doNotCross ?? []).map((item) => `boundary do-not-cross: ${item}`),
       writeContext.chapterMission.hookTarget ? `hook target: ${writeContext.chapterMission.hookTarget}` : "",
       writeContext.volumeWindow?.missionSummary ? `volume mission: ${writeContext.volumeWindow.missionSummary}` : "",
       ...writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
@@ -237,7 +277,7 @@ export function buildChapterReviewContext(
       ...(writeContext.characterResourceContext?.setupNeededItems ?? []).map((item) => `resource setup needed: ${item.name} / ${item.summary}`),
       ...(writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `resource unavailable: ${item.name} is ${item.status}; do not use it without repair setup`),
       ...(writeContext.characterResourceContext?.pendingReviewItems ?? []).map((item) => `resource needs confirmation: ${item.name} / ${item.summary}`),
-    ], 14),
+    ], 24),
     worldRules: summarizeWorldRules(contextPackage),
     historicalIssues: summarizeHistoricalIssues(contextPackage),
   };
@@ -259,8 +299,9 @@ export function buildChapterRepairContext(input: {
     structureObligations: takeUnique([
       ...input.writeContext.chapterMission.mustAdvance,
       ...input.writeContext.chapterMission.mustPreserve,
-      ...(input.writeContext.chapterStateGoal?.targetPayoffs ?? []).map((item) => `state payoff: ${item}`),
+      ...input.writeContext.payoffDirectives.map((item) => `payoff directive: ${item.operation} ${item.title}${item.forbiddenReveal ? ` / protected: ${item.forbiddenReveal}` : ""}`),
       ...(input.writeContext.chapterStateGoal?.targetConflicts ?? []).map((item) => `state conflict: ${item}`),
+      ...(input.writeContext.chapterBoundary?.doNotCross ?? []).map((item) => `boundary do-not-cross: ${item}`),
       input.writeContext.volumeWindow?.missionSummary
         ? `volume mission: ${input.writeContext.volumeWindow.missionSummary}`
         : "",
@@ -269,7 +310,7 @@ export function buildChapterRepairContext(input: {
       ...input.writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue payoff")),
       ...(input.writeContext.characterResourceContext?.setupNeededItems ?? []).map((item) => `resource setup needed: ${item.name} / ${item.summary}`),
       ...(input.writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `resource unavailable: ${item.name} is ${item.status}; patch locally before use`),
-    ], 16),
+    ], 24),
     worldRules: summarizeWorldRules(input.contextPackage),
     historicalIssues: summarizeHistoricalIssues(input.contextPackage),
     allowedEditBoundaries: takeUnique([
@@ -294,6 +335,7 @@ export function buildChapterRepairContext(input: {
         ? "Pending character candidates remain read-only unless they are confirmed outside the repair flow."
         : "",
       ...(input.writeContext.protectedSecrets ?? []).map((item) => `do not disclose: ${item}`),
+      ...(input.writeContext.chapterBoundary?.doNotCross ?? []).map((item) => `do not cross boundary: ${item}`),
       ...input.writeContext.chapterMission.mustPreserve.map((item) => `must preserve: ${item}`),
     ], 12),
   };
@@ -408,6 +450,7 @@ export function buildChapterWriterContextBlocks(
   const isIncremental = mode === "incremental";
   const includeVolumeWindow = mode === "full" || mode === "review";
   const includePayoffLedger = mode === "full" && hasLedgerPressure(writeContext);
+  const includePayoffDirectives = writeContext.payoffDirectives.length > 0;
   const includeCharacterResources = !isIncremental && hasCharacterResourcePressure(writeContext);
   const includeScenePlan = mode === "full" || mode === "review";
   const includeCharacterDynamics = shouldIncludeCharacterDynamics(writeContext, mode);
@@ -438,18 +481,54 @@ export function buildChapterWriterContextBlocks(
       ].filter(Boolean).join("\n"),
     }),
     createContextBlock({
+      id: "chapter_boundary",
+      group: "chapter_boundary",
+      priority: 103,
+      required: true,
+      allowSummary: false,
+      content: writeContext.chapterBoundary
+        ? [
+            "Chapter boundary contract:",
+            writeContext.chapterBoundary.exclusiveEvent ? `Exclusive event: ${writeContext.chapterBoundary.exclusiveEvent}` : "",
+            writeContext.chapterBoundary.entryState ? `Entry state: ${writeContext.chapterBoundary.entryState}` : "",
+            writeContext.chapterBoundary.endingState ? `Ending state: ${writeContext.chapterBoundary.endingState}` : "",
+            writeContext.chapterBoundary.nextChapterEntryState ? `Next chapter entry state: ${writeContext.chapterBoundary.nextChapterEntryState}` : "",
+            typeof writeContext.chapterBoundary.allowedRevealLevel === "number" ? `Allowed reveal level: ${writeContext.chapterBoundary.allowedRevealLevel}` : "",
+            toListBlock("Protected reveals", writeContext.chapterBoundary.protectedReveals),
+            toListBlock("Do not cross", writeContext.chapterBoundary.doNotCross),
+          ].filter(Boolean).join("\n")
+        : "Chapter boundary contract: stay inside the current chapter mission and do not reveal future answers.",
+    }),
+    includePayoffDirectives
+      ? createContextBlock({
+        id: "payoff_directives",
+        group: "payoff_directives",
+        priority: 98,
+        required: true,
+        allowSummary: false,
+        content: [
+          "Payoff directives:",
+          ...writeContext.payoffDirectives.map((item) => [
+            `- ${item.title} [${item.operation}]`,
+            item.ledgerKey ? `ledger=${item.ledgerKey}` : "",
+            item.reason ? `reason=${item.reason}` : "",
+            item.forbiddenReveal ? `forbiddenReveal=${item.forbiddenReveal}` : "",
+          ].filter(Boolean).join(" | ")),
+        ].join("\n"),
+      })
+      : null,
+    createContextBlock({
       id: "state_goal",
       group: "state_goal",
       priority: 97,
       required: Boolean(writeContext.chapterStateGoal),
       content: writeContext.chapterStateGoal
         ? [
-            `State goal: ${writeContext.chapterStateGoal.summary}`,
-            toListBlock("Target conflicts", writeContext.chapterStateGoal.targetConflicts),
-            toListBlock("Target relationships", writeContext.chapterStateGoal.targetRelationships),
-            toListBlock("Target payoffs", writeContext.chapterStateGoal.targetPayoffs),
-            toListBlock("Protected secrets", writeContext.protectedSecrets),
-          ].filter(Boolean).join("\n")
+             `State goal: ${writeContext.chapterStateGoal.summary}`,
+             toListBlock("Target conflicts", writeContext.chapterStateGoal.targetConflicts),
+             toListBlock("Target relationships", writeContext.chapterStateGoal.targetRelationships),
+             toListBlock("Protected secrets", writeContext.protectedSecrets),
+           ].filter(Boolean).join("\n")
         : "",
     }),
     buildIncrementalRoundContextBlock(options.incrementalContext),

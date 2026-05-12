@@ -167,6 +167,7 @@ export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, 
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterRepair,
     preferredGroups: [
       "repair_issues",
+      "chapter_boundary",
       "chapter_mission",
       "repair_boundaries",
       "world_rules",

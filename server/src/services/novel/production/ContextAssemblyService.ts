@@ -3,6 +3,7 @@ import type {
   CanonicalOpenConflictState,
   CanonicalPayoffState,
   CanonicalTimelineEventState,
+  ChapterPayoffDirective,
   ChapterStateGoal,
   GenerationNextAction,
   NovelControlPolicy,
@@ -33,6 +34,69 @@ function takeTop<T>(items: T[], limit: number): T[] {
   return items.slice(0, Math.max(0, limit));
 }
 
+function normalizeForBoundaryMatch(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function resolveForbiddenReveal(
+  payoff: CanonicalPayoffState,
+  protectedSecrets: string[],
+): string | null {
+  const haystack = normalizeForBoundaryMatch(`${payoff.title}\n${payoff.summary}\n${payoff.statusReason ?? ""}`);
+  return protectedSecrets.find((secret) => {
+    const normalized = normalizeForBoundaryMatch(secret);
+    return normalized.length > 0 && haystack.includes(normalized);
+  }) ?? null;
+}
+
+function buildPayoffDirective(
+  payoff: CanonicalPayoffState,
+  chapterOrder: number,
+  protectedSecrets: string[],
+): ChapterPayoffDirective {
+  const forbiddenReveal = resolveForbiddenReveal(payoff, protectedSecrets);
+  if (forbiddenReveal) {
+    return {
+      title: payoff.title,
+      ledgerKey: payoff.ledgerKey,
+      operation: "forbid",
+      reason: "该 payoff 触及当前受保护信息，本章只能保持压力或铺垫，不得揭开答案。",
+      forbiddenReveal,
+    };
+  }
+
+  const targetStart = payoff.targetStartChapterOrder;
+  const operation: ChapterPayoffDirective["operation"] = payoff.currentStatus === "setup"
+    ? (typeof targetStart === "number" && targetStart <= chapterOrder ? "touch" : "seed")
+    : payoff.currentStatus === "hinted"
+      ? "touch"
+      : payoff.currentStatus === "pending_payoff" || payoff.currentStatus === "overdue"
+        ? "pressure"
+        : "touch";
+  const reason = payoff.statusReason?.trim()
+    || payoff.summary?.trim()
+    || "按当前章节窗口轻触该伏笔，不提前兑现。";
+  return {
+    title: payoff.title,
+    ledgerKey: payoff.ledgerKey,
+    operation,
+    reason,
+    forbiddenReveal: null,
+  };
+}
+
+export function buildChapterPayoffDirectives(
+  snapshot: Awaited<ReturnType<typeof canonicalStateService.getSnapshot>>,
+  protectedSecrets: string[],
+): ChapterPayoffDirective[] {
+  const chapterOrder = snapshot.narrative.currentChapterOrder ?? 0;
+  return takeTop([
+    ...snapshot.narrative.overduePayoffs,
+    ...snapshot.narrative.urgentPayoffs,
+    ...snapshot.narrative.pendingPayoffs,
+  ], 5).map((payoff) => buildPayoffDirective(payoff, chapterOrder, protectedSecrets));
+}
+
 function buildChapterStateGoal(
   snapshot: Awaited<ReturnType<typeof canonicalStateService.getSnapshot>>,
 ): ChapterStateGoal | null {
@@ -42,6 +106,7 @@ function buildChapterStateGoal(
   ) {
     return null;
   }
+  const protectedSecrets = takeTop(snapshot.narrative.hiddenKnowledge, 4);
   return {
     chapterId: snapshot.narrative.currentChapterId,
     chapterOrder: snapshot.narrative.currentChapterOrder,
@@ -59,7 +124,8 @@ function buildChapterStateGoal(
       ],
       3,
     ),
-    protectedSecrets: takeTop(snapshot.narrative.hiddenKnowledge, 4),
+    targetPayoffDirectives: buildChapterPayoffDirectives(snapshot, protectedSecrets),
+    protectedSecrets,
   };
 }
 

@@ -81,6 +81,7 @@ export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.inf
   contextPolicy: {
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterLightAudit,
     preferredGroups: [
+      "chapter_boundary",
       "chapter_mission",
       "structure_obligations",
       "local_state",
@@ -94,6 +95,7 @@ export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.inf
   },
   contextRequirements: [
     { group: "chapter_mission", priority: 100 },
+    { group: "chapter_boundary", required: true, priority: 99 },
     { group: "structure_obligations", priority: 94 },
     { group: "local_state", priority: 89 },
     { group: "world_rules", priority: 84 },
@@ -159,6 +161,7 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
   contextPolicy: {
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterReview,
     preferredGroups: [
+      "chapter_boundary",
       "chapter_mission",
       "structure_obligations",
       "world_rules",
@@ -172,6 +175,7 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
   },
   contextRequirements: [
     { group: "chapter_mission", priority: 100 },
+    { group: "chapter_boundary", required: true, priority: 99 },
     { group: "structure_obligations", required: true, priority: 94 },
     { group: "local_state", priority: 89 },
     { group: "world_rules", priority: 84 },

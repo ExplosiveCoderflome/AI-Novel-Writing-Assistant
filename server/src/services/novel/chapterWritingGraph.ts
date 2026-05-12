@@ -468,8 +468,55 @@ export class ChapterWritingGraph {
       throw new Error("Chapter runtime context is required before chapter generation.");
     }
     const contextPackage = input.contextPackage;
-    // Scene-driven generation is currently disabled. Even if sceneCards exist,
-    // chapter writing should run as a single whole-chapter pass.
+    const scenePlan = this.resolveScenePlan({
+      chapter: input.chapter,
+      contextPackage,
+    });
+    if (scenePlan && scenePlan.scenes.length > 0) {
+      const sceneStream = this.createSceneChapterStream({
+        novelId: input.novelId,
+        novelTitle: input.novelTitle,
+        chapter: input.chapter,
+        contextPackage,
+        options: input.options,
+        scenePlan,
+      });
+      return {
+        stream: sceneStream.stream,
+        onDone: async (fullContent: string) => {
+          const completed = await sceneStream.complete.catch(() => null);
+          const rawContent = completed?.content ?? fullContent;
+          const normalized = await this.continuityNode(
+            input.novelId,
+            input.chapter,
+            rawContent,
+            input.options,
+            continuationPack,
+          );
+          const finalWordCount = countChapterCharacters(normalized);
+          const lengthControl = completed?.lengthControl
+            ? {
+              ...completed.lengthControl,
+              finalWordCount,
+              variance: finalWordCount - completed.lengthControl.targetWordCount,
+            }
+            : undefined;
+          await this.deps.saveDraftAndArtifacts(
+            input.novelId,
+            input.chapter.id,
+            normalized,
+            "drafted",
+            { scheduleBackgroundSync: !input.options.deferArtifactBackgroundSync },
+          );
+          return {
+            finalContent: normalized,
+            lengthControl,
+            artifactsAlreadySynced: true,
+            backgroundSyncDeferred: Boolean(input.options.deferArtifactBackgroundSync),
+          };
+        },
+      };
+    }
 
     const targetRange = resolveTargetWordRange(chapterWriteContext.chapterMission.targetWordCount);
     const builtBlocks = buildChapterWriterContextBlocks(chapterWriteContext);

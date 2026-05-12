@@ -94,6 +94,65 @@ function shouldEscalateToFullAudit(input: {
   return finalWordCount < Math.floor(budget.softMinWordCount * 0.75);
 }
 
+function normalizeBoundaryProbe(value: string | null | undefined): string {
+  return (value ?? "").replace(/\s+/g, "").trim().toLowerCase();
+}
+
+function boundaryProbeCandidates(value: string, splitInstructionPrefix: boolean): string[] {
+  const trimmed = value.trim();
+  const afterColon = splitInstructionPrefix && trimmed.includes("：") ? trimmed.split("：").slice(1).join("：").trim() : "";
+  return [trimmed, afterColon]
+    .map((item) => item.trim())
+    .filter((item) => item.length >= 4);
+}
+
+function buildBoundaryLeakageIssues(input: {
+  novelId: string;
+  chapterId: string;
+  content: string;
+  contextPackage: GenerationContextPackage;
+}): GenerationContextPackage["openAuditIssues"] {
+  const boundary = input.contextPackage.chapterWriteContext?.chapterBoundary;
+  if (!boundary) {
+    return [];
+  }
+  const contentProbe = normalizeBoundaryProbe(input.content);
+  if (!contentProbe) {
+    return [];
+  }
+  const candidates = [
+    ...boundary.protectedReveals.map((item) => ({ type: "protected_reveal", text: item, severity: "critical" as const })),
+    ...boundary.doNotCross.map((item) => ({ type: "do_not_cross", text: item, severity: "high" as const })),
+  ];
+  const seen = new Set<string>();
+  const now = new Date().toISOString();
+  return candidates.flatMap((candidate) => {
+    const leaked = boundaryProbeCandidates(candidate.text, candidate.type === "protected_reveal")
+      .find((probe) => contentProbe.includes(normalizeBoundaryProbe(probe)));
+    if (!leaked || seen.has(`${candidate.type}:${leaked}`)) {
+      return [];
+    }
+    seen.add(`${candidate.type}:${leaked}`);
+    return [{
+      id: `chapter-boundary:${input.chapterId}:${candidate.type}:${seen.size}`,
+      reportId: `chapter-boundary:${input.novelId}:${input.chapterId}`,
+      auditType: "plot" as const,
+      severity: candidate.severity,
+      code: candidate.type,
+      description: candidate.type === "protected_reveal"
+        ? "章节正文疑似提前泄露受保护信息。"
+        : "章节正文疑似越过本章边界。重写或修复时必须回到当前章节合同内。",
+      evidence: leaked,
+      fixSuggestion: candidate.type === "protected_reveal"
+        ? "删除或改写提前揭露的信息，只保留铺垫、压力或预兆。"
+        : "删除越章内容，停在本章 endingState 或当前场景 exitState。",
+      status: "open" as const,
+      createdAt: now,
+      updatedAt: now,
+    }];
+  });
+}
+
 function mapOpenConflictForRuntime(
   conflict: Awaited<ReturnType<typeof openConflictService.listOpenConflicts>>[number],
 ): GenerationContextPackage["openConflicts"][number] {
@@ -173,6 +232,7 @@ export class ChapterRuntimeCoordinator {
   }> {
     const request = this.deps.validateRequest(options);
     await this.deps.ensureNovelCharacters(novelId, "generate chapter content");
+    await this.deps.ensureChapterExecutionContract(novelId, chapterId, request);
 
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
     this.assertStateDrivenReady(assembled.contextPackage, request);
@@ -252,6 +312,7 @@ export class ChapterRuntimeCoordinator {
     hooks: PipelineRuntimeHooks = {},
   ): Promise<PipelineRuntimeResult> {
     const request = this.deps.validateRequest(options);
+    await this.deps.ensureChapterExecutionContract(novelId, chapterId, request);
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
     this.assertStateDrivenReady(assembled.contextPackage, request);
     await this.markChapterStatus(chapterId, "generating");
@@ -507,6 +568,12 @@ export class ChapterRuntimeCoordinator {
       ],
       input.contextPackage.chapter.order,
     );
+    const boundaryLeakageIssues = buildBoundaryLeakageIssues({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      content: input.finalContent,
+      contextPackage: input.contextPackage,
+    });
     const openIssues = input.auditResult.auditReports
       .flatMap((report) => report.issues)
       .filter((issue) => issue.status === "open")
@@ -535,7 +602,8 @@ export class ChapterRuntimeCoordinator {
         status: "open" as const,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      })));
+      })))
+      .concat(boundaryLeakageIssues);
 
     const blockingIssueIds = openIssues
       .filter((issue) => issue.severity === "high" || issue.severity === "critical")

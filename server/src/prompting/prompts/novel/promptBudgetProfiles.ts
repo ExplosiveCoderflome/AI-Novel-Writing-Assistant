@@ -29,7 +29,9 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
     promptId: "novel.chapter.writer",
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterWriter,
     preferredGroups: [
+      "chapter_boundary",
       "chapter_mission",
+      "payoff_directives",
       "style_contract",
       "volume_window",
       "participant_subset",

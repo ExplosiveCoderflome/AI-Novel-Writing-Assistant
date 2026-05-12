@@ -45,7 +45,7 @@ function createAgentRuntime() {
   };
 }
 
-test("createChapterStream assembles runtime context without refreshing execution contract", async () => {
+test("createChapterStream validates execution contract before assembling runtime context", async () => {
   const calls = [];
   const assembled = createAssembledChapter();
   const validatedRequest = {
@@ -93,11 +93,12 @@ test("createChapterStream assembles runtime context without refreshing execution
 
   assert.notEqual(assembleIndex, -1);
   assert.notEqual(writerIndex, -1);
+  assert.notEqual(ensureContractIndex, -1);
+  assert.ok(ensureContractIndex < assembleIndex);
   assert.ok(assembleIndex < writerIndex);
-  assert.equal(ensureContractIndex, -1);
 });
 
-test("createChapterStream does not touch execution contract refresh even if the hook would fail", async () => {
+test("createChapterStream blocks when execution contract validation fails", async () => {
   const warnings = [];
   const originalWarn = console.warn;
   let assembledCalled = false;
@@ -111,7 +112,7 @@ test("createChapterStream does not touch execution contract refresh even if the 
       validateRequest: (input) => input,
       ensureNovelCharacters: async () => undefined,
       ensureChapterExecutionContract: async () => {
-        throw new Error("should not run");
+        throw new Error("contract invalid");
       },
       assembler: {
         assemble: async () => {
@@ -129,9 +130,11 @@ test("createChapterStream does not touch execution contract refresh even if the 
     });
     coordinator.markChapterStatus = async () => undefined;
 
-    const result = await coordinator.createChapterStream("novel-1", "chapter-1", {});
-    assert.ok(result.stream);
-    assert.equal(assembledCalled, true);
+    await assert.rejects(
+      () => coordinator.createChapterStream("novel-1", "chapter-1", {}),
+      /contract invalid/,
+    );
+    assert.equal(assembledCalled, false);
     assert.equal(warnings.length, 0);
   } finally {
     console.warn = originalWarn;
@@ -150,6 +153,7 @@ test("createChapterStream blocks when state-driven decision requires review firs
   const coordinator = new ChapterRuntimeCoordinator({
     validateRequest: (input) => input,
     ensureNovelCharacters: async () => undefined,
+    ensureChapterExecutionContract: async () => undefined,
     assembler: {
       assemble: async () => assembled,
     },
@@ -182,6 +186,7 @@ test("createChapterStream lets full_book_autopilot continue past pending state p
   const coordinator = new ChapterRuntimeCoordinator({
     validateRequest: (input) => input,
     ensureNovelCharacters: async () => undefined,
+    ensureChapterExecutionContract: async () => undefined,
     assembler: {
       assemble: async () => assembled,
     },
@@ -225,6 +230,7 @@ test("runPipelineChapter does not leave a blocked chapter in generating status",
   const coordinator = new ChapterRuntimeCoordinator({
     validateRequest: (input) => input,
     ensureNovelCharacters: async () => undefined,
+    ensureChapterExecutionContract: async () => undefined,
     assembler: {
       assemble: async () => assembled,
     },

@@ -6,6 +6,7 @@ import {
 import {
   canonicalStateSnapshotSchema,
   chapterStateGoalSchema,
+  chapterPayoffDirectiveSchema,
   generationNextActionSchema,
 } from "./canonicalState";
 import { characterResourceContextSchema } from "./characterResource";
@@ -47,7 +48,12 @@ export const runtimeChapterSchema = z.object({
   content: z.string().nullable().optional(),
   expectation: z.string().nullable().optional(),
   targetWordCount: z.number().int().nullable().optional(),
+  conflictLevel: z.number().int().nullable().optional(),
+  revealLevel: z.number().int().nullable().optional(),
+  mustAvoid: z.string().nullable().optional(),
+  taskSheet: z.string().nullable().optional(),
   sceneCards: z.string().nullable().optional(),
+  hook: z.string().nullable().optional(),
   supportingContextText: z.string().default(""),
 });
 
@@ -531,6 +537,16 @@ export const chapterMissionContextSchema = z.object({
   riskNotes: z.array(z.string()).default([]),
 });
 
+export const chapterBoundaryContractSchema = z.object({
+  exclusiveEvent: z.string().nullable().optional(),
+  entryState: z.string().nullable().optional(),
+  endingState: z.string().nullable().optional(),
+  nextChapterEntryState: z.string().nullable().optional(),
+  doNotCross: z.array(z.string()).default([]),
+  protectedReveals: z.array(z.string()).default([]),
+  allowedRevealLevel: z.number().int().nullable().optional(),
+});
+
 export const chapterCharacterBehaviorGuideSchema = z.object({
   characterId: z.string(),
   name: z.string(),
@@ -581,6 +597,8 @@ export const chapterWriteContextSchema = z.object({
   nextAction: generationNextActionSchema.default("write_chapter"),
   chapterStateGoal: chapterStateGoalSchema.nullable().optional(),
   protectedSecrets: z.array(z.string()).default([]),
+  payoffDirectives: z.array(chapterPayoffDirectiveSchema).default([]),
+  chapterBoundary: chapterBoundaryContractSchema.nullable().optional(),
   lengthBudget: lengthBudgetContractSchema.nullable(),
   scenePlan: chapterScenePlanSchema.nullable().optional(),
   participants: z.array(runtimeCharacterSchema),
@@ -836,6 +854,7 @@ export type BookContractContext = z.infer<typeof bookContractContextSchema>;
 export type MacroConstraintContext = z.infer<typeof macroConstraintContextSchema>;
 export type VolumeWindowContext = z.infer<typeof volumeWindowContextSchema>;
 export type ChapterMissionContext = z.infer<typeof chapterMissionContextSchema>;
+export type ChapterBoundaryContract = z.infer<typeof chapterBoundaryContractSchema>;
 export type ChapterCharacterBehaviorGuide = z.infer<typeof chapterCharacterBehaviorGuideSchema>;
 export type ChapterRelationStageGuide = z.infer<typeof chapterRelationStageGuideSchema>;
 export type ChapterCandidateGuard = z.infer<typeof chapterCandidateGuardSchema>;

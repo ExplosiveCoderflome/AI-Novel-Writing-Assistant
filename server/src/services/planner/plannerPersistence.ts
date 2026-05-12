@@ -2,6 +2,7 @@ import {
   normalizeChapterScenePlan,
   serializeChapterScenePlan,
 } from "@ai-novel/shared/types/chapterLengthControl";
+import { createHash } from "node:crypto";
 import { prisma } from "../../db/prisma";
 import { enrichStoryPlan } from "./plannerPlanMetadata";
 
@@ -26,6 +27,7 @@ interface PersistPlanInput {
   sourceIssueIds: string[];
   replannedFromPlanId: string | null;
   hookTarget: string | null;
+  baseExecutionContract?: ChapterExecutionContractHashInput | null;
   scenes: Array<{
     title?: string;
     objective?: string;
@@ -38,6 +40,50 @@ interface PersistPlanInput {
 
 function sanitizePlanText(value?: string | null): string {
   return (value ?? "").trim();
+}
+
+export interface ChapterExecutionContractHashInput {
+  expectation?: string | null;
+  targetWordCount?: number | null;
+  conflictLevel?: number | null;
+  revealLevel?: number | null;
+  mustAvoid?: string | null;
+  taskSheet?: string | null;
+  sceneCards?: string | null;
+  hook?: string | null;
+}
+
+function normalizeHashText(value?: string | null): string | null {
+  const normalized = value?.replace(/\s+/g, " ").trim();
+  return normalized || null;
+}
+
+export function buildChapterExecutionContractHash(input: ChapterExecutionContractHashInput): string {
+  const stablePayload = {
+    expectation: normalizeHashText(input.expectation),
+    targetWordCount: typeof input.targetWordCount === "number" ? input.targetWordCount : null,
+    conflictLevel: typeof input.conflictLevel === "number" ? input.conflictLevel : null,
+    revealLevel: typeof input.revealLevel === "number" ? input.revealLevel : null,
+    mustAvoid: normalizeHashText(input.mustAvoid),
+    taskSheet: normalizeHashText(input.taskSheet),
+    sceneCards: normalizeHashText(input.sceneCards),
+    hook: normalizeHashText(input.hook),
+  };
+  return createHash("sha256").update(JSON.stringify(stablePayload)).digest("hex");
+}
+
+export function readPlanExecutionContractHash(rawPlanJson: string | null | undefined): string | null {
+  if (!rawPlanJson?.trim()) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(rawPlanJson) as { executionContractHash?: unknown };
+    return typeof parsed.executionContractHash === "string" && parsed.executionContractHash.trim()
+      ? parsed.executionContractHash.trim()
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function buildPlanTaskSheet(input: PersistPlanInput): string | undefined {
@@ -115,6 +161,18 @@ function buildPlanSceneCards(input: PersistPlanInput): string | undefined {
 }
 
 export async function persistStoryPlan(input: PersistPlanInput) {
+  const taskSheet = buildPlanTaskSheet(input);
+  const sceneCards = buildPlanSceneCards(input);
+  const executionContractHash = input.level === "chapter"
+    ? buildChapterExecutionContractHash({
+      ...(input.baseExecutionContract ?? {}),
+      expectation: sanitizePlanText(input.objective) || null,
+      targetWordCount: input.targetWordCount ?? input.baseExecutionContract?.targetWordCount ?? null,
+      taskSheet: taskSheet ?? input.baseExecutionContract?.taskSheet ?? null,
+      sceneCards: sceneCards ?? input.baseExecutionContract?.sceneCards ?? null,
+      hook: sanitizePlanText(input.hookTarget) || null,
+    })
+    : null;
   const existing = input.level === "chapter" && input.chapterId
     ? await prisma.storyPlan.findFirst({
         where: { novelId: input.novelId, chapterId: input.chapterId, level: "chapter" },
@@ -142,6 +200,7 @@ export async function persistStoryPlan(input: PersistPlanInput) {
     replannedFromPlanId: input.replannedFromPlanId,
     planRole: input.planRole,
     phaseLabel: input.phaseLabel,
+    executionContractHash,
   });
 
   const planId = await prisma.$transaction(async (tx) => {
@@ -226,8 +285,8 @@ export async function persistStoryPlan(input: PersistPlanInput) {
           where: { id: input.chapterId },
           data: {
             expectation: sanitizePlanText(input.objective) || undefined,
-            taskSheet: buildPlanTaskSheet(input),
-            sceneCards: buildPlanSceneCards(input),
+            taskSheet,
+            sceneCards,
             hook: sanitizePlanText(input.hookTarget) || undefined,
             chapterStatus: nextChapterStatus,
           },

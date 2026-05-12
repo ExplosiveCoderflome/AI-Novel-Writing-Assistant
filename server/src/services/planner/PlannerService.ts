@@ -15,7 +15,11 @@ import {
   enrichStoryPlan,
   normalizePlanMetadata,
 } from "./plannerPlanMetadata";
-import { persistStoryPlan } from "./plannerPersistence";
+import {
+  buildChapterExecutionContractHash,
+  persistStoryPlan,
+  readPlanExecutionContractHash,
+} from "./plannerPersistence";
 import { invokePlannerLLM, type PlannerLlmOptions } from "./plannerLlm";
 import {
   buildArcPlanContextBlocks,
@@ -204,7 +208,24 @@ export class PlannerService {
   async ensureChapterPlan(novelId: string, chapterId: string, options: PlannerOptions = {}) {
     const existing = await this.getChapterPlan(novelId, chapterId);
     if (existing && existing.scenes.length > 0) {
-      return existing;
+      const chapter = await prisma.chapter.findFirst({
+        where: { id: chapterId, novelId },
+        select: {
+          expectation: true,
+          targetWordCount: true,
+          conflictLevel: true,
+          revealLevel: true,
+          mustAvoid: true,
+          taskSheet: true,
+          sceneCards: true,
+          hook: true,
+        },
+      });
+      const currentContractHash = chapter ? buildChapterExecutionContractHash(chapter) : null;
+      const plannedContractHash = readPlanExecutionContractHash(existing.rawPlanJson);
+      if (currentContractHash && plannedContractHash === currentContractHash) {
+        return existing;
+      }
     }
     return this.generateChapterPlan(novelId, chapterId, options);
   }
@@ -385,8 +406,10 @@ export class PlannerService {
           targetWordCount: true,
           conflictLevel: true,
           revealLevel: true,
+          mustAvoid: true,
           hook: true,
           taskSheet: true,
+          sceneCards: true,
         },
       }),
       prisma.novelBible.findUnique({
@@ -674,12 +697,21 @@ export class PlannerService {
         ...resolvedStateDrivenContext.protectedSecrets.map((item) => `禁止提前泄露：${item}`),
       ], 8),
       hookTarget: output.hookTarget || chapter.hook?.trim() || null,
+      baseExecutionContract: {
+        expectation: chapter.expectation,
+        targetWordCount: chapter.targetWordCount,
+        conflictLevel: chapter.conflictLevel,
+        revealLevel: chapter.revealLevel,
+        mustAvoid: chapter.mustAvoid,
+        taskSheet: chapter.taskSheet,
+        sceneCards: chapter.sceneCards,
+        hook: chapter.hook,
+      },
       scenes: output.scenes ?? [],
       planRole: metadata.planRole,
       phaseLabel: metadata.phaseLabel,
       mustAdvance: takeUnique([
         ...(chapterStateGoal?.targetConflicts ?? []),
-        ...(chapterStateGoal?.targetPayoffs ?? []),
         ...metadata.mustAdvance,
       ], 8),
       mustPreserve: takeUnique([
