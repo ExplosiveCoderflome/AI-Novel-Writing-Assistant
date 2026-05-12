@@ -321,6 +321,7 @@ model Novel {
   styleTone         String?
   emotionIntensity  EmotionIntensity?
   aiFreedom         AIFreedom?
+  postGenerationStyleReviewEnabled Boolean @default(true)
   defaultChapterLength Int?
   estimatedChapterCount Int?
   projectStatus     ProjectProgressStatus? @default(not_started)

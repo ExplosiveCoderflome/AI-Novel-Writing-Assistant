@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const { ChapterRuntimeCoordinator } = require("../dist/services/novel/runtime/ChapterRuntimeCoordinator.js");
+const { PostGenerationStyleReviewRunner } = require("../dist/services/novel/runtime/PostGenerationStyleReviewRunner.js");
 
 function createEmptyStream() {
   return {
@@ -243,4 +244,104 @@ test("runPipelineChapter does not leave a blocked chapter in generating status",
     /blocked until review is resolved/i,
   );
   assert.deepEqual(statusCalls, []);
+});
+
+test("post-generation style review policy disables detection and rewrite", async () => {
+  let detectionCalls = 0;
+  let rewriteCalls = 0;
+  const runner = new PostGenerationStyleReviewRunner({
+    postGenerationStyleReviewPolicyResolver: {
+      resolve: async () => ({ enabled: false }),
+    },
+    styleDetectionService: {
+      check: async () => {
+        detectionCalls += 1;
+        throw new Error("style detection should not run");
+      },
+    },
+    styleRewriteService: {
+      rewrite: async () => {
+        rewriteCalls += 1;
+        throw new Error("style rewrite should not run");
+      },
+    },
+  });
+
+  const result = await runner.run({
+    novelId: "novel-1",
+    chapterId: "chapter-1",
+    request: {},
+    contextPackage: {
+      styleContext: {
+        compiledBlocks: {
+          generationSystemAddendum: "anti-ai prompt",
+        },
+      },
+    },
+    content: "正文草稿",
+  });
+
+  assert.equal(detectionCalls, 0);
+  assert.equal(rewriteCalls, 0);
+  assert.deepEqual(result, {
+    report: null,
+    autoRewritten: false,
+    originalContent: null,
+    finalContent: "正文草稿",
+  });
+});
+
+test("post-generation style review policy keeps existing detection and rewrite when enabled", async () => {
+  const calls = [];
+  const runner = new PostGenerationStyleReviewRunner({
+    postGenerationStyleReviewPolicyResolver: {
+      resolve: async () => ({ enabled: true }),
+    },
+    styleDetectionService: {
+      check: async () => {
+        calls.push("detect");
+        return {
+          summary: "需要修正",
+          riskScore: 45,
+          canAutoRewrite: true,
+          appliedRuleIds: ["rule-1"],
+          violations: [{
+            ruleName: "降低模板表达",
+            ruleType: "forbidden",
+            severity: "medium",
+            excerpt: "仿佛",
+            reason: "模板词集中",
+            suggestion: "降低模板词密度",
+            canAutoRewrite: true,
+          }],
+        };
+      },
+    },
+    styleRewriteService: {
+      rewrite: async () => {
+        calls.push("rewrite");
+        return { content: "修正正文" };
+      },
+    },
+  });
+
+  const result = await runner.run({
+    novelId: "novel-1",
+    chapterId: "chapter-1",
+    request: {},
+    contextPackage: {
+      styleContext: {
+        compiledBlocks: {
+          generationSystemAddendum: "anti-ai prompt",
+        },
+      },
+    },
+    content: "正文草稿",
+  });
+
+  assert.deepEqual(calls, ["detect", "rewrite"]);
+  assert.equal(result.autoRewritten, true);
+  assert.equal(result.originalContent, "正文草稿");
+  assert.equal(result.finalContent, "修正正文");
+  assert.equal(result.report.riskScore, 45);
 });

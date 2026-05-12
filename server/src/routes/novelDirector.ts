@@ -97,6 +97,7 @@ const projectContextSchema = z.object({
   styleProfileId: z.string().trim().optional(),
   emotionIntensity: z.enum(["low", "medium", "high"]).optional(),
   aiFreedom: z.enum(["low", "medium", "high"]).optional(),
+  postGenerationStyleReviewEnabled: z.boolean().optional(),
   defaultChapterLength: z.number().int().min(500).max(10000).optional(),
   estimatedChapterCount: z.number().int().min(1).max(2000).optional(),
   projectStatus: z.enum(["not_started", "in_progress", "completed", "rework", "blocked"]).optional(),
@@ -179,6 +180,7 @@ const takeoverSchema = z.object({
   autoExecutionPlan: autoExecutionPlanSchema,
   autoApproval: autoApprovalSchema,
   styleProfileId: z.string().trim().optional(),
+  postGenerationStyleReviewEnabled: z.boolean().optional(),
 }).merge(llmOptionsSchema);
 
 const runtimePolicySchema = z.object({

@@ -256,6 +256,7 @@ export function buildDirectorTakeoverInput(input: {
     styleTone: input.novel.styleTone?.trim() || undefined,
     emotionIntensity: input.novel.emotionIntensity,
     aiFreedom: input.novel.aiFreedom,
+    postGenerationStyleReviewEnabled: input.novel.postGenerationStyleReviewEnabled,
     defaultChapterLength: input.novel.defaultChapterLength,
     estimatedChapterCount: input.novel.estimatedChapterCount ?? undefined,
     projectStatus: input.novel.projectStatus,

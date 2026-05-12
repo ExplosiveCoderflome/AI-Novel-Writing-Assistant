@@ -244,6 +244,9 @@ export class NovelDirectorCandidateRuntime {
         || seedPayload.aiFreedom === "high"
         ? seedPayload.aiFreedom
         : undefined,
+      postGenerationStyleReviewEnabled: typeof seedPayload.postGenerationStyleReviewEnabled === "boolean"
+        ? seedPayload.postGenerationStyleReviewEnabled
+        : undefined,
       defaultChapterLength: typeof seedPayload.defaultChapterLength === "number"
         ? seedPayload.defaultChapterLength
         : undefined,

@@ -27,6 +27,7 @@ import {
 import { toast } from "@/components/ui/toast";
 import AutoDirectorApprovalStrategyPanel from "@/components/autoDirector/AutoDirectorApprovalStrategyPanel";
 import { useLLMStore } from "@/store/llmStore";
+import { Switch } from "@/components/ui/switch";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import {
   DirectorAutoExecutionPlanFields,
@@ -145,6 +146,9 @@ export default function NovelExistingProjectTakeoverDialog({
   const [selectedStrategy, setSelectedStrategy] = useState<DirectorTakeoverStrategy>("continue_existing");
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState("takeover"));
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
+  const [postGenerationStyleReviewEnabled, setPostGenerationStyleReviewEnabled] = useState(
+    basicForm.postGenerationStyleReviewEnabled,
+  );
   const autoApprovalDraft = useDirectorAutoApprovalDraft(open);
   const { reset: resetAutoApprovalDraft } = autoApprovalDraft;
 
@@ -200,9 +204,16 @@ export default function NovelExistingProjectTakeoverDialog({
       setSelectedEntryStep(defaultEntryStep);
       setSelectedStrategy("continue_existing");
       setSelectedStyleProfileId("");
+      setPostGenerationStyleReviewEnabled(basicForm.postGenerationStyleReviewEnabled);
       resetAutoApprovalDraft();
     }
-  }, [defaultEntryStep, open, resetAutoApprovalDraft]);
+  }, [basicForm.postGenerationStyleReviewEnabled, defaultEntryStep, open, resetAutoApprovalDraft]);
+
+  useEffect(() => {
+    if (open) {
+      setPostGenerationStyleReviewEnabled(basicForm.postGenerationStyleReviewEnabled);
+    }
+  }, [basicForm.postGenerationStyleReviewEnabled, open]);
 
   useEffect(() => {
     if (!open) {
@@ -247,6 +258,7 @@ export default function NovelExistingProjectTakeoverDialog({
       runMode,
       autoExecutionPlan,
       autoApproval: autoApprovalDraft.buildPayload(runMode),
+      postGenerationStyleReviewEnabled,
     }),
     onSuccess: async (response) => {
       const data = response.data;
@@ -255,6 +267,7 @@ export default function NovelExistingProjectTakeoverDialog({
         return;
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(novelId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.directorBookAutomation(novelId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTakeoverReadiness(novelId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.bindings(`novel-${novelId}`) });
@@ -312,6 +325,21 @@ export default function NovelExistingProjectTakeoverDialog({
               </div>
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
                 <div className="text-sm font-medium text-foreground">自动导演运行方式</div>
+                <div className="mt-3 rounded-lg border bg-muted/15 p-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-foreground">正文后去 AI 检测与修正</div>
+                      <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                        开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
+                      </div>
+                    </div>
+                    <Switch
+                      aria-label="正文后去 AI 检测与修正"
+                      checked={postGenerationStyleReviewEnabled}
+                      onCheckedChange={setPostGenerationStyleReviewEnabled}
+                    />
+                  </div>
+                </div>
                 <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
                   {RUN_MODE_OPTIONS.map((option) => {
                     const active = option.value === runMode;

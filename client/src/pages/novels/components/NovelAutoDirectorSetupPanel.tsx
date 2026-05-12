@@ -8,6 +8,7 @@ import LLMSelector from "@/components/common/LLMSelector";
 import AutoDirectorApprovalStrategyPanel from "@/components/autoDirector/AutoDirectorApprovalStrategyPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import {
   BASIC_INFO_FIELD_HINTS,
@@ -276,6 +277,23 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
 
           <section className="min-w-0 rounded-xl border bg-background/70 p-3 sm:p-4">
             <div className="text-sm font-medium text-foreground">自动导演运行方式</div>
+            {hasEditableBasicForm ? (
+              <div className="mt-3 rounded-lg border bg-muted/15 p-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-foreground">正文后去 AI 检测与修正</div>
+                  <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                    开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
+                  </div>
+                </div>
+                <Switch
+                  aria-label="正文后去 AI 检测与修正"
+                  checked={basicForm.postGenerationStyleReviewEnabled}
+                  onCheckedChange={(checked) => onBasicFormChange({ postGenerationStyleReviewEnabled: checked })}
+                />
+              </div>
+            </div>
+            ) : null}
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-1">
               {runModeOptions.map((option) => {
                 const active = option.value === runMode;

@@ -558,6 +558,7 @@ export class NovelDirectorService {
     const directorInput = applyDirectorRunModeContract(await this.enrichDirectorStyleContext({
       ...takeoverDirectorInput,
       styleProfileId: input.styleProfileId ?? takeoverDirectorInput.styleProfileId,
+      postGenerationStyleReviewEnabled: input.postGenerationStyleReviewEnabled ?? takeoverDirectorInput.postGenerationStyleReviewEnabled,
       autoExecutionPlan: input.autoExecutionPlan,
       autoApproval: input.autoApproval,
       provider: input.provider ?? takeoverDirectorInput.provider,
@@ -565,6 +566,11 @@ export class NovelDirectorService {
       temperature: typeof input.temperature === "number" ? input.temperature : takeoverDirectorInput.temperature,
     }));
     const isFullBookAutopilot = isFullBookAutopilotRunMode(directorInput.runMode);
+    if (typeof input.postGenerationStyleReviewEnabled === "boolean") {
+      await this.novelService.updateNovel(input.novelId, {
+        postGenerationStyleReviewEnabled: input.postGenerationStyleReviewEnabled,
+      });
+    }
     await this.ensurePrimaryNovelStyleBinding(input.novelId, directorInput.styleProfileId);
     const takeoverWorkspaceAnalysis = await this.directorRuntime.analyzeWorkspace({
       novelId: input.novelId,

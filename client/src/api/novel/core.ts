@@ -58,6 +58,7 @@ export async function createNovel(payload: {
   styleTone?: string;
   emotionIntensity?: EmotionIntensity;
   aiFreedom?: AIFreedom;
+  postGenerationStyleReviewEnabled?: boolean;
   defaultChapterLength?: number;
   estimatedChapterCount?: number;
   projectStatus?: ProjectProgressStatus;
@@ -120,6 +121,7 @@ export async function updateNovel(
     styleTone: string | null;
     emotionIntensity: EmotionIntensity | null;
     aiFreedom: AIFreedom | null;
+    postGenerationStyleReviewEnabled: boolean;
     defaultChapterLength: number | null;
     estimatedChapterCount: number | null;
     projectStatus: ProjectProgressStatus | null;

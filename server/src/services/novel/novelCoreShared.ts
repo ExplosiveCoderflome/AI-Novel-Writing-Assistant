@@ -28,6 +28,7 @@ export interface CreateNovelInput {
   styleTone?: string;
   emotionIntensity?: "low" | "medium" | "high";
   aiFreedom?: "low" | "medium" | "high";
+  postGenerationStyleReviewEnabled?: boolean;
   defaultChapterLength?: number;
   estimatedChapterCount?: number;
   projectStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked";
@@ -56,6 +57,7 @@ export interface UpdateNovelInput {
   styleTone?: string | null;
   emotionIntensity?: "low" | "medium" | "high" | null;
   aiFreedom?: "low" | "medium" | "high" | null;
+  postGenerationStyleReviewEnabled?: boolean;
   defaultChapterLength?: number | null;
   estimatedChapterCount?: number | null;
   projectStatus?: "not_started" | "in_progress" | "completed" | "rework" | "blocked" | null;

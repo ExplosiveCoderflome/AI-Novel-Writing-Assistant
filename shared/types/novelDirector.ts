@@ -409,6 +409,7 @@ export interface DirectorTaskSeedPayloadSnapshot {
   autoApproval?: DirectorAutoApprovalConfig | null;
   styleProfileId?: string | null;
   styleIntentSummary?: StyleIntentSummary | null;
+  postGenerationStyleReviewEnabled?: boolean | null;
   taskNotice?: DirectorTaskNotice | null;
 }
 
@@ -519,6 +520,7 @@ export interface DirectorTakeoverRequest extends DirectorLLMOptions {
   autoExecutionPlan?: DirectorAutoExecutionPlan;
   autoApproval?: DirectorAutoApprovalConfig;
   styleProfileId?: string;
+  postGenerationStyleReviewEnabled?: boolean;
 }
 
 export interface DirectorTakeoverResponse {
@@ -553,6 +555,7 @@ export interface DirectorProjectContextInput {
   styleIntentSummary?: StyleIntentSummary;
   emotionIntensity?: EmotionIntensity;
   aiFreedom?: AIFreedom;
+  postGenerationStyleReviewEnabled?: boolean;
   defaultChapterLength?: number;
   estimatedChapterCount?: number;
   projectStatus?: ProjectProgressStatus;

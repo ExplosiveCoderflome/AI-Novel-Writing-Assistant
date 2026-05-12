@@ -75,6 +75,7 @@ export function buildAutoDirectorRequestPayload(
     styleProfileId: options?.styleProfileId?.trim() || undefined,
     emotionIntensity: basicForm.emotionIntensity,
     aiFreedom: basicForm.aiFreedom,
+    postGenerationStyleReviewEnabled: basicForm.postGenerationStyleReviewEnabled,
     defaultChapterLength: basicForm.defaultChapterLength,
     estimatedChapterCount: basicForm.estimatedChapterCount,
     projectStatus: basicForm.projectStatus,

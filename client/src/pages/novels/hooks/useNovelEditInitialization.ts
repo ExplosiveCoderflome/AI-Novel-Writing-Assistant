@@ -123,6 +123,7 @@ export function useNovelEditInitialization({
       styleTone: detail.styleTone ?? "",
       emotionIntensity: detail.emotionIntensity ?? "medium",
       aiFreedom: detail.aiFreedom ?? "medium",
+      postGenerationStyleReviewEnabled: detail.postGenerationStyleReviewEnabled ?? true,
       defaultChapterLength: detail.defaultChapterLength ?? 2800,
       estimatedChapterCount: detail.estimatedChapterCount ?? DEFAULT_ESTIMATED_CHAPTER_COUNT,
       projectStatus: detail.projectStatus ?? "not_started",

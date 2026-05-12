@@ -156,6 +156,7 @@ export interface Novel {
   styleTone?: string | null;
   emotionIntensity?: EmotionIntensity | null;
   aiFreedom?: AIFreedom | null;
+  postGenerationStyleReviewEnabled: boolean;
   defaultChapterLength?: number | null;
   estimatedChapterCount?: number | null;
   projectStatus?: ProjectProgressStatus | null;

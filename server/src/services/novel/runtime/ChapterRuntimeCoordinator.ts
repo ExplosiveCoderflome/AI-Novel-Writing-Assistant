@@ -3,7 +3,6 @@ import type { StreamDoneHelpers, StreamDonePayload, WritableSSEFrame } from "../
 import type {
   ChapterRuntimePackage,
   GenerationContextPackage,
-  RuntimeStyleDetectionReport,
 } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../../db/prisma";
 import { mergeChapterPatchForGenerationStateBump } from "../chapterLifecycleState";
@@ -11,12 +10,14 @@ import { auditService } from "../../audit/AuditService";
 import { buildSyntheticPayoffIssues } from "../../payoff/payoffLedgerShared";
 import { plannerService } from "../../planner/PlannerService";
 import { openConflictService } from "../../state/OpenConflictService";
-import { StyleDetectionService } from "../../styleEngine/StyleDetectionService";
-import { StyleRewriteService } from "../../styleEngine/StyleRewriteService";
 import { ChapterWritingGraph } from "../chapterWritingGraph";
 import { toText } from "../novelP0Utils";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import { GenerationContextAssembler } from "./GenerationContextAssembler";
+import {
+  PostGenerationStyleReviewRunner,
+  type StyleReviewResult,
+} from "./PostGenerationStyleReviewRunner";
 import { chapterRuntimeRequestSchema, type ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import { withChapterRepairContext } from "../../../prompting/prompts/novel/chapterLayeredContext";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
@@ -39,8 +40,7 @@ interface ChapterRuntimeCoordinatorDeps {
   artifactSyncService?: Pick<ChapterArtifactSyncService, "saveDraftAndArtifacts" | "syncChapterArtifacts">;
   auditService?: Pick<typeof auditService, "auditChapter" | "assessChapterAuditNeed">;
   plannerService?: Pick<typeof plannerService, "buildReplanRecommendation" | "shouldTriggerReplanFromAudit">;
-  styleDetectionService?: Pick<StyleDetectionService, "check">;
-  styleRewriteService?: Pick<StyleRewriteService, "rewrite">;
+  styleReviewRunner?: Pick<PostGenerationStyleReviewRunner, "run">;
   agentRuntime?: AgentRuntimeLike;
   ensureNovelCharacters?: (novelId: string, actionName: string, minCount?: number) => Promise<void>;
   ensureChapterExecutionContract?: (
@@ -49,13 +49,6 @@ interface ChapterRuntimeCoordinatorDeps {
     options: ChapterRuntimeRequestInput,
   ) => Promise<unknown>;
   validateRequest?: (input: ChapterRuntimeRequestInput) => ChapterRuntimeRequestInput;
-}
-
-interface StyleReviewResult {
-  report: RuntimeStyleDetectionReport | null;
-  autoRewritten: boolean;
-  originalContent: string | null;
-  finalContent: string;
 }
 
 interface FinalizeChapterContentResult {
@@ -160,8 +153,7 @@ export class ChapterRuntimeCoordinator {
       artifactSyncService,
       auditService: deps.auditService ?? auditService,
       plannerService: deps.plannerService ?? plannerService,
-      styleDetectionService: deps.styleDetectionService ?? new StyleDetectionService(),
-      styleRewriteService: deps.styleRewriteService ?? new StyleRewriteService(),
+      styleReviewRunner: deps.styleReviewRunner ?? new PostGenerationStyleReviewRunner(),
       agentRuntime: deps.agentRuntime,
       ensureNovelCharacters: deps.ensureNovelCharacters ?? this.ensureNovelCharacters.bind(this),
       ensureChapterExecutionContract: deps.ensureChapterExecutionContract
@@ -395,7 +387,7 @@ export class ChapterRuntimeCoordinator {
     deferArtifactBackgroundSync?: boolean;
     scheduleDeferredArtifactBackgroundSync?: boolean;
   }): Promise<FinalizeChapterContentResult> {
-    const styleReview = await this.runStyleReview({
+    const styleReview = await this.deps.styleReviewRunner.run({
       novelId: input.novelId,
       chapterId: input.chapterId,
       request: input.request,
@@ -493,89 +485,6 @@ export class ChapterRuntimeCoordinator {
       );
     } catch {
       // Ignore trace failures so chapter generation still completes.
-    }
-  }
-
-  private async runStyleReview(input: {
-    novelId: string;
-    chapterId: string;
-    request: ChapterRuntimeRequestInput;
-    contextPackage: GenerationContextPackage;
-    content: string;
-  }): Promise<StyleReviewResult> {
-    if (!input.contextPackage.styleContext?.compiledBlocks) {
-      return {
-        report: null,
-        autoRewritten: false,
-        originalContent: null,
-        finalContent: input.content,
-      };
-    }
-
-    let report: RuntimeStyleDetectionReport | null = null;
-    try {
-      report = await this.deps.styleDetectionService.check({
-        content: input.content,
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        taskStyleProfileId: input.request.taskStyleProfileId,
-        provider: input.request.provider,
-        model: input.request.model,
-        temperature: 0.2,
-      });
-    } catch {
-      return {
-        report: null,
-        autoRewritten: false,
-        originalContent: null,
-        finalContent: input.content,
-      };
-    }
-
-    const rewritableIssues = report.violations.filter((item) => item.canAutoRewrite && item.suggestion.trim());
-    const shouldAutoRewrite = report.canAutoRewrite
-      && rewritableIssues.length > 0
-      && report.riskScore >= 35;
-
-    if (!shouldAutoRewrite) {
-      return {
-        report,
-        autoRewritten: false,
-        originalContent: null,
-        finalContent: input.content,
-      };
-    }
-
-    try {
-      const rewritten = await this.deps.styleRewriteService.rewrite({
-        content: input.content,
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        taskStyleProfileId: input.request.taskStyleProfileId,
-        issues: rewritableIssues.map((item) => ({
-          ruleName: item.ruleName,
-          excerpt: item.excerpt,
-          suggestion: item.suggestion,
-        })),
-        provider: input.request.provider,
-        model: input.request.model,
-        temperature: Math.min(input.request.temperature ?? 0.5, 0.7),
-      });
-      const finalContent = rewritten.content.trim() || input.content;
-      const autoRewritten = finalContent.trim() !== input.content.trim();
-      return {
-        report,
-        autoRewritten,
-        originalContent: autoRewritten ? input.content : null,
-        finalContent,
-      };
-    } catch {
-      return {
-        report,
-        autoRewritten: false,
-        originalContent: null,
-        finalContent: input.content,
-      };
     }
   }
 

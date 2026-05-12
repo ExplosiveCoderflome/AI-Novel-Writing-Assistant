@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   AI_FREEDOM_OPTIONS,
   BASIC_INFO_FIELD_HINTS,
@@ -439,6 +440,25 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   })}
                 />
                 <div className="text-xs text-muted-foreground">0 表示刚起步，100 表示设定、角色和规划都比较完备。</div>
+              </div>
+            </div>
+
+            <div className="rounded-lg border bg-muted/15 p-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <FieldLabel htmlFor="basic-post-generation-style-review" hint={BASIC_INFO_FIELD_HINTS.postGenerationStyleReviewEnabled}>
+                    正文后去 AI 检测与修正
+                  </FieldLabel>
+                  <div className="text-xs leading-5 text-muted-foreground">
+                    开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
+                  </div>
+                </div>
+                <Switch
+                  id="basic-post-generation-style-review"
+                  aria-label="正文后去 AI 检测与修正"
+                  checked={basicForm.postGenerationStyleReviewEnabled}
+                  onCheckedChange={(checked) => onFormChange({ postGenerationStyleReviewEnabled: checked })}
+                />
               </div>
             </div>
           </SectionBlock>
