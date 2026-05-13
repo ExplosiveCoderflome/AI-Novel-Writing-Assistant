@@ -402,6 +402,7 @@ export class ChapterWritingGraph {
               sceneIndex: index + 1,
               sceneCount: input.scenePlan.scenes.length,
               chapterTargetWordCount: input.scenePlan.targetWordCount,
+              chapterHardMaxWordCount: input.scenePlan.lengthBudget.hardMaxWordCount,
               currentChapterContent: joinSceneContents(sceneContents),
               options: input.options,
               logWarn: this.deps.logWarn,

@@ -81,6 +81,17 @@ export function buildSceneContractBlock(input: {
       roundPlan ? `Current round: ${roundPlan.roundIndex}/${roundPlan.maxRounds}` : "",
       roundPlan ? `Closing phase: ${roundPlan.closingPhase ? "yes" : "no"}` : "",
       roundPlan ? `Is final round: ${roundPlan.isFinalRound ? "yes" : "no"}` : "",
+      roundPlan ? `Scene target length: about ${roundPlan.sceneTargetWordCount} Chinese characters.` : "",
+      roundPlan ? `Scene acceptable range: ${roundPlan.sceneMinWordCount}-${roundPlan.sceneMaxWordCount} Chinese characters.` : "",
+      roundPlan ? `Current scene draft length: ${roundPlan.currentSceneWordCount} Chinese characters.` : "",
+      roundPlan ? `Remaining scene budget: about ${roundPlan.remainingSceneWordCount} Chinese characters.` : "",
+      roundPlan ? `Remaining chapter budget before this round: about ${roundPlan.remainingChapterWordCount} Chinese characters.` : "",
+      typeof roundPlan?.suggestedRoundWordCount === "number"
+        ? `Suggested current round length: about ${roundPlan.suggestedRoundWordCount} Chinese characters.`
+        : "",
+      typeof roundPlan?.hardRoundWordLimit === "number"
+        ? `Current round hard limit: ${roundPlan.hardRoundWordLimit} Chinese characters.`
+        : "",
     ].filter(Boolean).join("\n"),
   });
 }

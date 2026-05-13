@@ -24,6 +24,14 @@ export interface ChapterWriterPromptInput {
   minWordCount?: number | null;
   maxWordCount?: number | null;
   missingWordGap?: number | null;
+  sceneTargetWordCount?: number | null;
+  sceneMinWordCount?: number | null;
+  sceneMaxWordCount?: number | null;
+  suggestedRoundWordCount?: number | null;
+  hardRoundWordLimit?: number | null;
+  currentChapterWordCount?: number | null;
+  remainingSceneWordCount?: number | null;
+  remainingChapterWordCount?: number | null;
 }
 
 export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, string> = {
@@ -96,6 +104,31 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
   render: (input, context) => {
     const mode = input.mode ?? "draft";
     const hasTarget = typeof input.targetWordCount === "number" && input.targetWordCount > 0;
+    const hasSceneTarget = typeof input.sceneTargetWordCount === "number" && input.sceneTargetWordCount > 0;
+    const sceneLengthBlock = hasSceneTarget
+      ? [
+          `当前场景目标：约 ${input.sceneTargetWordCount} 字。`,
+          typeof input.sceneMinWordCount === "number" && typeof input.sceneMaxWordCount === "number"
+            ? `当前场景可接受区间：${input.sceneMinWordCount}-${input.sceneMaxWordCount} 字。`
+            : "",
+          typeof input.suggestedRoundWordCount === "number" && input.suggestedRoundWordCount > 0
+            ? `本轮建议新增：约 ${input.suggestedRoundWordCount} 字。`
+            : "",
+          typeof input.hardRoundWordLimit === "number" && input.hardRoundWordLimit > 0
+            ? `本轮硬上限：${input.hardRoundWordLimit} 字；达到上限时必须自然收束当前句段，禁止继续扩写。`
+            : "",
+          typeof input.remainingSceneWordCount === "number"
+            ? `当前场景剩余预算：约 ${input.remainingSceneWordCount} 字。`
+            : "",
+          typeof input.currentChapterWordCount === "number"
+            ? `整章已写：约 ${input.currentChapterWordCount} 字。`
+            : "",
+          typeof input.remainingChapterWordCount === "number"
+            ? `整章剩余硬预算：约 ${input.remainingChapterWordCount} 字。`
+            : "",
+          "场景预算是当前写作范围的硬合同，不得把后续场景或整章内容提前写进本场景。",
+        ].filter(Boolean).join("\n")
+      : "";
     const lengthBlock = hasTarget
       ? [
           `本章目标长度：约 ${input.targetWordCount} 字。`,
@@ -105,7 +138,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
           "禁止明显低于目标篇幅，不够时必须继续推进新的有效情节、冲突、对话和动作，而不是草率收尾。",
           "禁止靠重复回顾、空泛心理独白、无信息量描写硬凑字数。",
         ].filter(Boolean).join("\n")
-      : "若上下文给出目标长度，必须尽量贴近，不得明显过短。";
+      : sceneLengthBlock || "若上下文给出目标长度，必须尽量贴近，不得明显过短。";
     const sceneBlock = [
       typeof input.sceneIndex === "number" && typeof input.sceneCount === "number"
         ? `当前只允许写第 ${input.sceneIndex}/${input.sceneCount} 个场景。`
@@ -176,6 +209,8 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
       continuationBlock ? continuationBlock : "",
       input.wordControlMode === "balanced"
         ? "4. 如果上下文给出了本轮建议字数与硬上限，必须优先遵守；非最后一轮不要贪写，不要试图一次完成整章。"
+        : input.wordControlMode === "prompt_only" && sceneLengthBlock
+          ? "4. 即使当前是 prompt_only，也必须遵守场景预算、整章剩余预算和本轮硬上限。"
         : "",
       "",
       "【表达要求】",

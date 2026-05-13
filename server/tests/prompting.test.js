@@ -323,7 +323,7 @@ test("character dynamics prompts harden plannedChapterOrders and confidence outp
   assert.match(String(chapterMessages[0].content), /"confidence":0.8/);
 });
 
-test("chapter writer prompt omits scene length budget hints in scene mode", () => {
+test("chapter writer prompt includes scene length budget hints in scene mode", () => {
   const messages = chapterWriterPrompt.render({
     novelTitle: "测试小说",
     chapterOrder: 1,
@@ -341,6 +341,14 @@ test("chapter writer prompt omits scene length budget hints in scene mode", () =
     entryState: "主角还在被动。",
     exitState: "主角确认反击窗口存在。",
     forbiddenExpansion: ["不要提前解决主线"],
+    sceneTargetWordCount: 900,
+    sceneMinWordCount: 765,
+    sceneMaxWordCount: 1035,
+    suggestedRoundWordCount: 480,
+    hardRoundWordLimit: 540,
+    currentChapterWordCount: 1200,
+    remainingSceneWordCount: 900,
+    remainingChapterWordCount: 1800,
   }, {
     blocks: [
       createContextBlock({
@@ -359,14 +367,16 @@ test("chapter writer prompt omits scene length budget hints in scene mode", () =
 
   const systemContent = String(messages[0].content);
   assert.match(systemContent, /场景标题：街头起势/);
-  assert.doesNotMatch(systemContent, /当前场景目标：约/);
-  assert.doesNotMatch(systemContent, /当前场景剩余预算：约/);
-  assert.doesNotMatch(systemContent, /整章目标：约/);
-  assert.doesNotMatch(systemContent, /本轮建议新增：约/);
-  assert.doesNotMatch(systemContent, /本轮硬上限：约/);
+  assert.match(systemContent, /当前场景目标：约 900 字/);
+  assert.match(systemContent, /当前场景可接受区间：765-1035 字/);
+  assert.match(systemContent, /当前场景剩余预算：约 900 字/);
+  assert.match(systemContent, /整章剩余硬预算：约 1800 字/);
+  assert.match(systemContent, /本轮建议新增：约 480 字/);
+  assert.match(systemContent, /本轮硬上限：540 字/);
+  assert.match(systemContent, /prompt_only.*场景预算/);
 });
 
-test("scene contract block omits direct length budget metadata", () => {
+test("scene contract block includes direct length budget metadata", () => {
   const block = buildSceneContractBlock({
     scene: {
       key: "scene_1",
@@ -394,17 +404,17 @@ test("scene contract block omits direct length budget metadata", () => {
       remainingSceneWordCount: 900,
       remainingChapterWordCount: 3000,
       suggestedRoundWordCount: 900,
-      hardRoundWordLimit: null,
+      hardRoundWordLimit: 1008,
       isFinalRound: true,
       closingPhase: true,
     },
   });
 
-  assert.doesNotMatch(block.content, /Scene target length:/);
-  assert.doesNotMatch(block.content, /Remaining chapter budget before this scene:/);
-  assert.doesNotMatch(block.content, /Current scene draft length:/);
-  assert.doesNotMatch(block.content, /Suggested current round length:/);
-  assert.doesNotMatch(block.content, /Current round hard limit:/);
+  assert.match(block.content, /Scene target length: about 900 Chinese characters/);
+  assert.match(block.content, /Remaining chapter budget before this round: about 3000 Chinese characters/);
+  assert.match(block.content, /Current scene draft length: 0 Chinese characters/);
+  assert.match(block.content, /Suggested current round length: about 900 Chinese characters/);
+  assert.match(block.content, /Current round hard limit: 1008 Chinese characters/);
   assert.match(block.content, /Entry state:/);
   assert.match(block.content, /Exit state:/);
 });

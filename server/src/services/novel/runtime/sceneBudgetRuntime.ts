@@ -86,8 +86,28 @@ export function buildSceneRoundPlan(input: SceneRoundPlanInput): SceneRoundPlan 
   const maxRounds = estimateSceneRoundCount(sceneTargetWordCount, mode);
   const roundsLeft = Math.max(1, maxRounds - input.roundIndex + 1);
   const remainingSceneWordCount = Math.max(sceneTargetWordCount - currentSceneWordCount, 0);
+  const sceneRemainingCap = Math.max(0, sceneMaxWordCount - currentSceneWordCount);
+  const chapterRemainingCap = Math.max(0, remainingChapterWordCount);
+
+  function resolveHardRoundWordLimit(suggestedWordCount: number | null, reserveForLaterRounds = 0): number | null {
+    if (sceneRemainingCap <= 0 || chapterRemainingCap <= 0) {
+      return null;
+    }
+    const usableChapterCap = Math.max(0, chapterRemainingCap - reserveForLaterRounds);
+    const effectiveChapterCap = usableChapterCap > 0 ? usableChapterCap : chapterRemainingCap;
+    const softRoundCap = suggestedWordCount && suggestedWordCount > 0
+      ? Math.max(140, Math.ceil(suggestedWordCount * 1.12))
+      : sceneRemainingCap;
+    const computedHardLimit = Math.min(
+      softRoundCap,
+      sceneRemainingCap,
+      effectiveChapterCap,
+    );
+    return computedHardLimit > 0 ? computedHardLimit : null;
+  }
 
   if (mode === "prompt_only") {
+    const suggestedWordCount = remainingSceneWordCount > 0 ? remainingSceneWordCount : null;
     return {
       mode,
       roundIndex: 1,
@@ -100,8 +120,8 @@ export function buildSceneRoundPlan(input: SceneRoundPlanInput): SceneRoundPlan 
       currentChapterWordCount,
       remainingSceneWordCount,
       remainingChapterWordCount,
-      suggestedRoundWordCount: remainingSceneWordCount > 0 ? remainingSceneWordCount : null,
-      hardRoundWordLimit: null,
+      suggestedRoundWordCount: suggestedWordCount,
+      hardRoundWordLimit: resolveHardRoundWordLimit(suggestedWordCount),
       isFinalRound: true,
       closingPhase: true,
     };
@@ -134,17 +154,8 @@ export function buildSceneRoundPlan(input: SceneRoundPlanInput): SceneRoundPlan 
   }
 
   let hardRoundWordLimit: number | null = null;
-  if (!isFinalRound && suggestedRoundWordCount && suggestedRoundWordCount > 0) {
-    const reserveForLaterRounds = roundsLeft > 1 ? Math.max(80, (roundsLeft - 1) * 60) : 0;
-    const chapterRemainingCap = Math.max(0, remainingChapterWordCount - reserveForLaterRounds);
-    const sceneRemainingCap = Math.max(0, sceneMaxWordCount - currentSceneWordCount);
-    const computedHardLimit = Math.min(
-      Math.max(140, Math.ceil(suggestedRoundWordCount * 1.12)),
-      sceneRemainingCap,
-      chapterRemainingCap || sceneRemainingCap,
-    );
-    hardRoundWordLimit = computedHardLimit > 0 ? computedHardLimit : null;
-  }
+  const reserveForLaterRounds = !isFinalRound && roundsLeft > 1 ? Math.max(80, (roundsLeft - 1) * 60) : 0;
+  hardRoundWordLimit = resolveHardRoundWordLimit(suggestedRoundWordCount, reserveForLaterRounds);
 
   return {
     mode,

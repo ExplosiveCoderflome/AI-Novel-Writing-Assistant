@@ -23,6 +23,7 @@ import {
 import {
   buildSceneRoundPlan,
   flushSceneStreamingBufferWithLimit,
+  resolveSceneWordControlMode,
   type SceneRoundPlan,
   type SceneWordControlMode,
 } from "./runtime/sceneBudgetRuntime";
@@ -53,6 +54,7 @@ interface ChapterSceneStreamInput {
   sceneIndex: number;
   sceneCount: number;
   chapterTargetWordCount: number;
+  chapterHardMaxWordCount: number;
   currentChapterContent: string;
   options: ChapterSceneStreamingOptions;
   logWarn: (message: string, meta?: Record<string, unknown>) => void;
@@ -145,12 +147,6 @@ function createAsyncChunkQueue() {
   };
 }
 
-function resolveSceneWordControlMode(_sceneRange: {
-  targetWordCount: number;
-}): SceneWordControlMode {
-  return "prompt_only";
-}
-
 function buildRoundInstruction(roundPlan: SceneRoundPlan): string {
   const suggestedWordCount = roundPlan.suggestedRoundWordCount ?? 0;
   return [
@@ -184,7 +180,11 @@ export function buildChapterSceneWriterBlocks(input: {
     incrementalContext: isIncrementalRound
       ? {
           previousRoundSummary: input.currentContent.trim()
-            ? buildDraftContinuationBlock(input.currentContent)
+            ? buildDraftContinuationBlock(
+                input.currentContent,
+                input.roundPlan?.sceneTargetWordCount,
+                input.roundPlan?.sceneMinWordCount,
+              )
             : null,
           currentSceneProgress: input.scene.exitState,
           roundInstruction: input.roundPlan ? buildRoundInstruction(input.roundPlan) : null,
@@ -207,6 +207,8 @@ export function buildChapterSceneWriterBlocks(input: {
         required: true,
         content: buildDraftContinuationBlock(
           input.currentContent,
+          input.roundPlan?.sceneTargetWordCount,
+          input.roundPlan?.sceneMinWordCount,
         ),
       })
       : null,
@@ -291,21 +293,33 @@ async function streamSceneRound(input: {
 
 async function runSceneStreaming(input: ChapterSceneStreamInput, emitChunk: (chunk: BaseMessageChunk) => void): Promise<SceneStreamResult> {
   const sceneRange = resolveSceneWordRange(input.scene.targetWordCount);
-  const wordControlMode = resolveSceneWordControlMode(sceneRange);
+  const wordControlMode = resolveSceneWordControlMode({ sceneTargetWordCount: sceneRange.targetWordCount });
   let currentSceneContent = "";
   let sceneStatus = "empty";
   let closingPhaseTriggered = false;
   let hardStopCount = 0;
   const roundResults: RuntimeSceneRoundResult[] = [];
+  const initialChapterWordCount = countChapterCharacters(input.currentChapterContent);
+  if (initialChapterWordCount >= input.chapterHardMaxWordCount) {
+    return {
+      sceneContent: "",
+      actualWordCount: 0,
+      sceneStatus: "skipped_chapter_budget_exhausted",
+      wordControlMode,
+      closingPhaseTriggered,
+      hardStopCount,
+      roundResults,
+    };
+  }
   const maxRounds = buildSceneRoundPlan({
     sceneTargetWordCount: sceneRange.targetWordCount,
     sceneMinWordCount: sceneRange.minWordCount,
     sceneMaxWordCount: sceneRange.maxWordCount,
     chapterTargetWordCount: input.chapterTargetWordCount,
     currentSceneWordCount: 0,
-    currentChapterWordCount: countChapterCharacters(input.currentChapterContent),
+    currentChapterWordCount: initialChapterWordCount,
     remainingChapterWordCount: Math.max(
-      input.chapterTargetWordCount - countChapterCharacters(input.currentChapterContent),
+      input.chapterHardMaxWordCount - initialChapterWordCount,
       0,
     ),
     roundIndex: 1,
@@ -317,20 +331,29 @@ async function runSceneStreaming(input: ChapterSceneStreamInput, emitChunk: (chu
       .filter(Boolean)
       .join("\n\n")
       .trim();
+    const currentChapterWordCount = countChapterCharacters(chapterDraft);
+    if (currentChapterWordCount >= input.chapterHardMaxWordCount) {
+      sceneStatus = currentSceneContent.trim() ? "generated_at_chapter_ceiling" : "skipped_chapter_budget_exhausted";
+      break;
+    }
     const roundPlan = buildSceneRoundPlan({
       sceneTargetWordCount: sceneRange.targetWordCount,
       sceneMinWordCount: sceneRange.minWordCount,
       sceneMaxWordCount: sceneRange.maxWordCount,
       chapterTargetWordCount: input.chapterTargetWordCount,
       currentSceneWordCount: countChapterCharacters(currentSceneContent),
-      currentChapterWordCount: countChapterCharacters(chapterDraft),
+      currentChapterWordCount,
       remainingChapterWordCount: Math.max(
-        input.chapterTargetWordCount - countChapterCharacters(chapterDraft),
+        input.chapterHardMaxWordCount - currentChapterWordCount,
         0,
       ),
       roundIndex,
       mode: wordControlMode,
     });
+    if (roundPlan.hardRoundWordLimit == null) {
+      sceneStatus = currentSceneContent.trim() ? "generated_at_chapter_ceiling" : "skipped_chapter_budget_exhausted";
+      break;
+    }
     closingPhaseTriggered = closingPhaseTriggered || roundPlan.closingPhase;
     const writerBlocks = buildChapterSceneWriterBlocks({
       contextPackage: input.contextPackage,
@@ -365,6 +388,14 @@ async function runSceneStreaming(input: ChapterSceneStreamInput, emitChunk: (chu
         entryState: input.scene.entryState,
         exitState: input.scene.exitState,
         forbiddenExpansion: input.scene.forbiddenExpansion,
+        sceneTargetWordCount: roundPlan.sceneTargetWordCount,
+        sceneMinWordCount: roundPlan.sceneMinWordCount,
+        sceneMaxWordCount: roundPlan.sceneMaxWordCount,
+        suggestedRoundWordCount: roundPlan.suggestedRoundWordCount,
+        hardRoundWordLimit: roundPlan.hardRoundWordLimit,
+        currentChapterWordCount: roundPlan.currentChapterWordCount,
+        remainingSceneWordCount: roundPlan.remainingSceneWordCount,
+        remainingChapterWordCount: roundPlan.remainingChapterWordCount,
       },
       contextBlocks: writerBlocks.allowedBlocks,
       options: {

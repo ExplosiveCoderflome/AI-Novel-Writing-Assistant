@@ -502,9 +502,6 @@ export class AuditService {
     if (!budget) {
       return [];
     }
-    if (!lengthControl || lengthControl.wordControlMode === "prompt_only") {
-      return [];
-    }
 
     const finalWordCount = countChapterCharacters(content);
     const issues: AuditReport["issues"] = [];

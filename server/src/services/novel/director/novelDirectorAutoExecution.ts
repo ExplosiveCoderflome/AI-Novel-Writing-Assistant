@@ -236,11 +236,11 @@ export function isDirectorAutoExecutionChapterProcessed(chapter: DirectorAutoExe
   if (!hasDirectorAutoExecutionChapterContent(chapter)) {
     return false;
   }
-  if (isDirectorAutoExecutionChapterCompleted(chapter)) {
-    return true;
-  }
   if (chapter.chapterStatus === "needs_repair") {
     return false;
+  }
+  if (isDirectorAutoExecutionChapterCompleted(chapter)) {
+    return true;
   }
   if (chapter.chapterStatus === "pending_review") {
     return true;

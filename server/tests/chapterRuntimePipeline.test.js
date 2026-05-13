@@ -8,6 +8,9 @@ const {
 const {
   ChapterEmptyContentError,
 } = require("../dist/services/novel/runtime/chapterEmptyContentError.js");
+const {
+  auditService,
+} = require("../dist/services/audit/AuditService.js");
 
 function createRuntimePackage(overallScore, options = {}) {
   return {
@@ -616,4 +619,41 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
   } finally {
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
+});
+
+test("synthetic length audit reports over-hard-max chapters in prompt_only mode", () => {
+  const reports = auditService.buildSyntheticLengthAuditReports(
+    "novel-1",
+    "chapter-1",
+    "正".repeat(1000),
+    {
+      chapterWriteContext: {
+        lengthBudget: {
+          targetWordCount: 300,
+          softMinWordCount: 255,
+          softMaxWordCount: 345,
+          hardMaxWordCount: 375,
+        },
+      },
+    },
+    {
+      targetWordCount: 300,
+      softMinWordCount: 255,
+      softMaxWordCount: 345,
+      hardMaxWordCount: 375,
+      finalWordCount: 1000,
+      variance: 700,
+      wordControlMode: "prompt_only",
+      plannedSceneCount: 1,
+      generatedSceneCount: 1,
+      sceneResults: [],
+      closingPhaseTriggered: true,
+      hardStopsTriggered: 0,
+      lengthRepairPath: ["scene_contract_generation"],
+      overlengthRepairApplied: false,
+    },
+  );
+
+  const issues = reports.flatMap((report) => report.issues);
+  assert.ok(issues.some((issue) => issue.code === "LENGTH_OVER_HARD_MAX" && issue.severity === "critical"));
 });
