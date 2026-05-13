@@ -4,6 +4,7 @@ import { prisma } from "../../db/prisma";
 import { novelEventBus } from "../../events";
 import { runWithLlmUsageTracking } from "../../llm/usageTracking";
 import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
+import { isChapterEmptyContentError } from "./runtime/chapterEmptyContentError";
 import {
   logPipelineError,
   logPipelineInfo,
@@ -21,6 +22,10 @@ import { buildPipelineCurrentItemLabel, buildPipelineStageProgress, decoratePipe
 export { buildPipelineCurrentItemLabel, buildPipelineStageProgress } from "./pipelineJobState";
 
 const PIPELINE_HEARTBEAT_INTERVAL_MS = 15000;
+
+function buildEmptyChapterDetail(chapter: { order: number; title: string }): string {
+  return `第${chapter.order}章「${chapter.title}」未返回正文，已暂停继续。`;
+}
 
 function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
   return {
@@ -695,6 +700,32 @@ export class NovelCorePipelineService {
               onStageChange: async (stage) => {
                 await applyChapterStage(stage);
               },
+              onEmptyContent: async (event) => {
+                const detail = buildEmptyChapterDetail(chapter);
+                const meta = {
+                  jobId,
+                  workflowTaskId: runtimePayload.workflowTaskId,
+                  novelId,
+                  chapterId: chapter.id,
+                  chapterOrder: chapter.order,
+                  provider: runtimePayload.provider,
+                  model: runtimePayload.model,
+                  runMode: runtimePayload.runMode,
+                  emptyAttempt: event.attempt,
+                  willRetry: event.willRetry,
+                  contentLength: event.contentLength,
+                  rawContentLength: event.rawContentLength,
+                  source: event.error.details.source,
+                };
+                if (event.willRetry) {
+                  logPipelineWarn("章节生成未返回正文，正在重试当前章", meta);
+                  return;
+                }
+                if (!qualityAlertDetails.includes(detail)) {
+                  qualityAlertDetails.push(detail);
+                }
+                logPipelineError("章节生成连续未返回正文，已暂停流水线", meta);
+              },
             },
           ).finally(() => {
             clearInterval(heartbeatTimer);
@@ -840,6 +871,19 @@ export class NovelCorePipelineService {
       }
 
       const message = error instanceof Error ? error.message : "流水线执行失败";
+      if (isChapterEmptyContentError(error)) {
+        logPipelineError("任务因章节空正文失败", {
+          jobId,
+          novelId,
+          provider: runtimePayload.provider,
+          model: runtimePayload.model,
+          runMode: runtimePayload.runMode,
+          workflowTaskId: runtimePayload.workflowTaskId,
+          source: error.details.source,
+          contentLength: error.details.trimmedLength,
+          rawContentLength: error.details.rawLength,
+        });
+      }
       await this.updateJobSafe(jobId, {
         status: "failed",
         error: message,

@@ -10,10 +10,24 @@ import {
   ChapterPatchRepairService,
 } from "../chapterPatchRepairService";
 import { detectForbiddenStyleEntities } from "../../styleEngine/styleGenerationSanitizer";
+import {
+  assertChapterContentNotEmpty,
+  isChapterEmptyContentError,
+  type ChapterEmptyContentError,
+} from "./chapterEmptyContentError";
 
 export interface PipelineRuntimeHooks {
   onCheckCancelled?: () => Promise<void>;
   onStageChange?: (stage: "generating_chapters" | "reviewing" | "repairing") => Promise<void>;
+  onEmptyContent?: (event: PipelineEmptyContentEvent) => Promise<void>;
+}
+
+export interface PipelineEmptyContentEvent {
+  attempt: number;
+  willRetry: boolean;
+  error: ChapterEmptyContentError;
+  contentLength: number;
+  rawContentLength: number;
 }
 
 export interface PipelineRuntimeInput extends ChapterRuntimeRequestInput {
@@ -98,6 +112,7 @@ interface RunPipelineChapterDeps {
 }
 
 const QUALITY_THRESHOLD = { coherence: 80, repetition: 75, engagement: 75 };
+const EMPTY_CONTENT_GENERATION_RETRY_LIMIT = 1;
 
 const AUDIT_CATEGORY_MAP: Record<"continuity" | "character" | "plot" | "mode_fit", ReviewIssue["category"]> = {
   continuity: "coherence",
@@ -136,12 +151,13 @@ export async function runPipelineChapterWithRuntime(
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     await hooks.onCheckCancelled?.();
     if (!content.trim()) {
-      await hooks.onStageChange?.("generating_chapters");
-      const generatedDraft = await deps.generateDraftFromWriter({
+      const generatedDraft = await generateNonEmptyDraftFromWriter({
+        deps,
         novelId,
         chapterId,
         request,
         assembled,
+        hooks,
       });
       content = generatedDraft.content;
       latestLengthControl = generatedDraft.lengthControl;
@@ -249,6 +265,62 @@ export async function runPipelineChapterWithRuntime(
     retryCountUsed,
     recoverableRepairFailure,
   };
+}
+
+async function generateNonEmptyDraftFromWriter(input: {
+  deps: RunPipelineChapterDeps;
+  novelId: string;
+  chapterId: string;
+  request: ChapterRuntimeRequestInput;
+  assembled: AssembledRuntimeChapter;
+  hooks: PipelineRuntimeHooks;
+}): Promise<{
+  content: string;
+  lengthControl?: ChapterRuntimePackage["lengthControl"];
+  artifactsAlreadySynced?: boolean;
+}> {
+  let emptyAttempt = 0;
+  while (true) {
+    await input.hooks.onCheckCancelled?.();
+    await input.hooks.onStageChange?.("generating_chapters");
+    try {
+      const generatedDraft = await input.deps.generateDraftFromWriter({
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        request: input.request,
+        assembled: input.assembled,
+      });
+      const content = assertChapterContentNotEmpty(generatedDraft.content, {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterOrder: input.assembled.chapter.order,
+        source: "pipeline_chapter_writer",
+        attempt: emptyAttempt + 1,
+        maxEmptyRetries: EMPTY_CONTENT_GENERATION_RETRY_LIMIT,
+      });
+      return {
+        ...generatedDraft,
+        content,
+      };
+    } catch (error) {
+      if (!isChapterEmptyContentError(error)) {
+        throw error;
+      }
+      emptyAttempt += 1;
+      const willRetry = emptyAttempt <= EMPTY_CONTENT_GENERATION_RETRY_LIMIT;
+      await input.hooks.onEmptyContent?.({
+        attempt: emptyAttempt,
+        willRetry,
+        error,
+        contentLength: error.details.trimmedLength,
+        rawContentLength: error.details.rawLength,
+      });
+      if (willRetry) {
+        continue;
+      }
+      throw error;
+    }
+  }
 }
 
 async function syncFinalRetainedChapterArtifacts(

@@ -28,6 +28,11 @@ import {
   type PipelineRuntimeInput,
   type PipelineRuntimeResult,
 } from "./chapterRuntimePipeline";
+import {
+  assertChapterContentNotEmpty,
+  isChapterEmptyContentError,
+  type ChapterEmptyContentError,
+} from "./chapterEmptyContentError";
 
 interface AgentRuntimeLike {
   createChapterGenRun: (novelId: string, chapterId: string, chapterOrder: number) => Promise<string>;
@@ -266,8 +271,15 @@ export class ChapterRuntimeCoordinator {
           phase: "finalizing",
           message: "正文已生成，正在整理章节文本并保存草稿。",
         });
-        const normalized = await writerResult.onDone(fullContent);
-        const generatedContent = normalized?.finalContent ?? fullContent;
+        const normalized = await this.resolveWriterResultWithEmptyRetry({
+          novelId,
+          chapterId,
+          request,
+          assembled,
+          writerDone: () => writerResult.onDone(fullContent),
+          fallbackContent: fullContent,
+        });
+        const generatedContent = normalized.finalContent;
         this.emitRunStatus(helpers, {
           type: "run_status",
           runId: runStatusId,
@@ -316,48 +328,55 @@ export class ChapterRuntimeCoordinator {
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
     this.assertStateDrivenReady(assembled.contextPackage, request);
     await this.markChapterStatus(chapterId, "generating");
-    return runPipelineChapterWithRuntime(
-      {
-        validateRequest: () => request,
-        ensureNovelCharacters: this.deps.ensureNovelCharacters,
-        assemble: async () => assembled as AssembledRuntimeChapter,
-        generateDraftFromWriter: (input) => this.generateDraftFromWriter(input),
-        saveDraftAndArtifacts: (targetNovelId, targetChapterId, content, generationState, options) =>
-          this.deps.artifactSyncService.saveDraftAndArtifacts(
-            targetNovelId,
-            targetChapterId,
-            content,
-            generationState,
-            options,
-          ),
-        syncFinalChapterArtifacts: (targetNovelId, targetChapterId, content) =>
-          this.deps.artifactSyncService.syncChapterArtifacts(
-            targetNovelId,
-            targetChapterId,
-            content,
-            { scheduleBackgroundSync: true },
-          ),
-        finalizeChapterContent: async (input) => {
-          const finalized = await this.finalizeChapterContent({
-            ...input,
-            deferArtifactBackgroundSync: true,
-            scheduleDeferredArtifactBackgroundSync: false,
-          });
-          return {
-            finalContent: finalized.finalContent,
-            runtimePackage: finalized.runtimePackage,
-          };
+    try {
+      return await runPipelineChapterWithRuntime(
+        {
+          validateRequest: () => request,
+          ensureNovelCharacters: this.deps.ensureNovelCharacters,
+          assemble: async () => assembled as AssembledRuntimeChapter,
+          generateDraftFromWriter: (input) => this.generateDraftFromWriter(input),
+          saveDraftAndArtifacts: (targetNovelId, targetChapterId, content, generationState, options) =>
+            this.deps.artifactSyncService.saveDraftAndArtifacts(
+              targetNovelId,
+              targetChapterId,
+              content,
+              generationState,
+              options,
+            ),
+          syncFinalChapterArtifacts: (targetNovelId, targetChapterId, content) =>
+            this.deps.artifactSyncService.syncChapterArtifacts(
+              targetNovelId,
+              targetChapterId,
+              content,
+              { scheduleBackgroundSync: true },
+            ),
+          finalizeChapterContent: async (input) => {
+            const finalized = await this.finalizeChapterContent({
+              ...input,
+              deferArtifactBackgroundSync: true,
+              scheduleDeferredArtifactBackgroundSync: false,
+            });
+            return {
+              finalContent: finalized.finalContent,
+              runtimePackage: finalized.runtimePackage,
+            };
+          },
+          markChapterGenerationState: (targetChapterId, generationState) =>
+            this.markChapterGenerationState(targetChapterId, generationState),
+          markChapterNeedsRepair: (targetChapterId) =>
+            this.markChapterStatus(targetChapterId, "needs_repair"),
         },
-        markChapterGenerationState: (targetChapterId, generationState) =>
-          this.markChapterGenerationState(targetChapterId, generationState),
-        markChapterNeedsRepair: (targetChapterId) =>
-          this.markChapterStatus(targetChapterId, "needs_repair"),
-      },
-      novelId,
-      chapterId,
-      options,
-      hooks,
-    );
+        novelId,
+        chapterId,
+        options,
+        hooks,
+      );
+    } catch (error) {
+      if (isChapterEmptyContentError(error)) {
+        await this.markChapterStatus(chapterId, "pending_generation");
+      }
+      throw error;
+    }
   }
 
   private getAgentRuntime(): AgentRuntimeLike {
@@ -428,12 +447,95 @@ export class ChapterRuntimeCoordinator {
       fullContent += toText(chunk.content);
     }
     const normalized = await writerResult.onDone(fullContent);
+    const content = assertChapterContentNotEmpty(normalized?.finalContent ?? fullContent, {
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      chapterOrder: input.assembled.chapter.order,
+      source: "chapter_runtime_writer",
+    });
     return {
-      content: normalized?.finalContent ?? fullContent,
+      content,
       lengthControl: normalized?.lengthControl,
       artifactsAlreadySynced: Boolean(normalized?.artifactsAlreadySynced),
       backgroundSyncDeferred: Boolean(normalized?.backgroundSyncDeferred),
     };
+  }
+
+  private async resolveWriterResultWithEmptyRetry(input: {
+    novelId: string;
+    chapterId: string;
+    request: ChapterRuntimeRequestInput;
+    assembled: AssembledRuntimeChapter;
+    writerDone: () => Promise<{
+      finalContent: string;
+      lengthControl?: ChapterRuntimePackage["lengthControl"];
+      artifactsAlreadySynced?: boolean;
+      backgroundSyncDeferred?: boolean;
+    } | void>;
+    fallbackContent: string;
+  }): Promise<{
+    finalContent: string;
+    lengthControl?: ChapterRuntimePackage["lengthControl"];
+    artifactsAlreadySynced?: boolean;
+    backgroundSyncDeferred?: boolean;
+  }> {
+    try {
+      const normalized = await input.writerDone();
+      const finalContent = assertChapterContentNotEmpty(normalized?.finalContent ?? input.fallbackContent, {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterOrder: input.assembled.chapter.order,
+        source: "chapter_stream_writer",
+        attempt: 1,
+        maxEmptyRetries: 1,
+      });
+      return {
+        ...(normalized ?? {}),
+        finalContent,
+      };
+    } catch (error) {
+      if (!isChapterEmptyContentError(error)) {
+        throw error;
+      }
+      this.logEmptyChapterContent({
+        error,
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterOrder: input.assembled.chapter.order,
+        request: input.request,
+        willRetry: true,
+        attempt: 1,
+      });
+    }
+
+    try {
+      const retryDraft = await this.generateDraftFromWriter({
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        request: input.request,
+        assembled: input.assembled,
+      });
+      return {
+        finalContent: retryDraft.content,
+        lengthControl: retryDraft.lengthControl,
+        artifactsAlreadySynced: retryDraft.artifactsAlreadySynced,
+        backgroundSyncDeferred: retryDraft.backgroundSyncDeferred,
+      };
+    } catch (error) {
+      if (isChapterEmptyContentError(error)) {
+        this.logEmptyChapterContent({
+          error,
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          chapterOrder: input.assembled.chapter.order,
+          request: input.request,
+          willRetry: false,
+          attempt: 2,
+        });
+        await this.markChapterStatus(input.chapterId, "pending_generation");
+      }
+      throw error;
+    }
   }
 
   private async finalizeChapterContent(input: {
@@ -724,9 +826,32 @@ export class ChapterRuntimeCoordinator {
     });
   }
 
+  private logEmptyChapterContent(input: {
+    error: ChapterEmptyContentError;
+    novelId: string;
+    chapterId: string;
+    chapterOrder: number;
+    request: ChapterRuntimeRequestInput;
+    willRetry: boolean;
+    attempt: number;
+  }): void {
+    console.warn("[chapter-runtime] empty chapter content", {
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      chapterOrder: input.chapterOrder,
+      provider: input.request.provider,
+      model: input.request.model,
+      willRetry: input.willRetry,
+      attempt: input.attempt,
+      contentLength: input.error.details.trimmedLength,
+      rawContentLength: input.error.details.rawLength,
+      source: input.error.details.source,
+    });
+  }
+
   private async markChapterStatus(
     chapterId: string,
-    chapterStatus: "generating" | "pending_review" | "needs_repair",
+    chapterStatus: "pending_generation" | "generating" | "pending_review" | "needs_repair",
   ): Promise<void> {
     await prisma.chapter.update({
       where: { id: chapterId },

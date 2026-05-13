@@ -23,6 +23,7 @@ import { chapterWriterPrompt } from "../../prompting/prompts/novel/chapterWriter
 import { createChapterSceneStream } from "./chapterSceneStreaming";
 import { NovelContinuationService } from "./NovelContinuationService";
 import { joinSceneContents } from "./chapterWritingGraphShared";
+import { assertChapterContentNotEmpty } from "./runtime/chapterEmptyContentError";
 
 export interface ChapterGraphLLMOptions {
   provider?: LLMProvider;
@@ -493,6 +494,12 @@ export class ChapterWritingGraph {
             input.options,
             continuationPack,
           );
+          const safeContent = assertChapterContentNotEmpty(normalized, {
+            novelId: input.novelId,
+            chapterId: input.chapter.id,
+            chapterOrder: input.chapter.order,
+            source: "scene_chapter_writer",
+          });
           const finalWordCount = countChapterCharacters(normalized);
           const lengthControl = completed?.lengthControl
             ? {
@@ -504,12 +511,12 @@ export class ChapterWritingGraph {
           await this.deps.saveDraftAndArtifacts(
             input.novelId,
             input.chapter.id,
-            normalized,
+            safeContent,
             "drafted",
             { scheduleBackgroundSync: !input.options.deferArtifactBackgroundSync },
           );
           return {
-            finalContent: normalized,
+            finalContent: safeContent,
             lengthControl,
             artifactsAlreadySynced: true,
             backgroundSyncDeferred: Boolean(input.options.deferArtifactBackgroundSync),
@@ -585,15 +592,21 @@ export class ChapterWritingGraph {
           contextPackage,
           options: input.options,
         });
+        const safeContent = assertChapterContentNotEmpty(lengthAdjusted, {
+          novelId: input.novelId,
+          chapterId: input.chapter.id,
+          chapterOrder: input.chapter.order,
+          source: "chapter_writer",
+        });
         await this.deps.saveDraftAndArtifacts(
           input.novelId,
           input.chapter.id,
-          lengthAdjusted,
+          safeContent,
           "drafted",
           { scheduleBackgroundSync: !input.options.deferArtifactBackgroundSync },
         );
         return {
-          finalContent: lengthAdjusted,
+          finalContent: safeContent,
           artifactsAlreadySynced: true,
           backgroundSyncDeferred: Boolean(input.options.deferArtifactBackgroundSync),
         };

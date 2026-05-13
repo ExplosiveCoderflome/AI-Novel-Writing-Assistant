@@ -5,6 +5,9 @@ const promptRunner = require("../dist/prompting/core/promptRunner.js");
 const {
   runPipelineChapterWithRuntime,
 } = require("../dist/services/novel/runtime/chapterRuntimePipeline.js");
+const {
+  ChapterEmptyContentError,
+} = require("../dist/services/novel/runtime/chapterEmptyContentError.js");
 
 function createRuntimePackage(overallScore, options = {}) {
   return {
@@ -369,6 +372,148 @@ test("runPipelineChapterWithRuntime does not save a generated draft twice when w
   assert.deepEqual(finalSyncs, ["generated draft"]);
   assert.equal(result.pass, true);
   assert.equal(result.reviewExecuted, true);
+});
+
+test("runPipelineChapterWithRuntime retries once when writer returns empty content", async () => {
+  const stages = [];
+  const emptyEvents = [];
+  const savedDrafts = [];
+  let generationCount = 0;
+
+  const result = await runPipelineChapterWithRuntime(
+    {
+      validateRequest(input) {
+        return input;
+      },
+      async ensureNovelCharacters() {},
+      async assemble() {
+        return {
+          novel: { id: "novel-1", title: "测试小说" },
+          chapter: {
+            id: "chapter-1",
+            title: "第一章",
+            order: 1,
+            content: null,
+            expectation: null,
+          },
+          contextPackage: {},
+        };
+      },
+      async generateDraftFromWriter() {
+        generationCount += 1;
+        return { content: generationCount === 1 ? "   " : "重试后的正文" };
+      },
+      async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
+        savedDrafts.push({ content, generationState });
+      },
+      async syncFinalChapterArtifacts() {},
+      async finalizeChapterContent({ content }) {
+        return {
+          finalContent: content,
+          runtimePackage: createRuntimePackage(90),
+        };
+      },
+      async markChapterGenerationState() {},
+      async markChapterNeedsRepair() {},
+    },
+    "novel-1",
+    "chapter-1",
+    {
+      autoReview: true,
+      autoRepair: true,
+    },
+    {
+      async onStageChange(stage) {
+        stages.push(stage);
+      },
+      async onEmptyContent(event) {
+        emptyEvents.push({
+          attempt: event.attempt,
+          willRetry: event.willRetry,
+          contentLength: event.contentLength,
+        });
+      },
+    },
+  );
+
+  assert.equal(generationCount, 2);
+  assert.deepEqual(stages, ["generating_chapters", "generating_chapters", "reviewing"]);
+  assert.deepEqual(emptyEvents, [{ attempt: 1, willRetry: true, contentLength: 0 }]);
+  assert.deepEqual(savedDrafts, [{
+    content: "重试后的正文",
+    generationState: "drafted",
+  }]);
+  assert.equal(result.pass, true);
+});
+
+test("runPipelineChapterWithRuntime fails empty writer output without saving or advancing state", async () => {
+  const emptyEvents = [];
+  const savedDrafts = [];
+  const generationStates = [];
+  let generationCount = 0;
+
+  await assert.rejects(
+    () => runPipelineChapterWithRuntime(
+      {
+        validateRequest(input) {
+          return input;
+        },
+        async ensureNovelCharacters() {},
+        async assemble() {
+          return {
+            novel: { id: "novel-1", title: "测试小说" },
+            chapter: {
+              id: "chapter-1",
+              title: "第一章",
+              order: 1,
+              content: null,
+              expectation: null,
+            },
+            contextPackage: {},
+          };
+        },
+        async generateDraftFromWriter() {
+          generationCount += 1;
+          return { content: generationCount === 1 ? "" : "\n\n" };
+        },
+        async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
+          savedDrafts.push({ content, generationState });
+        },
+        async syncFinalChapterArtifacts() {},
+        async finalizeChapterContent() {
+          throw new Error("empty drafts should not be reviewed");
+        },
+        async markChapterGenerationState(_chapterId, generationState) {
+          generationStates.push(generationState);
+        },
+        async markChapterNeedsRepair() {},
+      },
+      "novel-1",
+      "chapter-1",
+      {
+        autoReview: true,
+        autoRepair: true,
+      },
+      {
+        async onEmptyContent(event) {
+          emptyEvents.push({
+            attempt: event.attempt,
+            willRetry: event.willRetry,
+            contentLength: event.contentLength,
+          });
+        },
+      },
+    ),
+    ChapterEmptyContentError,
+  );
+
+  assert.equal(generationCount, 2);
+  assert.deepEqual(emptyEvents, [
+    { attempt: 1, willRetry: true, contentLength: 0 },
+    { attempt: 2, willRetry: false, contentLength: 0 },
+  ]);
+  assert.deepEqual(savedDrafts, []);
+  assert.deepEqual(generationStates, []);
 });
 
 test("runPipelineChapterWithRuntime defaults to a single repair pass before stopping", async () => {

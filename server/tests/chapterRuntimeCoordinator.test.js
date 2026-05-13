@@ -218,6 +218,56 @@ test("createChapterStream lets full_book_autopilot continue past pending state p
   assert.deepEqual(statusCalls, [["chapter-1", "generating"]]);
 });
 
+test("createChapterStream retries once before failing empty generated content", async () => {
+  const assembled = createAssembledChapter();
+  const writerCalls = [];
+  const statusCalls = [];
+  const finalized = [];
+
+  const coordinator = new ChapterRuntimeCoordinator({
+    validateRequest: (input) => input,
+    ensureNovelCharacters: async () => undefined,
+    ensureChapterExecutionContract: async () => undefined,
+    assembler: {
+      assemble: async () => assembled,
+    },
+    chapterWritingGraph: {
+      createChapterStream: async () => {
+        writerCalls.push("writer");
+        const currentCall = writerCalls.length;
+        return {
+          stream: createEmptyStream(),
+          onDone: async () => ({
+            finalContent: currentCall === 1 ? "   " : "重试后的正文",
+            artifactsAlreadySynced: true,
+          }),
+        };
+      },
+    },
+    agentRuntime: createAgentRuntime(),
+  });
+  coordinator.markChapterStatus = async (...args) => {
+    statusCalls.push(args);
+  };
+  coordinator.finalizeChapterContent = async (input) => {
+    finalized.push(input.content);
+    return {
+      finalContent: input.content,
+      runtimePackage: {
+        audit: { hasBlockingIssues: false },
+      },
+    };
+  };
+
+  const result = await coordinator.createChapterStream("novel-1", "chapter-1", {});
+  const done = await result.onDone("", { writeFrame: () => undefined });
+
+  assert.equal(writerCalls.length, 2);
+  assert.deepEqual(statusCalls, [["chapter-1", "generating"]]);
+  assert.deepEqual(finalized, ["重试后的正文"]);
+  assert.equal(done.fullContent, "重试后的正文");
+});
+
 test("runPipelineChapter does not leave a blocked chapter in generating status", async () => {
   const assembled = createAssembledChapter();
   assembled.contextPackage.nextAction = "hold_for_review";

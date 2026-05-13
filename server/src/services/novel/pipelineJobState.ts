@@ -323,10 +323,16 @@ export function getPipelineReplanNotice(details: string[] | undefined): Pipeline
 
 export function decoratePipelineJob<T extends PipelineJobLike>(job: T): DecoratedPipelineJob<T> {
   const payload = parsePipelinePayload(job.payload);
+  const qualityNotice = getPipelineQualityNotice(payload.qualityAlertDetails, payload.recoverableRepairDetails);
   const notice = job.status === "succeeded"
     ? (getPipelineReplanNotice(payload.replanAlertDetails).noticeCode
       ? getPipelineReplanNotice(payload.replanAlertDetails)
-      : getPipelineQualityNotice(payload.qualityAlertDetails, payload.recoverableRepairDetails))
+      : qualityNotice)
+    : qualityNotice.noticeSummary
+      ? {
+        ...qualityNotice,
+        displayStatus: "Failed with generation alerts",
+      }
     : {
       displayStatus: null,
       noticeCode: null,

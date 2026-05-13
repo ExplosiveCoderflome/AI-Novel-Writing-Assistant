@@ -4,6 +4,7 @@ import { withSqliteRetry } from "../../../db/sqliteRetry";
 import { ragServices } from "../../rag";
 import { briefSummary, extractFacts } from "../novelP0Utils";
 import { chapterArtifactBackgroundSyncService } from "./ChapterArtifactBackgroundSyncService";
+import { assertChapterContentNotEmpty } from "./chapterEmptyContentError";
 
 export interface ChapterArtifactSyncOptions {
   scheduleBackgroundSync?: boolean;
@@ -17,18 +18,23 @@ export class ChapterArtifactSyncService {
     generationState: "drafted" | "repaired",
     options: ChapterArtifactSyncOptions = {},
   ): Promise<void> {
+    const safeContent = assertChapterContentNotEmpty(content, {
+      novelId,
+      chapterId,
+      source: "chapter_artifact_save",
+    });
     await withSqliteRetry(
       () => prisma.chapter.update({
         where: { id: chapterId },
         data: {
-          content,
+          content: safeContent,
           generationState,
           chapterStatus: "generating",
         },
       }),
       { label: "chapterArtifactSync.chapter.update" },
     );
-    await this.syncChapterArtifacts(novelId, chapterId, content, options);
+    await this.syncChapterArtifacts(novelId, chapterId, safeContent, options);
   }
 
   async syncChapterArtifacts(
