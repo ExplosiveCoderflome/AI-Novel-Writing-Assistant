@@ -578,22 +578,13 @@ test("chapter layered contexts carry volume mission, character duties and repair
   const reviewBlocks = buildChapterReviewContextBlocks(reviewContext);
   const repairBlocks = buildChapterRepairContextBlocks(repairContext);
 
-  assert.ok(writerBlocks.some((block) => (
-    block.id === "chapter_boundary"
-    && /Protected reveals/.test(block.content)
-    && /Hidden mastermind identity/.test(block.content)
-    && /Do not cross/.test(block.content)
-  )));
+  assert.ok(!writerBlocks.some((block) => block.id === "chapter_boundary"));
   assert.ok(writerBlocks.some((block) => (
     block.id === "payoff_directives"
     && /First payoff after securing the key intel/.test(block.content)
     && /\[pressure\]/.test(block.content)
   )));
-  assert.ok(writerBlocks.some((block) => (
-    block.id === "scene_plan"
-    && /Scene count: 3/.test(block.content)
-    && /第一次反压 \[1200\]/.test(block.content)
-  )));
+  assert.ok(!writerBlocks.some((block) => block.id === "scene_plan"));
   assert.ok(writerBlocks.some((block) => (
     block.id === "payoff_ledger"
     && /Payoff ledger summary: pending=1, urgent=1, overdue=1/.test(block.content)
