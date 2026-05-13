@@ -142,6 +142,67 @@ test("executable projection steps inspect preloaded artifacts before validation"
   assert.deepEqual(runtimeCalls, []);
 });
 
+test("executable steps can force rerun instead of reusing completed facts", async () => {
+  const produced = buildArtifact("candidate_batch", {
+    id: "candidate_batch:global:batch-2:DirectorCandidateBatch:batch-2",
+    targetType: "global",
+    targetId: null,
+  });
+  const { orchestrator, runtimeCalls } = buildOrchestrator([]);
+  const module = createWorkflowStepModule(
+    {
+      id: "test.candidate.refine",
+      nodeKey: "candidate_refine",
+      label: "Refine candidates",
+      stage: "candidate_selection",
+      targetType: "global",
+      reads: ["user_seed"],
+      writes: ["candidate_batch"],
+      mayModifyUserContent: false,
+      requiresApprovalByDefault: false,
+      supportsAutoRetry: false,
+    },
+    async () => undefined,
+    {
+      inspectReadiness: async () => ({ ready: true, blockers: [] }),
+      inspectCompletion: async () => ({
+        stepId: "test.candidate.refine",
+        completed: true,
+        completenessRatio: 1,
+      }),
+      buildInput: async () => undefined,
+      validateOutput: async (output) => ({
+        valid: output?.batch?.id === "batch-2",
+        reason: "candidate batch missing",
+      }),
+      inspectProgress: async () => ({
+        status: "completed",
+        current: 1,
+        total: 1,
+        ratio: 1,
+        label: "done",
+      }),
+      recover: async () => ({ recoverable: true }),
+      completeCriteria: async (output) => output?.batch?.id === "batch-2",
+      commit: async () => ({ producedArtifacts: [produced] }),
+    },
+  );
+
+  const result = await orchestrator.runStepModule({
+    module,
+    taskId: "task-1",
+    novelId: "novel-1",
+    reuseCompletedStep: false,
+    runner: async () => ({ batch: { id: "batch-2" } }),
+  });
+
+  assert.deepEqual(result, { batch: { id: "batch-2" } });
+  assert.equal(runtimeCalls.length, 1);
+  assert.equal(runtimeCalls[0].nodeKey, "candidate_refine");
+  assert.equal(runtimeCalls[0].reuseCompletedStep, false);
+  assert.deepEqual(runtimeCalls[0].producedArtifacts, [produced]);
+});
+
 test.skip("chapter execution records the standard node sequence without rerunning the pipeline", { skip: "Runtime orchestrator node sequencing is covered by newer module tests until this legacy fixture is rebuilt." }, async () => {
   const mixedArtifacts = [
     artifact,

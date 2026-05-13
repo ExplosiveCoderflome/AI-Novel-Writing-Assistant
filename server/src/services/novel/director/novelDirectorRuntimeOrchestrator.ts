@@ -290,9 +290,11 @@ export class NovelDirectorRuntimeOrchestrator {
       targetId: input.targetId ?? null,
       artifacts: preloadedArtifacts,
     };
-    const completion = await input.module.inspectCompletion(context);
-    if (completion.completed) {
-      return undefined as TOutput;
+    if (input.reuseCompletedStep !== false) {
+      const completion = await input.module.inspectCompletion(context);
+      if (completion.completed) {
+        return undefined as TOutput;
+      }
     }
     const readiness = await input.module.inspectReadiness(context);
     if (!readiness.ready) {

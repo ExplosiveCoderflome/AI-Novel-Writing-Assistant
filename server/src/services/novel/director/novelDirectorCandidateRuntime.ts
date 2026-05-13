@@ -132,6 +132,7 @@ export class NovelDirectorCandidateRuntime {
         return await this.deps.runtimeOrchestrator.runStepModule<T>({
           module,
           taskId,
+          reuseCompletedStep: false,
           runner: () => this.deps.withWorkflowTaskUsage(workflowTaskId, runner),
           collectArtifacts: () => [],
         });
