@@ -2,6 +2,7 @@ import type { BaseMessageChunk } from "@langchain/core/messages";
 import type { StreamDoneHelpers, StreamDonePayload, WritableSSEFrame } from "../../../llm/streaming";
 import type {
   ChapterRuntimePackage,
+  ChapterAcceptanceRepairDirective,
   GenerationContextPackage,
 } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../../db/prisma";
@@ -17,6 +18,7 @@ import { GenerationContextAssembler } from "./GenerationContextAssembler";
 import type { StyleReviewResult } from "./PostGenerationStyleReviewRunner";
 import { ChapterAcceptanceAssessmentService } from "./ChapterAcceptanceAssessmentService";
 import { ChapterRuntimeReadinessService } from "./ChapterRuntimeReadinessService";
+import type { ChapterAcceptanceAssessmentOutput } from "../../../prompting/prompts/novel/chapterAcceptance.prompts";
 import { chapterRuntimeRequestSchema, type ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import { withChapterRepairContext } from "../../../prompting/prompts/novel/chapterLayeredContext";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
@@ -582,11 +584,16 @@ export class ChapterRuntimeCoordinator {
       auditResult,
       activeOpenConflicts,
       styleReview,
+      acceptance: acceptance.assessment,
       runId: input.runId,
     });
     await this.markChapterStatus(
       input.chapterId,
-      runtimePackage.audit.hasBlockingIssues ? "needs_repair" : "pending_review",
+      acceptance.assessment.status === "repairable"
+      || acceptance.assessment.status === "needs_manual_review"
+      || runtimePackage.audit.hasBlockingIssues
+        ? "needs_repair"
+        : "pending_review",
     );
 
     if (input.deferArtifactBackgroundSync && input.scheduleDeferredArtifactBackgroundSync !== false) {
@@ -633,6 +640,7 @@ export class ChapterRuntimeCoordinator {
     auditResult: Awaited<ReturnType<typeof auditService.auditChapter>>;
     activeOpenConflicts: Awaited<ReturnType<typeof openConflictService.listOpenConflicts>>;
     styleReview: StyleReviewResult;
+    acceptance: ChapterAcceptanceAssessmentOutput;
     runId: string | null;
   }): ChapterRuntimePackage {
     const syntheticPayoffIssues = buildSyntheticPayoffIssues(
@@ -687,7 +695,7 @@ export class ChapterRuntimeCoordinator {
         .filter((issue) => issue.severity === "high" || issue.severity === "critical")
         .map((issue) => issue.ledgerKey),
     ));
-    const hasBlockingIssues = blockingIssueIds.length > 0;
+    const hasBlockingIssues = blockingIssueIds.length > 0 || input.acceptance.status === "needs_manual_review";
     const repairContextPackage = withChapterRepairContext(
       input.contextPackage,
       openIssues.map((issue) => ({
@@ -784,6 +792,11 @@ export class ChapterRuntimeCoordinator {
         nextAction: input.contextPackage.nextAction,
         stateGoalSummary: input.contextPackage.chapterStateGoal?.summary,
         pendingReviewProposalCount: input.contextPackage.pendingReviewProposalCount,
+        acceptanceStatus: input.acceptance.status,
+        continuePolicy: input.acceptance.continuePolicy,
+        riskTags: input.acceptance.riskTags,
+        repairDirectives: input.acceptance.repairDirectives,
+        assetSyncRecommendation: input.acceptance.assetSyncRecommendation,
       },
     };
   }

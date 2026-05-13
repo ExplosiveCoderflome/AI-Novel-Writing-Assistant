@@ -688,6 +688,19 @@ export const runtimeQualityScoreSchema = z.object({
   overall: z.number(),
 });
 
+export const chapterAcceptanceStatusSchema = z.enum(["accepted", "repairable", "needs_manual_review", "continue_with_risk"]);
+export const chapterAcceptanceContinuePolicySchema = z.enum(["continue", "repair_once", "pause"]);
+export const chapterAcceptanceRepairDirectiveSchema = z.object({
+  mode: z.enum(["patch", "rewrite", "manual"]),
+  target: z.enum(["continuity", "character", "plot", "ending", "voice"]),
+  instruction: z.string(),
+});
+export const chapterAcceptanceAssetSyncRecommendationSchema = z.object({
+  priority: z.enum(["normal", "high"]),
+  reason: z.string(),
+  requiresFullPayoffReconcile: z.boolean(),
+});
+
 export const runtimeAuditReportSchema = z.object({
   id: z.string(),
   novelId: z.string(),
@@ -813,6 +826,11 @@ export const chapterRuntimePackageSchema = z.object({
     nextAction: generationNextActionSchema.optional(),
     stateGoalSummary: z.string().optional(),
     pendingReviewProposalCount: z.number().int().nonnegative().optional(),
+    acceptanceStatus: chapterAcceptanceStatusSchema.optional(),
+    continuePolicy: chapterAcceptanceContinuePolicySchema.optional(),
+    riskTags: z.array(z.string()).optional(),
+    repairDirectives: z.array(chapterAcceptanceRepairDirectiveSchema).optional(),
+    assetSyncRecommendation: chapterAcceptanceAssetSyncRecommendationSchema.optional(),
   }),
 });
 
@@ -864,6 +882,10 @@ export type ChapterRepairIssue = z.infer<typeof chapterRepairIssueSchema>;
 export type ChapterRepairContext = z.infer<typeof chapterRepairContextSchema>;
 export type GenerationContextPackage = z.infer<typeof generationContextPackageSchema>;
 export type RuntimeQualityScore = z.infer<typeof runtimeQualityScoreSchema>;
+export type ChapterAcceptanceStatus = z.infer<typeof chapterAcceptanceStatusSchema>;
+export type ChapterAcceptanceContinuePolicy = z.infer<typeof chapterAcceptanceContinuePolicySchema>;
+export type ChapterAcceptanceRepairDirective = z.infer<typeof chapterAcceptanceRepairDirectiveSchema>;
+export type ChapterAcceptanceAssetSyncRecommendation = z.infer<typeof chapterAcceptanceAssetSyncRecommendationSchema>;
 export type RuntimeAuditReport = z.infer<typeof runtimeAuditReportSchema>;
 export type ChapterRuntimePackage = z.infer<typeof chapterRuntimePackageSchema>;
 export type RuntimeStyleDetectionViolation = z.infer<typeof styleDetectionViolationSchema>;

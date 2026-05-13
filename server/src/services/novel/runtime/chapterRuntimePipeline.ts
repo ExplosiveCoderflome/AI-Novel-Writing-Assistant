@@ -207,19 +207,26 @@ export async function runPipelineChapterWithRuntime(
     const styleLeakageIssues = detectStyleReferenceLeakageIssues(content, latestResult.runtimePackage);
     latestIssues = [
       ...toReviewIssues(latestResult.runtimePackage),
+      ...toAcceptanceDirectiveIssues(latestResult.runtimePackage),
       ...styleLeakageIssues,
     ];
     content = latestResult.finalContent;
     await deps.markChapterGenerationState(chapterId, "reviewed");
 
-    pass = isQualityPass(latestResult.runtimePackage.audit.score, qualityThreshold)
+    const acceptanceStatus = latestResult.runtimePackage.meta.acceptanceStatus;
+    const continuePolicy = latestResult.runtimePackage.meta.continuePolicy;
+    const shouldPauseForAcceptance = continuePolicy === "pause" || acceptanceStatus === "needs_manual_review";
+    const shouldRepairFromAcceptance = continuePolicy === "repair_once" || acceptanceStatus === "repairable";
+    pass = !shouldPauseForAcceptance
+      && !shouldRepairFromAcceptance
+      && isQualityPass(latestResult.runtimePackage.audit.score, qualityThreshold)
       && styleLeakageIssues.length === 0;
     if (pass) {
       await deps.markChapterGenerationState(chapterId, "approved");
       break;
     }
 
-    if (!autoRepair || repairMode === "detect_only" || attempt >= maxRetries) {
+    if (shouldPauseForAcceptance || !autoRepair || repairMode === "detect_only" || attempt >= maxRetries) {
       break;
     }
 
@@ -357,6 +364,22 @@ function toReviewIssues(runtimePackage: ChapterRuntimePackage): ReviewIssue[] {
       evidence: issue.evidence,
       fixSuggestion: issue.fixSuggestion,
     })));
+}
+
+function toAcceptanceDirectiveIssues(runtimePackage: ChapterRuntimePackage): ReviewIssue[] {
+  const directives = runtimePackage.meta.repairDirectives ?? [];
+  return directives.map((directive) => ({
+    severity: directive.mode === "manual" || directive.mode === "rewrite" ? "high" : "medium",
+    category: directive.target === "character"
+      ? "logic"
+      : directive.target === "plot" || directive.target === "ending"
+        ? "pacing"
+        : directive.target === "voice"
+          ? "voice"
+          : "coherence",
+    evidence: `acceptance_directive:${directive.target}`,
+    fixSuggestion: directive.instruction,
+  }));
 }
 
 function detectStyleReferenceLeakageIssues(
