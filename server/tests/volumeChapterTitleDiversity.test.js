@@ -115,7 +115,7 @@ function createPromptInput(targetChapterCount = 4) {
   };
 }
 
-test.skip("chapter title diversity detects repeated X的Y framing", () => {
+test.skip("chapter title diversity detects repeated X的Y framing", { skip: "Semantic diversity detector is pending a deterministic classifier fixture." }, () => {
   const issue = getChapterTitleDiversityIssue([
     "废墟中的发现",
     "第一株灵植的种子",
@@ -129,7 +129,7 @@ test.skip("chapter title diversity detects repeated X的Y framing", () => {
   assert.equal(detectChapterTitleSurfaceFrame("掠夺者的阴影"), "of_phrase");
 });
 
-test.skip("chapter title diversity detects repeated A，B framing", () => {
+test.skip("chapter title diversity detects repeated A，B framing", { skip: "Semantic diversity detector is pending a deterministic classifier fixture." }, () => {
   const issue = getChapterTitleDiversityIssue([
     "签下合同，甜蜜同居",
     "房租超支，紧急筹钱",
@@ -143,7 +143,7 @@ test.skip("chapter title diversity detects repeated A，B framing", () => {
   assert.equal(detectChapterTitleSurfaceFrame("房租超支，紧急筹钱"), "comma_split");
 });
 
-test.skip("chapter title diversity accepts mixed chapter title surfaces", () => {
+test.skip("chapter title diversity accepts mixed chapter title surfaces", { skip: "Semantic diversity detector is pending a deterministic classifier fixture." }, () => {
   assert.doesNotThrow(() => assertChapterTitleDiversity([
     "夜探旧温室",
     "掠夺者逼近",
@@ -177,7 +177,7 @@ test("volume chapter list prompt render hardens title diversity rules", () => {
   assert.match(String(messages[0].content), /章名结构过于集中/);
 });
 
-test.skip("volume chapter list prompt retries semantically when titles are structurally repetitive", async () => {
+test.skip("volume chapter list prompt retries semantically when titles are structurally repetitive", { skip: "LLM retry path needs a deterministic semantic-title fixture before re-enabling." }, async () => {
   const calls = [];
 
   setPromptRunnerStructuredInvokerForTests(async (input) => {

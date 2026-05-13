@@ -888,7 +888,7 @@ test("story mode child prompt post validator rejects duplicate sibling names and
   }));
 });
 
-test.skip("book analysis source note prompt enforces grounded Chinese extraction", () => {
+test.skip("book analysis source note prompt enforces grounded Chinese extraction", { skip: "Prompt text snapshot is pending migration to prompt asset contract assertions." }, () => {
   const messages = bookAnalysisSourceNotePrompt.render({
     segmentLabel: "片段 1",
     segmentContent: "主角在雨夜第一次见到反派组织的信使。",
@@ -906,7 +906,7 @@ test.skip("book analysis source note prompt enforces grounded Chinese extraction
   assert.match(String(messages[0].content), /evidence：提供最多3条证据/);
 });
 
-test.skip("book analysis section prompt includes section-specific structuredData contract", () => {
+test.skip("book analysis section prompt includes section-specific structuredData contract", { skip: "Prompt text snapshot is pending migration to prompt asset contract assertions." }, () => {
   const messages = bookAnalysisSectionPrompt.render({
     sectionKey: "overview",
     sectionTitle: "拆书总览",

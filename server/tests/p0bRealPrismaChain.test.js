@@ -6,15 +6,22 @@ const childProcess = require("node:child_process");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const serverRoot = path.resolve(repoRoot, "server");
-const seedDatabasePath = path.resolve(serverRoot, "dev.db");
+
+function pnpmExecutable() {
+  return process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+}
 
 function setupTempSqliteDatabase(tempDir) {
-  if (!fs.existsSync(seedDatabasePath)) {
-    throw new Error(`seed database not found: ${seedDatabasePath}`);
-  }
   const databasePath = path.join(tempDir, "p0b-real-chain.db");
-  fs.copyFileSync(seedDatabasePath, databasePath);
   const databaseUrl = `file:${databasePath.replace(/\\/g, "/")}`;
+  childProcess.execFileSync(pnpmExecutable(), ["--filter", "@ai-novel/server", "prisma:push"], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      DATABASE_URL: databaseUrl,
+    },
+    stdio: ["ignore", "ignore", "pipe"],
+  });
   return databaseUrl;
 }
 

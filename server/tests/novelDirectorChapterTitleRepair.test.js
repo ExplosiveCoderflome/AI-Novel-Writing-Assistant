@@ -129,7 +129,7 @@ test("repairDirectorChapterTitles clears warning notice after titles are diversi
   assert.equal(markTaskWaitingApprovalCalls[0].seedPayload.taskNotice, null);
 });
 
-test.skip("repairDirectorChapterTitles keeps warning notice when repaired titles are still too concentrated", async () => {
+test.skip("repairDirectorChapterTitles keeps warning notice when repaired titles are still too concentrated", { skip: "Semantic title-diversity retry policy is pending a deterministic non-LLM fixture." }, async () => {
   const repetitiveTitles = Array.from({ length: 10 }, (_, index) => `医院的秘密${index + 1}`);
   const workspace = {
     novelId: "novel_demo",

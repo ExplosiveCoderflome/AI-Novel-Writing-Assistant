@@ -256,6 +256,7 @@ body {
   }
 
   .mobile-route-home,
+  .mobile-route-help,
   .mobile-route-novels,
   .mobile-route-novel-create,
   .mobile-route-novel-preview,
@@ -268,12 +269,14 @@ body {
   .mobile-route-genres,
   .mobile-route-story-modes,
   .mobile-route-titles,
+  .mobile-route-prompt-workbench,
   .mobile-route-model-routes,
   .mobile-route-settings,
   .mobile-route-worlds,
   .mobile-route-world-generator,
   .mobile-route-world-workspace,
   .mobile-route-style-engine,
+  .mobile-route-anti-ai-rules,
   .mobile-route-base-characters,
   .mobile-route-novel-edit,
   .mobile-route-chapter-edit {
@@ -281,6 +284,7 @@ body {
   }
 
   .mobile-route-home,
+  .mobile-route-help,
   .mobile-route-novels,
   .mobile-route-novel-create,
   .mobile-route-novel-preview,
@@ -293,12 +297,14 @@ body {
   .mobile-route-genres,
   .mobile-route-story-modes,
   .mobile-route-titles,
+  .mobile-route-prompt-workbench,
   .mobile-route-model-routes,
   .mobile-route-settings,
   .mobile-route-worlds,
   .mobile-route-world-generator,
   .mobile-route-world-workspace,
   .mobile-route-style-engine,
+  .mobile-route-anti-ai-rules,
   .mobile-route-base-characters,
   .mobile-route-novel-edit,
   .mobile-route-chapter-edit,
@@ -565,6 +571,8 @@ body {
   .mobile-route-world-generator .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
   .mobile-route-world-workspace .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
   .mobile-route-style-engine .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-anti-ai-rules .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-prompt-workbench .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
   .mobile-route-base-characters .rounded-xl.border.bg-card .rounded-xl.border.bg-card {
     border-color: hsl(var(--border) / 0.72);
     background: hsl(var(--muted) / 0.18);

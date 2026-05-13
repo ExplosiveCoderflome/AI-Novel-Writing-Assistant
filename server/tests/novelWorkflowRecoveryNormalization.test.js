@@ -580,7 +580,7 @@ test("healAutoDirectorTaskState repairs broken candidate seed payloads and resto
   }
 });
 
-test.skip("healAutoDirectorTaskState degrades chapter title diversity failures into warning checkpoints", async () => {
+test.skip("healAutoDirectorTaskState degrades chapter title diversity failures into warning checkpoints", { skip: "Chapter-title diversity recovery now needs a refreshed workflow-task fixture." }, async () => {
   const originals = {
     findUnique: prisma.novelWorkflowTask.findUnique,
     update: prisma.novelWorkflowTask.update,

@@ -1,6 +1,6 @@
 # 后端测试基础设施
 
-本仓库的长期业务逻辑主要在 [`server/tests/`](../../server/tests/) 下，使用 **Node 内置 `node:test`** 与 **`node:assert/strict`**，执行前会先构建 `@ai-novel/shared` 与 `@ai-novel/server`（见 [`server/package.json`](../../server/package.json) `test` 脚本）。
+本仓库的长期业务逻辑主要在 [`server/tests/`](../../server/tests/) 下，使用 **Node 内置 `node:test`** 与 **`node:assert/strict`**。默认测试入口会先构建 `@ai-novel/shared` 与 `@ai-novel/server`，再运行日常快速测试。
 
 ## 运行方式
 
@@ -8,8 +8,20 @@
 # 在仓库根目录（推荐）
 pnpm test
 
-# 或仅在 server 包内
+# 仅运行后端快速测试
 pnpm --filter @ai-novel/server test
+
+# 已经构建过时，只运行后端快速测试文件
+pnpm --filter @ai-novel/server test:node
+
+# 运行真实 Prisma / 迁移 / 兼容性等重型集成测试
+pnpm --filter @ai-novel/server test:integration
+
+# 完整测试入口：后端快速测试 + 后端集成测试 + 客户端测试
+pnpm test:all
+
+# 仅运行客户端 node:test 合约测试
+pnpm test:client
 ```
 
 单次只跑某一文件示例：
@@ -17,6 +29,8 @@ pnpm --filter @ai-novel/server test
 ```bash
 cd server && pnpm run build && node --test tests/chapterLifecycleState.test.js
 ```
+
+后端快速测试由 [`server/scripts/run-tests.cjs`](../../server/scripts/run-tests.cjs) 维护分组。默认 `test` 会排除真实 SQLite 链路、迁移烟测、RAG 兼容导入、提示词治理扫描等重型文件；这些文件仍由 `test:integration` 和 `test:all` 覆盖。客户端测试使用 Node 22 的 `--experimental-strip-types` 直接运行 TypeScript 源测试，不需要单独构建客户端。
 
 ## 覆盖重点
 

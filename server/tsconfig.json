@@ -11,7 +11,9 @@
       "@ai-novel/shared/*": ["../shared/dist/*"]
     },
     "types": ["node"],
-    "noEmit": false
+    "noEmit": false,
+    "incremental": true,
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts"],
   "exclude": ["dist", "node_modules"]

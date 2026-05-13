@@ -173,6 +173,13 @@ function createAssembledContextPackage() {
         mustPreserve: ["压迫感"],
         riskNotes: [],
       },
+      nextAction: "write_chapter",
+      chapterStateGoal: null,
+      protectedSecrets: [],
+      payoffDirectives: [],
+      chapterBoundary: null,
+      lengthBudget: null,
+      scenePlan: null,
       participants: [{
         id: "char-1",
         name: "主角",

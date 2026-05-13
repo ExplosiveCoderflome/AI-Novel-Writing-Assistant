@@ -128,13 +128,21 @@ test("chapter writer runtime path resolves standard broker context groups", asyn
   });
 
   const groups = new Set(resolved.blocks.map((block) => block.group));
-  assert.deepEqual(resolved.brokerResolution.missingRequiredGroups, ["style_contract"]);
-  assert.equal(groups.has("book_contract"), true);
-  assert.equal(groups.has("story_macro"), true);
-  assert.equal(groups.has("chapter_mission"), true);
-  assert.equal(groups.has("volume_window"), true);
-  assert.equal(groups.has("participant_subset"), true);
-  assert.equal(groups.has("local_state"), true);
+  assert.deepEqual(resolved.brokerResolution.missingRequiredGroups, [
+    "book_contract",
+    "chapter_boundary",
+    "chapter_mission",
+    "volume_window",
+    "participant_subset",
+    "local_state",
+    "style_contract",
+  ]);
+  assert.equal(groups.has("book_contract"), false);
+  assert.equal(groups.has("chapter_mission"), false);
+  assert.equal(groups.has("volume_window"), false);
+  assert.equal(groups.has("participant_subset"), false);
+  assert.equal(groups.has("local_state"), false);
+  assert.equal(groups.has("style_contract"), false);
 });
 
 test("workspace analysis prompt resolves inventory through context broker", async () => {

@@ -142,7 +142,7 @@ test("executable projection steps inspect preloaded artifacts before validation"
   assert.deepEqual(runtimeCalls, []);
 });
 
-test.skip("chapter execution records the standard node sequence without rerunning the pipeline", async () => {
+test.skip("chapter execution records the standard node sequence without rerunning the pipeline", { skip: "Runtime orchestrator node sequencing is covered by newer module tests until this legacy fixture is rebuilt." }, async () => {
   const mixedArtifacts = [
     artifact,
     buildArtifact("audit_report"),
@@ -183,7 +183,7 @@ test.skip("chapter execution records the standard node sequence without rerunnin
   ]);
 });
 
-test.skip("quality repair execution starts with a repair policy node", async () => {
+test.skip("quality repair execution starts with a repair policy node", { skip: "Runtime orchestrator node sequencing is covered by newer module tests until this legacy fixture is rebuilt." }, async () => {
   const { orchestrator, runtimeCalls, getPipelineRuns } = buildOrchestrator();
 
   await orchestrator.runChapterExecutionNode({
@@ -205,7 +205,7 @@ test.skip("quality repair execution starts with a repair policy node", async () 
   assert.deepEqual(runtimeCalls[0].affectedArtifacts.map((item) => item.id), [artifact.id]);
 });
 
-test.skip("approved auto execution scope carries a safe policy through chapter run and review nodes", async () => {
+test.skip("approved auto execution scope carries a safe policy through chapter run and review nodes", { skip: "Runtime orchestrator policy fixtures are stale after the chapter execution contract split." }, async () => {
   const protectedDraft = {
     ...artifact,
     protectedUserContent: true,
@@ -254,7 +254,7 @@ test.skip("approved auto execution scope carries a safe policy through chapter r
   assert.ok(runtimeCalls.every((call) => call.policy?.allowExpensiveReview === true));
 });
 
-test.skip("planning write modules pass existing matching artifacts into policy decisions", async () => {
+test.skip("planning write modules pass existing matching artifacts into policy decisions", { skip: "Planning write policy fixtures are stale after artifact inventory normalization." }, async () => {
   const taskSheetArtifact = {
     id: "chapter_task_sheet:chapter:chapter-1:Chapter:chapter-1",
     novelId: "novel-1",
@@ -282,7 +282,7 @@ test.skip("planning write modules pass existing matching artifacts into policy d
   assert.deepEqual(runtimeCalls[0].producedArtifacts.map((item) => item.id), [taskSheetArtifact.id]);
 });
 
-test.skip("planning write modules ignore initialization placeholder volume strategy artifacts", async () => {
+test.skip("planning write modules ignore initialization placeholder volume strategy artifacts", { skip: "Planning write policy fixtures are stale after artifact inventory normalization." }, async () => {
   const placeholderVolumeStrategyArtifact = buildArtifact("volume_strategy", {
     id: "volume_strategy:volume:legacy-volume-1:VolumePlan:legacy-volume-1",
     targetType: "volume",
@@ -305,7 +305,7 @@ test.skip("planning write modules ignore initialization placeholder volume strat
   assert.deepEqual(runtimeCalls[0].affectedArtifacts, []);
 });
 
-test.skip("planning write modules keep real volume strategy artifacts in policy decisions", async () => {
+test.skip("planning write modules keep real volume strategy artifacts in policy decisions", { skip: "Planning write policy fixtures are stale after artifact inventory normalization." }, async () => {
   const realVolumeStrategyArtifact = buildArtifact("volume_strategy", {
     id: "volume_strategy:volume:legacy-volume-1:VolumePlan:legacy-volume-1",
     targetType: "volume",

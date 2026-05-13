@@ -1,22 +1,29 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const appLayout = readFileSync("client/src/components/layout/AppLayout.tsx", "utf8");
-const css = readFileSync("client/src/index.css", "utf8");
-const mobileSiteNavigation = readFileSync("client/src/components/layout/mobile/mobileSiteNavigation.ts", "utf8");
-const novelEditView = readFileSync("client/src/pages/novels/components/NovelEditView.tsx", "utf8");
-const homePage = readFileSync("client/src/pages/Home.tsx", "utf8");
-const taskCenterPage = readFileSync("client/src/pages/tasks/TaskCenterPage.tsx", "utf8");
-const structuredOutlineWorkspace = readFileSync("client/src/pages/novels/components/StructuredOutlineWorkspace.tsx", "utf8");
-const structuredChapterListCard = readFileSync("client/src/pages/novels/components/StructuredChapterListCard.tsx", "utf8");
-const mobileNovelEditView = readFileSync("client/src/pages/novels/mobile/MobileNovelEditView.tsx", "utf8");
-const mobileNovelStepNav = readFileSync("client/src/pages/novels/mobile/MobileNovelStepNav.tsx", "utf8");
-const mobileAutoDirectorStatusCard = readFileSync("client/src/pages/novels/mobile/MobileAutoDirectorStatusCard.tsx", "utf8");
-const mobileFloatingSaveButton = readFileSync("client/src/pages/novels/mobile/MobileFloatingSaveButton.tsx", "utf8");
-const mobileAutoDirectorContracts = readFileSync("client/src/mobile/autoDirector/mobileSupportContracts.ts", "utf8");
+const clientRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const readClientFile = (relativePath) => readFileSync(join(clientRoot, relativePath), "utf8");
+
+const appLayout = readClientFile("src/components/layout/AppLayout.tsx");
+const css = readClientFile("src/index.css");
+const mobileSiteNavigation = readClientFile("src/components/layout/mobile/mobileSiteNavigation.ts");
+const novelEditView = readClientFile("src/pages/novels/components/NovelEditView.tsx");
+const homePage = readClientFile("src/pages/Home.tsx");
+const taskCenterPage = readClientFile("src/pages/tasks/TaskCenterPage.tsx");
+const taskCenterFilterPanel = readClientFile("src/pages/tasks/components/TaskCenterFilterPanel.tsx");
+const taskCenterSummaryCards = readClientFile("src/pages/tasks/components/TaskCenterSummaryCards.tsx");
+const structuredOutlineWorkspace = readClientFile("src/pages/novels/components/StructuredOutlineWorkspace.tsx");
+const structuredChapterListCard = readClientFile("src/pages/novels/components/StructuredChapterListCard.tsx");
+const mobileNovelEditView = readClientFile("src/pages/novels/mobile/MobileNovelEditView.tsx");
+const mobileNovelStepNav = readClientFile("src/pages/novels/mobile/MobileNovelStepNav.tsx");
+const mobileAutoDirectorStatusCard = readClientFile("src/pages/novels/mobile/MobileAutoDirectorStatusCard.tsx");
+const mobileFloatingSaveButton = readClientFile("src/pages/novels/mobile/MobileFloatingSaveButton.tsx");
+const mobileAutoDirectorContracts = readClientFile("src/mobile/autoDirector/mobileSupportContracts.ts");
 const autoDirectorFollowUpList = readFileSync(
-  "client/src/pages/autoDirectorFollowUps/components/AutoDirectorFollowUpList.tsx",
+  join(clientRoot, "src/pages/autoDirectorFollowUps/components/AutoDirectorFollowUpList.tsx"),
   "utf8",
 );
 
@@ -273,7 +280,8 @@ test("mobile home status metrics stay compact in a single four-column row", () =
 });
 
 test("mobile task status metrics use follow-up style compact partitions", () => {
-  assert.match(taskCenterPage, /task-status-summary-grid/);
+  assert.match(taskCenterPage, /TaskCenterSummaryCards/);
+  assert.match(taskCenterSummaryCards, /task-status-summary-grid/);
   assert.match(
     css,
     /mobile-route-tasks \.task-status-summary-grid[\s\S]+grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/,
@@ -325,15 +333,16 @@ test("mobile status metrics keep four columns after generic grid collapse cascad
 
 test("mobile task filters stay in a compact three-column control grid", () => {
   const expectedColumns = "repeat(3, minmax(0, 1fr))";
-  const taskFilterClassName = getClassNameContaining(taskCenterPage, "task-filter-controls");
+  const taskFilterClassName = getClassNameContaining(taskCenterFilterPanel, "task-filter-controls");
   const winner = getWinningGridTemplateColumns({
     routeClassName: "mobile-route-tasks",
     elementClassName: taskFilterClassName,
   });
 
-  assert.match(taskCenterPage, /task-filter-card/);
-  assert.match(taskCenterPage, /task-filter-controls/);
-  assert.match(taskCenterPage, /task-filter-pill/);
+  assert.match(taskCenterPage, /TaskCenterFilterPanel/);
+  assert.match(taskCenterFilterPanel, /task-filter-card/);
+  assert.match(taskCenterFilterPanel, /task-filter-controls/);
+  assert.match(taskCenterFilterPanel, /task-filter-pill/);
   assert.match(
     css,
     /mobile-route-tasks \.task-filter-controls\.grid[\s\S]+grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/,
@@ -348,29 +357,29 @@ test("mobile task filters stay in a compact three-column control grid", () => {
   );
 
   assertAppearsBefore(
-    taskCenterPage,
+    taskCenterFilterPanel,
     "task-filter-status",
     "task-filter-pill",
     "the anomaly filter should render after status so it fills the first mobile row",
   );
   assertAppearsBefore(
-    taskCenterPage,
+    taskCenterFilterPanel,
     "task-filter-pill",
     "task-filter-keyword",
     "the anomaly filter should render before the spanning keyword field to keep filters within two rows",
   );
   assertAppearsBefore(
-    taskCenterPage,
+    taskCenterFilterPanel,
     "task-filter-keyword",
     "task-filter-sort",
     "the spanning keyword field should render before sort so the second row is keyword plus sort",
   );
 
-  const kindClassName = getClassNameContaining(taskCenterPage, "task-filter-kind");
-  const statusClassName = getClassNameContaining(taskCenterPage, "task-filter-status");
-  const anomalyClassName = getClassNameContaining(taskCenterPage, "task-filter-pill");
-  const keywordClassName = getClassNameContaining(taskCenterPage, "task-filter-keyword");
-  const sortClassName = getClassNameContaining(taskCenterPage, "task-filter-sort");
+  const kindClassName = getClassNameContaining(taskCenterFilterPanel, "task-filter-kind");
+  const statusClassName = getClassNameContaining(taskCenterFilterPanel, "task-filter-status");
+  const anomalyClassName = getClassNameContaining(taskCenterFilterPanel, "task-filter-pill");
+  const keywordClassName = getClassNameContaining(taskCenterFilterPanel, "task-filter-keyword");
+  const sortClassName = getClassNameContaining(taskCenterFilterPanel, "task-filter-sort");
 
   [
     [kindClassName, "col-start-1", "type should occupy first row column 1"],

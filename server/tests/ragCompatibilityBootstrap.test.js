@@ -8,7 +8,6 @@ const { PrismaClient } = require("@prisma/client");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const serverRoot = path.resolve(repoRoot, "server");
-const seedDatabasePath = path.resolve(serverRoot, "dev.db");
 
 const RAG_SETTING_KEYS = [
   "rag.embeddingProvider",
@@ -80,21 +79,29 @@ function createPrisma(databasePath) {
   });
 }
 
-function createTempDatabase(prefix) {
-  if (!fs.existsSync(seedDatabasePath)) {
-    throw new Error(`seed database not found: ${seedDatabasePath}`);
-  }
+function pnpmExecutable() {
+  return process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+}
 
+function createTempDatabase(prefix) {
   const tempRoot = path.join(serverRoot, ".tmp");
   fs.mkdirSync(tempRoot, { recursive: true });
   const tempDir = fs.mkdtempSync(path.join(tempRoot, `${prefix}-`));
   const databasePath = path.join(tempDir, `${prefix}.db`);
-  fs.copyFileSync(seedDatabasePath, databasePath);
+  const databaseUrl = `file:${databasePath.replace(/\\/g, "/")}`;
+  childProcess.execFileSync(pnpmExecutable(), ["--filter", "@ai-novel/server", "prisma:push"], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      DATABASE_URL: databaseUrl,
+    },
+    stdio: ["ignore", "ignore", "pipe"],
+  });
 
   return {
     tempDir,
     databasePath,
-    databaseUrl: `file:${databasePath.replace(/\\/g, "/")}`,
+    databaseUrl,
   };
 }
 
