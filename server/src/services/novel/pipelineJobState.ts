@@ -17,6 +17,7 @@ const PIPELINE_STAGE_PROGRESS = {
 } as const;
 
 const PIPELINE_BACKGROUND_ACTIVITY_LABELS: Record<PipelineBackgroundSyncKind, string> = {
+  artifact_delta: "资产回灌中",
   character_dynamics: "角色成长中",
   state_snapshot: "状态同步中",
   payoff_ledger: "伏笔账本同步中",
@@ -66,6 +67,7 @@ function normalizePipelineBackgroundActivity(value: unknown): PipelineBackground
   if (
     (
       kind !== "character_dynamics"
+      && kind !== "artifact_delta"
       && kind !== "state_snapshot"
       && kind !== "payoff_ledger"
       && kind !== "character_resources"

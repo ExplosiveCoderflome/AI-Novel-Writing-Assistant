@@ -1,11 +1,6 @@
 import { prisma } from "../../../db/prisma";
 import { createHash } from "node:crypto";
-import type { StateChangeProposal } from "@ai-novel/shared/types/canonicalState";
-import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
-import { characterResourceExtractionService } from "../characterResource/CharacterResourceExtractionService";
 import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
-import { stateService } from "../../state/StateService";
-import { stateCommitService } from "../state/StateCommitService";
 import {
   parsePipelinePayload,
   stringifyPipelinePayload,
@@ -15,6 +10,7 @@ import type {
   PipelineBackgroundSyncKind,
   PipelinePayload,
 } from "../novelCoreShared";
+import { ChapterArtifactDeltaService } from "./ChapterArtifactDeltaService";
 
 interface ChapterBackgroundSyncContext {
   chapterId: string;
@@ -22,25 +18,8 @@ interface ChapterBackgroundSyncContext {
   chapterTitle: string;
 }
 
-interface ChapterChangeFlags {
-  introducedPayoff: boolean;
-  payoffResolutionSignal: boolean;
-  relationshipShiftSignal: boolean;
-  majorStateShiftSignal: boolean;
-}
-
-function detectChapterChangeFlags(content: string, taskSheet: string | null | undefined): ChapterChangeFlags {
-  const combinedText = `${taskSheet ?? ""}\n${content}`;
-  return {
-    introducedPayoff: /(伏笔|线索|埋下|承诺|约定|秘密|计划)/u.test(combinedText),
-    payoffResolutionSignal: /(兑现|揭晓|完成|成功|达成|得手|反杀|逆转|破解)/u.test(combinedText),
-    relationshipShiftSignal: /(联盟|合作|和解|决裂|背叛|表白|结盟|翻脸)/u.test(combinedText),
-    majorStateShiftSignal: /(觉醒|突破|晋升|加入|离开|死亡|成了|成为|暴露|接管)/u.test(combinedText),
-  };
-}
-
 export class ChapterArtifactBackgroundSyncService {
-  private readonly characterDynamicsService = new CharacterDynamicsService();
+  private readonly artifactDeltaService = new ChapterArtifactDeltaService();
   private readonly activeSyncKeys = new Set<string>();
   private readonly latestSyncedContentHashByChapter = new Map<string, string>();
 
@@ -79,51 +58,25 @@ export class ChapterArtifactBackgroundSyncService {
     if (!chapter) {
       return;
     }
-    const changeFlags = detectChapterChangeFlags(content, chapter.taskSheet);
-    const isBatchBoundary = chapter.order <= 1 || chapter.order % 3 === 0;
-
     const context: ChapterBackgroundSyncContext = {
       chapterId,
       chapterOrder: chapter.order,
       chapterTitle: chapter.title,
     };
 
-    const stateSyncPromise = this.runTrackedActivity(novelId, context, "state_snapshot", async () => {
-      await stateService.syncChapterState(novelId, chapterId, content, {
-        skipPayoffLedgerSync: true,
-      });
-    });
-    const dynamicsSyncPromise = (isBatchBoundary || changeFlags.relationshipShiftSignal || changeFlags.majorStateShiftSignal)
-      ? this.runTrackedActivity(novelId, context, "character_dynamics", async () => {
-        await this.characterDynamicsService.syncChapterDraftDynamics(
-          novelId,
-          chapterId,
-          chapter.order,
-        );
-      })
-      : Promise.resolve();
-
-    await Promise.allSettled([stateSyncPromise, dynamicsSyncPromise]);
-
-    let characterResourceProposals: StateChangeProposal[] = [];
-    await this.runTrackedActivity(novelId, context, "character_resources", async () => {
-      characterResourceProposals = await characterResourceExtractionService.extractChapterResourceProposals({
+    let requiresFullReconcile = false;
+    await this.runTrackedActivity(novelId, context, "artifact_delta", async () => {
+      const result = await this.artifactDeltaService.syncChapterArtifacts({
         novelId,
         chapterId,
-        chapterOrder: chapter.order,
+        content,
         sourceType: "chapter_background_sync",
         sourceStage: "chapter_execution",
       });
-    }).catch((error) => {
-      console.warn("[chapter-artifact-background-sync] character resource extraction skipped", {
-        novelId,
-        chapterId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      characterResourceProposals = [];
+      requiresFullReconcile = result.requiresFullReconcile;
     });
 
-    if (isBatchBoundary || changeFlags.introducedPayoff || changeFlags.payoffResolutionSignal) {
+    if (requiresFullReconcile) {
       await this.runTrackedActivity(novelId, context, "payoff_ledger", async () => {
         await payoffLedgerSyncService.syncLedger(novelId, {
           chapterOrder: chapter.order,
@@ -131,17 +84,6 @@ export class ChapterArtifactBackgroundSyncService {
         });
       });
     }
-
-    await this.runTrackedActivity(novelId, context, "canonical_state", async () => {
-      await stateCommitService.proposeAndCommit({
-        novelId,
-        chapterId,
-        chapterOrder: chapter.order,
-        sourceType: "chapter_background_sync",
-        sourceStage: "chapter_execution",
-        proposals: characterResourceProposals,
-      });
-    });
   }
 
   private async runTrackedActivity(

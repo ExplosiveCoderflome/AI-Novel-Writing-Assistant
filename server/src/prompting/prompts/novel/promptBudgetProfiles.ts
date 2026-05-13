@@ -16,6 +16,7 @@ export const NOVEL_PROMPT_BUDGETS = {
   volumeRebalance: 1600,
   chapterWriter: 1800,
   chapterAcceptance: 1200,
+  chapterArtifactDelta: 1400,
   chapterEditorWorkspaceDiagnosis: 1400,
   chapterEditorUserIntent: 900,
   chapterEditorRewrite: 1400,
@@ -62,6 +63,22 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
       "participant_subset",
       "world_rules",
       "historical_issues",
+    ],
+  },
+  {
+    promptId: "novel.chapter.artifact_delta.extract",
+    maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterArtifactDelta,
+    preferredGroups: [
+      "chapter_mission",
+      "local_state",
+      "payoff_directives",
+      "open_conflicts",
+    ],
+    dropOrder: [
+      "recent_chapters",
+      "world_rules",
+      "historical_issues",
+      "participant_subset",
     ],
   },
   {
