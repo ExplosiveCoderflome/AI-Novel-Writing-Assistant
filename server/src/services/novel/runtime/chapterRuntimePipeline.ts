@@ -217,8 +217,8 @@ export async function runPipelineChapterWithRuntime(
     content = latestResult.finalContent;
     await deps.markChapterGenerationState(chapterId, "reviewed");
 
-    const acceptanceStatus = latestResult.runtimePackage.meta.acceptanceStatus;
-    const continuePolicy = latestResult.runtimePackage.meta.continuePolicy;
+    const acceptanceStatus = latestResult.runtimePackage.meta?.acceptanceStatus;
+    const continuePolicy = latestResult.runtimePackage.meta?.continuePolicy;
     const shouldPauseForAcceptance = continuePolicy === "pause" || acceptanceStatus === "needs_manual_review";
     const shouldRepairFromAcceptance = continuePolicy === "repair_once" || acceptanceStatus === "repairable";
     pass = !shouldPauseForAcceptance
@@ -373,7 +373,7 @@ function toReviewIssues(runtimePackage: ChapterRuntimePackage): ReviewIssue[] {
 }
 
 function toAcceptanceDirectiveIssues(runtimePackage: ChapterRuntimePackage): ReviewIssue[] {
-  const directives = runtimePackage.meta.repairDirectives ?? [];
+  const directives = runtimePackage.meta?.repairDirectives ?? [];
   return directives.map((directive) => ({
     severity: directive.mode === "manual" || directive.mode === "rewrite" ? "high" : "medium",
     category: directive.target === "character"

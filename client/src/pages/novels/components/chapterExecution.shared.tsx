@@ -143,12 +143,12 @@ function buildCurrentStageNote(stage: ChapterExecutionFlowStage): string {
         : "如果审核发现问题，这里会进入修复阶段。";
     case "state_sync":
       return stage.status === "in_progress"
-        ? "系统正在同步本章状态快照、角色变化和关键资源。"
-        : "正文处理完成后，系统会同步本章状态和关键资源。";
+        ? "正文可读，系统正在回灌本章状态、角色变化和关键资源。"
+        : "正文可读后，系统会回灌本章状态和关键资源。";
     case "payoff_sync":
       return stage.status === "in_progress"
-        ? "系统正在回填本章涉及的伏笔状态。"
-        : "状态同步完成后，系统会继续更新伏笔账本。";
+        ? "系统正在校准本章涉及的伏笔账本。"
+        : "资产回灌后，系统会按风险和节奏校准伏笔账本。";
     case "ready":
     default:
       return stage.status === "done"

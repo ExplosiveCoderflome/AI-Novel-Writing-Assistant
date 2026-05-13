@@ -34,7 +34,7 @@ export class ChapterRuntimeReadinessService {
       reasons.push("章节写作上下文尚未准备完成，请先刷新本章上下文。");
     }
 
-    if (contextPackage.characterRoster.length === 0) {
+    if ((contextPackage.characterRoster ?? []).length === 0) {
       reasons.push("请先在本小说中至少准备一个角色，再生成正文。");
     }
 

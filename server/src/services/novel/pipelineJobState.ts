@@ -20,7 +20,7 @@ const PIPELINE_BACKGROUND_ACTIVITY_LABELS: Record<PipelineBackgroundSyncKind, st
   artifact_delta: "资产回灌中",
   character_dynamics: "角色成长中",
   state_snapshot: "状态同步中",
-  payoff_ledger: "伏笔账本同步中",
+  payoff_ledger: "账本校准中",
   character_resources: "资源账本同步中",
   canonical_state: "全局状态同步中",
 };

@@ -308,7 +308,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                 <div className="text-sm font-semibold text-foreground">{contentPanelTitle}</div>
                 <div className="mt-1 text-xs leading-6 text-muted-foreground">
                   {isSelectedChapterFinalizing
-                    ? (chapterRunStatus?.message ?? "正文已经输出完成，系统正在保存草稿、执行审计并同步章节状态。")
+                    ? (chapterRunStatus?.message ?? "正文可读，系统正在保存草稿并回灌章节资产。")
                     : isSelectedChapterStreaming
                       ? "AI 正在持续输出这一章的正文，先在这里观察节奏和手感，不满意时可以随时停止。"
                       : "正文固定显示在主区域，任务单、质量反馈和修复记录都收进下面的详情区。"}
