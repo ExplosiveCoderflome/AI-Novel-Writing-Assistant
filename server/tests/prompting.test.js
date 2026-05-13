@@ -65,9 +65,6 @@ const {
   sanitizeWriterContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
 const {
-  buildSceneContractBlock,
-} = require("../dist/services/novel/chapterWritingGraphShared.js");
-const {
   directorPlanBlueprintSchema,
 } = require("../dist/services/novel/director/novelDirectorSchemas.js");
 
@@ -323,32 +320,15 @@ test("character dynamics prompts harden plannedChapterOrders and confidence outp
   assert.match(String(chapterMessages[0].content), /"confidence":0.8/);
 });
 
-test("chapter writer prompt includes scene length budget hints in scene mode", () => {
+test("chapter writer prompt does not expose scene contract controls", () => {
   const messages = chapterWriterPrompt.render({
     novelTitle: "测试小说",
     chapterOrder: 1,
     chapterTitle: "起势",
     mode: "draft",
-    wordControlMode: "prompt_only",
-    sceneIndex: 1,
-    sceneCount: 3,
-    sceneTitle: "街头起势",
-    scenePurpose: "建立当前局面与第一轮冲突。",
-    roundIndex: 1,
-    maxRounds: 1,
-    isFinalRound: true,
-    closingPhase: true,
-    entryState: "主角还在被动。",
-    exitState: "主角确认反击窗口存在。",
-    forbiddenExpansion: ["不要提前解决主线"],
-    sceneTargetWordCount: 900,
-    sceneMinWordCount: 765,
-    sceneMaxWordCount: 1035,
-    suggestedRoundWordCount: 480,
-    hardRoundWordLimit: 540,
-    currentChapterWordCount: 1200,
-    remainingSceneWordCount: 900,
-    remainingChapterWordCount: 1800,
+    targetWordCount: 3000,
+    minWordCount: 2550,
+    maxWordCount: 3450,
   }, {
     blocks: [
       createContextBlock({
@@ -366,57 +346,14 @@ test("chapter writer prompt includes scene length budget hints in scene mode", (
   });
 
   const systemContent = String(messages[0].content);
-  assert.match(systemContent, /场景标题：街头起势/);
-  assert.match(systemContent, /当前场景目标：约 900 字/);
-  assert.match(systemContent, /当前场景可接受区间：765-1035 字/);
-  assert.match(systemContent, /当前场景剩余预算：约 900 字/);
-  assert.match(systemContent, /整章剩余硬预算：约 1800 字/);
-  assert.match(systemContent, /本轮建议新增：约 480 字/);
-  assert.match(systemContent, /本轮硬上限：540 字/);
-  assert.match(systemContent, /prompt_only.*场景预算/);
-});
-
-test("scene contract block includes direct length budget metadata", () => {
-  const block = buildSceneContractBlock({
-    scene: {
-      key: "scene_1",
-      title: "街头求生",
-      purpose: "先让主角看见现实危险。",
-      mustAdvance: ["风险落地"],
-      mustPreserve: ["压迫感"],
-      entryState: "主角刚到汴京，毫无依靠。",
-      exitState: "主角找到暂时的破局方向。",
-      forbiddenExpansion: ["不要提前引出后续大反派"],
-      targetWordCount: 900,
-    },
-    sceneIndex: 1,
-    sceneCount: 3,
-    roundPlan: {
-      mode: "prompt_only",
-      roundIndex: 1,
-      maxRounds: 1,
-      roundsLeft: 1,
-      sceneTargetWordCount: 900,
-      sceneMinWordCount: 765,
-      sceneMaxWordCount: 1035,
-      currentSceneWordCount: 0,
-      currentChapterWordCount: 0,
-      remainingSceneWordCount: 900,
-      remainingChapterWordCount: 3000,
-      suggestedRoundWordCount: 900,
-      hardRoundWordLimit: 1008,
-      isFinalRound: true,
-      closingPhase: true,
-    },
-  });
-
-  assert.match(block.content, /Scene target length: about 900 Chinese characters/);
-  assert.match(block.content, /Remaining chapter budget before this round: about 3000 Chinese characters/);
-  assert.match(block.content, /Current scene draft length: 0 Chinese characters/);
-  assert.match(block.content, /Suggested current round length: about 900 Chinese characters/);
-  assert.match(block.content, /Current round hard limit: 1008 Chinese characters/);
-  assert.match(block.content, /Entry state:/);
-  assert.match(block.content, /Exit state:/);
+  const humanContent = String(messages[1].content);
+  assert.match(systemContent, /本章目标长度：约 3000 字/);
+  assert.match(systemContent, /不得明显超过上限/);
+  assert.doesNotMatch(systemContent, /当前场景合同/);
+  assert.doesNotMatch(systemContent, /场景标题/);
+  assert.doesNotMatch(systemContent, /控字数模式/);
+  assert.doesNotMatch(systemContent, /本轮硬上限/);
+  assert.doesNotMatch(humanContent, /只写当前场景/);
 });
 
 test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {

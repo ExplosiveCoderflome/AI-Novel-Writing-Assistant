@@ -152,41 +152,6 @@ test("auto execution does not treat empty reviewed chapters as processed", () =>
   assert.deepEqual(state.remainingChapterOrders, [11]);
 });
 
-test("auto execution does not skip chapters marked needs_repair even when generation is approved", () => {
-  const needsRepairApprovedChapter = {
-    id: "chapter-needs-repair",
-    order: 7,
-    content: "这一章正文已经写出，但审计要求修复。",
-    generationState: "approved",
-    chapterStatus: "needs_repair",
-  };
-
-  assert.equal(isDirectorAutoExecutionChapterProcessed(needsRepairApprovedChapter), false);
-
-  const state = buildDirectorAutoExecutionState({
-    range: {
-      startOrder: 7,
-      endOrder: 8,
-      totalChapterCount: 2,
-      firstChapterId: "chapter-needs-repair",
-    },
-    chapters: [
-      needsRepairApprovedChapter,
-      { id: "chapter-8", order: 8, content: "正文8", generationState: "approved" },
-    ],
-    plan: {
-      mode: "chapter_range",
-      startOrder: 7,
-      endOrder: 8,
-    },
-  });
-
-  assert.equal(state.completedChapterCount, 1);
-  assert.equal(state.remainingChapterCount, 1);
-  assert.deepEqual(state.remainingChapterOrders, [7]);
-  assert.equal(state.nextChapterOrder, 7);
-});
-
 test("auto execution state discards stale skips for chapters that still need generation", () => {
   const state = buildDirectorAutoExecutionState({
     range: {

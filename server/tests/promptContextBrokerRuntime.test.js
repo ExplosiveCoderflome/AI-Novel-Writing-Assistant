@@ -130,7 +130,6 @@ test("chapter writer runtime path resolves standard broker context groups", asyn
   const groups = new Set(resolved.blocks.map((block) => block.group));
   assert.deepEqual(resolved.brokerResolution.missingRequiredGroups, [
     "book_contract",
-    "chapter_boundary",
     "chapter_mission",
     "volume_window",
     "participant_subset",
