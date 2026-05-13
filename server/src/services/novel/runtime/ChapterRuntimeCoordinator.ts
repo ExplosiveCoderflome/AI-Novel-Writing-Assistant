@@ -85,18 +85,9 @@ function shouldEscalateToFullAudit(input: {
   contextPackage: GenerationContextPackage;
   lightAssessment: Awaited<ReturnType<typeof auditService.assessChapterAuditNeed>>;
 }): boolean {
-  if (input.lightAssessment.shouldRunFullAudit) {
-    return true;
-  }
-  const budget = input.contextPackage.chapterWriteContext?.lengthBudget;
-  if (!budget) {
-    return false;
-  }
-  const finalWordCount = countChapterCharacters(input.content);
-  if (finalWordCount > budget.hardMaxWordCount) {
-    return true;
-  }
-  return finalWordCount < Math.floor(budget.softMinWordCount * 0.75);
+  void input.content;
+  void input.contextPackage;
+  return input.lightAssessment.shouldRunFullAudit;
 }
 
 function normalizeBoundaryProbe(value: string | null | undefined): string {

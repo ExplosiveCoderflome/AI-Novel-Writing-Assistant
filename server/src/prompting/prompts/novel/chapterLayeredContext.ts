@@ -452,7 +452,6 @@ export function buildChapterWriterContextBlocks(
   const includePayoffLedger = mode === "full" && hasLedgerPressure(writeContext);
   const includePayoffDirectives = writeContext.payoffDirectives.length > 0;
   const includeCharacterResources = !isIncremental && hasCharacterResourcePressure(writeContext);
-  const includeScenePlan = mode === "full" || mode === "review";
   const includeCharacterDynamics = shouldIncludeCharacterDynamics(writeContext, mode);
   const includeOpenConflicts = !isIncremental && writeContext.openConflictSummaries.length > 0;
   const includeRecentChapters = mode === "full" && writeContext.recentChapterSummaries.length > 0;
@@ -479,25 +478,6 @@ export function buildChapterWriterContextBlocks(
         toListBlock("Risk notes", writeContext.chapterMission.riskNotes),
         writeContext.chapterMission.hookTarget ? `Ending hook: ${writeContext.chapterMission.hookTarget}` : "",
       ].filter(Boolean).join("\n"),
-    }),
-    createContextBlock({
-      id: "chapter_boundary",
-      group: "chapter_boundary",
-      priority: 103,
-      required: true,
-      allowSummary: false,
-      content: writeContext.chapterBoundary
-        ? [
-            "Chapter boundary contract:",
-            writeContext.chapterBoundary.exclusiveEvent ? `Exclusive event: ${writeContext.chapterBoundary.exclusiveEvent}` : "",
-            writeContext.chapterBoundary.entryState ? `Entry state: ${writeContext.chapterBoundary.entryState}` : "",
-            writeContext.chapterBoundary.endingState ? `Ending state: ${writeContext.chapterBoundary.endingState}` : "",
-            writeContext.chapterBoundary.nextChapterEntryState ? `Next chapter entry state: ${writeContext.chapterBoundary.nextChapterEntryState}` : "",
-            typeof writeContext.chapterBoundary.allowedRevealLevel === "number" ? `Allowed reveal level: ${writeContext.chapterBoundary.allowedRevealLevel}` : "",
-            toListBlock("Protected reveals", writeContext.chapterBoundary.protectedReveals),
-            toListBlock("Do not cross", writeContext.chapterBoundary.doNotCross),
-          ].filter(Boolean).join("\n")
-        : "Chapter boundary contract: stay inside the current chapter mission and do not reveal future answers.",
     }),
     includePayoffDirectives
       ? createContextBlock({
@@ -562,20 +542,6 @@ export function buildChapterWriterContextBlocks(
             writeContext.ledgerPendingItems.slice(0, 3).map((item) => buildLedgerItemLine(item, "pending")),
           ),
         ].join("\n"),
-      })
-      : null,
-    includeScenePlan
-      ? createContextBlock({
-        id: "scene_plan",
-        group: "scene_plan",
-        priority: 94,
-        required: Boolean(writeContext.scenePlan),
-        content: writeContext.scenePlan
-          ? [
-              `Scene count: ${writeContext.scenePlan.scenes.length}`,
-              ...writeContext.scenePlan.scenes.map((scene, index) => `${index + 1}. ${scene.title} [${scene.targetWordCount}] ${scene.purpose}`),
-            ].join("\n")
-          : "",
       })
       : null,
     createContextBlock({
