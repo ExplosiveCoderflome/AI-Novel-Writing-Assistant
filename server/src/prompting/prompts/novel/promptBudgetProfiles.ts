@@ -15,6 +15,7 @@ export const NOVEL_PROMPT_BUDGETS = {
   volumeChapterDetail: 1600,
   volumeRebalance: 1600,
   chapterWriter: 1800,
+  chapterAcceptance: 1200,
   chapterEditorWorkspaceDiagnosis: 1400,
   chapterEditorUserIntent: 900,
   chapterEditorRewrite: 1400,
@@ -44,6 +45,23 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
       "world_rules",
       "continuation_constraints",
       "opening_constraints",
+    ],
+  },
+  {
+    promptId: "novel.chapter.acceptance_assessment",
+    maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterAcceptance,
+    preferredGroups: [
+      "chapter_mission",
+      "structure_obligations",
+      "local_state",
+      "style_contract",
+      "open_conflicts",
+    ],
+    dropOrder: [
+      "recent_chapters",
+      "participant_subset",
+      "world_rules",
+      "historical_issues",
     ],
   },
   {
