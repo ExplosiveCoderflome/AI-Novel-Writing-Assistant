@@ -337,12 +337,15 @@ export class ChapterRuntimeCoordinator {
               generationState,
               options,
             ),
-          syncFinalChapterArtifacts: (targetNovelId, targetChapterId, content) =>
+          syncFinalChapterArtifacts: (targetNovelId, targetChapterId, content, syncOptions) =>
             this.deps.artifactSyncService.syncChapterArtifacts(
               targetNovelId,
               targetChapterId,
               content,
-              { scheduleBackgroundSync: true },
+              {
+                scheduleBackgroundSync: true,
+                artifactSyncMode: syncOptions?.artifactSyncMode ?? options.artifactSyncMode,
+              },
             ),
           finalizeChapterContent: async (input) => {
             const finalized = await this.finalizeChapterContent({
@@ -601,7 +604,10 @@ export class ChapterRuntimeCoordinator {
         input.novelId,
         input.chapterId,
         finalContent,
-        { scheduleBackgroundSync: true },
+        {
+          scheduleBackgroundSync: true,
+          artifactSyncMode: input.request.artifactSyncMode,
+        },
       );
     }
 

@@ -5,7 +5,7 @@
 } from "@ai-novel/shared/types/novelDirector";
 import { isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
 import type { NovelControlPolicy } from "@ai-novel/shared/types/canonicalState";
-import type { PipelineJobStatus, VolumePlanDocument } from "@ai-novel/shared/types/novel";
+import type { ArtifactSyncMode, PipelineJobStatus, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import { parsePipelinePayload } from "../pipelineJobState";
 import {
@@ -109,6 +109,7 @@ interface NovelDirectorAutoExecutionNovelPort {
     runMode: "fast" | "polish";
     autoReview: boolean;
     autoRepair: boolean;
+    artifactSyncMode?: ArtifactSyncMode;
     skipCompleted: boolean;
     qualityThreshold: number;
     repairMode: "light_repair";
@@ -406,6 +407,7 @@ export class NovelDirectorAutoExecutionRuntime {
               ...resolveSingleChapterExecutionRange(range, autoExecution),
               autoReview: autoExecution.autoReview,
               autoRepair: autoExecution.autoRepair,
+              artifactSyncMode: autoExecution.artifactSyncMode,
             }),
           );
           pipelineJobId = job.id;

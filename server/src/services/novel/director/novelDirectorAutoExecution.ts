@@ -1,6 +1,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { NovelControlPolicy } from "@ai-novel/shared/types/canonicalState";
 import type {
+  ArtifactSyncMode,
   ChapterGenerationState,
   PipelineJobStatus,
   PipelineRunMode,
@@ -54,6 +55,7 @@ export function normalizeDirectorAutoExecutionPlan(
 ): DirectorAutoExecutionPlan {
   const autoReview = plan?.autoReview ?? true;
   const autoRepair = autoReview ? (plan?.autoRepair ?? true) : false;
+  const artifactSyncMode = plan?.artifactSyncMode ?? "adaptive";
   const rawMode = typeof (plan as { mode?: unknown } | null | undefined)?.mode === "string"
     ? (plan as { mode?: string }).mode
     : null;
@@ -66,6 +68,7 @@ export function normalizeDirectorAutoExecutionPlan(
       endOrder,
       autoReview,
       autoRepair,
+      artifactSyncMode,
     };
   }
   if (plan?.mode === "volume") {
@@ -74,6 +77,7 @@ export function normalizeDirectorAutoExecutionPlan(
       volumeOrder: Math.max(1, Math.round(plan.volumeOrder ?? 1)),
       autoReview,
       autoRepair,
+      artifactSyncMode,
     };
   }
   if (plan?.mode === "book") {
@@ -81,6 +85,7 @@ export function normalizeDirectorAutoExecutionPlan(
       mode: "book",
       autoReview,
       autoRepair,
+      artifactSyncMode,
     };
   }
   const fallbackStartOrder = Math.max(
@@ -97,6 +102,7 @@ export function normalizeDirectorAutoExecutionPlan(
     endOrder: fallbackEndOrder,
     autoReview,
     autoRepair,
+    artifactSyncMode,
   };
 }
 
@@ -394,6 +400,7 @@ export function buildDirectorAutoExecutionState(input: {
     mode: plan.mode,
     autoReview: plan.autoReview ?? true,
     autoRepair: plan.autoReview === false ? false : (plan.autoRepair ?? true),
+    artifactSyncMode: plan.artifactSyncMode ?? "adaptive",
     scopeLabel: input.scopeLabel?.trim() || buildDirectorAutoExecutionScopeLabel(plan, totalChapterCount, input.volumeTitle),
     volumeOrder: plan.mode === "volume" ? plan.volumeOrder : undefined,
     volumeTitle: input.volumeTitle ?? null,
@@ -481,6 +488,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
   runMode?: PipelineRunMode;
   autoReview?: boolean;
   autoRepair?: boolean;
+  artifactSyncMode?: ArtifactSyncMode;
 }) {
   const autoReview = input.autoReview ?? true;
   return {
@@ -499,6 +507,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     temperature: input.temperature,
     workflowTaskId: input.workflowTaskId,
     taskStyleProfileId: input.taskStyleProfileId,
+    artifactSyncMode: input.artifactSyncMode ?? "adaptive",
   };
 }
 

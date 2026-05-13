@@ -6,6 +6,7 @@ import {
   stringifyPipelinePayload,
 } from "../pipelineJobState";
 import type {
+  ArtifactSyncMode,
   PipelineBackgroundSyncActivity,
   PipelineBackgroundSyncKind,
   PipelinePayload,
@@ -18,14 +19,45 @@ interface ChapterBackgroundSyncContext {
   chapterTitle: string;
 }
 
+interface ChapterArtifactBackgroundSyncOptions {
+  artifactSyncMode?: ArtifactSyncMode;
+}
+
+const DEFAULT_ARTIFACT_SYNC_MODE: ArtifactSyncMode = "adaptive";
+const DEFERRED_SYNC_DELAY_MS = 5000;
+
 export class ChapterArtifactBackgroundSyncService {
   private readonly artifactDeltaService = new ChapterArtifactDeltaService();
   private readonly activeSyncKeys = new Set<string>();
   private readonly latestSyncedContentHashByChapter = new Map<string, string>();
 
-  scheduleChapterSync(novelId: string, chapterId: string, content: string): void {
+  scheduleChapterSync(
+    novelId: string,
+    chapterId: string,
+    content: string,
+    options: ChapterArtifactBackgroundSyncOptions = {},
+  ): void {
+    const artifactSyncMode = options.artifactSyncMode ?? DEFAULT_ARTIFACT_SYNC_MODE;
+    const delayMs = artifactSyncMode === "deferred" ? DEFERRED_SYNC_DELAY_MS : 0;
+    const run = () => {
+      void this.runChapterSyncNow(novelId, chapterId, content, { artifactSyncMode });
+    };
+    if (delayMs > 0) {
+      setTimeout(run, delayMs).unref?.();
+      return;
+    }
+    run();
+  }
+
+  async runChapterSyncNow(
+    novelId: string,
+    chapterId: string,
+    content: string,
+    options: ChapterArtifactBackgroundSyncOptions = {},
+  ): Promise<void> {
+    const artifactSyncMode = options.artifactSyncMode ?? DEFAULT_ARTIFACT_SYNC_MODE;
     const contentHash = createHash("sha1").update(content).digest("hex");
-    const chapterKey = `${novelId}:${chapterId}`;
+    const chapterKey = `${novelId}:${chapterId}:${artifactSyncMode}`;
     const syncKey = `${chapterKey}:${contentHash}`;
     if (
       this.activeSyncKeys.has(syncKey)
@@ -34,28 +66,42 @@ export class ChapterArtifactBackgroundSyncService {
       return;
     }
     this.activeSyncKeys.add(syncKey);
-    void this.runChapterSync(novelId, chapterId, content)
-      .then(() => {
-        this.latestSyncedContentHashByChapter.set(chapterKey, contentHash);
-      })
-      .catch((error) => {
-        console.warn("[chapter-artifact-background-sync] background sync failed", {
-          novelId,
-          chapterId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      })
-      .finally(() => {
-        this.activeSyncKeys.delete(syncKey);
+    try {
+      await this.runChapterSync(novelId, chapterId, content, artifactSyncMode, contentHash);
+      this.latestSyncedContentHashByChapter.set(chapterKey, contentHash);
+    } catch (error) {
+      console.warn("[chapter-artifact-background-sync] background sync failed", {
+        novelId,
+        chapterId,
+        artifactSyncMode,
+        error: error instanceof Error ? error.message : String(error),
       });
+    } finally {
+      this.activeSyncKeys.delete(syncKey);
+    }
   }
 
-  private async runChapterSync(novelId: string, chapterId: string, content: string): Promise<void> {
+  private async runChapterSync(
+    novelId: string,
+    chapterId: string,
+    content: string,
+    artifactSyncMode: ArtifactSyncMode,
+    contentHash: string,
+  ): Promise<void> {
     const chapter = await prisma.chapter.findFirst({
       where: { id: chapterId, novelId },
-      select: { id: true, order: true, title: true, taskSheet: true },
+      select: { id: true, order: true, title: true },
     });
     if (!chapter) {
+      return;
+    }
+    if (await this.hasCompletedCheckpoint({
+      novelId,
+      chapterId,
+      contentHash,
+      artifactType: "artifact_delta",
+      syncMode: artifactSyncMode,
+    })) {
       return;
     }
     const context: ChapterBackgroundSyncContext = {
@@ -64,7 +110,8 @@ export class ChapterArtifactBackgroundSyncService {
       chapterTitle: chapter.title,
     };
 
-    let requiresFullReconcile = false;
+    let deltaMetadata: Record<string, unknown> = {};
+    let requiresFullReconcileFromDelta = false;
     await this.runTrackedActivity(novelId, context, "artifact_delta", async () => {
       const result = await this.artifactDeltaService.syncChapterArtifacts({
         novelId,
@@ -73,17 +120,198 @@ export class ChapterArtifactBackgroundSyncService {
         sourceType: "chapter_background_sync",
         sourceStage: "chapter_execution",
       });
-      requiresFullReconcile = result.requiresFullReconcile;
+      requiresFullReconcileFromDelta = result.requiresFullReconcile;
+      deltaMetadata = {
+        stateSnapshotId: result.stateSnapshotId,
+        characterResourceProposalCount: result.characterResourceProposalCount,
+        characterDynamicsCount: result.characterDynamicsCount,
+        payoffDeltaCount: result.payoffDeltaCount,
+        canonicalCommittedCount: result.canonicalCommittedCount,
+        syncPlan: result.output.syncPlan,
+        confidence: result.output.confidence,
+      };
+    });
+    await this.markCheckpoint({
+      novelId,
+      chapterId,
+      contentHash,
+      artifactType: "artifact_delta",
+      syncMode: artifactSyncMode,
+      sourceType: "chapter_background_sync",
+      sourceStage: "chapter_execution",
+      metadata: deltaMetadata,
     });
 
-    if (requiresFullReconcile) {
+    const shouldReconcile = await this.shouldRunPayoffFullReconcile({
+      novelId,
+      chapterOrder: chapter.order,
+      artifactSyncMode,
+      requiresFullReconcileFromDelta,
+    });
+    if (shouldReconcile && !(await this.hasCompletedCheckpoint({
+      novelId,
+      chapterId,
+      contentHash,
+      artifactType: "payoff_ledger_full_reconcile",
+      syncMode: artifactSyncMode,
+    }))) {
       await this.runTrackedActivity(novelId, context, "payoff_ledger", async () => {
         await payoffLedgerSyncService.syncLedger(novelId, {
           chapterOrder: chapter.order,
           sourceChapterId: chapterId,
         });
       });
+      await this.markCheckpoint({
+        novelId,
+        chapterId,
+        contentHash,
+        artifactType: "payoff_ledger_full_reconcile",
+        syncMode: artifactSyncMode,
+        sourceType: "chapter_background_sync",
+        sourceStage: "chapter_execution",
+        metadata: {
+          trigger: this.describePayoffReconcileTrigger({
+            chapterOrder: chapter.order,
+            artifactSyncMode,
+            requiresFullReconcileFromDelta,
+            isVolumeTail: await this.isVolumeTail(novelId, chapter.order),
+          }),
+        },
+      });
     }
+  }
+
+  private async shouldRunPayoffFullReconcile(input: {
+    novelId: string;
+    chapterOrder: number;
+    artifactSyncMode: ArtifactSyncMode;
+    requiresFullReconcileFromDelta: boolean;
+  }): Promise<boolean> {
+    if (input.artifactSyncMode === "strict") {
+      return true;
+    }
+    if (input.requiresFullReconcileFromDelta) {
+      return true;
+    }
+    if (input.artifactSyncMode === "deferred") {
+      return false;
+    }
+    if (input.chapterOrder > 0 && input.chapterOrder % 3 === 0) {
+      return true;
+    }
+    return this.isVolumeTail(input.novelId, input.chapterOrder);
+  }
+
+  private describePayoffReconcileTrigger(input: {
+    chapterOrder: number;
+    artifactSyncMode: ArtifactSyncMode;
+    requiresFullReconcileFromDelta: boolean;
+    isVolumeTail: boolean;
+  }): string {
+    if (input.artifactSyncMode === "strict") {
+      return "strict_mode";
+    }
+    if (input.requiresFullReconcileFromDelta) {
+      return "artifact_delta_risk";
+    }
+    if (input.chapterOrder > 0 && input.chapterOrder % 3 === 0) {
+      return "adaptive_three_chapter_checkpoint";
+    }
+    if (input.isVolumeTail) {
+      return "adaptive_volume_tail";
+    }
+    return "manual";
+  }
+
+  private async isVolumeTail(novelId: string, chapterOrder: number): Promise<boolean> {
+    const volume = await prisma.volumePlan.findFirst({
+      where: {
+        novelId,
+        chapters: {
+          some: { chapterOrder },
+        },
+      },
+      include: {
+        chapters: {
+          select: { chapterOrder: true },
+        },
+      },
+    });
+    if (!volume || volume.chapters.length === 0) {
+      return false;
+    }
+    const maxChapterOrder = Math.max(...volume.chapters.map((item) => item.chapterOrder));
+    return chapterOrder === maxChapterOrder;
+  }
+
+  private async hasCompletedCheckpoint(input: {
+    novelId: string;
+    chapterId: string;
+    contentHash: string;
+    artifactType: string;
+    syncMode: ArtifactSyncMode;
+  }): Promise<boolean> {
+    const row = await prisma.chapterArtifactSyncCheckpoint.findUnique({
+      where: {
+        novelId_chapterId_contentHash_artifactType_syncMode: {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          contentHash: input.contentHash,
+          artifactType: input.artifactType,
+          syncMode: input.syncMode,
+        },
+      },
+      select: { status: true },
+    }).catch(() => null);
+    return row?.status === "succeeded";
+  }
+
+  private async markCheckpoint(input: {
+    novelId: string;
+    chapterId: string;
+    contentHash: string;
+    artifactType: string;
+    syncMode: ArtifactSyncMode;
+    sourceType?: string | null;
+    sourceStage?: string | null;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    await prisma.chapterArtifactSyncCheckpoint.upsert({
+      where: {
+        novelId_chapterId_contentHash_artifactType_syncMode: {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          contentHash: input.contentHash,
+          artifactType: input.artifactType,
+          syncMode: input.syncMode,
+        },
+      },
+      create: {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        contentHash: input.contentHash,
+        artifactType: input.artifactType,
+        syncMode: input.syncMode,
+        status: "succeeded",
+        sourceType: input.sourceType ?? null,
+        sourceStage: input.sourceStage ?? null,
+        metadataJson: JSON.stringify(input.metadata ?? {}),
+      },
+      update: {
+        status: "succeeded",
+        sourceType: input.sourceType ?? null,
+        sourceStage: input.sourceStage ?? null,
+        metadataJson: JSON.stringify(input.metadata ?? {}),
+        updatedAt: new Date(),
+      },
+    }).catch((error) => {
+      console.warn("[chapter-artifact-background-sync] checkpoint write failed", {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        artifactType: input.artifactType,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
   }
 
   private async runTrackedActivity(

@@ -87,12 +87,13 @@ interface RunPipelineChapterDeps {
     chapterId: string,
     content: string,
     generationState: "drafted" | "repaired",
-    options?: { scheduleBackgroundSync?: boolean },
+    options?: { scheduleBackgroundSync?: boolean; artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"] },
   ) => Promise<void>;
   syncFinalChapterArtifacts: (
     novelId: string,
     chapterId: string,
     content: string,
+    options?: { artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"] },
   ) => Promise<void>;
   finalizeChapterContent: (input: {
     novelId: string;
@@ -134,6 +135,7 @@ export async function runPipelineChapterWithRuntime(
     autoRepair = true,
     qualityThreshold = 75,
     repairMode = "light_repair",
+    artifactSyncMode = "adaptive",
     ...requestInput
   } = options;
   const request = deps.validateRequest(requestInput);
@@ -164,17 +166,19 @@ export async function runPipelineChapterWithRuntime(
       if (!generatedDraft.artifactsAlreadySynced) {
         await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted", {
           scheduleBackgroundSync: false,
+          artifactSyncMode,
         });
       }
     } else if (attempt === 0) {
       await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted", {
         scheduleBackgroundSync: false,
+        artifactSyncMode,
       });
     }
 
     if (!autoReview) {
       await deps.markChapterGenerationState(chapterId, "approved");
-      await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, content);
+      await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, content, artifactSyncMode);
       return {
         reviewExecuted: false,
         pass: true,
@@ -254,6 +258,7 @@ export async function runPipelineChapterWithRuntime(
     retryCountUsed += 1;
     await deps.saveDraftAndArtifacts(novelId, chapterId, content, "repaired", {
       scheduleBackgroundSync: false,
+      artifactSyncMode,
     });
   }
 
@@ -261,7 +266,7 @@ export async function runPipelineChapterWithRuntime(
     throw new Error("Pipeline chapter runtime did not produce a result.");
   }
 
-  await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, latestResult.finalContent);
+  await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, latestResult.finalContent, artifactSyncMode);
 
   return {
     reviewExecuted: true,
@@ -335,11 +340,12 @@ async function syncFinalRetainedChapterArtifacts(
   novelId: string,
   chapterId: string,
   content: string,
+  artifactSyncMode: PipelineRuntimeInput["artifactSyncMode"],
 ): Promise<void> {
   if (!content.trim()) {
     return;
   }
-  await deps.syncFinalChapterArtifacts(novelId, chapterId, content);
+  await deps.syncFinalChapterArtifacts(novelId, chapterId, content, { artifactSyncMode });
 }
 
 function isQualityPass(score: QualityScore, qualityThreshold: number): boolean {

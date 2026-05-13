@@ -57,6 +57,12 @@ function normalizeStringList(value: unknown): string[] | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function normalizeArtifactSyncMode(value: unknown): PipelinePayload["artifactSyncMode"] | undefined {
+  return value === "strict" || value === "deferred" || value === "adaptive"
+    ? value
+    : undefined;
+}
+
 function normalizePipelineBackgroundActivity(value: unknown): PipelineBackgroundSyncActivity | null {
   if (!value || typeof value !== "object") {
     return null;
@@ -235,6 +241,7 @@ export function parsePipelinePayload(payload: string | null | undefined): Pipeli
         || parsed.repairMode === "ending_only"
           ? parsed.repairMode
           : undefined,
+      artifactSyncMode: normalizeArtifactSyncMode(parsed.artifactSyncMode),
       controlPolicy: normalizeControlPolicy(parsed.controlPolicy),
       qualityAlertDetails: normalizeStringList(parsed.qualityAlertDetails ?? parsed.failedDetails),
       replanAlertDetails: normalizeStringList(parsed.replanAlertDetails),
@@ -264,6 +271,7 @@ export function stringifyPipelinePayload(input: PipelinePayload): string {
     skipCompleted: input.skipCompleted ?? true,
     qualityThreshold: input.qualityThreshold ?? null,
     repairMode: input.repairMode ?? "light_repair",
+    artifactSyncMode: input.artifactSyncMode ?? "adaptive",
     ...(input.controlPolicy ? { controlPolicy: normalizeControlPolicy(input.controlPolicy) ?? input.controlPolicy } : {}),
     ...(qualityAlertDetails.length > 0 ? { qualityAlertDetails } : {}),
     ...(replanAlertDetails.length > 0 ? { replanAlertDetails } : {}),

@@ -432,6 +432,7 @@ const pipelineRunSchema = llmGenerateSchema.extend({
   skipCompleted: z.boolean().optional(),
   qualityThreshold: z.number().int().min(0).max(100).optional(),
   repairMode: z.enum(["detect_only", "light_repair", "heavy_repair", "continuity_only", "character_only", "ending_only"]).optional(),
+  artifactSyncMode: z.enum(["adaptive", "deferred", "strict"]).optional(),
 }).refine((value) => value.startOrder <= value.endOrder, {
   message: "起始章节必须小于或等于结束章节。",
 });
