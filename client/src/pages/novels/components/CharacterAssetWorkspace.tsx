@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import type {
   Character,
-  CharacterCastRole,
   CharacterGender,
   CharacterTimeline,
   CharacterVisibleProfileBatchResult,
@@ -14,6 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import CharacterAssetSidebar from "./CharacterAssetSidebar";
+import CharacterFocusSummary from "./CharacterFocusSummary";
+import { isProtagonistCharacter } from "./characterAssetWorkspace.helpers";
 import { getLastAppearanceChapter } from "./characterPanel.utils";
 
 interface CharacterFormState {
@@ -68,24 +70,6 @@ interface CharacterAssetWorkspaceProps {
   isBackfillingCharacterResources?: boolean;
 }
 
-const CAST_ROLE_LABELS: Record<CharacterCastRole, string> = {
-  protagonist: "主角",
-  antagonist: "主对手",
-  ally: "同盟",
-  foil: "镜像角色",
-  mentor: "导师",
-  love_interest: "情感牵引",
-  pressure_source: "压力源",
-  catalyst: "催化者",
-};
-
-const CHARACTER_GENDER_LABELS: Record<CharacterGender, string> = {
-  male: "男",
-  female: "女",
-  other: "其他",
-  unknown: "未知",
-};
-
 const VISIBLE_PROFILE_FIELDS: Array<{ key: CharacterVisibleProfileField; label: string; placeholder: string }> = [
   { key: "appearance", label: "样貌记忆点", placeholder: "眉眼、发型、表情习惯等能被读者记住的样貌特征" },
   { key: "physique", label: "体态基底", placeholder: "年龄感、身形、行动姿态、身体状态基底" },
@@ -94,20 +78,6 @@ const VISIBLE_PROFILE_FIELDS: Array<{ key: CharacterVisibleProfileField; label: 
   { key: "voiceTexture", label: "声音口吻", placeholder: "声线、说话节奏、句式习惯、口吻" },
   { key: "presenceImpression", label: "登场印象", placeholder: "首次或常规登场时给读者的直观感受" },
 ];
-
-function getCastRoleLabel(castRole?: CharacterCastRole | null): string {
-  if (!castRole) {
-    return "未定义";
-  }
-  return CAST_ROLE_LABELS[castRole] ?? castRole;
-}
-
-function getCharacterGenderLabel(gender?: CharacterGender | null): string {
-  if (!gender) {
-    return "未知";
-  }
-  return CHARACTER_GENDER_LABELS[gender] ?? gender;
-}
 
 function getSecretStatus(selectedCharacter?: Character): string {
   if (!selectedCharacter) {
@@ -138,7 +108,7 @@ function getResourceDisplayMode(character?: Character): {
   shouldShowResource: (item: CharacterResourceLedgerItem) => boolean;
 } {
   const roleText = `${character?.role ?? ""} ${character?.castRole ?? ""}`;
-  if (character?.castRole === "protagonist" || /主角|男主|女主|主人公/.test(roleText)) {
+  if (isProtagonistCharacter(character)) {
     return {
       label: "主角完整资源",
       helper: "主角会完整展示道具、线索、身份凭证、底牌和消耗状态，后续章节会优先参考这些行动边界。",
@@ -260,6 +230,7 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
   );
   const applicableVisibleProfileCount = Object.keys(visibleProfileSuggestion?.fields ?? {}).length;
   const batchApplicableCount = batchVisibleProfileResult?.results.filter((item) => item.hasApplicableChanges).length ?? 0;
+  const isSelectedProtagonist = isProtagonistCharacter(selectedCharacter);
 
   return (
     <Card>
@@ -273,56 +244,20 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{characters.length} 个已建角色</Badge>
-            {selectedCharacter ? <Badge variant="secondary">当前聚焦：{selectedCharacter.name}</Badge> : null}
+            {selectedCharacter ? <Badge variant="secondary">当前编辑：{selectedCharacter.name}</Badge> : null}
+            {isSelectedProtagonist ? <Badge variant="outline">主角</Badge> : null}
           </div>
         </div>
       </CardHeader>
       <CardContent className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
-        <div className="space-y-2">
-          <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Character List
-          </div>
-          {characters.length > 0 ? (
-            <div className="max-h-[560px] space-y-2 overflow-auto pr-1">
-              {characters.map((character) => (
-                <button
-                  key={character.id}
-                  type="button"
-                  onClick={() => onSelectedCharacterChange(character.id)}
-                  className={`flex w-full items-center justify-between rounded-xl border p-3 text-left transition ${
-                    selectedCharacterId === character.id
-                      ? "border-primary bg-primary/5 shadow-sm"
-                      : "border-border/70 hover:border-primary/30 hover:bg-muted/30"
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <div className="truncate font-medium">{character.name}</div>
-                    <div className="text-xs text-muted-foreground">{character.role}</div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    disabled={isDeletingCharacter && deletingCharacterId === character.id}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      const confirmed = window.confirm(`确认删除角色“${character.name}”？此操作不可恢复。`);
-                      if (!confirmed) {
-                        return;
-                      }
-                      onDeleteCharacter(character.id);
-                    }}
-                  >
-                    {isDeletingCharacter && deletingCharacterId === character.id ? "删除中..." : "删除"}
-                  </Button>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-              当前小说还没有角色，先在上方向导里创建或导入角色。
-            </div>
-          )}
-        </div>
+        <CharacterAssetSidebar
+          characters={characters}
+          selectedCharacterId={selectedCharacterId}
+          onSelectedCharacterChange={onSelectedCharacterChange}
+          onDeleteCharacter={onDeleteCharacter}
+          isDeletingCharacter={isDeletingCharacter}
+          deletingCharacterId={deletingCharacterId}
+        />
 
         {!selectedCharacter ? (
           <div className="flex min-h-[260px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm text-muted-foreground">
@@ -330,19 +265,11 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
           </div>
         ) : (
           <div className="space-y-4">
+            <CharacterFocusSummary
+              selectedCharacter={selectedCharacter}
+              lastAppearanceChapter={lastAppearanceChapter}
+            />
             <div className="grid gap-3 lg:grid-cols-2">
-              <div className="rounded-xl border p-3">
-                <div className="text-xs text-muted-foreground">基础身份</div>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <div className="font-medium">{selectedCharacter.name}</div>
-                  <Badge variant="outline">{getCastRoleLabel(selectedCharacter.castRole)}</Badge>
-                  <Badge variant="secondary">{getCharacterGenderLabel(selectedCharacter.gender)}</Badge>
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">身份：{selectedCharacter.role || "未定义"}</div>
-                <div className="text-xs text-muted-foreground">
-                  最近出场章节：{lastAppearanceChapter ? `第${lastAppearanceChapter}章` : "暂无"}
-                </div>
-              </div>
               <div className="rounded-xl border p-3">
                 <div className="text-xs text-muted-foreground">运行状态</div>
                 <div className="mt-2 text-xs text-muted-foreground">当前状态：{selectedCharacter.currentState || "待补全"}</div>
