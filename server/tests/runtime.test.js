@@ -262,12 +262,25 @@ test("composeAssistantMessage summarizes production status query", async () => {
         output: {
           novelId: "novel-1",
           title: "抗日奇侠传",
-          currentStage: "等待启动整本写作",
+          currentStage: "章节正文写作中",
           chapterCount: 20,
           targetChapterCount: 20,
           pipelineStatus: null,
           failureSummary: null,
-          recoveryHint: "当前资产已准备完成，可在审批通过后启动整本写作。",
+          recoveryHint: "继续从第 9 章推进正文。",
+          progressBasis: "facts",
+          factProgress: {
+            planningCompleted: 6,
+            planningTotal: 6,
+            draftedChapterCount: 8,
+            reviewedChapterCount: 6,
+            committedChapterCount: 4,
+            needsRepairChapters: 0,
+          },
+          runtimeStatus: {
+            state: "idle",
+            label: "后台任务未启动",
+          },
         },
       },
     ],
@@ -281,9 +294,61 @@ test("composeAssistantMessage summarizes production status query", async () => {
       chapterSelectors: {},
     },
   );
-  assert.match(text, /等待启动整本写作/);
-  assert.match(text, /20\/20 章/);
-  assert.match(text, /审批通过后启动整本写作/);
+  assert.match(text, /章节正文写作中/);
+  assert.match(text, /规划：6\/6 项/);
+  assert.match(text, /正文：8\/20 章/);
+  assert.match(text, /继续从第 9 章推进正文/);
+});
+
+test("composeAssistantMessage summarizes generic progress from production status facts", async () => {
+  const text = await composeAssistantMessage(
+    "小说进展怎么样",
+    "执行摘要",
+    [
+      {
+        tool: "get_novel_production_status",
+        success: true,
+        summary: "已读取整本生产状态。",
+        output: {
+          novelId: "novel-1",
+          title: "抗日奇侠传",
+          currentStage: "质量修复待处理",
+          chapterCount: 20,
+          targetChapterCount: 20,
+          pipelineStatus: "failed",
+          failureSummary: "模型调用失败",
+          recoveryHint: "优先处理 2 章质量修复，再继续后续章节。",
+          progressBasis: "facts",
+          factProgress: {
+            planningCompleted: 6,
+            planningTotal: 6,
+            draftedChapterCount: 8,
+            reviewedChapterCount: 8,
+            committedChapterCount: 6,
+            needsRepairChapters: 2,
+          },
+          runtimeStatus: {
+            state: "failed",
+            label: "后台任务失败",
+          },
+        },
+      },
+    ],
+    false,
+    { contextMode: "novel", novelId: "novel-1" },
+    {
+      goal: "小说进展怎么样",
+      intent: "query_progress",
+      confidence: 0.92,
+      requiresNovelContext: true,
+      chapterSelectors: {},
+    },
+  );
+  assert.match(text, /事实进展：质量修复待处理/);
+  assert.match(text, /正文：8\/20 章/);
+  assert.match(text, /2 章待修复/);
+  assert.match(text, /后台补充：后台任务失败/);
+  assert.match(text, /已产出的事实内容可继续使用/);
 });
 
 test("composeAssistantMessage does not turn novel overview queries into collaborative followups", async () => {

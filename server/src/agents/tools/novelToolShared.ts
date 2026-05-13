@@ -406,6 +406,47 @@ export const productionStageSchema = z.object({
   detail: z.string().nullable(),
 });
 
+export const productionFactProgressSchema = z.object({
+  planningCompleted: z.number().int(),
+  planningTotal: z.number().int(),
+  planningPercent: z.number().int().min(0).max(100),
+  plannedChapterCount: z.number().int(),
+  chapterCount: z.number().int(),
+  draftedChapterCount: z.number().int(),
+  reviewedChapterCount: z.number().int(),
+  approvedChapterCount: z.number().int(),
+  committedChapterCount: z.number().int(),
+  completedChapters: z.number().int(),
+  needsRepairChapters: z.number().int(),
+  currentChapterOrder: z.number().int().nullable(),
+  activeChapterOrder: z.number().int().nullable(),
+  chapterExecutionPercent: z.number().int().min(0).max(100),
+  qualityRepairPercent: z.number().int().min(0).max(100),
+  totalPercent: z.number().int().min(0).max(100),
+  facts: z.object({
+    hasWorld: z.boolean(),
+    hasStoryMacro: z.boolean(),
+    hasBookContract: z.boolean(),
+    hasStoryBible: z.boolean(),
+    hasCharacters: z.boolean(),
+    characterCount: z.number().int(),
+    hasVolumeStrategy: z.boolean(),
+    volumeCount: z.number().int(),
+    hasChapterTaskSheets: z.boolean(),
+    syncedChapterCount: z.number().int(),
+  }),
+});
+
+export const productionRuntimeStatusSchema = z.object({
+  jobId: z.string().nullable(),
+  status: z.string().nullable(),
+  state: z.enum(["idle", "queued", "running", "succeeded", "failed", "cancelled", "unknown"]),
+  label: z.string(),
+  failureSummary: z.string().nullable(),
+  isActive: z.boolean(),
+  blocksFactProgress: z.literal(false),
+});
+
 export const getNovelProductionStatusInput = z
   .object({
     novelId: z.string().trim().min(1).optional(),
@@ -432,6 +473,9 @@ export const getNovelProductionStatusOutput = z.object({
   recoveryHint: z.string().nullable(),
   currentStage: z.string(),
   summary: z.string(),
+  progressBasis: z.literal("facts"),
+  factProgress: productionFactProgressSchema,
+  runtimeStatus: productionRuntimeStatusSchema,
 });
 
 export function toChapterOverview(chapter: {

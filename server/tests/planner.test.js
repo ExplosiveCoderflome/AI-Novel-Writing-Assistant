@@ -307,6 +307,24 @@ test("compileIntentToPlan uses production status tool for whole-book progress qu
   assert.deepEqual(plan.actions[0].input, { novelId: "novel-1" });
 });
 
+test("compileIntentToPlan uses production status tool for generic progress questions", () => {
+  const plan = compileIntentToPlan({
+    goal: "How far has this novel progressed?",
+    intent: "query_progress",
+    confidence: 0.9,
+    requiresNovelContext: true,
+    chapterSelectors: {},
+  }, {
+    goal: "How far has this novel progressed?",
+    messages: [],
+    contextMode: "novel",
+    novelId: "novel-1",
+  });
+
+  assert.deepEqual(plan.actions.map((item) => item.tool), ["get_novel_production_status"]);
+  assert.deepEqual(plan.actions[0].input, { novelId: "novel-1" });
+});
+
 test("compileIntentToPlan uses search_knowledge for similar-setting reference queries", () => {
   const plan = compileIntentToPlan({
     goal: "Find settings similar to wife-honor dynamics",

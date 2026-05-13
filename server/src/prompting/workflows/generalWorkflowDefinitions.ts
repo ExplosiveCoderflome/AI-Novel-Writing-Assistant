@@ -97,10 +97,10 @@ export const generalWorkflowDefinitions: WorkflowDefinition[] = [
     kind: "single",
     resolve: ({ plannerInput }) => [{
       agent: "Planner",
-      tool: "get_novel_context",
-      reason: "读取小说进度信息",
+      tool: "get_novel_production_status",
+      reason: "读取小说事实进展",
       input: { novelId: plannerInput.novelId },
-      keyPrefix: "novel_progress",
+      keyPrefix: "novel_fact_progress",
     }],
   },
   {

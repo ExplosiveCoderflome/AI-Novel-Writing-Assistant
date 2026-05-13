@@ -273,7 +273,73 @@ function composeUnbindWorldAnswer(
   return "未完成世界观解绑。";
 }
 
+function composeFactProductionStatusText(status: Record<string, unknown>, fallbackTitle = "当前小说"): string {
+  const title = typeof status.title === "string" && status.title.trim() ? status.title.trim() : fallbackTitle;
+  const currentStage = typeof status.currentStage === "string" && status.currentStage.trim()
+    ? status.currentStage.trim()
+    : "未知阶段";
+  const factProgress = isRecord(status.factProgress) ? status.factProgress : null;
+  const targetChapterCount = typeof status.targetChapterCount === "number" ? status.targetChapterCount : null;
+  const chapterCount = typeof status.chapterCount === "number" ? status.chapterCount : 0;
+  const runtimeStatus = isRecord(status.runtimeStatus) ? status.runtimeStatus : null;
+  const runtimeLabel = typeof runtimeStatus?.label === "string" && runtimeStatus.label.trim()
+    ? runtimeStatus.label.trim()
+    : null;
+  const runtimeState = typeof runtimeStatus?.state === "string" ? runtimeStatus.state : null;
+  const pipelineStatus = typeof status.pipelineStatus === "string" ? status.pipelineStatus.trim() : null;
+  const failureSummary = typeof status.failureSummary === "string" ? status.failureSummary.trim() : "";
+  const recoveryHint = typeof status.recoveryHint === "string" ? status.recoveryHint.trim() : "";
+
+  const parts = [`《${title}》事实进展：${currentStage}。`];
+  if (factProgress) {
+    const planningCompleted = typeof factProgress.planningCompleted === "number" ? factProgress.planningCompleted : null;
+    const planningTotal = typeof factProgress.planningTotal === "number" ? factProgress.planningTotal : null;
+    const draftedChapterCount = typeof factProgress.draftedChapterCount === "number" ? factProgress.draftedChapterCount : null;
+    const reviewedChapterCount = typeof factProgress.reviewedChapterCount === "number" ? factProgress.reviewedChapterCount : null;
+    const committedChapterCount = typeof factProgress.committedChapterCount === "number" ? factProgress.committedChapterCount : null;
+    const needsRepairChapters = typeof factProgress.needsRepairChapters === "number" ? factProgress.needsRepairChapters : 0;
+    if (planningCompleted != null && planningTotal != null) {
+      parts.push(`规划：${planningCompleted}/${planningTotal} 项。`);
+    }
+    if (draftedChapterCount != null) {
+      parts.push(targetChapterCount != null
+        ? `正文：${draftedChapterCount}/${targetChapterCount} 章。`
+        : `正文：${draftedChapterCount} 章。`);
+    } else {
+      parts.push(targetChapterCount != null ? `章节目录：${chapterCount}/${targetChapterCount} 章。` : `章节目录：${chapterCount} 章。`);
+    }
+    if (reviewedChapterCount != null && reviewedChapterCount > 0) {
+      parts.push(`审校：${reviewedChapterCount} 章。`);
+    }
+    if (committedChapterCount != null && committedChapterCount > 0) {
+      parts.push(`状态提交：${committedChapterCount} 章。`);
+    }
+    if (needsRepairChapters > 0) {
+      parts.push(`${needsRepairChapters} 章待修复。`);
+    }
+  } else {
+    parts.push(targetChapterCount != null ? `章节目录：${chapterCount}/${targetChapterCount} 章。` : `章节目录：${chapterCount} 章。`);
+  }
+  if (runtimeLabel && runtimeState !== "idle") {
+    parts.push(`后台补充：${runtimeLabel}。`);
+  } else if (pipelineStatus) {
+    parts.push(`后台补充：${pipelineStatus}。`);
+  }
+  if (failureSummary) {
+    parts.push(`后台失败原因：${failureSummary}`);
+    parts.push("已产出的事实内容可继续使用。");
+  }
+  if (recoveryHint) {
+    parts.push(`建议：${recoveryHint}`);
+  }
+  return parts.join("");
+}
+
 function composeProgressAnswer(results: ToolExecutionResult[]): string {
+  const productionStatus = getFirstSuccessfulOutput(results, "get_novel_production_status");
+  if (productionStatus) {
+    return composeFactProductionStatusText(productionStatus);
+  }
   const context = getSuccessfulOutputs(results, "get_novel_context")[0];
   if (!context) {
     return "当前信息不足，无法继续";
@@ -290,14 +356,14 @@ function composeProgressAnswer(results: ToolExecutionResult[]): string {
   }
   const parts = [
     chapterCount != null
-      ? `当前已完成 ${completedChapterCount} / ${chapterCount} 章。`
-      : `当前已完成 ${completedChapterCount} 章。`,
+      ? `正文：${completedChapterCount}/${chapterCount} 章。`
+      : `正文：${completedChapterCount} 章。`,
   ];
   if (latestCompletedChapterOrder != null) {
     parts.push(`最近完成到第${latestCompletedChapterOrder}章。`);
   }
   if (completedChapterCount === 0) {
-    parts.push("当前还没有检测到已写入正文的章节。");
+    parts.push("未检测到写入正文的章节。");
   }
   return parts.join("");
 }
@@ -387,24 +453,7 @@ function composeProductionStatusAnswer(
       : "没有当前小说上下文，无法读取整本生产状态。";
   }
   const title = typeof status.title === "string" ? status.title.trim() : "当前小说";
-  const currentStage = typeof status.currentStage === "string" ? status.currentStage.trim() : "未知阶段";
-  const chapterCount = typeof status.chapterCount === "number" ? status.chapterCount : 0;
-  const targetChapterCount = typeof status.targetChapterCount === "number" ? status.targetChapterCount : null;
-  const pipelineStatus = typeof status.pipelineStatus === "string" ? status.pipelineStatus.trim() : null;
-  const failureSummary = typeof status.failureSummary === "string" ? status.failureSummary.trim() : "";
-  const recoveryHint = typeof status.recoveryHint === "string" ? status.recoveryHint.trim() : "";
-  const parts = [`《${title}》当前阶段：${currentStage}。`];
-  parts.push(targetChapterCount != null ? `章节目录：${chapterCount}/${targetChapterCount} 章。` : `章节目录：${chapterCount} 章。`);
-  if (pipelineStatus) {
-    parts.push(`整本写作任务状态：${pipelineStatus}。`);
-  }
-  if (failureSummary) {
-    parts.push(`失败原因：${failureSummary}`);
-  }
-  if (recoveryHint) {
-    parts.push(`建议：${recoveryHint}`);
-  }
-  return parts.join("");
+  return composeFactProductionStatusText(status, title);
 }
 
 async function composeProduceNovelAnswer(
