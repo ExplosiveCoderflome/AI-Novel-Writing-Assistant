@@ -1,5 +1,7 @@
 # 自动导演统一运行时 MVP 落地切片方案
 
+> 归档说明：本文件记录的是 2026-04-28 的自动导演 MVP 迁移切片，已不再作为当前开发依据。当前自动导演事实以 `docs/wiki/workflows/auto-director-runtime.md`、`docs/plans/auto-director-execution-plane-isolation-plan.md`、`docs/plans/director-mode-module-state-refactor-checklist.md` 和 release notes 为准。
+
 更新日期：2026-04-28
 
 关联总纲：`docs/plans/auto-director-unified-runtime-refactor-plan.md`

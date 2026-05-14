@@ -65,6 +65,90 @@
 - High-density server directories should be reduced incrementally. `routes` should converge into module-owned `http/` entrypoints, `services/novel` should keep only facades and stable shared entrypoints at its root, and `services/novel/director` should converge into owned submodules such as `commands`, `runtime`, `state`, `automation`, `projections`, `recovery`, and `phases`.
 - Each architecture cleanup phase should move only one coherent subsystem, preserve compatibility exports where needed, check dependency direction, and run targeted TypeScript or service-level verification before the phase is considered complete.
 
+## Project Development Wiki Rules
+
+This project must continuously maintain a development wiki for architecture decisions, workflow rules, module boundaries, runtime contracts, debugging lessons, and product design rationale.
+
+The wiki is not a record of "what changed". It should help future developers and AI agents understand why the system is designed this way and how it should be maintained.
+
+### What Should Be Documented
+
+Document stable knowledge such as:
+
+- Design boundaries for core modules such as auto-director, chapter production, Creative Hub, task center, RAG, and Prompt Registry.
+- Important architecture decisions and their reasons.
+- Runtime state contracts, stage transition rules, recovery rules, retry rules, and failure-handling rules.
+- AI invocation conventions such as Prompt Schema, structured output, JSON repair, and context assembly.
+- Module ownership, dependency direction, and boundaries that forbid cross-layer calls.
+- Repeated failure modes, debugging conclusions, and recommended diagnosis paths.
+- Product principles and UX decisions that help beginners complete a full novel.
+
+### What Should Not Be Documented
+
+Do not add wiki entries for:
+
+- Tiny changes with no long-term value.
+- Per-commit file modification lists.
+- Temporary TODOs.
+- Pure release-note content.
+- Implementation details that are likely to be discarded soon.
+- Narration that only says what changed in the current task.
+
+### Wiki Writing Rules
+
+- Use Chinese by default unless the surrounding document is clearly English-only.
+- Write for future developers and future AI agents.
+- Explain the reason behind a decision, not just the decision itself.
+- Prefer sections such as `Background / Decision / Current Rule / Examples / Failure Modes / Related Modules / Source Documents`.
+- Keep entries stable, clear, and actionable.
+- Avoid vague wording such as "optimize later", "handle properly", or "improve this".
+- If a rule affects auto-director, chapter production, Prompt, RAG, task state, or frontend projection, state the affected scope explicitly.
+
+### Recommended Locations
+
+- `docs/wiki/architecture/`: architecture design, module boundaries, dependency direction.
+- `docs/wiki/workflows/`: auto-director, chapter production, recovery chain, task center, and other workflows.
+- `docs/wiki/prompts/`: Prompt Registry, structured output, JSON repair, schema conventions.
+- `docs/wiki/rag/`: embedding, vector retrieval, context assembly, knowledge-base rules.
+- `docs/wiki/debugging/`: recurring failures, diagnosis paths, recovery methods.
+- `docs/wiki/product/`: beginner-first decisions, full-novel completion, UX rationale.
+
+### When To Update The Wiki
+
+Before completing any of the following, check whether the work produced stable wiki-worthy knowledge:
+
+- A development phase.
+- A significant bug fix.
+- An architecture adjustment.
+- A core workflow change.
+- A change to Prompt Schema, runtime state, task recovery, or the chapter production chain.
+- A commit, push, or PR.
+
+If stable knowledge was introduced or clarified, update the relevant wiki page before the phase is considered complete.
+
+If no wiki update is needed, explicitly state that the change has no long-term wiki value and should remain only in code or release notes.
+
+### Wiki And Release Notes Boundary
+
+- Wiki records durable project knowledge.
+- Release Notes record user-visible product changes.
+- README latest update only shows the latest public-facing summary.
+- Do not write the wiki as a changelog.
+- Do not copy release notes into the wiki.
+- If a change affects both user behavior and long-term architecture, update both release notes and the relevant wiki page.
+
+### Novel Production Wiki Priority
+
+These areas have the highest priority for wiki accumulation:
+
+1. Auto-director runtime, recovery, checkpoints, and resume behavior.
+2. Chapter production chain, including draft generation, review, repair, save, and retry rules.
+3. Runtime state contracts between backend, task center, and frontend projections.
+4. Prompt Registry rules, structured output schemas, and JSON repair boundaries.
+5. Creative Hub boundaries: what it can create, when it should hand off to auto-director, and when it should avoid becoming general chat.
+6. RAG and context assembly rules for worldbuilding, characters, chapters, style, and continuity.
+7. Beginner-first product decisions that reduce cognitive load and help users complete a full novel.
+
 ## Development Branch Workflow
 
 - When developing a new feature that may affect the end-to-end product flow, default workflow, shared contracts, or other major system links, do not develop directly on `main`.

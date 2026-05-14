@@ -4,8 +4,9 @@
 
 关联文档：
 
-- `docs/plans/auto-director-unified-runtime-refactor-plan.md`
-- `docs/plans/auto-director-mvp-migration-plan.md`
+- `docs/wiki/workflows/auto-director-runtime.md`
+- `docs/plans/auto-director-execution-plane-isolation-plan.md`
+- `docs/plans/director-mode-module-state-refactor-checklist.md`
 
 ## 1. 文档定位
 

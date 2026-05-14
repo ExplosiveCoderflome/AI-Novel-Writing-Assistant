@@ -21,21 +21,17 @@
 
 - [Chapter Editor V2 Progress](./checkpoints/chapter-editor-v2-progress.md)
 - [Prompt Governance Audit 2026-05-08](./checkpoints/prompt-governance-audit-2026-05-08.md)
-- [Auto Director Progress Audit](./checkpoints/auto-director-progress-audit.md)
 - [LLM Schema Refactor Checkpoint](./checkpoints/llm-schema-refactor-checkpoint.md)
-- [Progress Audit](./checkpoints/progress-audit.md)
+- [Windows Desktop Installer Manual Checklist](./checkpoints/windows-desktop-installer-manual-checklist.md)
 
 ### `docs/plans`
 
 用于放仍有执行价值的模块计划、工作拆解和产品推进方案。
 
 - [Assistant UI Plan](./plans/assistant-ui-plan.md)
-- [Knowledge Module Plan](./plans/knowledge-module-plan.md)
 - [Chapter Editor V2 Plan](./plans/chapter-editor-v2-plan.md)
-- [Desktop Plan](./plans/desktop-plan.md)
 - [Character Resource Ledger Plan](./plans/character-resource-ledger-plan.md)
 - [Prompt Workbench, Context and Step Runtime Plan](./plans/prompt-workbench-context-and-step-runtime-plan.md)
-- [Auto Director Runtime Full Execution Plan](./plans/auto-director-runtime-full-execution-plan.md)
 - [Auto Director Execution Plane Isolation Plan](./plans/auto-director-execution-plane-isolation-plan.md)
 - [Director Mode Module and State Refactor Checklist](./plans/director-mode-module-state-refactor-checklist.md)
 
@@ -55,6 +51,25 @@
 
 - [Backend testing](./architecture/testing.md)：后端 `node:test` 脚本的运行方式与目录约定。
 
+### `docs/wiki`
+
+用于沉淀长期项目知识，帮助未来开发者和 AI Agent 理解关键架构决策、工作流边界、运行协议、调试经验和产品设计依据。
+
+Wiki 不替代计划、检查点或发布说明：
+
+- `docs/wiki` 记录稳定规则和原因。
+- `docs/plans` 记录仍有执行价值的方案和工作拆解。
+- `docs/checkpoints` 记录阶段性状态、迁移里程碑和审计对照。
+- `docs/design` 记录模块设计、领域建模和产品机制。
+- `docs/releases` 记录用户可见变化。
+
+- [Wiki Index](./wiki/README.md)
+- [Wiki Entry Template](./wiki/entry-template.md)
+- [Module Boundaries](./wiki/architecture/module-boundaries.md)
+- [Auto Director Runtime](./wiki/workflows/auto-director-runtime.md)
+- [Chapter Production Chain](./wiki/workflows/chapter-production-chain.md)
+- [Prompt Registry and Structured Output](./wiki/prompts/prompt-registry-and-structured-output.md)
+
 ### `docs/releases`
 
 用于放完整的用户可见版本更新说明与发布历史；根 `README.md` 只保留最新一次更新，本目录负责承接完整历史。
@@ -66,6 +81,7 @@
 用于放历史初始化方案、已不再作为主执行依据但仍需要保留的资料。
 
 - [Project Init Spec](./archive/project-init-spec.md)
+- [Outdated Docs Index](./archive/outdated/README.md)
 
 ## 新文档命名规则
 
@@ -73,12 +89,15 @@
 - 计划类文档优先放到 `docs/plans/`。
 - 架构调整、进度校验、迁移检查点优先放到 `docs/checkpoints/`。
 - 模块设计、数据模型、交互机制优先放到 `docs/design/`。
+- 长期架构规则、工作流边界、调试经验和产品设计依据优先放到 `docs/wiki/`。
 - 用户可见版本更新历史优先放到 `docs/releases/`。
-- 已废弃但需要留档的方案放到 `docs/archive/`。
+- 已废弃、乱码、明显被当前发布事实取代但需要留档的方案放到 `docs/archive/outdated/`。
 
 ## 维护约束
 
 - 新增文档时，先判断是否真的需要留在根目录；默认答案应当是“不需要”。
+- 新增或修改核心工作流、Prompt、RAG、任务状态、自动导演、章节生产或重要调试结论时，先判断是否产生稳定 Wiki 价值。
+- Wiki 页面应解释长期规则和原因，不写成文件修改列表、临时 TODO 或 release notes 复制品。
 - 文档迁移后，如根 `README.md` 或其他入口文档里有引用，应同步更新路径。
 - `TASK.md` 负责“当前主路线与优先级”，不替代设计文档；设计细节应沉到 `docs/`。
 - 根 `README.md` 的更新说明只保留最新一次；完整历史统一维护在 `docs/releases/release-notes.md`。

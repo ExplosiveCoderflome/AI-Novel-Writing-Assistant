@@ -4,9 +4,9 @@
 
 关联文档：
 
-- [自动导演统一运行时完整执行计划](./auto-director-runtime-full-execution-plan.md)
-- [自动导演统一运行时重构方案](./auto-director-unified-runtime-refactor-plan.md)
-- [自动导演统一运行时 MVP 落地切片方案](./auto-director-mvp-migration-plan.md)
+- [自动导演 Runtime 与恢复边界](../wiki/workflows/auto-director-runtime.md)
+- [导演模式模块化与状态治理改造清单](./director-mode-module-state-refactor-checklist.md)
+- [提示词工作台、上下文装配与统一步骤运行时方案](./prompt-workbench-context-and-step-runtime-plan.md)
 
 ## 1. 背景与事故结论
 
