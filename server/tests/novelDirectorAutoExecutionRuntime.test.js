@@ -844,7 +844,7 @@ test("runFromReady honors approval selection for low-risk quality repair outside
   assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
 });
 
-test("runFromReady notifies and continues replan notices in AI-driver execution", async () => {
+test("runFromReady pauses replan notices in AI-driver execution", async () => {
   const calls = [];
   let phase = "initial";
   const runtime = new NovelDirectorAutoExecutionRuntime({
@@ -953,14 +953,12 @@ test("runFromReady notifies and continues replan notices in AI-driver execution"
     },
   });
 
-  assert.equal(calls.some((call) => call[0] === "replanNovel"), false);
-  assert.ok(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "replan_required" && call[2] === "replan"));
+  assert.equal(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "replan_required"), false);
   assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
     [1, 1],
-    [2, 2],
   ]);
-  assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "replan_required"), false);
-  assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
+  assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "replan_required"));
+  assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"), false);
 });
 
 test("runFromReady keeps replan notices automatic in full-book autopilot", async () => {

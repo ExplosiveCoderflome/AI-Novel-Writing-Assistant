@@ -15,7 +15,6 @@ type ReplanSignal =
   | "overdue_payoff"
   | "next_action_replan"
   | "blocking_audit"
-  | "urgent_payoff"
   | "manual_request"
   | "stable";
 
@@ -126,13 +125,6 @@ function resolveAnchorChapterOrder(signal: ReplanSignal, input: ReplanDecisionIn
       fallbackAnchor,
     );
   }
-  if (signal === "urgent_payoff") {
-    return pickPayoffAnchor(
-      input.snapshot?.narrative.urgentPayoffs ?? [],
-      ["targetStartChapterOrder", "targetEndChapterOrder", "lastTouchedChapterOrder", "firstSeenChapterOrder"],
-      fallbackAnchor,
-    );
-  }
   return fallbackAnchor;
 }
 
@@ -147,13 +139,7 @@ function pickSignal(input: ReplanDecisionInput, blockingIssues: AuditIssue[], bl
   if (blockingIssues.length > 0) {
     return "blocking_audit";
   }
-  if (
-    input.nextAction === "advance_payoff"
-    || (input.snapshot?.narrative.urgentPayoffs.length ?? 0) > 0
-    || (input.ledgerSummary?.urgentCount ?? 0) > 0
-  ) {
-    return "urgent_payoff";
-  }
+  // Urgent payoff state is a generation obligation; only overdue or audited failure should interrupt with replan.
   if (input.forceRecommended) {
     return "manual_request";
   }
@@ -164,10 +150,7 @@ function resolveWindowMode(signal: ReplanSignal): WindowMode {
   return signal === "blocking_audit" || signal === "manual_request" ? "forward" : "surrounding";
 }
 
-function resolveDefaultWindowSize(signal: ReplanSignal): number {
-  if (signal === "urgent_payoff") {
-    return 2;
-  }
+function resolveDefaultWindowSize(): number {
   return 3;
 }
 
@@ -271,12 +254,6 @@ function buildTriggerReason(signal: ReplanSignal, input: ReplanDecisionInput, bl
       ? `高优先级审计问题未解决：${topIssues.join("；")}。`
       : `存在未解决的高优先级审计问题，需要先调整章节计划。`;
   }
-  if (signal === "urgent_payoff") {
-    const titles = uniqueStrings((input.snapshot?.narrative.urgentPayoffs ?? []).map((item) => item.title)).slice(0, 2);
-    return titles.length > 0
-      ? `当前章节窗口必须触碰紧急 payoff：${titles.join("；")}。`
-      : `当前章节窗口存在需要优先推进的 payoff。`;
-  }
   if (signal === "manual_request") {
     return input.reason?.trim() || "用户显式要求重规划当前窗口。";
   }
@@ -299,9 +276,6 @@ function buildWindowReason(signal: ReplanSignal, anchorChapterOrder: number | nu
   }
   if (signal === "next_action_replan") {
     return `以${chapterLabel}为锚点联动 ${formatOrders(affectedChapterOrders)}，让当前状态目标重新对齐邻近章节职责。${secretHint}`.trim();
-  }
-  if (signal === "urgent_payoff") {
-    return `以${chapterLabel}为锚点覆盖 ${formatOrders(affectedChapterOrders)}，确保紧急 payoff 在有效窗口内被推进。${secretHint}`.trim();
   }
   if (signal === "manual_request") {
     return `本次按 ${formatOrders(affectedChapterOrders)} 执行手动重规划，优先围绕${chapterLabel}附近的连续章节收口。${secretHint}`.trim();
@@ -329,9 +303,6 @@ function buildWhyTheseChapters(signal: ReplanSignal, affectedChapterOrders: numb
   if (signal === "next_action_replan") {
     return `选择${ordersLabel}，因为 canonical state 已判定现有窗口失配，需要从锚点章向前后联动收口${goalHint}。`;
   }
-  if (signal === "urgent_payoff") {
-    return `选择${ordersLabel}，因为这几个章节共同决定紧急 payoff 能否在有效窗口内落地${goalHint}。`;
-  }
   return `选择${ordersLabel}，因为这些章节与当前状态目标直接相邻，调整成本最低${goalHint}。`;
 }
 
@@ -346,10 +317,9 @@ export function buildReplanDecision(input: ReplanDecisionInput): ReplanDecision 
   const recommended = input.forceRecommended
     || signal === "overdue_payoff"
     || signal === "next_action_replan"
-    || signal === "blocking_audit"
-    || signal === "urgent_payoff";
+    || signal === "blocking_audit";
   const anchorChapterOrder = resolveAnchorChapterOrder(signal, input);
-  const requestedWindowSize = input.requestedWindowSize ?? resolveDefaultWindowSize(signal);
+  const requestedWindowSize = input.requestedWindowSize ?? resolveDefaultWindowSize();
   const affectedChapterOrders = recommended
     ? buildWindowOrders(
       anchorChapterOrder,

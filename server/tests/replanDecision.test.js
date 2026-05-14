@@ -140,6 +140,53 @@ test("buildReplanDecision pushes blocking audit issues into a forward repair win
   assert.match(decision.windowReason, /向后展开/);
 });
 
+test("buildReplanDecision does not turn urgent payoff context into a replan failure", () => {
+  const decision = buildReplanDecision({
+    availableChapterOrders: [1, 2, 3],
+    requestedWindowSize: 2,
+    targetChapterOrder: 2,
+    nextAction: "advance_payoff",
+    snapshot: createSnapshot({
+      narrative: {
+        currentChapterId: "chapter-2",
+        currentChapterOrder: 2,
+        currentChapterGoal: "推进娄晓娥线并触碰账目问题",
+        openConflicts: [],
+        pendingPayoffs: [],
+        urgentPayoffs: [{
+          id: "payoff-urgent",
+          ledgerKey: "ledger:zhao-accounts",
+          title: "赵德柱账目问题",
+          summary: "本章需要推进但尚未到逾期重排。",
+          currentStatus: "pending_payoff",
+          targetStartChapterOrder: 2,
+          targetEndChapterOrder: 3,
+          firstSeenChapterOrder: 1,
+          lastTouchedChapterOrder: 2,
+        }],
+        overduePayoffs: [],
+        publicKnowledge: [],
+        hiddenKnowledge: [],
+        suspenseThreads: [],
+      },
+    }),
+    ledgerSummary: {
+      totalCount: 1,
+      pendingCount: 1,
+      urgentCount: 1,
+      overdueCount: 0,
+      paidOffCount: 0,
+      failedCount: 0,
+      updatedAt: null,
+    },
+  });
+
+  assert.equal(decision.recommended, false);
+  assert.equal(decision.signal, "stable");
+  assert.deepEqual(decision.affectedChapterOrders, []);
+  assert.match(decision.reason, /无需重规划/);
+});
+
 test("buildReplanDecision can recommend a manual window even when state signals are still quiet", () => {
   const decision = buildReplanDecision({
     availableChapterOrders: [5, 6, 7],

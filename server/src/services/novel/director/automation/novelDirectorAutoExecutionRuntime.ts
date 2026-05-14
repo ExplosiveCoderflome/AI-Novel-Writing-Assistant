@@ -324,10 +324,9 @@ export class NovelDirectorAutoExecutionRuntime {
           });
           if (
             noticeAction.checkpointType === "replan_required"
-            && (input.request.runMode === "auto_to_execution" || isFullBookAutopilotRunMode(input.request.runMode))
+            && isFullBookAutopilotRunMode(input.request.runMode)
           ) {
-            const replanNoticeResult = isFullBookAutopilotRunMode(input.request.runMode)
-              ? await runFullBookAutopilotReplanNotice({
+            const replanNoticeResult = await runFullBookAutopilotReplanNotice({
                 deps: this.deps,
                 taskId: input.taskId,
                 novelId: input.novelId,
@@ -337,7 +336,6 @@ export class NovelDirectorAutoExecutionRuntime {
                 checkpointState: noticeAction.checkpointState,
                 noticeSummary: job.noticeSummary.trim(),
               })
-              : { stopped: false as const, circuitBreaker: autoExecution.circuitBreaker ?? null };
             if (replanNoticeResult.stopped) {
               return;
             }
