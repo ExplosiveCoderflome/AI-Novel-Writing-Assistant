@@ -12,7 +12,7 @@ import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import type { DirectorPolicyRequest } from "./runtime/DirectorPolicyEngine";
 import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import { buildDefaultDirectorPolicy } from "./runtime/directorRuntimeDefaults";
-import type { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionRuntime";
+import type { NovelDirectorAutoExecutionRuntime } from "./automation/novelDirectorAutoExecutionRuntime";
 import type { DirectorProgressItemKey } from "./novelDirectorProgress";
 import {
   isExecutableWorkflowStepModule,

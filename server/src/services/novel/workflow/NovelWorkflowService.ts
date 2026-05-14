@@ -33,7 +33,7 @@ import {
   resolveDirectorAutoExecutionBookRange,
   resolveDirectorAutoExecutionRangeFromState,
   resolveDirectorAutoExecutionWorkflowState,
-} from "../director/novelDirectorAutoExecution";
+} from "../director/automation/novelDirectorAutoExecution";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { resolveStructuredOutlineRecoveryCursor } from "../director/novelDirectorStructuredOutlineRecovery";
 import {

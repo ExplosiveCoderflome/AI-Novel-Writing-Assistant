@@ -12,7 +12,7 @@ import {
   resolveDirectorAutoExecutionBookRange,
   resolveDirectorAutoExecutionRangeFromState,
   type DirectorAutoExecutionChapterRef,
-} from "../director/novelDirectorAutoExecution";
+} from "../director/automation/novelDirectorAutoExecution";
 import {
   appendMilestone,
   buildNovelEditResumeTarget,

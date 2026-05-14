@@ -12,7 +12,7 @@ import {
 } from "../novelDirectorExecutionNodeAdapters";
 import {
   hasDirectorSyncedChapterExecutionContext,
-} from "../novelDirectorAutoExecution";
+} from "../automation/novelDirectorAutoExecution";
 import {
   createWorkflowStepDescriptorFromCatalogEntry,
   createWorkflowStepDescriptorFromDirectorAdapter,

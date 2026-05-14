@@ -11,7 +11,7 @@ import {
   countDirectorAutoExecutionChapterRange,
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionPlanChapterRange,
-} from "./novelDirectorAutoExecution";
+} from "./automation/novelDirectorAutoExecution";
 import { DIRECTOR_CHAPTER_DETAIL_MODES } from "./novelDirectorProgress";
 import {
   getBeatExpectedChapterCount,

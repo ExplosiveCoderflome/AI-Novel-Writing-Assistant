@@ -6,7 +6,7 @@ import {
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionPlanChapterRange,
   resolveDirectorAutoExecutionRangeFromState,
-} from "./novelDirectorAutoExecution";
+} from "./automation/novelDirectorAutoExecution";
 import type { DirectorTakeoverResolvedPlan } from "./novelDirectorTakeover";
 import type { DirectorTakeoverLoadedState } from "./novelDirectorTakeoverRuntime";
 import { resetDirectorDownstreamChapterState } from "./novelDirectorDownstreamReset";

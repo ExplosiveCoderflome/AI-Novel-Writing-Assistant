@@ -9,7 +9,7 @@ import { getDirectorInputFromSeedPayload } from "../novelDirectorHelpers";
 import {
   resolveDirectorAutoExecutionPlanChapterRange,
   resolveDirectorAutoExecutionRangeFromState,
-} from "../novelDirectorAutoExecution";
+} from "../automation/novelDirectorAutoExecution";
 import { DirectorStateReader } from "../DirectorStateReader";
 import { DirectorStateCommitter } from "../DirectorStateCommitter";
 import { DirectorFactSummaryService } from "../DirectorFactSummaryService";

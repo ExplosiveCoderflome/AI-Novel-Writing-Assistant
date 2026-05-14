@@ -10,12 +10,12 @@ import type { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanServi
 import type { NovelVolumeService } from "../../volume/NovelVolumeService";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import { buildDirectorWorkflowSeedPayload } from "../novelDirectorHelpers";
-import type { NovelDirectorAutoExecutionRuntime } from "../novelDirectorAutoExecutionRuntime";
+import type { NovelDirectorAutoExecutionRuntime } from "../automation/novelDirectorAutoExecutionRuntime";
 import type { NovelDirectorPipelineRuntime } from "../novelDirectorPipelineRuntime";
 import type { NovelDirectorRuntimeOrchestrator } from "../novelDirectorRuntimeOrchestrator";
 import type { DirectorRuntimeService } from "../runtime/DirectorRuntimeService";
 import type { ChapterExecutionProgressInspector } from "../runtime/ChapterExecutionProgressInspector";
-import { normalizeDirectorAutoExecutionPlan } from "../novelDirectorAutoExecution";
+import { normalizeDirectorAutoExecutionPlan } from "../automation/novelDirectorAutoExecution";
 import {
   resolveStructuredOutlineRecoveryCursor,
   type StructuredOutlineRecoveryCursor,
@@ -47,7 +47,7 @@ export class DirectorCoreStepModuleRuntime {
     const { NovelService } = require("../../NovelService");
     const { DirectorRuntimeService } = require("../runtime/DirectorRuntimeService");
     const { ChapterExecutionProgressInspector } = require("../runtime/ChapterExecutionProgressInspector");
-    const { NovelDirectorAutoExecutionRuntime } = require("../novelDirectorAutoExecutionRuntime");
+    const { NovelDirectorAutoExecutionRuntime } = require("../automation/novelDirectorAutoExecutionRuntime");
     const { NovelDirectorRuntimeOrchestrator } = require("../novelDirectorRuntimeOrchestrator");
     const { NovelDirectorPipelineRuntime } = require("../novelDirectorPipelineRuntime");
     const { assertHighMemoryDirectorStartAllowed } = require("../autoDirectorMemorySafety");

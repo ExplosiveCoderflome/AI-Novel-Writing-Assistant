@@ -50,7 +50,7 @@ import {
   buildDirectorTakeoverReadiness,
   isTakeoverStructuredOutlineReadyForValidation,
 } from "./novelDirectorTakeover";
-import { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionRuntime";
+import { NovelDirectorAutoExecutionRuntime } from "./automation/novelDirectorAutoExecutionRuntime";
 import {
   loadDirectorTakeoverState,
 } from "./novelDirectorTakeoverRuntime";

@@ -14,8 +14,8 @@ import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthContr
 import {
   buildPipelineBackgroundActivityLabels,
   parsePipelinePayload,
-} from "../pipelineJobState";
-import { buildPipelineExecutionControlPolicy } from "../production/ChapterExecutionStageRunner";
+} from "../../pipelineJobState";
+import { buildPipelineExecutionControlPolicy } from "../../production/ChapterExecutionStageRunner";
 import {
   buildSkippableAutoExecutionReviewCheckpointSummary,
   isSkippableAutoExecutionReviewFailure,

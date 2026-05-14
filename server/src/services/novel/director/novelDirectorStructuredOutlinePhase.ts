@@ -27,7 +27,7 @@ import {
   hasDirectorSyncedChapterExecutionContext,
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionPlanChapterRange,
-} from "./novelDirectorAutoExecution";
+} from "./automation/novelDirectorAutoExecution";
 import {
   flattenPreparedOutlineChapters,
   resolveStructuredOutlineRecoveryCursor,
