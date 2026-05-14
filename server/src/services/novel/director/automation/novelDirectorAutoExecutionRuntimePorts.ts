@@ -68,7 +68,7 @@ export interface NovelDirectorAutoExecutionNovelPort {
     artifactSyncMode?: ArtifactSyncMode;
     skipCompleted: boolean;
     qualityThreshold: number;
-    repairMode: "light_repair";
+    repairMode: "light_repair" | "heavy_repair";
   }): Promise<{ id: string; status: PipelineJobStatus }>;
   findActivePipelineJobForRange(
     novelId: string,

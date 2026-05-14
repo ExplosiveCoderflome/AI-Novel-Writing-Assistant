@@ -10,6 +10,7 @@ import {
   buildDirectorAutoExecutionScopeLabelFromState,
   buildDirectorAutoExecutionDeferredQualityState,
   buildDirectorAutoExecutionPipelineOptions,
+  resolveDirectorAutoExecutionRepairMode,
   resolveDirectorAutoExecutionWorkflowState,
   type DirectorAutoExecutionRange,
 } from "./novelDirectorAutoExecution";
@@ -196,6 +197,7 @@ export class NovelDirectorAutoExecutionRuntime {
               autoReview: autoExecution.autoReview,
               autoRepair: autoExecution.autoRepair,
               artifactSyncMode: autoExecution.artifactSyncMode,
+              repairMode: resolveDirectorAutoExecutionRepairMode(autoExecution),
             }),
           );
           pipelineJobId = job.id;

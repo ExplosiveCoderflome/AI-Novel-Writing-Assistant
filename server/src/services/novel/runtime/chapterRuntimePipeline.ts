@@ -169,11 +169,6 @@ export async function runPipelineChapterWithRuntime(
           artifactSyncMode,
         });
       }
-    } else if (attempt === 0) {
-      await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted", {
-        scheduleBackgroundSync: false,
-        artifactSyncMode,
-      });
     }
 
     if (!autoReview) {

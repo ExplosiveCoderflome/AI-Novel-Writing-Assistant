@@ -374,6 +374,71 @@ test("runPipelineChapterWithRuntime does not save a generated draft twice when w
   assert.equal(result.reviewExecuted, true);
 });
 
+test("runPipelineChapterWithRuntime does not resave unchanged existing chapter content as a draft", async () => {
+  const stages = [];
+  const savedDrafts = [];
+  const finalSyncs = [];
+  const generationStates = [];
+
+  const result = await runPipelineChapterWithRuntime(
+    {
+      validateRequest(input) {
+        return input;
+      },
+      async ensureNovelCharacters() {},
+      async assemble() {
+        return {
+          novel: { id: "novel-1", title: "test novel" },
+          chapter: {
+            id: "chapter-1",
+            title: "chapter one",
+            order: 1,
+            content: "existing reviewed content",
+            expectation: null,
+          },
+          contextPackage: {},
+        };
+      },
+      async generateDraftFromWriter() {
+        throw new Error("existing content should not be regenerated");
+      },
+      async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
+        savedDrafts.push({ content, generationState });
+      },
+      async syncFinalChapterArtifacts(_novelId, _chapterId, content) {
+        finalSyncs.push(content);
+      },
+      async finalizeChapterContent({ content }) {
+        return {
+          finalContent: content,
+          runtimePackage: createRuntimePackage(90),
+        };
+      },
+      async markChapterGenerationState(_chapterId, generationState) {
+        generationStates.push(generationState);
+      },
+      async markChapterNeedsRepair() {},
+    },
+    "novel-1",
+    "chapter-1",
+    {
+      autoReview: true,
+      autoRepair: true,
+    },
+    {
+      async onStageChange(stage) {
+        stages.push(stage);
+      },
+    },
+  );
+
+  assert.deepEqual(stages, ["reviewing"]);
+  assert.deepEqual(savedDrafts, []);
+  assert.deepEqual(finalSyncs, ["existing reviewed content"]);
+  assert.deepEqual(generationStates, ["reviewed", "approved"]);
+  assert.equal(result.pass, true);
+});
+
 test("runPipelineChapterWithRuntime retries once when writer returns empty content", async () => {
   const stages = [];
   const emptyEvents = [];

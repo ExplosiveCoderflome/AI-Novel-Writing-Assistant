@@ -11,6 +11,7 @@ import type {
   DirectorAutoExecutionState,
 } from "@ai-novel/shared/types/novelDirector";
 import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
+import { resolveDirectorQualityLoopBudgetNextAction } from "../runtime/DirectorQualityLoopBudgetLedgerService";
 import {
   buildPipelineBackgroundActivityLabels,
   parsePipelinePayload,
@@ -31,6 +32,8 @@ export interface DirectorAutoExecutionChapterRange {
   startOrder: number;
   endOrder: number;
 }
+
+export type DirectorAutoExecutionRepairMode = "light_repair" | "heavy_repair";
 
 export const DIRECTOR_DEFAULT_RANGE_START_ORDER = 1;
 export const DIRECTOR_DEFAULT_RANGE_END_ORDER = 10;
@@ -489,6 +492,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
   autoReview?: boolean;
   autoRepair?: boolean;
   artifactSyncMode?: ArtifactSyncMode;
+  repairMode?: DirectorAutoExecutionRepairMode;
 }) {
   const autoReview = input.autoReview ?? true;
   return {
@@ -501,7 +505,7 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     autoRepair: autoReview ? (input.autoRepair ?? true) : false,
     skipCompleted: true,
     qualityThreshold: 75,
-    repairMode: "light_repair" as const,
+    repairMode: input.repairMode ?? "light_repair",
     provider: input.provider,
     model: input.model,
     temperature: input.temperature,
@@ -509,6 +513,49 @@ export function buildDirectorAutoExecutionPipelineOptions(input: {
     taskStyleProfileId: input.taskStyleProfileId,
     artifactSyncMode: input.artifactSyncMode ?? "adaptive",
   };
+}
+
+function qualityLoopEntryMatchesCurrentChapter(
+  entry: NonNullable<DirectorAutoExecutionState["qualityLoopLedger"]>["entries"][number],
+  state: DirectorAutoExecutionState,
+): boolean {
+  const chapterId = state.nextChapterId ?? null;
+  const chapterOrder = state.nextChapterOrder ?? null;
+  if (chapterId && entry.lastChapterId === chapterId) {
+    return true;
+  }
+  if (typeof chapterOrder === "number" && entry.lastChapterOrder === chapterOrder) {
+    return true;
+  }
+
+  const window = entry.affectedChapterWindow;
+  if (chapterId && window.chapterIds?.includes(chapterId)) {
+    return true;
+  }
+  if (typeof chapterOrder === "number") {
+    if (window.chapterOrders?.includes(chapterOrder)) {
+      return true;
+    }
+    if (
+      typeof window.startOrder === "number"
+      && typeof window.endOrder === "number"
+      && chapterOrder >= window.startOrder
+      && chapterOrder <= window.endOrder
+    ) {
+      return true;
+    }
+  }
+  return !chapterId && typeof chapterOrder !== "number";
+}
+
+export function resolveDirectorAutoExecutionRepairMode(
+  state: DirectorAutoExecutionState,
+): DirectorAutoExecutionRepairMode {
+  const entries = (state.qualityLoopLedger?.entries ?? [])
+    .filter((entry) => qualityLoopEntryMatchesCurrentChapter(entry, state))
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  const nextAction = resolveDirectorQualityLoopBudgetNextAction(entries[0]);
+  return nextAction === "auto_rewrite_chapter" ? "heavy_repair" : "light_repair";
 }
 
 export function resolveDirectorAutoExecutionWorkflowState(

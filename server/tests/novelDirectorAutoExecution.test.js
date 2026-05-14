@@ -8,6 +8,7 @@ const {
   isDirectorAutoExecutionChapterProcessed,
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionRange,
+  resolveDirectorAutoExecutionRepairMode,
   resolveDirectorAutoExecutionWorkflowState,
 } = require("../dist/services/novel/director/automation/novelDirectorAutoExecution.js");
 
@@ -114,6 +115,40 @@ test("buildDirectorAutoExecutionPipelineOptions respects review and repair toggl
 
   assert.equal(options.autoReview, false);
   assert.equal(options.autoRepair, false);
+});
+
+test("resolveDirectorAutoExecutionRepairMode escalates repeated chapter quality failures to heavy repair", () => {
+  const repairMode = resolveDirectorAutoExecutionRepairMode({
+    enabled: true,
+    mode: "chapter_range",
+    autoReview: true,
+    autoRepair: true,
+    nextChapterId: "chapter-2",
+    nextChapterOrder: 2,
+    qualityLoopLedger: {
+      entries: [{
+        signatureKey: "quality-loop-1",
+        issueSignature: "quality_loop|low|light_repair|same failure",
+        blockingLedgerKeys: [],
+        affectedChapterWindow: {
+          startOrder: 2,
+          endOrder: 2,
+          chapterOrders: [],
+          chapterIds: [],
+        },
+        patchRepairCount: 1,
+        chapterRewriteCount: 0,
+        windowReplanCount: 0,
+        deferredCount: 0,
+        lastAction: "patch_repair",
+        lastChapterId: "chapter-2",
+        lastChapterOrder: 2,
+        updatedAt: "2026-05-14T10:00:00.000Z",
+      }],
+    },
+  });
+
+  assert.equal(repairMode, "heavy_repair");
 });
 
 test("auto execution does not treat empty reviewed chapters as processed", () => {
