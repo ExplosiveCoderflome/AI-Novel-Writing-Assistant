@@ -18,6 +18,7 @@ interface GetProviderModelsOptions {
   allowAnonymous?: boolean;
   fallbackModel?: string;
   fallbackModels?: string[];
+  includeBuiltInFallback?: boolean;
 }
 
 const MODEL_CACHE_TTL_MS = 30 * 60 * 1000;
@@ -28,7 +29,9 @@ function uniqueModels(models: string[]): string[] {
 }
 
 function getFallbackModels(provider: LLMProvider, options: GetProviderModelsOptions = {}): string[] {
-  const builtInModels = isBuiltInProvider(provider) ? PROVIDERS[provider].models : [];
+  const builtInModels = options.includeBuiltInFallback === false
+    ? []
+    : isBuiltInProvider(provider) ? PROVIDERS[provider].models : [];
   return uniqueModels([
     ...builtInModels,
     ...(options.fallbackModels ?? []),

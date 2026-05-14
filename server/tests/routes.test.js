@@ -543,6 +543,130 @@ test("GET /api/settings/api-keys exposes ollama baseURL and optional-key metadat
   }
 });
 
+test("GET /api/settings/api-keys resolves unsaved provider model from fetched catalog", async () => {
+  const originalFindMany = prisma.aPIKey.findMany;
+  const originalFetch = global.fetch;
+  const previousDeepSeekModel = process.env.DEEPSEEK_MODEL;
+  delete process.env.DEEPSEEK_MODEL;
+
+  prisma.aPIKey.findMany = async () => ([
+    {
+      id: "api-key-deepseek",
+      provider: "deepseek",
+      key: "test-deepseek-key",
+      model: null,
+      baseURL: "https://models.example.com/v1",
+      isActive: true,
+      reasoningEnabled: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ]);
+  global.fetch = async (url) => {
+    const target = String(url);
+    if (target === "https://models.example.com/v1/models") {
+      return new Response(JSON.stringify({
+        data: [{ id: "deepseek-v4-latest" }, { id: "deepseek-reasoner" }],
+      }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+    }
+    return new Response(JSON.stringify({ error: "not mocked" }), {
+      status: 404,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const response = await originalFetch(`http://127.0.0.1:${port}/api/settings/api-keys`);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.success, true);
+    const deepseek = payload.data.find((item) => item.provider === "deepseek");
+    assert.ok(deepseek);
+    assert.equal(deepseek.currentModel, "deepseek-v4-latest");
+    assert.equal(deepseek.isConfigured, true);
+    assert.deepEqual(deepseek.models, ["deepseek-v4-latest", "deepseek-reasoner"]);
+  } finally {
+    prisma.aPIKey.findMany = originalFindMany;
+    global.fetch = originalFetch;
+    if (previousDeepSeekModel === undefined) {
+      delete process.env.DEEPSEEK_MODEL;
+    } else {
+      process.env.DEEPSEEK_MODEL = previousDeepSeekModel;
+    }
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("GET and PUT /api/settings/llm-selection persist the top-level model choice", async () => {
+  const originalFindUnique = prisma.appSetting.findUnique;
+  const originalUpsert = prisma.appSetting.upsert;
+  let storedValue = JSON.stringify({
+    provider: "qwen",
+    model: "qwen-plus",
+    temperature: 0.6,
+  });
+
+  prisma.appSetting.findUnique = async () => ({
+    key: "llm.currentSelection",
+    value: storedValue,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  prisma.appSetting.upsert = async ({ create, update }) => {
+    storedValue = update.value ?? create.value;
+    return {
+      key: "llm.currentSelection",
+      value: storedValue,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+  try {
+    const initialResponse = await fetch(`http://127.0.0.1:${port}/api/settings/llm-selection`);
+    assert.equal(initialResponse.status, 200);
+    const initialPayload = await initialResponse.json();
+    assert.equal(initialPayload.data.provider, "qwen");
+    assert.equal(initialPayload.data.model, "qwen-plus");
+
+    const saveResponse = await fetch(`http://127.0.0.1:${port}/api/settings/llm-selection`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        provider: "minimax",
+        model: "MiniMax-M2.7",
+        temperature: 0.8,
+        maxTokens: 8192,
+      }),
+    });
+    assert.equal(saveResponse.status, 200);
+    const savePayload = await saveResponse.json();
+    assert.equal(savePayload.data.provider, "minimax");
+    assert.equal(savePayload.data.model, "MiniMax-M2.7");
+    assert.equal(savePayload.data.maxTokens, 8192);
+    assert.match(storedValue, /MiniMax-M2\.7/);
+  } finally {
+    prisma.appSetting.findUnique = originalFindUnique;
+    prisma.appSetting.upsert = originalUpsert;
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
 test("GET /api/settings/api-keys exposes custom OpenAI-compatible providers", async () => {
   const originalFindMany = prisma.aPIKey.findMany;
   prisma.aPIKey.findMany = async () => ([

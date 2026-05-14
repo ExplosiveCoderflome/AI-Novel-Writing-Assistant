@@ -111,6 +111,13 @@ export interface StyleEngineRuntimeSettingsStatus {
   maxStyleExtractionTimeoutMs: number;
 }
 
+export interface LLMSelectionSettings {
+  provider: LLMProvider;
+  model: string;
+  temperature: number;
+  maxTokens?: number;
+}
+
 export interface ModelRoutesResponse {
   taskTypes: ModelRouteTaskType[];
   routes: Array<{
@@ -273,6 +280,16 @@ export async function getRagEmbeddingModels(provider: EmbeddingProvider) {
 
 export async function getStyleEngineRuntimeSettings() {
   const { data } = await apiClient.get<ApiResponse<StyleEngineRuntimeSettingsStatus>>("/settings/style-engine-runtime");
+  return data;
+}
+
+export async function getLLMSelectionSetting() {
+  const { data } = await apiClient.get<ApiResponse<LLMSelectionSettings | null>>("/settings/llm-selection");
+  return data;
+}
+
+export async function saveLLMSelectionSetting(payload: LLMSelectionSettings) {
+  const { data } = await apiClient.put<ApiResponse<LLMSelectionSettings>>("/settings/llm-selection", payload);
   return data;
 }
 

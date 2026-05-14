@@ -44,6 +44,7 @@ import {
   saveStyleEngineRuntimeSettings,
 } from "../services/settings/StyleEngineRuntimeSettingsService";
 import { registerCustomProviderRoutes } from "./settings/customProviderRoutes";
+import { registerLLMSelectionRoutes } from "./settings/llmSelectionRoutes";
 
 const router = Router();
 const MAX_PROVIDER_CONCURRENCY_LIMIT = 100;
@@ -181,6 +182,13 @@ function getFallbackModels(provider: LLMProvider, currentModel?: string): string
   return Array.from(new Set([...models, currentModel ?? ""].filter(Boolean)));
 }
 
+function getConfiguredModelFallbacks(provider: LLMProvider, currentModel?: string): string[] {
+  if (currentModel) {
+    return getFallbackModels(provider, currentModel);
+  }
+  return [];
+}
+
 async function buildBuiltInProviderStatus(
   provider: BuiltinLLMProvider,
   item: {
@@ -199,9 +207,7 @@ async function buildBuiltInProviderStatus(
   const envKey = getProviderEnvApiKey(provider);
   const effectiveKey = savedKey ?? envKey;
   const savedBaseURL = normalizeOptionalText(item?.baseURL);
-  const currentModel = normalizeOptionalText(item?.model)
-    ?? getProviderEnvModel(provider)
-    ?? PROVIDERS[provider].defaultModel;
+  const configuredModel = normalizeOptionalText(item?.model) ?? getProviderEnvModel(provider);
   const currentBaseURL = savedBaseURL
     ?? getProviderEnvBaseUrl(provider)
     ?? PROVIDERS[provider].baseURL;
@@ -209,11 +215,13 @@ async function buildBuiltInProviderStatus(
   const models = await getProviderModels(provider, {
     apiKey: effectiveKey,
     baseURL: currentBaseURL,
-    fallbackModel: currentModel,
-    fallbackModels: getFallbackModels(provider, currentModel),
+    fallbackModel: configuredModel,
+    fallbackModels: getConfiguredModelFallbacks(provider, configuredModel),
+    includeBuiltInFallback: Boolean(configuredModel),
   });
+  const currentModel = configuredModel ?? models[0] ?? "";
   const supportsImageGeneration = supportsImageModelSettings(provider);
-  const isConfigured = requiresApiKey ? Boolean(effectiveKey) : Boolean(currentModel && currentBaseURL);
+  const isConfigured = requiresApiKey ? Boolean(effectiveKey && currentModel) : Boolean(currentModel && currentBaseURL);
 
   return {
     provider,
@@ -282,6 +290,7 @@ async function buildCustomProviderStatus(item: {
 
 router.use(authMiddleware);
 registerCustomProviderRoutes(router);
+registerLLMSelectionRoutes(router);
 
 router.get("/style-engine-runtime", async (_req, res, next) => {
   try {

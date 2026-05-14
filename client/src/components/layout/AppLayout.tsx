@@ -2,6 +2,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { matchPath, Outlet, useLocation } from "react-router-dom";
 import AppRouteFallback from "./AppRouteFallback";
 import DesktopModelSetupGate from "./DesktopModelSetupGate";
+import LLMSelectionBootstrap from "./LLMSelectionBootstrap";
 import Navbar from "./Navbar";
 import NovelWorkspaceRail from "./NovelWorkspaceRail";
 import Sidebar from "./Sidebar";
@@ -74,6 +75,7 @@ export default function AppLayout() {
     return (
       <TaskRecoveryProvider>
         <div className="min-h-screen bg-background">
+          <LLMSelectionBootstrap />
           <DesktopModelSetupGate />
           <Suspense fallback={<AppRouteFallback />}>
             <Outlet />
@@ -88,6 +90,7 @@ export default function AppLayout() {
     return (
       <TaskRecoveryProvider>
         <MobileSiteShell>
+          <LLMSelectionBootstrap />
           <DesktopModelSetupGate />
           <Suspense fallback={<AppRouteFallback />}>
             <Outlet />
@@ -101,6 +104,7 @@ export default function AppLayout() {
   return (
     <TaskRecoveryProvider>
       <div className="min-h-screen bg-background">
+        <LLMSelectionBootstrap />
         <Navbar
           workspaceNavMode={isNovelWorkspace ? workspaceNavMode : undefined}
           onWorkspaceNavModeChange={isNovelWorkspace ? setWorkspaceNavMode : undefined}

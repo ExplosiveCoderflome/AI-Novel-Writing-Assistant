@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo } from "react";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { useQuery } from "@tanstack/react-query";
-import { getAPIKeySettings, type APIKeyStatus } from "@/api/settings";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getAPIKeySettings, saveLLMSelectionSetting } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import {
+  getProviderSelectionModels,
+  isRunnableProviderConfig,
+  resolveModel,
+} from "@/lib/llmSelection";
 import { useLLMStore } from "@/store/llmStore";
 import SearchableSelect from "./SearchableSelect";
 
@@ -30,38 +35,12 @@ interface LLMSelectorProps {
   className?: string;
 }
 
-function sanitizeModelList(models: unknown): string[] {
-  if (!Array.isArray(models)) {
-    return [];
-  }
-  return Array.from(
-    new Set(
-      models
-        .map((item) => (typeof item === "string" ? item.trim() : ""))
-        .filter(Boolean),
-    ),
-  );
-}
-
-function resolveModel(currentModel: string, models: string[]): string {
-  const normalizedCurrent = currentModel.trim();
-  if (normalizedCurrent) {
-    return normalizedCurrent;
-  }
-  return models[0] ?? "";
-}
-
 function clampTemperature(value: number): number {
   return Math.min(2, Math.max(0, value));
 }
 
 function clampMaxTokens(value: number): number {
   return Math.min(32768, Math.max(256, Math.floor(value)));
-}
-
-function isRunnableProvider(config: APIKeyStatus): boolean {
-  const models = sanitizeModelList([config.currentModel, ...(config.models ?? [])]);
-  return config.isConfigured && config.isActive && models.length > 0;
 }
 
 export default function LLMSelector({
@@ -75,6 +54,7 @@ export default function LLMSelector({
   className,
 }: LLMSelectorProps) {
   const store = useLLMStore();
+  const queryClient = useQueryClient();
   const currentValue = value ?? {
     provider: store.provider,
     model: store.model,
@@ -91,8 +71,15 @@ export default function LLMSelector({
     staleTime: 5 * 60 * 1000,
   });
 
+  const saveSelectionMutation = useMutation({
+    mutationFn: saveLLMSelectionSetting,
+    onSuccess: (response) => {
+      queryClient.setQueryData(queryKeys.settings.llmSelection, response);
+    },
+  });
+
   const providerConfigs = useMemo(
-    () => (apiKeySettingsQuery.data?.data ?? []).filter(isRunnableProvider),
+    () => (apiKeySettingsQuery.data?.data ?? []).filter(isRunnableProviderConfig),
     [apiKeySettingsQuery.data?.data],
   );
 
@@ -108,7 +95,7 @@ export default function LLMSelector({
 
   const providerModelsMap = useMemo(() => {
     const entries = providerConfigs.map((config) => (
-      [config.provider, sanitizeModelList([config.currentModel, ...config.models])] as const
+      [config.provider, getProviderSelectionModels(config)] as const
     ));
     return Object.fromEntries(entries) as Record<string, string[]>;
   }, [providerConfigs]);
@@ -136,6 +123,7 @@ export default function LLMSelector({
     [currentValue.model, models],
   );
   const providerSelectValue = hasRunnableProviders ? effectiveProvider : NO_PROVIDER_VALUE;
+  const shouldWaitForGlobalHydration = !value && !onChange && !store.hasHydratedSelection;
 
   const updateValue = useCallback((next: LLMSelectorValue) => {
     const normalizedModel = resolveModel(next.model, providerModelsMap[next.provider] ?? []);
@@ -155,21 +143,24 @@ export default function LLMSelector({
       onChange(normalizedNext);
       return;
     }
-    if (store.provider !== normalizedNext.provider) {
-      store.setProvider(normalizedNext.provider);
-    }
-    if (store.model !== normalizedNext.model) {
-      store.setModel(normalizedNext.model);
-    }
-    if (normalizedNext.temperature !== undefined && store.temperature !== normalizedNext.temperature) {
-      store.setTemperature(normalizedNext.temperature);
-    }
-    if (store.maxTokens !== normalizedNext.maxTokens) {
-      store.setMaxTokens(normalizedNext.maxTokens);
-    }
-  }, [onChange, providerModelsMap, store]);
+    store.setSelection({
+      provider: normalizedNext.provider,
+      model: normalizedNext.model,
+      temperature: normalizedNext.temperature,
+      maxTokens: normalizedNext.maxTokens,
+    });
+    saveSelectionMutation.mutate({
+      provider: normalizedNext.provider,
+      model: normalizedNext.model,
+      temperature: normalizedNext.temperature ?? store.temperature,
+      ...(normalizedNext.maxTokens !== undefined ? { maxTokens: normalizedNext.maxTokens } : {}),
+    });
+  }, [onChange, providerModelsMap, saveSelectionMutation, store]);
 
   useEffect(() => {
+    if (shouldWaitForGlobalHydration) {
+      return;
+    }
     if (!hasRunnableProviders) {
       return;
     }
@@ -190,6 +181,7 @@ export default function LLMSelector({
     resolvedMaxTokens,
     resolvedModel,
     resolvedTemperature,
+    shouldWaitForGlobalHydration,
     updateValue,
   ]);
 
