@@ -198,6 +198,7 @@ export function buildAutoDirectorEvent(input: {
   return {
     eventId: `${input.after.taskId}:${input.eventType}:${input.occurredAt.toISOString()}`,
     eventType: input.eventType,
+    directorTaskId: input.after.taskId,
     taskId: input.after.taskId,
     novelId: input.after.novelId,
     reason: input.after.reason,
@@ -214,7 +215,7 @@ export function projectDerivedStateToFollowUpItem(
   item: AutoDirectorFollowUpItem,
 ): AutoDirectorDerivedFollowUpState {
   return {
-    taskId: item.taskId,
+    taskId: item.directorTaskId,
     novelId: item.novelId,
     novelTitle: item.novelTitle,
     summary: item.followUpSummary,

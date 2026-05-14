@@ -96,6 +96,8 @@ export interface AutoDirectorFollowUpValidationSummary {
 
 export interface AutoDirectorFollowUpItem {
   itemType: "task" | "auto_approval_record";
+  directorTaskId: string;
+  /** @deprecated Use directorTaskId for auto director follow-up state. */
   taskId: string;
   autoApprovalRecordId?: string;
   novelId: string | null;
@@ -131,6 +133,8 @@ export interface AutoDirectorFollowUpMilestone {
 }
 
 export interface AutoDirectorFollowUpDetail {
+  directorTaskId: string;
+  /** @deprecated Use directorTaskId for auto director follow-up state. */
   taskId: string;
   reasonLabel: string;
   priority: AutoDirectorFollowUpPriority;
@@ -195,6 +199,8 @@ export interface AutoDirectorFollowUpListInput {
 }
 
 export interface AutoDirectorActionRequest {
+  directorTaskId?: string;
+  /** @deprecated Use directorTaskId when the caller is auto-director-specific. */
   taskId: string;
   actionCode: AutoDirectorMutationActionCode;
   source: "web" | "dingtalk" | "wecom";
@@ -214,6 +220,8 @@ export const AUTO_DIRECTOR_ACTION_RESULT_CODES = [
 export type AutoDirectorActionResultCode = (typeof AUTO_DIRECTOR_ACTION_RESULT_CODES)[number];
 
 export interface AutoDirectorActionExecutionResult {
+  directorTaskId?: string;
+  /** @deprecated Use directorTaskId when present. */
   taskId: string;
   actionCode: AutoDirectorMutationActionCode;
   code: AutoDirectorActionResultCode;
@@ -261,6 +269,8 @@ export type AutoDirectorEventType = (typeof AUTO_DIRECTOR_EVENT_TYPES)[number];
 export interface AutoDirectorEvent {
   eventId: string;
   eventType: AutoDirectorEventType;
+  directorTaskId?: string;
+  /** @deprecated Use directorTaskId when present. */
   taskId: string;
   novelId: string | null;
   reason: AutoDirectorFollowUpReason | null;
@@ -300,6 +310,8 @@ export interface AutoDirectorChannelNotificationPayload {
   event?: AutoDirectorEvent;
   card?: AutoDirectorChannelCardPayload;
   task?: {
+    directorTaskId?: string;
+    /** @deprecated Use directorTaskId when present. */
     taskId: string;
     novelId: string | null;
     novelTitle: string;

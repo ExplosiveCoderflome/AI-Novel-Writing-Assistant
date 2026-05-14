@@ -21,7 +21,7 @@ import { isSkippableAutoExecutionReviewFailure } from "./novelDirectorAutoExecut
 import {
   flattenPreparedOutlineChapters,
   resolveStructuredOutlineRecoveryCursor,
-} from "./novelDirectorStructuredOutlineRecovery";
+} from "../novelDirectorStructuredOutlineRecovery";
 
 interface DirectorAutoExecutionResolvedScope {
   range: DirectorAutoExecutionRange;

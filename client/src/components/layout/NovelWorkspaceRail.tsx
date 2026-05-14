@@ -310,7 +310,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     const taskId = activeTask?.id ?? bookAutomationProjection?.latestTask?.id;
     if (taskId) {
       const next = new URLSearchParams(searchParams);
-      next.set("taskId", taskId);
+      next.set("directorTaskId", taskId);
+      next.delete("taskId");
       next.set("taskPanel", "1");
       navigate(`/novels/${novelId}/edit?${next.toString()}`);
       return;

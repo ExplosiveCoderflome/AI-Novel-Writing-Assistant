@@ -139,9 +139,9 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
           ) : null}
 
           {props.items.map((item) => {
-            const itemKey = item.autoApprovalRecordId ?? item.taskId;
-            const checked = props.selectedTaskIds.includes(item.taskId);
-            const selected = props.selectedTaskId === item.taskId;
+            const itemKey = item.autoApprovalRecordId ?? item.directorTaskId;
+            const checked = props.selectedTaskIds.includes(item.directorTaskId);
+            const selected = props.selectedTaskId === item.directorTaskId;
             return (
               <button
                 key={itemKey}
@@ -150,7 +150,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                   "w-full min-w-0 rounded-xl border p-4 text-left transition-colors",
                   selected ? "border-primary bg-primary/5" : "hover:bg-muted/40",
                 )}
-                onClick={() => props.onSelectTask(item.taskId)}
+                onClick={() => props.onSelectTask(item.directorTaskId)}
               >
                 <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpListHeader}>
                   <div className="min-w-0 space-y-1">
@@ -162,7 +162,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                       <input
                         type="checkbox"
                         checked={checked}
-                        onChange={(event) => props.onToggleSelected(item.taskId, event.target.checked)}
+                        onChange={(event) => props.onToggleSelected(item.directorTaskId, event.target.checked)}
                         onClick={(event) => event.stopPropagation()}
                         disabled={props.actionLoading}
                       />
@@ -181,7 +181,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                   {item.executionScope ? <Badge variant="outline" className={`max-w-full whitespace-normal text-left ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{item.executionScope}</Badge> : null}
                   {item.supportsBatch ? <Badge variant="secondary">可批量</Badge> : null}
                   {buildChannelBadges(item).map((label) => (
-                    <Badge key={`${item.taskId}:${label}`} variant="secondary">{label}</Badge>
+                    <Badge key={`${item.directorTaskId}:${label}`} variant="secondary">{label}</Badge>
                   ))}
                 </div>
 

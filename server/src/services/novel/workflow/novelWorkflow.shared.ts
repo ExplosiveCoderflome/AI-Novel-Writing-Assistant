@@ -95,7 +95,7 @@ export function resumeTargetToRoute(target: NovelWorkflowResumeTarget | null | u
     if (target.lane === "manual_create") {
       searchParams.set("workspaceTaskId", target.taskId);
     } else {
-      searchParams.set("taskId", target.taskId);
+      searchParams.set("directorTaskId", target.taskId);
     }
   }
   if (target.chapterId) {

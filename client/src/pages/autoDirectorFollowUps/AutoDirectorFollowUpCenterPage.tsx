@@ -69,8 +69,8 @@ function isBatchActionAllowedForSection(
   return false;
 }
 
-function buildIdempotencyKey(taskId: string, actionCode: AutoDirectorMutationActionCode): string {
-  return `${taskId}:${actionCode}:${Date.now()}`;
+function buildIdempotencyKey(directorTaskId: string, actionCode: AutoDirectorMutationActionCode): string {
+  return `${directorTaskId}:${actionCode}:${Date.now()}`;
 }
 
 function buildBatchRequestKey(actionCode: AutoDirectorMutationActionCode): string {
@@ -112,9 +112,9 @@ export default function AutoDirectorFollowUpCenterPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [selectedDirectorTaskIds, setSelectedDirectorTaskIds] = useState<string[]>([]);
 
-  const selectedTaskId = searchParams.get("taskId")?.trim() || "";
+  const selectedDirectorTaskId = searchParams.get("directorTaskId")?.trim() || searchParams.get("taskId")?.trim() || "";
   const section = parseEnumParam(searchParams.get("section"), AUTO_DIRECTOR_FOLLOW_UP_SECTIONS);
   const reason = parseEnumParam(searchParams.get("reason"), AUTO_DIRECTOR_FOLLOW_UP_REASONS);
   const status = parseEnumParam(searchParams.get("status"), TASK_STATUSES);
@@ -161,15 +161,25 @@ export default function AutoDirectorFollowUpCenterPage() {
   const items = listQuery.data?.data?.items ?? [];
 
   const detailQuery = useQuery({
-    queryKey: queryKeys.autoDirectorFollowUps.detail(selectedTaskId || "none"),
-    queryFn: () => getAutoDirectorFollowUpDetail(selectedTaskId),
-    enabled: Boolean(selectedTaskId),
+    queryKey: queryKeys.autoDirectorFollowUps.detail(selectedDirectorTaskId || "none"),
+    queryFn: () => getAutoDirectorFollowUpDetail(selectedDirectorTaskId),
+    enabled: Boolean(selectedDirectorTaskId),
     retry: false,
   });
 
   useEffect(() => {
-    if (selectedTaskId) {
-      const exists = items.some((item) => item.taskId === selectedTaskId);
+    const legacyTaskId = searchParams.get("taskId")?.trim() || "";
+    if (legacyTaskId) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("directorTaskId", selectedDirectorTaskId || legacyTaskId);
+        next.delete("taskId");
+        return next;
+      }, { replace: true });
+      return;
+    }
+    if (selectedDirectorTaskId) {
+      const exists = items.some((item) => item.directorTaskId === selectedDirectorTaskId);
       if (exists || items.length === 0) {
         return;
       }
@@ -180,18 +190,19 @@ export default function AutoDirectorFollowUpCenterPage() {
     const fallback = items[0];
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      next.set("taskId", fallback.taskId);
+      next.set("directorTaskId", fallback.directorTaskId);
+      next.delete("taskId");
       return next;
     }, { replace: true });
-  }, [items, selectedTaskId, setSearchParams]);
+  }, [items, searchParams, selectedDirectorTaskId, setSearchParams]);
 
   useEffect(() => {
-    setSelectedTaskIds((current) => reconcileSelectedTaskIds(current, items));
+    setSelectedDirectorTaskIds((current) => reconcileSelectedTaskIds(current, items));
   }, [items]);
 
   const selectedItems = useMemo(
-    () => items.filter((item) => selectedTaskIds.includes(item.taskId)),
-    [items, selectedTaskIds],
+    () => items.filter((item) => selectedDirectorTaskIds.includes(item.directorTaskId)),
+    [items, selectedDirectorTaskIds],
   );
 
   const batchActionCode = useMemo(() => {
@@ -220,18 +231,18 @@ export default function AutoDirectorFollowUpCenterPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.overview }),
       queryClient.invalidateQueries({ queryKey: ["auto-director-follow-ups"] }),
     ]);
-    if (selectedTaskId) {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.autoDirectorFollowUps.detail(selectedTaskId) });
+    if (selectedDirectorTaskId) {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.autoDirectorFollowUps.detail(selectedDirectorTaskId) });
     }
   };
 
   const actionMutation = useMutation({
     mutationFn: (input: {
-      taskId: string;
+      directorTaskId: string;
       actionCode: AutoDirectorMutationActionCode;
-    }) => executeAutoDirectorFollowUpAction(input.taskId, {
+    }) => executeAutoDirectorFollowUpAction(input.directorTaskId, {
       actionCode: input.actionCode,
-      idempotencyKey: buildIdempotencyKey(input.taskId, input.actionCode),
+      idempotencyKey: buildIdempotencyKey(input.directorTaskId, input.actionCode),
     }),
     onSuccess: async (response) => {
       await invalidateFollowUps();
@@ -251,25 +262,26 @@ export default function AutoDirectorFollowUpCenterPage() {
     onSuccess: async (response) => {
       await invalidateFollowUps();
       toast.success(formatActionFeedbackMessage(response.message ?? "", "批量操作已提交"));
-      setSelectedTaskIds([]);
+      setSelectedDirectorTaskIds([]);
     },
   });
 
   const revalidationMutation = useMutation({
     mutationFn: revalidateAutoDirectorFollowUpDetail,
-    onSuccess: async (response, taskId) => {
+    onSuccess: async (response, directorTaskId) => {
       queryClient.setQueryData(
-        queryKeys.autoDirectorFollowUps.detail(taskId),
+        queryKeys.autoDirectorFollowUps.detail(directorTaskId),
         response,
       );
       toast.success("校验结果已刷新。");
     },
   });
 
-  const handleSelectTask = (taskId: string) => {
+  const handleSelectTask = (directorTaskId: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      next.set("taskId", taskId);
+      next.set("directorTaskId", directorTaskId);
+      next.delete("taskId");
       return next;
     });
   };
@@ -279,6 +291,7 @@ export default function AutoDirectorFollowUpCenterPage() {
       const next = new URLSearchParams(prev);
       if (!nextSection) {
         next.delete("section");
+        next.delete("directorTaskId");
         next.delete("taskId");
         next.delete("supportsBatch");
         next.set("page", "1");
@@ -289,12 +302,13 @@ export default function AutoDirectorFollowUpCenterPage() {
       } else {
         next.set("section", nextSection);
       }
+      next.delete("directorTaskId");
       next.delete("taskId");
       next.delete("supportsBatch");
       next.set("page", "1");
       return next;
     });
-    setSelectedTaskIds([]);
+    setSelectedDirectorTaskIds([]);
   };
 
   const handleFilterChange = (key: "reason" | "status" | "supportsBatch" | "channelType", value: string) => {
@@ -310,12 +324,12 @@ export default function AutoDirectorFollowUpCenterPage() {
     });
   };
 
-  const handleToggleSelected = (taskId: string, checked: boolean) => {
-    setSelectedTaskIds((current) => {
+  const handleToggleSelected = (directorTaskId: string, checked: boolean) => {
+    setSelectedDirectorTaskIds((current) => {
       if (checked) {
-        return Array.from(new Set(current.concat(taskId)));
+        return Array.from(new Set(current.concat(directorTaskId)));
       }
-      return current.filter((id) => id !== taskId);
+      return current.filter((id) => id !== directorTaskId);
     });
   };
 
@@ -337,7 +351,7 @@ export default function AutoDirectorFollowUpCenterPage() {
     }
     const actionCode = action.code as AutoDirectorMutationActionCode;
     await actionMutation.mutateAsync({
-      taskId: item.taskId,
+      directorTaskId: item.directorTaskId,
       actionCode,
     });
   };
@@ -348,23 +362,23 @@ export default function AutoDirectorFollowUpCenterPage() {
     }
     await batchMutation.mutateAsync({
       actionCode: batchActionCode,
-      taskIds: selectedItems.map((item) => item.taskId),
+      taskIds: selectedItems.map((item) => item.directorTaskId),
     });
   };
 
   const handleRefreshValidation = async () => {
-    if (!selectedTaskId) {
+    if (!selectedDirectorTaskId) {
       return;
     }
-    await revalidationMutation.mutateAsync(selectedTaskId);
+    await revalidationMutation.mutateAsync(selectedDirectorTaskId);
   };
 
   const handleSafeFix = async () => {
-    if (!selectedTaskId) {
+    if (!selectedDirectorTaskId) {
       return;
     }
     await actionMutation.mutateAsync({
-      taskId: selectedTaskId,
+      directorTaskId: selectedDirectorTaskId,
       actionCode: "safe_fix_validation",
     });
   };
@@ -387,8 +401,8 @@ export default function AutoDirectorFollowUpCenterPage() {
           activeSection={section}
           activeStatus={status}
           activeSupportsBatch={supportsBatch}
-          selectedTaskId={selectedTaskId}
-          selectedTaskIds={selectedTaskIds}
+          selectedTaskId={selectedDirectorTaskId}
+          selectedTaskIds={selectedDirectorTaskIds}
           loading={listQuery.isLoading}
           actionLoading={actionMutation.isPending || batchMutation.isPending}
           onSelectTask={handleSelectTask}
@@ -405,7 +419,7 @@ export default function AutoDirectorFollowUpCenterPage() {
 
         <AutoDirectorFollowUpDetailPanel
           detail={detailQuery.data?.data ?? null}
-          selectedItem={items.find((item) => item.taskId === selectedTaskId) ?? null}
+          selectedItem={items.find((item) => item.directorTaskId === selectedDirectorTaskId) ?? null}
           loading={detailQuery.isLoading || revalidationMutation.isPending}
           actionLoading={actionMutation.isPending || revalidationMutation.isPending}
           onExecuteAction={handleExecuteAction}
@@ -418,7 +432,7 @@ export default function AutoDirectorFollowUpCenterPage() {
         selectedItems={selectedItems}
         batchActionCode={batchActionCode}
         loading={batchMutation.isPending}
-        onClear={() => setSelectedTaskIds([])}
+        onClear={() => setSelectedDirectorTaskIds([])}
         onExecute={handleExecuteBatch}
       />
     </div>

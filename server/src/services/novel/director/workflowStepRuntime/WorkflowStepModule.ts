@@ -6,6 +6,10 @@ import type {
   DirectorStepFactInspection,
   DirectorPolicyMode,
 } from "@ai-novel/shared/types/directorRuntime";
+import {
+  findWorkflowStepCatalogEntryById,
+  type WorkflowStepCatalogEntry,
+} from "@ai-novel/shared/types/directorWorkflowStepCatalog";
 import type { NovelWorkflowStage } from "@ai-novel/shared/types/novelWorkflow";
 import type {
   PromptAsset,
@@ -193,6 +197,30 @@ export interface LegacyDirectorNodeAdapterLike {
   waitingState?: WorkflowStepWaitingState;
 }
 
+export function createWorkflowStepDescriptorFromCatalogEntry(input: {
+  entry: WorkflowStepCatalogEntry;
+  defaultWaitingState?: WorkflowStepWaitingState;
+  contextRequirements?: PromptContextRequirement[];
+  promptAssets?: WorkflowStepPromptAssetRef[];
+}): WorkflowStepModuleDescriptor {
+  return {
+    id: input.entry.id,
+    nodeKey: input.entry.nodeKey,
+    label: input.entry.label,
+    stage: input.entry.stage,
+    targetType: input.entry.targetType,
+    reads: [...input.entry.reads],
+    writes: [...input.entry.writes],
+    policyAction: input.entry.policyAction as DirectorPolicyRequest["action"] | undefined,
+    mayModifyUserContent: input.entry.mayModifyUserContent,
+    requiresApprovalByDefault: input.entry.requiresApprovalByDefault,
+    supportsAutoRetry: input.entry.supportsAutoRetry,
+    contextRequirements: input.contextRequirements,
+    promptAssets: input.promptAssets,
+    defaultWaitingState: input.defaultWaitingState,
+  };
+}
+
 export function createWorkflowStepDescriptorFromDirectorAdapter(input: {
   id: string;
   stage: string;
@@ -200,6 +228,15 @@ export function createWorkflowStepDescriptorFromDirectorAdapter(input: {
   contextRequirements?: PromptContextRequirement[];
   promptAssets?: WorkflowStepPromptAssetRef[];
 }): WorkflowStepModuleDescriptor {
+  const catalogEntry = findWorkflowStepCatalogEntryById(input.id);
+  if (catalogEntry) {
+    return createWorkflowStepDescriptorFromCatalogEntry({
+      entry: catalogEntry,
+      defaultWaitingState: input.adapter.waitingState,
+      contextRequirements: input.contextRequirements,
+      promptAssets: input.promptAssets,
+    });
+  }
   return {
     id: input.id,
     nodeKey: input.adapter.nodeKey,

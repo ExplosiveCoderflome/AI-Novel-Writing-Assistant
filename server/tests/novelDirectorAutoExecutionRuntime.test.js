@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   NovelDirectorAutoExecutionRuntime,
-} = require("../dist/services/novel/director/novelDirectorAutoExecutionRuntime.js");
+} = require("../dist/services/novel/director/automation/novelDirectorAutoExecutionRuntime.js");
 const {
   buildDirectorQualityLoopBudgetWindow,
   buildDirectorQualityLoopIssueSignature,
@@ -295,6 +295,119 @@ test("runFromReady reuses an existing active range job before starting a new pip
     ["bootstrapTask", "job-active", "running"],
     ["getPipelineJobById", "job-active"],
     ["recordCheckpoint", "task-auto-exec", "job-active", "succeeded"],
+  ]);
+});
+
+test("runFromReady resumes a pending manual-recovery pipeline job before waiting on it", async () => {
+  const calls = [];
+  let pipelineCompleted = false;
+  let jobReadCount = 0;
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          withExecutionDetail({ id: "chapter-1", order: 1, generationState: pipelineCompleted ? "approved" : "draft" }),
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        calls.push(["startPipelineJob"]);
+        throw new Error("should not start a new pipeline job");
+      },
+      async findActivePipelineJobForRange(novelId, startOrder, endOrder, preferredJobId) {
+        calls.push(["findActivePipelineJobForRange", novelId, startOrder, endOrder, preferredJobId]);
+        return null;
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        jobReadCount += 1;
+        if (jobReadCount === 1) {
+          return {
+            id: "job-paused",
+            status: "queued",
+            progress: 0.65,
+            pendingManualRecovery: true,
+            currentStage: "queued",
+            currentItemLabel: null,
+            error: "服务重启后任务已暂停，等待手动恢复。",
+          };
+        }
+        if (jobReadCount === 2) {
+          return {
+            id: "job-paused",
+            status: "running",
+            progress: 0.66,
+            pendingManualRecovery: false,
+            currentStage: "reviewing",
+            currentItemLabel: "第1章 · 批次 1/1",
+            error: null,
+          };
+        }
+        pipelineCompleted = true;
+        return {
+          id: "job-paused",
+          status: "succeeded",
+          progress: 1,
+          pendingManualRecovery: false,
+          currentStage: null,
+          currentItemLabel: null,
+          error: null,
+        };
+      },
+      async resumePipelineJob(jobId) {
+        calls.push(["resumePipelineJob", jobId]);
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push(["bootstrapTask", input.seedPayload.autoExecution.pipelineJobId, input.seedPayload.autoExecution.pipelineStatus]);
+      },
+      async getTaskById() {
+        return { status: "running" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push(["recordCheckpoint", taskId, input.seedPayload.autoExecution.pipelineJobId, input.seedPayload.autoExecution.pipelineStatus]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest(),
+    existingState: {
+      enabled: true,
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 1,
+      totalChapterCount: 1,
+      pipelineJobId: "job-paused",
+      pipelineStatus: "queued",
+    },
+    existingPipelineJobId: "job-paused",
+  });
+
+  assert.deepEqual(calls, [
+    ["getPipelineJobById", "job-paused"],
+    ["resumePipelineJob", "job-paused"],
+    ["getPipelineJobById", "job-paused"],
+    ["bootstrapTask", "job-paused", "running"],
+    ["findActivePipelineJobForRange", "novel-1", 1, 1, "job-paused"],
+    ["getPipelineJobById", "job-paused"],
+    ["recordCheckpoint", "task-auto-exec", "job-paused", "succeeded"],
   ]);
 });
 

@@ -5,6 +5,7 @@ import { prisma } from "../../../db/prisma";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import { resolvePromptContextBlocksForAsset } from "../../../prompting/context/promptContextResolution";
 import { buildChapterReviewContextBlocks } from "../../../prompting/prompts/novel/chapterLayeredContext";
+import { resolveTargetWordRange } from "../../../prompting/prompts/novel/chapterLayeredContextShared";
 import {
   chapterAcceptanceAssessmentPrompt,
   type ChapterAcceptanceAssessmentOutput,
@@ -34,6 +35,35 @@ export interface ChapterAcceptanceAssessmentResult {
 }
 
 type AcceptanceIssue = ChapterAcceptanceAssessmentOutput["blockingIssues"][number];
+type AcceptanceRepairDirective = ChapterAcceptanceAssessmentOutput["repairDirectives"][number];
+
+const UNDER_LENGTH_MARKERS = [
+  "length_insufficient",
+  "length_under",
+  "under_soft",
+  "too short",
+  "insufficient length",
+  "word count",
+  "正文估算",
+  "目标长度",
+  "字数",
+  "低于",
+  "不足",
+  "过短",
+  "未达",
+];
+
+const OVER_LENGTH_MARKERS = [
+  "length_over",
+  "over_soft",
+  "over_hard",
+  "too long",
+  "exceeds",
+  "超出",
+  "超过",
+  "过长",
+  "冗长",
+];
 
 function categoryToAuditType(category: AcceptanceIssue["category"]): AuditType {
   if (category === "continuity") return "continuity";
@@ -50,26 +80,104 @@ function categoryToReviewIssueCategory(category: AcceptanceIssue["category"]): R
   return "coherence";
 }
 
-function normalizeAssessment(
+function countChapterCharacters(content: string): number {
+  return content.replace(/\s+/g, "").trim().length;
+}
+
+function includesAnyMarker(text: string, markers: string[]): boolean {
+  const normalized = text.toLowerCase();
+  return markers.some((marker) => normalized.includes(marker));
+}
+
+function isUnderLengthIssue(issue: AcceptanceIssue): boolean {
+  const text = [issue.code, issue.evidence, issue.fixSuggestion].join("\n");
+  return includesAnyMarker(text, UNDER_LENGTH_MARKERS) && !includesAnyMarker(text, OVER_LENGTH_MARKERS);
+}
+
+function isOverLengthIssue(issue: AcceptanceIssue): boolean {
+  const text = [issue.code, issue.evidence, issue.fixSuggestion].join("\n");
+  return includesAnyMarker(text, OVER_LENGTH_MARKERS);
+}
+
+function isLengthDirective(directive: AcceptanceRepairDirective): boolean {
+  return includesAnyMarker(directive.instruction, [...UNDER_LENGTH_MARKERS, ...OVER_LENGTH_MARKERS]);
+}
+
+function shouldDropLengthIssue(input: {
+  issue: AcceptanceIssue;
+  actualWordCount: number;
+  minWordCount: number | null;
+  maxWordCount: number | null;
+}): boolean {
+  if (input.minWordCount != null && input.actualWordCount >= input.minWordCount && isUnderLengthIssue(input.issue)) {
+    return true;
+  }
+  if (input.maxWordCount != null && input.actualWordCount <= input.maxWordCount && isOverLengthIssue(input.issue)) {
+    return true;
+  }
+  return false;
+}
+
+function reconcileLengthAssessment(
   output: ChapterAcceptanceAssessmentOutput,
   content: string,
+  targetWordCount?: number | null,
 ): ChapterAcceptanceAssessmentOutput {
-  const score = normalizeScore(output.score ?? ruleScore(content));
-  const hasHighRisk = output.blockingIssues.some((issue) => issue.severity === "high" || issue.severity === "critical");
-  const status = output.status === "accepted" && hasHighRisk ? "repairable" : output.status;
+  const range = resolveTargetWordRange(targetWordCount);
+  if (range.minWordCount == null && range.maxWordCount == null) {
+    return output;
+  }
+  const actualWordCount = countChapterCharacters(content);
+  const blockingIssues = output.blockingIssues.filter((issue) => !shouldDropLengthIssue({
+    issue,
+    actualWordCount,
+    minWordCount: range.minWordCount,
+    maxWordCount: range.maxWordCount,
+  }));
+  if (blockingIssues.length === output.blockingIssues.length) {
+    return output;
+  }
+  return {
+    ...output,
+    blockingIssues,
+    repairDirectives: output.repairDirectives.filter((directive) => !isLengthDirective(directive)),
+    riskTags: output.riskTags.filter((tag) => !includesAnyMarker(tag, [...UNDER_LENGTH_MARKERS, ...OVER_LENGTH_MARKERS])),
+  };
+}
+
+export function normalizeAssessment(
+  output: ChapterAcceptanceAssessmentOutput,
+  content: string,
+  targetWordCount?: number | null,
+): ChapterAcceptanceAssessmentOutput {
+  const reconciled = reconcileLengthAssessment(output, content, targetWordCount);
+  const score = normalizeScore(reconciled.score ?? ruleScore(content));
+  const hasHighRisk = reconciled.blockingIssues.some((issue) => issue.severity === "high" || issue.severity === "critical");
+  const hasRepairWork = reconciled.blockingIssues.length > 0 || reconciled.repairDirectives.length > 0;
+  let status: ChapterAcceptanceAssessmentOutput["status"] = reconciled.status === "accepted" && hasHighRisk
+    ? "repairable"
+    : reconciled.status;
+  if (status === "needs_manual_review" && !hasHighRisk) {
+    status = hasRepairWork ? "repairable" : "continue_with_risk";
+  }
+  if (status === "repairable" && !hasRepairWork) {
+    status = "continue_with_risk";
+  }
   const continuePolicy = status === "needs_manual_review"
     ? "pause"
     : status === "repairable"
       ? "repair_once"
-      : output.continuePolicy;
+      : status === "continue_with_risk" && reconciled.continuePolicy === "pause"
+        ? "continue"
+        : reconciled.continuePolicy;
   return {
-    ...output,
+    ...reconciled,
     status,
     score,
     continuePolicy,
-    riskTags: Array.from(new Set(output.riskTags.map((item) => item.trim()).filter(Boolean))),
-    blockingIssues: output.blockingIssues.slice(0, 5),
-    repairDirectives: output.repairDirectives.slice(0, 4),
+    riskTags: Array.from(new Set(reconciled.riskTags.map((item) => item.trim()).filter(Boolean))),
+    blockingIssues: reconciled.blockingIssues.slice(0, 5),
+    repairDirectives: reconciled.repairDirectives.slice(0, 4),
   };
 }
 
@@ -100,7 +208,7 @@ function buildFallbackAssessment(content: string): ChapterAcceptanceAssessmentOu
 export class ChapterAcceptanceAssessmentService {
   async assess(input: ChapterAcceptanceAssessmentInput): Promise<ChapterAcceptanceAssessmentResult> {
     const assessment = await this.invokeAssessment(input).catch(() => buildFallbackAssessment(input.content));
-    const normalized = normalizeAssessment(assessment, input.content);
+    const normalized = normalizeAssessment(assessment, input.content, input.targetWordCount);
     const score = normalizeScore(normalized.score);
     const issues = normalized.blockingIssues.map((issue) => ({
       severity: issue.severity,

@@ -23,14 +23,14 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 import { apiClient } from "./client";
 
-export async function getDirectorTaskSnapshot(taskId: string) {
-  const { data } = await apiClient.get<ApiResponse<DirectorTaskSnapshotResponse>>(`/novels/director/tasks/${taskId}`);
+export async function getDirectorTaskSnapshot(directorTaskId: string) {
+  const { data } = await apiClient.get<ApiResponse<DirectorTaskSnapshotResponse>>(`/novels/director/tasks/${directorTaskId}`);
   return data;
 }
 
-export async function getDirectorTaskFactInspection(taskId: string) {
+export async function getDirectorTaskFactInspection(directorTaskId: string) {
   const { data } = await apiClient.get<ApiResponse<DirectorTaskFactInspectionResponse>>(
-    `/novels/director/tasks/${taskId}/fact-inspection`,
+    `/novels/director/tasks/${directorTaskId}/fact-inspection`,
   );
   return data;
 }
@@ -144,8 +144,8 @@ export async function getDirectorWorkspaceAnalysis(
   return data;
 }
 
-export async function getDirectorRuntimeSnapshot(taskId: string) {
-  const snapshot = await getDirectorTaskSnapshot(taskId);
+export async function getDirectorRuntimeSnapshot(directorTaskId: string) {
+  const snapshot = await getDirectorTaskSnapshot(directorTaskId);
   return {
     ...snapshot,
     data: {
@@ -155,8 +155,8 @@ export async function getDirectorRuntimeSnapshot(taskId: string) {
   };
 }
 
-export async function getDirectorRuntimeProjection(taskId: string) {
-  const snapshot = await getDirectorTaskSnapshot(taskId);
+export async function getDirectorRuntimeProjection(directorTaskId: string) {
+  const snapshot = await getDirectorTaskSnapshot(directorTaskId);
   return {
     ...snapshot,
     data: {
@@ -165,8 +165,8 @@ export async function getDirectorRuntimeProjection(taskId: string) {
   };
 }
 
-export async function getDirectorRuntimeEventHistory(taskId: string, options?: { limit?: number }) {
-  const snapshot = await getDirectorTaskSnapshot(taskId);
+export async function getDirectorRuntimeEventHistory(directorTaskId: string, options?: { limit?: number }) {
+  const snapshot = await getDirectorTaskSnapshot(directorTaskId);
   const events = snapshot.data?.snapshot?.recentEvents ?? [];
   const limit = options?.limit ?? events.length;
   return {
@@ -201,11 +201,11 @@ export async function getDirectorManualEditImpact(
 }
 
 export async function updateDirectorRuntimePolicy(
-  taskId: string,
+  directorTaskId: string,
   payload: DirectorRuntimePolicyUpdateRequest,
 ): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
   const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(
-    `/novels/director/tasks/${taskId}/commands`,
+    `/novels/director/tasks/${directorTaskId}/commands`,
     {
       commandType: "policy_update",
       payload,
@@ -214,23 +214,23 @@ export async function updateDirectorRuntimePolicy(
   return data;
 }
 
-export async function approveDirectorGate(taskId: string): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
+export async function approveDirectorGate(directorTaskId: string): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
   const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(
-    `/novels/director/tasks/${taskId}/commands`,
+    `/novels/director/tasks/${directorTaskId}/commands`,
     { commandType: "approve_gate", payload: {} },
   );
   return data;
 }
 
 export async function continueDirectorRuntime(
-  taskId: string,
+  directorTaskId: string,
   payload?: Partial<DirectorRuntimePolicyUpdateRequest> & {
     continuationMode?: "resume" | "auto_execute_range";
     batchAlreadyStartedCount?: number;
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(
-    `/novels/director/tasks/${taskId}/commands`,
+    `/novels/director/tasks/${directorTaskId}/commands`,
     {
       commandType: "continue",
       payload: payload ?? {},

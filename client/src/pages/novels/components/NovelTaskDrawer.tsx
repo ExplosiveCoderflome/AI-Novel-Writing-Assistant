@@ -147,12 +147,12 @@ function followUpActionVariant(action: AutoDirectorAction): "default" | "outline
 
 function formatFollowUpPriority(priority: "P0" | "P1" | "P2"): string {
   if (priority === "P0") {
-    return "P0 绔嬪嵆澶勭悊";
+    return "P0 立即处理";
   }
   if (priority === "P1") {
-    return "P1 浼樺厛澶勭悊";
+    return "P1 尽快处理";
   }
-  return "P2 鍙帓鏈熷鐞?";
+  return "P2 稍后处理";
 }
 
 function readProposalPayloadText(
@@ -434,7 +434,7 @@ export default function NovelTaskDrawer({
               {canShowFollowUp && followUp ? (
                 <section className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-sm font-medium text-foreground">褰撳墠寰呭鐞嗗姩浣?</div>
+                    <div className="text-sm font-medium text-foreground">当前需要处理的动作</div>
                     <Badge variant="outline">{followUp.reasonLabel}</Badge>
                     <Badge variant={followUp.priority === "P0" ? "destructive" : "secondary"}>
                       {formatFollowUpPriority(followUp.priority)}
@@ -442,7 +442,7 @@ export default function NovelTaskDrawer({
                   </div>
                   <div className="text-sm leading-6 text-muted-foreground">{followUp.followUpSummary}</div>
                   {followUp.blockingReason ? (
-                    <div className="text-sm text-muted-foreground">闃诲鍘熷洜锛?{followUp.blockingReason}</div>
+                    <div className="text-sm text-muted-foreground">阻止动作的原因：{followUp.blockingReason}</div>
                   ) : null}
                   {followUp.currentModel ? (
                     <div className="text-sm text-muted-foreground">当前任务模型：{followUp.currentModel}</div>

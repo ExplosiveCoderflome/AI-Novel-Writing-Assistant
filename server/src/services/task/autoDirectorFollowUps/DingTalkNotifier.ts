@@ -80,7 +80,7 @@ export class DingTalkNotifier {
     cardTitle?: string;
   }): AutoDirectorChannelNotificationPayload {
     const baseUrl = resolveAutoDirectorBaseUrl(input.baseUrl);
-    const followUpCenterUrl = `${baseUrl}/auto-director/follow-ups?taskId=${input.taskId}`;
+    const followUpCenterUrl = `${baseUrl}/auto-director/follow-ups?directorTaskId=${input.taskId}`;
     const detailUrl = `${baseUrl}/tasks?kind=novel_workflow&id=${input.taskId}`;
     const callbackActions = hasCallbackSupport(input.channelConfig)
       ? input.availableActions
@@ -119,6 +119,7 @@ export class DingTalkNotifier {
         ],
       },
       task: {
+        directorTaskId: input.taskId,
         taskId: input.taskId,
         novelId: input.novelId,
         novelTitle: input.novelTitle,

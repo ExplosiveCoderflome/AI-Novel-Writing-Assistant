@@ -57,7 +57,7 @@ export function buildStructuredOutlineRoute(
   }
   const search = new URLSearchParams();
   search.set("stage", "structured");
-  search.set("taskId", task.id);
+  search.set("directorTaskId", task.id);
   if (typeof volumeId === "string" && volumeId.trim()) {
     search.set("volumeId", volumeId.trim());
   }
