@@ -16,6 +16,7 @@ import {
 import { getDirectorTakeoverNodeAdapter } from "../novelDirectorTakeoverNodeAdapters";
 import {
   createWorkflowStepDescriptorFromDirectorAdapter,
+  createWorkflowStepDescriptorFromCatalogEntry,
   createWorkflowStepModule,
   type WorkflowStepModuleDescriptor,
   type WorkflowStepExecutionContext,
@@ -43,43 +44,48 @@ import type {
   DirectorChapterExecutionProgressItem,
   DirectorChapterExecutionProgressSummary,
 } from "@ai-novel/shared/types/directorRuntime";
+import {
+  DIRECTOR_WORKFLOW_STEP_IDS,
+  getWorkflowStepCatalogEntry,
+  getWorkflowStepWriteContractRequirements,
+} from "@ai-novel/shared/types/directorWorkflowStepCatalog";
 import { CHAPTER_EXECUTION_PROGRESS_STAGES } from "../runtime/ChapterExecutionProgressInspector";
 
 export const DIRECTOR_CANDIDATE_STEP_IDS: Record<DirectorCandidateStageNode, string> = {
-  candidate_generation: "book.candidate.generate",
-  candidate_refine: "book.candidate.refine",
-  candidate_patch: "book.candidate.patch",
-  candidate_title_refine: "book.candidate.title_refine",
+  candidate_generation: DIRECTOR_WORKFLOW_STEP_IDS.candidate.candidate_generation,
+  candidate_refine: DIRECTOR_WORKFLOW_STEP_IDS.candidate.candidate_refine,
+  candidate_patch: DIRECTOR_WORKFLOW_STEP_IDS.candidate.candidate_patch,
+  candidate_title_refine: DIRECTOR_WORKFLOW_STEP_IDS.candidate.candidate_title_refine,
 };
 
 export const DIRECTOR_PLANNING_STEP_IDS: Record<DirectorPlanningStage, string> = {
-  story_macro: "story.macro.plan",
-  book_contract: "book.contract.create",
-  character_setup: "character.cast.prepare",
-  volume_strategy: "volume.strategy.plan",
-  structured_outline: "volume.beat_sheet.generate",
+  story_macro: DIRECTOR_WORKFLOW_STEP_IDS.planning.story_macro,
+  book_contract: DIRECTOR_WORKFLOW_STEP_IDS.planning.book_contract,
+  character_setup: DIRECTOR_WORKFLOW_STEP_IDS.planning.character_setup,
+  volume_strategy: DIRECTOR_WORKFLOW_STEP_IDS.planning.volume_strategy,
+  structured_outline: DIRECTOR_WORKFLOW_STEP_IDS.planning.structured_outline,
 };
 
 export const DIRECTOR_STRUCTURED_OUTLINE_STEP_IDS = {
-  beat_sheet: "volume.beat_sheet.generate",
-  chapter_list: "volume.chapter_list.generate",
-  chapter_detail_bundle: "volume.chapter_detail_bundle.generate",
+  beat_sheet: DIRECTOR_WORKFLOW_STEP_IDS.structuredOutline.beat_sheet,
+  chapter_list: DIRECTOR_WORKFLOW_STEP_IDS.structuredOutline.chapter_list,
+  chapter_detail_bundle: DIRECTOR_WORKFLOW_STEP_IDS.structuredOutline.chapter_detail_bundle,
 } as const;
 
-export const DIRECTOR_EXECUTION_CONTRACT_SYNC_STEP_ID = "chapter.execution_contract.sync";
+export const DIRECTOR_EXECUTION_CONTRACT_SYNC_STEP_ID = DIRECTOR_WORKFLOW_STEP_IDS.executionContractSync;
 
 export const DIRECTOR_EXECUTION_STEP_IDS: Record<DirectorExecutionStage, string> = {
-  chapter_execution: "chapter.draft.write",
-  chapter_quality_review: "chapter.quality.review",
-  chapter_repair: "chapter.draft.repair",
-  chapter_state_commit: "chapter.state.commit",
-  payoff_ledger_sync: "payoff.ledger.sync",
-  character_resource_sync: "character.resource.sync",
-  quality_repair: "chapter.quality.repair",
+  chapter_execution: DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_execution,
+  chapter_quality_review: DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_quality_review,
+  chapter_repair: DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_repair,
+  chapter_state_commit: DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_state_commit,
+  payoff_ledger_sync: DIRECTOR_WORKFLOW_STEP_IDS.execution.payoff_ledger_sync,
+  character_resource_sync: DIRECTOR_WORKFLOW_STEP_IDS.execution.character_resource_sync,
+  quality_repair: DIRECTOR_WORKFLOW_STEP_IDS.execution.quality_repair,
 };
 
-export const DIRECTOR_TAKEOVER_STEP_ID = "workflow.takeover.execute";
-export const DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_ID = "book.project.create";
+export const DIRECTOR_TAKEOVER_STEP_ID = DIRECTOR_WORKFLOW_STEP_IDS.takeover;
+export const DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_ID = DIRECTOR_WORKFLOW_STEP_IDS.confirmNovelCreate;
 
 let directorCoreStepRuntime: DirectorCoreStepModuleRuntime | null = null;
 let directorCoreStateReader: DirectorStateReader | null = null;
@@ -853,19 +859,10 @@ function buildStructuredOutlineStepDescriptor(input: {
   label: string;
   defaultWaitingState: WorkflowStepModuleDescriptor["defaultWaitingState"];
 }): WorkflowStepModuleDescriptor {
-  return {
-    id: input.id,
-    nodeKey: input.nodeKey,
-    label: input.label,
-    stage: "structured_outline",
-    targetType: "novel",
-    reads: ["volume_strategy", "character_cast", "chapter_task_sheet"],
-    writes: ["chapter_task_sheet"],
-    mayModifyUserContent: true,
-    requiresApprovalByDefault: false,
-    supportsAutoRetry: true,
+  return createWorkflowStepDescriptorFromCatalogEntry({
+    entry: getWorkflowStepCatalogEntry(input.id),
     defaultWaitingState: input.defaultWaitingState,
-  };
+  });
 }
 
 async function inspectStructuredOutlineFactState(
@@ -1747,16 +1744,9 @@ export const DIRECTOR_STRUCTURED_OUTLINE_STEP_MODULES = {
 } as const;
 
 export const DIRECTOR_EXECUTION_CONTRACT_SYNC_STEP_MODULE = createChapterExecutionContractSyncModule({
-  id: DIRECTOR_EXECUTION_CONTRACT_SYNC_STEP_ID,
-  nodeKey: "chapter_execution_contract_sync",
-  label: "同步章节执行合同",
-  stage: "structured_outline",
-  targetType: "novel",
-  reads: ["chapter_task_sheet"],
-  writes: ["chapter_task_sheet"],
-  mayModifyUserContent: false,
-  requiresApprovalByDefault: false,
-  supportsAutoRetry: true,
+  ...createWorkflowStepDescriptorFromCatalogEntry({
+    entry: getWorkflowStepCatalogEntry(DIRECTOR_EXECUTION_CONTRACT_SYNC_STEP_ID),
+  }),
   defaultWaitingState: {
     stage: "structured_outline",
     itemKey: "chapter_sync",
@@ -2021,30 +2011,8 @@ const REQUIRED_DIRECTOR_WRITE_CONTRACTS: Array<{
   id: string;
   writes: string[];
   mayModifyUserContent: boolean;
-  requiresPolicyAction?: boolean;
-}> = [
-  { id: DIRECTOR_CANDIDATE_STEP_IDS.candidate_generation, writes: ["candidate_batch"], mayModifyUserContent: false },
-  { id: DIRECTOR_CANDIDATE_STEP_IDS.candidate_refine, writes: ["candidate_batch"], mayModifyUserContent: false },
-  { id: DIRECTOR_CANDIDATE_STEP_IDS.candidate_patch, writes: ["candidate_batch"], mayModifyUserContent: false },
-  { id: DIRECTOR_CANDIDATE_STEP_IDS.candidate_title_refine, writes: ["candidate_batch"], mayModifyUserContent: false },
-  { id: DIRECTOR_CONFIRM_NOVEL_CREATE_STEP_ID, writes: ["novel_project", "director_runtime"], mayModifyUserContent: false },
-  { id: DIRECTOR_TAKEOVER_STEP_ID, writes: ["workflow_task", "director_runtime"], mayModifyUserContent: false },
-  { id: DIRECTOR_PLANNING_STEP_IDS.story_macro, writes: ["story_macro"], mayModifyUserContent: true },
-  { id: DIRECTOR_PLANNING_STEP_IDS.book_contract, writes: ["book_contract"], mayModifyUserContent: true },
-  { id: DIRECTOR_PLANNING_STEP_IDS.character_setup, writes: ["character_cast"], mayModifyUserContent: true },
-  { id: DIRECTOR_PLANNING_STEP_IDS.volume_strategy, writes: ["volume_strategy"], mayModifyUserContent: true },
-  { id: DIRECTOR_STRUCTURED_OUTLINE_STEP_IDS.beat_sheet, writes: ["chapter_task_sheet"], mayModifyUserContent: true },
-  { id: DIRECTOR_STRUCTURED_OUTLINE_STEP_IDS.chapter_list, writes: ["chapter_task_sheet"], mayModifyUserContent: true },
-  { id: DIRECTOR_STRUCTURED_OUTLINE_STEP_IDS.chapter_detail_bundle, writes: ["chapter_task_sheet"], mayModifyUserContent: true },
-  { id: DIRECTOR_EXECUTION_CONTRACT_SYNC_STEP_ID, writes: ["chapter_task_sheet"], mayModifyUserContent: false },
-  { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_execution, writes: ["chapter_draft"], mayModifyUserContent: true },
-  { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_quality_review, writes: ["audit_report", "rolling_window_review"], mayModifyUserContent: false },
-  { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_repair, writes: ["chapter_draft", "audit_report", "repair_ticket"], mayModifyUserContent: true, requiresPolicyAction: true },
-  { id: DIRECTOR_EXECUTION_STEP_IDS.quality_repair, writes: ["chapter_draft", "audit_report", "repair_ticket"], mayModifyUserContent: true, requiresPolicyAction: true },
-  { id: DIRECTOR_EXECUTION_STEP_IDS.chapter_state_commit, writes: ["continuity_state", "character_governance_state"], mayModifyUserContent: false },
-  { id: DIRECTOR_EXECUTION_STEP_IDS.payoff_ledger_sync, writes: ["reader_promise", "repair_ticket"], mayModifyUserContent: false },
-  { id: DIRECTOR_EXECUTION_STEP_IDS.character_resource_sync, writes: ["character_governance_state", "continuity_state"], mayModifyUserContent: false },
-];
+  requiresPolicyAction: boolean;
+}> = getWorkflowStepWriteContractRequirements();
 
 export function validateDirectorWorkflowStepWriteContracts(
   modules: readonly WorkflowStepModuleDescriptor[] = DIRECTOR_WORKFLOW_STEP_MODULES,

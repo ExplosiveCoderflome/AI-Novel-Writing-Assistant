@@ -4,6 +4,10 @@
   NovelWorkflowResumeTarget,
   NovelWorkflowStage,
 } from "@ai-novel/shared/types/novelWorkflow";
+import {
+  getWorkflowCheckpointLabel,
+  resolveWorkflowStageFromCheckpoint,
+} from "@ai-novel/shared/types/directorWorkflowStepCatalog";
 import { prisma } from "../../../db/prisma";
 import { withSqliteRetry } from "../../../db/sqliteRetry";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
@@ -105,26 +109,6 @@ interface SyncWorkflowStageInput {
 }
 
 const ACTIVE_STATUSES = ["queued", "running", "waiting_approval"] as const;
-const CHECKPOINT_STAGE_MAP: Record<NovelWorkflowCheckpoint, NovelWorkflowStage> = {
-  candidate_selection_required: "auto_director",
-  book_contract_ready: "story_macro",
-  character_setup_required: "character_setup",
-  volume_strategy_ready: "volume_strategy",
-  chapter_batch_ready: "chapter_execution",
-  replan_required: "quality_repair",
-  workflow_completed: "quality_repair",
-};
-
-const CHECKPOINT_ITEM_LABELS: Record<NovelWorkflowCheckpoint, string> = {
-  candidate_selection_required: "等待确认书级方向",
-  book_contract_ready: "Book Contract 已就绪",
-  character_setup_required: "等待审核角色准备",
-  volume_strategy_ready: "卷战略已就绪",
-  chapter_batch_ready: "已准备章节可进入执行",
-  replan_required: "等待处理重规划建议",
-  workflow_completed: "小说主流程已完成",
-};
-
 function buildChapterTitleDiversityTaskNotice(input: {
   issue: string;
   volumeId?: string | null;
@@ -144,22 +128,19 @@ function resolveCheckpointStageFromRow(input: {
   checkpointType: NovelWorkflowCheckpoint;
   status?: string | null;
 }): NovelWorkflowStage {
-  if (input.checkpointType !== "chapter_batch_ready") {
-    return CHECKPOINT_STAGE_MAP[input.checkpointType];
-  }
-  return input.status === "waiting_approval" ? "chapter_execution" : "quality_repair";
+  return resolveWorkflowStageFromCheckpoint(input) ?? "auto_director";
 }
 
 function resolveCheckpointItemLabelFromRow(input: {
   checkpointType: NovelWorkflowCheckpoint;
   status?: string | null;
 }): string {
-  if (input.checkpointType !== "chapter_batch_ready") {
-    return CHECKPOINT_ITEM_LABELS[input.checkpointType] ?? input.checkpointType;
-  }
-  return input.status === "waiting_approval"
-    ? "已准备章节可进入执行"
-    : "自动执行已暂停";
+  return getWorkflowCheckpointLabel({
+    checkpointType: input.checkpointType,
+    status: input.status,
+    preferPausedLabel: input.checkpointType === "chapter_batch_ready" && input.status !== "waiting_approval",
+    fallback: input.checkpointType,
+  });
 }
 
 function parseSeedResumeTarget(seedPayloadJson: string | null | undefined) {
@@ -687,7 +668,10 @@ export class NovelWorkflowService {
         currentStage: shouldRestoreCandidateSelection ? stageLabel("auto_director") : undefined,
         currentItemKey: shouldRestoreCandidateSelection ? "auto_director" : undefined,
         currentItemLabel: shouldRestoreCandidateSelection
-          ? CHECKPOINT_ITEM_LABELS.candidate_selection_required
+          ? getWorkflowCheckpointLabel({
+            checkpointType: "candidate_selection_required",
+            status: "waiting_approval",
+          })
           : undefined,
         checkpointType: shouldRestoreCandidateSelection ? "candidate_selection_required" : undefined,
         checkpointSummary: shouldRestoreCandidateSelection

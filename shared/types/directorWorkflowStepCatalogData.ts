@@ -1,0 +1,682 @@
+import type {
+  NovelWorkflowCheckpoint,
+  NovelWorkflowMilestoneType,
+  NovelWorkflowResumeTarget,
+  NovelWorkflowStage,
+} from "./novelWorkflow";
+
+export type WorkflowStepCatalogDisplayStage =
+  | "project_setup"
+  | "story_planning"
+  | "character_setup"
+  | "volume_strategy"
+  | "structured_outline"
+  | "chapter_execution"
+  | "quality_repair";
+
+export type WorkflowStepCatalogTab = NonNullable<NovelWorkflowResumeTarget["stage"]> | "history";
+
+export type WorkflowStepCatalogTargetType = "novel" | "volume" | "chapter" | "global";
+
+export type WorkflowStepCatalogPolicyAction =
+  | "analyze"
+  | "run_node"
+  | "repair"
+  | "overwrite"
+  | "auto_continue";
+
+export type WorkflowStepCatalogApprovalPoint =
+  | "candidate_direction_confirmed"
+  | "character_setup_ready"
+  | "volume_strategy_ready"
+  | "structured_outline_ready"
+  | "chapter_execution_continue"
+  | "low_risk_quality_repair_continue"
+  | "replan_continue"
+  | "rewrite_cleanup_confirmed";
+
+export interface WorkflowStepCatalogAliases {
+  nodeKeys?: readonly string[];
+  currentItemKeys?: readonly string[];
+  checkpoints?: readonly NovelWorkflowMilestoneType[];
+  currentStages?: readonly string[];
+}
+
+export interface WorkflowStepCatalogEntry {
+  id: string;
+  stage: string;
+  displayStage: WorkflowStepCatalogDisplayStage;
+  workflowStage: NovelWorkflowStage;
+  tab: WorkflowStepCatalogTab;
+  checkpoint: NovelWorkflowCheckpoint | null;
+  approvalPoint: WorkflowStepCatalogApprovalPoint | null;
+  defaultProgress: number;
+  nodeKey: string;
+  label: string;
+  targetType: WorkflowStepCatalogTargetType;
+  reads: readonly string[];
+  writes: readonly string[];
+  mayModifyUserContent: boolean;
+  requiresApprovalByDefault: boolean;
+  supportsAutoRetry: boolean;
+  policyAction?: WorkflowStepCatalogPolicyAction;
+  aliases?: WorkflowStepCatalogAliases;
+}
+
+export interface WorkflowCheckpointCatalogEntry {
+  checkpoint: NovelWorkflowMilestoneType;
+  displayStage: WorkflowStepCatalogDisplayStage;
+  workflowStage: NovelWorkflowStage;
+  tab: WorkflowStepCatalogTab;
+  label: string;
+  runningLabel?: string;
+  pausedLabel?: string;
+  waitingApprovalLabel?: string;
+  approvalPoint: WorkflowStepCatalogApprovalPoint | null;
+  defaultProgress: number;
+}
+
+export const WORKFLOW_DISPLAY_STAGES: readonly {
+  key: WorkflowStepCatalogDisplayStage;
+  label: string;
+}[] = [
+  { key: "project_setup", label: "项目设定" },
+  { key: "story_planning", label: "故事宏观规划" },
+  { key: "character_setup", label: "角色准备" },
+  { key: "volume_strategy", label: "卷战略" },
+  { key: "structured_outline", label: "节奏 / 拆章" },
+  { key: "chapter_execution", label: "章节执行" },
+  { key: "quality_repair", label: "质量修复" },
+] as const;
+
+export const DIRECTOR_WORKFLOW_STEP_IDS = {
+  candidate: {
+    candidate_generation: "book.candidate.generate",
+    candidate_refine: "book.candidate.refine",
+    candidate_patch: "book.candidate.patch",
+    candidate_title_refine: "book.candidate.title_refine",
+  },
+  planning: {
+    story_macro: "story.macro.plan",
+    book_contract: "book.contract.create",
+    character_setup: "character.cast.prepare",
+    volume_strategy: "volume.strategy.plan",
+    structured_outline: "volume.beat_sheet.generate",
+  },
+  structuredOutline: {
+    beat_sheet: "volume.beat_sheet.generate",
+    chapter_list: "volume.chapter_list.generate",
+    chapter_detail_bundle: "volume.chapter_detail_bundle.generate",
+  },
+  executionContractSync: "chapter.execution_contract.sync",
+  execution: {
+    chapter_execution: "chapter.draft.write",
+    chapter_quality_review: "chapter.quality.review",
+    chapter_repair: "chapter.draft.repair",
+    chapter_state_commit: "chapter.state.commit",
+    payoff_ledger_sync: "payoff.ledger.sync",
+    character_resource_sync: "character.resource.sync",
+    quality_repair: "chapter.quality.repair",
+  },
+  takeover: "workflow.takeover.execute",
+  confirmNovelCreate: "book.project.create",
+} as const;
+
+export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.candidate.candidate_generation,
+    stage: "candidate_selection",
+    displayStage: "project_setup",
+    workflowStage: "auto_director",
+    tab: "basic",
+    checkpoint: "candidate_selection_required",
+    approvalPoint: "candidate_direction_confirmed",
+    defaultProgress: 0.12,
+    nodeKey: "candidate_generation",
+    label: "生成书级候选",
+    targetType: "global",
+    reads: ["user_seed"],
+    writes: ["candidate_batch"],
+    mayModifyUserContent: false,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      currentItemKeys: ["candidate_generation", "candidate_direction_batch", "candidate_seed_alignment"],
+      currentStages: ["auto_director", "candidate_selection", "project_setup"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.candidate.candidate_refine,
+    stage: "candidate_selection",
+    displayStage: "project_setup",
+    workflowStage: "auto_director",
+    tab: "basic",
+    checkpoint: "candidate_selection_required",
+    approvalPoint: "candidate_direction_confirmed",
+    defaultProgress: 0.16,
+    nodeKey: "candidate_refine",
+    label: "修订候选方向",
+    targetType: "global",
+    reads: ["user_seed"],
+    writes: ["candidate_batch"],
+    mayModifyUserContent: false,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      currentItemKeys: ["candidate_refine", "candidate_project_framing"],
+      currentStages: ["auto_director", "candidate_selection", "project_setup"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.candidate.candidate_patch,
+    stage: "candidate_selection",
+    displayStage: "project_setup",
+    workflowStage: "auto_director",
+    tab: "basic",
+    checkpoint: "candidate_selection_required",
+    approvalPoint: "candidate_direction_confirmed",
+    defaultProgress: 0.16,
+    nodeKey: "candidate_patch",
+    label: "定向修正候选",
+    targetType: "global",
+    reads: ["user_seed"],
+    writes: ["candidate_batch"],
+    mayModifyUserContent: false,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      currentItemKeys: ["candidate_patch", "candidate_direction_batch"],
+      currentStages: ["auto_director", "candidate_selection", "project_setup"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.candidate.candidate_title_refine,
+    stage: "candidate_selection",
+    displayStage: "project_setup",
+    workflowStage: "auto_director",
+    tab: "basic",
+    checkpoint: "candidate_selection_required",
+    approvalPoint: "candidate_direction_confirmed",
+    defaultProgress: 0.18,
+    nodeKey: "candidate_title_refine",
+    label: "优化候选书名",
+    targetType: "global",
+    reads: ["user_seed"],
+    writes: ["candidate_batch"],
+    mayModifyUserContent: false,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      currentItemKeys: ["candidate_title_refine", "candidate_title_pack"],
+      currentStages: ["auto_director", "candidate_selection", "project_setup"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.confirmNovelCreate,
+    stage: "candidate_confirm",
+    displayStage: "project_setup",
+    workflowStage: "auto_director",
+    tab: "basic",
+    checkpoint: null,
+    approvalPoint: null,
+    defaultProgress: 0.2,
+    nodeKey: "novel_create",
+    label: "创建小说项目",
+    targetType: "global",
+    reads: ["candidate_batch", "book_seed"],
+    writes: ["novel_project", "director_runtime"],
+    mayModifyUserContent: false,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      currentItemKeys: ["novel_create", "project_setup"],
+      currentStages: ["auto_director", "project_setup"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.takeover,
+    stage: "takeover",
+    displayStage: "project_setup",
+    workflowStage: "auto_director",
+    tab: "basic",
+    checkpoint: null,
+    approvalPoint: null,
+    defaultProgress: 0.1,
+    nodeKey: "takeover_execution",
+    label: "执行 AI 自动导演接管",
+    targetType: "global",
+    reads: ["workspace_inventory", "takeover_plan", "runtime_policy"],
+    writes: ["workflow_task", "director_runtime"],
+    mayModifyUserContent: false,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      currentItemKeys: ["takeover_execution", "auto_director"],
+      currentStages: ["auto_director", "project_setup"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.planning.story_macro,
+    stage: "story_macro",
+    displayStage: "story_planning",
+    workflowStage: "story_macro",
+    tab: "story_macro",
+    checkpoint: null,
+    approvalPoint: null,
+    defaultProgress: 0.32,
+    nodeKey: "story_macro_phase",
+    label: "生成故事宏观规划",
+    targetType: "novel",
+    reads: ["book_seed", "candidate_batch"],
+    writes: ["story_macro"],
+    mayModifyUserContent: true,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      nodeKeys: ["story_macro"],
+      currentItemKeys: ["story_macro", "constraint_engine"],
+      currentStages: ["story_macro", "story_planning"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.planning.book_contract,
+    stage: "story_macro",
+    displayStage: "story_planning",
+    workflowStage: "story_macro",
+    tab: "story_macro",
+    checkpoint: "book_contract_ready",
+    approvalPoint: null,
+    defaultProgress: 0.42,
+    nodeKey: "book_contract_phase",
+    label: "生成书级创作约定",
+    targetType: "novel",
+    reads: ["story_macro", "book_seed", "candidate_batch"],
+    writes: ["book_contract"],
+    mayModifyUserContent: true,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      nodeKeys: ["book_contract"],
+      currentItemKeys: ["book_contract"],
+      currentStages: ["story_macro", "story_planning"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.planning.character_setup,
+    stage: "character_setup",
+    displayStage: "character_setup",
+    workflowStage: "character_setup",
+    tab: "character",
+    checkpoint: "character_setup_required",
+    approvalPoint: "character_setup_ready",
+    defaultProgress: 0.52,
+    nodeKey: "character_setup_phase",
+    label: "准备角色阵容与角色资产",
+    targetType: "novel",
+    reads: ["book_contract", "story_macro"],
+    writes: ["character_cast"],
+    mayModifyUserContent: true,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      nodeKeys: ["character_setup"],
+      currentItemKeys: ["character_setup", "character_cast_apply"],
+      currentStages: ["character_setup"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.planning.volume_strategy,
+    stage: "volume_strategy",
+    displayStage: "volume_strategy",
+    workflowStage: "volume_strategy",
+    tab: "outline",
+    checkpoint: "volume_strategy_ready",
+    approvalPoint: "volume_strategy_ready",
+    defaultProgress: 0.62,
+    nodeKey: "volume_strategy_phase",
+    label: "生成分卷策略与推进路线",
+    targetType: "novel",
+    reads: ["book_contract", "story_macro", "character_cast"],
+    writes: ["volume_strategy"],
+    mayModifyUserContent: true,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      nodeKeys: ["volume_strategy", "volume_strategy.volume_generation"],
+      currentItemKeys: ["volume_strategy", "volume_skeleton"],
+      currentStages: ["volume_strategy"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.structuredOutline.beat_sheet,
+    stage: "structured_outline",
+    displayStage: "structured_outline",
+    workflowStage: "structured_outline",
+    tab: "structured",
+    checkpoint: null,
+    approvalPoint: null,
+    defaultProgress: 0.72,
+    nodeKey: "volume_beat_sheet_generate",
+    label: "生成目标卷节奏板",
+    targetType: "novel",
+    reads: ["volume_strategy", "character_cast", "chapter_task_sheet"],
+    writes: ["chapter_task_sheet"],
+    mayModifyUserContent: true,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: true,
+    aliases: {
+      nodeKeys: ["structured_outline", "structured_outline_phase", "beat_sheet", "structured_outline.beat_sheet"],
+      currentItemKeys: ["structured_outline", "beat_sheet"],
+      currentStages: ["structured_outline"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.structuredOutline.chapter_list,
+    stage: "structured_outline",
+    displayStage: "structured_outline",
+    workflowStage: "structured_outline",
+    tab: "structured",
+    checkpoint: null,
+    approvalPoint: null,
+    defaultProgress: 0.8,
+    nodeKey: "volume_chapter_list_generate",
+    label: "生成卷拆章列表",
+    targetType: "novel",
+    reads: ["volume_strategy", "character_cast", "chapter_task_sheet"],
+    writes: ["chapter_task_sheet"],
+    mayModifyUserContent: true,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: true,
+    aliases: {
+      nodeKeys: ["chapter_list", "structured_outline.chapter_list"],
+      currentItemKeys: ["chapter_list"],
+      currentStages: ["structured_outline"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.structuredOutline.chapter_detail_bundle,
+    stage: "structured_outline",
+    displayStage: "structured_outline",
+    workflowStage: "structured_outline",
+    tab: "structured",
+    checkpoint: "chapter_batch_ready",
+    approvalPoint: "structured_outline_ready",
+    defaultProgress: 0.88,
+    nodeKey: "volume_chapter_detail_bundle_generate",
+    label: "细化章节任务单与执行资源",
+    targetType: "novel",
+    reads: ["volume_strategy", "character_cast", "chapter_task_sheet"],
+    writes: ["chapter_task_sheet"],
+    mayModifyUserContent: true,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: true,
+    aliases: {
+      nodeKeys: ["chapter_detail_bundle", "structured_outline.chapter_detail_bundle"],
+      currentItemKeys: ["chapter_detail_bundle"],
+      currentStages: ["structured_outline"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.executionContractSync,
+    stage: "structured_outline",
+    displayStage: "structured_outline",
+    workflowStage: "structured_outline",
+    tab: "structured",
+    checkpoint: "chapter_batch_ready",
+    approvalPoint: "structured_outline_ready",
+    defaultProgress: 0.9,
+    nodeKey: "chapter_execution_contract_sync",
+    label: "同步章节执行合同",
+    targetType: "novel",
+    reads: ["chapter_task_sheet"],
+    writes: ["chapter_task_sheet"],
+    mayModifyUserContent: false,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: true,
+    aliases: {
+      nodeKeys: ["chapter_sync", "structured_outline.chapter_sync"],
+      currentItemKeys: ["chapter_sync"],
+      currentStages: ["structured_outline"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_execution,
+    stage: "chapter_execution",
+    displayStage: "chapter_execution",
+    workflowStage: "chapter_execution",
+    tab: "chapter",
+    checkpoint: null,
+    approvalPoint: "chapter_execution_continue",
+    defaultProgress: 0.93,
+    nodeKey: "chapter_execution_node",
+    label: "执行章节生成批次",
+    targetType: "novel",
+    reads: ["chapter_task_sheet", "chapter_retention_contract", "continuity_state", "character_governance_state"],
+    writes: ["chapter_draft"],
+    mayModifyUserContent: true,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      nodeKeys: ["chapter_execution", "chapter.write"],
+      currentItemKeys: ["chapter_execution"],
+      currentStages: ["chapter_execution"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_quality_review,
+    stage: "quality_repair",
+    displayStage: "quality_repair",
+    workflowStage: "quality_repair",
+    tab: "pipeline",
+    checkpoint: null,
+    approvalPoint: null,
+    defaultProgress: 0.955,
+    nodeKey: "chapter_quality_review_node",
+    label: "检查章节质量",
+    targetType: "novel",
+    reads: ["chapter_draft", "chapter_retention_contract", "continuity_state", "reader_promise"],
+    writes: ["audit_report", "rolling_window_review"],
+    mayModifyUserContent: false,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: true,
+    aliases: {
+      nodeKeys: ["chapter_quality_review", "audit.chapter.full"],
+      currentItemKeys: ["quality_repair"],
+      currentStages: ["quality_repair"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_repair,
+    stage: "quality_repair",
+    displayStage: "quality_repair",
+    workflowStage: "quality_repair",
+    tab: "pipeline",
+    checkpoint: "replan_required",
+    approvalPoint: "low_risk_quality_repair_continue",
+    defaultProgress: 0.97,
+    nodeKey: "chapter_repair_node",
+    label: "修复章节问题",
+    targetType: "novel",
+    reads: ["chapter_draft", "audit_report", "repair_ticket", "chapter_retention_contract"],
+    writes: ["chapter_draft", "audit_report", "repair_ticket"],
+    policyAction: "repair",
+    mayModifyUserContent: true,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: true,
+    aliases: {
+      nodeKeys: ["chapter_repair", "novel.review.patch"],
+      currentItemKeys: ["quality_repair"],
+      currentStages: ["quality_repair"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_state_commit,
+    stage: "quality_repair",
+    displayStage: "quality_repair",
+    workflowStage: "quality_repair",
+    tab: "pipeline",
+    checkpoint: null,
+    approvalPoint: null,
+    defaultProgress: 0.975,
+    nodeKey: "chapter_state_commit_node",
+    label: "提交章节连续性状态",
+    targetType: "novel",
+    reads: ["chapter_draft", "audit_report", "rolling_window_review"],
+    writes: ["continuity_state", "character_governance_state"],
+    mayModifyUserContent: false,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      nodeKeys: ["chapter_state_commit", "state.snapshot.extract"],
+      currentItemKeys: ["quality_repair"],
+      currentStages: ["quality_repair"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.execution.payoff_ledger_sync,
+    stage: "quality_repair",
+    displayStage: "quality_repair",
+    workflowStage: "quality_repair",
+    tab: "pipeline",
+    checkpoint: null,
+    approvalPoint: null,
+    defaultProgress: 0.98,
+    nodeKey: "payoff_ledger_sync_node",
+    label: "同步读者承诺与伏笔",
+    targetType: "novel",
+    reads: ["chapter_draft", "audit_report", "reader_promise"],
+    writes: ["reader_promise", "repair_ticket"],
+    mayModifyUserContent: false,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      nodeKeys: ["payoff_ledger_sync", "novel.payoff_ledger.sync"],
+      currentItemKeys: ["quality_repair"],
+      currentStages: ["quality_repair"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.execution.character_resource_sync,
+    stage: "quality_repair",
+    displayStage: "quality_repair",
+    workflowStage: "quality_repair",
+    tab: "pipeline",
+    checkpoint: null,
+    approvalPoint: null,
+    defaultProgress: 0.985,
+    nodeKey: "character_resource_sync_node",
+    label: "同步角色资源状态",
+    targetType: "novel",
+    reads: ["chapter_draft", "character_governance_state", "continuity_state"],
+    writes: ["character_governance_state", "continuity_state"],
+    mayModifyUserContent: false,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    aliases: {
+      nodeKeys: ["character_resource_sync", "novel.characterDynamics.chapterExtract", "novel.character_resource.extract_updates"],
+      currentItemKeys: ["quality_repair"],
+      currentStages: ["quality_repair"],
+    },
+  },
+  {
+    id: DIRECTOR_WORKFLOW_STEP_IDS.execution.quality_repair,
+    stage: "quality_repair",
+    displayStage: "quality_repair",
+    workflowStage: "quality_repair",
+    tab: "pipeline",
+    checkpoint: "replan_required",
+    approvalPoint: "low_risk_quality_repair_continue",
+    defaultProgress: 0.97,
+    nodeKey: "chapter_repair_node",
+    label: "执行章节质量修复",
+    targetType: "novel",
+    reads: ["chapter_draft", "audit_report", "repair_ticket", "chapter_retention_contract"],
+    writes: ["chapter_draft", "audit_report", "repair_ticket"],
+    policyAction: "repair",
+    mayModifyUserContent: true,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: true,
+    aliases: {
+      nodeKeys: ["quality_repair", "chapter_quality_repair_node"],
+      currentItemKeys: ["quality_repair"],
+      currentStages: ["quality_repair"],
+    },
+  },
+] as const;
+
+export const WORKFLOW_CHECKPOINT_CATALOG: readonly WorkflowCheckpointCatalogEntry[] = [
+  {
+    checkpoint: "candidate_selection_required",
+    displayStage: "project_setup",
+    workflowStage: "auto_director",
+    tab: "basic",
+    label: "等待确认书级方向",
+    approvalPoint: "candidate_direction_confirmed",
+    defaultProgress: 0.18,
+  },
+  {
+    checkpoint: "book_contract_ready",
+    displayStage: "story_planning",
+    workflowStage: "story_macro",
+    tab: "story_macro",
+    label: "书级规划已就绪",
+    approvalPoint: null,
+    defaultProgress: 0.42,
+  },
+  {
+    checkpoint: "character_setup_required",
+    displayStage: "character_setup",
+    workflowStage: "character_setup",
+    tab: "character",
+    label: "角色准备待确认",
+    approvalPoint: "character_setup_ready",
+    defaultProgress: 0.52,
+  },
+  {
+    checkpoint: "volume_strategy_ready",
+    displayStage: "volume_strategy",
+    workflowStage: "volume_strategy",
+    tab: "outline",
+    label: "卷战略已就绪",
+    approvalPoint: "volume_strategy_ready",
+    defaultProgress: 0.62,
+  },
+  {
+    checkpoint: "chapter_batch_ready",
+    displayStage: "structured_outline",
+    workflowStage: "chapter_execution",
+    tab: "chapter",
+    label: "章节执行可继续",
+    waitingApprovalLabel: "节奏拆章完成，可进入章节执行",
+    pausedLabel: "自动执行已暂停",
+    approvalPoint: "structured_outline_ready",
+    defaultProgress: 0.9,
+  },
+  {
+    checkpoint: "replan_required",
+    displayStage: "quality_repair",
+    workflowStage: "quality_repair",
+    tab: "pipeline",
+    label: "需要处理质量修复",
+    approvalPoint: "replan_continue",
+    defaultProgress: 0.97,
+  },
+  {
+    checkpoint: "workflow_completed",
+    displayStage: "quality_repair",
+    workflowStage: "quality_repair",
+    tab: "pipeline",
+    label: "导演主流程已完成",
+    approvalPoint: null,
+    defaultProgress: 1,
+  },
+  {
+    checkpoint: "rewrite_snapshot_created",
+    displayStage: "project_setup",
+    workflowStage: "auto_director",
+    tab: "basic",
+    label: "重写前备份已创建",
+    approvalPoint: "rewrite_cleanup_confirmed",
+    defaultProgress: 0.1,
+  },
+] as const;
