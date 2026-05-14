@@ -8,6 +8,7 @@ const {
   ChapterPatchRepairFailedError,
   ChapterPatchRepairService,
 } = require("../dist/services/novel/chapterPatchRepairService.js");
+const promptRunner = require("../dist/prompting/core/promptRunner.js");
 
 test("applyChapterPatchRepairPlan applies exact single-location patches", () => {
   const result = applyChapterPatchRepairPlan("第一段承接断裂。第二段继续推进。", {
@@ -27,6 +28,27 @@ test("applyChapterPatchRepairPlan applies exact single-location patches", () => 
   assert.equal(result.success, true);
   assert.equal(result.content, "第一段补上前因后果，承接自然。第二段继续推进。");
   assert.deepEqual(result.appliedPatchIds, ["patch-1"]);
+  assert.deepEqual(result.failures, []);
+});
+
+test("applyChapterPatchRepairPlan allows deleting unique target excerpts", () => {
+  const result = applyChapterPatchRepairPlan("开头重复段落。正文继续推进。", {
+    strategy: "patch_first",
+    summary: "删除重复段落。",
+    patches: [{
+      id: "patch-delete",
+      targetExcerpt: "开头重复段落。",
+      replacement: "",
+      reason: "删除重复内容。",
+      issueIds: [],
+    }],
+    requiresFullRewrite: false,
+    escalationReason: null,
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(result.content, "正文继续推进。");
+  assert.deepEqual(result.appliedPatchIds, ["patch-delete"]);
   assert.deepEqual(result.failures, []);
 });
 
@@ -150,4 +172,31 @@ test("ChapterPatchRepairService does not run local repair in rewrite-only modes"
     }),
     ChapterPatchRepairFailedError,
   );
+});
+
+test("ChapterPatchRepairService reports structured patch schema failures as recoverable", async () => {
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  promptRunner.runStructuredPrompt = async () => {
+    throw new Error("patches.1.targetExcerpt: Too small");
+  };
+
+  try {
+    await assert.rejects(
+      () => new ChapterPatchRepairService().repair({
+        novelTitle: "测试小说",
+        chapterTitle: "第一章",
+        content: "已有正文足够执行修复。",
+        issues: [],
+        repairMode: "light_repair",
+      }),
+      (error) => {
+        assert.equal(error instanceof ChapterPatchRepairFailedError, true);
+        assert.match(error.message, /局部补丁计划未通过结构校验/);
+        assert.match(error.message, /targetExcerpt/);
+        return true;
+      },
+    );
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
 });

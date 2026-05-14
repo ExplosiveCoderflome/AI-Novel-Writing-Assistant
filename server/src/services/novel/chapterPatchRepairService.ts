@@ -67,26 +67,34 @@ export class ChapterPatchRepairService {
     const contextBlocks = repairContext
       ? buildChapterRepairContextBlocks(repairContext)
       : undefined;
-    const generated = await runStructuredPrompt({
-      asset: chapterPatchRepairPrompt,
-      promptInput: {
-        novelTitle: input.novelTitle,
-        chapterTitle: input.chapterTitle,
-        chapterContent: input.content,
-        issuesJson: JSON.stringify(input.issues, null, 2),
-        modeHint: input.modeHint,
-      },
-      contextBlocks,
-      options: {
-        provider: input.provider,
-        model: input.model,
-        temperature: Math.min(input.temperature ?? 0.35, 0.45),
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        stage: "chapter_patch",
-        triggerReason: input.repairMode ?? "patch_first",
-      },
-    });
+    let generated: { output: ChapterPatchRepairPlan };
+    try {
+      generated = await runStructuredPrompt({
+        asset: chapterPatchRepairPrompt,
+        promptInput: {
+          novelTitle: input.novelTitle,
+          chapterTitle: input.chapterTitle,
+          chapterContent: input.content,
+          issuesJson: JSON.stringify(input.issues, null, 2),
+          modeHint: input.modeHint,
+        },
+        contextBlocks,
+        options: {
+          provider: input.provider,
+          model: input.model,
+          temperature: Math.min(input.temperature ?? 0.35, 0.45),
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          stage: "chapter_patch",
+          triggerReason: input.repairMode ?? "patch_first",
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error && error.message.trim()
+        ? error.message.trim()
+        : String(error);
+      throw new ChapterPatchRepairFailedError(`局部补丁计划未通过结构校验：${message}`);
+    }
 
     const applied = applyChapterPatchRepairPlan(input.content, generated.output);
     if (!applied.success) {

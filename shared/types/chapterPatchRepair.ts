@@ -10,7 +10,7 @@ export type ChapterPatchRepairStrategy = typeof CHAPTER_PATCH_REPAIR_STRATEGIES[
 export const chapterPatchOperationSchema = z.object({
   id: z.string().trim().min(1),
   targetExcerpt: z.string().trim().min(6),
-  replacement: z.string().trim().min(1),
+  replacement: z.string().trim(),
   reason: z.string().trim().min(1),
   issueIds: z.array(z.string().trim().min(1)).max(8).default([]),
 });

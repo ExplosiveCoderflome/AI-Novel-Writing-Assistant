@@ -46,7 +46,7 @@ export const chapterPatchRepairPrompt: PromptAsset<
       "【补丁原则】",
       "1. strategy 默认必须是 patch_first。",
       "2. patches 中每个 targetExcerpt 必须逐字摘自当前正文，并且应足够长，确保在正文里只出现一次。",
-      "3. replacement 只替换 targetExcerpt 对应片段，不要改写无关段落。",
+      "3. replacement 只替换 targetExcerpt 对应片段，不要改写无关段落；如果修复目标是删除重复片段，replacement 可以是空字符串。",
       "4. 优先修复问题清单中影响主线推进、连续性、人物动机、节奏和结尾钩子的关键问题。",
       "5. 不得新增重大设定、核心角色或与章节任务冲突的剧情转向。",
       "6. 如果确实无法用局部补丁安全修复，requiresFullRewrite 设为 true，并说明 escalationReason。",
