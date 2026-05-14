@@ -102,6 +102,33 @@ export function resolveNumberEnv(name: string, fallback: number): number {
   return Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
 }
 
+export function resourceClassForCommand(commandType: string): string {
+  if (
+    commandType === "generate_candidates"
+    || commandType === "refine_candidates"
+    || commandType === "patch_candidate"
+    || commandType === "refine_titles"
+  ) {
+    return "planner";
+  }
+  if (commandType === "repair_chapter_titles") {
+    return "repair";
+  }
+  if (commandType === "workspace_analysis" || commandType === "manual_edit_impact") {
+    return "state_resolution";
+  }
+  if (commandType === "policy_update" || commandType === "approve_gate") {
+    return "state_resolution";
+  }
+  if (commandType === "confirm_candidate") {
+    return "state_resolution";
+  }
+  if (commandType === "takeover" || commandType === "continue" || commandType === "resume_from_checkpoint" || commandType === "retry") {
+    return "writer";
+  }
+  return "state_resolution";
+}
+
 export function buildAcceptedTaskState(commandType: DirectorRunCommandType): {
   currentStage?: string;
   currentItemKey?: string;
