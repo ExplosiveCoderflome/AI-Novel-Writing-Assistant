@@ -229,8 +229,8 @@ test("book automation projection aggregates task, command, event, approval and a
       repairTicketCount: 1,
     });
     assert.equal(projection.primaryAction.label, "查看推进状态");
-    assert.equal(projection.primaryAction.target.href, "/novels/novel-1/edit?taskId=task-1");
-    assert.equal(projection.secondaryActions[0].target.href, "/novels/novel-1/edit?taskId=task-1&taskPanel=1");
+    assert.equal(projection.primaryAction.target.href, "/novels/novel-1/edit?directorTaskId=task-1");
+    assert.equal(projection.secondaryActions[0].target.href, "/novels/novel-1/edit?directorTaskId=task-1&taskPanel=1");
     assert.equal(projection.timeline[0].id, "event:event-1");
     assert.ok(projection.timeline.some((item) => item.id === "command:command-1"));
     assert.ok(projection.timeline.some((item) => item.id === "approval:approval-1"));
@@ -400,6 +400,46 @@ test("book automation projection keeps a running workflow ahead of a completed r
     assert.equal(projection.status, "running");
     assert.equal(projection.displayState, "processing");
     assert.equal(projection.requiresUserAction, false);
+    assert.equal(projection.primaryAction.label, "查看推进状态");
+  } finally {
+    harness.restore();
+  }
+});
+
+test("book automation projection keeps queued retry workflow ahead of old failed runtime snapshot", async () => {
+  const harness = createHarness({
+    commands: [],
+    latestTask: {
+      status: "queued",
+      currentStage: "章节执行",
+      currentItemKey: "chapter_execution",
+      currentItemLabel: "正在自动执行第 3-10 章",
+      checkpointType: null,
+      checkpointSummary: null,
+      lastError: null,
+    },
+    runtimeProjection: {
+      runId: "run-1",
+      novelId: "novel-1",
+      status: "failed",
+      headline: "处理失败：执行章节生成批次",
+      detail: "chapter.draft.write did not satisfy its completion criteria.",
+      requiresUserAction: true,
+      blockedReason: "chapter.draft.write did not satisfy its completion criteria.",
+      nextActionLabel: "继续章节生成",
+      policyMode: "run_until_gate",
+      updatedAt: "2026-04-30T09:00:03.000Z",
+      recentEvents: [],
+    },
+  });
+  try {
+    const projection = await harness.service.getProjection("novel-1");
+
+    assert.equal(projection.latestTask.status, "queued");
+    assert.equal(projection.status, "queued");
+    assert.equal(projection.displayState, "processing");
+    assert.equal(projection.requiresUserAction, false);
+    assert.equal(projection.blockedReason, null);
     assert.equal(projection.primaryAction.label, "查看推进状态");
   } finally {
     harness.restore();

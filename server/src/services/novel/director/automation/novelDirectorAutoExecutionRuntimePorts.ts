@@ -80,6 +80,7 @@ export interface NovelDirectorAutoExecutionNovelPort {
     id: string;
     status: PipelineJobStatus;
     progress: number;
+    pendingManualRecovery?: boolean | null;
     currentStage?: string | null;
     currentItemLabel?: string | null;
     noticeCode?: string | null;
@@ -87,6 +88,7 @@ export interface NovelDirectorAutoExecutionNovelPort {
     noticeSummary?: string | null;
     error?: string | null;
   } | null>;
+  resumePipelineJob(jobId: string): Promise<unknown>;
   cancelPipelineJob(jobId: string): Promise<unknown>;
 }
 
@@ -100,7 +102,7 @@ export interface NovelDirectorAutoExecutionRuntimeDeps {
   novelContextService: Pick<NovelDirectorAutoExecutionNovelPort, "listChapters">;
   novelService: Pick<
     NovelDirectorAutoExecutionNovelPort,
-    "startPipelineJob" | "findActivePipelineJobForRange" | "getPipelineJobById" | "cancelPipelineJob"
+    "startPipelineJob" | "findActivePipelineJobForRange" | "getPipelineJobById" | "resumePipelineJob" | "cancelPipelineJob"
   >;
   volumeWorkspaceService?: Pick<NovelDirectorAutoExecutionVolumeWorkspacePort, "getVolumes">;
   workflowService: NovelDirectorAutoExecutionWorkflowPort;

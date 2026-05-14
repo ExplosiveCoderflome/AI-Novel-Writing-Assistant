@@ -287,7 +287,7 @@ function buildNovelHref(
     params.set("stage", options.tab);
   }
   if (options?.taskId) {
-    params.set("taskId", options.taskId);
+    params.set("directorTaskId", options.taskId);
   }
   if (options?.taskPanel) {
     params.set("taskPanel", "1");

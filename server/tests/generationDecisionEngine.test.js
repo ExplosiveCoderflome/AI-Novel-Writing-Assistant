@@ -74,6 +74,17 @@ test("GenerationDecisionEngine prefers review hold when pending proposals exist"
   assert.equal(action, "hold_for_review");
 });
 
+test("GenerationDecisionEngine repairs existing draft issues before holding for proposal review", () => {
+  const engine = new GenerationDecisionEngine();
+  const action = engine.decideNextAction({
+    snapshot: createSnapshot(),
+    pendingReviewProposalCount: 2,
+    openAuditIssueCount: 1,
+    hasRepairableDraft: true,
+  });
+  assert.equal(action, "repair_existing_chapter");
+});
+
 test("GenerationDecisionEngine auto-repairs pending proposals during full-book autopilot", () => {
   const engine = new GenerationDecisionEngine();
   const action = engine.decideNextAction({

@@ -186,7 +186,9 @@ test("healRuntimeGateApprovalState mirrors blocked runtime gates into waiting ap
       currentItemLabel: data.currentItemLabel ?? currentRow.currentItemLabel,
       checkpointSummary: data.checkpointSummary ?? currentRow.checkpointSummary,
       heartbeatAt: data.heartbeatAt ?? currentRow.heartbeatAt,
-      finishedAt: data.finishedAt ?? currentRow.finishedAt,
+      finishedAt: Object.prototype.hasOwnProperty.call(data, "finishedAt")
+        ? data.finishedAt
+        : currentRow.finishedAt,
       lastError: data.lastError ?? currentRow.lastError,
       cancelRequestedAt: data.cancelRequestedAt ?? currentRow.cancelRequestedAt,
     };
@@ -320,10 +322,12 @@ test("healAutoDirectorTaskState revives chapter_range auto execution tasks that 
   prisma.novelWorkflowTask.findUnique = async () => currentRow;
   prisma.generationJob.findUnique = async () => ({
     id: "job-chapter_range-running",
+    novelId: "novel_demo",
     status: "running",
     progress: 0.165,
     currentStage: "reviewing",
     currentItemLabel: "第 2/10 章 · 示例章节",
+    payload: JSON.stringify({ workflowTaskId: "task_chapter_range_restart" }),
   });
   prisma.novelWorkflowTask.update = async ({ data }) => {
     currentRow = {
@@ -341,11 +345,14 @@ test("healAutoDirectorTaskState revives chapter_range auto execution tasks that 
         : currentRow.checkpointSummary,
       resumeTargetJson: data.resumeTargetJson ?? currentRow.resumeTargetJson,
       heartbeatAt: data.heartbeatAt ?? currentRow.heartbeatAt,
-      finishedAt: data.finishedAt ?? currentRow.finishedAt,
+      finishedAt: Object.prototype.hasOwnProperty.call(data, "finishedAt")
+        ? data.finishedAt
+        : currentRow.finishedAt,
       cancelRequestedAt: data.cancelRequestedAt ?? currentRow.cancelRequestedAt,
       lastError: Object.prototype.hasOwnProperty.call(data, "lastError")
         ? data.lastError
         : currentRow.lastError,
+      seedPayloadJson: data.seedPayloadJson ?? currentRow.seedPayloadJson,
     };
     return currentRow;
   };
@@ -355,14 +362,101 @@ test("healAutoDirectorTaskState revives chapter_range auto execution tasks that 
     const healed = await service.healAutoDirectorTaskState("task_chapter_range_restart");
 
     assert.equal(healed, true);
-    assert.equal(currentRow.status, "succeeded");
+    assert.equal(currentRow.status, "running");
     assert.equal(currentRow.currentStage, "质量修复");
-    assert.match(currentRow.currentItemLabel, /第 1-10 章自动执行完成/);
-    assert.equal(currentRow.checkpointType, "workflow_completed");
+    assert.match(currentRow.currentItemLabel, /正在自动审校第 1-10 章/);
+    assert.equal(currentRow.checkpointType, null);
     assert.equal(currentRow.lastError, null);
-    assert.equal(JSON.parse(currentRow.resumeTargetJson).chapterId, "chapter-1");
+    assert.equal(currentRow.finishedAt, null);
+    assert.equal(JSON.parse(currentRow.resumeTargetJson).chapterId, "chapter-2");
+    assert.equal(JSON.parse(currentRow.seedPayloadJson).autoExecution.pipelineStatus, "running");
   } finally {
     prisma.novelWorkflowTask.findUnique = originals.findUnique;
+    prisma.generationJob.findUnique = originals.generationJobFindUnique;
+    prisma.novelWorkflowTask.update = originals.update;
+  }
+});
+
+test("healRuntimeFailedState ignores old failed runtime steps while auto execution pipeline is active", async () => {
+  const originals = {
+    commandFindFirst: prisma.directorRunCommand.findFirst,
+    stepFindFirst: prisma.directorStepRun.findFirst,
+    generationJobFindUnique: prisma.generationJob.findUnique,
+    update: prisma.novelWorkflowTask.update,
+  };
+
+  let stepLookupCount = 0;
+  let updateCount = 0;
+  const currentRow = {
+    id: "task_active_pipeline_after_retry",
+    novelId: "novel_demo",
+    lane: "auto_director",
+    status: "running",
+    progress: 0.982,
+    currentStage: "质量修复",
+    currentItemKey: "quality_repair",
+    currentItemLabel: "正在自动修复第 3-10 章 · 第9章 · 示例章节",
+    checkpointType: null,
+    checkpointSummary: null,
+    resumeTargetJson: "{\"stage\":\"pipeline\"}",
+    seedPayloadJson: JSON.stringify({
+      directorSession: {
+        runMode: "auto_to_execution",
+        phase: "chapter_execution",
+        isBackgroundRunning: true,
+      },
+      autoExecution: {
+        enabled: true,
+        firstChapterId: "chapter-3",
+        startOrder: 3,
+        endOrder: 10,
+        totalChapterCount: 10,
+        nextChapterId: "chapter-9",
+        nextChapterOrder: 9,
+        pipelineJobId: "job-active-retry",
+        pipelineStatus: "running",
+      },
+    }),
+    lastError: null,
+    finishedAt: null,
+    heartbeatAt: new Date("2026-05-14T06:40:29.000Z"),
+    cancelRequestedAt: null,
+    pendingManualRecovery: false,
+  };
+
+  prisma.directorRunCommand.findFirst = async () => null;
+  prisma.generationJob.findUnique = async () => ({
+    id: "job-active-retry",
+    novelId: "novel_demo",
+    status: "running",
+    progress: 0.88,
+    currentStage: "repairing",
+    currentItemLabel: "第9章 · 示例章节 · 批次 1/1",
+    payload: JSON.stringify({ workflowTaskId: "task_active_pipeline_after_retry" }),
+  });
+  prisma.directorStepRun.findFirst = async () => {
+    stepLookupCount += 1;
+    return {
+      status: "failed",
+      label: "执行章节生成批次",
+      error: "chapter.draft.write did not satisfy its completion criteria.",
+      finishedAt: new Date("2026-05-14T05:15:53.000Z"),
+    };
+  };
+  prisma.novelWorkflowTask.update = async () => {
+    updateCount += 1;
+    return currentRow;
+  };
+
+  try {
+    const service = new NovelWorkflowService();
+    const healed = await service.healRuntimeFailedState("task_active_pipeline_after_retry", currentRow);
+    assert.equal(healed, false);
+    assert.equal(stepLookupCount, 0);
+    assert.equal(updateCount, 0);
+  } finally {
+    prisma.directorRunCommand.findFirst = originals.commandFindFirst;
+    prisma.directorStepRun.findFirst = originals.stepFindFirst;
     prisma.generationJob.findUnique = originals.generationJobFindUnique;
     prisma.novelWorkflowTask.update = originals.update;
   }

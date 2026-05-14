@@ -76,7 +76,7 @@ export class NovelDirectorAutoExecutionRuntime {
     });
     let knownPipelineJob: PipelineJobSnapshot = null;
     if (pipelineJobId) {
-      knownPipelineJob = await this.deps.novelService.getPipelineJobById(pipelineJobId);
+      knownPipelineJob = await this.resolvePipelineJobForExecution(pipelineJobId);
       if (!knownPipelineJob || ["failed", "cancelled"].includes(knownPipelineJob.status)) {
         pipelineJobId = "";
         ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
@@ -120,7 +120,7 @@ export class NovelDirectorAutoExecutionRuntime {
       }
 
       if (pipelineJobId) {
-        const existingJob = knownPipelineJob ?? await this.deps.novelService.getPipelineJobById(pipelineJobId);
+        const existingJob = knownPipelineJob ?? await this.resolvePipelineJobForExecution(pipelineJobId);
         knownPipelineJob = existingJob;
         if (!existingJob || ["failed", "cancelled"].includes(existingJob.status)) {
           pipelineJobId = "";
@@ -242,7 +242,7 @@ export class NovelDirectorAutoExecutionRuntime {
         if (await shouldStopAutoExecution(this.deps, input.taskId, pipelineJobId)) {
           return;
         }
-        const job = await this.deps.novelService.getPipelineJobById(pipelineJobId);
+        const job = await this.resolvePipelineJobForExecution(pipelineJobId);
         if (!job) {
           throw new Error("自动执行章节批次时未能找到对应的批量任务。");
         }
@@ -688,6 +688,16 @@ export class NovelDirectorAutoExecutionRuntime {
     } catch (error) {
       throw error;
     }
+  }
+
+  private async resolvePipelineJobForExecution(jobId: string): Promise<PipelineJobSnapshot> {
+    let job = await this.deps.novelService.getPipelineJobById(jobId);
+    if (!job?.pendingManualRecovery) {
+      return job;
+    }
+    await this.deps.novelService.resumePipelineJob(job.id);
+    job = await this.deps.novelService.getPipelineJobById(job.id);
+    return job;
   }
 }
 

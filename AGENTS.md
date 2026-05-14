@@ -152,6 +152,14 @@
 - Keep the date as the primary update identifier until the product workflow, information architecture, and release cadence are stable enough to justify a formal versioning system.
 - If multiple user-visible updates are recorded on the same date, keep them under the same date heading in `docs/releases/release-notes.md` and distinguish them by clear summary text instead of inventing temporary version numbers.
 
+## Current Product Priorities
+
+1. Stabilize auto-director recovery and chapter production chain.
+2. Keep beginner-first full-novel completion as the main product goal.
+3. Avoid introducing new workflow branches unless they simplify the main production path.
+4. Prefer fixing runtime contracts, prompt schemas, and state projections before adding UI-only patches.
+5. Do not expand Creative Hub into a general chat tool unless it directly supports novel completion.
+
 ### Future Versioning Transition
 
 - When the user later decides the product is stable enough for formal versions, versioning can transition from `date-only` to `version number + date`.

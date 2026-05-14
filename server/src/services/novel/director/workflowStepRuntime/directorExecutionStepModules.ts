@@ -27,6 +27,7 @@ import {
   buildSimpleProgress,
   completedFact,
   getActiveArtifactsFromContext,
+  getDirectorCoreStateReader,
   getDirectorCoreStateCommitter,
   getDirectorCoreStepRuntime,
   loadDirectorModuleState,
@@ -128,9 +129,22 @@ function createChapterDraftExecutableModule(
       },
       validateOutput: async (_output, context) => {
         const { state, novelId, request } = await loadDirectorModuleState(context);
+        const freshState = context.taskId
+          ? await getDirectorCoreStateReader().readByTaskId(context.taskId).catch(() => null)
+          : null;
+        const observedState = freshState ?? state;
+        if (observedState.task.status === "failed" || observedState.task.status === "cancelled") {
+          const reason = observedState.task.lastError?.trim()
+            || observedState.task.checkpointSummary?.trim()
+            || "Chapter execution stopped before completing the draft step.";
+          return {
+            valid: false,
+            reason,
+          };
+        }
         const progress = scopeChapterExecutionProgress(
-          state.chapterProgress ?? await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId),
-          resolveChapterExecutionProgressScope({ state, request }),
+          observedState.chapterProgress ?? await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId),
+          resolveChapterExecutionProgressScope({ state: observedState, request }),
         );
         return {
           valid: Boolean(progress && progress.totalChapters > 0),

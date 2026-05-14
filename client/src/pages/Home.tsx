@@ -281,7 +281,7 @@ export default function Home() {
       return (
         <Button asChild size={size}>
           <Link
-            to={`/novels/${novel.id}/edit?taskId=${task.id}`}
+            to={`/novels/${novel.id}/edit?directorTaskId=${task.id}`}
             onClick={stopPropagation ? stopCardClick : undefined}
           >
             查看推进状态
@@ -435,7 +435,7 @@ export default function Home() {
                   {renderNovelPrimaryAction(primaryNovel, { size: "lg" })}
                   {primaryNovel.latestAutoDirectorTask ? (
                     <Button asChild size="lg" variant="outline">
-                      <Link to={`/novels/${primaryNovel.id}/edit?taskId=${primaryNovel.latestAutoDirectorTask.id}&taskPanel=1`}>执行详情</Link>
+                      <Link to={`/novels/${primaryNovel.id}/edit?directorTaskId=${primaryNovel.latestAutoDirectorTask.id}&taskPanel=1`}>执行详情</Link>
                     </Button>
                   ) : (
                     <Button asChild size="lg" variant="outline">
@@ -582,7 +582,7 @@ export default function Home() {
                         {renderNovelPrimaryAction(novel, { stopPropagation: true })}
                         {workflowTask ? (
                           <Button asChild size="sm" variant="outline">
-                            <Link to={`/novels/${novel.id}/edit?taskId=${workflowTask.id}&taskPanel=1`} onClick={stopCardClick}>执行详情</Link>
+                            <Link to={`/novels/${novel.id}/edit?directorTaskId=${workflowTask.id}&taskPanel=1`} onClick={stopCardClick}>执行详情</Link>
                           </Button>
                         ) : (
                           <Button asChild size="sm" variant="outline">

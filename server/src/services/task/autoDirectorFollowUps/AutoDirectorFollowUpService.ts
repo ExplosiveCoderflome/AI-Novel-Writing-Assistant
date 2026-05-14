@@ -170,6 +170,7 @@ export class AutoDirectorFollowUpService {
       : null;
 
     return {
+      directorTaskId: taskId,
       taskId,
       reasonLabel: item.reasonLabel,
       priority: item.priority,

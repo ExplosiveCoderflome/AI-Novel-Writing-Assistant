@@ -23,10 +23,10 @@ export async function listAutoDirectorFollowUps(params?: AutoDirectorFollowUpLis
   return data;
 }
 
-export async function getAutoDirectorFollowUpDetail(taskId: string) {
+export async function getAutoDirectorFollowUpDetail(directorTaskId: string) {
   try {
     const { data } = await apiClient.get<ApiResponse<AutoDirectorFollowUpDetail | null>>(
-      `/auto-director/follow-ups/${taskId}`,
+      `/auto-director/follow-ups/${directorTaskId}`,
       {
         silentErrorStatuses: [404],
       },
@@ -45,10 +45,10 @@ export async function getAutoDirectorFollowUpDetail(taskId: string) {
   }
 }
 
-export async function revalidateAutoDirectorFollowUpDetail(taskId: string) {
+export async function revalidateAutoDirectorFollowUpDetail(directorTaskId: string) {
   try {
     const { data } = await apiClient.get<ApiResponse<AutoDirectorFollowUpDetail | null>>(
-      `/auto-director/follow-ups/${taskId}/revalidation`,
+      `/auto-director/follow-ups/${directorTaskId}/revalidation`,
       {
         silentErrorStatuses: [404],
       },
@@ -68,14 +68,14 @@ export async function revalidateAutoDirectorFollowUpDetail(taskId: string) {
 }
 
 export async function executeAutoDirectorFollowUpAction(
-  taskId: string,
+  directorTaskId: string,
   input: {
     actionCode: AutoDirectorMutationActionCode;
     idempotencyKey: string;
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<AutoDirectorActionExecutionResult>>(
-    `/auto-director/follow-ups/${taskId}/actions`,
+    `/auto-director/follow-ups/${directorTaskId}/actions`,
     input,
   );
   return data;

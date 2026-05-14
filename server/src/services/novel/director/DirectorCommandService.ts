@@ -181,9 +181,10 @@ export class DirectorCommandService {
       initialState: {
         stage: "auto_director",
         itemKey: "candidate_confirm",
-        itemLabel: "绛夊緟鍒涘缓灏忚椤圭洰",
+        itemLabel: "等待创建小说项目",
         progress: 0.18,
       },
+
     });
     return this.enqueueExecutionCommand({
       taskId: task.id,
@@ -380,7 +381,7 @@ export class DirectorCommandService {
     const task = await this.workflowService.bootstrapTask({
       novelId: takeoverInput.novelId,
       lane: "auto_director",
-      title: "鑷姩瀵兼紨鎺ョ",
+      title: "执行 AI 自动导演接管",
       forceNew: true,
       initialState: {
         stage: "auto_director",

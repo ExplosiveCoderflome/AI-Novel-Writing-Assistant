@@ -318,6 +318,7 @@ export function projectFollowUpItem(
 
   return {
     itemType: "task",
+    directorTaskId: row.id,
     taskId: row.id,
     novelId: row.novelId,
     novelTitle: getNovelTitle(row),
@@ -356,6 +357,7 @@ export function projectAutoApprovalRecordItem(
   const resolvedReason = resolveAutoApprovalRecordReason(row.checkpointType);
   return {
     itemType: "auto_approval_record",
+    directorTaskId: row.taskId,
     taskId: row.taskId,
     autoApprovalRecordId: row.id,
     novelId: row.novelId,
@@ -439,7 +441,7 @@ export function compareFollowUpItems(left: AutoDirectorFollowUpItem, right: Auto
   if (updatedAtDiff !== 0) {
     return updatedAtDiff;
   }
-  return right.taskId.localeCompare(left.taskId);
+  return right.directorTaskId.localeCompare(left.directorTaskId);
 }
 
 export function buildAvailableReasons(items: AutoDirectorFollowUpItem[]): AutoDirectorFollowUpListResponse["availableFilters"]["reasons"] {
@@ -498,7 +500,7 @@ export function buildSummaryCounters(
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
   const todayStartAt = todayStart.getTime();
-  const actionableIds = new Set(actionableItems.map((item) => item.taskId));
+  const actionableIds = new Set(actionableItems.map((item) => item.directorTaskId));
 
   const completedToday = rows.filter((row) => (
     row.status === "succeeded"
