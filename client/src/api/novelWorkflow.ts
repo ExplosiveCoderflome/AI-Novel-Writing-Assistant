@@ -19,18 +19,18 @@ export async function bootstrapNovelWorkflow(payload: {
   return data;
 }
 
-export async function continueNovelWorkflow(taskId: string, payload?: {
+export async function continueNovelWorkflow(directorTaskId: string, payload?: {
   continuationMode?: DirectorContinuationMode;
 }) {
-  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(`/novel-workflows/${taskId}/continue`, payload ?? {});
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(`/novel-workflows/${directorTaskId}/continue`, payload ?? {});
   return data;
 }
 
-export async function repairNovelWorkflowChapterTitles(taskId: string, payload?: {
+export async function repairNovelWorkflowChapterTitles(directorTaskId: string, payload?: {
   volumeId?: string;
 }) {
   const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(
-    `/novel-workflows/${taskId}/repair-chapter-titles`,
+    `/novel-workflows/${directorTaskId}/repair-chapter-titles`,
     payload ?? {},
   );
   return data;

@@ -518,13 +518,13 @@ export default function NovelList() {
                       </Button>
                     ) : workflowTask ? (
                       <Button asChild size="sm">
-                        <Link to={`/novels/${novel.id}/edit?taskId=${workflowTask.id}`} onClick={stopCardClick}>查看推进状态</Link>
+                        <Link to={`/novels/${novel.id}/edit?directorTaskId=${workflowTask.id}`} onClick={stopCardClick}>查看推进状态</Link>
                       </Button>
                     ) : null}
 
                     {workflowTask ? (
                       <Button asChild size="sm" variant="outline">
-                        <Link to={`/novels/${novel.id}/edit?taskId=${workflowTask.id}&taskPanel=1`} onClick={stopCardClick}>执行详情</Link>
+                        <Link to={`/novels/${novel.id}/edit?directorTaskId=${workflowTask.id}&taskPanel=1`} onClick={stopCardClick}>执行详情</Link>
                       </Button>
                     ) : null}
 

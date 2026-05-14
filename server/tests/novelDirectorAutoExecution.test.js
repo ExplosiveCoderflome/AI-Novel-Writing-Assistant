@@ -9,7 +9,7 @@ const {
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionRange,
   resolveDirectorAutoExecutionWorkflowState,
-} = require("../dist/services/novel/director/novelDirectorAutoExecution.js");
+} = require("../dist/services/novel/director/automation/novelDirectorAutoExecution.js");
 
 test("chapter_range normalizes to the explicit chapter range 1-10", () => {
   assert.deepEqual(normalizeDirectorAutoExecutionPlan({ mode: "chapter_range", endOrder: 10 }), {
@@ -18,6 +18,7 @@ test("chapter_range normalizes to the explicit chapter range 1-10", () => {
     endOrder: 10,
     autoReview: true,
     autoRepair: true,
+    artifactSyncMode: "adaptive",
   });
 });
 
@@ -28,6 +29,7 @@ test("chapter_range can carry a user-selected chapter range", () => {
     endOrder: 25,
     autoReview: true,
     autoRepair: true,
+    artifactSyncMode: "adaptive",
   });
 
   assert.equal(buildDirectorAutoExecutionScopeLabel({
@@ -41,6 +43,7 @@ test("book auto execution normalizes to full-book scope without chapter bounds",
     mode: "book",
     autoReview: true,
     autoRepair: true,
+    artifactSyncMode: "adaptive",
   });
 
   assert.equal(buildDirectorAutoExecutionScopeLabel({ mode: "book" }), "全书");

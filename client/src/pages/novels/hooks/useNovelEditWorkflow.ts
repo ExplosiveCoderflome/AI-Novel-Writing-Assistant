@@ -16,6 +16,17 @@ export function useNovelEditWorkflow(novelId: string) {
   const selectedVolumeId = searchParams.get("volumeId") ?? "";
   const taskPanelOpen = searchParams.get("taskPanel") === "1";
 
+  useEffect(() => {
+    const canonicalDirectorTaskId = searchParams.get("directorTaskId")?.trim() ?? "";
+    const legacyDirectorTaskId = searchParams.get("taskId")?.trim() ?? "";
+    if (!legacyDirectorTaskId) {
+      return;
+    }
+    setSearchParams((prev) => withNovelEditDirectorTaskId(prev, canonicalDirectorTaskId || legacyDirectorTaskId), {
+      replace: true,
+    });
+  }, [searchParams, setSearchParams]);
+
   const bootstrapMutation = useMutation({
     mutationFn: () => bootstrapNovelWorkflow({
       workflowTaskId: workflowTaskId || undefined,

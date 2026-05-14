@@ -31,7 +31,7 @@ import {
 } from "./novelDirectorTakeoverRuntime";
 import { getDirectorExecutionNodeAdapter } from "./novelDirectorExecutionNodeAdapters";
 import type { NovelDirectorCandidateRuntime } from "./novelDirectorCandidateRuntime";
-import type { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionRuntime";
+import type { NovelDirectorAutoExecutionRuntime } from "./automation/novelDirectorAutoExecutionRuntime";
 import type { DirectorPipelineRunInput, NovelDirectorPipelineRuntime } from "./novelDirectorPipelineRuntime";
 import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
 import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";

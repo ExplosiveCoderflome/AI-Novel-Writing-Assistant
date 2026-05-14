@@ -30,7 +30,7 @@ export function getDirectorCockpitActionHref(
     const params = new URLSearchParams();
     params.set("stage", action.target.tab);
     if (action.target.taskId) {
-      params.set("taskId", action.target.taskId);
+      params.set("directorTaskId", action.target.taskId);
     }
     if (action.type === "open_details") {
       params.set("taskPanel", "1");
@@ -39,7 +39,7 @@ export function getDirectorCockpitActionHref(
   }
   if (action.type === "open_details" && action.target.taskId) {
     const params = new URLSearchParams();
-    params.set("taskId", action.target.taskId);
+    params.set("directorTaskId", action.target.taskId);
     params.set("taskPanel", "1");
     return `/novels/${projection.novelId}/edit?${params.toString()}`;
   }

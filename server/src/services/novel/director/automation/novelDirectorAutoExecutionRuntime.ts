@@ -1,13 +1,9 @@
-﻿import type {
+import type {
   DirectorAutoExecutionState,
   DirectorConfirmRequest,
-  DirectorQualityRepairRisk,
 } from "@ai-novel/shared/types/novelDirector";
 import { isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
-import type { NovelControlPolicy } from "@ai-novel/shared/types/canonicalState";
-import type { PipelineJobStatus, VolumePlanDocument } from "@ai-novel/shared/types/novel";
-import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
-import { parsePipelinePayload } from "../pipelineJobState";
+import { parsePipelinePayload } from "../../pipelineJobState";
 import {
   buildDirectorAutoExecutionPausedLabel,
   buildDirectorAutoExecutionPausedSummary,
@@ -15,7 +11,6 @@ import {
   buildDirectorAutoExecutionDeferredQualityState,
   buildDirectorAutoExecutionPipelineOptions,
   resolveDirectorAutoExecutionWorkflowState,
-  type DirectorAutoExecutionChapterRef,
   type DirectorAutoExecutionRange,
 } from "./novelDirectorAutoExecution";
 import {
@@ -25,11 +20,6 @@ import {
   syncAutoExecutionTaskState,
   type AutoExecutionResumeStage,
 } from "./novelDirectorAutoExecutionCheckpointRuntime";
-import {
-  applyReviewSkipOverride,
-  buildRequestedAutoExecutionState,
-  resolveAutoExecutionRangeAndState,
-} from "./novelDirectorAutoExecutionScopeRuntime";
 import { isSkippableAutoExecutionReviewFailure } from "./novelDirectorAutoExecutionFailure";
 import {
   buildFailureCircuitBreaker,
@@ -44,225 +34,24 @@ import {
   resolveSingleChapterExecutionRange,
   shouldClearAutoExecutionCheckpoint,
 } from "./novelDirectorAutoExecutionRuntimeUtils";
-import { directorAutomationLedgerEventService } from "./runtime/DirectorAutomationLedgerEventService";
+import { prepareRequestedAutoExecution as prepareRequestedAutoExecutionState, resolveAutoExecutionRuntimeRangeAndState, shouldStopAutoExecution } from "./novelDirectorAutoExecutionRuntimePreparation";
+import type { NovelDirectorAutoExecutionRuntimeDeps, PipelineJobSnapshot } from "./novelDirectorAutoExecutionRuntimePorts";
+import { directorAutomationLedgerEventService } from "../runtime/DirectorAutomationLedgerEventService";
 import {
   buildDirectorQualityLoopBudgetWindow,
   buildDirectorQualityLoopIssueSignature,
   findDirectorQualityLoopBudgetEntry,
   recordDirectorQualityLoopBudgetAttempt,
   resolveDirectorQualityLoopBudgetNextAction,
-} from "./runtime/DirectorQualityLoopBudgetLedgerService";
-import type { DirectorStateProposalResolutionRunResult } from "./runtime/DirectorStateProposalResolutionService";
-
-type AutomationLedgerEventPort = Pick<
-  typeof directorAutomationLedgerEventService,
-  "recordEvent" | "recordRepairTicketCreated" | "recordCircuitBreakerOpened"
->;
-
-interface NovelDirectorAutoExecutionWorkflowPort {
-  bootstrapTask(input: {
-    workflowTaskId: string;
-    novelId: string;
-    lane: "auto_director";
-    title: string;
-    seedPayload?: Record<string, unknown>;
-  }): Promise<unknown>;
-  getTaskById(taskId: string): Promise<{ status: string } | null>;
-  markTaskRunning(taskId: string, input: {
-    stage: "chapter_execution" | "quality_repair";
-    itemLabel: string;
-    itemKey?: string | null;
-    progress?: number;
-    clearCheckpoint?: boolean;
-  }): Promise<unknown>;
-  recordCheckpoint(taskId: string, input: {
-    stage: "quality_repair";
-    checkpointType: "workflow_completed" | "chapter_batch_ready" | "replan_required";
-    checkpointSummary: string;
-    itemLabel: string;
-    progress?: number;
-    chapterId?: string | null;
-    seedPayload?: Record<string, unknown>;
-  }): Promise<unknown>;
-  markTaskFailed(taskId: string, message: string, patch?: {
-    stage?: "quality_repair";
-    itemKey?: string | null;
-    itemLabel?: string;
-    checkpointType?: "chapter_batch_ready" | "replan_required";
-    checkpointSummary?: string | null;
-    chapterId?: string | null;
-    progress?: number;
-  }): Promise<unknown>;
-}
-
-interface NovelDirectorAutoExecutionNovelPort {
-  listChapters(novelId: string): Promise<DirectorAutoExecutionChapterRef[]>;
-  startPipelineJob(novelId: string, options: {
-    provider?: string;
-    model?: string;
-    temperature?: number;
-    startOrder: number;
-    endOrder: number;
-    controlPolicy?: NovelControlPolicy;
-    taskStyleProfileId?: string;
-    maxRetries: number;
-    runMode: "fast" | "polish";
-    autoReview: boolean;
-    autoRepair: boolean;
-    skipCompleted: boolean;
-    qualityThreshold: number;
-    repairMode: "light_repair";
-  }): Promise<{ id: string; status: PipelineJobStatus }>;
-  findActivePipelineJobForRange(
-    novelId: string,
-    startOrder: number,
-    endOrder: number,
-    preferredJobId?: string | null,
-  ): Promise<{ id: string; status: PipelineJobStatus } | null>;
-  getPipelineJobById(jobId: string): Promise<{
-    id: string;
-    status: PipelineJobStatus;
-    progress: number;
-    currentStage?: string | null;
-    currentItemLabel?: string | null;
-    noticeCode?: string | null;
-    payload?: string | null;
-    noticeSummary?: string | null;
-    error?: string | null;
-  } | null>;
-  cancelPipelineJob(jobId: string): Promise<unknown>;
-}
-
-type PipelineJobSnapshot = Awaited<ReturnType<NovelDirectorAutoExecutionNovelPort["getPipelineJobById"]>>;
-
-interface NovelDirectorAutoExecutionVolumeWorkspacePort {
-  getVolumes(novelId: string): Promise<VolumePlanDocument>;
-}
-
-interface NovelDirectorAutoExecutionRuntimeDeps {
-  novelContextService: Pick<NovelDirectorAutoExecutionNovelPort, "listChapters">;
-  novelService: Pick<
-    NovelDirectorAutoExecutionNovelPort,
-    "startPipelineJob" | "findActivePipelineJobForRange" | "getPipelineJobById" | "cancelPipelineJob"
-  >;
-  volumeWorkspaceService?: Pick<NovelDirectorAutoExecutionVolumeWorkspacePort, "getVolumes">;
-  workflowService: NovelDirectorAutoExecutionWorkflowPort;
-  buildDirectorSeedPayload: (
-    input: DirectorConfirmRequest,
-    novelId: string,
-    extra?: Record<string, unknown>,
-  ) => Record<string, unknown>;
-  shouldAutoContinueQualityRepair?: (input: {
-    request: DirectorConfirmRequest;
-    qualityRepairRisk: DirectorQualityRepairRisk;
-    remainingChapterCount: number;
-  }) => Promise<boolean> | boolean;
-  recordAutoApproval?: (input: {
-    taskId: string;
-    checkpointType: NovelWorkflowCheckpoint;
-    qualityRepairRisk: DirectorQualityRepairRisk;
-    checkpointSummary?: string | null;
-  }) => Promise<unknown>;
-  replanNovel?: (novelId: string, input: {
-    chapterId?: string;
-    triggerType?: string;
-    reason: string;
-    sourceIssueIds?: string[];
-    windowSize?: number;
-    provider?: DirectorConfirmRequest["provider"];
-    model?: string;
-    temperature?: number;
-  }) => Promise<unknown>;
-  resolveStateProposals?: (input: {
-    novelId: string;
-    taskId?: string | null;
-    chapterId?: string | null;
-    chapterOrder?: number | null;
-    runMode: string;
-    provider?: DirectorConfirmRequest["provider"];
-    model?: string;
-    temperature?: number;
-  }) => Promise<DirectorStateProposalResolutionRunResult>;
-  automationLedgerEventService?: AutomationLedgerEventPort;
-}
+} from "../runtime/DirectorQualityLoopBudgetLedgerService";
 
 export class NovelDirectorAutoExecutionRuntime {
   constructor(private readonly deps: NovelDirectorAutoExecutionRuntimeDeps) {}
 
-  private async resolveRangeAndState(input: {
-    novelId: string;
-    existingState?: DirectorAutoExecutionState | null;
-    pipelineJobId?: string | null;
-    pipelineStatus?: PipelineJobStatus | null;
-  }): Promise<{
-    range: DirectorAutoExecutionRange;
-    autoExecution: DirectorAutoExecutionState;
-  }> {
-    return resolveAutoExecutionRangeAndState({
-      novelId: input.novelId,
-      deps: {
-        listChapters: (novelId) => this.deps.novelContextService.listChapters(novelId),
-        getVolumes: this.deps.volumeWorkspaceService
-          ? (novelId) => this.deps.volumeWorkspaceService?.getVolumes(novelId) as Promise<VolumePlanDocument>
-          : undefined,
-      },
-      existingState: input.existingState,
-      pipelineJobId: input.pipelineJobId,
-      pipelineStatus: input.pipelineStatus,
-    });
-  }
-
-  async prepareRequestedAutoExecution(input: {
-    novelId: string;
-    request: DirectorConfirmRequest;
-    existingState?: DirectorAutoExecutionState | null;
-    existingPipelineJobId?: string | null;
-    previousFailureMessage?: string | null;
-    allowSkipReviewBlockedChapter?: boolean;
-  }): Promise<{
-    range: DirectorAutoExecutionRange;
-    autoExecution: DirectorAutoExecutionState;
-    pipelineJobId: string;
-  }> {
-    const shouldSkipReviewBlockedChapter = Boolean(
-      input.allowSkipReviewBlockedChapter
-      && isSkippableAutoExecutionReviewFailure(input.previousFailureMessage),
-    );
-    const pipelineJobId = shouldSkipReviewBlockedChapter
-      ? ""
-      : (input.existingPipelineJobId?.trim() || "");
-    const existingState = applyReviewSkipOverride({
-      existingState: input.existingState,
-      previousFailureMessage: input.previousFailureMessage,
-      allowSkipReviewBlockedChapter: input.allowSkipReviewBlockedChapter,
-    });
-    const requestedExecutionState = buildRequestedAutoExecutionState({
-      request: input.request,
-      existingState,
-      existingPipelineJobId: pipelineJobId || null,
-    });
-    const { range, autoExecution } = await this.resolveRangeAndState({
-      novelId: input.novelId,
-      existingState: requestedExecutionState,
-      pipelineJobId: pipelineJobId || null,
-      pipelineStatus: pipelineJobId ? "running" : "queued",
-    });
-    return {
-      range,
-      autoExecution,
-      pipelineJobId,
-    };
-  }
-
-  private async shouldStopAutoExecution(taskId: string, pipelineJobId?: string | null): Promise<boolean> {
-    const row = await this.deps.workflowService.getTaskById(taskId);
-    if (!row || row.status !== "cancelled") {
-      return false;
-    }
-    if (pipelineJobId) {
-      await this.deps.novelService.cancelPipelineJob(pipelineJobId).catch(() => null);
-    }
-    return true;
+  async prepareRequestedAutoExecution(
+    input: Parameters<typeof prepareRequestedAutoExecutionState>[1],
+  ) {
+    return prepareRequestedAutoExecutionState(this.deps, input);
   }
 
   async runFromReady(input: {
@@ -277,7 +66,7 @@ export class NovelDirectorAutoExecutionRuntime {
     allowSkipReviewBlockedChapter?: boolean;
     approveAutoExecutionScope?: boolean;
   }): Promise<void> {
-    let { range, autoExecution, pipelineJobId } = await this.prepareRequestedAutoExecution({
+    let { range, autoExecution, pipelineJobId } = await prepareRequestedAutoExecutionState(this.deps, {
       novelId: input.novelId,
       request: input.request,
       existingState: input.existingState,
@@ -287,10 +76,10 @@ export class NovelDirectorAutoExecutionRuntime {
     });
     let knownPipelineJob: PipelineJobSnapshot = null;
     if (pipelineJobId) {
-      knownPipelineJob = await this.deps.novelService.getPipelineJobById(pipelineJobId);
+      knownPipelineJob = await this.resolvePipelineJobForExecution(pipelineJobId);
       if (!knownPipelineJob || ["failed", "cancelled"].includes(knownPipelineJob.status)) {
         pipelineJobId = "";
-        ({ range, autoExecution } = await this.resolveRangeAndState({
+        ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
           novelId: input.novelId,
           existingState: {
             ...autoExecution,
@@ -326,12 +115,12 @@ export class NovelDirectorAutoExecutionRuntime {
         isBackgroundRunning: true,
         resumeStage: input.resumeStage,
       });
-      if (await this.shouldStopAutoExecution(input.taskId, pipelineJobId || null)) {
+      if (await shouldStopAutoExecution(this.deps, input.taskId, pipelineJobId || null)) {
         return;
       }
 
       if (pipelineJobId) {
-        const existingJob = knownPipelineJob ?? await this.deps.novelService.getPipelineJobById(pipelineJobId);
+        const existingJob = knownPipelineJob ?? await this.resolvePipelineJobForExecution(pipelineJobId);
         knownPipelineJob = existingJob;
         if (!existingJob || ["failed", "cancelled"].includes(existingJob.status)) {
           pipelineJobId = "";
@@ -346,7 +135,7 @@ export class NovelDirectorAutoExecutionRuntime {
       );
       if (activeRangeJob) {
         pipelineJobId = activeRangeJob.id;
-        ({ range, autoExecution } = await this.resolveRangeAndState({
+        ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
           novelId: input.novelId,
           existingState: autoExecution,
           pipelineJobId,
@@ -366,7 +155,7 @@ export class NovelDirectorAutoExecutionRuntime {
       autoExecutionLoop:
       while (true) {
       if (!pipelineJobId) {
-        ({ range, autoExecution } = await this.resolveRangeAndState({
+        ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
           novelId: input.novelId,
           existingState: autoExecution,
           pipelineJobId: null,
@@ -406,6 +195,7 @@ export class NovelDirectorAutoExecutionRuntime {
               ...resolveSingleChapterExecutionRange(range, autoExecution),
               autoReview: autoExecution.autoReview,
               autoRepair: autoExecution.autoRepair,
+              artifactSyncMode: autoExecution.artifactSyncMode,
             }),
           );
           pipelineJobId = job.id;
@@ -418,7 +208,7 @@ export class NovelDirectorAutoExecutionRuntime {
           if (!isNoChaptersToGenerateError(error)) {
             throw error;
           }
-          ({ range, autoExecution } = await this.resolveRangeAndState({
+          ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
             novelId: input.novelId,
             existingState: autoExecution,
             pipelineJobId: null,
@@ -449,10 +239,10 @@ export class NovelDirectorAutoExecutionRuntime {
       }
 
       while (pipelineJobId) {
-        if (await this.shouldStopAutoExecution(input.taskId, pipelineJobId)) {
+        if (await shouldStopAutoExecution(this.deps, input.taskId, pipelineJobId)) {
           return;
         }
-        const job = await this.deps.novelService.getPipelineJobById(pipelineJobId);
+        const job = await this.resolvePipelineJobForExecution(pipelineJobId);
         if (!job) {
           throw new Error("自动执行章节批次时未能找到对应的批量任务。");
         }
@@ -462,7 +252,7 @@ export class NovelDirectorAutoExecutionRuntime {
             ...runningState,
             clearCheckpoint: shouldClearAutoExecutionCheckpoint(input.resumeCheckpointType),
           });
-          ({ range, autoExecution } = await this.resolveRangeAndState({
+          ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
             novelId: input.novelId,
             existingState: autoExecution,
             pipelineJobId,
@@ -481,7 +271,7 @@ export class NovelDirectorAutoExecutionRuntime {
           continue;
         }
 
-        ({ range, autoExecution } = await this.resolveRangeAndState({
+        ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
           novelId: input.novelId,
           existingState: autoExecution,
           pipelineJobId,
@@ -559,7 +349,7 @@ export class NovelDirectorAutoExecutionRuntime {
             const replanExistingState = "autoExecution" in replanNoticeResult && replanNoticeResult.autoExecution
               ? replanNoticeResult.autoExecution
               : withCircuitBreakerState(noticeAction.checkpointState, replanNoticeResult.circuitBreaker);
-            ({ range, autoExecution } = await this.resolveRangeAndState({
+            ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
               novelId: input.novelId,
               existingState: replanExistingState,
               pipelineJobId: null,
@@ -578,7 +368,7 @@ export class NovelDirectorAutoExecutionRuntime {
           }
           if (noticeAction.action === "auto_continue") {
             pipelineJobId = "";
-            ({ range, autoExecution } = await this.resolveRangeAndState({
+            ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
               novelId: input.novelId,
               existingState: noticeAction.checkpointState,
               pipelineJobId: null,
@@ -694,7 +484,7 @@ export class NovelDirectorAutoExecutionRuntime {
               });
             }
             pipelineJobId = "";
-            ({ range, autoExecution } = await this.resolveRangeAndState({
+            ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
               novelId: input.novelId,
               existingState: {
                 ...autoExecution,
@@ -832,7 +622,7 @@ export class NovelDirectorAutoExecutionRuntime {
           const previousNextChapterId = autoExecution.nextChapterId ?? null;
           const previousNextChapterOrder = autoExecution.nextChapterOrder ?? null;
           pipelineJobId = "";
-          ({ range, autoExecution } = await this.resolveRangeAndState({
+          ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
             novelId: input.novelId,
             existingState: deferredState,
             pipelineJobId: null,
@@ -898,6 +688,16 @@ export class NovelDirectorAutoExecutionRuntime {
     } catch (error) {
       throw error;
     }
+  }
+
+  private async resolvePipelineJobForExecution(jobId: string): Promise<PipelineJobSnapshot> {
+    let job = await this.deps.novelService.getPipelineJobById(jobId);
+    if (!job?.pendingManualRecovery) {
+      return job;
+    }
+    await this.deps.novelService.resumePipelineJob(job.id);
+    job = await this.deps.novelService.getPipelineJobById(job.id);
+    return job;
   }
 }
 

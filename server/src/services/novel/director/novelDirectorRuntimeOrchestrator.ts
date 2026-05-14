@@ -12,17 +12,31 @@ import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import type { DirectorPolicyRequest } from "./runtime/DirectorPolicyEngine";
 import type { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import { buildDefaultDirectorPolicy } from "./runtime/directorRuntimeDefaults";
-import type { NovelDirectorAutoExecutionRuntime } from "./novelDirectorAutoExecutionRuntime";
+import type { NovelDirectorAutoExecutionRuntime } from "./automation/novelDirectorAutoExecutionRuntime";
 import type { DirectorProgressItemKey } from "./novelDirectorProgress";
 import {
   isExecutableWorkflowStepModule,
+  type WorkflowStepExecutionContext,
   type WorkflowStepModule,
   type WorkflowStepModuleDescriptor,
 } from "./workflowStepRuntime/WorkflowStepModule";
 import { buildChapterPipelineWorkflowTemplate } from "./workflowStepRuntime/directorWorkflowPlans";
 import { directorWorkflowStepModuleRegistry } from "./workflowStepRuntime/directorWorkflowStepModules";
+import { DIRECTOR_EXECUTION_STEP_IDS } from "./workflowStepRuntime/directorWorkflowStepIds";
 import { isInitializationPlaceholderVolumeStrategyArtifact } from "./runtime/DirectorWorkspaceArtifactInventory";
 import { DirectorStateCommitter } from "./DirectorStateCommitter";
+
+const BACKGROUND_ARTIFACT_PROJECTION_STEP_IDS = new Set([
+  DIRECTOR_EXECUTION_STEP_IDS.chapter_state_commit,
+  DIRECTOR_EXECUTION_STEP_IDS.payoff_ledger_sync,
+  DIRECTOR_EXECUTION_STEP_IDS.character_resource_sync,
+]);
+const DEFAULT_PROJECTION_FACT_WAIT_TIMEOUT_MS = 120_000;
+const DEFAULT_PROJECTION_FACT_WAIT_INTERVAL_MS = 1500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export class DirectorRuntimeGateError extends AppError {
   constructor(message: string) {
@@ -69,6 +83,8 @@ export class NovelDirectorRuntimeOrchestrator {
     directorRuntime: DirectorRuntimeService;
     workflowService: Pick<NovelWorkflowService, "markTaskRunning" | "markTaskWaitingApproval">;
     autoExecutionRuntime: NovelDirectorAutoExecutionRuntime;
+    projectionFactWaitTimeoutMs?: number;
+    projectionFactWaitIntervalMs?: number;
   }) {}
 
   async markTaskRunning(
@@ -370,7 +386,8 @@ export class NovelDirectorRuntimeOrchestrator {
           ? await input.module.completeCriteria(output, context)
           : true;
         if (!completed) {
-          throw new Error(`${input.module.id} did not satisfy its completion criteria.`);
+          throw new Error(`${input.module.id} 未满足其完成标准。`);
+
         }
         const commit = input.module.commit
           ? await input.module.commit(output, context)
@@ -425,11 +442,13 @@ export class NovelDirectorRuntimeOrchestrator {
       return;
     }
 
-    const artifacts = await this.collectArtifactsAfterNode({
-      taskId: input.taskId,
-      novelId: input.novelId,
-    });
     for (const adapter of projectionAdapters) {
+      const artifacts = await this.waitForProjectionFacts({
+        module: adapter,
+        taskId: input.taskId,
+        novelId: input.novelId,
+        targetId: input.novelId,
+      });
       await this.runStepModule({
         module: adapter,
         taskId: input.taskId,
@@ -437,8 +456,50 @@ export class NovelDirectorRuntimeOrchestrator {
         targetId: input.novelId,
         approveCurrentGate: input.approveCurrentGate,
         approveAutoExecutionScope: input.approveAutoExecutionScope,
+        reuseCompletedStep: BACKGROUND_ARTIFACT_PROJECTION_STEP_IDS.has(adapter.id) ? false : undefined,
         runner: async () => undefined,
         collectArtifacts: () => artifacts,
+      });
+    }
+  }
+
+  private async waitForProjectionFacts(input: {
+    module: WorkflowStepModuleDescriptor;
+    taskId: string;
+    novelId: string;
+    targetId?: string | null;
+  }): Promise<DirectorArtifactRef[]> {
+    let artifacts = await this.collectArtifactsAfterNode({
+      taskId: input.taskId,
+      novelId: input.novelId,
+    });
+    if (
+      !isExecutableWorkflowStepModule(input.module)
+      || !BACKGROUND_ARTIFACT_PROJECTION_STEP_IDS.has(input.module.id)
+    ) {
+      return artifacts;
+    }
+
+    const timeoutMs = Math.max(0, this.deps.projectionFactWaitTimeoutMs ?? DEFAULT_PROJECTION_FACT_WAIT_TIMEOUT_MS);
+    const intervalMs = Math.max(1, this.deps.projectionFactWaitIntervalMs ?? DEFAULT_PROJECTION_FACT_WAIT_INTERVAL_MS);
+    const startedAt = Date.now();
+
+    while (true) {
+      const context: WorkflowStepExecutionContext = {
+        taskId: input.taskId,
+        novelId: input.novelId,
+        targetType: input.module.targetType,
+        targetId: input.targetId ?? null,
+        artifacts,
+      };
+      const completion = await input.module.inspectCompletion(context).catch(() => null);
+      if (completion?.completed || Date.now() - startedAt >= timeoutMs) {
+        return artifacts;
+      }
+      await sleep(Math.min(intervalMs, Math.max(1, timeoutMs - (Date.now() - startedAt))));
+      artifacts = await this.collectArtifactsAfterNode({
+        taskId: input.taskId,
+        novelId: input.novelId,
       });
     }
   }

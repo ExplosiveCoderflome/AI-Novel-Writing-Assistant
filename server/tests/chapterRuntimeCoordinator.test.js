@@ -22,14 +22,18 @@ function createAssembledChapter() {
     },
     contextPackage: {
       chapter: {
+        title: "第1章",
         targetWordCount: 3000,
         sceneCards: null,
+        expectation: "主角完成第一次行动选择。",
       },
+      characterRoster: [{ id: "character-1", name: "主角", role: "protagonist" }],
       nextAction: "write_chapter",
       pendingReviewProposalCount: 0,
       openAuditIssues: [],
       chapterWriteContext: {
         chapterMission: {
+          objective: "主角完成第一次行动选择。",
           targetWordCount: 3000,
         },
       },
@@ -45,7 +49,7 @@ function createAgentRuntime() {
   };
 }
 
-test("createChapterStream validates execution contract before assembling runtime context", async () => {
+test("createChapterStream uses lightweight readiness without forcing execution contract", async () => {
   const calls = [];
   const assembled = createAssembledChapter();
   const validatedRequest = {
@@ -93,15 +97,15 @@ test("createChapterStream validates execution contract before assembling runtime
 
   assert.notEqual(assembleIndex, -1);
   assert.notEqual(writerIndex, -1);
-  assert.notEqual(ensureContractIndex, -1);
-  assert.ok(ensureContractIndex < assembleIndex);
+  assert.equal(ensureContractIndex, -1);
   assert.ok(assembleIndex < writerIndex);
 });
 
-test("createChapterStream blocks when execution contract validation fails", async () => {
+test("createChapterStream does not block hot path on execution contract failure", async () => {
   const warnings = [];
   const originalWarn = console.warn;
   let assembledCalled = false;
+  let contractCalled = false;
 
   console.warn = (...args) => {
     warnings.push(args);
@@ -112,6 +116,7 @@ test("createChapterStream blocks when execution contract validation fails", asyn
       validateRequest: (input) => input,
       ensureNovelCharacters: async () => undefined,
       ensureChapterExecutionContract: async () => {
+        contractCalled = true;
         throw new Error("contract invalid");
       },
       assembler: {
@@ -130,11 +135,9 @@ test("createChapterStream blocks when execution contract validation fails", asyn
     });
     coordinator.markChapterStatus = async () => undefined;
 
-    await assert.rejects(
-      () => coordinator.createChapterStream("novel-1", "chapter-1", {}),
-      /contract invalid/,
-    );
-    assert.equal(assembledCalled, false);
+    await coordinator.createChapterStream("novel-1", "chapter-1", {});
+    assert.equal(contractCalled, false);
+    assert.equal(assembledCalled, true);
     assert.equal(warnings.length, 0);
   } finally {
     console.warn = originalWarn;

@@ -68,6 +68,7 @@ const autoExecutionPlanSchema = z.object({
   volumeOrder: z.number().int().min(1).optional(),
   autoReview: z.boolean().optional(),
   autoRepair: z.boolean().optional(),
+  artifactSyncMode: z.enum(["adaptive", "deferred", "strict"]).optional(),
 }).optional();
 
 const autoApprovalSchema = z.object({

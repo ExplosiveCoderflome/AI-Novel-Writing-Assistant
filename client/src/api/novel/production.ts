@@ -1,6 +1,7 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type {
+  ArtifactSyncMode,
   CreativeDecision,
   Novel,
   NovelSnapshot,
@@ -22,6 +23,7 @@ export async function runNovelPipeline(
     skipCompleted?: boolean;
     qualityThreshold?: number;
     repairMode?: PipelineRepairMode;
+    artifactSyncMode?: ArtifactSyncMode;
     provider?: LLMProvider;
     model?: string;
     temperature?: number;

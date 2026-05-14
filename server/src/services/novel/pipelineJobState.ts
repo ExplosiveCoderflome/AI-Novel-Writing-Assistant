@@ -17,9 +17,10 @@ const PIPELINE_STAGE_PROGRESS = {
 } as const;
 
 const PIPELINE_BACKGROUND_ACTIVITY_LABELS: Record<PipelineBackgroundSyncKind, string> = {
+  artifact_delta: "资产回灌中",
   character_dynamics: "角色成长中",
   state_snapshot: "状态同步中",
-  payoff_ledger: "伏笔账本同步中",
+  payoff_ledger: "账本校准中",
   character_resources: "资源账本同步中",
   canonical_state: "全局状态同步中",
 };
@@ -56,6 +57,12 @@ function normalizeStringList(value: unknown): string[] | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function normalizeArtifactSyncMode(value: unknown): PipelinePayload["artifactSyncMode"] | undefined {
+  return value === "strict" || value === "deferred" || value === "adaptive"
+    ? value
+    : undefined;
+}
+
 function normalizePipelineBackgroundActivity(value: unknown): PipelineBackgroundSyncActivity | null {
   if (!value || typeof value !== "object") {
     return null;
@@ -66,6 +73,7 @@ function normalizePipelineBackgroundActivity(value: unknown): PipelineBackground
   if (
     (
       kind !== "character_dynamics"
+      && kind !== "artifact_delta"
       && kind !== "state_snapshot"
       && kind !== "payoff_ledger"
       && kind !== "character_resources"
@@ -233,6 +241,7 @@ export function parsePipelinePayload(payload: string | null | undefined): Pipeli
         || parsed.repairMode === "ending_only"
           ? parsed.repairMode
           : undefined,
+      artifactSyncMode: normalizeArtifactSyncMode(parsed.artifactSyncMode),
       controlPolicy: normalizeControlPolicy(parsed.controlPolicy),
       qualityAlertDetails: normalizeStringList(parsed.qualityAlertDetails ?? parsed.failedDetails),
       replanAlertDetails: normalizeStringList(parsed.replanAlertDetails),
@@ -262,6 +271,7 @@ export function stringifyPipelinePayload(input: PipelinePayload): string {
     skipCompleted: input.skipCompleted ?? true,
     qualityThreshold: input.qualityThreshold ?? null,
     repairMode: input.repairMode ?? "light_repair",
+    artifactSyncMode: input.artifactSyncMode ?? "adaptive",
     ...(input.controlPolicy ? { controlPolicy: normalizeControlPolicy(input.controlPolicy) ?? input.controlPolicy } : {}),
     ...(qualityAlertDetails.length > 0 ? { qualityAlertDetails } : {}),
     ...(replanAlertDetails.length > 0 ? { replanAlertDetails } : {}),

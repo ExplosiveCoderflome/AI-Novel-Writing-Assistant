@@ -13,7 +13,7 @@ import { prisma } from "../../../db/prisma";
 import {
   normalizeDirectorAutoExecutionPlan,
   resolveDirectorAutoExecutionRangeFromState,
-} from "./novelDirectorAutoExecution";
+} from "./automation/novelDirectorAutoExecution";
 import type { DirectorTakeoverResolvedPlan } from "./novelDirectorTakeover";
 import { parseSeedPayload, mergeSeedPayload } from "../workflow/novelWorkflow.shared";
 import type { DirectorWorkflowSeedPayload } from "./novelDirectorHelpers";

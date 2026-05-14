@@ -9,6 +9,7 @@ const {
 } = require("../dist/services/novel/director/workflowStepRuntime/WorkflowStepModule.js");
 const {
   getDirectorPlanningStepModule,
+  directorWorkflowStepModuleRegistry,
 } = require("../dist/services/novel/director/workflowStepRuntime/directorWorkflowStepModules.js");
 const {
   DIRECTOR_INITIALIZATION_PLACEHOLDER_VOLUME_STRATEGY_HASH,
@@ -43,11 +44,14 @@ const artifact = {
 function buildOrchestrator(artifacts = [artifact], options = {}) {
   const runtimeCalls = [];
   let pipelineRuns = 0;
+  const resolveArtifacts = () => (
+    typeof artifacts === "function" ? artifacts() : artifacts
+  );
   const orchestrator = new NovelDirectorRuntimeOrchestrator({
     directorRuntime: {
       getSnapshot: async () => options.snapshot ?? null,
       analyzeWorkspace: async () => ({
-        inventory: { artifacts },
+        inventory: { artifacts: resolveArtifacts() },
       }),
       runNode: async (contract, input, collectArtifacts) => {
         const output = await contract.run(input.payload);
@@ -78,12 +82,53 @@ function buildOrchestrator(artifacts = [artifact], options = {}) {
         pipelineRuns += 1;
       },
     },
+    projectionFactWaitTimeoutMs: options.projectionFactWaitTimeoutMs,
+    projectionFactWaitIntervalMs: options.projectionFactWaitIntervalMs,
   });
   return {
     orchestrator,
     runtimeCalls,
     getPipelineRuns: () => pipelineRuns,
   };
+}
+
+function buildNoopModule(input) {
+  const producedArtifacts = input.producedArtifacts ?? [];
+  return createWorkflowStepModule(
+    {
+      id: input.id,
+      nodeKey: input.nodeKey,
+      label: input.label,
+      stage: input.stage ?? "quality_repair",
+      targetType: "novel",
+      reads: input.reads ?? [],
+      writes: input.writes ?? [],
+      mayModifyUserContent: input.mayModifyUserContent ?? false,
+      requiresApprovalByDefault: false,
+      supportsAutoRetry: false,
+    },
+    async () => undefined,
+    {
+      inspectReadiness: async () => ({ ready: true, blockers: [] }),
+      inspectCompletion: input.inspectCompletion ?? (async () => ({
+        stepId: input.id,
+        completed: Boolean(input.completed),
+        completenessRatio: input.completed ? 1 : 0,
+      })),
+      buildInput: async () => undefined,
+      validateOutput: input.validateOutput ?? (async () => ({ valid: true })),
+      inspectProgress: async () => ({
+        status: input.completed ? "completed" : "running",
+        current: input.completed ? 1 : 0,
+        total: 1,
+        ratio: input.completed ? 1 : 0,
+        label: input.label,
+      }),
+      recover: async () => ({ recoverable: true }),
+      completeCriteria: input.completeCriteria ?? (async () => true),
+      commit: async () => ({ producedArtifacts }),
+    },
+  );
 }
 
 test("executable projection steps inspect preloaded artifacts before validation", async () => {
@@ -201,6 +246,108 @@ test("executable steps can force rerun instead of reusing completed facts", asyn
   assert.equal(runtimeCalls[0].nodeKey, "candidate_refine");
   assert.equal(runtimeCalls[0].reuseCompletedStep, false);
   assert.deepEqual(runtimeCalls[0].producedArtifacts, [produced]);
+});
+
+test("chapter execution waits for delayed state commit facts before projection validation", async () => {
+  let stateCommitInspections = 0;
+  const continuityArtifact = buildArtifact("continuity_state", {
+    id: "continuity_state:chapter:chapter-1:StoryStateSnapshot:snapshot-1",
+    contentRef: { table: "StoryStateSnapshot", id: "snapshot-1" },
+  });
+  const readerPromiseArtifact = buildArtifact("reader_promise", {
+    id: "reader_promise:chapter:chapter-1:PayoffLedgerItem:payoff-1",
+    contentRef: { table: "PayoffLedgerItem", id: "payoff-1" },
+  });
+  const characterArtifact = buildArtifact("character_governance_state", {
+    id: "character_governance_state:chapter:chapter-1:CanonicalStateVersion:state-1",
+    contentRef: { table: "CanonicalStateVersion", id: "state-1" },
+  });
+  const fakeModules = new Map([
+    ["chapter.draft.write", buildNoopModule({
+      id: "chapter.draft.write",
+      nodeKey: "chapter_execution_node",
+      label: "执行章节生成批次",
+      stage: "chapter_execution",
+      writes: ["chapter_draft"],
+      mayModifyUserContent: true,
+      producedArtifacts: [artifact],
+    })],
+    ["chapter.quality.review", buildNoopModule({
+      id: "chapter.quality.review",
+      nodeKey: "chapter_quality_review_node",
+      label: "检查章节质量",
+      writes: ["audit_report"],
+      completed: true,
+    })],
+    ["chapter.state.commit", buildNoopModule({
+      id: "chapter.state.commit",
+      nodeKey: "chapter_state_commit_node",
+      label: "提交章节连续性状态",
+      writes: ["continuity_state", "character_governance_state"],
+      producedArtifacts: [continuityArtifact, characterArtifact],
+      inspectCompletion: async () => {
+        stateCommitInspections += 1;
+        const completed = stateCommitInspections >= 3;
+        return {
+          stepId: "chapter.state.commit",
+          completed,
+          completenessRatio: completed ? 1 : 0,
+        };
+      },
+      validateOutput: async () => ({
+        valid: stateCommitInspections >= 3,
+        reason: "state commit facts are still syncing",
+      }),
+      completeCriteria: async () => stateCommitInspections >= 3,
+    })],
+    ["payoff.ledger.sync", buildNoopModule({
+      id: "payoff.ledger.sync",
+      nodeKey: "payoff_ledger_sync_node",
+      label: "同步读者承诺与伏笔",
+      writes: ["reader_promise"],
+      completed: true,
+      producedArtifacts: [readerPromiseArtifact],
+    })],
+    ["character.resource.sync", buildNoopModule({
+      id: "character.resource.sync",
+      nodeKey: "character_resource_sync_node",
+      label: "同步角色资源状态",
+      writes: ["character_governance_state", "continuity_state"],
+      completed: true,
+      producedArtifacts: [characterArtifact, continuityArtifact],
+    })],
+  ]);
+  const originalGet = directorWorkflowStepModuleRegistry.get.bind(directorWorkflowStepModuleRegistry);
+  directorWorkflowStepModuleRegistry.get = (id) => fakeModules.get(id) ?? originalGet(id);
+  const { orchestrator, runtimeCalls } = buildOrchestrator([
+    artifact,
+    continuityArtifact,
+    readerPromiseArtifact,
+    characterArtifact,
+  ], {
+    projectionFactWaitTimeoutMs: 100,
+    projectionFactWaitIntervalMs: 1,
+  });
+
+  try {
+    await orchestrator.runChapterExecutionNode({
+      taskId: "task-1",
+      novelId: "novel-1",
+      request: {},
+      resumeCheckpointType: "chapter_batch_ready",
+    });
+  } finally {
+    directorWorkflowStepModuleRegistry.get = originalGet;
+  }
+
+  assert.ok(stateCommitInspections >= 3);
+  const stateCommitCall = runtimeCalls.find((call) => call.nodeKey === "chapter_state_commit_node");
+  assert.ok(stateCommitCall);
+  assert.equal(stateCommitCall.reuseCompletedStep, false);
+  assert.deepEqual(stateCommitCall.producedArtifacts.map((item) => item.artifactType).sort(), [
+    "character_governance_state",
+    "continuity_state",
+  ]);
 });
 
 test.skip("chapter execution records the standard node sequence without rerunning the pipeline", { skip: "Runtime orchestrator node sequencing is covered by newer module tests until this legacy fixture is rebuilt." }, async () => {

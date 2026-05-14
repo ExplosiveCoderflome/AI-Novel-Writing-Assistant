@@ -227,6 +227,42 @@ export class StateService {
     });
   }
 
+  async persistExtractedChapterSnapshot(input: {
+    novelId: string;
+    chapterId: string;
+    extracted: SnapshotExtractionOutput;
+    skipPayoffLedgerSync?: boolean;
+  }) {
+    const [chapter, chapters, characters] = await Promise.all([
+      prisma.chapter.findFirst({
+        where: { id: input.chapterId, novelId: input.novelId },
+        select: { id: true, title: true, order: true },
+      }),
+      prisma.chapter.findMany({
+        where: { novelId: input.novelId },
+        select: { id: true, order: true, title: true },
+      }),
+      prisma.character.findMany({
+        where: { novelId: input.novelId },
+        select: { id: true, name: true },
+      }),
+    ]);
+    if (!chapter) {
+      throw new Error("章节不存在。");
+    }
+    const previousSnapshot = await this.getLatestSnapshotBeforeChapter(input.novelId, chapter.order);
+    return this.persistSnapshot({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      chapterOrder: chapter.order,
+      chapters,
+      characters,
+      previousSnapshot,
+      extracted: input.extracted,
+      skipPayoffLedgerSync: input.skipPayoffLedgerSync,
+    });
+  }
+
   async rebuildState(novelId: string, options: StateServiceOptions = {}) {
     const chapters = await prisma.chapter.findMany({
       where: { novelId },

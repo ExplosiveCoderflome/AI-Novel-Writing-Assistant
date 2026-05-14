@@ -339,9 +339,20 @@ export class DirectorBookAutomationProjectionService {
       : workflowStatusToBookStatus(latestTask?.status);
     const runtimeStatus = runtimeProjection ? runtimeStatusToBookStatus(runtimeProjection.status) : "idle";
     const isLiveWorkflowTask = taskStatus === "queued" || taskStatus === "running";
-    const effectiveRuntimeStatus = isLiveWorkflowTask && runtimeStatus === "completed"
+    const shouldIgnoreRuntimeProjectionForLiveTask = isLiveWorkflowTask && (
+      runtimeStatus === "completed"
+      || runtimeStatus === "failed"
+      || runtimeStatus === "blocked"
+      || runtimeStatus === "cancelled"
+      || runtimeStatus === "waiting_approval"
+      || runtimeStatus === "waiting_recovery"
+    );
+    const effectiveRuntimeStatus = shouldIgnoreRuntimeProjectionForLiveTask
       ? "idle"
       : runtimeStatus;
+    const displayRuntimeProjection = shouldIgnoreRuntimeProjectionForLiveTask
+      ? null
+      : runtimeProjection;
     const status: DirectorBookAutomationStatus = activeCommandCount > 0
       ? "running"
       : pendingCommandCount > 0
@@ -366,17 +377,17 @@ export class DirectorBookAutomationProjectionService {
       || status === "blocked"
       || status === "failed";
     const blockedReason = status === "waiting_recovery"
-      ? latestTask?.lastError ?? runtimeProjection?.blockedReason ?? null
-      : runtimeProjection?.blockedReason ?? (status === "failed" ? latestTask?.lastError ?? null : null);
-    const headline = buildHeadline({ status, runtimeProjection, task: latestTask });
-    const baseDetail = buildDetail({ status, runtimeProjection, task: latestTask });
+      ? latestTask?.lastError ?? displayRuntimeProjection?.blockedReason ?? null
+      : displayRuntimeProjection?.blockedReason ?? (status === "failed" ? latestTask?.lastError ?? null : null);
+    const headline = buildHeadline({ status, runtimeProjection: displayRuntimeProjection, task: latestTask });
+    const baseDetail = buildDetail({ status, runtimeProjection: displayRuntimeProjection, task: latestTask });
     const detail = (status === "queued" || status === "running") && workerHealth.message
       ? workerHealth.message
       : baseDetail;
     const userHeadline = buildUserHeadline({ status, task: latestTask });
     const userReason = buildUserReason({
       status,
-      runtimeProjection,
+      runtimeProjection: displayRuntimeProjection,
       task: latestTask,
       blockedReason,
       detail,
@@ -520,7 +531,7 @@ export class DirectorBookAutomationProjectionService {
       currentLabel: workerCurrentLabel ?? latestTask?.currentItemLabel ?? runtimeProjection?.currentLabel ?? null,
       requiresUserAction,
       blockedReason,
-      nextActionLabel: runtimeProjection?.nextActionLabel ?? null,
+      nextActionLabel: displayRuntimeProjection?.nextActionLabel ?? null,
       primaryAction,
       secondaryActions,
       automationSummary: [
@@ -533,7 +544,7 @@ export class DirectorBookAutomationProjectionService {
         usageSummary: usageTelemetry.summary,
         }),
       ].filter((value): value is string => Boolean(value?.trim())).join("；"),
-      progressSummary: runtimeProjection?.progressSummary ?? null,
+      progressSummary: displayRuntimeProjection?.progressSummary ?? null,
       artifactSummary,
       usageSummary: usageTelemetry.summary,
       recentUsage: usageTelemetry.recentUsage,

@@ -19,6 +19,7 @@ export const chapterRuntimeRequestSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
   previousChaptersSummary: z.array(z.string()).optional(),
   taskStyleProfileId: z.string().trim().optional(),
+  artifactSyncMode: z.enum(["adaptive", "deferred", "strict"]).optional(),
   controlPolicy: chapterRuntimeControlPolicySchema.optional(),
 });
 

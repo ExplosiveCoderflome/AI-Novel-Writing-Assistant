@@ -2,6 +2,7 @@ import type { BaseMessageChunk } from "@langchain/core/messages";
 import type { StreamDoneHelpers, StreamDonePayload, WritableSSEFrame } from "../../../llm/streaming";
 import type {
   ChapterRuntimePackage,
+  ChapterAcceptanceRepairDirective,
   GenerationContextPackage,
 } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../../db/prisma";
@@ -14,10 +15,10 @@ import { ChapterWritingGraph } from "../chapterWritingGraph";
 import { toText } from "../novelP0Utils";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import { GenerationContextAssembler } from "./GenerationContextAssembler";
-import {
-  PostGenerationStyleReviewRunner,
-  type StyleReviewResult,
-} from "./PostGenerationStyleReviewRunner";
+import type { StyleReviewResult } from "./PostGenerationStyleReviewRunner";
+import { ChapterAcceptanceAssessmentService } from "./ChapterAcceptanceAssessmentService";
+import { ChapterRuntimeReadinessService } from "./ChapterRuntimeReadinessService";
+import type { ChapterAcceptanceAssessmentOutput } from "../../../prompting/prompts/novel/chapterAcceptance.prompts";
 import { chapterRuntimeRequestSchema, type ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import { withChapterRepairContext } from "../../../prompting/prompts/novel/chapterLayeredContext";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
@@ -45,7 +46,8 @@ interface ChapterRuntimeCoordinatorDeps {
   artifactSyncService?: Pick<ChapterArtifactSyncService, "saveDraftAndArtifacts" | "syncChapterArtifacts">;
   auditService?: Pick<typeof auditService, "auditChapter" | "assessChapterAuditNeed">;
   plannerService?: Pick<typeof plannerService, "buildReplanRecommendation" | "shouldTriggerReplanFromAudit">;
-  styleReviewRunner?: Pick<PostGenerationStyleReviewRunner, "run">;
+  acceptanceAssessmentService?: Pick<ChapterAcceptanceAssessmentService, "assess">;
+  readinessService?: Pick<ChapterRuntimeReadinessService, "assertReady">;
   agentRuntime?: AgentRuntimeLike;
   ensureNovelCharacters?: (novelId: string, actionName: string, minCount?: number) => Promise<void>;
   ensureChapterExecutionContract?: (
@@ -208,7 +210,8 @@ export class ChapterRuntimeCoordinator {
       artifactSyncService,
       auditService: deps.auditService ?? auditService,
       plannerService: deps.plannerService ?? plannerService,
-      styleReviewRunner: deps.styleReviewRunner ?? new PostGenerationStyleReviewRunner(),
+      acceptanceAssessmentService: deps.acceptanceAssessmentService ?? new ChapterAcceptanceAssessmentService(),
+      readinessService: deps.readinessService ?? new ChapterRuntimeReadinessService(),
       agentRuntime: deps.agentRuntime,
       ensureNovelCharacters: deps.ensureNovelCharacters ?? this.ensureNovelCharacters.bind(this),
       ensureChapterExecutionContract: deps.ensureChapterExecutionContract
@@ -228,9 +231,9 @@ export class ChapterRuntimeCoordinator {
   }> {
     const request = this.deps.validateRequest(options);
     await this.deps.ensureNovelCharacters(novelId, "generate chapter content");
-    await this.deps.ensureChapterExecutionContract(novelId, chapterId, request);
 
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
+    this.deps.readinessService.assertReady(assembled.contextPackage);
     this.assertStateDrivenReady(assembled.contextPackage, request);
     await this.markChapterStatus(chapterId, "generating");
     const agentRuntime = this.getAgentRuntime();
@@ -276,7 +279,7 @@ export class ChapterRuntimeCoordinator {
           runId: runStatusId,
           status: "running",
           phase: "finalizing",
-          message: "正在执行风格检查、剧情审计并同步章节状态。",
+          message: "正在完成正文接收检查并同步章节状态。",
         });
         const finalized = await this.finalizeChapterContent({
           novelId,
@@ -315,8 +318,8 @@ export class ChapterRuntimeCoordinator {
     hooks: PipelineRuntimeHooks = {},
   ): Promise<PipelineRuntimeResult> {
     const request = this.deps.validateRequest(options);
-    await this.deps.ensureChapterExecutionContract(novelId, chapterId, request);
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
+    this.deps.readinessService.assertReady(assembled.contextPackage);
     this.assertStateDrivenReady(assembled.contextPackage, request);
     await this.markChapterStatus(chapterId, "generating");
     try {
@@ -334,12 +337,15 @@ export class ChapterRuntimeCoordinator {
               generationState,
               options,
             ),
-          syncFinalChapterArtifacts: (targetNovelId, targetChapterId, content) =>
+          syncFinalChapterArtifacts: (targetNovelId, targetChapterId, content, syncOptions) =>
             this.deps.artifactSyncService.syncChapterArtifacts(
               targetNovelId,
               targetChapterId,
               content,
-              { scheduleBackgroundSync: true },
+              {
+                scheduleBackgroundSync: true,
+                artifactSyncMode: syncOptions?.artifactSyncMode ?? options.artifactSyncMode,
+              },
             ),
           finalizeChapterContent: async (input) => {
             const finalized = await this.finalizeChapterContent({
@@ -541,51 +547,31 @@ export class ChapterRuntimeCoordinator {
     deferArtifactBackgroundSync?: boolean;
     scheduleDeferredArtifactBackgroundSync?: boolean;
   }): Promise<FinalizeChapterContentResult> {
-    const styleReview = await this.deps.styleReviewRunner.run({
+    const finalContent = input.content;
+    const acceptance = await this.deps.acceptanceAssessmentService.assess({
       novelId: input.novelId,
       chapterId: input.chapterId,
-      request: input.request,
+      novelTitle: input.contextPackage.bookContract?.title ?? input.contextPackage.chapter.title,
+      chapterTitle: input.contextPackage.chapter.title,
+      chapterOrder: input.contextPackage.chapter.order,
+      targetWordCount: input.contextPackage.chapter.targetWordCount ?? null,
+      content: finalContent,
       contextPackage: input.contextPackage,
-      content: input.content,
-    });
-
-    if (styleReview.autoRewritten) {
-      await this.deps.artifactSyncService.saveDraftAndArtifacts(
-        input.novelId,
-        input.chapterId,
-        styleReview.finalContent,
-        "repaired",
-        { scheduleBackgroundSync: !input.deferArtifactBackgroundSync },
-      );
-    }
-
-    const lightAssessment = await this.deps.auditService.assessChapterAuditNeed(input.novelId, input.chapterId, {
       provider: input.request.provider,
       model: input.request.model,
       temperature: input.request.temperature,
-      content: styleReview.finalContent,
-      contextPackage: input.contextPackage,
-      lengthControl: input.lengthControl,
     });
-    const auditResult = shouldEscalateToFullAudit({
-      content: styleReview.finalContent,
-      contextPackage: input.contextPackage,
-      lightAssessment,
-    })
-      ? await this.deps.auditService.auditChapter(input.novelId, input.chapterId, "full", {
-        provider: input.request.provider,
-        model: input.request.model,
-        temperature: input.request.temperature,
-        content: styleReview.finalContent,
-        contextPackage: input.contextPackage,
-        lengthControl: input.lengthControl,
-        skipPayoffLedgerSync: true,
-      })
-      : {
-        score: lightAssessment.score,
-        issues: lightAssessment.issues,
-        auditReports: lightAssessment.auditReports,
-      };
+    const auditResult = {
+      score: acceptance.score,
+      issues: acceptance.issues,
+      auditReports: acceptance.auditReports,
+    };
+    const styleReview: StyleReviewResult = {
+      report: null,
+      autoRewritten: false,
+      originalContent: null,
+      finalContent,
+    };
     const activeOpenConflicts = await openConflictService.listOpenConflicts(input.novelId, {
       beforeChapterOrder: input.contextPackage.chapter.order,
       includeCurrentChapter: true,
@@ -596,31 +582,39 @@ export class ChapterRuntimeCoordinator {
       chapterId: input.chapterId,
       request: input.request,
       contextPackage: input.contextPackage,
-      finalContent: styleReview.finalContent,
+      finalContent,
       lengthControl: input.lengthControl,
       auditResult,
       activeOpenConflicts,
       styleReview,
+      acceptance: acceptance.assessment,
       runId: input.runId,
     });
     await this.markChapterStatus(
       input.chapterId,
-      runtimePackage.audit.hasBlockingIssues ? "needs_repair" : "pending_review",
+      acceptance.assessment.status === "repairable"
+      || acceptance.assessment.status === "needs_manual_review"
+      || runtimePackage.audit.hasBlockingIssues
+        ? "needs_repair"
+        : "pending_review",
     );
 
     if (input.deferArtifactBackgroundSync && input.scheduleDeferredArtifactBackgroundSync !== false) {
       await this.deps.artifactSyncService.syncChapterArtifacts(
         input.novelId,
         input.chapterId,
-        styleReview.finalContent,
-        { scheduleBackgroundSync: true },
+        finalContent,
+        {
+          scheduleBackgroundSync: true,
+          artifactSyncMode: input.request.artifactSyncMode,
+        },
       );
     }
 
-    await this.finishTraceRun(input.runId, styleReview.finalContent.length, input.startMs);
+    await this.finishTraceRun(input.runId, finalContent.length, input.startMs);
 
     return {
-      finalContent: styleReview.finalContent,
+      finalContent,
       runtimePackage,
       styleReview,
     };
@@ -652,6 +646,7 @@ export class ChapterRuntimeCoordinator {
     auditResult: Awaited<ReturnType<typeof auditService.auditChapter>>;
     activeOpenConflicts: Awaited<ReturnType<typeof openConflictService.listOpenConflicts>>;
     styleReview: StyleReviewResult;
+    acceptance: ChapterAcceptanceAssessmentOutput;
     runId: string | null;
   }): ChapterRuntimePackage {
     const syntheticPayoffIssues = buildSyntheticPayoffIssues(
@@ -706,7 +701,7 @@ export class ChapterRuntimeCoordinator {
         .filter((issue) => issue.severity === "high" || issue.severity === "critical")
         .map((issue) => issue.ledgerKey),
     ));
-    const hasBlockingIssues = blockingIssueIds.length > 0;
+    const hasBlockingIssues = blockingIssueIds.length > 0 || input.acceptance.status === "needs_manual_review";
     const repairContextPackage = withChapterRepairContext(
       input.contextPackage,
       openIssues.map((issue) => ({
@@ -803,6 +798,11 @@ export class ChapterRuntimeCoordinator {
         nextAction: input.contextPackage.nextAction,
         stateGoalSummary: input.contextPackage.chapterStateGoal?.summary,
         pendingReviewProposalCount: input.contextPackage.pendingReviewProposalCount,
+        acceptanceStatus: input.acceptance.status,
+        continuePolicy: input.acceptance.continuePolicy,
+        riskTags: input.acceptance.riskTags,
+        repairDirectives: input.acceptance.repairDirectives,
+        assetSyncRecommendation: input.acceptance.assetSyncRecommendation,
       },
     };
   }

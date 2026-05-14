@@ -5,9 +5,11 @@ import { ragServices } from "../../rag";
 import { briefSummary, extractFacts } from "../novelP0Utils";
 import { chapterArtifactBackgroundSyncService } from "./ChapterArtifactBackgroundSyncService";
 import { assertChapterContentNotEmpty } from "./chapterEmptyContentError";
+import type { ArtifactSyncMode } from "../novelCoreShared";
 
 export interface ChapterArtifactSyncOptions {
   scheduleBackgroundSync?: boolean;
+  artifactSyncMode?: ArtifactSyncMode;
 }
 
 export class ChapterArtifactSyncService {
@@ -82,7 +84,16 @@ export class ChapterArtifactSyncService {
 
     await this.syncCharacterTimelineForChapter(novelId, chapterId, content);
     if (options.scheduleBackgroundSync !== false) {
-      chapterArtifactBackgroundSyncService.scheduleChapterSync(novelId, chapterId, content);
+      const artifactSyncMode = options.artifactSyncMode ?? "adaptive";
+      if (artifactSyncMode === "strict") {
+        await chapterArtifactBackgroundSyncService.runChapterSyncNow(novelId, chapterId, content, {
+          artifactSyncMode,
+        });
+      } else {
+        chapterArtifactBackgroundSyncService.scheduleChapterSync(novelId, chapterId, content, {
+          artifactSyncMode,
+        });
+      }
     }
     this.queueRagUpsert("chapter", chapterId);
     this.queueRagUpsert("chapter_summary", chapterId);

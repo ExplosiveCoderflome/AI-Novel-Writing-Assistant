@@ -189,3 +189,65 @@ test("display state does not mark succeeded task as completed before facts close
 
   assert.notEqual(displayState.mode, "completed");
 });
+
+function buildMinimalDisplayState(patch) {
+  return buildDirectorDisplayState({
+    task: {
+      status: "running",
+      currentStage: null,
+      currentItemKey: null,
+      currentItemLabel: null,
+      progress: 0,
+      checkpointType: null,
+      checkpointSummary: null,
+      lastError: null,
+      pendingManualRecovery: false,
+      ...patch.task,
+    },
+    projection: {
+      status: "idle",
+      requiresUserAction: false,
+      ...patch.projection,
+    },
+    activeStepNodeKey: patch.activeStepNodeKey ?? null,
+    currentFactStepId: patch.currentFactStepId ?? null,
+    currentFactStepLabel: patch.currentFactStepLabel ?? null,
+    factStep: null,
+    chapterProgress: null,
+  });
+}
+
+test("display state resolves stage from catalog fact step, node alias, checkpoint and task stage", () => {
+  assert.equal(
+    buildMinimalDisplayState({
+      currentFactStepId: "character.cast.prepare",
+    }).stageKey,
+    "character_setup",
+  );
+
+  assert.equal(
+    buildMinimalDisplayState({
+      activeStepNodeKey: "chapter_sync",
+    }).stageKey,
+    "structured_outline",
+  );
+
+  assert.equal(
+    buildMinimalDisplayState({
+      task: {
+        status: "waiting_approval",
+        checkpointType: "book_contract_ready",
+      },
+    }).stageKey,
+    "story_planning",
+  );
+
+  assert.equal(
+    buildMinimalDisplayState({
+      task: {
+        currentStage: "story_macro",
+      },
+    }).stageKey,
+    "story_planning",
+  );
+});

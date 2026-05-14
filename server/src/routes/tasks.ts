@@ -149,6 +149,7 @@ router.post("/auto-director-follow-ups/:taskId/actions", validate({
     const { taskId } = req.params as z.infer<typeof autoDirectorFollowUpParamsSchema>;
     const body = req.body as z.infer<typeof autoDirectorFollowUpActionBodySchema>;
     const data = await autoDirectorFollowUpActionExecutor.execute({
+      directorTaskId: taskId,
       taskId,
       actionCode: body.actionCode,
       source: "web",

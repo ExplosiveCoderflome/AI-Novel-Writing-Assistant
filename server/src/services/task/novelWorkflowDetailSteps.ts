@@ -2,6 +2,7 @@
   NovelWorkflowCheckpoint,
   NovelWorkflowStage,
 } from "@ai-novel/shared/types/novelWorkflow";
+import { resolveWorkflowStageFromItemOrCheckpoint } from "@ai-novel/shared/types/directorWorkflowStepCatalog";
 import type { TaskStatus, UnifiedTaskStep } from "@ai-novel/shared/types/task";
 import { NOVEL_WORKFLOW_STAGE_STEPS, buildSteps } from "./taskCenter.shared";
 
@@ -29,16 +30,6 @@ const WORKFLOW_ITEM_STAGE_MAP: Partial<Record<string, NovelWorkflowStage>> = {
   quality_repair: "quality_repair",
 };
 
-const CHECKPOINT_STAGE_MAP: Record<NovelWorkflowCheckpoint, NovelWorkflowStage> = {
-  candidate_selection_required: "auto_director",
-  book_contract_ready: "story_macro",
-  character_setup_required: "character_setup",
-  volume_strategy_ready: "volume_strategy",
-  chapter_batch_ready: "chapter_execution",
-  replan_required: "quality_repair",
-  workflow_completed: "quality_repair",
-};
-
 function resolveDirectorPhaseStage(phase: unknown): NovelWorkflowStage | null {
   if (phase === "candidate_selection") return "auto_director";
   if (phase === "story_macro") return "story_macro";
@@ -60,14 +51,20 @@ function resetStep(step: UnifiedTaskStep): UnifiedTaskStep {
 
 function resolveWorkflowDisplayStage(input: {
   lane: string;
+  status: TaskStatus;
   novelId: string | null;
   currentItemKey: string | null;
   checkpointType: NovelWorkflowCheckpoint | null;
   directorSessionPhase?: unknown;
 }): NovelWorkflowStage {
+  const fromCatalog = resolveWorkflowStageFromItemOrCheckpoint({
+    currentItemKey: input.currentItemKey,
+    checkpointType: input.checkpointType,
+    status: input.status,
+  });
+  if (fromCatalog) return fromCatalog;
   const fromItemKey = input.currentItemKey ? WORKFLOW_ITEM_STAGE_MAP[input.currentItemKey] : null;
   if (fromItemKey) return fromItemKey;
-  if (input.checkpointType) return CHECKPOINT_STAGE_MAP[input.checkpointType];
   const fromDirectorPhase = resolveDirectorPhaseStage(input.directorSessionPhase);
   if (fromDirectorPhase) return fromDirectorPhase;
   if (input.lane === "auto_director" && !input.novelId) return "auto_director";

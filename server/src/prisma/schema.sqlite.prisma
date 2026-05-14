@@ -381,6 +381,7 @@ model Novel {
   stateChangeProposals StateChangeProposal[]
   openConflicts      OpenConflict[]
   payoffLedgerItems  PayoffLedgerItem[]
+  artifactSyncCheckpoints ChapterArtifactSyncCheckpoint[]
   storyPlans         StoryPlan[]
   replanRuns         ReplanRun[]
   auditReports       AuditReport[]
@@ -496,10 +497,31 @@ model Chapter {
   introducedCharacterResources CharacterResourceLedgerItem[] @relation("CharacterResourceIntroducedChapter")
   lastTouchedCharacterResources CharacterResourceLedgerItem[] @relation("CharacterResourceLastTouchedChapter")
   characterResourceEvents CharacterResourceEvent[]
+  artifactSyncCheckpoints ChapterArtifactSyncCheckpoint[]
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
 
   @@index([novelId, order])
+}
+
+model ChapterArtifactSyncCheckpoint {
+  id           String   @id @default(cuid())
+  novelId      String
+  chapterId    String
+  contentHash  String
+  artifactType String
+  syncMode     String
+  status       String   @default("succeeded")
+  sourceType   String?
+  sourceStage  String?
+  metadataJson String?
+  novel        Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  chapter      Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([novelId, chapterId, contentHash, artifactType, syncMode])
+  @@index([novelId, chapterId, artifactType, updatedAt])
 }
 
 model Character {

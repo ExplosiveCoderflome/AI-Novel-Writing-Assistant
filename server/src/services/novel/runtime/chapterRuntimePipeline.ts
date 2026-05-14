@@ -87,12 +87,13 @@ interface RunPipelineChapterDeps {
     chapterId: string,
     content: string,
     generationState: "drafted" | "repaired",
-    options?: { scheduleBackgroundSync?: boolean },
+    options?: { scheduleBackgroundSync?: boolean; artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"] },
   ) => Promise<void>;
   syncFinalChapterArtifacts: (
     novelId: string,
     chapterId: string,
     content: string,
+    options?: { artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"] },
   ) => Promise<void>;
   finalizeChapterContent: (input: {
     novelId: string;
@@ -134,6 +135,7 @@ export async function runPipelineChapterWithRuntime(
     autoRepair = true,
     qualityThreshold = 75,
     repairMode = "light_repair",
+    artifactSyncMode = "adaptive",
     ...requestInput
   } = options;
   const request = deps.validateRequest(requestInput);
@@ -164,17 +166,19 @@ export async function runPipelineChapterWithRuntime(
       if (!generatedDraft.artifactsAlreadySynced) {
         await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted", {
           scheduleBackgroundSync: false,
+          artifactSyncMode,
         });
       }
     } else if (attempt === 0) {
       await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted", {
         scheduleBackgroundSync: false,
+        artifactSyncMode,
       });
     }
 
     if (!autoReview) {
       await deps.markChapterGenerationState(chapterId, "approved");
-      await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, content);
+      await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, content, artifactSyncMode);
       return {
         reviewExecuted: false,
         pass: true,
@@ -207,19 +211,26 @@ export async function runPipelineChapterWithRuntime(
     const styleLeakageIssues = detectStyleReferenceLeakageIssues(content, latestResult.runtimePackage);
     latestIssues = [
       ...toReviewIssues(latestResult.runtimePackage),
+      ...toAcceptanceDirectiveIssues(latestResult.runtimePackage),
       ...styleLeakageIssues,
     ];
     content = latestResult.finalContent;
     await deps.markChapterGenerationState(chapterId, "reviewed");
 
-    pass = isQualityPass(latestResult.runtimePackage.audit.score, qualityThreshold)
+    const acceptanceStatus = latestResult.runtimePackage.meta?.acceptanceStatus;
+    const continuePolicy = latestResult.runtimePackage.meta?.continuePolicy;
+    const shouldPauseForAcceptance = continuePolicy === "pause" || acceptanceStatus === "needs_manual_review";
+    const shouldRepairFromAcceptance = continuePolicy === "repair_once" || acceptanceStatus === "repairable";
+    pass = !shouldPauseForAcceptance
+      && !shouldRepairFromAcceptance
+      && isQualityPass(latestResult.runtimePackage.audit.score, qualityThreshold)
       && styleLeakageIssues.length === 0;
     if (pass) {
       await deps.markChapterGenerationState(chapterId, "approved");
       break;
     }
 
-    if (!autoRepair || repairMode === "detect_only" || attempt >= maxRetries) {
+    if (shouldPauseForAcceptance || !autoRepair || repairMode === "detect_only" || attempt >= maxRetries) {
       break;
     }
 
@@ -247,6 +258,7 @@ export async function runPipelineChapterWithRuntime(
     retryCountUsed += 1;
     await deps.saveDraftAndArtifacts(novelId, chapterId, content, "repaired", {
       scheduleBackgroundSync: false,
+      artifactSyncMode,
     });
   }
 
@@ -254,7 +266,7 @@ export async function runPipelineChapterWithRuntime(
     throw new Error("Pipeline chapter runtime did not produce a result.");
   }
 
-  await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, latestResult.finalContent);
+  await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, latestResult.finalContent, artifactSyncMode);
 
   return {
     reviewExecuted: true,
@@ -328,11 +340,12 @@ async function syncFinalRetainedChapterArtifacts(
   novelId: string,
   chapterId: string,
   content: string,
+  artifactSyncMode: PipelineRuntimeInput["artifactSyncMode"],
 ): Promise<void> {
   if (!content.trim()) {
     return;
   }
-  await deps.syncFinalChapterArtifacts(novelId, chapterId, content);
+  await deps.syncFinalChapterArtifacts(novelId, chapterId, content, { artifactSyncMode });
 }
 
 function isQualityPass(score: QualityScore, qualityThreshold: number): boolean {
@@ -357,6 +370,22 @@ function toReviewIssues(runtimePackage: ChapterRuntimePackage): ReviewIssue[] {
       evidence: issue.evidence,
       fixSuggestion: issue.fixSuggestion,
     })));
+}
+
+function toAcceptanceDirectiveIssues(runtimePackage: ChapterRuntimePackage): ReviewIssue[] {
+  const directives = runtimePackage.meta?.repairDirectives ?? [];
+  return directives.map((directive) => ({
+    severity: directive.mode === "manual" || directive.mode === "rewrite" ? "high" : "medium",
+    category: directive.target === "character"
+      ? "logic"
+      : directive.target === "plot" || directive.target === "ending"
+        ? "pacing"
+        : directive.target === "voice"
+          ? "voice"
+          : "coherence",
+    evidence: `acceptance_directive:${directive.target}`,
+    fixSuggestion: directive.instruction,
+  }));
 }
 
 function detectStyleReferenceLeakageIssues(

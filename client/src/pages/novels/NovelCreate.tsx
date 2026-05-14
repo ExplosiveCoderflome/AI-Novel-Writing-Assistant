@@ -229,7 +229,7 @@ export default function NovelCreate() {
                   const search = new URLSearchParams();
                   search.set("stage", resumeTarget?.stage ?? "story_macro");
                   if (workflowTaskId) {
-                    search.set("taskId", workflowTaskId);
+                    search.set("directorTaskId", workflowTaskId);
                   }
                   if (resumeTarget?.chapterId) {
                     search.set("chapterId", resumeTarget.chapterId);

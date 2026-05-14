@@ -16,7 +16,7 @@ import { parseSeedPayload } from "../workflow/novelWorkflow.shared";
 import {
   hasDirectorAutoExecutionChapterContract,
   resolveDirectorAutoExecutionRangeFromState,
-} from "./novelDirectorAutoExecution";
+} from "./automation/novelDirectorAutoExecution";
 import { resolveStructuredOutlineRecoveryCursor } from "./novelDirectorStructuredOutlineRecovery";
 
 export interface DirectorTakeoverLoadedState {

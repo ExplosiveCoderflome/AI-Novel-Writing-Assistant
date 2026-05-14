@@ -3,7 +3,7 @@ import {
   hasDirectorAutoExecutionChapterContract,
   hasDirectorSyncedChapterExecutionContext,
   type DirectorAutoExecutionChapterRef,
-} from "../novelDirectorAutoExecution";
+} from "../automation/novelDirectorAutoExecution";
 
 export const CHAPTER_EXECUTION_PROGRESS_STAGES = [
   "execution_contract_ready",

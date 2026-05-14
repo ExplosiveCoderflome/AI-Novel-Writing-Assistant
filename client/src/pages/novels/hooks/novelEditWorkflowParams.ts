@@ -5,7 +5,7 @@ export interface NovelEditWorkflowTaskIds {
 
 export function readNovelEditWorkflowTaskIds(searchParams: URLSearchParams): NovelEditWorkflowTaskIds {
   return {
-    directorTaskId: searchParams.get("taskId") ?? "",
+    directorTaskId: searchParams.get("directorTaskId") ?? searchParams.get("taskId") ?? "",
     workspaceTaskId: searchParams.get("workspaceTaskId") ?? "",
   };
 }
@@ -23,9 +23,10 @@ export function withNovelEditWorkspaceTaskId(searchParams: URLSearchParams, task
 export function withNovelEditDirectorTaskId(searchParams: URLSearchParams, taskId: string): URLSearchParams {
   const next = new URLSearchParams(searchParams);
   if (taskId) {
-    next.set("taskId", taskId);
+    next.set("directorTaskId", taskId);
   } else {
-    next.delete("taskId");
+    next.delete("directorTaskId");
   }
+  next.delete("taskId");
   return next;
 }

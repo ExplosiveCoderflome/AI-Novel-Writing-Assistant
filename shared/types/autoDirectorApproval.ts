@@ -1,4 +1,5 @@
 import type { NovelWorkflowCheckpoint } from "./novelWorkflow";
+import { resolveWorkflowApprovalPointForCheckpoint } from "./directorWorkflowStepCatalog.js";
 
 export const DIRECTOR_AUTO_APPROVAL_GROUPS = [
   {
@@ -139,14 +140,6 @@ const AUTO_APPROVAL_POINT_CODE_SET = new Set<string>(
   DIRECTOR_AUTO_APPROVAL_POINTS.map((item) => item.code),
 );
 
-const CHECKPOINT_APPROVAL_POINT_MAP: Partial<Record<NovelWorkflowCheckpoint, DirectorAutoApprovalPointCode>> = {
-  candidate_selection_required: "candidate_direction_confirmed",
-  character_setup_required: "character_setup_ready",
-  volume_strategy_ready: "volume_strategy_ready",
-  chapter_batch_ready: "structured_outline_ready",
-  replan_required: "replan_continue",
-};
-
 export function isDirectorAutoApprovalPointCode(value: unknown): value is DirectorAutoApprovalPointCode {
   return typeof value === "string" && AUTO_APPROVAL_POINT_CODE_SET.has(value);
 }
@@ -191,7 +184,8 @@ export function resolveDirectorAutoApprovalPointForCheckpoint(
   if (!checkpointType || typeof checkpointType !== "string") {
     return null;
   }
-  return CHECKPOINT_APPROVAL_POINT_MAP[checkpointType as NovelWorkflowCheckpoint] ?? null;
+  const pointCode = resolveWorkflowApprovalPointForCheckpoint(checkpointType);
+  return isDirectorAutoApprovalPointCode(pointCode) ? pointCode : null;
 }
 
 export function shouldAutoApproveDirectorCheckpoint(

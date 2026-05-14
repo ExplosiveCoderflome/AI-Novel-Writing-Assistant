@@ -55,6 +55,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
     return {
       items: [{
         itemType: "task",
+        directorTaskId: "task_1",
         taskId: "task_1",
         novelId: "novel_1",
         novelTitle: "《雾港巡夜人》",
@@ -123,6 +124,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
   AutoDirectorFollowUpService.prototype.getDetail = async function getDetailMock(taskId, options) {
     calls.push(["detail", taskId, options]);
     return {
+      directorTaskId: taskId,
       taskId,
       checkpointSummary: "前 10 章已准备完成。",
       blockingReason: null,
@@ -146,6 +148,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
   AutoDirectorFollowUpActionExecutor.prototype.execute = async function executeMock(input) {
     calls.push(["execute", input]);
     return {
+      directorTaskId: input.taskId,
       taskId: input.taskId,
       actionCode: input.actionCode,
       code: "executed",
@@ -165,11 +168,13 @@ test("auto director follow-up routes expose overview, list, detail, and action e
       failureCount: 0,
       skippedCount: 1,
       itemResults: [{
+        directorTaskId: "task_1",
         taskId: "task_1",
         actionCode: input.actionCode,
         code: "executed",
         message: "执行成功",
       }, {
+        directorTaskId: "task_2",
         taskId: "task_2",
         actionCode: input.actionCode,
         code: "state_changed",
@@ -275,6 +280,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         heal: false,
       }],
       ["execute", {
+        directorTaskId: "task_1",
         taskId: "task_1",
         actionCode: "continue_auto_execution",
         source: "web",
@@ -282,6 +288,7 @@ test("auto director follow-up routes expose overview, list, detail, and action e
         idempotencyKey: "route-k1",
       }],
       ["execute", {
+        directorTaskId: "task_1",
         taskId: "task_1",
         actionCode: "safe_fix_validation",
         source: "web",

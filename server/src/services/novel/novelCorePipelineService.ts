@@ -294,6 +294,7 @@ export class NovelCorePipelineService {
         skipCompleted: job.skipCompleted ?? payload.skipCompleted,
         qualityThreshold: job.qualityThreshold ?? payload.qualityThreshold,
         repairMode: job.repairMode ?? payload.repairMode,
+        artifactSyncMode: payload.artifactSyncMode,
         provider: payload.provider,
         model: payload.model,
         temperature: payload.temperature,
@@ -387,6 +388,7 @@ export class NovelCorePipelineService {
             skipCompleted: options.skipCompleted ?? true,
             qualityThreshold: options.qualityThreshold,
             repairMode: options.repairMode ?? "light_repair",
+            artifactSyncMode: options.artifactSyncMode ?? "adaptive",
           }),
         },
       });
@@ -439,6 +441,7 @@ export class NovelCorePipelineService {
       skipCompleted: job.skipCompleted ?? payload.skipCompleted,
       qualityThreshold: job.qualityThreshold ?? payload.qualityThreshold,
       repairMode: job.repairMode ?? payload.repairMode,
+      artifactSyncMode: payload.artifactSyncMode,
       provider: payload.provider,
       model: payload.model,
       temperature: payload.temperature,
@@ -570,6 +573,7 @@ export class NovelCorePipelineService {
       skipCompleted: persistedPayload.skipCompleted ?? options.skipCompleted ?? true,
       qualityThreshold: persistedPayload.qualityThreshold ?? options.qualityThreshold,
       repairMode: persistedPayload.repairMode ?? options.repairMode ?? "light_repair",
+      artifactSyncMode: persistedPayload.artifactSyncMode ?? options.artifactSyncMode ?? "adaptive",
     };
     let totalRetryCount = Math.max(existingJob?.retryCount ?? 0, 0);
     const qualityAlertDetails = [...(persistedPayload.qualityAlertDetails ?? [])];
@@ -694,6 +698,7 @@ export class NovelCorePipelineService {
               autoRepair: runtimePayload.autoRepair,
               qualityThreshold,
               repairMode: runtimePayload.repairMode,
+              artifactSyncMode: runtimePayload.artifactSyncMode,
             },
             {
               onCheckCancelled: () => this.ensurePipelineNotCancelled(jobId),

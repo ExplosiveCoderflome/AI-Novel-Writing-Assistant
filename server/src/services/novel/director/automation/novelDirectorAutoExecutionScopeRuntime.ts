@@ -21,7 +21,7 @@ import { isSkippableAutoExecutionReviewFailure } from "./novelDirectorAutoExecut
 import {
   flattenPreparedOutlineChapters,
   resolveStructuredOutlineRecoveryCursor,
-} from "./novelDirectorStructuredOutlineRecovery";
+} from "../novelDirectorStructuredOutlineRecovery";
 
 interface DirectorAutoExecutionResolvedScope {
   range: DirectorAutoExecutionRange;
@@ -130,6 +130,7 @@ export function buildRequestedAutoExecutionState(input: {
       volumeOrder: requestedPlan.volumeOrder,
       autoReview: requestedPlan.autoReview,
       autoRepair: requestedPlan.autoRepair,
+      artifactSyncMode: requestedPlan.artifactSyncMode,
       pipelineJobId: input.existingPipelineJobId?.trim() || null,
       pipelineStatus: input.existingPipelineJobId ? "running" : null,
     };
@@ -153,6 +154,7 @@ export function buildRequestedAutoExecutionState(input: {
     volumeOrder: requestedPlan.volumeOrder,
     autoReview: requestedPlan.autoReview,
     autoRepair: requestedPlan.autoRepair,
+    artifactSyncMode: requestedPlan.artifactSyncMode,
     scopeLabel: null,
     pipelineJobId: keepPipelineBinding
       ? (input.existingPipelineJobId?.trim() || input.existingState.pipelineJobId || null)

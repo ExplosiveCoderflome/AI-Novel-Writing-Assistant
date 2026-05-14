@@ -10,6 +10,7 @@ import type {
   StoryPlanLevel,
 } from "./novel";
 import type { LLMProvider } from "./llm";
+import type { ArtifactSyncMode } from "./novel";
 import type { BookAnalysisSectionKey } from "./bookAnalysis";
 import type { NovelWorkflowResumeTarget, NovelWorkflowStage } from "./novelWorkflow";
 import type { StoryMacroPlan } from "./storyMacro";
@@ -195,6 +196,7 @@ export interface DirectorAutoExecutionPlan {
   volumeOrder?: number;
   autoReview?: boolean;
   autoRepair?: boolean;
+  artifactSyncMode?: ArtifactSyncMode;
 }
 
 export interface DirectorFullBookAutopilotContract {

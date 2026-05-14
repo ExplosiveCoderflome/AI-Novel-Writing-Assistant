@@ -160,6 +160,7 @@ router.post("/:taskId/actions", validate({ params: taskParamsSchema, body: singl
     const { taskId } = req.params as z.infer<typeof taskParamsSchema>;
     const body = req.body as z.infer<typeof singleActionBodySchema>;
     const data = await actionExecutor.execute({
+      directorTaskId: taskId,
       taskId,
       actionCode: body.actionCode,
       source: "web",

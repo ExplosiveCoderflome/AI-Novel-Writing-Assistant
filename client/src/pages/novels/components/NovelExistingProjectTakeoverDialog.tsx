@@ -108,7 +108,7 @@ function buildEditRoute(input: {
   volumeId?: string | null;
 }): string {
   const search = new URLSearchParams();
-  search.set("taskId", input.workflowTaskId);
+  search.set("directorTaskId", input.workflowTaskId);
   if (input.stage) search.set("stage", input.stage);
   if (input.chapterId) search.set("chapterId", input.chapterId);
   if (input.volumeId) search.set("volumeId", input.volumeId);

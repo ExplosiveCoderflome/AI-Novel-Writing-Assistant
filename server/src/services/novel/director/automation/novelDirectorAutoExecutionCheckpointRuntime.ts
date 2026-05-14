@@ -6,7 +6,7 @@ import type {
 import { isDirectorAutoExecutionRunMode, isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
 import type { PipelineJobStatus } from "@ai-novel/shared/types/novel";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
-import { buildNovelEditResumeTarget } from "../workflow/novelWorkflow.shared";
+import { buildNovelEditResumeTarget } from "../../workflow/novelWorkflow.shared";
 import {
   buildDirectorAutoExecutionCompletedLabel,
   buildDirectorAutoExecutionCompletedSummary,
@@ -15,9 +15,9 @@ import {
   buildDirectorAutoExecutionScopeLabelFromState,
   type DirectorAutoExecutionRange,
 } from "./novelDirectorAutoExecution";
-import { buildDirectorSessionState } from "./novelDirectorHelpers";
-import { PIPELINE_REPLAN_NOTICE_CODE, parsePipelinePayload } from "../pipelineJobState";
-import { buildDirectorQualityRepairRisk } from "./novelDirectorQualityRepairRisk";
+import { buildDirectorSessionState } from "../novelDirectorHelpers";
+import { PIPELINE_REPLAN_NOTICE_CODE, parsePipelinePayload } from "../../pipelineJobState";
+import { buildDirectorQualityRepairRisk } from "../novelDirectorQualityRepairRisk";
 
 export type AutoExecutionResumeStage = "chapter" | "pipeline";
 

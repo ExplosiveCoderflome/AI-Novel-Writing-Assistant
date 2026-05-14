@@ -17,7 +17,7 @@ import {
   buildSkippableAutoExecutionReviewFailureSummary,
   buildSkippableAutoExecutionReviewRecoveryHint,
   isSkippableAutoExecutionReviewFailure,
-} from "../../novel/director/novelDirectorAutoExecutionFailure";
+} from "../../novel/director/automation/novelDirectorAutoExecutionFailure";
 import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService";
 import {
   getDirectorLlmOptionsFromSeedPayload,
