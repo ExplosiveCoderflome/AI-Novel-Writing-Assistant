@@ -13,6 +13,7 @@ import type {
   DirectorWorkspaceAnalysisResponse,
 } from "@ai-novel/shared/types/directorRuntime";
 import type {
+  DirectorContinuationMode,
   DirectorCandidatePatchRequest,
   DirectorCandidateTitleRefineRequest,
   DirectorCandidatesRequest,
@@ -225,7 +226,7 @@ export async function approveDirectorGate(directorTaskId: string): Promise<ApiRe
 export async function continueDirectorRuntime(
   directorTaskId: string,
   payload?: Partial<DirectorRuntimePolicyUpdateRequest> & {
-    continuationMode?: "resume" | "auto_execute_range";
+    continuationMode?: DirectorContinuationMode;
     batchAlreadyStartedCount?: number;
   },
 ) {

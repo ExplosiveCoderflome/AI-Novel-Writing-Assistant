@@ -1,6 +1,7 @@
 ﻿import type { KeyboardEvent, MouseEvent } from "react";
 import { useMemo, useState } from "react";
 import type { ProjectProgressStatus } from "@ai-novel/shared/types/novel";
+import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type {
   DirectorBookAutomationAction,
   DirectorBookAutomationProjection,
@@ -145,7 +146,7 @@ export default function NovelList() {
   const continueWorkflowMutation = useMutation({
     mutationFn: async (input: {
       taskId: string;
-      mode?: "resume" | "auto_execute_range";
+      mode?: DirectorContinuationMode;
     }) => continueNovelWorkflow(input.taskId, input.mode ? { continuationMode: input.mode } : undefined),
     onSuccess: async (response, input) => {
       const invalidations = [

@@ -30,8 +30,10 @@ export function resolveWorkflowContinuationFeedback(
 
   return {
     tone: "success",
-    message: options?.mode === "auto_execute_range"
-      ? `已继续自动执行${scopeLabel}。`
-      : "自动导演已继续推进。",
+    message: options?.mode === "skip_quality_repair"
+      ? `已跳过本次质量建议，自动导演会继续执行${scopeLabel}。`
+      : options?.mode === "auto_execute_range"
+        ? `已继续自动执行${scopeLabel}。`
+        : "自动导演已继续推进。",
   };
 }

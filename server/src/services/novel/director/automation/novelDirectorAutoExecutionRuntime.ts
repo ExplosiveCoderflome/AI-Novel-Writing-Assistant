@@ -66,6 +66,7 @@ export class NovelDirectorAutoExecutionRuntime {
     previousFailureMessage?: string | null;
     allowSkipReviewBlockedChapter?: boolean;
     approveAutoExecutionScope?: boolean;
+    skipCurrentQualityRepair?: boolean;
   }): Promise<void> {
     let { range, autoExecution, pipelineJobId } = await prepareRequestedAutoExecutionState(this.deps, {
       novelId: input.novelId,
@@ -322,6 +323,7 @@ export class NovelDirectorAutoExecutionRuntime {
             noticeSummary: job.noticeSummary.trim(),
             payload: job.payload,
             approveAutoExecutionScope: input.approveAutoExecutionScope,
+            skipCurrentQualityRepair: input.skipCurrentQualityRepair,
           });
           if (
             noticeAction.checkpointType === "replan_required"

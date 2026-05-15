@@ -240,12 +240,12 @@ export function buildFullBookAutopilotExecutionPlan(): DirectorAutoExecutionPlan
   };
 }
 
-export type DirectorContinuationMode = "resume" | "auto_execute_range";
+export type DirectorContinuationMode = "resume" | "auto_execute_range" | "skip_quality_repair";
 
 export function normalizeDirectorContinuationMode(
   value: unknown,
 ): DirectorContinuationMode | null {
-  if (value === "resume" || value === "auto_execute_range") {
+  if (value === "resume" || value === "auto_execute_range" || value === "skip_quality_repair") {
     return value;
   }
   return null;

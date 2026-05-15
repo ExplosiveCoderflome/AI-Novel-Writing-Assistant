@@ -2,6 +2,7 @@ import type {
   DirectorBookAutomationAction,
   DirectorBookAutomationProjection,
 } from "@ai-novel/shared/types/directorRuntime";
+import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 
 export function isDirectorCockpitContinuationAction(action: DirectorBookAutomationAction): boolean {
   return action.type === "continue" || action.type === "auto_execute_range";
@@ -9,7 +10,7 @@ export function isDirectorCockpitContinuationAction(action: DirectorBookAutomati
 
 export function getDirectorCockpitContinuationMode(
   action: DirectorBookAutomationAction,
-): "resume" | "auto_execute_range" | undefined {
+): DirectorContinuationMode | undefined {
   if (action.type === "auto_execute_range") {
     return "auto_execute_range";
   }

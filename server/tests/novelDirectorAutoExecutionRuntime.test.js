@@ -1063,6 +1063,132 @@ test("runFromReady pauses replan notices in AI-driver execution", async () => {
   assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"), false);
 });
 
+test("runFromReady can skip a replan notice and continue the remaining auto-execution range", async () => {
+  const calls = [];
+  let phase = "initial";
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        if (phase === "initial") {
+          return [
+            withExecutionDetail({ id: "chapter-1", order: 1, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+            withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+            withExecutionDetail({ id: "chapter-3", order: 3, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+          ];
+        }
+        if (phase === "completed") {
+          return [
+            { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
+            withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+            { id: "chapter-3", order: 3, generationState: "approved", chapterStatus: "completed", content: "正文3" },
+          ];
+        }
+        return [
+          { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
+          withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+          withExecutionDetail({ id: "chapter-3", order: 3, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob(_novelId, options) {
+        calls.push(["startPipelineJob", options.startOrder, options.endOrder]);
+        return calls.filter((call) => call[0] === "startPipelineJob").length === 1
+          ? { id: "job-replan", status: "queued" }
+          : { id: "job-after-skip", status: "queued" };
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        if (jobId === "job-after-skip") {
+          phase = "completed";
+          return {
+            id: jobId,
+            status: "succeeded",
+            progress: 1,
+            currentStage: null,
+            currentItemLabel: null,
+            noticeSummary: null,
+            error: null,
+          };
+        }
+        phase = "after_replan_notice";
+        return {
+          id: "job-replan",
+          status: "succeeded",
+          progress: 1,
+          currentStage: null,
+          currentItemLabel: null,
+          payload: JSON.stringify({
+            repairMode: "heavy_repair",
+            replanAlertDetails: ["第 1 章需要重规划"],
+          }),
+          noticeCode: "PIPELINE_REPLAN_REQUIRED",
+          noticeSummary: "State-driven replan is required before continuing: 第 1 章需要重规划",
+          error: null,
+        };
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push([
+          "bootstrapTask",
+          input.seedPayload.autoExecution?.qualityDebtChapterOrders ?? [],
+        ]);
+      },
+      async getTaskById() {
+        return { status: "running" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push(["recordCheckpoint", taskId, input.checkpointType, input.seedPayload.autoExecution.qualityDebtChapterOrders ?? []]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+    async recordAutoApproval(input) {
+      calls.push(["recordAutoApproval", input.checkpointType, input.qualityRepairRisk.riskLevel]);
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest(),
+    existingState: {
+      enabled: true,
+      mode: "chapter_range",
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 3,
+      totalChapterCount: 3,
+      pipelineJobId: null,
+      pipelineStatus: null,
+    },
+    skipCurrentQualityRepair: true,
+  });
+
+  assert.equal(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "replan_required"), false);
+  assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
+    [1, 1],
+    [3, 3],
+  ]);
+  assert.ok(calls.some((call) => call[0] === "bootstrapTask" && Array.isArray(call[1]) && call[1].includes(2)));
+  assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "replan_required"), false);
+  assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
+});
+
 test("runFromReady keeps replan notices automatic in full-book autopilot", async () => {
   const calls = [];
   let phase = "initial";
