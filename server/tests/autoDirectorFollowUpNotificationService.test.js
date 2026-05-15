@@ -120,7 +120,7 @@ test("auto director follow-up notification service delivers approval-required ev
     );
     assert.equal(
       fetchCalls[0].body.card.actions.at(-1).url,
-      "https://writer.example.test/auto-director/follow-ups?taskId=task_chapter_range",
+      "https://writer.example.test/auto-director/follow-ups?directorTaskId=task_chapter_range",
     );
 
     assert.equal(notifications.length, 1);
@@ -222,7 +222,7 @@ test("auto director follow-up notification service delivers approval-required ev
     assert.match(fetchCalls[0].body.markdown.content, /callbackId=/);
     assert.match(fetchCalls[0].body.markdown.content, /signature=/);
     assert.match(fetchCalls[0].body.markdown.content, /\[查看详情\]\(https:\/\/writer\.example\.test\/tasks\?kind=novel_workflow&id=task_chapter_range\)/);
-    assert.match(fetchCalls[0].body.markdown.content, /\[打开跟进中心\]\(https:\/\/writer\.example\.test\/auto-director\/follow-ups\?taskId=task_chapter_range\)/);
+    assert.match(fetchCalls[0].body.markdown.content, /\[打开跟进中心\]\(https:\/\/writer\.example\.test\/auto-director\/follow-ups\?directorTaskId=task_chapter_range\)/);
 
     assert.equal(notifications.length, 1);
     assert.equal(notifications[0].eventType, "auto_director.approval_required");
@@ -516,7 +516,7 @@ test("auto director follow-up notification service prefers saved baseUrl when bu
     assert.equal(fetchCalls[0].url, "https://relay.example.test/dingtalk");
     assert.equal(
       fetchCalls[0].body.card.actions.at(-1).url,
-      "https://book.example.test/auto-director/follow-ups?taskId=task_chapter_range",
+      "https://book.example.test/auto-director/follow-ups?directorTaskId=task_chapter_range",
     );
     assert.equal(
       fetchCalls[0].body.card.actions[0].callback.endpoint,

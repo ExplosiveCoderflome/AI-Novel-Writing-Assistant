@@ -26,6 +26,8 @@
 - 正文生成前只做最低可写性检查：章节存在、人物可用、上下文包可组装、任务目标可解释。
 - 生成后用一次结构化接收闸门判断是否可继续、是否需要局部修文、是否需要人工确认。
 - 章节热路径必须维护统一的章节义务合同：`mustHitNow`、`mustPreserve`、`requiredPayoffTouches`、`requiredCharacterAppearances`、`requiredGoalChanges`、`canDefer`、`forbiddenCrossings`。writer、接收闸门、局部修复和重规划判断都应消费同一份合同，避免规划、写作和审核各自解释章节职责。
+- 章节修复、审阅和上下文组装必须兼容旧运行记录中的章节写作上下文。旧 `chapterWriteContext` 如果缺少新增的 `obligationContract`，运行时应补齐空合同，而不是让修复流崩溃；补齐后仍由当前章节任务、角色职责、伏笔账本和资源状态重新组织审阅与修复上下文。
+- 章节义务上下文的结构化提醒不能挤掉高风险资源和逾期伏笔。审阅与修复上下文应保留资源不可用、资源需确认、urgent/overdue payoff 等关键信号，防止 AI 修文在缺少约束的情况下继续使用失效道具或忽略必须兑现的压力。
 - 接收闸门必须把未兑现义务输出为结构化 `missingObligations`，并给出 `repairability`：局部漏写用 `patchable_obligation_gap`，需要整章调整用 `rewrite_needed`，章节职责与邻章安排失配才用 `plan_misalignment`。
 - 自动修文默认最多一次；失败后记录待修状态或 repair ticket，不进入无限重试。
 - 局部 patch repair 是轻修优先策略，不是章节任务的唯一修复路径。补丁计划 Schema 校验失败、targetExcerpt 不唯一、targetExcerpt 太短、目标片段缺失或补丁无效时，应转为可恢复的局部修复失败，由上层质量链路升级到整章轻修或记录待修状态，不能直接让自动导演任务以原始 Zod 错误失败。

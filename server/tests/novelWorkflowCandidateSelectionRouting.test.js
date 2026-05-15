@@ -90,7 +90,7 @@ test("edit resume routes keep manual workspace tasks separate from director task
       lane: "auto_director",
       stage: "structured",
     }),
-    "/novels/novel-1/edit?stage=structured&taskId=director-task",
+    "/novels/novel-1/edit?stage=structured&directorTaskId=director-task",
   );
 });
 

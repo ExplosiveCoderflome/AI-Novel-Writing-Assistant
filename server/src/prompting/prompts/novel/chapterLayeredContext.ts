@@ -1,5 +1,6 @@
 import type {
   BookContractContext,
+  ChapterExecutionObligationContract,
   ChapterMissionContext,
   ChapterRepairContext,
   ChapterReviewContext,
@@ -51,6 +52,16 @@ export const WRITER_FORBIDDEN_GROUPS = [
 export { resolveTargetWordRange } from "./chapterLayeredContextShared";
 
 export type ChapterWriterBlockMode = "full" | "incremental" | "review" | "repair";
+
+const EMPTY_OBLIGATION_CONTRACT: ChapterExecutionObligationContract = {
+  mustHitNow: [],
+  mustPreserve: [],
+  requiredPayoffTouches: [],
+  requiredCharacterAppearances: [],
+  requiredGoalChanges: [],
+  canDefer: [],
+  forbiddenCrossings: [],
+};
 
 interface ChapterWriterBlockOptions {
   mode?: ChapterWriterBlockMode;
@@ -306,10 +317,30 @@ function buildChapterExecutionObligationContract(input: {
   };
 }
 
+function normalizeChapterWriteContext(writeContext: ChapterWriteContext): ChapterWriteContext {
+  const legacyContext = writeContext as ChapterWriteContext & {
+    obligationContract?: Partial<ChapterExecutionObligationContract> | null;
+  };
+  const obligationContract = legacyContext.obligationContract ?? {};
+  return {
+    ...writeContext,
+    obligationContract: {
+      mustHitNow: obligationContract.mustHitNow ?? EMPTY_OBLIGATION_CONTRACT.mustHitNow,
+      mustPreserve: obligationContract.mustPreserve ?? EMPTY_OBLIGATION_CONTRACT.mustPreserve,
+      requiredPayoffTouches: obligationContract.requiredPayoffTouches ?? EMPTY_OBLIGATION_CONTRACT.requiredPayoffTouches,
+      requiredCharacterAppearances: obligationContract.requiredCharacterAppearances ?? EMPTY_OBLIGATION_CONTRACT.requiredCharacterAppearances,
+      requiredGoalChanges: obligationContract.requiredGoalChanges ?? EMPTY_OBLIGATION_CONTRACT.requiredGoalChanges,
+      canDefer: obligationContract.canDefer ?? EMPTY_OBLIGATION_CONTRACT.canDefer,
+      forbiddenCrossings: obligationContract.forbiddenCrossings ?? EMPTY_OBLIGATION_CONTRACT.forbiddenCrossings,
+    },
+  };
+}
+
 export function buildChapterReviewContext(
   writeContext: ChapterWriteContext,
   contextPackage: GenerationContextPackage,
 ): ChapterReviewContext {
+  writeContext = normalizeChapterWriteContext(writeContext);
   return {
     ...writeContext,
     structureObligations: takeUnique([
@@ -323,13 +354,13 @@ export function buildChapterReviewContext(
       ...(writeContext.chapterBoundary?.doNotCross ?? []).map((item) => `boundary do-not-cross: ${item}`),
       writeContext.chapterMission.hookTarget ? `hook target: ${writeContext.chapterMission.hookTarget}` : "",
       writeContext.volumeWindow?.missionSummary ? `volume mission: ${writeContext.volumeWindow.missionSummary}` : "",
-      ...writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
-      ...writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent payoff")),
-      ...writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue payoff")),
       ...(writeContext.characterResourceContext?.setupNeededItems ?? []).map((item) => `resource setup needed: ${item.name} / ${item.summary}`),
       ...(writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `resource unavailable: ${item.name} is ${item.status}; do not use it without repair setup`),
       ...(writeContext.characterResourceContext?.pendingReviewItems ?? []).map((item) => `resource needs confirmation: ${item.name} / ${item.summary}`),
-    ], 24),
+      ...writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
+      ...writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent payoff")),
+      ...writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue payoff")),
+    ], 32),
     worldRules: summarizeWorldRules(contextPackage),
     historicalIssues: summarizeHistoricalIssues(contextPackage),
   };
@@ -340,8 +371,9 @@ export function buildChapterRepairContext(input: {
   contextPackage: GenerationContextPackage;
   issues: ReviewIssue[];
 }): ChapterRepairContext {
+  const writeContext = normalizeChapterWriteContext(input.writeContext);
   return {
-    writeContext: input.writeContext,
+    writeContext,
     issues: input.issues.slice(0, 8).map((issue) => ({
       severity: issue.severity,
       category: issue.category,
@@ -349,49 +381,49 @@ export function buildChapterRepairContext(input: {
       fixSuggestion: compactText(issue.fixSuggestion),
     })),
     structureObligations: takeUnique([
-      ...input.writeContext.chapterMission.mustAdvance,
-      ...input.writeContext.chapterMission.mustPreserve,
-      ...input.writeContext.obligationContract.mustHitNow.map((item) => `must hit now: ${item}`),
-      ...input.writeContext.obligationContract.requiredCharacterAppearances.map((item) => `required character appearance: ${item}`),
-      ...input.writeContext.obligationContract.requiredGoalChanges.map((item) => `required goal change: ${item}`),
-      ...input.writeContext.payoffDirectives.map((item) => `payoff directive: ${item.operation} ${item.title}${item.forbiddenReveal ? ` / protected: ${item.forbiddenReveal}` : ""}`),
-      ...(input.writeContext.chapterStateGoal?.targetConflicts ?? []).map((item) => `state conflict: ${item}`),
-      ...(input.writeContext.chapterBoundary?.doNotCross ?? []).map((item) => `boundary do-not-cross: ${item}`),
-      input.writeContext.volumeWindow?.missionSummary
-        ? `volume mission: ${input.writeContext.volumeWindow.missionSummary}`
+      ...writeContext.chapterMission.mustAdvance,
+      ...writeContext.chapterMission.mustPreserve,
+      ...writeContext.obligationContract.mustHitNow.map((item) => `must hit now: ${item}`),
+      ...writeContext.obligationContract.requiredCharacterAppearances.map((item) => `required character appearance: ${item}`),
+      ...writeContext.obligationContract.requiredGoalChanges.map((item) => `required goal change: ${item}`),
+      ...writeContext.payoffDirectives.map((item) => `payoff directive: ${item.operation} ${item.title}${item.forbiddenReveal ? ` / protected: ${item.forbiddenReveal}` : ""}`),
+      ...(writeContext.chapterStateGoal?.targetConflicts ?? []).map((item) => `state conflict: ${item}`),
+      ...(writeContext.chapterBoundary?.doNotCross ?? []).map((item) => `boundary do-not-cross: ${item}`),
+      writeContext.volumeWindow?.missionSummary
+        ? `volume mission: ${writeContext.volumeWindow.missionSummary}`
         : "",
-      ...input.writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
-      ...input.writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent payoff")),
-      ...input.writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue payoff")),
-      ...(input.writeContext.characterResourceContext?.setupNeededItems ?? []).map((item) => `resource setup needed: ${item.name} / ${item.summary}`),
-      ...(input.writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `resource unavailable: ${item.name} is ${item.status}; patch locally before use`),
-    ], 24),
+      ...(writeContext.characterResourceContext?.setupNeededItems ?? []).map((item) => `resource setup needed: ${item.name} / ${item.summary}`),
+      ...(writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `resource unavailable: ${item.name} is ${item.status}; patch locally before use`),
+      ...writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
+      ...writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent payoff")),
+      ...writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue payoff")),
+    ], 32),
     worldRules: summarizeWorldRules(input.contextPackage),
     historicalIssues: summarizeHistoricalIssues(input.contextPackage),
     allowedEditBoundaries: takeUnique([
       "Keep the chapter's established objective, participants, and major outcome direction intact.",
       "Do not introduce new core characters, new world rules, or off-outline twists.",
-      input.writeContext.volumeWindow?.missionSummary
-        ? `Keep the repair aligned with the current volume mission: ${input.writeContext.volumeWindow.missionSummary}`
+      writeContext.volumeWindow?.missionSummary
+        ? `Keep the repair aligned with the current volume mission: ${writeContext.volumeWindow.missionSummary}`
         : "",
-      ...input.writeContext.ledgerPendingItems.map((item) => `Do not erase pending payoff setup: ${item.title}`),
-      ...input.writeContext.ledgerUrgentItems.map((item) => `This chapter must visibly touch the urgent payoff thread: ${item.title}`),
-      ...input.writeContext.ledgerOverdueItems.map((item) => `You must either兑现 or explicitly explain the overdue payoff pressure: ${item.title}`),
-      ...(input.writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `Patch resource continuity before using ${item.name}; current status is ${item.status}.`),
-      ...(input.writeContext.characterResourceContext?.pendingReviewItems ?? []).map((item) => `Do not make an uncertain resource fact irreversible: ${item.name}.`),
-      input.writeContext.chapterMission.hookTarget
-        ? `Preserve or strengthen the ending tension: ${input.writeContext.chapterMission.hookTarget}`
+      ...writeContext.ledgerPendingItems.map((item) => `Do not erase pending payoff setup: ${item.title}`),
+      ...writeContext.ledgerUrgentItems.map((item) => `This chapter must visibly touch the urgent payoff thread: ${item.title}`),
+      ...writeContext.ledgerOverdueItems.map((item) => `You must either兑现 or explicitly explain the overdue payoff pressure: ${item.title}`),
+      ...(writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `Patch resource continuity before using ${item.name}; current status is ${item.status}.`),
+      ...(writeContext.characterResourceContext?.pendingReviewItems ?? []).map((item) => `Do not make an uncertain resource fact irreversible: ${item.name}.`),
+      writeContext.chapterMission.hookTarget
+        ? `Preserve or strengthen the ending tension: ${writeContext.chapterMission.hookTarget}`
         : "",
-      ...input.writeContext.characterBehaviorGuides
+      ...writeContext.characterBehaviorGuides
         .filter((guide) => guide.shouldPreferAppearance || guide.isCoreInVolume)
         .slice(0, 4)
         .map((guide) => `Keep ${guide.name} aligned with current role duty: ${guide.volumeResponsibility ?? guide.volumeRoleLabel ?? guide.role}`),
-      input.writeContext.pendingCandidateGuards.length > 0
+      writeContext.pendingCandidateGuards.length > 0
         ? "Pending character candidates remain read-only unless they are confirmed outside the repair flow."
         : "",
-      ...(input.writeContext.protectedSecrets ?? []).map((item) => `do not disclose: ${item}`),
-      ...(input.writeContext.chapterBoundary?.doNotCross ?? []).map((item) => `do not cross boundary: ${item}`),
-      ...input.writeContext.chapterMission.mustPreserve.map((item) => `must preserve: ${item}`),
+      ...(writeContext.protectedSecrets ?? []).map((item) => `do not disclose: ${item}`),
+      ...(writeContext.chapterBoundary?.doNotCross ?? []).map((item) => `do not cross boundary: ${item}`),
+      ...writeContext.chapterMission.mustPreserve.map((item) => `must preserve: ${item}`),
     ], 12),
   };
 }
@@ -501,6 +533,7 @@ export function buildChapterWriterContextBlocks(
   writeContext: ChapterWriteContext,
   options: ChapterWriterBlockOptions = {},
 ): PromptContextBlock[] {
+  writeContext = normalizeChapterWriteContext(writeContext);
   const mode = options.mode ?? "full";
   const isIncremental = mode === "incremental";
   const includeVolumeWindow = mode === "full" || mode === "review";

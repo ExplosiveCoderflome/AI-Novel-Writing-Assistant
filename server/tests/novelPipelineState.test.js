@@ -246,14 +246,14 @@ test("executePipeline records empty chapter output in failed job notice payload"
     assert.equal(finalUpdate.data.completedCount, undefined);
     assert.match(finalUpdate.data.payload, /qualityAlertDetails/);
     assert.match(finalUpdate.data.payload, /第3章/);
-    assert.match(finalUpdate.data.payload, /未返回正文/);
+    assert.match(finalUpdate.data.payload, /未返回可保存正文/);
 
     const decorated = decoratePipelineJob({
       status: "failed",
       payload: finalUpdate.data.payload,
     });
     assert.match(decorated.noticeSummary, /第3章/);
-    assert.match(decorated.noticeSummary, /未返回正文/);
+    assert.match(decorated.noticeSummary, /未返回可保存正文/);
   } finally {
     prisma.generationJob.findUnique = original.generationFindUnique;
     prisma.generationJob.update = original.generationUpdate;
