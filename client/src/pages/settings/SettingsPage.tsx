@@ -130,6 +130,7 @@ export default function SettingsPage() {
       name: string;
       key?: string;
       model?: string;
+      imageModel?: string;
       baseURL: string;
       concurrencyLimit?: number;
       requestIntervalMs?: number;
@@ -325,6 +326,7 @@ export default function SettingsPage() {
         name: form.displayName.trim(),
         key: form.key.trim() ? form.key : undefined,
         model: form.model.trim() || undefined,
+        imageModel: form.imageModel.trim(),
         baseURL: form.baseURL.trim(),
         concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
         requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,
@@ -339,7 +341,7 @@ export default function SettingsPage() {
       displayName: isCustomDialog ? form.displayName.trim() || undefined : undefined,
       key: form.key.trim() ? form.key : undefined,
       model: form.model.trim() || undefined,
-      imageModel: editingConfig?.supportsImageGeneration ? (form.imageModel.trim() || undefined) : undefined,
+      imageModel: form.imageModel.trim(),
       baseURL: form.baseURL,
       concurrencyLimit: Number.parseInt(form.concurrencyLimit, 10) || 0,
       requestIntervalMs: Number.parseInt(form.requestIntervalMs, 10) || 0,

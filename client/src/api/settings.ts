@@ -340,6 +340,7 @@ export async function createCustomProvider(payload: {
   name: string;
   key?: string;
   model?: string;
+  imageModel?: string;
   baseURL: string;
   isActive?: boolean;
   reasoningEnabled?: boolean;
@@ -351,12 +352,15 @@ export async function createCustomProvider(payload: {
       provider: string;
       displayName: string | null;
       model: string | null;
+      imageModel: string | null;
       baseURL: string | null;
       isActive: boolean;
       reasoningEnabled: boolean;
       concurrencyLimit: number;
       requestIntervalMs: number;
       models: string[];
+      imageModels: string[];
+      supportsImageGeneration: boolean;
     }>
   >("/settings/custom-providers", payload);
   return data;

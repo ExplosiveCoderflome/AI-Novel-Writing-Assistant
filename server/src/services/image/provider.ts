@@ -1,6 +1,11 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
-import { getProviderEnvApiKey, getProviderEnvBaseUrl, PROVIDERS } from "../../llm/providers";
+import {
+  getProviderDefaultBaseUrl,
+  getProviderEnvApiKey,
+  getProviderEnvBaseUrl,
+  providerRequiresApiKey,
+} from "../../llm/providers";
 import {
   getDefaultImageModel,
   getProviderImageModel,
@@ -22,7 +27,7 @@ function isMissingTableError(error: unknown): boolean {
 }
 
 interface ProviderSecret {
-  apiKey: string;
+  apiKey?: string;
   baseURL: string;
 }
 
@@ -56,17 +61,15 @@ async function resolveProviderSecret(provider: LLMProvider): Promise<ProviderSec
   }
 
   const finalApiKey = savedApiKey ?? getProviderEnvApiKey(provider);
-  if (!finalApiKey) {
+  if (providerRequiresApiKey(provider) && !finalApiKey) {
     throw new Error(`Provider ${provider} API key is not configured.`);
   }
 
-  const defaultBaseURL = provider === "grok"
-    ? "https://api.x.ai/v1"
-    : provider === "openai"
-      ? "https://api.openai.com/v1"
-      : PROVIDERS.siliconflow.baseURL;
-
-  const baseURL = normalizeBaseUrl(savedBaseURL ?? getProviderEnvBaseUrl(provider) ?? defaultBaseURL);
+  const baseURLSource = savedBaseURL ?? getProviderEnvBaseUrl(provider) ?? getProviderDefaultBaseUrl(provider);
+  if (!baseURLSource) {
+    throw new Error(`Provider ${provider} API URL is not configured.`);
+  }
+  const baseURL = normalizeBaseUrl(baseURLSource);
   return { apiKey: finalApiKey, baseURL };
 }
 
@@ -174,7 +177,7 @@ export async function generateImagesByProvider(input: ImageProviderGenerateInput
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify(requestBody),
       signal: controller.signal,

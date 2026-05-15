@@ -28,7 +28,11 @@ function normalizeOptionalText(value: string | null | undefined): string | undef
   return trimmed || undefined;
 }
 
-export function supportsImageModelSettings(provider: LLMProvider): provider is ImageModelProvider {
+export function supportsImageModelSettings(provider: LLMProvider): boolean {
+  return typeof provider === "string" && provider.trim().length > 0;
+}
+
+function isKnownImageModelProvider(provider: LLMProvider): provider is ImageModelProvider {
   return provider === "openai" || provider === "siliconflow" || provider === "grok";
 }
 
@@ -40,7 +44,7 @@ export function getImageModelSettingKey(provider: LLMProvider): string | null {
 }
 
 export function getImageModelOptions(provider: LLMProvider): string[] {
-  if (!supportsImageModelSettings(provider)) {
+  if (!isKnownImageModelProvider(provider)) {
     return [];
   }
   return [...IMAGE_MODEL_OPTIONS[provider]];

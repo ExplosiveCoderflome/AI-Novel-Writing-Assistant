@@ -65,6 +65,8 @@ export default function ProviderConfigDialog({
 }: ProviderConfigDialogProps) {
   const primaryModelLabel = isCreatingCustomProvider ? "默认模型（可选）" : isCustomDialog ? "默认模型" : "模型名称";
   const canSelectListedModels = selectableModels.length > 0;
+  const imageModelOptions = editingConfig?.imageModels ?? [];
+  const canSelectImageModels = imageModelOptions.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -202,29 +204,34 @@ export default function ProviderConfigDialog({
             onChange={(event) => setForm((prev) => ({ ...prev, model: event.target.value }))}
           />
 
-          {editingConfig?.supportsImageGeneration ? (
-            <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+          <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">图像模型（可选）</div>
+              <div className="text-xs text-muted-foreground">
+                填写后，角色形象图生成可以选择这个厂商；留空则只用于文本模型。
+              </div>
+            </div>
+            {canSelectImageModels ? (
               <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">图像模型</div>
                 <SearchableSelect
                   value={form.imageModel}
                   onValueChange={(value) => setForm((prev) => ({ ...prev, imageModel: value }))}
-                  options={(editingConfig.imageModels ?? []).map((model) => ({ value: model }))}
+                  options={imageModelOptions.map((model) => ({ value: model }))}
                   placeholder="选择图像模型"
                   searchPlaceholder="搜索图像模型"
                   emptyText="没有可用的图像模型"
                 />
               </div>
-              <Input
-                value={form.imageModel}
-                placeholder={editingConfig.defaultImageModel ?? "输入图像模型名"}
-                onChange={(event) => setForm((prev) => ({ ...prev, imageModel: event.target.value }))}
-              />
-              <div className="text-xs text-muted-foreground">
-                内置图像生成流程会使用这个模型。
-              </div>
+            ) : null}
+            <Input
+              value={form.imageModel}
+              placeholder={editingConfig?.defaultImageModel ?? "输入图像模型名"}
+              onChange={(event) => setForm((prev) => ({ ...prev, imageModel: event.target.value }))}
+            />
+            <div className="text-xs text-muted-foreground">
+              图片生成会调用这个厂商的 OpenAI 兼容图像接口。
             </div>
-          ) : null}
+          </div>
 
           <ProviderRequestLimitFields
             concurrencyLimit={form.concurrencyLimit}

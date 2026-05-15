@@ -8,6 +8,10 @@ import { llmProviderSchema } from "../../llm/providerSchema";
 import { isBuiltInProvider } from "../../llm/providers";
 import { AppError } from "../../middleware/errorHandler";
 import { validate } from "../../middleware/validate";
+import {
+  getImageModelOptions,
+  saveProviderImageModel,
+} from "../../services/settings/ProviderImageSettingsService";
 import { secretStore } from "../../services/settings/secretStore";
 
 const MAX_PROVIDER_CONCURRENCY_LIMIT = 100;
@@ -21,6 +25,7 @@ const createCustomProviderSchema = z.object({
   name: z.string().trim().min(1),
   key: z.string().trim().optional(),
   model: z.string().trim().optional(),
+  imageModel: z.string().trim().optional(),
   baseURL: z.string().trim().url("API URL 格式不正确。"),
   isActive: z.boolean().optional(),
   reasoningEnabled: z.boolean().optional(),
@@ -164,21 +169,26 @@ export function registerCustomProviderRoutes(router: Router): void {
           concurrencyLimit: data.concurrencyLimit ?? 0,
           requestIntervalMs: data.requestIntervalMs ?? 0,
         } : null);
+        const imageModel = await saveProviderImageModel(provider, body.imageModel);
+        const imageModels = Array.from(new Set([
+          ...getImageModelOptions(provider),
+          imageModel ?? "",
+        ].filter(Boolean)));
         res.status(201).json({
           success: true,
           data: {
             provider: data.provider,
             displayName: data.displayName,
             model: data.model,
-            imageModel: null,
+            imageModel: imageModel ?? null,
             baseURL: data.baseURL,
             isActive: data.isActive,
             reasoningEnabled: data.reasoningEnabled ?? true,
             concurrencyLimit: normalizeProviderLimit(data.concurrencyLimit),
             requestIntervalMs: normalizeProviderLimit(data.requestIntervalMs),
             models,
-            imageModels: [],
-            supportsImageGeneration: false,
+            imageModels,
+            supportsImageGeneration: Boolean(imageModel),
           },
           message,
         } satisfies ApiResponse<{
@@ -222,6 +232,7 @@ export function registerCustomProviderRoutes(router: Router): void {
           throw new AppError(`请先把模型路由 ${routeInUse.taskType} 改到其他厂商，再删除这个厂商。`, 400);
         }
         await secretStore.deleteProvider(provider);
+        await saveProviderImageModel(provider, null);
         setProviderSecretCache(provider, null);
         res.status(200).json({
           success: true,

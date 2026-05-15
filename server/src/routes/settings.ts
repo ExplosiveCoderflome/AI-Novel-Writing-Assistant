@@ -25,7 +25,6 @@ import {
   getImageModelOptions,
   getProviderImageModelMap,
   saveProviderImageModel,
-  supportsImageModelSettings,
 } from "../services/settings/ProviderImageSettingsService";
 import { getRagEmbeddingModelOptions } from "../services/settings/RagEmbeddingModelService";
 import {
@@ -146,7 +145,7 @@ type CustomProviderStatus = {
   name: string;
   displayName?: string;
   currentModel: string;
-  currentImageModel: null;
+  currentImageModel: string | null;
   currentBaseURL: string;
   models: string[];
   imageModels: string[];
@@ -159,7 +158,7 @@ type CustomProviderStatus = {
   reasoningEnabled: boolean;
   concurrencyLimit: number;
   requestIntervalMs: number;
-  supportsImageGeneration: false;
+  supportsImageGeneration: boolean;
 };
 
 function normalizeOptionalText(value: string | null | undefined): string | undefined {
@@ -220,7 +219,7 @@ async function buildBuiltInProviderStatus(
     includeBuiltInFallback: Boolean(configuredModel),
   });
   const currentModel = configuredModel ?? models[0] ?? "";
-  const supportsImageGeneration = supportsImageModelSettings(provider);
+  const currentImageModel = imageModel ?? getDefaultImageModel(provider) ?? null;
   const isConfigured = requiresApiKey ? Boolean(effectiveKey && currentModel) : Boolean(currentModel && currentBaseURL);
 
   return {
@@ -229,12 +228,12 @@ async function buildBuiltInProviderStatus(
     name: PROVIDERS[provider].name,
     displayName: undefined,
     currentModel,
-    currentImageModel: supportsImageGeneration ? imageModel ?? getDefaultImageModel(provider) ?? null : null,
+    currentImageModel,
     currentBaseURL,
     models,
-    imageModels: supportsImageGeneration ? getImageModelOptions(provider) : [],
+    imageModels: Array.from(new Set([...getImageModelOptions(provider), currentImageModel ?? ""].filter(Boolean))),
     defaultModel: PROVIDERS[provider].defaultModel,
-    defaultImageModel: supportsImageGeneration ? getDefaultImageModel(provider) ?? null : null,
+    defaultImageModel: getDefaultImageModel(provider) ?? null,
     defaultBaseURL: PROVIDERS[provider].baseURL,
     requiresApiKey,
     isConfigured,
@@ -242,7 +241,7 @@ async function buildBuiltInProviderStatus(
     reasoningEnabled: item?.reasoningEnabled ?? true,
     concurrencyLimit: normalizeProviderLimit(item?.concurrencyLimit),
     requestIntervalMs: normalizeProviderLimit(item?.requestIntervalMs),
-    supportsImageGeneration,
+    supportsImageGeneration: Boolean(currentImageModel),
   };
 }
 
@@ -256,7 +255,7 @@ async function buildCustomProviderStatus(item: {
   reasoningEnabled?: boolean | null;
   concurrencyLimit?: number | null;
   requestIntervalMs?: number | null;
-}): Promise<CustomProviderStatus> {
+}, imageModel: string | undefined): Promise<CustomProviderStatus> {
   const currentModel = normalizeOptionalText(item.model) ?? "";
   const currentBaseURL = normalizeOptionalText(item.baseURL) ?? "";
   const models = await getProviderModels(item.provider, {
@@ -271,10 +270,10 @@ async function buildCustomProviderStatus(item: {
     name: normalizeOptionalText(item.displayName) ?? item.provider,
     displayName: normalizeOptionalText(item.displayName) ?? item.provider,
     currentModel,
-    currentImageModel: null,
+    currentImageModel: imageModel ?? null,
     currentBaseURL,
     models,
-    imageModels: [],
+    imageModels: imageModel ? [imageModel] : [],
     defaultModel: currentModel,
     defaultImageModel: null,
     defaultBaseURL: currentBaseURL,
@@ -284,7 +283,7 @@ async function buildCustomProviderStatus(item: {
     reasoningEnabled: item.reasoningEnabled ?? true,
     concurrencyLimit: normalizeProviderLimit(item.concurrencyLimit),
     requestIntervalMs: normalizeProviderLimit(item.requestIntervalMs),
-    supportsImageGeneration: false,
+    supportsImageGeneration: Boolean(imageModel),
   };
 }
 
@@ -442,7 +441,11 @@ router.get("/api-keys", async (_req, res, next) => {
   try {
     const keys = await secretStore.listProviders();
     const keyMap = new Map(keys.map((item) => [item.provider, item]));
-    const imageModelMap = await getProviderImageModelMap(SUPPORTED_PROVIDERS);
+    const allProviders = Array.from(new Set([
+      ...SUPPORTED_PROVIDERS,
+      ...keys.map((item) => item.provider),
+    ]));
+    const imageModelMap = await getProviderImageModelMap(allProviders);
     const builtInProviders = await Promise.all(
       SUPPORTED_PROVIDERS.map((provider) =>
         buildBuiltInProviderStatus(provider, keyMap.get(provider), imageModelMap.get(provider))),
@@ -450,7 +453,7 @@ router.get("/api-keys", async (_req, res, next) => {
     const customProviders = await Promise.all(
       keys
         .filter((item) => !isBuiltInProvider(item.provider))
-        .map((item) => buildCustomProviderStatus(item)),
+        .map((item) => buildCustomProviderStatus(item, imageModelMap.get(item.provider))),
     );
     const data = [...builtInProviders, ...customProviders];
     res.status(200).json({
@@ -545,6 +548,10 @@ router.put(
       const currentImageModel = body.imageModel !== undefined
         ? await saveProviderImageModel(provider, body.imageModel)
         : await getProviderImageModelMap([provider]).then((map) => map.get(provider) ?? null);
+      const imageModels = Array.from(new Set([
+        ...getImageModelOptions(provider),
+        currentImageModel ?? "",
+      ].filter(Boolean)));
 
       setProviderSecretCache(provider, data.isActive ? {
         displayName: data.displayName ?? undefined,
@@ -577,8 +584,8 @@ router.put(
           concurrencyLimit: normalizeProviderLimit(data.concurrencyLimit),
           requestIntervalMs: normalizeProviderLimit(data.requestIntervalMs),
           models,
-          imageModels: supportsImageModelSettings(provider) ? getImageModelOptions(provider) : [],
-          supportsImageGeneration: supportsImageModelSettings(provider),
+          imageModels,
+          supportsImageGeneration: Boolean(currentImageModel),
         },
         message,
       } satisfies ApiResponse<{
