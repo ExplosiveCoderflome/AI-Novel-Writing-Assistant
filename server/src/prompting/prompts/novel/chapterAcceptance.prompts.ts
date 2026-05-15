@@ -12,6 +12,52 @@ export const chapterAcceptanceIssueCategorySchema = z.enum([
   "voice",
 ]);
 
+function normalizeAcceptanceCategory(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "coherence" || normalized === "logic") {
+    return "continuity";
+  }
+  if (normalized === "pacing" || normalized === "repetition" || normalized === "ending") {
+    return "plot";
+  }
+  if (normalized === "style" || normalized === "tone") {
+    return "voice";
+  }
+  if (normalized === "mode" || normalized === "mode-fit" || normalized === "mode fit") {
+    return "mode_fit";
+  }
+  return normalized;
+}
+
+function normalizeRepairTarget(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "coherence" || normalized === "logic") {
+    return "continuity";
+  }
+  if (
+    normalized === "pacing"
+    || normalized === "repetition"
+    || normalized === "middle"
+    || normalized === "internal_monologue"
+    || normalized === "internal monologue"
+  ) {
+    return "plot";
+  }
+  if (normalized === "ending_hook" || normalized === "ending hook" || normalized === "hook") {
+    return "ending";
+  }
+  if (normalized === "style" || normalized === "tone" || normalized === "ending_tone" || normalized === "ending tone") {
+    return "voice";
+  }
+  return normalized;
+}
+
 export const chapterAcceptanceAssessmentSchema = z.object({
   status: z.enum(["accepted", "repairable", "needs_manual_review", "continue_with_risk"]),
   score: z.object({
@@ -25,14 +71,14 @@ export const chapterAcceptanceAssessmentSchema = z.object({
   summary: z.string().trim().min(1),
   blockingIssues: z.array(z.object({
     severity: z.enum(["low", "medium", "high", "critical"]),
-    category: chapterAcceptanceIssueCategorySchema,
+    category: z.preprocess(normalizeAcceptanceCategory, chapterAcceptanceIssueCategorySchema),
     code: z.string().trim().min(1),
     evidence: z.string().trim().min(1),
     fixSuggestion: z.string().trim().min(1),
   })).default([]),
   repairDirectives: z.array(z.object({
     mode: z.enum(["patch", "rewrite", "manual"]),
-    target: z.enum(["continuity", "character", "plot", "ending", "voice"]),
+    target: z.preprocess(normalizeRepairTarget, z.enum(["continuity", "character", "plot", "ending", "voice"])),
     instruction: z.string().trim().min(1),
   })).default([]),
   riskTags: z.array(z.string().trim().min(1)).default([]),
@@ -142,6 +188,8 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "5. blockingIssues 保留最关键的 0-5 条，每条必须有明确证据和可执行修复建议。",
       "6. style_contract 或反 AI 要求属于强约束；发现明显来源实体泄露、模板腔、总结腔时归入 voice。",
       "7. assetSyncRecommendation 只判断资产同步优先级和是否需要全量伏笔对账，不要输出落库细节。",
+      "8. blockingIssues.category 只能使用 continuity、character、plot、mode_fit、voice；节奏、重复、中段铺垫、结尾钩子都归入 plot。",
+      "9. repairDirectives.target 只能使用 continuity、character、plot、ending、voice；不要输出 middle、pacing、internal_monologue、ending_tone 等自定义目标。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

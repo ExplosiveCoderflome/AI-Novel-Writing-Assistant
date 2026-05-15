@@ -8,6 +8,148 @@ import { payoffLedgerSyncItemSchema } from "../payoff/payoffLedgerSync.promptSch
 const nullableText = z.string().trim().optional().nullable();
 const confidenceSchema = z.number().min(0).max(1).optional().nullable();
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readString(record: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function normalizeCharacterResourceDelta(value: unknown): unknown {
+  if (!isRecord(value)) {
+    return value;
+  }
+  const updateTypeAliases: Record<string, string> = {
+    create: "introduced",
+    created: "introduced",
+    discover: "revealed",
+    discovered: "revealed",
+    expose: "revealed",
+    exposed: "revealed",
+    gain: "acquired",
+    gained: "acquired",
+    obtain: "acquired",
+    obtained: "acquired",
+  };
+  const updateType = typeof value.updateType === "string"
+    ? updateTypeAliases[value.updateType.trim().toLowerCase()] ?? value.updateType
+    : value.updateType;
+  return {
+    ...value,
+    updateType,
+  };
+}
+
+function normalizePayoffRiskSignal(value: unknown, index: number): unknown {
+  if (typeof value === "string") {
+    return {
+      code: `chapter_artifact_risk_${index + 1}`,
+      severity: "medium",
+      summary: value.trim() || "章节资产抽取识别到伏笔风险。",
+    };
+  }
+  if (!isRecord(value)) {
+    return value;
+  }
+  const summary = readString(value, ["summary", "reason", "description", "risk", "text"]);
+  return {
+    ...value,
+    code: readString(value, ["code"]) ?? `chapter_artifact_risk_${index + 1}`,
+    severity: readString(value, ["severity"]) ?? "medium",
+    summary: summary ?? "章节资产抽取识别到伏笔风险。",
+  };
+}
+
+function normalizePayoffDelta(value: unknown): unknown {
+  if (!isRecord(value)) {
+    return value;
+  }
+  const statusAliases: Record<string, string> = {
+    active: "pending_payoff",
+    progressed: "pending_payoff",
+    progressing: "pending_payoff",
+    in_progress: "pending_payoff",
+    pending: "pending_payoff",
+    resolved: "paid_off",
+    payoff: "paid_off",
+    paid: "paid_off",
+  };
+  const currentStatus = typeof value.currentStatus === "string"
+    ? statusAliases[value.currentStatus.trim().toLowerCase()] ?? value.currentStatus
+    : value.currentStatus;
+  const riskSignals = Array.isArray(value.riskSignals)
+    ? value.riskSignals.map((signal, index) => normalizePayoffRiskSignal(signal, index))
+    : value.riskSignals;
+  return {
+    ...value,
+    currentStatus,
+    riskSignals,
+  };
+}
+
+function normalizeRelationDynamic(value: unknown): unknown {
+  if (!isRecord(value)) {
+    return value;
+  }
+  const evidence = value.evidence;
+  const evidenceText = Array.isArray(evidence)
+    ? evidence.map((item) => String(item ?? "").trim()).filter(Boolean).join("；")
+    : typeof evidence === "string"
+      ? evidence.trim()
+      : "";
+  return {
+    ...value,
+    sourceCharacterName: readString(value, [
+      "sourceCharacterName",
+      "characterName1",
+      "character1Name",
+      "fromCharacterName",
+      "sourceName",
+    ]),
+    targetCharacterName: readString(value, [
+      "targetCharacterName",
+      "characterName2",
+      "character2Name",
+      "toCharacterName",
+      "targetName",
+    ]),
+    stageLabel: readString(value, [
+      "stageLabel",
+      "phaseAfter",
+      "relationshipType",
+      "relationType",
+      "changeType",
+    ]) ?? "关系变化",
+    stageSummary: readString(value, ["stageSummary", "summary"]) ?? evidenceText,
+  };
+}
+
+function normalizeCharacterCandidate(value: unknown): unknown {
+  if (!isRecord(value)) {
+    return value;
+  }
+  const summary = readString(value, ["summary", "appearanceSummary", "relationToKnown", "narrativeRole"]);
+  const evidence = Array.isArray(value.evidence)
+    ? value.evidence
+    : readString(value, ["appearanceSummary"])
+      ? [readString(value, ["appearanceSummary"])]
+      : [];
+  return {
+    ...value,
+    proposedName: readString(value, ["proposedName", "characterName", "name"]),
+    proposedRole: readString(value, ["proposedRole", "narrativeRole", "role"]),
+    summary,
+    evidence,
+  };
+}
+
 const chapterArtifactStateCharacterSchema = z.object({
   characterId: nullableText,
   characterName: nullableText,
@@ -57,14 +199,14 @@ export const chapterArtifactDeltaStateSchema = z.object({
   foreshadowStates: z.array(chapterArtifactForeshadowStateSchema).default([]),
 });
 
-const chapterArtifactRelationDynamicSchema = z.object({
+const chapterArtifactRelationDynamicSchema = z.preprocess(normalizeRelationDynamic, z.object({
   sourceCharacterName: z.string().trim().min(1),
   targetCharacterName: z.string().trim().min(1),
   stageLabel: z.string().trim().min(1),
   stageSummary: z.string().trim().min(1),
   nextTurnPoint: nullableText,
   confidence: confidenceSchema,
-});
+}));
 
 const chapterArtifactFactionUpdateSchema = z.object({
   characterName: z.string().trim().min(1),
@@ -74,14 +216,14 @@ const chapterArtifactFactionUpdateSchema = z.object({
   confidence: confidenceSchema,
 });
 
-const chapterArtifactCharacterCandidateSchema = z.object({
+const chapterArtifactCharacterCandidateSchema = z.preprocess(normalizeCharacterCandidate, z.object({
   proposedName: z.string().trim().min(1),
   proposedRole: nullableText,
   summary: nullableText,
   evidence: z.array(z.string().trim().min(1)).default([]),
   matchedCharacterName: nullableText,
   confidence: confidenceSchema,
-});
+}));
 
 export const chapterArtifactDeltaSyncPlanSchema = z.object({
   stateSnapshot: z.enum(["skip", "write"]).default("write"),
@@ -94,8 +236,8 @@ export const chapterArtifactDeltaSyncPlanSchema = z.object({
 export const chapterArtifactDeltaOutputSchema = z.object({
   summary: z.string().trim().min(1),
   stateDeltas: chapterArtifactDeltaStateSchema,
-  characterResourceDeltas: z.array(characterResourceExtractionUpdateSchema).default([]),
-  payoffDeltas: z.array(payoffLedgerSyncItemSchema).default([]),
+  characterResourceDeltas: z.array(z.preprocess(normalizeCharacterResourceDelta, characterResourceExtractionUpdateSchema)).default([]),
+  payoffDeltas: z.array(z.preprocess(normalizePayoffDelta, payoffLedgerSyncItemSchema)).default([]),
   relationDynamics: z.array(chapterArtifactRelationDynamicSchema).default([]),
   factionUpdates: z.array(chapterArtifactFactionUpdateSchema).default([]),
   characterCandidates: z.array(chapterArtifactCharacterCandidateSchema).default([]),
@@ -247,6 +389,10 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "5. 默认输出 delta；只有账本明显冲突、已兑现但找不到前置铺垫、关键线索跨多章错位、或本章集中处理多个 payoff 时，才建议 full_reconcile。",
       "6. syncPlan 由你判断，不要依赖关键词；如果没有对应变化，明确 skip 并说明 reason。",
       "7. 所有角色名优先使用已知角色名单；无法确认的新人物放入 characterCandidates，不要强行归到已有角色。",
+      "8. payoffDeltas.currentStatus 只能使用 setup、hinted、pending_payoff、paid_off、failed、overdue；不要输出 active，已推进但未兑现统一用 pending_payoff。",
+      "9. payoffDeltas.riskSignals 必须是对象数组，形如 { code, severity, summary }；没有风险就输出 []，不要输出字符串数组。",
+      "10. relationDynamics 必须使用 sourceCharacterName、targetCharacterName、stageLabel、stageSummary；characterCandidates 必须使用 proposedName、proposedRole、summary。",
+      "11. characterResourceDeltas.updateType 只能使用 introduced、acquired、revealed、used、transferred、lost、consumed、damaged、destroyed、recovered、stale_marked；新创建/首次出现统一用 introduced。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,
