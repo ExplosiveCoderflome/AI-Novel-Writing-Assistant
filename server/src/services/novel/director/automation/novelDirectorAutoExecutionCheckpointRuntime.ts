@@ -198,6 +198,7 @@ export async function resolveQualityRepairNoticeAction(
     noticeCode?: string | null;
     noticeSummary: string;
     payload?: string | null;
+    approveAutoExecutionScope?: boolean;
   },
 ): Promise<{
   action: "auto_continue" | "pause";
@@ -229,7 +230,13 @@ export async function resolveQualityRepairNoticeAction(
     && qualityRepairRisk.autoContinuable
     && isAiDriverExecution
     && hasQualityAlertDetails;
-  const canAutoContinue = checkpointType === "chapter_batch_ready"
+  const canContinueAfterExplicitApproval = Boolean(
+    input.approveAutoExecutionScope
+    && checkpointType === "chapter_batch_ready"
+    && remainingChapterCount > 0
+    && isAiDriverExecution,
+  );
+  const canAutoContinueByPolicy = checkpointType === "chapter_batch_ready"
     && remainingChapterCount > 0
     && (
       isFullBookAutopilot
@@ -241,7 +248,7 @@ export async function resolveQualityRepairNoticeAction(
       })
     );
 
-  if (canAutoContinue || shouldNotifyAndContinueAiDriverQualityNotice) {
+  if (canAutoContinueByPolicy || shouldNotifyAndContinueAiDriverQualityNotice) {
     await deps.recordAutoApproval?.({
       taskId: input.taskId,
       checkpointType,
@@ -250,7 +257,7 @@ export async function resolveQualityRepairNoticeAction(
     });
   }
 
-  if (canAutoContinue) {
+  if (canContinueAfterExplicitApproval || canAutoContinueByPolicy) {
     return {
       action: "auto_continue",
       checkpointType,

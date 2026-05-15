@@ -298,6 +298,108 @@ test("runFromReady reuses an existing active range job before starting a new pip
   ]);
 });
 
+test("runFromReady treats explicit range continuation as approval for quality-alerted completed jobs", async () => {
+  const calls = [];
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          withExecutionDetail({ id: "chapter-1", order: 1, generationState: "approved" }),
+          withExecutionDetail({ id: "chapter-2", order: 2, generationState: "draft" }),
+          withExecutionDetail({ id: "chapter-3", order: 3, generationState: "draft" }),
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob(novelId, options) {
+        calls.push(["startPipelineJob", novelId, options.startOrder, options.endOrder]);
+        throw new Error("TRACE_STOP_AFTER_NEXT_PIPELINE_START");
+      },
+      async findActivePipelineJobForRange(novelId, startOrder, endOrder, preferredJobId) {
+        calls.push(["findActivePipelineJobForRange", novelId, startOrder, endOrder, preferredJobId]);
+        return null;
+      },
+      async getPipelineJobById(jobId) {
+        calls.push(["getPipelineJobById", jobId]);
+        return {
+          id: "job-quality-alert",
+          status: "succeeded",
+          progress: 1,
+          currentStage: null,
+          currentItemLabel: null,
+          error: null,
+          noticeCode: "PIPELINE_QUALITY_REVIEW",
+          noticeSummary: "部分章节未通过质量阈值：第1章（coherence=85）",
+          payload: JSON.stringify({
+            repairMode: "heavy_repair",
+            qualityAlertDetails: ["第1章（coherence=85）"],
+          }),
+        };
+      },
+      async cancelPipelineJob() {
+        calls.push(["cancelPipelineJob"]);
+      },
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push([
+          "bootstrapTask",
+          input.seedPayload.autoExecution.pipelineJobId,
+          input.seedPayload.autoExecution.pipelineStatus,
+          input.seedPayload.autoExecution.remainingChapterCount,
+        ]);
+      },
+      async getTaskById() {
+        return { status: "waiting_approval" };
+      },
+      async markTaskRunning(taskId, input) {
+        calls.push(["markTaskRunning", taskId, input.itemKey]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push(["recordCheckpoint", taskId, input.checkpointType]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+    shouldAutoContinueQualityRepair() {
+      calls.push(["shouldAutoContinueQualityRepair"]);
+      return false;
+    },
+  });
+
+  await assert.rejects(
+    runtime.runFromReady({
+      taskId: "task-auto-exec",
+      novelId: "novel-1",
+      request: buildRequest(),
+      existingState: {
+        enabled: true,
+        firstChapterId: "chapter-1",
+        startOrder: 1,
+        endOrder: 3,
+        totalChapterCount: 3,
+        pipelineJobId: "job-quality-alert",
+        pipelineStatus: "succeeded",
+      },
+      existingPipelineJobId: "job-quality-alert",
+      resumeCheckpointType: "chapter_batch_ready",
+      approveAutoExecutionScope: true,
+    }),
+    /TRACE_STOP_AFTER_NEXT_PIPELINE_START/,
+  );
+
+  assert.ok(calls.some((call) => call[0] === "shouldAutoContinueQualityRepair"));
+  assert.ok(!calls.some((call) => call[0] === "recordCheckpoint"));
+  assert.deepEqual(
+    calls.filter((call) => call[0] === "startPipelineJob"),
+    [["startPipelineJob", "novel-1", 2, 2]],
+  );
+});
+
 test("runFromReady resumes a pending manual-recovery pipeline job before waiting on it", async () => {
   const calls = [];
   let pipelineCompleted = false;

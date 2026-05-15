@@ -321,6 +321,7 @@ export class NovelDirectorAutoExecutionRuntime {
             noticeCode: job.noticeCode,
             noticeSummary: job.noticeSummary.trim(),
             payload: job.payload,
+            approveAutoExecutionScope: input.approveAutoExecutionScope,
           });
           if (
             noticeAction.checkpointType === "replan_required"
