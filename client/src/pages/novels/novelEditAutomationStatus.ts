@@ -90,6 +90,9 @@ export function resolveTakeoverModeFromAutomation(input: {
   projection: DirectorBookAutomationProjection | null | undefined;
 }): NovelEditTakeoverState["mode"] {
   const { task, projection } = input;
+  if (task.status === "waiting_approval" && task.checkpointType === "replan_required") {
+    return "action_required";
+  }
   if (projectionMatchesTask(projection, task)) {
     if (projection.status === "failed") return "failed";
     if (projection.status === "blocked") return "action_required";
@@ -102,9 +105,6 @@ export function resolveTakeoverModeFromAutomation(input: {
   }
   if (task.status === "failed" || task.status === "cancelled") {
     return "failed";
-  }
-  if (task.status === "waiting_approval" && task.checkpointType === "replan_required") {
-    return "action_required";
   }
   if (task.status === "queued" || task.status === "running") {
     return "running";
