@@ -1092,6 +1092,7 @@ test("continueTask resumes structured outline when stale chapter_range checkpoin
     assert.equal(pipelineRuns[0].novelId, "novel_stale_chapter_range_resume");
     assert.equal(pipelineRuns[0].startPhase, "structured_outline");
     assert.equal(pipelineRuns[0].input.runMode, "auto_to_execution");
+    assert.equal(pipelineRuns[0].approveAutoExecutionScope, true);
     assert.equal(runtimeCalls.length, 0);
   } finally {
     service.continueCandidateStageTask = originalContinueCandidateStageTask;

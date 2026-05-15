@@ -425,7 +425,7 @@ export class NovelDirectorContinueRuntime {
         }),
         batchAlreadyStartedCount: input?.batchAlreadyStartedCount,
         approveCurrentGate,
-        approveAutoExecutionScope: isFullBookAutopilot,
+        approveAutoExecutionScope: requestedAutoExecutionContinue || isFullBookAutopilot,
       });
     });
   }
