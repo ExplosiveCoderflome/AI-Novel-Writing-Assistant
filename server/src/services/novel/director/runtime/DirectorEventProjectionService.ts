@@ -647,6 +647,24 @@ function buildQualityBudgetSummary(
   };
 }
 
+function readLatestQualityLoopAssessment(events: DirectorEvent[]): {
+  rootCauseCode: DirectorRuntimeProjection["rootCauseCode"];
+  blockingObligations: NonNullable<DirectorRuntimeProjection["blockingObligations"]>;
+} {
+  const latest = events
+    .filter((event) => event.type === "quality_loop_assessed")
+    .sort((left, right) => timestampOf(right.occurredAt) - timestampOf(left.occurredAt))
+    .find((event) => event.metadata?.assessment && typeof event.metadata.assessment === "object");
+  const assessment = latest?.metadata?.assessment as {
+    rootCauseCode?: DirectorRuntimeProjection["rootCauseCode"];
+    blockingObligations?: NonNullable<DirectorRuntimeProjection["blockingObligations"]>;
+  } | undefined;
+  return {
+    rootCauseCode: assessment?.rootCauseCode ?? null,
+    blockingObligations: assessment?.blockingObligations ?? [],
+  };
+}
+
 export class DirectorEventProjectionService {
   buildSnapshotProjection(
     snapshot: DirectorRuntimeSnapshot | null,
@@ -682,6 +700,7 @@ export class DirectorEventProjectionService {
     );
     const qualityDebtSummary = buildQualityDebtSummary(snapshot.events);
     const qualityBudgetSummary = buildQualityBudgetSummary(snapshot.events);
+    const qualityRootCause = readLatestQualityLoopAssessment(snapshot.events);
     const recoveryDecision = buildRecoveryDecision({
       status,
       inventory,
@@ -736,6 +755,8 @@ export class DirectorEventProjectionService {
       progressBreakdown,
       chapterExecutionProgress: options?.chapterProgress ?? null,
       visibleRiskBadges,
+      rootCauseCode: qualityRootCause.rootCauseCode,
+      blockingObligations: qualityRootCause.blockingObligations,
       qualityDebtSummary,
       qualityBudgetSummary,
       policyMode: snapshot.policy.mode,

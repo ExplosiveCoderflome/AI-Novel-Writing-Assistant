@@ -81,6 +81,25 @@ export const chapterAcceptanceAssessmentSchema = z.object({
     target: z.preprocess(normalizeRepairTarget, z.enum(["continuity", "character", "plot", "ending", "voice"])),
     instruction: z.string().trim().min(1),
   })).default([]),
+  missingObligations: z.array(z.object({
+    kind: z.enum([
+      "must_hit_now",
+      "must_preserve",
+      "payoff_touch",
+      "character_appearance",
+      "goal_change",
+      "forbidden_crossing",
+    ]),
+    summary: z.string().trim().min(1),
+    evidence: z.string().trim().min(1).nullable().optional(),
+  })).default([]),
+  repairability: z.enum([
+    "none",
+    "patchable_obligation_gap",
+    "rewrite_needed",
+    "plan_misalignment",
+  ]).default("none"),
+  decisionReason: z.string().trim().min(1).default("正文可继续推进。"),
   riskTags: z.array(z.string().trim().min(1)).default([]),
   assetSyncRecommendation: z.object({
     priority: z.enum(["normal", "high"]).default("normal"),
@@ -127,6 +146,9 @@ const CHAPTER_ACCEPTANCE_EXAMPLE: ChapterAcceptanceAssessmentOutput = {
       instruction: "保留正文主体，只补强结尾 300 字以内的钩子和压力。",
     },
   ],
+  missingObligations: [],
+  repairability: "patchable_obligation_gap",
+  decisionReason: "结尾钩子可以通过局部补丁补齐，不需要重排章节计划。",
   riskTags: ["ending_hook"],
   assetSyncRecommendation: {
     priority: "normal",
@@ -149,6 +171,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterAcceptance,
     preferredGroups: [
       "chapter_mission",
+      "obligation_contract",
       "structure_obligations",
       "local_state",
       "style_contract",
@@ -163,6 +186,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   },
   contextRequirements: [
     { group: "chapter_mission", required: true, priority: 100 },
+    { group: "obligation_contract", required: true, priority: 98 },
     { group: "structure_obligations", priority: 94 },
     { group: "local_state", priority: 89 },
     { group: "style_contract", priority: 74 },
@@ -186,10 +210,12 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "3. 可通过局部补丁解决的问题使用 repairable，并给出 repairDirectives。",
       "4. 章节可以继续但存在后续风险时使用 continue_with_risk，并用 riskTags 说明风险。",
       "5. blockingIssues 保留最关键的 0-5 条，每条必须有明确证据和可执行修复建议。",
-      "6. style_contract 或反 AI 要求属于强约束；发现明显来源实体泄露、模板腔、总结腔时归入 voice。",
-      "7. assetSyncRecommendation 只判断资产同步优先级和是否需要全量伏笔对账，不要输出落库细节。",
-      "8. blockingIssues.category 只能使用 continuity、character、plot、mode_fit、voice；节奏、重复、中段铺垫、结尾钩子都归入 plot。",
-      "9. repairDirectives.target 只能使用 continuity、character、plot、ending、voice；不要输出 middle、pacing、internal_monologue、ending_tone 等自定义目标。",
+      "6. obligation contract 是本章硬合同。凡是正文没有可见兑现的 must hit now、required payoff touches、required character appearances、required goal changes，都必须写入 missingObligations。",
+      "7. repairability 只能用 none、patchable_obligation_gap、rewrite_needed、plan_misalignment。局部漏写优先 patchable_obligation_gap；章节职责本身互相打架、负担过重或必须改邻章分工时才用 plan_misalignment。",
+      "8. style_contract 或反 AI 要求属于强约束；发现明显来源实体泄露、模板腔、总结腔时归入 voice。",
+      "9. assetSyncRecommendation 只判断资产同步优先级和是否需要全量伏笔对账，不要输出落库细节。",
+      "10. blockingIssues.category 只能使用 continuity、character、plot、mode_fit、voice；节奏、重复、中段铺垫、结尾钩子都归入 plot。",
+      "11. repairDirectives.target 只能使用 continuity、character、plot、ending、voice；不要输出 middle、pacing、internal_monologue、ending_tone 等自定义目标。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

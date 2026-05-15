@@ -48,6 +48,46 @@ test("chapter acceptance schema normalizes common review category and repair tar
   assert.equal(parsed.blockingIssues[0].category, "plot");
   assert.equal(parsed.repairDirectives[0].target, "plot");
   assert.equal(parsed.repairDirectives[1].target, "voice");
+  assert.deepEqual(parsed.missingObligations, []);
+  assert.equal(parsed.repairability, "none");
+});
+
+test("chapter acceptance schema accepts obligation diagnostics", () => {
+  const parsed = chapterAcceptanceAssessmentSchema.parse({
+    status: "repairable",
+    score: {
+      coherence: 82,
+      pacing: 80,
+      repetition: 88,
+      engagement: 82,
+      voice: 83,
+      overall: 83,
+    },
+    summary: "正文可修，但缺少本章必须兑现的角色行动。",
+    blockingIssues: [],
+    repairDirectives: [{
+      mode: "patch",
+      target: "plot",
+      instruction: "补写娄晓娥出场并推动关系变化。",
+    }],
+    missingObligations: [{
+      kind: "character_appearance",
+      summary: "娄晓娥必须出场并形成关系推进。",
+      evidence: "正文未出现娄晓娥。",
+    }],
+    repairability: "patchable_obligation_gap",
+    decisionReason: "局部补写即可修复，不需要重排章节。",
+    riskTags: ["missing_character_appearance"],
+    assetSyncRecommendation: {
+      priority: "normal",
+      reason: "修复后可继续普通同步。",
+      requiresFullPayoffReconcile: false,
+    },
+    continuePolicy: "repair_once",
+  });
+
+  assert.equal(parsed.missingObligations[0].kind, "character_appearance");
+  assert.equal(parsed.repairability, "patchable_obligation_gap");
 });
 
 test("chapter artifact delta schema normalizes common LLM aliases from extraction output", () => {

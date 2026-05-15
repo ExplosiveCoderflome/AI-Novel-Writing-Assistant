@@ -234,6 +234,16 @@ export function buildChapterWriteContext(input: {
     chapterStateGoal: input.contextPackage.chapterStateGoal ?? null,
     protectedSecrets: input.contextPackage.protectedSecrets ?? [],
     payoffDirectives: input.contextPackage.chapterStateGoal?.targetPayoffDirectives ?? [],
+    obligationContract: buildChapterExecutionObligationContract({
+      chapterOrder: input.contextPackage.chapter.order,
+      chapterMission: buildChapterMissionContext(input.contextPackage),
+      chapterStateGoal: input.contextPackage.chapterStateGoal ?? null,
+      protectedSecrets: input.contextPackage.protectedSecrets ?? [],
+      payoffDirectives: input.contextPackage.chapterStateGoal?.targetPayoffDirectives ?? [],
+      chapterBoundary: buildChapterBoundaryContract(input.contextPackage, scenePlan),
+      characterBehaviorGuides: dynamicCharacterGuidance.characterBehaviorGuides,
+      ledgerPendingItems: input.contextPackage.ledgerPendingItems,
+    }),
     chapterBoundary: buildChapterBoundaryContract(input.contextPackage, scenePlan),
     lengthBudget: resolveLengthBudgetContract(input.contextPackage.chapter.targetWordCount),
     scenePlan,
@@ -257,6 +267,45 @@ export function buildChapterWriteContext(input: {
   };
 }
 
+function uniqueStrings(items: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(items.map((item) => item?.trim()).filter((item): item is string => Boolean(item))));
+}
+
+function buildChapterExecutionObligationContract(input: {
+  chapterOrder: number;
+  chapterMission: ChapterWriteContext["chapterMission"];
+  chapterStateGoal: ChapterWriteContext["chapterStateGoal"];
+  protectedSecrets: string[];
+  payoffDirectives: ChapterWriteContext["payoffDirectives"];
+  chapterBoundary: ChapterWriteContext["chapterBoundary"];
+  characterBehaviorGuides: ChapterWriteContext["characterBehaviorGuides"];
+  ledgerPendingItems: ChapterWriteContext["ledgerPendingItems"];
+}): ChapterWriteContext["obligationContract"] {
+  return {
+    mustHitNow: uniqueStrings(input.chapterMission.mustAdvance),
+    mustPreserve: uniqueStrings(input.chapterMission.mustPreserve),
+    requiredPayoffTouches: uniqueStrings(input.payoffDirectives.map((item) => (
+      `${item.operation}: ${item.title}`
+    ))),
+    requiredCharacterAppearances: uniqueStrings(input.characterBehaviorGuides
+      .filter((guide) => (
+        guide.shouldPreferAppearance
+        || guide.plannedChapterOrders.includes(input.chapterOrder)
+      ))
+      .map((guide) => guide.name)),
+    requiredGoalChanges: uniqueStrings([
+      ...(input.chapterStateGoal?.targetRelationships ?? []),
+      ...(input.chapterStateGoal?.targetConflicts ?? []),
+    ]),
+    canDefer: uniqueStrings(input.ledgerPendingItems.map((item) => item.title)),
+    forbiddenCrossings: uniqueStrings([
+      ...input.protectedSecrets,
+      ...(input.chapterBoundary?.doNotCross ?? []),
+      ...(input.chapterBoundary?.protectedReveals ?? []),
+    ]),
+  };
+}
+
 export function buildChapterReviewContext(
   writeContext: ChapterWriteContext,
   contextPackage: GenerationContextPackage,
@@ -266,6 +315,9 @@ export function buildChapterReviewContext(
     structureObligations: takeUnique([
       ...writeContext.chapterMission.mustAdvance,
       ...writeContext.chapterMission.mustPreserve,
+      ...writeContext.obligationContract.mustHitNow.map((item) => `must hit now: ${item}`),
+      ...writeContext.obligationContract.requiredCharacterAppearances.map((item) => `required character appearance: ${item}`),
+      ...writeContext.obligationContract.requiredGoalChanges.map((item) => `required goal change: ${item}`),
       ...writeContext.payoffDirectives.map((item) => `payoff directive: ${item.operation} ${item.title}${item.forbiddenReveal ? ` / protected: ${item.forbiddenReveal}` : ""}`),
       ...(writeContext.chapterStateGoal?.targetConflicts ?? []).map((item) => `state conflict: ${item}`),
       ...(writeContext.chapterBoundary?.doNotCross ?? []).map((item) => `boundary do-not-cross: ${item}`),
@@ -299,6 +351,9 @@ export function buildChapterRepairContext(input: {
     structureObligations: takeUnique([
       ...input.writeContext.chapterMission.mustAdvance,
       ...input.writeContext.chapterMission.mustPreserve,
+      ...input.writeContext.obligationContract.mustHitNow.map((item) => `must hit now: ${item}`),
+      ...input.writeContext.obligationContract.requiredCharacterAppearances.map((item) => `required character appearance: ${item}`),
+      ...input.writeContext.obligationContract.requiredGoalChanges.map((item) => `required goal change: ${item}`),
       ...input.writeContext.payoffDirectives.map((item) => `payoff directive: ${item.operation} ${item.title}${item.forbiddenReveal ? ` / protected: ${item.forbiddenReveal}` : ""}`),
       ...(input.writeContext.chapterStateGoal?.targetConflicts ?? []).map((item) => `state conflict: ${item}`),
       ...(input.writeContext.chapterBoundary?.doNotCross ?? []).map((item) => `boundary do-not-cross: ${item}`),
@@ -451,6 +506,7 @@ export function buildChapterWriterContextBlocks(
   const includeVolumeWindow = mode === "full" || mode === "review";
   const includePayoffLedger = mode === "full" && hasLedgerPressure(writeContext);
   const includePayoffDirectives = writeContext.payoffDirectives.length > 0;
+  const hasObligationContract = Object.values(writeContext.obligationContract).some((items) => items.length > 0);
   const includeCharacterResources = !isIncremental && hasCharacterResourcePressure(writeContext);
   const includeCharacterDynamics = shouldIncludeCharacterDynamics(writeContext, mode);
   const includeOpenConflicts = !isIncremental && writeContext.openConflictSummaries.length > 0;
@@ -479,6 +535,25 @@ export function buildChapterWriterContextBlocks(
         writeContext.chapterMission.hookTarget ? `Ending hook: ${writeContext.chapterMission.hookTarget}` : "",
       ].filter(Boolean).join("\n"),
     }),
+    hasObligationContract
+      ? createContextBlock({
+        id: "obligation_contract",
+        group: "obligation_contract",
+        priority: 99,
+        required: true,
+        allowSummary: false,
+        content: [
+          "Chapter execution obligations:",
+          toListBlock("Must hit now", writeContext.obligationContract.mustHitNow),
+          toListBlock("Must preserve", writeContext.obligationContract.mustPreserve),
+          toListBlock("Required payoff touches", writeContext.obligationContract.requiredPayoffTouches),
+          toListBlock("Required character appearances", writeContext.obligationContract.requiredCharacterAppearances),
+          toListBlock("Required goal changes", writeContext.obligationContract.requiredGoalChanges),
+          toListBlock("Can defer", writeContext.obligationContract.canDefer),
+          toListBlock("Forbidden crossings", writeContext.obligationContract.forbiddenCrossings),
+        ].filter(Boolean).join("\n"),
+      })
+      : null,
     includePayoffDirectives
       ? createContextBlock({
         id: "payoff_directives",

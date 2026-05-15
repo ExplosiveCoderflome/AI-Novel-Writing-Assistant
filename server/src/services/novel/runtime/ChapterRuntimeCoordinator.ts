@@ -3,6 +3,7 @@ import type { StreamDoneHelpers, StreamDonePayload, WritableSSEFrame } from "../
 import type {
   ChapterRuntimePackage,
   ChapterAcceptanceRepairDirective,
+  ChapterExecutionMissingObligation,
   GenerationContextPackage,
 } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../../db/prisma";
@@ -80,6 +81,64 @@ function parseStringArray(value: string | null | undefined): string[] {
 
 function countChapterCharacters(content: string): number {
   return content.replace(/\s+/g, "").trim().length;
+}
+
+function buildObligationCoverage(input: {
+  missingObligations: ChapterExecutionMissingObligation[];
+  hasBlockingIssues: boolean;
+}): ChapterRuntimePackage["obligationCoverage"] {
+  if (input.missingObligations.length === 0) {
+    return {
+      status: "satisfied",
+      missing: [],
+      summary: "章节义务已满足。",
+    };
+  }
+  return {
+    status: input.hasBlockingIssues ? "unmet" : "partial",
+    missing: input.missingObligations,
+    summary: input.hasBlockingIssues
+      ? `仍有 ${input.missingObligations.length} 项章节义务未满足。`
+      : `仍有 ${input.missingObligations.length} 项章节义务需要后续回收。`,
+  };
+}
+
+function buildFailureClassification(input: {
+  acceptance: ChapterAcceptanceAssessmentOutput;
+  hasBlockingIssues: boolean;
+  replanRecommended: boolean;
+  missingObligations: ChapterExecutionMissingObligation[];
+}): ChapterRuntimePackage["failureClassification"] {
+  if (input.replanRecommended || input.acceptance.repairability === "plan_misalignment") {
+    return {
+      code: "replan_required",
+      summary: "当前章节目标与计划窗口已失配，需要先调整附近章节职责。",
+      decisionReason: input.acceptance.decisionReason,
+      blockingObligations: input.missingObligations,
+    };
+  }
+  if (input.missingObligations.length > 0) {
+    return {
+      code: "draft_obligation_unmet",
+      summary: "正文已生成，但仍有本章必达义务没有兑现。",
+      decisionReason: input.acceptance.decisionReason,
+      blockingObligations: input.missingObligations,
+    };
+  }
+  if (input.hasBlockingIssues) {
+    return {
+      code: "draft_repair_exhausted",
+      summary: "正文已生成，但仍有阻塞性问题需要继续修复。",
+      decisionReason: input.acceptance.decisionReason,
+      blockingObligations: [],
+    };
+  }
+  return {
+    code: "none",
+    summary: "正文已生成，可继续推进。",
+    decisionReason: input.acceptance.decisionReason,
+    blockingObligations: [],
+  };
 }
 
 function shouldEscalateToFullAudit(input: {
@@ -725,6 +784,11 @@ export class ChapterRuntimeCoordinator {
         contextPackage: input.contextPackage,
         targetChapterOrder: input.contextPackage.chapter.order,
         blockingLedgerKeys,
+        forceRecommended: input.acceptance.repairability === "plan_misalignment",
+        reason: input.acceptance.decisionReason,
+        triggerType: input.acceptance.repairability === "plan_misalignment"
+          ? "acceptance_plan_misalignment"
+          : undefined,
       })
       : {
         recommended: hasBlockingIssues || this.deps.plannerService.shouldTriggerReplanFromAudit(
@@ -740,6 +804,17 @@ export class ChapterRuntimeCoordinator {
         blockingLedgerKeys,
         affectedChapterOrders: [],
       };
+
+    const obligationCoverage = buildObligationCoverage({
+      missingObligations: input.acceptance.missingObligations,
+      hasBlockingIssues,
+    });
+    const failureClassification = buildFailureClassification({
+      acceptance: input.acceptance,
+      hasBlockingIssues,
+      replanRecommended: replanRecommendation.recommended,
+      missingObligations: input.acceptance.missingObligations,
+    });
 
     return {
       novelId: input.novelId,
@@ -782,6 +857,17 @@ export class ChapterRuntimeCoordinator {
         openIssues,
         hasBlockingIssues,
       },
+      obligationContract: input.contextPackage.chapterWriteContext?.obligationContract ?? {
+        mustHitNow: [],
+        mustPreserve: [],
+        requiredPayoffTouches: [],
+        requiredCharacterAppearances: [],
+        requiredGoalChanges: [],
+        canDefer: [],
+        forbiddenCrossings: [],
+      },
+      obligationCoverage,
+      failureClassification,
       replanRecommendation,
       lengthControl: input.lengthControl,
       styleReview: {

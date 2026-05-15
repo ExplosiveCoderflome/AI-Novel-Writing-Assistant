@@ -90,3 +90,20 @@ test("normalizeAssessment keeps under-length issue when actual content is still 
   assert.equal(normalized.continuePolicy, "repair_once");
   assert.deepEqual(normalized.blockingIssues.map((issue) => issue.code), ["length_insufficient"]);
 });
+
+test("normalizeAssessment routes missing obligations to repairable draft obligation gaps", () => {
+  const normalized = normalizeAssessment(createAssessment({
+    status: "accepted",
+    missingObligations: [{
+      kind: "payoff_touch",
+      summary: "补出截信计划的可见行动。",
+      evidence: "正文只回忆了计划，没有发生行动。",
+    }],
+    repairability: "patchable_obligation_gap",
+    decisionReason: "只需局部补写即可兑现本章义务。",
+  }), "字".repeat(3600), 3000);
+
+  assert.equal(normalized.status, "repairable");
+  assert.equal(normalized.continuePolicy, "repair_once");
+  assert.equal(normalized.missingObligations[0].kind, "payoff_touch");
+});

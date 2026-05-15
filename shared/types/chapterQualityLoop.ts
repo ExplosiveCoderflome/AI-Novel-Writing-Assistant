@@ -1,5 +1,9 @@
 import type { ChapterRuntimePackage } from "./chapterRuntime.js";
 import type { QualityScore, ReviewIssue } from "./novel.js";
+import type {
+  ChapterExecutionMissingObligation,
+  ChapterFailureClassification,
+} from "./chapterRuntime.js";
 
 export const CHAPTER_QUALITY_LOOP_ARTIFACT_TYPES = [
   "chapter_retention_contract",
@@ -37,6 +41,8 @@ export interface ChapterQualityLoopAssessment {
   patchFirstRequired: boolean;
   recheckRequired: boolean;
   pauseReason?: string | null;
+  rootCauseCode?: ChapterFailureClassification["code"] | null;
+  blockingObligations?: ChapterExecutionMissingObligation[];
   budget?: ChapterQualityLoopBudget | null;
   signals: ChapterQualityLoopSignal[];
 }
@@ -308,6 +314,8 @@ export function buildChapterQualityLoopAssessment(
     pauseReason: effectiveAction === "manual_gate"
       ? "章节质量存在不可自动放行的问题，需要确认修复边界。"
       : null,
+    rootCauseCode: input.runtimePackage?.failureClassification.code ?? null,
+    blockingObligations: input.runtimePackage?.failureClassification.blockingObligations ?? [],
     budget,
     signals,
   };

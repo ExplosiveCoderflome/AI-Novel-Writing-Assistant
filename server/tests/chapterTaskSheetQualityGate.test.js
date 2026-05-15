@@ -119,6 +119,27 @@ test("chapter task sheet quality service lets full book mode auto-repair semanti
   assert.equal(result.issues[0].id, "semantic_boundary_leak");
 });
 
+test("chapter task sheet quality service marks overloaded contracts for window replan", async () => {
+  const service = new ChapterTaskSheetQualityGateService(async () => ({
+    verdict: "repairable",
+    safeToSync: false,
+    loadRisk: "overloaded",
+    recommendedHandling: "replan_window",
+    summary: "本章同时承担多条 payoff 和多名角色转折，职责过载。",
+    issues: [],
+    repairGuidance: ["把其中一条 payoff 和一个角色转折拆到下一章。"],
+    confidence: 0.86,
+  }));
+
+  const result = await service.evaluate(buildCandidate(), {
+    mode: "full_book_autopilot",
+  });
+
+  assert.equal(result.canEnterExecution, false);
+  assert.equal(result.status, "repairable");
+  assert.ok(result.issues.some((issue) => issue.id === "contract_overloaded"));
+});
+
 test("chapter task sheet quality service passes usable semantic assessments", async () => {
   const service = new ChapterTaskSheetQualityGateService(async () => ({
     verdict: "usable",

@@ -24,7 +24,7 @@ export { buildPipelineCurrentItemLabel, buildPipelineStageProgress } from "./pip
 const PIPELINE_HEARTBEAT_INTERVAL_MS = 15000;
 
 function buildEmptyChapterDetail(chapter: { order: number; title: string }): string {
-  return `第${chapter.order}章「${chapter.title}」未返回正文，已暂停继续。`;
+  return `第${chapter.order}章「${chapter.title}」正文生成失败：模型连续未返回可保存正文，已暂停继续。`;
 }
 
 function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {

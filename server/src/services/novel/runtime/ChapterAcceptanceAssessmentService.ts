@@ -1,5 +1,8 @@
 import type { AuditReport, AuditType, QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
-import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
+import type {
+  ChapterExecutionMissingObligation,
+  GenerationContextPackage,
+} from "@ai-novel/shared/types/chapterRuntime";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
@@ -80,6 +83,21 @@ function categoryToReviewIssueCategory(category: AcceptanceIssue["category"]): R
   return "coherence";
 }
 
+function missingObligationToReviewIssue(obligation: ChapterExecutionMissingObligation): ReviewIssue {
+  const category: ReviewIssue["category"] = obligation.kind === "character_appearance"
+    || obligation.kind === "goal_change"
+    ? "logic"
+    : obligation.kind === "forbidden_crossing"
+      ? "coherence"
+      : "pacing";
+  return {
+    severity: obligation.kind === "forbidden_crossing" ? "high" : "medium",
+    category,
+    evidence: obligation.evidence?.trim() || obligation.summary,
+    fixSuggestion: obligation.summary,
+  };
+}
+
 function countChapterCharacters(content: string): number {
   return content.replace(/\s+/g, "").trim().length;
 }
@@ -152,16 +170,25 @@ export function normalizeAssessment(
 ): ChapterAcceptanceAssessmentOutput {
   const reconciled = reconcileLengthAssessment(output, content, targetWordCount);
   const score = normalizeScore(reconciled.score ?? ruleScore(content));
+  const missingObligations = reconciled.missingObligations ?? [];
   const hasHighRisk = reconciled.blockingIssues.some((issue) => issue.severity === "high" || issue.severity === "critical");
-  const hasRepairWork = reconciled.blockingIssues.length > 0 || reconciled.repairDirectives.length > 0;
+  const hasRepairWork = reconciled.blockingIssues.length > 0
+    || reconciled.repairDirectives.length > 0
+    || missingObligations.length > 0;
   let status: ChapterAcceptanceAssessmentOutput["status"] = reconciled.status === "accepted" && hasHighRisk
     ? "repairable"
     : reconciled.status;
+  if (status === "accepted" && missingObligations.length > 0) {
+    status = "repairable";
+  }
   if (status === "needs_manual_review" && !hasHighRisk) {
     status = hasRepairWork ? "repairable" : "continue_with_risk";
   }
   if (status === "repairable" && !hasRepairWork) {
     status = "continue_with_risk";
+  }
+  if (reconciled.repairability === "plan_misalignment") {
+    status = "needs_manual_review";
   }
   const continuePolicy = status === "needs_manual_review"
     ? "pause"
@@ -178,6 +205,7 @@ export function normalizeAssessment(
     riskTags: Array.from(new Set(reconciled.riskTags.map((item) => item.trim()).filter(Boolean))),
     blockingIssues: reconciled.blockingIssues.slice(0, 5),
     repairDirectives: reconciled.repairDirectives.slice(0, 4),
+    missingObligations: missingObligations.slice(0, 8),
   };
 }
 
@@ -195,6 +223,9 @@ function buildFallbackAssessment(content: string): ChapterAcceptanceAssessmentOu
       fixSuggestion: "保留正文，后续可重新执行章节审校或局部修文。",
     }],
     repairDirectives: [],
+    missingObligations: [],
+    repairability: "none",
+    decisionReason: "接收闸门不可用，系统保留正文并继续推进后续复查。",
     riskTags: ["acceptance_gate_unavailable"],
     assetSyncRecommendation: {
       priority: "normal",
@@ -215,7 +246,7 @@ export class ChapterAcceptanceAssessmentService {
       category: categoryToReviewIssueCategory(issue.category),
       evidence: issue.evidence,
       fixSuggestion: issue.fixSuggestion,
-    }));
+    })).concat(normalized.missingObligations.map((obligation) => missingObligationToReviewIssue(obligation)));
     const auditReports = await this.persistAcceptanceReports(input, normalized, score);
     await openConflictService.syncFromAuditReports({
       novelId: input.novelId,

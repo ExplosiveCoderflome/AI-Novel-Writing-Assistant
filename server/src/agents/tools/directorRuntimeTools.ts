@@ -187,6 +187,8 @@ function buildStatusOutput(scope: ResolvedDirectorRuntimeScope, projection: Dire
     recoveryDecision: projection.recoveryDecision ?? "requires_manual_recovery",
     isAutopilotRecoverable: projection.isAutopilotRecoverable ?? false,
     visibleRiskBadges: projection.visibleRiskBadges ?? [],
+    rootCauseCode: projection.rootCauseCode ?? null,
+    blockingObligations: projection.blockingObligations ?? [],
     qualityBudgetSummary: projection.qualityBudgetSummary ?? null,
     qualityDebtSummary: projection.qualityDebtSummary ?? null,
     policyMode: projection.policyMode,

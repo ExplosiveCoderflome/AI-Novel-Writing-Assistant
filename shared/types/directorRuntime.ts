@@ -578,6 +578,12 @@ export interface DirectorRuntimeProjection {
   progressBreakdown?: DirectorRuntimeProgressBreakdown;
   chapterExecutionProgress?: DirectorChapterExecutionProgressSummary | null;
   visibleRiskBadges?: DirectorRuntimeVisibleRiskBadge[];
+  rootCauseCode?: "none" | "draft_generation_failed" | "draft_obligation_unmet" | "draft_repair_exhausted" | "replan_required" | null;
+  blockingObligations?: Array<{
+    kind: "must_hit_now" | "must_preserve" | "payoff_touch" | "character_appearance" | "goal_change" | "forbidden_crossing";
+    summary: string;
+    evidence?: string | null;
+  }>;
   qualityDebtSummary?: DirectorRuntimeQualityDebtSummary | null;
   qualityBudgetSummary?: DirectorRuntimeQualityBudgetSummary | null;
   policyMode: DirectorPolicyMode;

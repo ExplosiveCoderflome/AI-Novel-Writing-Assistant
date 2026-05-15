@@ -59,6 +59,8 @@ function createSystemPrompt(mode: ChapterTaskSheetQualityPromptInput["mode"]): s
     modeRule,
     "只评估当前章节合同，不扩写正文，不改写任务单。",
     "可用合同必须满足：本章目标清晰、边界不越章、任务单可执行、场景卡覆盖整章推进和结尾钩子、禁止事项足以约束正文生成。",
+    "还要判断本章是否被塞入过多彼此争夺篇幅的必达义务；如果任务单显示当前章职责已经过载，loadRisk=overloaded，recommendedHandling=replan_window。",
+    "如果问题仍可在本章合同内收口，recommendedHandling=repair_contract；只有合同已经足够稳时才用 use_as_is。",
     "如果存在问题，给出面向自动修复器的具体 repairGuidance。",
     "输出严格 JSON，不要 Markdown。",
   ].join("\n");

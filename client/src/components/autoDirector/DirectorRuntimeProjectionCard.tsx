@@ -167,6 +167,22 @@ function formatQualityBudgetSummary(summary: DirectorRuntimeProjection["qualityB
   return `${chapterText}质量预算：局部修复 ${summary.patchRepairUsed}/1，整章重写 ${summary.chapterRewriteUsed}/1，窗口重规划 ${summary.windowReplanUsed}/1。${summary.nextActionLabel}`;
 }
 
+function formatRootCauseSummary(projection: DirectorRuntimeProjection): string | null {
+  if (!projection.rootCauseCode || projection.rootCauseCode === "none") {
+    return null;
+  }
+  if (projection.rootCauseCode === "replan_required") {
+    return "当前问题来自章节职责失配，系统需要先调整附近章节安排。";
+  }
+  if (projection.rootCauseCode === "draft_obligation_unmet") {
+    return "正文已经生成，但仍有本章必须完成的内容没有兑现。";
+  }
+  if (projection.rootCauseCode === "draft_repair_exhausted") {
+    return "正文已经生成，但自动修复后仍有阻塞问题需要继续处理。";
+  }
+  return "正文没有成功生成，需要重新执行当前章节。";
+}
+
 function formatPercent(value: number | null | undefined): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return "0%";
@@ -198,6 +214,10 @@ export default function DirectorRuntimeProjectionCard({
     || null;
   const qualityDebtLine = formatQualityDebtSummary(projection.qualityDebtSummary);
   const qualityBudgetLine = formatQualityBudgetSummary(projection.qualityBudgetSummary);
+  const rootCauseLine = formatRootCauseSummary(projection);
+  const obligationLine = projection.blockingObligations && projection.blockingObligations.length > 0
+    ? `仍需处理：${projection.blockingObligations.slice(0, 3).map((item) => item.summary).join("；")}`
+    : null;
   const activeExecutionLine = projection.activeExecution
     ? `后台执行：${getDirectorNodeDisplayLabel({
       nodeKey: projection.activeExecution.stepType,
@@ -219,6 +239,8 @@ export default function DirectorRuntimeProjectionCard({
     projection.nextActionLabel ? `下一步：${projection.nextActionLabel}` : null,
     projection.recommendedAction?.reason ? `推荐原因：${projection.recommendedAction.reason}` : null,
     projection.isAutopilotRecoverable ? "AI 可以从当前进度继续处理。" : null,
+    rootCauseLine,
+    obligationLine,
     qualityBudgetLine,
     qualityDebtLine,
     projection.scopeSummary,

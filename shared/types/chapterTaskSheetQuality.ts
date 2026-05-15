@@ -74,6 +74,8 @@ export const chapterTaskSheetQualityIssueSchema = z.object({
 export const aiChapterTaskSheetQualityAssessmentSchema = z.object({
   verdict: z.enum(["usable", "repairable", "unusable"]),
   safeToSync: z.boolean(),
+  loadRisk: z.enum(["normal", "overloaded"]).default("normal"),
+  recommendedHandling: z.enum(["use_as_is", "repair_contract", "replan_window"]).default("use_as_is"),
   summary: z.string().trim().min(1),
   issues: z.array(chapterTaskSheetQualityIssueSchema).max(8).default([]),
   repairGuidance: z.array(z.string().trim().min(1)).max(8).default([]),
@@ -182,11 +184,21 @@ export function mapSemanticAssessmentToQualityGate(
   assessment: AiChapterTaskSheetQualityAssessment,
   mode: ChapterTaskSheetQualityMode,
 ): ChapterTaskSheetQualityGateResult {
+  const issues = assessment.recommendedHandling === "replan_window"
+    && !assessment.issues.some((issue) => issue.id === "contract_overloaded")
+    ? assessment.issues.concat({
+      id: "contract_overloaded",
+      severity: "high",
+      target: "semantic",
+      summary: "当前章节职责过载，继续执行会提高遗漏关键义务的概率。",
+      repairHint: "先重排附近章节职责，再进入正文生成。",
+    })
+    : assessment.issues;
   if (assessment.verdict === "usable" && assessment.safeToSync) {
     return {
       status: "passed",
       canEnterExecution: true,
-      issues: assessment.issues,
+      issues,
       summary: assessment.summary,
       repairGuidance: assessment.repairGuidance,
       confidence: assessment.confidence,
@@ -202,7 +214,7 @@ export function mapSemanticAssessmentToQualityGate(
   return {
     status,
     canEnterExecution: false,
-    issues: assessment.issues,
+    issues,
     summary: assessment.summary,
     repairGuidance: assessment.repairGuidance,
     confidence: assessment.confidence,

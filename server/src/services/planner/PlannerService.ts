@@ -937,6 +937,9 @@ export class PlannerService {
     targetChapterOrder?: number | null;
     requestedWindowSize?: number | null;
     blockingLedgerKeys?: string[];
+    forceRecommended?: boolean;
+    reason?: string | null;
+    triggerType?: string | null;
   }) {
     return buildReplanDecision({
       auditReports: input.auditReports ?? [],
@@ -948,6 +951,9 @@ export class PlannerService {
       targetChapterOrder: input.targetChapterOrder ?? input.contextPackage?.chapter?.order ?? null,
       requestedWindowSize: input.requestedWindowSize ?? null,
       blockingLedgerKeys: input.blockingLedgerKeys ?? [],
+      forceRecommended: input.forceRecommended,
+      reason: input.reason,
+      triggerType: input.triggerType,
     });
   }
 

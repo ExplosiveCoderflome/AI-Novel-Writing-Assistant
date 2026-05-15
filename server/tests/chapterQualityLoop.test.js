@@ -77,6 +77,16 @@ test("buildChapterQualityLoopAssessment routes rolling window failures to replan
         blockingLedgerKeys: [],
         affectedChapterOrders: [3, 4],
       },
+      failureClassification: {
+        code: "replan_required",
+        summary: "章节职责与计划窗口失配。",
+        decisionReason: "需要重排邻近章节。",
+        blockingObligations: [{
+          kind: "goal_change",
+          summary: "角色目标变化未兑现。",
+          evidence: "正文没有体现目标变化。",
+        }],
+      },
     },
     evaluatedAt: "2026-04-30T00:00:00.000Z",
   });
@@ -90,6 +100,8 @@ test("buildChapterQualityLoopAssessment routes rolling window failures to replan
     assessment.signals.find((signal) => signal.artifactType === "rolling_window_review").status,
     "invalid",
   );
+  assert.equal(assessment.rootCauseCode, "replan_required");
+  assert.equal(assessment.blockingObligations[0].kind, "goal_change");
 });
 
 test("buildChapterQualityLoopAssessment treats low repetition control as a repair risk", () => {

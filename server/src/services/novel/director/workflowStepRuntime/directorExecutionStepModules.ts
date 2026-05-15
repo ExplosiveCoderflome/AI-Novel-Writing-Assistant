@@ -133,6 +133,14 @@ function createChapterDraftExecutableModule(
           ? await getDirectorCoreStateReader().readByTaskId(context.taskId).catch(() => null)
           : null;
         const observedState = freshState ?? state;
+        if (observedState.task.status === "waiting_approval" && observedState.task.checkpointType === "replan_required") {
+          return {
+            valid: false,
+            reason: observedState.task.checkpointSummary?.trim()
+              || observedState.task.lastError?.trim()
+              || "章节正文已生成，但本章职责与后续计划失配，需要先处理质量修复 / 重规划。",
+          };
+        }
         if (observedState.task.status === "failed" || observedState.task.status === "cancelled") {
           const reason = observedState.task.lastError?.trim()
             || observedState.task.checkpointSummary?.trim()

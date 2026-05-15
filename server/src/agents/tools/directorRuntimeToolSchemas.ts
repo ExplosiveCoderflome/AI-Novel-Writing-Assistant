@@ -120,6 +120,25 @@ export const getDirectorRunStatusOutputSchema = z.object({
     level: z.enum(["info", "warning", "danger"]),
     source: z.enum(["status", "artifact", "event", "policy"]).optional(),
   })),
+  rootCauseCode: z.enum([
+    "none",
+    "draft_generation_failed",
+    "draft_obligation_unmet",
+    "draft_repair_exhausted",
+    "replan_required",
+  ]).nullable(),
+  blockingObligations: z.array(z.object({
+    kind: z.enum([
+      "must_hit_now",
+      "must_preserve",
+      "payoff_touch",
+      "character_appearance",
+      "goal_change",
+      "forbidden_crossing",
+    ]),
+    summary: z.string(),
+    evidence: z.string().nullable().optional(),
+  })),
   qualityBudgetSummary: z.object({
     currentChapterId: z.string().nullable().optional(),
     currentChapterOrder: z.number().nullable().optional(),
