@@ -237,6 +237,71 @@ test("auto-to-execution structured outline approval is passed into each structur
   ]);
 });
 
+test("explicit chapter execution resume runs chapters even when auto approval preference is disabled", async () => {
+  const modules = [];
+  const chapterCalls = [];
+  const workspace = {
+    volumes: [{ id: "volume_1", chapters: [] }],
+    strategyPlan: { targetChapterCount: 30 },
+  };
+  const runtime = createRuntime({
+    novelContextService: {
+      async listCharacters() {
+        return [{ id: "character_1" }];
+      },
+    },
+    storyMacroService: {
+      async getPlan() {
+        return {
+          id: "story_macro_existing",
+          storyInput: "story",
+          decomposition: { core_conflict: "conflict" },
+        };
+      },
+    },
+    bookContractService: {
+      async getByNovelId() {
+        return { id: "book_contract_existing" };
+      },
+    },
+    volumeService: {
+      async getVolumes() {
+        return workspace;
+      },
+    },
+    runtimeOrchestrator: {
+      async runStepModule(input) {
+        modules.push(input.module.id);
+        return undefined;
+      },
+      async runChapterExecutionNode(input) {
+        chapterCalls.push(input);
+      },
+      async markTaskRunning() {},
+    },
+  });
+
+  await runtime.runPipeline({
+    taskId: "task_explicit_chapter_resume",
+    novelId: "novel_explicit_chapter_resume",
+    input: buildDirectorInput({
+      workflowTaskId: "task_explicit_chapter_resume",
+      runMode: "auto_to_execution",
+      autoApproval: {
+        enabled: false,
+        approvalPointCodes: [],
+      },
+    }),
+    startPhase: "structured_outline",
+    approveAutoExecutionScope: true,
+  });
+
+  assert.ok(modules.includes("chapter.execution_contract.sync"));
+  assert.equal(chapterCalls.length, 1);
+  assert.equal(chapterCalls[0].resumeCheckpointType, "chapter_batch_ready");
+  assert.equal(chapterCalls[0].approveAutoExecutionScope, true);
+});
+
 test("auto-to-execution does not pass planning gates without matching approval", async () => {
   const calls = [];
   const runtime = createRuntime({

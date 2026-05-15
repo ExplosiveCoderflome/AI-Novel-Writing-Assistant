@@ -254,13 +254,16 @@ export class NovelDirectorPipelineRuntime {
   }
 
   private async maybeRunAutoApprovedChapters(input: DirectorPipelineRunInput): Promise<void> {
-    if (!this.shouldAutoApproveCheckpoint(input.input, "chapter_batch_ready")) {
+    const shouldAutoApproveCheckpoint = this.shouldAutoApproveCheckpoint(input.input, "chapter_batch_ready");
+    if (!input.approveAutoExecutionScope && !shouldAutoApproveCheckpoint) {
       return;
     }
-    await recordAutoDirectorAutoApprovalFromTask({
-      taskId: input.taskId,
-      checkpointType: "chapter_batch_ready",
-    });
+    if (shouldAutoApproveCheckpoint) {
+      await recordAutoDirectorAutoApprovalFromTask({
+        taskId: input.taskId,
+        checkpointType: "chapter_batch_ready",
+      });
+    }
     const approval = this.resolveRuntimeApproval(input, "structured_outline_ready");
     await this.deps.runtimeOrchestrator.runChapterExecutionNode({
       taskId: input.taskId,
