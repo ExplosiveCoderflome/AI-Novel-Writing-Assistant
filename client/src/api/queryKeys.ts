@@ -7,6 +7,7 @@ export const queryKeys = {
     characters: (id: string) => ["novels", "characters", id] as const,
     characterResources: (id: string) => ["novels", "character-resources", id] as const,
     characterResourceContext: (id: string, chapterId: string) => ["novels", "character-resource-context", id, chapterId] as const,
+    chapterTimeline: (id: string, chapterId: string) => ["novels", "chapter-timeline", id, chapterId] as const,
     characterRelations: (id: string) => ["novels", "character-relations", id] as const,
     characterCastOptions: (id: string) => ["novels", "character-cast-options", id] as const,
     characterDynamicsOverview: (id: string, chapterOrder?: number) => ["novels", "character-dynamics-overview", id, chapterOrder ?? "latest"] as const,

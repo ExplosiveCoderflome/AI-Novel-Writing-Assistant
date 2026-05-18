@@ -28,6 +28,10 @@
 - 时间线检测属于接收闸门的一部分，但独立于质量审校。它检查未来事件泄漏、上一章钩子未承接、时间倒退、事件重复、状态冲突和计划事件缺失。
 - 时间线检测失败时保留正文并标记 `needs_repair`，但不把失败正文抽取出的事件提交为 `occurred` 时间线。
 - 时间线模块不能直接修改正文；它只输出结构化 issues，由现有局部修复或整章修复链路决定怎么修。
+- 章节执行页的前端投影采用三栏职责：左侧只负责切章和查看队列状态，中间只承接正文、任务单、质量反馈和修复记录，右侧作为只读“未来动态侧栏”展示时间线、角色动态、资源与风险。
+- 未来动态侧栏不得新增写入流程。时间线来自章节时间线接口，检测摘要优先使用 runtime package 或最新 `TimelineCheckReport`，角色动态来自状态快照，资源与风险来自现有资源上下文和运行时风险摘要。
+- 桌面端未来动态侧栏应保持 300-340px 固定宽度并 sticky；移动端应折叠成分组区域，优先保留正文阅读和章节操作空间。
+- 右侧侧栏只展示会影响后续写作的约束和状态，不应重复中间正文区的完整正文、质量报告或修复记录。
 - 章节热路径必须维护统一的章节义务合同：`mustHitNow`、`mustPreserve`、`requiredPayoffTouches`、`requiredCharacterAppearances`、`requiredGoalChanges`、`canDefer`、`forbiddenCrossings`。writer、接收闸门、局部修复和重规划判断都应消费同一份合同，避免规划、写作和审核各自解释章节职责。
 - 章节修复、审阅和上下文组装必须兼容旧运行记录中的章节写作上下文。旧 `chapterWriteContext` 如果缺少新增的 `obligationContract`，运行时应补齐空合同，而不是让修复流崩溃；补齐后仍由当前章节任务、角色职责、伏笔账本和资源状态重新组织审阅与修复上下文。
 - 章节义务上下文的结构化提醒不能挤掉高风险资源和逾期伏笔。审阅与修复上下文应保留资源不可用、资源需确认、urgent/overdue payoff 等关键信号，防止 AI 修文在缺少约束的情况下继续使用失效道具或忽略必须兑现的压力。
@@ -81,6 +85,7 @@
 - `server/src/prompting/prompts/novel/`
 - `client/src/pages/novels/components/chapterExecution.shared.tsx`
 - `client/src/pages/novels/components/ChapterExecutionResultPanel.tsx`
+- `client/src/pages/novels/components/chapterInsights/`
 
 ## 来源文档
 
