@@ -16,7 +16,7 @@ function DesktopSidebar(props: ChapterExecutionInsightsSidebarProps) {
   }, [props.selectedChapter?.id]);
 
   return (
-    <Card className="h-full overflow-hidden border-border/70 xl:flex xl:min-h-0 xl:flex-col">
+    <Card className="overflow-hidden border-border/70 xl:flex xl:max-h-[calc(100dvh-10rem)] xl:min-h-[360px] xl:flex-col">
       <CardHeader className="gap-3 border-b bg-gradient-to-b from-muted/30 via-background to-background pb-4 xl:shrink-0">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
