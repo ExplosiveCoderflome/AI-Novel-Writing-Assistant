@@ -16,7 +16,7 @@ function DesktopSidebar(props: ChapterExecutionInsightsSidebarProps) {
   }, [props.selectedChapter?.id]);
 
   return (
-    <Card className="overflow-hidden border-border/70 xl:flex xl:max-h-[calc(100dvh-10rem)] xl:min-h-[360px] xl:flex-col">
+    <Card className="h-full overflow-hidden border-border/70 xl:flex xl:min-h-0 xl:flex-col">
       <CardHeader className="gap-3 border-b bg-gradient-to-b from-muted/30 via-background to-background pb-4 xl:shrink-0">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
@@ -38,7 +38,7 @@ function DesktopSidebar(props: ChapterExecutionInsightsSidebarProps) {
             </TabsList>
           </div>
           <div className="min-h-0 xl:flex-1 xl:overflow-y-auto xl:px-4 xl:pb-4 xl:pt-4">
-            <TabsContent value="timeline" className="mt-0 h-full min-h-0">
+            <TabsContent value="timeline" className="mt-0">
               <TimelinePanel
                 selectedChapter={props.selectedChapter}
                 chapterTimeline={props.chapterTimeline}
@@ -46,10 +46,10 @@ function DesktopSidebar(props: ChapterExecutionInsightsSidebarProps) {
                 chapterRuntimePackage={props.chapterRuntimePackage}
               />
             </TabsContent>
-            <TabsContent value="character" className="mt-0 h-full min-h-0">
+            <TabsContent value="character" className="mt-0">
               <CharacterDynamicsPanel latestStateSnapshot={props.latestStateSnapshot} chapterStateSnapshot={props.chapterStateSnapshot} />
             </TabsContent>
-            <TabsContent value="resources" className="mt-0 h-full min-h-0">
+            <TabsContent value="resources" className="mt-0">
               <ResourceRiskPanel {...props} />
             </TabsContent>
           </div>
