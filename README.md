@@ -333,9 +333,8 @@ pnpm install
 
 这个仓库通过 pnpm workspace 分别启动前后端，所以环境变量也是按子包读取的：
 
-- 服务端运行在 `server/` 工作目录，默认读取 `server/.env`
-- 前端运行在 `client/` 工作目录，默认读取 `client/.env` / `client/.env.local`
-- 根目录 `.env.example` 目前更适合当“总览参考”，不是 `pnpm dev` 默认读取的主入口
+- 服务端运行在 `server/` 工作目录，默认读取 `server/.env`，示例见 [`server/.env.example`](./server/.env.example)
+- 前端运行在 `client/` 工作目录，默认读取 `client/.env` / `client/.env.local`，示例见 [`client/.env.example`](./client/.env.example)
 
 #### 2.1 服务端环境变量
 
