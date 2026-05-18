@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buildReplanRecommendationFromAuditReports } from "../chapterPlanning.shared";
 import type { ChapterTabViewProps } from "./NovelEditView.types";
 import WorldInjectionHint from "./WorldInjectionHint";
@@ -101,6 +102,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
 
   const [assetTab, setAssetTab] = useState<AssetTabKey>("content");
   const [queueFilter, setQueueFilter] = useState<QueueFilterKey>("all");
+  const [rightRailTab, setRightRailTab] = useState<"insights" | "agent">("insights");
 
   const openAuditIssues = useMemo(
     () => chapterAuditReports.flatMap((report) => report.issues.filter((issue) => issue.status === "open").map((issue) => ({
@@ -221,78 +223,84 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
             />
           </div>
 
-          <div className="w-full space-y-4 xl:sticky xl:top-4 xl:grid xl:h-[calc(100dvh-8rem)] xl:w-[332px] xl:flex-none xl:grid-rows-[minmax(320px,1fr)_minmax(200px,0.85fr)] xl:gap-4 xl:space-y-0 xl:overflow-hidden">
-            <div className="min-h-0">
-              <ChapterExecutionInsightsSidebar
-                selectedChapter={selectedChapter}
-                chapterTimeline={chapterTimeline}
-                isLoadingChapterTimeline={isLoadingChapterTimeline}
-                latestStateSnapshot={latestStateSnapshot}
-                chapterStateSnapshot={chapterStateSnapshot}
-                chapterRuntimePackage={chapterRuntimePackage}
-                chapterResourceContext={chapterResourceContext}
-                isLoadingChapterResourceContext={isLoadingChapterResourceContext}
-                resourceWorkflowMode={resourceWorkflowMode}
-                pendingCharacterResourceProposals={pendingCharacterResourceProposals}
-                onExtractChapterResources={onExtractChapterResources}
-                isExtractingChapterResources={isExtractingChapterResources}
-                onConfirmCharacterResourceProposal={onConfirmCharacterResourceProposal}
-                onRejectCharacterResourceProposal={onRejectCharacterResourceProposal}
-                confirmingCharacterResourceProposalId={confirmingCharacterResourceProposalId}
-                rejectingCharacterResourceProposalId={rejectingCharacterResourceProposalId}
-              />
-            </div>
-            <div className="min-h-0 overflow-y-auto pr-1">
-              <ChapterExecutionActionPanel
-                novelId={novelId}
-                selectedChapter={selectedChapter}
-                hasCharacters={hasCharacters}
-                strategy={strategy}
-                onStrategyChange={onStrategyChange}
-                onApplyStrategy={onApplyStrategy}
-                isApplyingStrategy={isApplyingStrategy}
-                onGenerateSelectedChapter={onGenerateSelectedChapter}
-                onRewriteChapter={onRewriteChapter}
-                onExpandChapter={onExpandChapter}
-                onCompressChapter={onCompressChapter}
-                onSummarizeChapter={onSummarizeChapter}
-                onGenerateTaskSheet={onGenerateTaskSheet}
-                onGenerateSceneCards={onGenerateSceneCards}
-                onGenerateChapterPlan={onGenerateChapterPlan}
-                onReplanChapter={onReplanChapter}
-                onRunFullAudit={onRunFullAudit}
-                onCheckContinuity={onCheckContinuity}
-                onCheckCharacterConsistency={onCheckCharacterConsistency}
-                onCheckPacing={onCheckPacing}
-                onAutoRepair={onAutoRepair}
-                onStrengthenConflict={onStrengthenConflict}
-                onEnhanceEmotion={onEnhanceEmotion}
-                onUnifyStyle={onUnifyStyle}
-                onAddDialogue={onAddDialogue}
-                onAddDescription={onAddDescription}
-                isGeneratingTaskSheet={isGeneratingTaskSheet}
-                isGeneratingSceneCards={isGeneratingSceneCards}
-                isSummarizingChapter={isSummarizingChapter}
-                reviewActionKind={reviewActionKind}
-                repairActionKind={repairActionKind}
-                generationActionKind={generationActionKind}
-                isReviewingChapter={isReviewingChapter}
-                isRepairingChapter={isRepairingChapter}
-                isGeneratingChapterPlan={isGeneratingChapterPlan}
-                isReplanningChapter={isReplanningChapter}
-                isRunningFullAudit={isRunningFullAudit}
-                isStreaming={isStreaming}
-                streamingChapterId={streamingChapterId}
-                chapterAuditReports={chapterAuditReports}
-                chapterRuntimePackage={chapterRuntimePackage}
-                latestStateSnapshot={latestStateSnapshot}
-                chapterStateSnapshot={chapterStateSnapshot}
-                backgroundSyncActivities={backgroundSyncActivities}
-                chapterRunStatus={chapterRunStatus}
-                repairRunStatus={repairRunStatus}
-                repairStreamingChapterId={repairStreamingChapterId}
-              />
-            </div>
+          <div className="w-full xl:sticky xl:top-4 xl:h-[calc(100dvh-8rem)] xl:w-[332px] xl:flex-none">
+            <Tabs value={rightRailTab} onValueChange={(value) => setRightRailTab(value as "insights" | "agent")} className="flex h-full min-h-0 flex-col">
+              <TabsList className="grid h-auto w-full shrink-0 grid-cols-2 rounded-xl bg-muted/50 p-1.5">
+                <TabsTrigger value="insights" className="rounded-lg px-3 py-2 text-sm">动态栏</TabsTrigger>
+                <TabsTrigger value="agent" className="rounded-lg px-3 py-2 text-sm">AI 执行台</TabsTrigger>
+              </TabsList>
+              <TabsContent value="insights" className="mt-3 min-h-0 flex-1">
+                <ChapterExecutionInsightsSidebar
+                  selectedChapter={selectedChapter}
+                  chapterTimeline={chapterTimeline}
+                  isLoadingChapterTimeline={isLoadingChapterTimeline}
+                  latestStateSnapshot={latestStateSnapshot}
+                  chapterStateSnapshot={chapterStateSnapshot}
+                  chapterRuntimePackage={chapterRuntimePackage}
+                  chapterResourceContext={chapterResourceContext}
+                  isLoadingChapterResourceContext={isLoadingChapterResourceContext}
+                  resourceWorkflowMode={resourceWorkflowMode}
+                  pendingCharacterResourceProposals={pendingCharacterResourceProposals}
+                  onExtractChapterResources={onExtractChapterResources}
+                  isExtractingChapterResources={isExtractingChapterResources}
+                  onConfirmCharacterResourceProposal={onConfirmCharacterResourceProposal}
+                  onRejectCharacterResourceProposal={onRejectCharacterResourceProposal}
+                  confirmingCharacterResourceProposalId={confirmingCharacterResourceProposalId}
+                  rejectingCharacterResourceProposalId={rejectingCharacterResourceProposalId}
+                />
+              </TabsContent>
+              <TabsContent value="agent" className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+                <ChapterExecutionActionPanel
+                  novelId={novelId}
+                  selectedChapter={selectedChapter}
+                  hasCharacters={hasCharacters}
+                  strategy={strategy}
+                  onStrategyChange={onStrategyChange}
+                  onApplyStrategy={onApplyStrategy}
+                  isApplyingStrategy={isApplyingStrategy}
+                  onGenerateSelectedChapter={onGenerateSelectedChapter}
+                  onRewriteChapter={onRewriteChapter}
+                  onExpandChapter={onExpandChapter}
+                  onCompressChapter={onCompressChapter}
+                  onSummarizeChapter={onSummarizeChapter}
+                  onGenerateTaskSheet={onGenerateTaskSheet}
+                  onGenerateSceneCards={onGenerateSceneCards}
+                  onGenerateChapterPlan={onGenerateChapterPlan}
+                  onReplanChapter={onReplanChapter}
+                  onRunFullAudit={onRunFullAudit}
+                  onCheckContinuity={onCheckContinuity}
+                  onCheckCharacterConsistency={onCheckCharacterConsistency}
+                  onCheckPacing={onCheckPacing}
+                  onAutoRepair={onAutoRepair}
+                  onStrengthenConflict={onStrengthenConflict}
+                  onEnhanceEmotion={onEnhanceEmotion}
+                  onUnifyStyle={onUnifyStyle}
+                  onAddDialogue={onAddDialogue}
+                  onAddDescription={onAddDescription}
+                  isGeneratingTaskSheet={isGeneratingTaskSheet}
+                  isGeneratingSceneCards={isGeneratingSceneCards}
+                  isSummarizingChapter={isSummarizingChapter}
+                  reviewActionKind={reviewActionKind}
+                  repairActionKind={repairActionKind}
+                  generationActionKind={generationActionKind}
+                  isReviewingChapter={isReviewingChapter}
+                  isRepairingChapter={isRepairingChapter}
+                  isGeneratingChapterPlan={isGeneratingChapterPlan}
+                  isReplanningChapter={isReplanningChapter}
+                  isRunningFullAudit={isRunningFullAudit}
+                  isStreaming={isStreaming}
+                  streamingChapterId={streamingChapterId}
+                  chapterAuditReports={chapterAuditReports}
+                  chapterRuntimePackage={chapterRuntimePackage}
+                  latestStateSnapshot={latestStateSnapshot}
+                  chapterStateSnapshot={chapterStateSnapshot}
+                  backgroundSyncActivities={backgroundSyncActivities}
+                  chapterRunStatus={chapterRunStatus}
+                  repairRunStatus={repairRunStatus}
+                  repairStreamingChapterId={repairStreamingChapterId}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </CardContent>
