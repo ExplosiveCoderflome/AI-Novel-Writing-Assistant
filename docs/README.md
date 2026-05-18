@@ -9,7 +9,7 @@
 - 项目入口与对外说明：`README.md`
 - 路线图与执行主清单：`TASK.md`
 - 协作与工程约束：`AGENTS.md`
-- Monorepo 与工具链配置：`package.json`、`pnpm-workspace.yaml`、`tsconfig.base.json`、`.env.example`
+- Monorepo 与工具链配置：`package.json`、`pnpm-workspace.yaml`、`tsconfig.base.json`（环境变量示例在 `server/.env.example` 和 `client/.env.example`）
 
 其余设计稿、阶段总结、模块计划、历史规格，统一进入 `docs/` 对应子目录。
 
