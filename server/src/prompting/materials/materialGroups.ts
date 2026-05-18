@@ -50,6 +50,7 @@ export const NOVEL_MATERIAL_GROUPS: NovelMaterialGroupDefinition[] = [
     sourceType: "character",
     aliases: [
       "participant_subset",
+      "character_hard_facts",
       "character_dynamics",
       "character_resource",
       "character_resource_context",

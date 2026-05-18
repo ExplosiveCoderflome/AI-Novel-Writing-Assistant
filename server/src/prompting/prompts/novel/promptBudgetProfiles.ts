@@ -35,6 +35,7 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
       "chapter_mission",
       "timeline_context",
       "previous_chapter_hook",
+      "character_hard_facts",
       "payoff_directives",
       "style_contract",
       "volume_window",
@@ -56,6 +57,7 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
     preferredGroups: [
       "chapter_mission",
       "structure_obligations",
+      "character_hard_facts",
       "local_state",
       "style_contract",
       "open_conflicts",
@@ -73,6 +75,7 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
     preferredGroups: [
       "chapter_mission",
       "local_state",
+      "character_hard_facts",
       "payoff_directives",
       "open_conflicts",
     ],
@@ -89,6 +92,7 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
     preferredGroups: [
       "chapter_mission",
       "structure_obligations",
+      "character_hard_facts",
       "local_state",
     ],
     dropOrder: [
@@ -104,6 +108,7 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
     preferredGroups: [
       "chapter_mission",
       "structure_obligations",
+      "character_hard_facts",
       "world_rules",
       "historical_issues",
     ],
@@ -121,6 +126,7 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
       "repair_issues",
       "chapter_mission",
       "repair_boundaries",
+      "character_hard_facts",
       "world_rules",
     ],
     dropOrder: [

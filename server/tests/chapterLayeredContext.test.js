@@ -148,16 +148,56 @@ function createContextPackage() {
         name: "主角",
         role: "主角",
         personality: "谨慎但不服输",
+        identityLabel: "被压制的调查者",
+        factionLabel: "主角方",
+        powerLevel: "普通人",
         currentState: "被压制",
         currentGoal: "抢回主动权",
+        prohibitions: ["不得突然拥有超自然能力"],
       },
       {
         id: "char-2",
         name: "女二",
         role: "盟友",
         personality: "冷静克制",
+        identityLabel: "暗线持钥者",
+        factionLabel: "主角方",
+        stanceLabel: "隐线支援",
         currentState: "暂时失联",
         currentGoal: "把关键情报送到主角手里",
+        prohibitions: ["未现身前不得直接交出暗账副本"],
+      },
+    ],
+    characterHardFacts: [
+      {
+        characterId: "char-1",
+        name: "主角",
+        role: "主角",
+        identityLabel: "被压制的调查者",
+        factionLabel: "主角方",
+        stanceLabel: null,
+        powerLevel: "普通人",
+        realm: null,
+        currentLocation: "外城维修区",
+        availability: "本章可行动",
+        currentState: "被压制",
+        currentGoal: "抢回主动权",
+        prohibitions: ["不得突然拥有超自然能力"],
+      },
+      {
+        characterId: "char-2",
+        name: "女二",
+        role: "盟友",
+        identityLabel: "暗线持钥者",
+        factionLabel: "主角方",
+        stanceLabel: "隐线支援",
+        powerLevel: null,
+        realm: null,
+        currentLocation: "未知",
+        availability: "本章只能通过情报影响局势",
+        currentState: "暂时失联",
+        currentGoal: "把关键情报送到主角手里",
+        prohibitions: ["未现身前不得直接交出暗账副本"],
       },
     ],
     creativeDecisions: [],
@@ -546,6 +586,7 @@ test("chapter layered contexts carry volume mission, character duties and repair
   });
 
   assert.ok(writeContext.participants.some((item) => item.name === "女二"));
+  assert.ok(writeContext.characterHardFacts.some((item) => item.name === "女二"));
   assert.ok(writeContext.characterBehaviorGuides.some((item) => item.volumeResponsibility.includes("反压机会")));
   assert.ok(writeContext.characterBehaviorGuides.some((item) => item.absenceRisk === "high"));
   assert.ok(writeContext.pendingCandidateGuards.some((item) => item.proposedName === "林策"));
@@ -590,6 +631,14 @@ test("chapter layered contexts carry volume mission, character duties and repair
     && /Payoff ledger summary: pending=1, urgent=1, overdue=1/.test(block.content)
     && /Active pending payoffs/.test(block.content)
     && /Overdue payoffs/.test(block.content)
+  )));
+  assert.ok(writerBlocks.some((block) => (
+    block.id === "character_hard_facts"
+    && block.required
+    && block.allowSummary === false
+    && /被压制的调查者/.test(block.content)
+    && /不得突然拥有超自然能力/.test(block.content)
+    && /未现身前不得直接交出暗账副本/.test(block.content)
   )));
   assert.ok(writerBlocks.some((block) => (
     block.id === "character_resource_context"

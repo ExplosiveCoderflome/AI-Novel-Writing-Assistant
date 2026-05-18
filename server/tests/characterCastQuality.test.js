@@ -8,6 +8,132 @@ const {
 const {
   extractCharacterAnchorHints,
 } = require("../dist/prompting/prompts/novel/characterPreparation.contextBlocks.js");
+const {
+  characterCastOptionResponseSchema,
+} = require("../dist/prompting/prompts/novel/characterPreparation.promptSchemas.js");
+
+test("core character cast schema preserves full profile and hard facts", () => {
+  const parsed = characterCastOptionResponseSchema.parse({
+    options: [
+      {
+        title: "封神逆转阵容",
+        summary: "申公豹重生后重组关键人物关系。",
+        whyItWorks: "主角身份和阵营约束可直接进入正文。",
+        recommendedReason: "能避免阵营和境界写错。",
+        members: [
+          {
+            name: "申公豹",
+            role: "玉虚宫门下 / 逆向布局者",
+            gender: "male",
+            castRole: "protagonist",
+            relationToProtagonist: "主角本人",
+            storyFunction: "策反封神关键人物，逆转天命",
+            shortDescription: "带着前世记忆重开封神局的人",
+            personality: "隐忍、善辩，遇到关键人物会先试探再押注",
+            background: "元始天尊门下，前世被封神大势裹挟。",
+            development: "从被动说客转为主动布局者。",
+            identityLabel: "玉虚宫门下申公豹",
+            factionLabel: "阐教",
+            stanceLabel: "反天命布局",
+            powerLevel: "阐教门人",
+            realm: "仙道修行者",
+            currentLocation: "昆仑附近",
+            availability: "本章可行动",
+            prohibitions: ["不得自称截教外门弟子"],
+            outerGoal: "策反赵公明",
+            innerNeed: "摆脱被天命利用的宿命",
+            fear: "再次被封神大势吞没",
+            wound: "前世失败记忆",
+            misbelief: "只靠口舌就能扭转大势",
+            secret: "保留前世记忆",
+            moralLine: "不再把同道送入死局",
+            firstImpression: "笑意克制，话里藏锋",
+          },
+          {
+            name: "赵公明",
+            role: "截教高手",
+            gender: "male",
+            castRole: "ally",
+            relationToProtagonist: "被策反对象",
+            storyFunction: "承接第一条信任与反杀线",
+            personality: "豪迈但警惕",
+            background: "峨眉罗浮洞修行的截教重要人物。",
+            development: "从不信申公豹到初步信任。",
+            identityLabel: "截教外门强者",
+            factionLabel: "截教",
+            powerLevel: "大罗金仙",
+            realm: "大罗金仙",
+            prohibitions: ["不得写成真仙后期"],
+          },
+          {
+            name: "元始天尊",
+            role: "阐教掌教",
+            gender: "male",
+            castRole: "pressure_source",
+            relationToProtagonist: "师尊与上位压力源",
+            storyFunction: "制造阵营压力和天命约束",
+            personality: "威严冷峻",
+            background: "阐教掌教，封神大势的关键执棋者。",
+            development: "逐渐察觉申公豹偏离原本轨迹。",
+            identityLabel: "阐教掌教",
+            factionLabel: "阐教",
+            powerLevel: "圣人",
+            realm: "圣人",
+          },
+        ],
+        relations: [
+          {
+            sourceName: "申公豹",
+            targetName: "赵公明",
+            surfaceRelation: "试探结盟",
+            hiddenTension: "阵营不同导致互不信任",
+            conflictSource: "申公豹知道死局但难以解释来源",
+          },
+          {
+            sourceName: "申公豹",
+            targetName: "元始天尊",
+            surfaceRelation: "师徒",
+            hiddenTension: "申公豹正在背离阐教安排",
+            conflictSource: "封神大势与个人布局冲突",
+          },
+        ],
+      },
+      {
+        title: "备选阵容一",
+        summary: "备选。",
+        members: [
+          { name: "甲", role: "主角", gender: "unknown", castRole: "protagonist", storyFunction: "推进主线" },
+          { name: "乙", role: "盟友", gender: "unknown", castRole: "ally", storyFunction: "支援主角" },
+          { name: "丙", role: "对手", gender: "unknown", castRole: "antagonist", storyFunction: "制造压力" },
+        ],
+        relations: [
+          { sourceName: "甲", targetName: "乙", surfaceRelation: "合作" },
+          { sourceName: "甲", targetName: "丙", surfaceRelation: "对抗" },
+        ],
+      },
+      {
+        title: "备选阵容二",
+        summary: "备选。",
+        members: [
+          { name: "丁", role: "主角", gender: "unknown", castRole: "protagonist", storyFunction: "推进主线" },
+          { name: "戊", role: "盟友", gender: "unknown", castRole: "ally", storyFunction: "支援主角" },
+          { name: "己", role: "对手", gender: "unknown", castRole: "antagonist", storyFunction: "制造压力" },
+        ],
+        relations: [
+          { sourceName: "丁", targetName: "戊", surfaceRelation: "合作" },
+          { sourceName: "丁", targetName: "己", surfaceRelation: "对抗" },
+        ],
+      },
+    ],
+  });
+
+  const protagonist = parsed.options[0].members[0];
+  assert.equal(protagonist.personality.includes("隐忍"), true);
+  assert.equal(protagonist.factionLabel, "阐教");
+  assert.deepEqual(protagonist.prohibitions, ["不得自称截教外门弟子"]);
+  assert.equal(parsed.options[1].members[0].personality, "");
+  assert.deepEqual(parsed.options[1].members[0].prohibitions, []);
+});
 
 test("character cast quality gate blocks abstract slot names and missing hidden identity anchors", () => {
   const storyInput = "打工人刘雪婷穿越到秦朝成为太监，最后发现自己竟然就是赵高。";

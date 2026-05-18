@@ -535,6 +535,14 @@ model Character {
   personality     String?
   background      String?
   development     String?
+  identityLabel   String?
+  factionLabel    String?
+  stanceLabel     String?
+  powerLevel      String?
+  realm           String?
+  currentLocation String?
+  availability    String?
+  prohibitionsJson String @default("[]")
   outerGoal       String?
   innerNeed       String?
   fear            String?
@@ -642,6 +650,17 @@ model CharacterCastOptionMember {
   relationToProtagonist String?
   storyFunction         String
   shortDescription      String?
+  personality           String?
+  background            String?
+  development           String?
+  identityLabel         String?
+  factionLabel          String?
+  stanceLabel           String?
+  powerLevel            String?
+  realm                 String?
+  currentLocation       String?
+  availability          String?
+  prohibitionsJson      String @default("[]")
   outerGoal             String?
   innerNeed             String?
   fear                  String?

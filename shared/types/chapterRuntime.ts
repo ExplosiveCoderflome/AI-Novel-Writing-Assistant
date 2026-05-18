@@ -94,6 +94,16 @@ export const runtimeCharacterSchema = z.object({
   name: z.string(),
   role: z.string(),
   personality: z.string().nullable().optional(),
+  background: z.string().nullable().optional(),
+  development: z.string().nullable().optional(),
+  identityLabel: z.string().nullable().optional(),
+  factionLabel: z.string().nullable().optional(),
+  stanceLabel: z.string().nullable().optional(),
+  powerLevel: z.string().nullable().optional(),
+  realm: z.string().nullable().optional(),
+  currentLocation: z.string().nullable().optional(),
+  availability: z.string().nullable().optional(),
+  prohibitions: z.array(z.string()).default([]),
   currentState: z.string().nullable().optional(),
   currentGoal: z.string().nullable().optional(),
   appearance: z.string().nullable().optional(),
@@ -642,6 +652,22 @@ export const chapterCandidateGuardSchema = z.object({
   sourceChapterOrder: z.number().int().nullable().optional(),
 });
 
+export const chapterCharacterHardFactSchema = z.object({
+  characterId: z.string(),
+  name: z.string(),
+  role: z.string().nullable().optional(),
+  identityLabel: z.string().nullable().optional(),
+  factionLabel: z.string().nullable().optional(),
+  stanceLabel: z.string().nullable().optional(),
+  powerLevel: z.string().nullable().optional(),
+  realm: z.string().nullable().optional(),
+  currentLocation: z.string().nullable().optional(),
+  availability: z.string().nullable().optional(),
+  currentState: z.string().nullable().optional(),
+  currentGoal: z.string().nullable().optional(),
+  prohibitions: z.array(z.string()).default([]),
+});
+
 export const chapterWriteContextSchema = z.object({
   bookContract: bookContractContextSchema,
   macroConstraints: macroConstraintContextSchema.nullable(),
@@ -664,6 +690,7 @@ export const chapterWriteContextSchema = z.object({
   lengthBudget: lengthBudgetContractSchema.nullable(),
   scenePlan: chapterScenePlanSchema.nullable().optional(),
   participants: z.array(runtimeCharacterSchema),
+  characterHardFacts: z.array(chapterCharacterHardFactSchema).default([]),
   characterBehaviorGuides: z.array(chapterCharacterBehaviorGuideSchema).default([]),
   activeRelationStages: z.array(chapterRelationStageGuideSchema).default([]),
   pendingCandidateGuards: z.array(chapterCandidateGuardSchema).default([]),
@@ -717,6 +744,7 @@ export const generationContextPackageSchema = z.object({
   openConflicts: z.array(runtimeOpenConflictSchema),
   storyWorldSlice: storyWorldSliceSchema.nullable().optional(),
   characterRoster: z.array(runtimeCharacterSchema),
+  characterHardFacts: z.array(chapterCharacterHardFactSchema).default([]),
   creativeDecisions: z.array(runtimeCreativeDecisionSchema),
   openAuditIssues: z.array(runtimeAuditIssueSchema),
   previousChaptersSummary: z.array(z.string()),
@@ -930,6 +958,7 @@ export type RuntimeChapter = z.infer<typeof runtimeChapterSchema>;
 export type RuntimePlanScene = z.infer<typeof runtimePlanSceneSchema>;
 export type RuntimePlan = z.infer<typeof runtimePlanSchema>;
 export type RuntimeCharacter = z.infer<typeof runtimeCharacterSchema>;
+export type ChapterCharacterHardFact = z.infer<typeof chapterCharacterHardFactSchema>;
 export type RuntimeCreativeDecision = z.infer<typeof runtimeCreativeDecisionSchema>;
 export type RuntimeAuditIssue = z.infer<typeof runtimeAuditIssueSchema>;
 export type RuntimeStateSnapshot = z.infer<typeof runtimeStateSnapshotSchema>;

@@ -12,6 +12,18 @@ export type CharacterCastRole =
 
 export type CharacterGender = "male" | "female" | "other" | "unknown";
 
+export interface CharacterHardFacts {
+  identityLabel?: string | null;
+  factionLabel?: string | null;
+  stanceLabel?: string | null;
+  powerLevel?: string | null;
+  realm?: string | null;
+  currentLocation?: string | null;
+  availability?: string | null;
+  prohibitions?: string[] | null;
+  prohibitionsJson?: string | null;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -23,6 +35,15 @@ export interface Character {
   personality?: string | null;
   background?: string | null;
   development?: string | null;
+  identityLabel?: string | null;
+  factionLabel?: string | null;
+  stanceLabel?: string | null;
+  powerLevel?: string | null;
+  realm?: string | null;
+  currentLocation?: string | null;
+  availability?: string | null;
+  prohibitions?: string[] | null;
+  prohibitionsJson?: string | null;
   outerGoal?: string | null;
   innerNeed?: string | null;
   fear?: string | null;
@@ -138,6 +159,18 @@ export interface CharacterCastOptionMember {
   relationToProtagonist?: string | null;
   storyFunction: string;
   shortDescription?: string | null;
+  personality?: string | null;
+  background?: string | null;
+  development?: string | null;
+  identityLabel?: string | null;
+  factionLabel?: string | null;
+  stanceLabel?: string | null;
+  powerLevel?: string | null;
+  realm?: string | null;
+  currentLocation?: string | null;
+  availability?: string | null;
+  prohibitions?: string[] | null;
+  prohibitionsJson?: string | null;
   outerGoal?: string | null;
   innerNeed?: string | null;
   fear?: string | null;
@@ -263,6 +296,15 @@ export interface SupplementalCharacterCandidate {
   personality?: string | null;
   background?: string | null;
   development?: string | null;
+  identityLabel?: string | null;
+  factionLabel?: string | null;
+  stanceLabel?: string | null;
+  powerLevel?: string | null;
+  realm?: string | null;
+  currentLocation?: string | null;
+  availability?: string | null;
+  prohibitions?: string[] | null;
+  prohibitionsJson?: string | null;
   outerGoal?: string | null;
   innerNeed?: string | null;
   fear?: string | null;

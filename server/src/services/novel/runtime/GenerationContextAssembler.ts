@@ -50,6 +50,10 @@ import {
   getRuntimePromptBudgetProfiles,
 } from "../../../prompting/prompts/novel/chapterLayeredContext";
 import { timelineContextService } from "../../../modules/timeline";
+import {
+  buildRuntimeCharacterHardFactsList,
+  parseCharacterProhibitionsJson,
+} from "../characters/characterHardFacts";
 
 const OPENING_COMPARE_LIMIT = 3;
 const OPENING_SLICE_LENGTH = 220;
@@ -503,6 +507,16 @@ export class GenerationContextAssembler {
         name: item.name,
         role: item.role,
         personality: item.personality ?? null,
+        background: item.background ?? null,
+        development: item.development ?? null,
+        identityLabel: item.identityLabel ?? null,
+        factionLabel: item.factionLabel ?? null,
+        stanceLabel: item.stanceLabel ?? null,
+        powerLevel: item.powerLevel ?? null,
+        realm: item.realm ?? null,
+        currentLocation: item.currentLocation ?? null,
+        availability: item.availability ?? null,
+        prohibitions: parseCharacterProhibitionsJson(item.prohibitionsJson),
         currentState: canonicalCharacter?.currentState ?? item.currentState ?? null,
         currentGoal: canonicalCharacter?.currentGoal ?? item.currentGoal ?? null,
         appearance: item.appearance ?? null,
@@ -513,6 +527,7 @@ export class GenerationContextAssembler {
         presenceImpression: item.presenceImpression ?? null,
       };
     });
+    const mappedCharacterHardFacts = buildRuntimeCharacterHardFactsList(mappedCharacterRoster);
     const mappedCreativeDecisions = decisions.map((item) => ({
       id: item.id,
       chapterId: item.chapterId ?? null,
@@ -643,6 +658,7 @@ export class GenerationContextAssembler {
       storyWorldSlice,
       characterDynamics,
       characterRoster: mappedCharacterRoster,
+      characterHardFacts: mappedCharacterHardFacts,
       creativeDecisions: mappedCreativeDecisions,
       openAuditIssues: mappedOpenAuditIssues,
       previousChaptersSummary,
@@ -742,6 +758,7 @@ export class GenerationContextAssembler {
       storyWorldSlice,
       characterDynamics,
       characterRoster: mappedCharacterRoster,
+      characterHardFacts: mappedCharacterHardFacts,
       creativeDecisions: mappedCreativeDecisions,
       openAuditIssues: mappedOpenAuditIssues,
       previousChaptersSummary,

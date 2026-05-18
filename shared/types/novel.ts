@@ -7,6 +7,7 @@ export type {
   BaseCharacter,
   Character,
   CharacterCastApplyResult,
+  CharacterHardFacts,
   CharacterCastOption,
   CharacterCastOptionClearResult,
   CharacterCastOptionDeleteResult,

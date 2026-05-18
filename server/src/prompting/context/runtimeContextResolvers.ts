@@ -26,6 +26,7 @@ const CHAPTER_CONTEXT_GROUPS = [
   "chapter_mission",
   "timeline_context",
   "previous_chapter_hook",
+  "character_hard_facts",
   "state_goal",
   "volume_window",
   "participant_subset",

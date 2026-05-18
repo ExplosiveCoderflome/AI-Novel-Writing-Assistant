@@ -260,6 +260,7 @@ export function buildChapterWriteContext(input: {
     lengthBudget: resolveLengthBudgetContract(input.contextPackage.chapter.targetWordCount),
     scenePlan,
     participants: buildParticipants(input.contextPackage, dynamicCharacterGuidance.characterBehaviorGuides),
+    characterHardFacts: input.contextPackage.characterHardFacts ?? [],
     characterBehaviorGuides: dynamicCharacterGuidance.characterBehaviorGuides,
     activeRelationStages: dynamicCharacterGuidance.activeRelationStages,
     pendingCandidateGuards: dynamicCharacterGuidance.pendingCandidateGuards,
@@ -335,6 +336,7 @@ function normalizeChapterWriteContext(writeContext: ChapterWriteContext): Chapte
       canDefer: obligationContract.canDefer ?? EMPTY_OBLIGATION_CONTRACT.canDefer,
       forbiddenCrossings: obligationContract.forbiddenCrossings ?? EMPTY_OBLIGATION_CONTRACT.forbiddenCrossings,
     },
+    characterHardFacts: writeContext.characterHardFacts ?? [],
   };
 }
 
@@ -460,6 +462,38 @@ function hasCharacterResourcePressure(writeContext: ChapterWriteContext): boolea
     || context.blockedItems.length > 0
     || context.pendingReviewItems.length > 0
     || context.riskSignals.length > 0;
+}
+
+function buildCharacterHardFactsText(writeContext: ChapterWriteContext): string {
+  const hardFacts = writeContext.characterHardFacts ?? [];
+  if (hardFacts.length === 0) {
+    return [
+      "【角色硬事实】",
+      "当前没有已登记的角色硬事实；不得凭空改写角色阵营、身份、境界、所在地或行动可用性。",
+      "如章节任务没有明确要求，不要新增不可逆角色状态。",
+    ].join("\n");
+  }
+
+  return [
+    "【角色硬事实】",
+    "以下内容是正文生成前的不可违背写作约束，优先级高于软性人物简介。",
+    ...hardFacts.slice(0, 8).map((fact) => {
+      const parts = takeUnique([
+        fact.role ? `角色定位=${fact.role}` : "",
+        fact.identityLabel ? `身份=${fact.identityLabel}` : "",
+        fact.factionLabel ? `阵营=${fact.factionLabel}` : "",
+        fact.stanceLabel ? `立场=${fact.stanceLabel}` : "",
+        fact.powerLevel ? `战力=${fact.powerLevel}` : "",
+        fact.realm ? `境界=${fact.realm}` : "",
+        fact.currentLocation ? `当前位置=${fact.currentLocation}` : "",
+        fact.availability ? `可出场状态=${fact.availability}` : "",
+        fact.currentState ? `当前状态=${fact.currentState}` : "",
+        fact.currentGoal ? `当前目标=${fact.currentGoal}` : "",
+        fact.prohibitions.length > 0 ? `禁止误写=${fact.prohibitions.join(" / ")}` : "",
+      ], 12);
+      return `- ${fact.name}: ${parts.join(" | ")}`;
+    }),
+  ].join("\n");
 }
 
 function buildResourceItemLine(item: NonNullable<ChapterWriteContext["characterResourceContext"]>["availableItems"][number]): string {
@@ -689,6 +723,14 @@ export function buildChapterWriterContextBlocks(
         ].join("\n"),
       })
       : null,
+    createContextBlock({
+      id: "character_hard_facts",
+      group: "character_hard_facts",
+      priority: 99,
+      required: true,
+      allowSummary: false,
+      content: buildCharacterHardFactsText(writeContext),
+    }),
     createContextBlock({
       id: "participant_subset",
       group: "participant_subset",
