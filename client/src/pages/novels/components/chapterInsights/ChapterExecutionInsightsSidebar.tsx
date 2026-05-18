@@ -16,8 +16,8 @@ function DesktopSidebar(props: ChapterExecutionInsightsSidebarProps) {
   }, [props.selectedChapter?.id]);
 
   return (
-    <Card className="overflow-hidden border-border/70 xl:flex xl:max-h-[calc(100vh-2rem)] xl:flex-col">
-      <CardHeader className="gap-3 border-b bg-gradient-to-b from-muted/30 via-background to-background pb-4">
+    <Card className="h-full overflow-hidden border-border/70 xl:flex xl:min-h-0 xl:flex-col">
+      <CardHeader className="gap-3 border-b bg-gradient-to-b from-muted/30 via-background to-background pb-4 xl:shrink-0">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <CardTitle className="text-base">未来动态侧栏</CardTitle>
@@ -28,17 +28,17 @@ function DesktopSidebar(props: ChapterExecutionInsightsSidebarProps) {
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="p-0 xl:flex-1 xl:overflow-hidden">
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "timeline" | "character" | "resources")} className="xl:flex xl:h-full xl:flex-col">
-          <div className="border-b px-4 py-3">
+      <CardContent className="min-h-0 p-0 xl:flex-1 xl:overflow-hidden">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "timeline" | "character" | "resources")} className="xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+          <div className="shrink-0 border-b px-4 py-3">
             <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl bg-muted/50 p-1.5">
               <TabsTrigger value="timeline" className="rounded-lg px-2 py-2 text-xs">时间线</TabsTrigger>
               <TabsTrigger value="character" className="rounded-lg px-2 py-2 text-xs">角色动态</TabsTrigger>
               <TabsTrigger value="resources" className="rounded-lg px-2 py-2 text-xs">资源与风险</TabsTrigger>
             </TabsList>
           </div>
-          <div className="xl:flex-1 xl:overflow-y-auto xl:px-4 xl:pb-4 xl:pt-4">
-            <TabsContent value="timeline" className="mt-0">
+          <div className="min-h-0 xl:flex-1 xl:overflow-y-auto xl:px-4 xl:pb-4 xl:pt-4">
+            <TabsContent value="timeline" className="mt-0 h-full min-h-0">
               <TimelinePanel
                 selectedChapter={props.selectedChapter}
                 chapterTimeline={props.chapterTimeline}
@@ -46,10 +46,10 @@ function DesktopSidebar(props: ChapterExecutionInsightsSidebarProps) {
                 chapterRuntimePackage={props.chapterRuntimePackage}
               />
             </TabsContent>
-            <TabsContent value="character" className="mt-0">
+            <TabsContent value="character" className="mt-0 h-full min-h-0">
               <CharacterDynamicsPanel latestStateSnapshot={props.latestStateSnapshot} chapterStateSnapshot={props.chapterStateSnapshot} />
             </TabsContent>
-            <TabsContent value="resources" className="mt-0">
+            <TabsContent value="resources" className="mt-0 h-full min-h-0">
               <ResourceRiskPanel {...props} />
             </TabsContent>
           </div>
