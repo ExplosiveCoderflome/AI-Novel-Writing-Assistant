@@ -132,9 +132,9 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
   };
 
   return (
-    <div className="space-y-4">
-      <Card className="overflow-hidden border-border/70">
-        <CardContent className="space-y-5 pt-5">
+    <div className="h-full">
+      <Card className="h-full overflow-hidden border-border/70">
+        <CardContent className="flex h-full min-h-0 flex-col gap-5 pt-5">
           {writingInOtherChapter ? (
             <WorkspaceNotice
               title="还有其他章节正在后台写作"
@@ -142,7 +142,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
             />
           ) : null}
 
-          <div className="overflow-hidden rounded-[28px] border border-border/80 bg-background shadow-sm">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] border border-border/80 bg-background shadow-sm">
             <div className="flex flex-col gap-3 border-b bg-muted/20 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -197,7 +197,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
               </div>
             </div>
 
-            <div ref={contentViewportRef} className="max-h-[760px] overflow-y-auto px-6 py-6 lg:px-10">
+            <div ref={contentViewportRef} className="min-h-0 flex-1 overflow-y-auto px-6 py-6 lg:px-10">
               {contentPanelContent ? (
                 <article className="mx-auto max-w-4xl text-[15px] leading-8 text-foreground">
                   <MarkdownViewer content={contentPanelContent} />

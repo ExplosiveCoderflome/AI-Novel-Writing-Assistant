@@ -174,8 +174,8 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
-          <div className="w-full xl:w-[300px] xl:flex-none">
+        <div className="flex flex-col gap-4 xl:grid xl:h-[calc(100dvh-8rem)] xl:grid-cols-[300px_minmax(0,1fr)_332px] xl:items-stretch">
+          <div className="h-full min-h-0">
             <ChapterExecutionQueueCard
               chapters={filteredChapters}
               selectedChapterId={selectedChapterId}
@@ -189,7 +189,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
             />
           </div>
 
-          <div className="min-w-0 flex-1">
+          <div className="min-h-0 min-w-0 h-full">
             <ChapterExecutionResultPanel
               selectedChapter={selectedChapter}
               onOpenReferencePanel={(tab) => {
@@ -211,7 +211,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
             />
           </div>
 
-          <div className="w-full xl:sticky xl:top-4 xl:h-[calc(100dvh-8rem)] xl:w-[332px] xl:flex-none">
+          <div className="h-full min-h-0 xl:sticky xl:top-4">
             <Tabs
               value={rightRailTab}
               onValueChange={(value) => {

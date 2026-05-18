@@ -1,11 +1,10 @@
 import { AlertTriangle, ArrowRight, Clock3, Loader2, ShieldAlert, Sparkles, UsersRound } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
-import type { Chapter, StoryPlan } from "@ai-novel/shared/types/novel";
+import type { Chapter } from "@ai-novel/shared/types/novel";
 import type { TimelineContextForChapter, TimelineIssue } from "@ai-novel/shared/types/timeline";
 import type { ChapterTimelineViewData } from "../NovelEditView.types";
 import type { TimelineCheckSummary } from "./chapterInsights.types";
-import ChapterExecutionOverviewPanel from "./ChapterExecutionOverviewPanel";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -164,20 +163,6 @@ export default function TimelinePanel(props: {
   chapterTimeline?: ChapterTimelineViewData | null;
   isLoadingChapterTimeline?: boolean;
   chapterRuntimePackage?: ChapterRuntimePackage | null;
-  chapterPlan?: StoryPlan | null;
-  chapterQualityReport?: {
-    coherence: number;
-    repetition: number;
-    pacing: number;
-    voice: number;
-    engagement: number;
-    overall: number;
-    issues?: string | null;
-  } | null;
-  reviewResult?: {
-    issues?: Array<{ category: string; fixSuggestion: string }>;
-  } | null;
-  openAuditIssues?: Array<{ id: string; auditType: string; fixSuggestion: string }>;
 }) {
   const { selectedChapter, chapterTimeline, isLoadingChapterTimeline = false, chapterRuntimePackage } = props;
   const context = chapterTimeline?.context ?? null;
@@ -188,15 +173,6 @@ export default function TimelinePanel(props: {
 
   return (
     <div className="space-y-3">
-      <ChapterExecutionOverviewPanel
-        selectedChapter={selectedChapter}
-        chapterPlan={props.chapterPlan}
-        chapterQualityReport={props.chapterQualityReport}
-        chapterRuntimePackage={chapterRuntimePackage}
-        reviewResult={props.reviewResult}
-        openAuditIssues={props.openAuditIssues}
-      />
-
       <div className="grid gap-2 md:grid-cols-2">
         <div className="rounded-xl border border-border/70 bg-background p-3">
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
