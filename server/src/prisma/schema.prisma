@@ -2659,3 +2659,109 @@ model TaskCenterArchive {
   @@unique([taskKind, taskId])
   @@index([taskKind, archivedAt])
 }
+
+model StoryTimelineEvent {
+  id                   String   @id @default(cuid())
+  novelId              String
+  chapterId            String?
+  chapterIndex         Int?
+  eventOrder           Int
+  storyDayIndex        Int?
+  storyTimeLabel       String?
+  title                String
+  summary              String
+  type                 String
+  status               String
+  visibility           String
+  source               String
+  participantIdsJson   String   @default("[]")
+  locationId           String?
+  factionIdsJson       String   @default("[]")
+  prerequisiteIdsJson  String   @default("[]")
+  consequenceIdsJson   String   @default("[]")
+  stateChangesJson     String   @default("[]")
+  eventKey             String?
+  confidence           Float    @default(1)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([novelId, chapterIndex])
+  @@index([novelId, eventOrder])
+  @@index([novelId, status])
+  @@index([novelId, eventKey])
+}
+
+model ChapterTimeAnchor {
+  id                   String   @id @default(cuid())
+  novelId              String
+  chapterId            String
+  chapterIndex         Int
+  storyDayIndex        Int?
+  timeLabel            String
+  startsAfterIdsJson   String   @default("[]")
+  plannedEventIdsJson  String   @default("[]")
+  endedWithIdsJson     String   @default("[]")
+  previousHookIdsJson  String   @default("[]")
+  nextHookIdsJson      String   @default("[]")
+  forbiddenEventIdsJson String  @default("[]")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([novelId, chapterId])
+  @@index([novelId, chapterIndex])
+}
+
+model TimelineHook {
+  id                            String   @id @default(cuid())
+  novelId                       String
+  createdInChapterId            String
+  createdInChapterIndex         Int
+  expectedResolveByChapterIndex Int?
+  resolvedInChapterId           String?
+  resolvedInChapterIndex        Int?
+  title                         String
+  description                   String
+  status                        String
+  priority                      String
+  relatedEventIdsJson           String   @default("[]")
+  participantIdsJson            String   @default("[]")
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  @@index([novelId, status])
+  @@index([novelId, createdInChapterIndex])
+  @@index([novelId, expectedResolveByChapterIndex])
+}
+
+model TimelineConstraint {
+  id                       String   @id @default(cuid())
+  novelId                  String
+  chapterId                String?
+  chapterIndex             Int?
+  type                     String
+  severity                 String
+  description              String
+  relatedEventIdsJson      String   @default("[]")
+  relatedHookIdsJson       String   @default("[]")
+  relatedCharacterIdsJson  String   @default("[]")
+  active                   Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@index([novelId, chapterIndex])
+  @@index([novelId, active])
+}
+
+model TimelineCheckReport {
+  id           String   @id @default(cuid())
+  novelId      String
+  chapterId    String
+  chapterIndex Int
+  status       String
+  score        Float
+  issuesJson   String   @default("[]")
+  createdAt    DateTime @default(now())
+
+  @@index([novelId, chapterIndex])
+  @@index([novelId, status])
+}

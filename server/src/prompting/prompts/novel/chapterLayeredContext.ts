@@ -39,6 +39,7 @@ import {
   toListBlock,
 } from "./chapterLayeredContextShared";
 import { RUNTIME_PROMPT_BUDGET_PROFILES } from "./promptBudgetProfiles";
+import { timelinePromptAdapter } from "../../../modules/timeline/timeline-prompt-adapter";
 
 export const WRITER_FORBIDDEN_GROUPS = [
   "full_outline",
@@ -268,6 +269,7 @@ export function buildChapterWriteContext(input: {
     ledgerUrgentItems: input.contextPackage.ledgerUrgentItems,
     ledgerOverdueItems: input.contextPackage.ledgerOverdueItems,
     ledgerSummary: input.contextPackage.ledgerSummary ?? null,
+    timelineContext: input.contextPackage.timelineContext ?? null,
     characterResourceContext: input.contextPackage.characterResourceContext ?? null,
     recentChapterSummaries: takeUnique(input.contextPackage.previousChaptersSummary.slice(0, 3), 3),
     openingAntiRepeatHint: compactText(input.contextPackage.openingHint, "No recent opening guidance."),
@@ -539,6 +541,7 @@ export function buildChapterWriterContextBlocks(
   const includeVolumeWindow = mode === "full" || mode === "review";
   const includePayoffLedger = mode === "full" && hasLedgerPressure(writeContext);
   const includePayoffDirectives = writeContext.payoffDirectives.length > 0;
+  const includeTimelineContext = Boolean(writeContext.timelineContext);
   const hasObligationContract = Object.values(writeContext.obligationContract).some((items) => items.length > 0);
   const includeCharacterResources = !isIncremental && hasCharacterResourcePressure(writeContext);
   const includeCharacterDynamics = shouldIncludeCharacterDynamics(writeContext, mode);
@@ -587,6 +590,40 @@ export function buildChapterWriterContextBlocks(
         ].filter(Boolean).join("\n"),
       })
       : null,
+    includeTimelineContext
+      ? createContextBlock({
+        id: "timeline_context",
+        group: "timeline_context",
+        priority: 100,
+        required: true,
+        allowSummary: false,
+        content: timelinePromptAdapter.toPromptBlock(writeContext.timelineContext!),
+      })
+      : createContextBlock({
+        id: "timeline_context",
+        group: "timeline_context",
+        priority: 100,
+        required: true,
+        allowSummary: false,
+        content: "【时间线约束】\n当前没有已登记的时间线资产；不得提前发生后续章节事件，必须严格服从本章任务和上一章实际状态。",
+      }),
+    includeTimelineContext
+      ? createContextBlock({
+        id: "previous_chapter_hook",
+        group: "previous_chapter_hook",
+        priority: 100,
+        required: true,
+        allowSummary: false,
+        content: timelinePromptAdapter.toPreviousHookBlock(writeContext.timelineContext!),
+      })
+      : createContextBlock({
+        id: "previous_chapter_hook",
+        group: "previous_chapter_hook",
+        priority: 100,
+        required: true,
+        allowSummary: false,
+        content: "【上一章必须承接的钩子】\n- 无已登记钩子；如章节任务或最近状态包含上一章悬念，必须优先承接。",
+      }),
     includePayoffDirectives
       ? createContextBlock({
         id: "payoff_directives",

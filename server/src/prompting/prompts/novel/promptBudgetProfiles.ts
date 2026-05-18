@@ -33,6 +33,8 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
     preferredGroups: [
       "chapter_boundary",
       "chapter_mission",
+      "timeline_context",
+      "previous_chapter_hook",
       "payoff_directives",
       "style_contract",
       "volume_window",

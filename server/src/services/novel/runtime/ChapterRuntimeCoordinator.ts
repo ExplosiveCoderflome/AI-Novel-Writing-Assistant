@@ -5,7 +5,9 @@ import type {
   ChapterAcceptanceRepairDirective,
   ChapterExecutionMissingObligation,
   GenerationContextPackage,
+  RuntimeAuditIssue,
 } from "@ai-novel/shared/types/chapterRuntime";
+import type { TimelineCheckResult, TimelineIssue } from "@ai-novel/shared/types/timeline";
 import { prisma } from "../../../db/prisma";
 import { mergeChapterPatchForGenerationStateBump } from "../chapterLifecycleState";
 import { auditService } from "../../audit/AuditService";
@@ -35,6 +37,11 @@ import {
   isChapterEmptyContentError,
   type ChapterEmptyContentError,
 } from "./chapterEmptyContentError";
+import {
+  storyTimelineService,
+  timelineCheckerService,
+  timelineExtractorService,
+} from "../../../modules/timeline";
 
 interface AgentRuntimeLike {
   createChapterGenRun: (novelId: string, chapterId: string, chapterOrder: number) => Promise<string>;
@@ -139,6 +146,35 @@ function buildFailureClassification(input: {
     decisionReason: input.acceptance.decisionReason,
     blockingObligations: [],
   };
+}
+
+function timelineIssueSeverityToAuditSeverity(severity: TimelineIssue["severity"]): RuntimeAuditIssue["severity"] {
+  if (severity === "blocking") return "critical";
+  if (severity === "error") return "high";
+  if (severity === "warning") return "medium";
+  return "low";
+}
+
+function timelineIssuesToRuntimeIssues(input: {
+  novelId: string;
+  chapterId: string;
+  issues: TimelineIssue[];
+}): RuntimeAuditIssue[] {
+  const now = new Date().toISOString();
+  return input.issues.map((issue, index) => ({
+    id: `timeline:${input.chapterId}:${issue.type}:${index}`,
+    reportId: `timeline:${input.novelId}:${input.chapterId}`,
+    auditType: "continuity",
+    severity: timelineIssueSeverityToAuditSeverity(issue.severity),
+    code: `timeline_${issue.type}`,
+    description: issue.message,
+    evidence: issue.evidence ?? issue.message,
+    fixSuggestion: issue.suggestedFix ?? issue.message,
+    status: "open",
+    createdAt: now,
+    updatedAt: now,
+    ragFacts: [],
+  }));
 }
 
 function shouldEscalateToFullAudit(input: {
@@ -631,6 +667,13 @@ export class ChapterRuntimeCoordinator {
       originalContent: null,
       finalContent,
     };
+    const timelineCheck = await this.runTimelineGate({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      contextPackage: input.contextPackage,
+      content: finalContent,
+      request: input.request,
+    });
     const activeOpenConflicts = await openConflictService.listOpenConflicts(input.novelId, {
       beforeChapterOrder: input.contextPackage.chapter.order,
       includeCurrentChapter: true,
@@ -647,12 +690,14 @@ export class ChapterRuntimeCoordinator {
       activeOpenConflicts,
       styleReview,
       acceptance: acceptance.assessment,
+      timelineCheck,
       runId: input.runId,
     });
     await this.markChapterStatus(
       input.chapterId,
       acceptance.assessment.status === "repairable"
       || acceptance.assessment.status === "needs_manual_review"
+      || timelineCheck.status === "failed"
       || runtimePackage.audit.hasBlockingIssues
         ? "needs_repair"
         : "pending_review",
@@ -677,6 +722,105 @@ export class ChapterRuntimeCoordinator {
       runtimePackage,
       styleReview,
     };
+  }
+
+  private async runTimelineGate(input: {
+    novelId: string;
+    chapterId: string;
+    contextPackage: GenerationContextPackage;
+    content: string;
+    request: ChapterRuntimeRequestInput;
+  }): Promise<TimelineCheckResult> {
+    const timelineContext = input.contextPackage.timelineContext;
+    if (!timelineContext) {
+      return {
+        status: "warning",
+        score: 0.88,
+        issues: [{
+          type: "unclear_time_anchor",
+          severity: "warning",
+          message: "本章缺少时间线上下文，无法执行完整时间线检测。",
+          evidence: "timelineContext missing",
+          suggestedFix: "重新组装章节上下文，确保 timeline_context 为 required block。",
+          relatedEventIds: [],
+          relatedHookIds: [],
+        }],
+      };
+    }
+
+    let result: TimelineCheckResult;
+    let extractedEvents: ReturnType<typeof timelineExtractorService.normalizeEvents> = [];
+    try {
+      const extracted = await timelineExtractorService.extractFromChapter({
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterIndex: input.contextPackage.chapter.order,
+        novelTitle: input.contextPackage.bookContract?.title ?? input.contextPackage.chapter.title,
+        chapterTitle: input.contextPackage.chapter.title,
+        chapterGoal: input.contextPackage.chapterMission?.objective
+          ?? input.contextPackage.chapter.expectation
+          ?? "推进当前章节任务",
+        chapterContent: input.content,
+        timelineContext,
+        provider: input.request.provider,
+        model: input.request.model,
+        temperature: input.request.temperature,
+      });
+      extractedEvents = timelineExtractorService.normalizeEvents(extracted);
+      result = timelineCheckerService.checkChapter({
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterIndex: input.contextPackage.chapter.order,
+        extractedEvents,
+        timelineContext,
+        chapterContent: input.content,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      result = {
+        status: "warning",
+        score: 0.82,
+        issues: [{
+          type: "unclear_time_anchor",
+          severity: "warning",
+          message: "时间线抽取或检测未完成，章节需要后续复查。",
+          evidence: message,
+          suggestedFix: "重试时间线检测；若仍失败，人工检查章节承接和未来事件泄漏。",
+          relatedEventIds: [],
+          relatedHookIds: [],
+        }],
+      };
+    }
+
+    await storyTimelineService.saveCheckReport({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      chapterIndex: input.contextPackage.chapter.order,
+      result,
+    }).catch((error) => {
+      console.warn("[chapter-runtime] timeline report save skipped", {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+
+    if (result.status !== "failed") {
+      await storyTimelineService.commitChapterTimeline({
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterIndex: input.contextPackage.chapter.order,
+        extractedEvents,
+        timelineContext,
+      }).catch((error) => {
+        console.warn("[chapter-runtime] timeline commit skipped", {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+    return result;
   }
 
   private async finishTraceRun(runId: string | null, contentLength: number, startMs: number | null): Promise<void> {
@@ -706,6 +850,7 @@ export class ChapterRuntimeCoordinator {
     activeOpenConflicts: Awaited<ReturnType<typeof openConflictService.listOpenConflicts>>;
     styleReview: StyleReviewResult;
     acceptance: ChapterAcceptanceAssessmentOutput;
+    timelineCheck: TimelineCheckResult;
     runId: string | null;
   }): ChapterRuntimePackage {
     const syntheticPayoffIssues = buildSyntheticPayoffIssues(
@@ -751,6 +896,11 @@ export class ChapterRuntimeCoordinator {
         updatedAt: new Date().toISOString(),
       })))
       .concat(boundaryLeakageIssues);
+    openIssues.push(...timelineIssuesToRuntimeIssues({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      issues: input.timelineCheck.issues,
+    }));
 
     const blockingIssueIds = openIssues
       .filter((issue) => issue.severity === "high" || issue.severity === "critical")
@@ -875,6 +1025,7 @@ export class ChapterRuntimeCoordinator {
         autoRewritten: input.styleReview.autoRewritten,
         originalContent: input.styleReview.originalContent,
       },
+      timelineCheck: input.timelineCheck,
       meta: {
         provider: input.request.provider,
         model: input.request.model,

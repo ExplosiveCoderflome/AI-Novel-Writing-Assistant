@@ -49,6 +49,7 @@ import {
   buildVolumeWindowContext,
   getRuntimePromptBudgetProfiles,
 } from "../../../prompting/prompts/novel/chapterLayeredContext";
+import { timelineContextService } from "../../../modules/timeline";
 
 const OPENING_COMPARE_LIMIT = 3;
 const OPENING_SLICE_LENGTH = 220;
@@ -435,6 +436,11 @@ export class GenerationContextAssembler {
       openAuditIssueCount: openAuditIssues.length,
       hasRepairableDraft: Boolean(chapter.content?.trim()),
     });
+    const timelineContext = await timelineContextService.buildForChapter({
+      novelId,
+      chapterId,
+      chapterIndex: chapter.order,
+    });
     const canonicalState = resolvedStateDrivenContext.snapshot;
 
     const canonicalLedger = buildRuntimeLedgerFromCanonical(canonicalState);
@@ -650,6 +656,7 @@ export class GenerationContextAssembler {
       ledgerUrgentItems: canonicalLedger.ledgerUrgentItems,
       ledgerOverdueItems: canonicalLedger.ledgerOverdueItems,
       ledgerSummary: canonicalLedger.ledgerSummary,
+      timelineContext,
       characterResourceContext,
       chapterMission: null,
       chapterWriteContext: null,
@@ -748,6 +755,7 @@ export class GenerationContextAssembler {
       ledgerUrgentItems: canonicalLedger.ledgerUrgentItems,
       ledgerOverdueItems: canonicalLedger.ledgerOverdueItems,
       ledgerSummary: canonicalLedger.ledgerSummary,
+      timelineContext,
       characterResourceContext,
       chapterMission: chapterWriteContext.chapterMission,
       chapterWriteContext,

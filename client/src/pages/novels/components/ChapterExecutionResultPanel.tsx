@@ -137,6 +137,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
   const chapterTitle = selectedChapter.title || "未命名章节";
   const runtimePackage = chapterRuntimePackage?.chapterId === selectedChapter.id ? chapterRuntimePackage : null;
   const lengthControl = runtimePackage?.lengthControl ?? null;
+  const timelineCheck = runtimePackage?.timelineCheck ?? null;
   const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? "这一章还没有明确目标，建议先补章节计划。";
   const scenePlan = parseChapterScenePlanForDisplay(selectedChapter);
   const savedChapterContent = selectedChapter.content?.trim() ?? "";
@@ -263,6 +264,13 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
               />
             ) : null}
             <MetricBadge label="待处理问题" value={String(openAuditIssues.length || reviewResult?.issues?.length || 0)} hint="未修复的问题越少，越适合进入精修" />
+            {timelineCheck ? (
+              <MetricBadge
+                label="时间线"
+                value={timelineCheck.status === "failed" ? "需修复" : timelineCheck.status === "warning" ? "需复查" : "通过"}
+                hint={`时间线分数 ${Math.round(timelineCheck.score * 100)}`}
+              />
+            ) : null}
             {lengthControl ? (
               <MetricBadge
                 label="控字模式"
@@ -280,6 +288,39 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
               title="还有其他章节正在后台写作"
               description={`${streamingChapterLabel ?? "另一章"} 仍在生成中。切到这一章后不会再把那一章的流式正文带过来，返回对应章节即可继续查看实时输出。`}
             />
+          ) : null}
+
+          {timelineCheck ? (
+            <div className={`rounded-2xl border p-4 text-sm ${
+              timelineCheck.status === "failed"
+                ? "border-red-200 bg-red-50 text-red-950"
+                : timelineCheck.status === "warning"
+                  ? "border-amber-200 bg-amber-50 text-amber-950"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-950"
+            }`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="font-medium">
+                  {timelineCheck.status === "failed"
+                    ? "时间线检测需要修复"
+                    : timelineCheck.status === "warning"
+                      ? "时间线检测需要复查"
+                      : "时间线检测已通过"}
+                </div>
+                <Badge variant="outline">分数 {Math.round(timelineCheck.score * 100)}</Badge>
+              </div>
+              {timelineCheck.issues.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  {timelineCheck.issues.slice(0, 3).map((issue, index) => (
+                    <div key={`${issue.type}-${index}`} className="leading-6">
+                      <span className="font-medium">{issue.message}</span>
+                      {issue.suggestedFix ? <span className="ml-2 opacity-80">{issue.suggestedFix}</span> : null}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-2 leading-6 opacity-80">本章没有发现未来事件泄漏、钩子断接或关键状态冲突。</div>
+              )}
+            </div>
           ) : null}
 
           <div className="rounded-[28px] border border-border/80 bg-gradient-to-br from-slate-50 via-background to-amber-50/40 p-5 shadow-sm">

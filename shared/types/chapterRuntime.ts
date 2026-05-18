@@ -11,6 +11,7 @@ import {
 } from "./canonicalState";
 import { characterResourceContextSchema } from "./characterResource";
 import { storyWorldSliceSchema } from "./storyWorldSlice";
+import { timelineCheckResultSchema, timelineContextForChapterSchema } from "./timeline";
 import type { LLMProvider } from "./llm";
 
 const llmProviderSchema = z.custom<LLMProvider>((value) => typeof value === "string" && value.trim().length > 0);
@@ -672,6 +673,7 @@ export const chapterWriteContextSchema = z.object({
   ledgerUrgentItems: z.array(runtimePayoffLedgerItemSchema).default([]),
   ledgerOverdueItems: z.array(runtimePayoffLedgerItemSchema).default([]),
   ledgerSummary: runtimePayoffLedgerSummarySchema.nullable().optional(),
+  timelineContext: timelineContextForChapterSchema.nullable().optional(),
   characterResourceContext: characterResourceContextSchema.nullable().optional(),
   recentChapterSummaries: z.array(z.string()).default([]),
   openingAntiRepeatHint: z.string(),
@@ -729,6 +731,7 @@ export const generationContextPackageSchema = z.object({
   ledgerUrgentItems: z.array(runtimePayoffLedgerItemSchema).default([]),
   ledgerOverdueItems: z.array(runtimePayoffLedgerItemSchema).default([]),
   ledgerSummary: runtimePayoffLedgerSummarySchema.nullable().optional(),
+  timelineContext: timelineContextForChapterSchema.nullable().optional(),
   characterResourceContext: characterResourceContextSchema.nullable().optional(),
   chapterMission: chapterMissionContextSchema.nullable().optional(),
   chapterWriteContext: chapterWriteContextSchema.nullable().optional(),
@@ -904,6 +907,7 @@ export const chapterRuntimePackageSchema = z.object({
   }),
   lengthControl: runtimeLengthControlSchema.optional(),
   styleReview: runtimeStyleReviewSchema.optional(),
+  timelineCheck: timelineCheckResultSchema.optional(),
   meta: z.object({
     provider: z.string().optional(),
     model: z.string().optional(),

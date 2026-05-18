@@ -282,6 +282,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/novel/chapterWriter.prompts").chapterWriterPrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.timeline.extractor@v1",
+    load: () => require("./prompts/novel/timelineExtractor.prompts").timelineExtractorPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.chapter_editor.workspace_diagnosis@v1",
     load: () => require("./prompts/novel/chapterEditor/workspaceDiagnosis.prompts").chapterEditorWorkspaceDiagnosisPrompt as UnknownPromptAsset,
   },
