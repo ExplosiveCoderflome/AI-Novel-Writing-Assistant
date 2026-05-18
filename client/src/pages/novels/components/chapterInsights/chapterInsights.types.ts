@@ -1,5 +1,5 @@
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
-import type { Chapter, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
+import type { Chapter, StoryPlan, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
 import type { CharacterResourceContext } from "@ai-novel/shared/types/characterResource";
 import type { TimelineCheckReport } from "@ai-novel/shared/types/timeline";
 import type { ChapterTimelineViewData, ChapterTabViewProps } from "../NovelEditView.types";
@@ -15,6 +15,20 @@ export interface ChapterExecutionInsightsSidebarProps {
   latestStateSnapshot?: StoryStateSnapshot | null;
   chapterStateSnapshot?: StoryStateSnapshot | null;
   chapterRuntimePackage?: ChapterRuntimePackage | null;
+  chapterPlan?: StoryPlan | null;
+  chapterQualityReport?: {
+    coherence: number;
+    repetition: number;
+    pacing: number;
+    voice: number;
+    engagement: number;
+    overall: number;
+    issues?: string | null;
+  } | null;
+  reviewResult?: {
+    issues?: Array<{ category: string; fixSuggestion: string }>;
+  } | null;
+  openAuditIssues?: Array<{ id: string; auditType: string; fixSuggestion: string }>;
   chapterResourceContext?: CharacterResourceContext | null;
   isLoadingChapterResourceContext?: boolean;
   resourceWorkflowMode?: ChapterTabViewProps["resourceWorkflowMode"];

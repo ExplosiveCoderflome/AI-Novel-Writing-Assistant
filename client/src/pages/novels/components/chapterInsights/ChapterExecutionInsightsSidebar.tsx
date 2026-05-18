@@ -44,6 +44,10 @@ function DesktopSidebar(props: ChapterExecutionInsightsSidebarProps) {
                 chapterTimeline={props.chapterTimeline}
                 isLoadingChapterTimeline={props.isLoadingChapterTimeline}
                 chapterRuntimePackage={props.chapterRuntimePackage}
+                chapterPlan={props.chapterPlan}
+                chapterQualityReport={props.chapterQualityReport}
+                reviewResult={props.reviewResult}
+                openAuditIssues={props.openAuditIssues}
               />
             </TabsContent>
             <TabsContent value="character" className="mt-0">
@@ -85,6 +89,10 @@ function MobileSidebar(props: ChapterExecutionInsightsSidebarProps) {
             chapterTimeline={props.chapterTimeline}
             isLoadingChapterTimeline={props.isLoadingChapterTimeline}
             chapterRuntimePackage={props.chapterRuntimePackage}
+            chapterPlan={props.chapterPlan}
+            chapterQualityReport={props.chapterQualityReport}
+            reviewResult={props.reviewResult}
+            openAuditIssues={props.openAuditIssues}
           />
         </div>
       </details>

@@ -9,10 +9,9 @@ import type {
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import MarkdownViewer from "@/components/common/MarkdownViewer";
 import StreamOutput from "@/components/common/StreamOutput";
@@ -31,7 +30,6 @@ import {
 } from "./chapterExecution.shared";
 
 interface ChapterExecutionResultPanelProps {
-  novelId: string;
   selectedChapter: Chapter | undefined;
   assetTab: AssetTabKey;
   onAssetTabChange: (tab: AssetTabKey) => void;
@@ -93,7 +91,6 @@ function WorkspaceNotice(props: { title: string; description: string }) {
 
 export default function ChapterExecutionResultPanel(props: ChapterExecutionResultPanelProps) {
   const {
-    novelId,
     selectedChapter,
     assetTab,
     onAssetTabChange,
@@ -137,7 +134,6 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
   const chapterTitle = selectedChapter.title || "未命名章节";
   const runtimePackage = chapterRuntimePackage?.chapterId === selectedChapter.id ? chapterRuntimePackage : null;
   const lengthControl = runtimePackage?.lengthControl ?? null;
-  const timelineCheck = runtimePackage?.timelineCheck ?? null;
   const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? "这一章还没有明确目标，建议先补章节计划。";
   const scenePlan = parseChapterScenePlanForDisplay(selectedChapter);
   const savedChapterContent = selectedChapter.content?.trim() ?? "";
@@ -170,8 +166,6 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
   const writingInOtherChapter = isStreaming && streamingChapterId && streamingChapterId !== selectedChapter.id;
   const repairingOtherChapter = isRepairStreaming && repairStreamingChapterId && repairStreamingChapterId !== selectedChapter.id;
 
-  const targetWordCount = selectedChapter.targetWordCount ?? null;
-  const qualityOverall = chapterQualityReport?.overall ?? selectedChapter.qualityScore ?? null;
   const detailTab = assetTab === "content" ? "taskSheet" : assetTab;
   const contentViewportRef = useRef<HTMLDivElement | null>(null);
   const detailSectionRef = useRef<HTMLDetailsElement | null>(null);
@@ -222,66 +216,6 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
   return (
     <div className="space-y-4">
       <Card className="overflow-hidden border-border/70">
-        <CardHeader className="gap-4 border-b bg-gradient-to-b from-muted/30 via-background to-background pb-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">{chapterLabel}</Badge>
-                <Badge variant={isSelectedChapterStreaming ? "default" : "secondary"}>
-                  {isSelectedChapterFinalizing
-                    ? "正在收尾处理"
-                    : isSelectedChapterStreaming
-                      ? "正在实时写作"
-                      : "章节结果工作台"}
-                </Badge>
-                {typeof qualityOverall === "number" ? (
-                  <Badge variant={qualityOverall >= 85 ? "default" : qualityOverall >= 70 ? "outline" : "secondary"}>
-                    质量 {qualityOverall}
-                  </Badge>
-                ) : null}
-                {targetWordCount ? <Badge variant="outline">目标 {targetWordCount} 字</Badge> : null}
-              </div>
-              <div>
-                <CardTitle className="text-lg">{chapterTitle}</CardTitle>
-                <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">
-                  这里是当前章节的主写作区，正文会稳定占据中心位置，任务单、质量报告和修复记录退到次级标签里，避免正文被操作区挤压。
-                </p>
-              </div>
-            </div>
-            <Button asChild size="sm" variant="outline">
-              <Link to={`/novels/${novelId}/chapters/${selectedChapter.id}`}>打开章节编辑器</Link>
-            </Button>
-          </div>
-
-          <div className={`grid gap-3 md:grid-cols-2 ${lengthControl ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}>
-            <MetricBadge label="当前字数" value={String(contentPanelWordCount || selectedChapter.content?.length || 0)} hint="主面板正在展示的正文长度" />
-            <MetricBadge label="章节目标" value={targetWordCount ? `${targetWordCount} 字` : "未设定"} hint="用于判断当前篇幅是否足够" />
-            {lengthControl ? (
-              <MetricBadge
-                label="预算区间"
-                value={`${lengthControl.softMinWordCount}-${lengthControl.softMaxWordCount}`}
-                hint={`硬上限 ${lengthControl.hardMaxWordCount} 字`}
-              />
-            ) : null}
-            <MetricBadge label="待处理问题" value={String(openAuditIssues.length || reviewResult?.issues?.length || 0)} hint="未修复的问题越少，越适合进入精修" />
-            {timelineCheck ? (
-              <MetricBadge
-                label="时间线"
-                value={timelineCheck.status === "failed" ? "需修复" : timelineCheck.status === "warning" ? "需复查" : "通过"}
-                hint={`时间线分数 ${Math.round(timelineCheck.score * 100)}`}
-              />
-            ) : null}
-            {lengthControl ? (
-              <MetricBadge
-                label="控字模式"
-                value={lengthControl.wordControlMode === "prompt_only" ? "自然优先" : lengthControl.wordControlMode === "balanced" ? "标准控字" : "混合控字"}
-                hint={`偏差 ${Math.round(lengthControl.variance * 100)}%`}
-              />
-            ) : null}
-            <MetricBadge label="最近更新" value={selectedChapter.updatedAt ? new Date(selectedChapter.updatedAt).toLocaleString("zh-CN") : "暂无"} hint="帮助判断这一章是否需要重新检查" />
-          </div>
-        </CardHeader>
-
         <CardContent className="space-y-5 pt-5">
           {writingInOtherChapter ? (
             <WorkspaceNotice
@@ -290,69 +224,29 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
             />
           ) : null}
 
-          {timelineCheck ? (
-            <div className={`rounded-2xl border p-4 text-sm ${
-              timelineCheck.status === "failed"
-                ? "border-red-200 bg-red-50 text-red-950"
-                : timelineCheck.status === "warning"
-                  ? "border-amber-200 bg-amber-50 text-amber-950"
-                  : "border-emerald-200 bg-emerald-50 text-emerald-950"
-            }`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="font-medium">
-                  {timelineCheck.status === "failed"
-                    ? "时间线检测需要修复"
-                    : timelineCheck.status === "warning"
-                      ? "时间线检测需要复查"
-                      : "时间线检测已通过"}
-                </div>
-                <Badge variant="outline">分数 {Math.round(timelineCheck.score * 100)}</Badge>
-              </div>
-              {timelineCheck.issues.length > 0 ? (
-                <div className="mt-3 space-y-2">
-                  {timelineCheck.issues.slice(0, 3).map((issue, index) => (
-                    <div key={`${issue.type}-${index}`} className="leading-6">
-                      <span className="font-medium">{issue.message}</span>
-                      {issue.suggestedFix ? <span className="ml-2 opacity-80">{issue.suggestedFix}</span> : null}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-2 leading-6 opacity-80">本章没有发现未来事件泄漏、钩子断接或关键状态冲突。</div>
-              )}
-            </div>
-          ) : null}
-
-          <div className="rounded-[28px] border border-border/80 bg-gradient-to-br from-slate-50 via-background to-amber-50/40 p-5 shadow-sm">
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={isSelectedChapterStreaming ? "default" : "secondary"}>
-                  {isSelectedChapterFinalizing
-                    ? "收尾处理中"
-                    : isSelectedChapterStreaming
-                      ? "实时写作中"
-                      : "已保存版本"}
-                </Badge>
-                <Badge variant="outline">{chapterLabel}</Badge>
-                <Badge variant="outline">当前展示 {contentPanelWordCount} 字</Badge>
-              </div>
-              <div>
-                <div className="text-xl font-semibold text-foreground">{chapterTitle}</div>
-                <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground">{chapterObjective}</p>
-              </div>
-            </div>
-          </div>
-
           <div className="overflow-hidden rounded-[28px] border border-border/80 bg-background shadow-sm">
             <div className="flex flex-col gap-3 border-b bg-muted/20 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="text-sm font-semibold text-foreground">{contentPanelTitle}</div>
-                <div className="mt-1 text-xs leading-6 text-muted-foreground">
-                  {isSelectedChapterFinalizing
-                    ? (chapterRunStatus?.message ?? "正文可读，系统正在保存草稿并回灌章节资产。")
-                    : isSelectedChapterStreaming
-                      ? "AI 正在持续输出这一章的正文，先在这里观察节奏和手感，不满意时可以随时停止。"
-                      : "正文固定显示在主区域，任务单、质量反馈和修复记录都收进下面的详情区。"}
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={isSelectedChapterStreaming ? "default" : "secondary"}>
+                    {isSelectedChapterFinalizing
+                      ? "收尾处理中"
+                      : isSelectedChapterStreaming
+                        ? "实时写作中"
+                        : "已保存版本"}
+                  </Badge>
+                  <Badge variant="outline">{chapterLabel}</Badge>
+                  <Badge variant="outline">当前展示 {contentPanelWordCount} 字</Badge>
+                </div>
+                <div>
+                  <div className="text-base font-semibold text-foreground">{chapterTitle}</div>
+                  <div className="mt-1 text-xs leading-6 text-muted-foreground">
+                    {contentPanelTitle}。{isSelectedChapterFinalizing
+                      ? (chapterRunStatus?.message ?? "正文可读，系统正在保存草稿并回灌章节资产。")
+                      : isSelectedChapterStreaming
+                        ? "AI 正在持续输出这一章的正文，先在这里观察节奏和手感，不满意时可以随时停止。"
+                        : chapterObjective}
+                  </div>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">

@@ -190,7 +190,6 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
 
           <div className="min-w-0 flex-1">
             <ChapterExecutionResultPanel
-              novelId={novelId}
               selectedChapter={selectedChapter}
               assetTab={assetTab}
               onAssetTabChange={setAssetTab}
@@ -237,6 +236,10 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
                   latestStateSnapshot={latestStateSnapshot}
                   chapterStateSnapshot={chapterStateSnapshot}
                   chapterRuntimePackage={chapterRuntimePackage}
+                  chapterPlan={chapterPlan}
+                  chapterQualityReport={chapterQualityReport}
+                  reviewResult={reviewResult}
+                  openAuditIssues={openAuditIssues}
                   chapterResourceContext={chapterResourceContext}
                   isLoadingChapterResourceContext={isLoadingChapterResourceContext}
                   resourceWorkflowMode={resourceWorkflowMode}
