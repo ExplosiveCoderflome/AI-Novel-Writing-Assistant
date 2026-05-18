@@ -292,6 +292,63 @@ test("chapter draft completion is scoped to the active auto execution range", as
   assert.equal(completeCriteria, true);
 });
 
+test("chapter quality review closes when auto review is disabled by the execution plan", async () => {
+  const module = getDirectorExecutionStepModule("chapter_quality_review");
+  const chapters = [1, 2].map((order) => ({
+    ...buildProgressChapter(order, { drafted: true }),
+    status: "approved",
+    completedStages: [
+      "execution_contract_ready",
+      "context_package_ready",
+      "draft_started",
+      "draft_saved",
+      "chapter_artifacts_synced",
+      "chapter_state_committed",
+      "reviewable_or_approved",
+    ],
+  }));
+  const context = {
+    taskId: "task-no-auto-review",
+    novelId: "novel-no-auto-review",
+    projectionHints: {
+      directorCanonicalState: buildDirectorStateHint({
+        directorInput: {
+          autoExecutionPlan: {
+            mode: "chapter_range",
+            startOrder: 1,
+            endOrder: 2,
+            autoReview: false,
+            autoRepair: false,
+          },
+        },
+        autoExecution: {
+          enabled: true,
+          mode: "chapter_range",
+          startOrder: 1,
+          endOrder: 2,
+          totalChapterCount: 2,
+          completedChapterCount: 2,
+          remainingChapterCount: 0,
+          autoReview: false,
+          autoRepair: false,
+        },
+      }, buildChapterProgressSummary(chapters)),
+    },
+  };
+
+  const completion = await module.inspectCompletion(context);
+  const progress = await module.inspectProgress(context);
+  const validation = await module.validateOutput(undefined, context);
+
+  assert.equal(completion.completed, true);
+  assert.equal(completion.evidence.draftedChapterCount, 2);
+  assert.equal(completion.evidence.reviewedChapterCount, 0);
+  assert.equal(completion.evidence.reviewSkipped, true);
+  assert.equal(progress.status, "completed");
+  assert.equal(progress.nextAction, "commit_chapter_state");
+  assert.equal(validation.valid, true);
+});
+
 test("quality repair template starts from repair step and preserves policy action", () => {
   const plan = buildChapterPipelineWorkflowTemplate("quality_repair");
   const repairModule = getDirectorExecutionStepModule("chapter_repair");
