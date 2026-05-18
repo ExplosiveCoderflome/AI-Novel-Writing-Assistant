@@ -7,6 +7,7 @@ import type { ChapterTabViewProps } from "./NovelEditView.types";
 import WorldInjectionHint from "./WorldInjectionHint";
 import ChapterExecutionActionPanel from "./ChapterExecutionActionPanel";
 import ChapterExecutionInsightsSidebar from "./chapterInsights";
+import ChapterExecutionReferencePanel from "./chapterInsights/ChapterExecutionReferencePanel";
 import ChapterExecutionQueueCard from "./ChapterExecutionQueueCard";
 import ChapterExecutionResultPanel from "./ChapterExecutionResultPanel";
 import {
@@ -102,7 +103,7 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
 
   const [assetTab, setAssetTab] = useState<AssetTabKey>("content");
   const [queueFilter, setQueueFilter] = useState<QueueFilterKey>("all");
-  const [rightRailTab, setRightRailTab] = useState<"insights" | "agent">("insights");
+  const [rightRailTab, setRightRailTab] = useState<"insights" | "reference" | "agent">("insights");
 
   const openAuditIssues = useMemo(
     () => chapterAuditReports.flatMap((report) => report.issues.filter((issue) => issue.status === "open").map((issue) => ({
@@ -191,19 +192,11 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
           <div className="min-w-0 flex-1">
             <ChapterExecutionResultPanel
               selectedChapter={selectedChapter}
-              assetTab={assetTab}
-              onAssetTabChange={setAssetTab}
+              onOpenReferencePanel={(tab) => {
+                setAssetTab(tab);
+                setRightRailTab("reference");
+              }}
               chapterPlan={chapterPlan}
-              latestStateSnapshot={latestStateSnapshot}
-              chapterAuditReports={chapterAuditReports}
-              replanRecommendation={activeReplanRecommendation}
-              onReplanChapter={onReplanChapter}
-              isReplanningChapter={isReplanningChapter}
-              lastReplanResult={lastReplanResult}
-              chapterQualityReport={chapterQualityReport}
-              chapterRuntimePackage={chapterRuntimePackage}
-              reviewResult={reviewResult}
-              openAuditIssues={openAuditIssues}
               streamContent={streamContent}
               isStreaming={isStreaming}
               streamingChapterId={streamingChapterId}
@@ -213,19 +206,26 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               onRunFullAudit={onRunFullAudit}
               isRunningFullAudit={isRunningFullAudit}
               onAutoRepair={onAutoRepair}
-              repairStreamContent={repairStreamContent}
               isRepairStreaming={isRepairStreaming}
               repairStreamingChapterId={repairStreamingChapterId}
-              repairStreamingChapterLabel={repairStreamingChapterLabel}
-              repairRunStatus={repairRunStatus}
-              onAbortRepair={onAbortRepair}
             />
           </div>
 
           <div className="w-full xl:sticky xl:top-4 xl:h-[calc(100dvh-8rem)] xl:w-[332px] xl:flex-none">
-            <Tabs value={rightRailTab} onValueChange={(value) => setRightRailTab(value as "insights" | "agent")} className="flex h-full min-h-0 flex-col">
-              <TabsList className="grid h-auto w-full shrink-0 grid-cols-2 rounded-xl bg-muted/50 p-1.5">
+            <Tabs
+              value={rightRailTab}
+              onValueChange={(value) => {
+                const nextTab = value as "insights" | "reference" | "agent";
+                if (nextTab === "reference" && assetTab === "content") {
+                  setAssetTab("taskSheet");
+                }
+                setRightRailTab(nextTab);
+              }}
+              className="flex h-full min-h-0 flex-col"
+            >
+              <TabsList className="grid h-auto w-full shrink-0 grid-cols-3 rounded-xl bg-muted/50 p-1.5">
                 <TabsTrigger value="insights" className="rounded-lg px-3 py-2 text-sm">动态栏</TabsTrigger>
+                <TabsTrigger value="reference" className="rounded-lg px-3 py-2 text-sm">资料诊断</TabsTrigger>
                 <TabsTrigger value="agent" className="rounded-lg px-3 py-2 text-sm">AI 执行台</TabsTrigger>
               </TabsList>
               <TabsContent value="insights" className="mt-3 min-h-0 flex-1">
@@ -250,6 +250,30 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
                   onRejectCharacterResourceProposal={onRejectCharacterResourceProposal}
                   confirmingCharacterResourceProposalId={confirmingCharacterResourceProposalId}
                   rejectingCharacterResourceProposalId={rejectingCharacterResourceProposalId}
+                />
+              </TabsContent>
+              <TabsContent value="reference" className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+                <ChapterExecutionReferencePanel
+                  selectedChapter={selectedChapter}
+                  assetTab={assetTab}
+                  onAssetTabChange={setAssetTab}
+                  chapterPlan={chapterPlan}
+                  latestStateSnapshot={latestStateSnapshot}
+                  chapterAuditReports={chapterAuditReports}
+                  replanRecommendation={activeReplanRecommendation}
+                  onReplanChapter={onReplanChapter}
+                  isReplanningChapter={isReplanningChapter}
+                  lastReplanResult={lastReplanResult}
+                  chapterQualityReport={chapterQualityReport}
+                  chapterRuntimePackage={chapterRuntimePackage}
+                  reviewResult={reviewResult}
+                  openAuditIssues={openAuditIssues}
+                  repairStreamContent={repairStreamContent}
+                  isRepairStreaming={isRepairStreaming}
+                  repairStreamingChapterId={repairStreamingChapterId}
+                  repairStreamingChapterLabel={repairStreamingChapterLabel}
+                  repairRunStatus={repairRunStatus}
+                  onAbortRepair={onAbortRepair}
                 />
               </TabsContent>
               <TabsContent value="agent" className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
