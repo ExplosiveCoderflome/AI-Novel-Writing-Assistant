@@ -477,7 +477,13 @@ export default function NovelEdit() {
     },
     onSuccess: ({ blob, fileName, scope }) => {
       createDownload(blob, fileName);
-      toast.success(scope === "full" ? "整本书导出已开始。" : "当前步骤导出已开始。");
+      toast.success(
+        scope === "full"
+          ? "整本书导出已开始。"
+          : scope === "setup_bundle"
+            ? "小说设定导出已开始。"
+            : "当前步骤导出已开始。",
+      );
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "导出失败。");
@@ -2526,6 +2532,12 @@ export default function NovelEdit() {
   const isExportingCurrentJson = exportNovelMutation.isPending
     && exportVariables?.scope === currentExportScope
     && exportVariables?.format === "json";
+  const isExportingSetupBundleMarkdown = exportNovelMutation.isPending
+    && exportVariables?.scope === "setup_bundle"
+    && exportVariables?.format === "markdown";
+  const isExportingSetupBundleJson = exportNovelMutation.isPending
+    && exportVariables?.scope === "setup_bundle"
+    && exportVariables?.format === "json";
   const isExportingFullMarkdown = exportNovelMutation.isPending
     && exportVariables?.scope === "full"
     && exportVariables?.format === "markdown";
@@ -2543,6 +2555,8 @@ export default function NovelEdit() {
         canExportCurrentStep: Boolean(currentExportScope),
         isExportingCurrentMarkdown,
         isExportingCurrentJson,
+        isExportingSetupBundleMarkdown,
+        isExportingSetupBundleJson,
         isExportingFullMarkdown,
         isExportingFullJson,
         onExportCurrent: (format) => {
@@ -2552,6 +2566,13 @@ export default function NovelEdit() {
           exportNovelMutation.mutate({
             format,
             scope: currentExportScope,
+            novelTitle: exportNovelTitle,
+          });
+        },
+        onExportSetupBundle: (format) => {
+          exportNovelMutation.mutate({
+            format,
+            scope: "setup_bundle",
             novelTitle: exportNovelTitle,
           });
         },

@@ -130,7 +130,7 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
             <DialogContent className="max-h-[88vh] w-[calc(100vw-1.5rem)] overflow-y-auto rounded-2xl">
               <DialogHeader>
                 <DialogTitle>创作工具</DialogTitle>
-                <DialogDescription>查看任务进度，导出当前步骤或整本书内容。</DialogDescription>
+                <DialogDescription>查看任务进度，导出设定或正文内容。</DialogDescription>
               </DialogHeader>
               <div className="space-y-3 text-sm">
                 <div className="grid grid-cols-3 gap-2">
@@ -181,6 +181,28 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
                       disabled={!exportControls.canExportCurrentStep || exportControls.isExportingCurrentJson}
                     >
                       {exportControls.isExportingCurrentJson ? "导出中..." : "JSON"}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/70 p-3">
+                  <div className="text-sm font-medium">导出小说设定</div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => exportControls.onExportSetupBundle("markdown")}
+                      disabled={exportControls.isExportingSetupBundleMarkdown}
+                    >
+                      {exportControls.isExportingSetupBundleMarkdown ? "导出中..." : "Markdown"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => exportControls.onExportSetupBundle("json")}
+                      disabled={exportControls.isExportingSetupBundleJson}
+                    >
+                      {exportControls.isExportingSetupBundleJson ? "导出中..." : "JSON"}
                     </Button>
                   </div>
                 </div>

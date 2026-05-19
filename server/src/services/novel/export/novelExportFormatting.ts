@@ -1,5 +1,7 @@
 import { NOVEL_EXPORT_SCOPE_LABELS, type NovelExportScope } from "@ai-novel/shared/types/novelExport";
 import type {
+  ExportCharacter,
+  ExportNovelDetail,
   NovelExportBasicSection,
   NovelExportBundle,
   NovelExportCharacterSection,
@@ -12,6 +14,78 @@ import type {
   NovelExportStructuredSection,
 } from "./novelExportTypes";
 
+type SetupBundleBasicSection = Pick<NovelExportBasicSection, "worldSlice"> & {
+  novel: Pick<
+    ExportNovelDetail,
+    | "id"
+    | "title"
+    | "description"
+    | "targetAudience"
+    | "bookSellingPoint"
+    | "competingFeel"
+    | "first30ChapterPromise"
+    | "commercialTags"
+    | "status"
+    | "writingMode"
+    | "projectMode"
+    | "narrativePov"
+    | "pacePreference"
+    | "styleTone"
+    | "emotionIntensity"
+    | "aiFreedom"
+    | "defaultChapterLength"
+    | "estimatedChapterCount"
+    | "genre"
+    | "primaryStoryMode"
+    | "secondaryStoryMode"
+    | "world"
+    | "createdAt"
+    | "updatedAt"
+  >;
+};
+
+type SetupBundleCharacter = Pick<
+  ExportCharacter,
+  | "id"
+  | "name"
+  | "role"
+  | "gender"
+  | "castRole"
+  | "storyFunction"
+  | "relationToProtagonist"
+  | "personality"
+  | "background"
+  | "development"
+  | "outerGoal"
+  | "innerNeed"
+  | "fear"
+  | "wound"
+  | "misbelief"
+  | "secret"
+  | "moralLine"
+  | "firstImpression"
+  | "appearance"
+  | "physique"
+  | "attireStyle"
+  | "signatureDetail"
+  | "voiceTexture"
+  | "presenceImpression"
+  | "arcStart"
+  | "arcMidpoint"
+  | "arcClimax"
+  | "arcEnd"
+>;
+
+type SetupBundlePayload = {
+  basic: SetupBundleBasicSection;
+  story_macro: NovelExportStoryMacroSection;
+  character: {
+    characters: SetupBundleCharacter[];
+    relations: NovelExportCharacterSection["relations"];
+    castOptions: [];
+  };
+};
+
 const FULL_SECTION_ORDER: NovelExportSectionScope[] = [
   "basic",
   "story_macro",
@@ -20,6 +94,12 @@ const FULL_SECTION_ORDER: NovelExportSectionScope[] = [
   "structured",
   "chapter",
   "pipeline",
+];
+
+const SETUP_BUNDLE_SECTION_ORDER: NovelExportSectionScope[] = [
+  "basic",
+  "story_macro",
+  "character",
 ];
 
 function normalizeText(input: string | null | undefined): string {
@@ -197,6 +277,139 @@ function buildSectionSummary(scope: NovelExportSectionScope, section: NovelExpor
   }
 }
 
+function buildSetupCharacterSummary(section: SetupBundlePayload["character"]): string[] {
+  const lines: string[] = [];
+  addBullet(lines, "角色数", section.characters.length);
+  addBullet(lines, "关系数", section.relations.length);
+  if (section.characters.length > 0) {
+    lines.push("### 角色设定");
+    lines.push("");
+    for (const character of section.characters) {
+      lines.push(`#### ${character.name}`);
+      lines.push("");
+      addBullet(lines, "定位", character.role);
+      addBullet(lines, "阵容位置", character.castRole);
+      addBullet(lines, "故事功能", character.storyFunction);
+      addBullet(lines, "与主角关系", character.relationToProtagonist);
+      addBullet(lines, "外在目标", character.outerGoal);
+      addBullet(lines, "内在需求", character.innerNeed);
+      addBullet(lines, "恐惧 / 弱点", character.fear);
+      addBullet(lines, "秘密", character.secret);
+      addParagraph(lines, "性格", character.personality, 5);
+      addParagraph(lines, "背景", character.background, 5);
+      addParagraph(lines, "成长线", character.development, 5);
+      addParagraph(lines, "外貌与气质", character.appearance ?? character.presenceImpression ?? null, 5);
+    }
+  }
+  if (section.relations.length > 0) {
+    lines.push("### 角色关系");
+    lines.push("");
+    for (const relation of section.relations) {
+      const names = [
+        relation.sourceCharacterName ?? relation.sourceCharacterId,
+        relation.targetCharacterName ?? relation.targetCharacterId,
+      ].filter(Boolean).join(" -> ");
+      lines.push(`- ${names}：${relation.surfaceRelation}`);
+      if (relation.hiddenTension) {
+        lines.push(`  隐性张力：${relation.hiddenTension}`);
+      }
+    }
+    lines.push("");
+  }
+  return lines;
+}
+
+function buildSetupSectionSummary(scope: NovelExportSectionScope, payload: SetupBundlePayload): string[] {
+  switch (scope) {
+    case "basic":
+      return buildBasicSummary(payload.basic as NovelExportBasicSection);
+    case "story_macro":
+      return buildStoryMacroSummary(payload.story_macro);
+    case "character":
+      return buildSetupCharacterSummary(payload.character);
+    default:
+      return [];
+  }
+}
+
+function pickDefined<T extends Record<string, unknown>>(input: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) => value !== undefined),
+  ) as Partial<T>;
+}
+
+function buildSetupBundlePayload(bundle: NovelExportBundle): SetupBundlePayload {
+  const novel = bundle.sections.basic.novel;
+  const setupCharacters = bundle.sections.character.characters.map((character) => pickDefined({
+    id: character.id,
+    name: character.name,
+    role: character.role,
+    gender: character.gender,
+    castRole: character.castRole,
+    storyFunction: character.storyFunction,
+    relationToProtagonist: character.relationToProtagonist,
+    personality: character.personality,
+    background: character.background,
+    development: character.development,
+    outerGoal: character.outerGoal,
+    innerNeed: character.innerNeed,
+    fear: character.fear,
+    wound: character.wound,
+    misbelief: character.misbelief,
+    secret: character.secret,
+    moralLine: character.moralLine,
+    firstImpression: character.firstImpression,
+    appearance: character.appearance,
+    physique: character.physique,
+    attireStyle: character.attireStyle,
+    signatureDetail: character.signatureDetail,
+    voiceTexture: character.voiceTexture,
+    presenceImpression: character.presenceImpression,
+    arcStart: character.arcStart,
+    arcMidpoint: character.arcMidpoint,
+    arcClimax: character.arcClimax,
+    arcEnd: character.arcEnd,
+  })) as SetupBundleCharacter[];
+
+  return {
+    basic: {
+      novel: pickDefined({
+        id: novel.id,
+        title: novel.title,
+        description: novel.description,
+        targetAudience: novel.targetAudience,
+        bookSellingPoint: novel.bookSellingPoint,
+        competingFeel: novel.competingFeel,
+        first30ChapterPromise: novel.first30ChapterPromise,
+        commercialTags: novel.commercialTags,
+        status: novel.status,
+        writingMode: novel.writingMode,
+        projectMode: novel.projectMode,
+        narrativePov: novel.narrativePov,
+        pacePreference: novel.pacePreference,
+        styleTone: novel.styleTone,
+        emotionIntensity: novel.emotionIntensity,
+        aiFreedom: novel.aiFreedom,
+        defaultChapterLength: novel.defaultChapterLength,
+        estimatedChapterCount: novel.estimatedChapterCount,
+        genre: novel.genre,
+        primaryStoryMode: novel.primaryStoryMode,
+        secondaryStoryMode: novel.secondaryStoryMode,
+        world: novel.world,
+        createdAt: novel.createdAt,
+        updatedAt: novel.updatedAt,
+      }) as SetupBundleBasicSection["novel"],
+      worldSlice: null,
+    },
+    story_macro: bundle.sections.story_macro,
+    character: {
+      characters: setupCharacters,
+      relations: bundle.sections.character.relations,
+      castOptions: [],
+    },
+  };
+}
+
 export function buildScopedNovelExportPayload(
   bundle: NovelExportBundle,
   scope: NovelExportScope,
@@ -205,8 +418,19 @@ export function buildScopedNovelExportPayload(
     scope: NovelExportScope;
     scopeLabel: string;
   };
-  data: NovelExportSectionMap | NovelExportSectionMap[NovelExportSectionScope];
+  data: NovelExportSectionMap | NovelExportSectionMap[NovelExportSectionScope] | SetupBundlePayload;
 } {
+  if (scope === "setup_bundle") {
+    return {
+      metadata: {
+        ...bundle.metadata,
+        scope,
+        scopeLabel: NOVEL_EXPORT_SCOPE_LABELS[scope],
+      },
+      data: buildSetupBundlePayload(bundle),
+    };
+  }
+
   return {
     metadata: {
       ...bundle.metadata,
@@ -220,7 +444,12 @@ export function buildScopedNovelExportPayload(
 export function buildMarkdownExportContent(bundle: NovelExportBundle, scope: NovelExportScope): string {
   const lines: string[] = [];
   const scopeLabel = NOVEL_EXPORT_SCOPE_LABELS[scope];
-  const sectionScopes = scope === "full" ? FULL_SECTION_ORDER : [scope];
+  const sectionScopes = scope === "full"
+    ? FULL_SECTION_ORDER
+    : scope === "setup_bundle"
+      ? SETUP_BUNDLE_SECTION_ORDER
+      : [scope];
+  const setupBundlePayload = scope === "setup_bundle" ? buildSetupBundlePayload(bundle) : null;
 
   lines.push(`# ${bundle.metadata.novelTitle} 导出`);
   lines.push("");
@@ -230,17 +459,23 @@ export function buildMarkdownExportContent(bundle: NovelExportBundle, scope: Nov
   lines.push("");
 
   for (const sectionScope of sectionScopes) {
-    const section = bundle.sections[sectionScope];
+    const section = setupBundlePayload && sectionScope in setupBundlePayload
+      ? setupBundlePayload[sectionScope as keyof SetupBundlePayload]
+      : bundle.sections[sectionScope];
     lines.push(`## ${NOVEL_EXPORT_SCOPE_LABELS[sectionScope]}`);
     lines.push("");
-    const summaryLines = buildSectionSummary(sectionScope, section);
+    const summaryLines = setupBundlePayload
+      ? buildSetupSectionSummary(sectionScope, setupBundlePayload)
+      : buildSectionSummary(sectionScope, section as NovelExportSectionMap[NovelExportSectionScope]);
     if (summaryLines.length > 0) {
       lines.push(...summaryLines);
     } else {
       lines.push("（当前没有可总结的结构化内容）");
       lines.push("");
     }
-    addJsonBlock(lines, "完整数据", section);
+    if (scope !== "setup_bundle") {
+      addJsonBlock(lines, "完整数据", section);
+    }
   }
 
   return lines.join("\n");

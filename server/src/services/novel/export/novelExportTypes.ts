@@ -201,7 +201,7 @@ export interface NovelExportSectionMap {
   pipeline: NovelExportPipelineSection;
 }
 
-export type NovelExportSectionScope = Exclude<NovelExportScope, "full">;
+export type NovelExportSectionScope = Exclude<NovelExportScope, "full" | "setup_bundle">;
 
 export interface NovelExportBundle {
   metadata: {
