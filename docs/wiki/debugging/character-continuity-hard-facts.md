@@ -24,6 +24,7 @@
 - 角色硬事实是写作约束，不替代 `CharacterTimeline`、`CharacterDynamics`、`StoryStateSnapshot` 或时间线模块。
 - `participant_subset` 只承担软性人物简介和当前参与角色摘要，不承担不可违背事实约束。
 - writer 前必须带 `character_hard_facts` required context。该块即使为空也要存在，空态要明确提示不得凭空改写角色身份、阵营、境界、所在地和行动可用性。
+- 角色外显资料属于进入正文前应补齐的可视化角色资产，包括 `appearance / physique / attireStyle / signatureDetail / voiceTexture / presenceImpression`。自动应用角色阵容时，如果这些字段为空，应使用当前任务或当前页面选择的 LLM 设置补齐，避免落回未配置或能力不稳定的默认模型路径。
 - 旧角色已有人工编辑内容时，自动应用角色阵容只能补空字段，不覆盖用户已填写的人物档案和硬事实。
 - 审计继续作为后置检测和修复输入，但不能成为角色事实的主要来源。
 
@@ -33,18 +34,21 @@
 2. 再检查角色硬事实是否进入运行时上下文。重点看 `GenerationContextPackage.characterHardFacts` 和 writer blocks 里的 `character_hard_facts`。
 3. 如果正文出现阵营或境界错误，先判断角色库是否有对应硬事实；没有就修角色准备链路，有但 writer 没收到就修上下文组装。
 4. 如果 writer 收到了硬事实仍写错，再进入审计、修复 prompt 或模型遵循度排查。
+5. 如果角色编辑页外显资料长期显示“待补全”，先用当前任务模型手动触发单角色或批量补齐验证 prompt 能力；手动可生成但自动应用后仍为空时，优先检查角色阵容应用链路是否把 `provider / model / temperature` 传入外显资料补齐服务。
 
 ## 失败模式
 
 - 只在审计阶段检测“阵营错误”，但 writer 输入里没有阵营事实：初稿会持续犯错。
 - 只把阵营放在 `character_dynamics`：动态投影可能为空或被裁剪，不能承担硬约束。
 - 只依赖时间线状态：时间线可发现事件顺序错乱，但不能稳定推断角色所属阵营和修为层级。
+- 自动应用角色阵容时没有携带当前 LLM 设置：外显资料补齐会走默认模型路径，可能表现为任务长时间等待或落库后仍为空。
 - 自动应用角色阵容覆盖人工编辑：会破坏用户已经修正过的人物设定。
 
 ## 相关模块
 
 - `server/src/prompting/prompts/novel/characterPreparation.*`
 - `server/src/services/novel/characterPrep/`
+- `server/src/services/novel/characterProfile/CharacterVisibleProfileService.ts`
 - `server/src/services/novel/characters/characterHardFacts.ts`
 - `server/src/services/novel/runtime/GenerationContextAssembler.ts`
 - `server/src/prompting/prompts/novel/chapterLayeredContext.ts`

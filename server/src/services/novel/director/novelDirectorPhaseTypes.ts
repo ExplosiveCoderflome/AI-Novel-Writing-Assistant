@@ -47,6 +47,14 @@ export interface DirectorPhaseDependencies {
     applyCharacterCastOption: (
       novelId: string,
       optionId: string,
+      options?: {
+        overrideQualityGate?: boolean;
+        visibleProfileGeneration?: {
+          provider?: DirectorConfirmRequest["provider"];
+          model?: string;
+          temperature?: number;
+        };
+      },
     ) => ReturnType<CharacterPreparationService["applyCharacterCastOption"]>;
     findReusableCharacterCastOption?: (novelId: string) => Promise<CharacterCastOption | null>;
   };

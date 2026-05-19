@@ -23,7 +23,10 @@ import {
 import type { CharacterCastOptionResponseParsed } from "../../../prompting/prompts/novel/characterPreparation.promptSchemas";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import { NovelContextService } from "../NovelContextService";
-import { CharacterVisibleProfileService } from "../characterProfile/CharacterVisibleProfileService";
+import {
+  CharacterVisibleProfileService,
+  type CharacterVisibleProfileGenerateOptions,
+} from "../characterProfile/CharacterVisibleProfileService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { CharacterPreparationSupplementalService } from "./characterPreparationSupplemental";
 import {
@@ -47,6 +50,7 @@ interface CharacterPrepOptions {
 
 interface CharacterCastApplyOptions {
   overrideQualityGate?: boolean;
+  visibleProfileGeneration?: CharacterVisibleProfileGenerateOptions;
 }
 
 function toOptionalText(value: string | null | undefined): string | null {
@@ -737,6 +741,7 @@ export class CharacterPreparationService {
     await this.characterVisibleProfileService.autoCompleteVisibleProfilesForCharacters(
       novelId,
       uniqueCharacterIds,
+      options.visibleProfileGeneration,
     ).catch((error) => {
       console.warn("[character-visible-profile] 自动补齐外显资料失败", error);
       return null;

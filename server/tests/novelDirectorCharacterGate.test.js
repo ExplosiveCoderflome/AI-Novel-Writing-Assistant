@@ -237,6 +237,7 @@ test("director character phase reuses an applied cast option instead of regenera
 test("director character phase applies an existing draft cast option without regenerating", async () => {
   const workflowCalls = [];
   let applyCalls = 0;
+  const applyArgs = [];
   let autoGenerateCalls = 0;
   const draftOption = buildCastOption({ id: "cast_draft", status: "draft" });
 
@@ -271,8 +272,9 @@ test("director character phase applies an existing draft cast option without reg
           autoApplicableOptionId: draftOption.id,
           blockingReasons: [],
         }),
-        applyCharacterCastOption: async () => {
+        applyCharacterCastOption: async (...args) => {
           applyCalls += 1;
+          applyArgs.push(args);
         },
       },
     },
@@ -287,6 +289,13 @@ test("director character phase applies an existing draft cast option without reg
   assert.equal(paused, false);
   assert.equal(autoGenerateCalls, 0);
   assert.equal(applyCalls, 1);
+  assert.deepEqual(applyArgs[0]?.[2], {
+    visibleProfileGeneration: {
+      provider: "deepseek",
+      model: "deepseek-chat",
+      temperature: 0.5,
+    },
+  });
   assert.ok(workflowCalls.some((call) => call.type === "running" && /复用候选角色阵容/.test(call.itemLabel)));
   assert.equal(workflowCalls.some((call) => call.type === "checkpoint"), false);
 });
