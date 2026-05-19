@@ -29,11 +29,12 @@
 - 检测失败时不提交 `occurred` 事件；通过或 warning 时才允许提交抽取事件和新钩子。
 - 自动修复由现有章节修复链路处理，timeline 模块只提供问题清单和修复建议。
 - 章节接收闸门会把 `acceptance` 与 `timeline` 并行执行，并对同一章同一内容 hash 做门禁缓存，避免重复触发相同检测。
+- 长弧钩子被正文部分回应时，应标记为已处理或已触达，而不是继续按下一章必须解决的硬阻断处理。
 
 ## 失败模式
 
 - 第 N 章提前写出第 N+M 章才应发生的事件：检查 `forbiddenEvents` 是否进入 `timeline_context`，以及 checker 是否输出 `future_event_leak`。
-- 下一章跳过上一章结尾钩子：检查 `TimelineHook` 是否仍为 `open`，以及 `previous_chapter_hook` 是否被 Prompt Context 保留。
+- 下一章跳过上一章结尾钩子：检查 `TimelineHook` 是否仍为 `open`，以及 `previous_chapter_hook` 是否被 Prompt Context 保留；如果是 `short_arc` 或 `long_arc`，优先检查是否被错误升级成 `immediate + blocking`。
 - 角色状态回滚：检查上一轮 `occurred` 事件的 `stateChanges` 是否记录了 confirmed 状态。
 - 检测失败但后续章节继续引用污染事件：检查失败章是否错误提交了 `occurred` timeline。
 - 时间线检测长期 warning：检查 extractor prompt 是否无法抽取章节时间锚点，或章节计划本身缺少时间标签。

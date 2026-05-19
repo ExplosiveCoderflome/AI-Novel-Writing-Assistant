@@ -22,6 +22,11 @@ import { buildPipelineCurrentItemLabel, buildPipelineStageProgress, decoratePipe
 export { buildPipelineCurrentItemLabel, buildPipelineStageProgress } from "./pipelineJobState";
 
 const PIPELINE_HEARTBEAT_INTERVAL_MS = 15000;
+const TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT = '"terminalAction":"defer_and_continue"';
+
+function clampPipelineMaxRetries(value: number | null | undefined): number {
+  return Math.max(0, Math.min(value ?? 1, 1));
+}
 
 function buildEmptyChapterDetail(chapter: { order: number; title: string }): string {
   return `第${chapter.order}章「${chapter.title}」正文生成失败：模型连续未返回可保存正文，已暂停继续。`;
@@ -37,6 +42,7 @@ function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
           OR: [
             { generationState: { in: ["approved", "published"] } },
             { chapterStatus: "completed" },
+            { riskFlags: { contains: TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT } },
           ],
         },
       ],
@@ -287,7 +293,7 @@ export class NovelCorePipelineService {
         controlPolicy: payload.controlPolicy,
         workflowTaskId: payload.workflowTaskId,
         taskStyleProfileId: payload.taskStyleProfileId,
-        maxRetries: job.maxRetries,
+        maxRetries: clampPipelineMaxRetries(job.maxRetries),
         runMode: job.runMode ?? payload.runMode,
         autoReview: job.autoReview ?? payload.autoReview,
         autoRepair: job.autoRepair ?? payload.autoRepair,
@@ -304,6 +310,8 @@ export class NovelCorePipelineService {
   async startPipelineJob(novelId: string, options: PipelineRunOptions) {
     const rangeKey = this.buildRangeKey(novelId, options.startOrder, options.endOrder);
     return this.withStartLock(rangeKey, async () => {
+      const maxRetries = clampPipelineMaxRetries(options.maxRetries);
+      const runtimeOptions: PipelineRunOptions = { ...options, maxRetries };
       await ensureNovelCharacters(novelId, "启动批量章节流水");
 
       const existingActiveJob = await this.reconcileActivePipelineJobsForRange({
@@ -317,7 +325,7 @@ export class NovelCorePipelineService {
           range: `${options.startOrder}-${options.endOrder}`,
           reusedJobId: existingActiveJob.id,
         });
-        this.schedulePipelineExecution(existingActiveJob.id, novelId, options);
+        this.schedulePipelineExecution(existingActiveJob.id, novelId, runtimeOptions);
         return this.decoratePipelineJob(existingActiveJob);
       }
 
@@ -353,7 +361,7 @@ export class NovelCorePipelineService {
         range: `${options.startOrder}-${options.endOrder}`,
         matchedChapters: chapters.length,
         availableRange: `${chapterStats._min.order ?? 1}-${chapterStats._max.order ?? 1}`,
-        maxRetries: options.maxRetries ?? 1,
+        maxRetries,
         provider: options.provider ?? "deepseek",
         model: options.model ?? "",
       });
@@ -372,7 +380,7 @@ export class NovelCorePipelineService {
           status: "queued",
           pendingManualRecovery: false,
           totalCount: chapters.length,
-          maxRetries: options.maxRetries ?? 1,
+          maxRetries,
           currentStage: "queued",
           payload: this.stringifyPipelinePayload({
             provider: options.provider ?? "deepseek",
@@ -381,7 +389,7 @@ export class NovelCorePipelineService {
             controlPolicy: options.controlPolicy,
             workflowTaskId: options.workflowTaskId?.trim() || undefined,
             taskStyleProfileId: options.taskStyleProfileId?.trim() || undefined,
-            maxRetries: options.maxRetries ?? 1,
+            maxRetries,
             runMode: options.runMode ?? "fast",
             autoReview: options.autoReview ?? true,
             autoRepair: options.autoRepair ?? true,
@@ -399,7 +407,7 @@ export class NovelCorePipelineService {
         totalCount: job.totalCount,
       });
 
-      this.schedulePipelineExecution(job.id, novelId, options);
+      this.schedulePipelineExecution(job.id, novelId, runtimeOptions);
       return this.decoratePipelineJob(job);
     });
   }
@@ -434,7 +442,7 @@ export class NovelCorePipelineService {
       endOrder: job.endOrder,
       workflowTaskId: payload.workflowTaskId,
       taskStyleProfileId: payload.taskStyleProfileId,
-      maxRetries: job.maxRetries,
+      maxRetries: clampPipelineMaxRetries(job.maxRetries),
       runMode: job.runMode ?? payload.runMode,
       autoReview: job.autoReview ?? payload.autoReview,
       autoRepair: job.autoRepair ?? payload.autoRepair,
@@ -546,7 +554,7 @@ export class NovelCorePipelineService {
   }
 
   private async executePipeline(jobId: string, novelId: string, options: PipelineRunOptions) {
-    const maxRetries = options.maxRetries ?? 1;
+    const maxRetries = clampPipelineMaxRetries(options.maxRetries);
     const qualityThreshold = options.qualityThreshold ?? 75;
     const existingJob = await prisma.generationJob.findUnique({
       where: { id: jobId },
@@ -566,7 +574,7 @@ export class NovelCorePipelineService {
       controlPolicy: persistedPayload.controlPolicy ?? options.controlPolicy,
       workflowTaskId: persistedPayload.workflowTaskId ?? options.workflowTaskId,
       taskStyleProfileId: persistedPayload.taskStyleProfileId ?? options.taskStyleProfileId,
-      maxRetries: persistedPayload.maxRetries ?? options.maxRetries ?? 1,
+      maxRetries: clampPipelineMaxRetries(persistedPayload.maxRetries ?? options.maxRetries),
       runMode: persistedPayload.runMode ?? options.runMode ?? "fast",
       autoReview: persistedPayload.autoReview ?? options.autoReview ?? true,
       autoRepair: persistedPayload.autoRepair ?? options.autoRepair ?? true,
@@ -759,6 +767,7 @@ export class NovelCorePipelineService {
               issues: final.issues,
               runtimePackage: chapterResult.runtimePackage,
               source: chapterResult.retryCountUsed > 0 ? "repair_recheck" : "pipeline_review",
+              terminalAction: chapterResult.pass ? null : "defer_and_continue",
               taskId: runtimePayload.workflowTaskId,
             }).catch((error) => {
               logPipelineError("记录章节质量闭环状态失败", {

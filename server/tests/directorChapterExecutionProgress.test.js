@@ -72,3 +72,53 @@ test("chapter execution progress treats needs_repair as a local recoverable stat
   assert.equal(chapter6.status, "not_started");
   assert.equal(chapter6.currentStage, "draft_started");
 });
+
+test("chapter execution progress treats terminal deferred quality issues as continue-next-chapter", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  prisma.chapter.findMany = async () => [
+    {
+      id: "chapter-8",
+      order: 8,
+      title: "Chapter 8",
+      content: "Draft body",
+      taskSheet: "Task sheet",
+      sceneCards: null,
+      expectation: null,
+      generationState: "reviewed",
+      chapterStatus: "pending_review",
+      riskFlags: JSON.stringify({
+        qualityLoop: {
+          overallStatus: "risk",
+          recommendedAction: "patch_repair",
+          terminalAction: "defer_and_continue",
+        },
+      }),
+      repairHistory: null,
+      qualityReports: [],
+      auditReports: [
+        {
+          issues: [
+            {
+              status: "open",
+              severity: "critical",
+            },
+          ],
+        },
+      ],
+      storyStateSnapshots: [],
+      canonicalStateVersions: [],
+    },
+  ];
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+
+  const summary = await new ChapterExecutionProgressInspector().inspectNovel("novel-1");
+  const chapter8 = summary.chapters.find((item) => item.chapterOrder === 8);
+
+  assert.equal(summary.needsRepairChapters, 0);
+  assert.equal(chapter8.status, "reviewable");
+  assert.equal(chapter8.recoverable, false);
+  assert.equal(chapter8.nextAction, "continue_next_chapter");
+  assert.ok(chapter8.completedStages.includes("repair_completed_or_not_needed"));
+});

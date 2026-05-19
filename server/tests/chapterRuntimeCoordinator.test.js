@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 const { ChapterRuntimeCoordinator } = require("../dist/services/novel/runtime/ChapterRuntimeCoordinator.js");
 const { PostGenerationStyleReviewRunner } = require("../dist/services/novel/runtime/PostGenerationStyleReviewRunner.js");
+const { storyTimelineService } = require("../dist/modules/timeline/index.js");
 const { openConflictService } = require("../dist/services/state/OpenConflictService.js");
 
 function createEmptyStream() {
@@ -243,6 +244,177 @@ test("finalizeChapterContent runs acceptance and timeline gates in parallel and 
     assert.ok(firstTimelineEnd >= firstTimelineStart);
   } finally {
     openConflictService.listOpenConflicts = originalListOpenConflicts;
+  }
+});
+
+test("finalizeChapterContent commits timeline only after chapter reaches a stable review result", async () => {
+  let acceptanceMode = "repairable";
+  const syncCalls = [];
+  const coordinator = new ChapterRuntimeCoordinator({
+    acceptanceAssessmentService: {
+      assess: async () => ({
+        assessment: {
+          status: acceptanceMode === "repairable" ? "repairable" : "accepted",
+          score: {
+            coherence: 95,
+            pacing: 95,
+            repetition: 95,
+            engagement: 95,
+            voice: 95,
+            overall: 95,
+          },
+          blockingIssues: [],
+          repairDirectives: [],
+          missingObligations: [],
+          repairability: acceptanceMode === "repairable" ? "rewrite_needed" : "none",
+          decisionReason: acceptanceMode,
+          riskTags: [],
+          assetSyncRecommendation: {
+            priority: "normal",
+            reason: acceptanceMode,
+            requiresFullPayoffReconcile: false,
+          },
+          continuePolicy: acceptanceMode === "repairable" ? "repair_once" : "continue",
+          summary: acceptanceMode,
+        },
+        score: {
+          coherence: 95,
+          pacing: 95,
+          repetition: 95,
+          engagement: 95,
+          voice: 95,
+          overall: 95,
+        },
+        issues: [],
+        auditReports: [],
+      }),
+    },
+    artifactSyncService: {
+      saveDraftAndArtifacts: async () => undefined,
+      syncChapterArtifacts: async (...args) => {
+        syncCalls.push(args);
+      },
+    },
+  });
+  coordinator.markChapterStatus = async () => undefined;
+  coordinator.finishTraceRun = async () => undefined;
+  coordinator.executeTimelineGate = async () => ({
+    result: {
+      status: "passed",
+      score: 0.96,
+      issues: [],
+    },
+    extractedEvents: [{
+      title: "主角完成行动",
+      summary: "本章关键推进",
+      type: "plot",
+      occurred: true,
+      confidence: 0.96,
+      stateChanges: [],
+      possibleHooks: [],
+    }],
+    extractedHooks: [],
+    timelineContext: {
+      currentTime: {
+        storyDayIndex: 1,
+        label: "第一天",
+      },
+      openHooks: [],
+      plannedEvents: [],
+      forbiddenEvents: [],
+      chapterObjective: null,
+      mustAddressHooks: [],
+      optionalHooks: [],
+    },
+  });
+  coordinator.buildRuntimePackage = (input) => ({
+    audit: {
+      score: input.auditResult.score,
+      openIssues: [],
+      reports: [],
+      hasBlockingIssues: false,
+    },
+    meta: {
+      acceptanceStatus: input.acceptance.status,
+      continuePolicy: input.acceptance.continuePolicy,
+    },
+    timelineCheck: input.timelineCheck,
+    context: {
+      styleContext: null,
+    },
+  });
+
+  const originalListOpenConflicts = openConflictService.listOpenConflicts;
+  const originalCommitChapterTimeline = storyTimelineService.commitChapterTimeline;
+  const commitCalls = [];
+  openConflictService.listOpenConflicts = async () => [];
+  storyTimelineService.commitChapterTimeline = async (input) => {
+    commitCalls.push(input);
+    return [];
+  };
+
+  try {
+    await coordinator.finalizeChapterContent({
+      novelId: "novel-1",
+      chapterId: "chapter-1",
+      request: {},
+      contextPackage: {
+        chapter: { id: "chapter-1", title: "第1章", order: 1, targetWordCount: 3000 },
+        bookContract: null,
+        timelineContext: {
+          currentTime: {
+            storyDayIndex: 1,
+            label: "第一天",
+          },
+          openHooks: [],
+          plannedEvents: [],
+          forbiddenEvents: [],
+          chapterObjective: null,
+          mustAddressHooks: [],
+          optionalHooks: [],
+        },
+      },
+      content: "正文版本一",
+      runId: null,
+      startMs: null,
+      deferArtifactBackgroundSync: true,
+    });
+    assert.equal(commitCalls.length, 0);
+    assert.equal(syncCalls.length, 0);
+
+    acceptanceMode = "accepted";
+    await coordinator.finalizeChapterContent({
+      novelId: "novel-1",
+      chapterId: "chapter-1",
+      request: {},
+      contextPackage: {
+        chapter: { id: "chapter-1", title: "第1章", order: 1, targetWordCount: 3000 },
+        bookContract: null,
+        timelineContext: {
+          currentTime: {
+            storyDayIndex: 1,
+            label: "第一天",
+          },
+          openHooks: [],
+          plannedEvents: [],
+          forbiddenEvents: [],
+          chapterObjective: null,
+          mustAddressHooks: [],
+          optionalHooks: [],
+        },
+      },
+      content: "正文版本二",
+      runId: null,
+      startMs: null,
+      deferArtifactBackgroundSync: true,
+    });
+    assert.equal(commitCalls.length, 1);
+    assert.equal(syncCalls.length, 1);
+    assert.equal(commitCalls[0].chapterId, "chapter-1");
+    assert.equal(commitCalls[0].extractedEvents.length, 1);
+  } finally {
+    openConflictService.listOpenConflicts = originalListOpenConflicts;
+    storyTimelineService.commitChapterTimeline = originalCommitChapterTimeline;
   }
 });
 

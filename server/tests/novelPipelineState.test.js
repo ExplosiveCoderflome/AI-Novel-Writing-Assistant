@@ -26,6 +26,178 @@ test("listRecoverablePipelineJobs excludes cancellation-pending jobs", async () 
   }
 });
 
+test("startPipelineJob persists maxRetries as a single repair pass", async () => {
+  const original = {
+    characterCount: prisma.character.count,
+    generationFindMany: prisma.generationJob.findMany,
+    generationCreate: prisma.generationJob.create,
+    chapterAggregate: prisma.chapter.aggregate,
+    chapterFindMany: prisma.chapter.findMany,
+  };
+
+  let createdInput = null;
+  let scheduledOptions = null;
+  prisma.character.count = async () => 1;
+  prisma.generationJob.findMany = async () => [];
+  prisma.chapter.aggregate = async () => ({
+    _min: { order: 1 },
+    _max: { order: 3 },
+    _count: { order: 3 },
+  });
+  prisma.chapter.findMany = async () => ([
+    { id: "chapter-1" },
+    { id: "chapter-2" },
+  ]);
+  prisma.generationJob.create = async (input) => {
+    createdInput = input;
+    return {
+      id: "job-clamped",
+      status: "queued",
+      progress: 0,
+      completedCount: 0,
+      totalCount: input.data.totalCount,
+      retryCount: 0,
+      maxRetries: input.data.maxRetries,
+      payload: input.data.payload,
+    };
+  };
+
+  const service = new NovelCorePipelineService();
+  service.schedulePipelineExecution = (_jobId, _novelId, options) => {
+    scheduledOptions = options;
+  };
+
+  try {
+    await service.startPipelineJob("novel-1", {
+      startOrder: 1,
+      endOrder: 2,
+      provider: "deepseek",
+      model: "deepseek-chat",
+      temperature: 0.8,
+      runMode: "fast",
+      autoReview: true,
+      autoRepair: true,
+      skipCompleted: true,
+      qualityThreshold: 75,
+      repairMode: "light_repair",
+      maxRetries: 5,
+    });
+
+    assert.equal(createdInput.data.maxRetries, 1);
+    assert.equal(JSON.parse(createdInput.data.payload).maxRetries, 1);
+    assert.equal(scheduledOptions.maxRetries, 1);
+  } finally {
+    prisma.character.count = original.characterCount;
+    prisma.generationJob.findMany = original.generationFindMany;
+    prisma.generationJob.create = original.generationCreate;
+    prisma.chapter.aggregate = original.chapterAggregate;
+    prisma.chapter.findMany = original.chapterFindMany;
+  }
+});
+
+test("executePipeline skips chapters already marked for deferred continue when skipCompleted is enabled", async () => {
+  const original = {
+    generationFindUnique: prisma.generationJob.findUnique,
+    generationUpdate: prisma.generationJob.update,
+    novelFindUnique: prisma.novel.findUnique,
+    chapterFindMany: prisma.chapter.findMany,
+    createQualityReport: reviewService.createQualityReport,
+    emit: novelEventBus.emit,
+  };
+
+  const updates = [];
+  let capturedChapterQuery = null;
+  prisma.generationJob.findUnique = async (input) => {
+    if (input.select?.startedAt) {
+      return {
+        startedAt: null,
+        completedCount: 0,
+        totalCount: 1,
+        retryCount: 0,
+        payload: JSON.stringify({
+          provider: "deepseek",
+          model: "deepseek-chat",
+          temperature: 0.8,
+          runMode: "fast",
+          autoReview: true,
+          autoRepair: true,
+          skipCompleted: true,
+          qualityThreshold: 75,
+          repairMode: "light_repair",
+        }),
+      };
+    }
+    if (input.select?.status) {
+      return {
+        status: "running",
+        cancelRequestedAt: null,
+      };
+    }
+    throw new Error(`Unexpected generationJob.findUnique call: ${JSON.stringify(input)}`);
+  };
+  prisma.generationJob.update = async (input) => {
+    updates.push(input);
+    return input;
+  };
+  prisma.novel.findUnique = async () => ({
+    id: "novel-1",
+    title: "测试小说",
+  });
+  prisma.chapter.findMany = async (input) => {
+    capturedChapterQuery = input;
+    return [
+      { id: "chapter-terminal", order: 4, title: "第四章", content: "正文", chapterStatus: "pending_review" },
+    ];
+  };
+  reviewService.createQualityReport = async () => null;
+  novelEventBus.emit = async () => null;
+
+  const service = new NovelCorePipelineService();
+  service.chapterRuntimeCoordinator.runPipelineChapter = async () => ({
+    retryCountUsed: 0,
+    score: {
+      coherence: 88,
+      repetition: 88,
+      pacing: 82,
+      voice: 80,
+      engagement: 86,
+      overall: 84,
+    },
+    issues: [],
+    pass: true,
+  });
+
+  try {
+    await service.executePipeline("job-terminal", "novel-1", {
+      startOrder: 4,
+      endOrder: 4,
+      provider: "deepseek",
+      model: "deepseek-chat",
+      temperature: 0.8,
+      runMode: "fast",
+      autoReview: true,
+      autoRepair: true,
+      skipCompleted: true,
+      qualityThreshold: 75,
+      repairMode: "light_repair",
+      maxRetries: 5,
+    });
+
+    const skipConditions = capturedChapterQuery.where.NOT.AND[2].OR;
+    const terminalContinueCondition = skipConditions.find((condition) => condition.riskFlags?.contains);
+    assert.equal(terminalContinueCondition.riskFlags.contains, '"terminalAction":"defer_and_continue"');
+    const finalUpdate = updates[updates.length - 1];
+    assert.equal(finalUpdate.data.status, "succeeded");
+  } finally {
+    prisma.generationJob.findUnique = original.generationFindUnique;
+    prisma.generationJob.update = original.generationUpdate;
+    prisma.novel.findUnique = original.novelFindUnique;
+    prisma.chapter.findMany = original.chapterFindMany;
+    reviewService.createQualityReport = original.createQualityReport;
+    novelEventBus.emit = original.emit;
+  }
+});
+
 test("retryPipelineJob rejects jobs that are still cancelling", async () => {
   const originalFindUnique = prisma.generationJob.findUnique;
 

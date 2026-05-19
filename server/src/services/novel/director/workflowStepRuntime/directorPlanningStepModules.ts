@@ -191,23 +191,15 @@ function createBookContractExecutableModule(
             label: "等待生成书级创作约定",
             nextAction: "run_book_contract",
           });
-      },
-      recover: async (context) => {
-        const { novelId, state } = await loadDirectorModuleState(context);
-        const contract = await getDirectorCoreStepRuntime().getBookContract(novelId);
-        if (contract) {
-          await getDirectorCoreStateCommitter().recordRecoveryHint({
-            taskId: state.task.id,
-            novelId,
-            runtimeId: state.runtime?.id ?? null,
-            nodeKey: descriptor.nodeKey,
-            reason: "Book contract artifact already exists and can be reused.",
-            resumeFrom: "book_contract_artifact",
-          });
-          return { recoverable: true, resumeFrom: "book_contract_artifact", reason: "Book contract artifact already exists." };
-        }
-        return { recoverable: true, resumeFrom: "book_contract", reason: "Book contract can be regenerated." };
-      },
+        },
+        recover: async (context) => {
+          const { novelId, state } = await loadDirectorModuleState(context);
+          const contract = await getDirectorCoreStepRuntime().getBookContract(novelId);
+          if (contract) {
+            return { recoverable: true, resumeFrom: "book_contract_artifact", reason: "Book contract artifact already exists." };
+          }
+          return { recoverable: true, resumeFrom: "book_contract", reason: "Book contract can be regenerated." };
+        },
       completeCriteria: async (_output, context) => {
         const { novelId } = await loadDirectorModuleState(context);
         return Boolean(await getDirectorCoreStepRuntime().getBookContract(novelId));

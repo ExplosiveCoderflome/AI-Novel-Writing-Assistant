@@ -211,6 +211,32 @@ test("workspace artifact inventory skips repair tickets when the latest quality 
   assert.equal(result.ledgerSummary.needsRepairArtifacts.length, 0);
 });
 
+test("workspace artifact inventory skips repair tickets when the latest quality loop is terminally deferred", () => {
+  const riskFlags = JSON.stringify({
+    qualityLoop: {
+      overallStatus: "risk",
+      recommendedAction: "manual_gate",
+      terminalAction: "defer_and_continue",
+    },
+  });
+  const result = buildDirectorWorkspaceArtifactInventory(emptyInventoryInput({
+    chapters: [{
+      id: "chapter-ai-3",
+      order: 3,
+      content: "AI repaired draft content",
+      taskSheet: "task sheet",
+      generationState: "reviewed",
+      chapterStatus: "pending_review",
+      riskFlags,
+      updatedAt: "2026-04-28T02:00:00.000Z",
+    }],
+  }));
+
+  assert.equal(hasContinuableQualityLoopRiskFlags(riskFlags), true);
+  assert.equal(result.artifacts.some((artifact) => artifact.artifactType === "repair_ticket"), false);
+  assert.equal(result.ledgerSummary.needsRepairArtifacts.length, 0);
+});
+
 test("workspace artifact inventory uses persisted ledger artifacts before legacy backfill", () => {
   const persistedDraft = {
     id: "chapter_draft:chapter:chapter-9:Chapter:chapter-9",

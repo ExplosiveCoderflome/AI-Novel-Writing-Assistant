@@ -87,7 +87,7 @@ interface RunPipelineChapterDeps {
     chapterId: string,
     content: string,
     generationState: "drafted" | "repaired",
-    options?: { scheduleBackgroundSync?: boolean; artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"] },
+    options?: { scheduleBackgroundSync?: boolean; artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"]; syncArtifacts?: boolean },
   ) => Promise<void>;
   syncFinalChapterArtifacts: (
     novelId: string,
@@ -138,6 +138,7 @@ export async function runPipelineChapterWithRuntime(
     artifactSyncMode = "adaptive",
     ...requestInput
   } = options;
+  const effectiveMaxRetries = Math.max(0, Math.min(maxRetries, 1));
   const request = deps.validateRequest(requestInput);
   await deps.ensureNovelCharacters(novelId, "run chapter pipeline");
 
@@ -150,7 +151,7 @@ export async function runPipelineChapterWithRuntime(
   let latestLengthControl: ChapterRuntimePackage["lengthControl"] | undefined;
   let recoverableRepairFailure: PipelineRecoverableRepairFailure | null = null;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+  for (let attempt = 0; attempt <= effectiveMaxRetries; attempt += 1) {
     await hooks.onCheckCancelled?.();
     if (!content.trim()) {
       const generatedDraft = await generateNonEmptyDraftFromWriter({
@@ -167,6 +168,7 @@ export async function runPipelineChapterWithRuntime(
         await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted", {
           scheduleBackgroundSync: false,
           artifactSyncMode,
+          syncArtifacts: false,
         });
       }
     }
@@ -227,7 +229,7 @@ export async function runPipelineChapterWithRuntime(
       break;
     }
 
-    if (shouldPauseForAcceptance || !autoRepair || repairMode === "detect_only" || attempt >= maxRetries) {
+    if (shouldPauseForAcceptance || !autoRepair || repairMode === "detect_only" || attempt >= effectiveMaxRetries) {
       break;
     }
 
@@ -256,6 +258,7 @@ export async function runPipelineChapterWithRuntime(
     await deps.saveDraftAndArtifacts(novelId, chapterId, content, "repaired", {
       scheduleBackgroundSync: false,
       artifactSyncMode,
+      syncArtifacts: false,
     });
   }
 
