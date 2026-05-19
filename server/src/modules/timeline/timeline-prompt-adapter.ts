@@ -7,8 +7,31 @@ function listBlock<T>(title: string, items: T[], render: (item: T) => string): s
   return [title, ...items.map((item) => `- ${render(item)}`)].join("\n");
 }
 
+type TimelineContextHook = TimelineContextForChapter["openHooks"][number];
+
+function resolveModeOf(hook: TimelineContextHook): TimelineContextHook["resolveMode"] {
+  return hook.resolveMode ?? "long_arc";
+}
+
+function isBlockingHook(hook: TimelineContextHook): boolean {
+  return (Boolean(hook.blocking) && resolveModeOf(hook) === "immediate")
+    || (!hook.resolveMode && hook.priority === "critical");
+}
+
+function hookLabel(hook: TimelineContextHook): string {
+  return `${hook.title}：${hook.description}（${hook.priority} / ${resolveModeOf(hook)}）`;
+}
+
 export class TimelinePromptAdapter {
   toPromptBlock(context: TimelineContextForChapter): string {
+    const blockingHooks = context.blockingHooks?.length
+      ? context.blockingHooks
+      : context.openHooks.filter(isBlockingHook);
+    const blockingIds = new Set(blockingHooks.map((hook) => hook.id));
+    const softHooks = context.softHooks?.length
+      ? context.softHooks
+      : context.openHooks.filter((hook) => !blockingIds.has(hook.id));
+    const addressedHooks = context.addressedHooks ?? [];
     return [
       "【时间线约束】",
       `当前章节：第 ${context.currentChapterIndex} 章`,
@@ -20,8 +43,14 @@ export class TimelinePromptAdapter {
       listBlock("【本章必须推进】", context.plannedEventsThisChapter, (event) =>
         `${event.title}：${event.summary}`),
       "",
-      listBlock("【上一章遗留钩子】", context.openHooks, (hook) =>
-        `${hook.title}：${hook.description}（${hook.priority}）`),
+      listBlock("【必须立即承接的钩子】", blockingHooks, (hook) =>
+        hookLabel(hook)),
+      "",
+      listBlock("【可延后承接的钩子】", softHooks, (hook) =>
+        hookLabel(hook)),
+      "",
+      listBlock("【已部分承接的钩子】", addressedHooks, (hook) =>
+        hookLabel(hook)),
       "",
       listBlock("【禁止提前发生】", context.forbiddenEvents, (event) =>
         `${event.title}：${event.reason}`),
@@ -34,8 +63,16 @@ export class TimelinePromptAdapter {
   }
 
   toPreviousHookBlock(context: TimelineContextForChapter): string {
-    return listBlock("【上一章必须承接的钩子】", context.openHooks, (hook) =>
-      `${hook.title}：${hook.description}（优先级：${hook.priority}）`);
+    const blockingHooks = context.blockingHooks?.length
+      ? context.blockingHooks
+      : context.openHooks.filter(isBlockingHook);
+    const softHooks = context.softHooks ?? [];
+    const hooks = blockingHooks.length > 0 ? blockingHooks : softHooks.slice(0, 4);
+    const title = blockingHooks.length > 0
+      ? "【上一章必须立即承接的钩子】"
+      : "【上一章可延后承接的钩子】";
+    return listBlock(title, hooks, (hook) =>
+      `${hook.title}：${hook.description}（优先级：${hook.priority} / ${resolveModeOf(hook)}）`);
   }
 }
 

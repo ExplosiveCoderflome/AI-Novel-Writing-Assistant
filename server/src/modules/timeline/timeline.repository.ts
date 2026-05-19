@@ -4,6 +4,7 @@ import type {
   TimelineCheckReport,
   TimelineConstraint,
   TimelineHook,
+  TimelineHookResolveMode,
   TimelineIssue,
 } from "@ai-novel/shared/types/timeline";
 import { prisma } from "../../db/prisma";
@@ -37,6 +38,42 @@ function stringifyJson(value: unknown): string {
 
 function toIso(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : value;
+}
+
+function hookResolveModeRank(mode: TimelineHookResolveMode): number {
+  if (mode === "immediate") {
+    return 0;
+  }
+  if (mode === "short_arc") {
+    return 1;
+  }
+  return 2;
+}
+
+function hookPriorityRank(priority: TimelineHook["priority"]): number {
+  if (priority === "critical") {
+    return 0;
+  }
+  if (priority === "high") {
+    return 1;
+  }
+  if (priority === "medium") {
+    return 2;
+  }
+  return 3;
+}
+
+function deriveHookDeadline(
+  resolveMode: TimelineHookResolveMode,
+  createdInChapterIndex: number,
+): number | null {
+  if (resolveMode === "immediate") {
+    return createdInChapterIndex + 1;
+  }
+  if (resolveMode === "short_arc") {
+    return createdInChapterIndex + 2;
+  }
+  return null;
 }
 
 type EventRow = Awaited<ReturnType<typeof prisma.storyTimelineEvent.findMany>>[number];
@@ -93,12 +130,16 @@ function mapAnchor(row: NonNullable<AnchorRow>): ChapterTimeAnchor {
 }
 
 export function mapTimelineHook(row: HookRow): TimelineHook {
+  const resolveMode = (row.resolveMode as TimelineHookResolveMode | null | undefined) ?? "long_arc";
+  const blocking = row.blocking ?? false;
   return {
     id: row.id,
     novelId: row.novelId,
     createdInChapterId: row.createdInChapterId,
     createdInChapterIndex: row.createdInChapterIndex,
     expectedResolveByChapterIndex: row.expectedResolveByChapterIndex,
+    resolveMode,
+    blocking,
     resolvedInChapterId: row.resolvedInChapterId,
     resolvedInChapterIndex: row.resolvedInChapterIndex,
     title: row.title,
@@ -164,6 +205,8 @@ export interface TimelineRepository {
     title: string;
     description: string;
     priority: TimelineHook["priority"];
+    resolveMode?: TimelineHookResolveMode;
+    blocking?: boolean;
     relatedEventIds?: string[];
     participantIds?: string[];
   }>): Promise<void>;
@@ -219,15 +262,31 @@ export class PrismaTimelineRepository implements TimelineRepository {
         novelId: input.novelId,
         status: { in: ["open", "addressed"] },
         createdInChapterIndex: { lt: input.chapterIndex },
-        OR: [
-          { expectedResolveByChapterIndex: null },
-          { expectedResolveByChapterIndex: { lte: input.chapterIndex } },
-        ],
       },
-      orderBy: [{ priority: "desc" }, { createdInChapterIndex: "asc" }, { updatedAt: "desc" }],
-      take: 8,
+      orderBy: [{ createdInChapterIndex: "asc" }, { updatedAt: "desc" }],
+      take: 12,
     });
-    return rows.map(mapTimelineHook);
+    return rows
+      .map(mapTimelineHook)
+      .sort((left, right) => {
+        const blockingDiff = Number(right.blocking) - Number(left.blocking);
+        if (blockingDiff !== 0) {
+          return blockingDiff;
+        }
+        const resolveDiff = hookResolveModeRank(left.resolveMode) - hookResolveModeRank(right.resolveMode);
+        if (resolveDiff !== 0) {
+          return resolveDiff;
+        }
+        const priorityDiff = hookPriorityRank(left.priority) - hookPriorityRank(right.priority);
+        if (priorityDiff !== 0) {
+          return priorityDiff;
+        }
+        if (left.createdInChapterIndex !== right.createdInChapterIndex) {
+          return left.createdInChapterIndex - right.createdInChapterIndex;
+        }
+        return right.updatedAt.localeCompare(left.updatedAt);
+      })
+      .slice(0, 8);
   }
 
   async listActiveConstraints(input: { novelId: string; chapterId?: string; chapterIndex: number }): Promise<TimelineConstraint[]> {
@@ -302,6 +361,8 @@ export class PrismaTimelineRepository implements TimelineRepository {
     title: string;
     description: string;
     priority: TimelineHook["priority"];
+    resolveMode?: TimelineHookResolveMode;
+    blocking?: boolean;
     relatedEventIds?: string[];
     participantIds?: string[];
   }>): Promise<void> {
@@ -313,7 +374,12 @@ export class PrismaTimelineRepository implements TimelineRepository {
         novelId: hook.novelId,
         createdInChapterId: hook.createdInChapterId,
         createdInChapterIndex: hook.createdInChapterIndex,
-        expectedResolveByChapterIndex: hook.expectedResolveByChapterIndex ?? hook.createdInChapterIndex + 1,
+        expectedResolveByChapterIndex: hook.expectedResolveByChapterIndex ?? deriveHookDeadline(
+          hook.resolveMode ?? "long_arc",
+          hook.createdInChapterIndex,
+        ),
+        resolveMode: hook.resolveMode ?? "long_arc",
+        blocking: hook.blocking ?? (hook.resolveMode === "immediate"),
         title: hook.title,
         description: hook.description,
         status: "open",

@@ -21,13 +21,14 @@
 
 - `StoryTimelineEvent` 管全局事件顺序，区分 `planned` 和 `occurred`。
 - `ChapterTimeAnchor` 管章节处于什么故事时间、承接哪些事件、禁止提前发生哪些事件。
-- `TimelineHook` 管上一章或前文遗留的钩子，关键钩子必须进入下一章生成上下文。
+- `TimelineHook` 管上一章或前文遗留的钩子，当前语义分成 `resolveMode` 与 `blocking` 两个维度：`immediate + blocking` 才进入硬阻断，`short_arc` 和 `long_arc` 只进入提示或低优先级约束。
 - `TimelineCheckReport` 记录每次正文后的检测结果，供任务中心和章节编辑器展示。
 - `timeline_context` 是章节写作 required context；`recent_chapters` 仍可作为辅助记忆，但不能替代时间线约束。
 - 时间线抽取使用结构化 AI 输出；检测器只对结构化事件、钩子和状态变化做确定性判断。
 - `autoReview=false` 不影响时间线检测。时间线检测属于章节接收闸门，不依赖完整质量审校事实。
 - 检测失败时不提交 `occurred` 事件；通过或 warning 时才允许提交抽取事件和新钩子。
 - 自动修复由现有章节修复链路处理，timeline 模块只提供问题清单和修复建议。
+- 章节接收闸门会把 `acceptance` 与 `timeline` 并行执行，并对同一章同一内容 hash 做门禁缓存，避免重复触发相同检测。
 
 ## 失败模式
 

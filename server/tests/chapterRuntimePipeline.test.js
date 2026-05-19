@@ -121,6 +121,84 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
   });
 });
 
+test("runPipelineChapterWithRuntime does not approve when timeline check fails", async () => {
+  const generationStates = [];
+  const finalizedContent = [];
+
+  const result = await runPipelineChapterWithRuntime(
+    {
+      validateRequest(input) {
+        return input;
+      },
+      async ensureNovelCharacters() {},
+      async assemble() {
+        return {
+          novel: { id: "novel-1", title: "测试小说" },
+          chapter: {
+            id: "chapter-1",
+            title: "第一章",
+            order: 1,
+            content: null,
+            expectation: null,
+          },
+          contextPackage: {},
+        };
+      },
+      async generateDraftFromWriter() {
+        return { content: "生成后的正文" };
+      },
+      async saveDraftAndArtifacts() {},
+      async syncFinalChapterArtifacts() {},
+      async finalizeChapterContent(input) {
+        finalizedContent.push(input.content);
+        return {
+          finalContent: input.content,
+          runtimePackage: {
+            audit: {
+              score: {
+                coherence: 98,
+                pacing: 98,
+                repetition: 98,
+                engagement: 98,
+                voice: 98,
+                overall: 98,
+              },
+              openIssues: [],
+              reports: [],
+              hasBlockingIssues: false,
+            },
+            meta: {
+              acceptanceStatus: "accepted",
+              continuePolicy: "continue",
+            },
+            timelineCheck: {
+              status: "failed",
+            },
+            context: {
+              styleContext: null,
+            },
+          },
+        };
+      },
+      async markChapterGenerationState(_chapterId, generationState) {
+        generationStates.push(generationState);
+      },
+      async markChapterNeedsRepair() {},
+    },
+    "novel-1",
+    "chapter-1",
+    {
+      autoReview: true,
+      autoRepair: false,
+    },
+  );
+
+  assert.deepEqual(finalizedContent, ["生成后的正文"]);
+  assert.deepEqual(generationStates, ["reviewed"]);
+  assert.equal(result.pass, false);
+  assert.equal(result.runtimePackage.timelineCheck.status, "failed");
+});
+
 test("runPipelineChapterWithRuntime escalates patch failures to heavy repair and rechecks the chapter", async () => {
   const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
   const stages = [];

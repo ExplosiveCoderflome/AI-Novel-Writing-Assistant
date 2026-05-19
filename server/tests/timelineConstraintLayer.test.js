@@ -10,6 +10,9 @@ const {
 const {
   TimelinePromptAdapter,
 } = require("../dist/modules/timeline/timeline-prompt-adapter.js");
+const {
+  TimelineExtractorService,
+} = require("../dist/modules/timeline/timeline-extractor.service.js");
 
 function baseContext(overrides = {}) {
   return {
@@ -31,7 +34,10 @@ function baseContext(overrides = {}) {
       id: "hook-7",
       title: "城南钟楼三声长钟",
       description: "第7章结尾提示城内有人动手。",
+      status: "open",
       priority: "critical",
+      resolveMode: "immediate",
+      blocking: true,
     }],
     forbiddenEvents: [{
       id: "future-9",
@@ -98,6 +104,115 @@ test("TimelineChecker flags unresolved previous hook", () => {
 
   assert.equal(result.status, "failed");
   assert.ok(result.issues.some((issue) => issue.type === "unresolved_previous_hook"));
+});
+
+test("TimelineChecker keeps long-arc hooks non-blocking", () => {
+  const checker = new TimelineCheckerService();
+  const result = checker.checkChapter({
+    novelId: "novel-1",
+    chapterId: "chapter-8",
+    chapterIndex: 8,
+    timelineContext: baseContext({
+      forbiddenEvents: [],
+      plannedEventsThisChapter: [],
+      openHooks: [{
+        id: "hook-long",
+        title: "监视者身份与目的",
+        description: "监视者背后势力暂未公开，需要在中长期推进。",
+        status: "open",
+        priority: "critical",
+        resolveMode: "long_arc",
+        blocking: false,
+      }],
+      blockingHooks: [],
+      softHooks: [{
+        id: "hook-long",
+        title: "监视者身份与目的",
+        description: "监视者背后势力暂未公开，需要在中长期推进。",
+        status: "open",
+        priority: "critical",
+        resolveMode: "long_arc",
+        blocking: false,
+      }],
+    }),
+    chapterContent: "赵无极重新踏上吊桥，向武帝城正门走来。",
+    extractedEvents: [],
+  });
+
+  assert.equal(result.status, "passed");
+  assert.ok(result.issues.some((issue) => issue.type === "delayed_promise" && issue.severity === "info"));
+});
+
+test("TimelineChecker warns instead of failing for short-arc hooks", () => {
+  const checker = new TimelineCheckerService();
+  const result = checker.checkChapter({
+    novelId: "novel-1",
+    chapterId: "chapter-8",
+    chapterIndex: 8,
+    timelineContext: baseContext({
+      forbiddenEvents: [],
+      plannedEventsThisChapter: [],
+      openHooks: [{
+        id: "hook-short",
+        title: "封神榜碎片用途",
+        description: "碎片用途需要在数章内显露推进。",
+        status: "open",
+        priority: "high",
+        resolveMode: "short_arc",
+        blocking: false,
+      }],
+      blockingHooks: [],
+      softHooks: [{
+        id: "hook-short",
+        title: "封神榜碎片用途",
+        description: "碎片用途需要在数章内显露推进。",
+        status: "open",
+        priority: "high",
+        resolveMode: "short_arc",
+        blocking: false,
+      }],
+    }),
+    chapterContent: "赵无极重新踏上吊桥，向武帝城正门走来。",
+    extractedEvents: [],
+  });
+
+  assert.equal(result.status, "warning");
+  assert.ok(result.issues.some((issue) => issue.type === "delayed_promise" && issue.severity === "warning"));
+});
+
+test("TimelineExtractorService normalizes hook resolve mode and blocking metadata", () => {
+  const service = new TimelineExtractorService();
+  const hooks = service.normalizeHooks({
+    events: [{
+      title: "城南钟声",
+      summary: "城南钟楼响起三声长钟。",
+      type: "plot",
+      participantNames: [],
+      stateChanges: [],
+      possibleHooks: [{
+        title: "城南钟楼三声长钟",
+        description: "下一章必须立即回应城内有人动手。",
+        priority: "high",
+        resolveMode: "immediate",
+        blocking: true,
+      }],
+      occurred: true,
+      confidence: 0.9,
+      matchedPlannedEventIds: [],
+    }],
+    hooks: [{
+      title: "城南钟楼三声长钟",
+      description: "下一章必须立即回应城内有人动手。",
+      priority: "critical",
+      resolveMode: "short_arc",
+      blocking: false,
+    }],
+  });
+
+  assert.equal(hooks.length, 1);
+  assert.equal(hooks[0].resolveMode, "immediate");
+  assert.equal(hooks[0].blocking, true);
+  assert.equal(hooks[0].priority, "critical");
 });
 
 test("TimelineChecker detects confirmed state conflicts", () => {
@@ -296,6 +411,8 @@ test("TimelineContextService builds open hooks and planned events from repositor
       description: "城内有人动手。",
       status: "open",
       priority: "critical",
+      resolveMode: "immediate",
+      blocking: true,
       relatedEventIds: [],
       participantIds: [],
       createdAt: "now",
@@ -311,6 +428,7 @@ test("TimelineContextService builds open hooks and planned events from repositor
 
   const context = await service.buildForChapter({ novelId: "novel-1", chapterId: "chapter-8", chapterIndex: 8 });
   assert.equal(context.openHooks[0].title, "城南钟楼三声长钟");
+  assert.equal(context.blockingHooks[0].title, "城南钟楼三声长钟");
   assert.equal(context.plannedEventsThisChapter[0].title, "处理城内动乱");
 });
 
@@ -323,8 +441,8 @@ test("TimelinePromptAdapter emits required block with empty context", () => {
     forbiddenEvents: [],
     continuityRequirements: [],
     knownStateChanges: [],
-  }));
+  })); 
 
   assert.match(output, /【时间线约束】/);
-  assert.match(output, /【上一章遗留钩子】\n- 无/);
+  assert.match(output, /【可延后承接的钩子】\n- 无/);
 });

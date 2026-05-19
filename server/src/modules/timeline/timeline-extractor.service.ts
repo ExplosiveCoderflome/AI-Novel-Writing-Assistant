@@ -1,5 +1,6 @@
 import type {
   ExtractedTimelineEvent,
+  TimelineHookDraft,
   TimelineContextForChapter,
 } from "@ai-novel/shared/types/timeline";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
@@ -50,6 +51,40 @@ export class TimelineExtractorService {
 
   normalizeEvents(output: TimelineExtractorOutput): ExtractedTimelineEvent[] {
     return output.events.filter((event) => event.occurred || event.confidence >= 0.65);
+  }
+
+  normalizeHooks(output: TimelineExtractorOutput): TimelineHookDraft[] {
+    const hooks = [
+      ...output.hooks,
+      ...output.events.flatMap((event) => event.possibleHooks),
+    ];
+    const merged = new Map<string, TimelineHookDraft>();
+    for (const hook of hooks) {
+      const normalized = {
+        title: hook.title.replace(/\s+/g, " ").trim(),
+        description: hook.description.replace(/\s+/g, " ").trim(),
+        priority: hook.priority,
+        resolveMode: hook.resolveMode ?? "long_arc",
+        blocking: hook.blocking ?? false,
+      };
+      const key = `${normalized.title}::${normalized.description}`;
+      const existing = merged.get(key);
+      if (!existing) {
+        merged.set(key, normalized);
+        continue;
+      }
+      if (!existing.blocking && normalized.blocking) {
+        existing.blocking = true;
+      }
+      if (normalized.resolveMode === "immediate" || (normalized.resolveMode === "short_arc" && existing.resolveMode === "long_arc")) {
+        existing.resolveMode = normalized.resolveMode;
+      }
+      const priorityRank = { critical: 0, high: 1, medium: 2, low: 3 } as const;
+      if (priorityRank[normalized.priority] < priorityRank[existing.priority]) {
+        existing.priority = normalized.priority;
+      }
+    }
+    return Array.from(merged.values());
   }
 }
 

@@ -47,12 +47,26 @@ export const timelineHookStatusSchema = z.enum([
   "expired",
 ]);
 
+export const timelineHookResolveModeSchema = z.enum([
+  "immediate",
+  "short_arc",
+  "long_arc",
+]);
+
 export const timelineHookPrioritySchema = z.enum([
   "low",
   "medium",
   "high",
   "critical",
 ]);
+
+export const timelineHookDraftSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  priority: timelineHookPrioritySchema,
+  resolveMode: timelineHookResolveModeSchema.default("long_arc"),
+  blocking: z.boolean().default(false),
+});
 
 export const timelineStateTargetTypeSchema = z.enum([
   "character",
@@ -121,6 +135,8 @@ export const timelineHookSchema = z.object({
   createdInChapterId: z.string(),
   createdInChapterIndex: z.number().int(),
   expectedResolveByChapterIndex: z.number().int().nullable().optional(),
+  resolveMode: timelineHookResolveModeSchema.default("long_arc"),
+  blocking: z.boolean().default(false),
   resolvedInChapterId: z.string().nullable().optional(),
   resolvedInChapterIndex: z.number().int().nullable().optional(),
   title: z.string(),
@@ -189,7 +205,37 @@ export const timelineContextForChapterSchema = z.object({
     id: z.string(),
     title: z.string(),
     description: z.string(),
+    status: timelineHookStatusSchema.default("open"),
     priority: timelineHookPrioritySchema,
+    resolveMode: timelineHookResolveModeSchema.default("long_arc"),
+    blocking: z.boolean().default(false),
+  })).default([]),
+  blockingHooks: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    status: timelineHookStatusSchema.default("open"),
+    priority: timelineHookPrioritySchema,
+    resolveMode: timelineHookResolveModeSchema.default("long_arc"),
+    blocking: z.boolean().default(false),
+  })).default([]),
+  softHooks: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    status: timelineHookStatusSchema.default("open"),
+    priority: timelineHookPrioritySchema,
+    resolveMode: timelineHookResolveModeSchema.default("long_arc"),
+    blocking: z.boolean().default(false),
+  })).default([]),
+  addressedHooks: z.array(z.object({
+    id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    status: timelineHookStatusSchema.default("addressed"),
+    priority: timelineHookPrioritySchema,
+    resolveMode: timelineHookResolveModeSchema.default("long_arc"),
+    blocking: z.boolean().default(false),
   })).default([]),
   forbiddenEvents: z.array(z.object({
     id: z.string(),
@@ -207,11 +253,7 @@ export const extractedTimelineEventSchema = z.object({
   participantNames: z.array(z.string()).default([]),
   locationName: z.string().nullable().optional(),
   stateChanges: z.array(timelineStateChangeSchema).default([]),
-  possibleHooks: z.array(z.object({
-    title: z.string(),
-    description: z.string(),
-    priority: timelineHookPrioritySchema,
-  })).default([]),
+  possibleHooks: z.array(timelineHookDraftSchema).default([]),
   occurred: z.boolean(),
   confidence: z.number().min(0).max(1).default(0.7),
   matchedPlannedEventIds: z.array(z.string()).default([]),
@@ -268,7 +310,9 @@ export type TimelineEventType = z.infer<typeof timelineEventTypeSchema>;
 export type TimelineVisibility = z.infer<typeof timelineVisibilitySchema>;
 export type TimelineEventSource = z.infer<typeof timelineEventSourceSchema>;
 export type TimelineHookStatus = z.infer<typeof timelineHookStatusSchema>;
+export type TimelineHookResolveMode = z.infer<typeof timelineHookResolveModeSchema>;
 export type TimelineHookPriority = z.infer<typeof timelineHookPrioritySchema>;
+export type TimelineHookDraft = z.infer<typeof timelineHookDraftSchema>;
 export type TimelineStateTargetType = z.infer<typeof timelineStateTargetTypeSchema>;
 export type TimelineStateChange = z.infer<typeof timelineStateChangeSchema>;
 export type StoryTimelineEvent = z.infer<typeof storyTimelineEventSchema>;

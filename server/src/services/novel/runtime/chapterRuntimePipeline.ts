@@ -218,6 +218,8 @@ export async function runPipelineChapterWithRuntime(
     const shouldRepairFromAcceptance = continuePolicy === "repair_once" || acceptanceStatus === "repairable";
     pass = !shouldPauseForAcceptance
       && !shouldRepairFromAcceptance
+      && !latestResult.runtimePackage.audit.hasBlockingIssues
+      && latestResult.runtimePackage.timelineCheck?.status !== "failed"
       && isQualityPass(latestResult.runtimePackage.audit.score, qualityThreshold)
       && styleLeakageIssues.length === 0;
     if (pass) {

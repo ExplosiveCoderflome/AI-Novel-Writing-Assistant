@@ -18,11 +18,15 @@ function eventBrief(event: StoryTimelineEvent) {
 }
 
 function hookBrief(hook: TimelineHook) {
+  const resolveMode = hook.resolveMode ?? "long_arc";
   return {
     id: hook.id,
     title: hook.title,
     description: hook.description,
+    status: hook.status ?? "open",
     priority: hook.priority,
+    resolveMode,
+    blocking: hook.blocking ?? false,
   };
 }
 
@@ -39,13 +43,13 @@ function constraintToRequirement(constraint: TimelineConstraint): string {
 }
 
 function buildContinuityRequirements(input: {
-  openHooks: TimelineHook[];
+  blockingHooks: TimelineHook[];
   plannedEvents: StoryTimelineEvent[];
   forbiddenEvents: StoryTimelineEvent[];
   constraints: TimelineConstraint[];
 }): string[] {
   return [
-    ...input.openHooks.map((hook) => `必须承接上一章钩子：${hook.title}。${hook.description}`),
+    ...input.blockingHooks.map((hook) => `必须立即承接上一章钩子：${hook.title}。${hook.description}`),
     ...input.plannedEvents.map((event) => `本章必须推进：${event.title}。${event.summary}`),
     ...input.forbiddenEvents.slice(0, 5).map((event) => `禁止提前发生：${event.title}。`),
     ...input.constraints.map(constraintToRequirement),
@@ -78,12 +82,15 @@ export class TimelineContextService {
       this.repo.listForbiddenEventsForChapter(input),
       this.repo.listActiveConstraints(input),
     ]);
+    const blockingHooks = openHooks.filter((hook) => hook.status === "open" && hook.blocking && hook.resolveMode === "immediate");
+    const softHooks = openHooks.filter((hook) => hook.status === "open" && !blockingHooks.some((item) => item.id === hook.id));
+    const addressedHooks = openHooks.filter((hook) => hook.status === "addressed");
     const anchorForbidden = anchor?.forbiddenEventIds.length
       ? futureEvents.filter((event) => anchor.forbiddenEventIds.includes(event.id))
       : [];
     const forbiddenEvents = anchorForbidden.length > 0 ? anchorForbidden : futureEvents.slice(0, 6);
     const continuityRequirements = buildContinuityRequirements({
-      openHooks,
+      blockingHooks,
       plannedEvents,
       forbiddenEvents,
       constraints,
@@ -103,6 +110,9 @@ export class TimelineContextService {
         summary: event.summary,
       })),
       openHooks: openHooks.map(hookBrief),
+      blockingHooks: blockingHooks.map(hookBrief),
+      softHooks: softHooks.map(hookBrief),
+      addressedHooks: addressedHooks.map(hookBrief),
       forbiddenEvents: forbiddenEvents.map(forbiddenBrief),
       continuityRequirements,
       knownStateChanges: latestStateChanges(previousEvents),

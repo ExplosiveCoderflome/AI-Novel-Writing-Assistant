@@ -234,6 +234,13 @@ export function buildChapterWriteContext(input: {
   contextPackage: GenerationContextPackage;
 }): ChapterWriteContext {
   const dynamicCharacterGuidance = buildDynamicCharacterGuidance(input.contextPackage);
+  const participants = buildParticipants(input.contextPackage, dynamicCharacterGuidance.characterBehaviorGuides);
+  const characterHardFacts = selectCharacterHardFactsForWriter({
+    hardFacts: input.contextPackage.characterHardFacts ?? [],
+    participants,
+    characterBehaviorGuides: dynamicCharacterGuidance.characterBehaviorGuides,
+    currentChapterOrder: input.contextPackage.chapter.order,
+  });
   const scenePlan = parseChapterScenePlan(input.contextPackage.chapter.sceneCards, {
     targetWordCount: input.contextPackage.chapter.targetWordCount ?? undefined,
   });
@@ -259,8 +266,8 @@ export function buildChapterWriteContext(input: {
     chapterBoundary: buildChapterBoundaryContract(input.contextPackage, scenePlan),
     lengthBudget: resolveLengthBudgetContract(input.contextPackage.chapter.targetWordCount),
     scenePlan,
-    participants: buildParticipants(input.contextPackage, dynamicCharacterGuidance.characterBehaviorGuides),
-    characterHardFacts: input.contextPackage.characterHardFacts ?? [],
+    participants,
+    characterHardFacts,
     characterBehaviorGuides: dynamicCharacterGuidance.characterBehaviorGuides,
     activeRelationStages: dynamicCharacterGuidance.activeRelationStages,
     pendingCandidateGuards: dynamicCharacterGuidance.pendingCandidateGuards,
@@ -462,6 +469,28 @@ function hasCharacterResourcePressure(writeContext: ChapterWriteContext): boolea
     || context.blockedItems.length > 0
     || context.pendingReviewItems.length > 0
     || context.riskSignals.length > 0;
+}
+
+function selectCharacterHardFactsForWriter(input: {
+  hardFacts: ChapterWriteContext["characterHardFacts"];
+  participants: ChapterWriteContext["participants"];
+  characterBehaviorGuides: ChapterWriteContext["characterBehaviorGuides"];
+  currentChapterOrder: number;
+}): ChapterWriteContext["characterHardFacts"] {
+  const selectedIds = new Set(input.participants.map((character) => character.id));
+  for (const guide of input.characterBehaviorGuides) {
+    if (
+      guide.shouldPreferAppearance
+      || guide.plannedChapterOrders.includes(input.currentChapterOrder)
+      || guide.absenceRisk === "high"
+      || guide.absenceRisk === "warn"
+      || guide.relationStageLabels.length > 0
+    ) {
+      selectedIds.add(guide.characterId);
+    }
+  }
+  const selected = input.hardFacts.filter((fact) => selectedIds.has(fact.characterId));
+  return selected.length > 0 ? selected.slice(0, 8) : input.hardFacts.slice(0, 4);
 }
 
 function buildCharacterHardFactsText(writeContext: ChapterWriteContext): string {

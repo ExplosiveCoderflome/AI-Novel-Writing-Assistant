@@ -2,7 +2,7 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import {
   extractedTimelineEventSchema,
-  timelineHookPrioritySchema,
+  timelineHookDraftSchema,
   timelineStateChangeSchema,
 } from "@ai-novel/shared/types/timeline";
 import type { PromptAsset } from "../../core/promptTypes";
@@ -23,11 +23,7 @@ export const timelineExtractorOutputSchema = z.object({
     label: z.string().nullable().optional(),
   }).nullable().optional(),
   events: z.array(extractedTimelineEventSchema).max(12).default([]),
-  hooks: z.array(z.object({
-    title: z.string(),
-    description: z.string(),
-    priority: timelineHookPrioritySchema,
-  })).max(6).default([]),
+  hooks: z.array(timelineHookDraftSchema).max(6).default([]),
   stateChanges: z.array(timelineStateChangeSchema).max(12).default([]),
 });
 
@@ -59,9 +55,11 @@ export const timelineExtractorPrompt: PromptAsset<
       "【抽取规则】",
       "1. events 只放正文中实际发生或被明确确认的关键事件。",
       "2. possibleHooks/hooks 只放本章结尾或正文中新制造、后续必须承接的钩子。",
-      "3. stateChanges 记录角色、地点、势力、关系、道具或世界状态的明确变化。",
-      "4. 如果正文提前写出时间线上下文中禁止提前发生的内容，也要如实抽取，后续 checker 会判断。",
-      "5. matchedPlannedEventIds 只有在正文确实完成计划事件时填写，否则留空。",
+      "3. 每个 hook 必须标注 resolveMode：immediate / short_arc / long_arc。",
+      "4. 只有下一章必须立即承接、且不处理会破坏当前章节合同的 hook，才标记 blocking=true。",
+      "5. stateChanges 记录角色、地点、势力、关系、道具或世界状态的明确变化。",
+      "6. 如果正文提前写出时间线上下文中禁止提前发生的内容，也要如实抽取，后续 checker 会判断。",
+      "7. matchedPlannedEventIds 只有在正文确实完成计划事件时填写，否则留空。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

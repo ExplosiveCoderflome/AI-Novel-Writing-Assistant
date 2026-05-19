@@ -1,4 +1,5 @@
 import type { BaseMessageChunk } from "@langchain/core/messages";
+import { createHash } from "node:crypto";
 import type { StreamDoneHelpers, StreamDonePayload, WritableSSEFrame } from "../../../llm/streaming";
 import type {
   ChapterRuntimePackage,
@@ -7,7 +8,7 @@ import type {
   GenerationContextPackage,
   RuntimeAuditIssue,
 } from "@ai-novel/shared/types/chapterRuntime";
-import type { TimelineCheckResult, TimelineIssue } from "@ai-novel/shared/types/timeline";
+import type { TimelineCheckResult, TimelineHookDraft, TimelineIssue } from "@ai-novel/shared/types/timeline";
 import { prisma } from "../../../db/prisma";
 import { mergeChapterPatchForGenerationStateBump } from "../chapterLifecycleState";
 import { auditService } from "../../audit/AuditService";
@@ -19,7 +20,10 @@ import { toText } from "../novelP0Utils";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import { GenerationContextAssembler } from "./GenerationContextAssembler";
 import type { StyleReviewResult } from "./PostGenerationStyleReviewRunner";
-import { ChapterAcceptanceAssessmentService } from "./ChapterAcceptanceAssessmentService";
+import {
+  ChapterAcceptanceAssessmentService,
+  type ChapterAcceptanceAssessmentResult,
+} from "./ChapterAcceptanceAssessmentService";
 import { ChapterRuntimeReadinessService } from "./ChapterRuntimeReadinessService";
 import type { ChapterAcceptanceAssessmentOutput } from "../../../prompting/prompts/novel/chapterAcceptance.prompts";
 import { chapterRuntimeRequestSchema, type ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
@@ -88,6 +92,21 @@ function parseStringArray(value: string | null | undefined): string[] {
 
 function countChapterCharacters(content: string): number {
   return content.replace(/\s+/g, "").trim().length;
+}
+
+function hashContent(content: string): string {
+  return createHash("sha1").update(content).digest("hex");
+}
+
+function rememberCacheValue<T>(cache: Map<string, Promise<T> | T>, key: string, value: Promise<T> | T): void {
+  const maxEntries = 80;
+  if (!cache.has(key) && cache.size >= maxEntries) {
+    const oldestKey = cache.keys().next().value;
+    if (oldestKey) {
+      cache.delete(oldestKey);
+    }
+  }
+  cache.set(key, value);
 }
 
 function buildObligationCoverage(input: {
@@ -275,6 +294,8 @@ export class ChapterRuntimeCoordinator {
   private readonly deps: Omit<Required<ChapterRuntimeCoordinatorDeps>, "agentRuntime"> & {
     agentRuntime?: ChapterRuntimeCoordinatorDeps["agentRuntime"];
   };
+  private readonly acceptanceGateCache = new Map<string, Promise<ChapterAcceptanceAssessmentResult> | ChapterAcceptanceAssessmentResult>();
+  private readonly timelineGateCache = new Map<string, Promise<TimelineCheckResult> | TimelineCheckResult>();
 
   constructor(deps: ChapterRuntimeCoordinatorDeps = {}) {
     const artifactSyncService = deps.artifactSyncService ?? new ChapterArtifactSyncService();
@@ -643,19 +664,41 @@ export class ChapterRuntimeCoordinator {
     scheduleDeferredArtifactBackgroundSync?: boolean;
   }): Promise<FinalizeChapterContentResult> {
     const finalContent = input.content;
-    const acceptance = await this.deps.acceptanceAssessmentService.assess({
-      novelId: input.novelId,
-      chapterId: input.chapterId,
-      novelTitle: input.contextPackage.bookContract?.title ?? input.contextPackage.chapter.title,
-      chapterTitle: input.contextPackage.chapter.title,
-      chapterOrder: input.contextPackage.chapter.order,
-      targetWordCount: input.contextPackage.chapter.targetWordCount ?? null,
-      content: finalContent,
-      contextPackage: input.contextPackage,
-      provider: input.request.provider,
-      model: input.request.model,
-      temperature: input.request.temperature,
-    });
+    const contentHash = hashContent(finalContent);
+    const [acceptance, timelineCheck] = await Promise.all([
+      this.traceChapterGate({
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterOrder: input.contextPackage.chapter.order,
+        stage: "acceptance",
+        blocking: true,
+        contentHash,
+        promptAssetKey: "novel.chapter.acceptance_assessment",
+        run: () => this.runAcceptanceGate({
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          contextPackage: input.contextPackage,
+          content: finalContent,
+          request: input.request,
+        }),
+      }),
+      this.traceChapterGate({
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterOrder: input.contextPackage.chapter.order,
+        stage: "timeline_extraction_check",
+        blocking: true,
+        contentHash,
+        promptAssetKey: "novel.timeline.extractor",
+        run: () => this.runTimelineGate({
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          contextPackage: input.contextPackage,
+          content: finalContent,
+          request: input.request,
+        }),
+      }),
+    ]);
     const auditResult = {
       score: acceptance.score,
       issues: acceptance.issues,
@@ -667,13 +710,6 @@ export class ChapterRuntimeCoordinator {
       originalContent: null,
       finalContent,
     };
-    const timelineCheck = await this.runTimelineGate({
-      novelId: input.novelId,
-      chapterId: input.chapterId,
-      contextPackage: input.contextPackage,
-      content: finalContent,
-      request: input.request,
-    });
     const activeOpenConflicts = await openConflictService.listOpenConflicts(input.novelId, {
       beforeChapterOrder: input.contextPackage.chapter.order,
       includeCurrentChapter: true,
@@ -724,7 +760,101 @@ export class ChapterRuntimeCoordinator {
     };
   }
 
+  private buildGateCacheKey(input: {
+    gate: "acceptance" | "timeline";
+    novelId: string;
+    chapterId: string;
+    chapterOrder: number;
+    content: string;
+    request: ChapterRuntimeRequestInput;
+  }): string {
+    return [
+      input.gate,
+      input.novelId,
+      input.chapterId,
+      input.chapterOrder,
+      hashContent(input.content),
+      input.request.provider ?? "default-provider",
+      input.request.model ?? "default-model",
+      input.request.temperature ?? "default-temperature",
+    ].join(":");
+  }
+
+  private async runAcceptanceGate(input: {
+    novelId: string;
+    chapterId: string;
+    contextPackage: GenerationContextPackage;
+    content: string;
+    request: ChapterRuntimeRequestInput;
+  }): Promise<ChapterAcceptanceAssessmentResult> {
+    const key = this.buildGateCacheKey({
+      gate: "acceptance",
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      chapterOrder: input.contextPackage.chapter.order,
+      content: input.content,
+      request: input.request,
+    });
+    const cached = this.acceptanceGateCache.get(key);
+    if (cached) {
+      return cached;
+    }
+    const assessmentPromise = this.deps.acceptanceAssessmentService.assess({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      novelTitle: input.contextPackage.bookContract?.title ?? input.contextPackage.chapter.title,
+      chapterTitle: input.contextPackage.chapter.title,
+      chapterOrder: input.contextPackage.chapter.order,
+      targetWordCount: input.contextPackage.chapter.targetWordCount ?? null,
+      content: input.content,
+      contextPackage: input.contextPackage,
+      provider: input.request.provider,
+      model: input.request.model,
+      temperature: input.request.temperature,
+    });
+    rememberCacheValue(this.acceptanceGateCache, key, assessmentPromise);
+    try {
+      const assessment = await assessmentPromise;
+      rememberCacheValue(this.acceptanceGateCache, key, assessment);
+      return assessment;
+    } catch (error) {
+      this.acceptanceGateCache.delete(key);
+      throw error;
+    }
+  }
+
   private async runTimelineGate(input: {
+    novelId: string;
+    chapterId: string;
+    contextPackage: GenerationContextPackage;
+    content: string;
+    request: ChapterRuntimeRequestInput;
+  }): Promise<TimelineCheckResult> {
+    const key = this.buildGateCacheKey({
+      gate: "timeline",
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      chapterOrder: input.contextPackage.chapter.order,
+      content: input.content,
+      request: input.request,
+    });
+    const cached = this.timelineGateCache.get(key);
+    if (cached) {
+      return cached;
+    }
+    const checkPromise = this.executeTimelineGate(input);
+    rememberCacheValue(this.timelineGateCache, key, checkPromise);
+    try {
+      const check = await checkPromise;
+      rememberCacheValue(this.timelineGateCache, key, check);
+      return check;
+    } catch (error) {
+      this.timelineGateCache.delete(key);
+      throw error;
+    }
+  }
+
+  private async executeTimelineGate(input: {
     novelId: string;
     chapterId: string;
     contextPackage: GenerationContextPackage;
@@ -750,6 +880,7 @@ export class ChapterRuntimeCoordinator {
 
     let result: TimelineCheckResult;
     let extractedEvents: ReturnType<typeof timelineExtractorService.normalizeEvents> = [];
+    let extractedHooks: TimelineHookDraft[] = [];
     try {
       const extracted = await timelineExtractorService.extractFromChapter({
         novelId: input.novelId,
@@ -767,6 +898,7 @@ export class ChapterRuntimeCoordinator {
         temperature: input.request.temperature,
       });
       extractedEvents = timelineExtractorService.normalizeEvents(extracted);
+      extractedHooks = timelineExtractorService.normalizeHooks(extracted);
       result = timelineCheckerService.checkChapter({
         novelId: input.novelId,
         chapterId: input.chapterId,
@@ -811,6 +943,7 @@ export class ChapterRuntimeCoordinator {
         chapterId: input.chapterId,
         chapterIndex: input.contextPackage.chapter.order,
         extractedEvents,
+        extractedHooks,
         timelineContext,
       }).catch((error) => {
         console.warn("[chapter-runtime] timeline commit skipped", {
@@ -821,6 +954,53 @@ export class ChapterRuntimeCoordinator {
       });
     }
     return result;
+  }
+
+  private async traceChapterGate<T>(input: {
+    novelId: string;
+    chapterId: string;
+    chapterOrder: number;
+    stage: string;
+    blocking: boolean;
+    contentHash: string;
+    promptAssetKey: string;
+    retryReason?: string;
+    run: () => Promise<T>;
+  }): Promise<T> {
+    const startedAt = Date.now();
+    try {
+      const result = await input.run();
+      console.info("[chapter-runtime-trace]", {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterOrder: input.chapterOrder,
+        attemptNo: 1,
+        stage: input.stage,
+        blocking: input.blocking,
+        contentHash: input.contentHash,
+        durationMs: Date.now() - startedAt,
+        promptAssetKey: input.promptAssetKey,
+        retryReason: input.retryReason ?? null,
+        status: "succeeded",
+      });
+      return result;
+    } catch (error) {
+      console.warn("[chapter-runtime-trace]", {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterOrder: input.chapterOrder,
+        attemptNo: 1,
+        stage: input.stage,
+        blocking: input.blocking,
+        contentHash: input.contentHash,
+        durationMs: Date.now() - startedAt,
+        promptAssetKey: input.promptAssetKey,
+        retryReason: input.retryReason ?? null,
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
   }
 
   private async finishTraceRun(runId: string | null, contentLength: number, startMs: number | null): Promise<void> {

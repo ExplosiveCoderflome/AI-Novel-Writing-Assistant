@@ -47,6 +47,46 @@ function eventText(event: ExtractedTimelineEvent): string {
   return `${event.title}\n${event.summary}`;
 }
 
+type TimelineContextHook = TimelineContextForChapter["openHooks"][number];
+
+function resolveModeOf(hook: TimelineContextHook): TimelineContextHook["resolveMode"] {
+  return hook.resolveMode ?? "long_arc";
+}
+
+function isImmediateBlockingHook(hook: TimelineContextHook): boolean {
+  return Boolean(hook.blocking) && resolveModeOf(hook) === "immediate";
+}
+
+function splitTimelineHooks(context: TimelineContextForChapter): {
+  blockingHooks: TimelineContextHook[];
+  softHooks: TimelineContextHook[];
+} {
+  const categorizedCount = (context.blockingHooks?.length ?? 0)
+    + (context.softHooks?.length ?? 0)
+    + (context.addressedHooks?.length ?? 0);
+  if (categorizedCount > 0) {
+    const blockingHooks = (context.blockingHooks ?? []).filter(isImmediateBlockingHook);
+    const blockingIds = new Set(blockingHooks.map((hook) => hook.id));
+    return {
+      blockingHooks,
+      softHooks: [
+        ...(context.softHooks ?? []),
+        ...(context.blockingHooks ?? []).filter((hook) => !blockingIds.has(hook.id)),
+      ],
+    };
+  }
+
+  const blockingHooks = (context.openHooks ?? []).filter((hook) => (
+    isImmediateBlockingHook(hook)
+    || (!hook.resolveMode && (hook.priority === "critical" || hook.priority === "high"))
+  ));
+  const blockingIds = new Set(blockingHooks.map((hook) => hook.id));
+  return {
+    blockingHooks,
+    softHooks: (context.openHooks ?? []).filter((hook) => !blockingIds.has(hook.id)),
+  };
+}
+
 function buildResult(issues: TimelineIssue[]): TimelineCheckResult {
   const hasBlocking = issues.some((issue) => issue.severity === "blocking");
   const hasError = issues.some((issue) => issue.severity === "error");
@@ -118,22 +158,36 @@ export class TimelineCheckerService {
     timelineContext: TimelineContextForChapter;
     chapterContent: string;
   }): TimelineIssue[] {
-    return input.timelineContext.openHooks
-      .filter((hook) => hook.priority === "critical" || hook.priority === "high")
-      .filter((hook) => {
-        const text = `${hook.title}\n${hook.description}`;
-        return !input.extractedEvents.some((event) => similarity(eventText(event), text) >= 0.35)
-          && !containsText(input.chapterContent, hook.title);
-      })
+    const { blockingHooks, softHooks } = splitTimelineHooks(input.timelineContext);
+    const isUnanswered = (hook: TimelineContextHook) => {
+      const text = `${hook.title}\n${hook.description}`;
+      return !input.extractedEvents.some((event) => similarity(eventText(event), text) >= 0.35)
+        && !containsText(input.chapterContent, hook.title);
+    };
+    const blockingIssues = blockingHooks
+      .filter(isUnanswered)
       .map((hook) => ({
         type: "unresolved_previous_hook" as const,
-        severity: hook.priority === "critical" ? "blocking" as const : "error" as const,
+        severity: isImmediateBlockingHook(hook) || hook.priority === "critical" ? "blocking" as const : "error" as const,
         message: `本章未承接上一章遗留钩子：${hook.title}`,
         evidence: hook.description,
         suggestedFix: `章节开头或中段必须回应“${hook.title}”，不要直接跳到后续事件。`,
         relatedEventIds: [],
         relatedHookIds: [hook.id],
       }));
+    const softIssues = softHooks
+      .filter((hook) => hook.priority === "critical" || hook.priority === "high")
+      .filter(isUnanswered)
+      .map((hook) => ({
+        type: "delayed_promise" as const,
+        severity: resolveModeOf(hook) === "short_arc" ? "warning" as const : "info" as const,
+        message: `本章暂未回收可延后钩子：${hook.title}`,
+        evidence: hook.description,
+        suggestedFix: `该钩子属于 ${resolveModeOf(hook)}，可继续保留，但后续章节应有可见推进。`,
+        relatedEventIds: [],
+        relatedHookIds: [hook.id],
+      }));
+    return [...blockingIssues, ...softIssues];
   }
 
   private checkTimelineRegression(input: { timelineContext: TimelineContextForChapter }): TimelineIssue[] {

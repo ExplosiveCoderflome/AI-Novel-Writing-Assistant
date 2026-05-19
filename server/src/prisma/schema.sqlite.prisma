@@ -2736,6 +2736,8 @@ model TimelineHook {
   createdInChapterId            String
   createdInChapterIndex         Int
   expectedResolveByChapterIndex Int?
+  resolveMode                   String   @default("long_arc")
+  blocking                      Boolean  @default(false)
   resolvedInChapterId           String?
   resolvedInChapterIndex        Int?
   title                         String
@@ -2748,6 +2750,7 @@ model TimelineHook {
   updatedAt                     DateTime @updatedAt
 
   @@index([novelId, status])
+  @@index([novelId, resolveMode, blocking])
   @@index([novelId, createdInChapterIndex])
   @@index([novelId, expectedResolveByChapterIndex])
 }
