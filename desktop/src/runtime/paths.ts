@@ -105,12 +105,14 @@ export function resolveDesktopWindowIcon(): string {
     return path.resolve(process.env.AI_NOVEL_DESKTOP_ICON_PATH.trim());
   }
 
-  const packagedIconPath = path.join(resolveDesktopResourcesDir(), "icons", "app-icon.ico");
+  const packagedIconName = process.platform === "darwin" ? "app-icon.icns" : "app-icon.ico";
+  const packagedIconPath = path.join(resolveDesktopResourcesDir(), "icons", packagedIconName);
   if (fs.existsSync(packagedIconPath)) {
     return packagedIconPath;
   }
 
-  return path.resolve(resolveWorkspaceRoot(), "desktop", "builder", "app-icon.ico");
+  const workspaceIconName = process.platform === "darwin" ? "app-icon.png" : "app-icon.ico";
+  return path.resolve(resolveWorkspaceRoot(), "desktop", "builder", workspaceIconName);
 }
 
 export function resolvePackagedServerEntry(): string {

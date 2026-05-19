@@ -6,7 +6,12 @@ const rootDir = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(rootDir, "..");
 const generatedClientPath = path.join(rootDir, "node_modules", "@prisma", "client", "index.js");
 const stampPath = path.join(rootDir, ".tmp", "prisma-dev-prepare.json");
-const prismaCliPath = path.join(rootDir, "node_modules", "prisma", "build", "index.js");
+const prismaBinPath = path.join(
+  rootDir,
+  "node_modules",
+  ".bin",
+  process.platform === "win32" ? "prisma.cmd" : "prisma",
+);
 
 function normalizeDatabaseMode(rawValue) {
   const normalized = rawValue?.trim().toLowerCase();
@@ -46,10 +51,11 @@ function readJson(filePath) {
 }
 
 function runPrisma(args) {
-  const result = spawnSync(process.execPath, [prismaCliPath, ...args], {
+  const result = spawnSync(prismaBinPath, args, {
     cwd: rootDir,
     stdio: "inherit",
     env: process.env,
+    shell: process.platform === "win32",
   });
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
@@ -171,6 +177,10 @@ function resolveSqliteDbPath(databaseUrl) {
 
 function main() {
   const runtimeConfig = resolveDatabaseRuntimeConfig();
+  const isDesktopSqliteRuntime =
+    process.env.AI_NOVEL_RUNTIME?.trim().toLowerCase() === "desktop"
+    && runtimeConfig.provider === "sqlite";
+
   if (runtimeConfig.provider === "sqlite") {
     ensureBetterSqlite3Binding();
   }
@@ -197,9 +207,11 @@ function main() {
     runPrisma(["generate", "--schema", runtimeConfig.prismaSchemaPath]);
   }
 
-  if (schemaChanged || missingDb) {
+  if ((schemaChanged || missingDb) && !isDesktopSqliteRuntime) {
     console.log("[dev-prisma] running prisma push...");
     runPrisma(["db", "push", "--schema", runtimeConfig.prismaSchemaPath]);
+  } else if (schemaChanged || missingDb) {
+    console.log("[dev-prisma] desktop SQLite runtime will apply migrations on server startup.");
   }
 
   fs.mkdirSync(path.dirname(stampPath), { recursive: true });

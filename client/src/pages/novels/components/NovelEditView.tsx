@@ -196,10 +196,10 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                 <DialogHeader>
                   <DialogTitle>导出项目内容</DialogTitle>
                   <DialogDescription>
-                    当前步骤会按你正在查看的工作台导出；整本书会把项目设定、故事规划、角色、卷规划、拆章、章节和质量修复资产一起导出。
+                    小说设定会包含项目设定、故事规划和角色准备，适合带去别处继续生成正文。
                   </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-base">当前步骤：{currentStepLabel}</CardTitle>
@@ -218,6 +218,27 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                         disabled={!exportControls.canExportCurrentStep || exportControls.isExportingCurrentJson}
                       >
                         {exportControls.isExportingCurrentJson ? "导出中..." : "JSON"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base">小说设定</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => exportControls.onExportSetupBundle("markdown")}
+                        disabled={exportControls.isExportingSetupBundleMarkdown}
+                      >
+                        {exportControls.isExportingSetupBundleMarkdown ? "导出中..." : "Markdown"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => exportControls.onExportSetupBundle("json")}
+                        disabled={exportControls.isExportingSetupBundleJson}
+                      >
+                        {exportControls.isExportingSetupBundleJson ? "导出中..." : "JSON"}
                       </Button>
                     </CardContent>
                   </Card>

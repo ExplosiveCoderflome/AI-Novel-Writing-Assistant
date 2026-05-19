@@ -1,5 +1,6 @@
 export const NOVEL_EXPORT_SCOPE_VALUES = [
   "full",
+  "setup_bundle",
   "basic",
   "story_macro",
   "character",
@@ -21,6 +22,7 @@ export type NovelExportDownloadFormat = (typeof NOVEL_EXPORT_DOWNLOAD_FORMAT_VAL
 
 export const NOVEL_EXPORT_SCOPE_LABELS: Record<NovelExportScope, string> = {
   full: "整本书",
+  setup_bundle: "小说设定",
   basic: "项目设定",
   story_macro: "故事宏观规划",
   character: "角色准备",

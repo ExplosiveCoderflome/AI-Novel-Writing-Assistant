@@ -603,9 +603,12 @@ export interface NovelEditViewProps {
     canExportCurrentStep: boolean;
     isExportingCurrentMarkdown: boolean;
     isExportingCurrentJson: boolean;
+    isExportingSetupBundleMarkdown: boolean;
+    isExportingSetupBundleJson: boolean;
     isExportingFullMarkdown: boolean;
     isExportingFullJson: boolean;
     onExportCurrent: (format: NovelExportDownloadFormat) => void;
+    onExportSetupBundle: (format: NovelExportDownloadFormat) => void;
     onExportFull: (format: NovelExportDownloadFormat) => void;
   };
   basicTab: BasicTabProps;
