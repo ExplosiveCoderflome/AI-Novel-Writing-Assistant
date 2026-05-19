@@ -18,6 +18,8 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 - `docs/plans/` 保留执行方案，`docs/checkpoints/` 保留阶段记录，`docs/design/` 保留模块设计，`docs/releases/` 保留用户可见变化。
 - 单个源码文件接近 600 行时应评估职责；超过 700 行后继续扩展前必须拆分。
 - 高密度目录新增能力前应先判断是否需要下级责任目录。
+- `server/src/services/novel/workflow/` 应只对外暴露 workflow 门面，内部继续向 `store`、`healing`、`projection`、`application` 收敛，外部模块不要深链到内部实现。
+- checkpoint 恢复数据应通过共享 helper 组装，避免 `healing` 和 `application` 各自复制恢复逻辑。
 - `server/src/services/novel/director` 应继续向 `commands`、`runtime`、`state`、`automation`、`projections`、`recovery`、`phases` 等责任边界收敛。
 - 新增业务能力优先通过模块门面或 `index.ts` 暴露，不从外部深链到其他模块内部文件。
 - 涉及自动导演、章节执行、Prompt、RAG、任务状态或前端投影的边界变化，应同步更新 Wiki 或模块 README。
@@ -53,6 +55,7 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 ## 相关模块
 
 - `server/src/services/novel/director/`
+- `server/src/services/novel/workflow/`
 - `server/src/services/novel/runtime/`
 - `server/src/modules/export/`
 - `server/src/prompting/`
