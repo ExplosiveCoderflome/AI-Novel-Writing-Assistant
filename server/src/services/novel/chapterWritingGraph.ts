@@ -53,7 +53,7 @@ interface ChapterGraphDeps {
     chapterId: string,
     content: string,
     generationState: "drafted" | "repaired",
-    options?: { scheduleBackgroundSync?: boolean },
+    options?: { scheduleBackgroundSync?: boolean; syncArtifacts?: boolean },
   ) => Promise<void>;
   logInfo: (message: string, meta?: Record<string, unknown>) => void;
   logWarn: (message: string, meta?: Record<string, unknown>) => void;
@@ -342,7 +342,10 @@ export class ChapterWritingGraph {
           input.chapter.id,
           safeContent,
           "drafted",
-          { scheduleBackgroundSync: !input.options.deferArtifactBackgroundSync },
+          {
+            scheduleBackgroundSync: !input.options.deferArtifactBackgroundSync,
+            syncArtifacts: false,
+          },
         );
         return {
           finalContent: safeContent,

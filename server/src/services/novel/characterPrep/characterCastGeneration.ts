@@ -21,6 +21,7 @@ import type {
   CharacterCastOptionResponseParsed,
 } from "../../../prompting/prompts/novel/characterPreparation.promptSchemas";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
+import { serializeCharacterProhibitions } from "../characters/characterHardFacts";
 import {
   assessCharacterCastBatch,
   buildCharacterCastRepairReasons,
@@ -87,7 +88,10 @@ function buildAutoCastMemberRosterText(parsed: CharacterCastAutoMembersResponseP
       `role=${member.role}`,
       `relationToProtagonist=${member.relationToProtagonist || "未写"}`,
       `storyFunction=${member.storyFunction}`,
-    ].join(" | ");
+      member.identityLabel ? `identity=${member.identityLabel}` : "",
+      member.factionLabel ? `faction=${member.factionLabel}` : "",
+      member.powerLevel ? `power=${member.powerLevel}` : "",
+    ].filter(Boolean).join(" | ");
   }).join("\n");
 }
 
@@ -459,6 +463,17 @@ export async function persistCharacterCastOptionsDraft(
               relationToProtagonist: toOptionalText(member.relationToProtagonist),
               storyFunction: member.storyFunction,
               shortDescription: toOptionalText(member.shortDescription),
+              personality: toOptionalText(member.personality),
+              background: toOptionalText(member.background),
+              development: toOptionalText(member.development),
+              identityLabel: toOptionalText(member.identityLabel),
+              factionLabel: toOptionalText(member.factionLabel),
+              stanceLabel: toOptionalText(member.stanceLabel),
+              powerLevel: toOptionalText(member.powerLevel),
+              realm: toOptionalText(member.realm),
+              currentLocation: toOptionalText(member.currentLocation),
+              availability: toOptionalText(member.availability),
+              prohibitionsJson: serializeCharacterProhibitions(member.prohibitions),
               outerGoal: toOptionalText(member.outerGoal),
               innerNeed: toOptionalText(member.innerNeed),
               fear: toOptionalText(member.fear),

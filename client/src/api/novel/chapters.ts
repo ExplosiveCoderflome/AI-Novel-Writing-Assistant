@@ -1,5 +1,9 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type {
+  TimelineCheckReport,
+  TimelineContextForChapter,
+} from "@ai-novel/shared/types/timeline";
+import type {
   ChapterEditorAiRevisionRequest,
   ChapterEditorAiRevisionResponse,
   Chapter,
@@ -77,6 +81,14 @@ export async function getChapterTraces(novelId: string, chapterId: string) {
   const { data } = await apiClient.get<ApiResponse<import("@ai-novel/shared/types/agent").AgentRun[]>>(
     `/novels/${novelId}/chapters/${chapterId}/traces`,
   );
+  return data;
+}
+
+export async function getChapterTimeline(novelId: string, chapterId: string) {
+  const { data } = await apiClient.get<ApiResponse<{
+    context: TimelineContextForChapter;
+    latestReport: TimelineCheckReport | null;
+  }>>(`/novels/${novelId}/chapters/${chapterId}/timeline`);
   return data;
 }
 

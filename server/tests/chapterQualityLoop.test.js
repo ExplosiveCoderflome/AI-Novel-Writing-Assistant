@@ -169,3 +169,32 @@ test("buildChapterQualityLoopChapterUpdate clears stale repair state after a val
   assert.equal(riskFlags.qualityLoop.recommendedAction, "continue");
   assert.equal(riskFlags.qualityLoop.source, "repair_recheck");
 });
+
+test("buildChapterQualityLoopChapterUpdate marks exhausted auto repair as deferred continue", () => {
+  const assessment = buildChapterQualityLoopAssessment({
+    chapterId: "chapter-5",
+    chapterOrder: 5,
+    score: score({ engagement: 69, overall: 70 }),
+    issues: [{
+      severity: "high",
+      category: "pacing",
+      evidence: "结尾仍然缺少推进。",
+      fixSuggestion: "补足章节收束。",
+    }],
+    evaluatedAt: "2026-04-30T00:00:00.000Z",
+  });
+
+  const update = buildChapterQualityLoopChapterUpdate({
+    riskFlags: JSON.stringify({ qualityLoop: { recommendedAction: "patch_repair" } }),
+    repairHistory: "[quality_loop old] status=invalid action=patch_repair",
+    chapterStatus: "needs_repair",
+    generationState: "reviewed",
+  }, assessment, "repair_recheck", "defer_and_continue");
+
+  assert.equal(update.chapterStatus, "pending_review");
+  assert.equal(typeof update.riskFlags, "string");
+  const riskFlags = JSON.parse(update.riskFlags);
+  assert.equal(riskFlags.qualityLoop.terminalAction, "defer_and_continue");
+  assert.equal(riskFlags.qualityLoop.source, "repair_recheck");
+  assert.match(update.repairHistory, /terminal=defer_and_continue/);
+});

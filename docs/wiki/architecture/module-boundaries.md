@@ -21,6 +21,11 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 - `server/src/services/novel/director` 应继续向 `commands`、`runtime`、`state`、`automation`、`projections`、`recovery`、`phases` 等责任边界收敛。
 - 新增业务能力优先通过模块门面或 `index.ts` 暴露，不从外部深链到其他模块内部文件。
 - 涉及自动导演、章节执行、Prompt、RAG、任务状态或前端投影的边界变化，应同步更新 Wiki 或模块 README。
+- 任何数据回填、同步、抽取或索引刷新，必须只消费章节的稳定快照；在章节仍可能继续修复、重写或回退时，不允许把这类动作挂在热路径里。
+- 任务快照、事实检查和恢复建议生成必须保持只读；`recover` 可以返回可恢复位置，但不能在轮询、预览或投影读取时写入 `run_resumed`、恢复提示或其他状态事件。需要记录恢复动作时，必须由显式执行/恢复流程来写入，而不是由读路径顺手写入。
+- 小说导出属于独立业务模块：`server/src/modules/export/` 只负责读取现有小说生产数据、转换导出 DTO、生成 TXT/Markdown/JSON 内容和导出文件名。它不拥有小说、章节、角色、时间线或质量修复事实源，也不在导出过程中写回生产状态。
+- 时间线约束层属于独立业务模块：`server/src/modules/timeline/` 只管理时间线事件、章节时间锚点、钩子、约束和检测报告。它不替代 `StoryStateSnapshot`、`ConsistencyFact` 或 `CharacterTimeline`，也不直接调用章节 writer 改正文。
+- 章节生成、Prompt Registry 和任务中心只能通过时间线模块 facade 获取时间线上下文或检测报告，不应在 writer、route 或 UI 中直接拼接 timeline 表查询规则。
 
 ## 示例
 
@@ -28,6 +33,7 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 
 - 自动导演新增可执行命令时，先确定它属于 command、runtime、automation、recovery 还是 projection，再放入对应模块。
 - 章节生产链路新增质量检查时，先判断它属于热路径接收闸门、局部修复还是异步资产回灌。
+- 章节生产新增时间线规则时，应先进入 timeline 模块的 policy、context、checker 或 extractor，而不是散落到 writer prompt 或章节服务分支里。
 - 新文档如果解释长期规则，进入 `docs/wiki/`；如果只是某阶段实施清单，进入 `docs/plans/` 或 `docs/checkpoints/`。
 
 禁止或不推荐做法：
@@ -48,6 +54,7 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 
 - `server/src/services/novel/director/`
 - `server/src/services/novel/runtime/`
+- `server/src/modules/export/`
 - `server/src/prompting/`
 - `client/src/pages/`
 - `shared/`

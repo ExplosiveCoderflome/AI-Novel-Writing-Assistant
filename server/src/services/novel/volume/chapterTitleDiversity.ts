@@ -7,6 +7,10 @@ export type ChapterTitleSurfaceFrame =
 
 const ENABLE_CHAPTER_TITLE_DIVERSITY_VALIDATION = true;
 const CHAPTER_TITLE_OF_PHRASE_PATTERN = /^[^，,：:？?的\s]{1,18}的[^，,：:？?的\s]{1,18}$/u;
+const CHAPTER_TITLE_MAX_CORE_CHARS = 16;
+const CHAPTER_TITLE_SOFT_SENTENCE_CHARS = 12;
+const CHAPTER_TITLE_FIRST_PERSON_PATTERN =
+  /(^|[，,：:？?！!、\s])我|我的|我们|替我|为我|给我|把我|追杀我|杀我|救我|我[亲也却已又将把用拿看暗]/u;
 
 function normalizeChapterTitle(title: string): string {
   return title
@@ -16,6 +20,38 @@ function normalizeChapterTitle(title: string): string {
     .replace(/,/g, "，")
     .replace(/:/g, "：")
     .replace(/\?/g, "？");
+}
+
+function countChapterTitleCoreChars(title: string): number {
+  return Array.from(normalizeChapterTitle(title))
+    .filter((char) => !/[，,：:？?！!、；;·\s"'“”‘’《》〈〉「」『』【】]/u.test(char))
+    .length;
+}
+
+function getChapterTitleBasicQualityIssue(title: string): string | null {
+  const normalized = normalizeChapterTitle(title);
+  if (!normalized) {
+    return "章节标题不能为空。";
+  }
+
+  if (CHAPTER_TITLE_FIRST_PERSON_PATTERN.test(normalized)) {
+    return `章节标题不应使用第一人称或口号式主角自述：${normalized}。请改成客观章名，例如事件、地点、冲突、异动或结果。`;
+  }
+
+  const coreCharCount = countChapterTitleCoreChars(normalized);
+  if (coreCharCount > CHAPTER_TITLE_MAX_CORE_CHARS) {
+    return `章节标题过长：${normalized}。请压缩到 ${CHAPTER_TITLE_MAX_CORE_CHARS} 个核心字以内，避免写成剧情梗概。`;
+  }
+
+  if (
+    coreCharCount > CHAPTER_TITLE_SOFT_SENTENCE_CHARS
+    && /[，,]/u.test(normalized)
+    && /但|却|可|于是|因此|同时|然后/u.test(normalized)
+  ) {
+    return `章节标题像剧情梗概：${normalized}。请改成更短的章节名，不要把完整因果句写进标题。`;
+  }
+
+  return null;
 }
 
 export function detectChapterTitleSurfaceFrame(title: string): ChapterTitleSurfaceFrame {
@@ -67,6 +103,13 @@ export function getChapterTitleDiversityIssue(titles: string[]): string | null {
     return null;
   }
   const normalizedTitles = titles.map(normalizeChapterTitle).filter(Boolean);
+  for (const title of normalizedTitles) {
+    const basicQualityIssue = getChapterTitleBasicQualityIssue(title);
+    if (basicQualityIssue) {
+      return basicQualityIssue;
+    }
+  }
+
   if (normalizedTitles.length <= 1) {
     return null;
   }
@@ -158,7 +201,20 @@ export function isChapterTitleDiversityIssue(message: string | null | undefined)
   }
   return normalized.includes("章节标题结构过于集中")
     || normalized.includes("相邻章节标题结构过于重复")
-    || normalized.includes("章节标题出现重复");
+    || normalized.includes("章节标题出现重复")
+    || normalized.includes("章节标题不应使用第一人称")
+    || normalized.includes("章节标题过长")
+    || normalized.includes("章节标题像剧情梗概");
+}
+
+export function isBlockingChapterTitleQualityIssue(message: string | null | undefined): boolean {
+  const normalized = message?.trim();
+  if (!normalized) {
+    return false;
+  }
+  return normalized.includes("章节标题不应使用第一人称")
+    || normalized.includes("章节标题过长")
+    || normalized.includes("章节标题像剧情梗概");
 }
 
 export function assertChapterTitleDiversity(titles: string[]): void {

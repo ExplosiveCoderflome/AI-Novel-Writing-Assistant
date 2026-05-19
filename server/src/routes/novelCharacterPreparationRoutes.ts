@@ -23,6 +23,9 @@ const castOptionGenerateSchema = z.object({
 
 const castOptionApplySchema = z.object({
   overrideQualityGate: z.boolean().optional(),
+  provider: llmProviderSchema.optional(),
+  model: z.string().trim().optional(),
+  temperature: z.number().min(0).max(2).optional(),
 }).default({});
 
 interface RegisterNovelCharacterPreparationRoutesInput {
@@ -92,6 +95,11 @@ export function registerNovelCharacterPreparationRoutes(
         const body = req.body as z.infer<typeof castOptionApplySchema>;
         const data = await novelService.applyCharacterCastOption(id, optionId, {
           overrideQualityGate: body.overrideQualityGate,
+          visibleProfileGeneration: {
+            provider: body.provider,
+            model: body.model,
+            temperature: body.temperature,
+          },
         });
         res.status(200).json({
           success: true,

@@ -5,6 +5,8 @@ import { streamToSSE } from "../llm/streaming";
 import { validate } from "../middleware/validate";
 import type { NovelDraftOptimizeService } from "../services/novel/NovelDraftOptimizeService";
 import type { NovelService } from "../services/novel/NovelService";
+import { timelineContextService, timelineRepository } from "../modules/timeline";
+import { prisma } from "../db/prisma";
 
 interface RegisterNovelProductionRoutesInput {
   router: Router;
@@ -38,6 +40,47 @@ export function registerNovelProductionRoutes(input: RegisterNovelProductionRout
     draftOptimizeSchema,
     forwardBusinessError,
   } = input;
+  const chapterTimelineParamsSchema = z.object({
+    id: z.string(),
+    chapterId: z.string(),
+  });
+
+  router.get(
+    "/:id/chapters/:chapterId/timeline",
+    validate({ params: chapterTimelineParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { id, chapterId } = req.params as z.infer<typeof chapterTimelineParamsSchema>;
+        const chapter = await prisma.chapter.findFirst({
+          where: { id: chapterId, novelId: id },
+          select: { order: true },
+        });
+        if (!chapter) {
+          res.status(404).json({
+            success: false,
+            error: "Chapter not found.",
+          } satisfies ApiResponse<null>);
+          return;
+        }
+        const [context, latestReport] = await Promise.all([
+          timelineContextService.buildForChapter({
+            novelId: id,
+            chapterId,
+            chapterIndex: chapter.order,
+          }),
+          timelineRepository.getLatestCheckReport({ novelId: id, chapterId }),
+        ]);
+        const data = { context, latestReport };
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Chapter timeline loaded.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 
   router.post(
     "/:id/beats/generate",

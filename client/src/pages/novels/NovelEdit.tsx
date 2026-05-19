@@ -30,6 +30,7 @@ import {
   confirmCharacterResourceProposal,
   extractChapterResources,
   rejectCharacterResourceProposal,
+  getChapterTimeline,
   getChapterResourceContext,
   generateChapterPlan,
   getChapterAuditReports,
@@ -322,6 +323,7 @@ export default function NovelEdit() {
   const shouldLoadPayoffLedger = activeTab === "structured" || activeTab === "chapter" || activeTab === "pipeline";
   const shouldLoadCharacterResources = activeTab === "character" || activeTab === "chapter" || activeTab === "pipeline";
   const shouldLoadChapterContext = activeTab === "chapter" && Boolean(selectedChapterId);
+  const shouldLoadChapterTimeline = activeTab === "chapter" && Boolean(selectedChapterId);
 
   const novelDetailQuery = useQuery({
     queryKey: queryKeys.novels.detail(id),
@@ -366,6 +368,11 @@ export default function NovelEdit() {
     queryKey: queryKeys.novels.characterResourceContext(id, selectedChapterId || "none"),
     queryFn: () => getChapterResourceContext(id, selectedChapterId),
     enabled: Boolean(id && shouldLoadChapterContext),
+  });
+  const chapterTimelineQuery = useQuery({
+    queryKey: queryKeys.novels.chapterTimeline(id, selectedChapterId || "none"),
+    queryFn: () => getChapterTimeline(id, selectedChapterId),
+    enabled: Boolean(id && shouldLoadChapterTimeline),
   });
   const activeAutoDirectorTaskQuery = useQuery({
     queryKey: queryKeys.novels.autoDirectorTask(id),
@@ -611,6 +618,7 @@ export default function NovelEdit() {
   const qualitySummary = qualityReportQuery.data?.data?.summary;
   const chapterQualityReport = useMemo(() => (qualityReportQuery.data?.data?.chapterReports ?? []).find((item) => item.chapterId === selectedChapterId), [qualityReportQuery.data?.data?.chapterReports, selectedChapterId]);
   const chapterPlan = chapterPlanQuery.data?.data ?? null;
+  const chapterTimeline = chapterTimelineQuery.data?.data ?? null;
   const latestStateSnapshot = latestStateSnapshotQuery.data?.data ?? null;
   const chapterStateSnapshot = chapterStateSnapshotQuery.data?.data ?? null;
   const payoffLedger = payoffLedgerQuery.data?.data ?? null;
@@ -938,6 +946,7 @@ export default function NovelEdit() {
       if (selectedChapterId) {
         invalidations.push(
           queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterResourceContext(id, selectedChapterId) }),
+          queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterTimeline(id, selectedChapterId) }),
           queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(id, selectedChapterId) }),
           queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterAuditReports(id, selectedChapterId) }),
         );
@@ -1995,6 +2004,7 @@ export default function NovelEdit() {
     await queryClient.invalidateQueries({ queryKey: queryKeys.novels.characterResources(id) });
     await queryClient.invalidateQueries({ queryKey: ["novels", "chapter-plan", id] });
     await queryClient.invalidateQueries({ queryKey: ["novels", "chapter-audit-reports", id] });
+    await queryClient.invalidateQueries({ queryKey: ["novels", "chapter-timeline", id] });
     await queryClient.invalidateQueries({ queryKey: ["novels", "state-snapshots", id] });
   };
 
@@ -2409,6 +2419,8 @@ export default function NovelEdit() {
     chapterPlan,
     latestStateSnapshot,
     chapterStateSnapshot,
+    chapterTimeline,
+    isLoadingChapterTimeline: chapterTimelineQuery.isLoading || chapterTimelineQuery.isFetching,
     chapterResourceContext,
     isLoadingChapterResourceContext: chapterResourceContextQuery.isLoading || chapterResourceContextQuery.isFetching,
     resourceWorkflowMode: activeDirectorSession ? ("auto_director" as const) : ("manual" as const),

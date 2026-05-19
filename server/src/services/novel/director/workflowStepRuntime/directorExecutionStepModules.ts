@@ -227,29 +227,21 @@ function createChapterDraftExecutableModule(
           nextAction: "continue_chapter_execution",
         });
       },
-      recover: async (context) => {
-        const { novelId, state, request } = await loadDirectorModuleState(context);
-        const progress = scopeChapterExecutionProgress(
-          state.chapterProgress ?? await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId),
-          resolveChapterExecutionProgressScope({ state, request }),
-        );
-        const resumeChapterOrder = progress?.activeChapterOrder ?? progress?.currentChapterOrder;
-        const resumeFrom = resumeChapterOrder
-          ? `chapter:${resumeChapterOrder}`
-          : "chapter_execution";
-        await getDirectorCoreStateCommitter().recordRecoveryHint({
-          taskId: state.task.id,
-          novelId,
-          runtimeId: state.runtime?.id ?? null,
-          nodeKey: descriptor.nodeKey,
-          reason: "Chapter execution can resume from the latest observable progress.",
-          resumeFrom,
-        });
-        return {
-          recoverable: Boolean(progress?.recoverableRange),
-          resumeFrom,
-          reason: progress?.recoverableRange
-            ? "Chapter execution can resume from the latest observable progress."
+        recover: async (context) => {
+          const { novelId, state, request } = await loadDirectorModuleState(context);
+          const progress = scopeChapterExecutionProgress(
+            state.chapterProgress ?? await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId),
+            resolveChapterExecutionProgressScope({ state, request }),
+          );
+          const resumeChapterOrder = progress?.activeChapterOrder ?? progress?.currentChapterOrder;
+          const resumeFrom = resumeChapterOrder
+            ? `chapter:${resumeChapterOrder}`
+            : "chapter_execution";
+          return {
+            recoverable: Boolean(progress?.recoverableRange),
+            resumeFrom,
+            reason: progress?.recoverableRange
+              ? "Chapter execution can resume from the latest observable progress."
             : "Chapter execution requires a new start point.",
         };
       },
@@ -413,21 +405,13 @@ function createFactOnlyExecutionModule(input: {
         return { producedArtifacts: artifacts };
       },
       inspectProgress: async (context) => (await input.inspectFacts(context)).progress,
-      recover: async (context) => {
-        const { state, novelId } = await loadDirectorModuleState(context);
-        await getDirectorCoreStateCommitter().recordRecoveryHint({
-          taskId: state.task.id,
-          novelId,
-          runtimeId: state.runtime?.id ?? null,
-          nodeKey: input.descriptor.nodeKey,
-          reason: `${input.descriptor.label} can resume from observable execution artifacts.`,
-          resumeFrom: input.descriptor.id,
-        });
-        return {
-          recoverable: true,
-          resumeFrom: input.descriptor.id,
-          reason: `${input.descriptor.label} can resume from observable execution artifacts.`,
-        };
+        recover: async (context) => {
+          const { state, novelId } = await loadDirectorModuleState(context);
+          return {
+            recoverable: true,
+            resumeFrom: input.descriptor.id,
+            reason: `${input.descriptor.label} can resume from observable execution artifacts.`,
+          };
       },
       completeCriteria: async (_output, context) => (await input.inspectFacts(context)).completion.completed,
     },

@@ -548,12 +548,14 @@ export function hasContinuableQualityLoopRiskFlags(riskFlags: string | null | un
       return false;
     }
     const qualityLoop = (parsed as { qualityLoop?: unknown }).qualityLoop;
+    const isStandardContinue = (qualityLoop as { overallStatus?: unknown }).overallStatus === "valid"
+      && (qualityLoop as { recommendedAction?: unknown }).recommendedAction === "continue";
+    const isDeferredContinue = (qualityLoop as { terminalAction?: unknown }).terminalAction === "defer_and_continue";
     return Boolean(
       qualityLoop
         && typeof qualityLoop === "object"
         && !Array.isArray(qualityLoop)
-        && (qualityLoop as { overallStatus?: unknown }).overallStatus === "valid"
-        && (qualityLoop as { recommendedAction?: unknown }).recommendedAction === "continue",
+        && (isStandardContinue || isDeferredContinue),
     );
   } catch {
     return false;

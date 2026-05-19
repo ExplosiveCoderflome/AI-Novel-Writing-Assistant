@@ -50,6 +50,7 @@ import type {
   CharacterResourceLedgerItem,
   CharacterResourceProposalSummary,
 } from "@ai-novel/shared/types/characterResource";
+import type { TimelineCheckReport, TimelineContextForChapter } from "@ai-novel/shared/types/timeline";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import type { AutoDirectorAction, AutoDirectorFollowUpDetail } from "@ai-novel/shared/types/autoDirectorFollowUp";
@@ -275,6 +276,11 @@ export interface StructuredTabViewProps extends Omit<
   isSaving: boolean;
 }
 
+export interface ChapterTimelineViewData {
+  context: TimelineContextForChapter;
+  latestReport: TimelineCheckReport | null;
+}
+
 export interface ChapterTabViewProps {
   novelId: string;
   worldInjectionSummary: string | null;
@@ -335,6 +341,8 @@ export interface ChapterTabViewProps {
   chapterStateSnapshot?: StoryStateSnapshot | null;
   chapterResourceContext?: CharacterResourceContext | null;
   isLoadingChapterResourceContext?: boolean;
+  chapterTimeline?: ChapterTimelineViewData | null;
+  isLoadingChapterTimeline?: boolean;
   resourceWorkflowMode?: "auto_director" | "manual";
   pendingCharacterResourceProposals?: CharacterResourceProposalSummary[];
   onExtractChapterResources?: () => void;

@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { NovelExportService } = require("../dist/services/novel/NovelExportService.js");
+const { NovelExportService } = require("../dist/modules/export/novelExport.service.js");
 const { prisma } = require("../dist/db/prisma.js");
 
 test("buildExportContent uses novel title plus timestamp as export filename", async () => {

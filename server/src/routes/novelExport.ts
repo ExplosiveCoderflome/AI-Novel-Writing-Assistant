@@ -3,7 +3,7 @@ import { z } from "zod";
 import { NOVEL_EXPORT_FORMAT_VALUES, NOVEL_EXPORT_SCOPE_VALUES } from "@ai-novel/shared/types/novelExport";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
-import { novelExportService } from "../services/novel/NovelExportService";
+import { novelExportService } from "../modules/export";
 
 const router = Router();
 
