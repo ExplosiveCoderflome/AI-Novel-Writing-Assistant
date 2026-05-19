@@ -116,6 +116,7 @@ def main() -> None:
 
     generated_images[512].save(BUILDER_DIR / "app-icon.png")
     generated_images[512].save(BUILDER_DIR / "app-icon.ico", sizes=ICO_SIZES)
+    generated_images[512].save(BUILDER_DIR / "app-icon.icns")
     print(f"Generated desktop icon assets in {BUILDER_DIR}")
 
 

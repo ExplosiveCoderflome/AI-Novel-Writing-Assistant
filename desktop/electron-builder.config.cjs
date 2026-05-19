@@ -25,7 +25,8 @@ const allowUnsignedRelease =
     process.env.AI_NOVEL_ALLOW_UNSIGNED_WINDOWS_RELEASE,
   ).toLowerCase() === "true";
 const hasWindowsSigningMaterial = Boolean(windowsSigningLink);
-const builderIconPath = path.join("builder", "app-icon.ico");
+const builderWindowsIconPath = path.join("builder", "app-icon.ico");
+const builderMacIconPath = path.join("builder", "app-icon.icns");
 
 if (!isBetaRelease && !hasWindowsSigningMaterial && !allowUnsignedRelease) {
   throw new Error(
@@ -50,6 +51,10 @@ module.exports = {
     {
       from: "builder/app-icon.ico",
       to: "icons/app-icon.ico",
+    },
+    {
+      from: "builder/app-icon.icns",
+      to: "icons/app-icon.icns",
     },
     {
       from: "build/resources/app-update.yml",
@@ -81,7 +86,7 @@ module.exports = {
   electronUpdaterCompatibility: ">=2.16",
   generateUpdatesFilesForAllChannels: false,
   win: {
-    icon: builderIconPath,
+    icon: builderWindowsIconPath,
     // Keep EXE resource editing enabled for unsigned builds so Windows uses the app icon and metadata.
     signAndEditExecutable: true,
     target: [
@@ -105,9 +110,20 @@ module.exports = {
     createStartMenuShortcut: true,
     deleteAppDataOnUninstall: false,
     runAfterFinish: true,
-    installerIcon: builderIconPath,
-    uninstallerIcon: builderIconPath,
-    installerHeaderIcon: builderIconPath,
+    installerIcon: builderWindowsIconPath,
+    uninstallerIcon: builderWindowsIconPath,
+    installerHeaderIcon: builderWindowsIconPath,
+  },
+  mac: {
+    icon: builderMacIconPath,
+    category: "public.app-category.productivity",
+    target: ["dmg", "zip"],
+    artifactName: "${productName}-${version}-mac-${arch}.${ext}",
+    hardenedRuntime: false,
+    gatekeeperAssess: false,
+  },
+  dmg: {
+    artifactName: "${productName}-${version}-mac-${arch}.${ext}",
   },
   portable: {
     artifactName: "${productName}-${version}-portable-${arch}.${ext}",
