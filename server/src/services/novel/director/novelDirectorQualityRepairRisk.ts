@@ -37,6 +37,19 @@ function buildReason(input: {
   return `本次质量修复未标记大范围返工，仍有 ${input.remainingChapterCount} 章待继续。`;
 }
 
+function buildDeferredQualityDebtReason(input: {
+  affectedChapterCount: number;
+  remainingChapterCount: number;
+}): string {
+  const affectedSummary = input.affectedChapterCount > 0
+    ? `本次已记录 ${input.affectedChapterCount} 章质量债务`
+    : "本次已记录质量债务";
+  const remainingSummary = input.remainingChapterCount > 0
+    ? `，仍有 ${input.remainingChapterCount} 章可继续推进`
+    : "";
+  return `${affectedSummary}${remainingSummary}。`;
+}
+
 export function buildDirectorQualityRepairRisk(
   input: DirectorQualityRepairRiskInput,
 ): DirectorQualityRepairRisk {
@@ -52,6 +65,9 @@ export function buildDirectorQualityRepairRisk(
   const remainingChapterCount = normalizeCount(input.remainingChapterCount);
   const totalChapterCount = Math.max(1, normalizeCount(input.totalChapterCount) || remainingChapterCount || 1);
   const largeScopeThreshold = Math.max(3, Math.ceil(totalChapterCount * 0.25));
+  const hasDeferredQualityDebt = noticeCode === PIPELINE_QUALITY_NOTICE_CODE
+    || qualityCount > 0
+    || recoverableRepairCount > 0;
 
   if (noticeCode === PIPELINE_REPLAN_NOTICE_CODE || replanCount > 0) {
     return {
@@ -66,6 +82,21 @@ export function buildDirectorQualityRepairRisk(
       noticeCode: PIPELINE_REPLAN_NOTICE_CODE,
       repairMode,
       affectedChapterCount: replanCount,
+      remainingChapterCount,
+    };
+  }
+
+  if (hasDeferredQualityDebt) {
+    return {
+      riskLevel: "low",
+      autoContinuable: true,
+      reason: buildDeferredQualityDebtReason({
+        affectedChapterCount,
+        remainingChapterCount,
+      }),
+      noticeCode: noticeCode ?? PIPELINE_QUALITY_NOTICE_CODE,
+      repairMode,
+      affectedChapterCount,
       remainingChapterCount,
     };
   }

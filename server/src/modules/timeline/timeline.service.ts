@@ -1,4 +1,5 @@
 import type {
+  ChapterTimeAnchor,
   ExtractedTimelineEvent,
   TimelineHookDraft,
   TimelineCheckResult,
@@ -77,6 +78,39 @@ function mergeHookDrafts(
   return Array.from(merged.values());
 }
 
+function uniqueHookIds(ids: string[], context: TimelineContextForChapter): string[] {
+  const knownHookIds = new Set([
+    ...(context.openHooks ?? []).map((hook) => hook.id),
+    ...(context.blockingHooks ?? []).map((hook) => hook.id),
+    ...(context.softHooks ?? []).map((hook) => hook.id),
+    ...(context.addressedHooks ?? []).map((hook) => hook.id),
+  ]);
+  return Array.from(new Set(ids.filter((id) => knownHookIds.has(id))));
+}
+
+function fallbackAddressedHookIds(input: {
+  extractedEvents: ExtractedTimelineEvent[];
+  timelineContext: TimelineContextForChapter;
+}): string[] {
+  return input.timelineContext.openHooks
+    .filter((hook) => hook.status === "open")
+    .filter((hook) => input.extractedEvents.some((event) =>
+      `${event.title}\n${event.summary}`.includes(hook.title) || hook.description.includes(event.title)))
+    .map((hook) => hook.id);
+}
+
+function resolvePlannedEventIds(context: TimelineContextForChapter): string[] {
+  return context.plannedEventsThisChapter?.map((event) => event.id) ?? [];
+}
+
+function resolveForbiddenEventIds(context: TimelineContextForChapter): string[] {
+  return context.forbiddenEvents?.map((event) => event.id) ?? [];
+}
+
+function resolvePreviousEventIds(context: TimelineContextForChapter): string[] {
+  return context.previousEvents?.slice(-3).map((event) => event.id) ?? [];
+}
+
 export class StoryTimelineService {
   constructor(private readonly repo: TimelineRepository = timelineRepository) {}
 
@@ -100,8 +134,11 @@ export class StoryTimelineService {
     novelId: string;
     chapterId: string;
     chapterIndex: number;
+    timeAnchor?: { storyDayIndex?: number | null; label?: string | null } | null;
     extractedEvents: ExtractedTimelineEvent[];
     extractedHooks?: TimelineHookDraft[];
+    addressedHookIds?: string[];
+    resolvedHookIds?: string[];
     timelineContext: TimelineContextForChapter;
   }) {
     const occurredEventsInput = input.extractedEvents.filter((event) => event.occurred);
@@ -128,6 +165,21 @@ export class StoryTimelineService {
         confidence: event.confidence,
       }));
     const savedEvents = await this.repo.saveExtractedEvents(occurredEvents);
+    await this.repo.upsertChapterTimeAnchor({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      chapterIndex: input.chapterIndex,
+      storyDayIndex: input.timeAnchor?.storyDayIndex ?? input.timelineContext.currentTime?.storyDayIndex ?? null,
+      timeLabel: input.timeAnchor?.label?.trim()
+        || input.timelineContext.currentTime?.label?.trim()
+        || `第 ${input.chapterIndex} 章`,
+      startsAfterEventIds: resolvePreviousEventIds(input.timelineContext),
+      plannedEventIds: resolvePlannedEventIds(input.timelineContext),
+      endedWithEventIds: savedEvents.map((event) => event.id),
+      previousHookIds: uniqueHookIds((input.timelineContext.openHooks ?? []).map((hook) => hook.id), input.timelineContext),
+      nextHookIds: [],
+      forbiddenEventIds: resolveForbiddenEventIds(input.timelineContext),
+    } satisfies Omit<ChapterTimeAnchor, "id" | "createdAt" | "updatedAt">);
     let occurredCursor = 0;
     const hookDrafts = mergeHookDrafts([
       ...input.extractedEvents.flatMap((event) => {
@@ -144,16 +196,26 @@ export class StoryTimelineService {
         relatedEventIds: [],
       })),
     ]);
-    const hookIdsToAddress = input.timelineContext.openHooks
-      .filter((hook) => hook.status === "open")
-      .filter((hook) => input.extractedEvents.some((event) =>
-        `${event.title}\n${event.summary}`.includes(hook.title) || hook.description.includes(event.title)))
-      .map((hook) => hook.id);
+    const resolvedHookIds = uniqueHookIds(input.resolvedHookIds ?? [], input.timelineContext);
+    const addressedHookIds = uniqueHookIds(input.addressedHookIds ?? [], input.timelineContext)
+      .filter((id) => !resolvedHookIds.includes(id));
+    const hookIdsToAddress = addressedHookIds.length > 0 || resolvedHookIds.length > 0
+      ? addressedHookIds
+      : fallbackAddressedHookIds({
+          extractedEvents: input.extractedEvents,
+          timelineContext: input.timelineContext,
+        });
     await this.repo.markHooksAddressed({
       hookIds: hookIdsToAddress,
       chapterId: input.chapterId,
       chapterIndex: input.chapterIndex,
       resolved: false,
+    });
+    await this.repo.markHooksAddressed({
+      hookIds: resolvedHookIds,
+      chapterId: input.chapterId,
+      chapterIndex: input.chapterIndex,
+      resolved: true,
     });
     await this.repo.createHooks(hookDrafts.map((hook) => ({
       novelId: input.novelId,

@@ -9,8 +9,9 @@ import {
   ListTodo,
 } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import type { DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
+import type { DirectorContinuationMode, DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
 import type { VolumePlan } from "@ai-novel/shared/types/novel";
+import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { getNovelDetail, getNovelQualityReport, getNovelVolumeWorkspace } from "@/api/novel";
 import { getDirectorBookAutomationProjection, getDirectorRuntimeProjection, getDirectorTaskSnapshot } from "@/api/novelDirector";
 import { continueNovelWorkflow, getActiveAutoDirectorTask } from "@/api/novelWorkflow";
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import DirectorBookAutomationCard from "@/components/autoDirector/DirectorBookAutomationCard";
 import NovelAutoDirectorProgressPanel from "@/pages/novels/components/NovelAutoDirectorProgressPanel";
+import { shouldShowPinnedBookAutomationProjection } from "@/pages/novels/novelEditAutomationStatus";
 import { cn } from "@/lib/utils";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import {
@@ -86,6 +88,55 @@ function formatTaskStatus(status: string | null | undefined): string {
   return "空闲";
 }
 
+function shouldShowBookAutomationProjectionWithoutActiveTask(input: {
+  status: string | null | undefined;
+  latestTaskId?: string | null;
+  requestedDirectorTaskId?: string | null;
+}): boolean {
+  if (
+    input.status === "queued"
+    || input.status === "running"
+    || input.status === "waiting_approval"
+    || input.status === "waiting_recovery"
+    || input.status === "blocked"
+  ) {
+    return true;
+  }
+  return shouldShowPinnedBookAutomationProjection({
+    projection: input.latestTaskId
+      ? {
+        status: input.status === "completed"
+          || input.status === "cancelled"
+          || input.status === "failed"
+          ? input.status
+          : "failed",
+        latestTask: { id: input.latestTaskId },
+      }
+      : null,
+    directorTaskId: input.requestedDirectorTaskId,
+  });
+}
+
+function resolveDirectorContinueMode(task: Pick<
+  UnifiedTaskDetail,
+  "checkpointType" | "currentItemKey" | "currentStage" | "pendingManualRecovery"
+> | null | undefined): DirectorContinuationMode {
+  if (task?.pendingManualRecovery) {
+    return "resume";
+  }
+  if (
+    task?.checkpointType === "replan_required"
+    || task?.currentItemKey === "quality_repair"
+    || task?.currentStage?.includes("质量")
+  ) {
+    return "skip_quality_repair";
+  }
+  if (task?.checkpointType === "chapter_batch_ready") {
+    return "auto_execute_range";
+  }
+  return "resume";
+}
+
 export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const { novelId, chapterId = "", collapsed, onToggle, onSwitchToProjectNav } = props;
   const navigate = useNavigate();
@@ -93,6 +144,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+  const requestedDirectorTaskId = searchParams.get("directorTaskId")?.trim() || "";
   const activeTab = useMemo<NovelWorkspaceTab>(() => {
     if (location.pathname.includes("/chapters/")) {
       return "chapter";
@@ -147,6 +199,21 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const bookAutomationProjection = latestBookAutomationProjection?.status === "cancelled"
     ? null
     : latestBookAutomationProjection;
+  const visibleBookAutomationProjection = useMemo(() => {
+    if (!bookAutomationProjection) {
+      return null;
+    }
+    if (activeTask) {
+      return bookAutomationProjection;
+    }
+    return shouldShowBookAutomationProjectionWithoutActiveTask({
+      status: bookAutomationProjection.status,
+      latestTaskId: bookAutomationProjection.latestTask?.id ?? null,
+      requestedDirectorTaskId,
+    })
+      ? bookAutomationProjection
+      : null;
+  }, [activeTask, bookAutomationProjection, requestedDirectorTaskId]);
   const runtimeProjectionQuery = useQuery({
     queryKey: queryKeys.tasks.directorRuntime(activeTask?.id ?? "none"),
     queryFn: () => getDirectorRuntimeProjection(activeTask?.id as string),
@@ -281,18 +348,18 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       : activeTask.currentItemLabel || `AI 正在推进 ${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`)
     : "当前没有后台导演任务，可以直接继续手动创作。";
   const cockpitProjection = useMemo(() => {
-    if (!bookAutomationProjection || !runtimeSummary?.trim()) {
-      return bookAutomationProjection;
+    if (!visibleBookAutomationProjection || !runtimeSummary?.trim()) {
+      return visibleBookAutomationProjection;
     }
     const summary = runtimeSummary.trim();
     return {
-      ...bookAutomationProjection,
+      ...visibleBookAutomationProjection,
       userHeadline: summary,
       headline: summary,
       detail: summary,
       automationSummary: summary,
     };
-  }, [bookAutomationProjection, runtimeSummary]);
+  }, [runtimeSummary, visibleBookAutomationProjection]);
 
   const goToTab = (tab: NovelWorkspaceTab) => {
     const next = new URLSearchParams(searchParams);
@@ -307,7 +374,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
 
   const openTaskCenter = () => {
     setProgressDialogOpen(false);
-    const taskId = activeTask?.id ?? bookAutomationProjection?.latestTask?.id;
+    const taskId = activeTask?.id ?? visibleBookAutomationProjection?.latestTask?.id;
     if (taskId) {
       const next = new URLSearchParams(searchParams);
       next.set("directorTaskId", taskId);
@@ -335,9 +402,18 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       if (!activeTask?.id) {
         throw new Error("当前没有可继续的自动导演任务。");
       }
-      return continueNovelWorkflow(activeTask.id, { continuationMode: "resume" });
+      return continueNovelWorkflow(activeTask.id, {
+        continuationMode: resolveDirectorContinueMode(activeTask),
+      });
     },
     onSuccess: async (response) => {
+      const persistedTaskId = response.data?.taskId ?? activeTask?.id ?? "";
+      if (persistedTaskId) {
+        const next = new URLSearchParams(searchParams);
+        next.set("directorTaskId", persistedTaskId);
+        next.delete("taskId");
+        navigate(`/novels/${novelId}/edit?${next.toString()}`, { replace: true });
+      }
       await Promise.allSettled([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.directorBookAutomation(novelId) }),
@@ -345,7 +421,9 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorRuntime(activeTask?.id ?? "") }),
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
       ]);
-      const feedback = resolveWorkflowContinuationFeedback(response.data, { mode: "resume" });
+      const feedback = resolveWorkflowContinuationFeedback(response.data, {
+        mode: resolveDirectorContinueMode(activeTask),
+      });
       if (feedback.tone === "error") {
         toast.error(feedback.message);
         return;

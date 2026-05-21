@@ -9,6 +9,7 @@ import type {
   RuntimeAuditIssue,
 } from "@ai-novel/shared/types/chapterRuntime";
 import type { ExtractedTimelineEvent, TimelineCheckResult, TimelineContextForChapter, TimelineHookDraft, TimelineIssue } from "@ai-novel/shared/types/timeline";
+import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../../db/prisma";
 import { mergeChapterPatchForGenerationStateBump } from "../chapterLifecycleState";
 import { auditService } from "../../audit/AuditService";
@@ -41,6 +42,13 @@ import {
   isChapterEmptyContentError,
   type ChapterEmptyContentError,
 } from "./chapterEmptyContentError";
+import type { RepairOptions, ReviewOptions } from "../novelCoreShared";
+import { ChapterRepairStreamRuntime } from "./repair/ChapterRepairStreamRuntime";
+import {
+  chapterTimelineFinalizationService,
+  type ChapterTimelineFinalizationService,
+  type ChapterTimelineGateResult,
+} from "./ChapterTimelineFinalizationService";
 import {
   storyTimelineService,
   timelineCheckerService,
@@ -68,6 +76,16 @@ interface ChapterRuntimeCoordinatorDeps {
     options: ChapterRuntimeRequestInput,
   ) => Promise<unknown>;
   validateRequest?: (input: ChapterRuntimeRequestInput) => ChapterRuntimeRequestInput;
+  reviewChapterAfterRepair?: (
+    novelId: string,
+    chapterId: string,
+    options: ReviewOptions,
+  ) => Promise<{ score: QualityScore; issues: ReviewIssue[] }>;
+  resolveAuditIssues?: (novelId: string, issueIds: string[]) => Promise<unknown>;
+  timelineFinalizer?: Pick<
+    ChapterTimelineFinalizationService,
+    "finalizeCurrentContent" | "ensurePreviousChapterFinalized"
+  >;
 }
 
 interface FinalizeChapterContentResult {
@@ -76,12 +94,7 @@ interface FinalizeChapterContentResult {
   styleReview: StyleReviewResult;
 }
 
-interface TimelineGateResult {
-  result: TimelineCheckResult;
-  extractedEvents: ExtractedTimelineEvent[];
-  extractedHooks: TimelineHookDraft[];
-  timelineContext: TimelineContextForChapter | null;
-}
+type TimelineGateResult = ChapterTimelineGateResult;
 
 function parseStringArray(value: string | null | undefined): string[] {
   if (!value?.trim()) {
@@ -208,12 +221,29 @@ function normalizeTimelineGateResult(
   timelineContext: TimelineContextForChapter | null | undefined,
 ): TimelineGateResult {
   if ("result" in value) {
-    return value;
+    const extractedEvents = value.extractedEvents ?? [];
+    const extractedHooks = value.extractedHooks ?? [];
+    return {
+      ...value,
+      extractedEvents,
+      extractedHooks,
+      timeAnchor: value.timeAnchor ?? null,
+      addressedHookIds: value.addressedHookIds ?? [],
+      resolvedHookIds: value.resolvedHookIds ?? [],
+      extractorSucceeded: value.extractorSucceeded ?? (extractedEvents.length > 0 || extractedHooks.length > 0),
+      extractorError: value.extractorError ?? null,
+      timelineContext: value.timelineContext ?? timelineContext ?? null,
+    };
   }
   return {
     result: value,
     extractedEvents: [],
     extractedHooks: [],
+    timeAnchor: null,
+    addressedHookIds: [],
+    resolvedHookIds: [],
+    extractorSucceeded: false,
+    extractorError: null,
     timelineContext: timelineContext ?? null,
   };
 }
@@ -313,14 +343,26 @@ function mapOpenConflictForRuntime(
 }
 
 export class ChapterRuntimeCoordinator {
-  private readonly deps: Omit<Required<ChapterRuntimeCoordinatorDeps>, "agentRuntime"> & {
+  private readonly deps: Omit<
+    Required<ChapterRuntimeCoordinatorDeps>,
+    "agentRuntime" | "reviewChapterAfterRepair" | "resolveAuditIssues" | "timelineFinalizer"
+  > & {
     agentRuntime?: ChapterRuntimeCoordinatorDeps["agentRuntime"];
   };
   private readonly acceptanceGateCache = new Map<string, Promise<ChapterAcceptanceAssessmentResult> | ChapterAcceptanceAssessmentResult>();
   private readonly timelineGateCache = new Map<string, Promise<TimelineGateResult> | TimelineGateResult>();
+  private readonly repairStreamRuntime: ChapterRepairStreamRuntime;
+  private readonly timelineFinalizer: Pick<
+    ChapterTimelineFinalizationService,
+    "finalizeCurrentContent" | "ensurePreviousChapterFinalized"
+  >;
 
   constructor(deps: ChapterRuntimeCoordinatorDeps = {}) {
     const artifactSyncService = deps.artifactSyncService ?? new ChapterArtifactSyncService();
+    this.timelineFinalizer = deps.timelineFinalizer ?? chapterTimelineFinalizationService;
+    const reviewChapterAfterRepair = deps.reviewChapterAfterRepair
+      ?? ((novelId: string, chapterId: string, options: ReviewOptions) =>
+        (new (require("../novelCoreReviewService").NovelCoreReviewService)()).reviewChapter(novelId, chapterId, options));
     this.deps = {
       assembler: deps.assembler ?? new GenerationContextAssembler(),
       chapterWritingGraph: deps.chapterWritingGraph ?? new ChapterWritingGraph({
@@ -356,6 +398,13 @@ export class ChapterRuntimeCoordinator {
         ?? ((novelId, chapterId, options) => new NovelVolumeService().ensureChapterExecutionContract(novelId, chapterId, options)),
       validateRequest: deps.validateRequest ?? ((input) => chapterRuntimeRequestSchema.parse(input)),
     };
+    this.repairStreamRuntime = new ChapterRepairStreamRuntime({
+      assembler: this.deps.assembler,
+      artifactSyncService,
+      reviewChapterAfterRepair,
+      resolveAuditIssues: deps.resolveAuditIssues,
+      timelineFinalizer: this.timelineFinalizer,
+    });
   }
 
   async createChapterStream(
@@ -369,6 +418,7 @@ export class ChapterRuntimeCoordinator {
   }> {
     const request = this.deps.validateRequest(options);
     await this.deps.ensureNovelCharacters(novelId, "generate chapter content");
+    await this.ensurePreviousChapterTimelineFinalized(novelId, chapterId, request);
 
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
     this.deps.readinessService.assertReady(assembled.contextPackage);
@@ -450,6 +500,17 @@ export class ChapterRuntimeCoordinator {
     };
   }
 
+  async createRepairStream(
+    novelId: string,
+    chapterId: string,
+    options: RepairOptions = {},
+  ): Promise<{
+    stream: AsyncIterable<BaseMessageChunk>;
+    onDone: (fullContent: string, helpers: StreamDoneHelpers) => Promise<void>;
+  }> {
+    return this.repairStreamRuntime.createRepairStream(novelId, chapterId, options);
+  }
+
   async runPipelineChapter(
     novelId: string,
     chapterId: string,
@@ -457,6 +518,7 @@ export class ChapterRuntimeCoordinator {
     hooks: PipelineRuntimeHooks = {},
   ): Promise<PipelineRuntimeResult> {
     const request = this.deps.validateRequest(options);
+    await this.ensurePreviousChapterTimelineFinalized(novelId, chapterId, request);
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
     this.deps.readinessService.assertReady(assembled.contextPackage);
     this.assertStateDrivenReady(assembled.contextPackage, request);
@@ -496,6 +558,19 @@ export class ChapterRuntimeCoordinator {
               finalContent: finalized.finalContent,
               runtimePackage: finalized.runtimePackage,
             };
+          },
+          finalizeChapterTimeline: async (input) => {
+            await this.timelineFinalizer.finalizeCurrentContent({
+              novelId: input.novelId,
+              chapterId: input.chapterId,
+              content: input.content,
+              contextPackage: input.contextPackage,
+              request: input.request,
+              mode: input.mode,
+              reason: input.reason,
+              sourceStage: input.mode === "degraded" ? "defer_and_continue" : "pipeline_final_content",
+              qualityDebt: input.qualityDebt,
+            });
           },
           markChapterGenerationState: (targetChapterId, generationState) =>
             this.markChapterGenerationState(targetChapterId, generationState),
@@ -537,6 +612,25 @@ export class ChapterRuntimeCoordinator {
         `Chapter generation is blocked until review is resolved.${reasons.length > 0 ? ` ${reasons.join(" | ")}` : ""}`,
       );
     }
+  }
+
+  private async ensurePreviousChapterTimelineFinalized(
+    novelId: string,
+    chapterId: string,
+    request: ChapterRuntimeRequestInput,
+  ): Promise<void> {
+    const chapter = await prisma.chapter.findFirst({
+      where: { id: chapterId, novelId },
+      select: { order: true },
+    });
+    if (!chapter || chapter.order <= 1) {
+      return;
+    }
+    await this.timelineFinalizer.ensurePreviousChapterFinalized({
+      novelId,
+      currentChapterOrder: chapter.order,
+      request,
+    });
   }
 
   private async bestEffortEnsureChapterExecutionContract(
@@ -759,11 +853,14 @@ export class ChapterRuntimeCoordinator {
       || runtimePackage.audit.hasBlockingIssues;
     await this.markChapterStatus(input.chapterId, needsRepair ? "needs_repair" : "pending_review");
     if (!needsRepair) {
-      await this.commitStableTimelineGate({
+      await this.timelineFinalizer.finalizeCurrentContent({
         novelId: input.novelId,
         chapterId: input.chapterId,
-        chapterIndex: input.contextPackage.chapter.order,
+        content: finalContent,
+        contextPackage: input.contextPackage,
+        request: input.request,
         timelineGate,
+        sourceStage: "draft_accepted",
       });
     }
 
@@ -908,6 +1005,11 @@ export class ChapterRuntimeCoordinator {
         },
         extractedEvents: [],
         extractedHooks: [],
+        timeAnchor: null,
+        addressedHookIds: [],
+        resolvedHookIds: [],
+        extractorSucceeded: false,
+        extractorError: "timelineContext missing",
         timelineContext: null,
       };
     }
@@ -915,6 +1017,11 @@ export class ChapterRuntimeCoordinator {
     let result: TimelineCheckResult;
     let extractedEvents: ReturnType<typeof timelineExtractorService.normalizeEvents> = [];
     let extractedHooks: TimelineHookDraft[] = [];
+    let timeAnchor: TimelineGateResult["timeAnchor"] = null;
+    let addressedHookIds: string[] = [];
+    let resolvedHookIds: string[] = [];
+    let extractorSucceeded = false;
+    let extractorError: string | null = null;
     try {
       const extracted = await timelineExtractorService.extractFromChapter({
         novelId: input.novelId,
@@ -933,6 +1040,10 @@ export class ChapterRuntimeCoordinator {
       });
       extractedEvents = timelineExtractorService.normalizeEvents(extracted);
       extractedHooks = timelineExtractorService.normalizeHooks(extracted);
+      timeAnchor = extracted.timeAnchor ?? null;
+      addressedHookIds = extracted.addressedHookIds ?? [];
+      resolvedHookIds = extracted.resolvedHookIds ?? [];
+      extractorSucceeded = true;
       result = timelineCheckerService.checkChapter({
         novelId: input.novelId,
         chapterId: input.chapterId,
@@ -943,6 +1054,7 @@ export class ChapterRuntimeCoordinator {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      extractorError = message;
       result = {
         status: "warning",
         score: 0.82,
@@ -974,33 +1086,13 @@ export class ChapterRuntimeCoordinator {
       result,
       extractedEvents,
       extractedHooks,
+      timeAnchor,
+      addressedHookIds,
+      resolvedHookIds,
+      extractorSucceeded,
+      extractorError,
       timelineContext,
     };
-  }
-
-  private async commitStableTimelineGate(input: {
-    novelId: string;
-    chapterId: string;
-    chapterIndex: number;
-    timelineGate: TimelineGateResult;
-  }): Promise<void> {
-    if (input.timelineGate.result.status === "failed" || !input.timelineGate.timelineContext) {
-      return;
-    }
-    await storyTimelineService.commitChapterTimeline({
-      novelId: input.novelId,
-      chapterId: input.chapterId,
-      chapterIndex: input.chapterIndex,
-      extractedEvents: input.timelineGate.extractedEvents,
-      extractedHooks: input.timelineGate.extractedHooks,
-      timelineContext: input.timelineGate.timelineContext,
-    }).catch((error) => {
-      console.warn("[chapter-runtime] timeline commit skipped", {
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    });
   }
 
   private async traceChapterGate<T>(input: {

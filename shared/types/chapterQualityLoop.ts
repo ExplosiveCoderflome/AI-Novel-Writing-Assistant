@@ -15,6 +15,7 @@ export type ChapterQualityLoopArtifactType = typeof CHAPTER_QUALITY_LOOP_ARTIFAC
 export type ChapterQualityLoopSignalStatus = "valid" | "risk" | "invalid" | "missing";
 export type ChapterQualityLoopAction = "continue" | "patch_repair" | "replan" | "manual_gate";
 export type ChapterQualityLoopBudgetAction = "patch_repair" | "rewrite_chapter" | "replan_window" | "hard_stop";
+export type ChapterQualityLoopRiskClassification = "none" | "blocking" | "non_blocking_quality_debt";
 
 export interface ChapterQualityLoopBudget {
   signature: string;
@@ -45,6 +46,77 @@ export interface ChapterQualityLoopAssessment {
   blockingObligations?: ChapterExecutionMissingObligation[];
   budget?: ChapterQualityLoopBudget | null;
   signals: ChapterQualityLoopSignal[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function parseRiskFlagsObject(value: string | null | undefined): Record<string, unknown> | null {
+  if (!value?.trim()) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function hasBlockingObligations(value: unknown): boolean {
+  return Array.isArray(value) && value.length > 0;
+}
+
+export function classifyChapterQualityLoopRisk(
+  qualityLoop: unknown,
+): ChapterQualityLoopRiskClassification {
+  if (!isRecord(qualityLoop)) {
+    return "none";
+  }
+  const rootCauseCode = qualityLoop.rootCauseCode;
+  const recommendedAction = qualityLoop.recommendedAction;
+  if (
+    rootCauseCode === "replan_required"
+    || recommendedAction === "replan"
+    || hasBlockingObligations(qualityLoop.blockingObligations)
+  ) {
+    return "blocking";
+  }
+  if (qualityLoop.terminalAction === "defer_and_continue") {
+    return "non_blocking_quality_debt";
+  }
+  if (recommendedAction === "manual_gate") {
+    return "blocking";
+  }
+  if (qualityLoop.overallStatus === "valid" && recommendedAction === "continue") {
+    return "none";
+  }
+  if (qualityLoop.overallStatus === "risk" || qualityLoop.overallStatus === "invalid") {
+    return "blocking";
+  }
+  return "none";
+}
+
+export function classifyChapterQualityLoopRiskFlags(
+  riskFlags: string | null | undefined,
+): ChapterQualityLoopRiskClassification {
+  return classifyChapterQualityLoopRisk(parseRiskFlagsObject(riskFlags)?.qualityLoop);
+}
+
+export function hasContinuableChapterQualityLoopRiskFlags(riskFlags: string | null | undefined): boolean {
+  const parsed = parseRiskFlagsObject(riskFlags);
+  const qualityLoop = parsed?.qualityLoop;
+  if (!isRecord(qualityLoop)) {
+    return false;
+  }
+  const classification = classifyChapterQualityLoopRisk(qualityLoop);
+  return classification === "non_blocking_quality_debt"
+    || (
+      classification === "none"
+      && qualityLoop.overallStatus === "valid"
+      && qualityLoop.recommendedAction === "continue"
+    );
 }
 
 export interface ChapterQualityLoopAssessmentInput {

@@ -425,6 +425,61 @@ test("continue_existing from chapter keeps current batch auto execution state in
   assert.equal(bootstrapInput.seedPayload.autoExecution?.nextChapterId, "chapter_1");
 });
 
+test("continue_existing chapter takeover clamps stale requested range to the next actionable chapter", async () => {
+  let preparedInput = null;
+  let bootstrapInput = null;
+  const takeoverState = buildTakeoverState();
+  takeoverState.executableRange.nextChapterOrder = 3;
+  takeoverState.latestAutoExecutionState.nextChapterOrder = 3;
+
+  await startDirectorTakeoverExecution({
+    request: {
+      novelId: "novel_takeover_demo",
+      entryStep: "chapter",
+      strategy: "continue_existing",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 1,
+        endOrder: 10,
+      },
+    },
+    takeoverState,
+    directorInput: {
+      candidate: { workingTitle: "Neon Archive" },
+      runMode: "auto_to_execution",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 1,
+        endOrder: 10,
+      },
+    },
+    workflowService: {
+      bootstrapTask: async (input) => {
+        bootstrapInput = input;
+        return { id: "workflow_takeover_demo" };
+      },
+      markTaskRunning: async () => {},
+    },
+    autoExecutionRuntime: {
+      prepareRequestedAutoExecution: async (input) => {
+        preparedInput = input;
+      },
+      runFromReady: async () => {},
+    },
+    buildDirectorSeedPayload: (request, _novelId, extra) => ({
+      autoExecutionPlan: request.autoExecutionPlan,
+      ...extra,
+    }),
+    scheduleBackgroundRun: () => {},
+    runDirectorPipeline: async () => {},
+    cancelReplacedRuns: async () => {},
+  });
+
+  assert.equal(preparedInput.request.autoExecutionPlan.startOrder, 3);
+  assert.equal(preparedInput.request.autoExecutionPlan.endOrder, 10);
+  assert.equal(bootstrapInput.seedPayload.autoExecutionPlan.startOrder, 3);
+});
+
 test("restart_current_step records downstream reset metadata for workspace navigation", async () => {
   let bootstrapInput = null;
   const takeoverState = buildTakeoverState();

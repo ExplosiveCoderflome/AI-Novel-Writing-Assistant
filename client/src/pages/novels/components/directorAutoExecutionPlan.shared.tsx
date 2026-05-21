@@ -1,6 +1,8 @@
 import type {
   DirectorAutoExecutionMode,
   DirectorAutoExecutionPlan,
+  DirectorTakeoverExecutableRangeSnapshot,
+  DirectorTakeoverStrategy,
 } from "@ai-novel/shared/types/novelDirector";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -201,6 +203,26 @@ export function buildDirectorAutoExecutionPlanLabel(
     return `第 ${normalizePositiveInteger(plan.volumeOrder, 1)} 卷`;
   }
   return `第 1-${normalizePositiveInteger(plan?.endOrder, 10)} 章`;
+}
+
+export function buildTakeoverAutoExecutionDraftFromExecutableRange(
+  executableRange: DirectorTakeoverExecutableRangeSnapshot | null | undefined,
+  strategy: DirectorTakeoverStrategy = "continue_existing",
+): DirectorAutoExecutionDraftState | null {
+  if (!executableRange) {
+    return null;
+  }
+  const preferredStartOrder = strategy === "continue_existing"
+    ? executableRange.nextChapterOrder ?? executableRange.startOrder
+    : executableRange.startOrder;
+  const startOrder = Math.max(1, Math.round(preferredStartOrder));
+  const endOrder = Math.max(startOrder, Math.round(executableRange.endOrder));
+  return {
+    ...createDefaultDirectorAutoExecutionDraftState("takeover"),
+    mode: "chapter_range",
+    startOrder: String(startOrder),
+    endOrder: String(endOrder),
+  };
 }
 
 interface DirectorAutoExecutionPlanFieldsProps {

@@ -196,6 +196,7 @@ export interface TimelineRepository {
   listActiveConstraints(input: { novelId: string; chapterId?: string; chapterIndex: number }): Promise<TimelineConstraint[]>;
   getChapterTimeAnchor(input: { novelId: string; chapterId: string }): Promise<ChapterTimeAnchor | null>;
   getLatestCheckReport(input: { novelId: string; chapterId: string }): Promise<TimelineCheckReport | null>;
+  upsertChapterTimeAnchor(input: Omit<ChapterTimeAnchor, "id" | "createdAt" | "updatedAt">): Promise<ChapterTimeAnchor>;
   saveExtractedEvents(events: Array<Omit<StoryTimelineEvent, "id" | "createdAt" | "updatedAt">>): Promise<StoryTimelineEvent[]>;
   createHooks(hooks: Array<{
     novelId: string;
@@ -211,6 +212,7 @@ export interface TimelineRepository {
     participantIds?: string[];
   }>): Promise<void>;
   markHooksAddressed(input: { hookIds: string[]; chapterId: string; chapterIndex: number; resolved?: boolean }): Promise<void>;
+  expireOverdueImmediateHooks(input: { novelId: string; chapterId: string; chapterIndex: number }): Promise<void>;
   saveCheckReport(report: Omit<TimelineCheckReport, "id" | "createdAt">): Promise<TimelineCheckReport>;
 }
 
@@ -321,6 +323,30 @@ export class PrismaTimelineRepository implements TimelineRepository {
     return row ? mapReport(row) : null;
   }
 
+  async upsertChapterTimeAnchor(input: Omit<ChapterTimeAnchor, "id" | "createdAt" | "updatedAt">): Promise<ChapterTimeAnchor> {
+    const data = {
+      chapterIndex: input.chapterIndex,
+      storyDayIndex: input.storyDayIndex ?? null,
+      timeLabel: input.timeLabel,
+      startsAfterIdsJson: stringifyJson(input.startsAfterEventIds),
+      plannedEventIdsJson: stringifyJson(input.plannedEventIds),
+      endedWithIdsJson: stringifyJson(input.endedWithEventIds),
+      previousHookIdsJson: stringifyJson(input.previousHookIds),
+      nextHookIdsJson: stringifyJson(input.nextHookIds),
+      forbiddenEventIdsJson: stringifyJson(input.forbiddenEventIds),
+    };
+    const row = await prisma.chapterTimeAnchor.upsert({
+      where: { novelId_chapterId: { novelId: input.novelId, chapterId: input.chapterId } },
+      create: {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        ...data,
+      },
+      update: data,
+    });
+    return mapAnchor(row);
+  }
+
   async saveExtractedEvents(events: Array<Omit<StoryTimelineEvent, "id" | "createdAt" | "updatedAt">>): Promise<StoryTimelineEvent[]> {
     const created: StoryTimelineEvent[] = [];
     for (const event of events) {
@@ -398,6 +424,27 @@ export class PrismaTimelineRepository implements TimelineRepository {
       where: { id: { in: input.hookIds } },
       data: {
         status: input.resolved ? "resolved" : "addressed",
+        resolvedInChapterId: input.chapterId,
+        resolvedInChapterIndex: input.chapterIndex,
+      },
+    });
+  }
+
+  async expireOverdueImmediateHooks(input: { novelId: string; chapterId: string; chapterIndex: number }): Promise<void> {
+    await prisma.timelineHook.updateMany({
+      where: {
+        novelId: input.novelId,
+        status: { in: ["open", "addressed"] },
+        blocking: true,
+        resolveMode: "immediate",
+        createdInChapterIndex: { lt: input.chapterIndex },
+        OR: [
+          { expectedResolveByChapterIndex: null },
+          { expectedResolveByChapterIndex: { lte: input.chapterIndex } },
+        ],
+      },
+      data: {
+        status: "expired",
         resolvedInChapterId: input.chapterId,
         resolvedInChapterIndex: input.chapterIndex,
       },
