@@ -203,13 +203,6 @@ export function buildHeadline(input: {
   return "这本书还没有自动导演记录";
 }
 
-function getTaskFailureReason(task: {
-  lastError?: string | null;
-  checkpointSummary?: string | null;
-} | null | undefined): string | null {
-  return task?.lastError?.trim() || task?.checkpointSummary?.trim() || null;
-}
-
 export function buildDetail(input: {
   status: DirectorBookAutomationStatus;
   runtimeProjection: DirectorRuntimeProjection | null;
@@ -225,17 +218,14 @@ export function buildDetail(input: {
   if (input.status === "cancelled") {
     return "自动导演任务已取消。";
   }
-  if (input.status === "failed") {
-    return getTaskFailureReason(input.task)
-      || input.runtimeProjection?.blockedReason?.trim()
-      || input.runtimeProjection?.detail?.trim()
-      || "查看执行详情后可选择恢复或重试。";
-  }
   if (input.runtimeProjection?.detail?.trim()) {
     return input.runtimeProjection.detail.trim();
   }
   if (input.task?.checkpointSummary?.trim()) {
     return input.task.checkpointSummary.trim();
+  }
+  if (input.status === "failed") {
+    return input.task?.lastError?.trim() || "查看执行详情后可选择恢复或重试。";
   }
   if (input.status === "idle") {
     return "可以从 AI 自动导演开始，让系统根据这本书的资产推荐下一步。";
@@ -385,22 +375,12 @@ export function buildUserReason(input: {
   blockedReason?: string | null;
   detail?: string | null;
 }): string | null {
-  const directReason = input.status === "failed"
-    ? (
-      getTaskFailureReason(input.task)
-      || input.blockedReason?.trim()
-      || input.detail?.trim()
-      || input.runtimeProjection?.blockedReason?.trim()
-      || input.runtimeProjection?.detail?.trim()
-    )
-    : (
-      input.blockedReason?.trim()
-      || input.detail?.trim()
-      || input.runtimeProjection?.blockedReason?.trim()
-      || input.runtimeProjection?.detail?.trim()
-      || input.task?.checkpointSummary?.trim()
-      || input.task?.lastError?.trim()
-    );
+  const directReason = input.blockedReason?.trim()
+    || input.detail?.trim()
+    || input.runtimeProjection?.blockedReason?.trim()
+    || input.runtimeProjection?.detail?.trim()
+    || input.task?.checkpointSummary?.trim()
+    || input.task?.lastError?.trim();
   if (directReason) {
     return directReason;
   }

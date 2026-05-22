@@ -392,7 +392,7 @@ test("runFromReady treats explicit range continuation as approval for quality-al
     /TRACE_STOP_AFTER_NEXT_PIPELINE_START/,
   );
 
-  assert.equal(calls.some((call) => call[0] === "shouldAutoContinueQualityRepair"), false);
+  assert.ok(calls.some((call) => call[0] === "shouldAutoContinueQualityRepair"));
   assert.ok(!calls.some((call) => call[0] === "recordCheckpoint"));
   assert.deepEqual(
     calls.filter((call) => call[0] === "startPipelineJob"),
@@ -1189,7 +1189,7 @@ test("runFromReady can skip a replan notice and continue the remaining auto-exec
   assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
 });
 
-test("runFromReady keeps full-book replan notices blocking instead of auto-completing the range", async () => {
+test("runFromReady keeps replan notices automatic in full-book autopilot", async () => {
   const calls = [];
   let phase = "initial";
   const runtime = new NovelDirectorAutoExecutionRuntime({
@@ -1302,14 +1302,15 @@ test("runFromReady keeps full-book replan notices blocking instead of auto-compl
 
   assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
     [1, 1, "full_book_autopilot"],
+    [2, 2, "full_book_autopilot"],
   ]);
-  assert.equal(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "replan_required"), false);
-  assert.equal(calls.some((call) => call[0] === "replanNovel"), false);
-  assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "replan_required"));
-  assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"), false);
+  assert.ok(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "replan_required" && call[2] === "replan"));
+  assert.ok(calls.some((call) => call[0] === "replanNovel" && call[1] === "novel-1" && call[3] === "audit_failure"));
+  assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "replan_required"), false);
+  assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
 });
 
-test("runFromReady keeps repeated full-book replan loops as replan checkpoints", async () => {
+test("runFromReady defers repeated full-book replan loops as quality debt and continues", async () => {
   const calls = [];
   const completedOrders = new Set();
   const jobOrderById = new Map();
@@ -1457,12 +1458,13 @@ test("runFromReady keeps repeated full-book replan loops as replan checkpoints",
 
   assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
     [1, 1],
+    [2, 2],
   ]);
-  assert.equal(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "replan_required"), false);
+  assert.ok(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "replan_required"));
   assert.equal(calls.some((call) => call[0] === "replanNovel"), false);
   assert.equal(calls.some((call) => call[0] === "markTaskFailed"), false);
-  const checkpoint = calls.find((call) => call[0] === "recordCheckpoint");
-  assert.deepEqual(checkpoint, ["recordCheckpoint", "task-auto-exec", "replan_required", [], []]);
+  const completed = calls.find((call) => call[0] === "recordCheckpoint");
+  assert.deepEqual(completed, ["recordCheckpoint", "task-auto-exec", "workflow_completed", [1], [1]]);
 });
 
 test("runFromReady records replan_required outside AI-driver execution when pipeline completes with replan notice", async () => {
@@ -2295,7 +2297,7 @@ test("prepareRequestedAutoExecution rejects chapter ranges with incomplete execu
   );
 });
 
-test("runFromReady keeps persisted replan budget failures blocking after worker recovery", async () => {
+test("runFromReady uses persisted quality budget ledger to defer repeated replan after worker recovery", async () => {
   const calls = [];
   const completedOrders = new Set();
   const jobOrderById = new Map();
@@ -2455,12 +2457,12 @@ test("runFromReady keeps persisted replan budget failures blocking after worker 
 
   assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
     [6, 6],
+    [7, 7],
   ]);
   assert.equal(calls.some((call) => call[0] === "replanNovel"), false);
-  assert.equal(calls.some((call) => call[0] === "recordEvent" && call[1] === "continue_with_risk"), false);
-  assert.equal(calls.some((call) => call[0] === "bootstrapTask" && Array.isArray(call[2]) && call[2].includes(6)), false);
-  assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "replan_required"));
-  assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"), false);
+  assert.ok(calls.some((call) => call[0] === "recordEvent" && call[1] === "continue_with_risk" && call[2] === "defer_and_continue"));
+  assert.ok(calls.some((call) => call[0] === "bootstrapTask" && call[1] === 7 && call[2].includes(6) && call[3] === 1));
+  assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed" && call[3].includes(6)));
 });
 
 test("runFromReady resolves pending state proposals before retrying full-book autopilot chapter execution", async () => {

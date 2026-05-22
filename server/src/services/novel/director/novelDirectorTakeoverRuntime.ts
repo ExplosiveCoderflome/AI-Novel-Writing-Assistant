@@ -14,10 +14,7 @@ import { normalizeNovelOutput } from "../novelCoreShared";
 import { DIRECTOR_PROGRESS } from "./novelDirectorProgress";
 import { parseSeedPayload } from "../workflow/novelWorkflow.shared";
 import {
-  buildDirectorAutoExecutionState,
-  buildDirectorAutoExecutionDeferredQualityState,
   hasDirectorAutoExecutionChapterContract,
-  isDirectorAutoExecutionChapterProcessed,
   resolveDirectorAutoExecutionRangeFromState,
 } from "./automation/novelDirectorAutoExecution";
 import { resolveStructuredOutlineRecoveryCursor } from "./novelDirectorStructuredOutlineRecovery";
@@ -48,99 +45,6 @@ interface TakeoverChapterRow {
   mustAvoid: string | null;
   taskSheet: string | null;
   sceneCards: string | null;
-}
-
-function hasPersistedChapterContent(chapter: Pick<TakeoverChapterRow, "content"> | null | undefined): boolean {
-  return typeof chapter?.content === "string" && chapter.content.trim().length > 0;
-}
-
-function isNoChaptersToGenerateFailure(message: string | null | undefined): boolean {
-  return typeof message === "string" && message.includes("指定区间内没有可生成的章节");
-}
-
-function isPendingAutoExecutionChapter(chapter: TakeoverChapterRow): boolean {
-  return !isDirectorAutoExecutionChapterProcessed(chapter as Parameters<typeof isDirectorAutoExecutionChapterProcessed>[0]);
-}
-
-function reconcileAutoExecutionStateAfterStaleNoChapterFailure(input: {
-  chapterRows: TakeoverChapterRow[];
-  latestTaskError?: string | null;
-  state: DirectorWorkflowSeedPayload["autoExecution"] | null | undefined;
-}): DirectorWorkflowSeedPayload["autoExecution"] | null {
-  const state = input.state ?? null;
-  if (!state || !isNoChaptersToGenerateFailure(input.latestTaskError)) {
-    return state;
-  }
-
-  const range = resolveDirectorAutoExecutionRangeFromState(state);
-  if (!range) {
-    return state;
-  }
-
-  const nextChapterId = state.nextChapterId?.trim() || null;
-  const nextChapterOrder = typeof state.nextChapterOrder === "number"
-    ? state.nextChapterOrder
-    : null;
-  const nextChapter = input.chapterRows.find((chapter) => (
-    (nextChapterId && chapter.id === nextChapterId)
-    || (nextChapterOrder != null && chapter.order === nextChapterOrder)
-  )) ?? null;
-  if (!nextChapter || !hasPersistedChapterContent(nextChapter)) {
-    return state;
-  }
-
-  const alreadySkipped = (state.skippedChapterIds ?? []).includes(nextChapter.id)
-    || (state.skippedChapterOrders ?? []).includes(nextChapter.order);
-  if (alreadySkipped) {
-    return state;
-  }
-
-  const hasLaterPendingChapter = input.chapterRows.some((chapter) => (
-    chapter.order > nextChapter.order
-    && chapter.order <= range.endOrder
-    && isPendingAutoExecutionChapter(chapter)
-  ));
-  if (!hasLaterPendingChapter) {
-    return state;
-  }
-
-  const deferredState = buildDirectorAutoExecutionDeferredQualityState({
-    state,
-    reason: "继续已有进度时已跳过当前待修章节，后续章节继续执行。",
-    source: "review_skip",
-  });
-  return buildDirectorAutoExecutionState({
-    range,
-    chapters: input.chapterRows as Parameters<typeof buildDirectorAutoExecutionState>[0]["chapters"],
-    plan: deferredState,
-    scopeLabel: deferredState.scopeLabel ?? null,
-    volumeTitle: deferredState.volumeTitle ?? null,
-    preparedVolumeIds: deferredState.preparedVolumeIds ?? [],
-    pipelineJobId: deferredState.pipelineJobId ?? null,
-    pipelineStatus: deferredState.pipelineStatus ?? null,
-  });
-}
-
-function applyAutoExecutionStateCursorToExecutableRange(
-  range: DirectorTakeoverExecutableRangeSnapshot | null,
-  state: DirectorWorkflowSeedPayload["autoExecution"] | null,
-): DirectorTakeoverExecutableRangeSnapshot | null {
-  if (!range || !state?.enabled) {
-    return range;
-  }
-  const nextChapterOrder = typeof state.nextChapterOrder === "number"
-    && state.nextChapterOrder >= range.startOrder
-    && state.nextChapterOrder <= range.endOrder
-    ? state.nextChapterOrder
-    : range.nextChapterOrder ?? null;
-  const nextChapterId = state.nextChapterId?.trim()
-    ? state.nextChapterId.trim()
-    : range.nextChapterId ?? null;
-  return {
-    ...range,
-    nextChapterId,
-    nextChapterOrder,
-  };
 }
 
 function hasPreparedOutlineChapterExecutionDetail(
@@ -297,7 +201,6 @@ export async function loadDirectorTakeoverState(input: {
     checkpointSummary?: string | null;
     resumeTargetJson?: string | null;
     seedPayloadJson?: string | null;
-    lastError?: string | null;
   } | null>;
 }): Promise<DirectorTakeoverLoadedState> {
   const [novelRow, storyMacroPlan, assets, workspace, activeTask, latestTask, chapterRows, activePipelineJob] = await Promise.all([
@@ -399,16 +302,11 @@ export async function loadDirectorTakeoverState(input: {
     return chapter.generationState !== "approved" && chapter.generationState !== "published";
   }).length;
   const latestSeedPayload = parseSeedPayload<DirectorWorkflowSeedPayload>(latestTask?.seedPayloadJson) ?? null;
-  const reconciledLatestAutoExecutionState = reconcileAutoExecutionStateAfterStaleNoChapterFailure({
-    chapterRows: chapterRows as TakeoverChapterRow[],
-    latestTaskError: latestTask?.lastError ?? null,
-    state: latestSeedPayload?.autoExecution ?? null,
-  });
   const requestedAutoExecutionPlan = input.autoExecutionPlan ?? null;
   const structuredOutlineCursor = workspace
     ? resolveStructuredOutlineRecoveryCursor({
         workspace,
-        plan: requestedAutoExecutionPlan ?? latestSeedPayload?.autoExecutionPlan ?? reconciledLatestAutoExecutionState ?? null,
+        plan: requestedAutoExecutionPlan ?? latestSeedPayload?.autoExecutionPlan ?? latestSeedPayload?.autoExecution ?? null,
       })
     : null;
   const chapterOrderMap = new Map(chapterRows.map((chapter) => [chapter.id, chapter.order]));
@@ -433,7 +331,7 @@ export async function loadDirectorTakeoverState(input: {
     ? null
     : buildPreparedRangeFromState(
         chapterRows as TakeoverChapterRow[],
-        reconciledLatestAutoExecutionState,
+        latestSeedPayload?.autoExecution,
       );
   const executableRangeFromSyncedChapters = structuredOutlineCursor
     && (structuredOutlineCursor.step === "chapter_sync" || structuredOutlineCursor.step === "completed")
@@ -442,8 +340,7 @@ export async function loadDirectorTakeoverState(input: {
         structuredOutlineCursor.selectedChapters.map((chapter) => chapter.chapterOrder),
       )
     : null;
-  const executableRange = applyAutoExecutionStateCursorToExecutableRange(
-    executableRangeFromState
+  const executableRange = executableRangeFromState
     ? {
         startOrder: executableRangeFromState.startOrder,
         endOrder: executableRangeFromState.endOrder,
@@ -451,9 +348,7 @@ export async function loadDirectorTakeoverState(input: {
         nextChapterId: executableRangeFromState.nextChapterId,
         nextChapterOrder: executableRangeFromState.nextChapterOrder,
       }
-    : executableRangeFromSyncedChapters,
-    reconciledLatestAutoExecutionState,
-  );
+    : executableRangeFromSyncedChapters;
 
   return {
     novel,
@@ -480,7 +375,7 @@ export async function loadDirectorTakeoverState(input: {
     activePipelineJob: activePipelineSnapshot,
     latestCheckpoint,
     executableRange,
-    latestAutoExecutionState: reconciledLatestAutoExecutionState,
+    latestAutoExecutionState: latestSeedPayload?.autoExecution ?? null,
   };
 }
 

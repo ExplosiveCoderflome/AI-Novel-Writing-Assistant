@@ -6,10 +6,6 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthControl";
-import {
-  classifyChapterQualityLoopRisk,
-  hasContinuableChapterQualityLoopRiskFlags,
-} from "@ai-novel/shared/types/chapterQualityLoop";
 import { Link } from "react-router-dom";
 import AiButton from "@/components/common/AiButton";
 import AiActionLabel from "@/components/common/AiActionLabel";
@@ -441,7 +437,15 @@ function parseStructuredRiskFlagsObject(input: string): Record<string, unknown> 
 }
 
 export function chapterHasContinuableQualityLoop(chapter: Pick<Chapter, "riskFlags">): boolean {
-  return hasContinuableChapterQualityLoopRiskFlags(chapter.riskFlags);
+  const parsed = chapter.riskFlags?.trim()
+    ? parseStructuredRiskFlagsObject(chapter.riskFlags.trim())
+    : null;
+  const qualityLoop = parsed?.qualityLoop;
+  return Boolean(
+    isRecord(qualityLoop)
+      && qualityLoop.overallStatus === "valid"
+      && qualityLoop.recommendedAction === "continue",
+  );
 }
 
 function parseStructuredRiskFlags(input: string): string[] | null {
@@ -450,15 +454,10 @@ function parseStructuredRiskFlags(input: string): string[] | null {
   const labels: string[] = [];
   const qualityLoop = parsed.qualityLoop;
   if (isRecord(qualityLoop)) {
-    const qualityLoopRisk = classifyChapterQualityLoopRisk(qualityLoop);
-    if (qualityLoopRisk === "non_blocking_quality_debt") {
-      labels.push("已记录质量债务");
-    } else {
-      const actionLabel = qualityLoopActionLabel(qualityLoop.recommendedAction);
-      const statusLabel = qualityLoopStatusLabel(qualityLoop.overallStatus);
-      if (actionLabel) labels.push(actionLabel);
-      if (statusLabel) labels.push(statusLabel);
-    }
+    const actionLabel = qualityLoopActionLabel(qualityLoop.recommendedAction);
+    const statusLabel = qualityLoopStatusLabel(qualityLoop.overallStatus);
+    if (actionLabel) labels.push(actionLabel);
+    if (statusLabel) labels.push(statusLabel);
     const signals = Array.isArray(qualityLoop.signals) ? qualityLoop.signals : [];
     signals.forEach((signal) => {
       if (!isRecord(signal) || signal.status === "valid") {

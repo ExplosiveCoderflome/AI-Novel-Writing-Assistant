@@ -2,7 +2,6 @@ import type {
   DirectorArtifactRef,
   DirectorArtifactType,
 } from "@ai-novel/shared/types/directorRuntime";
-import { hasContinuableChapterQualityLoopRiskFlags } from "@ai-novel/shared/types/chapterQualityLoop";
 import {
   buildDirectorArtifactId,
   compactDirectorArtifactDependencies,
@@ -540,7 +539,27 @@ const AI_GENERATED_CHAPTER_STATES = new Set([
 ]);
 
 export function hasContinuableQualityLoopRiskFlags(riskFlags: string | null | undefined): boolean {
-  return hasContinuableChapterQualityLoopRiskFlags(riskFlags);
+  if (!riskFlags?.trim()) {
+    return false;
+  }
+  try {
+    const parsed = JSON.parse(riskFlags) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return false;
+    }
+    const qualityLoop = (parsed as { qualityLoop?: unknown }).qualityLoop;
+    const isStandardContinue = (qualityLoop as { overallStatus?: unknown }).overallStatus === "valid"
+      && (qualityLoop as { recommendedAction?: unknown }).recommendedAction === "continue";
+    const isDeferredContinue = (qualityLoop as { terminalAction?: unknown }).terminalAction === "defer_and_continue";
+    return Boolean(
+      qualityLoop
+        && typeof qualityLoop === "object"
+        && !Array.isArray(qualityLoop)
+        && (isStandardContinue || isDeferredContinue),
+    );
+  } catch {
+    return false;
+  }
 }
 
 function resolveChapterDraftSource(

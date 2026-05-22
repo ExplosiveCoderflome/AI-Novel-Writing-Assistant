@@ -22,8 +22,6 @@ export const timelineExtractorOutputSchema = z.object({
     storyDayIndex: z.number().int().nullable().optional(),
     label: z.string().nullable().optional(),
   }).nullable().optional(),
-  addressedHookIds: z.array(z.string()).max(12).default([]),
-  resolvedHookIds: z.array(z.string()).max(12).default([]),
   events: z.array(extractedTimelineEventSchema).max(12).default([]),
   hooks: z.array(timelineHookDraftSchema).max(6).default([]),
   stateChanges: z.array(timelineStateChangeSchema).max(12).default([]),
@@ -62,8 +60,6 @@ export const timelineExtractorPrompt: PromptAsset<
       "5. stateChanges 记录角色、地点、势力、关系、道具或世界状态的明确变化。",
       "6. 如果正文提前写出时间线上下文中禁止提前发生的内容，也要如实抽取，后续 checker 会判断。",
       "7. matchedPlannedEventIds 只有在正文确实完成计划事件时填写，否则留空。",
-      "8. 如果正文承接了时间线上下文中的 open/addressed hook，必须把对应 hook id 放入 addressedHookIds；如果该钩子已完整兑现并不应继续污染后续章节，放入 resolvedHookIds。",
-      "9. hook id 必须来自时间线上下文，不能编造；判断承接关系以正文语义为准，不要依赖标题字面相同。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

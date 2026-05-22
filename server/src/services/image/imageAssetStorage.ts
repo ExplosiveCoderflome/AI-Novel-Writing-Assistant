@@ -22,9 +22,8 @@ interface ParsedAssetMetadata {
 
 interface PersistGeneratedImageInput {
   taskId: string;
-  sceneType: "character" | "novel_cover";
+  sceneType: "character";
   baseCharacterId?: string | null;
-  novelId?: string | null;
   sortOrder: number;
   url: string;
   mimeType?: string | null;
@@ -130,11 +129,10 @@ function buildStorageSegments(input: PersistGeneratedImageInput, extension: stri
   localPath: string;
 } {
   const storageRoot = input.storageRoot ?? resolveGeneratedImagesRoot();
-  const ownerSegment = sanitizeSegment(input.baseCharacterId ?? input.novelId ?? input.taskId);
+  const characterSegment = sanitizeSegment(input.baseCharacterId ?? input.taskId);
   const taskSegment = sanitizeSegment(input.taskId);
   const fileName = `image-${String(input.sortOrder + 1).padStart(2, "0")}.${extension}`;
-  const sceneDirectory = input.sceneType === "novel_cover" ? "novel-covers" : "characters";
-  const localPath = path.join(storageRoot, sceneDirectory, ownerSegment, taskSegment, fileName);
+  const localPath = path.join(storageRoot, `${input.sceneType}s`, characterSegment, taskSegment, fileName);
   return {
     relativePath: path.relative(storageRoot, localPath).split(path.sep).join("/"),
     localPath,

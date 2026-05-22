@@ -26,6 +26,7 @@ import {
   buildFailureCircuitBreaker,
   isDirectorCircuitBreakerOpen,
   resolveUsageCircuitBreaker,
+  runFullBookAutopilotReplanNotice,
   stopAutoExecutionForCircuitBreaker,
   withCircuitBreakerState,
 } from "./novelDirectorAutoExecutionCircuitBreakerRuntime";
@@ -324,6 +325,50 @@ export class NovelDirectorAutoExecutionRuntime {
             approveAutoExecutionScope: input.approveAutoExecutionScope,
             skipCurrentQualityRepair: input.skipCurrentQualityRepair,
           });
+          if (
+            noticeAction.checkpointType === "replan_required"
+            && isFullBookAutopilotRunMode(input.request.runMode)
+          ) {
+            const replanNoticeResult = await runFullBookAutopilotReplanNotice({
+                deps: this.deps,
+                taskId: input.taskId,
+                novelId: input.novelId,
+                request: input.request,
+                range,
+                autoExecution,
+                checkpointState: noticeAction.checkpointState,
+                noticeSummary: job.noticeSummary.trim(),
+              })
+            if (replanNoticeResult.stopped) {
+              return;
+            }
+            await this.deps.recordAutoApproval?.({
+              taskId: input.taskId,
+              checkpointType: noticeAction.checkpointType,
+              qualityRepairRisk: noticeAction.qualityRepairRisk,
+              checkpointSummary: job.noticeSummary.trim(),
+            });
+            pipelineJobId = "";
+            const replanExistingState = "autoExecution" in replanNoticeResult && replanNoticeResult.autoExecution
+              ? replanNoticeResult.autoExecution
+              : withCircuitBreakerState(noticeAction.checkpointState, replanNoticeResult.circuitBreaker);
+            ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {
+              novelId: input.novelId,
+              existingState: replanExistingState,
+              pipelineJobId: null,
+              pipelineStatus: "queued",
+            }));
+            await syncAutoExecutionTaskState(this.deps, {
+              taskId: input.taskId,
+              novelId: input.novelId,
+              request: input.request,
+              range,
+              autoExecution,
+              isBackgroundRunning: true,
+              resumeStage: "pipeline",
+            });
+            continue autoExecutionLoop;
+          }
           if (noticeAction.action === "auto_continue") {
             pipelineJobId = "";
             ({ range, autoExecution } = await resolveAutoExecutionRuntimeRangeAndState(this.deps, {

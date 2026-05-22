@@ -6,7 +6,7 @@ export type ImageModelProvider = "openai" | "siliconflow" | "grok";
 const IMAGE_MODEL_SETTING_PREFIX = "provider.imageModel";
 
 const IMAGE_MODEL_OPTIONS: Record<ImageModelProvider, string[]> = {
-  openai: ["gpt-image-2"],
+  openai: ["gpt-image-1"],
   siliconflow: ["black-forest-labs/FLUX.1-schnell"],
   grok: ["grok-imagine-image"],
 };

@@ -17,7 +17,6 @@ import type {
   DirectorQualityLoopBudgetEntry,
   DirectorQualityLoopBudgetNextAction,
 } from "@ai-novel/shared/types/novelDirector";
-import { classifyChapterQualityLoopRisk } from "@ai-novel/shared/types/chapterQualityLoop";
 import { resolveDirectorQualityLoopBudgetNextAction } from "./DirectorQualityLoopBudgetLedgerService";
 
 function timestampOf(value?: string | null): number {
@@ -482,16 +481,7 @@ function buildVisibleRiskBadges(input: {
   }
   for (const event of input.events) {
     if (event.type === "quality_issue_found" || event.type === "quality_loop_assessed") {
-      const qualityLoopRisk = event.type === "quality_loop_assessed"
-        ? classifyChapterQualityLoopRisk((event.metadata?.assessment as unknown) ?? null)
-        : "blocking";
-      if (qualityLoopRisk === "non_blocking_quality_debt") {
-        push({ label: "已暂存质量债", level: "info", source: "event" });
-      } else if (qualityLoopRisk === "blocking") {
-        push({ label: "质量阻塞", level: event.severity === "high" ? "danger" : "warning", source: "event" });
-      } else if (event.type === "quality_issue_found") {
-        push({ label: "质量风险", level: event.severity === "high" ? "danger" : "warning", source: "event" });
-      }
+      push({ label: "质量风险", level: event.severity === "high" ? "danger" : "warning", source: "event" });
     }
     if (event.type === "replan_run_created") {
       push({ label: "已进入重规划", level: "info", source: "event" });

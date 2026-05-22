@@ -13,9 +13,6 @@ const {
 const {
   TimelineExtractorService,
 } = require("../dist/modules/timeline/timeline-extractor.service.js");
-const {
-  StoryTimelineService,
-} = require("../dist/modules/timeline/timeline.service.js");
 
 function baseContext(overrides = {}) {
   return {
@@ -448,95 +445,4 @@ test("TimelinePromptAdapter emits required block with empty context", () => {
 
   assert.match(output, /【时间线约束】/);
   assert.match(output, /【可延后承接的钩子】\n- 无/);
-});
-
-test("StoryTimelineService closes hooks by extractor hook ids and saves chapter time anchor", async () => {
-  const addressedCalls = [];
-  const anchorCalls = [];
-  const repo = {
-    saveExtractedEvents: async (events) => events.map((event, index) => ({
-      ...event,
-      id: `event-${index + 1}`,
-      createdAt: "now",
-      updatedAt: "now",
-    })),
-    upsertChapterTimeAnchor: async (input) => {
-      anchorCalls.push(input);
-      return { id: "anchor-1", createdAt: "now", updatedAt: "now", ...input };
-    },
-    markHooksAddressed: async (input) => {
-      addressedCalls.push(input);
-    },
-    createHooks: async () => {},
-    listEventsBeforeChapter: async () => [],
-    listPlannedEventsForChapter: async () => [],
-    listForbiddenEventsForChapter: async () => [],
-    listOpenHooks: async () => [],
-    listActiveConstraints: async () => [],
-    getChapterTimeAnchor: async () => null,
-    getLatestCheckReport: async () => null,
-    saveCheckReport: async () => null,
-    expireOverdueImmediateHooks: async () => {},
-  };
-  const service = new StoryTimelineService(repo);
-  await service.commitChapterTimeline({
-    novelId: "novel-1",
-    chapterId: "chapter-8",
-    chapterIndex: 8,
-    timeAnchor: { storyDayIndex: 3, label: "第三日夜" },
-    timelineContext: baseContext({
-      openHooks: [
-        {
-          id: "hook-addressed",
-          title: "旧标题A",
-          description: "语义已承接但标题不同。",
-          status: "open",
-          priority: "high",
-          resolveMode: "immediate",
-          blocking: true,
-        },
-        {
-          id: "hook-resolved",
-          title: "旧标题B",
-          description: "语义已完整兑现。",
-          status: "open",
-          priority: "critical",
-          resolveMode: "short_arc",
-          blocking: false,
-        },
-      ],
-    }),
-    extractedEvents: [{
-      title: "完全不同的事件标题",
-      summary: "正文用不同说法完成了旧钩子的承接。",
-      type: "plot",
-      participantNames: [],
-      stateChanges: [],
-      possibleHooks: [],
-      occurred: true,
-      confidence: 0.9,
-      matchedPlannedEventIds: [],
-    }],
-    extractedHooks: [],
-    addressedHookIds: ["hook-addressed"],
-    resolvedHookIds: ["hook-resolved"],
-  });
-
-  assert.equal(anchorCalls.length, 1);
-  assert.equal(anchorCalls[0].timeLabel, "第三日夜");
-  assert.deepEqual(anchorCalls[0].previousHookIds, ["hook-addressed", "hook-resolved"]);
-  assert.deepEqual(addressedCalls, [
-    {
-      hookIds: ["hook-addressed"],
-      chapterId: "chapter-8",
-      chapterIndex: 8,
-      resolved: false,
-    },
-    {
-      hookIds: ["hook-resolved"],
-      chapterId: "chapter-8",
-      chapterIndex: 8,
-      resolved: true,
-    },
-  ]);
 });

@@ -108,23 +108,6 @@ function inferPhaseFromTaskState(input: {
   return null;
 }
 
-function shouldSkipCurrentQualityRepair(input: {
-  continuationMode: DirectorContinuationMode | null;
-  checkpointType?: string | null;
-  currentItemKey?: string | null;
-  currentStage?: string | null;
-}): boolean {
-  if (input.continuationMode === "skip_quality_repair") {
-    return true;
-  }
-  if (input.continuationMode !== "auto_execute_range") {
-    return false;
-  }
-  return input.checkpointType === "replan_required"
-    || input.currentItemKey === "quality_repair"
-    || Boolean(input.currentStage?.includes("质量"));
-}
-
 export class NovelDirectorContinueRuntime {
   constructor(private readonly deps: {
     workflowService: NovelWorkflowService;
@@ -288,12 +271,7 @@ export class NovelDirectorContinueRuntime {
       throw new Error("自动导演任务缺少恢复所需上下文。");
     }
 
-    const requestedSkipQualityRepair = shouldSkipCurrentQualityRepair({
-      continuationMode,
-      checkpointType: row.checkpointType,
-      currentItemKey: row.currentItemKey,
-      currentStage: row.currentStage,
-    });
+    const requestedSkipQualityRepair = continuationMode === "skip_quality_repair";
     const requestedAutoExecutionContinue = continuationMode === "auto_execute_range" || requestedSkipQualityRepair;
     const baseRunMode = normalizeDirectorRunMode(directorInput.runMode ?? fallbackRunMode);
     const runMode = requestedAutoExecutionContinue && !isDirectorAutoExecutionRunMode(baseRunMode)

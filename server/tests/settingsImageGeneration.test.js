@@ -49,7 +49,7 @@ test("GET /api/settings/api-keys exposes image generation metadata for supported
   prisma.appSetting.findMany = async () => ([
     {
       key: "provider.imageModel.openai",
-      value: "gpt-image-2",
+      value: "gpt-image-1",
     },
     {
       key: "provider.imageModel.custom_codex",
@@ -75,10 +75,10 @@ test("GET /api/settings/api-keys exposes image generation metadata for supported
     assert.equal(payload.success, true);
     const openai = payload.data.find((item) => item.provider === "openai");
     assert.ok(openai);
-    assert.equal(openai.currentImageModel, "gpt-image-2");
-    assert.equal(openai.defaultImageModel, "gpt-image-2");
+    assert.equal(openai.currentImageModel, "gpt-image-1");
+    assert.equal(openai.defaultImageModel, "gpt-image-1");
     assert.equal(openai.supportsImageGeneration, true);
-    assert.ok(openai.imageModels.includes("gpt-image-2"));
+    assert.ok(openai.imageModels.includes("gpt-image-1"));
     const custom = payload.data.find((item) => item.provider === "custom_codex");
     assert.ok(custom);
     assert.equal(custom.currentImageModel, "custom-image-model");
@@ -148,7 +148,7 @@ test("PUT /api/settings/api-keys/openai saves image generation model settings", 
       body: JSON.stringify({
         key: "test-openai-key",
         model: "gpt-5",
-        imageModel: "gpt-image-2",
+        imageModel: "gpt-image-1",
         baseURL: "https://api.openai.com/v1",
       }),
     });
@@ -156,13 +156,13 @@ test("PUT /api/settings/api-keys/openai saves image generation model settings", 
     const payload = await response.json();
     assert.equal(payload.success, true);
     assert.equal(payload.data.provider, "openai");
-    assert.equal(payload.data.imageModel, "gpt-image-2");
+    assert.equal(payload.data.imageModel, "gpt-image-1");
     assert.equal(payload.data.supportsImageGeneration, true);
-    assert.ok(payload.data.imageModels.includes("gpt-image-2"));
+    assert.ok(payload.data.imageModels.includes("gpt-image-1"));
     assert.deepEqual(savedImageModelSetting, {
       where: { key: "provider.imageModel.openai" },
-      create: { key: "provider.imageModel.openai", value: "gpt-image-2" },
-      update: { value: "gpt-image-2" },
+      create: { key: "provider.imageModel.openai", value: "gpt-image-1" },
+      update: { value: "gpt-image-1" },
     });
   } finally {
     prisma.aPIKey.findUnique = originalFindUnique;

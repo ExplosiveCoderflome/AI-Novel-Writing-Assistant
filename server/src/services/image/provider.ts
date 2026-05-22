@@ -1,6 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
-import { imageGenerationConfig } from "../../config/imageGeneration";
 import {
   getProviderDefaultBaseUrl,
   getProviderEnvApiKey,
@@ -12,14 +11,7 @@ import {
   getProviderImageModel,
   supportsImageModelSettings,
 } from "../settings/ProviderImageSettingsService";
-import type {
-  ImageBackground,
-  ImageModerationLevel,
-  ImageOutputFormat,
-  ImageProviderGenerateInput,
-  ImageProviderGenerateResult,
-  ImageQuality,
-} from "./types";
+import type { ImageProviderGenerateInput, ImageProviderGenerateResult } from "./types";
 
 function normalizeBaseUrl(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value;
@@ -142,52 +134,6 @@ function buildPrompt(prompt: string, negativePrompt?: string): string {
   return `${cleanPrompt}\n\nAvoid: ${cleanNegativePrompt}`;
 }
 
-function normalizeOptionalEnum<T extends string>(value: T | undefined, skipValues: readonly T[]): T | undefined {
-  if (!value || skipValues.includes(value)) {
-    return undefined;
-  }
-  return value;
-}
-
-export function buildImageGenerationRequestBody(input: ImageProviderGenerateInput): Record<string, unknown> {
-  const requestBody: Record<string, unknown> = {
-    model: input.model,
-    prompt: buildPrompt(input.prompt, input.negativePrompt),
-    n: input.count,
-  };
-
-  if (input.provider === "grok") {
-    const aspectRatio = mapSizeToAspectRatio(input.size);
-    if (aspectRatio) {
-      requestBody.aspect_ratio = aspectRatio;
-    }
-    requestBody.resolution = "1k";
-  } else {
-    requestBody.size = input.size;
-    const quality = normalizeOptionalEnum<ImageQuality>(input.quality, ["auto"]);
-    const background = normalizeOptionalEnum<ImageBackground>(input.background, ["auto"]);
-    const moderation = normalizeOptionalEnum<ImageModerationLevel>(input.moderation, ["auto"]);
-    const outputFormat = input.outputFormat;
-    if (quality) {
-      requestBody.quality = quality;
-    }
-    if (background) {
-      requestBody.background = background;
-    }
-    if (moderation) {
-      requestBody.moderation = moderation;
-    }
-    if (outputFormat) {
-      requestBody.output_format = outputFormat;
-    }
-    if (typeof input.outputCompression === "number" && Number.isFinite(input.outputCompression)) {
-      requestBody.output_compression = Math.max(0, Math.min(100, Math.floor(input.outputCompression)));
-    }
-  }
-
-  return requestBody;
-}
-
 export function isImageProviderSupported(provider: LLMProvider): boolean {
   return supportsImageModelSettings(provider);
 }
@@ -209,14 +155,23 @@ export async function generateImagesByProvider(input: ImageProviderGenerateInput
 
   const { apiKey, baseURL } = await resolveProviderSecret(input.provider);
   const controller = new AbortController();
-  const timeoutMs = imageGenerationConfig.httpTimeoutMs;
-  const timeout = setTimeout(
-    () => controller.abort(new Error(`Image generation request timed out after ${timeoutMs}ms.`)),
-    timeoutMs,
-  );
+  const timeout = setTimeout(() => controller.abort(), 60_000);
 
   try {
-    const requestBody = buildImageGenerationRequestBody(input);
+    const requestBody: Record<string, unknown> = {
+      model: input.model,
+      prompt: buildPrompt(input.prompt, input.negativePrompt),
+      n: input.count,
+    };
+    if (input.provider === "grok") {
+      const aspectRatio = mapSizeToAspectRatio(input.size);
+      if (aspectRatio) {
+        requestBody.aspect_ratio = aspectRatio;
+      }
+      requestBody.resolution = "1k";
+    } else {
+      requestBody.size = input.size;
+    }
 
     const response = await fetch(`${baseURL}/images/generations`, {
       method: "POST",

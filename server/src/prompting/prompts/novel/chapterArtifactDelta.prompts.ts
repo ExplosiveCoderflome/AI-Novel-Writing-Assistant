@@ -29,14 +29,6 @@ function normalizeCharacterResourceDelta(value: unknown): unknown {
   const updateTypeAliases: Record<string, string> = {
     create: "introduced",
     created: "introduced",
-    craft: "introduced",
-    crafted: "introduced",
-    generate: "introduced",
-    generated: "introduced",
-    produce: "introduced",
-    produced: "introduced",
-    refine: "introduced",
-    refined: "introduced",
     discover: "revealed",
     discovered: "revealed",
     expose: "revealed",
@@ -45,94 +37,14 @@ function normalizeCharacterResourceDelta(value: unknown): unknown {
     gained: "acquired",
     obtain: "acquired",
     obtained: "acquired",
-    buy: "acquired",
-    bought: "acquired",
-    purchase: "acquired",
-    purchased: "acquired",
-    spend: "consumed",
-    spent: "consumed",
-  };
-  const resourceTypeAliases: Record<string, string> = {
-    material: "consumable",
-    materials: "consumable",
-    medicine: "consumable",
-    pill: "consumable",
-    elixir: "consumable",
-    currency: "world_resource",
-    money: "world_resource",
-    points: "world_resource",
-    score: "world_resource",
-    spirit_stone: "world_resource",
-    spirit_stones: "world_resource",
-    item: "physical_item",
-    object: "physical_item",
-    token: "relationship_token",
-    ability: "ability_resource",
-    skill: "ability_resource",
-    secret: "hidden_card",
   };
   const updateType = typeof value.updateType === "string"
     ? updateTypeAliases[value.updateType.trim().toLowerCase()] ?? value.updateType
     : value.updateType;
-  const resourceType = typeof value.resourceType === "string"
-    ? resourceTypeAliases[value.resourceType.trim().toLowerCase()] ?? value.resourceType
-    : value.resourceType;
-  const narrativeFunction = normalizeCharacterResourceNarrativeFunction({
-    rawValue: value.narrativeFunction,
-    normalizedResourceType: resourceType,
-    statusAfter: value.statusAfter,
-  });
   return {
     ...value,
-    resourceType,
     updateType,
-    narrativeFunction,
   };
-}
-
-function normalizeCharacterResourceNarrativeFunction(input: {
-  rawValue: unknown;
-  normalizedResourceType: unknown;
-  statusAfter: unknown;
-}): unknown {
-  if (typeof input.rawValue !== "string") {
-    return input.rawValue;
-  }
-  const normalized = input.rawValue.trim().toLowerCase();
-  const aliases: Record<string, string> = {
-    cultivation: "tool",
-    cultivate: "tool",
-    power_up: "tool",
-    upgrade: "tool",
-    material: "cost",
-    materials: "cost",
-    ingredient: "cost",
-    resource: "tool",
-    finance: "cost",
-    financial: "cost",
-    money: "cost",
-    currency: "cost",
-    transaction: "cost",
-    debt: "constraint",
-    obligation: "constraint",
-    permission: "key",
-    access: "key",
-    evidence: "proof",
-  };
-  if (normalized === "finance" && input.normalizedResourceType === "credential") {
-    return "proof";
-  }
-  if (normalized === "finance" && input.statusAfter === "consumed") {
-    return "cost";
-  }
-  return aliases[normalized] ?? input.rawValue;
-}
-
-function normalizeChapterReferenceText(value: unknown): unknown {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return String(value);
-  }
-  return value;
 }
 
 function normalizePayoffRiskSignal(value: unknown, index: number): unknown {
@@ -172,43 +84,13 @@ function normalizePayoffDelta(value: unknown): unknown {
   const currentStatus = typeof value.currentStatus === "string"
     ? statusAliases[value.currentStatus.trim().toLowerCase()] ?? value.currentStatus
     : value.currentStatus;
-  const scopeTypeAliases: Record<string, string> = {
-    story: "book",
-    novel: "book",
-    global: "book",
-    book_level: "book",
-    volume_level: "volume",
-    chapter_level: "chapter",
-  };
-  const scopeType = typeof value.scopeType === "string"
-    ? scopeTypeAliases[value.scopeType.trim().toLowerCase()] ?? value.scopeType
-    : value.scopeType;
   const riskSignals = Array.isArray(value.riskSignals)
     ? value.riskSignals.map((signal, index) => normalizePayoffRiskSignal(signal, index))
     : value.riskSignals;
   return {
     ...value,
-    scopeType,
     currentStatus,
     riskSignals,
-  };
-}
-
-function normalizeSyncPlan(value: unknown): unknown {
-  if (!isRecord(value)) {
-    return value;
-  }
-  const characterDynamicsAliases: Record<string, string> = {
-    delta: "write",
-    full_reconcile: "write",
-    reconcile: "write",
-  };
-  const characterDynamics = typeof value.characterDynamics === "string"
-    ? characterDynamicsAliases[value.characterDynamics.trim().toLowerCase()] ?? value.characterDynamics
-    : value.characterDynamics;
-  return {
-    ...value,
-    characterDynamics,
   };
 }
 
@@ -305,8 +187,8 @@ const chapterArtifactForeshadowStateSchema = z.object({
   title: z.string().trim().min(1),
   summary: nullableText,
   status: z.string().trim().min(1).default("setup"),
-  setupChapterId: z.preprocess(normalizeChapterReferenceText, nullableText),
-  payoffChapterId: z.preprocess(normalizeChapterReferenceText, nullableText),
+  setupChapterId: nullableText,
+  payoffChapterId: nullableText,
 });
 
 export const chapterArtifactDeltaStateSchema = z.object({
@@ -343,13 +225,13 @@ const chapterArtifactCharacterCandidateSchema = z.preprocess(normalizeCharacterC
   confidence: confidenceSchema,
 }));
 
-export const chapterArtifactDeltaSyncPlanSchema = z.preprocess(normalizeSyncPlan, z.object({
+export const chapterArtifactDeltaSyncPlanSchema = z.object({
   stateSnapshot: z.enum(["skip", "write"]).default("write"),
   characterResources: z.enum(["skip", "write"]).default("write"),
   payoffLedger: z.enum(["skip", "delta", "full_reconcile"]).default("delta"),
   characterDynamics: z.enum(["skip", "write"]).default("write"),
   reason: z.string().trim().min(1),
-}));
+});
 
 export const chapterArtifactDeltaOutputSchema = z.object({
   summary: z.string().trim().min(1),
@@ -511,11 +393,6 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "9. payoffDeltas.riskSignals 必须是对象数组，形如 { code, severity, summary }；没有风险就输出 []，不要输出字符串数组。",
       "10. relationDynamics 必须使用 sourceCharacterName、targetCharacterName、stageLabel、stageSummary；characterCandidates 必须使用 proposedName、proposedRole、summary。",
       "11. characterResourceDeltas.updateType 只能使用 introduced、acquired、revealed、used、transferred、lost、consumed、damaged、destroyed、recovered、stale_marked；新创建/首次出现统一用 introduced。",
-      "12. characterResourceDeltas.resourceType 只能使用 physical_item、clue、credential、ability_resource、relationship_token、consumable、hidden_card、world_resource；材料、丹药、一次性药草用 consumable，积分/货币/宗门资源用 world_resource。",
-      "13. characterResourceDeltas.narrativeFunction 只能使用 tool、clue、weapon、proof、key、cost、promise、hidden_card、constraint；修炼增益通常用 tool，消耗材料/积分用 cost，凭据/借据用 proof 或 constraint。",
-      "14. payoffDeltas.scopeType 只能使用 book、volume、chapter；全书/故事级伏笔统一用 book，不要输出 story、novel 或 global。",
-      "15. stateDeltas.foreshadowStates 的 setupChapterId/payoffChapterId 只有在能确认真实 chapterId 时才填写；如果只能确认第几章，宁可省略或写入章节序号字符串，不要输出数字。",
-      "16. syncPlan.stateSnapshot、characterResources、characterDynamics 只能是 skip 或 write；只有 payoffLedger 可以是 skip、delta 或 full_reconcile。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

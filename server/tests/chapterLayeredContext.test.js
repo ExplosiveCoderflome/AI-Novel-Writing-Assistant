@@ -23,7 +23,6 @@ function createContextPackage() {
       revealLevel: 2,
       mustAvoid: "不要提前揭露幕后黑手",
       hook: "下一章才展开幕后黑手反击",
-      taskSheet: "任务单：本章必须承接第四章尾段的维修通道钥匙，并把女二情报转成第一次反压。",
       sceneCards: JSON.stringify({
         targetWordCount: 3000,
         lengthBudget: {
@@ -218,7 +217,6 @@ function createContextPackage() {
     previousChaptersSummary: [
       "上一章：主角踩进陷阱，但确认女二仍掌握关键情报。",
     ],
-    previousChapterTail: "第四章尾段：主角攥紧维修通道钥匙，听见女二留下的暗号，决定立刻从外城维修区反打。",
     openingHint: "Recent openings: none.",
     continuation: {
       enabled: false,
@@ -595,8 +593,6 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.ok(writeContext.openConflictSummaries.some((item) => item.includes("第一次反压仍未落地")));
   assert.equal(writeContext.ledgerSummary.overdueCount, 1);
   assert.equal(writeContext.chapterMission.targetWordCount, 3000);
-  assert.match(writeContext.chapterMission.taskSheet, /维修通道钥匙/);
-  assert.match(writeContext.previousChapterTail, /第四章尾段/);
   assert.equal(writeContext.nextAction, "write_chapter");
   assert.equal(writeContext.lengthBudget.targetWordCount, 3000);
   assert.equal(writeContext.scenePlan.scenes.length, 3);
@@ -628,17 +624,6 @@ test("chapter layered contexts carry volume mission, character duties and repair
     block.id === "payoff_directives"
     && /First payoff after securing the key intel/.test(block.content)
     && /\[pressure\]/.test(block.content)
-  )));
-  assert.ok(writerBlocks.some((block) => (
-    block.id === "chapter_mission"
-    && /Original task sheet/.test(block.content)
-    && /维修通道钥匙/.test(block.content)
-  )));
-  assert.ok(writerBlocks.some((block) => (
-    block.id === "previous_chapter_tail"
-    && block.required
-    && block.allowSummary === false
-    && /第四章尾段/.test(block.content)
   )));
   assert.ok(!writerBlocks.some((block) => block.id === "scene_plan"));
   assert.ok(writerBlocks.some((block) => (

@@ -74,16 +74,6 @@ function toCheckpointType(value: string | null | undefined): NovelWorkflowCheckp
   return typeof value === "string" && value.trim() ? value as NovelWorkflowCheckpoint : null;
 }
 
-function resolveContinueContinuationMode(
-  row: Pick<WorkflowTaskRow, "checkpointType" | "currentItemKey" | "currentStage">,
-): "auto_execute_range" | "skip_quality_repair" {
-  return row.checkpointType === "replan_required"
-    || row.currentItemKey === "quality_repair"
-    || Boolean(row.currentStage?.includes("质量"))
-    ? "skip_quality_repair"
-    : "auto_execute_range";
-}
-
 function buildExecutedCacheKey(input: {
   taskId: string;
   actionCode: AutoDirectorMutationActionCode;
@@ -525,10 +515,10 @@ export class AutoDirectorFollowUpActionExecutor {
       : undefined;
     if (input.actionCode === "continue_auto_execution") {
       const continueInput: {
-        continuationMode: "auto_execute_range" | "skip_quality_repair";
+        continuationMode: "auto_execute_range";
         batchAlreadyStartedCount?: number;
       } = {
-        continuationMode: resolveContinueContinuationMode(row),
+        continuationMode: "auto_execute_range",
       };
       if (batchAlreadyStartedCount !== undefined) {
         continueInput.batchAlreadyStartedCount = batchAlreadyStartedCount;

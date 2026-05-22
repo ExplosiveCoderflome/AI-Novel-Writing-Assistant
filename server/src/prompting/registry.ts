@@ -74,14 +74,6 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/image/image.prompts").imageCharacterPromptOptimizePrompt as UnknownPromptAsset,
   },
   {
-    key: "image.novel_cover.brief@v1",
-    load: () => require("./prompts/image/image.prompts").imageNovelCoverBriefPrompt as UnknownPromptAsset,
-  },
-  {
-    key: "image.novel_cover.prompt_optimize@v1",
-    load: () => require("./prompts/image/image.prompts").imageNovelCoverPromptOptimizePrompt as UnknownPromptAsset,
-  },
-  {
     key: "genre.tree.generate@v1",
     load: () => require("./prompts/genre/genre.prompts").genreTreePrompt as UnknownPromptAsset,
   },

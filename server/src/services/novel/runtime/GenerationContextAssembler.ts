@@ -88,14 +88,6 @@ function extractOpening(content: string, maxLength = OPENING_SLICE_LENGTH): stri
   return content.replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
-function extractChapterTail(content: string | null | undefined, maxLength = 520): string {
-  const normalized = (content ?? "").replace(/\s+/g, " ").trim();
-  if (!normalized) {
-    return "";
-  }
-  return normalized.slice(Math.max(0, normalized.length - maxLength));
-}
-
 function buildWorldContextFromNovel(
   novel: {
     world?: {
@@ -589,7 +581,6 @@ export class GenerationContextAssembler {
     const summaryText = buildSummaryText(previousChaptersSummary);
     const factText = buildFactText(facts);
     const recentChapterContentText = buildRecentChapterContentText(recentChapters);
-    const previousChapterTail = extractChapterTail(recentChapters[0]?.content);
     const charactersContextText = buildCharactersContextText(
       novel.characters.map((item) => ({
         name: item.name,
@@ -671,7 +662,6 @@ export class GenerationContextAssembler {
       creativeDecisions: mappedCreativeDecisions,
       openAuditIssues: mappedOpenAuditIssues,
       previousChaptersSummary,
-      previousChapterTail,
       openingHint,
       continuation: runtimeContinuation,
       styleContext,
@@ -698,10 +688,10 @@ export class GenerationContextAssembler {
       tokenBudgetPolicy: {
         chapterBudgetProfile: "balanced",
         stageTokenCap: {
-          writer: 2600,
+          writer: 1800,
           light_audit: 900,
           full_audit: 2600,
-          repair: 2200,
+          repair: 1600,
         },
         retryCap: {
           full_audit: 1,
@@ -772,7 +762,6 @@ export class GenerationContextAssembler {
       creativeDecisions: mappedCreativeDecisions,
       openAuditIssues: mappedOpenAuditIssues,
       previousChaptersSummary,
-      previousChapterTail,
       openingHint,
       continuation: runtimeContinuation,
       styleContext,
@@ -799,10 +788,10 @@ export class GenerationContextAssembler {
       tokenBudgetPolicy: {
         chapterBudgetProfile: "balanced",
         stageTokenCap: {
-          writer: 2600,
+          writer: 1800,
           light_audit: 900,
           full_audit: 2600,
-          repair: 2200,
+          repair: 1600,
         },
         retryCap: {
           full_audit: 1,

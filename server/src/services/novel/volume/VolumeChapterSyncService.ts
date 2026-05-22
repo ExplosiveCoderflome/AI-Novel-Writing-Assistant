@@ -103,7 +103,7 @@ export class VolumeChapterSyncService {
             title: item.chapter.title,
             order: item.chapter.chapterOrder,
             content: "",
-            expectation: item.chapter.purpose?.trim() || item.chapter.summary,
+            expectation: item.chapter.summary,
             targetWordCount: item.chapter.targetWordCount ?? null,
             conflictLevel: item.chapter.conflictLevel ?? null,
             revealLevel: item.chapter.revealLevel ?? null,
@@ -119,7 +119,7 @@ export class VolumeChapterSyncService {
           data: {
             title: item.chapter.title,
             order: item.chapter.chapterOrder,
-            expectation: item.chapter.purpose?.trim() || item.chapter.summary,
+            expectation: item.chapter.summary,
             targetWordCount: item.chapter.targetWordCount ?? null,
             conflictLevel: item.chapter.conflictLevel ?? null,
             revealLevel: item.chapter.revealLevel ?? null,

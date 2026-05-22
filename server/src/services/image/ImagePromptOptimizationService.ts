@@ -5,16 +5,9 @@ import { imageCharacterPromptOptimizePrompt } from "../../prompting/prompts/imag
 import type {
   ImagePromptOutputLanguage,
   OptimizeCharacterImagePromptRequest,
-  OptimizeNovelCoverImagePromptRequest,
 } from "./types";
-import { optimizeNovelCoverPrompt } from "./novelCover/novelCoverPromptSupport";
 
 export interface OptimizedCharacterImagePrompt {
-  prompt: string;
-  outputLanguage: ImagePromptOutputLanguage;
-}
-
-export interface OptimizedNovelCoverImagePrompt {
   prompt: string;
   outputLanguage: ImagePromptOutputLanguage;
 }
@@ -51,12 +44,6 @@ export class ImagePromptOptimizationService {
       prompt: result.output.trim(),
       outputLanguage: input.outputLanguage,
     };
-  }
-
-  async optimizeNovelCoverPrompt(
-    input: OptimizeNovelCoverImagePromptRequest,
-  ): Promise<OptimizedNovelCoverImagePrompt> {
-    return optimizeNovelCoverPrompt(input);
   }
 }
 

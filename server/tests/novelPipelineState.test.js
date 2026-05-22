@@ -36,7 +36,6 @@ test("startPipelineJob persists maxRetries as a single repair pass", async () =>
   };
 
   let createdInput = null;
-  let capturedChapterQuery = null;
   let scheduledOptions = null;
   prisma.character.count = async () => 1;
   prisma.generationJob.findMany = async () => [];
@@ -45,13 +44,10 @@ test("startPipelineJob persists maxRetries as a single repair pass", async () =>
     _max: { order: 3 },
     _count: { order: 3 },
   });
-  prisma.chapter.findMany = async (input) => {
-    capturedChapterQuery = input;
-    return [
+  prisma.chapter.findMany = async () => ([
     { id: "chapter-1" },
     { id: "chapter-2" },
-    ];
-  };
+  ]);
   prisma.generationJob.create = async (input) => {
     createdInput = input;
     return {
@@ -90,11 +86,6 @@ test("startPipelineJob persists maxRetries as a single repair pass", async () =>
     assert.equal(createdInput.data.maxRetries, 1);
     assert.equal(JSON.parse(createdInput.data.payload).maxRetries, 1);
     assert.equal(scheduledOptions.maxRetries, 1);
-    const terminalContinueCondition = capturedChapterQuery.where.NOT.AND[2].OR.find((condition) => Array.isArray(condition.AND));
-    assert.equal(terminalContinueCondition.AND[0].riskFlags.not, null);
-    assert.equal(terminalContinueCondition.AND[1].riskFlags.contains, '"terminalAction":"defer_and_continue"');
-    assert.equal(terminalContinueCondition.AND[2].riskFlags.not.contains, '"rootCauseCode":"replan_required"');
-    assert.equal(terminalContinueCondition.AND[3].riskFlags.not.contains, '"recommendedAction":"replan"');
   } finally {
     prisma.character.count = original.characterCount;
     prisma.generationJob.findMany = original.generationFindMany;
@@ -193,11 +184,8 @@ test("executePipeline skips chapters already marked for deferred continue when s
     });
 
     const skipConditions = capturedChapterQuery.where.NOT.AND[2].OR;
-    const terminalContinueCondition = skipConditions.find((condition) => Array.isArray(condition.AND));
-    assert.equal(terminalContinueCondition.AND[0].riskFlags.not, null);
-    assert.equal(terminalContinueCondition.AND[1].riskFlags.contains, '"terminalAction":"defer_and_continue"');
-    assert.equal(terminalContinueCondition.AND[2].riskFlags.not.contains, '"rootCauseCode":"replan_required"');
-    assert.equal(terminalContinueCondition.AND[3].riskFlags.not.contains, '"recommendedAction":"replan"');
+    const terminalContinueCondition = skipConditions.find((condition) => condition.riskFlags?.contains);
+    assert.equal(terminalContinueCondition.riskFlags.contains, '"terminalAction":"defer_and_continue"');
     const finalUpdate = updates[updates.length - 1];
     assert.equal(finalUpdate.data.status, "succeeded");
   } finally {
@@ -230,136 +218,6 @@ test("retryPipelineJob rejects jobs that are still cancelling", async () => {
     prisma.generationJob.findUnique = originalFindUnique;
   }
 });
-
-test("decoratePipelineJob describes replan notices without completed-range wording", () => {
-  const decorated = decoratePipelineJob({
-    id: "job-replan",
-    status: "succeeded",
-    payload: JSON.stringify({
-      replanAlertDetails: ["第9章需要重规划（影响章节=9,10,11；原因=缺失比武环节）"],
-    }),
-  });
-
-  assert.equal(decorated.noticeCode, "PIPELINE_REPLAN_REQUIRED");
-  assert.match(decorated.noticeSummary, /已执行至第 9 章，后续需重规划/);
-  assert.match(decorated.noticeSummary, /第9章需要重规划/);
-  assert.doesNotMatch(decorated.noticeSummary, /自动执行完成/);
-});
-
-test("executePipeline stops remaining chapters after a replan recommendation", async () => {
-  const original = {
-    generationFindUnique: prisma.generationJob.findUnique,
-    generationUpdate: prisma.generationJob.update,
-    novelFindUnique: prisma.novel.findUnique,
-    chapterFindMany: prisma.chapter.findMany,
-    createQualityReport: reviewService.createQualityReport,
-    emit: novelEventBus.emit,
-  };
-
-  const updates = [];
-  const processedChapters = [];
-  prisma.generationJob.findUnique = async (input) => {
-    if (input.select?.startedAt) {
-      return {
-        startedAt: null,
-        completedCount: 0,
-        totalCount: 2,
-        retryCount: 0,
-        payload: JSON.stringify({
-          provider: "deepseek",
-          model: "deepseek-chat",
-          temperature: 0.8,
-          runMode: "fast",
-          autoReview: true,
-          autoRepair: true,
-          skipCompleted: true,
-          qualityThreshold: 75,
-          repairMode: "light_repair",
-        }),
-      };
-    }
-    if (input.select?.status) {
-      return {
-        status: "running",
-        cancelRequestedAt: null,
-      };
-    }
-    throw new Error(`Unexpected generationJob.findUnique call: ${JSON.stringify(input)}`);
-  };
-  prisma.generationJob.update = async (input) => {
-    updates.push(input);
-    return input;
-  };
-  prisma.novel.findUnique = async () => ({
-    id: "novel-1",
-    title: "测试小说",
-  });
-  prisma.chapter.findMany = async () => [
-    { id: "chapter-9", order: 9, title: "第九章", content: "", chapterStatus: "unplanned" },
-    { id: "chapter-10", order: 10, title: "第十章", content: "", chapterStatus: "unplanned" },
-  ];
-  reviewService.createQualityReport = async () => null;
-  novelEventBus.emit = async () => null;
-
-  const service = new NovelCorePipelineService();
-  service.chapterRuntimeCoordinator.runPipelineChapter = async (_novelId, chapterId) => {
-    processedChapters.push(chapterId);
-    return {
-      retryCountUsed: 0,
-      score: {
-        coherence: 88,
-        repetition: 88,
-        pacing: 82,
-        voice: 80,
-        engagement: 86,
-        overall: 84,
-      },
-      issues: [],
-      pass: true,
-      runtimePackage: {
-        replanRecommendation: {
-          recommended: true,
-          affectedChapterOrders: [9, 10],
-          triggerReason: "缺失比武环节",
-        },
-      },
-    };
-  };
-
-  try {
-    await service.executePipeline("job-replan-stop", "novel-1", {
-      startOrder: 9,
-      endOrder: 10,
-      provider: "deepseek",
-      model: "deepseek-chat",
-      temperature: 0.8,
-      runMode: "fast",
-      autoReview: true,
-      autoRepair: true,
-      skipCompleted: true,
-      qualityThreshold: 75,
-      repairMode: "light_repair",
-      maxRetries: 1,
-    });
-
-    assert.deepEqual(processedChapters, ["chapter-9"]);
-    const finalUpdate = updates[updates.length - 1];
-    assert.equal(finalUpdate.data.status, "succeeded");
-    assert.equal(finalUpdate.data.currentStage, null);
-    const payload = JSON.parse(finalUpdate.data.payload);
-    assert.deepEqual(payload.replanAlertDetails, [
-      "第9章需要重规划（影响章节=9,10；原因=缺失比武环节）",
-    ]);
-  } finally {
-    prisma.generationJob.findUnique = original.generationFindUnique;
-    prisma.generationJob.update = original.generationUpdate;
-    prisma.novel.findUnique = original.novelFindUnique;
-    prisma.chapter.findMany = original.chapterFindMany;
-    reviewService.createQualityReport = original.createQualityReport;
-    novelEventBus.emit = original.emit;
-  }
-});
-
 
 test("executePipeline preserves persisted quality alerts across resume", async () => {
   const original = {

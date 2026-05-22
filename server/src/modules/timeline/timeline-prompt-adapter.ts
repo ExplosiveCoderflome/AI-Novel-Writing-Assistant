@@ -19,7 +19,7 @@ function isBlockingHook(hook: TimelineContextHook): boolean {
 }
 
 function hookLabel(hook: TimelineContextHook): string {
-  return `[id=${hook.id}] ${hook.title}：${hook.description}（${hook.priority} / ${resolveModeOf(hook)}）`;
+  return `${hook.title}：${hook.description}（${hook.priority} / ${resolveModeOf(hook)}）`;
 }
 
 export class TimelinePromptAdapter {
@@ -72,7 +72,7 @@ export class TimelinePromptAdapter {
       ? "【上一章必须立即承接的钩子】"
       : "【上一章可延后承接的钩子】";
     return listBlock(title, hooks, (hook) =>
-      `[id=${hook.id}] ${hook.title}：${hook.description}（优先级：${hook.priority} / ${resolveModeOf(hook)}）`);
+      `${hook.title}：${hook.description}（优先级：${hook.priority} / ${resolveModeOf(hook)}）`);
   }
 }
 

@@ -14,7 +14,7 @@ export const NOVEL_PROMPT_BUDGETS = {
   volumeChapterList: 1600,
   volumeChapterDetail: 1600,
   volumeRebalance: 1600,
-  chapterWriter: 2600,
+  chapterWriter: 1800,
   chapterAcceptance: 1200,
   chapterArtifactDelta: 1400,
   chapterEditorWorkspaceDiagnosis: 1400,
@@ -22,7 +22,7 @@ export const NOVEL_PROMPT_BUDGETS = {
   chapterEditorRewrite: 1400,
   chapterLightAudit: 900,
   chapterReview: 2600,
-  chapterRepair: 2200,
+  chapterRepair: 1600,
   chapterSummary: 1000,
 } as const;
 
@@ -33,7 +33,6 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
     preferredGroups: [
       "chapter_boundary",
       "chapter_mission",
-      "previous_chapter_tail",
       "timeline_context",
       "previous_chapter_hook",
       "character_hard_facts",
@@ -126,7 +125,6 @@ export const RUNTIME_PROMPT_BUDGET_PROFILES: PromptBudgetProfile[] = [
       "style_contract",
       "repair_issues",
       "chapter_mission",
-      "previous_chapter_tail",
       "repair_boundaries",
       "character_hard_facts",
       "world_rules",

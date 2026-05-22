@@ -1,20 +1,7 @@
-import {
-  DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT,
-  DEFAULT_NOVEL_COVER_STYLE_PRESET,
-} from "@ai-novel/shared/imagePrompt";
-import {
-  DEFAULT_NOVEL_COVER_IMAGE_COUNT,
-  DEFAULT_NOVEL_COVER_IMAGE_SIZE,
-  type ImageAsset,
-  type ImageGenerationTask,
-} from "@ai-novel/shared/types/image";
+import type { ImageAsset, ImageGenerationTask } from "@ai-novel/shared/types/image";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
-import {
-  buildNovelCoverTaskPrompt,
-  loadNovelCoverNovel,
-} from "./novelCover/novelCoverPromptSupport";
 import { generateImagesByProvider, isImageProviderSupported, resolveImageModel } from "./provider";
 import {
   persistGeneratedImageAsset,
@@ -28,95 +15,18 @@ import {
   toImageAsset,
   toImageTask,
 } from "./imageGenerationMappers";
-import type {
-  CharacterImageGenerationRequest,
-  ImageSize,
-  NovelCoverImageGenerationRequest,
-} from "./types";
-
-type SupportedImageSceneType = "character" | "novel_cover";
-
-function mergeNovelCoverNegativePrompt(input: string | null | undefined): string {
-  const normalized = input?.trim();
-  if (!normalized) {
-    return DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT;
-  }
-  return normalized.includes(DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT)
-    ? normalized
-    : `${normalized}，${DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT}`;
-}
-
-function resolveTaskOwnerKey(task: {
-  sceneType: string;
-  baseCharacterId: string | null;
-  novelId: string | null;
-}): string | null {
-  if (task.sceneType === "novel_cover") {
-    return task.novelId;
-  }
-  if (task.sceneType === "character") {
-    return task.baseCharacterId;
-  }
-  return null;
-}
-
-function resolveSceneType(sceneType: string): SupportedImageSceneType {
-  if (sceneType === "character" || sceneType === "novel_cover") {
-    return sceneType;
-  }
-  throw new AppError(`Scene type ${sceneType} is not supported for image generation yet.`, 400);
-}
-
-function buildAssetOwnerWhere(input: {
-  sceneType: SupportedImageSceneType;
-  baseCharacterId: string | null;
-  novelId: string | null;
-}): Record<string, unknown> {
-  if (input.sceneType === "novel_cover") {
-    if (!input.novelId) {
-      throw new AppError("Novel cover asset is missing novelId.", 400);
-    }
-    return {
-      sceneType: "novel_cover",
-      novelId: input.novelId,
-    };
-  }
-
-  if (!input.baseCharacterId) {
-    throw new AppError("Character image asset is missing baseCharacterId.", 400);
-  }
-  return {
-    sceneType: "character",
-    baseCharacterId: input.baseCharacterId,
-  };
-}
-
-function buildMissingOwnerError(sceneType: SupportedImageSceneType): string {
-  return sceneType === "novel_cover"
-    ? "Novel was not found."
-    : "Base character was not found.";
-}
-
-function resolveCurrentItemLabel(task: {
-  sceneType: string;
-  baseCharacter?: { name: string } | null;
-  novel?: { title: string } | null;
-} | null): string | null {
-  if (!task) {
-    return null;
-  }
-  if (task.sceneType === "novel_cover") {
-    return task.novel?.title ?? null;
-  }
-  return task.baseCharacter?.name ?? null;
-}
+import type { ImageGenerationRequest } from "./types";
 
 export class ImageGenerationService {
   private readonly queue: string[] = [];
   private readonly queueSet = new Set<string>();
   private processing = false;
 
-  async createCharacterTask(input: CharacterImageGenerationRequest): Promise<ImageGenerationTask> {
+  async createCharacterTask(input: ImageGenerationRequest): Promise<ImageGenerationTask> {
+    if (input.sceneType !== "character") {
+      throw new AppError("Only character image generation is supported in phase one.", 400);
+    }
+
     const provider: LLMProvider = input.provider ?? "openai";
     if (!isImageProviderSupported(provider)) {
       throw new AppError(`Provider ${provider} is not supported for image generation yet.`, 400);
@@ -137,7 +47,6 @@ export class ImageGenerationService {
       data: {
         sceneType: "character",
         baseCharacterId: character.id,
-        novelId: null,
         provider,
         model,
         prompt,
@@ -158,46 +67,6 @@ export class ImageGenerationService {
     return toImageTask(task);
   }
 
-  async createNovelCoverTask(input: NovelCoverImageGenerationRequest): Promise<ImageGenerationTask> {
-    const provider: LLMProvider = input.provider ?? "openai";
-    if (!isImageProviderSupported(provider)) {
-      throw new AppError(`Provider ${provider} is not supported for image generation yet.`, 400);
-    }
-
-    const novel = await loadNovelCoverNovel(input.novelId);
-    const model = await resolveImageModel(provider, input.model);
-    const prompt = input.promptMode === "direct"
-      ? input.prompt.trim()
-      : await buildNovelCoverTaskPrompt({
-        novelId: novel.id,
-        sourcePrompt: input.prompt,
-        stylePreset: input.stylePreset?.trim() || DEFAULT_NOVEL_COVER_STYLE_PRESET,
-      });
-    const task = await prisma.imageGenerationTask.create({
-      data: {
-        sceneType: "novel_cover",
-        baseCharacterId: null,
-        novelId: novel.id,
-        provider,
-        model,
-        prompt,
-        negativePrompt: mergeNovelCoverNegativePrompt(input.negativePrompt),
-        stylePreset: input.stylePreset?.trim() || DEFAULT_NOVEL_COVER_STYLE_PRESET,
-        size: input.size ?? DEFAULT_NOVEL_COVER_IMAGE_SIZE,
-        imageCount: input.count ?? DEFAULT_NOVEL_COVER_IMAGE_COUNT,
-        seed: input.seed,
-        status: "queued",
-        maxRetries: input.maxRetries ?? 2,
-        heartbeatAt: null,
-        currentStage: "queued",
-        currentItemKey: novel.id,
-        currentItemLabel: novel.title,
-      },
-    });
-    this.enqueueTask(task.id);
-    return toImageTask(task);
-  }
-
   async getTask(taskId: string): Promise<ImageGenerationTask> {
     const task = await prisma.imageGenerationTask.findUnique({
       where: { id: taskId },
@@ -208,13 +77,6 @@ export class ImageGenerationService {
   async retryTask(taskId: string): Promise<ImageGenerationTask> {
     const task = await prisma.imageGenerationTask.findUnique({
       where: { id: taskId },
-      select: {
-        id: true,
-        status: true,
-        sceneType: true,
-        baseCharacterId: true,
-        novelId: true,
-      },
     });
     if (!task) {
       throw new AppError("Image task not found.", 404);
@@ -234,7 +96,7 @@ export class ImageGenerationService {
         finishedAt: null,
         heartbeatAt: null,
         currentStage: "queued",
-        currentItemKey: resolveTaskOwnerKey(task),
+        currentItemKey: task.baseCharacterId,
         currentItemLabel: null,
         cancelRequestedAt: null,
       },
@@ -291,17 +153,6 @@ export class ImageGenerationService {
     return assets.map((item) => toImageAsset(item));
   }
 
-  async listNovelCoverAssets(novelId: string): Promise<ImageAsset[]> {
-    const assets = await prisma.imageAsset.findMany({
-      where: {
-        sceneType: "novel_cover",
-        novelId,
-      },
-      orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }],
-    });
-    return assets.map((item) => toImageAsset(item));
-  }
-
   async setPrimaryAsset(assetId: string): Promise<ImageAsset> {
     const asset = await prisma.imageAsset.findUnique({
       where: { id: assetId },
@@ -309,17 +160,15 @@ export class ImageGenerationService {
     if (!asset) {
       throw new AppError("Image asset not found.", 404);
     }
-
-    const sceneType = resolveSceneType(asset.sceneType);
-    const ownerWhere = buildAssetOwnerWhere({
-      sceneType,
-      baseCharacterId: asset.baseCharacterId,
-      novelId: asset.novelId,
-    });
-
+    if (!asset.baseCharacterId) {
+      throw new AppError("Asset is missing baseCharacterId.", 400);
+    }
     await prisma.$transaction(async (tx) => {
       await tx.imageAsset.updateMany({
-        where: ownerWhere,
+        where: {
+          sceneType: "character",
+          baseCharacterId: asset.baseCharacterId,
+        },
         data: { isPrimary: false },
       });
       await tx.imageAsset.update({
@@ -339,24 +188,20 @@ export class ImageGenerationService {
       throw new AppError("Image asset not found.", 404);
     }
 
-    const sceneType = resolveSceneType(asset.sceneType);
-    const ownerWhere = buildAssetOwnerWhere({
-      sceneType,
-      baseCharacterId: asset.baseCharacterId,
-      novelId: asset.novelId,
-    });
-
     await prisma.$transaction(async (tx) => {
       await tx.imageAsset.delete({
         where: { id: asset.id },
       });
 
-      if (!asset.isPrimary) {
+      if (!asset.isPrimary || !asset.baseCharacterId) {
         return;
       }
 
       const replacement = await tx.imageAsset.findFirst({
-        where: ownerWhere,
+        where: {
+          sceneType: asset.sceneType as "character",
+          baseCharacterId: asset.baseCharacterId,
+        },
         orderBy: [{ createdAt: "desc" }],
       });
 
@@ -491,15 +336,7 @@ export class ImageGenerationService {
   private async executeTask(taskId: string): Promise<void> {
     const task = await prisma.imageGenerationTask.findUnique({
       where: { id: taskId },
-      include: {
-        baseCharacter: true,
-        novel: {
-          select: {
-            id: true,
-            title: true,
-          },
-        },
-      },
+      include: { baseCharacter: true },
     });
     if (!task) {
       return;
@@ -507,22 +344,17 @@ export class ImageGenerationService {
     if ((task.status !== "queued" && task.status !== "running") || task.pendingManualRecovery) {
       return;
     }
-
-    const sceneType = resolveSceneType(task.sceneType);
-    const currentItemKey = resolveTaskOwnerKey(task);
-    const currentItemLabel = resolveCurrentItemLabel(task);
-
     if (task.cancelRequestedAt) {
       await this.markCancelled(task.id, task.progress);
       return;
     }
-    if (!currentItemKey || !currentItemLabel) {
+    if (!task.baseCharacterId || !task.baseCharacter) {
       await prisma.imageGenerationTask.update({
         where: { id: task.id },
         data: {
           status: "failed",
           progress: 1,
-          error: buildMissingOwnerError(sceneType),
+          error: "Base character was not found.",
           heartbeatAt: null,
           currentStage: null,
           currentItemKey: null,
@@ -533,7 +365,6 @@ export class ImageGenerationService {
       });
       return;
     }
-
     await prisma.imageGenerationTask.update({
       where: { id: task.id },
       data: {
@@ -544,8 +375,8 @@ export class ImageGenerationService {
         startedAt: task.startedAt ?? new Date(),
         heartbeatAt: new Date(),
         currentStage: "submitting",
-        currentItemKey,
-        currentItemLabel,
+        currentItemKey: task.baseCharacterId,
+        currentItemLabel: task.baseCharacter.name,
       },
     });
 
@@ -556,18 +387,17 @@ export class ImageGenerationService {
         data: {
           heartbeatAt: new Date(),
           currentStage: "generating",
-          currentItemKey,
-          currentItemLabel,
+          currentItemKey: task.baseCharacterId,
+          currentItemLabel: task.baseCharacter.name,
         },
       });
 
       const result = await generateImagesByProvider({
-        sceneType,
         provider: task.provider as LLMProvider,
         model: task.model,
         prompt: task.prompt,
         negativePrompt: task.negativePrompt ?? undefined,
-        size: task.size as ImageSize,
+        size: task.size as "512x512" | "768x768" | "1024x1024" | "1024x1536" | "1536x1024",
         count: task.imageCount,
         seed: task.seed ?? undefined,
       });
@@ -591,9 +421,8 @@ export class ImageGenerationService {
         const image = result.images[index];
         const persisted = await persistGeneratedImageAsset({
           taskId: task.id,
-          sceneType,
+          sceneType: "character",
           baseCharacterId: task.baseCharacterId,
-          novelId: task.novelId,
           sortOrder: index,
           url: image.url,
           mimeType: image.mimeType ?? null,
@@ -601,17 +430,12 @@ export class ImageGenerationService {
         persistedImages.push({ image, persisted });
       }
 
-      const ownerWhere = buildAssetOwnerWhere({
-        sceneType,
-        baseCharacterId: task.baseCharacterId,
-        novelId: task.novelId,
-      });
-
       await this.ensureNotCancelled(task.id);
       await prisma.$transaction(async (tx) => {
         const hasPrimary = await tx.imageAsset.findFirst({
           where: {
-            ...ownerWhere,
+            sceneType: "character",
+            baseCharacterId: task.baseCharacterId,
             isPrimary: true,
           },
           select: { id: true },
@@ -621,9 +445,8 @@ export class ImageGenerationService {
           await tx.imageAsset.create({
             data: {
               taskId: task.id,
-              sceneType,
-              baseCharacterId: sceneType === "character" ? task.baseCharacterId : null,
-              novelId: sceneType === "novel_cover" ? task.novelId : null,
+              sceneType: "character",
+              baseCharacterId: task.baseCharacterId,
               provider: result.provider,
               model: result.model,
               url: persisted.persistedUrl,

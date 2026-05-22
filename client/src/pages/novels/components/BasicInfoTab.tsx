@@ -7,7 +7,6 @@ import { BookFramingQuickFillButton } from "./basicInfoForm/BookFramingQuickFill
 import CollapsibleSummary from "./CollapsibleSummary";
 import NovelCreateTitleQuickFill from "./titleWorkshop/NovelCreateTitleQuickFill";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
-import { NovelCoverCard } from "./cover/NovelCoverCard";
 
 export default function BasicInfoTab(props: BasicTabProps) {
   return (
@@ -47,16 +46,6 @@ export default function BasicInfoTab(props: BasicTabProps) {
                 basicForm={props.basicForm}
                 genreOptions={props.genreOptions}
                 onApplySuggestion={props.onFormChange}
-              />
-            )}
-            coverSection={(
-              <NovelCoverCard
-                novelId={props.novelId}
-                basicForm={props.basicForm}
-                genreOptions={props.genreOptions}
-                storyModeOptions={props.storyModeOptions}
-                worldOptions={props.worldOptions}
-                worldSliceView={props.worldSliceView}
               />
             )}
             projectQuickStart={props.projectQuickStart}

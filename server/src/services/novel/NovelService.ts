@@ -9,7 +9,6 @@ import { buildManualProductionControlPolicy } from "./production/ChapterExecutio
 import { registerChapterPreparationStageRunner } from "./production/ChapterPreparationStageRunner";
 import { novelProductionOrchestrator } from "./production/NovelProductionOrchestrator";
 import { registerQualityRepairStageRunner } from "./production/QualityRepairStageRunner";
-import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
 import { NovelVolumeService } from "./volume/NovelVolumeService";
 import { NovelChapterEditorService } from "./chapterEditor/NovelChapterEditorService";
 import { ChapterEditorWorkspaceService } from "./chapterEditor/ChapterEditorWorkspaceService";
@@ -22,10 +21,6 @@ export class NovelService extends NovelPipelineService {
   private readonly volumeService = new NovelVolumeService();
   private readonly chapterEditorWorkspaceService = new ChapterEditorWorkspaceService();
   private readonly chapterEditorService = new NovelChapterEditorService();
-  private readonly qualityRepairCoordinator = new ChapterRuntimeCoordinator({
-    reviewChapterAfterRepair: (novelId, chapterId, options) => this.core.reviewChapter(novelId, chapterId, options),
-    resolveAuditIssues: (novelId, issueIds) => this.core.resolveAuditIssues(novelId, issueIds),
-  });
 
   constructor() {
     super();
@@ -34,7 +29,6 @@ export class NovelService extends NovelPipelineService {
     });
     registerQualityRepairStageRunner({
       getCore: () => this.core,
-      getCoordinator: () => this.qualityRepairCoordinator,
     });
   }
 
@@ -234,25 +228,6 @@ export class NovelService extends NovelPipelineService {
       throw new Error("Unified quality repair stage did not return a replan payload.");
     }
     return result.payload as Awaited<ReturnType<NovelCoreService["replanNovel"]>>;
-  }
-
-  async createRepairStream(...args: Parameters<NovelCoreService["createRepairStream"]>) {
-    const [novelId, chapterId, options] = args;
-    const result = await novelProductionOrchestrator.runStage({
-      novelId,
-      stage: "quality_repair",
-      policy: buildManualProductionControlPolicy(),
-      trigger: "manual_repair_chapter",
-      payload: {
-        mode: "repair_chapter_stream",
-        chapterId,
-        options,
-      },
-    });
-    if (!result.payload) {
-      throw new Error("Unified quality repair stage did not return a repair stream payload.");
-    }
-    return result.payload as Awaited<ReturnType<ChapterRuntimeCoordinator["createRepairStream"]>>;
   }
 
   auditChapter(...args: Parameters<NovelCoreService["auditChapter"]>) {
