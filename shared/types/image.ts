@@ -2,10 +2,12 @@ export type ImageSceneType = "character" | "novel_cover" | "chapter_illustration
 
 export type ImageTaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
 
-export interface ImageGenerationTask {
+export const DEFAULT_NOVEL_COVER_IMAGE_SIZE = "1024x1536";
+export const DEFAULT_NOVEL_COVER_IMAGE_COUNT = 2;
+
+interface BaseImageGenerationTask {
   id: string;
   sceneType: ImageSceneType;
-  baseCharacterId?: string | null;
   provider: string;
   model: string;
   prompt: string;
@@ -30,11 +32,33 @@ export interface ImageGenerationTask {
   updatedAt: string;
 }
 
-export interface ImageAsset {
+export type CharacterImageGenerationTask = BaseImageGenerationTask & {
+  sceneType: "character";
+  baseCharacterId: string;
+  novelId?: null;
+};
+
+export type NovelCoverImageGenerationTask = BaseImageGenerationTask & {
+  sceneType: "novel_cover";
+  novelId: string;
+  baseCharacterId?: null;
+};
+
+export type ChapterIllustrationImageGenerationTask = BaseImageGenerationTask & {
+  sceneType: "chapter_illustration";
+  baseCharacterId?: string | null;
+  novelId?: string | null;
+};
+
+export type ImageGenerationTask =
+  | CharacterImageGenerationTask
+  | NovelCoverImageGenerationTask
+  | ChapterIllustrationImageGenerationTask;
+
+interface BaseImageAsset {
   id: string;
   taskId: string;
   sceneType: ImageSceneType;
-  baseCharacterId?: string | null;
   provider: string;
   model: string;
   url: string;
@@ -51,3 +75,26 @@ export interface ImageAsset {
   createdAt: string;
   updatedAt: string;
 }
+
+export type CharacterImageAsset = BaseImageAsset & {
+  sceneType: "character";
+  baseCharacterId: string;
+  novelId?: null;
+};
+
+export type NovelCoverImageAsset = BaseImageAsset & {
+  sceneType: "novel_cover";
+  novelId: string;
+  baseCharacterId?: null;
+};
+
+export type ChapterIllustrationImageAsset = BaseImageAsset & {
+  sceneType: "chapter_illustration";
+  baseCharacterId?: string | null;
+  novelId?: string | null;
+};
+
+export type ImageAsset =
+  | CharacterImageAsset
+  | NovelCoverImageAsset
+  | ChapterIllustrationImageAsset;

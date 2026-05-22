@@ -46,6 +46,7 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
   const generationStates = [];
   const savedDrafts = [];
   const finalSyncs = [];
+  const timelineFinalizationCalls = [];
   let finalizeCalled = false;
 
   const result = await runPipelineChapterWithRuntime(
@@ -80,6 +81,9 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
         finalizeCalled = true;
         throw new Error("should not finalize");
       },
+      async finalizeChapterTimeline(input) {
+        timelineFinalizationCalls.push(input);
+      },
         async markChapterGenerationState(_chapterId, generationState) {
           generationStates.push(generationState);
         },
@@ -99,6 +103,9 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
   );
 
   assert.equal(finalizeCalled, false);
+  assert.equal(timelineFinalizationCalls.length, 1);
+  assert.equal(timelineFinalizationCalls[0].mode, "stable");
+  assert.equal(timelineFinalizationCalls[0].reason, "auto_review_disabled_final_content");
   assert.deepEqual(stages, ["generating_chapters"]);
   assert.deepEqual(savedDrafts, [{
     content: "生成后的正文",
@@ -681,6 +688,7 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
   const savedDrafts = [];
   const finalSyncs = [];
   const generationStates = [];
+  const finalizationCalls = [];
   let reviewCount = 0;
 
   promptRunner.runStructuredPrompt = async () => ({
@@ -736,11 +744,14 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
             runtimePackage: createRuntimePackage(reviewCount === 1 ? 72 : 73),
           };
         },
-      async markChapterGenerationState(_chapterId, generationState) {
-        generationStates.push(generationState);
+        async finalizeChapterTimeline(input) {
+          finalizationCalls.push(input);
+        },
+        async markChapterGenerationState(_chapterId, generationState) {
+          generationStates.push(generationState);
+        },
+        async markChapterNeedsRepair() {},
       },
-      async markChapterNeedsRepair() {},
-    },
       "novel-1",
       "chapter-1",
       {
@@ -771,6 +782,11 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
       },
     ]);
     assert.equal(finalSyncs.length, 1);
+    assert.equal(finalizationCalls.length, 1);
+    assert.equal(finalizationCalls[0].mode, "degraded");
+    assert.equal(finalizationCalls[0].reason, "max_repair_attempts_exhausted");
+    assert.equal(finalizationCalls[0].qualityDebt, true);
+    assert.equal(finalizationCalls[0].content, "修后复审正文");
   } finally {
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }

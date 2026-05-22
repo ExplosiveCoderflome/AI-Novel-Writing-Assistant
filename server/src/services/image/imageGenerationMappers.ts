@@ -24,6 +24,7 @@ export function toImageTask(row: Awaited<{
   id: string;
   sceneType: string;
   baseCharacterId: string | null;
+  novelId: string | null;
   provider: string;
   model: string;
   prompt: string;
@@ -50,10 +51,9 @@ export function toImageTask(row: Awaited<{
   if (!row) {
     throw new AppError("Image task not found.", 404);
   }
-  return {
+
+  const baseTask = {
     id: row.id,
-    sceneType: row.sceneType as ImageGenerationTask["sceneType"],
-    baseCharacterId: row.baseCharacterId,
     provider: row.provider,
     model: row.model,
     prompt: row.prompt,
@@ -77,6 +77,32 @@ export function toImageTask(row: Awaited<{
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+
+  switch (row.sceneType) {
+    case "character":
+      return {
+        ...baseTask,
+        sceneType: "character",
+        baseCharacterId: row.baseCharacterId ?? "",
+        novelId: null,
+      };
+    case "novel_cover":
+      return {
+        ...baseTask,
+        sceneType: "novel_cover",
+        novelId: row.novelId ?? "",
+        baseCharacterId: null,
+      };
+    case "chapter_illustration":
+      return {
+        ...baseTask,
+        sceneType: "chapter_illustration",
+        baseCharacterId: row.baseCharacterId,
+        novelId: row.novelId,
+      };
+    default:
+      throw new AppError(`Unsupported image task scene type: ${row.sceneType}`, 500);
+  };
 }
 
 export function toImageAsset(row: Awaited<{
@@ -84,6 +110,7 @@ export function toImageAsset(row: Awaited<{
   taskId: string;
   sceneType: string;
   baseCharacterId: string | null;
+  novelId: string | null;
   provider: string;
   model: string;
   url: string;
@@ -109,11 +136,10 @@ export function toImageAsset(row: Awaited<{
       || !/^[a-z][a-z0-9+.-]*:/i.test(row.url),
   );
   const sourceUrl = metadata.sourceUrl ?? (isStoredAsset ? null : row.url);
-  return {
+
+  const baseAsset = {
     id: row.id,
     taskId: row.taskId,
-    sceneType: row.sceneType as ImageAsset["sceneType"],
-    baseCharacterId: row.baseCharacterId,
     provider: row.provider,
     model: row.model,
     url: isStoredAsset ? buildImageAssetPublicUrl(row.id) : row.url,
@@ -129,6 +155,32 @@ export function toImageAsset(row: Awaited<{
     metadata: row.metadata,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
+  };
+
+  switch (row.sceneType) {
+    case "character":
+      return {
+        ...baseAsset,
+        sceneType: "character",
+        baseCharacterId: row.baseCharacterId ?? "",
+        novelId: null,
+      };
+    case "novel_cover":
+      return {
+        ...baseAsset,
+        sceneType: "novel_cover",
+        novelId: row.novelId ?? "",
+        baseCharacterId: null,
+      };
+    case "chapter_illustration":
+      return {
+        ...baseAsset,
+        sceneType: "chapter_illustration",
+        baseCharacterId: row.baseCharacterId,
+        novelId: row.novelId,
+      };
+    default:
+      throw new AppError(`Unsupported image asset scene type: ${row.sceneType}`, 500);
   };
 }
 

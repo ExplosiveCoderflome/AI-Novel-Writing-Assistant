@@ -162,6 +162,60 @@ test("auto director follow-up action executor continues auto execution and dedup
   prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
 });
 
+test("auto director follow-up action executor sends skip_quality_repair for quality-repair checkpoints", async () => {
+  const executor = new AutoDirectorFollowUpActionExecutor();
+  const calls = [];
+  const originals = {
+    actionLogFindUnique: prisma.autoDirectorFollowUpActionLog.findUnique,
+    actionLogCreate: prisma.autoDirectorFollowUpActionLog.create,
+  };
+  const actionLogs = new Map();
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = async ({ where }) => actionLogs.get(where.idempotencyKey) ?? null;
+  prisma.autoDirectorFollowUpActionLog.create = async ({ data }) => {
+    actionLogs.set(data.idempotencyKey, {
+      ...data,
+      executedAt: data.executedAt ?? new Date(),
+    });
+    return actionLogs.get(data.idempotencyKey);
+  };
+  executor.workflowService.healAutoDirectorTaskState = async () => false;
+  executor.workflowService.getTaskByIdWithoutHealing = async () => buildWorkflowRow({
+    id: "task_quality_repair_continue",
+    currentStage: "质量修复",
+    currentItemKey: "quality_repair",
+    checkpointType: "chapter_batch_ready",
+    currentItemLabel: "等待跳过本次建议后继续自动执行",
+  });
+  executor.novelDirectorService.continueTask = async (taskId, input) => {
+    calls.push({ taskId, input });
+  };
+  executor.workflowTaskAdapter.detail = async (taskId) => buildTaskDetail(taskId, {
+    checkpointType: "chapter_batch_ready",
+    currentStage: "质量修复",
+    currentItemKey: "quality_repair",
+  });
+
+  const result = await executor.execute({
+    taskId: "task_quality_repair_continue",
+    actionCode: "continue_auto_execution",
+    source: "web",
+    operatorId: "user_skip",
+    idempotencyKey: "continue-quality-repair-k1",
+  });
+
+  assert.equal(result.code, "executed");
+  assert.deepEqual(calls, [{
+    taskId: "task_quality_repair_continue",
+    input: {
+      continuationMode: "skip_quality_repair",
+    },
+  }]);
+
+  prisma.autoDirectorFollowUpActionLog.findUnique = originals.actionLogFindUnique;
+  prisma.autoDirectorFollowUpActionLog.create = originals.actionLogCreate;
+});
+
 test("auto director follow-up action executor retries with the route model and resumes execution", async () => {
   const executor = new AutoDirectorFollowUpActionExecutor();
   const calls = [];

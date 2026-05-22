@@ -23,6 +23,8 @@ export { buildPipelineCurrentItemLabel, buildPipelineStageProgress } from "./pip
 
 const PIPELINE_HEARTBEAT_INTERVAL_MS = 15000;
 const TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT = '"terminalAction":"defer_and_continue"';
+const REPLAN_REQUIRED_QUALITY_LOOP_RISK_FLAG_FRAGMENT = '"rootCauseCode":"replan_required"';
+const REPLAN_ACTION_QUALITY_LOOP_RISK_FLAG_FRAGMENT = '"recommendedAction":"replan"';
 
 function clampPipelineMaxRetries(value: number | null | undefined): number {
   return Math.max(0, Math.min(value ?? 1, 1));
@@ -42,7 +44,14 @@ function buildSkipCompletedChapterWhere(): Prisma.ChapterWhereInput {
           OR: [
             { generationState: { in: ["approved", "published"] } },
             { chapterStatus: "completed" },
-            { riskFlags: { contains: TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT } },
+            {
+              AND: [
+                { riskFlags: { not: null } },
+                { riskFlags: { contains: TERMINAL_CONTINUE_QUALITY_LOOP_RISK_FLAG_FRAGMENT } },
+                { riskFlags: { not: { contains: REPLAN_REQUIRED_QUALITY_LOOP_RISK_FLAG_FRAGMENT } } },
+                { riskFlags: { not: { contains: REPLAN_ACTION_QUALITY_LOOP_RISK_FLAG_FRAGMENT } } },
+              ],
+            },
           ],
         },
       ],
@@ -647,6 +656,7 @@ export class NovelCorePipelineService {
           await this.ensurePipelineNotCancelled(jobId);
 
           let final = { score: normalizeScore({}), issues: [] as ReviewIssue[] };
+          let shouldStopAfterCurrentChapter = false;
           const currentItemLabel = buildPipelineCurrentItemLabel({
             completedCount: completed,
             totalCount,
@@ -798,6 +808,7 @@ export class NovelCorePipelineService {
             replanAlertDetails.push(
               `第${chapter.order}章需要重规划（${impactedOrders}；原因=${replanRecommendation.triggerReason ?? replanRecommendation.reason}）`,
             );
+            shouldStopAfterCurrentChapter = true;
           }
 
           completed += 1;
@@ -820,6 +831,14 @@ export class NovelCorePipelineService {
             progress: Number((completed / totalCount).toFixed(4)),
             retryCount: totalRetryCount,
           });
+          if (shouldStopAfterCurrentChapter) {
+            logPipelineWarn("章节触发重规划，已停止后续章节流水线", {
+              jobId,
+              order: chapter.order,
+              remaining: Math.max(0, totalCount - completed),
+            });
+            break;
+          }
         }
 
         const finalStatus: "succeeded" = "succeeded";

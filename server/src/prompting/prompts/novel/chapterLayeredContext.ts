@@ -171,6 +171,7 @@ export function buildChapterMissionContext(contextPackage: GenerationContextPack
       compactText(contextPackage.chapter.expectation)
       || compactText(stateGoal?.summary)
       || compactText(contextPackage.plan?.title, "Deliver the current chapter mission."),
+    taskSheet: compactText(contextPackage.chapter.taskSheet) || null,
     targetWordCount: contextPackage.chapter.targetWordCount ?? null,
     planRole: contextPackage.plan?.planRole ?? null,
     hookTarget: compactText(contextPackage.plan?.hookTarget, "Leave a fresh tension point at the ending."),
@@ -280,6 +281,7 @@ export function buildChapterWriteContext(input: {
     timelineContext: input.contextPackage.timelineContext ?? null,
     characterResourceContext: input.contextPackage.characterResourceContext ?? null,
     recentChapterSummaries: takeUnique(input.contextPackage.previousChaptersSummary.slice(0, 3), 3),
+    previousChapterTail: compactText(input.contextPackage.previousChapterTail) || null,
     openingAntiRepeatHint: compactText(input.contextPackage.openingHint, "No recent opening guidance."),
     styleContract: input.contextPackage.styleContext?.compiledBlocks?.contract ?? null,
     styleConstraints: summarizeStyleConstraints(input.contextPackage),
@@ -344,6 +346,7 @@ function normalizeChapterWriteContext(writeContext: ChapterWriteContext): Chapte
       forbiddenCrossings: obligationContract.forbiddenCrossings ?? EMPTY_OBLIGATION_CONTRACT.forbiddenCrossings,
     },
     characterHardFacts: writeContext.characterHardFacts ?? [],
+    previousChapterTail: writeContext.previousChapterTail ?? null,
   };
 }
 
@@ -631,9 +634,25 @@ export function buildChapterWriterContextBlocks(
         toListBlock("Must advance", writeContext.chapterMission.mustAdvance),
         toListBlock("Must preserve", writeContext.chapterMission.mustPreserve),
         toListBlock("Risk notes", writeContext.chapterMission.riskNotes),
+        writeContext.chapterMission.taskSheet
+          ? `Original task sheet:\n${writeContext.chapterMission.taskSheet}`
+          : "",
         writeContext.chapterMission.hookTarget ? `Ending hook: ${writeContext.chapterMission.hookTarget}` : "",
       ].filter(Boolean).join("\n"),
     }),
+    writeContext.previousChapterTail
+      ? createContextBlock({
+        id: "previous_chapter_tail",
+        group: "previous_chapter_tail",
+        priority: 100,
+        required: true,
+        allowSummary: false,
+        content: [
+          "上一章实际尾段（本章开头必须直接承接这里的时间、地点、人物状态和未兑现动作）：",
+          writeContext.previousChapterTail,
+        ].join("\n"),
+      })
+      : null,
     hasObligationContract
       ? createContextBlock({
         id: "obligation_contract",

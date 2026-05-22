@@ -1,5 +1,6 @@
-import type { LLMGenerateOptions } from "../novelCoreShared";
+import type { LLMGenerateOptions, RepairOptions } from "../novelCoreShared";
 import type { NovelCoreService } from "../NovelCoreService";
+import type { ChapterRuntimeCoordinator } from "../runtime/ChapterRuntimeCoordinator";
 import {
   novelProductionOrchestrator,
   type NovelProductionStageRunner,
@@ -20,11 +21,20 @@ interface QualityRepairPayload {
   input: ReplanNovelInput;
 }
 
-export interface QualityRepairStageRunnerDeps {
-  getCore: () => Pick<NovelCoreService, "replanNovel">;
+interface RepairChapterStreamPayload {
+  mode: "repair_chapter_stream";
+  chapterId: string;
+  options?: RepairOptions;
 }
 
-function isQualityRepairPayload(value: unknown): value is QualityRepairPayload {
+type QualityRepairStagePayload = QualityRepairPayload | RepairChapterStreamPayload;
+
+export interface QualityRepairStageRunnerDeps {
+  getCore: () => Pick<NovelCoreService, "replanNovel">;
+  getCoordinator: () => Pick<ChapterRuntimeCoordinator, "createRepairStream">;
+}
+
+function isReplanNovelPayload(value: unknown): value is QualityRepairPayload {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -36,6 +46,19 @@ function isQualityRepairPayload(value: unknown): value is QualityRepairPayload {
     && typeof (input as { reason?: unknown }).reason === "string";
 }
 
+function isRepairChapterStreamPayload(value: unknown): value is RepairChapterStreamPayload {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const mode = (value as { mode?: unknown }).mode;
+  const chapterId = (value as { chapterId?: unknown }).chapterId;
+  return mode === "repair_chapter_stream" && typeof chapterId === "string" && chapterId.trim().length > 0;
+}
+
+function isQualityRepairPayload(value: unknown): value is QualityRepairStagePayload {
+  return isReplanNovelPayload(value) || isRepairChapterStreamPayload(value);
+}
+
 export class QualityRepairStageRunner implements NovelProductionStageRunner {
   constructor(private readonly deps: QualityRepairStageRunnerDeps) {}
 
@@ -45,6 +68,20 @@ export class QualityRepairStageRunner implements NovelProductionStageRunner {
         stage: "quality_repair",
         status: "checkpoint",
         summary: "Quality repair stage was triggered without a valid repair payload.",
+      };
+    }
+
+    if (input.payload.mode === "repair_chapter_stream") {
+      const streamResult = await this.deps.getCoordinator().createRepairStream(
+        input.novelId,
+        input.payload.chapterId,
+        input.payload.options ?? {},
+      );
+      return {
+        stage: "quality_repair",
+        status: input.policy.advanceMode === "manual" ? "checkpoint" : "completed",
+        summary: `Chapter ${input.payload.chapterId} repair has been delegated to the unified production orchestrator.`,
+        payload: streamResult,
       };
     }
 

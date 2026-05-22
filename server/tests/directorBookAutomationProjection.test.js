@@ -484,3 +484,111 @@ test("book automation projection keeps waiting gates ahead of old stale commands
     harness.restore();
   }
 });
+
+test("book automation projection keeps waiting approval ahead of a stale failed runtime snapshot", async () => {
+  const harness = createHarness({
+    commands: [],
+    latestTask: {
+      status: "waiting_approval",
+      checkpointType: "chapter_batch_ready",
+      checkpointSummary: "第 3-10 章已准备好继续执行。",
+      currentItemLabel: "等待继续自动执行第 3-10 章",
+    },
+    runtimeProjection: {
+      runId: "run-1",
+      novelId: "novel-1",
+      status: "failed",
+      headline: "处理失败：执行章节生成批次",
+      detail: "stale runtime failure",
+      requiresUserAction: true,
+      blockedReason: "stale runtime failure",
+      nextActionLabel: "继续章节生成",
+      policyMode: "run_until_gate",
+      updatedAt: "2026-04-30T09:00:03.000Z",
+      recentEvents: [],
+    },
+  });
+  try {
+    const projection = await harness.service.getProjection("novel-1");
+
+    assert.equal(projection.status, "waiting_approval");
+    assert.equal(projection.displayState, "needs_confirmation");
+    assert.equal(projection.requiresUserAction, true);
+    assert.equal(projection.detail, "第 3-10 章已准备好继续执行。");
+  } finally {
+    harness.restore();
+  }
+});
+
+test("book automation projection prefers the latest task error over stale checkpoint summaries", async () => {
+  const harness = createHarness({
+    commands: [],
+    latestTask: {
+      status: "failed",
+      checkpointType: "chapter_batch_ready",
+      checkpointSummary: "[{\"origin\":\"string\",\"code\":\"too_small\"}]",
+      lastError: "指定区间内没有可生成的章节。当前可用章节范围为第 1 章到第 55 章。",
+    },
+    runtimeProjection: {
+      runId: "run-1",
+      novelId: "novel-1",
+      status: "failed",
+      headline: "处理失败：执行章节生成批次",
+      detail: null,
+      requiresUserAction: true,
+      blockedReason: "stale runtime failure",
+      nextActionLabel: "继续章节生成",
+      policyMode: "run_until_gate",
+      updatedAt: "2026-04-30T09:00:03.000Z",
+      recentEvents: [],
+    },
+  });
+  try {
+    const projection = await harness.service.getProjection("novel-1");
+    const taskTimeline = projection.timeline.find((item) => item.id === "task:task-1");
+
+    assert.equal(projection.status, "failed");
+    assert.equal(projection.blockedReason, "指定区间内没有可生成的章节。当前可用章节范围为第 1 章到第 55 章。");
+    assert.equal(projection.detail, "指定区间内没有可生成的章节。当前可用章节范围为第 1 章到第 55 章。");
+    assert.equal(projection.userReason, "指定区间内没有可生成的章节。当前可用章节范围为第 1 章到第 55 章。");
+    assert.equal(taskTimeline?.detail, "指定区间内没有可生成的章节。当前可用章节范围为第 1 章到第 55 章。");
+  } finally {
+    harness.restore();
+  }
+});
+
+test("book automation projection keeps a failed workflow ahead of a stale waiting-approval runtime snapshot", async () => {
+  const harness = createHarness({
+    commands: [],
+    latestTask: {
+      status: "failed",
+      checkpointType: null,
+      checkpointSummary: "该动作会自动推进较大范围的章节生成，需要确认后才能继续。",
+      lastError: "指定区间内没有可生成的章节。当前可用章节范围为第 1 章到第 55 章。",
+      currentItemLabel: "正在自动执行第 2-10 章",
+    },
+    runtimeProjection: {
+      runId: "run-1",
+      novelId: "novel-1",
+      status: "waiting_approval",
+      headline: "等待确认：执行章节生成批次",
+      detail: "该动作会自动推进较大范围的章节生成，需要确认后才能继续。",
+      requiresUserAction: true,
+      blockedReason: "该动作会自动推进较大范围的章节生成，需要确认后才能继续。",
+      nextActionLabel: "确认后继续",
+      policyMode: "run_until_gate",
+      updatedAt: "2026-04-30T09:00:03.000Z",
+      recentEvents: [],
+    },
+  });
+  try {
+    const projection = await harness.service.getProjection("novel-1");
+
+    assert.equal(projection.status, "failed");
+    assert.equal(projection.displayState, "needs_attention");
+    assert.equal(projection.detail, "指定区间内没有可生成的章节。当前可用章节范围为第 1 章到第 55 章。");
+    assert.equal(projection.primaryAction.label, "查看失败原因");
+  } finally {
+    harness.restore();
+  }
+});
