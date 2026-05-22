@@ -51,6 +51,16 @@ const REQUIRED_COLUMN_BACKFILLS = [
     columnDefinition: `"pendingManualRecovery" BOOLEAN NOT NULL DEFAULT false`,
   },
   {
+    tableName: "ImageGenerationTask",
+    columnName: "novelId",
+    columnDefinition: `"novelId" TEXT`,
+  },
+  {
+    tableName: "ImageAsset",
+    columnName: "novelId",
+    columnDefinition: `"novelId" TEXT`,
+  },
+  {
     tableName: "StyleProfile",
     columnName: "extractionPresetsJson",
     columnDefinition: `"extractionPresetsJson" TEXT`,

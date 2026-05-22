@@ -14,6 +14,55 @@ import {
   isTaskArchived,
 } from "../taskArchive";
 
+function buildImageTaskPresentation(row: {
+  id: string;
+  sceneType: string;
+  baseCharacterId: string | null;
+  novelId: string | null;
+  baseCharacter?: { id: string; name: string } | null;
+  novel?: { id: string; title: string } | null;
+}) {
+  if (row.sceneType === "novel_cover" && row.novelId) {
+    const title = row.novel?.title?.trim() || `小说 ${row.novelId.slice(0, 8)}`;
+    const route = `/novels/${row.novelId}/edit?stage=basic`;
+    return {
+      title: `小说封面：${title}`,
+      ownerId: row.novelId,
+      ownerLabel: title,
+      sourceRoute: route,
+      sourceResource: {
+        type: "novel" as const,
+        id: row.novelId,
+        label: title,
+        route,
+      },
+    };
+  }
+
+  const ownerId = row.baseCharacterId ?? row.id;
+  const ownerLabel = row.baseCharacter?.name ?? "未关联角色";
+  const sourceRoute = row.baseCharacterId ? `/base-characters?id=${row.baseCharacterId}` : "/base-characters";
+  return {
+    title: row.baseCharacter?.name ? `角色图像：${row.baseCharacter.name}` : `图像任务 ${row.id.slice(0, 8)}`,
+    ownerId,
+    ownerLabel,
+    sourceRoute,
+    sourceResource: row.baseCharacterId
+      ? {
+        type: "base_character" as const,
+        id: row.baseCharacterId,
+        label: row.baseCharacter?.name ?? "基础角色",
+        route: sourceRoute,
+      }
+      : {
+        type: "task" as const,
+        id: row.id,
+        label: `图像任务 ${row.id.slice(0, 8)}`,
+        route: "/tasks",
+      },
+  };
+}
+
 export class ImageTaskAdapter {
   async list(input: {
     status?: TaskStatus;
@@ -40,6 +89,7 @@ export class ImageTaskAdapter {
             OR: [
               { prompt: { contains: input.keyword } },
               { baseCharacter: { name: { contains: input.keyword } } },
+              { novel: { title: { contains: input.keyword } } },
             ],
           }
           : {}),
@@ -51,15 +101,21 @@ export class ImageTaskAdapter {
             name: true,
           },
         },
+        novel: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       take: input.take,
     });
 
     return rows.map((row) => ({
+      ...buildImageTaskPresentation(row),
       id: row.id,
       kind: "image_generation",
-      title: row.baseCharacter?.name ? `角色图像：${row.baseCharacter.name}` : `图像任务 ${row.id.slice(0, 8)}`,
       status: row.status as TaskStatus,
       progress: row.progress,
       currentStage: row.currentStage,
@@ -70,27 +126,11 @@ export class ImageTaskAdapter {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
-      ownerId: row.baseCharacterId ?? row.id,
-      ownerLabel: row.baseCharacter?.name ?? "未关联角色",
-      sourceRoute: row.baseCharacterId ? `/base-characters?id=${row.baseCharacterId}` : "/base-characters",
       failureCode: row.status === "failed" ? "IMAGE_GENERATION_FAILED" : null,
       failureSummary: row.status === "failed"
         ? normalizeFailureSummary(row.error, "图像任务失败，但没有记录明确错误。")
         : row.error,
       recoveryHint: buildTaskRecoveryHint("image_generation", row.status as TaskStatus),
-      sourceResource: row.baseCharacterId
-        ? {
-          type: "base_character",
-          id: row.baseCharacterId,
-          label: row.baseCharacter?.name ?? "基础角色",
-          route: `/base-characters?id=${row.baseCharacterId}`,
-        }
-        : {
-          type: "task",
-          id: row.id,
-          label: `图像任务 ${row.id.slice(0, 8)}`,
-          route: "/tasks",
-        },
       targetResources: [],
     }));
   }
@@ -109,16 +149,23 @@ export class ImageTaskAdapter {
             name: true,
           },
         },
+        novel: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
       },
     });
     if (!row) {
       return null;
     }
 
+    const presentation = buildImageTaskPresentation(row);
     const summary: UnifiedTaskSummary = {
+      ...presentation,
       id: row.id,
       kind: "image_generation",
-      title: row.baseCharacter?.name ? `角色图像：${row.baseCharacter.name}` : `图像任务 ${row.id.slice(0, 8)}`,
       status: row.status as TaskStatus,
       progress: row.progress,
       currentStage: row.currentStage,
@@ -129,27 +176,11 @@ export class ImageTaskAdapter {
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
-      ownerId: row.baseCharacterId ?? row.id,
-      ownerLabel: row.baseCharacter?.name ?? "未关联角色",
-      sourceRoute: row.baseCharacterId ? `/base-characters?id=${row.baseCharacterId}` : "/base-characters",
       failureCode: row.status === "failed" ? "IMAGE_GENERATION_FAILED" : null,
       failureSummary: row.status === "failed"
         ? normalizeFailureSummary(row.error, "图像任务失败，但没有记录明确错误。")
         : row.error,
       recoveryHint: buildTaskRecoveryHint("image_generation", row.status as TaskStatus),
-      sourceResource: row.baseCharacterId
-        ? {
-          type: "base_character",
-          id: row.baseCharacterId,
-          label: row.baseCharacter?.name ?? "基础角色",
-          route: `/base-characters?id=${row.baseCharacterId}`,
-        }
-        : {
-          type: "task",
-          id: row.id,
-          label: `图像任务 ${row.id.slice(0, 8)}`,
-          route: "/tasks",
-        },
       targetResources: [],
     };
 
@@ -163,6 +194,7 @@ export class ImageTaskAdapter {
       meta: {
         sceneType: row.sceneType,
         baseCharacterId: row.baseCharacterId,
+        novelId: row.novelId,
         prompt: row.prompt,
         negativePrompt: row.negativePrompt,
         size: row.size,

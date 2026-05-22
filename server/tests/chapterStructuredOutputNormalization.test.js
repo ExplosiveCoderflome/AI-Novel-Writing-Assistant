@@ -173,3 +173,130 @@ test("chapter artifact delta schema normalizes common LLM aliases from extractio
   assert.equal(parsed.relationDynamics[0].stageLabel, "pursuing");
   assert.equal(parsed.characterCandidates[0].proposedName, "李主任");
 });
+
+test("chapter artifact delta schema normalizes enum drift from artifact extraction", () => {
+  const parsed = chapterArtifactDeltaOutputSchema.parse({
+    summary: "林越通过聚灵草套利突破练气一层。",
+    stateDeltas: {
+      summary: "林越突破练气一层，赵无极敌对升级。",
+      characterStates: [],
+      relationStates: [],
+      informationStates: [],
+      foreshadowStates: [{
+        title: "赵无极报复",
+        summary: "赵无极扬言报复。",
+        status: "hinted",
+        setupChapterId: 4,
+      }],
+    },
+    characterResourceDeltas: [{
+      resourceName: "聚灵丹",
+      resourceType: "consumable",
+      updateType: "produced",
+      holderCharacterName: "林越",
+      ownerType: "character",
+      ownerName: "林越",
+      statusAfter: "available",
+      readerKnows: true,
+      holderKnows: true,
+      knownByCharacterNames: ["林越"],
+      narrativeFunction: "cultivation",
+      summary: "林越炼制出聚灵丹。",
+      narrativeImpact: "帮助突破练气一层。",
+      evidence: ["聚灵丹入口，灵气冲开经脉。"],
+      confidence: 0.9,
+      riskLevel: "low",
+    }, {
+      resourceName: "聚灵草",
+      resourceType: "material",
+      updateType: "acquired",
+      holderCharacterName: "林越",
+      ownerType: "character",
+      ownerName: "林越",
+      statusAfter: "available",
+      readerKnows: true,
+      holderKnows: true,
+      knownByCharacterNames: ["林越"],
+      narrativeFunction: "material",
+      summary: "林越低价买入聚灵草。",
+      narrativeImpact: "提供炼丹材料。",
+      evidence: ["他买下二十多株聚灵草。"],
+      confidence: 0.9,
+      riskLevel: "low",
+    }, {
+      resourceName: "借据",
+      resourceType: "credential",
+      updateType: "acquired",
+      holderCharacterName: "林越",
+      ownerType: "character",
+      ownerName: "林越",
+      statusAfter: "available",
+      readerKnows: true,
+      holderKnows: true,
+      knownByCharacterNames: ["林越"],
+      narrativeFunction: "finance",
+      summary: "林越写下借据。",
+      narrativeImpact: "形成还债约束。",
+      evidence: ["王大力签字担保。"],
+      confidence: 0.9,
+      riskLevel: "low",
+    }, {
+      resourceName: "积分",
+      resourceType: "currency",
+      updateType: "acquired",
+      holderCharacterName: "林越",
+      ownerType: "character",
+      ownerName: "林越",
+      statusAfter: "consumed",
+      readerKnows: true,
+      holderKnows: true,
+      knownByCharacterNames: ["林越"],
+      narrativeFunction: "finance",
+      summary: "借来的积分被用于购买聚灵草。",
+      narrativeImpact: "完成套利投入。",
+      evidence: ["五十积分全部花掉。"],
+      confidence: 0.9,
+      riskLevel: "low",
+    }],
+    payoffDeltas: [{
+      ledgerKey: "resource_monopoly_doubt",
+      title: "宗门资源垄断质疑",
+      summary: "主角确认赵无极垄断聚灵草。",
+      scopeType: "story",
+      currentStatus: "setup",
+      targetStartChapterOrder: 1,
+      targetEndChapterOrder: 20,
+      firstSeenChapterOrder: 1,
+      lastTouchedChapterOrder: 4,
+      setupChapterOrder: 1,
+      sourceRefs: [],
+      evidence: [{ summary: "林越推测赵无极控制聚灵草流通。", chapterOrder: 4 }],
+      riskSignals: [],
+      statusReason: "揭示现象但未触及根本。",
+      confidence: 0.9,
+    }],
+    relationDynamics: [],
+    factionUpdates: [],
+    characterCandidates: [],
+    syncPlan: {
+      stateSnapshot: "write",
+      characterResources: "write",
+      payoffLedger: "delta",
+      characterDynamics: "delta",
+      reason: "本章状态、资源、伏笔和关系均有变化。",
+    },
+    confidence: 0.9,
+    requiresFullReconcile: false,
+  });
+
+  assert.equal(parsed.stateDeltas.foreshadowStates[0].setupChapterId, "4");
+  assert.equal(parsed.characterResourceDeltas[0].updateType, "introduced");
+  assert.equal(parsed.characterResourceDeltas[0].narrativeFunction, "tool");
+  assert.equal(parsed.characterResourceDeltas[1].resourceType, "consumable");
+  assert.equal(parsed.characterResourceDeltas[1].narrativeFunction, "cost");
+  assert.equal(parsed.characterResourceDeltas[2].narrativeFunction, "proof");
+  assert.equal(parsed.characterResourceDeltas[3].resourceType, "world_resource");
+  assert.equal(parsed.characterResourceDeltas[3].narrativeFunction, "cost");
+  assert.equal(parsed.payoffDeltas[0].scopeType, "book");
+  assert.equal(parsed.syncPlan.characterDynamics, "write");
+});

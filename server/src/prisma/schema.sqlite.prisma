@@ -393,6 +393,8 @@ model Novel {
   directorArtifacts  DirectorArtifact[]
   directorLlmUsageRecords DirectorLlmUsageRecord[]
   promptAddendums    PromptAddendum[]
+  imageTasks         ImageGenerationTask[]
+  imageAssets        ImageAsset[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -909,6 +911,7 @@ model ImageGenerationTask {
   id              String            @id @default(cuid())
   sceneType       ImageSceneType    @default(character)
   baseCharacterId String?
+  novelId         String?
   provider        String
   model           String
   prompt          String
@@ -931,12 +934,14 @@ model ImageGenerationTask {
   startedAt       DateTime?
   finishedAt      DateTime?
   baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  novel           Novel?            @relation(fields: [novelId], references: [id], onDelete: Cascade)
   assets          ImageAsset[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
   @@index([sceneType, status])
   @@index([baseCharacterId, createdAt])
+  @@index([novelId, createdAt])
 }
 
 model StyleExtractionTask {
@@ -988,6 +993,7 @@ model ImageAsset {
   taskId          String
   sceneType       ImageSceneType    @default(character)
   baseCharacterId String?
+  novelId         String?
   provider        String
   model           String
   url             String
@@ -1001,12 +1007,14 @@ model ImageAsset {
   metadata        String?
   task            ImageGenerationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
   baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  novel           Novel?            @relation(fields: [novelId], references: [id], onDelete: Cascade)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
   @@index([taskId])
   @@index([sceneType, createdAt])
   @@index([baseCharacterId, isPrimary, createdAt])
+  @@index([novelId, isPrimary, createdAt])
 }
 
 model NovelGenre {

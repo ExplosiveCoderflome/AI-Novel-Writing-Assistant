@@ -73,6 +73,7 @@ interface NovelBasicInfoFormProps {
   framingQuickFill?: ReactNode;
   projectQuickStart?: ReactNode;
   resourceRecommendation?: ReactNode;
+  coverSection?: ReactNode;
 }
 
 export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
@@ -95,6 +96,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
     framingQuickFill,
     projectQuickStart,
     resourceRecommendation,
+    coverSection,
   } = props;
 
   const continuationSourceMissing = basicForm.writingMode === "continuation"
@@ -155,6 +157,8 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           onFormChange={onFormChange}
           quickFill={framingQuickFill}
         />
+
+        {coverSection}
 
         <div className="space-y-2">
           <FieldLabel hint={BASIC_INFO_FIELD_HINTS.writingMode}>创作模式</FieldLabel>

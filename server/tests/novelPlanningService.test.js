@@ -70,3 +70,29 @@ test("replanNovel routes quality repair through the unified orchestrator", async
   ]);
   assert.equal(result, expectedReplan);
 });
+
+test("createRepairStream routes manual chapter repair through the unified orchestrator", async () => {
+  const calls = [];
+  const streamResult = {
+    stream: {
+      async *[Symbol.asyncIterator]() {},
+    },
+    async onDone() {},
+  };
+  const service = new NovelService();
+  service.qualityRepairCoordinator = {
+    async createRepairStream(novelId, chapterId, options) {
+      calls.push(["createRepairStream", novelId, chapterId, options.repairMode]);
+      return streamResult;
+    },
+  };
+
+  const result = await service.createRepairStream("novel-1", "chapter-5", {
+    repairMode: "light_repair",
+  });
+
+  assert.deepEqual(calls, [
+    ["createRepairStream", "novel-1", "chapter-5", "light_repair"],
+  ]);
+  assert.equal(result, streamResult);
+});
