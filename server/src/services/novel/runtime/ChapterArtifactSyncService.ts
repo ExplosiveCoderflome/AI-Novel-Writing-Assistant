@@ -10,6 +10,7 @@ import type { ArtifactSyncMode } from "../novelCoreShared";
 export interface ChapterArtifactSyncOptions {
   scheduleBackgroundSync?: boolean;
   artifactSyncMode?: ArtifactSyncMode;
+  syncArtifacts?: boolean;
 }
 
 export class ChapterArtifactSyncService {
@@ -36,6 +37,9 @@ export class ChapterArtifactSyncService {
       }),
       { label: "chapterArtifactSync.chapter.update" },
     );
+    if (options.syncArtifacts === false) {
+      return;
+    }
     await this.syncChapterArtifacts(novelId, chapterId, safeContent, options);
   }
 

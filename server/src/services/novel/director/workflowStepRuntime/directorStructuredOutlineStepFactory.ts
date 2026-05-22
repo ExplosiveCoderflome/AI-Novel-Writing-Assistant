@@ -197,25 +197,17 @@ export function createStructuredOutlineFactModule(input: {
           artifacts: producedArtifacts,
         });
         return { producedArtifacts };
-      },
-      inspectProgress: async (context) => (await inspectStructuredOutlineFactState(context, input.step)).progress,
-      recover: async (context) => {
-        const { novelId, state } = await loadDirectorModuleState(context);
-        const cursor = await getDirectorCoreStepRuntime().getStructuredOutlineRecoveryCursor(novelId, state.seedPayload ? getDirectorInputFromSeedPayload(state.seedPayload) : null);
-        const resumeFrom = cursor?.step ?? input.step;
-        await getDirectorCoreStateCommitter().recordRecoveryHint({
-          taskId: state.task.id,
-          novelId,
-          runtimeId: state.runtime?.id ?? null,
-          nodeKey: input.descriptor.nodeKey,
-          reason: "Structured outline can resume from the latest observable outline facts.",
-          resumeFrom,
-        });
-        return {
-          recoverable: true,
-          resumeFrom,
-          reason: "Structured outline can resume from the latest observable outline facts.",
-        };
+        },
+        inspectProgress: async (context) => (await inspectStructuredOutlineFactState(context, input.step)).progress,
+        recover: async (context) => {
+          const { novelId, state } = await loadDirectorModuleState(context);
+          const cursor = await getDirectorCoreStepRuntime().getStructuredOutlineRecoveryCursor(novelId, state.seedPayload ? getDirectorInputFromSeedPayload(state.seedPayload) : null);
+          const resumeFrom = cursor?.step ?? input.step;
+          return {
+            recoverable: true,
+            resumeFrom,
+            reason: "Structured outline can resume from the latest observable outline facts.",
+          };
       },
       completeCriteria: async (_output, context) => (await inspectStructuredOutlineFactState(context, input.step)).completion.completed,
     },

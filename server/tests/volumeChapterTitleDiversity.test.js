@@ -5,6 +5,7 @@ const {
   assertChapterTitleDiversity,
   detectChapterTitleSurfaceFrame,
   getChapterTitleDiversityIssue,
+  isBlockingChapterTitleQualityIssue,
 } = require("../dist/services/novel/volume/chapterTitleDiversity.js");
 const {
   createVolumeChapterListPrompt,
@@ -154,6 +155,26 @@ test.skip("chapter title diversity accepts mixed chapter title surfaces", { skip
   ]));
 });
 
+test("chapter title quality rejects first-person and synopsis-like titles", () => {
+  const firstPersonIssue = getChapterTitleDiversityIssue([
+    "我亲手掐断了那句要命的话",
+    "断魂钉现",
+    "阵眼裂缝",
+  ]);
+
+  assert.match(firstPersonIssue, /第一人称/);
+  assert.equal(isBlockingChapterTitleQualityIssue(firstPersonIssue), true);
+
+  const longTitleIssue = getChapterTitleDiversityIssue([
+    "龙须虎临阵反水，姜子牙的第一次收徒成了三界笑话",
+    "断魂钉现",
+    "阵眼裂缝",
+  ]);
+
+  assert.match(longTitleIssue, /标题过长|剧情梗概/);
+  assert.equal(isBlockingChapterTitleQualityIssue(longTitleIssue), true);
+});
+
 test("volume chapter list prompt render hardens title diversity rules", () => {
   const messages = createVolumeChapterListPrompt({
     targetChapterCount: 6,
@@ -174,6 +195,8 @@ test("volume chapter list prompt render hardens title diversity rules", () => {
     "prompt should keep the X的Y title-skeleton diversity cap line",
   );
   assert.match(String(messages[0].content), /A，B \/ 四字动作，四字结果/);
+  assert.match(String(messages[0].content), /不使用“我 \/ 我的/);
+  assert.match(String(messages[0].content), /核心字数不超过 16 个/);
   assert.match(String(messages[0].content), /章名结构过于集中/);
 });
 
@@ -275,6 +298,43 @@ test("volume chapter list prompt degrades title diversity failure after semantic
     assert.equal(result.output.chapters[0].title, "签下合同，甜蜜同居");
     assert.equal(result.meta.invocation.semanticRetryUsed, true);
     assert.equal(result.meta.invocation.semanticRetryAttempts, 2);
+  } finally {
+    setPromptRunnerStructuredInvokerForTests();
+  }
+});
+
+test("volume chapter list prompt keeps first-person title failures blocking after semantic retries", async () => {
+  const calls = [];
+
+  setPromptRunnerStructuredInvokerForTests(async (input) => {
+    calls.push(input);
+    return {
+      data: {
+        beatKey: "open_hook",
+        beatLabel: "开卷抓手",
+        chapterCount: 3,
+        chapters: [
+          { beatKey: "open_hook", title: "我亲手掐断了那句要命的话", summary: "主角主动避开死劫，改变当前局面。" },
+          { beatKey: "open_hook", title: "断魂钉现", summary: "新的危险落到台前，迫使主角调整计划。" },
+          { beatKey: "open_hook", title: "阵眼裂缝", summary: "本段危机出现阶段性转向，并留下后续牵引。" },
+        ],
+      },
+      repairUsed: false,
+      repairAttempts: 0,
+    };
+  });
+
+  try {
+    await assert.rejects(() => runStructuredPrompt({
+      asset: createVolumeChapterListPrompt({
+        targetChapterCount: 3,
+        targetBeatKey: "open_hook",
+        targetBeatLabel: "开卷抓手",
+      }),
+      promptInput: createPromptInput(3),
+    }), /第一人称/);
+
+    assert.equal(calls.length, 3);
   } finally {
     setPromptRunnerStructuredInvokerForTests();
   }

@@ -106,6 +106,14 @@ export interface CharacterInput {
   personality?: string;
   background?: string;
   development?: string;
+  identityLabel?: string;
+  factionLabel?: string;
+  stanceLabel?: string;
+  powerLevel?: string;
+  realm?: string;
+  currentLocation?: string;
+  availability?: string;
+  prohibitions?: string[];
   outerGoal?: string;
   innerNeed?: string;
   fear?: string;

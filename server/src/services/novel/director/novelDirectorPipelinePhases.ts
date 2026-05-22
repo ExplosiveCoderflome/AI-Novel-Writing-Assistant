@@ -133,7 +133,13 @@ export async function runDirectorCharacterSetupPhase(input: {
     progress: DIRECTOR_PROGRESS.characterSetupReady,
     callbacks,
     run: async () => {
-      await dependencies.characterPreparationService.applyCharacterCastOption(novelId, targetOption.id);
+      await dependencies.characterPreparationService.applyCharacterCastOption(novelId, targetOption.id, {
+        visibleProfileGeneration: {
+          provider: request.provider,
+          model: request.model,
+          temperature: request.temperature,
+        },
+      });
     },
   });
 

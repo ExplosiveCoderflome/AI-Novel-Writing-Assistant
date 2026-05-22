@@ -1,20 +1,14 @@
 import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
-import { runTextPrompt } from "../../../prompting/core/promptRunner";
-import { buildChapterRepairContextBlocks } from "../../../prompting/prompts/novel/chapterLayeredContext";
-import { chapterRepairPrompt } from "../../../prompting/prompts/novel/review.prompts";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
-import {
-  ChapterPatchRepairFailedError,
-  ChapterPatchRepairService,
-} from "../chapterPatchRepairService";
 import { detectForbiddenStyleEntities } from "../../styleEngine/styleGenerationSanitizer";
 import {
   assertChapterContentNotEmpty,
   isChapterEmptyContentError,
   type ChapterEmptyContentError,
 } from "./chapterEmptyContentError";
+import { runChapterRepairText } from "./repair/chapterRepairRuntime";
 
 export interface PipelineRuntimeHooks {
   onCheckCancelled?: () => Promise<void>;
@@ -87,7 +81,7 @@ interface RunPipelineChapterDeps {
     chapterId: string,
     content: string,
     generationState: "drafted" | "repaired",
-    options?: { scheduleBackgroundSync?: boolean; artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"] },
+    options?: { scheduleBackgroundSync?: boolean; artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"]; syncArtifacts?: boolean },
   ) => Promise<void>;
   syncFinalChapterArtifacts: (
     novelId: string,
@@ -105,6 +99,16 @@ interface RunPipelineChapterDeps {
     runId: string | null;
     startMs: number | null;
   }) => Promise<FinalizedRuntimeResult>;
+  finalizeChapterTimeline?: (input: {
+    novelId: string;
+    chapterId: string;
+    request: ChapterRuntimeRequestInput;
+    contextPackage: GenerationContextPackage;
+    content: string;
+    mode: "stable" | "degraded";
+    reason: string;
+    qualityDebt?: boolean;
+  }) => Promise<void>;
   markChapterGenerationState: (
     chapterId: string,
     generationState: "reviewed" | "approved",
@@ -138,6 +142,7 @@ export async function runPipelineChapterWithRuntime(
     artifactSyncMode = "adaptive",
     ...requestInput
   } = options;
+  const effectiveMaxRetries = Math.max(0, Math.min(maxRetries, 1));
   const request = deps.validateRequest(requestInput);
   await deps.ensureNovelCharacters(novelId, "run chapter pipeline");
 
@@ -150,7 +155,7 @@ export async function runPipelineChapterWithRuntime(
   let latestLengthControl: ChapterRuntimePackage["lengthControl"] | undefined;
   let recoverableRepairFailure: PipelineRecoverableRepairFailure | null = null;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+  for (let attempt = 0; attempt <= effectiveMaxRetries; attempt += 1) {
     await hooks.onCheckCancelled?.();
     if (!content.trim()) {
       const generatedDraft = await generateNonEmptyDraftFromWriter({
@@ -167,13 +172,23 @@ export async function runPipelineChapterWithRuntime(
         await deps.saveDraftAndArtifacts(novelId, chapterId, content, "drafted", {
           scheduleBackgroundSync: false,
           artifactSyncMode,
+          syncArtifacts: false,
         });
       }
     }
 
     if (!autoReview) {
-      await deps.markChapterGenerationState(chapterId, "approved");
       await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, content, artifactSyncMode);
+      await deps.finalizeChapterTimeline?.({
+        novelId,
+        chapterId,
+        request,
+        contextPackage: assembled.contextPackage,
+        content,
+        mode: "stable",
+        reason: "auto_review_disabled_final_content",
+      });
+      await deps.markChapterGenerationState(chapterId, "approved");
       return {
         reviewExecuted: false,
         pass: true,
@@ -218,6 +233,8 @@ export async function runPipelineChapterWithRuntime(
     const shouldRepairFromAcceptance = continuePolicy === "repair_once" || acceptanceStatus === "repairable";
     pass = !shouldPauseForAcceptance
       && !shouldRepairFromAcceptance
+      && !latestResult.runtimePackage.audit.hasBlockingIssues
+      && latestResult.runtimePackage.timelineCheck?.status !== "failed"
       && isQualityPass(latestResult.runtimePackage.audit.score, qualityThreshold)
       && styleLeakageIssues.length === 0;
     if (pass) {
@@ -225,7 +242,7 @@ export async function runPipelineChapterWithRuntime(
       break;
     }
 
-    if (shouldPauseForAcceptance || !autoRepair || repairMode === "detect_only" || attempt >= maxRetries) {
+    if (shouldPauseForAcceptance || !autoRepair || repairMode === "detect_only" || attempt >= effectiveMaxRetries) {
       break;
     }
 
@@ -254,6 +271,7 @@ export async function runPipelineChapterWithRuntime(
     await deps.saveDraftAndArtifacts(novelId, chapterId, content, "repaired", {
       scheduleBackgroundSync: false,
       artifactSyncMode,
+      syncArtifacts: false,
     });
   }
 
@@ -262,6 +280,18 @@ export async function runPipelineChapterWithRuntime(
   }
 
   await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, latestResult.finalContent, artifactSyncMode);
+  if (!pass && shouldFinalizeDegradedForDeferredQualityDebt(latestResult.runtimePackage)) {
+    await deps.finalizeChapterTimeline?.({
+      novelId,
+      chapterId,
+      request,
+      contextPackage: assembled.contextPackage,
+      content: latestResult.finalContent,
+      mode: "degraded",
+      reason: "max_repair_attempts_exhausted",
+      qualityDebt: true,
+    });
+  }
 
   return {
     reviewExecuted: true,
@@ -419,129 +449,42 @@ async function repairDraftContent(input: {
   content: string;
   recoverableFailure?: PipelineRecoverableRepairFailure | null;
 }> {
-  const issues = input.issues.length > 0
-    ? input.issues
-    : [{
-        severity: "medium" as const,
-        category: "coherence" as const,
-        evidence: "Pipeline quality threshold not met.",
-        fixSuggestion: "Tighten continuity, sharpen conflict progression, and improve readability.",
-      }];
-  let activeRepairMode = input.options.repairMode ?? "light_repair";
-  let modeHint = getRepairModeHint(
-    activeRepairMode,
-    input.runtimePackage.audit.openIssues.map((issue) => issue.code),
-  );
-  if (input.forceFullRewrite && activeRepairMode !== "heavy_repair") {
-    activeRepairMode = "heavy_repair";
-    modeHint = getRepairModeHint(
-      activeRepairMode,
-      input.runtimePackage.audit.openIssues.map((issue) => issue.code),
-    );
-  }
-  if (!input.forceFullRewrite) {
-    const patchRepairService = new ChapterPatchRepairService();
-    try {
-      const patched = await patchRepairService.repair({
-        novelId: input.runtimePackage.novelId,
-        chapterId: input.runtimePackage.chapterId,
-        novelTitle: input.novelTitle,
-        chapterTitle: input.chapterTitle,
-        content: input.content,
-        issues,
-        runtimePackage: input.runtimePackage,
-        provider: input.options.provider,
-        model: input.options.model,
-        temperature: input.options.temperature,
-          repairMode: activeRepairMode,
-          modeHint,
-        });
-      return {
-        content: patched.content,
-        recoverableFailure: null,
-      };
-    } catch (error) {
-      if (!(error instanceof ChapterPatchRepairFailedError)) {
-        throw error;
-      }
-      if (activeRepairMode !== "heavy_repair") {
-        activeRepairMode = "heavy_repair";
-        modeHint = getRepairModeHint(
-          activeRepairMode,
-          input.runtimePackage.audit.openIssues.map((issue) => issue.code),
-        );
-      }
-    }
-  }
-
-  const repairContextBlocks = input.runtimePackage.context.chapterRepairContext
-    ? buildChapterRepairContextBlocks(input.runtimePackage.context.chapterRepairContext)
-    : undefined;
-  const repaired = await runTextPrompt({
-    asset: chapterRepairPrompt,
-    promptInput: {
-      novelTitle: input.novelTitle,
-      bibleContent: buildRepairBibleFallback(input.runtimePackage),
-      chapterTitle: input.chapterTitle,
-      chapterContent: input.content,
-      issuesJson: JSON.stringify(issues, null, 2),
-      ragContext: "",
-      modeHint,
-    },
-    contextBlocks: repairContextBlocks,
+  const repaired = await runChapterRepairText({
+    novelId: input.runtimePackage.novelId,
+    chapterId: input.runtimePackage.chapterId,
+    novelTitle: input.novelTitle,
+    chapterTitle: input.chapterTitle,
+    content: input.content,
+    issues: input.issues,
+    runtimePackage: input.runtimePackage,
+    forceFullRewrite: input.forceFullRewrite,
     options: {
       provider: input.options.provider,
       model: input.options.model,
-      temperature: Math.min(input.options.temperature ?? 0.55, 0.65),
-      novelId: input.runtimePackage.novelId,
-      chapterId: input.runtimePackage.chapterId,
-      stage: "chapter_repair",
-      triggerReason: activeRepairMode,
+      temperature: input.options.temperature,
+      repairMode: input.options.repairMode,
     },
   });
-  const nextContent = repaired.output.trim();
   return {
-    content: nextContent || input.content,
+    content: repaired.content.trim() || input.content,
     recoverableFailure: null,
   };
 }
 
-function buildRepairBibleFallback(runtimePackage: ChapterRuntimePackage): string {
-  const context = runtimePackage.context;
-  const fragments = [
-    context.bookContract?.sellingPoint ? `核心卖点：${context.bookContract.sellingPoint}` : "",
-    context.bookContract?.first30ChapterPromise ? `前30章承诺：${context.bookContract.first30ChapterPromise}` : "",
-    context.macroConstraints?.coreConflict ? `核心冲突：${context.macroConstraints.coreConflict}` : "",
-    context.macroConstraints?.progressionLoop ? `推进回路：${context.macroConstraints.progressionLoop}` : "",
-    context.volumeWindow?.missionSummary ? `当前卷使命：${context.volumeWindow.missionSummary}` : "",
-  ].filter(Boolean);
-  return fragments.join("\n") || "none";
-}
-
-function getRepairModeHint(
-  repairMode: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only" | undefined,
-  issueCodes: string[] = [],
-): string {
-  if (issueCodes.includes("LENGTH_OVER_HARD_MAX")) {
-    return "compress_chapter_for_length：整章压缩重复表达、解释段和无效回合，保留核心推进与结尾压力。";
+function shouldFinalizeDegradedForDeferredQualityDebt(runtimePackage: ChapterRuntimePackage): boolean {
+  if (runtimePackage.replanRecommendation?.recommended) {
+    return false;
   }
-  if (issueCodes.includes("LENGTH_OVER_SOFT_MAX")) {
-    return "compress_tail_for_length：优先回收尾段冗余展开，保留结尾 hook 和关键冲突。";
+  if (runtimePackage.failureClassification?.code === "replan_required") {
+    return false;
   }
-  if (issueCodes.includes("LENGTH_UNDER_SOFT_MIN")) {
-    return "extend_for_length：只补最后的义务场景或结尾 hook，增加有效推进，不要回顾性凑字数。";
+  if ((runtimePackage.failureClassification?.blockingObligations ?? []).length > 0) {
+    return false;
   }
-  switch (repairMode) {
-    case "continuity_only":
-      return "优先修连续性、时间线和事件承接，不做大幅风格重写。";
-    case "character_only":
-      return "优先修人物言行一致性、动机和关系表现，不改变主线任务。";
-    case "ending_only":
-      return "优先修章节收束、钩子和结尾决断感，让章节尾部更有拉力。";
-    case "heavy_repair":
-      return "允许较大幅度重写句段，只要剧情方向不变即可。";
-    case "light_repair":
-    default:
-      return "以轻修为主，优先保持原有内容框架和事件顺序。";
+  const acceptanceStatus = runtimePackage.meta?.acceptanceStatus;
+  const continuePolicy = runtimePackage.meta?.continuePolicy;
+  if (acceptanceStatus === "needs_manual_review" || continuePolicy === "pause") {
+    return false;
   }
+  return true;
 }

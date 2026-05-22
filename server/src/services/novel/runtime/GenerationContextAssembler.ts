@@ -49,6 +49,11 @@ import {
   buildVolumeWindowContext,
   getRuntimePromptBudgetProfiles,
 } from "../../../prompting/prompts/novel/chapterLayeredContext";
+import { timelineContextService } from "../../../modules/timeline";
+import {
+  buildRuntimeCharacterHardFactsList,
+  parseCharacterProhibitionsJson,
+} from "../characters/characterHardFacts";
 
 const OPENING_COMPARE_LIMIT = 3;
 const OPENING_SLICE_LENGTH = 220;
@@ -81,6 +86,14 @@ export function buildBlockingPendingReviewProposalWhere(novelId: string, chapter
 
 function extractOpening(content: string, maxLength = OPENING_SLICE_LENGTH): string {
   return content.replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+function extractChapterTail(content: string | null | undefined, maxLength = 520): string {
+  const normalized = (content ?? "").replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "";
+  }
+  return normalized.slice(Math.max(0, normalized.length - maxLength));
 }
 
 function buildWorldContextFromNovel(
@@ -435,6 +448,11 @@ export class GenerationContextAssembler {
       openAuditIssueCount: openAuditIssues.length,
       hasRepairableDraft: Boolean(chapter.content?.trim()),
     });
+    const timelineContext = await timelineContextService.buildForChapter({
+      novelId,
+      chapterId,
+      chapterIndex: chapter.order,
+    });
     const canonicalState = resolvedStateDrivenContext.snapshot;
 
     const canonicalLedger = buildRuntimeLedgerFromCanonical(canonicalState);
@@ -497,6 +515,16 @@ export class GenerationContextAssembler {
         name: item.name,
         role: item.role,
         personality: item.personality ?? null,
+        background: item.background ?? null,
+        development: item.development ?? null,
+        identityLabel: item.identityLabel ?? null,
+        factionLabel: item.factionLabel ?? null,
+        stanceLabel: item.stanceLabel ?? null,
+        powerLevel: item.powerLevel ?? null,
+        realm: item.realm ?? null,
+        currentLocation: item.currentLocation ?? null,
+        availability: item.availability ?? null,
+        prohibitions: parseCharacterProhibitionsJson(item.prohibitionsJson),
         currentState: canonicalCharacter?.currentState ?? item.currentState ?? null,
         currentGoal: canonicalCharacter?.currentGoal ?? item.currentGoal ?? null,
         appearance: item.appearance ?? null,
@@ -507,6 +535,7 @@ export class GenerationContextAssembler {
         presenceImpression: item.presenceImpression ?? null,
       };
     });
+    const mappedCharacterHardFacts = buildRuntimeCharacterHardFactsList(mappedCharacterRoster);
     const mappedCreativeDecisions = decisions.map((item) => ({
       id: item.id,
       chapterId: item.chapterId ?? null,
@@ -560,6 +589,7 @@ export class GenerationContextAssembler {
     const summaryText = buildSummaryText(previousChaptersSummary);
     const factText = buildFactText(facts);
     const recentChapterContentText = buildRecentChapterContentText(recentChapters);
+    const previousChapterTail = extractChapterTail(recentChapters[0]?.content);
     const charactersContextText = buildCharactersContextText(
       novel.characters.map((item) => ({
         name: item.name,
@@ -637,9 +667,11 @@ export class GenerationContextAssembler {
       storyWorldSlice,
       characterDynamics,
       characterRoster: mappedCharacterRoster,
+      characterHardFacts: mappedCharacterHardFacts,
       creativeDecisions: mappedCreativeDecisions,
       openAuditIssues: mappedOpenAuditIssues,
       previousChaptersSummary,
+      previousChapterTail,
       openingHint,
       continuation: runtimeContinuation,
       styleContext,
@@ -650,6 +682,7 @@ export class GenerationContextAssembler {
       ledgerUrgentItems: canonicalLedger.ledgerUrgentItems,
       ledgerOverdueItems: canonicalLedger.ledgerOverdueItems,
       ledgerSummary: canonicalLedger.ledgerSummary,
+      timelineContext,
       characterResourceContext,
       chapterMission: null,
       chapterWriteContext: null,
@@ -665,10 +698,10 @@ export class GenerationContextAssembler {
       tokenBudgetPolicy: {
         chapterBudgetProfile: "balanced",
         stageTokenCap: {
-          writer: 1800,
+          writer: 2600,
           light_audit: 900,
           full_audit: 2600,
-          repair: 1600,
+          repair: 2200,
         },
         retryCap: {
           full_audit: 1,
@@ -735,9 +768,11 @@ export class GenerationContextAssembler {
       storyWorldSlice,
       characterDynamics,
       characterRoster: mappedCharacterRoster,
+      characterHardFacts: mappedCharacterHardFacts,
       creativeDecisions: mappedCreativeDecisions,
       openAuditIssues: mappedOpenAuditIssues,
       previousChaptersSummary,
+      previousChapterTail,
       openingHint,
       continuation: runtimeContinuation,
       styleContext,
@@ -748,6 +783,7 @@ export class GenerationContextAssembler {
       ledgerUrgentItems: canonicalLedger.ledgerUrgentItems,
       ledgerOverdueItems: canonicalLedger.ledgerOverdueItems,
       ledgerSummary: canonicalLedger.ledgerSummary,
+      timelineContext,
       characterResourceContext,
       chapterMission: chapterWriteContext.chapterMission,
       chapterWriteContext,
@@ -763,10 +799,10 @@ export class GenerationContextAssembler {
       tokenBudgetPolicy: {
         chapterBudgetProfile: "balanced",
         stageTokenCap: {
-          writer: 1800,
+          writer: 2600,
           light_audit: 900,
           full_audit: 2600,
-          repair: 1600,
+          repair: 2200,
         },
         retryCap: {
           full_audit: 1,

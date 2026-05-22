@@ -23,6 +23,7 @@ function createContextPackage() {
       revealLevel: 2,
       mustAvoid: "不要提前揭露幕后黑手",
       hook: "下一章才展开幕后黑手反击",
+      taskSheet: "任务单：本章必须承接第四章尾段的维修通道钥匙，并把女二情报转成第一次反压。",
       sceneCards: JSON.stringify({
         targetWordCount: 3000,
         lengthBudget: {
@@ -148,16 +149,56 @@ function createContextPackage() {
         name: "主角",
         role: "主角",
         personality: "谨慎但不服输",
+        identityLabel: "被压制的调查者",
+        factionLabel: "主角方",
+        powerLevel: "普通人",
         currentState: "被压制",
         currentGoal: "抢回主动权",
+        prohibitions: ["不得突然拥有超自然能力"],
       },
       {
         id: "char-2",
         name: "女二",
         role: "盟友",
         personality: "冷静克制",
+        identityLabel: "暗线持钥者",
+        factionLabel: "主角方",
+        stanceLabel: "隐线支援",
         currentState: "暂时失联",
         currentGoal: "把关键情报送到主角手里",
+        prohibitions: ["未现身前不得直接交出暗账副本"],
+      },
+    ],
+    characterHardFacts: [
+      {
+        characterId: "char-1",
+        name: "主角",
+        role: "主角",
+        identityLabel: "被压制的调查者",
+        factionLabel: "主角方",
+        stanceLabel: null,
+        powerLevel: "普通人",
+        realm: null,
+        currentLocation: "外城维修区",
+        availability: "本章可行动",
+        currentState: "被压制",
+        currentGoal: "抢回主动权",
+        prohibitions: ["不得突然拥有超自然能力"],
+      },
+      {
+        characterId: "char-2",
+        name: "女二",
+        role: "盟友",
+        identityLabel: "暗线持钥者",
+        factionLabel: "主角方",
+        stanceLabel: "隐线支援",
+        powerLevel: null,
+        realm: null,
+        currentLocation: "未知",
+        availability: "本章只能通过情报影响局势",
+        currentState: "暂时失联",
+        currentGoal: "把关键情报送到主角手里",
+        prohibitions: ["未现身前不得直接交出暗账副本"],
       },
     ],
     creativeDecisions: [],
@@ -177,6 +218,7 @@ function createContextPackage() {
     previousChaptersSummary: [
       "上一章：主角踩进陷阱，但确认女二仍掌握关键情报。",
     ],
+    previousChapterTail: "第四章尾段：主角攥紧维修通道钥匙，听见女二留下的暗号，决定立刻从外城维修区反打。",
     openingHint: "Recent openings: none.",
     continuation: {
       enabled: false,
@@ -546,12 +588,15 @@ test("chapter layered contexts carry volume mission, character duties and repair
   });
 
   assert.ok(writeContext.participants.some((item) => item.name === "女二"));
+  assert.ok(writeContext.characterHardFacts.some((item) => item.name === "女二"));
   assert.ok(writeContext.characterBehaviorGuides.some((item) => item.volumeResponsibility.includes("反压机会")));
   assert.ok(writeContext.characterBehaviorGuides.some((item) => item.absenceRisk === "high"));
   assert.ok(writeContext.pendingCandidateGuards.some((item) => item.proposedName === "林策"));
   assert.ok(writeContext.openConflictSummaries.some((item) => item.includes("第一次反压仍未落地")));
   assert.equal(writeContext.ledgerSummary.overdueCount, 1);
   assert.equal(writeContext.chapterMission.targetWordCount, 3000);
+  assert.match(writeContext.chapterMission.taskSheet, /维修通道钥匙/);
+  assert.match(writeContext.previousChapterTail, /第四章尾段/);
   assert.equal(writeContext.nextAction, "write_chapter");
   assert.equal(writeContext.lengthBudget.targetWordCount, 3000);
   assert.equal(writeContext.scenePlan.scenes.length, 3);
@@ -584,12 +629,31 @@ test("chapter layered contexts carry volume mission, character duties and repair
     && /First payoff after securing the key intel/.test(block.content)
     && /\[pressure\]/.test(block.content)
   )));
+  assert.ok(writerBlocks.some((block) => (
+    block.id === "chapter_mission"
+    && /Original task sheet/.test(block.content)
+    && /维修通道钥匙/.test(block.content)
+  )));
+  assert.ok(writerBlocks.some((block) => (
+    block.id === "previous_chapter_tail"
+    && block.required
+    && block.allowSummary === false
+    && /第四章尾段/.test(block.content)
+  )));
   assert.ok(!writerBlocks.some((block) => block.id === "scene_plan"));
   assert.ok(writerBlocks.some((block) => (
     block.id === "payoff_ledger"
     && /Payoff ledger summary: pending=1, urgent=1, overdue=1/.test(block.content)
     && /Active pending payoffs/.test(block.content)
     && /Overdue payoffs/.test(block.content)
+  )));
+  assert.ok(writerBlocks.some((block) => (
+    block.id === "character_hard_facts"
+    && block.required
+    && block.allowSummary === false
+    && /被压制的调查者/.test(block.content)
+    && /不得突然拥有超自然能力/.test(block.content)
+    && /未现身前不得直接交出暗账副本/.test(block.content)
   )));
   assert.ok(writerBlocks.some((block) => (
     block.id === "character_resource_context"

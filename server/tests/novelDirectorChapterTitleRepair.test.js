@@ -76,7 +76,7 @@ test("repairDirectorChapterTitles clears warning notice after titles are diversi
     ...baseWorkspace,
     volumes: [
       createVolume("volume-1", 1, [
-        "我先把第一位大佬救回来",
+        "第一位大佬在诊室醒来",
         "诊室门口突然排起长队",
         "这张化验单藏着第二层危机",
         "他当场改口，要把整栋楼送我",

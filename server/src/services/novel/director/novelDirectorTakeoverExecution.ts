@@ -161,6 +161,35 @@ function normalizeTakeoverSelection(
   };
 }
 
+function normalizeContinueExistingAutoExecutionPlan(input: {
+  request: DirectorTakeoverRequest;
+  directorInput: DirectorConfirmRequest;
+  takeoverState: DirectorTakeoverLoadedState;
+}): DirectorConfirmRequest["autoExecutionPlan"] {
+  const selection = normalizeTakeoverSelection(input.request);
+  const requestedPlan = input.directorInput.autoExecutionPlan ?? input.request.autoExecutionPlan;
+  if (selection.strategy !== "continue_existing" || requestedPlan?.mode !== "chapter_range") {
+    return requestedPlan;
+  }
+  const nextActionableOrder = input.takeoverState.executableRange?.nextChapterOrder
+    ?? input.takeoverState.latestAutoExecutionState?.nextChapterOrder
+    ?? input.takeoverState.executableRange?.startOrder
+    ?? null;
+  if (typeof nextActionableOrder !== "number" || !Number.isFinite(nextActionableOrder)) {
+    return requestedPlan;
+  }
+  const startOrder = Math.max(nextActionableOrder, Math.round(requestedPlan.startOrder ?? nextActionableOrder));
+  const endOrder = Math.max(startOrder, Math.round(requestedPlan.endOrder ?? startOrder));
+  if (requestedPlan.startOrder === startOrder && requestedPlan.endOrder === endOrder) {
+    return requestedPlan;
+  }
+  return {
+    ...requestedPlan,
+    startOrder,
+    endOrder,
+  };
+}
+
 function buildResumeTargetFromPlan(input: {
   novelId: string;
   workflowTaskId?: string | null;
@@ -289,7 +318,24 @@ async function createRewriteSnapshotForRestart(
 export async function startDirectorTakeoverExecution(
   input: StartDirectorTakeoverExecutionInput,
 ): Promise<DirectorTakeoverResponse> {
-  const selection = normalizeTakeoverSelection(input.request);
+  const normalizedAutoExecutionPlan = normalizeContinueExistingAutoExecutionPlan({
+    request: input.request,
+    directorInput: input.directorInput,
+    takeoverState: input.takeoverState,
+  });
+  const request = normalizedAutoExecutionPlan === input.request.autoExecutionPlan
+    ? input.request
+    : {
+      ...input.request,
+      autoExecutionPlan: normalizedAutoExecutionPlan,
+    };
+  const directorInput = normalizedAutoExecutionPlan === input.directorInput.autoExecutionPlan
+    ? input.directorInput
+    : {
+      ...input.directorInput,
+      autoExecutionPlan: normalizedAutoExecutionPlan,
+    };
+  const selection = normalizeTakeoverSelection(request);
   const plan = resolveDirectorTakeoverPlan({
     entryStep: selection.entryStep,
     strategy: selection.strategy,
@@ -300,19 +346,19 @@ export async function startDirectorTakeoverExecution(
   });
 
   const directorSession: DirectorSessionState = buildDirectorSessionState({
-    runMode: input.directorInput.runMode,
+    runMode: directorInput.runMode,
     phase: plan.executionMode === "phase" ? plan.phase ?? plan.startPhase : "chapter_execution",
     isBackgroundRunning: true,
   });
-  const isFullBookAutopilot = isFullBookAutopilotRunMode(input.directorInput.runMode);
+  const isFullBookAutopilot = isFullBookAutopilotRunMode(directorInput.runMode);
 
   let rewriteSnapshot: RewriteSnapshotReference | null = null;
   if (selection.strategy === "restart_current_step") {
     rewriteSnapshot = await createRewriteSnapshotForRestart(input);
     await input.prepareRestartStep?.({
-      request: input.request,
+      request,
       takeoverState: input.takeoverState,
-      directorInput: input.directorInput,
+      directorInput,
       plan,
     });
   }
@@ -322,15 +368,15 @@ export async function startDirectorTakeoverExecution(
     && plan.effectiveStep === "structured"
   ) {
     await input.resetDownstreamState?.({
-      request: input.request,
+      request,
       takeoverState: input.takeoverState,
-      directorInput: input.directorInput,
+      directorInput,
       plan,
     });
   }
 
   const initialResumeTarget = buildResumeTargetFromPlan({
-    novelId: input.request.novelId,
+    novelId: request.novelId,
     takeoverState: input.takeoverState,
     plan,
   });
@@ -338,12 +384,12 @@ export async function startDirectorTakeoverExecution(
   const initialState = buildTakeoverInitialState({ plan, takeoverState: input.takeoverState });
   const workflowTask = await input.workflowService.bootstrapTask({
     workflowTaskId: input.workflowTaskId ?? undefined,
-    novelId: input.request.novelId,
+    novelId: request.novelId,
     lane: "auto_director",
     title: input.takeoverState.novel.title,
     forceNew: input.workflowTaskId ? undefined : true,
     initialState,
-    seedPayload: input.buildDirectorSeedPayload(input.directorInput, input.request.novelId, buildTakeoverSeedPayloadExtra({
+    seedPayload: input.buildDirectorSeedPayload(directorInput, request.novelId, buildTakeoverSeedPayloadExtra({
       directorSession,
       resumeTarget: initialResumeTarget,
       plan,
@@ -363,16 +409,16 @@ export async function startDirectorTakeoverExecution(
 
     if (selection.strategy === "continue_existing") {
       await input.cancelReplacedRuns?.({
-        request: input.request,
+        request,
         takeoverState: input.takeoverState,
-        directorInput: input.directorInput,
+        directorInput,
         plan,
         replacementTaskId: workflowTask.id,
       });
     }
 
     const resumeTarget = buildResumeTargetFromPlan({
-      novelId: input.request.novelId,
+      novelId: request.novelId,
       workflowTaskId: workflowTask.id,
       takeoverState: input.takeoverState,
       plan,
@@ -382,7 +428,7 @@ export async function startDirectorTakeoverExecution(
       if ((plan.phase ?? plan.startPhase) === "structured_outline") {
         await input.assertHighMemoryStartAllowed?.({
           taskId: workflowTask.id,
-          novelId: input.request.novelId,
+          novelId: request.novelId,
           stage: "structured_outline",
           itemKey: "chapter_list",
           volumeId: input.takeoverState.latestCheckpoint?.volumeId
@@ -396,8 +442,8 @@ export async function startDirectorTakeoverExecution(
       input.scheduleBackgroundRun(workflowTask.id, async () => {
         await input.runDirectorPipeline({
           taskId: workflowTask.id,
-          novelId: input.request.novelId,
-          input: input.directorInput,
+          novelId: request.novelId,
+          input: directorInput,
           startPhase: plan.phase ?? plan.startPhase,
           approveCurrentGate: isFullBookAutopilot,
           approveAutoExecutionScope: isFullBookAutopilot,
@@ -405,8 +451,8 @@ export async function startDirectorTakeoverExecution(
       });
     } else {
       await input.autoExecutionRuntime.prepareRequestedAutoExecution({
-        novelId: input.request.novelId,
-        request: input.directorInput,
+        novelId: request.novelId,
+        request: directorInput,
         existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
         existingState: plan.usesCurrentBatch ? (input.takeoverState.latestAutoExecutionState ?? null) : null,
       });
@@ -414,8 +460,8 @@ export async function startDirectorTakeoverExecution(
       input.scheduleBackgroundRun(workflowTask.id, async () => {
         await input.autoExecutionRuntime.runFromReady({
           taskId: workflowTask.id,
-          novelId: input.request.novelId,
-          request: input.directorInput,
+          novelId: request.novelId,
+          request: directorInput,
           existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
           existingState: plan.usesCurrentBatch ? (input.takeoverState.latestAutoExecutionState ?? null) : null,
           resumeCheckpointType: plan.usesCurrentBatch ? (plan.resumeCheckpointType ?? null) : null,
@@ -427,7 +473,7 @@ export async function startDirectorTakeoverExecution(
     }
 
     return {
-      novelId: input.request.novelId,
+      novelId: request.novelId,
       workflowTaskId: workflowTask.id,
       startPhase: plan.startPhase,
       entryStep: selection.entryStep,

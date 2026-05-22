@@ -10,7 +10,7 @@ import type {
   NovelExportSectionScope,
   NovelExportStoryMacroSection,
   NovelExportStructuredSection,
-} from "./novelExportTypes";
+} from "./novelExport.types";
 
 const FULL_SECTION_ORDER: NovelExportSectionScope[] = [
   "basic",
@@ -28,6 +28,76 @@ function normalizeText(input: string | null | undefined): string {
 
 function hasMeaningfulText(input: string | null | undefined): boolean {
   return normalizeText(input).length > 0;
+}
+
+export interface NovelTxtRecord {
+  title: string;
+  description: string | null;
+  chapters: Array<{
+    order: number;
+    title: string;
+    content: string | null;
+  }>;
+}
+
+export interface NovelExportResult {
+  fileName: string;
+  contentType: string;
+  content: string;
+}
+
+export function safeFileNamePart(input: string): string {
+  const cleaned = input
+    .replace(/[\\/:*?"<>|]/g, "_")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || "novel";
+}
+
+function padTimeUnit(value: number): string {
+  return String(Math.max(0, Math.floor(value))).padStart(2, "0");
+}
+
+export function buildExportTimestamp(input: Date = new Date()): string {
+  return [
+    input.getFullYear(),
+    padTimeUnit(input.getMonth() + 1),
+    padTimeUnit(input.getDate()),
+  ].join("")
+    + "-"
+    + [
+      padTimeUnit(input.getHours()),
+      padTimeUnit(input.getMinutes()),
+      padTimeUnit(input.getSeconds()),
+    ].join("");
+}
+
+export function buildTxtContent(novel: NovelTxtRecord): string {
+  const lines: string[] = [];
+  lines.push(`《${novel.title}》`);
+  lines.push("");
+
+  const description = normalizeText(novel.description);
+  if (description) {
+    lines.push("【简介】");
+    lines.push(description);
+    lines.push("");
+  }
+
+  if (novel.chapters.length === 0) {
+    lines.push("（暂无章节内容）");
+    return lines.join("\n");
+  }
+
+  for (const chapter of novel.chapters) {
+    lines.push("=".repeat(48));
+    lines.push(`第${chapter.order}章 ${chapter.title}`);
+    lines.push("-".repeat(48));
+    lines.push(normalizeText(chapter.content) || "（本章暂无内容）");
+    lines.push("");
+  }
+
+  return lines.join("\n");
 }
 
 function addBullet(lines: string[], label: string, value: string | number | null | undefined): void {

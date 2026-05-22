@@ -136,6 +136,9 @@ export async function applyCharacterCastOption(
   optionId: string,
   payload?: {
     overrideQualityGate?: boolean;
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<CharacterCastApplyResult>>(

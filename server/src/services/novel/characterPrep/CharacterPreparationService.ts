@@ -23,9 +23,16 @@ import {
 import type { CharacterCastOptionResponseParsed } from "../../../prompting/prompts/novel/characterPreparation.promptSchemas";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import { NovelContextService } from "../NovelContextService";
-import { CharacterVisibleProfileService } from "../characterProfile/CharacterVisibleProfileService";
+import {
+  CharacterVisibleProfileService,
+  type CharacterVisibleProfileGenerateOptions,
+} from "../characterProfile/CharacterVisibleProfileService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { CharacterPreparationSupplementalService } from "./characterPreparationSupplemental";
+import {
+  parseCharacterProhibitionsJson,
+  serializeCharacterProhibitions,
+} from "../characters/characterHardFacts";
 import {
   assessCharacterCastBatch,
   buildCharacterCastBlockedMessage,
@@ -43,11 +50,19 @@ interface CharacterPrepOptions {
 
 interface CharacterCastApplyOptions {
   overrideQualityGate?: boolean;
+  visibleProfileGeneration?: CharacterVisibleProfileGenerateOptions;
 }
 
 function toOptionalText(value: string | null | undefined): string | null {
   const normalized = value?.trim() ?? "";
   return normalized || null;
+}
+
+function fillIfMissing(existing: string | null | undefined, incoming: string | null | undefined): string | undefined {
+  if (existing?.trim()) {
+    return undefined;
+  }
+  return toOptionalText(incoming) ?? undefined;
 }
 
 function buildWorldStage(novel: {
@@ -94,6 +109,17 @@ function serializeCharacterCastOption(row: {
     relationToProtagonist: string | null;
     storyFunction: string;
     shortDescription: string | null;
+    personality: string | null;
+    background: string | null;
+    development: string | null;
+    identityLabel: string | null;
+    factionLabel: string | null;
+    stanceLabel: string | null;
+    powerLevel: string | null;
+    realm: string | null;
+    currentLocation: string | null;
+    availability: string | null;
+    prohibitionsJson: string;
     outerGoal: string | null;
     innerNeed: string | null;
     fear: string | null;
@@ -141,6 +167,18 @@ function serializeCharacterCastOption(row: {
       relationToProtagonist: member.relationToProtagonist,
       storyFunction: member.storyFunction,
       shortDescription: member.shortDescription,
+      personality: member.personality,
+      background: member.background,
+      development: member.development,
+      identityLabel: member.identityLabel,
+      factionLabel: member.factionLabel,
+      stanceLabel: member.stanceLabel,
+      powerLevel: member.powerLevel,
+      realm: member.realm,
+      currentLocation: member.currentLocation,
+      availability: member.availability,
+      prohibitions: parseCharacterProhibitionsJson(member.prohibitionsJson),
+      prohibitionsJson: member.prohibitionsJson,
       outerGoal: member.outerGoal,
       innerNeed: member.innerNeed,
       fear: member.fear,
@@ -380,6 +418,17 @@ export class CharacterPreparationService {
                 relationToProtagonist: toOptionalText(member.relationToProtagonist),
                 storyFunction: member.storyFunction,
                 shortDescription: toOptionalText(member.shortDescription),
+                personality: toOptionalText(member.personality),
+                background: toOptionalText(member.background),
+                development: toOptionalText(member.development),
+                identityLabel: toOptionalText(member.identityLabel),
+                factionLabel: toOptionalText(member.factionLabel),
+                stanceLabel: toOptionalText(member.stanceLabel),
+                powerLevel: toOptionalText(member.powerLevel),
+                realm: toOptionalText(member.realm),
+                currentLocation: toOptionalText(member.currentLocation),
+                availability: toOptionalText(member.availability),
+                prohibitionsJson: serializeCharacterProhibitions(member.prohibitions),
                 outerGoal: toOptionalText(member.outerGoal),
                 innerNeed: toOptionalText(member.innerNeed),
                 fear: toOptionalText(member.fear),
@@ -539,7 +588,21 @@ export class CharacterPreparationService {
 
     const existingCharacters = await prisma.character.findMany({
       where: { novelId },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        personality: true,
+        background: true,
+        development: true,
+        identityLabel: true,
+        factionLabel: true,
+        stanceLabel: true,
+        powerLevel: true,
+        realm: true,
+        currentLocation: true,
+        availability: true,
+        prohibitionsJson: true,
+      },
       orderBy: { createdAt: "asc" },
     });
 
@@ -559,6 +622,19 @@ export class CharacterPreparationService {
           castRole: member.castRole,
           storyFunction: member.storyFunction,
           relationToProtagonist: member.relationToProtagonist ?? undefined,
+          personality: fillIfMissing(matched.personality, member.personality),
+          background: fillIfMissing(matched.background, member.background),
+          development: fillIfMissing(matched.development, member.development),
+          identityLabel: fillIfMissing(matched.identityLabel, member.identityLabel),
+          factionLabel: fillIfMissing(matched.factionLabel, member.factionLabel),
+          stanceLabel: fillIfMissing(matched.stanceLabel, member.stanceLabel),
+          powerLevel: fillIfMissing(matched.powerLevel, member.powerLevel),
+          realm: fillIfMissing(matched.realm, member.realm),
+          currentLocation: fillIfMissing(matched.currentLocation, member.currentLocation),
+          availability: fillIfMissing(matched.availability, member.availability),
+          prohibitions: parseCharacterProhibitionsJson(matched.prohibitionsJson).length === 0
+            ? parseCharacterProhibitionsJson(member.prohibitionsJson)
+            : undefined,
           outerGoal: member.outerGoal ?? undefined,
           innerNeed: member.innerNeed ?? undefined,
           fear: member.fear ?? undefined,
@@ -581,6 +657,17 @@ export class CharacterPreparationService {
         castRole: member.castRole,
         storyFunction: member.storyFunction,
         relationToProtagonist: member.relationToProtagonist ?? undefined,
+        personality: member.personality ?? undefined,
+        background: member.background ?? undefined,
+        development: member.development ?? undefined,
+        identityLabel: member.identityLabel ?? undefined,
+        factionLabel: member.factionLabel ?? undefined,
+        stanceLabel: member.stanceLabel ?? undefined,
+        powerLevel: member.powerLevel ?? undefined,
+        realm: member.realm ?? undefined,
+        currentLocation: member.currentLocation ?? undefined,
+        availability: member.availability ?? undefined,
+        prohibitions: parseCharacterProhibitionsJson(member.prohibitionsJson),
         outerGoal: member.outerGoal ?? undefined,
         innerNeed: member.innerNeed ?? undefined,
         fear: member.fear ?? undefined,
@@ -654,6 +741,7 @@ export class CharacterPreparationService {
     await this.characterVisibleProfileService.autoCompleteVisibleProfilesForCharacters(
       novelId,
       uniqueCharacterIds,
+      options.visibleProfileGeneration,
     ).catch((error) => {
       console.warn("[character-visible-profile] 自动补齐外显资料失败", error);
       return null;

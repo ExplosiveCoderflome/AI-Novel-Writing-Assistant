@@ -186,6 +186,9 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
     mutationFn: (input: { optionId: string; overrideQualityGate?: boolean }) => (
       applyCharacterCastOption(novelId, input.optionId, {
         overrideQualityGate: input.overrideQualityGate,
+        provider: llmProvider,
+        model: llmModel,
+        temperature: 0.45,
       })
     ),
     onSuccess: async (response) => {

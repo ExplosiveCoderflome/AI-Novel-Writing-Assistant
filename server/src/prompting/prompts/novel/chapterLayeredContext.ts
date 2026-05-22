@@ -39,6 +39,7 @@ import {
   toListBlock,
 } from "./chapterLayeredContextShared";
 import { RUNTIME_PROMPT_BUDGET_PROFILES } from "./promptBudgetProfiles";
+import { timelinePromptAdapter } from "../../../modules/timeline/timeline-prompt-adapter";
 
 export const WRITER_FORBIDDEN_GROUPS = [
   "full_outline",
@@ -170,6 +171,7 @@ export function buildChapterMissionContext(contextPackage: GenerationContextPack
       compactText(contextPackage.chapter.expectation)
       || compactText(stateGoal?.summary)
       || compactText(contextPackage.plan?.title, "Deliver the current chapter mission."),
+    taskSheet: compactText(contextPackage.chapter.taskSheet) || null,
     targetWordCount: contextPackage.chapter.targetWordCount ?? null,
     planRole: contextPackage.plan?.planRole ?? null,
     hookTarget: compactText(contextPackage.plan?.hookTarget, "Leave a fresh tension point at the ending."),
@@ -233,6 +235,13 @@ export function buildChapterWriteContext(input: {
   contextPackage: GenerationContextPackage;
 }): ChapterWriteContext {
   const dynamicCharacterGuidance = buildDynamicCharacterGuidance(input.contextPackage);
+  const participants = buildParticipants(input.contextPackage, dynamicCharacterGuidance.characterBehaviorGuides);
+  const characterHardFacts = selectCharacterHardFactsForWriter({
+    hardFacts: input.contextPackage.characterHardFacts ?? [],
+    participants,
+    characterBehaviorGuides: dynamicCharacterGuidance.characterBehaviorGuides,
+    currentChapterOrder: input.contextPackage.chapter.order,
+  });
   const scenePlan = parseChapterScenePlan(input.contextPackage.chapter.sceneCards, {
     targetWordCount: input.contextPackage.chapter.targetWordCount ?? undefined,
   });
@@ -258,7 +267,8 @@ export function buildChapterWriteContext(input: {
     chapterBoundary: buildChapterBoundaryContract(input.contextPackage, scenePlan),
     lengthBudget: resolveLengthBudgetContract(input.contextPackage.chapter.targetWordCount),
     scenePlan,
-    participants: buildParticipants(input.contextPackage, dynamicCharacterGuidance.characterBehaviorGuides),
+    participants,
+    characterHardFacts,
     characterBehaviorGuides: dynamicCharacterGuidance.characterBehaviorGuides,
     activeRelationStages: dynamicCharacterGuidance.activeRelationStages,
     pendingCandidateGuards: dynamicCharacterGuidance.pendingCandidateGuards,
@@ -268,8 +278,10 @@ export function buildChapterWriteContext(input: {
     ledgerUrgentItems: input.contextPackage.ledgerUrgentItems,
     ledgerOverdueItems: input.contextPackage.ledgerOverdueItems,
     ledgerSummary: input.contextPackage.ledgerSummary ?? null,
+    timelineContext: input.contextPackage.timelineContext ?? null,
     characterResourceContext: input.contextPackage.characterResourceContext ?? null,
     recentChapterSummaries: takeUnique(input.contextPackage.previousChaptersSummary.slice(0, 3), 3),
+    previousChapterTail: compactText(input.contextPackage.previousChapterTail) || null,
     openingAntiRepeatHint: compactText(input.contextPackage.openingHint, "No recent opening guidance."),
     styleContract: input.contextPackage.styleContext?.compiledBlocks?.contract ?? null,
     styleConstraints: summarizeStyleConstraints(input.contextPackage),
@@ -333,6 +345,8 @@ function normalizeChapterWriteContext(writeContext: ChapterWriteContext): Chapte
       canDefer: obligationContract.canDefer ?? EMPTY_OBLIGATION_CONTRACT.canDefer,
       forbiddenCrossings: obligationContract.forbiddenCrossings ?? EMPTY_OBLIGATION_CONTRACT.forbiddenCrossings,
     },
+    characterHardFacts: writeContext.characterHardFacts ?? [],
+    previousChapterTail: writeContext.previousChapterTail ?? null,
   };
 }
 
@@ -460,6 +474,60 @@ function hasCharacterResourcePressure(writeContext: ChapterWriteContext): boolea
     || context.riskSignals.length > 0;
 }
 
+function selectCharacterHardFactsForWriter(input: {
+  hardFacts: ChapterWriteContext["characterHardFacts"];
+  participants: ChapterWriteContext["participants"];
+  characterBehaviorGuides: ChapterWriteContext["characterBehaviorGuides"];
+  currentChapterOrder: number;
+}): ChapterWriteContext["characterHardFacts"] {
+  const selectedIds = new Set(input.participants.map((character) => character.id));
+  for (const guide of input.characterBehaviorGuides) {
+    if (
+      guide.shouldPreferAppearance
+      || guide.plannedChapterOrders.includes(input.currentChapterOrder)
+      || guide.absenceRisk === "high"
+      || guide.absenceRisk === "warn"
+      || guide.relationStageLabels.length > 0
+    ) {
+      selectedIds.add(guide.characterId);
+    }
+  }
+  const selected = input.hardFacts.filter((fact) => selectedIds.has(fact.characterId));
+  return selected.length > 0 ? selected.slice(0, 8) : input.hardFacts.slice(0, 4);
+}
+
+function buildCharacterHardFactsText(writeContext: ChapterWriteContext): string {
+  const hardFacts = writeContext.characterHardFacts ?? [];
+  if (hardFacts.length === 0) {
+    return [
+      "【角色硬事实】",
+      "当前没有已登记的角色硬事实；不得凭空改写角色阵营、身份、境界、所在地或行动可用性。",
+      "如章节任务没有明确要求，不要新增不可逆角色状态。",
+    ].join("\n");
+  }
+
+  return [
+    "【角色硬事实】",
+    "以下内容是正文生成前的不可违背写作约束，优先级高于软性人物简介。",
+    ...hardFacts.slice(0, 8).map((fact) => {
+      const parts = takeUnique([
+        fact.role ? `角色定位=${fact.role}` : "",
+        fact.identityLabel ? `身份=${fact.identityLabel}` : "",
+        fact.factionLabel ? `阵营=${fact.factionLabel}` : "",
+        fact.stanceLabel ? `立场=${fact.stanceLabel}` : "",
+        fact.powerLevel ? `战力=${fact.powerLevel}` : "",
+        fact.realm ? `境界=${fact.realm}` : "",
+        fact.currentLocation ? `当前位置=${fact.currentLocation}` : "",
+        fact.availability ? `可出场状态=${fact.availability}` : "",
+        fact.currentState ? `当前状态=${fact.currentState}` : "",
+        fact.currentGoal ? `当前目标=${fact.currentGoal}` : "",
+        fact.prohibitions.length > 0 ? `禁止误写=${fact.prohibitions.join(" / ")}` : "",
+      ], 12);
+      return `- ${fact.name}: ${parts.join(" | ")}`;
+    }),
+  ].join("\n");
+}
+
 function buildResourceItemLine(item: NonNullable<ChapterWriteContext["characterResourceContext"]>["availableItems"][number]): string {
   const holder = item.holderCharacterName ? `holder=${item.holderCharacterName}` : "holder=unknown";
   const window = item.expectedUseStartChapterOrder || item.expectedUseEndChapterOrder
@@ -539,6 +607,7 @@ export function buildChapterWriterContextBlocks(
   const includeVolumeWindow = mode === "full" || mode === "review";
   const includePayoffLedger = mode === "full" && hasLedgerPressure(writeContext);
   const includePayoffDirectives = writeContext.payoffDirectives.length > 0;
+  const includeTimelineContext = Boolean(writeContext.timelineContext);
   const hasObligationContract = Object.values(writeContext.obligationContract).some((items) => items.length > 0);
   const includeCharacterResources = !isIncremental && hasCharacterResourcePressure(writeContext);
   const includeCharacterDynamics = shouldIncludeCharacterDynamics(writeContext, mode);
@@ -565,9 +634,25 @@ export function buildChapterWriterContextBlocks(
         toListBlock("Must advance", writeContext.chapterMission.mustAdvance),
         toListBlock("Must preserve", writeContext.chapterMission.mustPreserve),
         toListBlock("Risk notes", writeContext.chapterMission.riskNotes),
+        writeContext.chapterMission.taskSheet
+          ? `Original task sheet:\n${writeContext.chapterMission.taskSheet}`
+          : "",
         writeContext.chapterMission.hookTarget ? `Ending hook: ${writeContext.chapterMission.hookTarget}` : "",
       ].filter(Boolean).join("\n"),
     }),
+    writeContext.previousChapterTail
+      ? createContextBlock({
+        id: "previous_chapter_tail",
+        group: "previous_chapter_tail",
+        priority: 100,
+        required: true,
+        allowSummary: false,
+        content: [
+          "上一章实际尾段（本章开头必须直接承接这里的时间、地点、人物状态和未兑现动作）：",
+          writeContext.previousChapterTail,
+        ].join("\n"),
+      })
+      : null,
     hasObligationContract
       ? createContextBlock({
         id: "obligation_contract",
@@ -587,6 +672,40 @@ export function buildChapterWriterContextBlocks(
         ].filter(Boolean).join("\n"),
       })
       : null,
+    includeTimelineContext
+      ? createContextBlock({
+        id: "timeline_context",
+        group: "timeline_context",
+        priority: 100,
+        required: true,
+        allowSummary: false,
+        content: timelinePromptAdapter.toPromptBlock(writeContext.timelineContext!),
+      })
+      : createContextBlock({
+        id: "timeline_context",
+        group: "timeline_context",
+        priority: 100,
+        required: true,
+        allowSummary: false,
+        content: "【时间线约束】\n当前没有已登记的时间线资产；不得提前发生后续章节事件，必须严格服从本章任务和上一章实际状态。",
+      }),
+    includeTimelineContext
+      ? createContextBlock({
+        id: "previous_chapter_hook",
+        group: "previous_chapter_hook",
+        priority: 100,
+        required: true,
+        allowSummary: false,
+        content: timelinePromptAdapter.toPreviousHookBlock(writeContext.timelineContext!),
+      })
+      : createContextBlock({
+        id: "previous_chapter_hook",
+        group: "previous_chapter_hook",
+        priority: 100,
+        required: true,
+        allowSummary: false,
+        content: "【上一章必须承接的钩子】\n- 无已登记钩子；如章节任务或最近状态包含上一章悬念，必须优先承接。",
+      }),
     includePayoffDirectives
       ? createContextBlock({
         id: "payoff_directives",
@@ -652,6 +771,14 @@ export function buildChapterWriterContextBlocks(
         ].join("\n"),
       })
       : null,
+    createContextBlock({
+      id: "character_hard_facts",
+      group: "character_hard_facts",
+      priority: 99,
+      required: true,
+      allowSummary: false,
+      content: buildCharacterHardFactsText(writeContext),
+    }),
     createContextBlock({
       id: "participant_subset",
       group: "participant_subset",

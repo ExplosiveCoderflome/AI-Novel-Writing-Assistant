@@ -1,7 +1,10 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
+const promptRunner = require("../dist/prompting/core/promptRunner.js");
+const { prisma } = require("../dist/db/prisma.js");
 const { ChapterRuntimeCoordinator } = require("../dist/services/novel/runtime/ChapterRuntimeCoordinator.js");
 const { PostGenerationStyleReviewRunner } = require("../dist/services/novel/runtime/PostGenerationStyleReviewRunner.js");
+const { openConflictService } = require("../dist/services/state/OpenConflictService.js");
 
 function createEmptyStream() {
   return {
@@ -42,11 +45,191 @@ function createAssembledChapter() {
   };
 }
 
+function createRepairAssembledChapter() {
+  const now = new Date().toISOString();
+  return {
+    novel: {
+      id: "novel-1",
+      title: "测试小说",
+    },
+    chapter: {
+      id: "chapter-1",
+      title: "第1章",
+      order: 1,
+      content: "旧正文里有一段需要修复的内容。",
+      expectation: "推进第一次反压。",
+    },
+    contextPackage: {
+      chapter: {
+        id: "chapter-1",
+        title: "第1章",
+        order: 1,
+        content: "旧正文里有一段需要修复的内容。",
+        expectation: "推进第一次反压。",
+        supportingContextText: "",
+      },
+      plan: {
+        id: "plan-1",
+        chapterId: "chapter-1",
+        planRole: "pressure",
+        phaseLabel: "起势",
+        title: "第1章计划",
+        objective: "推进第一次反压。",
+        participants: ["主角"],
+        reveals: [],
+        riskNotes: [],
+        mustAdvance: ["推进反压结果"],
+        mustPreserve: ["压迫感"],
+        sourceIssueIds: [],
+        replannedFromPlanId: null,
+        hookTarget: "留下下一轮追击",
+        rawPlanJson: null,
+        scenes: [],
+        createdAt: now,
+        updatedAt: now,
+      },
+      stateSnapshot: null,
+      openConflicts: [],
+      storyWorldSlice: null,
+      characterRoster: [{
+        id: "char-1",
+        name: "主角",
+        role: "主角",
+      }],
+      creativeDecisions: [],
+      openAuditIssues: [],
+      previousChaptersSummary: [],
+      openingHint: "Recent openings: none.",
+      continuation: {
+        enabled: false,
+        sourceType: null,
+        sourceId: null,
+        sourceTitle: "",
+        systemRule: "",
+        humanBlock: "",
+        antiCopyCorpus: [],
+      },
+      styleContext: null,
+      ledgerPendingItems: [],
+      ledgerUrgentItems: [],
+      ledgerOverdueItems: [],
+      ledgerSummary: null,
+      characterDynamics: {
+        novelId: "novel-1",
+        currentVolume: {
+          id: "volume-1",
+          title: "第一卷",
+          sortOrder: 1,
+          startChapterOrder: 1,
+          endChapterOrder: 10,
+          currentChapterOrder: 1,
+        },
+        summary: "第一卷需要建立反压结果。",
+        pendingCandidateCount: 0,
+        characters: [],
+        relations: [],
+        candidates: [],
+        factionTracks: [],
+        assignments: [],
+      },
+      bookContract: {
+        title: "测试小说",
+        genre: "都市",
+        targetAudience: "新手向男频读者",
+        sellingPoint: "高压开局",
+        first30ChapterPromise: "尽快兑现压迫与反压",
+        narrativePov: "limited-third-person",
+        pacePreference: "fast",
+        emotionIntensity: "high",
+        toneGuardrails: [],
+        hardConstraints: [],
+      },
+      macroConstraints: null,
+      volumeWindow: {
+        volumeId: "volume-1",
+        sortOrder: 1,
+        title: "第一卷",
+        missionSummary: "完成第一次反压",
+        adjacentSummary: "",
+        pendingPayoffs: [],
+        softFutureSummary: null,
+      },
+      nextAction: "write_chapter",
+      pendingReviewProposalCount: 0,
+      chapterWriteContext: {
+        bookContract: {
+          title: "测试小说",
+          genre: "都市",
+          targetAudience: "新手向男频读者",
+          sellingPoint: "高压开局",
+          first30ChapterPromise: "尽快兑现压迫与反压",
+          narrativePov: "limited-third-person",
+          pacePreference: "fast",
+          emotionIntensity: "high",
+          toneGuardrails: [],
+          hardConstraints: [],
+        },
+        macroConstraints: null,
+        volumeWindow: {
+          volumeId: "volume-1",
+          sortOrder: 1,
+          title: "第一卷",
+          missionSummary: "完成第一次反压",
+          adjacentSummary: "无",
+          pendingPayoffs: [],
+          softFutureSummary: "无",
+        },
+        chapterMission: {
+          chapterId: "chapter-1",
+          chapterOrder: 1,
+          title: "第1章",
+          objective: "推进第一次反压。",
+          expectation: "推进第一次反压。",
+          planRole: "pressure",
+          hookTarget: "留下下一轮追击",
+          mustAdvance: ["推进第一次反压。"],
+          mustPreserve: ["压迫感"],
+          riskNotes: [],
+          targetWordCount: 3000,
+        },
+        nextAction: "write_chapter",
+        chapterStateGoal: null,
+        protectedSecrets: [],
+        payoffDirectives: [],
+        chapterBoundary: null,
+        lengthBudget: null,
+        scenePlan: null,
+        participants: [{
+          id: "char-1",
+          name: "主角",
+          role: "主角",
+        }],
+        characterBehaviorGuides: [],
+        activeRelationStages: [],
+        pendingCandidateGuards: [],
+        ledgerPendingItems: [],
+        ledgerUrgentItems: [],
+        ledgerOverdueItems: [],
+        ledgerSummary: null,
+        localStateSummary: "主角正在准备第一次反压。",
+        openConflictSummaries: ["第一次反压尚未真正落地。"],
+        recentChapterSummaries: [],
+        openingAntiRepeatHint: "Recent openings: none.",
+        styleConstraints: [],
+      },
+    },
+  };
+}
+
 function createAgentRuntime() {
   return {
     createChapterGenRun: async () => "run-1",
     finishChapterGenRun: async () => undefined,
   };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 test("createChapterStream uses lightweight readiness without forcing execution contract", async () => {
@@ -99,6 +282,431 @@ test("createChapterStream uses lightweight readiness without forcing execution c
   assert.notEqual(writerIndex, -1);
   assert.equal(ensureContractIndex, -1);
   assert.ok(assembleIndex < writerIndex);
+});
+
+test("finalizeChapterContent runs acceptance and timeline gates in parallel and caches repeated content", async () => {
+  const coordinator = new ChapterRuntimeCoordinator({
+    acceptanceAssessmentService: {
+      assess: async () => {
+        acceptanceCalls += 1;
+        gateCalls.push(["acceptance-start", Date.now()]);
+        await sleep(70);
+        gateCalls.push(["acceptance-end", Date.now()]);
+        return {
+          assessment: {
+            status: "accepted",
+            score: {
+              coherence: 98,
+              pacing: 98,
+              repetition: 98,
+              engagement: 98,
+              voice: 98,
+              overall: 98,
+            },
+            blockingIssues: [],
+            repairDirectives: [],
+            missingObligations: [],
+            repairability: "none",
+            decisionReason: "ok",
+            riskTags: [],
+            assetSyncRecommendation: {
+              priority: "normal",
+              reason: "ok",
+              requiresFullPayoffReconcile: false,
+            },
+            continuePolicy: "continue",
+            summary: "ok",
+          },
+          score: {
+            coherence: 98,
+            pacing: 98,
+            repetition: 98,
+            engagement: 98,
+            voice: 98,
+            overall: 98,
+          },
+          issues: [],
+          auditReports: [],
+        };
+      },
+    },
+    timelineFinalizer: {
+      finalizeCurrentContent: async () => undefined,
+      ensurePreviousChapterFinalized: async () => null,
+    },
+  });
+  coordinator.markChapterStatus = async () => undefined;
+  coordinator.finishTraceRun = async () => undefined;
+
+  const gateCalls = [];
+  let acceptanceCalls = 0;
+  let timelineCalls = 0;
+  const originalListOpenConflicts = openConflictService.listOpenConflicts;
+  openConflictService.listOpenConflicts = async () => [];
+  try {
+    coordinator.executeTimelineGate = async () => {
+      timelineCalls += 1;
+      gateCalls.push(["timeline-start", Date.now()]);
+      await sleep(70);
+      gateCalls.push(["timeline-end", Date.now()]);
+      return {
+        status: "passed",
+        score: 0.98,
+        issues: [],
+      };
+    };
+    coordinator.buildRuntimePackage = () => ({
+      audit: {
+        score: {
+          coherence: 98,
+          pacing: 98,
+          repetition: 98,
+          engagement: 98,
+          voice: 98,
+          overall: 98,
+        },
+        openIssues: [],
+        reports: [],
+        hasBlockingIssues: false,
+      },
+      meta: {
+        acceptanceStatus: "accepted",
+        continuePolicy: "continue",
+      },
+      timelineCheck: {
+        status: "passed",
+      },
+      context: {
+        styleContext: null,
+      },
+    });
+
+    const start = Date.now();
+    await coordinator.finalizeChapterContent({
+      novelId: "novel-1",
+      chapterId: "chapter-1",
+      request: {},
+      contextPackage: {
+        chapter: { id: "chapter-1", title: "第1章", order: 1, targetWordCount: 3000 },
+        bookContract: null,
+      },
+      content: "正文",
+      runId: null,
+      startMs: null,
+    });
+    const duration = Date.now() - start;
+
+    const firstAcceptanceStart = gateCalls.find((item) => item[0] === "acceptance-start")[1];
+    const firstTimelineStart = gateCalls.find((item) => item[0] === "timeline-start")[1];
+    const firstAcceptanceEnd = gateCalls.find((item) => item[0] === "acceptance-end")[1];
+    const firstTimelineEnd = gateCalls.find((item) => item[0] === "timeline-end")[1];
+
+    assert.equal(acceptanceCalls, 1);
+    assert.equal(timelineCalls, 1);
+    assert.ok(Math.abs(firstAcceptanceStart - firstTimelineStart) < 50);
+    assert.ok(duration < 180);
+
+    await coordinator.finalizeChapterContent({
+      novelId: "novel-1",
+      chapterId: "chapter-1",
+      request: {},
+      contextPackage: {
+        chapter: { id: "chapter-1", title: "第1章", order: 1, targetWordCount: 3000 },
+        bookContract: null,
+      },
+      content: "正文",
+      runId: null,
+      startMs: null,
+    });
+
+    assert.equal(acceptanceCalls, 1);
+    assert.equal(timelineCalls, 1);
+    assert.ok(firstAcceptanceEnd >= firstAcceptanceStart);
+    assert.ok(firstTimelineEnd >= firstTimelineStart);
+  } finally {
+    openConflictService.listOpenConflicts = originalListOpenConflicts;
+  }
+});
+
+test("finalizeChapterContent commits timeline only after chapter reaches a stable review result", async () => {
+  let acceptanceMode = "repairable";
+  const syncCalls = [];
+  const finalizationCalls = [];
+  const coordinator = new ChapterRuntimeCoordinator({
+    acceptanceAssessmentService: {
+      assess: async () => ({
+        assessment: {
+          status: acceptanceMode === "repairable" ? "repairable" : "accepted",
+          score: {
+            coherence: 95,
+            pacing: 95,
+            repetition: 95,
+            engagement: 95,
+            voice: 95,
+            overall: 95,
+          },
+          blockingIssues: [],
+          repairDirectives: [],
+          missingObligations: [],
+          repairability: acceptanceMode === "repairable" ? "rewrite_needed" : "none",
+          decisionReason: acceptanceMode,
+          riskTags: [],
+          assetSyncRecommendation: {
+            priority: "normal",
+            reason: acceptanceMode,
+            requiresFullPayoffReconcile: false,
+          },
+          continuePolicy: acceptanceMode === "repairable" ? "repair_once" : "continue",
+          summary: acceptanceMode,
+        },
+        score: {
+          coherence: 95,
+          pacing: 95,
+          repetition: 95,
+          engagement: 95,
+          voice: 95,
+          overall: 95,
+        },
+        issues: [],
+        auditReports: [],
+      }),
+    },
+    artifactSyncService: {
+      saveDraftAndArtifacts: async () => undefined,
+      syncChapterArtifacts: async (...args) => {
+        syncCalls.push(args);
+      },
+    },
+    timelineFinalizer: {
+      finalizeCurrentContent: async (input) => {
+        finalizationCalls.push(input);
+      },
+      ensurePreviousChapterFinalized: async () => null,
+    },
+  });
+  coordinator.markChapterStatus = async () => undefined;
+  coordinator.finishTraceRun = async () => undefined;
+  coordinator.executeTimelineGate = async () => ({
+    result: {
+      status: "passed",
+      score: 0.96,
+      issues: [],
+    },
+    extractedEvents: [{
+      title: "主角完成行动",
+      summary: "本章关键推进",
+      type: "plot",
+      occurred: true,
+      confidence: 0.96,
+      stateChanges: [],
+      possibleHooks: [],
+    }],
+    extractedHooks: [],
+    timelineContext: {
+      currentTime: {
+        storyDayIndex: 1,
+        label: "第一天",
+      },
+      openHooks: [],
+      plannedEvents: [],
+      forbiddenEvents: [],
+      chapterObjective: null,
+      mustAddressHooks: [],
+      optionalHooks: [],
+    },
+  });
+  coordinator.buildRuntimePackage = (input) => ({
+    audit: {
+      score: input.auditResult.score,
+      openIssues: [],
+      reports: [],
+      hasBlockingIssues: false,
+    },
+    meta: {
+      acceptanceStatus: input.acceptance.status,
+      continuePolicy: input.acceptance.continuePolicy,
+    },
+    timelineCheck: input.timelineCheck,
+    context: {
+      styleContext: null,
+    },
+  });
+
+  const originalListOpenConflicts = openConflictService.listOpenConflicts;
+  openConflictService.listOpenConflicts = async () => [];
+
+  try {
+    await coordinator.finalizeChapterContent({
+      novelId: "novel-1",
+      chapterId: "chapter-1",
+      request: {},
+      contextPackage: {
+        chapter: { id: "chapter-1", title: "第1章", order: 1, targetWordCount: 3000 },
+        bookContract: null,
+        timelineContext: {
+          currentTime: {
+            storyDayIndex: 1,
+            label: "第一天",
+          },
+          openHooks: [],
+          plannedEvents: [],
+          forbiddenEvents: [],
+          chapterObjective: null,
+          mustAddressHooks: [],
+          optionalHooks: [],
+        },
+      },
+      content: "正文版本一",
+      runId: null,
+      startMs: null,
+      deferArtifactBackgroundSync: true,
+    });
+    assert.equal(finalizationCalls.length, 0);
+    assert.equal(syncCalls.length, 0);
+
+    acceptanceMode = "accepted";
+    await coordinator.finalizeChapterContent({
+      novelId: "novel-1",
+      chapterId: "chapter-1",
+      request: {},
+      contextPackage: {
+        chapter: { id: "chapter-1", title: "第1章", order: 1, targetWordCount: 3000 },
+        bookContract: null,
+        timelineContext: {
+          currentTime: {
+            storyDayIndex: 1,
+            label: "第一天",
+          },
+          openHooks: [],
+          plannedEvents: [],
+          forbiddenEvents: [],
+          chapterObjective: null,
+          mustAddressHooks: [],
+          optionalHooks: [],
+        },
+      },
+      content: "正文版本二",
+      runId: null,
+      startMs: null,
+      deferArtifactBackgroundSync: true,
+    });
+    assert.equal(finalizationCalls.length, 1);
+    assert.equal(syncCalls.length, 1);
+    assert.equal(finalizationCalls[0].chapterId, "chapter-1");
+    assert.equal(finalizationCalls[0].content, "正文版本二");
+    assert.equal(finalizationCalls[0].sourceStage, "draft_accepted");
+    assert.equal(finalizationCalls[0].timelineGate.extractedEvents.length, 1);
+  } finally {
+    openConflictService.listOpenConflicts = originalListOpenConflicts;
+  }
+});
+
+test("createRepairStream escalates patch schema failures to a single heavy repair stream", async () => {
+  const originalNovelFindUnique = prisma.novel.findUnique;
+  const originalChapterFindFirst = prisma.chapter.findFirst;
+  const originalBibleFindUnique = prisma.novelBible.findUnique;
+  const originalChapterUpdate = prisma.chapter.update;
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const originalStreamTextPrompt = promptRunner.streamTextPrompt;
+
+  const chapterUpdates = [];
+  const syncedContents = [];
+  const reviewCalls = [];
+  const resolvedIssues = [];
+  const frames = [];
+
+  prisma.novel.findUnique = async () => ({ id: "novel-1", title: "测试小说" });
+  prisma.chapter.findFirst = async () => ({
+    id: "chapter-1",
+    title: "第1章",
+    content: "旧正文里有一段需要修复的内容。",
+  });
+  prisma.novelBible.findUnique = async () => ({ rawContent: "作品圣经" });
+  prisma.chapter.update = async ({ data }) => {
+    chapterUpdates.push(data);
+    return { id: "chapter-1", ...data };
+  };
+  promptRunner.runStructuredPrompt = async () => {
+    throw new Error("[{\"origin\":\"string\",\"code\":\"too_small\",\"minimum\":6,\"inclusive\":true,\"path\":[\"patches\",0,\"targetExcerpt\"],\"message\":\"Too small: expected string to have >=6 characters\"}]");
+  };
+  promptRunner.streamTextPrompt = async () => ({
+    stream: {
+      async *[Symbol.asyncIterator]() {
+        yield { content: "全文修复片段" };
+      },
+    },
+    complete: Promise.resolve({ output: "全文修复后的正文" }),
+  });
+
+  try {
+    const coordinator = new ChapterRuntimeCoordinator({
+      assembler: {
+        assemble: async () => createRepairAssembledChapter(),
+      },
+      artifactSyncService: {
+        async syncChapterArtifacts(_novelId, _chapterId, content) {
+          syncedContents.push(content);
+        },
+      },
+      reviewChapterAfterRepair: async (_novelId, _chapterId, options) => {
+        reviewCalls.push(options.content);
+        return {
+          score: {
+            coherence: 92,
+            repetition: 93,
+            pacing: 91,
+            voice: 90,
+            engagement: 94,
+            overall: 92,
+          },
+          issues: [],
+        };
+      },
+      resolveAuditIssues: async (_novelId, issueIds) => {
+        resolvedIssues.push(issueIds);
+      },
+      timelineFinalizer: {
+        finalizeCurrentContent: async () => undefined,
+        ensurePreviousChapterFinalized: async () => null,
+      },
+    });
+
+    const streamResult = await coordinator.createRepairStream("novel-1", "chapter-1", {
+      repairMode: "light_repair",
+      auditIssueIds: ["issue-1"],
+      reviewIssues: [{
+        severity: "high",
+        category: "pacing",
+        evidence: "第一次反压没有真正落地。",
+        fixSuggestion: "让主角在本章拿到明确反压结果。",
+      }],
+    });
+
+    let streamedContent = "";
+    for await (const chunk of streamResult.stream) {
+      streamedContent += chunk.content ?? "";
+    }
+    await streamResult.onDone(streamedContent, {
+      writeFrame(frame) {
+        frames.push(frame);
+      },
+    });
+
+    assert.equal(streamedContent, "全文修复片段");
+    assert.deepEqual(reviewCalls, ["全文修复后的正文"]);
+    assert.deepEqual(syncedContents, ["全文修复后的正文"]);
+    assert.deepEqual(resolvedIssues, [["issue-1"]]);
+    assert.deepEqual(chapterUpdates.map((item) => item.generationState), ["repaired", "approved"]);
+    assert.equal(frames.at(-1)?.status, "succeeded");
+    assert.equal(frames.at(-1)?.phase, "completed");
+  } finally {
+    prisma.novel.findUnique = originalNovelFindUnique;
+    prisma.chapter.findFirst = originalChapterFindFirst;
+    prisma.novelBible.findUnique = originalBibleFindUnique;
+    prisma.chapter.update = originalChapterUpdate;
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+    promptRunner.streamTextPrompt = originalStreamTextPrompt;
+  }
 });
 
 test("createChapterStream does not block hot path on execution contract failure", async () => {

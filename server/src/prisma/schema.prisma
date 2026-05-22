@@ -393,6 +393,8 @@ model Novel {
   directorArtifacts  DirectorArtifact[]
   directorLlmUsageRecords DirectorLlmUsageRecord[]
   promptAddendums    PromptAddendum[]
+  imageTasks         ImageGenerationTask[]
+  imageAssets        ImageAsset[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -535,6 +537,14 @@ model Character {
   personality     String?
   background      String?
   development     String?
+  identityLabel   String?
+  factionLabel    String?
+  stanceLabel     String?
+  powerLevel      String?
+  realm           String?
+  currentLocation String?
+  availability    String?
+  prohibitionsJson String @default("[]")
   outerGoal       String?
   innerNeed       String?
   fear            String?
@@ -642,6 +652,17 @@ model CharacterCastOptionMember {
   relationToProtagonist String?
   storyFunction         String
   shortDescription      String?
+  personality           String?
+  background            String?
+  development           String?
+  identityLabel         String?
+  factionLabel          String?
+  stanceLabel           String?
+  powerLevel            String?
+  realm                 String?
+  currentLocation       String?
+  availability          String?
+  prohibitionsJson      String @default("[]")
   outerGoal             String?
   innerNeed             String?
   fear                  String?
@@ -890,6 +911,7 @@ model ImageGenerationTask {
   id              String            @id @default(cuid())
   sceneType       ImageSceneType    @default(character)
   baseCharacterId String?
+  novelId         String?
   provider        String
   model           String
   prompt          String
@@ -912,12 +934,14 @@ model ImageGenerationTask {
   startedAt       DateTime?
   finishedAt      DateTime?
   baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  novel           Novel?            @relation(fields: [novelId], references: [id], onDelete: Cascade)
   assets          ImageAsset[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
   @@index([sceneType, status])
   @@index([baseCharacterId, createdAt])
+  @@index([novelId, createdAt])
 }
 
 model StyleExtractionTask {
@@ -969,6 +993,7 @@ model ImageAsset {
   taskId          String
   sceneType       ImageSceneType    @default(character)
   baseCharacterId String?
+  novelId         String?
   provider        String
   model           String
   url             String
@@ -982,12 +1007,14 @@ model ImageAsset {
   metadata        String?
   task            ImageGenerationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
   baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
+  novel           Novel?            @relation(fields: [novelId], references: [id], onDelete: Cascade)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
   @@index([taskId])
   @@index([sceneType, createdAt])
   @@index([baseCharacterId, isPrimary, createdAt])
+  @@index([novelId, isPrimary, createdAt])
 }
 
 model NovelGenre {
@@ -2658,4 +2685,113 @@ model TaskCenterArchive {
 
   @@unique([taskKind, taskId])
   @@index([taskKind, archivedAt])
+}
+
+model StoryTimelineEvent {
+  id                   String   @id @default(cuid())
+  novelId              String
+  chapterId            String?
+  chapterIndex         Int?
+  eventOrder           Int
+  storyDayIndex        Int?
+  storyTimeLabel       String?
+  title                String
+  summary              String
+  type                 String
+  status               String
+  visibility           String
+  source               String
+  participantIdsJson   String   @default("[]")
+  locationId           String?
+  factionIdsJson       String   @default("[]")
+  prerequisiteIdsJson  String   @default("[]")
+  consequenceIdsJson   String   @default("[]")
+  stateChangesJson     String   @default("[]")
+  eventKey             String?
+  confidence           Float    @default(1)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([novelId, chapterIndex])
+  @@index([novelId, eventOrder])
+  @@index([novelId, status])
+  @@index([novelId, eventKey])
+}
+
+model ChapterTimeAnchor {
+  id                   String   @id @default(cuid())
+  novelId              String
+  chapterId            String
+  chapterIndex         Int
+  storyDayIndex        Int?
+  timeLabel            String
+  startsAfterIdsJson   String   @default("[]")
+  plannedEventIdsJson  String   @default("[]")
+  endedWithIdsJson     String   @default("[]")
+  previousHookIdsJson  String   @default("[]")
+  nextHookIdsJson      String   @default("[]")
+  forbiddenEventIdsJson String  @default("[]")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([novelId, chapterId])
+  @@index([novelId, chapterIndex])
+}
+
+model TimelineHook {
+  id                            String   @id @default(cuid())
+  novelId                       String
+  createdInChapterId            String
+  createdInChapterIndex         Int
+  expectedResolveByChapterIndex Int?
+  resolveMode                   String   @default("long_arc")
+  blocking                      Boolean  @default(false)
+  resolvedInChapterId           String?
+  resolvedInChapterIndex        Int?
+  title                         String
+  description                   String
+  status                        String
+  priority                      String
+  relatedEventIdsJson           String   @default("[]")
+  participantIdsJson            String   @default("[]")
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  @@index([novelId, status])
+  @@index([novelId, resolveMode, blocking])
+  @@index([novelId, createdInChapterIndex])
+  @@index([novelId, expectedResolveByChapterIndex])
+}
+
+model TimelineConstraint {
+  id                       String   @id @default(cuid())
+  novelId                  String
+  chapterId                String?
+  chapterIndex             Int?
+  type                     String
+  severity                 String
+  description              String
+  relatedEventIdsJson      String   @default("[]")
+  relatedHookIdsJson       String   @default("[]")
+  relatedCharacterIdsJson  String   @default("[]")
+  active                   Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@index([novelId, chapterIndex])
+  @@index([novelId, active])
+}
+
+model TimelineCheckReport {
+  id           String   @id @default(cuid())
+  novelId      String
+  chapterId    String
+  chapterIndex Int
+  status       String
+  score        Float
+  issuesJson   String   @default("[]")
+  createdAt    DateTime @default(now())
+
+  @@index([novelId, chapterIndex])
+  @@index([novelId, status])
 }

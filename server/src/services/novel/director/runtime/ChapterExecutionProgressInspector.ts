@@ -4,6 +4,7 @@ import {
   hasDirectorSyncedChapterExecutionContext,
   type DirectorAutoExecutionChapterRef,
 } from "../automation/novelDirectorAutoExecution";
+import { hasContinuableQualityLoopRiskFlags } from "./DirectorWorkspaceArtifactInventory";
 
 export const CHAPTER_EXECUTION_PROGRESS_STAGES = [
   "execution_contract_ready",
@@ -78,6 +79,7 @@ export class ChapterExecutionProgressInspector {
         id: true,
         order: true,
         content: true,
+        riskFlags: true,
         conflictLevel: true,
         revealLevel: true,
         targetWordCount: true,
@@ -135,6 +137,7 @@ export class ChapterExecutionProgressInspector {
     id: string;
     order: number;
     content: string | null;
+    riskFlags: string | null;
     conflictLevel: number | null;
     revealLevel: number | null;
     targetWordCount: number | null;
@@ -183,7 +186,8 @@ export class ChapterExecutionProgressInspector {
     const hasOpenBlockingIssue = chapter.auditReports.some((report) => report.issues.some((issue) => (
       issue.status === "open" && (issue.severity === "high" || issue.severity === "critical")
     )));
-    const needsRepair = chapter.chapterStatus === "needs_repair" || hasOpenBlockingIssue;
+    const hasContinuableRiskFlags = hasContinuableQualityLoopRiskFlags(chapter.riskFlags);
+    const needsRepair = chapter.chapterStatus === "needs_repair" || (hasOpenBlockingIssue && !hasContinuableRiskFlags);
     const hasStateCommit = chapter.storyStateSnapshots.length > 0 || chapter.canonicalStateVersions.length > 0;
     const isApproved = chapter.generationState === "approved" || chapter.chapterStatus === "completed";
 
@@ -210,15 +214,17 @@ export class ChapterExecutionProgressInspector {
           : hasDraft || chapter.chapterStatus === "generating"
             ? "running"
             : "not_started";
+    const shouldContinueWithoutStateCommit = hasContinuableRiskFlags
+      && (chapter.chapterStatus === "pending_review" || chapter.chapterStatus === "completed" || isApproved);
     const nextAction = needsRepair
       ? "repair_chapter"
       : !hasDraft
         ? "write_draft"
         : !hasAudit
           ? "run_audit"
-          : !hasStateCommit
+          : !hasStateCommit && !shouldContinueWithoutStateCommit
             ? "commit_state"
-            : status === "reviewable" || status === "approved"
+            : status === "reviewable" || status === "approved" || shouldContinueWithoutStateCommit
               ? "continue_next_chapter"
               : "none";
 
@@ -238,8 +244,9 @@ export class ChapterExecutionProgressInspector {
         hasStateCommit,
         generationState: chapter.generationState,
         chapterStatus: chapter.chapterStatus,
+        hasContinuableRiskFlags,
       },
-      recoverable: true,
+      recoverable: needsRepair,
       nextAction,
     };
   }

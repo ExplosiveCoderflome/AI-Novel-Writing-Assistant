@@ -12,6 +12,7 @@ import {
   extractCharacterEventLines,
   LLMGenerateOptions,
 } from "./novelCoreShared";
+import { serializeCharacterProhibitions } from "./characters/characterHardFacts";
 
 export class NovelCoreCharacterService {
   async listCharacters(novelId: string) {
@@ -36,7 +37,14 @@ export class NovelCoreCharacterService {
       };
     }
 
-    const created = await prisma.character.create({ data: { novelId, ...payload } });
+    const { prohibitions, ...data } = payload;
+    const created = await prisma.character.create({
+      data: {
+        novelId,
+        ...data,
+        ...(prohibitions ? { prohibitionsJson: serializeCharacterProhibitions(prohibitions) } : {}),
+      },
+    });
     queueRagUpsert("character", created.id);
     return created;
   }
@@ -52,10 +60,12 @@ export class NovelCoreCharacterService {
 
     const hasStateChanged = typeof input.currentState === "string" && input.currentState !== exists.currentState;
     const hasGoalChanged = typeof input.currentGoal === "string" && input.currentGoal !== exists.currentGoal;
+    const { prohibitions, ...data } = input;
     const updated = await prisma.character.update({
       where: { id: characterId },
       data: {
-        ...input,
+        ...data,
+        ...(prohibitions ? { prohibitionsJson: serializeCharacterProhibitions(prohibitions) } : {}),
         ...(hasStateChanged || hasGoalChanged ? { lastEvolvedAt: new Date() } : {}),
       },
     });

@@ -131,6 +131,9 @@ test("chapter writer runtime path resolves standard broker context groups", asyn
   assert.deepEqual(resolved.brokerResolution.missingRequiredGroups, [
     "book_contract",
     "chapter_mission",
+    "timeline_context",
+    "previous_chapter_hook",
+    "character_hard_facts",
     "obligation_contract",
     "volume_window",
     "participant_subset",
@@ -139,6 +142,9 @@ test("chapter writer runtime path resolves standard broker context groups", asyn
   ]);
   assert.equal(groups.has("book_contract"), false);
   assert.equal(groups.has("chapter_mission"), false);
+  assert.equal(groups.has("timeline_context"), false);
+  assert.equal(groups.has("previous_chapter_hook"), false);
+  assert.equal(groups.has("character_hard_facts"), false);
   assert.equal(groups.has("obligation_contract"), false);
   assert.equal(groups.has("volume_window"), false);
   assert.equal(groups.has("participant_subset"), false);

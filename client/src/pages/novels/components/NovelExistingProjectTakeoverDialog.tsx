@@ -30,6 +30,7 @@ import { useLLMStore } from "@/store/llmStore";
 import { Switch } from "@/components/ui/switch";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import {
+  buildTakeoverAutoExecutionDraftFromExecutableRange,
   DirectorAutoExecutionPlanFields,
   buildDirectorAutoExecutionPlanFromDraft,
   buildDirectorAutoExecutionPlanLabel,
@@ -145,6 +146,7 @@ export default function NovelExistingProjectTakeoverDialog({
   const [selectedEntryStep, setSelectedEntryStep] = useState<DirectorTakeoverEntryStep>(defaultEntryStep);
   const [selectedStrategy, setSelectedStrategy] = useState<DirectorTakeoverStrategy>("continue_existing");
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState("takeover"));
+  const [autoExecutionDraftTouched, setAutoExecutionDraftTouched] = useState(false);
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
   const [postGenerationStyleReviewEnabled, setPostGenerationStyleReviewEnabled] = useState(
     basicForm.postGenerationStyleReviewEnabled,
@@ -203,6 +205,8 @@ export default function NovelExistingProjectTakeoverDialog({
     if (!open) {
       setSelectedEntryStep(defaultEntryStep);
       setSelectedStrategy("continue_existing");
+      setAutoExecutionDraft(createDefaultDirectorAutoExecutionDraftState("takeover"));
+      setAutoExecutionDraftTouched(false);
       setSelectedStyleProfileId("");
       setPostGenerationStyleReviewEnabled(basicForm.postGenerationStyleReviewEnabled);
       resetAutoApprovalDraft();
@@ -245,6 +249,30 @@ export default function NovelExistingProjectTakeoverDialog({
       });
     }
   }, [readiness, selectedScopeMode]);
+
+  useEffect(() => {
+    if (!open || runMode !== "auto_to_execution" || autoExecutionDraftTouched) {
+      return;
+    }
+    const preferredDraft = buildTakeoverAutoExecutionDraftFromExecutableRange(
+      readiness?.executableRange,
+      selectedStrategy,
+    );
+    if (!preferredDraft) {
+      return;
+    }
+    setAutoExecutionDraft((current) => ({
+      ...preferredDraft,
+      autoReview: current.autoReview,
+      autoRepair: current.autoReview ? current.autoRepair : false,
+    }));
+  }, [
+    autoExecutionDraftTouched,
+    open,
+    readiness?.executableRange,
+    runMode,
+    selectedStrategy,
+  ]);
 
   const startMutation = useMutation({
     mutationFn: async () => startDirectorTakeover({
@@ -362,7 +390,10 @@ export default function NovelExistingProjectTakeoverDialog({
                   <>
                     <DirectorAutoExecutionPlanFields
                       draft={autoExecutionDraft}
-                      onChange={(patch) => setAutoExecutionDraft((prev) => ({ ...prev, ...patch }))}
+                      onChange={(patch) => {
+                        setAutoExecutionDraftTouched(true);
+                        setAutoExecutionDraft((prev) => ({ ...prev, ...patch }));
+                      }}
                       usage="takeover"
                     />
                     <AutoDirectorApprovalStrategyPanel
