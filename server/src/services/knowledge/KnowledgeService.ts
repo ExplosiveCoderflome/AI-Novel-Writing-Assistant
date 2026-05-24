@@ -309,6 +309,16 @@ export class KnowledgeService {
 
   async activateVersion(documentId: string, versionId: string) {
     const document = await prisma.$transaction(async (tx) => {
+      const existing = await tx.knowledgeDocument.findUnique({
+        where: { id: documentId },
+        select: { status: true },
+      });
+      if (!existing) {
+        throw new Error("Knowledge document not found.");
+      }
+      if (existing.status === "archived") {
+        throw new Error("Archived knowledge documents must be restored before activating versions.");
+      }
       const version = await tx.knowledgeDocumentVersion.findFirst({
         where: {
           id: versionId,
@@ -351,6 +361,9 @@ export class KnowledgeService {
     if (!document.activeVersionId) {
       throw new Error("Knowledge document has no active version.");
     }
+    if (document.status === "archived") {
+      throw new Error("Archived knowledge documents must be restored before reindexing.");
+    }
     const updated = await prisma.knowledgeDocument.update({
       where: { id: documentId },
       data: {
@@ -368,15 +381,20 @@ export class KnowledgeService {
     if (!document) {
       throw new Error("Knowledge document not found.");
     }
+    const shouldArchiveDocument = document.status !== "archived" && status === "archived";
+    const shouldRestoreArchivedDocument = document.status === "archived" && status !== "archived";
     const updated = await prisma.knowledgeDocument.update({
       where: { id: documentId },
       data: {
         status,
         ...(status === "archived" ? { latestIndexStatus: "idle" } : {}),
+        ...(shouldRestoreArchivedDocument && document.activeVersionId ? { latestIndexStatus: "queued" } : {}),
       },
     });
-    if (status === "archived") {
+    if (shouldArchiveDocument) {
       this.queueKnowledgeDelete(documentId);
+    } else if (shouldRestoreArchivedDocument && document.activeVersionId) {
+      this.queueKnowledgeRebuild(documentId);
     }
     return updated;
   }

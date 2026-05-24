@@ -989,7 +989,12 @@ export class RagIndexService {
         percent: 1,
       });
     }
-    await this.syncKnowledgeDocumentIndexStatus(job.ownerType as RagOwnerType, job.ownerId, payload.status);
+    await this.syncKnowledgeDocumentIndexStatus(
+      job.ownerType as RagOwnerType,
+      job.ownerId,
+      payload.status,
+      job.jobType as RagJobType,
+    );
     return job;
   }
 
@@ -1038,26 +1043,29 @@ export class RagIndexService {
     ownerType: RagOwnerType,
     ownerId: string,
     status: RagJobStatus,
+    jobType: RagJobType,
   ): Promise<void> {
     if (ownerType !== "knowledge_document") {
       return;
     }
 
-    const nextStatus = status === "queued"
-      ? "queued"
-      : status === "running"
-        ? "running"
-        : status === "succeeded"
-          ? "succeeded"
-          : status === "cancelled"
-            ? "idle"
-            : "failed";
+    const nextStatus = jobType === "delete" && (status === "succeeded" || status === "cancelled")
+      ? "idle"
+      : status === "queued"
+        ? "queued"
+        : status === "running"
+          ? "running"
+          : status === "succeeded"
+            ? "succeeded"
+            : status === "cancelled"
+              ? "idle"
+              : "failed";
 
     await prisma.knowledgeDocument.updateMany({
       where: { id: ownerId },
       data: {
         latestIndexStatus: nextStatus,
-        ...(status === "succeeded" ? { lastIndexedAt: new Date() } : {}),
+        ...(status === "succeeded" && jobType !== "delete" ? { lastIndexedAt: new Date() } : {}),
       },
     });
   }

@@ -8,6 +8,8 @@ export function formatStatus(status: string): string {
       return "已停用";
     case "archived":
       return "已归档";
+    case "idle":
+      return "空闲";
     case "queued":
       return "排队中";
     case "running":

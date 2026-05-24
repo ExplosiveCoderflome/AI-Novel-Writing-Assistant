@@ -248,7 +248,8 @@ export default function KnowledgePage() {
     mutationFn: (payload: { id: string; status: KnowledgeDocumentStatus }) =>
       updateKnowledgeDocumentStatus(payload.id, payload.status),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: documentListQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["knowledge", "documents"] });
+      await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
       if (selectedDocumentId) {
         await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(selectedDocumentId) });
       }
@@ -550,6 +551,11 @@ export default function KnowledgePage() {
         recallPending={recallTestMutation.isPending}
         recallErrorMessage={recallErrorMessage}
         recallResult={recallResult}
+        onRestoreDocument={() => selectedDocumentId && updateStatusMutation.mutate({
+          id: selectedDocumentId,
+          status: "enabled",
+        })}
+        restorePending={updateStatusMutation.isPending}
         onActivateVersion={(versionId) =>
           activateVersionMutation.mutate({
             documentId: selectedDocumentId,

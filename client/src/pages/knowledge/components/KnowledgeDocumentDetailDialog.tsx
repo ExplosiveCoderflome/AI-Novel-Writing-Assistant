@@ -20,6 +20,8 @@ interface KnowledgeDocumentDetailDialogProps {
   recallPending: boolean;
   recallErrorMessage?: string | null;
   recallResult: KnowledgeRecallTestResult | null;
+  onRestoreDocument: () => void;
+  restorePending: boolean;
   onActivateVersion: (versionId: string) => void;
   activateVersionPending: boolean;
 }
@@ -38,9 +40,13 @@ export default function KnowledgeDocumentDetailDialog({
   recallPending,
   recallErrorMessage,
   recallResult,
+  onRestoreDocument,
+  restorePending,
   onActivateVersion,
   activateVersionPending,
 }: KnowledgeDocumentDetailDialogProps) {
+  const isArchived = document?.status === "archived";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
@@ -49,21 +55,27 @@ export default function KnowledgeDocumentDetailDialog({
         bodyClassName="min-w-0 space-y-4"
       >
           <div className="flex flex-wrap gap-2">
-            <input
-              type="file"
-              accept=".txt,text/plain"
-              className="rounded-md border bg-background p-2 text-sm"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (!file) {
-                  return;
-                }
-                void onUploadVersionFile(file);
-              }}
-              disabled={versionBusy}
-            />
-            {selectedDocumentId ? (
+            {isArchived ? (
+              <Button variant="outline" onClick={onRestoreDocument} disabled={restorePending}>
+                {restorePending ? "恢复中..." : "恢复启用"}
+              </Button>
+            ) : (
+              <input
+                type="file"
+                accept=".txt,text/plain"
+                className="rounded-md border bg-background p-2 text-sm"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) {
+                    return;
+                  }
+                  void onUploadVersionFile(file);
+                }}
+                disabled={versionBusy}
+              />
+            )}
+            {selectedDocumentId && !isArchived ? (
               <Button variant="outline" onClick={onReindex}>
                 手动重建索引
               </Button>
@@ -74,7 +86,7 @@ export default function KnowledgeDocumentDetailDialog({
             <>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <Badge variant="outline">文档状态：{formatStatus(document.status)}</Badge>
-                <Badge variant="outline">索引状态：{formatStatus(document.latestIndexStatus ?? "-")}</Badge>
+                <Badge variant="outline">索引状态：{formatStatus(isArchived ? "idle" : (document.latestIndexStatus ?? "-"))}</Badge>
               </div>
               {document.latestIndexStatus === "failed" && document.latestIndexError ? (
                 <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
@@ -87,7 +99,11 @@ export default function KnowledgeDocumentDetailDialog({
                   <CardTitle>召回测试</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {document.latestIndexStatus === "succeeded" ? (
+                  {isArchived ? (
+                    <div className="text-sm text-muted-foreground">
+                      恢复启用并完成索引后，可以测试召回效果。
+                    </div>
+                  ) : document.latestIndexStatus === "succeeded" ? (
                     <>
                       <div className="flex min-w-0 flex-col gap-2 md:flex-row">
                         <Input
@@ -153,7 +169,7 @@ export default function KnowledgeDocumentDetailDialog({
                     <div className="mt-1 text-xs text-muted-foreground">
                       字符数 {version.charCount} | {new Date(version.createdAt).toLocaleString()}
                     </div>
-                    {!version.isActive ? (
+                    {!version.isActive && !isArchived ? (
                       <div className="mt-2">
                         <Button
                           size="sm"
