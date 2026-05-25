@@ -3,11 +3,15 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { AppError } from "../middleware/errorHandler";
 import { validate } from "../middleware/validate";
-import type { NovelService } from "../services/novel/NovelService";
+import type { NovelApplicationServices } from "../services/novel/application/NovelApplicationContracts";
 
 interface RegisterNovelChapterEditorRoutesInput {
   router: Router;
-  novelService: NovelService;
+  novelService: Pick<NovelApplicationServices,
+    | "getChapterEditorWorkspace"
+    | "previewChapterAiRevision"
+    | "previewChapterRewrite"
+  >;
   chapterParamsSchema: z.ZodType<{ id: string; chapterId: string }>;
   rewritePreviewSchema: z.ZodTypeAny;
   aiRevisionPreviewSchema: z.ZodTypeAny;

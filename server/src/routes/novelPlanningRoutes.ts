@@ -2,11 +2,22 @@ import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { validate } from "../middleware/validate";
-import type { NovelService } from "../services/novel/NovelService";
+import type { NovelApplicationServices } from "../services/novel/application/NovelApplicationContracts";
 
 interface RegisterNovelPlanningRoutesInput {
   router: Router;
-  novelService: NovelService;
+  novelService: Pick<NovelApplicationServices,
+    | "getNovelState"
+    | "getLatestStateSnapshot"
+    | "getChapterStateSnapshot"
+    | "rebuildNovelState"
+    | "generateBookPlan"
+    | "generateArcPlan"
+    | "generateChapterPlan"
+    | "getChapterPlan"
+    | "replanNovel"
+    | "getPayoffLedger"
+  >;
   idParamsSchema: z.ZodType<{ id: string }>;
   chapterParamsSchema: z.ZodType<{ id: string; chapterId: string }>;
   arcPlanParamsSchema: z.ZodType<{ id: string; arcId: string }>;

@@ -4,8 +4,8 @@ import { MAX_VOLUME_COUNT } from "@ai-novel/shared/types/volumePlanning";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { AppError } from "../middleware/errorHandler";
-import { NovelService } from "../services/novel/NovelService";
 import { NovelDraftOptimizeService } from "../services/novel/NovelDraftOptimizeService";
+import { createNovelApplicationServices } from "../services/novel/application/NovelApplicationServices";
 import { chapterRuntimeRequestSchema } from "../services/novel/runtime/chapterRuntimeSchema";
 import { registerNovelBaseRoutes } from "./novelBaseRoutes";
 import { registerNovelChapterEditorRoutes } from "./novelChapterEditorRoutes";
@@ -27,7 +27,7 @@ import { registerNovelVolumeRoutes } from "./novelVolumeRoutes";
 import { registerNovelWorldSliceRoutes } from "./novelWorldSliceRoutes";
 
 const router = Router();
-const novelService = new NovelService();
+const novelService = createNovelApplicationServices();
 const novelDraftOptimizeService = new NovelDraftOptimizeService();
 
 function forwardBusinessError(error: unknown, next: (err?: unknown) => void): boolean {
@@ -589,6 +589,7 @@ router.use(authMiddleware);
 
 registerNovelBaseRoutes({
   router,
+  novelService,
 });
 
 registerNovelFramingRoutes({
@@ -686,6 +687,7 @@ registerNovelStoryMacroRoutes({
 registerNovelWorldSliceRoutes({
   router,
   idParamsSchema,
+  novelService,
 });
 
 registerNovelChapterGenerationRoutes({

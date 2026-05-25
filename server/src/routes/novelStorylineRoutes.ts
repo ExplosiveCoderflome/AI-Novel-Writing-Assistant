@@ -2,11 +2,18 @@ import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { validate } from "../middleware/validate";
-import type { NovelService } from "../services/novel/NovelService";
+import type { NovelApplicationServices } from "../services/novel/application/NovelApplicationContracts";
 
 interface RegisterNovelStorylineRoutesInput {
   router: Router;
-  novelService: NovelService;
+  novelService: Pick<NovelApplicationServices,
+    | "listStorylineVersions"
+    | "createStorylineDraft"
+    | "activateStorylineVersion"
+    | "freezeStorylineVersion"
+    | "getStorylineDiff"
+    | "analyzeStorylineImpact"
+  >;
   idParamsSchema: z.ZodType<{ id: string }>;
   storylineVersionParamsSchema: z.ZodType<{ id: string; versionId: string }>;
   storylineDiffQuerySchema: z.ZodTypeAny;

@@ -3,7 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { validate } from "../middleware/validate";
-import type { NovelService } from "../services/novel/NovelService";
+import type { NovelApplicationServices } from "../services/novel/application/NovelApplicationContracts";
 import {
   supplementalCharacterCandidateSchema,
   supplementalCharacterGenerationInputSchema,
@@ -30,7 +30,16 @@ const castOptionApplySchema = z.object({
 
 interface RegisterNovelCharacterPreparationRoutesInput {
   router: Router;
-  novelService: NovelService;
+  novelService: Pick<NovelApplicationServices,
+    | "listCharacterRelations"
+    | "listCharacterCastOptions"
+    | "generateCharacterCastOptions"
+    | "applyCharacterCastOption"
+    | "generateSupplementalCharacters"
+    | "applySupplementalCharacter"
+    | "deleteCharacterCastOption"
+    | "clearCharacterCastOptions"
+  >;
   idParamsSchema: z.ZodType<{ id: string }>;
 }
 

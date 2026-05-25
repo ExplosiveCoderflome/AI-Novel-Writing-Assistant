@@ -2,12 +2,25 @@ import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { validate } from "../middleware/validate";
-import type { NovelService } from "../services/novel/NovelService";
+import type { NovelApplicationServices } from "../services/novel/application/NovelApplicationContracts";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 
 interface RegisterNovelVolumeRoutesInput {
   router: Router;
-  novelService: NovelService;
+  novelService: Pick<NovelApplicationServices,
+    | "getVolumes"
+    | "updateVolumes"
+    | "generateVolumes"
+    | "listVolumeVersions"
+    | "getVolumeVersion"
+    | "createVolumeDraft"
+    | "activateVolumeVersion"
+    | "freezeVolumeVersion"
+    | "getVolumeDiff"
+    | "analyzeVolumeImpact"
+    | "syncVolumeChapters"
+    | "migrateLegacyVolumes"
+  >;
   idParamsSchema: z.ZodType<{ id: string }>;
   volumeVersionParamsSchema: z.ZodType<{ id: string; versionId: string }>;
   volumeDiffQuerySchema: z.ZodTypeAny;

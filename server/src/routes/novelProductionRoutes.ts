@@ -4,13 +4,21 @@ import { z } from "zod";
 import { streamToSSE } from "../llm/streaming";
 import { validate } from "../middleware/validate";
 import type { NovelDraftOptimizeService } from "../services/novel/NovelDraftOptimizeService";
-import type { NovelService } from "../services/novel/NovelService";
+import type { NovelApplicationServices } from "../services/novel/application/NovelApplicationContracts";
 import { timelineContextService, timelineRepository } from "../modules/timeline";
 import { prisma } from "../db/prisma";
 
 interface RegisterNovelProductionRoutesInput {
   router: Router;
-  novelService: NovelService;
+  novelService: Pick<NovelApplicationServices,
+    | "createOutlineStream"
+    | "createStructuredOutlineStream"
+    | "generateTitles"
+    | "createBeatStream"
+    | "generateChapterHook"
+    | "startPipelineJob"
+    | "getPipelineJob"
+  >;
   novelDraftOptimizeService: NovelDraftOptimizeService;
   idParamsSchema: z.ZodType<{ id: string }>;
   pipelineJobParamsSchema: z.ZodType<{ id: string; jobId: string }>;

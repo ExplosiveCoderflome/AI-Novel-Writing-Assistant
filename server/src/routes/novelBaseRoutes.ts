@@ -6,7 +6,7 @@ import { llmProviderSchema } from "../llm/providerSchema";
 import { validate } from "../middleware/validate";
 import { KnowledgeService } from "../services/knowledge/KnowledgeService";
 import { novelCreateResourceRecommendationService } from "../services/novel/NovelCreateResourceRecommendationService";
-import { NovelService } from "../services/novel/NovelService";
+import type { NovelApplicationServices } from "../services/novel/application/NovelApplicationContracts";
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -136,11 +136,17 @@ const createResourceRecommendationSchema = z.object({
 
 interface RegisterNovelBaseRoutesInput {
   router: Router;
+  novelService: Pick<NovelApplicationServices,
+    | "listNovels"
+    | "createNovel"
+    | "getNovelById"
+    | "updateNovel"
+    | "deleteNovel"
+  >;
 }
 
 export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): void {
-  const { router } = input;
-  const novelService = new NovelService();
+  const { router, novelService } = input;
   const knowledgeService = new KnowledgeService();
 
   router.get("/", validate({ query: paginationSchema }), async (req, res, next) => {

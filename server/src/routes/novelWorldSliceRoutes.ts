@@ -7,7 +7,7 @@ import {
 import { z } from "zod";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { validate } from "../middleware/validate";
-import { NovelService } from "../services/novel/NovelService";
+import type { NovelApplicationServices } from "../services/novel/application/NovelApplicationContracts";
 
 const llmGenerateSchema = z.object({
   provider: llmProviderSchema.optional(),
@@ -23,11 +23,15 @@ const refreshWorldSliceSchema = llmGenerateSchema.extend({
 interface RegisterNovelWorldSliceRoutesInput {
   router: Router;
   idParamsSchema: z.ZodType<{ id: string }>;
+  novelService: Pick<NovelApplicationServices,
+    | "getWorldSlice"
+    | "refreshWorldSlice"
+    | "updateWorldSliceOverrides"
+  >;
 }
 
 export function registerNovelWorldSliceRoutes(input: RegisterNovelWorldSliceRoutesInput): void {
-  const { router, idParamsSchema } = input;
-  const novelService = new NovelService();
+  const { router, idParamsSchema, novelService } = input;
 
   router.get("/:id/world-slice", validate({ params: idParamsSchema }), async (req, res, next) => {
     try {

@@ -7,7 +7,7 @@ import type {
 } from "@ai-novel/shared/types/novel";
 import { z } from "zod";
 import { validate } from "../middleware/validate";
-import type { NovelService } from "../services/novel/NovelService";
+import type { NovelApplicationServices } from "../services/novel/application/NovelApplicationContracts";
 
 const visibleProfileFieldsSchema = z.object({
   appearance: z.string().trim().nullable().optional(),
@@ -40,7 +40,12 @@ const visibleProfileGenerateSchema = z.object({
 
 interface RegisterNovelCharacterVisibleProfileRoutesInput {
   router: Router;
-  novelService: NovelService;
+  novelService: Pick<NovelApplicationServices,
+    | "generateCharacterVisibleProfile"
+    | "generateBatchCharacterVisibleProfiles"
+    | "applyCharacterVisibleProfile"
+    | "applyBatchCharacterVisibleProfiles"
+  >;
   idParamsSchema: z.ZodType<{ id: string }>;
   characterParamsSchema: z.ZodType<{ id: string; charId: string }>;
 }

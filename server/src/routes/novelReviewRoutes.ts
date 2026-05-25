@@ -3,7 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { streamToSSE } from "../llm/streaming";
 import { validate } from "../middleware/validate";
-import type { NovelService } from "../services/novel/NovelService";
+import type { NovelApplicationServices } from "../services/novel/application/NovelApplicationContracts";
 import type { ChapterRuntimeCoordinator } from "../services/novel/runtime/ChapterRuntimeCoordinator";
 import { stepModuleRunner } from "../services/novel/director/workflowStepRuntime/StepModuleRunner";
 import { DIRECTOR_EXECUTION_STEP_IDS } from "../services/novel/director/workflowStepRuntime/directorWorkflowStepIds";
@@ -12,7 +12,13 @@ type RepairStreamResult = Awaited<ReturnType<ChapterRuntimeCoordinator["createRe
 
 interface RegisterNovelReviewRoutesInput {
   router: Router;
-  novelService: NovelService;
+  novelService: Pick<NovelApplicationServices,
+    | "reviewChapter"
+    | "auditChapter"
+    | "listChapterAuditReports"
+    | "resolveAuditIssues"
+    | "getQualityReport"
+  >;
   idParamsSchema: z.ZodType<{ id: string }>;
   chapterParamsSchema: z.ZodType<{ id: string; chapterId: string }>;
   auditIssueParamsSchema: z.ZodType<{ id: string; issueId: string }>;

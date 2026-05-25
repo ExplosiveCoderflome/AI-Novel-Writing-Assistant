@@ -3,7 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { streamToSSE } from "../llm/streaming";
 import { validate } from "../middleware/validate";
-import type { NovelService } from "../services/novel/NovelService";
+import type { NovelApplicationServices } from "../services/novel/application/NovelApplicationContracts";
 
 const snapshotCreateSchema = z.object({
   triggerType: z.enum(["manual", "auto_milestone", "before_pipeline"]),
@@ -16,7 +16,21 @@ const snapshotRestoreSchema = z.object({
 
 interface RegisterNovelSnapshotCharacterRoutesInput {
   router: Router;
-  novelService: NovelService;
+  novelService: Pick<NovelApplicationServices,
+    | "listCharacters"
+    | "createCharacter"
+    | "updateCharacter"
+    | "deleteCharacter"
+    | "listCharacterTimeline"
+    | "syncCharacterTimeline"
+    | "syncAllCharacterTimeline"
+    | "evolveCharacter"
+    | "checkCharacterAgainstWorld"
+    | "createBibleStream"
+    | "createNovelSnapshot"
+    | "listNovelSnapshots"
+    | "restoreFromSnapshot"
+  >;
   idParamsSchema: z.ZodType<{ id: string }>;
   characterParamsSchema: z.ZodType<{ id: string; charId: string }>;
   characterSchema: z.ZodTypeAny;

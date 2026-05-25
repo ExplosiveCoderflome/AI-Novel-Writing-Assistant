@@ -3,7 +3,9 @@ const assert = require("node:assert/strict");
 const http = require("node:http");
 
 const { createApp } = require("../dist/app.js");
-const { NovelService } = require("../dist/services/novel/NovelService.js");
+const {
+  DefaultNovelApplicationServices,
+} = require("../dist/services/novel/application/NovelApplicationServices.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -15,16 +17,16 @@ function listen(server) {
 }
 
 test("character routes accept and return gender fields", async () => {
-  const originalCreateCharacter = NovelService.prototype.createCharacter;
-  const originalUpdateCharacter = NovelService.prototype.updateCharacter;
-  const originalApplySupplementalCharacter = NovelService.prototype.applySupplementalCharacter;
+  const originalCreateCharacter = DefaultNovelApplicationServices.prototype.createCharacter;
+  const originalUpdateCharacter = DefaultNovelApplicationServices.prototype.updateCharacter;
+  const originalApplySupplementalCharacter = DefaultNovelApplicationServices.prototype.applySupplementalCharacter;
   const captured = {
     createBody: null,
     updateBody: null,
     supplementalBody: null,
   };
 
-  NovelService.prototype.createCharacter = async function createCharacterMock(_novelId, body) {
+  DefaultNovelApplicationServices.prototype.createCharacter = async function createCharacterMock(_novelId, body) {
     captured.createBody = body;
     return {
       id: "char_1",
@@ -58,7 +60,7 @@ test("character routes accept and return gender fields", async () => {
       updatedAt: new Date().toISOString(),
     };
   };
-  NovelService.prototype.updateCharacter = async function updateCharacterMock(_novelId, _charId, body) {
+  DefaultNovelApplicationServices.prototype.updateCharacter = async function updateCharacterMock(_novelId, _charId, body) {
     captured.updateBody = body;
     return {
       id: "char_1",
@@ -92,7 +94,7 @@ test("character routes accept and return gender fields", async () => {
       updatedAt: new Date().toISOString(),
     };
   };
-  NovelService.prototype.applySupplementalCharacter = async function applySupplementalCharacterMock(_novelId, body) {
+  DefaultNovelApplicationServices.prototype.applySupplementalCharacter = async function applySupplementalCharacterMock(_novelId, body) {
     captured.supplementalBody = body;
     return {
       character: {
@@ -180,9 +182,9 @@ test("character routes accept and return gender fields", async () => {
     assert.equal(supplementalPayload.data.character.gender, "male");
     assert.equal(captured.supplementalBody.gender, "male");
   } finally {
-    NovelService.prototype.createCharacter = originalCreateCharacter;
-    NovelService.prototype.updateCharacter = originalUpdateCharacter;
-    NovelService.prototype.applySupplementalCharacter = originalApplySupplementalCharacter;
+    DefaultNovelApplicationServices.prototype.createCharacter = originalCreateCharacter;
+    DefaultNovelApplicationServices.prototype.updateCharacter = originalUpdateCharacter;
+    DefaultNovelApplicationServices.prototype.applySupplementalCharacter = originalApplySupplementalCharacter;
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
 });
