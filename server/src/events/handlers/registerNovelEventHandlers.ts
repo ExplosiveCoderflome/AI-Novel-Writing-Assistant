@@ -1,5 +1,5 @@
 import { prisma } from "../../db/prisma";
-import { NovelService } from "../../services/novel/NovelService";
+import { createNovelApplicationServices } from "../../services/novel/application/NovelApplicationServices";
 import { CharacterDynamicsService } from "../../services/novel/dynamics/CharacterDynamicsService";
 import type { EventBus } from "../EventBus";
 import type { VolumeUpdateReason } from "../types";
@@ -58,7 +58,7 @@ export function registerNovelEventHandlers(eventBus: EventBus): void {
     if (event.type !== "pipeline:completed" || event.payload.status !== "succeeded") {
       return;
     }
-    const novelService = new NovelService();
+    const novelService = createNovelApplicationServices();
     await novelService.createNovelSnapshot(
       event.payload.novelId,
       "auto_milestone",

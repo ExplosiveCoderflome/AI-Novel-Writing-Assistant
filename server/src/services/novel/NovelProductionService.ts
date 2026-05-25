@@ -3,7 +3,7 @@ import { prisma } from "../../db/prisma";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { novelProductionCharactersPrompt } from "../../prompting/prompts/novel/production.prompts";
 import { WorldService } from "../world/WorldService";
-import { NovelService } from "./NovelService";
+import { createNovelApplicationServices } from "./application/NovelApplicationServices";
 import { collectStream, extractJsonArray, parseStructuredOutline } from "./novelProductionHelpers";
 import { novelProductionStatusService, type ProductionStatusResult } from "./NovelProductionStatusService";
 
@@ -14,7 +14,7 @@ interface NovelLlmOptions {
 }
 
 export class NovelProductionService {
-  private readonly novelService = new NovelService();
+  private readonly novelService = createNovelApplicationServices();
 
   private readonly worldService = new WorldService();
 

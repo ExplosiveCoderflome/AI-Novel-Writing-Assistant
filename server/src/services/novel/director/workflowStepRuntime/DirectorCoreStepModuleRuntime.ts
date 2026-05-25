@@ -5,7 +5,8 @@ import { BookContractService } from "../../BookContractService";
 import { CharacterPreparationService } from "../../characterPrep/CharacterPreparationService";
 import { CharacterDynamicsService } from "../../dynamics/CharacterDynamicsService";
 import { NovelContextService } from "../../NovelContextService";
-import { NovelService } from "../../NovelService";
+import { createNovelApplicationServices } from "../../application/NovelApplicationServices";
+import type { NovelApplicationServices } from "../../application/NovelApplicationContracts";
 import type { RepairOptions } from "../../novelCoreShared";
 import type { ChapterRuntimeRequestInput } from "../../runtime/chapterRuntimeSchema";
 import { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanService";
@@ -32,7 +33,11 @@ export interface DirectorCoreStepModuleRuntimeDeps {
   storyMacroService: StoryMacroPlanService;
   bookContractService: BookContractService;
   volumeService: NovelVolumeService;
-  novelService: NovelService;
+  novelService: Pick<NovelApplicationServices,
+    | "createChapterRuntimeStream"
+    | "createChapterStream"
+    | "createRepairStream"
+  >;
   directorRuntime: DirectorRuntimeService;
   chapterProgressInspector: ChapterExecutionProgressInspector;
   autoExecutionRuntime: NovelDirectorAutoExecutionRuntime;
@@ -48,7 +53,7 @@ export function buildDefaultDirectorCoreStepModuleRuntimeDeps(): DirectorCoreSte
   const storyMacroService = new StoryMacroPlanService();
   const bookContractService = new BookContractService();
   const volumeService = new NovelVolumeService();
-  const novelService = new NovelService();
+  const novelService = createNovelApplicationServices();
   const directorRuntime = new DirectorRuntimeService();
   const chapterProgressInspector = new ChapterExecutionProgressInspector();
   const autoExecutionRuntime = new NovelDirectorAutoExecutionRuntime({
@@ -118,7 +123,11 @@ export class DirectorCoreStepModuleRuntime {
   private readonly storyMacroService: StoryMacroPlanService;
   private readonly bookContractService: BookContractService;
   private readonly volumeService: NovelVolumeService;
-  private readonly novelService: NovelService;
+  private readonly novelService: Pick<NovelApplicationServices,
+    | "createChapterRuntimeStream"
+    | "createChapterStream"
+    | "createRepairStream"
+  >;
   private readonly directorRuntime: DirectorRuntimeService;
   private readonly chapterProgressInspector: ChapterExecutionProgressInspector;
   private readonly autoExecutionRuntime: NovelDirectorAutoExecutionRuntime;
