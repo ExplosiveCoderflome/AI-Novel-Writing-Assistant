@@ -1,9 +1,26 @@
 import { NovelCoreService } from "./NovelCoreService";
-import { NovelReviewService } from "./NovelReviewService";
-import { buildPipelineExecutionControlPolicy } from "./production/ChapterExecutionStageRunner";
+import {
+  buildPipelineExecutionControlPolicy,
+  registerChapterExecutionStageRunner,
+} from "./production/ChapterExecutionStageRunner";
 import { novelProductionOrchestrator } from "./production/NovelProductionOrchestrator";
+import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
 
-export class NovelPipelineService extends NovelReviewService {
+/**
+ * @deprecated Use `createNovelApplicationServices()` and inject only the
+ * pipeline capability required by the caller.
+ */
+export class NovelPipelineService {
+  protected readonly core = new NovelCoreService();
+  protected readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
+
+  constructor() {
+    registerChapterExecutionStageRunner({
+      getCore: () => this.core,
+      getCoordinator: () => this.chapterRuntimeCoordinator,
+    });
+  }
+
   async startPipelineJob(...args: Parameters<NovelCoreService["startPipelineJob"]>) {
     const [novelId, options] = args;
     const result = await novelProductionOrchestrator.runStage({

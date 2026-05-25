@@ -9,7 +9,7 @@ const {
   workflowStepModuleToDirectorNodeContract,
 } = require("../dist/services/novel/director/workflowStepRuntime/WorkflowStepModule.js");
 const { prisma } = require("../dist/db/prisma.js");
-const { NovelService } = require("../dist/services/novel/NovelService.js");
+const { DefaultNovelApplicationServices } = require("../dist/services/novel/application/NovelApplicationServices.js");
 const {
   stepModuleRunner,
 } = require("../dist/services/novel/director/workflowStepRuntime/StepModuleRunner.js");
@@ -489,9 +489,9 @@ test("workflow step fact inspections support novel-only manual context", async (
 });
 
 test("manual chapter draft runs through the workflow step runner", async (t) => {
-  const originalMethod = NovelService.prototype.createChapterStream;
+  const originalMethod = DefaultNovelApplicationServices.prototype.createChapterStream;
   const calls = [];
-  NovelService.prototype.createChapterStream = async (novelId, chapterId, options) => {
+  DefaultNovelApplicationServices.prototype.createChapterStream = async (novelId, chapterId, options) => {
     calls.push({ novelId, chapterId, model: options.model });
     return {
       stream: (async function* stream() {})(),
@@ -499,7 +499,7 @@ test("manual chapter draft runs through the workflow step runner", async (t) => 
     };
   };
   t.after(() => {
-    NovelService.prototype.createChapterStream = originalMethod;
+    DefaultNovelApplicationServices.prototype.createChapterStream = originalMethod;
   });
 
   await stepModuleRunner.runStep(DIRECTOR_EXECUTION_STEP_IDS.chapter_execution, {
@@ -520,9 +520,9 @@ test("manual chapter draft runs through the workflow step runner", async (t) => 
 });
 
 test("manual chapter repair runs through the workflow step runner", async (t) => {
-  const originalMethod = NovelService.prototype.createRepairStream;
+  const originalMethod = DefaultNovelApplicationServices.prototype.createRepairStream;
   const calls = [];
-  NovelService.prototype.createRepairStream = async (novelId, chapterId, options) => {
+  DefaultNovelApplicationServices.prototype.createRepairStream = async (novelId, chapterId, options) => {
     calls.push({ novelId, chapterId, repairMode: options.repairMode });
     return {
       stream: (async function* stream() {})(),
@@ -530,7 +530,7 @@ test("manual chapter repair runs through the workflow step runner", async (t) =>
     };
   };
   t.after(() => {
-    NovelService.prototype.createRepairStream = originalMethod;
+    DefaultNovelApplicationServices.prototype.createRepairStream = originalMethod;
   });
 
   await stepModuleRunner.runStep(DIRECTOR_EXECUTION_STEP_IDS.chapter_repair, {
