@@ -5,6 +5,7 @@ const {
   createWorkflowStepModule,
   workflowStepModuleToDirectorNodeContract,
 } = require("../dist/services/novel/director/workflowStepRuntime/WorkflowStepModule.js");
+const { prisma } = require("../dist/db/prisma.js");
 const {
   buildChapterPipelineWorkflowTemplate,
   buildDirectorPlanningWorkflowPlan,
@@ -244,13 +245,41 @@ function buildDirectorStateHint(seedPayload, chapterProgress) {
   };
 }
 
-test("chapter draft completion is scoped to the active auto execution range", async () => {
+function buildChapterRowFromProgressChapter(chapter) {
+  const hasDraft = chapter.completedStages.includes("draft_saved");
+  const hasAudit = chapter.completedStages.includes("audit_completed");
+  const hasStateCommit = chapter.completedStages.includes("chapter_state_committed");
+  return {
+    id: chapter.chapterId,
+    order: chapter.chapterOrder,
+    title: `Chapter ${chapter.chapterOrder}`,
+    content: hasDraft ? "Draft body" : "",
+    taskSheet: "Task sheet",
+    sceneCards: null,
+    expectation: null,
+    generationState: chapter.status === "approved" ? "approved" : "reviewed",
+    chapterStatus: chapter.status === "running" ? "generating" : chapter.status === "reviewable" ? "pending_review" : null,
+    riskFlags: null,
+    repairHistory: null,
+    qualityReports: [],
+    auditReports: hasAudit ? [{ issues: [] }] : [],
+    storyStateSnapshots: hasStateCommit ? [{ id: `state-${chapter.chapterOrder}` }] : [],
+    canonicalStateVersions: [],
+  };
+}
+
+test("chapter draft completion is scoped to the active auto execution range", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
   const module = getDirectorExecutionStepModule("chapter_execution");
   const chapters = Array.from({ length: 67 }, (_, index) => {
     const order = index + 1;
     return buildProgressChapter(order, {
       drafted: order >= 11 && order <= 13,
     });
+  });
+  prisma.chapter.findMany = async () => chapters.map(buildChapterRowFromProgressChapter);
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
   });
   const context = {
     taskId: "task-scoped-chapter-execution",
@@ -292,7 +321,59 @@ test("chapter draft completion is scoped to the active auto execution range", as
   assert.equal(completeCriteria, true);
 });
 
-test("chapter quality review closes when auto review is disabled by the execution plan", async () => {
+test("chapter draft validation trusts fresh draft facts over stale failed task status", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  prisma.chapter.findMany = async () => [
+    {
+      id: "chapter-1",
+      order: 1,
+      title: "Chapter 1",
+      content: "Draft body",
+      taskSheet: "Task sheet",
+      sceneCards: null,
+      expectation: null,
+      generationState: "reviewed",
+      chapterStatus: "completed",
+      riskFlags: null,
+      repairHistory: null,
+      qualityReports: [],
+      auditReports: [],
+      storyStateSnapshots: [],
+      canonicalStateVersions: [],
+    },
+  ];
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+
+  const module = getDirectorExecutionStepModule("chapter_execution");
+  const context = {
+    novelId: "novel-fresh-draft",
+    projectionHints: {
+      directorCanonicalState: {
+        ...buildDirectorStateHint({}, buildChapterProgressSummary([
+          buildProgressChapter(1, { drafted: false }),
+        ])),
+        task: {
+          ...buildDirectorStateHint({}, null).task,
+          id: "task-stale-failed",
+          novelId: "novel-fresh-draft",
+          status: "failed",
+          lastError: "stale failure",
+        },
+      },
+    },
+  };
+
+  const validation = await module.validateOutput(undefined, context);
+
+  assert.equal(validation.valid, true);
+  assert.equal(validation.evidence.draftedChapterCount, 1);
+  assert.equal(validation.evidence.totalChapters, 1);
+});
+
+test("chapter quality review closes when auto review is disabled by the execution plan", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
   const module = getDirectorExecutionStepModule("chapter_quality_review");
   const chapters = [1, 2].map((order) => ({
     ...buildProgressChapter(order, { drafted: true }),
@@ -307,6 +388,10 @@ test("chapter quality review closes when auto review is disabled by the executio
       "reviewable_or_approved",
     ],
   }));
+  prisma.chapter.findMany = async () => chapters.map(buildChapterRowFromProgressChapter);
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
   const context = {
     taskId: "task-no-auto-review",
     novelId: "novel-no-auto-review",

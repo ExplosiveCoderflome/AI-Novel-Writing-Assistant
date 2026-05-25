@@ -236,7 +236,7 @@ export class DirectorFactSummaryService {
         .filter((order) => Number.isFinite(order))
     )) ?? [];
     const plannedChapterCount = plannedChapterOrders.length;
-    const chapterProgress = state.chapterProgress ?? await this.runtime.inspectChapterExecutionProgress(novelId);
+    const chapterProgress = await this.runtime.inspectChapterExecutionProgress(novelId);
     const artifacts = getArtifactsFromContext(context);
 
     return {

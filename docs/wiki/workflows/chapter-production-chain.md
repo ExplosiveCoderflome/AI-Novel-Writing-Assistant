@@ -60,6 +60,8 @@
 - 章节热路径必须维护统一的章节义务合同：`mustHitNow`、`mustPreserve`、`requiredPayoffTouches`、`requiredCharacterAppearances`、`requiredGoalChanges`、`canDefer`、`forbiddenCrossings`。writer、接收闸门、局部修复和重规划判断都应消费同一份合同，避免规划、写作和审核各自解释章节职责。
 - 章节修复、审阅和上下文组装必须兼容旧运行记录中的章节写作上下文。旧 `chapterWriteContext` 如果缺少新增的 `obligationContract`，运行时应补齐空合同，而不是让修复流崩溃；补齐后仍由当前章节任务、角色职责、伏笔账本和资源状态重新组织审阅与修复上下文。
 - 任务详情、章节事实检查和运行态投影必须只读；`recover` 只负责返回可恢复位置和理由，不得在轮询或快照读取时写入恢复事件。否则页面刷新会把“可恢复状态”误记成“正在再次执行”，并制造重复的伏笔同步假象。
+- 章节执行步骤的就绪性、完成度和断点续跑位置必须优先读取真实产物事实：`Chapter.content`、`AuditReport / QualityReport`、阻塞 issue、`StoryStateSnapshot / CanonicalStateVersion` 和权威审批状态。`task.status`、`chapterStatus`、`state.chapterProgress` 只能作为投影或诊断提示，不能决定章节是否已生成、是否需要修复、是否可以进入下一章。
+- 如果任务状态和章节事实冲突，以章节事实为准：有正文但旧任务失败时允许从真实进度继续；旧 `chapterStatus=needs_repair` 但阻塞 issue 已关闭时不能反复进入修复；旧 `chapterStatus=completed` 但正文缺失时不能视为完成。
 - 章节义务上下文的结构化提醒不能挤掉高风险资源和逾期伏笔。审阅与修复上下文应保留资源不可用、资源需确认、urgent/overdue payoff 等关键信号，防止 AI 修文在缺少约束的情况下继续使用失效道具或忽略必须兑现的压力。
 - 接收闸门必须把未兑现义务输出为结构化 `missingObligations`，并给出 `repairability`：局部漏写用 `patchable_obligation_gap`，需要整章调整用 `rewrite_needed`，章节职责与邻章安排失配才用 `plan_misalignment`。
 - 自动修文默认最多一次；失败后记录待修状态或 repair ticket，不进入无限重试。
