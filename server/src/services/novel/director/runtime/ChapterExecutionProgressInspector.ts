@@ -212,7 +212,7 @@ export class ChapterExecutionProgressInspector {
         ? "approved"
         : isReviewable
           ? "reviewable"
-          : hasDraft || chapter.chapterStatus === "generating"
+          : hasDraft && !isReviewable
             ? "running"
             : "not_started";
     const shouldContinueWithoutStateCommit = hasContinuableRiskFlags

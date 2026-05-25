@@ -204,3 +204,38 @@ test("chapter execution progress does not treat stale completed status as approv
   assert.ok(chapter10.missingStages.includes("draft_saved"));
   assert.ok(chapter10.missingStages.includes("reviewable_or_approved"));
 });
+
+test("chapter execution progress does not treat generating status without draft as running", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  prisma.chapter.findMany = async () => [
+    {
+      id: "chapter-11",
+      order: 11,
+      title: "Chapter 11",
+      content: "",
+      taskSheet: "Task sheet",
+      sceneCards: null,
+      expectation: null,
+      generationState: "drafting",
+      chapterStatus: "generating",
+      riskFlags: null,
+      repairHistory: null,
+      qualityReports: [],
+      auditReports: [],
+      storyStateSnapshots: [],
+      canonicalStateVersions: [],
+    },
+  ];
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+
+  const summary = await new ChapterExecutionProgressInspector().inspectNovel("novel-1");
+  const chapter11 = summary.chapters.find((item) => item.chapterOrder === 11);
+
+  assert.equal(summary.draftedChapterCount, 0);
+  assert.equal(chapter11.status, "not_started");
+  assert.equal(chapter11.nextAction, "write_draft");
+  assert.ok(chapter11.completedStages.includes("draft_started"));
+  assert.ok(chapter11.missingStages.includes("draft_saved"));
+});
