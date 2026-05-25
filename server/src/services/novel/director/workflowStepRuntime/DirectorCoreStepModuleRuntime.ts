@@ -1,27 +1,114 @@
 ﻿import type { DirectorChapterExecutionProgressSummary, DirectorArtifactRef, DirectorArtifactType } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorAutoExecutionState, DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
-import type { BookContractService } from "../../BookContractService";
-import type { CharacterPreparationService } from "../../characterPrep/CharacterPreparationService";
-import type { CharacterDynamicsService } from "../../dynamics/CharacterDynamicsService";
-import type { NovelContextService } from "../../NovelContextService";
-import type { NovelService } from "../../NovelService";
+import { BookContractService } from "../../BookContractService";
+import { CharacterPreparationService } from "../../characterPrep/CharacterPreparationService";
+import { CharacterDynamicsService } from "../../dynamics/CharacterDynamicsService";
+import { NovelContextService } from "../../NovelContextService";
+import { NovelService } from "../../NovelService";
 import type { RepairOptions } from "../../novelCoreShared";
 import type { ChapterRuntimeRequestInput } from "../../runtime/chapterRuntimeSchema";
-import type { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanService";
-import type { NovelVolumeService } from "../../volume/NovelVolumeService";
-import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
+import { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanService";
+import { NovelVolumeService } from "../../volume/NovelVolumeService";
+import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import { buildDirectorWorkflowSeedPayload } from "../novelDirectorHelpers";
-import type { NovelDirectorAutoExecutionRuntime } from "../automation/novelDirectorAutoExecutionRuntime";
-import type { NovelDirectorPipelineRuntime } from "../novelDirectorPipelineRuntime";
-import type { NovelDirectorRuntimeOrchestrator } from "../novelDirectorRuntimeOrchestrator";
-import type { DirectorRuntimeService } from "../runtime/DirectorRuntimeService";
-import type { ChapterExecutionProgressInspector } from "../runtime/ChapterExecutionProgressInspector";
+import { NovelDirectorAutoExecutionRuntime } from "../automation/novelDirectorAutoExecutionRuntime";
+import { NovelDirectorPipelineRuntime } from "../novelDirectorPipelineRuntime";
+import { NovelDirectorRuntimeOrchestrator } from "../novelDirectorRuntimeOrchestrator";
+import { DirectorRuntimeService } from "../runtime/DirectorRuntimeService";
+import { ChapterExecutionProgressInspector } from "../runtime/ChapterExecutionProgressInspector";
 import { normalizeDirectorAutoExecutionPlan } from "../automation/novelDirectorAutoExecution";
+import { assertHighMemoryDirectorStartAllowed } from "../autoDirectorMemorySafety";
 import {
   resolveStructuredOutlineRecoveryCursor,
   type StructuredOutlineRecoveryCursor,
 } from "../novelDirectorStructuredOutlineRecovery";
+
+export interface DirectorCoreStepModuleRuntimeDeps {
+  workflowService: NovelWorkflowService;
+  novelContextService: NovelContextService;
+  characterDynamicsService: CharacterDynamicsService;
+  characterPreparationService: CharacterPreparationService;
+  storyMacroService: StoryMacroPlanService;
+  bookContractService: BookContractService;
+  volumeService: NovelVolumeService;
+  novelService: NovelService;
+  directorRuntime: DirectorRuntimeService;
+  chapterProgressInspector: ChapterExecutionProgressInspector;
+  autoExecutionRuntime: NovelDirectorAutoExecutionRuntime;
+  runtimeOrchestrator: NovelDirectorRuntimeOrchestrator;
+  pipelineRuntime: NovelDirectorPipelineRuntime;
+}
+
+export function buildDefaultDirectorCoreStepModuleRuntimeDeps(): DirectorCoreStepModuleRuntimeDeps {
+  const workflowService = new NovelWorkflowService();
+  const novelContextService = new NovelContextService();
+  const characterDynamicsService = new CharacterDynamicsService();
+  const characterPreparationService = new CharacterPreparationService();
+  const storyMacroService = new StoryMacroPlanService();
+  const bookContractService = new BookContractService();
+  const volumeService = new NovelVolumeService();
+  const novelService = new NovelService();
+  const directorRuntime = new DirectorRuntimeService();
+  const chapterProgressInspector = new ChapterExecutionProgressInspector();
+  const autoExecutionRuntime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService,
+    novelService,
+    volumeWorkspaceService: volumeService,
+    workflowService,
+    buildDirectorSeedPayload: (
+      input: DirectorConfirmRequest,
+      novelId: string,
+      extra?: Record<string, unknown>,
+    ) => buildDirectorWorkflowSeedPayload(input, novelId, extra),
+  });
+  const runtimeOrchestrator = new NovelDirectorRuntimeOrchestrator({
+    directorRuntime,
+    workflowService,
+    autoExecutionRuntime,
+  });
+  const pipelineRuntime = new NovelDirectorPipelineRuntime({
+    workflowService,
+    novelContextService,
+    characterDynamicsService,
+    characterPreparationService,
+    storyMacroService,
+    bookContractService,
+    volumeService,
+    runtimeOrchestrator,
+    buildDirectorSeedPayload: (
+      input: DirectorConfirmRequest,
+      novelId: string | null,
+      extra?: Record<string, unknown>,
+    ) => buildDirectorWorkflowSeedPayload(input, novelId, extra),
+    assertHighMemoryStartAllowed: (input: {
+      taskId: string;
+      novelId: string;
+      stage: "structured_outline";
+      itemKey: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync";
+      volumeId?: string | null;
+      chapterId?: string | null;
+      scope?: string | null;
+      batchAlreadyStartedCount?: number;
+    }) => assertHighMemoryDirectorStartAllowed(workflowService, input),
+  });
+
+  return {
+    workflowService,
+    novelContextService,
+    characterDynamicsService,
+    characterPreparationService,
+    storyMacroService,
+    bookContractService,
+    volumeService,
+    novelService,
+    directorRuntime,
+    chapterProgressInspector,
+    autoExecutionRuntime,
+    runtimeOrchestrator,
+    pipelineRuntime,
+  };
+}
 
 export class DirectorCoreStepModuleRuntime {
   private readonly workflowService: NovelWorkflowService;
@@ -38,73 +125,20 @@ export class DirectorCoreStepModuleRuntime {
   private readonly runtimeOrchestrator: NovelDirectorRuntimeOrchestrator;
   private readonly pipelineRuntime: NovelDirectorPipelineRuntime;
 
-  constructor() {
-    const { NovelWorkflowService } = require("../../workflow/NovelWorkflowService");
-    const { NovelContextService } = require("../../NovelContextService");
-    const { CharacterDynamicsService } = require("../../dynamics/CharacterDynamicsService");
-    const { CharacterPreparationService } = require("../../characterPrep/CharacterPreparationService");
-    const { StoryMacroPlanService } = require("../../storyMacro/StoryMacroPlanService");
-    const { BookContractService } = require("../../BookContractService");
-    const { NovelVolumeService } = require("../../volume/NovelVolumeService");
-    const { NovelService } = require("../../NovelService");
-    const { DirectorRuntimeService } = require("../runtime/DirectorRuntimeService");
-    const { ChapterExecutionProgressInspector } = require("../runtime/ChapterExecutionProgressInspector");
-    const { NovelDirectorAutoExecutionRuntime } = require("../automation/novelDirectorAutoExecutionRuntime");
-    const { NovelDirectorRuntimeOrchestrator } = require("../novelDirectorRuntimeOrchestrator");
-    const { NovelDirectorPipelineRuntime } = require("../novelDirectorPipelineRuntime");
-    const { assertHighMemoryDirectorStartAllowed } = require("../autoDirectorMemorySafety");
-
-    this.workflowService = new NovelWorkflowService();
-    this.novelContextService = new NovelContextService();
-    this.characterDynamicsService = new CharacterDynamicsService();
-    this.characterPreparationService = new CharacterPreparationService();
-    this.storyMacroService = new StoryMacroPlanService();
-    this.bookContractService = new BookContractService();
-    this.volumeService = new NovelVolumeService();
-    this.novelService = new NovelService();
-    this.directorRuntime = new DirectorRuntimeService();
-    this.chapterProgressInspector = new ChapterExecutionProgressInspector();
-    this.autoExecutionRuntime = new NovelDirectorAutoExecutionRuntime({
-      novelContextService: this.novelContextService,
-      novelService: this.novelService,
-      volumeWorkspaceService: this.volumeService,
-      workflowService: this.workflowService,
-      buildDirectorSeedPayload: (
-        input: DirectorConfirmRequest,
-        novelId: string,
-        extra?: Record<string, unknown>,
-      ) => buildDirectorWorkflowSeedPayload(input, novelId, extra),
-    });
-    this.runtimeOrchestrator = new NovelDirectorRuntimeOrchestrator({
-      directorRuntime: this.directorRuntime,
-      workflowService: this.workflowService,
-      autoExecutionRuntime: this.autoExecutionRuntime,
-    });
-    this.pipelineRuntime = new NovelDirectorPipelineRuntime({
-      workflowService: this.workflowService,
-      novelContextService: this.novelContextService,
-      characterDynamicsService: this.characterDynamicsService,
-      characterPreparationService: this.characterPreparationService,
-      storyMacroService: this.storyMacroService,
-      bookContractService: this.bookContractService,
-      volumeService: this.volumeService,
-      runtimeOrchestrator: this.runtimeOrchestrator,
-      buildDirectorSeedPayload: (
-        input: DirectorConfirmRequest,
-        novelId: string | null,
-        extra?: Record<string, unknown>,
-      ) => buildDirectorWorkflowSeedPayload(input, novelId, extra),
-      assertHighMemoryStartAllowed: (input: {
-        taskId: string;
-        novelId: string;
-        stage: "structured_outline";
-        itemKey: "beat_sheet" | "chapter_list" | "chapter_detail_bundle" | "chapter_sync";
-        volumeId?: string | null;
-        chapterId?: string | null;
-        scope?: string | null;
-        batchAlreadyStartedCount?: number;
-      }) => assertHighMemoryDirectorStartAllowed(this.workflowService, input),
-    });
+  constructor(deps: DirectorCoreStepModuleRuntimeDeps = buildDefaultDirectorCoreStepModuleRuntimeDeps()) {
+    this.workflowService = deps.workflowService;
+    this.novelContextService = deps.novelContextService;
+    this.characterDynamicsService = deps.characterDynamicsService;
+    this.characterPreparationService = deps.characterPreparationService;
+    this.storyMacroService = deps.storyMacroService;
+    this.bookContractService = deps.bookContractService;
+    this.volumeService = deps.volumeService;
+    this.novelService = deps.novelService;
+    this.directorRuntime = deps.directorRuntime;
+    this.chapterProgressInspector = deps.chapterProgressInspector;
+    this.autoExecutionRuntime = deps.autoExecutionRuntime;
+    this.runtimeOrchestrator = deps.runtimeOrchestrator;
+    this.pipelineRuntime = deps.pipelineRuntime;
   }
 
   getDirectorRuntime(): DirectorRuntimeService {

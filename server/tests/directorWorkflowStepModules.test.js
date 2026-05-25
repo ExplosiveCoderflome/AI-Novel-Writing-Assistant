@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const {
   createWorkflowStepModule,
@@ -327,6 +329,26 @@ test("chapter draft completion is scoped to the active auto execution range", as
   assert.equal(progress.evidence.draftedChapterCount, 3);
   assert.equal(progress.evidence.totalChapters, 3);
   assert.equal(completeCriteria, true);
+});
+
+test("director core step runtime uses explicit dependency assembly", () => {
+  const source = fs.readFileSync(
+    path.join(
+      __dirname,
+      "..",
+      "src",
+      "services",
+      "novel",
+      "director",
+      "workflowStepRuntime",
+      "DirectorCoreStepModuleRuntime.ts",
+    ),
+    "utf8",
+  );
+
+  assert.equal(source.includes("require("), false);
+  assert.match(source, /interface DirectorCoreStepModuleRuntimeDeps/);
+  assert.match(source, /buildDefaultDirectorCoreStepModuleRuntimeDeps/);
 });
 
 test("chapter draft validation trusts fresh draft facts over stale failed task status", async (t) => {
