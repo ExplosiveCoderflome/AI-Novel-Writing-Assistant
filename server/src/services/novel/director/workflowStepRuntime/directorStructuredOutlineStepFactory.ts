@@ -4,6 +4,7 @@ import { getWorkflowStepCatalogEntry } from "@ai-novel/shared/types/directorWork
 import {
   createWorkflowStepDescriptorFromCatalogEntry,
   createWorkflowStepModule,
+  getWorkflowStepDirectorTaskId,
   type WorkflowStepExecutionContext,
   type WorkflowStepModule,
   type WorkflowStepModuleDescriptor,
@@ -169,7 +170,7 @@ export function createStructuredOutlineFactModule(input: {
       buildInput: async (context) => {
         const { novelId, request } = await loadDirectorModuleState(context);
         return {
-          taskId: context.taskId?.trim() ?? "",
+          taskId: getWorkflowStepDirectorTaskId(context) ?? "",
           novelId,
           request: requireDirectorRequest(request),
         };

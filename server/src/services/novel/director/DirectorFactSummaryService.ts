@@ -3,7 +3,12 @@ import type {
   DirectorChapterExecutionProgressSummary,
   DirectorTaskFactSummary,
 } from "@ai-novel/shared/types/directorRuntime";
-import type { WorkflowStepExecutionContext } from "./workflowStepRuntime/WorkflowStepModule";
+import {
+  getWorkflowStepArtifacts,
+  getWorkflowStepDirectorTaskId,
+  getWorkflowStepProjectionHints,
+  type WorkflowStepExecutionContext,
+} from "./workflowStepRuntime/WorkflowStepModule";
 import { getDirectorInputFromSeedPayload } from "./novelDirectorHelpers";
 import { DirectorStateReader, type DirectorCanonicalState } from "./DirectorStateReader";
 import { DirectorCoreStepModuleRuntime } from "./workflowStepRuntime/DirectorCoreStepModuleRuntime";
@@ -58,19 +63,19 @@ function isBaseSummary(value: unknown): value is DirectorFactBaseSummary {
 function getContextStateHint(
   context: WorkflowStepExecutionContext,
 ): DirectorCanonicalState | null {
-  const state = context.projectionHints?.[DIRECTOR_STATE_HINT_KEY];
+  const state = getWorkflowStepProjectionHints(context)?.[DIRECTOR_STATE_HINT_KEY];
   return state && typeof state === "object" ? state as DirectorCanonicalState : null;
 }
 
 function getContextBaseSummaryHint(
   context: WorkflowStepExecutionContext,
 ): DirectorFactBaseSummary | null {
-  const summary = context.projectionHints?.[DIRECTOR_FACT_BASE_SUMMARY_HINT_KEY];
+  const summary = getWorkflowStepProjectionHints(context)?.[DIRECTOR_FACT_BASE_SUMMARY_HINT_KEY];
   return isBaseSummary(summary) ? summary : null;
 }
 
 function getArtifactsFromContext(context: WorkflowStepExecutionContext): DirectorArtifactRef[] {
-  return Array.isArray(context.artifacts) ? context.artifacts : [];
+  return getWorkflowStepArtifacts(context);
 }
 
 function countActiveArtifacts(
@@ -166,7 +171,7 @@ export class DirectorFactSummaryService {
   private buildFallbackState(context: WorkflowStepExecutionContext): DirectorCanonicalState {
     return {
       task: {
-        id: context.taskId?.trim() || "__director_fact_fallback__",
+        id: getWorkflowStepDirectorTaskId(context) ?? "__director_fact_fallback__",
         novelId: context.novelId?.trim() || null,
         lane: "auto_director",
         status: "running",
@@ -194,8 +199,11 @@ export class DirectorFactSummaryService {
     if (hinted) {
       return hinted;
     }
-    const taskId = context.taskId?.trim();
+    const taskId = getWorkflowStepDirectorTaskId(context);
     if (!taskId) {
+      if (context.novelId?.trim()) {
+        return this.buildFallbackState(context);
+      }
       throw new Error("Director step module requires task context.");
     }
     const state = await this.stateReader.readByTaskId(taskId);

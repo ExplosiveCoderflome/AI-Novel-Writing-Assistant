@@ -8,6 +8,7 @@ import {
 import {
   createWorkflowStepDescriptorFromDirectorAdapter,
   createWorkflowStepModule,
+  getWorkflowStepDirectorTaskId,
   type WorkflowStepModule,
   type WorkflowStepModuleDescriptor,
 } from "./WorkflowStepModule";
@@ -55,7 +56,7 @@ function createStoryMacroExecutableModule(
       buildInput: async (context) => {
         const { novelId, request } = await loadDirectorModuleState(context);
         return {
-          taskId: context.taskId?.trim() ?? "",
+          taskId: getWorkflowStepDirectorTaskId(context) ?? "",
           novelId,
           request: requireDirectorRequest(request),
         };
@@ -146,7 +147,7 @@ function createBookContractExecutableModule(
       buildInput: async (context) => {
         const { novelId, request } = await loadDirectorModuleState(context);
         return {
-          taskId: context.taskId?.trim() ?? "",
+          taskId: getWorkflowStepDirectorTaskId(context) ?? "",
           novelId,
           request: requireDirectorRequest(request),
         };
@@ -242,7 +243,7 @@ function createCharacterSetupExecutableModule(
       buildInput: async (context) => {
         const { novelId, request } = await loadDirectorModuleState(context);
         return {
-          taskId: context.taskId?.trim() ?? "",
+          taskId: getWorkflowStepDirectorTaskId(context) ?? "",
           novelId,
           request: requireDirectorRequest(request),
         };
@@ -338,7 +339,7 @@ function createVolumeStrategyExecutableModule(
       buildInput: async (context) => {
         const { novelId, request } = await loadDirectorModuleState(context);
         return {
-          taskId: context.taskId?.trim() ?? "",
+          taskId: getWorkflowStepDirectorTaskId(context) ?? "",
           novelId,
           request: requireDirectorRequest(request),
         };

@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   createWorkflowStepModule,
+  isExecutableWorkflowStepModule,
   workflowStepModuleToDirectorNodeContract,
 } = require("../dist/services/novel/director/workflowStepRuntime/WorkflowStepModule.js");
 const { prisma } = require("../dist/db/prisma.js");
@@ -432,6 +433,30 @@ test("chapter quality review closes when auto review is disabled by the executio
   assert.equal(progress.status, "completed");
   assert.equal(progress.nextAction, "commit_chapter_state");
   assert.equal(validation.valid, true);
+});
+
+test("workflow step fact inspections support novel-only manual context", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  prisma.chapter.findMany = async () => [];
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+
+  const context = {
+    novelId: "novel-manual-context",
+    mode: "manual",
+  };
+  const modules = directorWorkflowStepModuleRegistry
+    .list()
+    .filter((module) => isExecutableWorkflowStepModule(module));
+
+  for (const module of modules) {
+    await assert.doesNotReject(async () => {
+      await module.inspectReadiness(context);
+      await module.inspectCompletion(context);
+      await module.inspectProgress(context);
+    }, `${module.id} should inspect with manual novel context`);
+  }
 });
 
 test("quality repair template starts from repair step and preserves policy action", () => {

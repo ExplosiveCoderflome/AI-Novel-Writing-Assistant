@@ -17,6 +17,7 @@ import {
   createWorkflowStepDescriptorFromCatalogEntry,
   createWorkflowStepDescriptorFromDirectorAdapter,
   createWorkflowStepModule,
+  getWorkflowStepDirectorTaskId,
   type WorkflowStepExecutionContext,
   type WorkflowStepModule,
   type WorkflowStepModuleDescriptor,
@@ -138,8 +139,9 @@ function createChapterDraftExecutableModule(
       },
       validateOutput: async (_output, context) => {
         const { state, novelId, request } = await loadDirectorModuleState(context);
-        const freshState = context.taskId
-          ? await getDirectorCoreStateReader().readByTaskId(context.taskId).catch(() => null)
+        const directorTaskId = getWorkflowStepDirectorTaskId(context);
+        const freshState = directorTaskId
+          ? await getDirectorCoreStateReader().readByTaskId(directorTaskId).catch(() => null)
           : null;
         const observedState = freshState ?? state;
         const progress = await inspectFreshScopedProgress({ novelId, state: observedState, request });
@@ -401,7 +403,7 @@ function createFactOnlyExecutionModule(input: {
       buildInput: async (context) => {
         const { novelId } = await loadDirectorModuleState(context);
         return {
-          taskId: context.taskId?.trim() ?? "",
+          taskId: getWorkflowStepDirectorTaskId(context) ?? "",
           novelId,
         };
       },

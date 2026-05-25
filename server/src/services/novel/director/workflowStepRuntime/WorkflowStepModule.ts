@@ -32,16 +32,79 @@ export interface WorkflowStepWaitingState {
   progress?: number;
 }
 
-export interface WorkflowStepExecutionContext {
+export interface StepExecutionPolicy {
+  advanceMode?: string | null;
+  approvalRequired?: boolean | null;
+}
+
+export interface StepExecutionContext {
+  novelId: string;
+  mode: "manual" | "auto_director" | "pipeline";
+  policy?: StepExecutionPolicy;
+  targetType?: DirectorArtifactRef["targetType"] | null;
+  targetId?: string | null;
+  targetChapterId?: string | null;
+}
+
+export interface DirectorStepContext extends StepExecutionContext {
+  mode: "auto_director";
+  directorTaskId: string;
+  directorRunId?: string | null;
+  directorCommandId?: string | null;
+  directorArtifacts?: DirectorArtifactRef[];
+  projectionHints?: Record<string, unknown>;
+  taskId?: string | null;
+  runId?: string | null;
+  commandId?: string | null;
+  artifacts?: DirectorArtifactRef[];
+  policyMode?: DirectorPolicyMode | null;
+}
+
+export interface LegacyWorkflowStepExecutionContext {
   taskId?: string | null;
   novelId?: string | null;
+  mode?: "manual" | "auto_director" | "pipeline" | null;
   runId?: string | null;
   commandId?: string | null;
   targetType?: DirectorArtifactRef["targetType"] | null;
   targetId?: string | null;
+  targetChapterId?: string | null;
+  policy?: StepExecutionPolicy;
   policyMode?: DirectorPolicyMode | null;
   artifacts?: DirectorArtifactRef[];
   projectionHints?: Record<string, unknown>;
+}
+
+export type WorkflowStepExecutionContext =
+  | StepExecutionContext
+  | DirectorStepContext
+  | LegacyWorkflowStepExecutionContext;
+
+export function isDirectorContext(context: WorkflowStepExecutionContext): context is DirectorStepContext {
+  return context.mode === "auto_director"
+    && typeof (context as Partial<DirectorStepContext>).directorTaskId === "string"
+    && Boolean((context as Partial<DirectorStepContext>).directorTaskId?.trim());
+}
+
+export function getWorkflowStepDirectorTaskId(context: WorkflowStepExecutionContext): string | null {
+  const explicitTaskId = isDirectorContext(context) ? context.directorTaskId : null;
+  const legacyTaskId = "taskId" in context && typeof context.taskId === "string"
+    ? context.taskId
+    : null;
+  return explicitTaskId?.trim() || legacyTaskId?.trim() || null;
+}
+
+export function getWorkflowStepArtifacts(context: WorkflowStepExecutionContext): DirectorArtifactRef[] {
+  if (isDirectorContext(context) && Array.isArray(context.directorArtifacts)) {
+    return context.directorArtifacts;
+  }
+  return "artifacts" in context && Array.isArray(context.artifacts) ? context.artifacts : [];
+}
+
+export function getWorkflowStepProjectionHints(context: WorkflowStepExecutionContext): Record<string, unknown> | null {
+  return "projectionHints" in context && context.projectionHints && typeof context.projectionHints === "object"
+    ? context.projectionHints
+    : null;
 }
 
 export type WorkflowStepProgressStatus =
