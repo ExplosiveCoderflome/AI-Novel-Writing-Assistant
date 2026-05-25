@@ -7,6 +7,13 @@ const {
   workflowStepModuleToDirectorNodeContract,
 } = require("../dist/services/novel/director/workflowStepRuntime/WorkflowStepModule.js");
 const { prisma } = require("../dist/db/prisma.js");
+const { NovelService } = require("../dist/services/novel/NovelService.js");
+const {
+  stepModuleRunner,
+} = require("../dist/services/novel/director/workflowStepRuntime/StepModuleRunner.js");
+const {
+  DIRECTOR_EXECUTION_STEP_IDS,
+} = require("../dist/services/novel/director/workflowStepRuntime/directorWorkflowStepIds.js");
 const {
   buildChapterPipelineWorkflowTemplate,
   buildDirectorPlanningWorkflowPlan,
@@ -457,6 +464,68 @@ test("workflow step fact inspections support novel-only manual context", async (
       await module.inspectProgress(context);
     }, `${module.id} should inspect with manual novel context`);
   }
+});
+
+test("manual chapter draft runs through the workflow step runner", async (t) => {
+  const originalMethod = NovelService.prototype.createChapterStream;
+  const calls = [];
+  NovelService.prototype.createChapterStream = async (novelId, chapterId, options) => {
+    calls.push({ novelId, chapterId, model: options.model });
+    return {
+      stream: (async function* stream() {})(),
+      onDone: async () => undefined,
+    };
+  };
+  t.after(() => {
+    NovelService.prototype.createChapterStream = originalMethod;
+  });
+
+  await stepModuleRunner.runStep(DIRECTOR_EXECUTION_STEP_IDS.chapter_execution, {
+    novelId: "novel-manual-step",
+    mode: "manual",
+    targetType: "chapter",
+    targetChapterId: "chapter-manual-step",
+    stepInput: {
+      model: "model-from-step",
+    },
+  });
+
+  assert.deepEqual(calls, [{
+    novelId: "novel-manual-step",
+    chapterId: "chapter-manual-step",
+    model: "model-from-step",
+  }]);
+});
+
+test("manual chapter repair runs through the workflow step runner", async (t) => {
+  const originalMethod = NovelService.prototype.createRepairStream;
+  const calls = [];
+  NovelService.prototype.createRepairStream = async (novelId, chapterId, options) => {
+    calls.push({ novelId, chapterId, repairMode: options.repairMode });
+    return {
+      stream: (async function* stream() {})(),
+      onDone: async () => undefined,
+    };
+  };
+  t.after(() => {
+    NovelService.prototype.createRepairStream = originalMethod;
+  });
+
+  await stepModuleRunner.runStep(DIRECTOR_EXECUTION_STEP_IDS.chapter_repair, {
+    novelId: "novel-repair-step",
+    mode: "manual",
+    targetType: "chapter",
+    targetChapterId: "chapter-repair-step",
+    stepInput: {
+      repairMode: "light_repair",
+    },
+  });
+
+  assert.deepEqual(calls, [{
+    novelId: "novel-repair-step",
+    chapterId: "chapter-repair-step",
+    repairMode: "light_repair",
+  }]);
 });
 
 test("quality repair template starts from repair step and preserves policy action", () => {

@@ -690,7 +690,6 @@ registerNovelWorldSliceRoutes({
 
 registerNovelChapterGenerationRoutes({
   router,
-  novelService,
   chapterParamsSchema,
   forwardBusinessError,
 });

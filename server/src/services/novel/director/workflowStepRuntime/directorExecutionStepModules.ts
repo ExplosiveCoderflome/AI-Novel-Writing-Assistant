@@ -18,6 +18,8 @@ import {
   createWorkflowStepDescriptorFromDirectorAdapter,
   createWorkflowStepModule,
   getWorkflowStepDirectorTaskId,
+  getWorkflowStepInput,
+  getWorkflowStepTargetChapterId,
   type WorkflowStepExecutionContext,
   type WorkflowStepModule,
   type WorkflowStepModuleDescriptor,
@@ -43,19 +45,56 @@ import {
   DIRECTOR_EXECUTION_CONTRACT_SYNC_STEP_ID,
   DIRECTOR_EXECUTION_STEP_IDS,
 } from "./directorWorkflowStepIds";
+import type { ChapterRuntimeRequestInput } from "../../runtime/chapterRuntimeSchema";
+import type { RepairOptions } from "../../novelCoreShared";
+import type { DirectorCoreStepModuleRuntime } from "./DirectorCoreStepModuleRuntime";
+
+type ChapterDraftStepInput =
+  | {
+    mode: "auto_director";
+    taskId: string;
+    novelId: string;
+    request: DirectorConfirmRequest;
+    existingPipelineJobId?: string | null;
+    existingState?: DirectorAutoExecutionState | null;
+    resumeCheckpointType?: "chapter_batch_ready" | "replan_required" | null;
+    previousFailureMessage?: string | null;
+    allowSkipReviewBlockedChapter?: boolean;
+  }
+  | {
+    mode: "manual";
+    novelId: string;
+    chapterId: string;
+    options?: ChapterRuntimeRequestInput;
+    useRuntimeStream?: boolean;
+  };
+
+type ChapterDraftStepOutput =
+  | Awaited<ReturnType<DirectorCoreStepModuleRuntime["executeChapterDraftStep"]>>
+  | Awaited<ReturnType<DirectorCoreStepModuleRuntime["executeManualChapterDraftStep"]>>;
+
+interface ManualChapterDraftStepPayload {
+  options?: ChapterRuntimeRequestInput;
+  runtimeStream?: boolean;
+}
+
+function resolveManualChapterDraftPayload(value: unknown): ManualChapterDraftStepPayload {
+  if (value && typeof value === "object" && ("options" in value || "runtimeStream" in value)) {
+    const payload = value as ManualChapterDraftStepPayload;
+    return {
+      options: payload.options ?? {},
+      runtimeStream: payload.runtimeStream === true,
+    };
+  }
+  return {
+    options: value as ChapterRuntimeRequestInput | undefined,
+    runtimeStream: false,
+  };
+}
 
 function createChapterDraftExecutableModule(
   descriptor: WorkflowStepModuleDescriptor,
-): WorkflowStepModule<{
-  taskId: string;
-  novelId: string;
-  request: DirectorConfirmRequest;
-  existingPipelineJobId?: string | null;
-  existingState?: DirectorAutoExecutionState | null;
-  resumeCheckpointType?: "chapter_batch_ready" | "replan_required" | null;
-  previousFailureMessage?: string | null;
-  allowSkipReviewBlockedChapter?: boolean;
-}, void> {
+): WorkflowStepModule<ChapterDraftStepInput, ChapterDraftStepOutput> {
   async function inspectFreshScopedProgress(input: {
     novelId: string;
     state: Awaited<ReturnType<typeof loadDirectorModuleState>>["state"];
@@ -70,10 +109,24 @@ function createChapterDraftExecutableModule(
 
   return createWorkflowStepModule(
     descriptor,
-    async (input) => getDirectorCoreStepRuntime().executeChapterDraftStep(input),
+    async (input) => {
+      if (input.mode === "manual") {
+        return getDirectorCoreStepRuntime().executeManualChapterDraftStep(input);
+      }
+      return getDirectorCoreStepRuntime().executeChapterDraftStep(input);
+    },
     {
       inspectReadiness: async (context) => {
         const { state, novelId } = await loadDirectorModuleState(context);
+        const targetChapterId = getWorkflowStepTargetChapterId(context);
+        if (context.mode === "manual" && targetChapterId) {
+          return readyState({
+            evidence: {
+              targetChapterId,
+              mode: "manual",
+            },
+          });
+        }
         const chapterProgress = await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId);
         const executionChapters = await getDirectorCoreStepRuntime().getExecutionChapters(novelId);
         const syncedChapterCount = executionChapters.filter((chapter) => hasDirectorSyncedChapterExecutionContext(chapter)).length;
@@ -119,9 +172,21 @@ function createChapterDraftExecutableModule(
       },
       buildInput: async (context) => {
         const { state, novelId, request } = await loadDirectorModuleState(context);
+        const targetChapterId = getWorkflowStepTargetChapterId(context);
+        if (context.mode === "manual" && targetChapterId) {
+          const payload = resolveManualChapterDraftPayload(getWorkflowStepInput(context));
+          return {
+            mode: "manual",
+            novelId,
+            chapterId: targetChapterId,
+            options: payload.options,
+            useRuntimeStream: payload.runtimeStream,
+          };
+        }
         const directorRequest = requireDirectorRequest(request);
         const requestedAutoExecutionContinue = state.task.status === "failed" || state.task.status === "cancelled";
         return {
+          mode: "auto_director",
           taskId: state.task.id,
           novelId,
           request: directorRequest,
@@ -138,6 +203,9 @@ function createChapterDraftExecutableModule(
         };
       },
       validateOutput: async (_output, context) => {
+        if (context.mode === "manual") {
+          return { valid: true };
+        }
         const { state, novelId, request } = await loadDirectorModuleState(context);
         const directorTaskId = getWorkflowStepDirectorTaskId(context);
         const freshState = directorTaskId
@@ -191,6 +259,9 @@ function createChapterDraftExecutableModule(
         };
       },
       commit: async (_output, context) => {
+        if (context.mode === "manual") {
+          return { producedArtifacts: [] };
+        }
         const { state, novelId } = await loadDirectorModuleState(context);
         const producedArtifacts = await getDirectorCoreStepRuntime().collectWrittenArtifacts(
           novelId,
@@ -388,17 +459,29 @@ async function collectRuntimeArtifactsForTypes(context: WorkflowStepExecutionCon
 
 function createFactOnlyExecutionModule(input: {
   descriptor: WorkflowStepModuleDescriptor;
+  executeManual?: (context: WorkflowStepExecutionContext, novelId: string) => Promise<unknown>;
   inspectFacts: (context: WorkflowStepExecutionContext) => Promise<{
     readiness: ReturnType<typeof readyState> | ReturnType<typeof blockedState>;
     completion: ReturnType<typeof completedFact> | ReturnType<typeof pendingFact>;
     progress: WorkflowStepProgress;
   }>;
-}): WorkflowStepModule<{ taskId: string; novelId: string }, void> {
+}): WorkflowStepModule<{ taskId: string; novelId: string }, unknown> {
   return createWorkflowStepModule(
     input.descriptor,
-    async (): Promise<void> => {},
+    async (moduleInput, context): Promise<unknown> => {
+      if (context.mode === "manual" && input.executeManual) {
+        return input.executeManual(context, moduleInput.novelId);
+      }
+      return undefined;
+    },
     {
-      inspectReadiness: async (context) => (await input.inspectFacts(context)).readiness,
+      inspectReadiness: async (context) => {
+        const targetChapterId = getWorkflowStepTargetChapterId(context);
+        if (context.mode === "manual" && input.executeManual && targetChapterId) {
+          return readyState({ evidence: { targetChapterId, mode: "manual" } });
+        }
+        return (await input.inspectFacts(context)).readiness;
+      },
       inspectCompletion: async (context) => (await input.inspectFacts(context)).completion,
       buildInput: async (context) => {
         const { novelId } = await loadDirectorModuleState(context);
@@ -408,6 +491,9 @@ function createFactOnlyExecutionModule(input: {
         };
       },
       validateOutput: async (_output, context) => {
+        if (context.mode === "manual" && input.executeManual) {
+          return { valid: true };
+        }
         const facts = await input.inspectFacts(context);
         return {
           valid: facts.completion.completed,
@@ -416,6 +502,9 @@ function createFactOnlyExecutionModule(input: {
         };
       },
       commit: async (_output, context) => {
+        if (context.mode === "manual" && input.executeManual) {
+          return { producedArtifacts: [] };
+        }
         const { state, novelId, artifacts } = await collectRuntimeArtifactsForTypes(context, input.descriptor.writes);
         await getDirectorCoreStateCommitter().recordArtifactsIndexed({
           taskId: state.task.id,
@@ -532,6 +621,17 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       stage: "quality_repair",
       adapter: getDirectorExecutionNodeAdapter("chapter_repair"),
     }),
+    executeManual: async (context, novelId) => {
+      const chapterId = getWorkflowStepTargetChapterId(context);
+      if (!chapterId) {
+        throw new Error("Manual chapter repair requires targetChapterId.");
+      }
+      return getDirectorCoreStepRuntime().executeManualChapterRepairStep({
+        novelId,
+        chapterId,
+        options: getWorkflowStepInput<RepairOptions>(context),
+      });
+    },
     inspectFacts: async (context) => {
       const summary = await loadFactBaseSummary(context);
       const draftedChapterCount = summary.repair.draftedChapterCount;

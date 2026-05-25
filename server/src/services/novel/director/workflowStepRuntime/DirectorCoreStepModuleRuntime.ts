@@ -6,6 +6,8 @@ import type { CharacterPreparationService } from "../../characterPrep/CharacterP
 import type { CharacterDynamicsService } from "../../dynamics/CharacterDynamicsService";
 import type { NovelContextService } from "../../NovelContextService";
 import type { NovelService } from "../../NovelService";
+import type { RepairOptions } from "../../novelCoreShared";
+import type { ChapterRuntimeRequestInput } from "../../runtime/chapterRuntimeSchema";
 import type { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanService";
 import type { NovelVolumeService } from "../../volume/NovelVolumeService";
 import type { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
@@ -266,6 +268,38 @@ export class DirectorCoreStepModuleRuntime {
       previousFailureMessage: input.previousFailureMessage,
       allowSkipReviewBlockedChapter: input.allowSkipReviewBlockedChapter,
     });
+  }
+
+  async executeManualChapterDraftStep(input: {
+    novelId: string;
+    chapterId: string;
+    options?: ChapterRuntimeRequestInput;
+    useRuntimeStream?: boolean;
+  }) {
+    if (input.useRuntimeStream) {
+      return this.novelService.createChapterRuntimeStream(
+        input.novelId,
+        input.chapterId,
+        input.options ?? {},
+      );
+    }
+    return this.novelService.createChapterStream(
+      input.novelId,
+      input.chapterId,
+      input.options ?? {},
+    );
+  }
+
+  async executeManualChapterRepairStep(input: {
+    novelId: string;
+    chapterId: string;
+    options?: RepairOptions;
+  }) {
+    return this.novelService.createRepairStream(
+      input.novelId,
+      input.chapterId,
+      input.options ?? {},
+    );
   }
 }
 

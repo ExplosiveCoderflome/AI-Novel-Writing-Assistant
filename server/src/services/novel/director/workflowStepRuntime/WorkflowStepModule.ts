@@ -44,6 +44,7 @@ export interface StepExecutionContext {
   targetType?: DirectorArtifactRef["targetType"] | null;
   targetId?: string | null;
   targetChapterId?: string | null;
+  stepInput?: unknown;
 }
 
 export interface DirectorStepContext extends StepExecutionContext {
@@ -69,6 +70,7 @@ export interface LegacyWorkflowStepExecutionContext {
   targetType?: DirectorArtifactRef["targetType"] | null;
   targetId?: string | null;
   targetChapterId?: string | null;
+  stepInput?: unknown;
   policy?: StepExecutionPolicy;
   policyMode?: DirectorPolicyMode | null;
   artifacts?: DirectorArtifactRef[];
@@ -105,6 +107,20 @@ export function getWorkflowStepProjectionHints(context: WorkflowStepExecutionCon
   return "projectionHints" in context && context.projectionHints && typeof context.projectionHints === "object"
     ? context.projectionHints
     : null;
+}
+
+export function getWorkflowStepTargetChapterId(context: WorkflowStepExecutionContext): string | null {
+  const explicit = "targetChapterId" in context && typeof context.targetChapterId === "string"
+    ? context.targetChapterId
+    : null;
+  const targetId = "targetId" in context && typeof context.targetId === "string"
+    ? context.targetId
+    : null;
+  return explicit?.trim() || targetId?.trim() || null;
+}
+
+export function getWorkflowStepInput<T = unknown>(context: WorkflowStepExecutionContext): T | undefined {
+  return "stepInput" in context ? context.stepInput as T : undefined;
 }
 
 export type WorkflowStepProgressStatus =

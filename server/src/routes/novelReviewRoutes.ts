@@ -4,6 +4,11 @@ import { z } from "zod";
 import { streamToSSE } from "../llm/streaming";
 import { validate } from "../middleware/validate";
 import type { NovelService } from "../services/novel/NovelService";
+import type { ChapterRuntimeCoordinator } from "../services/novel/runtime/ChapterRuntimeCoordinator";
+import { stepModuleRunner } from "../services/novel/director/workflowStepRuntime/StepModuleRunner";
+import { DIRECTOR_EXECUTION_STEP_IDS } from "../services/novel/director/workflowStepRuntime/directorWorkflowStepIds";
+
+type RepairStreamResult = Awaited<ReturnType<ChapterRuntimeCoordinator["createRepairStream"]>>;
 
 interface RegisterNovelReviewRoutesInput {
   router: Router;
@@ -158,10 +163,15 @@ export function registerNovelReviewRoutes(input: RegisterNovelReviewRoutesInput)
     async (req, res, next) => {
       try {
         const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
-        const { stream, onDone } = await novelService.createRepairStream(
-          id,
-          chapterId,
-          req.body as any,
+        const { stream, onDone } = await stepModuleRunner.runStep<RepairStreamResult>(
+          DIRECTOR_EXECUTION_STEP_IDS.chapter_repair,
+          {
+            novelId: id,
+            mode: "manual",
+            targetType: "chapter",
+            targetChapterId: chapterId,
+            stepInput: req.body,
+          },
         );
         await streamToSSE(res, stream, onDone);
       } catch (error) {
