@@ -270,7 +270,7 @@ test("createChapterStream uses lightweight readiness without forcing execution c
     },
     agentRuntime: createAgentRuntime(),
   });
-  coordinator.markChapterStatus = async () => undefined;
+  coordinator.streamOrchestrator.markChapterStatus = async () => undefined;
 
   await coordinator.createChapterStream("novel-1", "chapter-1", { provider: "openai" });
 
@@ -382,7 +382,7 @@ test("finalizeChapterContent runs acceptance and timeline gates in parallel and 
     });
 
     const start = Date.now();
-    await coordinator.finalizeChapterContent({
+    await coordinator.contentFinalizationService.finalizeChapterContent({
       novelId: "novel-1",
       chapterId: "chapter-1",
       request: {},
@@ -406,7 +406,7 @@ test("finalizeChapterContent runs acceptance and timeline gates in parallel and 
     assert.ok(Math.abs(firstAcceptanceStart - firstTimelineStart) < 50);
     assert.ok(duration < 180);
 
-    await coordinator.finalizeChapterContent({
+    await coordinator.contentFinalizationService.finalizeChapterContent({
       novelId: "novel-1",
       chapterId: "chapter-1",
       request: {},
@@ -536,7 +536,7 @@ test("finalizeChapterContent commits timeline only after chapter reaches a stabl
   openConflictService.listOpenConflicts = async () => [];
 
   try {
-    await coordinator.finalizeChapterContent({
+    await coordinator.contentFinalizationService.finalizeChapterContent({
       novelId: "novel-1",
       chapterId: "chapter-1",
       request: {},
@@ -565,7 +565,7 @@ test("finalizeChapterContent commits timeline only after chapter reaches a stabl
     assert.equal(syncCalls.length, 0);
 
     acceptanceMode = "accepted";
-    await coordinator.finalizeChapterContent({
+    await coordinator.contentFinalizationService.finalizeChapterContent({
       novelId: "novel-1",
       chapterId: "chapter-1",
       request: {},
@@ -741,7 +741,7 @@ test("createChapterStream does not block hot path on execution contract failure"
       },
       agentRuntime: createAgentRuntime(),
     });
-    coordinator.markChapterStatus = async () => undefined;
+    coordinator.streamOrchestrator.markChapterStatus = async () => undefined;
 
     await coordinator.createChapterStream("novel-1", "chapter-1", {});
     assert.equal(contractCalled, false);
@@ -775,7 +775,7 @@ test("createChapterStream blocks when state-driven decision requires review firs
     },
     agentRuntime: createAgentRuntime(),
   });
-  coordinator.markChapterStatus = async (...args) => {
+  coordinator.streamOrchestrator.markChapterStatus = async (...args) => {
     statusCalls.push(args);
   };
 
@@ -812,7 +812,7 @@ test("createChapterStream lets full_book_autopilot continue past pending state p
     },
     agentRuntime: createAgentRuntime(),
   });
-  coordinator.markChapterStatus = async (...args) => {
+  coordinator.streamOrchestrator.markChapterStatus = async (...args) => {
     statusCalls.push(args);
   };
 
@@ -857,10 +857,10 @@ test("createChapterStream retries once before failing empty generated content", 
     },
     agentRuntime: createAgentRuntime(),
   });
-  coordinator.markChapterStatus = async (...args) => {
+  coordinator.streamOrchestrator.markChapterStatus = async (...args) => {
     statusCalls.push(args);
   };
-  coordinator.finalizeChapterContent = async (input) => {
+  coordinator.streamOrchestrator.finalizeChapterContent = async (input) => {
     finalized.push(input.content);
     return {
       finalContent: input.content,
@@ -902,7 +902,7 @@ test("runPipelineChapter does not leave a blocked chapter in generating status",
     },
     agentRuntime: createAgentRuntime(),
   });
-  coordinator.markChapterStatus = async (...args) => {
+  coordinator.streamOrchestrator.markChapterStatus = async (...args) => {
     statusCalls.push(args);
   };
 
