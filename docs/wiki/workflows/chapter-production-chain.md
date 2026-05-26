@@ -66,6 +66,7 @@
 - 接收闸门必须把未兑现义务输出为结构化 `missingObligations`，并给出 `repairability`：局部漏写用 `patchable_obligation_gap`，需要整章调整用 `rewrite_needed`，章节职责与邻章安排失配才用 `plan_misalignment`。
 - 自动修文默认最多一次；失败后记录待修状态或 repair ticket，不进入无限重试。
 - 局部 patch repair 是轻修优先策略，不是章节任务的唯一修复路径。补丁计划 Schema 校验失败、targetExcerpt 不唯一、targetExcerpt 太短、目标片段缺失或补丁无效时，应转为可恢复的局部修复失败，由上层质量链路升级到整章轻修或记录待修状态，不能直接让自动导演任务以原始 Zod 错误失败。
+- `acceptance_gate_unavailable` 或“章节接收判断不可用”属于审校系统风险，不代表正文中存在可替换片段。若当前待处理问题只包含这类风险，批量章节生产应保留当前正文并记录复查债务，等待重新审校或人工复查；不得调用局部 patch prompt，也不得为了系统风险改写正文。
 - 所有会改正文的修复入口统一遵循同一条修复规则：先尝试 patch repair；patch repair 因 Schema、定位、命中歧义或补丁无效失败时，只允许自动升级一次 `heavy_repair`；成功后统一走保存正文、资产同步、复审与状态更新；失败后手动修复返回真实失败，批量执行与自动导演记录质量债务或 recoverable failure 后继续后续章节。
 - patch repair 的 `targetExcerpt` 必须是正文中唯一可定位的原文片段；`replacement` 表示替换后的内容。删除重复片段时允许 `replacement` 为空字符串，但仍必须满足唯一定位和产生正文变化。
 - 已有正文进入复审或质量修复时，不应先把同一份正文重新保存为 `drafted/generating`。正文未变化时只做审校、必要修复和最终资产同步，避免 UI 更新时间、RAG 队列和章节状态被无意义刷新。

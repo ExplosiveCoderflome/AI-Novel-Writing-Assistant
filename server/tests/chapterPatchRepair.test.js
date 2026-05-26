@@ -200,3 +200,47 @@ test("ChapterPatchRepairService reports structured patch schema failures as reco
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
 });
+
+test("ChapterPatchRepairService converts unsafe apply-stage patch validation into recoverable failure", async () => {
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  promptRunner.runStructuredPrompt = async () => ({
+    output: {
+      strategy: "patch_first",
+      summary: "尝试局部修文。",
+      patches: [{
+        id: "patch-short-target",
+        targetExcerpt: "短",
+        replacement: "替换后的安全句段。",
+        reason: "模型给出了过短定位片段。",
+        issueIds: [],
+      }],
+      requiresFullRewrite: false,
+      escalationReason: null,
+    },
+  });
+
+  try {
+    await assert.rejects(
+      () => new ChapterPatchRepairService().repair({
+        novelTitle: "测试小说",
+        chapterTitle: "第一章",
+        content: "已有正文足够执行修复。",
+        issues: [{
+          severity: "medium",
+          category: "coherence",
+          evidence: "正文承接略弱。",
+          fixSuggestion: "补足承接。",
+        }],
+        repairMode: "light_repair",
+      }),
+      (error) => {
+        assert.equal(error instanceof ChapterPatchRepairFailedError, true);
+        assert.match(error.message, /局部补丁计划不可安全应用/);
+        assert.match(error.message, /targetExcerpt|Too small/);
+        return true;
+      },
+    );
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+  }
+});

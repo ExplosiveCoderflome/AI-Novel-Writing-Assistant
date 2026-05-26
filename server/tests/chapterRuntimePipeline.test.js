@@ -41,6 +41,35 @@ function createRuntimePackage(overallScore, options = {}) {
   };
 }
 
+function createAcceptanceGateUnavailableRuntimePackage(overallScore) {
+  return {
+    ...createRuntimePackage(overallScore),
+    audit: {
+      score: {
+        coherence: overallScore,
+        pacing: overallScore,
+        repetition: overallScore,
+        engagement: overallScore,
+        voice: overallScore,
+        overall: overallScore,
+      },
+      openIssues: [{
+        auditType: "continuity",
+        severity: "medium",
+        evidence: "章节接收闸门未返回可用结构化结果，系统保留复查风险。",
+        fixSuggestion: "重新审校章节接收判断，不直接修改正文。",
+        code: "acceptance_gate_unavailable",
+      }],
+      reports: [],
+      hasBlockingIssues: false,
+    },
+    meta: {
+      acceptanceStatus: "continue_with_risk",
+      continuePolicy: "continue",
+    },
+  };
+}
+
 test("runPipelineChapterWithRuntime skips review and repair when autoReview is disabled", async () => {
   const stages = [];
   const generationStates = [];
@@ -317,6 +346,179 @@ test("runPipelineChapterWithRuntime escalates patch failures to heavy repair and
         artifactSyncMode: "adaptive",
         syncArtifacts: false,
       },
+    }]);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+    promptRunner.setPromptRunnerLLMFactoryForTests();
+  }
+});
+
+test("runPipelineChapterWithRuntime escalates short patch targets to heavy repair", async () => {
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const savedDrafts = [];
+  let reviewCount = 0;
+
+  promptRunner.runStructuredPrompt = async () => ({
+    output: {
+      strategy: "patch_first",
+      summary: "尝试局部修文。",
+      patches: [{
+        id: "patch-short-target",
+        targetExcerpt: "短",
+        replacement: "替换后的安全句段。",
+        reason: "模型给出了过短定位片段。",
+        issueIds: [],
+      }],
+      requiresFullRewrite: false,
+      escalationReason: null,
+    },
+  });
+  promptRunner.setPromptRunnerLLMFactoryForTests(async () => ({
+    invoke: async () => ({
+      content: "rewritten chapter after short patch target",
+    }),
+  }));
+
+  try {
+    const result = await runPipelineChapterWithRuntime(
+      {
+        validateRequest(input) {
+          return input;
+        },
+        async ensureNovelCharacters() {},
+        async assemble() {
+          return {
+            novel: { id: "novel-1", title: "测试小说" },
+            chapter: {
+              id: "chapter-1",
+              title: "第一章",
+              order: 1,
+              content: null,
+              expectation: null,
+            },
+            contextPackage: {},
+          };
+        },
+        async generateDraftFromWriter() {
+          return { content: "生成后的正文需要承接。" };
+        },
+        async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
+          savedDrafts.push({ content, generationState });
+        },
+        async syncFinalChapterArtifacts() {},
+        async finalizeChapterContent({ content }) {
+          reviewCount += 1;
+          return {
+            finalContent: content,
+            runtimePackage: createRuntimePackage(reviewCount === 1 ? 72 : 90),
+          };
+        },
+        async markChapterGenerationState() {},
+        async markChapterNeedsRepair() {},
+      },
+      "novel-1",
+      "chapter-1",
+      {
+        autoReview: true,
+        autoRepair: true,
+      },
+    );
+
+    assert.equal(reviewCount, 2);
+    assert.equal(result.pass, true);
+    assert.equal(result.retryCountUsed, 1);
+    assert.equal(result.recoverableRepairFailure, null);
+    assert.deepEqual(savedDrafts, [{
+      content: "生成后的正文需要承接。",
+      generationState: "drafted",
+    }, {
+      content: "rewritten chapter after short patch target",
+      generationState: "repaired",
+    }]);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
+    promptRunner.setPromptRunnerLLMFactoryForTests();
+  }
+});
+
+test("runPipelineChapterWithRuntime defers acceptance gate unavailable risk without local patch prompt", async () => {
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const stages = [];
+  const savedDrafts = [];
+  const needsRepairMarked = [];
+  let reviewCount = 0;
+
+  promptRunner.runStructuredPrompt = async () => {
+    throw new Error("patch repair should not run for acceptance gate unavailable risk");
+  };
+  promptRunner.setPromptRunnerLLMFactoryForTests(async () => ({
+    invoke: async () => {
+      throw new Error("heavy repair should not run for acceptance gate unavailable risk");
+    },
+  }));
+
+  try {
+    const result = await runPipelineChapterWithRuntime(
+      {
+        validateRequest(input) {
+          return input;
+        },
+        async ensureNovelCharacters() {},
+        async assemble() {
+          return {
+            novel: { id: "novel-1", title: "测试小说" },
+            chapter: {
+              id: "chapter-1",
+              title: "第一章",
+              order: 1,
+              content: null,
+              expectation: null,
+            },
+            contextPackage: {},
+          };
+        },
+        async generateDraftFromWriter() {
+          return { content: "生成后的正文可保留。" };
+        },
+        async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState) {
+          savedDrafts.push({ content, generationState });
+        },
+        async syncFinalChapterArtifacts() {},
+        async finalizeChapterContent({ content }) {
+          reviewCount += 1;
+          return {
+            finalContent: content,
+            runtimePackage: createAcceptanceGateUnavailableRuntimePackage(72),
+          };
+        },
+        async markChapterGenerationState() {},
+        async markChapterNeedsRepair(chapterId) {
+          needsRepairMarked.push(chapterId);
+        },
+      },
+      "novel-1",
+      "chapter-1",
+      {
+        autoReview: true,
+        autoRepair: true,
+      },
+      {
+        async onStageChange(stage) {
+          stages.push(stage);
+        },
+      },
+    );
+
+    assert.deepEqual(stages, ["generating_chapters", "reviewing", "repairing"]);
+    assert.equal(reviewCount, 1);
+    assert.equal(result.pass, false);
+    assert.equal(result.retryCountUsed, 0);
+    assert.equal(result.recoverableRepairFailure.message, "章节接收判断暂时不可用，正文已保留，后续需要重新审校或人工复查。");
+    assert.deepEqual(result.recoverableRepairFailure.failureTypes, ["review_gate_unavailable"]);
+    assert.deepEqual(needsRepairMarked, ["chapter-1"]);
+    assert.deepEqual(savedDrafts, [{
+      content: "生成后的正文可保留。",
+      generationState: "drafted",
     }]);
   } finally {
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
