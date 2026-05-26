@@ -43,10 +43,19 @@ test("director responsibility directories exist", () => {
   }
 });
 
-test("legacy route entry remains a thin compatibility export", () => {
-  const source = fs.readFileSync(path.join(routesRoot, "novelDirector.ts"), "utf8").trim();
+test("app.ts mounts director router directly from director http module", () => {
+  const appSource = fs.readFileSync(path.join(repoRoot, "src", "app.ts"), "utf8");
 
-  assert.equal(source, 'export { default } from "../services/novel/director/http/novelDirector";');
+  assert.equal(
+    appSource.includes('from "./services/novel/director/http/novelDirector"'),
+    true,
+    "app.ts must import the director router from the module-owned http path"
+  );
+  assert.equal(
+    fs.existsSync(path.join(routesRoot, "novelDirector.ts")),
+    false,
+    "routes/novelDirector.ts must not exist after migration to director/http/"
+  );
 });
 
 test("director subsystem README points at the runtime facade", () => {
