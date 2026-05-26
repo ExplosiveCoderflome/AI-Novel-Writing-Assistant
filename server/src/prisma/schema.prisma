@@ -395,6 +395,7 @@ model Novel {
   promptAddendums    PromptAddendum[]
   imageTasks         ImageGenerationTask[]
   imageAssets        ImageAsset[]
+  sideEffectJobs     NovelSideEffectJob[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -2675,6 +2676,31 @@ model RagIndexJob {
 
   @@index([status, runAfter])
   @@index([tenantId, ownerType, ownerId])
+}
+
+model NovelSideEffectJob {
+  id               String    @id @default(cuid())
+  novelId          String?
+  jobType          String
+  status           String    @default("pending")
+  idempotencyKey   String    @unique
+  payloadVersion   Int       @default(1)
+  payloadJson      String
+  attempts         Int       @default(0)
+  maxAttempts      Int       @default(5)
+  runAfter         DateTime  @default(now())
+  leaseOwner       String?
+  leaseExpiresAt   DateTime?
+  lastError        String?
+  finishedAt       DateTime?
+  novel            Novel?    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([status, runAfter])
+  @@index([novelId, status, updatedAt])
+  @@index([leaseOwner, leaseExpiresAt])
+  @@index([jobType, status, runAfter])
 }
 
 model TaskCenterArchive {

@@ -1,8 +1,22 @@
+import { createHash } from "node:crypto";
 import { prisma } from "../../db/prisma";
-import type { NovelApplicationServices } from "../../services/novel/application/NovelApplicationContracts";
-import { CharacterDynamicsService } from "../../services/novel/dynamics/CharacterDynamicsService";
+import { novelSideEffectJobService, type NovelSideEffectJobService } from "../sideEffects";
 import type { EventBus } from "../EventBus";
 import type { VolumeUpdateReason } from "../types";
+
+type SideEffectEnqueuePort = Pick<NovelSideEffectJobService, "enqueueJob">;
+
+export interface RegisterNovelEventHandlerOptions {
+  sideEffectJobs?: SideEffectEnqueuePort;
+}
+
+function hashText(value: string): string {
+  return createHash("sha1").update(value).digest("hex");
+}
+
+function hashJson(value: unknown): string {
+  return hashText(JSON.stringify(value));
+}
 
 async function shouldRebuildCharacterDynamics(novelId: string, reason: VolumeUpdateReason): Promise<boolean> {
   if (reason === "chapter_execution_contract_refined" || reason === "chapter_sync") {
@@ -28,20 +42,101 @@ async function shouldRebuildCharacterDynamics(novelId: string, reason: VolumeUpd
   return readyVolumeCount > 0;
 }
 
+async function buildChapterDraftSyncKey(input: {
+  novelId: string;
+  chapterId: string;
+}): Promise<string | null> {
+  const chapter = await prisma.chapter.findFirst({
+    where: { id: input.chapterId, novelId: input.novelId },
+    select: { id: true, updatedAt: true, content: true },
+  });
+  if (!chapter) {
+    return null;
+  }
+  return [
+    "character.chapterDraftSync",
+    chapter.id,
+    chapter.updatedAt.getTime(),
+    hashText(chapter.content ?? ""),
+  ].join(":");
+}
+
+async function buildVolumeRebuildSemanticKey(novelId: string, reason: VolumeUpdateReason): Promise<string> {
+  const volumes = await prisma.volumePlan.findMany({
+    where: { novelId },
+    orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      sortOrder: true,
+      title: true,
+      summary: true,
+      mainPromise: true,
+      escalationMode: true,
+      protagonistChange: true,
+      climax: true,
+      nextVolumeHook: true,
+      resetPoint: true,
+      openPayoffsJson: true,
+      chapters: {
+        orderBy: [{ chapterOrder: "asc" }, { id: "asc" }],
+        select: {
+          chapterOrder: true,
+          title: true,
+          summary: true,
+          purpose: true,
+          payoffRefsJson: true,
+        },
+      },
+      characterAssignments: {
+        orderBy: [{ characterId: "asc" }],
+        select: {
+          characterId: true,
+          roleLabel: true,
+          responsibility: true,
+          appearanceExpectation: true,
+          plannedChapterOrdersJson: true,
+          isCore: true,
+          absenceWarningThreshold: true,
+          absenceHighRiskThreshold: true,
+        },
+      },
+    },
+  });
+  return [
+    "character.volumeRebuild",
+    novelId,
+    reason,
+    hashJson(volumes),
+  ].join(":");
+}
+
 export function registerNovelEventHandlers(
   eventBus: EventBus,
-  novelService: Pick<NovelApplicationServices, "createNovelSnapshot">,
+  options: RegisterNovelEventHandlerOptions = {},
 ): void {
+  const sideEffectJobs = options.sideEffectJobs ?? novelSideEffectJobService;
+
   eventBus.on("chapter:drafted", async (event) => {
     if (event.type !== "chapter:drafted") {
       return;
     }
-    const characterDynamicsService = new CharacterDynamicsService();
-    await characterDynamicsService.syncChapterDraftDynamics(
-      event.payload.novelId,
-      event.payload.chapterId,
-      event.payload.chapterOrder,
-    );
+    const idempotencyKey = await buildChapterDraftSyncKey({
+      novelId: event.payload.novelId,
+      chapterId: event.payload.chapterId,
+    });
+    if (!idempotencyKey) {
+      return;
+    }
+    await sideEffectJobs.enqueueJob({
+      novelId: event.payload.novelId,
+      jobType: "character.chapterDraftSync",
+      idempotencyKey,
+      payload: {
+        novelId: event.payload.novelId,
+        chapterId: event.payload.chapterId,
+        chapterOrder: event.payload.chapterOrder,
+      },
+    });
   }, 90);
 
   eventBus.on("volume:updated", async (event) => {
@@ -51,9 +146,14 @@ export function registerNovelEventHandlers(
     if (!await shouldRebuildCharacterDynamics(event.payload.novelId, event.payload.reason)) {
       return;
     }
-    const characterDynamicsService = new CharacterDynamicsService();
-    await characterDynamicsService.rebuildDynamics(event.payload.novelId, {
-      sourceType: "volume_projection",
+    await sideEffectJobs.enqueueJob({
+      novelId: event.payload.novelId,
+      jobType: "character.volumeRebuild",
+      idempotencyKey: await buildVolumeRebuildSemanticKey(event.payload.novelId, event.payload.reason),
+      payload: {
+        novelId: event.payload.novelId,
+        sourceType: "volume_projection",
+      },
     });
   }, 90);
 
@@ -61,10 +161,15 @@ export function registerNovelEventHandlers(
     if (event.type !== "pipeline:completed" || event.payload.status !== "succeeded") {
       return;
     }
-    await novelService.createNovelSnapshot(
-      event.payload.novelId,
-      "auto_milestone",
-      `pipeline-${event.payload.jobId.slice(0, 8)}`,
-    );
+    await sideEffectJobs.enqueueJob({
+      novelId: event.payload.novelId,
+      jobType: "novel.pipelineSnapshot",
+      idempotencyKey: `novel.pipelineSnapshot:${event.payload.jobId}`,
+      payload: {
+        novelId: event.payload.novelId,
+        jobId: event.payload.jobId,
+        label: `pipeline-${event.payload.jobId.slice(0, 8)}`,
+      },
+    });
   }, 100);
 }

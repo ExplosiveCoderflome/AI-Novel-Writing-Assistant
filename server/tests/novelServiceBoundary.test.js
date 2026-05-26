@@ -88,11 +88,30 @@ test("production code gets application capabilities through the shared singleton
   assert.deepEqual(offenders.map((file) => path.relative(repoRoot, file)), []);
 });
 
-test("novel event handlers use injected application capabilities", () => {
+test("novel event handlers enqueue durable side effect jobs instead of running heavy services inline", () => {
   const source = readSource("events", "handlers", "registerNovelEventHandlers.ts");
 
   assert.equal(source.includes("createNovelApplicationServices"), false);
-  assert.equal(source.includes("novelService: Pick<NovelApplicationServices"), true);
+  assert.equal(source.includes("new CharacterDynamicsService"), false);
+  assert.equal(source.includes("createNovelSnapshot"), false);
+  assert.equal(source.includes("enqueueJob"), true);
+});
+
+test("event handlers do not import heavy side-effect executors directly", () => {
+  const source = readSource("events", "handlers", "registerNovelEventHandlers.ts");
+
+  assert.equal(/from\s+["'].*services\/rag/.test(source), false);
+  assert.equal(/from\s+["'].*VectorStore/.test(source), false);
+  assert.equal(/from\s+["'].*CharacterDynamicsService/.test(source), false);
+  assert.equal(/from\s+["'].*sharedNovelServices/.test(source), false);
+});
+
+test("RAG keeps its dedicated persisted index queue", () => {
+  const schema = readSource("prisma", "schema.prisma");
+  const ragService = readSource("services", "rag", "RagIndexService.ts");
+
+  assert.equal(schema.includes("model RagIndexJob"), true);
+  assert.equal(ragService.includes("prisma.ragIndexJob"), true);
 });
 
 test("core chapter generation delegates to production capabilities instead of runtime coordinator", () => {

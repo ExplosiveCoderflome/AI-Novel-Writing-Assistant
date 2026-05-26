@@ -42,6 +42,7 @@ import { novelEventBus, registerNovelEventHandlers } from "./events";
 import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService";
 import { ragServices } from "./services/rag";
 import { getSharedNovelServices } from "./services/novel/application/sharedNovelServices";
+import { novelSideEffectWorker } from "./events/sideEffects";
 import { NovelPipelineRuntimeService } from "./services/novel/NovelPipelineRuntimeService";
 import { recoveryTaskService } from "./services/task/RecoveryTaskService";
 import {
@@ -51,8 +52,8 @@ import {
 import { initializeRagSettingsCompatibility } from "./services/settings/RagCompatibilityBootstrapService";
 import { DirectorWorker } from "./workers/directorWorker";
 
-const sharedNovelServices = getSharedNovelServices();
-registerNovelEventHandlers(novelEventBus, sharedNovelServices);
+getSharedNovelServices();
+registerNovelEventHandlers(novelEventBus);
 const novelPipelineRuntimeService = new NovelPipelineRuntimeService();
 
 morgan.token("error-message", (_req, res) => {
@@ -219,6 +220,7 @@ function logServerReady(host: string, port: number): void {
 
 function initializeBackgroundServices(): BackgroundServicesHandle {
   ragServices.ragWorker.start();
+  novelSideEffectWorker.start();
   const directorWorker = new DirectorWorker();
   void directorWorker.start().catch((error) => {
     console.error("[director.worker] unexpected stop", error);
@@ -253,6 +255,7 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   return {
     stop: async () => {
       directorWorker.stop();
+      novelSideEffectWorker.stop();
       ragServices.ragWorker.stop();
       bookAnalysisService.stopWatchdog();
       novelPipelineRuntimeService.stopWatchdog();
