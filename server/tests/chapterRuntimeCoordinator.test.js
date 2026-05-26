@@ -344,7 +344,7 @@ test("finalizeChapterContent runs acceptance and timeline gates in parallel and 
   const originalListOpenConflicts = openConflictService.listOpenConflicts;
   openConflictService.listOpenConflicts = async () => [];
   try {
-    coordinator.executeTimelineGate = async () => {
+    coordinator.qualityGateService.executeTimelineGate = async () => {
       timelineCalls += 1;
       gateCalls.push(["timeline-start", Date.now()]);
       await sleep(70);
@@ -486,7 +486,7 @@ test("finalizeChapterContent commits timeline only after chapter reaches a stabl
   });
   coordinator.markChapterStatus = async () => undefined;
   coordinator.finishTraceRun = async () => undefined;
-  coordinator.executeTimelineGate = async () => ({
+  coordinator.qualityGateService.executeTimelineGate = async () => ({
     result: {
       status: "passed",
       score: 0.96,
