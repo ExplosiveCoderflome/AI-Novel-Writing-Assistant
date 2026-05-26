@@ -182,3 +182,30 @@ test("core prompt management surfaces expose context and low-risk slot metadata"
   assert.ok(assets.get("audit.chapter.full").editableSlots.some((slot) => slot.key === "audit.reportStyle"));
   assert.ok(assets.get("novel.chapter_editor.rewrite_candidates").editableSlots.some((slot) => slot.key === "chapterEditor.candidateStyle"));
 });
+
+test("prompt quality telemetry stays in-process and schema-free", () => {
+  const source = fs.readFileSync(
+    path.join(SOURCE_ROOT, "prompting", "core", "promptQualityTelemetry.ts"),
+    "utf8",
+  );
+
+  assert.equal(source.includes("prisma"), false);
+  assert.equal(source.includes("@prisma"), false);
+  assert.equal(source.includes("db/"), false);
+});
+
+test("prompt editable slots cannot override post validation governance fields", () => {
+  const forbiddenSlotKeys = [
+    "outputSchema",
+    "postValidate",
+    "postValidateFailureRecovery",
+    "semanticRetryPolicy",
+    "repairPolicy",
+  ];
+  const offenders = listRegisteredPromptAssets()
+    .flatMap((asset) => (asset.editableSlots ?? [])
+      .filter((slot) => forbiddenSlotKeys.includes(slot.key))
+      .map((slot) => `${asset.id}@${asset.version}:${slot.key}`));
+
+  assert.deepEqual(offenders, []);
+});
