@@ -9,7 +9,7 @@ import type {
 import type { DirectorLLMOptions } from "@ai-novel/shared/types/novelDirector";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
-import { createNovelApplicationServices } from "../novel/application/NovelApplicationServices";
+import { getSharedNovelServices } from "../novel/application/sharedNovelServices";
 import { AgentRunTaskAdapter } from "./adapters/AgentRunTaskAdapter";
 import { BookTaskAdapter } from "./adapters/BookTaskAdapter";
 import { KnowledgeTaskAdapter } from "./adapters/KnowledgeTaskAdapter";
@@ -40,7 +40,7 @@ const overviewTaskKinds: TaskKind[] = [
 ];
 
 export class TaskCenterService {
-  private readonly novelService = createNovelApplicationServices();
+  private readonly novelService = getSharedNovelServices();
 
   private readonly bookAdapter = new BookTaskAdapter();
 

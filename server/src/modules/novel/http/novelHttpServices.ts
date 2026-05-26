@@ -1,9 +1,9 @@
 import { NovelDraftOptimizeService } from "../../../services/novel/NovelDraftOptimizeService";
-import { createNovelApplicationServices } from "../../../services/novel/application/NovelApplicationServices";
+import { getSharedNovelServices } from "../../../services/novel/application/sharedNovelServices";
 
 export function createNovelHttpServices() {
   return {
-    novelService: createNovelApplicationServices(),
+    novelService: getSharedNovelServices(),
     novelDraftOptimizeService: new NovelDraftOptimizeService(),
   };
 }

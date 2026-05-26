@@ -1,7 +1,7 @@
 import type { NovelExportFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
-import { createNovelApplicationServices } from "../../services/novel/application/NovelApplicationServices";
+import { getSharedNovelServices } from "../../services/novel/application/sharedNovelServices";
 import { StoryMacroPlanService } from "../../services/novel/storyMacro/StoryMacroPlanService";
 import {
   buildExportTimestamp,
@@ -22,7 +22,7 @@ import {
 import type { NovelExportBundle } from "./novelExport.types";
 
 export class NovelExportService {
-  private readonly novelService = createNovelApplicationServices();
+  private readonly novelService = getSharedNovelServices();
   private readonly storyMacroPlanService = new StoryMacroPlanService();
 
   private buildFileName(title: string, scope: NovelExportScope, format: Exclude<NovelExportFormat, "txt">): string {

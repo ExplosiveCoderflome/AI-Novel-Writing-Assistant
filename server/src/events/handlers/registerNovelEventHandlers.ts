@@ -1,5 +1,5 @@
 import { prisma } from "../../db/prisma";
-import { createNovelApplicationServices } from "../../services/novel/application/NovelApplicationServices";
+import type { NovelApplicationServices } from "../../services/novel/application/NovelApplicationContracts";
 import { CharacterDynamicsService } from "../../services/novel/dynamics/CharacterDynamicsService";
 import type { EventBus } from "../EventBus";
 import type { VolumeUpdateReason } from "../types";
@@ -28,7 +28,10 @@ async function shouldRebuildCharacterDynamics(novelId: string, reason: VolumeUpd
   return readyVolumeCount > 0;
 }
 
-export function registerNovelEventHandlers(eventBus: EventBus): void {
+export function registerNovelEventHandlers(
+  eventBus: EventBus,
+  novelService: Pick<NovelApplicationServices, "createNovelSnapshot">,
+): void {
   eventBus.on("chapter:drafted", async (event) => {
     if (event.type !== "chapter:drafted") {
       return;
@@ -58,7 +61,6 @@ export function registerNovelEventHandlers(eventBus: EventBus): void {
     if (event.type !== "pipeline:completed" || event.payload.status !== "succeeded") {
       return;
     }
-    const novelService = createNovelApplicationServices();
     await novelService.createNovelSnapshot(
       event.payload.novelId,
       "auto_milestone",

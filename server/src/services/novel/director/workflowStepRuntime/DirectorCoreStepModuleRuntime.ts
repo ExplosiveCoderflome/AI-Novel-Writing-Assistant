@@ -5,8 +5,8 @@ import { BookContractService } from "../../BookContractService";
 import { CharacterPreparationService } from "../../characterPrep/CharacterPreparationService";
 import { CharacterDynamicsService } from "../../dynamics/CharacterDynamicsService";
 import { NovelContextService } from "../../NovelContextService";
-import { createNovelApplicationServices } from "../../application/NovelApplicationServices";
 import type { NovelApplicationServices } from "../../application/NovelApplicationContracts";
+import { getSharedNovelServices } from "../../application/sharedNovelServices";
 import type { RepairOptions } from "../../novelCoreShared";
 import type { ChapterRuntimeRequestInput } from "../../runtime/chapterRuntimeSchema";
 import { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanService";
@@ -53,7 +53,7 @@ export function buildDefaultDirectorCoreStepModuleRuntimeDeps(): DirectorCoreSte
   const storyMacroService = new StoryMacroPlanService();
   const bookContractService = new BookContractService();
   const volumeService = new NovelVolumeService();
-  const novelService = createNovelApplicationServices();
+  const novelService = getSharedNovelServices();
   const directorRuntime = new DirectorRuntimeService();
   const chapterProgressInspector = new ChapterExecutionProgressInspector();
   const autoExecutionRuntime = new NovelDirectorAutoExecutionRuntime({

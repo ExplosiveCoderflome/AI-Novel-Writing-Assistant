@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const repoRoot = path.resolve(__dirname, "..");
+const srcRoot = path.join(repoRoot, "src");
 
 function readSource(...segments) {
   return fs.readFileSync(path.join(repoRoot, "src", ...segments), "utf8");
@@ -43,10 +44,53 @@ test("NovelService compatibility facade does not inherit the legacy service chai
 });
 
 test("production code uses the application capability layer instead of new NovelService", () => {
-  const sourceFiles = walkTsFiles(path.join(repoRoot, "src"));
+  const sourceFiles = walkTsFiles(srcRoot);
   const offenders = sourceFiles
     .filter((file) => !file.endsWith(path.join("services", "novel", "NovelService.ts")))
-    .filter((file) => readSource(path.relative(path.join(repoRoot, "src"), file)).includes("new NovelService"));
+    .filter((file) => readSource(path.relative(srcRoot, file)).includes("new NovelService"));
 
   assert.deepEqual(offenders.map((file) => path.relative(repoRoot, file)), []);
+});
+
+test("shared novel application services returns one process-level instance", () => {
+  const {
+    getSharedNovelServices,
+    _resetSharedNovelServicesForTest,
+  } = require("../dist/services/novel/application/sharedNovelServices.js");
+
+  _resetSharedNovelServicesForTest();
+  const first = getSharedNovelServices();
+  const second = getSharedNovelServices();
+  assert.equal(first, second);
+
+  _resetSharedNovelServicesForTest();
+  const third = getSharedNovelServices();
+  assert.notEqual(first, third);
+});
+
+test("production code gets application capabilities through the shared singleton", () => {
+  const allowedDirectFactoryFiles = new Set([
+    path.join("services", "novel", "application", "NovelApplicationServices.ts"),
+    path.join("services", "novel", "application", "sharedNovelServices.ts"),
+    path.join("services", "novel", "NovelService.ts"),
+    path.join("services", "novel", "NovelArtifactService.ts"),
+    path.join("services", "novel", "NovelGenerationService.ts"),
+    path.join("services", "novel", "NovelPipelineService.ts"),
+    path.join("services", "novel", "NovelReviewService.ts"),
+  ]);
+  const offenders = walkTsFiles(srcRoot)
+    .filter((file) => {
+      const relativePath = path.relative(srcRoot, file);
+      return !allowedDirectFactoryFiles.has(relativePath);
+    })
+    .filter((file) => /\bcreateNovelApplicationServices\s*\(/.test(readSource(path.relative(srcRoot, file))));
+
+  assert.deepEqual(offenders.map((file) => path.relative(repoRoot, file)), []);
+});
+
+test("novel event handlers use injected application capabilities", () => {
+  const source = readSource("events", "handlers", "registerNovelEventHandlers.ts");
+
+  assert.equal(source.includes("createNovelApplicationServices"), false);
+  assert.equal(source.includes("novelService: Pick<NovelApplicationServices"), true);
 });

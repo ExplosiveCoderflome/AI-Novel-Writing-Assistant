@@ -41,6 +41,7 @@ import writingFormulaRouter from "./routes/writingFormula";
 import { novelEventBus, registerNovelEventHandlers } from "./events";
 import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService";
 import { ragServices } from "./services/rag";
+import { getSharedNovelServices } from "./services/novel/application/sharedNovelServices";
 import { NovelPipelineRuntimeService } from "./services/novel/NovelPipelineRuntimeService";
 import { recoveryTaskService } from "./services/task/RecoveryTaskService";
 import {
@@ -50,7 +51,8 @@ import {
 import { initializeRagSettingsCompatibility } from "./services/settings/RagCompatibilityBootstrapService";
 import { DirectorWorker } from "./workers/directorWorker";
 
-registerNovelEventHandlers(novelEventBus);
+const sharedNovelServices = getSharedNovelServices();
+registerNovelEventHandlers(novelEventBus, sharedNovelServices);
 const novelPipelineRuntimeService = new NovelPipelineRuntimeService();
 
 morgan.token("error-message", (_req, res) => {
@@ -69,6 +71,7 @@ function parseEnvFlag(value: string | undefined, defaultValue: boolean): boolean
 }
 
 export function createApp() {
+  getSharedNovelServices();
   const app = express();
   const jsonBodyLimit = process.env.API_JSON_LIMIT ?? "20mb";
   const corsOriginEnv = process.env.CORS_ORIGIN;

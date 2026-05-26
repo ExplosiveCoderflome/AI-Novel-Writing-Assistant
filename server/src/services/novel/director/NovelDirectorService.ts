@@ -34,7 +34,7 @@ import { BookContractService } from "../BookContractService";
 import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { NovelContextService } from "../NovelContextService";
-import { createNovelApplicationServices } from "../application/NovelApplicationServices";
+import { getSharedNovelServices } from "../application/sharedNovelServices";
 import { novelFramingSuggestionService } from "../NovelFramingSuggestionService";
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
@@ -107,7 +107,7 @@ export class NovelDirectorService {
   private readonly characterPreparationService = new CharacterPreparationService();
   private readonly storyMacroService = new StoryMacroPlanService();
   private readonly bookContractService = new BookContractService();
-  private readonly novelService = createNovelApplicationServices();
+  private readonly novelService = getSharedNovelServices();
   private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly volumeService = new NovelVolumeService();
   private readonly workflowService = new NovelWorkflowService();

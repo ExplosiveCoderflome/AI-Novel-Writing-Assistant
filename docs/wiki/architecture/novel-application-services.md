@@ -8,7 +8,8 @@ Phase 4 后，小说业务入口改为组合式 application capability。`NovelS
 
 ## 当前规则
 
-- 新代码应通过 `createNovelApplicationServices()` 获取能力集合，再用 `Pick<NovelApplicationServices, ...>` 或显式端口注入所需方法。
+- 生产代码应通过 `getSharedNovelServices()` 获取进程级能力集合，再用 `Pick<NovelApplicationServices, ...>` 或显式端口注入所需方法。不要在路由、任务中心、导出、Agent tools、自动导演或事件处理器中直接调用 `createNovelApplicationServices()`。
+- `createNovelApplicationServices()` 只作为底层工厂保留，允许用于测试隔离、`NovelService` deprecated 兼容 facade，以及明确标记的遗留兼容层。新增业务入口必须依赖共享 application services 或显式注入 capability port。
 - `routes/` 只能依赖当前 HTTP 映射需要的最小能力，不允许 import 或 new `NovelService`。
 - 后台任务、导出、Agent tools、自动导演和事件处理器也应依赖能力端口，不应持有完整 `NovelService`。
 - `NovelService`、`NovelPipelineService`、`NovelReviewService`、`NovelGenerationService`、`NovelArtifactService` 都是兼容层；可以为了旧测试或旧外部调用保留方法，但不能再互相继承形成能力链。
