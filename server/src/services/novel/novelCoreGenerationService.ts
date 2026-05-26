@@ -15,7 +15,6 @@ import {
   novelStructuredOutlineRepairPrompt,
 } from "../../prompting/prompts/novel/coreGeneration.prompts";
 import { novelReferenceService } from "./NovelReferenceService";
-import { ChapterRuntimeCoordinator } from "./runtime/ChapterRuntimeCoordinator";
 import {
   parseStrictStructuredOutline,
   stringifyStructuredOutline,
@@ -40,9 +39,30 @@ import {
 } from "./novelCoreShared";
 import { buildWorldContextFromNovel, ensureNovelCharacters, queueRagUpsert } from "./novelCoreSupport";
 
+export interface ChapterStreamProductionPort {
+  createChapterStream(
+    novelId: string,
+    chapterId: string,
+    options?: ChapterGenerateOptions,
+  ): Promise<{
+    stream: AsyncIterable<BaseMessageChunk>;
+    onDone: (fullContent: string) => Promise<void>;
+  }>;
+}
+
+const sharedChapterStreamProductionPort: ChapterStreamProductionPort = {
+  async createChapterStream(novelId, chapterId, options = {}) {
+    const { getSharedNovelServices } = await import("./application/sharedNovelServices");
+    return getSharedNovelServices().createChapterStream(novelId, chapterId, options);
+  },
+};
+
 export class NovelCoreGenerationService {
   private readonly storyWorldSliceService = new NovelWorldSliceService();
-  private readonly chapterRuntimeCoordinator = new ChapterRuntimeCoordinator();
+
+  constructor(
+    private readonly chapterProduction: ChapterStreamProductionPort = sharedChapterStreamProductionPort,
+  ) {}
 
   async createOutlineStream(novelId: string, options: OutlineGenerateOptions = {}) {
     const novel = await prisma.novel.findUnique({
@@ -235,9 +255,7 @@ export class NovelCoreGenerationService {
   }
 
   async createChapterStream(novelId: string, chapterId: string, options: ChapterGenerateOptions = {}) {
-    return this.chapterRuntimeCoordinator.createChapterStream(novelId, chapterId, options, {
-      includeRuntimePackage: false,
-    });
+    return this.chapterProduction.createChapterStream(novelId, chapterId, options);
   }
 
   async generateTitles(novelId: string, options: TitleGenerateOptions = {}) {

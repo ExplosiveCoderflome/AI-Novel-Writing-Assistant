@@ -94,3 +94,19 @@ test("novel event handlers use injected application capabilities", () => {
   assert.equal(source.includes("createNovelApplicationServices"), false);
   assert.equal(source.includes("novelService: Pick<NovelApplicationServices"), true);
 });
+
+test("core chapter generation delegates to production capabilities instead of runtime coordinator", () => {
+  const source = readSource("services", "novel", "novelCoreGenerationService.ts");
+
+  assert.equal(source.includes("ChapterRuntimeCoordinator"), false);
+  assert.equal(source.includes("chapterRuntimeCoordinator"), false);
+  assert.equal(source.includes("getSharedNovelServices"), true);
+});
+
+test("application chapter generation stays on the unified production orchestrator path", () => {
+  const source = readSource("services", "novel", "application", "NovelApplicationServices.ts");
+
+  assert.equal(source.includes("novelProductionOrchestrator.runStage"), true);
+  assert.equal(source.includes("stage: \"chapter_execution\""), true);
+  assert.equal(source.includes("this.core.createChapterStream"), false);
+});

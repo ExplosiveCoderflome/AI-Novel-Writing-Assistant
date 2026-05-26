@@ -14,12 +14,14 @@ Phase 4 后，小说业务入口改为组合式 application capability。`NovelS
 - 后台任务、导出、Agent tools、自动导演和事件处理器也应依赖能力端口，不应持有完整 `NovelService`。
 - `NovelService`、`NovelPipelineService`、`NovelReviewService`、`NovelGenerationService`、`NovelArtifactService` 都是兼容层；可以为了旧测试或旧外部调用保留方法，但不能再互相继承形成能力链。
 - 章节生成、章节修复、章节计划和重规划仍必须进入统一 production orchestrator / stage runner；能力层只负责组合和委托，不复制执行实现。
+- 章节正文写作只能通过 `NovelApplicationServices.createChapterStream()` 或 workflow step runner 进入 production orchestrator。`novelCoreGenerationService` 和 `NovelCoreService` 的旧章节生成入口只能作为兼容委托，不允许直接持有 `ChapterRuntimeCoordinator`。
 
 ## 失败模式
 
 - 路由测试需要 mock 业务能力时，应 patch `DefaultNovelApplicationServices.prototype`，不要再 patch `NovelService.prototype`。
 - 如果新增路由为了方便直接注入完整能力集合，后续会再次退化为 God Object。新增路由时先列出实际调用的方法，再声明最小 `Pick<>`。
 - 如果内部服务重新 `new NovelService()`，说明它没有定义自己的端口边界，应改为注入具体 capability。
+- 如果 Core 层重新直连 `ChapterRuntimeCoordinator`，手动生成、自动导演和流水线会再次分裂出不同执行策略，导致准备阶段、质量修复阶段和恢复判断不一致。
 
 ## 相关模块
 
