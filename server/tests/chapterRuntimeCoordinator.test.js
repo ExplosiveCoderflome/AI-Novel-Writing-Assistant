@@ -335,8 +335,8 @@ test("finalizeChapterContent runs acceptance and timeline gates in parallel and 
       ensurePreviousChapterFinalized: async () => null,
     },
   });
-  coordinator.markChapterStatus = async () => undefined;
-  coordinator.finishTraceRun = async () => undefined;
+  coordinator.contentFinalizationService.markChapterStatus = async () => undefined;
+  coordinator.contentFinalizationService.finishTraceRun = async () => undefined;
 
   const gateCalls = [];
   let acceptanceCalls = 0;
@@ -484,8 +484,8 @@ test("finalizeChapterContent commits timeline only after chapter reaches a stabl
       ensurePreviousChapterFinalized: async () => null,
     },
   });
-  coordinator.markChapterStatus = async () => undefined;
-  coordinator.finishTraceRun = async () => undefined;
+  coordinator.contentFinalizationService.markChapterStatus = async () => undefined;
+  coordinator.contentFinalizationService.finishTraceRun = async () => undefined;
   coordinator.qualityGateService.executeTimelineGate = async () => ({
     result: {
       status: "passed",
