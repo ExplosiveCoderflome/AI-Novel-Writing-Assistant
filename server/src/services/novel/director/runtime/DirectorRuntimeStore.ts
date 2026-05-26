@@ -12,7 +12,7 @@ import type {
 } from "@ai-novel/shared/types/directorRuntime";
 import { prisma } from "../../../../db/prisma";
 import { parseSeedPayload } from "../../workflow/novelWorkflow.shared";
-import type { DirectorWorkflowSeedPayload } from "../novelDirectorHelpers";
+import type { DirectorWorkflowSeedPayload } from "./novelDirectorHelpers";
 import { normalizeDirectorArtifactRef, reconcileDirectorArtifactLedger } from "./DirectorArtifactLedger";
 import { buildDefaultDirectorPolicy, buildEmptyDirectorRuntimeSnapshot } from "./directorRuntimeDefaults";
 import {

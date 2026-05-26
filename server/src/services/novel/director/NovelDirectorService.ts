@@ -39,56 +39,56 @@ import { novelFramingSuggestionService } from "../NovelFramingSuggestionService"
 import { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { NovelWorkflowService } from "../workflow/NovelWorkflowService";
-import { NovelDirectorCandidateStageService } from "./novelDirectorCandidateStage";
-import { resolveDirectorBookFraming } from "./novelDirectorFraming";
+import { NovelDirectorCandidateStageService } from "./phases/novelDirectorCandidateStage";
+import { resolveDirectorBookFraming } from "./runtime/novelDirectorFraming";
 import {
   applyDirectorRunModeContract,
   buildDirectorWorkflowSeedPayload,
-} from "./novelDirectorHelpers";
+} from "./runtime/novelDirectorHelpers";
 import {
   buildDirectorTakeoverInput,
   buildDirectorTakeoverReadiness,
   isTakeoverStructuredOutlineReadyForValidation,
-} from "./novelDirectorTakeover";
+} from "./runtime/novelDirectorTakeover";
 import { NovelDirectorAutoExecutionRuntime } from "./automation/novelDirectorAutoExecutionRuntime";
 import {
   loadDirectorTakeoverState,
-} from "./novelDirectorTakeoverRuntime";
-import { startDirectorTakeoverExecution } from "./novelDirectorTakeoverExecution";
+} from "./runtime/novelDirectorTakeoverRuntime";
+import { startDirectorTakeoverExecution } from "./runtime/novelDirectorTakeoverExecution";
 import {
   resetDirectorTakeoverCurrentStep,
   resetDirectorTakeoverDownstreamState,
-} from "./novelDirectorTakeoverReset";
-import { cancelContinueExistingReplacedRuns } from "./novelDirectorTakeoverContinue";
+} from "./runtime/novelDirectorTakeoverReset";
+import { cancelContinueExistingReplacedRuns } from "./runtime/novelDirectorTakeoverContinue";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
 import { StyleProfileService } from "../../styleEngine/StyleProfileService";
 import {
   assertHighMemoryDirectorStartAllowed,
   releaseHighMemoryDirectorReservations,
-} from "./autoDirectorMemorySafety";
+} from "./runtime/autoDirectorMemorySafety";
 import {
   validateAutoDirectorTakeoverRequest,
-} from "./autoDirectorValidationService";
+} from "./runtime/autoDirectorValidationService";
 import {
   normalizeDirectorAutoApprovalConfig,
   shouldAutoApproveDirectorApprovalPoint,
 } from "@ai-novel/shared/types/autoDirectorApproval";
 import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
-import { flattenPreparedOutlineChapters } from "./novelDirectorStructuredOutlineRecovery";
+import { flattenPreparedOutlineChapters } from "./recovery/novelDirectorStructuredOutlineRecovery";
 import { DirectorRuntimeService } from "./runtime/DirectorRuntimeService";
 import { DirectorEventProjectionService } from "./runtime/DirectorEventProjectionService";
 import { directorStateProposalResolutionService } from "./runtime/DirectorStateProposalResolutionService";
 import {
   isDirectorRuntimeGateError,
   NovelDirectorRuntimeOrchestrator,
-} from "./novelDirectorRuntimeOrchestrator";
-import { NovelDirectorCandidateRuntime } from "./novelDirectorCandidateRuntime";
+} from "./runtime/novelDirectorRuntimeOrchestrator";
+import { NovelDirectorCandidateRuntime } from "./runtime/novelDirectorCandidateRuntime";
 import { NovelDirectorPipelineRuntime } from "./novelDirectorPipelineRuntime";
-import { NovelDirectorConfirmRuntime } from "./novelDirectorConfirmRuntime";
-import { NovelDirectorChapterTitleRepairRuntime } from "./novelDirectorChapterTitleRepairRuntime";
-import { NovelDirectorContinueRuntime } from "./novelDirectorContinueRuntime";
+import { NovelDirectorConfirmRuntime } from "./runtime/novelDirectorConfirmRuntime";
+import { NovelDirectorChapterTitleRepairRuntime } from "./phases/novelDirectorChapterTitleRepairRuntime";
+import { NovelDirectorContinueRuntime } from "./runtime/novelDirectorContinueRuntime";
 import { prisma } from "../../../db/prisma";
-import { loadPersistentDirectorRuntimeProjection } from "./novelDirectorRuntimeProjection";
+import { loadPersistentDirectorRuntimeProjection } from "./projections/novelDirectorRuntimeProjection";
 
 function isWorkflowTaskCancelledError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);

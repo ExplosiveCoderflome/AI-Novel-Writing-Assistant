@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   runDirectorCharacterSetupPhase,
-} = require("../dist/services/novel/director/novelDirectorPipelinePhases.js");
+} = require("../dist/services/novel/director/phases/novelDirectorPipelinePhases.js");
 
 function buildRequest(runMode = "auto_to_ready") {
   return {

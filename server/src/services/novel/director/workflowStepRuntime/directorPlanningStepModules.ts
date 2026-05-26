@@ -4,7 +4,7 @@ import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import {
   getDirectorStageNodeAdapter,
   type DirectorPlanningStage,
-} from "../novelDirectorStageNodeAdapters";
+} from "../phases/novelDirectorStageNodeAdapters";
 import {
   createWorkflowStepDescriptorFromDirectorAdapter,
   createWorkflowStepModule,

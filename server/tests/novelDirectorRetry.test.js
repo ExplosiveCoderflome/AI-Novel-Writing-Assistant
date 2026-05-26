@@ -4,14 +4,14 @@ require("../dist/app.js");
 const {
   applyDirectorLlmOverride,
   getDirectorLlmOptionsFromSeedPayload,
-} = require("../dist/services/novel/director/novelDirectorHelpers.js");
+} = require("../dist/services/novel/director/runtime/novelDirectorHelpers.js");
 const { NovelDirectorService } = require("../dist/services/novel/director/NovelDirectorService.js");
 const {
   runDirectorStructuredOutlinePhase,
-} = require("../dist/services/novel/director/novelDirectorPipelinePhases.js");
+} = require("../dist/services/novel/director/phases/novelDirectorPipelinePhases.js");
 const {
   runDirectorTrackedStep,
-} = require("../dist/services/novel/director/directorProgressTracker.js");
+} = require("../dist/services/novel/director/projections/directorProgressTracker.js");
 const {
   buildVolumeWorkspaceDocument,
 } = require("../dist/services/novel/volume/volumeWorkspaceDocument.js");

@@ -1,10 +1,10 @@
-import type { DirectorCandidateStageNode } from "../novelDirectorCandidateNodeAdapters";
+import type { DirectorCandidateStageNode } from "../phases/novelDirectorCandidateNodeAdapters";
 import {
   getDirectorExecutionNodeSequence,
   type DirectorExecutionFlow,
   type DirectorExecutionStage,
-} from "../novelDirectorExecutionNodeAdapters";
-import type { DirectorPlanningStage } from "../novelDirectorStageNodeAdapters";
+} from "../phases/novelDirectorExecutionNodeAdapters";
+import type { DirectorPlanningStage } from "../phases/novelDirectorStageNodeAdapters";
 import {
   getWorkflowStepWriteContractRequirements,
 } from "@ai-novel/shared/types/directorWorkflowStepCatalog";

@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const {
   buildContinueExistingDownstreamReset,
   cancelContinueExistingReplacedRuns,
-} = require("../dist/services/novel/director/novelDirectorTakeoverContinue.js");
+} = require("../dist/services/novel/director/runtime/novelDirectorTakeoverContinue.js");
 const { prisma } = require("../dist/db/prisma.js");
 
 test("buildContinueExistingDownstreamReset resets steps after user selected entry and preserves assets", () => {

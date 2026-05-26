@@ -33,8 +33,22 @@ import {
   DirectorCommandExecutor,
   DirectorTaskQueue,
   taskDispatcher,
-} from "./directorSubsystem";
+} from "./runtime/directorSubsystem";
 ```
+
+## 目录边界
+
+`director/` 根目录只保留稳定门面和兼容桥接。新增自动导演能力必须进入明确职责目录：
+
+- `commands/`：后台命令创建、解释和执行。
+- `state/`：导演任务状态读取、写入和提交。
+- `projections/`：运行时投影、任务快照、进度和展示状态。
+- `recovery/`：恢复、回填、下游重置和结构化大纲恢复游标。
+- `phases/`：自动导演阶段、阶段节点适配和阶段级质量策略。
+- `runtime/`：接管、确认、候选、继续执行、运行时编排和内存/校验策略。
+- `http/`：Express 路由映射。
+
+外部模块优先依赖这些目录的门面或稳定入口，不应向 `director/` 根目录继续添加同前缀业务文件。
 
 ## 数据模型
 

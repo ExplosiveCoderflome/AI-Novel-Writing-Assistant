@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const http = require("node:http");
 
 const { createApp } = require("../dist/app.js");
-const { DirectorCommandService } = require("../dist/services/novel/director/DirectorCommandService.js");
+const { DirectorCommandService } = require("../dist/services/novel/director/commands/DirectorCommandService.js");
 const { NovelWorkflowService } = require("../dist/services/novel/workflow/NovelWorkflowService.js");
 const { NovelWorkflowTaskAdapter } = require("../dist/services/task/adapters/NovelWorkflowTaskAdapter.js");
 

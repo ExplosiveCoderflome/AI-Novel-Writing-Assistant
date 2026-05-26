@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   buildDirectorDisplayState,
-} = require("../dist/services/novel/director/DirectorDisplayStateBuilder.js");
+} = require("../dist/services/novel/director/projections/DirectorDisplayStateBuilder.js");
 
 test("display state maps chapter draft execution into chapter stage and uses fact progress", () => {
   const displayState = buildDirectorDisplayState({

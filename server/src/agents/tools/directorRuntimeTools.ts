@@ -6,7 +6,7 @@ import type {
   DirectorWorkspaceAnalysis,
 } from "@ai-novel/shared/types/directorRuntime";
 import type { NovelDirectorService } from "../../services/novel/director/NovelDirectorService";
-import type { DirectorCommandService } from "../../services/novel/director/DirectorCommandService";
+import type { DirectorCommandService } from "../../services/novel/director/commands/DirectorCommandService";
 import type { NovelWorkflowService } from "../../services/novel/workflow/NovelWorkflowService";
 import { AgentToolError, type AgentToolName, type ToolExecutionContext } from "../types";
 import type { AgentToolDefinition } from "./toolTypes";
@@ -41,7 +41,7 @@ async function getServices() {
     { NovelWorkflowService },
   ] = await Promise.all([
     import("../../services/novel/director/NovelDirectorService"),
-    import("../../services/novel/director/DirectorCommandService"),
+    import("../../services/novel/director/commands/DirectorCommandService"),
     import("../../services/novel/workflow/NovelWorkflowService"),
   ]);
   const workflowService = new NovelWorkflowService();

@@ -11,7 +11,7 @@ import { imageGenerationService } from "../image/ImageGenerationService";
 import { NovelPipelineRuntimeService } from "../novel/NovelPipelineRuntimeService";
 import { createNovelApplicationServices } from "../novel/application/NovelApplicationServices";
 import type { NovelApplicationServices } from "../novel/application/NovelApplicationContracts";
-import { DirectorCommandService } from "../novel/director/DirectorCommandService";
+import { DirectorCommandService } from "../novel/director/commands/DirectorCommandService";
 import { NovelWorkflowRuntimeService } from "../novel/workflow/NovelWorkflowRuntimeService";
 import { styleExtractionTaskService } from "../styleEngine/StyleExtractionTaskService";
 import { taskCenterService } from "./TaskCenterService";

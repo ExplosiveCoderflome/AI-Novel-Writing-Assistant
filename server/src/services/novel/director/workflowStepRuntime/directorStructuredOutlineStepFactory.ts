@@ -1,5 +1,5 @@
 import type { DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
-import { getDirectorInputFromSeedPayload } from "../novelDirectorHelpers";
+import { getDirectorInputFromSeedPayload } from "../runtime/novelDirectorHelpers";
 import { getWorkflowStepCatalogEntry } from "@ai-novel/shared/types/directorWorkflowStepCatalog";
 import {
   createWorkflowStepDescriptorFromCatalogEntry,

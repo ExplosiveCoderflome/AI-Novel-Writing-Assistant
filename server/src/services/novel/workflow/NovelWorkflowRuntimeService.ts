@@ -1,4 +1,4 @@
-import { isDirectorRecoveryNotNeededError } from "../director/novelDirectorErrors";
+import { isDirectorRecoveryNotNeededError } from "../director/runtime/novelDirectorErrors";
 import type { NovelWorkflowService } from "./NovelWorkflowService";
 
 const SERVER_RESTART_RECOVERY_MESSAGE = "自动导演任务因服务重启中断，正在尝试恢复。";
@@ -22,7 +22,7 @@ function createWorkflowService(): WorkflowRecoveryPort {
 }
 
 function createDirectorService(): DirectorRecoveryPort {
-  const { DirectorCommandService } = require("../director/DirectorCommandService") as typeof import("../director/DirectorCommandService");
+  const { DirectorCommandService } = require("../director/commands/DirectorCommandService") as typeof import("../director/commands/DirectorCommandService");
   return new DirectorCommandService();
 }
 

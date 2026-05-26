@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { DirectorCommandService } = require("../dist/services/novel/director/DirectorCommandService.js");
+const { DirectorCommandService } = require("../dist/services/novel/director/commands/DirectorCommandService.js");
 const { prisma } = require("../dist/db/prisma.js");
 
 function createTask(overrides = {}) {

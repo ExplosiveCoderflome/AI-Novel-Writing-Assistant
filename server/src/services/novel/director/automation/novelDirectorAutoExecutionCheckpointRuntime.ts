@@ -16,9 +16,9 @@ import {
   buildDirectorAutoExecutionScopeLabelFromState,
   type DirectorAutoExecutionRange,
 } from "./novelDirectorAutoExecution";
-import { buildDirectorSessionState } from "../novelDirectorHelpers";
+import { buildDirectorSessionState } from "../runtime/novelDirectorHelpers";
 import { PIPELINE_REPLAN_NOTICE_CODE, parsePipelinePayload } from "../../pipelineJobState";
-import { buildDirectorQualityRepairRisk } from "../novelDirectorQualityRepairRisk";
+import { buildDirectorQualityRepairRisk } from "../phases/novelDirectorQualityRepairRisk";
 
 export type AutoExecutionResumeStage = "chapter" | "pipeline";
 

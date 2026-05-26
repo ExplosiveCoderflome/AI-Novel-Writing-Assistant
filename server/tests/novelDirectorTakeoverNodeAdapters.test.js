@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const {
   DIRECTOR_TAKEOVER_NODE_ADAPTER,
   getDirectorTakeoverNodeAdapter,
-} = require("../dist/services/novel/director/novelDirectorTakeoverNodeAdapters.js");
+} = require("../dist/services/novel/director/runtime/novelDirectorTakeoverNodeAdapters.js");
 
 test("director takeover adapter exposes the takeover runtime contract", () => {
   const adapter = getDirectorTakeoverNodeAdapter();

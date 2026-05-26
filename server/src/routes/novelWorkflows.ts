@@ -3,7 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
-import { DirectorCommandService } from "../services/novel/director/DirectorCommandService";
+import { DirectorCommandService } from "../services/novel/director/commands/DirectorCommandService";
 import { NovelWorkflowService } from "../services/novel/workflow/NovelWorkflowService";
 import { NovelWorkflowTaskAdapter } from "../services/task/adapters/NovelWorkflowTaskAdapter";
 

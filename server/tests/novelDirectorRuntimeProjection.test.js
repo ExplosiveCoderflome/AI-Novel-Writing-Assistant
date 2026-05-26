@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const { prisma } = require("../dist/db/prisma");
 const {
   loadPersistentDirectorRuntimeProjection,
-} = require("../dist/services/novel/director/novelDirectorRuntimeProjection.js");
+} = require("../dist/services/novel/director/projections/novelDirectorRuntimeProjection.js");
 const {
   directorUsageTelemetryQueryService,
 } = require("../dist/services/novel/director/runtime/DirectorUsageTelemetryQueryService.js");

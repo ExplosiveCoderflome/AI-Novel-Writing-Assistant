@@ -10,7 +10,7 @@ import type { ResourceRef } from "@ai-novel/shared/types/agent";
 import type { TaskStatus, UnifiedTaskDetail, UnifiedTaskSummary } from "@ai-novel/shared/types/task";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
-import { DirectorCommandService } from "../../novel/director/DirectorCommandService";
+import { DirectorCommandService } from "../../novel/director/commands/DirectorCommandService";
 import {
   buildSkippableAutoExecutionReviewBlockingReason,
   buildSkippableAutoExecutionReviewCheckpointSummary,
@@ -22,7 +22,7 @@ import { NovelWorkflowService } from "../../novel/workflow/NovelWorkflowService"
 import {
   getDirectorLlmOptionsFromSeedPayload,
   type DirectorWorkflowSeedPayload,
-} from "../../novel/director/novelDirectorHelpers";
+} from "../../novel/director/runtime/novelDirectorHelpers";
 import { isAutoDirectorRecoveryInProgress } from "../../novel/workflow/novelWorkflowRecoveryHeuristics";
 import {
   buildNovelCreateResumeTarget,

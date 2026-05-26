@@ -9,7 +9,7 @@ import {
 import {
   getDirectorExecutionNodeAdapter,
   type DirectorExecutionStage,
-} from "../novelDirectorExecutionNodeAdapters";
+} from "../phases/novelDirectorExecutionNodeAdapters";
 import {
   hasDirectorSyncedChapterExecutionContext,
 } from "../automation/novelDirectorAutoExecution";

@@ -1,4 +1,4 @@
-﻿import type { DirectorChapterExecutionProgressSummary, DirectorArtifactRef, DirectorArtifactType } from "@ai-novel/shared/types/directorRuntime";
+import type { DirectorChapterExecutionProgressSummary, DirectorArtifactRef, DirectorArtifactType } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorAutoExecutionState, DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import { BookContractService } from "../../BookContractService";
@@ -12,18 +12,18 @@ import type { ChapterRuntimeRequestInput } from "../../runtime/chapterRuntimeSch
 import { StoryMacroPlanService } from "../../storyMacro/StoryMacroPlanService";
 import { NovelVolumeService } from "../../volume/NovelVolumeService";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
-import { buildDirectorWorkflowSeedPayload } from "../novelDirectorHelpers";
+import { buildDirectorWorkflowSeedPayload } from "../runtime/novelDirectorHelpers";
 import { NovelDirectorAutoExecutionRuntime } from "../automation/novelDirectorAutoExecutionRuntime";
 import { NovelDirectorPipelineRuntime } from "../novelDirectorPipelineRuntime";
-import { NovelDirectorRuntimeOrchestrator } from "../novelDirectorRuntimeOrchestrator";
+import { NovelDirectorRuntimeOrchestrator } from "../runtime/novelDirectorRuntimeOrchestrator";
 import { DirectorRuntimeService } from "../runtime/DirectorRuntimeService";
 import { ChapterExecutionProgressInspector } from "../runtime/ChapterExecutionProgressInspector";
 import { normalizeDirectorAutoExecutionPlan } from "../automation/novelDirectorAutoExecution";
-import { assertHighMemoryDirectorStartAllowed } from "../autoDirectorMemorySafety";
+import { assertHighMemoryDirectorStartAllowed } from "../runtime/autoDirectorMemorySafety";
 import {
   resolveStructuredOutlineRecoveryCursor,
   type StructuredOutlineRecoveryCursor,
-} from "../novelDirectorStructuredOutlineRecovery";
+} from "../recovery/novelDirectorStructuredOutlineRecovery";
 
 export interface DirectorCoreStepModuleRuntimeDeps {
   workflowService: NovelWorkflowService;

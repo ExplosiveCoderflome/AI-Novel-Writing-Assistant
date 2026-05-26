@@ -19,22 +19,22 @@ import type { StoryMacroPlanService } from "../storyMacro/StoryMacroPlanService"
 import type { NovelVolumeService } from "../volume/NovelVolumeService";
 import type { NovelWorkflowService } from "../workflow/NovelWorkflowService";
 import { recordAutoDirectorAutoApprovalFromTask } from "../../task/autoDirectorFollowUps/autoDirectorAutoApprovalAudit";
-import { normalizeDirectorMemoryScope } from "./autoDirectorMemorySafety";
+import { normalizeDirectorMemoryScope } from "./runtime/autoDirectorMemorySafety";
 import {
   buildWorkflowSeedPayload,
   normalizeDirectorRunMode,
-} from "./novelDirectorHelpers";
+} from "./runtime/novelDirectorHelpers";
 import {
   runDirectorCharacterSetupPhase,
   runDirectorStructuredOutlinePhase,
   runDirectorVolumeStrategyPhase,
-} from "./novelDirectorPipelinePhases";
-import { resolveSafeDirectorPipelineStartPhase } from "./novelDirectorRecovery";
+} from "./phases/novelDirectorPipelinePhases";
+import { resolveSafeDirectorPipelineStartPhase } from "./recovery/novelDirectorRecovery";
 import {
   runDirectorBookContractPhase,
   runDirectorStoryMacroAssetPhase,
-} from "./novelDirectorStoryMacroPhase";
-import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
+} from "./phases/novelDirectorStoryMacroPhase";
+import type { NovelDirectorRuntimeOrchestrator } from "./runtime/novelDirectorRuntimeOrchestrator";
 import {
   getDirectorPlanningStepModule,
   getDirectorExecutionContractSyncStepModule,
@@ -45,7 +45,7 @@ import {
   isExecutableWorkflowStepModule,
   type WorkflowStepModuleDescriptor,
 } from "./workflowStepRuntime/WorkflowStepModule";
-import type { DirectorPipelinePhase } from "./novelDirectorRecovery";
+import type { DirectorPipelinePhase } from "./recovery/novelDirectorRecovery";
 
 export interface DirectorPipelineRunInput {
   taskId: string;

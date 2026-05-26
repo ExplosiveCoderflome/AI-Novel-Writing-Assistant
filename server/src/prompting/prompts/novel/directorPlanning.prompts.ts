@@ -20,7 +20,7 @@ import {
   directorCandidateSchema,
   directorCandidateResponseSchema,
   directorPlanBlueprintSchema,
-} from "../../../services/novel/director/novelDirectorSchemas";
+} from "../../../services/novel/director/runtime/novelDirectorSchemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
 
 export interface DirectorCandidatePromptInput {

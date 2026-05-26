@@ -1,9 +1,9 @@
 import {
   DIRECTOR_CANDIDATE_NODE_ADAPTERS,
   type DirectorCandidateStageNode,
-} from "../novelDirectorCandidateNodeAdapters";
+} from "../phases/novelDirectorCandidateNodeAdapters";
 import { getDirectorConfirmNovelCreateNodeAdapter } from "../novelDirectorConfirmNodeAdapters";
-import { getDirectorTakeoverNodeAdapter } from "../novelDirectorTakeoverNodeAdapters";
+import { getDirectorTakeoverNodeAdapter } from "../runtime/novelDirectorTakeoverNodeAdapters";
 import {
   createWorkflowStepDescriptorFromDirectorAdapter,
   createWorkflowStepModule,

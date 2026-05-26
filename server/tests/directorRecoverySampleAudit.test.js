@@ -4,7 +4,7 @@ const crypto = require("node:crypto");
 
 const {
   buildDirectorRecoverySampleAudit,
-} = require("../dist/services/novel/director/directorRecoverySampleAudit.js");
+} = require("../dist/services/novel/director/recovery/directorRecoverySampleAudit.js");
 
 function hash(value) {
   return crypto.createHash("sha256").update(value.trim()).digest("hex");

@@ -2,7 +2,7 @@ import "dotenv/config";
 import { ensureRuntimeDatabaseReady } from "../db/runtimeMigrations";
 import { loadProviderApiKeys } from "../llm/factory";
 import { initializeRagSettingsCompatibility } from "../services/settings/RagCompatibilityBootstrapService";
-import { DirectorCommandExecutor } from "../services/novel/director/DirectorCommandExecutor";
+import { DirectorCommandExecutor } from "../services/novel/director/commands/DirectorCommandExecutor";
 import { DirectorTaskQueue, type DirectorTaskQueueOptions } from "./DirectorTaskQueue";
 import { taskDispatcher } from "./TaskDispatcher";
 

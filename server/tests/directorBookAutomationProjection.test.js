@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const { prisma } = require("../dist/db/prisma.js");
 const {
   DirectorBookAutomationProjectionService,
-} = require("../dist/services/novel/director/DirectorBookAutomationProjectionService.js");
+} = require("../dist/services/novel/director/projections/DirectorBookAutomationProjectionService.js");
 const {
   directorArtifactLedgerQueryService,
 } = require("../dist/services/novel/director/runtime/DirectorArtifactLedgerQueryService.js");

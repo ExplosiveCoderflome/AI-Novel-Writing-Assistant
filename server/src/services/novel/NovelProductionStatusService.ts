@@ -2,7 +2,7 @@ import { prisma } from "../../db/prisma";
 import {
   DirectorFactSummaryService,
   type DirectorFactBaseSummary,
-} from "./director/DirectorFactSummaryService";
+} from "./director/projections/DirectorFactSummaryService";
 import {
   ChapterExecutionProgressInspector,
   type ChapterExecutionProgressSummary,

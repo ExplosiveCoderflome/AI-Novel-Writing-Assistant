@@ -2,7 +2,7 @@ import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel"
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 import { buildWorkflowExplainability, buildWorkflowResumeAction } from "./novelWorkflowExplainability";
-import type { DirectorWorkflowSeedPayload } from "../novel/director/novelDirectorHelpers";
+import type { DirectorWorkflowSeedPayload } from "../novel/director/runtime/novelDirectorHelpers";
 import { parseSeedPayload } from "../novel/workflow/novelWorkflow.shared";
 
 export function buildNovelWorkflowNextActionLabel(

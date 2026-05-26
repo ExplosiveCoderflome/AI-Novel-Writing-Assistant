@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   NovelDirectorCandidateRuntime,
-} = require("../dist/services/novel/director/novelDirectorCandidateRuntime.js");
+} = require("../dist/services/novel/director/runtime/novelDirectorCandidateRuntime.js");
 
 test("candidate runtime forces explicit candidate commands past completed-step reuse", async () => {
   let capturedStepInput = null;

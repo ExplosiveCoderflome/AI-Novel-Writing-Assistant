@@ -5,7 +5,7 @@ const {
   DIRECTOR_EXECUTION_NODE_ADAPTERS,
   getDirectorExecutionNodeAdapter,
   getDirectorExecutionNodeSequence,
-} = require("../dist/services/novel/director/novelDirectorExecutionNodeAdapters.js");
+} = require("../dist/services/novel/director/phases/novelDirectorExecutionNodeAdapters.js");
 
 test("director chapter execution adapters expose standard runtime contracts", () => {
   assert.deepEqual(Object.keys(DIRECTOR_EXECUTION_NODE_ADAPTERS).sort(), [
