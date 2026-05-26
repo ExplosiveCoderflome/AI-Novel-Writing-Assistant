@@ -29,6 +29,7 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 - checkpoint 恢复数据应通过共享 helper 组装，避免 `healing` 和 `application` 各自复制恢复逻辑。
 - `server/src/services/novel/director` 应继续向 `commands`、`runtime`、`state`、`automation`、`projections`、`recovery`、`phases` 等责任边界收敛。
 - `server/src/services/novel/director/` 根目录只保留稳定门面和兼容桥接。命令执行进入 `commands/`，任务状态进入 `state/`，事实摘要/运行投影/展示快照进入 `projections/`，恢复与回填进入 `recovery/`，阶段节点与阶段策略进入 `phases/`，接管/确认/候选/运行编排进入 `runtime/`，HTTP 映射进入 `http/`。
+- `server/src/routes/` 只保留尚未迁移的传统 HTTP 入口。小说主链、自动导演、小说导出和世界设定的 HTTP 映射必须进入对应业务模块的 `http/` 目录，并由 `app.ts` 直接挂载模块入口；不要在 `routes/` 根目录保留 re-export shim。
 - 小说业务应用入口应通过 `server/src/services/novel/application/` 的 capability 层组合。`NovelService` 只作为兼容 facade，路由和后台服务不得重新依赖完整 God Object。
 - `ChapterRuntimeCoordinator` 是章节 runtime 的外部稳定门面；流编排、质量门禁、终稿定稿、pipeline 适配和 runtime package 构建只能在 `server/src/services/novel/runtime/` 内部模块中协作，外部不得深链到这些内部服务。
 - 新增业务能力优先通过模块门面或 `index.ts` 暴露，不从外部深链到其他模块内部文件。
