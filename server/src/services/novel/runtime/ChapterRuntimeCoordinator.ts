@@ -25,11 +25,11 @@ import { ChapterQualityGateService } from "./ChapterQualityGateService";
 import { ChapterContentFinalizationService } from "./ChapterContentFinalizationService";
 import { ChapterStreamGenerationOrchestrator } from "./ChapterStreamGenerationOrchestrator";
 import { ChapterPipelineRuntimeAdapter } from "./ChapterPipelineRuntimeAdapter";
-
-interface AgentRuntimeLike {
-  createChapterGenRun: (novelId: string, chapterId: string, chapterOrder: number) => Promise<string>;
-  finishChapterGenRun: (runId: string, summary: string, durationMs: number) => Promise<void>;
-}
+import {
+  createDefaultReviewChapterAfterRepair,
+  defaultChapterRuntimeAgent,
+  type ChapterRuntimeAgentPort,
+} from "./ChapterRuntimeDefaultDeps";
 
 interface ChapterRuntimeCoordinatorDeps {
   assembler?: Pick<GenerationContextAssembler, "assemble">;
@@ -39,7 +39,7 @@ interface ChapterRuntimeCoordinatorDeps {
   plannerService?: Pick<typeof plannerService, "buildReplanRecommendation" | "shouldTriggerReplanFromAudit">;
   acceptanceAssessmentService?: Pick<ChapterAcceptanceAssessmentService, "assess">;
   readinessService?: Pick<ChapterRuntimeReadinessService, "assertReady">;
-  agentRuntime?: AgentRuntimeLike;
+  agentRuntime?: ChapterRuntimeAgentPort;
   ensureNovelCharacters?: (novelId: string, actionName: string, minCount?: number) => Promise<void>;
   ensureChapterExecutionContract?: (
     novelId: string,
@@ -74,9 +74,7 @@ export class ChapterRuntimeCoordinator {
     const chapterWritingGraph = deps.chapterWritingGraph ?? this.createDefaultChapterWritingGraph(artifactSyncService);
     const plannerRuntime = deps.plannerService ?? plannerService;
     const acceptanceAssessmentService = deps.acceptanceAssessmentService ?? new ChapterAcceptanceAssessmentService();
-    const reviewChapterAfterRepair = deps.reviewChapterAfterRepair
-      ?? ((novelId: string, chapterId: string, options: ReviewOptions) =>
-        (new (require("../novelCoreReviewService").NovelCoreReviewService)()).reviewChapter(novelId, chapterId, options));
+    const reviewChapterAfterRepair = deps.reviewChapterAfterRepair ?? createDefaultReviewChapterAfterRepair();
     const ensureNovelCharacters = deps.ensureNovelCharacters ?? this.ensureNovelCharacters.bind(this);
     const validateRequest = deps.validateRequest ?? ((input) => chapterRuntimeRequestSchema.parse(input));
 
@@ -149,8 +147,8 @@ export class ChapterRuntimeCoordinator {
     return this.pipelineAdapter.runPipelineChapter(novelId, chapterId, options, hooks);
   }
 
-  private getAgentRuntime(agentRuntime?: AgentRuntimeLike): AgentRuntimeLike {
-    return (agentRuntime ?? require("../../../agents").agentRuntime) as AgentRuntimeLike;
+  private getAgentRuntime(agentRuntime?: ChapterRuntimeAgentPort): ChapterRuntimeAgentPort {
+    return agentRuntime ?? defaultChapterRuntimeAgent;
   }
 
   private createDefaultChapterWritingGraph(

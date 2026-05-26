@@ -29,6 +29,7 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 - checkpoint 恢复数据应通过共享 helper 组装，避免 `healing` 和 `application` 各自复制恢复逻辑。
 - `server/src/services/novel/director` 应继续向 `commands`、`runtime`、`state`、`automation`、`projections`、`recovery`、`phases` 等责任边界收敛。
 - 小说业务应用入口应通过 `server/src/services/novel/application/` 的 capability 层组合。`NovelService` 只作为兼容 facade，路由和后台服务不得重新依赖完整 God Object。
+- `ChapterRuntimeCoordinator` 是章节 runtime 的外部稳定门面；流编排、质量门禁、终稿定稿、pipeline 适配和 runtime package 构建只能在 `server/src/services/novel/runtime/` 内部模块中协作，外部不得深链到这些内部服务。
 - 新增业务能力优先通过模块门面或 `index.ts` 暴露，不从外部深链到其他模块内部文件。
 - 涉及自动导演、章节执行、Prompt、RAG、任务状态或前端投影的边界变化，应同步更新 Wiki 或模块 README。
 - 任何数据回填、同步、抽取或索引刷新，必须只消费章节的稳定快照；在章节仍可能继续修复、重写或回退时，不允许把这类动作挂在热路径里。
@@ -85,3 +86,4 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 - [导演模式模块化与状态治理改造清单](../../plans/director-mode-module-state-refactor-checklist.md)
 - [Novel Director 子系统](../../../server/src/services/novel/director/README.md)
 - [Novel 应用能力层边界](./novel-application-services.md)
+- [章节 Runtime 边界](./chapter-runtime-boundaries.md)
