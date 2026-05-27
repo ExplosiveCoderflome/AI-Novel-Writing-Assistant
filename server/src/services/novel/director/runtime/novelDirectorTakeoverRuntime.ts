@@ -19,6 +19,7 @@ import {
   hasDirectorAutoExecutionChapterContract,
   isDirectorAutoExecutionChapterProcessed,
   resolveDirectorAutoExecutionRangeFromState,
+  type DirectorAutoExecutionChapterRef,
 } from "../automation/novelDirectorAutoExecution";
 import { resolveStructuredOutlineRecoveryCursor } from "../recovery/novelDirectorStructuredOutlineRecovery";
 
@@ -108,6 +109,13 @@ function reconcileAutoExecutionStateAfterStaleNoChapterFailure(input: {
     state,
     reason: "继续已有进度时已跳过当前待修章节，后续章节继续执行。",
     source: "review_skip",
+    chapter: {
+      id: nextChapter.id,
+      order: nextChapter.order,
+      content: nextChapter.content,
+      generationState: nextChapter.generationState,
+      chapterStatus: nextChapter.chapterStatus,
+    } as DirectorAutoExecutionChapterRef,
   });
   return buildDirectorAutoExecutionState({
     range,

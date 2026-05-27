@@ -286,15 +286,24 @@ export function buildDirectorAutoExecutionDeferredQualityState(input: {
   state: DirectorAutoExecutionState;
   reason: string;
   source: NonNullable<DirectorAutoExecutionState["qualityDebtSummaries"]>[number]["source"];
+  chapter?: DirectorAutoExecutionChapterRef | null;
   deferredAt?: string | Date;
 }): DirectorAutoExecutionState {
-  const chapterId = input.state.nextChapterId?.trim() || null;
-  const chapterOrder = typeof input.state.nextChapterOrder === "number"
-    ? input.state.nextChapterOrder
+  const chapter = input.chapter && canPreserveDirectorAutoExecutionSkippedChapter(input.chapter)
+    ? input.chapter
     : null;
+  const chapterId = chapter?.id?.trim() || null;
+  const chapterOrder = typeof chapter?.order === "number" ? chapter.order : null;
   const deferredAt = input.deferredAt instanceof Date
     ? input.deferredAt.toISOString()
     : input.deferredAt ?? new Date().toISOString();
+  if (!chapterId && chapterOrder == null) {
+    return {
+      ...input.state,
+      pipelineJobId: null,
+      pipelineStatus: null,
+    };
+  }
   const summaries = [
     ...(input.state.qualityDebtSummaries ?? []),
     {
@@ -374,9 +383,7 @@ export function buildDirectorAutoExecutionState(input: {
     if (!isSkippedChapter) {
       return false;
     }
-    const isQualityDebtChapter = qualityDebtChapterIds.has(chapter.id) || qualityDebtChapterOrders.has(chapter.order);
-    return canPreserveDirectorAutoExecutionSkippedChapter(chapter)
-      || (isQualityDebtChapter && hasDirectorAutoExecutionChapterContract(chapter));
+    return canPreserveDirectorAutoExecutionSkippedChapter(chapter);
   });
   const preservedSkippedChapterIds = new Set(skipped.map((chapter) => chapter.id));
   const preservedSkippedChapterOrders = new Set(skipped.map((chapter) => chapter.order));

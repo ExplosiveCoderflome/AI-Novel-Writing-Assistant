@@ -14,6 +14,7 @@ import {
   buildDirectorAutoExecutionPausedLabel,
   buildDirectorAutoExecutionPausedSummary,
   buildDirectorAutoExecutionScopeLabelFromState,
+  type DirectorAutoExecutionChapterRef,
   type DirectorAutoExecutionRange,
 } from "./novelDirectorAutoExecution";
 import { buildDirectorSessionState } from "../runtime/novelDirectorHelpers";
@@ -201,6 +202,7 @@ export async function resolveQualityRepairNoticeAction(
     payload?: string | null;
     approveAutoExecutionScope?: boolean;
     skipCurrentQualityRepair?: boolean;
+    qualityIssueChapter?: DirectorAutoExecutionChapterRef | null;
   },
 ): Promise<{
   action: "auto_continue" | "pause";
@@ -280,6 +282,7 @@ export async function resolveQualityRepairNoticeAction(
         state: checkpointState,
         reason: input.noticeSummary,
         source: "review_skip",
+        chapter: input.qualityIssueChapter ?? null,
       }),
       qualityRepairRisk,
     };

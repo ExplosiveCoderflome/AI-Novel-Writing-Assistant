@@ -45,6 +45,13 @@ export interface DirectorCanonicalState {
   chapterProgress: ChapterExecutionProgressSummary | null;
 }
 
+function shouldSuppressRuntimeActiveStep(task: {
+  status: string;
+  checkpointType?: string | null;
+}): boolean {
+  return task.status === "waiting_approval" && Boolean(task.checkpointType);
+}
+
 export class DirectorStateReader {
   constructor(
     private readonly chapterProgressInspector = new ChapterExecutionProgressInspector(),
@@ -104,6 +111,8 @@ export class DirectorStateReader {
         select: { idempotencyKey: true, nodeKey: true, label: true, status: true },
       }).catch(() => null),
     ]);
+    const suppressActiveStep = shouldSuppressRuntimeActiveStep(task);
+    const effectiveActiveStep = suppressActiveStep ? null : activeStep;
     const chapterProgress = task.novelId
       ? await this.chapterProgressInspector.inspectNovel(task.novelId).catch(() => null)
       : null;
@@ -127,13 +136,13 @@ export class DirectorStateReader {
       runtime: run
         ? {
           id: run.id,
-          status: activeStep?.status ?? latestCommand?.status ?? "idle",
-          currentStep: activeStep?.nodeKey ?? task.currentItemKey ?? null,
+          status: effectiveActiveStep?.status ?? (suppressActiveStep ? task.status : latestCommand?.status) ?? "idle",
+          currentStep: effectiveActiveStep?.nodeKey ?? task.currentItemKey ?? null,
           runId: run.id,
         }
         : null,
       latestCommand,
-      activeStep,
+      activeStep: effectiveActiveStep,
       seedPayload: parseSeedPayload<DirectorWorkflowSeedPayload>(task.seedPayloadJson) ?? {},
       chapterProgress,
     };

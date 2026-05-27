@@ -12,6 +12,7 @@ import {
   buildDirectorAutoExecutionPipelineOptions,
   resolveDirectorAutoExecutionRepairMode,
   resolveDirectorAutoExecutionWorkflowState,
+  type DirectorAutoExecutionChapterRef,
   type DirectorAutoExecutionRange,
 } from "./novelDirectorAutoExecution";
 import {
@@ -310,6 +311,7 @@ export class NovelDirectorAutoExecutionRuntime {
         }
 
         if (job.status === "succeeded" && job.noticeSummary?.trim()) {
+          const qualityIssueChapter = await this.resolveQualityIssueChapter(input.novelId, job);
           const noticeAction = await resolveQualityRepairNoticeAction(this.deps, {
             taskId: input.taskId,
             novelId: input.novelId,
@@ -323,6 +325,7 @@ export class NovelDirectorAutoExecutionRuntime {
             payload: job.payload,
             approveAutoExecutionScope: input.approveAutoExecutionScope,
             skipCurrentQualityRepair: input.skipCurrentQualityRepair,
+            qualityIssueChapter,
           });
           if (noticeAction.action === "auto_continue") {
             pipelineJobId = "";
@@ -548,6 +551,7 @@ export class NovelDirectorAutoExecutionRuntime {
             state: withCircuitBreakerState(failedAutoExecution, null),
             reason: failureMessage,
             source: failureCircuitBreaker.reason === "replan_loop" ? "replan_loop" : "repair_failure",
+            chapter: await this.resolveQualityIssueChapter(input.novelId, job),
           });
           const ledgerEventService = this.deps.automationLedgerEventService ?? directorAutomationLedgerEventService;
           await ledgerEventService.recordEvent({
@@ -656,6 +660,23 @@ export class NovelDirectorAutoExecutionRuntime {
     await this.deps.novelService.resumePipelineJob(job.id);
     job = await this.deps.novelService.getPipelineJobById(job.id);
     return job;
+  }
+
+  private async resolveQualityIssueChapter(
+    novelId: string,
+    job: NonNullable<PipelineJobSnapshot>,
+  ): Promise<DirectorAutoExecutionChapterRef | null> {
+    const startOrder = typeof job.startOrder === "number" && Number.isFinite(job.startOrder)
+      ? job.startOrder
+      : null;
+    const endOrder = typeof job.endOrder === "number" && Number.isFinite(job.endOrder)
+      ? job.endOrder
+      : null;
+    if (startOrder == null || (endOrder != null && endOrder !== startOrder)) {
+      return null;
+    }
+    const chapters = await this.deps.novelContextService.listChapters(novelId);
+    return chapters.find((chapter) => chapter.order === startOrder) ?? null;
   }
 }
 
