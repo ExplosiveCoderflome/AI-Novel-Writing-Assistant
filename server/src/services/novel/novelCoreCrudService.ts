@@ -196,9 +196,10 @@ export class NovelCoreCrudService {
       if (!novelId) {
         continue;
       }
+      const rowCurrentItemLabel = row.currentItemLabel?.trim() || null;
       taskByNovelId.set(novelId, mapNovelAutoDirectorTaskSummary({
         ...row,
-        currentItemLabel: latestLiveStepLabelByTaskId.get(row.id) ?? row.currentItemLabel,
+        currentItemLabel: rowCurrentItemLabel ?? latestLiveStepLabelByTaskId.get(row.id) ?? row.currentItemLabel,
       }));
     }
     return taskByNovelId;
