@@ -11,7 +11,6 @@ import { prisma } from "../../../db/prisma";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import { buildSupplementalCharacterContextBlocks } from "../../../prompting/prompts/novel/characterPreparation.contextBlocks";
 import {
-  supplementalCharacterNormalizePrompt,
   supplementalCharacterPrompt,
 } from "../../../prompting/prompts/novel/characterPreparation.prompts";
 import { NovelContextService } from "../NovelContextService";
@@ -101,83 +100,9 @@ function serializeCharacter(row: CharacterRowForOutput): Character {
   };
 }
 
-function hasTooMuchLatinText(value: string | null | undefined): boolean {
-  const text = value?.trim() ?? "";
-  if (!text) {
-    return false;
-  }
-  const latinCount = (text.match(/[A-Za-z]/g) ?? []).length;
-  const chineseCount = (text.match(/[\u4e00-\u9fff]/g) ?? []).length;
-  return latinCount >= 8 && latinCount > chineseCount * 2;
-}
-
 function toPromptFallback(value: string | null | undefined, fallback: string): string {
   const normalized = value?.trim();
   return normalized && normalized.length > 0 ? normalized : fallback;
-}
-
-function shouldNormalizeSupplementalLanguage(parsed: SupplementalCharacterGenerationResponseParsed): boolean {
-  if (hasTooMuchLatinText(parsed.planningSummary)) {
-    return true;
-  }
-
-  return parsed.candidates.some((candidate) => {
-    const candidateTexts = [
-      candidate.role,
-      candidate.summary,
-      candidate.storyFunction,
-      candidate.relationToProtagonist,
-      candidate.personality,
-      candidate.background,
-      candidate.development,
-      candidate.identityLabel,
-      candidate.factionLabel,
-      candidate.stanceLabel,
-      candidate.powerLevel,
-      candidate.realm,
-      candidate.currentLocation,
-      candidate.availability,
-      candidate.outerGoal,
-      candidate.innerNeed,
-      candidate.fear,
-      candidate.wound,
-      candidate.misbelief,
-      candidate.secret,
-      candidate.moralLine,
-      candidate.firstImpression,
-      candidate.currentState,
-      candidate.currentGoal,
-      candidate.whyNow,
-      ...candidate.prohibitions,
-      ...candidate.relations.flatMap((relation) => [
-        relation.surfaceRelation,
-        relation.hiddenTension,
-        relation.conflictSource,
-        relation.dynamicLabel,
-        relation.nextTurnPoint,
-      ]),
-    ];
-    return candidateTexts.some((text) => hasTooMuchLatinText(text));
-  });
-}
-
-async function normalizeSupplementalLanguage(
-  novelId: string,
-  options: SupplementalCharacterGenerateInput,
-  parsed: SupplementalCharacterGenerationResponseParsed,
-): Promise<SupplementalCharacterGenerationResponseParsed> {
-  const result = await runStructuredPrompt({
-    asset: supplementalCharacterNormalizePrompt,
-    promptInput: {
-      payloadJson: JSON.stringify(parsed, null, 2),
-    },
-    options: {
-      provider: options.provider,
-      model: options.model,
-      temperature: 0.2,
-    },
-  });
-  return result.output;
 }
 
 export class CharacterPreparationSupplementalService {
@@ -388,22 +313,16 @@ export class CharacterPreparationSupplementalService {
       },
     });
     const parsed = result.output;
-    const normalizedParsed = shouldNormalizeSupplementalLanguage(parsed)
-      ? await normalizeSupplementalLanguage(novelId, options, parsed).catch(() => parsed)
-      : parsed;
-    if (shouldNormalizeSupplementalLanguage(normalizedParsed)) {
-      throw new Error("补充角色生成结果仍含大段英文描述，请重试一次或切换模型后再生成。");
-    }
 
     const requestedCount = typeof options.count === "number" ? options.count : null;
-    const normalizedCandidates = (requestedCount ? normalizedParsed.candidates.slice(0, requestedCount) : normalizedParsed.candidates)
+    const normalizedCandidates = (requestedCount ? parsed.candidates.slice(0, requestedCount) : parsed.candidates)
       .map((candidate) => supplementalCharacterCandidateSchema.parse(candidate))
       .slice(0, 3);
 
     return {
-      mode: normalizedParsed.mode,
-      recommendedCount: requestedCount ?? Math.min(Math.max(normalizedParsed.recommendedCount, 1), normalizedCandidates.length || 1),
-      planningSummary: toOptionalText(normalizedParsed.planningSummary),
+      mode: parsed.mode,
+      recommendedCount: requestedCount ?? Math.min(Math.max(parsed.recommendedCount, 1), normalizedCandidates.length || 1),
+      planningSummary: toOptionalText(parsed.planningSummary),
       candidates: normalizedCandidates.map((candidate) => ({
         name: candidate.name,
         role: candidate.role,

@@ -244,22 +244,29 @@ export async function loadRecentAutoDirectorAutoApprovalRecords(
     return [];
   }
   try {
-    const rowsByNovel = await Promise.all(
-      uniqueNovelIds.map((novelId) => prisma.autoDirectorAutoApprovalRecord.findMany({
-        where: { novelId },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: 10,
-      })),
-    );
-    return rowsByNovel
-      .flat()
-      .sort((left, right) => {
-        const createdAtDiff = right.createdAt.getTime() - left.createdAt.getTime();
-        if (createdAtDiff !== 0) {
-          return createdAtDiff;
-        }
-        return right.id.localeCompare(left.id);
-      });
+    const rows = await prisma.autoDirectorAutoApprovalRecord.findMany({
+      where: {
+        novelId: {
+          in: uniqueNovelIds,
+        },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+    const countByNovelId = new Map<string, number>();
+    return rows.filter((row) => {
+      const count = countByNovelId.get(row.novelId) ?? 0;
+      if (count >= 10) {
+        return false;
+      }
+      countByNovelId.set(row.novelId, count + 1);
+      return true;
+    }).sort((left, right) => {
+      const createdAtDiff = right.createdAt.getTime() - left.createdAt.getTime();
+      if (createdAtDiff !== 0) {
+        return createdAtDiff;
+      }
+      return right.id.localeCompare(left.id);
+    });
   } catch (error) {
     if (isMissingTableError(error) || isDbUnavailableError(error)) {
       return [];

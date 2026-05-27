@@ -25,7 +25,6 @@ import { serializeCharacterProhibitions } from "../characters/characterHardFacts
 import {
   assessCharacterCastBatch,
   buildCharacterCastRepairReasons,
-  shouldNormalizeCharacterCastLanguage,
   type CharacterCastBatchAssessment,
 } from "./characterCastQuality";
 
@@ -354,9 +353,6 @@ export async function generateCharacterCastOptionsDraft(
   });
 
   let parsed = generation.output;
-  if (shouldNormalizeCharacterCastLanguage(parsed.options)) {
-    parsed = await normalizeCharacterCastOptions(parsed, options).catch(() => parsed);
-  }
 
   let assessment = assessCharacterCastBatch(parsed.options, context.storyInput);
   if (assessment.autoApplicableOptionIndex === null) {
@@ -366,9 +362,6 @@ export async function generateCharacterCastOptionsDraft(
       contextBlocks: context.contextBlocks,
       options,
     }).catch(() => parsed);
-    if (shouldNormalizeCharacterCastLanguage(parsed.options)) {
-      parsed = await normalizeCharacterCastOptions(parsed, options).catch(() => parsed);
-    }
     assessment = assessCharacterCastBatch(parsed.options, context.storyInput);
   }
 
@@ -413,10 +406,6 @@ export async function generateAutoCharacterCastDraft(
     parsed = await generateAutoCharacterCastDraftViaStagedPrompts(context, options);
   }
 
-  if (shouldNormalizeCharacterCastLanguage([parsed.option])) {
-    parsed = await normalizeAutoCharacterCastOption(parsed, options).catch(() => parsed);
-  }
-
   let assessment = assessCharacterCastBatch([parsed.option], context.storyInput);
   if (assessment.autoApplicableOptionIndex === null) {
     parsed = await repairAutoCharacterCastOption({
@@ -425,9 +414,6 @@ export async function generateAutoCharacterCastDraft(
       contextBlocks: context.contextBlocks,
       options,
     }).catch(() => parsed);
-    if (shouldNormalizeCharacterCastLanguage([parsed.option])) {
-      parsed = await normalizeAutoCharacterCastOption(parsed, options).catch(() => parsed);
-    }
     assessment = assessCharacterCastBatch([parsed.option], context.storyInput);
   }
 

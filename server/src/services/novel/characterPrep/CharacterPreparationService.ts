@@ -37,7 +37,6 @@ import {
   assessCharacterCastBatch,
   buildCharacterCastBlockedMessage,
   buildCharacterCastRepairReasons,
-  shouldNormalizeCharacterCastLanguage,
   type CharacterCastBatchAssessment,
 } from "./characterCastQuality";
 
@@ -541,9 +540,6 @@ export class CharacterPreparationService {
     });
 
     let parsed = generation.output;
-    if (shouldNormalizeCharacterCastLanguage(parsed.options)) {
-      parsed = await this.normalizeCharacterCastOptions(parsed, options).catch(() => parsed);
-    }
 
     let assessment = assessCharacterCastBatch(parsed.options, context.storyInput);
     if (assessment.autoApplicableOptionIndex === null) {
@@ -553,9 +549,6 @@ export class CharacterPreparationService {
         contextBlocks: context.contextBlocks,
         options,
       }).catch(() => parsed);
-      if (shouldNormalizeCharacterCastLanguage(parsed.options)) {
-        parsed = await this.normalizeCharacterCastOptions(parsed, options).catch(() => parsed);
-      }
       assessment = assessCharacterCastBatch(parsed.options, context.storyInput);
     }
 

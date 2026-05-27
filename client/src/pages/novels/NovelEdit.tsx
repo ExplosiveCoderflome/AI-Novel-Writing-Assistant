@@ -382,7 +382,7 @@ export default function NovelEdit() {
     enabled: Boolean(id),
     refetchInterval: (query) => {
       const task = query.state.data?.data;
-      return task && (task.status === "queued" || task.status === "running")
+      return task && (task.status === "queued" || task.status === "running" || task.status === "waiting_approval")
         ? 4000
         : false;
     },
@@ -394,7 +394,7 @@ export default function NovelEdit() {
     retry: false,
     refetchInterval: (query) => {
       const status = query.state.data?.data?.projection.status;
-      return status === "queued" || status === "running" ? 4000 : false;
+      return status === "queued" || status === "running" || status === "waiting_approval" ? 4000 : false;
     },
   });
   const chapterPlanQuery = useQuery({

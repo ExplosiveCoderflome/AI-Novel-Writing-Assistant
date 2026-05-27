@@ -25,6 +25,7 @@ import {
   normalizeDirectorRunMode,
 } from "./runtime/novelDirectorHelpers";
 import {
+  type DirectorCharacterSetupPhaseResult,
   runDirectorCharacterSetupPhase,
   runDirectorStructuredOutlinePhase,
   runDirectorVolumeStrategyPhase,
@@ -56,6 +57,17 @@ export interface DirectorPipelineRunInput {
   batchAlreadyStartedCount?: number;
   approveCurrentGate?: boolean;
   approveAutoExecutionScope?: boolean;
+}
+
+function isDirectorCharacterSetupPauseResult(value: unknown): value is Extract<
+  DirectorCharacterSetupPhaseResult,
+  { status: "waiting_review" | "applied_waiting_review" }
+> {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const status = (value as { status?: unknown }).status;
+  return status === "waiting_review" || status === "applied_waiting_review";
 }
 
 export class NovelDirectorPipelineRuntime {
@@ -136,7 +148,7 @@ export class NovelDirectorPipelineRuntime {
         if (await this.isModuleFactCompleted(module, input)) {
           continue;
         }
-        const paused = await this.deps.runtimeOrchestrator.runStepModule({
+        const result = await this.deps.runtimeOrchestrator.runStepModule({
           module,
           taskId: input.taskId,
           novelId: input.novelId,
@@ -144,7 +156,7 @@ export class NovelDirectorPipelineRuntime {
           approveCurrentGate: approval.approveCurrentGate,
           approveAutoExecutionScope: approval.approveAutoExecutionScope,
         });
-        if (paused) {
+        if (isDirectorCharacterSetupPauseResult(result)) {
           return;
         }
         continue;
@@ -385,7 +397,7 @@ export class NovelDirectorPipelineRuntime {
     taskId: string,
     novelId: string,
     input: DirectorConfirmRequest,
-  ): Promise<boolean> {
+  ): Promise<DirectorCharacterSetupPhaseResult> {
     return this.runCharacterSetupPhase(taskId, novelId, input);
   }
 
@@ -447,7 +459,7 @@ export class NovelDirectorPipelineRuntime {
     taskId: string,
     novelId: string,
     input: DirectorConfirmRequest,
-  ): Promise<boolean> {
+  ): Promise<DirectorCharacterSetupPhaseResult> {
     return runDirectorCharacterSetupPhase({
       taskId,
       novelId,

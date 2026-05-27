@@ -1,5 +1,5 @@
 ﻿import type { KeyboardEvent, MouseEvent } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ProjectProgressStatus } from "@ai-novel/shared/types/novel";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type {
@@ -46,6 +46,7 @@ type StatusFilter = "all" | "draft" | "published";
 type WritingModeFilter = "all" | "original" | "continuation";
 const DIRECTOR_CREATE_LINK = "/novels/create?mode=director";
 const MANUAL_CREATE_LINK = "/novels/create";
+const NOVEL_LIST_PAGE_SIZE = 24;
 
 function createDownload(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
@@ -87,11 +88,12 @@ export default function NovelList() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [writingMode, setWritingMode] = useState<WritingModeFilter>("all");
   const [cockpitNovelId, setCockpitNovelId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const { candidateCount: recoveryCandidateCount, openDialog: openRecoveryDialog } = useTaskRecovery();
 
   const novelListQuery = useQuery({
-    queryKey: queryKeys.novels.list(1, 100),
-    queryFn: () => getNovelList({ page: 1, limit: 100 }),
+    queryKey: queryKeys.novels.list(page, NOVEL_LIST_PAGE_SIZE),
+    queryFn: () => getNovelList({ page, limit: NOVEL_LIST_PAGE_SIZE }),
     staleTime: 30_000,
     refetchInterval: (query) => {
       const items = query.state.data?.data?.items ?? [];
@@ -180,6 +182,8 @@ export default function NovelList() {
   });
 
   const allNovels = novelListQuery.data?.data?.items ?? [];
+  const totalPages = novelListQuery.data?.data?.totalPages ?? 1;
+  const totalNovels = novelListQuery.data?.data?.total ?? 0;
   const selectedCockpitNovel = allNovels.find((item) => item.id === cockpitNovelId) ?? null;
   const cockpitProjection = cockpitProjectionQuery.data?.data?.projection ?? null;
 
@@ -194,6 +198,12 @@ export default function NovelList() {
       return true;
     });
   }, [allNovels, status, writingMode]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const handleDelete = (novelId: string, title: string) => {
     const confirmed = window.confirm(`确认删除《${title}》吗？该操作会直接删除当前小说。`);
@@ -277,6 +287,9 @@ export default function NovelList() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline">
+            第 {page} / {totalPages} 页，共 {totalNovels} 本
+          </Badge>
           {recoveryCandidateCount > 0 ? (
             <Button variant="outline" onClick={openRecoveryDialog}>
               <RotateCcw className="h-4 w-4" aria-hidden="true" />
@@ -345,8 +358,9 @@ export default function NovelList() {
           ) : null}
         </Card>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
-          {novels.map((novel) => {
+        <>
+          <div className="grid gap-3 md:grid-cols-2">
+            {novels.map((novel) => {
             const workflowTask = novel.latestAutoDirectorTask ?? null;
             const workflowCurrentAction = workflowTask?.currentItemLabel?.trim() || "";
             const workflowBadge = getWorkflowBadge(workflowTask);
@@ -565,8 +579,29 @@ export default function NovelList() {
                 </CardContent>
               </Card>
             );
-          })}
-        </div>
+            })}
+          </div>
+          {totalPages > 1 ? (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={page <= 1 || novelListQuery.isFetching}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+              >
+                上一页
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={page >= totalPages || novelListQuery.isFetching}
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+              >
+                下一页
+              </Button>
+            </div>
+          ) : null}
+        </>
       )}
 
       <Dialog

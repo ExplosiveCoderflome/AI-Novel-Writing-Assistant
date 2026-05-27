@@ -545,7 +545,7 @@ test("GET /api/settings/api-keys exposes ollama baseURL and optional-key metadat
   }
 });
 
-test("GET /api/settings/api-keys resolves unsaved provider model from fetched catalog", async () => {
+test("GET /api/settings/api-keys uses lightweight local model metadata", async () => {
   const originalFindMany = prisma.aPIKey.findMany;
   const originalFetch = global.fetch;
   const previousDeepSeekModel = process.env.DEEPSEEK_MODEL;
@@ -564,24 +564,8 @@ test("GET /api/settings/api-keys resolves unsaved provider model from fetched ca
       updatedAt: new Date(),
     },
   ]);
-  global.fetch = async (url) => {
-    const target = String(url);
-    if (target === "https://models.example.com/v1/models") {
-      return new Response(JSON.stringify({
-        data: [{ id: "deepseek-v4-latest" }, { id: "deepseek-reasoner" }],
-      }), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-    }
-    return new Response(JSON.stringify({ error: "not mocked" }), {
-      status: 404,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+  global.fetch = async () => {
+    throw new Error("api-keys summary must not fetch remote model catalogs");
   };
 
   const app = createApp();
@@ -594,9 +578,9 @@ test("GET /api/settings/api-keys resolves unsaved provider model from fetched ca
     assert.equal(payload.success, true);
     const deepseek = payload.data.find((item) => item.provider === "deepseek");
     assert.ok(deepseek);
-    assert.equal(deepseek.currentModel, "deepseek-v4-latest");
+    assert.equal(deepseek.currentModel, "deepseek-chat");
     assert.equal(deepseek.isConfigured, true);
-    assert.deepEqual(deepseek.models, ["deepseek-v4-latest", "deepseek-reasoner"]);
+    assert.ok(deepseek.models.includes("deepseek-chat"));
   } finally {
     prisma.aPIKey.findMany = originalFindMany;
     global.fetch = originalFetch;

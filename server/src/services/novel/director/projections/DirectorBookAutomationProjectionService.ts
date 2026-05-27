@@ -541,7 +541,7 @@ export class DirectorBookAutomationProjectionService {
       detail,
       userReason,
       currentStage: latestTask?.currentStage ?? runtimeProjection?.currentNodeKey ?? null,
-      currentLabel: workerCurrentLabel ?? latestTask?.currentItemLabel ?? runtimeProjection?.currentLabel ?? null,
+      currentLabel: runtimeProjection?.currentLabel ?? workerCurrentLabel ?? latestTask?.currentItemLabel ?? null,
       requiresUserAction,
       blockedReason,
       nextActionLabel: displayRuntimeProjection?.nextActionLabel ?? null,

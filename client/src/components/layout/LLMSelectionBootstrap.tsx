@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getAPIKeySettings, getLLMSelectionSetting, saveLLMSelectionSetting } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
@@ -8,6 +8,13 @@ import { useLLMStore } from "@/store/llmStore";
 export default function LLMSelectionBootstrap() {
   const store = useLLMStore();
   const queryClient = useQueryClient();
+  const [apiKeyQueryEnabled, setApiKeyQueryEnabled] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setApiKeyQueryEnabled(true), 700);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const selectionQuery = useQuery({
     queryKey: queryKeys.settings.llmSelection,
     queryFn: getLLMSelectionSetting,
@@ -16,6 +23,7 @@ export default function LLMSelectionBootstrap() {
   const apiKeySettingsQuery = useQuery({
     queryKey: queryKeys.settings.apiKeys,
     queryFn: getAPIKeySettings,
+    enabled: apiKeyQueryEnabled,
     staleTime: 5 * 60 * 1000,
   });
 

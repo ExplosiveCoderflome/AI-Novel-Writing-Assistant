@@ -102,7 +102,7 @@ export class NovelCoreCrudService {
 
   private async listLatestVisibleAutoDirectorTasksByNovelIds(
     novelIds: string[],
-    allowHealing = true,
+    allowHealing = false,
   ): Promise<Map<string, NovelAutoDirectorTaskSummary>> {
     const uniqueNovelIds = Array.from(new Set(novelIds.filter((id) => id.trim().length > 0)));
     if (uniqueNovelIds.length === 0) {
@@ -196,9 +196,10 @@ export class NovelCoreCrudService {
       if (!novelId) {
         continue;
       }
+      const rowCurrentItemLabel = row.currentItemLabel?.trim() || null;
       taskByNovelId.set(novelId, mapNovelAutoDirectorTaskSummary({
         ...row,
-        currentItemLabel: latestLiveStepLabelByTaskId.get(row.id) ?? row.currentItemLabel,
+        currentItemLabel: rowCurrentItemLabel ?? latestLiveStepLabelByTaskId.get(row.id) ?? row.currentItemLabel,
       }));
     }
     return taskByNovelId;

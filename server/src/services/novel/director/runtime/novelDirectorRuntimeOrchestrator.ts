@@ -386,8 +386,12 @@ export class NovelDirectorRuntimeOrchestrator {
           ? await input.module.completeCriteria(output, context)
           : true;
         if (!completed) {
-          throw new Error(`${input.module.id} 未满足其完成标准。`);
-
+          const acceptablePause = input.module.acceptablePauseCriteria
+            ? await input.module.acceptablePauseCriteria(output, context)
+            : false;
+          if (!acceptablePause) {
+            throw new Error(`${input.module.id} 未满足其完成标准。`);
+          }
         }
         const commit = input.module.commit
           ? await input.module.commit(output, context)
