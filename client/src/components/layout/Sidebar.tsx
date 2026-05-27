@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import {
   BookOpenText,
   Braces,
@@ -83,9 +84,17 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const [badgeQueriesEnabled, setBadgeQueriesEnabled] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setBadgeQueriesEnabled(true), 500);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const taskQuery = useQuery({
     queryKey: queryKeys.tasks.overview,
     queryFn: getTaskOverview,
+    enabled: badgeQueriesEnabled,
     staleTime: 30_000,
     refetchInterval: (query) => {
       const overview = query.state.data?.data;
@@ -96,12 +105,14 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const knowledgeQuery = useQuery({
     queryKey: queryKeys.knowledge.documents("sidebar"),
     queryFn: () => listKnowledgeDocuments(),
+    enabled: badgeQueriesEnabled,
     staleTime: 30_000,
   });
 
   const autoDirectorFollowUpQuery = useQuery({
     queryKey: queryKeys.autoDirectorFollowUps.overview,
     queryFn: getAutoDirectorFollowUpOverview,
+    enabled: badgeQueriesEnabled,
     refetchInterval: (query) => {
       const totalCount = query.state.data?.data?.totalCount ?? 0;
       return totalCount > 0 ? 4000 : false;

@@ -102,7 +102,7 @@ export class NovelCoreCrudService {
 
   private async listLatestVisibleAutoDirectorTasksByNovelIds(
     novelIds: string[],
-    allowHealing = true,
+    allowHealing = false,
   ): Promise<Map<string, NovelAutoDirectorTaskSummary>> {
     const uniqueNovelIds = Array.from(new Set(novelIds.filter((id) => id.trim().length > 0)));
     if (uniqueNovelIds.length === 0) {
