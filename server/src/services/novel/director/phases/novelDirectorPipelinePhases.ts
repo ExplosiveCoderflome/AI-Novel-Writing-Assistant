@@ -22,6 +22,32 @@ import { runDirectorTrackedStep } from "../projections/directorProgressTracker";
 import type { DirectorPhaseCallbacks, DirectorPhaseDependencies } from "./novelDirectorPhaseTypes";
 export { runDirectorStructuredOutlinePhase } from "./novelDirectorStructuredOutlinePhase";
 
+export type DirectorCharacterSetupPhaseResult =
+  | {
+      status: "already_applied";
+      optionId: string;
+      title: string;
+    }
+  | {
+      status: "waiting_review";
+      optionId: string;
+      title: string;
+      checkpointType: "character_setup_required";
+      reason: string;
+    }
+  | {
+      status: "applied";
+      optionId: string;
+      title: string;
+    }
+  | {
+      status: "applied_waiting_review";
+      optionId: string;
+      title: string;
+      checkpointType: "character_setup_required";
+      reason: string;
+    };
+
 function buildVolumeStrategyPhaseUpdate(event: VolumeGenerationPhaseEvent): {
   itemKey: DirectorProgressItemKey;
   itemLabel: string;
@@ -50,7 +76,7 @@ export async function runDirectorCharacterSetupPhase(input: {
   request: DirectorConfirmRequest;
   dependencies: DirectorPhaseDependencies;
   callbacks: DirectorPhaseCallbacks;
-}): Promise<boolean> {
+}): Promise<DirectorCharacterSetupPhaseResult> {
   const { taskId, novelId, request, dependencies, callbacks } = input;
   const directorSession = buildDirectorSessionState({
     runMode: request.runMode,
@@ -100,7 +126,11 @@ export async function runDirectorCharacterSetupPhase(input: {
     );
   }
   if (targetOption.status === "applied") {
-    return false;
+    return {
+      status: "already_applied",
+      optionId: targetOption.id,
+      title: targetOption.title,
+    };
   }
   const assessment = dependencies.characterPreparationService.assessCharacterCastOptions([targetOption], storyInput);
   if (assessment.autoApplicableOptionId !== targetOption.id) {
@@ -109,13 +139,14 @@ export async function runDirectorCharacterSetupPhase(input: {
       phase: "character_setup",
       isBackgroundRunning: false,
     });
+    const reason = [
+      "角色阵容候选已生成，但当前自动质量闸未通过，不能直接自动应用。",
+      buildCharacterCastBlockedMessage(assessment),
+    ].join("\n");
     await dependencies.workflowService.recordCheckpoint(taskId, {
       stage: "character_setup",
       checkpointType: "character_setup_required",
-      checkpointSummary: [
-        "角色阵容候选已生成，但当前自动质量闸未通过，不能直接自动应用。",
-        buildCharacterCastBlockedMessage(assessment),
-      ].join("\n"),
+      checkpointSummary: reason,
       itemLabel: "等待审核角色准备",
       progress: DIRECTOR_PROGRESS.characterSetup,
       seedPayload: callbacks.buildDirectorSeedPayload(request, novelId, {
@@ -123,7 +154,13 @@ export async function runDirectorCharacterSetupPhase(input: {
         resumeTarget,
       }),
     });
-    return true;
+    return {
+      status: "waiting_review",
+      optionId: targetOption.id,
+      title: targetOption.title,
+      checkpointType: "character_setup_required",
+      reason,
+    };
   }
   await runDirectorTrackedStep({
     taskId,
@@ -144,7 +181,11 @@ export async function runDirectorCharacterSetupPhase(input: {
   });
 
   if (normalizeDirectorRunMode(request.runMode) !== "stage_review") {
-    return false;
+    return {
+      status: "applied",
+      optionId: targetOption.id,
+      title: targetOption.title,
+    };
   }
   if (shouldAutoApproveDirectorCheckpoint(
     normalizeDirectorAutoApprovalConfig(request.autoApproval),
@@ -158,7 +199,11 @@ export async function runDirectorCharacterSetupPhase(input: {
       checkpointSummary: `角色准备已生成并应用「${targetOption.title}」。`,
       stage: "character_setup",
     });
-    return false;
+    return {
+      status: "applied",
+      optionId: targetOption.id,
+      title: targetOption.title,
+    };
   }
 
   const pausedSession = buildDirectorSessionState({
@@ -166,10 +211,11 @@ export async function runDirectorCharacterSetupPhase(input: {
     phase: "character_setup",
     isBackgroundRunning: false,
   });
+  const reason = `角色准备已生成并应用「${targetOption.title}」。建议先检查核心角色、关系与当前目标，再继续自动导演。`;
   await dependencies.workflowService.recordCheckpoint(taskId, {
     stage: "character_setup",
     checkpointType: "character_setup_required",
-    checkpointSummary: `角色准备已生成并应用「${targetOption.title}」。建议先检查核心角色、关系与当前目标，再继续自动导演。`,
+    checkpointSummary: reason,
     itemLabel: "等待审核角色准备",
     progress: DIRECTOR_PROGRESS.characterSetupReady,
     seedPayload: callbacks.buildDirectorSeedPayload(request, novelId, {
@@ -177,7 +223,13 @@ export async function runDirectorCharacterSetupPhase(input: {
       resumeTarget,
     }),
   });
-  return true;
+  return {
+    status: "applied_waiting_review",
+    optionId: targetOption.id,
+    title: targetOption.title,
+    checkpointType: "character_setup_required",
+    reason,
+  };
 }
 
 export async function runDirectorVolumeStrategyPhase(input: {
