@@ -16,6 +16,9 @@ const {
 const {
   StoryTimelineService,
 } = require("../dist/modules/timeline/timeline.service.js");
+const {
+  timelineExtractorOutputSchema,
+} = require("../dist/prompting/prompts/novel/timelineExtractor.prompts.js");
 
 function baseContext(overrides = {}) {
   return {
@@ -216,6 +219,43 @@ test("TimelineExtractorService normalizes hook resolve mode and blocking metadat
   assert.equal(hooks[0].resolveMode, "immediate");
   assert.equal(hooks[0].blocking, true);
   assert.equal(hooks[0].priority, "critical");
+});
+
+test("TimelineExtractor schema coerces numeric state values into strings", () => {
+  const parsed = timelineExtractorOutputSchema.parse({
+    events: [{
+      title: "差评首降",
+      summary: "萧夜让林小凡差评值下降。",
+      type: "plot",
+      participantNames: ["萧夜", "林小凡"],
+      stateChanges: [{
+        targetType: "item",
+        targetId: "林小凡差评值",
+        field: "value",
+        before: 19,
+        after: 5,
+        certainty: "confirmed",
+      }],
+      possibleHooks: [],
+      occurred: true,
+      confidence: 1,
+      matchedPlannedEventIds: [],
+    }],
+    hooks: [],
+    stateChanges: [{
+      targetType: "item",
+      targetId: "世界评分",
+      field: "value",
+      before: 72,
+      after: 76,
+      certainty: "confirmed",
+    }],
+  });
+
+  assert.equal(parsed.events[0].stateChanges[0].before, "19");
+  assert.equal(parsed.events[0].stateChanges[0].after, "5");
+  assert.equal(parsed.stateChanges[0].before, "72");
+  assert.equal(parsed.stateChanges[0].after, "76");
 });
 
 test("TimelineChecker detects confirmed state conflicts", () => {

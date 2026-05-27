@@ -22,6 +22,7 @@
 - 所有通过 registry runner 执行的 PromptAsset 都必须产生 prompt quality telemetry，用于观察 repair 率、semantic retry 率、空输出率、上下文 token 预算、输出长度和耗时。业务服务不得绕过 runner 自行吞掉 postValidate 失败；语义失败应通过 `semanticRetryPolicy` 重试，或通过明确的 `postValidateFailureRecovery` 降级。
 - 章节列表、卷级拆章这类规划 prompt 可以在结构化输出后增加轻量业务质量闸门，用于拦截空泛摘要、连续被动推进、第一人称长句章名、缺少主角主动行动或缺少阶段兑现 / 钩子的章节段。质量闸门只负责指出结构化结果的问题并触发重试，不能替代 AI 做章节规划，也不能用关键词分支生成章节内容。
 - Prompt 中展示给模型的状态名、枚举名和示例必须与 schema 可接受值一致。上下文里如果存在历史别名或业务口语值，例如 `active` 表示已推进但未兑现，应在 prompt 明确转换规则，并在 schema preprocess 中做确定性归一，不能把同一类别名反复交给 LLM repair。
+- 抽取类 schema 如果用字符串承载“可读状态值”，必须在 PromptAsset 中明示数值也要按字符串输出，并在 schema 层对已经结构化的数值 / 布尔标量做确定性字符串化。典型场景是时间线 `stateChanges.before/after`：差评值、评分、倒计时等是剧情状态，不是计算字段，进入连续性账本时应保存为 `"19"`、`"5"` 这类可读文本，避免每次抽取都把合理数值输出推给 JSON repair。
 - 聚合型结构化 prompt 必须列出所有受限 enum 字段，不能只列最容易出错的字段。章节资产抽取这类一次性输出多个子账本的 prompt，应同时约束 `updateType`、`resourceType`、`narrativeFunction`、`scopeType`、`syncPlan` 等字段；否则模型会用语义合理但不被 schema 接受的自然分类词，导致后台任务被 Zod 校验失败卡住。
 - 结构化输出后的确定性归一只用于字段别名、枚举别名和兼容旧形状，例如把 `pacing` 映射为接收闸门的 `plot`、把 payoff `active` 映射为 `pending_payoff`、把字符串风险转成 `{ code, severity, summary }` 对象。不能用这种归一替代 AI 对剧情事实、风险等级或下一步动作的判断。
 - editable slots 只能开放低风险表达层内容，不能覆盖 schema、postValidate、taskType、mode、contextPolicy、工具目录、审批边界或 required context。
@@ -55,6 +56,7 @@
 
 - 模型返回 JSON 不稳定：先检查 schema、provider JSON 能力和 repair policy，不在业务 service 里补局部解析。
 - 同一 prompt 频繁进入 JSON repair：检查日志里的原始字段值是否来自上下文或示例中的非 schema 值。如果模型只是复用了 prompt 中出现的别名，应先修 prompt/schema 合同；如果输出语义完整但字段名是常见别名，应在 PromptAsset schema 层归一，而不是让后台任务无限重试。
+- `expected string, received number` 如果集中出现在状态抽取字段，通常不是模型理解偏差，而是 schema 将“可读状态文本”和“可计算数值”混在同一个字段里。处理顺序应是：明确 prompt 输出合同，给结构化示例，在 schema preprocess 中保留语义并转成字符串；不要要求 LLM 为每一个数值字段单独 repair。
 - Prompt Catalog 缺上下文预览：补 `contextRequirements`，不要让预览临时查数据库。
 - 意图识别漏判：修 PromptAsset、输入上下文、schema 或工具目录，不加关键词路由。
 - 角色阵容看起来没有承接身份、题材或隐藏真相：先查角色准备 PromptAsset、上下文块和结构化输出，不加本地正则抽取身份，不用关键词判断候选能否自动应用。

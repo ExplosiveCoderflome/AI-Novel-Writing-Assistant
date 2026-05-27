@@ -77,12 +77,37 @@ export const timelineStateTargetTypeSchema = z.enum([
   "world",
 ]);
 
+function normalizeTimelineStateValue(value: unknown): unknown {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : value;
+  }
+  if (typeof value === "boolean" || typeof value === "bigint") {
+    return String(value);
+  }
+  return value;
+}
+
+const timelineStateValueSchema = z.preprocess(
+  normalizeTimelineStateValue,
+  z.string().trim().min(1),
+);
+
+const optionalTimelineStateValueSchema = z.preprocess((value) => {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+  if (typeof value === "string" && value.trim().length === 0) {
+    return undefined;
+  }
+  return normalizeTimelineStateValue(value);
+}, z.string().trim().min(1).optional());
+
 export const timelineStateChangeSchema = z.object({
   targetType: timelineStateTargetTypeSchema,
   targetId: z.string(),
   field: z.string(),
-  before: z.string().optional(),
-  after: z.string(),
+  before: optionalTimelineStateValueSchema,
+  after: timelineStateValueSchema,
   certainty: z.enum(["confirmed", "likely", "rumored", "hidden"]),
 });
 
