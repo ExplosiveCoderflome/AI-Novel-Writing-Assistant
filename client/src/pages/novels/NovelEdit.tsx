@@ -242,6 +242,7 @@ export default function NovelEdit() {
     setSelectedChapterId,
     selectedVolumeId,
     setSelectedVolumeId,
+    workflowTaskId,
     taskPanelOpen,
     clearTaskPanelOpen,
   } = useNovelEditWorkflow(id);
@@ -2277,6 +2278,7 @@ export default function NovelEdit() {
       worldOptions={worldListQuery.data?.data ?? []}
       triggerVariant={variant}
       defaultEntryStep={step}
+      workflowTaskId={directorTaskId || workflowTaskId}
     />
   );
 

@@ -18,6 +18,8 @@ import type {
   DirectorCandidateTitleRefineRequest,
   DirectorCandidatesRequest,
   DirectorConfirmRequest,
+  DirectorIdeaInspirationRequest,
+  DirectorIdeaInspirationsResponse,
   DirectorRefinementRequest,
   DirectorTakeoverReadinessResponse,
   DirectorTakeoverRequest,
@@ -48,6 +50,16 @@ export async function generateDirectorCandidates(payload: DirectorCandidatesRequ
     taskType: "generate_candidates",
     payload,
   });
+  return data;
+}
+
+export async function generateDirectorIdeaInspirations(
+  payload: DirectorIdeaInspirationRequest,
+): Promise<ApiResponse<DirectorIdeaInspirationsResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorIdeaInspirationsResponse>>(
+    "/novels/director/idea-inspirations",
+    payload,
+  );
   return data;
 }
 
