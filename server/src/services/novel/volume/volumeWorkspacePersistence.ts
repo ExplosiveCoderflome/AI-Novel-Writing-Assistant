@@ -164,6 +164,7 @@ function toVolumeChapterPlanData(volumeId: string, chapter: VolumeChapterPlan): 
   return {
     id: chapter.id,
     volumeId,
+    chapterId: chapter.chapterId ?? null,
     chapterOrder: chapter.chapterOrder,
     title: chapter.title,
     summary: chapter.summary,
@@ -205,6 +206,7 @@ type ExistingVolumeWorkspaceRow = Prisma.VolumePlanGetPayload<{
       select: {
         id: true;
         volumeId: true;
+        chapterId: true;
         chapterOrder: true;
         title: true;
         summary: true;
@@ -250,6 +252,7 @@ function isChapterRowCurrent(
   chapter: VolumeChapterPlan,
 ): boolean {
   return row.volumeId === volumeId
+    && sameNullableText(row.chapterId, chapter.chapterId)
     && row.chapterOrder === chapter.chapterOrder
     && row.title === chapter.title
     && row.summary === chapter.summary
@@ -340,6 +343,7 @@ export async function persistActiveVolumeWorkspace(
         select: {
           id: true,
           volumeId: true,
+          chapterId: true,
           chapterOrder: true,
           title: true,
           summary: true,

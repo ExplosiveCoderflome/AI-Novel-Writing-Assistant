@@ -443,6 +443,7 @@ export class NovelCoreCrudService {
       await syncChapterArtifacts(novelId, chapter.id, chapter.content);
     }
     await this.volumeService.mirrorChapterIntoWorkspace(novelId, {
+      id: chapter.id,
       order: chapter.order,
       title: chapter.title,
       expectation: chapter.expectation,
@@ -490,6 +491,7 @@ export class NovelCoreCrudService {
       await syncChapterArtifacts(novelId, chapterId, input.content);
     }
     await this.volumeService.mirrorChapterIntoWorkspace(novelId, {
+      id: chapter.id,
       order: chapter.order,
       title: chapter.title,
       expectation: chapter.expectation,

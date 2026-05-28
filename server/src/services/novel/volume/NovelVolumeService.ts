@@ -92,7 +92,7 @@ export class NovelVolumeService {
   private async hydrateCanonicalChapterFields(
     novelId: string,
     document: VolumePlanDocument,
-  ): Promise<VolumePlanDocument> {
+  ): Promise<{ document: VolumePlanDocument; changed: boolean }> {
     const chapterRows = await prisma.chapter.findMany({
       where: { novelId },
       orderBy: { order: "asc" },
@@ -110,19 +110,24 @@ export class NovelVolumeService {
       },
     });
     if (chapterRows.length === 0) {
-      return document;
+      return { document, changed: false };
     }
 
+    const chapterById = new Map(chapterRows.map((row) => [row.id, row] as const));
     const chapterByOrder = new Map(chapterRows.map((row) => [row.order, row] as const));
     let changed = false;
     const volumes = document.volumes.map((volume) => {
       const chapters = volume.chapters.map((chapter) => {
-        const row = chapterByOrder.get(chapter.chapterOrder);
+        const row = chapter.chapterId
+          ? chapterById.get(chapter.chapterId) ?? chapterByOrder.get(chapter.chapterOrder)
+          : chapterByOrder.get(chapter.chapterOrder);
         if (!row) {
           return chapter;
         }
         const nextChapter = {
           ...chapter,
+          chapterId: row.id,
+          chapterOrder: row.order,
           title: row.title,
           summary: row.expectation?.trim() || chapter.summary,
           targetWordCount: row.targetWordCount ?? null,
@@ -140,12 +145,13 @@ export class NovelVolumeService {
       return changed ? { ...volume, chapters } : volume;
     });
 
-    return changed ? { ...document, volumes } : document;
+    return { document: changed ? { ...document, volumes } : document, changed };
   }
 
   async mirrorChapterIntoWorkspace(
     novelId: string,
     chapter: {
+      id?: string | null;
       order: number;
       title: string;
       expectation?: string | null;
@@ -161,12 +167,17 @@ export class NovelVolumeService {
     let changed = false;
     const nextVolumes = document.volumes.map((volume) => {
       const chapters = volume.chapters.map((item) => {
-        if (item.chapterOrder !== chapter.order) {
+        const matchesChapter = chapter.id
+          ? item.chapterId === chapter.id || item.chapterOrder === chapter.order
+          : item.chapterOrder === chapter.order;
+        if (!matchesChapter) {
           return item;
         }
         changed = true;
         return {
           ...item,
+          chapterId: chapter.id ?? item.chapterId ?? null,
+          chapterOrder: chapter.order,
           title: chapter.title,
           summary: chapter.expectation?.trim() || item.summary,
           targetWordCount: chapter.targetWordCount ?? null,
@@ -278,7 +289,15 @@ export class NovelVolumeService {
       novelId,
       getLegacySource: () => getLegacyVolumeSource(novelId),
     });
-    return this.hydrateCanonicalChapterFields(novelId, document);
+    const hydrated = await this.hydrateCanonicalChapterFields(novelId, document);
+    if (!hydrated.changed) {
+      return hydrated.document;
+    }
+    return this.persistWorkspaceDocument(novelId, hydrated.document, {
+      emitEvent: false,
+      syncPayoffLedger: false,
+      volumeUpdateReason: "chapter_sync",
+    });
   }
 
   private findVolumeChapterMatch(
@@ -395,9 +414,10 @@ export class NovelVolumeService {
           emitEvent: false,
           syncPayoffLedger: false,
         });
+        return this.ensureVolumeWorkspace(novelId);
       } catch (error) {
         const message = error instanceof Error ? error.message : "未知错误";
-        throw new Error(`当前卷工作区已保存，但自动同步到章节执行区失败：${message}`);
+        throw new Error(`当前卷工作区已保存，但章节执行连接失败：${message}`);
       }
     }
     return persistedDocument;

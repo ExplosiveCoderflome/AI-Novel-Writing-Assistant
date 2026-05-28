@@ -197,6 +197,7 @@ export function buildStructuredPreviewFromVolumes(volumes: VolumePlan[]): string
       resetPoint: volume.resetPoint || undefined,
       openPayoffs: volume.openPayoffs,
       chapters: volume.chapters.map((chapter) => ({
+        chapter_id: chapter.chapterId ?? undefined,
         order: chapter.chapterOrder,
         beat_key: chapter.beatKey ?? undefined,
         title: chapter.title,
@@ -266,6 +267,7 @@ export function buildVolumeSyncPreview(
 ): VolumeSyncPreview {
   const normalizedVolumes = normalizeVolumeDraft(volumes);
   const flattened = normalizedVolumes.flatMap((volume) => volume.chapters.map((chapter) => ({ volume, chapter })));
+  const existingById = new Map(existingChapters.map((chapter) => [chapter.id, chapter]));
   const existingByOrder = new Map(existingChapters.map((chapter) => [chapter.order, chapter]));
   const existingByTitle = new Map(existingChapters.map((chapter) => [chapter.title.trim().toLowerCase(), chapter]));
   const matchedChapterIds = new Set<string>();
@@ -280,16 +282,25 @@ export function buildVolumeSyncPreview(
   let clearContentCount = 0;
 
   for (const entry of flattened) {
-    const existingBySameOrder = existingByOrder.get(entry.chapter.chapterOrder);
-    const matchedByOrder = existingBySameOrder && !matchedChapterIds.has(existingBySameOrder.id)
-      ? existingBySameOrder
-      : undefined;
-    const matchedByTitle = existingByTitle.get(entry.chapter.title.trim().toLowerCase());
-    const existing = matchedByOrder ?? (
-      matchedByTitle && !matchedChapterIds.has(matchedByTitle.id)
-        ? matchedByTitle
-        : undefined
-    );
+    const linkedChapterId = entry.chapter.chapterId?.trim();
+    const matchedById = linkedChapterId ? existingById.get(linkedChapterId) : undefined;
+    const existing = matchedById && !matchedChapterIds.has(matchedById.id)
+      ? matchedById
+      : (() => {
+        if (linkedChapterId) {
+          return undefined;
+        }
+        const existingBySameOrder = existingByOrder.get(entry.chapter.chapterOrder);
+        const matchedByOrder = existingBySameOrder && !matchedChapterIds.has(existingBySameOrder.id)
+          ? existingBySameOrder
+          : undefined;
+        const matchedByTitle = existingByTitle.get(entry.chapter.title.trim().toLowerCase());
+        return matchedByOrder ?? (
+          matchedByTitle && !matchedChapterIds.has(matchedByTitle.id)
+            ? matchedByTitle
+            : undefined
+        );
+      })();
 
     if (!existing) {
       createCount += 1;
