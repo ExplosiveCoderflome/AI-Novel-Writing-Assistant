@@ -104,6 +104,7 @@ export function registerNovelCharacterPreparationRoutes(
         const body = req.body as z.infer<typeof castOptionApplySchema>;
         const data = await novelService.applyCharacterCastOption(id, optionId, {
           overrideQualityGate: body.overrideQualityGate,
+          postApplyMode: "background",
           visibleProfileGeneration: {
             provider: body.provider,
             model: body.model,

@@ -198,10 +198,11 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       }
       const createdCount = response.data?.createdCount ?? 0;
       const updatedCount = response.data?.updatedCount ?? 0;
+      const backgroundHint = "外显资料和角色动态会在后台补齐，稍后刷新角色资产即可查看。";
       setStatusMessage(
         response.data?.qualityOverrideApplied
-          ? `已按你的确认应用这套阵容，同步 ${createdCount} 个新角色，更新 ${updatedCount} 个既有角色。建议稍后检查角色资产里的身份线索。`
-          : response.message ?? `已同步 ${createdCount} 个新角色，更新 ${updatedCount} 个既有角色。`,
+          ? `已按你的确认应用这套阵容，同步 ${createdCount} 个新角色，更新 ${updatedCount} 个既有角色。${backgroundHint}`
+          : `${response.message ?? `已同步 ${createdCount} 个新角色，更新 ${updatedCount} 个既有角色。`}${backgroundHint}`,
       );
       setIsPlannerExpanded(false);
       await refreshAppliedCharacterWorkspace();
