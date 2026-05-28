@@ -33,6 +33,7 @@ import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinua
 import {
   applyAutoDirectorResetStepReadiness,
   extractAutoDirectorResetStepsFromMeta,
+  resolveAutoDirectorResetStepsForWorkflowProgress,
 } from "./novelWorkspaceRailState";
 import {
   getNovelWorkspaceTabLabel,
@@ -265,6 +266,10 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       reviewScope,
     ],
   );
+  const effectiveResetSteps = useMemo(
+    () => resolveAutoDirectorResetStepsForWorkflowProgress(resetSteps, workflowCurrentTab),
+    [resetSteps, workflowCurrentTab],
+  );
 
   const stepReadiness = useMemo(() => {
     const basicReady = Boolean(novelDetail?.title?.trim());
@@ -289,8 +294,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       structured: structuredReady,
       chapter: chapterReady,
       pipeline: pipelineReady,
-    } satisfies Record<NovelWorkspaceFlowTab, boolean>, resetSteps);
-  }, [novelDetail?.bible, novelDetail?.chapters, novelDetail?.characters, novelDetail?.plotBeats, qualitySummary, resetSteps, workspace]);
+    } satisfies Record<NovelWorkspaceFlowTab, boolean>, effectiveResetSteps);
+  }, [effectiveResetSteps, novelDetail?.bible, novelDetail?.chapters, novelDetail?.characters, novelDetail?.plotBeats, qualitySummary, workspace]);
 
   const workflowIndex = workflowCurrentTab
     ? NOVEL_WORKSPACE_FLOW_STEPS.findIndex((item) => item.key === workflowCurrentTab)
@@ -300,7 +305,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     NOVEL_WORKSPACE_FLOW_STEPS.map((step, index) => {
       const isSelected = activeTab === step.key;
       const isWorkflowCurrent = workflowCurrentTab === step.key;
-      const isReset = resetSteps.has(step.key);
+      const isReset = effectiveResetSteps.has(step.key);
       const isDone = !isReset && (
         workflowIndex >= 0
           ? index < workflowIndex
@@ -322,7 +327,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         statusLabel,
       };
     })
-  ), [activeTab, resetSteps, stepReadiness, workflowCurrentTab, workflowIndex]);
+  ), [activeTab, effectiveResetSteps, stepReadiness, workflowCurrentTab, workflowIndex]);
 
   const completedStepCount = stepStates.filter((item) => item.isDone).length;
   const workflowProgressCount = workflowIndex >= 0 ? workflowIndex + 1 : completedStepCount;

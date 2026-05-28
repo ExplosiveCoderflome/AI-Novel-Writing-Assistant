@@ -222,6 +222,12 @@ export class NovelDirectorCandidateRuntime {
         || seedPayload.projectMode === "auto_pipeline"
         ? seedPayload.projectMode
         : undefined,
+      readerChannelPreference: seedPayload.readerChannelPreference === "ai_judge"
+        || seedPayload.readerChannelPreference === "male_oriented"
+        || seedPayload.readerChannelPreference === "female_oriented"
+        || seedPayload.readerChannelPreference === "general"
+        ? seedPayload.readerChannelPreference
+        : undefined,
       narrativePov: seedPayload.narrativePov === "first_person"
         || seedPayload.narrativePov === "third_person"
         || seedPayload.narrativePov === "mixed"

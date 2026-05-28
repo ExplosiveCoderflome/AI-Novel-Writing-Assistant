@@ -12,11 +12,13 @@ import {
   type DirectorCandidateBatch,
   type DirectorAutoExecutionPlan,
   type DirectorCorrectionPreset,
+  type DirectorIdeaInspiration,
   type DirectorRunMode,
 } from "@ai-novel/shared/types/novelDirector";
 import { bootstrapNovelWorkflow, continueNovelWorkflow } from "@/api/novelWorkflow";
 import {
   confirmDirectorCandidate,
+  generateDirectorIdeaInspirations,
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
 import { getStyleProfiles } from "@/api/styleEngine";
@@ -112,6 +114,7 @@ export default function NovelAutoDirectorDialog({
   const [runMode, setRunMode] = useState<DirectorRunMode>(DEFAULT_VISIBLE_RUN_MODE);
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
+  const [ideaInspirations, setIdeaInspirations] = useState<DirectorIdeaInspiration[]>([]);
   const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
   const [titlePatchFeedbacks, setTitlePatchFeedbacks] = useState<Record<string, string>>({});
   const confirmSubmitLockedRef = useRef(false);
@@ -209,6 +212,26 @@ export default function NovelAutoDirectorDialog({
     }),
     [directorBasicForm.styleTone, selectedStyleProfile],
   );
+  const ideaInspirationMutation = useMutation({
+    mutationFn: async () => {
+      const genre = genreOptions.find((item) => item.id === directorBasicForm.genreId);
+      const world = worldOptions.find((item) => item.id === directorBasicForm.worldId);
+      return generateDirectorIdeaInspirations({
+        ...buildAutoDirectorRequestPayload(directorBasicForm, idea || directorBasicForm.description, llm, runMode, undefined, {
+          styleProfileId: selectedStyleProfileId,
+        }),
+        currentIdea: idea.trim() || undefined,
+        genreLabel: genre?.path || genre?.label,
+        worldName: world?.name,
+      });
+    },
+    onSuccess: (response) => {
+      setIdeaInspirations(response.data?.ideas ?? []);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "生成起始想法失败，请稍后重试。");
+    },
+  });
   const directorTaskQuery = useQuery({
     queryKey: queryKeys.tasks.detail("novel_workflow", workflowTaskId || "none"),
     queryFn: () => getTaskDetail("novel_workflow", workflowTaskId),
@@ -471,6 +494,7 @@ export default function NovelAutoDirectorDialog({
     setAutoExecutionDraft(createDefaultDirectorAutoExecutionDraftState());
     autoApprovalDraft.reset();
     setSelectedStyleProfileId("");
+    setIdeaInspirations([]);
     setCandidatePatchFeedbacks({});
     setTitlePatchFeedbacks({});
   };
@@ -588,6 +612,9 @@ export default function NovelAutoDirectorDialog({
                 worldOptions={worldOptions}
                 idea={idea}
                 onIdeaChange={setIdea}
+                ideaInspirations={ideaInspirations}
+                isGeneratingIdeaInspirations={ideaInspirationMutation.isPending}
+                onGenerateIdeaInspirations={() => ideaInspirationMutation.mutate()}
                 runMode={runMode}
                 runModeOptions={RUN_MODE_OPTIONS}
                 onRunModeChange={setRunMode}

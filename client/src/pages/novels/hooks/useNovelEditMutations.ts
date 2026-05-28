@@ -125,8 +125,12 @@ export function useNovelEditMutations({
   });
 
   const saveStructuredMutation = useMutation({
-    mutationFn: () => updateNovelVolumes(id, volumeDocument),
+    mutationFn: () => updateNovelVolumes(id, {
+      ...volumeDocument,
+      syncToChapterExecution: true,
+    }),
     onSuccess: async () => {
+      setStructuredMessage("节奏拆章已保存，章节执行区会直接使用同一批章节。");
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "structured_outline",
@@ -182,14 +186,14 @@ export function useNovelEditMutations({
     onSuccess: async (response) => {
       const preview = response.data;
       setStructuredMessage(
-        `同步完成：新增 ${preview?.createCount ?? 0}，更新 ${preview?.updateCount ?? 0}，删除 ${preview?.deleteCount ?? 0}。`,
+        `连接修复完成：新增 ${preview?.createCount ?? 0}，更新 ${preview?.updateCount ?? 0}，删除 ${preview?.deleteCount ?? 0}。`,
       );
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "structured_outline",
-        itemLabel: "卷级拆章已同步到章节执行",
+        itemLabel: "卷级拆章已连接到章节执行",
         checkpointType: "chapter_batch_ready",
-        checkpointSummary: "章节列表、任务单和执行入口已同步，可继续进入章节执行。",
+        checkpointSummary: "章节列表、任务单和执行入口已准备好，可继续进入章节执行。",
         status: "waiting_approval",
       });
       await invalidateNovelDetail();

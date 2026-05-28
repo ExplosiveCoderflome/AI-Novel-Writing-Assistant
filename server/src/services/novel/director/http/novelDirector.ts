@@ -18,6 +18,8 @@ import {
   DIRECTOR_TAKEOVER_ENTRY_STEPS,
   DIRECTOR_TAKEOVER_START_PHASES,
   DIRECTOR_TAKEOVER_STRATEGIES,
+  type DirectorIdeaInspirationRequest,
+  type DirectorIdeaInspirationsResponse,
   type DirectorCandidatePatchRequest,
   type DirectorCandidateTitleRefineRequest,
   type DirectorConfirmRequest,
@@ -37,6 +39,7 @@ import { DirectorBookAutomationProjectionService } from "../projections/Director
 import { DirectorCommandService } from "../commands/DirectorCommandService";
 import { DirectorTaskSnapshotService } from "../projections/DirectorTaskSnapshotService";
 import { NovelDirectorService } from "../NovelDirectorService";
+import { novelDirectorIdeaInspirationService } from "../NovelDirectorIdeaInspirationService";
 import { directorPersistedCandidateSchema } from "../runtime/novelDirectorSchemas";
 
 const router = Router();
@@ -92,6 +95,7 @@ const projectContextSchema = z.object({
   worldId: z.string().trim().optional(),
   writingMode: z.enum(["original", "continuation"]).optional(),
   projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).optional(),
+  readerChannelPreference: z.enum(["ai_judge", "male_oriented", "female_oriented", "general"]).optional(),
   narrativePov: z.enum(["first_person", "third_person", "mixed"]).optional(),
   pacePreference: z.enum(["slow", "balanced", "fast"]).optional(),
   styleTone: z.string().trim().optional(),
@@ -123,6 +127,14 @@ const projectContextSchema = z.object({
 const candidatesSchema = projectContextSchema.extend({
   idea: z.string().trim().min(1),
   workflowTaskId: z.string().trim().optional(),
+}).merge(llmOptionsSchema);
+
+const ideaInspirationsSchema = projectContextSchema.extend({
+  currentIdea: z.string().trim().max(1000).optional(),
+  genreLabel: z.string().trim().max(120).optional(),
+  primaryStoryModeLabel: z.string().trim().max(120).optional(),
+  secondaryStoryModeLabel: z.string().trim().max(120).optional(),
+  worldName: z.string().trim().max(120).optional(),
 }).merge(llmOptionsSchema);
 
 const candidateBatchSchema = z.object({
@@ -286,6 +298,17 @@ router.post("/tasks", validate({ body: createTaskSchema }), async (req, res, nex
         throw new Error("Unsupported director task type.");
     }
     res.status(202).json(accepted(data, "Director task accepted."));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/idea-inspirations", validate({ body: ideaInspirationsSchema }), async (req, res, next) => {
+  try {
+    const data = await novelDirectorIdeaInspirationService.generate(
+      req.body as DirectorIdeaInspirationRequest,
+    ) as DirectorIdeaInspirationsResponse;
+    res.status(200).json(accepted(data, "Director idea inspirations generated."));
   } catch (error) {
     next(error);
   }

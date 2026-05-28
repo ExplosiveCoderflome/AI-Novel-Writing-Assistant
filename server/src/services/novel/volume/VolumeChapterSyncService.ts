@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import type {
   VolumePlanDocument,
+  VolumePlan,
   VolumeSyncPreview,
 } from "@ai-novel/shared/types/novel";
 import {
@@ -45,6 +46,25 @@ export interface VolumeChapterSyncOptions {
 export class VolumeChapterSyncService {
   constructor(private readonly deps: VolumeChapterSyncServiceDeps) {}
 
+  private applyChapterLinks(
+    volumes: VolumePlan[],
+    links: Array<{ volumeChapterId: string; chapterId: string }>,
+  ): VolumePlan[] {
+    if (links.length === 0) {
+      return volumes;
+    }
+    const chapterIdByVolumeChapterId = new Map(links.map((link) => [link.volumeChapterId, link.chapterId]));
+    return volumes.map((volume) => ({
+      ...volume,
+      chapters: volume.chapters.map((chapter) => {
+        const chapterId = chapterIdByVolumeChapterId.get(chapter.id);
+        return chapterId && chapter.chapterId !== chapterId
+          ? { ...chapter, chapterId }
+          : chapter;
+      }),
+    }));
+  }
+
   async syncVolumeChaptersWithOptions(
     novelId: string,
     input: VolumeSyncInput,
@@ -84,20 +104,9 @@ export class VolumeChapterSyncService {
 
     await runVolumeWorkspaceTransaction(async (tx) => {
       const { versionId } = await this.deps.ensureActiveVersionRecord(tx, novelId, mergedDocument);
-      const persistedDocument = {
-        ...mergedDocument,
-        activeVersionId: versionId,
-        source: "volume" as const,
-      };
-      await tx.volumePlanVersion.update({
-        where: { id: versionId },
-        data: {
-          contentJson: serializeVolumeWorkspaceDocument(persistedDocument),
-        },
-      });
-      await persistActiveVolumeWorkspace(tx, novelId, persistedDocument, versionId);
+      const linkUpdates: Array<{ volumeChapterId: string; chapterId: string }> = [...plan.links];
       for (const item of plan.creates) {
-        await tx.chapter.create({
+        const created = await tx.chapter.create({
           data: {
             novelId,
             title: item.chapter.title,
@@ -112,8 +121,11 @@ export class VolumeChapterSyncService {
             sceneCards: item.chapter.sceneCards ?? null,
           },
         });
+        item.chapter.chapterId = created.id;
+        linkUpdates.push({ volumeChapterId: item.chapter.id, chapterId: created.id });
       }
       for (const item of plan.updates) {
+        item.chapter.chapterId = item.chapterId;
         await tx.chapter.updateMany({
           where: { id: item.chapterId, novelId },
           data: {
@@ -147,6 +159,19 @@ export class VolumeChapterSyncService {
           where: { id: item.chapterId, novelId },
         });
       }
+      const linkedDocument = {
+        ...mergedDocument,
+        volumes: this.applyChapterLinks(mergedDocument.volumes, linkUpdates),
+        activeVersionId: versionId,
+        source: "volume" as const,
+      };
+      await tx.volumePlanVersion.update({
+        where: { id: versionId },
+        data: {
+          contentJson: serializeVolumeWorkspaceDocument(linkedDocument),
+        },
+      });
+      await persistActiveVolumeWorkspace(tx, novelId, linkedDocument, versionId);
     });
 
     if (options.emitEvent !== false) {
@@ -194,7 +219,7 @@ export class VolumeChapterSyncService {
           sceneCards: chapter.sceneCards,
         });
         if (!result.canEnterExecution) {
-          throw new Error(`第 ${chapter.chapterOrder} 章执行合同未通过质量门禁，不能同步到章节执行区。${formatChapterTaskSheetQualityFailure(result)}`);
+          throw new Error(`第 ${chapter.chapterOrder} 章执行合同未通过质量门禁，不能连接到章节执行区。${formatChapterTaskSheetQualityFailure(result)}`);
         }
       }
     }

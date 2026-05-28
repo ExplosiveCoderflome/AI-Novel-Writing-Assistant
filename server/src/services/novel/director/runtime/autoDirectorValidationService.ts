@@ -37,6 +37,12 @@ function normalizeChapterOrder(value: unknown): number | null {
 }
 
 function resolveScopeFromPlan(plan: DirectorAutoExecutionPlan | null | undefined): AutoDirectorAffectedScope {
+  if (!plan) {
+    return {
+      type: "book",
+      label: "全书",
+    };
+  }
   if (plan?.mode === "book") {
     return {
       type: "book",

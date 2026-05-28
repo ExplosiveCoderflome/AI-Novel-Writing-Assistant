@@ -97,15 +97,29 @@ test("updateVolumes syncs chapter execution after saving when requested", async 
   const currentWorkspace = createWorkspace(1);
   const nextWorkspace = createWorkspace(2);
   let syncCall = null;
+  let savedWorkspace = currentWorkspace;
 
-  service.ensureVolumeWorkspace = async () => currentWorkspace;
-  service.persistWorkspaceDocument = async (_novelId, document) => ({
-    ...document,
-    activeVersionId: "version-2",
-    source: "volume",
-  });
+  service.ensureVolumeWorkspace = async () => savedWorkspace;
+  service.persistWorkspaceDocument = async (_novelId, document) => {
+    savedWorkspace = {
+      ...document,
+      activeVersionId: "version-2",
+      source: "volume",
+    };
+    return savedWorkspace;
+  };
   service.syncVolumeChaptersWithOptions = async (_novelId, input, options) => {
     syncCall = { input, options };
+    savedWorkspace = {
+      ...savedWorkspace,
+      volumes: savedWorkspace.volumes.map((volume) => ({
+        ...volume,
+        chapters: volume.chapters.map((chapter, index) => ({
+          ...chapter,
+          chapterId: `chapter-row-${index + 1}`,
+        })),
+      })),
+    };
     return createSyncPreview();
   };
 
@@ -122,6 +136,7 @@ test("updateVolumes syncs chapter execution after saving when requested", async 
     assert.equal(syncCall.input.volumes[0].chapters.length, 2);
     assert.equal(syncCall.options.emitEvent, false);
     assert.equal(syncCall.options.syncPayoffLedger, false);
+    assert.equal(updated.volumes[0].chapters[0].chapterId, "chapter-row-1");
   } finally {
     service.ensureVolumeWorkspace = originals.ensureVolumeWorkspace;
     service.persistWorkspaceDocument = originals.persistWorkspaceDocument;

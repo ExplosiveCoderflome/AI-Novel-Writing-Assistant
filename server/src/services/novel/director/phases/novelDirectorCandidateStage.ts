@@ -80,6 +80,7 @@ function buildTargetedTitleBrief(input: {
   ]
     .filter(Boolean)
     .join("、");
+  const readerChannel = readerChannelPreferenceLabel(input.context.readerChannelPreference);
 
   return [
     `故事灵感：${input.idea.trim()}`,
@@ -92,6 +93,7 @@ function buildTargetedTitleBrief(input: {
     `推进循环：${input.candidate.progressionLoop}`,
     input.candidate.toneKeywords.length > 0 ? `气质关键词：${input.candidate.toneKeywords.join("、")}` : "",
     input.context.targetAudience?.trim() ? `目标读者：${input.context.targetAudience.trim()}` : "",
+    readerChannel ? `读者频道倾向：${readerChannel}` : "",
     input.context.competingFeel?.trim() ? `对标气质：${input.context.competingFeel.trim()}` : "",
     currentTitleGroup ? `当前标题组：${currentTitleGroup}` : "",
     `标题修正意见：${input.feedback.trim()}`,
@@ -99,6 +101,21 @@ function buildTargetedTitleBrief(input: {
     "优先响应用户要求的气质修正，比如更都市、更悬疑、更轻巧、更高级感或没那么土。",
     "不要重复当前这组标题，也不要回退成概念短语、口号名或老套模板名。",
   ].filter(Boolean).join("\n");
+}
+
+function readerChannelPreferenceLabel(value: DirectorProjectContextInput["readerChannelPreference"]): string {
+  switch (value) {
+    case "ai_judge":
+      return "AI 判断";
+    case "male_oriented":
+      return "男频向";
+    case "female_oriented":
+      return "女频向";
+    case "general":
+      return "泛读者 / 不限定";
+    default:
+      return "";
+  }
 }
 
 function findTargetBatch(previousBatches: DirectorCandidateBatch[], batchId: string): DirectorCandidateBatch {

@@ -242,6 +242,7 @@ export default function NovelEdit() {
     setSelectedChapterId,
     selectedVolumeId,
     setSelectedVolumeId,
+    workflowTaskId,
     taskPanelOpen,
     clearTaskPanelOpen,
   } = useNovelEditWorkflow(id);
@@ -1586,7 +1587,7 @@ export default function NovelEdit() {
       title: consistencyIssue === "missing_characters"
         ? `《${novelTitle}》导演产物未补齐角色准备`
         : consistencyIssue === "missing_chapters"
-          ? `《${novelTitle}》导演产物未同步到章节执行区`
+          ? `《${novelTitle}》导演产物未连接到章节执行区`
           : task.pendingManualRecovery
             ? `《${novelTitle}》等待从检查点恢复`
           : buildTakeoverTitle({
@@ -1859,7 +1860,10 @@ export default function NovelEdit() {
       return;
     }
     const targetVolume = normalizedVolumeDraft.find((volume) => (
-      volume.chapters.some((chapter) => chapter.id === activeStructuredOutlineChapterId)
+      volume.chapters.some((chapter) => (
+        chapter.id === activeStructuredOutlineChapterId
+        || chapter.chapterId === activeStructuredOutlineChapterId
+      ))
     ));
     if (!targetVolume) {
       return;
@@ -2274,6 +2278,7 @@ export default function NovelEdit() {
       worldOptions={worldListQuery.data?.data ?? []}
       triggerVariant={variant}
       defaultEntryStep={step}
+      workflowTaskId={directorTaskId || workflowTaskId}
     />
   );
 

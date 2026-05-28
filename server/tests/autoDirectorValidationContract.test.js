@@ -168,6 +168,36 @@ test("validateAutoDirectorTakeoverRequest blocks later nodes when book contract 
   assert.match(result.blockingReasons.join("\n"), /Book Contract|故事宏观规划/);
 });
 
+test("validateAutoDirectorTakeoverRequest treats takeover without execution plan as full-book scope", () => {
+  const result = validateAutoDirectorTakeoverRequest({
+    source: "takeover",
+    request: {
+      novelId: "novel-1",
+      entryStep: "story_macro",
+      strategy: "continue_existing",
+      runMode: "auto_to_ready",
+    },
+    assets: {
+      hasProjectSetup: true,
+      hasStoryMacroPlan: true,
+      hasBookContract: false,
+      characterCount: 5,
+      volumeCount: 1,
+      hasVolumeStrategyPlan: false,
+      hasStructuredOutline: false,
+      plannedChapterCount: 80,
+      totalChapterCount: 0,
+    },
+  });
+
+  assert.equal(result.allowed, true);
+  assert.deepEqual(result.affectedScope, {
+    type: "book",
+    label: "全书",
+  });
+  assert.deepEqual(result.blockingReasons, []);
+});
+
 test("validateAutoDirectorTakeoverRequest blocks chapter ranges not covered by real volume strategy", () => {
   const result = validateAutoDirectorTakeoverRequest({
     source: "takeover",

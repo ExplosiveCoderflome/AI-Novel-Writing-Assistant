@@ -53,6 +53,10 @@ function getWorkspaceGuidance(params: {
   return `当前展示本卷全部 ${totalChapterCount} 章。建议先点一个节奏段，让系统把对应章节收束出来，再开始细化。`;
 }
 
+function chapterMatchesSelection(chapter: StructuredChapter, selectedId: string): boolean {
+  return chapter.id === selectedId || chapter.chapterId === selectedId;
+}
+
 export default function StructuredOutlineWorkspace(props: StructuredTabViewProps) {
   const {
     novelId,
@@ -80,6 +84,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     onGenerateChapterDetailBundle,
     onGoToCharacterTab,
     volumes,
+    chapters: executionChapters,
     draftText,
     syncPreview,
     syncOptions,
@@ -156,8 +161,8 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   const visibleChapters = selectedBeat
     ? selectedVolumeChapters.filter((chapter) => chapterMatchesBeat(chapter, selectedBeat, selectedVolumeChapters))
     : selectedVolumeChapters;
-  const selectedChapter = visibleChapters.find((chapter) => chapter.id === selectedChapterId)
-    ?? selectedVolumeChapters.find((chapter) => chapter.id === selectedChapterId)
+  const selectedChapter = visibleChapters.find((chapter) => chapterMatchesSelection(chapter, selectedChapterId))
+    ?? selectedVolumeChapters.find((chapter) => chapterMatchesSelection(chapter, selectedChapterId))
     ?? visibleChapters[0]
     ?? selectedVolumeChapters[0]
     ?? null;
@@ -171,6 +176,10 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   const locked = !selectedBeatSheet;
   const refinedChapterCount = selectedVolumeChapters.filter((chapter) => hasChapterExecutionDetail(chapter)).length;
   const visibleRefinedChapterCount = visibleChapters.filter((chapter) => hasChapterExecutionDetail(chapter)).length;
+  const allPlannedChapters = volumes.flatMap((volume) => volume.chapters);
+  const linkedChapterCount = allPlannedChapters.filter((chapter) => Boolean(chapter.chapterId)).length;
+  const hasMissingChapterLinks = allPlannedChapters.length > 0 && linkedChapterCount < allPlannedChapters.length;
+  const executionChapterCount = executionChapters.length;
   const workspaceGuidance = getWorkspaceGuidance({
     locked,
     selectedBeat,
@@ -418,17 +427,20 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
               <CardHeader className="pb-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
-                    <CardTitle className="text-base">同步到章节执行</CardTitle>
-                    <div className="text-sm text-muted-foreground">批量设置、同步差异和 JSON 预览都收在这里，准备收尾时再展开。</div>
+                    <CardTitle className="text-base">章节执行连接</CardTitle>
+                    <div className="text-sm text-muted-foreground">系统会把拆好的章节连接到执行队列。只有需要检查连接状态时再展开。</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline">{syncPreview.items.length} 项差异</Badge>
+                    <Badge variant={hasMissingChapterLinks ? "outline" : "secondary"}>
+                      {linkedChapterCount}/{Math.max(allPlannedChapters.length, 1)} 已连接
+                    </Badge>
+                    <Badge variant="outline">执行区 {executionChapterCount} 章</Badge>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => patchWorkspace(workspaceId, { showSyncPanel: !showSyncPanel })}
                     >
-                      {showSyncPanel ? "收起同步工具" : "展开同步工具"}
+                      {showSyncPanel ? "收起诊断" : "查看连接"}
                     </Button>
                   </div>
                 </div>
@@ -452,7 +464,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                       <Button size="sm" variant="outline" onClick={() => onApplyBatch({ targetWordCount: 2500 })}>统一字数 2500</Button>
                       <AiButton size="sm" onClick={() => onApplyBatch({ generateTaskSheet: true })}>批量补任务单</AiButton>
                       <Button onClick={() => onApplySync(syncOptions)} disabled={isApplyingSync}>
-                        {isApplyingSync ? "同步中..." : "同步到章节执行"}
+                        {isApplyingSync ? "修复中..." : "修复章节连接"}
                       </Button>
                     </div>
 
@@ -461,7 +473,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                         variant="outline"
                         onClick={() => patchWorkspace(workspaceId, { showSyncPreview: !showSyncPreview })}
                       >
-                        {showSyncPreview ? "隐藏同步差异" : "查看同步差异"}
+                        {showSyncPreview ? "隐藏连接差异" : "查看连接差异"}
                       </Button>
                       <Button
                         variant="outline"
@@ -503,7 +515,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                   </>
                 ) : (
                   <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                    当前章节规划先以“选章 + 细化”为主。批量补任务单、同步差异和 JSON 预览默认收起，避免打断主流程。
+                    当前章节规划先以“选章 + 细化”为主。批量补任务单、连接差异和 JSON 预览默认收起，避免打断主流程。
                   </div>
                 )}
               </CardContent>

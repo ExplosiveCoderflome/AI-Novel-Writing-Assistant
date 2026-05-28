@@ -28,8 +28,24 @@ function takeUnique(items: Array<string | null | undefined>, limit = items.lengt
   return result;
 }
 
+function readerChannelPreferenceLabel(value: DirectorProjectContextInput["readerChannelPreference"]): string {
+  switch (value) {
+    case "ai_judge":
+      return "AI judgment";
+    case "male_oriented":
+      return "male-oriented";
+    case "female_oriented":
+      return "female-oriented";
+    case "general":
+      return "general / unrestricted";
+    default:
+      return "";
+  }
+}
+
 export function formatProjectContext(input: DirectorProjectContextInput): string {
   const styleSummaryLines = input.styleIntentSummary?.stageSummaryLines ?? [];
+  const readerChannel = readerChannelPreferenceLabel(input.readerChannelPreference);
   const lines = [
     input.title?.trim() ? `current title: ${input.title.trim()}` : "",
     input.description?.trim() ? `current description: ${input.description.trim()}` : "",
@@ -46,6 +62,7 @@ export function formatProjectContext(input: DirectorProjectContextInput): string
     input.worldId?.trim() ? `world id: ${input.worldId.trim()}` : "",
     input.writingMode ? `writing mode: ${input.writingMode}` : "",
     input.projectMode ? `project mode: ${input.projectMode}` : "",
+    readerChannel ? `reader channel tendency: ${readerChannel}` : "",
     input.narrativePov ? `narrative pov: ${input.narrativePov}` : "",
     input.pacePreference ? `pace: ${input.pacePreference}` : "",
     input.styleTone?.trim() && !input.styleProfileId?.trim() ? `style tone: ${input.styleTone.trim()}` : "",

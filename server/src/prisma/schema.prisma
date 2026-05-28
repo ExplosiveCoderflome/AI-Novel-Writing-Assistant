@@ -501,6 +501,7 @@ model Chapter {
   lastTouchedCharacterResources CharacterResourceLedgerItem[] @relation("CharacterResourceLastTouchedChapter")
   characterResourceEvents CharacterResourceEvent[]
   artifactSyncCheckpoints ChapterArtifactSyncCheckpoint[]
+  volumeChapterPlans VolumeChapterPlan[]
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
 
@@ -1608,6 +1609,7 @@ model VolumePlan {
 model VolumeChapterPlan {
   id              String     @id @default(cuid())
   volumeId        String
+  chapterId       String?
   chapterOrder    Int
   title           String
   summary         String
@@ -1620,11 +1622,13 @@ model VolumeChapterPlan {
   sceneCards      String?
   payoffRefsJson  String?
   volume          VolumePlan @relation(fields: [volumeId], references: [id], onDelete: Cascade)
+  chapter         Chapter?   @relation(fields: [chapterId], references: [id], onDelete: SetNull)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
   @@unique([volumeId, chapterOrder])
   @@index([volumeId, chapterOrder])
+  @@index([chapterId])
 }
 
 model QualityReport {

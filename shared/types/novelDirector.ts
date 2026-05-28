@@ -550,6 +550,7 @@ export interface DirectorProjectContextInput {
   worldId?: string;
   writingMode?: "original" | "continuation";
   projectMode?: ProjectMode;
+  readerChannelPreference?: "ai_judge" | "male_oriented" | "female_oriented" | "general";
   narrativePov?: NarrativePov;
   pacePreference?: PacePreference;
   styleTone?: string;
@@ -573,6 +574,24 @@ export interface DirectorProjectContextInput {
 export interface DirectorCandidatesRequest extends DirectorProjectContextInput, DirectorLLMOptions {
   idea: string;
   workflowTaskId?: string;
+}
+
+export interface DirectorIdeaInspirationRequest extends DirectorProjectContextInput, DirectorLLMOptions {
+  currentIdea?: string;
+  genreLabel?: string;
+  primaryStoryModeLabel?: string;
+  secondaryStoryModeLabel?: string;
+  worldName?: string;
+}
+
+export interface DirectorIdeaInspiration {
+  angle: string;
+  text: string;
+  tags: string[];
+}
+
+export interface DirectorIdeaInspirationsResponse {
+  ideas: DirectorIdeaInspiration[];
 }
 
 export interface DirectorRefinementRequest extends DirectorProjectContextInput, DirectorLLMOptions {

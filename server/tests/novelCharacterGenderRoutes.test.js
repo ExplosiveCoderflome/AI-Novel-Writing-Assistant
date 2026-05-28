@@ -188,3 +188,56 @@ test("character routes accept and return gender fields", async () => {
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
   }
 });
+
+test("character cast apply route runs post-apply enhancements in background mode", async () => {
+  const originalApplyCharacterCastOption = DefaultNovelApplicationServices.prototype.applyCharacterCastOption;
+  let capturedApplyArgs = null;
+
+  DefaultNovelApplicationServices.prototype.applyCharacterCastOption = async function applyCharacterCastOptionMock(...args) {
+    capturedApplyArgs = args;
+    return {
+      optionId: args[1],
+      createdCount: 2,
+      updatedCount: 0,
+      relationCount: 1,
+      characterIds: ["char_1", "char_2"],
+      primaryCharacterId: "char_1",
+      qualityOverrideApplied: false,
+      qualityWarnings: [],
+    };
+  };
+
+  const app = createApp();
+  const server = http.createServer(app);
+  const port = await listen(server);
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/novels/novel_cast/character-prep/cast-options/option_1/apply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: "deepseek",
+        model: "deepseek-chat",
+        temperature: 0.45,
+      }),
+    });
+
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(payload.data.optionId, "option_1");
+    assert.equal(capturedApplyArgs?.[0], "novel_cast");
+    assert.equal(capturedApplyArgs?.[1], "option_1");
+    assert.deepEqual(capturedApplyArgs?.[2], {
+      overrideQualityGate: undefined,
+      postApplyMode: "background",
+      visibleProfileGeneration: {
+        provider: "deepseek",
+        model: "deepseek-chat",
+        temperature: 0.45,
+      },
+    });
+  } finally {
+    DefaultNovelApplicationServices.prototype.applyCharacterCastOption = originalApplyCharacterCastOption;
+    await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+});

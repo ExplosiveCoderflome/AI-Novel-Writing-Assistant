@@ -175,6 +175,106 @@ test("buildVolumeSyncPlan clears content on moved generated chapters when preser
   assert.equal(plan.deletes[0].chapterId, "chapter-2");
 });
 
+test("buildVolumeSyncPlan prefers explicit chapterId links over title matches", () => {
+  const volumes = createVolume([
+    {
+      id: "volume-chapter-linked",
+      volumeId: "volume-1",
+      chapterId: "chapter-2",
+      chapterOrder: 1,
+      title: "相同标题",
+      summary: "绑定章节的新摘要",
+      purpose: "沿用绑定章节",
+      conflictLevel: null,
+      revealLevel: null,
+      targetWordCount: 2800,
+      mustAvoid: null,
+      taskSheet: null,
+      payoffRefs: [],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    },
+  ]);
+  const existingChapters = [
+    {
+      id: "chapter-1",
+      order: 1,
+      title: "相同标题",
+      content: "",
+      expectation: "同名但不是绑定章节",
+      targetWordCount: null,
+      conflictLevel: null,
+      revealLevel: null,
+      mustAvoid: null,
+      taskSheet: null,
+    },
+    {
+      id: "chapter-2",
+      order: 2,
+      title: "绑定章节",
+      content: "",
+      expectation: "旧摘要",
+      targetWordCount: null,
+      conflictLevel: null,
+      revealLevel: null,
+      mustAvoid: null,
+      taskSheet: null,
+    },
+  ];
+
+  const plan = buildVolumeSyncPlan(volumes, existingChapters, {
+    preserveContent: true,
+    applyDeletes: false,
+  });
+
+  assert.equal(plan.preview.moveCount, 1);
+  assert.equal(plan.updates[0].chapterId, "chapter-2");
+  assert.deepEqual(plan.links, [{ volumeChapterId: "volume-chapter-linked", chapterId: "chapter-2" }]);
+  assert.equal(plan.preview.deleteCandidateCount, 1);
+});
+
+test("buildVolumeSyncPlan only falls back to order when chapterId is missing", () => {
+  const volumes = createVolume([
+    {
+      id: "volume-chapter-legacy",
+      volumeId: "volume-1",
+      chapterOrder: 1,
+      title: "旧项目章节",
+      summary: "补链摘要",
+      purpose: "兼容旧项目",
+      conflictLevel: null,
+      revealLevel: null,
+      targetWordCount: null,
+      mustAvoid: null,
+      taskSheet: null,
+      payoffRefs: [],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    },
+  ]);
+  const existingChapters = [{
+    id: "chapter-legacy",
+    order: 1,
+    title: "旧项目章节",
+    content: "",
+    expectation: "旧摘要",
+    targetWordCount: null,
+    conflictLevel: null,
+    revealLevel: null,
+    mustAvoid: null,
+    taskSheet: null,
+  }];
+
+  const plan = buildVolumeSyncPlan(volumes, existingChapters, {
+    preserveContent: true,
+    applyDeletes: false,
+  });
+
+  assert.equal(plan.preview.updateCount, 1);
+  assert.equal(plan.updates[0].chapterId, "chapter-legacy");
+  assert.deepEqual(plan.links, [{ volumeChapterId: "volume-chapter-legacy", chapterId: "chapter-legacy" }]);
+});
+
 test("buildTaskSheetFromVolumeChapter backfills stable chapter task sheets from volume planning fields", () => {
   const taskSheet = buildTaskSheetFromVolumeChapter({
     id: "volume-chapter-1",
