@@ -31,35 +31,36 @@ export default function NovelAutoDirectorIdeaInspirationPanel({
         </Button>
       </div>
       {ideas.length > 0 ? (
-        <div className="mt-3 grid gap-2">
+        <div className="mt-3 flex min-w-0 gap-2 overflow-x-auto pb-1">
           {ideas.map((idea) => (
-            <div key={`${idea.angle}-${idea.text}`} className="rounded-lg border bg-background/80 p-3">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <div className={`text-sm leading-6 text-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                    {idea.text}
-                  </div>
-                  {idea.tags.length > 0 ? (
-                    <div className="mt-2 flex min-w-0 flex-wrap gap-1.5">
-                      {idea.tags.map((tag) => (
-                        <span key={tag} className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
+            <div
+              key={`${idea.angle}-${idea.text}`}
+              className="flex min-h-[188px] min-w-[220px] flex-1 basis-0 flex-col justify-between rounded-lg border bg-background/80 p-3 lg:min-w-0"
+            >
+              <div className="min-w-0">
+                <div className={`text-sm leading-6 text-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                  {idea.text}
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="shrink-0"
-                  onClick={() => onUseIdea(idea.text)}
-                >
-                  <Check className="h-4 w-4" />
-                  使用这个
-                </Button>
+                {idea.tags.length > 0 ? (
+                  <div className="mt-2 flex min-w-0 flex-wrap gap-1.5">
+                    {idea.tags.map((tag) => (
+                      <span key={tag} className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="mt-3 w-full justify-center"
+                onClick={() => onUseIdea(idea.text)}
+              >
+                <Check className="h-4 w-4" />
+                使用这个
+              </Button>
             </div>
           ))}
         </div>
