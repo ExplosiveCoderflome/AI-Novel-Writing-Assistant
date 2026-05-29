@@ -8,6 +8,7 @@ import type {
   DirectorDisplayState,
   DirectorRuntimeProjection,
   DirectorTaskFactSummary,
+  DirectorWorkerHealthSummary,
 } from "@ai-novel/shared/types/directorRuntime";
 
 type DashboardTaskLike = {
@@ -52,23 +53,29 @@ function hasLiveRunningEvidence(input: {
   projection: DirectorRuntimeProjection | null;
   activeStep?: DashboardStepLike;
   latestCommand?: DashboardCommandLike;
+  workerHealth?: DirectorWorkerHealthSummary | null;
 }): boolean {
-  if (input.task.status !== "running") {
-    return false;
-  }
+  const workerState = input.workerHealth?.derivedState ?? null;
   const commandStatus = input.latestCommand?.status ?? null;
   const activeStepStatus = input.activeStep?.status ?? null;
   return Boolean(
-    input.task.currentItemLabel?.trim()
-    || input.task.currentItemKey?.trim()
-    || input.task.currentStage?.trim()
-    || input.projection?.status === "running"
-    || input.projection?.currentLabel?.trim()
-    || input.projection?.lastEventSummary?.trim()
-    || activeStepStatus === "running"
-    || commandStatus === "leased"
-    || commandStatus === "running"
-    || commandStatus === "queued",
+    workerState === "running_step"
+    || workerState === "leased_starting"
+    || (
+      input.task.status === "running"
+      && (
+        input.task.currentItemLabel?.trim()
+        || input.task.currentItemKey?.trim()
+        || input.task.currentStage?.trim()
+        || input.projection?.status === "running"
+        || input.projection?.currentLabel?.trim()
+        || input.projection?.lastEventSummary?.trim()
+        || activeStepStatus === "running"
+        || commandStatus === "leased"
+        || commandStatus === "running"
+        || commandStatus === "queued"
+      )
+    ),
   );
 }
 
@@ -82,14 +89,26 @@ function buildMode(input: {
   displayState: DirectorDisplayState;
   activeStep?: DashboardStepLike;
   latestCommand?: DashboardCommandLike;
+  workerHealth?: DirectorWorkerHealthSummary | null;
   factSummary?: DirectorTaskFactSummary | null;
 }): DirectorDashboardMode {
   const liveRunning = hasLiveRunningEvidence(input);
+  const workerState = input.workerHealth?.derivedState ?? null;
   if (input.task.status === "failed" || input.task.status === "cancelled") {
     return "failed";
   }
-  if (input.projection?.status === "failed" && !liveRunning) {
-    return "failed";
+  if (workerState === "queued_waiting_worker") {
+    return "queued";
+  }
+  if (workerState === "auto_recovering" && !liveRunning) {
+    return "recovering";
+  }
+  if (
+    input.task.pendingManualRecovery
+    && workerState !== "running_step"
+    && workerState !== "leased_starting"
+  ) {
+    return "recovering";
   }
   if (input.task.pendingManualRecovery && !liveRunning) {
     return "recovering";
@@ -100,8 +119,20 @@ function buildMode(input: {
   if (liveRunning || input.task.status === "running") {
     return "running";
   }
-  if (input.task.status === "queued" || input.latestCommand?.status === "queued") {
+  if (
+    input.task.status === "queued"
+    || input.latestCommand?.status === "queued"
+  ) {
     return "queued";
+  }
+  if (
+    input.projection?.status === "failed"
+    && !liveRunning
+    && input.task.status !== "queued"
+    && input.task.status !== "running"
+    && input.task.status !== "waiting_approval"
+  ) {
+    return "failed";
   }
   if (
     input.task.status === "succeeded"
@@ -215,6 +246,15 @@ function buildCurrentAction(input: {
   projection: DirectorRuntimeProjection | null;
   displayState: DirectorDisplayState;
 }): string | null {
+  const staleActionProjection = Boolean(
+    input.mode === "running"
+    && (
+      input.projection?.requiresUserAction
+      || input.projection?.status === "blocked"
+      || input.projection?.status === "waiting_approval"
+      || input.projection?.status === "failed"
+    ),
+  );
   if (input.mode === "recovering") {
     return input.task.lastError?.trim()
       || input.projection?.blockingReason?.trim()
@@ -222,8 +262,8 @@ function buildCurrentAction(input: {
       || "系统会从最近进度继续恢复。";
   }
   if (input.mode === "running") {
-    return input.task.currentItemLabel?.trim()
-      || input.projection?.currentLabel?.trim()
+    return (staleActionProjection ? null : input.projection?.currentLabel?.trim())
+      || input.task.currentItemLabel?.trim()
       || input.projection?.currentAction?.trim()
       || input.displayState.currentAction
       || null;
@@ -336,6 +376,7 @@ export function buildDirectorDashboardView(input: {
   chapterProgress?: DirectorChapterExecutionProgressSummary | null;
   activeStep?: DashboardStepLike;
   latestCommand?: DashboardCommandLike;
+  workerHealth?: DirectorWorkerHealthSummary | null;
 }): DirectorDashboardView {
   const mode = buildMode(input);
   const progress = buildProgress({

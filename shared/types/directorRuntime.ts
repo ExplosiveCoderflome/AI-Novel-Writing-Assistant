@@ -813,6 +813,7 @@ export interface DirectorBookAutomationProjection {
   autoApprovalRecordCount: number;
   latestEventAt?: string | null;
   updatedAt: string;
+  dashboardView?: DirectorDashboardView | null;
   runtimeProjection?: DirectorRuntimeProjection | null;
   timeline: DirectorBookAutomationTimelineItem[];
 }

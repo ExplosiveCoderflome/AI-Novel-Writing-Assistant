@@ -20,7 +20,7 @@ import NovelEditView from "./components/NovelEditView";
 import type { LLMSelectorValue } from "@/components/common/LLMSelector";
 import { getBaseCharacterList } from "@/api/character";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
-import { getDirectorBookAutomationProjection, getDirectorRuntimeSnapshot, getDirectorTaskSnapshot } from "@/api/novelDirector";
+import { getDirectorBookAutomationProjection, getDirectorTaskSnapshot } from "@/api/novelDirector";
 import { continueNovelWorkflow, getActiveAutoDirectorTask } from "@/api/novelWorkflow";
 import { archiveTask, cancelTask, getTaskDetail, retryTask } from "@/api/tasks";
 import { executeAutoDirectorFollowUpAction, getAutoDirectorFollowUpDetail } from "@/api/autoDirectorFollowUps";
@@ -769,25 +769,17 @@ export default function NovelEdit() {
     () => resolveActiveStructuredOutlineChapterId(activeDirectorSnapshot),
     [activeDirectorSnapshot],
   );
-  const activeDirectorRuntimeQuery = useQuery({
-    queryKey: queryKeys.tasks.directorRuntime(selectedDirectorTaskId || "none"),
-    queryFn: () => getDirectorRuntimeSnapshot(selectedDirectorTaskId),
-    enabled: Boolean(selectedDirectorTaskId),
-    retry: false,
-    refetchInterval: () => (
-      displayAutoDirectorTask && (
-        displayAutoDirectorTask.status === "queued"
-        || displayAutoDirectorTask.status === "running"
-        || displayAutoDirectorTask.status === "waiting_approval"
-      )
-        ? 4000
-        : false
-    ),
-  });
-  const activeDirectorRuntimeSnapshot = activeDirectorRuntimeQuery.data?.data?.snapshot ?? null;
-  const activeDirectorRuntimeProjection = activeDirectorRuntimeQuery.data?.data?.projection ?? null;
-  const activeDirectorRuntimeHardBlocked = activeDirectorRuntimeProjection?.status === "blocked";
-  const activeDirectorRuntimeBlockedReason = activeDirectorRuntimeProjection?.blockedReason?.trim()
+  const activeDirectorRuntimeSnapshot = activeDirectorSnapshot?.runtime ?? null;
+  const activeDirectorRuntimeProjection = activeDirectorSnapshot?.projection ?? null;
+  const activeDirectorDashboardView = activeDirectorSnapshot?.dashboardView ?? null;
+  const activeDirectorRuntimeHardBlocked = activeDirectorDashboardView?.mode === "failed"
+    || activeDirectorDashboardView?.mode === "recovering"
+    || (
+      activeDirectorDashboardView?.mode !== "running"
+      && activeDirectorRuntimeProjection?.status === "blocked"
+    );
+  const activeDirectorRuntimeBlockedReason = activeDirectorDashboardView?.userActionReason?.trim()
+    || activeDirectorRuntimeProjection?.blockedReason?.trim()
     || activeDirectorRuntimeProjection?.detail?.trim()
     || null;
   const activeAutoDirectorFollowUpQuery = useQuery({

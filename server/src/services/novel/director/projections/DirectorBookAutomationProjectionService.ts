@@ -2,6 +2,7 @@ import type {
   DirectorBookAutomationProjection,
   DirectorBookAutomationStatus,
   DirectorBookAutomationTimelineItem,
+  DirectorDashboardMode,
   DirectorPolicyMode,
   DirectorRuntimeProjection,
   DirectorWorkerHealthSummary,
@@ -28,11 +29,12 @@ import {
   extractRunMode,
   mapStepForUsage,
   parseJsonOrNull,
-  runtimeStatusToBookStatus,
   timestampOf,
   toIso,
   workflowStatusToBookStatus,
 } from "./DirectorBookAutomationProjectionModel";
+import { buildDirectorDashboardView } from "./DirectorDashboardViewBuilder";
+import { buildDirectorDisplayState } from "./DirectorDisplayStateBuilder";
 
 type RuntimeProjectionLoader = (taskId: string) => Promise<DirectorRuntimeProjection | null>;
 
@@ -188,6 +190,25 @@ function resolveWorkerCurrentLabel(workerHealth: DirectorWorkerHealthSummary): s
   return null;
 }
 
+function dashboardModeToBookStatus(mode: DirectorDashboardMode): DirectorBookAutomationStatus {
+  switch (mode) {
+    case "queued":
+      return "queued";
+    case "running":
+      return "running";
+    case "waiting_user":
+      return "waiting_approval";
+    case "recovering":
+      return "waiting_recovery";
+    case "failed":
+      return "failed";
+    case "completed":
+      return "completed";
+    default:
+      return "idle";
+  }
+}
+
 export class DirectorBookAutomationProjectionService {
   constructor(
     private readonly runtimeProjectionLoader: RuntimeProjectionLoader = loadPersistentDirectorRuntimeProjection,
@@ -337,55 +358,65 @@ export class DirectorBookAutomationProjectionService {
     const taskStatus = latestTask?.pendingManualRecovery
       ? "waiting_recovery"
       : workflowStatusToBookStatus(latestTask?.status);
-    const runtimeStatus = runtimeProjection ? runtimeStatusToBookStatus(runtimeProjection.status) : "idle";
-    const isLiveWorkflowTask = taskStatus === "queued" || taskStatus === "running" || taskStatus === "waiting_approval";
-    const hasTerminalWorkflowTask = taskStatus === "failed" || taskStatus === "cancelled" || taskStatus === "completed";
-    const shouldIgnoreRuntimeProjectionForLiveTask = isLiveWorkflowTask && (
-      runtimeStatus === "completed"
-      || runtimeStatus === "failed"
-      || runtimeStatus === "blocked"
-      || runtimeStatus === "cancelled"
-      || runtimeStatus === "waiting_approval"
-      || runtimeStatus === "waiting_recovery"
-    );
-    const shouldIgnoreRuntimeProjectionForTerminalTask = hasTerminalWorkflowTask && (
-      runtimeStatus === "queued"
-      || runtimeStatus === "running"
-      || runtimeStatus === "waiting_approval"
-      || runtimeStatus === "waiting_recovery"
-    );
-    const effectiveRuntimeStatus = shouldIgnoreRuntimeProjectionForLiveTask
-      || shouldIgnoreRuntimeProjectionForTerminalTask
-      ? "idle"
-      : runtimeStatus;
-    const displayRuntimeProjection = shouldIgnoreRuntimeProjectionForLiveTask
-      || shouldIgnoreRuntimeProjectionForTerminalTask
-      ? null
-      : runtimeProjection;
-    const status: DirectorBookAutomationStatus = activeCommandCount > 0
-      ? "running"
-      : pendingCommandCount > 0
-        ? "queued"
-        : taskStatus === "waiting_recovery"
-          ? "waiting_recovery"
-          : taskStatus === "cancelled"
-            ? "cancelled"
-            : effectiveRuntimeStatus !== "idle"
-              ? effectiveRuntimeStatus
-              : taskStatus;
     const workerHealth = buildWorkerHealth({
       commands,
-      status,
+      status: taskStatus,
       now: new Date(),
     });
+    const activeStep = steps.find((step) =>
+      step.status === "running" || step.status === "waiting_approval" || step.status === "failed",
+    ) ?? steps[0] ?? null;
+    const latestCommand = commands.find((command) =>
+      command.status === "running" || command.status === "leased" || command.status === "queued",
+    ) ?? commands[0] ?? null;
+    const dashboardDisplayState = latestTask
+      ? buildDirectorDisplayState({
+        task: latestTask,
+        projection: runtimeProjection,
+        factSummary: null,
+        activeStepNodeKey: activeStep?.nodeKey ?? null,
+        currentFactStepId: runtimeProjection?.currentFactStepId ?? null,
+        currentFactStepLabel: runtimeProjection?.currentFactStepLabel ?? null,
+        factStep: null,
+        chapterProgress: null,
+      })
+      : null;
+    const dashboardView = latestTask && dashboardDisplayState
+      ? buildDirectorDashboardView({
+        task: latestTask,
+        projection: runtimeProjection,
+        displayState: dashboardDisplayState,
+        factSummary: null,
+        chapterProgress: null,
+        activeStep,
+        latestCommand,
+        workerHealth,
+      })
+      : null;
+    const status: DirectorBookAutomationStatus = latestTask?.status === "cancelled"
+      ? "cancelled"
+      : dashboardView
+        ? dashboardModeToBookStatus(dashboardView.mode)
+        : taskStatus;
+    const staleRuntimeProjection = Boolean(
+      (dashboardView?.mode === "running" || dashboardView?.mode === "queued" || dashboardView?.mode === "waiting_user")
+      && (
+        runtimeProjection?.requiresUserAction
+        || runtimeProjection?.status === "blocked"
+        || runtimeProjection?.status === "failed"
+        || (dashboardView.mode === "running" && runtimeProjection?.status === "waiting_approval")
+      ),
+    );
+    const displayRuntimeProjection = staleRuntimeProjection ? null : runtimeProjection;
     const workerCurrentLabel = resolveWorkerCurrentLabel(workerHealth);
     const displayState = buildDisplayState(status);
-    const requiresUserAction = circuitBreaker?.status === "open"
-      || status === "waiting_approval"
+    const requiresUserAction = Boolean(circuitBreaker?.status === "open" || dashboardView?.requiresUserAction)
       || status === "waiting_recovery"
       || status === "blocked"
       || status === "failed";
-    const blockedReason = status === "waiting_recovery"
+    const blockedReason = dashboardView?.requiresUserAction
+      ? dashboardView.userActionReason ?? latestTask?.checkpointSummary ?? null
+      : status === "waiting_recovery"
       ? latestTask?.lastError ?? displayRuntimeProjection?.blockedReason ?? null
       : status === "failed"
         ? latestTask?.lastError ?? displayRuntimeProjection?.blockedReason ?? displayRuntimeProjection?.detail ?? null
@@ -396,7 +427,7 @@ export class DirectorBookAutomationProjectionService {
       ? workerHealth.message
       : baseDetail;
     const userHeadline = buildUserHeadline({ status, task: latestTask });
-    const userReason = buildUserReason({
+    const userReason = dashboardView?.userActionReason ?? buildUserReason({
       status,
       runtimeProjection: displayRuntimeProjection,
       task: latestTask,
@@ -540,8 +571,10 @@ export class DirectorBookAutomationProjectionService {
       userHeadline,
       detail,
       userReason,
-      currentStage: latestTask?.currentStage ?? runtimeProjection?.currentNodeKey ?? null,
-      currentLabel: runtimeProjection?.currentLabel ?? workerCurrentLabel ?? latestTask?.currentItemLabel ?? null,
+      currentStage: dashboardView?.stageKey ?? latestTask?.currentStage ?? runtimeProjection?.currentNodeKey ?? null,
+      currentLabel: status === "queued"
+        ? workerCurrentLabel ?? dashboardView?.currentAction ?? runtimeProjection?.currentLabel ?? latestTask?.currentItemLabel ?? null
+        : dashboardView?.currentAction ?? runtimeProjection?.currentLabel ?? workerCurrentLabel ?? latestTask?.currentItemLabel ?? null,
       requiresUserAction,
       blockedReason,
       nextActionLabel: displayRuntimeProjection?.nextActionLabel ?? null,
@@ -570,6 +603,7 @@ export class DirectorBookAutomationProjectionService {
       autoApprovalRecordCount,
       latestEventAt: events[0] ? toIso(events[0].occurredAt) : null,
       updatedAt,
+      dashboardView,
       runtimeProjection,
       timeline,
     };

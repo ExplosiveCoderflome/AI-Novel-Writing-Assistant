@@ -1,3 +1,4 @@
+import type { DirectorDashboardView } from "@ai-novel/shared/types/directorRuntime";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,13 +15,21 @@ interface TaskCenterDetailSummaryProps {
   task: UnifiedTaskDetail;
   isAutoDirectorTask: boolean;
   currentModelLabel: string;
+  dashboardView?: DirectorDashboardView | null;
 }
 
 export default function TaskCenterDetailSummary({
   task,
   isAutoDirectorTask,
   currentModelLabel,
+  dashboardView,
 }: TaskCenterDetailSummaryProps) {
+  const progressPercent = typeof dashboardView?.progressPercent === "number"
+    ? dashboardView.progressPercent
+    : Math.round(task.progress * 100);
+  const currentStage = dashboardView?.stageLabel ?? task.currentStage ?? "暂无";
+  const currentItem = dashboardView?.currentAction ?? task.currentItemLabel ?? "暂无";
+
   return (
     <>
       <div className="space-y-1">
@@ -31,12 +40,12 @@ export default function TaskCenterDetailSummary({
       </div>
       <div className="flex flex-wrap gap-2">
         <Badge variant={toStatusVariant(task.status)}>{formatStatus(task.status)}</Badge>
-        <Badge variant="outline">进度 {Math.round(task.progress * 100)}%</Badge>
+        <Badge variant="outline">进度 {progressPercent}%</Badge>
       </div>
       <div className="space-y-1 text-muted-foreground">
-        <div>展示状态：{task.displayStatus ?? formatStatus(task.status)}</div>
-        <div>当前阶段：{task.currentStage ?? "暂无"}</div>
-        <div>当前项：{task.currentItemLabel ?? "暂无"}</div>
+        <div>展示状态：{dashboardView?.statusLabel ?? task.displayStatus ?? formatStatus(task.status)}</div>
+        <div>当前阶段：{currentStage}</div>
+        <div>当前项：{currentItem}</div>
         {task.kind === "novel_workflow" ? (
           <>
             <div>最近检查点：{formatCheckpoint(task.checkpointType, task.executionScopeLabel)}</div>

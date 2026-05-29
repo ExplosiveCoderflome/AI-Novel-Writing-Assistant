@@ -86,25 +86,6 @@ export function workflowStatusToBookStatus(status: string | null | undefined): D
   return "idle";
 }
 
-export function runtimeStatusToBookStatus(status: DirectorRuntimeProjection["status"]): DirectorBookAutomationStatus {
-  if (status === "waiting_approval") {
-    return "waiting_approval";
-  }
-  if (status === "blocked") {
-    return "blocked";
-  }
-  if (status === "failed") {
-    return "failed";
-  }
-  if (status === "running") {
-    return "running";
-  }
-  if (status === "completed") {
-    return "completed";
-  }
-  return "idle";
-}
-
 export function extractRunMode(seedPayloadJson: string | null | undefined): string | null {
   const seedPayload = parseJsonOrNull<Record<string, unknown>>(seedPayloadJson);
   if (!seedPayload) {
