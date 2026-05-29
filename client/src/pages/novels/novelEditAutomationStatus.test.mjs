@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildDisplayAutoDirectorTask,
   canArchiveCompletedAutoDirectorTask,
+  resolveTakeoverDialogContextTaskId,
   resolveTakeoverModeFromAutomation,
   shouldPreserveRequestedDirectorTaskId,
   shouldAutofocusProjectedDirectorTask,
@@ -76,6 +77,53 @@ test("live projections still auto-focus the active director task", () => {
       status: "waiting_approval",
     }),
     true,
+  );
+});
+
+test("takeover dialog context ignores manual workspace task ids", () => {
+  assert.equal(
+    resolveTakeoverDialogContextTaskId({
+      directorTaskId: "",
+      activeAutoDirectorTask: null,
+      projection: {
+        latestTask: { id: "task-completed", status: "succeeded" },
+        status: "completed",
+      },
+    }),
+    "",
+  );
+  assert.equal(
+    resolveTakeoverDialogContextTaskId({
+      directorTaskId: "task-pinned",
+      activeAutoDirectorTask: { id: "task-active" },
+      projection: {
+        latestTask: { id: "task-live", status: "running" },
+        status: "running",
+      },
+    }),
+    "task-pinned",
+  );
+  assert.equal(
+    resolveTakeoverDialogContextTaskId({
+      directorTaskId: "",
+      activeAutoDirectorTask: { id: "task-active" },
+      projection: {
+        latestTask: { id: "task-live", status: "running" },
+        status: "running",
+      },
+    }),
+    "task-active",
+  );
+  assert.equal(
+    resolveTakeoverDialogContextTaskId({
+      directorTaskId: "",
+      activeAutoDirectorTask: null,
+      projection: {
+        latestTask: { id: "task-live", status: "running" },
+        status: "running",
+      },
+    }),
+    "task-live",
   );
 });
 

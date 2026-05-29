@@ -96,6 +96,7 @@ import {
 import {
   buildDisplayAutoDirectorTask,
   canArchiveCompletedAutoDirectorTask,
+  resolveTakeoverDialogContextTaskId,
   resolveAutomationActionText,
   resolveTakeoverModeFromAutomation,
   shouldPreserveRequestedDirectorTaskId,
@@ -1585,7 +1586,7 @@ export default function NovelEdit() {
       });
     } else if (task.status === "waiting_approval") {
       actions.push({
-        label: "完成并收起",
+        label: "收起此提醒",
         onClick: dismissTakeover,
         variant: "secondary",
       });
@@ -2288,18 +2289,26 @@ export default function NovelEdit() {
   const renderTakeoverEntry = (
     step: "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline",
     variant: "default" | "outline" | "secondary" = "default",
-  ) => (
-    <NovelExistingProjectTakeoverDialog
-      novelId={id}
-      basicForm={basicForm}
-      genreOptions={genreOptions}
-      storyModeOptions={storyModeOptions}
-      worldOptions={worldListQuery.data?.data ?? []}
-      triggerVariant={variant}
-      defaultEntryStep={step}
-      workflowTaskId={directorTaskId || workflowTaskId}
-    />
-  );
+  ) => {
+    const takeoverContextTaskId = resolveTakeoverDialogContextTaskId({
+      directorTaskId,
+      activeAutoDirectorTask,
+      projection: bookAutomationProjection,
+    });
+
+    return (
+      <NovelExistingProjectTakeoverDialog
+        novelId={id}
+        basicForm={basicForm}
+        genreOptions={genreOptions}
+        storyModeOptions={storyModeOptions}
+        worldOptions={worldListQuery.data?.data ?? []}
+        triggerVariant={variant}
+        defaultEntryStep={step}
+        workflowTaskId={takeoverContextTaskId}
+      />
+    );
+  };
 
   const { basicTab, outlineTab, structuredTab } = buildNovelEditPlanningTabs({
     id,

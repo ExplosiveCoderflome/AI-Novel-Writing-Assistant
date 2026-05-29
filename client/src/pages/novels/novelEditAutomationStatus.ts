@@ -84,6 +84,25 @@ export function shouldAutofocusProjectedDirectorTask(
     || projection.status === "blocked";
 }
 
+export function resolveTakeoverDialogContextTaskId(input: {
+  directorTaskId?: string | null;
+  activeAutoDirectorTask?: Pick<UnifiedTaskDetail, "id"> | null;
+  projection?: DirectorBookAutomationProjection | null;
+}): string {
+  const pinnedDirectorTaskId = input.directorTaskId?.trim() || "";
+  if (pinnedDirectorTaskId) {
+    return pinnedDirectorTaskId;
+  }
+  const activeTaskId = input.activeAutoDirectorTask?.id?.trim() || "";
+  if (activeTaskId) {
+    return activeTaskId;
+  }
+  if (shouldAutofocusProjectedDirectorTask(input.projection)) {
+    return input.projection?.latestTask?.id?.trim() || "";
+  }
+  return "";
+}
+
 export function buildDisplayAutoDirectorTask(
   task: UnifiedTaskDetail | null,
   projection: DirectorBookAutomationProjection | null | undefined,

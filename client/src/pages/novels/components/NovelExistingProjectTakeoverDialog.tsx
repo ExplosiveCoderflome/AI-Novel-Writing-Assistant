@@ -223,7 +223,13 @@ export default function NovelExistingProjectTakeoverDialog({
   const selectedEntry = readiness?.entrySteps.find((item) => item.step === effectiveEntryStep) ?? null;
   const selectedPreview = findTakeoverPreview(readiness, effectiveEntryStep, selectedStrategy);
   const selectedEntryAllowedForScope = isTakeoverEntryStepAllowedForScope(effectiveEntryStep, selectedScopeMode);
-  const takeoverGuidance = buildTakeoverGuidance(readiness, effectiveEntryStep, selectedStrategy, effectiveRunMode, contextTaskSnapshot);
+  const takeoverGuidance = buildTakeoverGuidance(
+    readiness,
+    effectiveEntryStep,
+    selectedStrategy,
+    effectiveRunMode,
+    contextTaskIsContinuable ? contextTaskSnapshot : null,
+  );
   const progressInspection = buildTakeoverProgressInspection(readiness, contextTaskSnapshot);
   const readinessErrorMessage = readinessQuery.isError
     ? readinessQuery.error instanceof Error ? readinessQuery.error.message : "读取接管状态失败。"
@@ -231,7 +237,7 @@ export default function NovelExistingProjectTakeoverDialog({
 
   const enterCurrentTask = () => {
     setOpen(false);
-    const targetTaskId = contextTaskSnapshot?.task.id ?? readiness?.activeTaskId ?? "";
+    const targetTaskId = (contextTaskIsContinuable ? contextTaskSnapshot?.task.id : null) ?? readiness?.activeTaskId ?? "";
     if (targetTaskId) {
       navigate(buildEditRoute({
         novelId,
