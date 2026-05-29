@@ -4,14 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { buildStyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import type {
-  DirectorAutoExecutionMode,
   DirectorAutoExecutionPlan,
   DirectorRunMode,
   DirectorTakeoverEntryStep,
   DirectorTakeoverStrategy,
 } from "@ai-novel/shared/types/novelDirector";
 import { buildFullBookAutopilotExecutionPlan } from "@ai-novel/shared/types/novelDirector";
-import { getDirectorTakeoverReadiness, startDirectorTakeover } from "@/api/novelDirector";
+import { getDirectorTaskSnapshot, getDirectorTakeoverReadiness, startDirectorTakeover } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
 import { getStyleBindings, getStyleProfiles } from "@/api/styleEngine";
 import LLMSelector from "@/components/common/LLMSelector";
@@ -36,6 +35,17 @@ import {
   buildDirectorAutoExecutionPlanLabel,
   createDefaultDirectorAutoExecutionDraftState,
 } from "./directorAutoExecutionPlan.shared";
+import {
+  buildTakeoverChapterTarget,
+  buildTakeoverProgressInspection,
+  buildTakeoverGuidance,
+  findTakeoverPreview,
+  formatTakeoverStartError,
+  isTakeoverEntryStepAllowedForScope,
+  resolveRecommendedTakeoverEntryStep,
+} from "./novelExistingProjectTakeoverViewModel";
+import TakeoverContextSummaryPanel from "./takeover/TakeoverContextSummaryPanel";
+import TakeoverDiagnosisPanel from "./takeover/TakeoverDiagnosisPanel";
 import { useDirectorAutoApprovalDraft } from "./useDirectorAutoApprovalDraft";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
@@ -47,6 +57,7 @@ interface NovelExistingProjectTakeoverDialogProps {
   worldOptions: Array<{ id: string; name: string }>;
   triggerVariant?: "default" | "outline" | "secondary";
   defaultEntryStep?: DirectorTakeoverEntryStep;
+  workflowTaskId?: string | null;
 }
 
 const RUN_MODE_OPTIONS: Array<{ value: DirectorRunMode; label: string; description: string }> = [
@@ -116,19 +127,6 @@ function buildEditRoute(input: {
   return `/novels/${input.novelId}/edit?${search.toString()}`;
 }
 
-function isEntryStepAllowedForScope(
-  entryStep: DirectorTakeoverEntryStep,
-  scopeMode: DirectorAutoExecutionMode,
-): boolean {
-  if (scopeMode === "chapter_range") {
-    return entryStep === "structured" || entryStep === "chapter" || entryStep === "pipeline";
-  }
-  if (scopeMode === "volume") {
-    return entryStep === "outline" || entryStep === "structured" || entryStep === "chapter" || entryStep === "pipeline";
-  }
-  return true;
-}
-
 export default function NovelExistingProjectTakeoverDialog({
   novelId,
   basicForm,
@@ -137,6 +135,7 @@ export default function NovelExistingProjectTakeoverDialog({
   worldOptions,
   triggerVariant = "outline",
   defaultEntryStep = "basic",
+  workflowTaskId,
 }: NovelExistingProjectTakeoverDialogProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -145,8 +144,10 @@ export default function NovelExistingProjectTakeoverDialog({
   const [runMode, setRunMode] = useState<DirectorRunMode>("auto_to_ready");
   const [selectedEntryStep, setSelectedEntryStep] = useState<DirectorTakeoverEntryStep>(defaultEntryStep);
   const [selectedStrategy, setSelectedStrategy] = useState<DirectorTakeoverStrategy>("continue_existing");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState("takeover"));
   const [autoExecutionDraftTouched, setAutoExecutionDraftTouched] = useState(false);
+  const [selectedChapterTargetOrder, setSelectedChapterTargetOrder] = useState<number | null>(null);
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
   const [postGenerationStyleReviewEnabled, setPostGenerationStyleReviewEnabled] = useState(
     basicForm.postGenerationStyleReviewEnabled,
@@ -158,6 +159,13 @@ export default function NovelExistingProjectTakeoverDialog({
     queryKey: queryKeys.novels.autoDirectorTakeoverReadiness(novelId),
     queryFn: () => getDirectorTakeoverReadiness(novelId),
     enabled: open && Boolean(novelId),
+    retry: false,
+  });
+  const contextTaskId = workflowTaskId?.trim() || "";
+  const contextTaskSnapshotQuery = useQuery({
+    queryKey: queryKeys.tasks.directorTaskSnapshot(contextTaskId || "none"),
+    queryFn: () => getDirectorTaskSnapshot(contextTaskId),
+    enabled: open && Boolean(contextTaskId),
     retry: false,
   });
   const styleProfilesQuery = useQuery({
@@ -172,6 +180,11 @@ export default function NovelExistingProjectTakeoverDialog({
   });
 
   const readiness = readinessQuery.data?.data ?? null;
+  const contextTaskSnapshot = contextTaskSnapshotQuery.data?.data?.snapshot ?? null;
+  const contextTaskIsContinuable = Boolean(
+    contextTaskSnapshot?.task
+    && ["queued", "running", "waiting_approval"].includes(contextTaskSnapshot.task.status),
+  );
   const styleProfiles = styleProfilesQuery.data?.data ?? [];
   const currentNovelStyleBindings = novelStyleBindingsQuery.data?.data ?? [];
   const selectedStyleProfile = useMemo(
@@ -189,24 +202,64 @@ export default function NovelExistingProjectTakeoverDialog({
     () => summarizeCurrentContext(basicForm, genreOptions, storyModeOptions, worldOptions),
     [basicForm, genreOptions, storyModeOptions, worldOptions],
   );
-  const selectedEntry = readiness?.entrySteps.find((item) => item.step === selectedEntryStep) ?? null;
-  const selectedPreview = selectedEntry?.previews.find((item) => item.strategy === selectedStrategy) ?? null;
-  const autoExecutionPlan: DirectorAutoExecutionPlan | undefined = runMode === "full_book_autopilot"
+  const advancedAutoExecutionPlan: DirectorAutoExecutionPlan | undefined = runMode === "full_book_autopilot"
     ? buildFullBookAutopilotExecutionPlan()
     : runMode === "auto_to_execution"
       ? buildDirectorAutoExecutionPlanFromDraft(autoExecutionDraft, { usage: "takeover" })
       : undefined;
-  const selectedScopeMode = runMode === "auto_to_execution" || runMode === "full_book_autopilot"
+  const quickChapterTarget = useMemo(
+    () => buildTakeoverChapterTarget(readiness, contextTaskSnapshot, selectedChapterTargetOrder),
+    [contextTaskSnapshot, readiness, selectedChapterTargetOrder],
+  );
+  const effectiveRunMode: DirectorRunMode = !advancedOpen && quickChapterTarget ? "auto_to_execution" : runMode;
+  const autoExecutionPlan: DirectorAutoExecutionPlan | undefined = !advancedOpen && quickChapterTarget
+    ? quickChapterTarget.plan
+    : advancedAutoExecutionPlan;
+  const selectedScopeMode = effectiveRunMode === "auto_to_execution" || effectiveRunMode === "full_book_autopilot"
     ? autoExecutionPlan?.mode ?? autoExecutionDraft.mode
     : "book";
-  const selectedEntryAllowedForScope = isEntryStepAllowedForScope(selectedEntryStep, selectedScopeMode);
+  const recommendedEntryStep = resolveRecommendedTakeoverEntryStep(readiness, selectedScopeMode);
+  const effectiveEntryStep = advancedOpen ? selectedEntryStep : recommendedEntryStep ?? selectedEntryStep;
+  const selectedEntry = readiness?.entrySteps.find((item) => item.step === effectiveEntryStep) ?? null;
+  const selectedPreview = findTakeoverPreview(readiness, effectiveEntryStep, selectedStrategy);
+  const selectedEntryAllowedForScope = isTakeoverEntryStepAllowedForScope(effectiveEntryStep, selectedScopeMode);
+  const takeoverGuidance = buildTakeoverGuidance(
+    readiness,
+    effectiveEntryStep,
+    selectedStrategy,
+    effectiveRunMode,
+    contextTaskIsContinuable ? contextTaskSnapshot : null,
+  );
+  const progressInspection = buildTakeoverProgressInspection(readiness, contextTaskSnapshot);
+  const readinessErrorMessage = readinessQuery.isError
+    ? readinessQuery.error instanceof Error ? readinessQuery.error.message : "读取接管状态失败。"
+    : null;
+
+  const enterCurrentTask = () => {
+    setOpen(false);
+    const targetTaskId = (contextTaskIsContinuable ? contextTaskSnapshot?.task.id : null) ?? readiness?.activeTaskId ?? "";
+    if (targetTaskId) {
+      navigate(buildEditRoute({
+        novelId,
+        workflowTaskId: targetTaskId,
+        stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
+      }));
+      return;
+    }
+    const search = new URLSearchParams();
+    search.set("stage", effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep);
+    navigate(`/novels/${novelId}/edit?${search.toString()}`);
+  };
 
   useEffect(() => {
     if (!open) {
       setSelectedEntryStep(defaultEntryStep);
       setSelectedStrategy("continue_existing");
+      setRunMode("auto_to_ready");
+      setAdvancedOpen(false);
       setAutoExecutionDraft(createDefaultDirectorAutoExecutionDraftState("takeover"));
       setAutoExecutionDraftTouched(false);
+      setSelectedChapterTargetOrder(null);
       setSelectedStyleProfileId("");
       setPostGenerationStyleReviewEnabled(basicForm.postGenerationStyleReviewEnabled);
       resetAutoApprovalDraft();
@@ -230,22 +283,25 @@ export default function NovelExistingProjectTakeoverDialog({
   }, [currentNovelStyleBindings, open]);
 
   useEffect(() => {
+    if (!open || !quickChapterTarget) {
+      return;
+    }
+    setSelectedChapterTargetOrder((current) => (
+      current === quickChapterTarget.selectedOrder ? current : quickChapterTarget.selectedOrder
+    ));
+  }, [open, quickChapterTarget]);
+
+  useEffect(() => {
     if (!readiness) {
       return;
     }
-    const recommended = readiness.entrySteps.find((item) => (
-      item.recommended
-      && item.available
-      && isEntryStepAllowedForScope(item.step, selectedScopeMode)
-    ))
-      ?? readiness.entrySteps.find((item) => item.available && isEntryStepAllowedForScope(item.step, selectedScopeMode))
-      ?? null;
-    if (recommended) {
+    const recommendedStep = resolveRecommendedTakeoverEntryStep(readiness, selectedScopeMode);
+    if (recommendedStep) {
       setSelectedEntryStep((current) => {
         const currentStep = readiness.entrySteps.find((item) => item.step === current);
-        return currentStep?.available && isEntryStepAllowedForScope(current, selectedScopeMode)
+        return currentStep?.available && isTakeoverEntryStepAllowedForScope(current, selectedScopeMode)
           ? current
-          : recommended.step;
+          : recommendedStep;
       });
     }
   }, [readiness, selectedScopeMode]);
@@ -277,15 +333,15 @@ export default function NovelExistingProjectTakeoverDialog({
   const startMutation = useMutation({
     mutationFn: async () => startDirectorTakeover({
       novelId,
-      entryStep: selectedEntryStep,
+      entryStep: effectiveEntryStep,
       strategy: selectedStrategy,
       styleProfileId: selectedStyleProfileId || undefined,
       provider: llm.provider,
       model: llm.model,
       temperature: llm.temperature,
-      runMode,
+      runMode: effectiveRunMode,
       autoExecutionPlan,
-      autoApproval: autoApprovalDraft.buildPayload(runMode),
+      autoApproval: autoApprovalDraft.buildPayload(effectiveRunMode),
       postGenerationStyleReviewEnabled,
     }),
     onSuccess: async (response) => {
@@ -302,23 +358,27 @@ export default function NovelExistingProjectTakeoverDialog({
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
       setOpen(false);
       toast.success(
-        runMode === "full_book_autopilot"
+        effectiveRunMode === "full_book_autopilot"
           ? "自动导演接管任务已提交，可在 AI 驾驶舱查看全书执行进度。"
-          : runMode === "auto_to_execution"
+          : effectiveRunMode === "auto_to_execution"
           ? `自动导演接管任务已提交，可在 AI 驾驶舱查看 ${buildDirectorAutoExecutionPlanLabel(autoExecutionPlan)} 的执行进度。`
           : "自动导演接管任务已提交，可在 AI 驾驶舱查看排队和执行进度。",
       );
       navigate(buildEditRoute({
         novelId,
         workflowTaskId: data.taskId,
-        stage: selectedEntryStep === "basic" ? "basic" : selectedEntryStep,
+        stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
       }));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "启动自动导演接管失败。";
-      toast.error(message);
+      toast.error(formatTakeoverStartError(error));
     },
   });
+  const startDisabled = startMutation.isPending
+    || readinessQuery.isLoading
+    || !selectedEntry
+    || !selectedEntry.available
+    || !selectedEntryAllowedForScope;
 
   return (
     <>
@@ -335,18 +395,32 @@ export default function NovelExistingProjectTakeoverDialog({
           </DialogHeader>
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.dialogBody}>
             <div className="min-w-0 space-y-4">
-              <div className="min-w-0 rounded-xl border bg-muted/15 p-3 sm:p-4">
-                <div className="text-sm font-medium text-foreground">当前项目信息会作为自动导演输入</div>
-                <div className="mt-2 flex min-w-0 flex-wrap gap-2">
-                  {contextLines.length > 0 ? contextLines.map((line) => (
-                    <Badge key={line} variant="secondary" className="max-w-full whitespace-normal break-words text-left [overflow-wrap:anywhere]">
-                      {line}
-                    </Badge>
-                  )) : (
-                    <span className={`text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>当前信息较少，建议至少补一句故事概述或书级卖点后再接管。</span>
-                  )}
-                </div>
-              </div>
+              <TakeoverContextSummaryPanel lines={contextLines} />
+              <TakeoverDiagnosisPanel
+                guidance={takeoverGuidance}
+                inspection={progressInspection}
+                isLoadingReadiness={readinessQuery.isLoading}
+                readinessErrorMessage={readinessErrorMessage}
+                isLoadingTaskSnapshot={contextTaskSnapshotQuery.isLoading}
+                hasTaskSnapshotError={contextTaskSnapshotQuery.isError}
+                hasCurrentTask={Boolean(readiness?.hasActiveTask || contextTaskIsContinuable)}
+                chapterTarget={quickChapterTarget}
+                isAdvancedOpen={advancedOpen}
+                isStarting={startMutation.isPending}
+                startDisabled={startDisabled}
+                onEnterCurrentTask={enterCurrentTask}
+                onChapterTargetChange={(order) => setSelectedChapterTargetOrder(order)}
+                onStart={() => startMutation.mutate()}
+              />
+              <details
+                className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4"
+                open={advancedOpen}
+                onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
+              >
+                <summary className="cursor-pointer text-sm font-medium text-foreground">
+                  高级设置
+                </summary>
+                <div className="mt-4 space-y-4">
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
                 <div className="text-sm font-medium text-foreground">模型设置</div>
                 <div className="mt-3"><LLMSelector /></div>
@@ -449,7 +523,7 @@ export default function NovelExistingProjectTakeoverDialog({
 
               <div className="min-w-0 rounded-xl border bg-background/80 p-3 sm:p-4">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-medium text-foreground">从哪一步开始接管</div>
+                  <div className="text-sm font-medium text-foreground">接续位置</div>
                   {readinessQuery.isLoading ? <Badge variant="outline">读取中</Badge> : null}
                 </div>
                 {readinessQuery.isError ? (
@@ -462,11 +536,11 @@ export default function NovelExistingProjectTakeoverDialog({
                   <>
                     <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <div className="rounded-lg border bg-muted/15 p-3">
-                        <div className="text-xs text-muted-foreground">Story Macro</div>
+                        <div className="text-xs text-muted-foreground">书级规划</div>
                         <div className="mt-1 text-sm font-medium text-foreground">{readiness.snapshot.hasStoryMacroPlan ? "已具备" : "未具备"}</div>
                       </div>
                       <div className="rounded-lg border bg-muted/15 p-3">
-                        <div className="text-xs text-muted-foreground">Book Contract</div>
+                        <div className="text-xs text-muted-foreground">创作约束</div>
                         <div className="mt-1 text-sm font-medium text-foreground">{readiness.snapshot.hasBookContract ? "已具备" : "未具备"}</div>
                       </div>
                       <div className="rounded-lg border bg-muted/15 p-3">
@@ -494,12 +568,12 @@ export default function NovelExistingProjectTakeoverDialog({
                                 navigate(buildEditRoute({
                                   novelId,
                                   workflowTaskId: readiness.activeTaskId,
-                                  stage: selectedEntryStep === "basic" ? "basic" : selectedEntryStep,
+                                  stage: effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep,
                                 }));
                                 return;
                               }
                               const search = new URLSearchParams();
-                              search.set("stage", selectedEntryStep === "basic" ? "basic" : selectedEntryStep);
+                              search.set("stage", effectiveEntryStep === "basic" ? "basic" : effectiveEntryStep);
                               navigate(`/novels/${novelId}/edit?${search.toString()}`);
                             }}
                           >
@@ -512,7 +586,7 @@ export default function NovelExistingProjectTakeoverDialog({
                         <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
                           {readiness.entrySteps.map((entry) => {
                             const active = entry.step === selectedEntryStep;
-                            const allowedForScope = isEntryStepAllowedForScope(entry.step, selectedScopeMode);
+                            const allowedForScope = isTakeoverEntryStepAllowedForScope(entry.step, selectedScopeMode);
                             const disabled = !entry.available || !allowedForScope || startMutation.isPending;
                             return (
                               <button
@@ -607,7 +681,7 @@ export default function NovelExistingProjectTakeoverDialog({
                             disabled={startMutation.isPending || !selectedEntry || !selectedEntry.available || !selectedEntryAllowedForScope}
                             onClick={() => startMutation.mutate()}
                           >
-                            {startMutation.isPending ? "启动中..." : "从这一阶段开始接管"}
+                            {startMutation.isPending ? "启动中..." : "按高级设置启动"}
                           </Button>
                         </div>
                       </>
@@ -615,6 +689,8 @@ export default function NovelExistingProjectTakeoverDialog({
                   </>
                 ) : null}
               </div>
+                </div>
+              </details>
             </div>
           </div>
         </DialogContent>

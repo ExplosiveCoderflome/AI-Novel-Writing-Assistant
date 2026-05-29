@@ -30,6 +30,10 @@ export interface ExistingChapterRecord {
 
 export interface VolumeSyncPlan {
   preview: VolumeSyncPreview;
+  links: Array<{
+    volumeChapterId: string;
+    chapterId: string;
+  }>;
   creates: Array<{
     volumeTitle: string;
     chapter: VolumeChapterPlan;
@@ -87,6 +91,11 @@ function hasGeneratedContent(content: string | null | undefined): boolean {
 
 function normalizeLookupTitle(title: string): string {
   return title.trim().toLowerCase();
+}
+
+function normalizeOptionalId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  return trimmed || null;
 }
 
 function getChapterChangedFields(existing: ExistingChapterRecord, chapter: VolumeChapterPlan, action: "update" | "move"): string[] {
@@ -199,10 +208,12 @@ export function buildVolumeSyncPlan(
   options: { preserveContent: boolean; applyDeletes: boolean },
 ): VolumeSyncPlan {
   const flattened = flattenVolumeChapters(volumes);
+  const existingById = new Map(existingChapters.map((chapter) => [chapter.id, chapter]));
   const existingByOrder = new Map(existingChapters.map((chapter) => [chapter.order, chapter]));
   const existingByTitle = new Map(existingChapters.map((chapter) => [normalizeLookupTitle(chapter.title), chapter]));
   const matchedChapterIds = new Set<string>();
   const items: VolumeSyncPreviewItem[] = [];
+  const links: VolumeSyncPlan["links"] = [];
   const creates: VolumeSyncPlan["creates"] = [];
   const updates: VolumeSyncPlan["updates"] = [];
   const deletes: VolumeSyncPlan["deletes"] = [];
@@ -217,16 +228,25 @@ export function buildVolumeSyncPlan(
 
   for (const entry of flattened) {
     const { volume, chapter } = entry;
-    const existingBySameOrder = existingByOrder.get(chapter.chapterOrder);
-    const matchedByOrder = existingBySameOrder && !matchedChapterIds.has(existingBySameOrder.id)
-      ? existingBySameOrder
-      : undefined;
-    const matchedByTitle = existingByTitle.get(normalizeLookupTitle(chapter.title));
-    const existing = matchedByOrder ?? (
-      matchedByTitle && !matchedChapterIds.has(matchedByTitle.id)
-        ? matchedByTitle
-        : undefined
-    );
+    const linkedChapterId = normalizeOptionalId(chapter.chapterId);
+    const matchedById = linkedChapterId ? existingById.get(linkedChapterId) : undefined;
+    const existing = matchedById && !matchedChapterIds.has(matchedById.id)
+      ? matchedById
+      : (() => {
+        if (linkedChapterId) {
+          return undefined;
+        }
+        const existingBySameOrder = existingByOrder.get(chapter.chapterOrder);
+        const matchedByOrder = existingBySameOrder && !matchedChapterIds.has(existingBySameOrder.id)
+          ? existingBySameOrder
+          : undefined;
+        const matchedByTitle = existingByTitle.get(normalizeLookupTitle(chapter.title));
+        return matchedByOrder ?? (
+          matchedByTitle && !matchedChapterIds.has(matchedByTitle.id)
+            ? matchedByTitle
+            : undefined
+        );
+      })();
 
     if (!existing) {
       createCount += 1;
@@ -243,6 +263,10 @@ export function buildVolumeSyncPlan(
     }
 
     matchedChapterIds.add(existing.id);
+    links.push({
+      volumeChapterId: chapter.id,
+      chapterId: existing.id,
+    });
     const action = existing.order === chapter.chapterOrder ? "update" : "move";
     const changedFields = getChapterChangedFields(existing, chapter, action);
     const hasContent = hasGeneratedContent(existing.content);
@@ -344,6 +368,7 @@ export function buildVolumeSyncPlan(
       affectedVolumeCount,
       items,
     },
+    links,
     creates,
     updates,
     deletes,

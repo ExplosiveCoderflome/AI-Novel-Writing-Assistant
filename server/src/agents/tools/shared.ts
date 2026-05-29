@@ -1,8 +1,8 @@
 import { prisma } from "../../db/prisma";
-import { NovelService } from "../../services/novel/NovelService";
+import { getSharedNovelServices } from "../../services/novel/application/sharedNovelServices";
 import { AgentToolError } from "../types";
 
-export const novelService = new NovelService();
+export const novelService = getSharedNovelServices();
 
 export async function getChapter(novelId: string, chapterId: string) {
   const chapter = await prisma.chapter.findFirst({

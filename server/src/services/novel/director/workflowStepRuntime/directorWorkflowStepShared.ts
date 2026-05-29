@@ -4,20 +4,25 @@ import type {
   DirectorChapterExecutionProgressItem,
   DirectorChapterExecutionProgressSummary,
 } from "@ai-novel/shared/types/directorRuntime";
-import type { DirectorCandidateStageNode } from "../novelDirectorCandidateNodeAdapters";
-import { getDirectorInputFromSeedPayload } from "../novelDirectorHelpers";
+import type { DirectorCandidateStageNode } from "../phases/novelDirectorCandidateNodeAdapters";
+import { getDirectorInputFromSeedPayload } from "../runtime/novelDirectorHelpers";
 import {
   resolveDirectorAutoExecutionPlanChapterRange,
   resolveDirectorAutoExecutionRangeFromState,
 } from "../automation/novelDirectorAutoExecution";
-import { DirectorStateReader } from "../DirectorStateReader";
+import { DirectorStateReader, type DirectorCanonicalState } from "../DirectorStateReader";
 import { DirectorStateCommitter } from "../DirectorStateCommitter";
-import { DirectorFactSummaryService } from "../DirectorFactSummaryService";
+import { DirectorFactSummaryService } from "../projections/DirectorFactSummaryService";
 import { CHAPTER_EXECUTION_PROGRESS_STAGES } from "../runtime/ChapterExecutionProgressInspector";
 import { DirectorCoreStepModuleRuntime } from "./DirectorCoreStepModuleRuntime";
 import type {
   WorkflowStepExecutionContext,
   WorkflowStepProgress,
+} from "./WorkflowStepModule";
+import {
+  getWorkflowStepArtifacts,
+  getWorkflowStepDirectorTaskId,
+  isDirectorContext,
 } from "./WorkflowStepModule";
 
 let directorCoreStepRuntime: DirectorCoreStepModuleRuntime | null = null;
@@ -56,6 +61,32 @@ export function getDirectorFactSummary(): DirectorFactSummaryService {
   return directorFactSummaryService;
 }
 
+function buildMinimalStateForNovel(novelId: string | null): DirectorCanonicalState {
+  return {
+    task: {
+      id: "__step_module_context__",
+      novelId,
+      lane: "auto_director",
+      status: "running",
+      currentStage: null,
+      currentItemKey: null,
+      currentItemLabel: null,
+      progress: null,
+      checkpointType: null,
+      checkpointSummary: null,
+      lastError: null,
+      pendingManualRecovery: false,
+      cancelRequestedAt: null,
+    },
+    run: null,
+    runtime: null,
+    latestCommand: null,
+    activeStep: null,
+    seedPayload: {} as DirectorCanonicalState["seedPayload"],
+    chapterProgress: null,
+  };
+}
+
 export async function loadDirectorModuleState(
   context: WorkflowStepExecutionContext,
   options: {
@@ -63,10 +94,15 @@ export async function loadDirectorModuleState(
     requireRequest?: boolean;
   } = {},
 ) {
-  const state = await getDirectorFactSummary().getState(context);
-  const novelId = context.novelId?.trim() || state.task.novelId?.trim() || "";
+  const contextNovelId = context.novelId?.trim() || "";
+  const directorTaskId = getWorkflowStepDirectorTaskId(context);
+  const shouldLoadDirectorState = Boolean(directorTaskId) || isDirectorContext(context);
+  const state = shouldLoadDirectorState
+    ? await getDirectorFactSummary().getState(context)
+    : buildMinimalStateForNovel(contextNovelId || null);
+  const novelId = contextNovelId || state.task.novelId?.trim() || "";
   if (options.requireNovel !== false && !novelId) {
-    throw new Error("Director step module requires a bound novel.");
+    throw new Error("Step module requires novelId.");
   }
   const request = getDirectorInputFromSeedPayload(state.seedPayload);
   if ((options.requireRequest ?? false) && !request) {
@@ -295,7 +331,7 @@ export function getActiveArtifactsFromContext(
   types: string[],
 ): DirectorArtifactRef[] {
   const allowed = new Set(types);
-  return (context.artifacts ?? []).filter((artifact): artifact is DirectorArtifactRef => (
+  return getWorkflowStepArtifacts(context).filter((artifact): artifact is DirectorArtifactRef => (
     Boolean(artifact)
     && artifact.status === "active"
     && allowed.has(artifact.artifactType)

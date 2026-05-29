@@ -1,7 +1,12 @@
 import { NovelCoreService } from "./NovelCoreService";
-import { NovelGenerationService } from "./NovelGenerationService";
 
-export class NovelReviewService extends NovelGenerationService {
+/**
+ * @deprecated Use `createNovelApplicationServices()` and inject only the review
+ * capability required by the caller.
+ */
+export class NovelReviewService {
+  protected readonly core = new NovelCoreService();
+
   reviewChapter(...args: Parameters<NovelCoreService["reviewChapter"]>) {
     return this.core.reviewChapter(...args);
   }

@@ -1,4 +1,4 @@
-import type { DirectorRunMode } from "@ai-novel/shared/types/novelDirector";
+import type { DirectorIdeaInspiration, DirectorRunMode } from "@ai-novel/shared/types/novelDirector";
 import type {
   DirectorAutoApprovalGroup,
   DirectorAutoApprovalPoint,
@@ -16,11 +16,13 @@ import {
   EMOTION_OPTIONS,
   PACE_OPTIONS,
   POV_OPTIONS,
+  READER_CHANNEL_OPTIONS,
 } from "../novelBasicInfo.shared";
 import {
   type DirectorAutoExecutionDraftState,
   DirectorAutoExecutionPlanFields,
 } from "./directorAutoExecutionPlan.shared";
+import NovelAutoDirectorIdeaInspirationPanel from "./NovelAutoDirectorIdeaInspirationPanel";
 import { BookFramingQuickFillButton } from "./basicInfoForm/BookFramingQuickFillButton";
 import { BookFramingSection } from "./basicInfoForm/BookFramingSection";
 import {
@@ -52,6 +54,9 @@ interface NovelAutoDirectorSetupPanelProps {
   worldOptions: WorldOption[];
   idea: string;
   onIdeaChange: (value: string) => void;
+  ideaInspirations: DirectorIdeaInspiration[];
+  isGeneratingIdeaInspirations: boolean;
+  onGenerateIdeaInspirations: () => void;
   runMode: DirectorRunMode;
   runModeOptions: RunModeOption[];
   onRunModeChange: (value: DirectorRunMode) => void;
@@ -83,6 +88,9 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
     worldOptions,
     idea,
     onIdeaChange,
+    ideaInspirations,
+    isGeneratingIdeaInspirations,
+    onGenerateIdeaInspirations,
     runMode,
     runModeOptions,
     onRunModeChange,
@@ -108,16 +116,44 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
   } = props;
 
   const hasEditableBasicForm = typeof onBasicFormChange === "function";
+  const useIdeaInspiration = (text: string) => {
+    if (idea.trim()) {
+      const confirmed = window.confirm("上方起始想法已有内容。确认使用这条灵感并覆盖原内容吗？");
+      if (!confirmed) {
+        return;
+      }
+    }
+    onIdeaChange(text);
+  };
 
   return (
     <div className="min-w-0 overflow-hidden rounded-lg border bg-background/80 p-3 sm:p-4">
-      <div className="text-sm font-medium text-foreground">你的起始想法</div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm font-medium text-foreground">你的起始想法</div>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={onGenerateIdeaInspirations}
+          disabled={isGeneratingIdeaInspirations}
+        >
+          {isGeneratingIdeaInspirations ? "生成中..." : "没有想法？"}
+        </Button>
+      </div>
       <textarea
         className="mt-2 min-h-[128px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
         value={idea}
         onChange={(event) => onIdeaChange(event.target.value)}
         placeholder="例如：普通女大学生误入异能组织，一边上学打工，一边调查父亲失踪真相。"
       />
+      {(ideaInspirations.length > 0 || isGeneratingIdeaInspirations) ? (
+        <NovelAutoDirectorIdeaInspirationPanel
+          ideas={ideaInspirations}
+          isGenerating={isGeneratingIdeaInspirations}
+          onGenerate={onGenerateIdeaInspirations}
+          onUseIdea={useIdeaInspiration}
+        />
+      ) : null}
 
       <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
         <div className="min-w-0 space-y-4">
@@ -129,6 +165,23 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
               </div>
 
               <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <FieldLabel htmlFor="director-basic-reader-channel" hint={BASIC_INFO_FIELD_HINTS.readerChannelPreference}>读者频道倾向</FieldLabel>
+                  <select
+                    id="director-basic-reader-channel"
+                    className="w-full rounded-md border bg-background p-2 text-sm"
+                    value={basicForm.readerChannelPreference}
+                    onChange={(event) => onBasicFormChange({
+                      readerChannelPreference: event.target.value as NovelBasicFormState["readerChannelPreference"],
+                    })}
+                  >
+                    {READER_CHANNEL_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{findOptionSummary(READER_CHANNEL_OPTIONS, basicForm.readerChannelPreference)}</div>
+                </div>
+
                 <div className="space-y-2">
                   <FieldLabel htmlFor="director-basic-pov" hint={BASIC_INFO_FIELD_HINTS.narrativePov}>叙事视角</FieldLabel>
                   <select

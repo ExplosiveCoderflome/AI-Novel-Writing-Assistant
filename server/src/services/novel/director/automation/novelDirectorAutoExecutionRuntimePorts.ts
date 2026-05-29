@@ -80,6 +80,8 @@ export interface NovelDirectorAutoExecutionNovelPort {
     id: string;
     status: PipelineJobStatus;
     progress: number;
+    startOrder?: number | null;
+    endOrder?: number | null;
     pendingManualRecovery?: boolean | null;
     currentStage?: string | null;
     currentItemLabel?: string | null;

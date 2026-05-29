@@ -11,6 +11,7 @@ import type {
 } from "./characterDynamicsSchemas";
 import { generateVolumeProjection, extractChapterDynamics } from "./characterDynamicsLlm";
 import { CharacterDynamicsQueryService } from "./CharacterDynamicsQueryService";
+import { NovelContextService } from "../NovelContextService";
 import {
   CHAPTER_EXTRACT_SOURCE_TYPE,
   MANUAL_SOURCE_TYPE,
@@ -19,13 +20,18 @@ import {
 } from "./characterDynamicsShared";
 import { buildVolumeWindows, dedupeStrings, mergeProjectionAssignments, resolveCurrentVolume, toCharacterRelationStage } from "./characterDynamicsUtils";
 
-export class CharacterDynamicsMutationService {
-  constructor(private readonly queryService: CharacterDynamicsQueryService) {}
+type NovelContextCharacterPort = Pick<NovelContextService, "createCharacter">;
+type NovelContextServiceFactory = () => NovelContextCharacterPort;
 
-  private getNovelContextService() {
-    const { NovelContextService } = require("../NovelContextService") as typeof import("../NovelContextService");
-    return new NovelContextService();
-  }
+function createNovelContextService(): NovelContextCharacterPort {
+  return new NovelContextService();
+}
+
+export class CharacterDynamicsMutationService {
+  constructor(
+    private readonly queryService: CharacterDynamicsQueryService,
+    private readonly novelContextServiceFactory: NovelContextServiceFactory = createNovelContextService,
+  ) {}
 
   async confirmCandidate(novelId: string, candidateId: string, input: ConfirmCandidateInput) {
     const candidate = await prisma.characterCandidate.findFirst({
@@ -40,7 +46,7 @@ export class CharacterDynamicsMutationService {
       throw new Error("角色候选不存在。");
     }
 
-    const createdCharacter = await this.getNovelContextService().createCharacter(novelId, {
+    const createdCharacter = await this.novelContextServiceFactory().createCharacter(novelId, {
       name: candidate.proposedName,
       role: input.role?.trim() || candidate.proposedRole?.trim() || "新角色",
       castRole: input.castRole,

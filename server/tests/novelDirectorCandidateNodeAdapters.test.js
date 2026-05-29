@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const {
   DIRECTOR_CANDIDATE_NODE_ADAPTERS,
   getDirectorCandidateNodeAdapter,
-} = require("../dist/services/novel/director/novelDirectorCandidateNodeAdapters.js");
+} = require("../dist/services/novel/director/phases/novelDirectorCandidateNodeAdapters.js");
 
 test("director candidate stages expose standard node adapter contracts", () => {
   assert.deepEqual(Object.keys(DIRECTOR_CANDIDATE_NODE_ADAPTERS).sort(), [

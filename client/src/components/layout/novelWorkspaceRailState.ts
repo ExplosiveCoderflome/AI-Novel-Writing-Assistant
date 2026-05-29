@@ -4,6 +4,16 @@ import type { NovelWorkspaceFlowTab } from "@/pages/novels/novelWorkspaceNavigat
 
 export type NovelWorkspaceStepReadiness = Record<NovelWorkspaceFlowTab, boolean>;
 
+const WORKSPACE_FLOW_ORDER: NovelWorkspaceFlowTab[] = [
+  "basic",
+  "story_macro",
+  "character",
+  "outline",
+  "structured",
+  "chapter",
+  "pipeline",
+];
+
 type DownstreamReset = {
   preserveAssets?: unknown;
   resetStatus?: unknown;
@@ -27,6 +37,25 @@ export function extractAutoDirectorResetStepsFromMeta(
   }
   return new Set(
     reset.resetSteps.filter((step): step is NovelWorkspaceFlowTab => isDirectorTakeoverEntryStep(step)),
+  );
+}
+
+export function resolveAutoDirectorResetStepsForWorkflowProgress(
+  resetSteps: ReadonlySet<NovelWorkspaceFlowTab>,
+  workflowCurrentTab: NovelWorkspaceFlowTab | null | undefined,
+): Set<NovelWorkspaceFlowTab> {
+  if (resetSteps.size === 0 || !workflowCurrentTab) {
+    return new Set(resetSteps);
+  }
+  const currentIndex = WORKSPACE_FLOW_ORDER.indexOf(workflowCurrentTab);
+  if (currentIndex < 0) {
+    return new Set(resetSteps);
+  }
+  return new Set(
+    Array.from(resetSteps).filter((step) => {
+      const stepIndex = WORKSPACE_FLOW_ORDER.indexOf(step);
+      return stepIndex < 0 || stepIndex >= currentIndex;
+    }),
   );
 }
 

@@ -4,7 +4,7 @@ import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirec
 import type { TaskKind, TaskStatus, UnifiedTaskStep } from "@ai-novel/shared/types/task";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { NovelWorkflowMilestone } from "@ai-novel/shared/types/novelWorkflow";
-import { getDirectorRuntimeSnapshot } from "@/api/novelDirector";
+import { getDirectorTaskSnapshot } from "@/api/novelDirector";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { archiveTask, cancelTask, getTaskDetail, listTasks, retryTask } from "@/api/tasks";
 import { queryKeys } from "@/api/queryKeys";
@@ -164,6 +164,7 @@ export default function TaskCenterPage() {
     await queryClient.invalidateQueries({ queryKey: ["tasks"] });
     if (selectedId) {
       await queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorRuntime(selectedId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorTaskSnapshot(selectedId) });
     }
   };
 
@@ -309,14 +310,17 @@ export default function TaskCenterPage() {
     ),
   );
   const directorRuntimeQuery = useQuery({
-    queryKey: queryKeys.tasks.directorRuntime(selectedId ?? "none"),
-    queryFn: () => getDirectorRuntimeSnapshot(selectedId as string),
+    queryKey: queryKeys.tasks.directorTaskSnapshot(selectedId ?? "none"),
+    queryFn: () => getDirectorTaskSnapshot(selectedId as string),
     enabled: Boolean(selectedId && isAutoDirectorTask),
     retry: false,
     refetchInterval: (query) => {
-      const projection = query.state.data?.data?.projection;
+      const snapshot = query.state.data?.data?.snapshot;
+      const projection = snapshot?.projection;
       return (
         (selectedTask && ACTIVE_STATUSES.has(selectedTask.status))
+        || snapshot?.dashboardView.mode === "running"
+        || snapshot?.dashboardView.mode === "queued"
         || projection?.status === "running"
         || projection?.status === "waiting_approval"
       )
@@ -324,11 +328,28 @@ export default function TaskCenterPage() {
         : false;
     },
   });
-  const selectedDirectorRuntimeProjection = directorRuntimeQuery.data?.data?.projection ?? null;
-  const runtimeHardBlocked = selectedDirectorRuntimeProjection?.status === "blocked";
-  const runtimeBlockedReason = selectedDirectorRuntimeProjection?.blockedReason?.trim()
-    || selectedDirectorRuntimeProjection?.detail?.trim()
-    || null;
+  const selectedDirectorTaskSnapshot = directorRuntimeQuery.data?.data?.snapshot ?? null;
+  const selectedDirectorDashboardView = selectedDirectorTaskSnapshot?.dashboardView ?? null;
+  const selectedDirectorRuntimeProjection = selectedDirectorTaskSnapshot?.projection ?? null;
+  const staleActionProjection = Boolean(
+    selectedDirectorDashboardView?.mode === "running"
+    && (
+      selectedDirectorRuntimeProjection?.requiresUserAction
+      || selectedDirectorRuntimeProjection?.status === "blocked"
+      || selectedDirectorRuntimeProjection?.status === "waiting_approval"
+      || selectedDirectorRuntimeProjection?.status === "failed"
+    ),
+  );
+  const selectedDirectorRuntimeProjectionForDisplay = staleActionProjection
+    ? null
+    : selectedDirectorRuntimeProjection;
+  const runtimeHardBlocked = selectedDirectorDashboardView?.mode === "failed"
+    || selectedDirectorDashboardView?.mode === "recovering"
+    || (
+      selectedDirectorDashboardView?.mode !== "running"
+      && selectedDirectorDashboardView?.mode !== "queued"
+      && selectedDirectorRuntimeProjection?.status === "blocked"
+    );
 
 
 
@@ -380,6 +401,7 @@ export default function TaskCenterPage() {
                   task={selectedTask}
                   isAutoDirectorTask={isAutoDirectorTask}
                   currentModelLabel={`${llm.provider} / ${llm.model}`}
+                  dashboardView={selectedDirectorDashboardView}
                 />
                 {selectedTask.noticeCode || selectedTask.noticeSummary ? (
                   <div className="rounded-md border border-amber-300/50 bg-amber-50/70 p-2 text-amber-900">
@@ -452,7 +474,7 @@ export default function TaskCenterPage() {
                   </div>
                 ) : null}
                 {isAutoDirectorTask ? (
-                  <DirectorRuntimeProjectionCard projection={selectedDirectorRuntimeProjection} />
+                  <DirectorRuntimeProjectionCard projection={selectedDirectorRuntimeProjectionForDisplay} />
                 ) : null}
                 {isAutoDirectorTask ? (
                   <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">

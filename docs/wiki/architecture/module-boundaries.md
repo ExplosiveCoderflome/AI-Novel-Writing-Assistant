@@ -28,10 +28,15 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 - `server/src/services/novel/workflow/` 应只对外暴露 workflow 门面，内部继续向 `store`、`healing`、`projection`、`application` 收敛，外部模块不要深链到内部实现。
 - checkpoint 恢复数据应通过共享 helper 组装，避免 `healing` 和 `application` 各自复制恢复逻辑。
 - `server/src/services/novel/director` 应继续向 `commands`、`runtime`、`state`、`automation`、`projections`、`recovery`、`phases` 等责任边界收敛。
+- `server/src/services/novel/director/` 根目录只保留稳定门面和兼容桥接。命令执行进入 `commands/`，任务状态进入 `state/`，事实摘要/运行投影/展示快照进入 `projections/`，恢复与回填进入 `recovery/`，阶段节点与阶段策略进入 `phases/`，接管/确认/候选/运行编排进入 `runtime/`，HTTP 映射进入 `http/`。
+- `server/src/routes/` 只保留尚未迁移的传统 HTTP 入口。小说主链、自动导演、小说导出和世界设定的 HTTP 映射必须进入对应业务模块的 `http/` 目录，并由 `app.ts` 直接挂载模块入口；不要在 `routes/` 根目录保留 re-export shim。
+- 小说业务应用入口应通过 `server/src/services/novel/application/` 的 capability 层组合。`NovelService` 只作为兼容 facade，路由和后台服务不得重新依赖完整 God Object。
+- `ChapterRuntimeCoordinator` 是章节 runtime 的外部稳定门面；流编排、质量门禁、终稿定稿、pipeline 适配和 runtime package 构建只能在 `server/src/services/novel/runtime/` 内部模块中协作，外部不得深链到这些内部服务。
 - 新增业务能力优先通过模块门面或 `index.ts` 暴露，不从外部深链到其他模块内部文件。
 - 涉及自动导演、章节执行、Prompt、RAG、任务状态或前端投影的边界变化，应同步更新 Wiki 或模块 README。
 - 任何数据回填、同步、抽取或索引刷新，必须只消费章节的稳定快照；在章节仍可能继续修复、重写或回退时，不允许把这类动作挂在热路径里。
 - 任务快照、事实检查和恢复建议生成必须保持只读；`recover` 可以返回可恢复位置，但不能在轮询、预览或投影读取时写入 `run_resumed`、恢复提示或其他状态事件。需要记录恢复动作时，必须由显式执行/恢复流程来写入，而不是由读路径顺手写入。
+- `novelEventBus` 只允许承载轻量领域通知。角色动力学同步、流水线快照、RAG 重索引、状态重算等重副作用必须进入持久队列或已有专用队列；事件 handler 不得直接执行这些服务。
 - 小说导出属于独立业务模块：`server/src/modules/export/` 只负责读取现有小说生产数据、转换导出 DTO、生成 TXT/Markdown/JSON 内容和导出文件名。它不拥有小说、章节、角色、时间线或质量修复事实源，也不在导出过程中写回生产状态。
 - 时间线约束层属于独立业务模块：`server/src/modules/timeline/` 只管理时间线事件、章节时间锚点、钩子、约束和检测报告。它不替代 `StoryStateSnapshot`、`ConsistencyFact` 或 `CharacterTimeline`，也不直接调用章节 writer 改正文。
 - 章节生成、Prompt Registry 和任务中心只能通过时间线模块 facade 获取时间线上下文或检测报告，不应在 writer、route 或 UI 中直接拼接 timeline 表查询规则。
@@ -71,6 +76,8 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 - `server/src/services/novel/runtime/ChapterTimelineFinalizationService.ts`
 - `server/src/modules/export/`
 - `server/src/modules/timeline/`
+- `server/src/services/novel/application/`
+- `server/src/events/sideEffects/`
 - `server/src/prompting/`
 - `client/src/pages/`
 - `shared/`
@@ -82,3 +89,6 @@ Wiki 记录稳定规则，计划和检查点保留历史语境。模块治理以
 - [自动导演执行面隔离与 API 保活计划](../../plans/auto-director-execution-plane-isolation-plan.md)
 - [导演模式模块化与状态治理改造清单](../../plans/director-mode-module-state-refactor-checklist.md)
 - [Novel Director 子系统](../../../server/src/services/novel/director/README.md)
+- [Novel 应用能力层边界](./novel-application-services.md)
+- [章节 Runtime 边界](./chapter-runtime-boundaries.md)
+- [事件副作用边界](./event-side-effect-boundaries.md)

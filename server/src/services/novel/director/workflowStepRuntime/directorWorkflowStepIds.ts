@@ -1,6 +1,6 @@
-import type { DirectorCandidateStageNode } from "../novelDirectorCandidateNodeAdapters";
-import type { DirectorExecutionStage } from "../novelDirectorExecutionNodeAdapters";
-import type { DirectorPlanningStage } from "../novelDirectorStageNodeAdapters";
+import type { DirectorCandidateStageNode } from "../phases/novelDirectorCandidateNodeAdapters";
+import type { DirectorExecutionStage } from "../phases/novelDirectorExecutionNodeAdapters";
+import type { DirectorPlanningStage } from "../phases/novelDirectorStageNodeAdapters";
 import { DIRECTOR_WORKFLOW_STEP_IDS } from "@ai-novel/shared/types/directorWorkflowStepCatalog";
 
 export const DIRECTOR_CANDIDATE_STEP_IDS: Record<DirectorCandidateStageNode, string> = {

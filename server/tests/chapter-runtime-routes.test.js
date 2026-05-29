@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
 const { createApp } = require("../dist/app.js");
-const { NovelService } = require("../dist/services/novel/NovelService.js");
+const { DefaultNovelApplicationServices } = require("../dist/services/novel/application/NovelApplicationServices.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -197,12 +197,12 @@ function buildRuntimePackage(novelId, chapterId) {
 }
 
 test("runtime chapter route emits runtime_package before done", async () => {
-  const originalMethod = NovelService.prototype.createChapterRuntimeStream;
+  const originalMethod = DefaultNovelApplicationServices.prototype.createChapterRuntimeStream;
   const novelId = "novel-runtime-route";
   const chapterId = "chapter-runtime-route";
   let capturedOptions = null;
 
-  NovelService.prototype.createChapterRuntimeStream = async (_novelId, _chapterId, options) => {
+  DefaultNovelApplicationServices.prototype.createChapterRuntimeStream = async (_novelId, _chapterId, options) => {
     capturedOptions = options;
     return {
       stream: buildStream(["第一段", "第二段"]),
@@ -243,17 +243,17 @@ test("runtime chapter route emits runtime_package before done", async () => {
     assert.ok(text.indexOf("\"type\":\"runtime_package\"") < text.indexOf("\"type\":\"done\""));
     assert.equal(capturedOptions?.taskStyleProfileId, "style-task-1");
   } finally {
-    NovelService.prototype.createChapterRuntimeStream = originalMethod;
+    DefaultNovelApplicationServices.prototype.createChapterRuntimeStream = originalMethod;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
 
 test("legacy generate route keeps chunk and done without runtime_package", async () => {
-  const originalMethod = NovelService.prototype.createChapterStream;
+  const originalMethod = DefaultNovelApplicationServices.prototype.createChapterStream;
   const novelId = "novel-legacy-route";
   const chapterId = "chapter-legacy-route";
 
-  NovelService.prototype.createChapterStream = async () => ({
+  DefaultNovelApplicationServices.prototype.createChapterStream = async () => ({
     stream: buildStream(["旧链路正文"]),
     onDone: async (fullContent, helpers) => {
       helpers.writeFrame({
@@ -290,18 +290,18 @@ test("legacy generate route keeps chunk and done without runtime_package", async
     assert.ok(!text.includes("\"type\":\"runtime_package\""));
     assert.ok(text.indexOf("\"type\":\"run_status\"") < text.indexOf("\"type\":\"done\""));
   } finally {
-    NovelService.prototype.createChapterStream = originalMethod;
+    DefaultNovelApplicationServices.prototype.createChapterStream = originalMethod;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
 
 test("repair route keeps the existing SSE contract", async () => {
-  const originalMethod = NovelService.prototype.createRepairStream;
+  const originalMethod = DefaultNovelApplicationServices.prototype.createRepairStream;
   const novelId = "novel-repair-route";
   const chapterId = "chapter-repair-route";
   let capturedOptions = null;
 
-  NovelService.prototype.createRepairStream = async (_novelId, _chapterId, options) => {
+  DefaultNovelApplicationServices.prototype.createRepairStream = async (_novelId, _chapterId, options) => {
     capturedOptions = options;
     return {
       stream: buildStream(["修复片段"]),
@@ -345,7 +345,7 @@ test("repair route keeps the existing SSE contract", async () => {
     assert.equal(Array.isArray(capturedOptions?.reviewIssues), true);
     assert.equal(capturedOptions?.reviewIssues?.[0]?.category, "pacing");
   } finally {
-    NovelService.prototype.createRepairStream = originalMethod;
+    DefaultNovelApplicationServices.prototype.createRepairStream = originalMethod;
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   startDirectorTakeoverExecution,
-} = require("../dist/services/novel/director/novelDirectorTakeoverExecution.js");
+} = require("../dist/services/novel/director/runtime/novelDirectorTakeoverExecution.js");
 
 function buildTakeoverState() {
   return {

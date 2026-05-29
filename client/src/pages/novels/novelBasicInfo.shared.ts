@@ -16,6 +16,7 @@ export interface NovelBasicFormState {
   status: "draft" | "published";
   writingMode: "original" | "continuation";
   projectMode: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
+  readerChannelPreference: "ai_judge" | "male_oriented" | "female_oriented" | "general";
   narrativePov: "first_person" | "third_person" | "mixed";
   pacePreference: "slow" | "balanced" | "fast";
   styleTone: string;
@@ -79,6 +80,30 @@ export const PROJECT_MODE_OPTIONS: BasicInfoOption<NovelBasicFormState["projectM
     value: "auto_pipeline",
     label: "流水线优先",
     summary: "适合设定较完整后按规划、生成、审计、修复连续推进。",
+  },
+];
+
+export const READER_CHANNEL_OPTIONS: BasicInfoOption<NovelBasicFormState["readerChannelPreference"]>[] = [
+  {
+    value: "ai_judge",
+    label: "AI 判断",
+    summary: "让 AI 根据题材、卖点和起始想法判断默认读者频道倾向，适合作为默认选择。",
+    recommended: true,
+  },
+  {
+    value: "male_oriented",
+    label: "男频向",
+    summary: "更强调目标、升级、竞争、爽点兑现和外部事件推进。",
+  },
+  {
+    value: "female_oriented",
+    label: "女频向",
+    summary: "更强调关系线、情绪牵引、人物选择和细腻的阶段性反馈。",
+  },
+  {
+    value: "general",
+    label: "泛读者 / 不限定",
+    summary: "不限定频道倾向，让 AI 优先按故事本身和目标读者描述来规划。",
   },
 ];
 
@@ -188,6 +213,7 @@ export const BASIC_INFO_FIELD_HINTS = {
   first30ChapterPromise: "写清楚前 30 章一定要让读者看到什么、爽到什么、相信什么。",
   commercialTagsText: "用逗号分隔 3-6 个标签即可，例如逆袭、强冲突、悬念拉满、职场博弈。",
   projectMode: "决定你和 AI 的协作方式。会影响后续哪些步骤自动推进、哪些步骤更依赖人工确认。",
+  readerChannelPreference: "帮助 AI 判断默认爽点、情绪重心和关系线权重。不确定时保持 AI 判断。",
   narrativePov: "决定章节生成默认采用哪种叙述视角，也会影响信息分发方式。",
   pacePreference: "决定章节规划时是偏铺垫还是偏推进，会影响场景密度和钩子强度。",
   emotionIntensity: "决定后续生成时情绪爆发和冲突的频率，不是越高越好。",
@@ -222,6 +248,7 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
     status: "draft",
     writingMode: "original",
     projectMode: "co_pilot",
+    readerChannelPreference: "ai_judge",
     narrativePov: "third_person",
     pacePreference: "balanced",
     styleTone: "",

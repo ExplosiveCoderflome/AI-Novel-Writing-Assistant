@@ -11,7 +11,7 @@ import {
   resolveWorkflowStageFromCheckpoint,
 } from "@ai-novel/shared/types/directorWorkflowStepCatalog";
 import { NOVEL_WORKFLOW_STAGE_LABELS, NOVEL_WORKFLOW_STAGE_PROGRESS, parseResumeTarget, parseSeedPayload } from "./novelWorkflow.shared";
-import type { DirectorWorkflowSeedPayload } from "../director/novelDirectorHelpers";
+import type { DirectorWorkflowSeedPayload } from "../director/runtime/novelDirectorHelpers";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
 
 export interface BootstrapWorkflowInput {

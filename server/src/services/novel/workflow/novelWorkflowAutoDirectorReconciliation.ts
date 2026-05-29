@@ -1,6 +1,6 @@
 import { prisma } from "../../../db/prisma";
 import { withSqliteRetry } from "../../../db/sqliteRetry";
-import type { DirectorWorkflowSeedPayload } from "../director/novelDirectorHelpers";
+import type { DirectorWorkflowSeedPayload } from "../director/runtime/novelDirectorHelpers";
 import type { DirectorAutoExecutionState } from "@ai-novel/shared/types/novelDirector";
 import {
   buildDirectorAutoExecutionCompletedLabel,

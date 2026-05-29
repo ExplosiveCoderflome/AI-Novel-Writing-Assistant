@@ -37,7 +37,6 @@ import {
   assessCharacterCastBatch,
   buildCharacterCastBlockedMessage,
   buildCharacterCastRepairReasons,
-  shouldNormalizeCharacterCastLanguage,
   type CharacterCastBatchAssessment,
 } from "./characterCastQuality";
 
@@ -51,6 +50,7 @@ interface CharacterPrepOptions {
 interface CharacterCastApplyOptions {
   overrideQualityGate?: boolean;
   visibleProfileGeneration?: CharacterVisibleProfileGenerateOptions;
+  postApplyMode?: "sync" | "background";
 }
 
 function toOptionalText(value: string | null | undefined): string | null {
@@ -352,6 +352,45 @@ export class CharacterPreparationService {
     };
   }
 
+  private async runPostApplyEnhancements(input: {
+    novelId: string;
+    optionId: string;
+    characterIds: string[];
+    visibleProfileGeneration?: CharacterVisibleProfileGenerateOptions;
+  }): Promise<void> {
+    const logContext = {
+      novelId: input.novelId,
+      optionId: input.optionId,
+      characterIds: input.characterIds,
+    };
+
+    try {
+      await this.characterDynamicsService.rebuildDynamics(input.novelId, {
+        sourceType: "cast_option_projection",
+      });
+    } catch (error) {
+      console.warn("[character-cast-apply] 角色动态投影后台补齐失败", {
+        ...logContext,
+        stage: "character_dynamics",
+        error,
+      });
+    }
+
+    try {
+      await this.characterVisibleProfileService.autoCompleteVisibleProfilesForCharacters(
+        input.novelId,
+        input.characterIds,
+        input.visibleProfileGeneration,
+      );
+    } catch (error) {
+      console.warn("[character-cast-apply] 外显资料后台补齐失败", {
+        ...logContext,
+        stage: "visible_profile",
+        error,
+      });
+    }
+  }
+
   private async normalizeCharacterCastOptions(
     parsed: CharacterCastOptionResponseParsed,
     options: CharacterPrepOptions,
@@ -541,9 +580,6 @@ export class CharacterPreparationService {
     });
 
     let parsed = generation.output;
-    if (shouldNormalizeCharacterCastLanguage(parsed.options)) {
-      parsed = await this.normalizeCharacterCastOptions(parsed, options).catch(() => parsed);
-    }
 
     let assessment = assessCharacterCastBatch(parsed.options, context.storyInput);
     if (assessment.autoApplicableOptionIndex === null) {
@@ -553,9 +589,6 @@ export class CharacterPreparationService {
         contextBlocks: context.contextBlocks,
         options,
       }).catch(() => parsed);
-      if (shouldNormalizeCharacterCastLanguage(parsed.options)) {
-        parsed = await this.normalizeCharacterCastOptions(parsed, options).catch(() => parsed);
-      }
       assessment = assessCharacterCastBatch(parsed.options, context.storyInput);
     }
 
@@ -734,18 +767,25 @@ export class CharacterPreparationService {
       data: { status: "applied" },
     });
 
-    await this.characterDynamicsService.rebuildDynamics(novelId, {
-      sourceType: "cast_option_projection",
-    }).catch(() => null);
-
-    await this.characterVisibleProfileService.autoCompleteVisibleProfilesForCharacters(
+    const postApplyInput = {
       novelId,
-      uniqueCharacterIds,
-      options.visibleProfileGeneration,
-    ).catch((error) => {
-      console.warn("[character-visible-profile] 自动补齐外显资料失败", error);
-      return null;
-    });
+      optionId: option.id,
+      characterIds: uniqueCharacterIds,
+      visibleProfileGeneration: options.visibleProfileGeneration,
+    };
+    if (options.postApplyMode === "background") {
+      void this.runPostApplyEnhancements(postApplyInput).catch((error) => {
+        console.warn("[character-cast-apply] 阵容应用后台补齐任务失败", {
+          novelId,
+          optionId: option.id,
+          characterIds: uniqueCharacterIds,
+          stage: "post_apply_enhancements",
+          error,
+        });
+      });
+    } else {
+      await this.runPostApplyEnhancements(postApplyInput);
+    }
 
     return {
       optionId: option.id,

@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   NovelDirectorRuntimeOrchestrator,
-} = require("../dist/services/novel/director/novelDirectorRuntimeOrchestrator.js");
+} = require("../dist/services/novel/director/runtime/novelDirectorRuntimeOrchestrator.js");
 const {
   createWorkflowStepModule,
 } = require("../dist/services/novel/director/workflowStepRuntime/WorkflowStepModule.js");
@@ -126,6 +126,7 @@ function buildNoopModule(input) {
       }),
       recover: async () => ({ recoverable: true }),
       completeCriteria: input.completeCriteria ?? (async () => true),
+      acceptablePauseCriteria: input.acceptablePauseCriteria,
       commit: async () => ({ producedArtifacts }),
     },
   );
@@ -245,6 +246,39 @@ test("executable steps can force rerun instead of reusing completed facts", asyn
   assert.equal(runtimeCalls.length, 1);
   assert.equal(runtimeCalls[0].nodeKey, "candidate_refine");
   assert.equal(runtimeCalls[0].reuseCompletedStep, false);
+  assert.deepEqual(runtimeCalls[0].producedArtifacts, [produced]);
+});
+
+test("executable steps can stop at an acceptable pause without failing completion", async () => {
+  const produced = buildArtifact("character_cast", {
+    id: "character_cast:novel:novel-1:CharacterCastOption:cast-1",
+    targetType: "novel",
+    targetId: "novel-1",
+    contentRef: { table: "CharacterCastOption", id: "cast-1" },
+  });
+  const { orchestrator, runtimeCalls } = buildOrchestrator([]);
+  const module = buildNoopModule({
+    id: "character.cast.prepare",
+    nodeKey: "character_setup_phase",
+    label: "Prepare character cast",
+    stage: "character_setup",
+    writes: ["character_cast"],
+    completeCriteria: async () => false,
+    acceptablePauseCriteria: async (output) => output?.status === "waiting_review",
+    producedArtifacts: [produced],
+  });
+
+  const result = await orchestrator.runStepModule({
+    module,
+    taskId: "task-character-pause",
+    novelId: "novel-1",
+    targetId: "novel-1",
+    runner: async () => ({ status: "waiting_review", optionId: "cast-1" }),
+  });
+
+  assert.deepEqual(result, { status: "waiting_review", optionId: "cast-1" });
+  assert.equal(runtimeCalls.length, 1);
+  assert.equal(runtimeCalls[0].nodeKey, "character_setup_phase");
   assert.deepEqual(runtimeCalls[0].producedArtifacts, [produced]);
 });
 

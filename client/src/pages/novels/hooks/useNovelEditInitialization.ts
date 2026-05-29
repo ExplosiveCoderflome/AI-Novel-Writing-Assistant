@@ -118,6 +118,7 @@ export function useNovelEditInitialization({
       status: detail.status,
       writingMode: detail.writingMode ?? "original",
       projectMode: detail.projectMode ?? "co_pilot",
+      readerChannelPreference: "ai_judge",
       narrativePov: detail.narrativePov ?? "third_person",
       pacePreference: detail.pacePreference ?? "balanced",
       styleTone: detail.styleTone ?? "",

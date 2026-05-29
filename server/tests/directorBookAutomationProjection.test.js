@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const { prisma } = require("../dist/db/prisma.js");
 const {
   DirectorBookAutomationProjectionService,
-} = require("../dist/services/novel/director/DirectorBookAutomationProjectionService.js");
+} = require("../dist/services/novel/director/projections/DirectorBookAutomationProjectionService.js");
 const {
   directorArtifactLedgerQueryService,
 } = require("../dist/services/novel/director/runtime/DirectorArtifactLedgerQueryService.js");
@@ -214,6 +214,8 @@ test("book automation projection aggregates task, command, event, approval and a
     assert.equal(projection.latestTask.id, "task-1");
     assert.equal(projection.latestRunId, "run-1");
     assert.equal(projection.status, "running");
+    assert.equal(projection.dashboardView.mode, "running");
+    assert.equal(projection.dashboardView.progressSource, "task_live");
     assert.equal(projection.runMode, "full_book_autopilot");
     assert.equal(projection.policyMode, "auto_safe_scope");
     assert.equal(projection.headline, "推进任务：生成章节任务单");
@@ -234,6 +236,41 @@ test("book automation projection aggregates task, command, event, approval and a
     assert.equal(projection.timeline[0].id, "event:event-1");
     assert.ok(projection.timeline.some((item) => item.id === "command:command-1"));
     assert.ok(projection.timeline.some((item) => item.id === "approval:approval-1"));
+  } finally {
+    harness.restore();
+  }
+});
+
+test("book automation projection prefers runtime chapter label over generic task label", async () => {
+  const harness = createHarness({
+    latestTask: {
+      currentStage: "chapter_execution",
+      currentItemKey: "chapter_execution",
+      currentItemLabel: "执行章节生成批次",
+    },
+    runtimeProjection: {
+      runId: "run-1",
+      novelId: "novel-1",
+      status: "running",
+      currentNodeKey: "chapter_execution",
+      currentLabel: "正在自动审校第 1-10 章 · 第8章 · 牵笼回声 · 批次 1/1",
+      headline: "推进任务：章节执行",
+      detail: "后台正在审校章节。",
+      lastEventSummary: "正在自动审校第 8 章。",
+      requiresUserAction: false,
+      blockedReason: null,
+      nextActionLabel: "继续章节执行",
+      progressSummary: "章节执行中。",
+      policyMode: "auto_safe_scope",
+      updatedAt: "2026-04-30T09:00:03.000Z",
+      recentEvents: [],
+    },
+  });
+  try {
+    const projection = await harness.service.getProjection("novel-1");
+
+    assert.equal(projection.currentLabel, "正在自动审校第 1-10 章 · 第8章 · 牵笼回声 · 批次 1/1");
+    assert.notEqual(projection.currentLabel, "执行章节生成批次");
   } finally {
     harness.restore();
   }
@@ -268,6 +305,7 @@ test("book automation projection explains queued commands waiting for a worker",
     const projection = await harness.service.getProjection("novel-1");
 
     assert.equal(projection.status, "queued");
+    assert.equal(projection.dashboardView.mode, "queued");
     assert.equal(projection.displayState, "processing");
     assert.equal(projection.requiresUserAction, false);
     assert.equal(projection.pendingCommandCount, 1);
@@ -307,6 +345,7 @@ test("book automation projection treats manual recovery as a book-level user act
     const projection = await harness.service.getProjection("novel-1");
 
     assert.equal(projection.status, "waiting_recovery");
+    assert.equal(projection.dashboardView.mode, "recovering");
     assert.equal(projection.displayState, "paused");
     assert.equal(projection.requiresUserAction, true);
     assert.equal(projection.blockedReason, "后台执行中断，点击恢复后继续。");
@@ -437,6 +476,7 @@ test("book automation projection keeps queued retry workflow ahead of old failed
 
     assert.equal(projection.latestTask.status, "queued");
     assert.equal(projection.status, "queued");
+    assert.equal(projection.dashboardView.mode, "queued");
     assert.equal(projection.displayState, "processing");
     assert.equal(projection.requiresUserAction, false);
     assert.equal(projection.blockedReason, null);
@@ -512,6 +552,7 @@ test("book automation projection keeps waiting approval ahead of a stale failed 
     const projection = await harness.service.getProjection("novel-1");
 
     assert.equal(projection.status, "waiting_approval");
+    assert.equal(projection.dashboardView.mode, "waiting_user");
     assert.equal(projection.displayState, "needs_confirmation");
     assert.equal(projection.requiresUserAction, true);
     assert.equal(projection.detail, "第 3-10 章已准备好继续执行。");

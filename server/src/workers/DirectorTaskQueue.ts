@@ -1,7 +1,7 @@
 import os from "node:os";
 import { prisma } from "../db/prisma";
-import { DirectorCommandService } from "../services/novel/director/DirectorCommandService";
-import { resourceClassForCommand } from "../services/novel/director/DirectorCommandServiceHelpers";
+import { DirectorCommandService } from "../services/novel/director/commands/DirectorCommandService";
+import { resourceClassForCommand } from "../services/novel/director/commands/DirectorCommandServiceHelpers";
 import { taskDispatcher } from "./TaskDispatcher";
 
 const ACTIVE_COMMAND_STATUSES = ["leased", "running"] as const;

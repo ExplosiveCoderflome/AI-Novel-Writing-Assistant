@@ -276,12 +276,12 @@ export function useVolumeGenerationMutation({
                 ? "当前卷节奏板已更新"
                 : payload.scope === "chapter_list" || payload.scope === "volume"
                   ? payload.generationMode === "single_beat"
-                    ? "当前卷节奏段章节已更新并自动同步到章节执行"
-                    : "当前卷章节列表已生成并自动同步到章节执行"
+                    ? "当前卷节奏段章节已更新并连接到章节执行"
+                    : "当前卷章节列表已生成并连接到章节执行"
                   : payload.scope === "rebalance"
                     ? "相邻卷再平衡建议已更新"
                     : result.autoSyncedToChapterExecution
-                      ? "章节细化已更新并自动同步到章节执行"
+                      ? "章节细化已更新并连接到章节执行"
                       : "章节细化已更新",
         checkpointType: payload.scope === "skeleton" || payload.scope === "book"
           ? "volume_strategy_ready"
@@ -292,8 +292,8 @@ export function useVolumeGenerationMutation({
           ? "卷战略与卷骨架已刷新，可以继续进入节奏拆章。"
           : payload.scope === "chapter_list" || payload.scope === "volume"
             ? payload.generationMode === "single_beat"
-              ? "当前卷节奏段章节已刷新，并已自动同步到章节执行区，可继续细化或直接进入章节执行。"
-              : "当前卷章节列表已准备完成，并已自动同步到章节执行区，可继续细化或直接进入章节执行。"
+              ? "当前卷节奏段章节已刷新，可继续细化或直接进入章节执行。"
+              : "当前卷章节列表已准备完成，可继续细化或直接进入章节执行。"
             : undefined,
         volumeId: payload.targetVolumeId,
         chapterId: payload.targetChapterId,

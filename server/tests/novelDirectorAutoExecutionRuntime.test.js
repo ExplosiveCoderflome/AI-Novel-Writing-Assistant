@@ -5,6 +5,9 @@ const {
   NovelDirectorAutoExecutionRuntime,
 } = require("../dist/services/novel/director/automation/novelDirectorAutoExecutionRuntime.js");
 const {
+  buildDirectorAutoExecutionState,
+} = require("../dist/services/novel/director/automation/novelDirectorAutoExecution.js");
+const {
   buildDirectorQualityLoopBudgetWindow,
   buildDirectorQualityLoopIssueSignature,
   recordDirectorQualityLoopBudgetAttempt,
@@ -1065,29 +1068,15 @@ test("runFromReady pauses replan notices in AI-driver execution", async () => {
 
 test("runFromReady can skip a replan notice and continue the remaining auto-execution range", async () => {
   const calls = [];
-  let phase = "initial";
+  const completedOrders = new Set();
   const runtime = new NovelDirectorAutoExecutionRuntime({
     novelContextService: {
       async listChapters() {
-        if (phase === "initial") {
-          return [
-            withExecutionDetail({ id: "chapter-1", order: 1, generationState: "planned", chapterStatus: "unplanned", content: "" }),
-            withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
-            withExecutionDetail({ id: "chapter-3", order: 3, generationState: "planned", chapterStatus: "unplanned", content: "" }),
-          ];
-        }
-        if (phase === "completed") {
-          return [
-            { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
-            withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
-            { id: "chapter-3", order: 3, generationState: "approved", chapterStatus: "completed", content: "正文3" },
-          ];
-        }
-        return [
-          { id: "chapter-1", order: 1, generationState: "repaired", chapterStatus: "completed", content: "正文1" },
-          withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
-          withExecutionDetail({ id: "chapter-3", order: 3, generationState: "planned", chapterStatus: "unplanned", content: "" }),
-        ];
+        return [1, 2, 3].map((order) => (
+          completedOrders.has(order)
+            ? { id: `chapter-${order}`, order, generationState: "approved", chapterStatus: "completed", content: `正文${order}` }
+            : withExecutionDetail({ id: `chapter-${order}`, order, generationState: "planned", chapterStatus: "unplanned", content: "" })
+        ));
       },
     },
     novelService: {
@@ -1095,30 +1084,35 @@ test("runFromReady can skip a replan notice and continue the remaining auto-exec
         calls.push(["startPipelineJob", options.startOrder, options.endOrder]);
         return calls.filter((call) => call[0] === "startPipelineJob").length === 1
           ? { id: "job-replan", status: "queued" }
-          : { id: "job-after-skip", status: "queued" };
+          : { id: `job-after-skip-${options.startOrder}`, status: "queued" };
       },
       async findActivePipelineJobForRange() {
         return null;
       },
       async getPipelineJobById(jobId) {
         calls.push(["getPipelineJobById", jobId]);
-        if (jobId === "job-after-skip") {
-          phase = "completed";
+        if (jobId.startsWith("job-after-skip-")) {
+          const order = Number(jobId.replace("job-after-skip-", ""));
+          completedOrders.add(order);
           return {
             id: jobId,
             status: "succeeded",
             progress: 1,
+            startOrder: order,
+            endOrder: order,
             currentStage: null,
             currentItemLabel: null,
             noticeSummary: null,
             error: null,
           };
         }
-        phase = "after_replan_notice";
+        completedOrders.add(1);
         return {
           id: "job-replan",
           status: "succeeded",
           progress: 1,
+          startOrder: 1,
+          endOrder: 1,
           currentStage: null,
           currentItemLabel: null,
           payload: JSON.stringify({
@@ -1182,11 +1176,49 @@ test("runFromReady can skip a replan notice and continue the remaining auto-exec
   assert.equal(calls.some((call) => call[0] === "recordAutoApproval" && call[1] === "replan_required"), false);
   assert.deepEqual(calls.filter((call) => call[0] === "startPipelineJob").map((call) => call.slice(1)), [
     [1, 1],
+    [2, 2],
     [3, 3],
   ]);
-  assert.ok(calls.some((call) => call[0] === "bootstrapTask" && Array.isArray(call[1]) && call[1].includes(2)));
+  assert.ok(calls.some((call) => call[0] === "bootstrapTask" && Array.isArray(call[1]) && call[1].includes(1)));
+  assert.equal(calls.some((call) => call[0] === "bootstrapTask" && Array.isArray(call[1]) && call[1].includes(2)), false);
   assert.equal(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "replan_required"), false);
   assert.ok(calls.some((call) => call[0] === "recordCheckpoint" && call[2] === "workflow_completed"));
+});
+
+test("auto-execution state drops blank chapters from skipped quality debt", () => {
+  const state = buildDirectorAutoExecutionState({
+    range: { startOrder: 1, endOrder: 3, totalChapterCount: 3, firstChapterId: "chapter-1" },
+    chapters: [
+      { id: "chapter-1", order: 1, generationState: "approved", chapterStatus: "completed", content: "正文1" },
+      withExecutionDetail({ id: "chapter-2", order: 2, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+      withExecutionDetail({ id: "chapter-3", order: 3, generationState: "planned", chapterStatus: "unplanned", content: "" }),
+    ],
+    plan: {
+      enabled: true,
+      mode: "chapter_range",
+      startOrder: 1,
+      endOrder: 3,
+      totalChapterCount: 3,
+      skippedChapterIds: ["chapter-2"],
+      skippedChapterOrders: [2],
+      qualityDebtChapterIds: ["chapter-2"],
+      qualityDebtChapterOrders: [2],
+      qualityDebtSummaries: [{
+        chapterId: "chapter-2",
+        chapterOrder: 2,
+        reason: "旧状态错误地把空章节登记为质量债。",
+        source: "review_skip",
+        deferredAt: "2026-05-27T00:00:00.000Z",
+      }],
+    },
+  });
+
+  assert.deepEqual(state.skippedChapterIds, []);
+  assert.deepEqual(state.skippedChapterOrders, []);
+  assert.deepEqual(state.qualityDebtChapterIds, []);
+  assert.deepEqual(state.qualityDebtChapterOrders, []);
+  assert.deepEqual(state.qualityDebtSummaries, []);
+  assert.equal(state.nextChapterOrder, 2);
 });
 
 test("runFromReady keeps full-book replan notices blocking instead of auto-completing the range", async () => {

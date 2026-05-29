@@ -1,5 +1,5 @@
 import type { PipelineJob } from "@ai-novel/shared/types/novel";
-import type { NovelService } from "../../services/novel/NovelService";
+import type { NovelApplicationServices } from "../../services/novel/application/NovelApplicationContracts";
 import type {
   ExportAuditIssue,
   ExportBible,
@@ -269,7 +269,7 @@ function mapExportPlotBeat(raw: {
 }
 
 export function mapExportNovelDetail(
-  raw: NonNullable<Awaited<ReturnType<NovelService["getNovelById"]>>>,
+  raw: NonNullable<Awaited<ReturnType<NovelApplicationServices["getNovelById"]>>>,
 ): ExportNovelDetail {
   return ({
     ...raw,

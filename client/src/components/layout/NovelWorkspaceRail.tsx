@@ -33,6 +33,7 @@ import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinua
 import {
   applyAutoDirectorResetStepReadiness,
   extractAutoDirectorResetStepsFromMeta,
+  resolveAutoDirectorResetStepsForWorkflowProgress,
 } from "./novelWorkspaceRailState";
 import {
   getNovelWorkspaceTabLabel,
@@ -172,7 +173,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     enabled: Boolean(novelId),
     refetchInterval: (query) => {
       const task = query.state.data?.data;
-      return task && (task.status === "queued" || task.status === "running")
+      return task && (task.status === "queued" || task.status === "running" || task.status === "waiting_approval")
         ? 4000
         : false;
     },
@@ -184,7 +185,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     retry: false,
     refetchInterval: (query) => {
       const status = query.state.data?.data?.projection.status;
-      return status === "queued" || status === "running" ? 4000 : false;
+      return status === "queued" || status === "running" || status === "waiting_approval" ? 4000 : false;
     },
   });
 
@@ -220,7 +221,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     enabled: Boolean(activeTask?.id),
     retry: false,
     refetchInterval: () => (
-      activeTask && (activeTask.status === "queued" || activeTask.status === "running")
+      activeTask && (activeTask.status === "queued" || activeTask.status === "running" || activeTask.status === "waiting_approval")
         ? 4000
         : false
     ),
@@ -236,8 +237,10 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         : false
     ),
   });
-  const runtimeProjection = runtimeProjectionQuery.data?.data?.projection ?? null;
+  const runtimeProjectionFromQuery = runtimeProjectionQuery.data?.data?.projection ?? null;
   const runtimeSnapshot = runtimeSnapshotQuery.data?.data?.snapshot ?? null;
+  const dashboardView = runtimeSnapshot?.dashboardView ?? null;
+  const runtimeProjection = runtimeSnapshot?.projection ?? runtimeProjectionFromQuery;
   const resetSteps = useMemo(
     () => extractAutoDirectorResetStepsFromMeta(activeTask?.meta),
     [activeTask?.meta],
@@ -265,6 +268,10 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       reviewScope,
     ],
   );
+  const effectiveResetSteps = useMemo(
+    () => resolveAutoDirectorResetStepsForWorkflowProgress(resetSteps, workflowCurrentTab),
+    [resetSteps, workflowCurrentTab],
+  );
 
   const stepReadiness = useMemo(() => {
     const basicReady = Boolean(novelDetail?.title?.trim());
@@ -289,8 +296,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       structured: structuredReady,
       chapter: chapterReady,
       pipeline: pipelineReady,
-    } satisfies Record<NovelWorkspaceFlowTab, boolean>, resetSteps);
-  }, [novelDetail?.bible, novelDetail?.chapters, novelDetail?.characters, novelDetail?.plotBeats, qualitySummary, resetSteps, workspace]);
+    } satisfies Record<NovelWorkspaceFlowTab, boolean>, effectiveResetSteps);
+  }, [effectiveResetSteps, novelDetail?.bible, novelDetail?.chapters, novelDetail?.characters, novelDetail?.plotBeats, qualitySummary, workspace]);
 
   const workflowIndex = workflowCurrentTab
     ? NOVEL_WORKSPACE_FLOW_STEPS.findIndex((item) => item.key === workflowCurrentTab)
@@ -300,7 +307,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     NOVEL_WORKSPACE_FLOW_STEPS.map((step, index) => {
       const isSelected = activeTab === step.key;
       const isWorkflowCurrent = workflowCurrentTab === step.key;
-      const isReset = resetSteps.has(step.key);
+      const isReset = effectiveResetSteps.has(step.key);
       const isDone = !isReset && (
         workflowIndex >= 0
           ? index < workflowIndex
@@ -322,7 +329,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         statusLabel,
       };
     })
-  ), [activeTab, resetSteps, stepReadiness, workflowCurrentTab, workflowIndex]);
+  ), [activeTab, effectiveResetSteps, stepReadiness, workflowCurrentTab, workflowIndex]);
 
   const completedStepCount = stepStates.filter((item) => item.isDone).length;
   const workflowProgressCount = workflowIndex >= 0 ? workflowIndex + 1 : completedStepCount;
@@ -330,9 +337,11 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const runtimeActionSummary = runtimeProjection?.nextActionLabel
     ? `下一步：${runtimeProjection.nextActionLabel}`
     : null;
-  const runtimeSummary = runtimeProjection?.requiresUserAction
-    ? `需要处理：${runtimeProjection.blockedReason ?? runtimeProjection.lastEventSummary ?? runtimeProjection.currentLabel ?? "请先查看当前停留点"}`
-    : runtimeSnapshot?.displayState.currentAction?.trim()
+  const runtimeSummary = dashboardView?.currentAction?.trim()
+    || (dashboardView?.requiresUserAction
+      ? `需要处理：${dashboardView.userActionReason ?? "请先查看当前停留点"}`
+      : null)
+    || runtimeSnapshot?.displayState.currentAction?.trim()
       || runtimeProjection?.headline
       || runtimeActionSummary
       || runtimeProjection?.currentLabel
@@ -418,6 +427,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.directorBookAutomation(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail("novel_workflow", activeTask?.id ?? "") }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorTaskSnapshot(activeTask?.id ?? "") }),
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorRuntime(activeTask?.id ?? "") }),
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
       ]);

@@ -277,7 +277,10 @@ export default function NovelTaskDrawer({
     ? task.meta.milestones as NovelWorkflowMilestone[]
     : [];
   const displayState = snapshot?.displayState ?? null;
-  const projectedProgressPercent = displayState?.progressPercent ?? projection?.runtimeProjection?.progressBreakdown?.totalPercent;
+  const dashboardView = snapshot?.dashboardView ?? null;
+  const projectedProgressPercent = dashboardView?.progressPercent
+    ?? displayState?.progressPercent
+    ?? projection?.runtimeProjection?.progressBreakdown?.totalPercent;
   const workflowProgressFraction = typeof task?.progress === "number" && Number.isFinite(task.progress)
     ? task.progress
     : null;
@@ -347,8 +350,8 @@ export default function NovelTaskDrawer({
             <AICockpit
               projection={projection}
               mode="focusedNovel"
-              fallbackSummary={displayState?.currentAction || task?.blockingReason || task?.currentItemLabel || "当前没有需要处理的 AI 推进动作。"}
-              fallbackStatusLabel={task ? formatTaskStatus(task) : "未开启"}
+              fallbackSummary={dashboardView?.currentAction || displayState?.currentAction || task?.blockingReason || task?.currentItemLabel || "当前没有需要处理的 AI 推进动作。"}
+              fallbackStatusLabel={dashboardView?.statusLabel ?? (task ? formatTaskStatus(task) : "未开启")}
               showDetailsAction={false}
               onAction={(_projection, action) => handleProjectionAction(action)}
             />
@@ -397,11 +400,11 @@ export default function NovelTaskDrawer({
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border bg-background/80 p-3">
                     <div className="text-xs text-muted-foreground">当前阶段</div>
-                    <div className="mt-1 text-sm font-medium text-foreground">{displayState?.stageLabel ?? task.currentStage ?? "暂无"}</div>
+                    <div className="mt-1 text-sm font-medium text-foreground">{dashboardView?.stageLabel ?? displayState?.stageLabel ?? task.currentStage ?? "暂无"}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
                     <div className="text-xs text-muted-foreground">当前动作</div>
-                    <div className="mt-1 text-sm font-medium text-foreground">{displayState?.currentAction ?? task.currentItemLabel ?? "暂无"}</div>
+                    <div className="mt-1 text-sm font-medium text-foreground">{dashboardView?.currentAction ?? displayState?.currentAction ?? task.currentItemLabel ?? "暂无"}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
                     <div className="text-xs text-muted-foreground">最近检查点</div>

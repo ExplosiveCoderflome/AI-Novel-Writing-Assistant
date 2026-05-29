@@ -49,8 +49,11 @@ export const chapterPatchRepairPrompt: PromptAsset<
       "3. replacement 只替换 targetExcerpt 对应片段，不要改写无关段落；如果修复目标是删除重复片段，replacement 可以是空字符串。",
       "4. 优先修复问题清单中影响主线推进、连续性、人物动机、节奏和结尾钩子的关键问题。",
       "5. 不得新增重大设定、核心角色或与章节任务冲突的剧情转向。",
-      "6. 如果确实无法用局部补丁安全修复，requiresFullRewrite 设为 true，并说明 escalationReason。",
-      input.modeHint ? `7. 修复重点：${input.modeHint}` : "",
+      "6. 局部补丁只处理正文中能定位到完整句段的问题；审校系统不可用、结构化判断缺失、评分不足等系统风险不属于正文片段修复。",
+      "7. targetExcerpt 必须是正文里的完整短句或段落，不得是单个词语、称谓、标点或过短短语。",
+      "8. 如果找不到至少 6 个字符且在正文中唯一出现的原文片段，不要输出 patch；requiresFullRewrite 设为 true，并说明 escalationReason。",
+      "9. 如果确实无法用局部补丁安全修复，requiresFullRewrite 设为 true，并说明 escalationReason。",
+      input.modeHint ? `10. 修复重点：${input.modeHint}` : "",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

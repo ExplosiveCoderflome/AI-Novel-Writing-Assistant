@@ -61,12 +61,19 @@ function writeDismissedRecoverySignature(signature: string): void {
 export function TaskRecoveryProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [manualOpen, setManualOpen] = useState(false);
+  const [recoveryQueryEnabled, setRecoveryQueryEnabled] = useState(false);
   const [dismissedSignature, setDismissedSignature] = useState(() => readDismissedRecoverySignature());
   const [acceptedRecoveryKeys, setAcceptedRecoveryKeys] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setRecoveryQueryEnabled(true), 900);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const recoveryQuery = useQuery({
     queryKey: queryKeys.tasks.recoveryCandidates,
     queryFn: listRecoveryCandidates,
+    enabled: recoveryQueryEnabled,
     staleTime: 10_000,
   });
 

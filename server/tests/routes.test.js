@@ -8,7 +8,9 @@ const { creativeHubInterruptLangGraph } = require("../dist/creativeHub/CreativeH
 const { creativeHubService } = require("../dist/creativeHub/CreativeHubService.js");
 const { llmConnectivityService } = require("../dist/llm/connectivity.js");
 const structuredFallbackSettings = require("../dist/llm/structuredFallbackSettings.js");
-const { NovelService } = require("../dist/services/novel/NovelService.js");
+const {
+  DefaultNovelApplicationServices,
+} = require("../dist/services/novel/application/NovelApplicationServices.js");
 const { NovelFramingSuggestionService } = require("../dist/services/novel/NovelFramingSuggestionService.js");
 const { ragServices } = require("../dist/services/rag/index.js");
 const { providerBalanceService } = require("../dist/services/settings/ProviderBalanceService.js");
@@ -543,7 +545,7 @@ test("GET /api/settings/api-keys exposes ollama baseURL and optional-key metadat
   }
 });
 
-test("GET /api/settings/api-keys resolves unsaved provider model from fetched catalog", async () => {
+test("GET /api/settings/api-keys uses lightweight local model metadata", async () => {
   const originalFindMany = prisma.aPIKey.findMany;
   const originalFetch = global.fetch;
   const previousDeepSeekModel = process.env.DEEPSEEK_MODEL;
@@ -562,24 +564,8 @@ test("GET /api/settings/api-keys resolves unsaved provider model from fetched ca
       updatedAt: new Date(),
     },
   ]);
-  global.fetch = async (url) => {
-    const target = String(url);
-    if (target === "https://models.example.com/v1/models") {
-      return new Response(JSON.stringify({
-        data: [{ id: "deepseek-v4-latest" }, { id: "deepseek-reasoner" }],
-      }), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-    }
-    return new Response(JSON.stringify({ error: "not mocked" }), {
-      status: 404,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+  global.fetch = async () => {
+    throw new Error("api-keys summary must not fetch remote model catalogs");
   };
 
   const app = createApp();
@@ -592,9 +578,9 @@ test("GET /api/settings/api-keys resolves unsaved provider model from fetched ca
     assert.equal(payload.success, true);
     const deepseek = payload.data.find((item) => item.provider === "deepseek");
     assert.ok(deepseek);
-    assert.equal(deepseek.currentModel, "deepseek-v4-latest");
+    assert.equal(deepseek.currentModel, "deepseek-chat");
     assert.equal(deepseek.isConfigured, true);
-    assert.deepEqual(deepseek.models, ["deepseek-v4-latest", "deepseek-reasoner"]);
+    assert.ok(deepseek.models.includes("deepseek-chat"));
   } finally {
     prisma.aPIKey.findMany = originalFindMany;
     global.fetch = originalFetch;
@@ -1522,15 +1508,15 @@ test("creative hub interrupt route resumes via langgraph and updates thread stat
 
 test("novel state and planning routes return success payloads", async () => {
   const originalMethods = {
-    getNovelState: NovelService.prototype.getNovelState,
-    getLatestStateSnapshot: NovelService.prototype.getLatestStateSnapshot,
-    getChapterStateSnapshot: NovelService.prototype.getChapterStateSnapshot,
-    rebuildNovelState: NovelService.prototype.rebuildNovelState,
-    generateBookPlan: NovelService.prototype.generateBookPlan,
-    generateArcPlan: NovelService.prototype.generateArcPlan,
-    generateChapterPlan: NovelService.prototype.generateChapterPlan,
-    getChapterPlan: NovelService.prototype.getChapterPlan,
-    replanNovel: NovelService.prototype.replanNovel,
+    getNovelState: DefaultNovelApplicationServices.prototype.getNovelState,
+    getLatestStateSnapshot: DefaultNovelApplicationServices.prototype.getLatestStateSnapshot,
+    getChapterStateSnapshot: DefaultNovelApplicationServices.prototype.getChapterStateSnapshot,
+    rebuildNovelState: DefaultNovelApplicationServices.prototype.rebuildNovelState,
+    generateBookPlan: DefaultNovelApplicationServices.prototype.generateBookPlan,
+    generateArcPlan: DefaultNovelApplicationServices.prototype.generateArcPlan,
+    generateChapterPlan: DefaultNovelApplicationServices.prototype.generateChapterPlan,
+    getChapterPlan: DefaultNovelApplicationServices.prototype.getChapterPlan,
+    replanNovel: DefaultNovelApplicationServices.prototype.replanNovel,
   };
   const novelId = "novel-route-test";
   const chapterId = "chapter-route-test";
@@ -1576,15 +1562,15 @@ test("novel state and planning routes return success payloads", async () => {
       updatedAt: new Date().toISOString(),
     }],
   };
-  NovelService.prototype.getNovelState = async () => ({ latestSnapshot: snapshot, snapshots: [snapshot] });
-  NovelService.prototype.getLatestStateSnapshot = async () => snapshot;
-  NovelService.prototype.getChapterStateSnapshot = async () => snapshot;
-  NovelService.prototype.rebuildNovelState = async () => ({ rebuiltCount: 1, latestSnapshot: snapshot });
-  NovelService.prototype.generateBookPlan = async () => ({ ...plan, chapterId: null, level: "book", scenes: [] });
-  NovelService.prototype.generateArcPlan = async () => ({ ...plan, chapterId: null, level: "arc", externalRef: "arc-1", scenes: [] });
-  NovelService.prototype.generateChapterPlan = async () => plan;
-  NovelService.prototype.getChapterPlan = async () => plan;
-  NovelService.prototype.replanNovel = async () => ({ ...plan, id: "plan-replanned" });
+  DefaultNovelApplicationServices.prototype.getNovelState = async () => ({ latestSnapshot: snapshot, snapshots: [snapshot] });
+  DefaultNovelApplicationServices.prototype.getLatestStateSnapshot = async () => snapshot;
+  DefaultNovelApplicationServices.prototype.getChapterStateSnapshot = async () => snapshot;
+  DefaultNovelApplicationServices.prototype.rebuildNovelState = async () => ({ rebuiltCount: 1, latestSnapshot: snapshot });
+  DefaultNovelApplicationServices.prototype.generateBookPlan = async () => ({ ...plan, chapterId: null, level: "book", scenes: [] });
+  DefaultNovelApplicationServices.prototype.generateArcPlan = async () => ({ ...plan, chapterId: null, level: "arc", externalRef: "arc-1", scenes: [] });
+  DefaultNovelApplicationServices.prototype.generateChapterPlan = async () => plan;
+  DefaultNovelApplicationServices.prototype.getChapterPlan = async () => plan;
+  DefaultNovelApplicationServices.prototype.replanNovel = async () => ({ ...plan, id: "plan-replanned" });
 
   const app = createApp();
   const server = http.createServer(app);
@@ -1659,16 +1645,16 @@ test("novel state and planning routes return success payloads", async () => {
     assert.equal(replanResponse.status, 200);
     assert.equal((await replanResponse.json()).data.id, "plan-replanned");
   } finally {
-    Object.assign(NovelService.prototype, originalMethods);
+    Object.assign(DefaultNovelApplicationServices.prototype, originalMethods);
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
 
 test("novel world slice routes return success payloads", async () => {
   const originalMethods = {
-    getWorldSlice: NovelService.prototype.getWorldSlice,
-    refreshWorldSlice: NovelService.prototype.refreshWorldSlice,
-    updateWorldSliceOverrides: NovelService.prototype.updateWorldSliceOverrides,
+    getWorldSlice: DefaultNovelApplicationServices.prototype.getWorldSlice,
+    refreshWorldSlice: DefaultNovelApplicationServices.prototype.refreshWorldSlice,
+    updateWorldSliceOverrides: DefaultNovelApplicationServices.prototype.updateWorldSliceOverrides,
   };
   const novelId = "novel-world-slice-route";
   const worldSliceView = {
@@ -1742,12 +1728,12 @@ test("novel world slice routes return success payloads", async () => {
     isStale: false,
   };
 
-  NovelService.prototype.getWorldSlice = async () => worldSliceView;
-  NovelService.prototype.refreshWorldSlice = async () => ({
+  DefaultNovelApplicationServices.prototype.getWorldSlice = async () => worldSliceView;
+  DefaultNovelApplicationServices.prototype.refreshWorldSlice = async () => ({
     ...worldSliceView,
     isStale: false,
   });
-  NovelService.prototype.updateWorldSliceOverrides = async () => ({
+  DefaultNovelApplicationServices.prototype.updateWorldSliceOverrides = async () => ({
     ...worldSliceView,
     overrides: {
       ...worldSliceView.overrides,
@@ -1791,16 +1777,16 @@ test("novel world slice routes return success payloads", async () => {
     assert.equal(updateResponse.status, 200);
     assert.equal((await updateResponse.json()).data.overrides.scopeNote, "只保留现实压力。");
   } finally {
-    Object.assign(NovelService.prototype, originalMethods);
+    Object.assign(DefaultNovelApplicationServices.prototype, originalMethods);
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });
 
 test("novel audit routes return success payloads", async () => {
   const originalMethods = {
-    auditChapter: NovelService.prototype.auditChapter,
-    listChapterAuditReports: NovelService.prototype.listChapterAuditReports,
-    resolveAuditIssues: NovelService.prototype.resolveAuditIssues,
+    auditChapter: DefaultNovelApplicationServices.prototype.auditChapter,
+    listChapterAuditReports: DefaultNovelApplicationServices.prototype.listChapterAuditReports,
+    resolveAuditIssues: DefaultNovelApplicationServices.prototype.resolveAuditIssues,
   };
   const novelId = "novel-audit-route-test";
   const chapterId = "chapter-audit-route-test";
@@ -1846,9 +1832,9 @@ test("novel audit routes return success payloads", async () => {
     }],
     auditReports: [report],
   };
-  NovelService.prototype.auditChapter = async () => auditResult;
-  NovelService.prototype.listChapterAuditReports = async () => [report];
-  NovelService.prototype.resolveAuditIssues = async () => [{ ...issue, status: "resolved" }];
+  DefaultNovelApplicationServices.prototype.auditChapter = async () => auditResult;
+  DefaultNovelApplicationServices.prototype.listChapterAuditReports = async () => [report];
+  DefaultNovelApplicationServices.prototype.resolveAuditIssues = async () => [{ ...issue, status: "resolved" }];
 
   const app = createApp();
   const server = http.createServer(app);
@@ -1884,7 +1870,7 @@ test("novel audit routes return success payloads", async () => {
     assert.equal(resolveResponse.status, 200);
     assert.equal((await resolveResponse.json()).data[0].status, "resolved");
   } finally {
-    Object.assign(NovelService.prototype, originalMethods);
+    Object.assign(DefaultNovelApplicationServices.prototype, originalMethods);
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
 });

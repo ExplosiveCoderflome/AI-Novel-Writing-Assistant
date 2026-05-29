@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import type { DirectorContinuationMode, DirectorLockScope, DirectorSessionState } from "@ai-novel/shared/types/novelDirector";
 import type { AutoDirectorAction, AutoDirectorMutationActionCode } from "@ai-novel/shared/types/autoDirectorFollowUp";
-import type { DirectorBookAutomationAction, DirectorTaskSnapshot } from "@ai-novel/shared/types/directorRuntime";
+import type { DirectorBookAutomationAction, DirectorDashboardMode, DirectorTaskSnapshot } from "@ai-novel/shared/types/directorRuntime";
 import type { NovelExportDownloadFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
 import type {
   PipelineRepairMode,
@@ -20,7 +20,7 @@ import NovelEditView from "./components/NovelEditView";
 import type { LLMSelectorValue } from "@/components/common/LLMSelector";
 import { getBaseCharacterList } from "@/api/character";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
-import { getDirectorBookAutomationProjection, getDirectorRuntimeSnapshot, getDirectorTaskSnapshot } from "@/api/novelDirector";
+import { getDirectorBookAutomationProjection, getDirectorTaskSnapshot } from "@/api/novelDirector";
 import { continueNovelWorkflow, getActiveAutoDirectorTask } from "@/api/novelWorkflow";
 import { archiveTask, cancelTask, getTaskDetail, retryTask } from "@/api/tasks";
 import { executeAutoDirectorFollowUpAction, getAutoDirectorFollowUpDetail } from "@/api/autoDirectorFollowUps";
@@ -96,11 +96,31 @@ import {
 import {
   buildDisplayAutoDirectorTask,
   canArchiveCompletedAutoDirectorTask,
+  resolveTakeoverDialogContextTaskId,
   resolveAutomationActionText,
   resolveTakeoverModeFromAutomation,
   shouldPreserveRequestedDirectorTaskId,
   shouldAutofocusProjectedDirectorTask,
 } from "./novelEditAutomationStatus";
+
+function mapDashboardModeToTakeoverMode(mode: DirectorDashboardMode | null | undefined): NovelEditTakeoverState["mode"] | null {
+  switch (mode) {
+    case "running":
+    case "queued":
+    case "completed":
+      return "running";
+    case "waiting_user":
+      return "waiting";
+    case "recovering":
+      return "action_required";
+    case "failed":
+      return "failed";
+    case "idle":
+      return "loading";
+    default:
+      return null;
+  }
+}
 
 function parsePipelineBackgroundActivities(payload: string | null | undefined): ChapterExecutionBackgroundActivity[] {
   if (!payload?.trim()) {
@@ -242,6 +262,7 @@ export default function NovelEdit() {
     setSelectedChapterId,
     selectedVolumeId,
     setSelectedVolumeId,
+    workflowTaskId,
     taskPanelOpen,
     clearTaskPanelOpen,
   } = useNovelEditWorkflow(id);
@@ -382,7 +403,7 @@ export default function NovelEdit() {
     enabled: Boolean(id),
     refetchInterval: (query) => {
       const task = query.state.data?.data;
-      return task && (task.status === "queued" || task.status === "running")
+      return task && (task.status === "queued" || task.status === "running" || task.status === "waiting_approval")
         ? 4000
         : false;
     },
@@ -394,7 +415,7 @@ export default function NovelEdit() {
     retry: false,
     refetchInterval: (query) => {
       const status = query.state.data?.data?.projection.status;
-      return status === "queued" || status === "running" ? 4000 : false;
+      return status === "queued" || status === "running" || status === "waiting_approval" ? 4000 : false;
     },
   });
   const chapterPlanQuery = useQuery({
@@ -749,25 +770,17 @@ export default function NovelEdit() {
     () => resolveActiveStructuredOutlineChapterId(activeDirectorSnapshot),
     [activeDirectorSnapshot],
   );
-  const activeDirectorRuntimeQuery = useQuery({
-    queryKey: queryKeys.tasks.directorRuntime(selectedDirectorTaskId || "none"),
-    queryFn: () => getDirectorRuntimeSnapshot(selectedDirectorTaskId),
-    enabled: Boolean(selectedDirectorTaskId),
-    retry: false,
-    refetchInterval: () => (
-      displayAutoDirectorTask && (
-        displayAutoDirectorTask.status === "queued"
-        || displayAutoDirectorTask.status === "running"
-        || displayAutoDirectorTask.status === "waiting_approval"
-      )
-        ? 4000
-        : false
-    ),
-  });
-  const activeDirectorRuntimeSnapshot = activeDirectorRuntimeQuery.data?.data?.snapshot ?? null;
-  const activeDirectorRuntimeProjection = activeDirectorRuntimeQuery.data?.data?.projection ?? null;
-  const activeDirectorRuntimeHardBlocked = activeDirectorRuntimeProjection?.status === "blocked";
-  const activeDirectorRuntimeBlockedReason = activeDirectorRuntimeProjection?.blockedReason?.trim()
+  const activeDirectorRuntimeSnapshot = activeDirectorSnapshot?.runtime ?? null;
+  const activeDirectorRuntimeProjection = activeDirectorSnapshot?.projection ?? null;
+  const activeDirectorDashboardView = activeDirectorSnapshot?.dashboardView ?? null;
+  const activeDirectorRuntimeHardBlocked = activeDirectorDashboardView?.mode === "failed"
+    || activeDirectorDashboardView?.mode === "recovering"
+    || (
+      activeDirectorDashboardView?.mode !== "running"
+      && activeDirectorRuntimeProjection?.status === "blocked"
+    );
+  const activeDirectorRuntimeBlockedReason = activeDirectorDashboardView?.userActionReason?.trim()
+    || activeDirectorRuntimeProjection?.blockedReason?.trim()
     || activeDirectorRuntimeProjection?.detail?.trim()
     || null;
   const activeAutoDirectorFollowUpQuery = useQuery({
@@ -915,6 +928,7 @@ export default function NovelEdit() {
     if (taskId) {
       invalidations.push(
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail("novel_workflow", taskId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorTaskSnapshot(taskId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorRuntime(taskId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.autoDirectorFollowUps.detail(taskId) }),
       );
@@ -1380,7 +1394,9 @@ export default function NovelEdit() {
       characterCount: characters.length,
       chapterCount: chapters.length,
     });
-    const mode = resolveTakeoverModeFromAutomation({
+    const dashboardView = activeDirectorSnapshot?.dashboardView ?? null;
+    const mode = mapDashboardModeToTakeoverMode(dashboardView?.mode)
+      ?? resolveTakeoverModeFromAutomation({
       task,
       projection: bookAutomationProjection,
     });
@@ -1570,7 +1586,7 @@ export default function NovelEdit() {
       });
     } else if (task.status === "waiting_approval") {
       actions.push({
-        label: "完成并收起",
+        label: "收起此提醒",
         onClick: dismissTakeover,
         variant: "secondary",
       });
@@ -1586,7 +1602,7 @@ export default function NovelEdit() {
       title: consistencyIssue === "missing_characters"
         ? `《${novelTitle}》导演产物未补齐角色准备`
         : consistencyIssue === "missing_chapters"
-          ? `《${novelTitle}》导演产物未同步到章节执行区`
+          ? `《${novelTitle}》导演产物未连接到章节执行区`
           : task.pendingManualRecovery
             ? `《${novelTitle}》等待从检查点恢复`
           : buildTakeoverTitle({
@@ -1607,7 +1623,9 @@ export default function NovelEdit() {
             reviewScope,
             scopeLabel: autoExecutionScopeLabel,
           }),
-      progress: task.progress,
+      progress: typeof dashboardView?.progressPercent === "number"
+        ? dashboardView.progressPercent
+        : task.progress,
       currentAction: consistencyIssue === "missing_characters"
         ? "检测到角色准备仍为空，当前导演结果需要继续补齐。"
         : consistencyIssue === "missing_chapters"
@@ -1619,6 +1637,8 @@ export default function NovelEdit() {
               || task.lastError?.trim()
               || "任务已暂停，等待从最近检查点恢复。"
             )
+          : dashboardView?.currentAction?.trim()
+            ? dashboardView.currentAction.trim()
           : activeDirectorSnapshot?.displayState.currentAction?.trim()
             ? activeDirectorSnapshot.displayState.currentAction.trim()
           : automationActionText
@@ -1639,6 +1659,7 @@ export default function NovelEdit() {
   }, [
     activeAutoDirectorTask,
     activeChapterTitleWarning,
+    activeDirectorSnapshot?.dashboardView,
     activeDirectorSnapshot?.displayState.currentAction,
     activeDirectorSession,
     activeTab,
@@ -1859,7 +1880,10 @@ export default function NovelEdit() {
       return;
     }
     const targetVolume = normalizedVolumeDraft.find((volume) => (
-      volume.chapters.some((chapter) => chapter.id === activeStructuredOutlineChapterId)
+      volume.chapters.some((chapter) => (
+        chapter.id === activeStructuredOutlineChapterId
+        || chapter.chapterId === activeStructuredOutlineChapterId
+      ))
     ));
     if (!targetVolume) {
       return;
@@ -2265,17 +2289,26 @@ export default function NovelEdit() {
   const renderTakeoverEntry = (
     step: "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline",
     variant: "default" | "outline" | "secondary" = "default",
-  ) => (
-    <NovelExistingProjectTakeoverDialog
-      novelId={id}
-      basicForm={basicForm}
-      genreOptions={genreOptions}
-      storyModeOptions={storyModeOptions}
-      worldOptions={worldListQuery.data?.data ?? []}
-      triggerVariant={variant}
-      defaultEntryStep={step}
-    />
-  );
+  ) => {
+    const takeoverContextTaskId = resolveTakeoverDialogContextTaskId({
+      directorTaskId,
+      activeAutoDirectorTask,
+      projection: bookAutomationProjection,
+    });
+
+    return (
+      <NovelExistingProjectTakeoverDialog
+        novelId={id}
+        basicForm={basicForm}
+        genreOptions={genreOptions}
+        storyModeOptions={storyModeOptions}
+        worldOptions={worldListQuery.data?.data ?? []}
+        triggerVariant={variant}
+        defaultEntryStep={step}
+        workflowTaskId={takeoverContextTaskId}
+      />
+    );
+  };
 
   const { basicTab, outlineTab, structuredTab } = buildNovelEditPlanningTabs({
     id,

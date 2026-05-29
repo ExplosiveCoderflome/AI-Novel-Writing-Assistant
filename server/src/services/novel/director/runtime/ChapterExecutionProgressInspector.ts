@@ -187,9 +187,10 @@ export class ChapterExecutionProgressInspector {
       issue.status === "open" && (issue.severity === "high" || issue.severity === "critical")
     )));
     const hasContinuableRiskFlags = hasContinuableQualityLoopRiskFlags(chapter.riskFlags);
-    const needsRepair = chapter.chapterStatus === "needs_repair" || (hasOpenBlockingIssue && !hasContinuableRiskFlags);
+    const needsRepair = hasOpenBlockingIssue && !hasContinuableRiskFlags;
     const hasStateCommit = chapter.storyStateSnapshots.length > 0 || chapter.canonicalStateVersions.length > 0;
-    const isApproved = chapter.generationState === "approved" || chapter.chapterStatus === "completed";
+    const isApproved = chapter.generationState === "approved" || chapter.generationState === "published";
+    const isReviewable = (hasDraft && hasAudit && !needsRepair) || isApproved;
 
     if (hasExecutionContext) completed.add("execution_contract_ready");
     if (hasExecutionContext) completed.add("context_package_ready");
@@ -200,7 +201,7 @@ export class ChapterExecutionProgressInspector {
     if (hasDraft && hasAudit) completed.add("runtime_package_saved");
     if (hasDraft) completed.add("chapter_artifacts_synced");
     if (hasStateCommit || isApproved) completed.add("chapter_state_committed");
-    if (chapter.chapterStatus === "pending_review" || isApproved) completed.add("reviewable_or_approved");
+    if (isReviewable) completed.add("reviewable_or_approved");
 
     const completedStages = CHAPTER_EXECUTION_PROGRESS_STAGES.filter((stage) => completed.has(stage));
     const missingStages = CHAPTER_EXECUTION_PROGRESS_STAGES.filter((stage) => !completed.has(stage));
@@ -209,13 +210,13 @@ export class ChapterExecutionProgressInspector {
       ? "needs_repair"
       : isApproved
         ? "approved"
-        : chapter.chapterStatus === "pending_review"
+        : isReviewable
           ? "reviewable"
-          : hasDraft || chapter.chapterStatus === "generating"
+          : hasDraft && !isReviewable
             ? "running"
             : "not_started";
     const shouldContinueWithoutStateCommit = hasContinuableRiskFlags
-      && (chapter.chapterStatus === "pending_review" || chapter.chapterStatus === "completed" || isApproved);
+      && isReviewable;
     const nextAction = needsRepair
       ? "repair_chapter"
       : !hasDraft
@@ -241,7 +242,9 @@ export class ChapterExecutionProgressInspector {
         hasDraft,
         hasAudit,
         needsRepair,
+        hasOpenBlockingIssue,
         hasStateCommit,
+        isReviewable,
         generationState: chapter.generationState,
         chapterStatus: chapter.chapterStatus,
         hasContinuableRiskFlags,

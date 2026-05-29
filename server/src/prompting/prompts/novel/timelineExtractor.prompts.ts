@@ -47,6 +47,45 @@ export const timelineExtractorPrompt: PromptAsset<
     dropOrder: [],
   },
   outputSchema: timelineExtractorOutputSchema,
+  structuredOutputHint: {
+    note: "stateChanges.before / stateChanges.after 表示可读状态值，必须输出 JSON 字符串；差评值、评分、倒计时、数量等数值也写成 \"19\"、\"5\" 这类字符串。",
+    example: {
+      timeAnchor: {
+        storyDayIndex: 1,
+        label: "第2章",
+      },
+      addressedHookIds: ["hook-id-from-context"],
+      resolvedHookIds: [],
+      events: [{
+        title: "主角完成一次状态推进",
+        summary: "正文确认某个会影响后续连续性的关键变化。",
+        type: "plot",
+        participantNames: ["角色名"],
+        locationName: "地点名",
+        stateChanges: [{
+          targetType: "item",
+          targetId: "差评值",
+          field: "value",
+          before: "19",
+          after: "5",
+          certainty: "confirmed",
+        }],
+        possibleHooks: [],
+        occurred: true,
+        confidence: 0.9,
+        matchedPlannedEventIds: [],
+      }],
+      hooks: [],
+      stateChanges: [{
+        targetType: "item",
+        targetId: "差评值",
+        field: "value",
+        before: "19",
+        after: "5",
+        certainty: "confirmed",
+      }],
+    },
+  },
   render: (input) => [
     new SystemMessage([
       "你是小说时间线事件抽取器。",
@@ -64,6 +103,7 @@ export const timelineExtractorPrompt: PromptAsset<
       "7. matchedPlannedEventIds 只有在正文确实完成计划事件时填写，否则留空。",
       "8. 如果正文承接了时间线上下文中的 open/addressed hook，必须把对应 hook id 放入 addressedHookIds；如果该钩子已完整兑现并不应继续污染后续章节，放入 resolvedHookIds。",
       "9. hook id 必须来自时间线上下文，不能编造；判断承接关系以正文语义为准，不要依赖标题字面相同。",
+      "10. stateChanges.before / stateChanges.after 是给后续连续性阅读的状态文本，必须输出字符串；即使正文状态是数值，也写成 JSON 字符串，例如 \"19\"、\"5\"、\"76\"。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

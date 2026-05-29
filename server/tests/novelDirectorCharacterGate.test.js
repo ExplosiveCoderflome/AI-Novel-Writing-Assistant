@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 const {
   runDirectorCharacterSetupPhase,
-} = require("../dist/services/novel/director/novelDirectorPipelinePhases.js");
+} = require("../dist/services/novel/director/phases/novelDirectorPipelinePhases.js");
 
 function buildRequest(runMode = "auto_to_ready") {
   return {
@@ -122,7 +122,7 @@ test("director character phase pauses at review checkpoint when cast quality gat
     },
   ];
 
-  const paused = await runDirectorCharacterSetupPhase({
+  const result = await runDirectorCharacterSetupPhase({
     taskId: "task_1",
     novelId: "novel_1",
     request: buildRequest(),
@@ -147,17 +147,17 @@ test("director character phase pauses at review checkpoint when cast quality gat
               autoApplicable: false,
               issues: [
                 {
-                  code: "abstract_name",
+                  code: "missing_gender",
                   optionIndex: 0,
                   optionTitle: "功能位方案",
-                  message: "角色名“谜团催化剂”仍像功能位或抽象槽位，不能直接入库。",
+                  message: "角色“谜团催化剂”缺少 gender。",
                 },
               ],
             },
           ],
           autoApplicableOptionIndex: null,
           autoApplicableOptionId: null,
-          blockingReasons: ["功能位方案: 角色名“谜团催化剂”仍像功能位或抽象槽位，不能直接入库。"],
+          blockingReasons: ["功能位方案: 角色“谜团催化剂”缺少 gender。"],
         }),
         applyCharacterCastOption: async () => {
           applyCalls += 1;
@@ -172,7 +172,8 @@ test("director character phase pauses at review checkpoint when cast quality gat
     },
   });
 
-  assert.equal(paused, true);
+  assert.equal(result.status, "waiting_review");
+  assert.equal(result.optionId, "cast_bad");
   assert.equal(applyCalls, 0);
   assert.equal(autoGenerateCalls, 1);
   const checkpointCall = workflowCalls.find((call) => call.type === "checkpoint");
@@ -187,7 +188,7 @@ test("director character phase reuses an applied cast option instead of regenera
   let autoGenerateCalls = 0;
   let assessmentCalls = 0;
 
-  const resumed = await runDirectorCharacterSetupPhase({
+  const result = await runDirectorCharacterSetupPhase({
     taskId: "task_2",
     novelId: "novel_1",
     request: buildRequest(),
@@ -226,7 +227,7 @@ test("director character phase reuses an applied cast option instead of regenera
     },
   });
 
-  assert.equal(resumed, false);
+  assert.equal(result.status, "already_applied");
   assert.equal(autoGenerateCalls, 0);
   assert.equal(assessmentCalls, 0);
   assert.equal(applyCalls, 0);
@@ -241,7 +242,7 @@ test("director character phase applies an existing draft cast option without reg
   let autoGenerateCalls = 0;
   const draftOption = buildCastOption({ id: "cast_draft", status: "draft" });
 
-  const paused = await runDirectorCharacterSetupPhase({
+  const result = await runDirectorCharacterSetupPhase({
     taskId: "task_3",
     novelId: "novel_1",
     request: buildRequest(),
@@ -286,7 +287,7 @@ test("director character phase applies an existing draft cast option without reg
     },
   });
 
-  assert.equal(paused, false);
+  assert.equal(result.status, "applied");
   assert.equal(autoGenerateCalls, 0);
   assert.equal(applyCalls, 1);
   assert.deepEqual(applyArgs[0]?.[2], {

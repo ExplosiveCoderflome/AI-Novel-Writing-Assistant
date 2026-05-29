@@ -2,8 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const http = require("node:http");
 const { createApp } = require("../dist/app.js");
-const { DirectorCommandService } = require("../dist/services/novel/director/DirectorCommandService.js");
-const { DirectorTaskSnapshotService } = require("../dist/services/novel/director/DirectorTaskSnapshotService.js");
+const { DirectorCommandService } = require("../dist/services/novel/director/commands/DirectorCommandService.js");
+const { DirectorTaskSnapshotService } = require("../dist/services/novel/director/projections/DirectorTaskSnapshotService.js");
 
 function listen(server) {
   return new Promise((resolve) => {

@@ -1,7 +1,12 @@
-import { NovelContextService } from "./NovelContextService";
 import { NovelCoreService } from "./NovelCoreService";
 
-export class NovelArtifactService extends NovelContextService {
+/**
+ * @deprecated Use `createNovelApplicationServices()` and inject the storyline
+ * capability instead of extending this compatibility wrapper.
+ */
+export class NovelArtifactService {
+  protected readonly core = new NovelCoreService();
+
   listStorylineVersions(...args: Parameters<NovelCoreService["listStorylineVersions"]>) {
     return this.core.listStorylineVersions(...args);
   }

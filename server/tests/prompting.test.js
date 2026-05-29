@@ -19,6 +19,10 @@ const {
   streamTextPrompt,
 } = require("../dist/prompting/core/promptRunner.js");
 const {
+  getPromptQualitySnapshot,
+  resetPromptQualityTelemetryForTests,
+} = require("../dist/prompting/core/promptQualityTelemetry.js");
+const {
   selectContextBlocks,
 } = require("../dist/prompting/core/contextSelection.js");
 const {
@@ -66,9 +70,15 @@ const {
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
 const {
   directorPlanBlueprintSchema,
-} = require("../dist/services/novel/director/novelDirectorSchemas.js");
+} = require("../dist/services/novel/director/runtime/novelDirectorSchemas.js");
 
 const promptKey = (asset) => `${asset.id}@${asset.version}`;
+
+function getSinglePromptQualityEntry() {
+  const snapshot = getPromptQualitySnapshot();
+  assert.equal(snapshot.length, 1);
+  return snapshot[0];
+}
 
 test("prompt registry exposes versioned planning assets", () => {
   const keys = [
@@ -955,6 +965,7 @@ test("world draft refine alternatives post validator enforces exact alternative 
 });
 
 test("runStructuredPrompt forwards repair policy and context telemetry", async () => {
+  resetPromptQualityTelemetryForTests();
   const originalRepairPolicy = genreTreePrompt.repairPolicy;
   const originalContextPolicy = { ...genreTreePrompt.contextPolicy };
   let captured = null;
@@ -1018,6 +1029,16 @@ test("runStructuredPrompt forwards repair policy and context telemetry", async (
     assert.equal(result.meta.invocation.semanticRetryAttempts, 0);
     assert.deepEqual(result.meta.invocation.droppedContextBlockIds, ["overflow-1"]);
     assert.deepEqual(result.meta.invocation.summarizedContextBlockIds, ["core-1"]);
+    const telemetry = getSinglePromptQualityEntry();
+    assert.equal(telemetry.promptId, genreTreePrompt.id);
+    assert.equal(telemetry.completedCount, 1);
+    assert.equal(telemetry.failedCount, 0);
+    assert.equal(telemetry.repairRunCount, 1);
+    assert.equal(telemetry.repairAttempts, 2);
+    assert.equal(telemetry.semanticRetryRunCount, 0);
+    assert.ok(telemetry.totalEstimatedInputTokens > 0);
+    assert.ok(telemetry.totalRenderedPromptChars > 0);
+    assert.ok(telemetry.totalOutputChars > 0);
   } finally {
     genreTreePrompt.repairPolicy = originalRepairPolicy;
     genreTreePrompt.contextPolicy = originalContextPolicy;
@@ -1026,6 +1047,7 @@ test("runStructuredPrompt forwards repair policy and context telemetry", async (
 });
 
 test("runStructuredPrompt retries semantically after postValidate failure", async () => {
+  resetPromptQualityTelemetryForTests();
   const originalSemanticRetryPolicy = plannerChapterPlanPrompt.semanticRetryPolicy;
   const calls = [];
 
@@ -1096,6 +1118,14 @@ test("runStructuredPrompt retries semantically after postValidate failure", asyn
     assert.equal(result.meta.invocation.repairAttempts, 1);
     assert.equal(result.meta.invocation.semanticRetryUsed, true);
     assert.equal(result.meta.invocation.semanticRetryAttempts, 1);
+    const telemetry = getSinglePromptQualityEntry();
+    assert.equal(telemetry.completedCount, 1);
+    assert.equal(telemetry.semanticRetryStartCount, 1);
+    assert.equal(telemetry.semanticRetryDoneCount, 1);
+    assert.equal(telemetry.semanticRetryRunCount, 1);
+    assert.equal(telemetry.semanticRetryAttempts, 1);
+    assert.equal(telemetry.repairRunCount, 1);
+    assert.equal(telemetry.repairAttempts, 1);
   } finally {
     plannerChapterPlanPrompt.semanticRetryPolicy = originalSemanticRetryPolicy;
     setPromptRunnerStructuredInvokerForTests();
@@ -1103,6 +1133,7 @@ test("runStructuredPrompt retries semantically after postValidate failure", asyn
 });
 
 test("streamTextPrompt buffers streamed output and resolves completion metadata", async () => {
+  resetPromptQualityTelemetryForTests();
   const originalContextPolicy = { ...styleRewritePrompt.contextPolicy };
   styleRewritePrompt.contextPolicy = {
     maxTokensBudget: 8,
@@ -1161,8 +1192,82 @@ test("streamTextPrompt buffers streamed output and resolves completion metadata"
     assert.deepEqual(completed.meta.invocation.droppedContextBlockIds, ["overflow-1"]);
     assert.deepEqual(completed.meta.invocation.summarizedContextBlockIds, ["core-1"]);
     assert.equal(completed.meta.invocation.repairAttempts, 0);
+    const telemetry = getSinglePromptQualityEntry();
+    assert.equal(telemetry.completedCount, 1);
+    assert.equal(telemetry.emptyOutputCount, 0);
+    assert.equal(telemetry.totalOutputChars, 2);
   } finally {
     styleRewritePrompt.contextPolicy = originalContextPolicy;
+    setPromptRunnerLLMFactoryForTests();
+  }
+});
+
+test("runTextPrompt records empty outputs without changing return behavior", async () => {
+  resetPromptQualityTelemetryForTests();
+  setPromptRunnerLLMFactoryForTests(async () => ({
+    invoke: async () => ({
+      content: "   ",
+      usage_metadata: {
+        input_tokens: 10,
+        output_tokens: 1,
+        total_tokens: 11,
+      },
+    }),
+  }));
+
+  try {
+    const result = await runTextPrompt({
+      asset: styleRewritePrompt,
+      promptInput: {
+        styleBlock: "叙事紧凑",
+        characterBlock: "动作表达情绪",
+        antiAiBlock: "禁止解释性心理描写",
+        content: "原文",
+        issuesBlock: "问题",
+      },
+    });
+
+    assert.equal(result.output, "   ");
+    const telemetry = getSinglePromptQualityEntry();
+    assert.equal(telemetry.completedCount, 1);
+    assert.equal(telemetry.emptyOutputCount, 1);
+    assert.equal(telemetry.totalOutputChars, 3);
+    assert.equal(telemetry.promptTokens, 10);
+    assert.equal(telemetry.completionTokens, 1);
+    assert.equal(telemetry.totalTokens, 11);
+  } finally {
+    setPromptRunnerLLMFactoryForTests();
+  }
+});
+
+test("prompt runner records failed executions without swallowing the original error", async () => {
+  resetPromptQualityTelemetryForTests();
+  const originalError = new Error("provider timeout");
+  setPromptRunnerLLMFactoryForTests(async () => ({
+    invoke: async () => {
+      throw originalError;
+    },
+  }));
+
+  try {
+    await assert.rejects(
+      () => runTextPrompt({
+        asset: styleRewritePrompt,
+        promptInput: {
+          styleBlock: "叙事紧凑",
+          characterBlock: "动作表达情绪",
+          antiAiBlock: "禁止解释性心理描写",
+          content: "原文",
+          issuesBlock: "问题",
+        },
+      }),
+      (error) => error === originalError,
+    );
+    const telemetry = getSinglePromptQualityEntry();
+    assert.equal(telemetry.completedCount, 0);
+    assert.equal(telemetry.failedCount, 1);
+    assert.equal(telemetry.failuresByKind.llm_error, 1);
+  } finally {
     setPromptRunnerLLMFactoryForTests();
   }
 });
@@ -1389,6 +1494,7 @@ test("streamStructuredPrompt parses top-level array outputs and ignores trailing
 });
 
 test("streamStructuredPrompt can recover with semantic retry after streamed output fails post validation", async () => {
+  resetPromptQualityTelemetryForTests();
   const originalSemanticRetryPolicy = plannerChapterPlanPrompt.semanticRetryPolicy;
   let retryCall = null;
 
@@ -1449,6 +1555,12 @@ test("streamStructuredPrompt can recover with semantic retry after streamed outp
     assert.equal(completed.meta.invocation.semanticRetryUsed, true);
     assert.equal(completed.meta.invocation.semanticRetryAttempts, 1);
     assert.equal(completed.meta.invocation.repairAttempts, 0);
+    const telemetry = getSinglePromptQualityEntry();
+    assert.equal(telemetry.completedCount, 1);
+    assert.equal(telemetry.semanticRetryStartCount, 1);
+    assert.equal(telemetry.semanticRetryDoneCount, 1);
+    assert.equal(telemetry.semanticRetryRunCount, 1);
+    assert.equal(telemetry.semanticRetryAttempts, 1);
   } finally {
     plannerChapterPlanPrompt.semanticRetryPolicy = originalSemanticRetryPolicy;
     setPromptRunnerLLMFactoryForTests();

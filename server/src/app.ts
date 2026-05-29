@@ -23,12 +23,10 @@ import healthRouter from "./routes/health";
 import imagesRouter from "./routes/images";
 import knowledgeRouter from "./routes/knowledge";
 import llmRouter from "./routes/llm";
-import novelRouter from "./routes/novel";
-import novelDirectorRouter from "./routes/novelDirector";
-import novelDecisionsRouter from "./routes/novelDecisions";
-import novelChapterSummaryRouter from "./routes/novelChapterSummary";
-import novelExportRouter from "./routes/novelExport";
-import novelWorkflowsRouter from "./routes/novelWorkflows";
+import novelRouter from "./modules/novel/http/novel";
+import novelDirectorRouter from "./services/novel/director/http/novelDirector";
+import novelExportRouter from "./modules/export/http/novelExport";
+import novelWorkflowsRouter from "./services/novel/director/http/novelWorkflows";
 import promptWorkbenchRouter from "./routes/promptWorkbench";
 import ragRouter from "./routes/rag";
 import settingsAutoDirectorRouter from "./routes/settingsAutoDirector";
@@ -38,11 +36,13 @@ import styleEngineExtractionRouter from "./routes/styleEngineExtraction";
 import storyModeRouter from "./routes/storyMode";
 import tasksRouter from "./routes/tasks";
 import titleLibraryRouter from "./routes/titleLibrary";
-import worldRouter from "./routes/world";
+import worldRouter from "./modules/setup/world/http";
 import writingFormulaRouter from "./routes/writingFormula";
 import { novelEventBus, registerNovelEventHandlers } from "./events";
 import { bookAnalysisService } from "./services/bookAnalysis/BookAnalysisService";
 import { ragServices } from "./services/rag";
+import { getSharedNovelServices } from "./services/novel/application/sharedNovelServices";
+import { novelSideEffectWorker } from "./events/sideEffects";
 import { NovelPipelineRuntimeService } from "./services/novel/NovelPipelineRuntimeService";
 import { recoveryTaskService } from "./services/task/RecoveryTaskService";
 import {
@@ -52,6 +52,7 @@ import {
 import { initializeRagSettingsCompatibility } from "./services/settings/RagCompatibilityBootstrapService";
 import { DirectorWorker } from "./workers/directorWorker";
 
+getSharedNovelServices();
 registerNovelEventHandlers(novelEventBus);
 const novelPipelineRuntimeService = new NovelPipelineRuntimeService();
 
@@ -71,6 +72,7 @@ function parseEnvFlag(value: string | undefined, defaultValue: boolean): boolean
 }
 
 export function createApp() {
+  getSharedNovelServices();
   const app = express();
   const jsonBodyLimit = process.env.API_JSON_LIMIT ?? "20mb";
   const corsOriginEnv = process.env.CORS_ORIGIN;
@@ -124,8 +126,6 @@ export function createApp() {
   app.use("/api/novels", novelRouter);
   app.use("/api/novels/director", novelDirectorRouter);
   app.use("/api/novel-workflows", novelWorkflowsRouter);
-  app.use("/api/novels", novelDecisionsRouter);
-  app.use("/api/novels", novelChapterSummaryRouter);
   app.use("/api/novels", novelExportRouter);
   app.use("/api/worlds", worldRouter);
   app.use("/api/rag", ragRouter);
@@ -220,6 +220,7 @@ function logServerReady(host: string, port: number): void {
 
 function initializeBackgroundServices(): BackgroundServicesHandle {
   ragServices.ragWorker.start();
+  novelSideEffectWorker.start();
   const directorWorker = new DirectorWorker();
   void directorWorker.start().catch((error) => {
     console.error("[director.worker] unexpected stop", error);
@@ -254,6 +255,7 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   return {
     stop: async () => {
       directorWorker.stop();
+      novelSideEffectWorker.stop();
       ragServices.ragWorker.stop();
       bookAnalysisService.stopWatchdog();
       novelPipelineRuntimeService.stopWatchdog();

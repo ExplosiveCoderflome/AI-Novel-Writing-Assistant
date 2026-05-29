@@ -1,10 +1,21 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 const {
   createWorkflowStepModule,
+  isExecutableWorkflowStepModule,
   workflowStepModuleToDirectorNodeContract,
 } = require("../dist/services/novel/director/workflowStepRuntime/WorkflowStepModule.js");
+const { prisma } = require("../dist/db/prisma.js");
+const { DefaultNovelApplicationServices } = require("../dist/services/novel/application/NovelApplicationServices.js");
+const {
+  stepModuleRunner,
+} = require("../dist/services/novel/director/workflowStepRuntime/StepModuleRunner.js");
+const {
+  DIRECTOR_EXECUTION_STEP_IDS,
+} = require("../dist/services/novel/director/workflowStepRuntime/directorWorkflowStepIds.js");
 const {
   buildChapterPipelineWorkflowTemplate,
   buildDirectorPlanningWorkflowPlan,
@@ -244,13 +255,41 @@ function buildDirectorStateHint(seedPayload, chapterProgress) {
   };
 }
 
-test("chapter draft completion is scoped to the active auto execution range", async () => {
+function buildChapterRowFromProgressChapter(chapter) {
+  const hasDraft = chapter.completedStages.includes("draft_saved");
+  const hasAudit = chapter.completedStages.includes("audit_completed");
+  const hasStateCommit = chapter.completedStages.includes("chapter_state_committed");
+  return {
+    id: chapter.chapterId,
+    order: chapter.chapterOrder,
+    title: `Chapter ${chapter.chapterOrder}`,
+    content: hasDraft ? "Draft body" : "",
+    taskSheet: "Task sheet",
+    sceneCards: null,
+    expectation: null,
+    generationState: chapter.status === "approved" ? "approved" : "reviewed",
+    chapterStatus: chapter.status === "running" ? "generating" : chapter.status === "reviewable" ? "pending_review" : null,
+    riskFlags: null,
+    repairHistory: null,
+    qualityReports: [],
+    auditReports: hasAudit ? [{ issues: [] }] : [],
+    storyStateSnapshots: hasStateCommit ? [{ id: `state-${chapter.chapterOrder}` }] : [],
+    canonicalStateVersions: [],
+  };
+}
+
+test("chapter draft completion is scoped to the active auto execution range", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
   const module = getDirectorExecutionStepModule("chapter_execution");
   const chapters = Array.from({ length: 67 }, (_, index) => {
     const order = index + 1;
     return buildProgressChapter(order, {
       drafted: order >= 11 && order <= 13,
     });
+  });
+  prisma.chapter.findMany = async () => chapters.map(buildChapterRowFromProgressChapter);
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
   });
   const context = {
     taskId: "task-scoped-chapter-execution",
@@ -292,7 +331,79 @@ test("chapter draft completion is scoped to the active auto execution range", as
   assert.equal(completeCriteria, true);
 });
 
-test("chapter quality review closes when auto review is disabled by the execution plan", async () => {
+test("director core step runtime uses explicit dependency assembly", () => {
+  const source = fs.readFileSync(
+    path.join(
+      __dirname,
+      "..",
+      "src",
+      "services",
+      "novel",
+      "director",
+      "workflowStepRuntime",
+      "DirectorCoreStepModuleRuntime.ts",
+    ),
+    "utf8",
+  );
+
+  assert.equal(source.includes("require("), false);
+  assert.match(source, /interface DirectorCoreStepModuleRuntimeDeps/);
+  assert.match(source, /buildDefaultDirectorCoreStepModuleRuntimeDeps/);
+});
+
+test("chapter draft validation trusts fresh draft facts over stale failed task status", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  prisma.chapter.findMany = async () => [
+    {
+      id: "chapter-1",
+      order: 1,
+      title: "Chapter 1",
+      content: "Draft body",
+      taskSheet: "Task sheet",
+      sceneCards: null,
+      expectation: null,
+      generationState: "reviewed",
+      chapterStatus: "completed",
+      riskFlags: null,
+      repairHistory: null,
+      qualityReports: [],
+      auditReports: [],
+      storyStateSnapshots: [],
+      canonicalStateVersions: [],
+    },
+  ];
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+
+  const module = getDirectorExecutionStepModule("chapter_execution");
+  const context = {
+    novelId: "novel-fresh-draft",
+    projectionHints: {
+      directorCanonicalState: {
+        ...buildDirectorStateHint({}, buildChapterProgressSummary([
+          buildProgressChapter(1, { drafted: false }),
+        ])),
+        task: {
+          ...buildDirectorStateHint({}, null).task,
+          id: "task-stale-failed",
+          novelId: "novel-fresh-draft",
+          status: "failed",
+          lastError: "stale failure",
+        },
+      },
+    },
+  };
+
+  const validation = await module.validateOutput(undefined, context);
+
+  assert.equal(validation.valid, true);
+  assert.equal(validation.evidence.draftedChapterCount, 1);
+  assert.equal(validation.evidence.totalChapters, 1);
+});
+
+test("chapter quality review closes when auto review is disabled by the execution plan", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
   const module = getDirectorExecutionStepModule("chapter_quality_review");
   const chapters = [1, 2].map((order) => ({
     ...buildProgressChapter(order, { drafted: true }),
@@ -307,6 +418,10 @@ test("chapter quality review closes when auto review is disabled by the executio
       "reviewable_or_approved",
     ],
   }));
+  prisma.chapter.findMany = async () => chapters.map(buildChapterRowFromProgressChapter);
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
   const context = {
     taskId: "task-no-auto-review",
     novelId: "novel-no-auto-review",
@@ -347,6 +462,92 @@ test("chapter quality review closes when auto review is disabled by the executio
   assert.equal(progress.status, "completed");
   assert.equal(progress.nextAction, "commit_chapter_state");
   assert.equal(validation.valid, true);
+});
+
+test("workflow step fact inspections support novel-only manual context", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  prisma.chapter.findMany = async () => [];
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+
+  const context = {
+    novelId: "novel-manual-context",
+    mode: "manual",
+  };
+  const modules = directorWorkflowStepModuleRegistry
+    .list()
+    .filter((module) => isExecutableWorkflowStepModule(module));
+
+  for (const module of modules) {
+    await assert.doesNotReject(async () => {
+      await module.inspectReadiness(context);
+      await module.inspectCompletion(context);
+      await module.inspectProgress(context);
+    }, `${module.id} should inspect with manual novel context`);
+  }
+});
+
+test("manual chapter draft runs through the workflow step runner", async (t) => {
+  const originalMethod = DefaultNovelApplicationServices.prototype.createChapterStream;
+  const calls = [];
+  DefaultNovelApplicationServices.prototype.createChapterStream = async (novelId, chapterId, options) => {
+    calls.push({ novelId, chapterId, model: options.model });
+    return {
+      stream: (async function* stream() {})(),
+      onDone: async () => undefined,
+    };
+  };
+  t.after(() => {
+    DefaultNovelApplicationServices.prototype.createChapterStream = originalMethod;
+  });
+
+  await stepModuleRunner.runStep(DIRECTOR_EXECUTION_STEP_IDS.chapter_execution, {
+    novelId: "novel-manual-step",
+    mode: "manual",
+    targetType: "chapter",
+    targetChapterId: "chapter-manual-step",
+    stepInput: {
+      model: "model-from-step",
+    },
+  });
+
+  assert.deepEqual(calls, [{
+    novelId: "novel-manual-step",
+    chapterId: "chapter-manual-step",
+    model: "model-from-step",
+  }]);
+});
+
+test("manual chapter repair runs through the workflow step runner", async (t) => {
+  const originalMethod = DefaultNovelApplicationServices.prototype.createRepairStream;
+  const calls = [];
+  DefaultNovelApplicationServices.prototype.createRepairStream = async (novelId, chapterId, options) => {
+    calls.push({ novelId, chapterId, repairMode: options.repairMode });
+    return {
+      stream: (async function* stream() {})(),
+      onDone: async () => undefined,
+    };
+  };
+  t.after(() => {
+    DefaultNovelApplicationServices.prototype.createRepairStream = originalMethod;
+  });
+
+  await stepModuleRunner.runStep(DIRECTOR_EXECUTION_STEP_IDS.chapter_repair, {
+    novelId: "novel-repair-step",
+    mode: "manual",
+    targetType: "chapter",
+    targetChapterId: "chapter-repair-step",
+    stepInput: {
+      repairMode: "light_repair",
+    },
+  });
+
+  assert.deepEqual(calls, [{
+    novelId: "novel-repair-step",
+    chapterId: "chapter-repair-step",
+    repairMode: "light_repair",
+  }]);
 });
 
 test("quality repair template starts from repair step and preserves policy action", () => {

@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
+  type APIKeyStatus,
   createCustomProvider,
   deleteCustomProvider,
   getAPIKeySettings,
@@ -87,6 +89,34 @@ export default function SettingsPage() {
   const invalidateProviderQueries = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeys }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.llm.providers }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
+    ]);
+  };
+
+  const updateProviderModelsInCache = (provider: string, models: string[], currentModel: string) => {
+    queryClient.setQueryData<ApiResponse<APIKeyStatus[]>>(queryKeys.settings.apiKeys, (previous) => {
+      if (!previous?.data) {
+        return previous;
+      }
+      return {
+        ...previous,
+        data: previous.data.map((item) => item.provider === provider
+          ? {
+            ...item,
+            models,
+            currentModel,
+          }
+          : item),
+      };
+    });
+  };
+
+  const invalidateProviderAuxiliaryQueries = async () => {
+    await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances }),
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.rag }),
       queryClient.invalidateQueries({ queryKey: queryKeys.llm.providers }),
@@ -209,8 +239,11 @@ export default function SettingsPage() {
     onSuccess: async (response, provider) => {
       const count = response.data?.models?.length ?? 0;
       const providerName = providerConfigs.find((item) => item.provider === provider)?.name ?? provider;
+      if (response.data) {
+        updateProviderModelsInCache(response.data.provider, response.data.models, response.data.currentModel);
+      }
       setActionResult(`${providerName} 模型列表已刷新（${count} 个）。`);
-      await invalidateProviderQueries();
+      await invalidateProviderAuxiliaryQueries();
     },
     onError: (error) => {
       setActionResult(error instanceof Error ? error.message : "刷新模型列表失败。");

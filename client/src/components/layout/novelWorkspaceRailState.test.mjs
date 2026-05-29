@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   applyAutoDirectorResetStepReadiness,
   extractAutoDirectorResetStepsFromMeta,
+  resolveAutoDirectorResetStepsForWorkflowProgress,
 } from "./novelWorkspaceRailState.ts";
 
 test("auto director downstream reset marks preserved downstream assets as not ready in the rail", () => {
@@ -93,4 +94,26 @@ test("auto director downstream reset ignores malformed task metadata", () => {
   assert.equal(resetSteps.size, 0);
   assert.equal(readiness.chapter, true);
   assert.equal(readiness.pipeline, true);
+});
+
+test("auto director downstream reset does not mark completed earlier workflow steps as pending", () => {
+  const resetSteps = new Set(["character", "outline", "structured", "chapter", "pipeline"]);
+  const effectiveResetSteps = resolveAutoDirectorResetStepsForWorkflowProgress(resetSteps, "outline");
+  const readiness = applyAutoDirectorResetStepReadiness({
+    basic: true,
+    story_macro: true,
+    character: true,
+    outline: true,
+    structured: true,
+    chapter: true,
+    pipeline: true,
+  }, effectiveResetSteps);
+
+  assert.deepEqual(
+    Array.from(effectiveResetSteps).sort(),
+    ["chapter", "outline", "pipeline", "structured"],
+  );
+  assert.equal(readiness.character, true);
+  assert.equal(readiness.outline, false);
+  assert.equal(readiness.structured, false);
 });

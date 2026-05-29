@@ -96,7 +96,16 @@ export class ChapterPatchRepairService {
       throw new ChapterPatchRepairFailedError(`局部补丁计划未通过结构校验：${message}`);
     }
 
-    const applied = applyChapterPatchRepairPlan(input.content, generated.output);
+    let applied: ChapterPatchApplyResult;
+    try {
+      applied = applyChapterPatchRepairPlan(input.content, generated.output);
+    } catch (error) {
+      const message = formatPatchRepairApplyError(error);
+      throw new ChapterPatchRepairFailedError(
+        `局部补丁计划不可安全应用：${message}`,
+        generated.output,
+      );
+    }
     if (!applied.success) {
       const reason = applied.failures.map((failure) => `${failure.patchId}: ${failure.reason}`).join("；")
         || generated.output.escalationReason
@@ -110,4 +119,11 @@ export class ChapterPatchRepairService {
       appliedPatchIds: applied.appliedPatchIds,
     };
   }
+}
+
+function formatPatchRepairApplyError(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+  return String(error);
 }

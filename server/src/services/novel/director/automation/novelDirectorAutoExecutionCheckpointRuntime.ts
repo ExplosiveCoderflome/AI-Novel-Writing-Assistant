@@ -14,11 +14,12 @@ import {
   buildDirectorAutoExecutionPausedLabel,
   buildDirectorAutoExecutionPausedSummary,
   buildDirectorAutoExecutionScopeLabelFromState,
+  type DirectorAutoExecutionChapterRef,
   type DirectorAutoExecutionRange,
 } from "./novelDirectorAutoExecution";
-import { buildDirectorSessionState } from "../novelDirectorHelpers";
+import { buildDirectorSessionState } from "../runtime/novelDirectorHelpers";
 import { PIPELINE_REPLAN_NOTICE_CODE, parsePipelinePayload } from "../../pipelineJobState";
-import { buildDirectorQualityRepairRisk } from "../novelDirectorQualityRepairRisk";
+import { buildDirectorQualityRepairRisk } from "../phases/novelDirectorQualityRepairRisk";
 
 export type AutoExecutionResumeStage = "chapter" | "pipeline";
 
@@ -201,6 +202,7 @@ export async function resolveQualityRepairNoticeAction(
     payload?: string | null;
     approveAutoExecutionScope?: boolean;
     skipCurrentQualityRepair?: boolean;
+    qualityIssueChapter?: DirectorAutoExecutionChapterRef | null;
   },
 ): Promise<{
   action: "auto_continue" | "pause";
@@ -280,6 +282,7 @@ export async function resolveQualityRepairNoticeAction(
         state: checkpointState,
         reason: input.noticeSummary,
         source: "review_skip",
+        chapter: input.qualityIssueChapter ?? null,
       }),
       qualityRepairRisk,
     };

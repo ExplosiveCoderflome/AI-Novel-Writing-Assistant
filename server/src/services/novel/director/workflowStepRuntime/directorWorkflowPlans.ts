@@ -1,5 +1,5 @@
-import type { DirectorExecutionFlow } from "../novelDirectorExecutionNodeAdapters";
-import type { DirectorPlanningStage } from "../novelDirectorStageNodeAdapters";
+import type { DirectorExecutionFlow } from "../phases/novelDirectorExecutionNodeAdapters";
+import type { DirectorPlanningStage } from "../phases/novelDirectorStageNodeAdapters";
 import {
   createWorkflowPlanFromStepModules,
   type WorkflowPlan,

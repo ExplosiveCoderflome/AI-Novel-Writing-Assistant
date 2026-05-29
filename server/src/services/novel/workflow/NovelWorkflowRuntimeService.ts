@@ -1,5 +1,6 @@
-import { isDirectorRecoveryNotNeededError } from "../director/novelDirectorErrors";
-import type { NovelWorkflowService } from "./NovelWorkflowService";
+import { isDirectorRecoveryNotNeededError } from "../director/runtime/novelDirectorErrors";
+import { DirectorCommandService } from "../director/commands/DirectorCommandService";
+import { NovelWorkflowService } from "./NovelWorkflowService";
 
 const SERVER_RESTART_RECOVERY_MESSAGE = "自动导演任务因服务重启中断，正在尝试恢复。";
 const STALE_RUNNING_RECOVERY_MESSAGE = "自动导演任务长时间没有心跳，可能已因服务重启或内存不足中断。请检查后继续或重试。";
@@ -17,12 +18,10 @@ interface DirectorRecoveryPort {
 }
 
 function createWorkflowService(): WorkflowRecoveryPort {
-  const { NovelWorkflowService } = require("./NovelWorkflowService") as typeof import("./NovelWorkflowService");
   return new NovelWorkflowService();
 }
 
 function createDirectorService(): DirectorRecoveryPort {
-  const { DirectorCommandService } = require("../director/DirectorCommandService") as typeof import("../director/DirectorCommandService");
   return new DirectorCommandService();
 }
 

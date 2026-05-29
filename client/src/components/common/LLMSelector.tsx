@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getAPIKeySettings, saveLLMSelectionSetting } from "@/api/settings";
+import type { ApiResponse } from "@ai-novel/shared/types/api";
+import {
+  type APIKeyStatus,
+  getAPIKeySettings,
+  refreshProviderModelList,
+  saveLLMSelectionSetting,
+} from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -55,6 +61,7 @@ export default function LLMSelector({
 }: LLMSelectorProps) {
   const store = useLLMStore();
   const queryClient = useQueryClient();
+  const latestProviderRefreshRef = useRef<LLMProvider | null>(null);
   const currentValue = value ?? {
     provider: store.provider,
     model: store.model,
@@ -75,6 +82,40 @@ export default function LLMSelector({
     mutationFn: saveLLMSelectionSetting,
     onSuccess: (response) => {
       queryClient.setQueryData(queryKeys.settings.llmSelection, response);
+    },
+  });
+
+  const refreshProviderModelsMutation = useMutation({
+    mutationFn: refreshProviderModelList,
+    onSuccess: (response) => {
+      const refreshed = response.data;
+      if (!refreshed) {
+        return;
+      }
+      queryClient.setQueryData<ApiResponse<APIKeyStatus[]>>(
+        queryKeys.settings.apiKeys,
+        (previous) => {
+          if (!previous?.data) {
+            return previous;
+          }
+          return {
+            ...previous,
+            data: previous.data.map((item) => {
+              if (item.provider !== refreshed.provider) {
+                return item;
+              }
+              return {
+                ...item,
+                currentModel: refreshed.currentModel,
+                models: Array.from(new Set([
+                  refreshed.currentModel,
+                  ...refreshed.models,
+                ].filter(Boolean))),
+              };
+            }),
+          };
+        },
+      );
     },
   });
 
@@ -197,6 +238,22 @@ export default function LLMSelector({
       temperature: resolvedTemperature,
       maxTokens: resolvedMaxTokens,
     });
+    latestProviderRefreshRef.current = typedProvider;
+    void refreshProviderModelsMutation.mutateAsync(typedProvider).then((response) => {
+      if (latestProviderRefreshRef.current !== typedProvider) {
+        return;
+      }
+      const refreshed = response.data;
+      if (!refreshed?.models.length && !refreshed?.currentModel) {
+        return;
+      }
+      updateValue({
+        provider: typedProvider,
+        model: resolveModel(refreshed.currentModel, refreshed.models),
+        temperature: resolvedTemperature,
+        maxTokens: resolvedMaxTokens,
+      });
+    }).catch(() => undefined);
   };
 
   const onModelChange = (model: string) => {

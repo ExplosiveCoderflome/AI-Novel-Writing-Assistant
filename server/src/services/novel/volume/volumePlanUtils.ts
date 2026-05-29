@@ -40,6 +40,7 @@ export interface LegacyVolumeSource {
 
 const volumeChapterInputSchema = z.object({
   id: z.string().trim().min(1).optional(),
+  chapterId: z.string().trim().min(1).nullable().optional(),
   chapterOrder: z.number().int().min(1).optional(),
   order: z.number().int().min(1).optional(),
   beatKey: z.string().trim().nullable().optional(),
@@ -99,6 +100,7 @@ export const volumeGenerationSchema = z.object({
       openPayoffs: z.array(z.string().trim().min(1)).default([]),
       chapters: z.array(
         z.object({
+          chapterId: z.string().trim().min(1).optional().nullable(),
           chapterOrder: z.number().int().min(1),
           beatKey: z.string().trim().nullable().optional(),
           title: z.string().trim().min(1),
@@ -213,6 +215,7 @@ function sanitizeVolumeChapter(
   return {
     id: chapter.id?.trim() || createLocalId(`${novelId}-chapter`),
     volumeId,
+    chapterId: normalizeText(chapter.chapterId),
     chapterOrder: chapter.chapterOrder ?? chapter.order ?? index + 1,
     beatKey: normalizeText(chapter.beatKey),
     title: chapter.title.trim(),
@@ -305,6 +308,7 @@ function normalizeLegacyChapter(raw: unknown, index: number): VolumeChapterPlan 
   return {
     id: createLocalId("legacy-chapter"),
     volumeId: "",
+    chapterId: pickFirstString(raw, ["chapterId", "chapter_id"]),
     chapterOrder,
     beatKey,
     title,
@@ -613,6 +617,7 @@ export function buildDerivedStructuredOutlineFromVolumes(volumes: VolumePlan[]):
           .slice()
           .sort((a, b) => a.chapterOrder - b.chapterOrder)
           .map((chapter) => ({
+            chapter_id: chapter.chapterId ?? undefined,
             order: chapter.chapterOrder,
             beat_key: chapter.beatKey ?? undefined,
             title: chapter.title,

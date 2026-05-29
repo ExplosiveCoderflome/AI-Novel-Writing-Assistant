@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { repairDirectorChapterTitles } = require("../dist/services/novel/director/novelDirectorChapterTitleRepair.js");
+const { repairDirectorChapterTitles } = require("../dist/services/novel/director/phases/novelDirectorChapterTitleRepair.js");
 
 function createRequest() {
   return {

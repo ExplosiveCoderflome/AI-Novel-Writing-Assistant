@@ -170,6 +170,7 @@ export function mapVolumeRow(row: VolumeRow): VolumePlan {
     chapters: row.chapters.map((chapter) => ({
       id: chapter.id,
       volumeId: chapter.volumeId,
+      chapterId: chapter.chapterId,
       chapterOrder: chapter.chapterOrder,
       beatKey: null,
       title: chapter.title,

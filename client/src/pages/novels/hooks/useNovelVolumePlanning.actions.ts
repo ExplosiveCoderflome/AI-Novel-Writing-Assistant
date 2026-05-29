@@ -170,7 +170,7 @@ export function buildChapterListSuccessMessage(params: {
     ? params.document.volumes.find((volume) => volume.id === params.targetVolumeId)
     : undefined;
   const updatedChapterCount = updatedVolume?.chapters.length ?? 0;
-  const syncSuffix = params.autoSyncedToChapterExecution ? "，并已自动同步到章节执行区" : "";
+  const syncSuffix = params.autoSyncedToChapterExecution ? "，并连接到章节执行区" : "";
   if (params.generationMode === "single_beat" && params.targetVolumeId && params.targetBeatKey) {
     const targetBeat = findBeatSheet(params.document.beatSheets, params.targetVolumeId)?.beats
       .find((beat) => beat.key === params.targetBeatKey);

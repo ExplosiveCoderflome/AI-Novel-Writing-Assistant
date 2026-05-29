@@ -32,16 +32,95 @@ export interface WorkflowStepWaitingState {
   progress?: number;
 }
 
-export interface WorkflowStepExecutionContext {
+export interface StepExecutionPolicy {
+  advanceMode?: string | null;
+  approvalRequired?: boolean | null;
+}
+
+export interface StepExecutionContext {
+  novelId: string;
+  mode: "manual" | "auto_director" | "pipeline";
+  policy?: StepExecutionPolicy;
+  targetType?: DirectorArtifactRef["targetType"] | null;
+  targetId?: string | null;
+  targetChapterId?: string | null;
+  stepInput?: unknown;
+}
+
+export interface DirectorStepContext extends StepExecutionContext {
+  mode: "auto_director";
+  directorTaskId: string;
+  directorRunId?: string | null;
+  directorCommandId?: string | null;
+  directorArtifacts?: DirectorArtifactRef[];
+  projectionHints?: Record<string, unknown>;
+  taskId?: string | null;
+  runId?: string | null;
+  commandId?: string | null;
+  artifacts?: DirectorArtifactRef[];
+  policyMode?: DirectorPolicyMode | null;
+}
+
+export interface LegacyWorkflowStepExecutionContext {
   taskId?: string | null;
   novelId?: string | null;
+  mode?: "manual" | "auto_director" | "pipeline" | null;
   runId?: string | null;
   commandId?: string | null;
   targetType?: DirectorArtifactRef["targetType"] | null;
   targetId?: string | null;
+  targetChapterId?: string | null;
+  stepInput?: unknown;
+  policy?: StepExecutionPolicy;
   policyMode?: DirectorPolicyMode | null;
   artifacts?: DirectorArtifactRef[];
   projectionHints?: Record<string, unknown>;
+}
+
+export type WorkflowStepExecutionContext =
+  | StepExecutionContext
+  | DirectorStepContext
+  | LegacyWorkflowStepExecutionContext;
+
+export function isDirectorContext(context: WorkflowStepExecutionContext): context is DirectorStepContext {
+  return context.mode === "auto_director"
+    && typeof (context as Partial<DirectorStepContext>).directorTaskId === "string"
+    && Boolean((context as Partial<DirectorStepContext>).directorTaskId?.trim());
+}
+
+export function getWorkflowStepDirectorTaskId(context: WorkflowStepExecutionContext): string | null {
+  const explicitTaskId = isDirectorContext(context) ? context.directorTaskId : null;
+  const legacyTaskId = "taskId" in context && typeof context.taskId === "string"
+    ? context.taskId
+    : null;
+  return explicitTaskId?.trim() || legacyTaskId?.trim() || null;
+}
+
+export function getWorkflowStepArtifacts(context: WorkflowStepExecutionContext): DirectorArtifactRef[] {
+  if (isDirectorContext(context) && Array.isArray(context.directorArtifacts)) {
+    return context.directorArtifacts;
+  }
+  return "artifacts" in context && Array.isArray(context.artifacts) ? context.artifacts : [];
+}
+
+export function getWorkflowStepProjectionHints(context: WorkflowStepExecutionContext): Record<string, unknown> | null {
+  return "projectionHints" in context && context.projectionHints && typeof context.projectionHints === "object"
+    ? context.projectionHints
+    : null;
+}
+
+export function getWorkflowStepTargetChapterId(context: WorkflowStepExecutionContext): string | null {
+  const explicit = "targetChapterId" in context && typeof context.targetChapterId === "string"
+    ? context.targetChapterId
+    : null;
+  const targetId = "targetId" in context && typeof context.targetId === "string"
+    ? context.targetId
+    : null;
+  return explicit?.trim() || targetId?.trim() || null;
+}
+
+export function getWorkflowStepInput<T = unknown>(context: WorkflowStepExecutionContext): T | undefined {
+  return "stepInput" in context ? context.stepInput as T : undefined;
 }
 
 export type WorkflowStepProgressStatus =
@@ -145,6 +224,7 @@ export interface WorkflowStepModule<I, O> extends WorkflowStepModuleDescriptor {
   inspectProgress: (context: WorkflowStepExecutionContext) => Promise<WorkflowStepProgress>;
   recover: (context: WorkflowStepExecutionContext) => Promise<WorkflowStepRecoveryPlan>;
   completeCriteria?: (output: O, context: WorkflowStepExecutionContext) => boolean | Promise<boolean>;
+  acceptablePauseCriteria?: (output: O, context: WorkflowStepExecutionContext) => boolean | Promise<boolean>;
   summarizeResult?: (output: O) => WorkflowStepSummary;
   getApprovalRequirement?: (
     input: I,
@@ -269,6 +349,7 @@ export function createWorkflowStepModule<I, O>(
     | "inspectProgress"
     | "recover"
     | "completeCriteria"
+    | "acceptablePauseCriteria"
     | "summarizeResult"
     | "getApprovalRequirement"
   >,
@@ -285,6 +366,7 @@ export function createWorkflowStepModule<I, O>(
     inspectProgress: options.inspectProgress,
     recover: options.recover,
     completeCriteria: options?.completeCriteria,
+    acceptablePauseCriteria: options?.acceptablePauseCriteria,
     summarizeResult: options?.summarizeResult,
     getApprovalRequirement: options?.getApprovalRequirement,
   };

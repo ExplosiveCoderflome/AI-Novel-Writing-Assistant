@@ -13,7 +13,7 @@ const {
 } = require("../dist/services/novel/volume/volumeWorkspaceDocument.js");
 const {
   resolveStructuredOutlineRecoveryCursor,
-} = require("../dist/services/novel/director/novelDirectorStructuredOutlineRecovery.js");
+} = require("../dist/services/novel/director/recovery/novelDirectorStructuredOutlineRecovery.js");
 
 function createChapter(input) {
   return {
