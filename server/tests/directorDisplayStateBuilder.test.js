@@ -118,6 +118,56 @@ test("display state keeps running mode when recovery flag exists but live runtim
   assert.equal(displayState.isLiveRunning, true);
 });
 
+test("display state keeps running mode when task is running despite stale approval projection", () => {
+  const displayState = buildDirectorDisplayState({
+    task: {
+      status: "running",
+      currentStage: "节奏 / 拆章",
+      currentItemKey: "chapter_detail_bundle",
+      currentItemLabel: "正在细化第 7/10 章 · 任务单",
+      progress: 0.88,
+      checkpointType: null,
+      checkpointSummary: null,
+      lastError: null,
+      pendingManualRecovery: false,
+    },
+    projection: {
+      status: "waiting_approval",
+      currentLabel: "旧审批点",
+      requiresUserAction: true,
+      progressBreakdown: {
+        totalPercent: 88,
+        activeJobProgress: 0,
+      },
+    },
+    activeStepNodeKey: "structured_outline.chapter_detail_bundle",
+    currentFactStepId: "volume.chapter_detail_bundle.generate",
+    currentFactStepLabel: "执行章节任务包细化",
+    factStep: {
+      module: {
+        id: "volume.chapter_detail_bundle.generate",
+        label: "执行章节任务包细化",
+      },
+      facts: {
+        nextAction: "continue",
+      },
+      progress: {
+        status: "partially_done",
+        ratio: 0.88,
+        label: "正在细化第 7/10 章 · 任务单",
+        nextAction: "continue",
+        evidence: {},
+      },
+    },
+    chapterProgress: null,
+  });
+
+  assert.equal(displayState.mode, "running");
+  assert.equal(displayState.requiresUserAction, false);
+  assert.equal(displayState.isLiveRunning, true);
+  assert.equal(displayState.steps[4].status, "running");
+});
+
 test("display state does not mark succeeded task as completed before facts close", () => {
   const displayState = buildDirectorDisplayState({
     task: {

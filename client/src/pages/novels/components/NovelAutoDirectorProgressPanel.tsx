@@ -314,14 +314,24 @@ export default function NovelAutoDirectorProgressPanel({
   const snapshot = snapshotQuery.data?.data?.snapshot ?? null;
   const displayState = snapshot?.displayState ?? null;
   const runtimeProjection = snapshot?.projection ?? null;
-  const runtimeProjectionForDisplay = displayState?.needsRecovery ? null : runtimeProjection;
+  const staleActionProjection = Boolean(
+    displayState?.isLiveRunning
+    && (
+      runtimeProjection?.requiresUserAction
+      || runtimeProjection?.status === "blocked"
+      || runtimeProjection?.status === "waiting_approval"
+    ),
+  );
+  const runtimeProjectionForDisplay = displayState?.needsRecovery || staleActionProjection ? null : runtimeProjection;
   const historyEvents = snapshot?.recentEvents ?? [];
   const displayProgress = displayState?.progressPercent ?? task?.progress ?? null;
   const runtimeRequiresUserAction = Boolean(
     displayState?.requiresUserAction
-    || runtimeProjectionForDisplay?.requiresUserAction
-    || runtimeProjectionForDisplay?.status === "blocked"
-    || runtimeProjectionForDisplay?.status === "waiting_approval",
+    || (!displayState?.isLiveRunning && (
+      runtimeProjectionForDisplay?.requiresUserAction
+      || runtimeProjectionForDisplay?.status === "blocked"
+      || runtimeProjectionForDisplay?.status === "waiting_approval"
+    )),
   );
   const fallbackChapterTitleWarning = !taskChapterTitleWarning && isChapterTitleDiversitySummary(fallbackError)
     ? {

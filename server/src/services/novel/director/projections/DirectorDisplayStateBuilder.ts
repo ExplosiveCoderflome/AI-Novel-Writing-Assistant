@@ -62,7 +62,9 @@ function hasLiveRuntimeProgress(task: SnapshotTaskLike, projection: DirectorRunt
     task.status === "running"
     && (
       projection?.status === "running"
-      || projection?.status === "waiting_approval"
+      || task.currentItemLabel?.trim()
+      || task.currentItemKey?.trim()
+      || task.currentStage?.trim()
       || projection?.currentLabel?.trim()
       || typeof projection?.progressBreakdown?.activeJobProgress === "number"
       || typeof projection?.progressBreakdown?.totalPercent === "number"
@@ -75,6 +77,7 @@ function buildMode(input: {
   projection: DirectorRuntimeProjection | null;
   factSummary?: DirectorTaskFactSummary | null;
   showPendingManualRecovery: boolean;
+  isLiveRunning: boolean;
 }): DirectorDisplayMode {
   if (input.showPendingManualRecovery) {
     return "needs_recovery";
@@ -88,9 +91,11 @@ function buildMode(input: {
   }
   if (
     input.task.status === "waiting_approval"
-    || input.projection?.status === "waiting_approval"
-    || input.projection?.status === "blocked"
-    || input.projection?.requiresUserAction
+    || (!input.isLiveRunning && (
+      input.projection?.status === "waiting_approval"
+      || input.projection?.status === "blocked"
+      || input.projection?.requiresUserAction
+    ))
   ) {
     return "waiting";
   }
@@ -149,6 +154,7 @@ function buildCurrentAction(input: {
   projection: DirectorRuntimeProjection | null;
   factStep: FactStepStateLike;
   task: SnapshotTaskLike;
+  isLiveRunning: boolean;
 }): string {
   if (input.mode === "needs_recovery") {
     return (
@@ -156,6 +162,24 @@ function buildCurrentAction(input: {
       || input.projection?.blockingReason?.trim()
       || input.projection?.lastEventSummary?.trim()
       || "系统会从最近进度继续恢复。"
+    );
+  }
+  if (
+    input.isLiveRunning
+    && input.task.status === "running"
+    && (
+      input.projection?.status === "waiting_approval"
+      || input.projection?.status === "blocked"
+      || input.projection?.requiresUserAction
+    )
+  ) {
+    return (
+      input.factStep?.progress.label?.trim()
+      || input.task.currentItemLabel?.trim()
+      || input.projection?.currentAction?.trim()
+      || input.projection?.currentLabel?.trim()
+      || input.projection?.lastEventSummary?.trim()
+      || "等待同步当前推进状态"
     );
   }
   return (
@@ -267,6 +291,7 @@ export function buildDirectorDisplayState(input: {
     projection: input.projection,
     factSummary: input.factSummary ?? null,
     showPendingManualRecovery: needsRecovery,
+    isLiveRunning,
   });
   const stepIndex = Math.max(0, DISPLAY_STAGES.findIndex((item) => item.key === stage.key));
   return {
@@ -282,6 +307,7 @@ export function buildDirectorDisplayState(input: {
       projection: input.projection,
       factStep: input.factStep,
       task: input.task,
+      isLiveRunning,
     }),
     checkpointLabel: buildCheckpointLabel(input.task),
     progressPercent: buildProgressPercent({
@@ -297,9 +323,12 @@ export function buildDirectorDisplayState(input: {
     currentFactStepLabel: input.currentFactStepLabel ?? input.projection?.currentFactStepLabel ?? null,
     currentFactDescription: input.factStep?.progress.label ?? input.projection?.currentLabel ?? null,
     requiresUserAction: Boolean(
-      input.projection?.requiresUserAction
-      || input.projection?.status === "blocked"
-      || input.projection?.status === "waiting_approval",
+      !isLiveRunning
+      && (
+        input.projection?.requiresUserAction
+        || input.projection?.status === "blocked"
+        || input.projection?.status === "waiting_approval"
+      ),
     ),
     isLiveRunning,
     needsRecovery,
