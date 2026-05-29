@@ -355,7 +355,10 @@ export default function NovelAutoDirectorProgressPanel({
       label: "快速修复章节标题",
     }
     : null;
-  const chapterTitleWarning = taskChapterTitleWarning ?? fallbackChapterTitleWarning;
+  const rawChapterTitleWarning = taskChapterTitleWarning ?? fallbackChapterTitleWarning;
+  const chapterTitleWarning = dashboardView?.mode === "running" || dashboardView?.mode === "queued"
+    ? null
+    : rawChapterTitleWarning;
   const visualMode: DirectorExecutionViewMode = mode === "execution_failed" && !chapterTitleWarning && dashboardView?.mode !== "running"
     ? "execution_failed"
     : "execution_progress";
