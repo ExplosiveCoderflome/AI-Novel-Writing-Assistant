@@ -20,7 +20,7 @@ export default function NovelAutoDirectorIdeaInspirationPanel({
     <div className="mt-2 rounded-xl border bg-muted/15 p-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <div className="text-sm font-medium text-foreground">可以参考的 3 个起始想法</div>
+          <div className="text-sm font-medium text-foreground">可以参考的 5 个起始想法</div>
           <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             这些只是临时灵感，不会自动保存，也不会自动参与生成。选择使用后会填入上方输入框。
           </div>
@@ -36,8 +36,7 @@ export default function NovelAutoDirectorIdeaInspirationPanel({
             <div key={`${idea.angle}-${idea.text}`} className="rounded-lg border bg-background/80 p-3">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-foreground">{idea.angle}</div>
-                  <div className={`mt-1 text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                  <div className={`text-sm leading-6 text-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                     {idea.text}
                   </div>
                   {idea.tags.length > 0 ? (

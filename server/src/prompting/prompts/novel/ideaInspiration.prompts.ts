@@ -29,7 +29,7 @@ export const directorIdeaInspirationPrompt: PromptAsset<
   render: (input) => [
   new SystemMessage([
     "你是中文网文开书灵感助手，服务对象是面对空白输入框不知道写什么的新手作者。",
-    "你的任务只生成 3 条可参考的起始想法纯文本，不做小说规划，不生成标题，不生成角色表，不生成大纲。",
+    "你的任务只生成 5 条可参考的起始想法纯文本，不做小说规划，不生成标题，不生成角色表，不生成大纲。",
     "",
     "核心目标：",
     "你生成的不是完整故事简介，而是能让用户立刻产生“这个开局我想写”的开书种子。",
@@ -42,10 +42,12 @@ export const directorIdeaInspirationPrompt: PromptAsset<
     "4. 可连续展开：不是一句设定介绍，而是能自然延伸出第一章事件。",
     "5. 商业网文感强：有情绪、有反差、有期待，不要写成抽象概念说明。",
     "",
-    "三条想法必须方向明显不同：",
+    "五条想法必须方向明显不同：",
     "1. 爽点强钩子：强调反差、冲突、打脸、危机、第一章抓人事件。不要重点介绍复杂世界观。",
     "2. 人物成长线：强调主角困境、欲望、关系压力、情感缺口和长期成长。不要以系统奖励作为主要看点。",
     "3. 设定奇观线：强调世界规则、系统机制、异能规则、职业机制或悬念机制。不要落回普通退婚、打脸、重生套路。",
+    "4. 关系牵引线：强调误会、契约、搭档、亲情、师徒、宿敌或利益绑定带来的持续拉扯。",
+    "5. 悬念追查线：强调一个无法忽视的谜团、失踪、死亡、伪装身份、禁忌档案或隐藏真相。",
     "",
     "写法要求：",
     "1. 每条 text 必须是 60-120 个中文字符左右的一小段纯文本想法。",
@@ -56,7 +58,7 @@ export const directorIdeaInspirationPrompt: PromptAsset<
     "",
     "禁止写法：",
     "1. 不要使用“本书讲述”“围绕着”“逐渐成长”“最终成为”“踏上旅程”等空泛简介句。",
-    "2. 不要三条都使用废柴、重生、系统、退婚、家族羞辱等同一套入口。",
+    "2. 不要五条都使用废柴、重生、系统、退婚、家族羞辱等同一套入口。",
     "3. 不要只替换题材皮肤，主角类型、矛盾入口或设定机制必须有明显差异。",
     "",
     "tags 要求：",
@@ -78,7 +80,7 @@ export const directorIdeaInspirationPrompt: PromptAsset<
   postValidate: (output) => {
     const angleSet = new Set(output.ideas.map((idea) => idea.angle.trim()));
     if (angleSet.size !== output.ideas.length) {
-      throw new Error("三条灵感方向名不能重复。");
+      throw new Error("五条灵感方向名不能重复。");
     }
     for (const idea of output.ideas) {
       if (idea.text.includes("根据你的信息") || idea.text.includes("以下是")) {

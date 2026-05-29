@@ -5,5 +5,5 @@ export const directorIdeaInspirationSchema = z.object({
     angle: z.string().trim().min(1),
     text: z.string().trim().min(20).max(180),
     tags: z.array(z.string().trim().min(1).max(12)).min(1).max(4),
-  })).length(3),
+  })).length(5),
 });
