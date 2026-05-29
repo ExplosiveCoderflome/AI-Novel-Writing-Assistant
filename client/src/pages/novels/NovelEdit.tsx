@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import type { DirectorContinuationMode, DirectorLockScope, DirectorSessionState } from "@ai-novel/shared/types/novelDirector";
 import type { AutoDirectorAction, AutoDirectorMutationActionCode } from "@ai-novel/shared/types/autoDirectorFollowUp";
-import type { DirectorBookAutomationAction, DirectorTaskSnapshot } from "@ai-novel/shared/types/directorRuntime";
+import type { DirectorBookAutomationAction, DirectorDashboardMode, DirectorTaskSnapshot } from "@ai-novel/shared/types/directorRuntime";
 import type { NovelExportDownloadFormat, NovelExportScope } from "@ai-novel/shared/types/novelExport";
 import type {
   PipelineRepairMode,
@@ -101,6 +101,25 @@ import {
   shouldPreserveRequestedDirectorTaskId,
   shouldAutofocusProjectedDirectorTask,
 } from "./novelEditAutomationStatus";
+
+function mapDashboardModeToTakeoverMode(mode: DirectorDashboardMode | null | undefined): NovelEditTakeoverState["mode"] | null {
+  switch (mode) {
+    case "running":
+    case "queued":
+    case "completed":
+      return "running";
+    case "waiting_user":
+      return "waiting";
+    case "recovering":
+      return "action_required";
+    case "failed":
+      return "failed";
+    case "idle":
+      return "loading";
+    default:
+      return null;
+  }
+}
 
 function parsePipelineBackgroundActivities(payload: string | null | undefined): ChapterExecutionBackgroundActivity[] {
   if (!payload?.trim()) {
@@ -1382,7 +1401,9 @@ export default function NovelEdit() {
       characterCount: characters.length,
       chapterCount: chapters.length,
     });
-    const mode = resolveTakeoverModeFromAutomation({
+    const dashboardView = activeDirectorSnapshot?.dashboardView ?? null;
+    const mode = mapDashboardModeToTakeoverMode(dashboardView?.mode)
+      ?? resolveTakeoverModeFromAutomation({
       task,
       projection: bookAutomationProjection,
     });
@@ -1609,7 +1630,9 @@ export default function NovelEdit() {
             reviewScope,
             scopeLabel: autoExecutionScopeLabel,
           }),
-      progress: task.progress,
+      progress: typeof dashboardView?.progressPercent === "number"
+        ? dashboardView.progressPercent
+        : task.progress,
       currentAction: consistencyIssue === "missing_characters"
         ? "检测到角色准备仍为空，当前导演结果需要继续补齐。"
         : consistencyIssue === "missing_chapters"
@@ -1621,6 +1644,8 @@ export default function NovelEdit() {
               || task.lastError?.trim()
               || "任务已暂停，等待从最近检查点恢复。"
             )
+          : dashboardView?.currentAction?.trim()
+            ? dashboardView.currentAction.trim()
           : activeDirectorSnapshot?.displayState.currentAction?.trim()
             ? activeDirectorSnapshot.displayState.currentAction.trim()
           : automationActionText
@@ -1641,6 +1666,7 @@ export default function NovelEdit() {
   }, [
     activeAutoDirectorTask,
     activeChapterTitleWarning,
+    activeDirectorSnapshot?.dashboardView,
     activeDirectorSnapshot?.displayState.currentAction,
     activeDirectorSession,
     activeTab,

@@ -237,8 +237,10 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         : false
     ),
   });
-  const runtimeProjection = runtimeProjectionQuery.data?.data?.projection ?? null;
+  const runtimeProjectionFromQuery = runtimeProjectionQuery.data?.data?.projection ?? null;
   const runtimeSnapshot = runtimeSnapshotQuery.data?.data?.snapshot ?? null;
+  const dashboardView = runtimeSnapshot?.dashboardView ?? null;
+  const runtimeProjection = runtimeSnapshot?.projection ?? runtimeProjectionFromQuery;
   const resetSteps = useMemo(
     () => extractAutoDirectorResetStepsFromMeta(activeTask?.meta),
     [activeTask?.meta],
@@ -335,9 +337,11 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const runtimeActionSummary = runtimeProjection?.nextActionLabel
     ? `下一步：${runtimeProjection.nextActionLabel}`
     : null;
-  const runtimeSummary = runtimeProjection?.requiresUserAction
-    ? `需要处理：${runtimeProjection.blockedReason ?? runtimeProjection.lastEventSummary ?? runtimeProjection.currentLabel ?? "请先查看当前停留点"}`
-    : runtimeSnapshot?.displayState.currentAction?.trim()
+  const runtimeSummary = dashboardView?.currentAction?.trim()
+    || (dashboardView?.requiresUserAction
+      ? `需要处理：${dashboardView.userActionReason ?? "请先查看当前停留点"}`
+      : null)
+    || runtimeSnapshot?.displayState.currentAction?.trim()
       || runtimeProjection?.headline
       || runtimeActionSummary
       || runtimeProjection?.currentLabel

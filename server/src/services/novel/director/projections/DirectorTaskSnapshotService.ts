@@ -17,6 +17,7 @@ import {
 } from "../workflowStepRuntime/WorkflowStepModule";
 import { directorWorkflowStepModuleRegistry } from "../workflowStepRuntime/directorWorkflowStepModules";
 import { buildDirectorDisplayState } from "./DirectorDisplayStateBuilder";
+import { buildDirectorDashboardView } from "./DirectorDashboardViewBuilder";
 
 function buildNextActions(input: {
   taskStatus: string;
@@ -231,6 +232,25 @@ export class DirectorTaskSnapshotService {
         }
         : null,
     });
+    const displayState = buildDirectorDisplayState({
+      task: state.task,
+      projection,
+      factSummary: inspected.factSummary,
+      activeStepNodeKey: state.activeStep?.nodeKey ?? null,
+      currentFactStepId: factStep?.module.id ?? null,
+      currentFactStepLabel: factStep?.module.label ?? null,
+      factStep,
+      chapterProgress: state.chapterProgress ?? null,
+    });
+    const dashboardView = buildDirectorDashboardView({
+      task: state.task,
+      projection,
+      displayState,
+      factSummary: inspected.factSummary,
+      chapterProgress: state.chapterProgress ?? null,
+      activeStep: state.activeStep,
+      latestCommand: state.latestCommand,
+    });
     const snapshot: DirectorTaskSnapshot = {
       task: {
         id: state.task.id,
@@ -258,16 +278,8 @@ export class DirectorTaskSnapshotService {
       currentFactEvidence: factStep?.facts.evidence ?? factStep?.progress.evidence ?? null,
       factSummary: inspected.factSummary,
       chapterProgress: state.chapterProgress ?? null,
-      displayState: buildDirectorDisplayState({
-        task: state.task,
-        projection,
-        factSummary: inspected.factSummary,
-        activeStepNodeKey: state.activeStep?.nodeKey ?? null,
-        currentFactStepId: factStep?.module.id ?? null,
-        currentFactStepLabel: factStep?.module.label ?? null,
-        factStep,
-        chapterProgress: state.chapterProgress ?? null,
-      }),
+      displayState,
+      dashboardView,
       nextActions: buildNextActions({
         taskStatus: state.task.status,
         factNextAction: factStep?.progress.nextAction ?? factStep?.facts.nextAction ?? null,

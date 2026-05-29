@@ -2,7 +2,11 @@
   NovelWorkflowMilestone,
   NovelWorkflowMilestoneType,
 } from "@ai-novel/shared/types/novelWorkflow";
-import type { DirectorDisplayStepStatus } from "@ai-novel/shared/types/directorRuntime";
+import type {
+  DirectorDashboardAction,
+  DirectorDashboardMode,
+  DirectorDisplayStepStatus,
+} from "@ai-novel/shared/types/directorRuntime";
 import {
   DIRECTOR_CANDIDATE_SETUP_STEPS,
   extractDirectorTaskSeedPayloadFromMeta,
@@ -287,6 +291,24 @@ function mapDisplayStepStatus(status: DirectorDisplayStepStatus | null | undefin
   return "pending";
 }
 
+function mapDashboardModeToContainerMode(mode: DirectorDashboardMode | null | undefined): AITakeoverMode {
+  switch (mode) {
+    case "failed":
+      return "failed";
+    case "recovering":
+      return "action_required";
+    case "waiting_user":
+      return "waiting";
+    case "idle":
+      return "loading";
+    case "queued":
+    case "completed":
+    case "running":
+    default:
+      return "running";
+  }
+}
+
 export default function NovelAutoDirectorProgressPanel({
   mode,
   task,
@@ -312,27 +334,20 @@ export default function NovelAutoDirectorProgressPanel({
     ),
   });
   const snapshot = snapshotQuery.data?.data?.snapshot ?? null;
+  const dashboardView = snapshot?.dashboardView ?? null;
   const displayState = snapshot?.displayState ?? null;
   const runtimeProjection = snapshot?.projection ?? null;
   const staleActionProjection = Boolean(
-    displayState?.isLiveRunning
+    dashboardView?.mode === "running"
     && (
       runtimeProjection?.requiresUserAction
       || runtimeProjection?.status === "blocked"
       || runtimeProjection?.status === "waiting_approval"
     ),
   );
-  const runtimeProjectionForDisplay = displayState?.needsRecovery || staleActionProjection ? null : runtimeProjection;
+  const runtimeProjectionForDisplay = dashboardView?.mode === "recovering" || staleActionProjection ? null : runtimeProjection;
   const historyEvents = snapshot?.recentEvents ?? [];
-  const displayProgress = displayState?.progressPercent ?? task?.progress ?? null;
-  const runtimeRequiresUserAction = Boolean(
-    displayState?.requiresUserAction
-    || (!displayState?.isLiveRunning && (
-      runtimeProjectionForDisplay?.requiresUserAction
-      || runtimeProjectionForDisplay?.status === "blocked"
-      || runtimeProjectionForDisplay?.status === "waiting_approval"
-    )),
-  );
+  const displayProgress = dashboardView?.progressPercent ?? displayState?.progressPercent ?? task?.progress ?? null;
   const fallbackChapterTitleWarning = !taskChapterTitleWarning && isChapterTitleDiversitySummary(fallbackError)
     ? {
       summary: fallbackError?.trim() ?? "",
@@ -341,10 +356,11 @@ export default function NovelAutoDirectorProgressPanel({
     }
     : null;
   const chapterTitleWarning = taskChapterTitleWarning ?? fallbackChapterTitleWarning;
-  const visualMode: DirectorExecutionViewMode = mode === "execution_failed" && !chapterTitleWarning
+  const visualMode: DirectorExecutionViewMode = mode === "execution_failed" && !chapterTitleWarning && dashboardView?.mode !== "running"
     ? "execution_failed"
     : "execution_progress";
-  const currentAction = displayState?.currentAction
+  const currentAction = dashboardView?.currentAction
+    || displayState?.currentAction
     || runtimeProjectionForDisplay?.currentLabel?.trim()
     || task?.currentItemLabel?.trim()
     || (visualMode === "execution_failed"
@@ -362,7 +378,7 @@ export default function NovelAutoDirectorProgressPanel({
     ? task.meta.milestones as NovelWorkflowMilestone[]
     : [];
   const candidateSetupFlow = isCandidateSetupFlow(task);
-  const displaySteps = displayState?.steps ?? [];
+  const displaySteps = dashboardView?.steps ?? displayState?.steps ?? [];
   const stepDefinitions = candidateSetupFlow
     ? DIRECTOR_CANDIDATE_SETUP_STEPS
     : displaySteps.map((step) => ({ key: step.key, label: step.label }));
@@ -373,15 +389,12 @@ export default function NovelAutoDirectorProgressPanel({
   const tokenUsage = task?.tokenUsage ?? null;
   const styleSeed = resolveDirectorStyleSeed(task);
   const containerMode: AITakeoverMode = visualMode === "execution_failed"
-    || runtimeProjectionForDisplay?.status === "failed"
     ? "failed"
     : !task
       ? "loading"
-      : displayState?.needsRecovery
-        ? "action_required"
-        : ((displayState?.mode === "waiting") || runtimeProjectionForDisplay?.requiresUserAction || chapterTitleWarning)
+      : chapterTitleWarning
         ? "waiting"
-        : "running";
+        : mapDashboardModeToContainerMode(dashboardView?.mode ?? null);
   const description = candidateSetupFlow
     ? (
       visualMode === "execution_failed"
@@ -389,7 +402,8 @@ export default function NovelAutoDirectorProgressPanel({
         : "系统会先整理项目设定、对齐书级 framing，再生成两套书级方案和对应标题组。"
     )
     : (
-      displayState?.description
+      dashboardView?.description
+      || displayState?.description
       || (visualMode === "execution_failed"
         ? "任务已停在最近一步，可以先查看执行详情，再决定是否恢复。"
         : chapterTitleWarning
@@ -398,32 +412,59 @@ export default function NovelAutoDirectorProgressPanel({
             ? "当前导演流程已经停在审核点，你可以先检查产物，再决定是否继续自动推进。"
             : "可离开当前页面，任务会继续运行；回来后可在 AI 驾驶舱查看进度。")
     );
-  const needsConfirmationAction = visualMode === "execution_progress"
-    && !displayState?.needsRecovery
-    && !chapterTitleWarning
-    && (task?.status === "waiting_approval" || runtimeRequiresUserAction);
-  const actions = [
-    ...(needsConfirmationAction && onConfirmAndContinue
-      ? [{
-        label: isConfirmingAndContinuing ? "继续中..." : "确认并继续",
+  const resolveDashboardAction = (dashboardAction: DirectorDashboardAction) => {
+    if (dashboardAction.type === "confirm_and_continue" && onConfirmAndContinue) {
+      return {
+        label: isConfirmingAndContinuing ? "继续中..." : dashboardAction.label,
         onClick: onConfirmAndContinue,
         variant: "default" as const,
         disabled: isConfirmingAndContinuing,
-      }]
-      : []),
-    ...(visualMode === "execution_progress" && !displayState?.needsRecovery && task?.status !== "waiting_approval" && !runtimeRequiresUserAction && !chapterTitleWarning
-      ? [{
-        label: "后台继续",
+      };
+    }
+    if (dashboardAction.type === "background_continue") {
+      return {
+        label: dashboardAction.label,
         onClick: onBackgroundContinue,
         variant: "outline" as const,
-      }]
-      : []),
-    {
+      };
+    }
+    if (dashboardAction.type === "open_task_center") {
+      return {
+        label: dashboardAction.label,
+        onClick: onOpenTaskCenter,
+        variant: dashboardAction.emphasis === "primary" ? ("default" as const) : ("outline" as const),
+      };
+    }
+    if (dashboardAction.type === "resume_from_checkpoint" || dashboardAction.type === "retry") {
+      return {
+        label: dashboardAction.label,
+        onClick: onOpenTaskCenter,
+        variant: "outline" as const,
+      };
+    }
+    return null;
+  };
+  const dashboardActions = dashboardView
+    ? [
+      dashboardView.primaryAction,
+      ...dashboardView.secondaryActions,
+    ].filter((item): item is DirectorDashboardAction => Boolean(item))
+      .map(resolveDashboardAction)
+      .filter((item): item is NonNullable<ReturnType<typeof resolveDashboardAction>> => Boolean(item))
+    : [];
+  const actions = chapterTitleWarning
+    ? [{
       label: "查看执行详情",
       onClick: onOpenTaskCenter,
-      variant: needsConfirmationAction ? ("outline" as const) : ("default" as const),
-    },
-  ];
+      variant: "default" as const,
+    }]
+    : (dashboardActions.length > 0
+      ? dashboardActions
+      : [{
+        label: "查看执行详情",
+        onClick: onOpenTaskCenter,
+        variant: "default" as const,
+      }]);
 
   return (
     <div className="space-y-4">
@@ -431,7 +472,7 @@ export default function NovelAutoDirectorProgressPanel({
         mode={containerMode}
         title={visualMode === "execution_failed"
           ? (candidateSetupFlow ? "\u5019\u9009\u65b9\u6848\u751f\u6210\u5931\u8d25" : "\u5bfc\u6f14\u6267\u884c\u5931\u8d25")
-          : displayState?.needsRecovery
+          : dashboardView?.mode === "recovering"
             ? `\u300a${taskTitle}\u300b\u7b49\u5f85\u6062\u590d`
             : candidateSetupFlow
               ? "\u6b63\u5728\u751f\u6210\u5bfc\u6f14\u5019\u9009\u65b9\u6848"

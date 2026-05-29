@@ -12,3 +12,11 @@ test("auto director progress panel uses the snapshot query key for full task sna
 test("auto director progress panel keeps previous snapshot data during polling", () => {
   assert.match(source, /placeholderData:\s*\(previousData\)\s*=>\s*previousData/);
 });
+
+test("auto director progress panel uses dashboard view for main container state", () => {
+  assert.match(source, /const dashboardView = snapshot\?\.dashboardView \?\? null/);
+  assert.match(source, /mapDashboardModeToContainerMode\(dashboardView\?\.mode \?\? null\)/);
+  assert.doesNotMatch(source, /runtimeProjectionForDisplay\?\.status === "waiting_approval"/);
+  assert.doesNotMatch(source, /runtimeProjectionForDisplay\?\.requiresUserAction/);
+  assert.doesNotMatch(source, /const runtimeRequiresUserAction/);
+});
