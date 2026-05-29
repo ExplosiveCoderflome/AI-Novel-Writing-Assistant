@@ -456,6 +456,9 @@ export default function NovelAutoDirectorDialog({
             queryKey: queryKeys.tasks.detail("novel_workflow", nextWorkflowTaskId),
           }),
           queryClient.invalidateQueries({
+            queryKey: queryKeys.tasks.directorTaskSnapshot(nextWorkflowTaskId),
+          }),
+          queryClient.invalidateQueries({
             queryKey: queryKeys.tasks.directorRuntime(nextWorkflowTaskId),
           }),
         );

@@ -423,6 +423,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.autoDirectorTask(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.directorBookAutomation(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail("novel_workflow", activeTask?.id ?? "") }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorTaskSnapshot(activeTask?.id ?? "") }),
         queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorRuntime(activeTask?.id ?? "") }),
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
       ]);

@@ -302,10 +302,11 @@ export default function NovelAutoDirectorProgressPanel({
   const chapterTitleRepairMutation = useDirectorChapterTitleRepair();
   const runtimeTaskId = task?.id ?? taskId;
   const snapshotQuery = useQuery({
-    queryKey: queryKeys.tasks.directorRuntime(runtimeTaskId || "none"),
+    queryKey: queryKeys.tasks.directorTaskSnapshot(runtimeTaskId || "none"),
     queryFn: () => getDirectorTaskSnapshot(runtimeTaskId),
     enabled: Boolean(runtimeTaskId),
     retry: false,
+    placeholderData: (previousData) => previousData,
     refetchInterval: () => (
       task && (task.status === "queued" || task.status === "running" || task.status === "waiting_approval") ? 4000 : false
     ),
