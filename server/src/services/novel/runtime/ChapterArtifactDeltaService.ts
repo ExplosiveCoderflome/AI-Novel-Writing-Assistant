@@ -246,7 +246,7 @@ export class ChapterArtifactDeltaService {
       options: {
         provider: input.provider,
         model: input.model,
-        temperature: input.temperature ?? 0.2,
+        temperature: Math.min(input.temperature ?? 0.2, 0.4),
         novelId: input.novelId,
         chapterId: input.chapterId,
         stage: "chapter_artifact_delta",

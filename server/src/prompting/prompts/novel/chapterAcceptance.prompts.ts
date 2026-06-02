@@ -58,6 +58,92 @@ function normalizeRepairTarget(value: unknown): unknown {
   return normalized;
 }
 
+function normalizeRepairMode(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "local" || normalized === "light" || normalized === "minor" || normalized === "fix") {
+    return "patch";
+  }
+  if (normalized === "full_rewrite" || normalized === "full rewrite" || normalized === "redo") {
+    return "rewrite";
+  }
+  if (normalized === "pause" || normalized === "human" || normalized === "review") {
+    return "manual";
+  }
+  return normalized;
+}
+
+function normalizeContinuePolicy(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "go_on" || normalized === "proceed" || normalized === "continue_with_risk") {
+    return "continue";
+  }
+  if (normalized === "repair" || normalized === "patch" || normalized === "fix_once") {
+    return "repair_once";
+  }
+  if (normalized === "manual" || normalized === "needs_manual_review" || normalized === "stop") {
+    return "pause";
+  }
+  return normalized;
+}
+
+function normalizeMissingObligationKind(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim().toLowerCase();
+  const aliases: Record<string, string> = {
+    must_hit: "must_hit_now",
+    required_must_hit: "must_hit_now",
+    required_hit: "must_hit_now",
+    must_preserve_now: "must_preserve",
+    required_preserve: "must_preserve",
+    required_payoff_touch: "payoff_touch",
+    payoff: "payoff_touch",
+    required_character_appearance: "character_appearance",
+    character: "character_appearance",
+    character_required: "character_appearance",
+    required_goal_change: "goal_change",
+    goal: "goal_change",
+    forbidden: "forbidden_crossing",
+    forbidden_event: "forbidden_crossing",
+  };
+  return aliases[normalized] ?? normalized;
+}
+
+function readAliasString(record: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function normalizeMissingObligation(value: unknown): unknown {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return value;
+  }
+  const record = value as Record<string, unknown>;
+  const kind = normalizeMissingObligationKind(
+    record.kind ?? record.obligationType ?? record.type ?? record.category,
+  );
+  const summary = readAliasString(record, ["summary", "target", "fixSuggestion", "description", "issue"]);
+  const evidence = readAliasString(record, ["evidence", "reason", "text"]);
+  return {
+    ...record,
+    kind,
+    ...(summary ? { summary } : {}),
+    ...(evidence ? { evidence } : {}),
+  };
+}
+
 export const chapterAcceptanceAssessmentSchema = z.object({
   status: z.enum(["accepted", "repairable", "needs_manual_review", "continue_with_risk"]),
   score: z.object({
@@ -77,22 +163,22 @@ export const chapterAcceptanceAssessmentSchema = z.object({
     fixSuggestion: z.string().trim().min(1),
   })).default([]),
   repairDirectives: z.array(z.object({
-    mode: z.enum(["patch", "rewrite", "manual"]),
+    mode: z.preprocess(normalizeRepairMode, z.enum(["patch", "rewrite", "manual"])),
     target: z.preprocess(normalizeRepairTarget, z.enum(["continuity", "character", "plot", "ending", "voice"])),
     instruction: z.string().trim().min(1),
   })).default([]),
-  missingObligations: z.array(z.object({
-    kind: z.enum([
+  missingObligations: z.array(z.preprocess(normalizeMissingObligation, z.object({
+    kind: z.preprocess(normalizeMissingObligationKind, z.enum([
       "must_hit_now",
       "must_preserve",
       "payoff_touch",
       "character_appearance",
       "goal_change",
       "forbidden_crossing",
-    ]),
+    ])),
     summary: z.string().trim().min(1),
     evidence: z.string().trim().min(1).nullable().optional(),
-  })).default([]),
+  }))).default([]),
   repairability: z.enum([
     "none",
     "patchable_obligation_gap",
@@ -106,7 +192,7 @@ export const chapterAcceptanceAssessmentSchema = z.object({
     reason: z.string().trim().min(1),
     requiresFullPayoffReconcile: z.boolean().default(false),
   }),
-  continuePolicy: z.enum(["continue", "repair_once", "pause"]),
+  continuePolicy: z.preprocess(normalizeContinuePolicy, z.enum(["continue", "repair_once", "pause"])),
 });
 
 export type ChapterAcceptanceAssessmentOutput = z.infer<typeof chapterAcceptanceAssessmentSchema>;
@@ -146,7 +232,18 @@ const CHAPTER_ACCEPTANCE_EXAMPLE: ChapterAcceptanceAssessmentOutput = {
       instruction: "保留正文主体，只补强结尾 300 字以内的钩子和压力。",
     },
   ],
-  missingObligations: [],
+  missingObligations: [
+    {
+      kind: "must_hit_now",
+      summary: "本章必须让主角发现敌方试探，但正文只写了日常过渡。",
+      evidence: "正文没有出现敌方试探或主角识破的可见行动。",
+    },
+    {
+      kind: "character_appearance",
+      summary: "关键角色春桃必须出场并执行观察任务。",
+      evidence: "正文未出现春桃，也没有替代执行者。",
+    },
+  ],
   repairability: "patchable_obligation_gap",
   decisionReason: "结尾钩子可以通过局部补丁补齐，不需要重排章节计划。",
   riskTags: ["ending_hook"],
@@ -216,6 +313,9 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "9. assetSyncRecommendation 只判断资产同步优先级和是否需要全量伏笔对账，不要输出落库细节。",
       "10. blockingIssues.category 只能使用 continuity、character、plot、mode_fit、voice；节奏、重复、中段铺垫、结尾钩子都归入 plot。",
       "11. repairDirectives.target 只能使用 continuity、character、plot、ending、voice；不要输出 middle、pacing、internal_monologue、ending_tone 等自定义目标。",
+      "12. repairDirectives.mode 只能使用 patch、rewrite、manual；continuePolicy 只能使用 continue、repair_once、pause。",
+      "13. missingObligations 必须是对象数组，每项只能使用 kind、summary、evidence；不得输出字符串数组，也不得输出 obligationType、target、fixSuggestion、type 等别名字段。",
+      "14. missingObligations.kind 只能使用 must_hit_now、must_preserve、payoff_touch、character_appearance、goal_change、forbidden_crossing。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,
