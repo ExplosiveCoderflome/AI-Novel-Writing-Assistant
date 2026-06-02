@@ -1,8 +1,9 @@
 # 低风险 Bug 排查 — 最终结论（工作流 + Codex 双重核验）
 
-> **实施状态（本轮）**：Tier A 已修复 **11/12**（A9 暂缓——产品意图待确认）。新增 4 个测试文件（A3/A4/A8/A12 走 RED→GREEN）+ A1 guard 测试。
-> 全量 server 测试 878 通过 0 失败 · client 36 通过 · 三端 typecheck/lint 全绿 · Codex 复审修复 diff 无 BLOCKER。
-> 改动详见 `git diff`（12 源文件 +51 行）。Tier B/C/D 未动。
+> **实施状态**：Tier A 已修复 **11/12**（A9 暂缓——产品意图待确认）+ **B1 外科手术修复**（payoff-ledger query 二次 parse，根因中间件加固仍待后续）。
+> 新增 5 个测试文件（A3/A4/A8/A12/B1 走 RED→GREEN）+ A1 guard 测试。
+> 全量 server 测试 880 通过 0 失败 · client 36 通过 · 三端 typecheck/lint 全绿 · Codex 复审修复 diff 无 BLOCKER。
+> 说明：B1 经核实并非"系统性损坏 ~10 路由"——中间件丢弃 query/params coercion 是潜在缺陷，但几乎处处被 handler 二次 parse 掩盖，**今天真正表现为 bug 的仅 payoff-ledger 一个端点**（chapterOrder 被当字符串、过滤被静默忽略）。
 >
 > 流程：9 路 `code-reviewer` 并行扫全库 → 每候选对抗式自验证 → Codex 独立第二意见 → 关键项作者亲自读码裁决。
 > typecheck 全绿（无编译层 bug）。原始 30 候选 → 去重 21 确认 → Codex 讨论后重新分级如下。

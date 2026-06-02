@@ -62,7 +62,10 @@ export function registerNovelPlanningRoutes(input: RegisterNovelPlanningRoutesIn
     async (req, res, next) => {
       try {
         const { id } = req.params as z.infer<typeof idParamsSchema>;
-        const { chapterOrder } = req.query as z.infer<typeof payoffLedgerQuerySchema>;
+        // Re-parse req.query here: the validate middleware does not write coerced query
+        // values back, so trusting the cast would leave chapterOrder a raw string and
+        // getPayoffLedger would silently ignore it. parse() applies the z.coerce.number().
+        const { chapterOrder } = payoffLedgerQuerySchema.parse(req.query);
         const data = await novelService.getPayoffLedger(id, chapterOrder);
         res.status(200).json({
           success: true,
