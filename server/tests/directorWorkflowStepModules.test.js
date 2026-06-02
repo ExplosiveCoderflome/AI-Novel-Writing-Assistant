@@ -505,3 +505,53 @@ test("workflow step module can be converted back to DirectorNodeRunner contract"
     reviewed: "chapter-1",
   });
 });
+
+function buildChapterExecutionRecoverContext(chapters) {
+  return {
+    taskId: "task-recover-scope",
+    novelId: "novel-recover-scope",
+    projectionHints: {
+      directorCanonicalState: buildDirectorStateHint({
+        autoExecutionPlan: {
+          mode: "chapter_range",
+          startOrder: 1,
+          endOrder: 2,
+          autoReview: true,
+          autoRepair: true,
+        },
+        autoExecution: {
+          enabled: true,
+          mode: "chapter_range",
+          startOrder: 1,
+          endOrder: 2,
+          totalChapterCount: 2,
+          completedChapterCount: 0,
+          remainingChapterCount: 2,
+          autoReview: true,
+          autoRepair: true,
+        },
+      }, buildChapterProgressSummary(chapters)),
+    },
+  };
+}
+
+// recoverableRange is always a non-null object ({startOrder, endOrder}); a resumable range
+// only exists when startOrder is set. The recover hook must report recoverable=false when no
+// scoped chapter is recoverable, instead of treating the always-present object as truthy.
+test("chapter execution recover reports not-recoverable when no scoped chapter is recoverable", async () => {
+  const module = getDirectorExecutionStepModule("chapter_execution");
+  const chapters = [1, 2].map((order) => buildProgressChapter(order, { drafted: true, recoverable: false }));
+
+  const recovery = await module.recover(buildChapterExecutionRecoverContext(chapters));
+
+  assert.equal(recovery.recoverable, false);
+});
+
+test("chapter execution recover reports recoverable when a scoped chapter is recoverable", async () => {
+  const module = getDirectorExecutionStepModule("chapter_execution");
+  const chapters = [1, 2].map((order) => buildProgressChapter(order, { drafted: true, recoverable: order === 2 }));
+
+  const recovery = await module.recover(buildChapterExecutionRecoverContext(chapters));
+
+  assert.equal(recovery.recoverable, true);
+});

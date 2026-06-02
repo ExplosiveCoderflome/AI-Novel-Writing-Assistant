@@ -74,7 +74,10 @@ function sortOptionalBlocks(blocks: PromptContextBlock[], policy: ContextPolicy)
     const leftDrop = dropOrder.get(left.group) ?? Number.MAX_SAFE_INTEGER;
     const rightDrop = dropOrder.get(right.group) ?? Number.MAX_SAFE_INTEGER;
     if (leftDrop !== rightDrop) {
-      return leftDrop - rightDrop;
+      // dropOrder lists groups in the order they should be dropped (index 0 = drop first).
+      // Selection fills from the front and drops the tail, so groups that should be dropped
+      // first (lower index) must sort LAST. Groups absent from dropOrder (MAX) sort first.
+      return rightDrop - leftDrop;
     }
 
     const leftFreshness = left.freshness ?? 0;

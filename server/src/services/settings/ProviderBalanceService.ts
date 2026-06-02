@@ -107,7 +107,9 @@ async function fetchJson(url: string, init: RequestInit): Promise<unknown> {
       const detail = await response.text();
       throw new Error(detail.trim() || `请求失败（${response.status}）`);
     }
-    return response.json();
+    // Must await here: without it the finally block clears the abort timer before the body
+    // is read, so a slow/stalled response body would escape the 12s timeout protection.
+    return await response.json();
   } finally {
     clearTimeout(timer);
   }

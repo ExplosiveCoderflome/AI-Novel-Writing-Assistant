@@ -95,9 +95,9 @@ function parseTaskNotice(seedPayloadJson?: string | null): DirectorTaskNotice | 
   return {
     code: notice.code.trim(),
     summary: notice.summary.trim(),
-    action: action && typeof action.type === "string" && typeof action.label === "string"
+    action: action && action.type === "open_structured_outline" && typeof action.label === "string"
       ? {
-        type: action.type === "open_structured_outline" ? "open_structured_outline" : "open_structured_outline",
+        type: "open_structured_outline",
         label: action.label.trim() || "打开当前卷拆章",
         volumeId: typeof action.volumeId === "string" && action.volumeId.trim()
           ? action.volumeId.trim()

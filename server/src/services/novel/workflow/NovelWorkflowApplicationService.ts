@@ -525,7 +525,9 @@ export class NovelWorkflowApplicationService {
       before: existing,
       data: {
         status: input.checkpointType === "workflow_completed" ? "succeeded" : "waiting_approval",
-        progress: input.progress ?? defaultProgressForStage(input.stage),
+        // Never let a checkpoint regress progress (mirrors the Math.max guard used by every
+        // other workflow-task progress update path in this service).
+        progress: Math.max(existing.progress, input.progress ?? defaultProgressForStage(input.stage)),
         currentStage: stageLabel(input.stage),
         currentItemKey: input.stage,
         currentItemLabel: input.itemLabel,
