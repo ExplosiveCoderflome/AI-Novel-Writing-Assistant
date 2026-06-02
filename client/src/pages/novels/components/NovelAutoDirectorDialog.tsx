@@ -14,6 +14,7 @@ import {
   type DirectorCorrectionPreset,
   type DirectorIdeaInspiration,
   type DirectorRunMode,
+  type DirectorWorldSetupMode,
 } from "@ai-novel/shared/types/novelDirector";
 import { bootstrapNovelWorkflow, continueNovelWorkflow } from "@/api/novelWorkflow";
 import {
@@ -112,6 +113,7 @@ export default function NovelAutoDirectorDialog({
   const [pendingTitleHint, setPendingTitleHint] = useState("");
   const [executionError, setExecutionError] = useState("");
   const [runMode, setRunMode] = useState<DirectorRunMode>(DEFAULT_VISIBLE_RUN_MODE);
+  const [worldSetupMode, setWorldSetupMode] = useState<DirectorWorldSetupMode>("auto_generate");
   const [autoExecutionDraft, setAutoExecutionDraft] = useState(() => createDefaultDirectorAutoExecutionDraftState());
   const [selectedStyleProfileId, setSelectedStyleProfileId] = useState("");
   const [ideaInspirations, setIdeaInspirations] = useState<DirectorIdeaInspiration[]>([]);
@@ -161,6 +163,11 @@ export default function NovelAutoDirectorDialog({
     }
     if (typeof seedPayload?.styleProfileId === "string") {
       setSelectedStyleProfileId(seedPayload.styleProfileId);
+    }
+    if (seedPayload?.worldSetupMode === "skip") {
+      setWorldSetupMode("skip");
+    } else if (!seedPayload?.worldId) {
+      setWorldSetupMode("auto_generate");
     }
     if (initialOpen) {
       setOpen(true);
@@ -219,6 +226,7 @@ export default function NovelAutoDirectorDialog({
       return generateDirectorIdeaInspirations({
         ...buildAutoDirectorRequestPayload(directorBasicForm, idea || directorBasicForm.description, llm, runMode, undefined, {
           styleProfileId: selectedStyleProfileId,
+          worldSetupMode,
         }),
         currentIdea: idea.trim() || undefined,
         genreLabel: genre?.path || genre?.label,
@@ -313,6 +321,7 @@ export default function NovelAutoDirectorDialog({
         idea,
         batches,
         runMode,
+        worldSetupMode: directorBasicForm.worldId ? undefined : worldSetupMode,
         autoExecutionPlan,
         autoApproval: {
           ...autoApprovalDraft.buildPayload(runMode),
@@ -347,7 +356,7 @@ export default function NovelAutoDirectorDialog({
     llm,
     runMode,
     currentWorkflowTaskId,
-    { styleProfileId: selectedStyleProfileId },
+    { styleProfileId: selectedStyleProfileId, worldSetupMode },
   );
 
   const {
@@ -382,6 +391,7 @@ export default function NovelAutoDirectorDialog({
       const response = await confirmDirectorCandidate({
         ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId, {
           styleProfileId: selectedStyleProfileId,
+          worldSetupMode,
         }),
         batchId: latestBatch?.id,
         round: latestBatch?.round,
@@ -621,6 +631,8 @@ export default function NovelAutoDirectorDialog({
                 runMode={runMode}
                 runModeOptions={RUN_MODE_OPTIONS}
                 onRunModeChange={setRunMode}
+                worldSetupMode={worldSetupMode}
+                onWorldSetupModeChange={setWorldSetupMode}
                 autoExecutionDraft={autoExecutionDraft}
                 maxChapterCount={directorBasicForm.estimatedChapterCount}
                 onAutoExecutionDraftChange={(patch) => setAutoExecutionDraft((prev) => ({ ...prev, ...patch }))}

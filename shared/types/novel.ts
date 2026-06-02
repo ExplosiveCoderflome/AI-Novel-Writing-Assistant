@@ -25,6 +25,7 @@ export type {
   CharacterVisibleProfileSuggestion,
   CharacterRelation,
   CharacterTimeline,
+  CharacterWorldFocusHints,
   SupplementalCharacterApplyResult,
   SupplementalCharacterCandidate,
   SupplementalCharacterGenerateInput,

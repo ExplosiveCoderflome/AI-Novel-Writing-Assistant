@@ -66,7 +66,7 @@ export default function WorldLibraryQuickPick({
         ) : null}
         {!libraryQuery.isLoading && libraryItems.length === 0 ? (
           <div className="text-xs text-muted-foreground">
-            当前没有匹配的素材库条目。
+            没有匹配的素材库条目。
           </div>
         ) : null}
 

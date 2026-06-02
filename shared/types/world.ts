@@ -77,6 +77,9 @@ export interface WorldForce {
   name: string;
   type: string;
   factionId?: string | null;
+  role?: string | null;
+  resources?: string[];
+  controlledLocationIds?: string[];
   summary: string;
   baseOfPower: string;
   currentObjective: string;
@@ -88,13 +91,76 @@ export interface WorldForce {
 export interface WorldLocation {
   id: string;
   name: string;
+  type?: string | null;
+  region?: string | null;
+  x?: number;
+  y?: number;
+  directionHint?: WorldGeographyDirection;
   terrain: string;
   summary: string;
   narrativeFunction: string;
   risk: string;
+  riskLevel?: number;
+  storyRelevance?: string;
   entryConstraint: string;
   exitCost: string;
   controllingForceIds: string[];
+}
+
+export type WorldGeographyDirection =
+  | "north"
+  | "south"
+  | "east"
+  | "west"
+  | "center"
+  | "northeast"
+  | "northwest"
+  | "southeast"
+  | "southwest";
+
+export type WorldGeographyRegionType =
+  | "continent"
+  | "country"
+  | "region"
+  | "city"
+  | "landmark"
+  | "border"
+  | "route"
+  | "other";
+
+export type WorldGeographyRouteType =
+  | "road"
+  | "river"
+  | "sea"
+  | "portal"
+  | "trade"
+  | "military"
+  | "border"
+  | "other";
+
+export interface WorldGeographyMapNode {
+  id: string;
+  label: string;
+  x?: number;
+  y?: number;
+  directionHint?: WorldGeographyDirection;
+  regionType?: WorldGeographyRegionType;
+  terrain?: string;
+  summary?: string;
+  parentId?: string | null;
+  controllingForceIds?: string[];
+  risk?: string;
+  storyRelevance?: string;
+}
+
+export interface WorldGeographyMapEdge {
+  source: string;
+  target: string;
+  relation: string;
+  routeType?: WorldGeographyRouteType;
+  distanceHint?: string;
+  direction?: WorldGeographyDirection;
+  risk?: string;
 }
 
 export interface WorldForceRelation {
@@ -114,9 +180,19 @@ export interface WorldLocationControlRelation {
   detail: string;
 }
 
+export interface WorldLocationConnectionRelation {
+  id: string;
+  sourceLocationId: string;
+  targetLocationId: string;
+  connectionType: string;
+  distanceHint: string;
+  narrativeUse: string;
+}
+
 export interface WorldRelations {
   forceRelations: WorldForceRelation[];
   locationControls: WorldLocationControlRelation[];
+  locationConnections?: WorldLocationConnectionRelation[];
 }
 
 export interface WorldBindingLocationCluster {
@@ -248,8 +324,8 @@ export interface WorldVisualizationPayload {
   };
   powerTree: Array<{ level: string; description: string }>;
   geographyMap: {
-    nodes: Array<{ id: string; label: string }>;
-    edges: Array<{ source: string; target: string; relation: string }>;
+    nodes: WorldGeographyMapNode[];
+    edges: WorldGeographyMapEdge[];
   };
   timeline: Array<{ year: string; event: string }>;
 }

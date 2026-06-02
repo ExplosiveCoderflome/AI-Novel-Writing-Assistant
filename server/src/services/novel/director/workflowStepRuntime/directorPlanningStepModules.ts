@@ -6,6 +6,7 @@ import {
   getDirectorStageNodeAdapter,
   type DirectorPlanningStage,
 } from "../phases/novelDirectorStageNodeAdapters";
+import { WorldContextGateway } from "../../worldContext/WorldContextGateway";
 import {
   createWorkflowStepDescriptorFromDirectorAdapter,
   createWorkflowStepModule,
@@ -205,6 +206,179 @@ function createBookContractExecutableModule(
       completeCriteria: async (_output, context) => {
         const { novelId } = await loadDirectorModuleState(context);
         return Boolean(await getDirectorCoreStepRuntime().getBookContract(novelId));
+      },
+    },
+  );
+}
+
+function resolveWorldSetupMode(request: DirectorConfirmRequest | null): "auto_generate" | "skip" {
+  if (request?.worldId?.trim()) {
+    return "auto_generate";
+  }
+  return request?.worldSetupMode === "skip" ? "skip" : "auto_generate";
+}
+
+function compactPlanningContext(value: unknown, maxLength = 3000): string {
+  if (!value) {
+    return "";
+  }
+  const raw = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  return raw.length > maxLength ? `${raw.slice(0, maxLength)}...` : raw;
+}
+
+async function prepareDirectorNovelWorld(input: {
+  novelId: string;
+  request: DirectorConfirmRequest;
+}): Promise<{ mode: "auto_generate" | "skip"; hasWorld: boolean; generated: boolean }> {
+  const mode = resolveWorldSetupMode(input.request);
+  const gateway = new WorldContextGateway();
+  if (mode === "skip") {
+    return { mode, hasWorld: await gateway.hasActiveWorld(input.novelId), generated: false };
+  }
+
+  let hasWorld = await gateway.hasActiveWorld(input.novelId);
+  let generated = false;
+  if (!hasWorld) {
+    const [storyMacro, bookContract] = await Promise.all([
+      getDirectorCoreStepRuntime().getStoryMacroPlan(input.novelId),
+      getDirectorCoreStepRuntime().getBookContract(input.novelId),
+    ]);
+    await gateway.generateWorldFromNovelTheme(input.novelId, {
+      saveToLibrary: false,
+      provider: input.request.provider,
+      model: input.request.model,
+      temperature: input.request.temperature,
+      storyMacroContext: compactPlanningContext(storyMacro),
+      bookContractContext: compactPlanningContext(bookContract),
+    });
+    hasWorld = true;
+    generated = true;
+  }
+  await gateway.getWorldContextBlock(input.novelId, {
+    purpose: "character",
+    forceRefresh: true,
+    storyInput: input.request.idea,
+    provider: input.request.provider,
+    model: input.request.model,
+    temperature: input.request.temperature,
+  });
+  return { mode, hasWorld, generated };
+}
+
+function createWorldSetupExecutableModule(
+  descriptor: WorkflowStepModuleDescriptor,
+): WorkflowStepModule<{ novelId: string; request: DirectorConfirmRequest }, { mode: "auto_generate" | "skip"; hasWorld: boolean; generated: boolean }> {
+  return createWorkflowStepModule(
+    descriptor,
+    async (input) => prepareDirectorNovelWorld(input),
+    {
+      inspectReadiness: async (context) => {
+        const { novelId } = await loadDirectorModuleState(context);
+        const plan = await getDirectorCoreStepRuntime().getStoryMacroPlan(novelId);
+        const contract = await getDirectorCoreStepRuntime().getBookContract(novelId);
+        if (!plan?.decomposition || !contract) {
+          return blockedState("Story macro and book contract are required before world setup.", {
+            code: "missing_world_setup_inputs",
+            evidence: {
+              hasStoryMacro: Boolean(plan?.decomposition),
+              hasBookContract: Boolean(contract),
+            },
+            nextAction: "prepare_upstream_assets",
+          });
+        }
+        const gateway = new WorldContextGateway();
+        return readyState({
+          evidence: {
+            artifactType: "world_skeleton",
+            hasActiveWorld: await gateway.hasActiveWorld(novelId),
+          },
+        });
+      },
+      inspectCompletion: async (context) => {
+        const { novelId, request } = await loadDirectorModuleState(context);
+        const mode = resolveWorldSetupMode(request);
+        if (mode === "skip") {
+          return completedFact(descriptor.id, {
+            evidence: { artifactType: "world_skeleton", mode, skipped: true },
+          });
+        }
+        const gateway = new WorldContextGateway();
+        const hasActiveWorld = await gateway.hasActiveWorld(novelId);
+        return hasActiveWorld
+          ? completedFact(descriptor.id, { evidence: { artifactType: "world_skeleton", mode, hasActiveWorld } })
+          : pendingFact(descriptor.id, { evidence: { artifactType: "world_skeleton", mode, hasActiveWorld } });
+      },
+      buildInput: async (context) => {
+        const { novelId, request } = await loadDirectorModuleState(context);
+        return {
+          novelId,
+          request: requireDirectorRequest(request),
+        };
+      },
+      validateOutput: async (output) => ({
+        valid: output.mode === "skip" || output.hasWorld,
+        reason: output.mode === "skip" || output.hasWorld ? undefined : "Novel world was not prepared.",
+      }),
+      commit: async (_output, context) => {
+        const { state, novelId } = await loadDirectorModuleState(context);
+        const producedArtifacts = await getDirectorCoreStepRuntime().collectWrittenArtifacts(
+          novelId,
+          state.task.id,
+          descriptor.writes,
+        );
+        await getDirectorCoreStateCommitter().recordArtifactsIndexed({
+          taskId: state.task.id,
+          novelId,
+          runtimeId: state.runtime?.id ?? null,
+          nodeKey: descriptor.nodeKey,
+          artifacts: producedArtifacts,
+        });
+        return { producedArtifacts };
+      },
+      inspectProgress: async (context) => {
+        const { novelId, request } = await loadDirectorModuleState(context);
+        const mode = resolveWorldSetupMode(request);
+        if (mode === "skip") {
+          return buildSimpleProgress({
+            status: "completed",
+            ratio: 1,
+            label: "本书世界处理已跳过",
+            evidence: { artifactType: "world_skeleton", mode, skipped: true },
+          });
+        }
+        const gateway = new WorldContextGateway();
+        const hasActiveWorld = await gateway.hasActiveWorld(novelId);
+        return hasActiveWorld
+          ? buildSimpleProgress({
+            status: "completed",
+            ratio: 1,
+            label: "本书世界已准备完成",
+            evidence: { artifactType: "world_skeleton", hasActiveWorld },
+          })
+          : buildSimpleProgress({
+            status: "not_started",
+            ratio: 0,
+            label: "等待准备本书世界",
+            nextAction: "run_world_setup",
+          });
+      },
+      recover: async (context) => {
+        const { novelId, request } = await loadDirectorModuleState(context);
+        const mode = resolveWorldSetupMode(request);
+        if (mode === "skip") {
+          return { recoverable: true, resumeFrom: "world_setup_skipped", reason: "World setup is skipped for this director run." };
+        }
+        const gateway = new WorldContextGateway();
+        return (await gateway.hasActiveWorld(novelId))
+          ? { recoverable: true, resumeFrom: "world_setup_artifact", reason: "Novel world already exists." }
+          : { recoverable: true, resumeFrom: "world_setup", reason: "Novel world can be prepared." };
+      },
+      completeCriteria: async (output, context) => {
+        if (output.mode === "skip") {
+          return true;
+        }
+        const { novelId } = await loadDirectorModuleState(context);
+        return output.hasWorld || await new WorldContextGateway().hasActiveWorld(novelId);
       },
     },
   );
@@ -422,6 +596,11 @@ export const DIRECTOR_PLANNING_STEP_MODULES: Record<
     id: DIRECTOR_PLANNING_STEP_IDS.book_contract,
     stage: "story_macro",
     adapter: getDirectorStageNodeAdapter("book_contract"),
+  })),
+  world_setup: createWorldSetupExecutableModule(createWorkflowStepDescriptorFromDirectorAdapter({
+    id: DIRECTOR_PLANNING_STEP_IDS.world_setup,
+    stage: "story_macro",
+    adapter: getDirectorStageNodeAdapter("world_setup"),
   })),
   character_setup: createCharacterSetupExecutableModule(createWorkflowStepDescriptorFromDirectorAdapter({
     id: DIRECTOR_PLANNING_STEP_IDS.character_setup,

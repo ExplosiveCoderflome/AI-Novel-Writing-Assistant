@@ -5,6 +5,7 @@ import { DIRECTOR_PROGRESS, type DirectorProgressItemKey } from "../projections/
 export type DirectorPlanningStage =
   | "story_macro"
   | "book_contract"
+  | "world_setup"
   | "character_setup"
   | "volume_strategy"
   | "structured_outline";
@@ -57,6 +58,22 @@ export const DIRECTOR_STAGE_NODE_ADAPTERS: Record<DirectorPlanningStage, Directo
       itemKey: "book_contract",
       itemLabel: "等待确认书级创作约定",
       progress: DIRECTOR_PROGRESS.bookContract,
+    },
+  },
+  world_setup: {
+    nodeKey: "world_setup_phase",
+    label: "准备本书世界",
+    targetType: "novel",
+    reads: ["story_macro", "book_contract", "book_seed"],
+    writes: ["world_skeleton"],
+    mayModifyUserContent: true,
+    requiresApprovalByDefault: false,
+    supportsAutoRetry: false,
+    waitingState: {
+      stage: "story_macro",
+      itemKey: "world_setup",
+      itemLabel: "正在准备本书世界",
+      progress: DIRECTOR_PROGRESS.worldSetup,
     },
   },
   character_setup: {

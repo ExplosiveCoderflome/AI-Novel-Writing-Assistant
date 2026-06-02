@@ -3,6 +3,7 @@ import type { BasicTabProps } from "./NovelEditView.types";
 import NovelBasicInfoForm from "./NovelBasicInfoForm";
 import NovelStyleRecommendationCard from "./NovelStyleRecommendationCard";
 import NovelWorldUsageCard from "./NovelWorldUsageCard";
+import NovelWorldManagerCard from "./NovelWorldManagerCard";
 import { BookFramingQuickFillButton } from "./basicInfoForm/BookFramingQuickFillButton";
 import CollapsibleSummary from "./CollapsibleSummary";
 import NovelCreateTitleQuickFill from "./titleWorkshop/NovelCreateTitleQuickFill";
@@ -14,9 +15,37 @@ export default function BasicInfoTab(props: BasicTabProps) {
     <div className="space-y-4">
       <DirectorTakeoverEntryPanel
         title="让 AI 从当前项目继续接管"
-        description="如果你已经填过基础信息，可以直接从当前步骤开始自动接管，并选择继续已有进度或重跑当前步。"
+        description="如果基础信息较完整，可以直接从选定步骤开始自动接管，并选择继续已有进度或重跑当前步。"
         entry={props.directorTakeoverEntry}
       />
+      <NovelWorldManagerCard
+        view={props.novelWorldView}
+        syncDiff={props.novelWorldSyncDiff}
+        worldOptions={props.worldOptions}
+        selectedWorldId={props.basicForm.worldId}
+        isLoading={props.isLoadingNovelWorld}
+        isImporting={props.isImportingNovelWorld}
+        isGenerating={props.isGeneratingNovelWorld}
+        isCreatingManual={props.isCreatingManualNovelWorld}
+        isSavingToLibrary={props.isSavingNovelWorldToLibrary}
+        isLoadingSyncDiff={props.isLoadingNovelWorldSyncDiff}
+        isSyncing={props.isSyncingNovelWorld}
+        onImport={props.onImportNovelWorld}
+        onCreateManual={props.onCreateManualNovelWorld}
+        onGenerate={props.onGenerateNovelWorld}
+        onSaveToLibrary={props.onSaveNovelWorldToLibrary}
+        onSync={props.onSyncNovelWorld}
+      />
+      <div id="novel-world-usage">
+        <NovelWorldUsageCard
+          view={props.worldSliceView}
+          message={props.worldSliceMessage}
+          isRefreshing={props.isRefreshingWorldSlice}
+          isSaving={props.isSavingWorldSliceOverrides}
+          onRefresh={props.onRefreshWorldSlice}
+          onSave={props.onSaveWorldSliceOverrides}
+        />
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>书级定位与基本信息</CardTitle>
@@ -67,23 +96,14 @@ export default function BasicInfoTab(props: BasicTabProps) {
       <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
-            title="写法与世界补强"
-            description="标题快速选填已经放在上方标题字段旁。这里保留开写前的写法确认和本书世界边界整理。"
-            meta="写法建议 / 世界使用"
+            title="写法建议"
+            description="确认本书的叙述口味、表达密度和风格参考，帮助后续章节保持统一。"
+            meta="写法参考"
           />
         </summary>
 
         <div className="mt-4 space-y-4">
           <NovelStyleRecommendationCard novelId={props.novelId} />
-
-          <NovelWorldUsageCard
-            view={props.worldSliceView}
-            message={props.worldSliceMessage}
-            isRefreshing={props.isRefreshingWorldSlice}
-            isSaving={props.isSavingWorldSliceOverrides}
-            onRefresh={props.onRefreshWorldSlice}
-            onSave={props.onSaveWorldSliceOverrides}
-          />
         </div>
       </details>
     </div>

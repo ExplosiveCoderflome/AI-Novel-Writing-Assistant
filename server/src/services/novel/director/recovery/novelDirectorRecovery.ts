@@ -8,6 +8,7 @@ import type { StructuredOutlineRecoveryStep } from "./novelDirectorStructuredOut
 export type DirectorPipelinePhase =
   | "story_macro"
   | "book_contract"
+  | "world_setup"
   | "character_setup"
   | "volume_strategy"
   | "structured_outline";
@@ -23,6 +24,7 @@ export function resolveSafeDirectorPipelineStartPhase(input: {
   requestedPhase: DirectorPipelinePhase;
   hasStoryMacroPlan?: boolean;
   hasBookContract?: boolean;
+  hasWorldSetupPrepared?: boolean;
   hasCharacters?: boolean;
   hasVolumeWorkspace: boolean;
   hasVolumeStrategyPlan: boolean;
@@ -38,6 +40,9 @@ export function resolveSafeDirectorPipelineStartPhase(input: {
     }
     if (!input.hasBookContract) {
       return "book_contract";
+    }
+    if (!input.hasWorldSetupPrepared) {
+      return "world_setup";
     }
     if (!input.hasCharacters) {
       return "character_setup";
@@ -57,12 +62,25 @@ export function resolveSafeDirectorPipelineStartPhase(input: {
     && input.hasStoryMacroPlan
     && input.hasBookContract
   ) {
-    safePhase = "character_setup";
+    safePhase = input.hasWorldSetupPrepared ? "character_setup" : "world_setup";
   }
   if (safePhase === "book_contract" && !input.hasStoryMacroPlan) {
     safePhase = "story_macro";
   }
-  if ((safePhase === "story_macro" || safePhase === "book_contract" || safePhase === "character_setup") && input.hasCharacters) {
+  if (safePhase === "world_setup" && (!input.hasStoryMacroPlan || !input.hasBookContract)) {
+    safePhase = input.hasStoryMacroPlan ? "book_contract" : "story_macro";
+  }
+  if (
+    (safePhase === "character_setup" || safePhase === "volume_strategy" || safePhase === "structured_outline")
+    && !input.hasWorldSetupPrepared
+  ) {
+    safePhase = "world_setup";
+  }
+  if (
+    (safePhase === "story_macro" || safePhase === "book_contract" || safePhase === "world_setup" || safePhase === "character_setup")
+    && input.hasWorldSetupPrepared
+    && input.hasCharacters
+  ) {
     safePhase = "volume_strategy";
   }
   return safePhase;

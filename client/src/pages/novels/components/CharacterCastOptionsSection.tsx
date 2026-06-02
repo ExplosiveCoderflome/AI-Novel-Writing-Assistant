@@ -14,6 +14,7 @@ import {
   getCharacterCastOptions,
   getCharacterRelations,
 } from "@/api/novel";
+import { getNovelWorldSlice } from "@/api/novelWorldSlice";
 import { queryKeys } from "@/api/queryKeys";
 
 interface CharacterCastOptionsSectionProps {
@@ -89,6 +90,9 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
   const [storyInput, setStoryInput] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isPlannerExpanded, setIsPlannerExpanded] = useState(true);
+  const [useWorldContext, setUseWorldContext] = useState(true);
+  const [preferredWorldFaction, setPreferredWorldFaction] = useState("");
+  const [forceWorldCompliance, setForceWorldCompliance] = useState(true);
 
   const castOptionsQuery = useQuery({
     queryKey: queryKeys.novels.characterCastOptions(novelId),
@@ -102,8 +106,18 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
     enabled: Boolean(novelId),
   });
 
+  const worldSliceQuery = useQuery({
+    queryKey: queryKeys.novels.worldSlice(novelId),
+    queryFn: () => getNovelWorldSlice(novelId),
+    enabled: Boolean(novelId) && useWorldContext,
+  });
+
   const castOptions = castOptionsQuery.data?.data ?? [];
   const relations = relationsQuery.data?.data ?? [];
+  const worldSliceView = worldSliceQuery.data?.data;
+  const hasUsableWorld = Boolean(worldSliceView?.hasWorld);
+  const hasWorldSlice = Boolean(worldSliceView?.slice);
+  const activeWorldForces = worldSliceQuery.data?.data?.slice?.activeForces ?? [];
   const appliedOption = useMemo(
     () => castOptions.find((option) => option.status === "applied") ?? null,
     [castOptions],
@@ -171,6 +185,13 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
         model: llmModel,
         temperature: 0.6,
         storyInput: storyInput.trim() || undefined,
+        useWorldContext,
+        worldFocusHints: useWorldContext
+          ? {
+            preferFaction: preferredWorldFaction || undefined,
+            forceCompliance: forceWorldCompliance,
+          }
+          : undefined,
       }),
     onSuccess: async (response) => {
       setStatusMessage(response.message ?? "角色阵容方案已生成。");
@@ -229,7 +250,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
     mutationFn: (optionId: string) => deleteCharacterCastOption(novelId, optionId),
     onSuccess: async (response) => {
       if (response.data?.deletedAppliedOption) {
-        setStatusMessage("方案记录已删除；之前已同步到角色库和关系网的数据不会自动回滚。");
+        setStatusMessage("方案记录已删除；角色库和关系网中的对应数据会保留。");
       } else {
         setStatusMessage("这套阵容方案已删除。");
       }
@@ -246,7 +267,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       const deletedCount = response.data?.deletedCount ?? 0;
       const deletedAppliedCount = response.data?.deletedAppliedCount ?? 0;
       if (deletedCount === 0) {
-        setStatusMessage("当前没有可清空的阵容方案。");
+        setStatusMessage("没有可清空的阵容方案。");
       } else if (deletedAppliedCount > 0) {
         setStatusMessage(`已清空 ${deletedCount} 套阵容方案记录；已同步的角色与关系不会自动回滚。`);
       } else {
@@ -278,7 +299,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline">{castOptions.length} 套候选方案</Badge>
-              <Badge variant="outline">{relations.length} 条结构化关系</Badge>
+              <Badge variant="outline">{relations.length} 条角色关系</Badge>
               {appliedOption ? <Badge variant="secondary">已应用方案</Badge> : null}
             </div>
           </div>
@@ -324,6 +345,60 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                     value={storyInput}
                     onChange={(event) => setStoryInput(event.target.value)}
                   />
+                  <div className="flex flex-wrap gap-2">
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={useWorldContext}
+                        onChange={(event) => setUseWorldContext(event.target.checked)}
+                      />
+                      基于本书世界生成
+                    </label>
+                    {useWorldContext ? (
+                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={forceWorldCompliance}
+                          onChange={(event) => setForceWorldCompliance(event.target.checked)}
+                        />
+                        检查世界规则合规
+                      </label>
+                    ) : null}
+                  </div>
+                  {useWorldContext ? (
+                    <div className="grid gap-2 rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-muted-foreground">
+                      {worldSliceQuery.isLoading ? (
+                        <div>正在读取本书世界使用范围...</div>
+                      ) : !hasUsableWorld ? (
+                        <div>
+                          本书世界还没有准备好。本轮会优先根据书级信息和你的生成指令设计角色。
+                        </div>
+                      ) : !hasWorldSlice ? (
+                        <div>
+                          本书世界存在，但使用范围还未整理。建议先到基础信息页整理本书使用范围，或继续让 AI 按世界手册保守生成。
+                        </div>
+                      ) : null}
+                      <label className="space-y-1">
+                        <span className="font-medium text-foreground">势力倾向</span>
+                        <select
+                          className="w-full rounded-md border bg-background p-2 text-sm"
+                          value={preferredWorldFaction}
+                          onChange={(event) => setPreferredWorldFaction(event.target.value)}
+                          disabled={!hasWorldSlice || activeWorldForces.length === 0}
+                        >
+                          <option value="">由 AI 判断</option>
+                          {activeWorldForces.map((force) => (
+                            <option key={force.id} value={force.name}>{force.name}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <div>
+                        {hasWorldSlice
+                          ? "角色会优先贴合本书世界的势力、地点、身份边界和禁止搭配。"
+                          : "本书世界使用范围整理后，可进一步指定势力倾向。"}
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="flex flex-wrap gap-2">
                     <AiButton onClick={() => generateMutation.mutate()} disabled={isWorking}>
                       {generateMutation.isPending ? "生成中..." : "生成 3 套阵容"}
@@ -461,7 +536,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
 
       <Card>
         <CardHeader>
-          <CardTitle>结构化关系网</CardTitle>
+          <CardTitle>角色关系网</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           {selectedCharacter ? (
@@ -511,7 +586,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
             </div>
           ) : (
             <div className="rounded-xl border border-dashed p-4 text-muted-foreground">
-              当前还没有结构化关系。应用一套角色阵容后会在这里出现。
+              还没有角色关系。应用一套角色阵容后会在这里出现。
             </div>
           )}
         </CardContent>

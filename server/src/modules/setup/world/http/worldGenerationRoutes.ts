@@ -3,6 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { initSSE, streamToSSE, writeSSEFrame } from "../../../../llm/streaming";
 import { validate } from "../../../../middleware/validate";
+import type { WorldSkeletonGenerateInput } from "../../../../services/world/worldSkeletonGeneration";
 import {
   inspirationSchema,
   libraryCreateSchema,
@@ -11,6 +12,7 @@ import {
   libraryUseSchema,
   requireWorldWizard,
   worldGenerateSchema,
+  worldSkeletonGenerateSchema,
   worldRefineSchema,
   worldIdSchema,
   worldService,
@@ -99,6 +101,24 @@ export function registerGenerationWorldRoutes(router: Router): void {
       next(error);
     }
   });
+
+  router.post(
+    "/skeleton/generate",
+    requireWorldWizard,
+    validate({ body: worldSkeletonGenerateSchema }),
+    async (req, res, next) => {
+      try {
+        const data = await worldService.generateSkeleton(req.body as WorldSkeletonGenerateInput);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "World skeleton generated.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 
   router.post(
     "/inspiration/analyze/stream",

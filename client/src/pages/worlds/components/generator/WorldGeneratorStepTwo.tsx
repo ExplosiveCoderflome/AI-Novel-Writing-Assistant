@@ -1,204 +1,125 @@
 import type {
-  WorldPropertyOption,
-  WorldReferenceAnchor,
-  WorldReferenceMode,
-  WorldReferenceSeedBundle,
-  WorldReferenceSeedSelection,
+  WorldSkeletonGenerationCounts,
+  WorldSkeletonPreset,
+} from "@ai-novel/shared/types/worldWizard";
+import {
+  WORLD_SKELETON_COUNT_LIMITS,
+  WORLD_SKELETON_PRESET_COUNTS,
 } from "@ai-novel/shared/types/worldWizard";
 import { Button } from "@/components/ui/button";
-import WorldLibraryQuickPick from "./WorldLibraryQuickPick";
-import WorldPropertyOptionSelector from "./WorldPropertyOptionSelector";
-import WorldReferenceSeedSelector from "./WorldReferenceSeedSelector";
-import type { WorldGeneratorTemplateOption } from "./worldGeneratorShared";
-import { getDimensionLabel, getReferenceModeLabel } from "./worldGeneratorShared";
+
+const PRESET_CARDS: Array<{
+  value: WorldSkeletonPreset;
+  title: string;
+  description: string;
+}> = [
+  {
+    value: "light",
+    title: "轻量舞台",
+    description: "适合短篇、单主线、低复杂度，先得到一个清楚好写的故事舞台。",
+  },
+  {
+    value: "standard",
+    title: "标准长篇",
+    description: "适合多数网文长篇，默认生成足够的规则、势力、地点和开局入口。",
+  },
+  {
+    value: "epic",
+    title: "复杂群像",
+    description: "适合多势力、多地点、多线冲突，需要更强的地图和关系承载。",
+  },
+];
+
+const COUNT_LABELS: Record<keyof WorldSkeletonGenerationCounts, string> = {
+  rules: "核心规则",
+  factionGroups: "阵营方向",
+  forces: "具体势力",
+  locations: "关键地点",
+  conflicts: "关系/冲突",
+  storyEntrySuggestions: "故事入口",
+};
 
 interface WorldGeneratorStepTwoProps {
-  isReferenceMode: boolean;
-  referenceMode: WorldReferenceMode;
-  referenceAnchors: WorldReferenceAnchor[];
-  preserveElements: string[];
-  allowedChanges: string[];
-  forbiddenElements: string[];
-  referenceSeeds: WorldReferenceSeedBundle;
-  selectedReferenceSeedIds: WorldReferenceSeedSelection;
-  filteredTemplates: Array<Pick<WorldGeneratorTemplateOption, "key" | "name">>;
-  templateSelectValue: string;
-  selectedTemplate?: WorldGeneratorTemplateOption;
-  selectedDimensions: Record<string, boolean>;
-  selectedClassicElements: string[];
-  propertyOptions: WorldPropertyOption[];
-  selectedPropertyIds: string[];
-  propertyDetails: Record<string, string>;
-  selectedPropertyChoices: Record<string, string>;
-  existingPropertyOptionIds: string[];
-  currentTypeLabel: string;
-  libraryQuickPickWorldType?: string;
-  createDraftPending: boolean;
-  onTemplateChange: (value: string) => void;
-  onToggleDimension: (key: string, checked: boolean) => void;
-  onToggleClassicElement: (element: string, checked: boolean) => void;
-  onToggleReferenceSeed: (group: keyof WorldReferenceSeedBundle, id: string, checked: boolean) => void;
-  onToggleAllReferenceSeeds: (group: keyof WorldReferenceSeedBundle, checked: boolean) => void;
-  onTogglePropertyOption: (optionId: string, checked: boolean) => void;
-  onPropertyChoiceSelect: (optionId: string, choiceId: string) => void;
-  onPropertyDetailChange: (optionId: string, detail: string) => void;
-  onAddLibraryOption: (item: {
-    id: string;
-    name: string;
-    description?: string | null;
-    category: string;
-  }) => void;
-  onCreateDraft: () => void;
+  preset: WorldSkeletonPreset;
+  counts: WorldSkeletonGenerationCounts;
+  generating: boolean;
+  onPresetChange: (preset: WorldSkeletonPreset) => void;
+  onCountChange: (key: keyof WorldSkeletonGenerationCounts, value: number) => void;
+  onGenerateSkeleton: () => void;
 }
 
 export default function WorldGeneratorStepTwo(props: WorldGeneratorStepTwoProps) {
   const {
-    isReferenceMode,
-    referenceMode,
-    referenceAnchors,
-    preserveElements,
-    allowedChanges,
-    forbiddenElements,
-    referenceSeeds,
-    selectedReferenceSeedIds,
-    filteredTemplates,
-    templateSelectValue,
-    selectedTemplate,
-    selectedDimensions,
-    selectedClassicElements,
-    propertyOptions,
-    selectedPropertyIds,
-    propertyDetails,
-    selectedPropertyChoices,
-    existingPropertyOptionIds,
-    currentTypeLabel,
-    libraryQuickPickWorldType,
-    createDraftPending,
-    onTemplateChange,
-    onToggleDimension,
-    onToggleClassicElement,
-    onToggleReferenceSeed,
-    onToggleAllReferenceSeeds,
-    onTogglePropertyOption,
-    onPropertyChoiceSelect,
-    onPropertyDetailChange,
-    onAddLibraryOption,
-    onCreateDraft,
+    preset,
+    counts,
+    generating,
+    onPresetChange,
+    onCountChange,
+    onGenerateSkeleton,
   } = props;
 
   return (
-    <div className="space-y-3">
-      {isReferenceMode ? (
-        <div className="rounded-md border p-3 text-sm space-y-3">
-          <div className="font-medium">参考作品改造蓝图</div>
-          <div className="text-xs text-muted-foreground">当前方式：{getReferenceModeLabel(referenceMode)}</div>
-          {referenceAnchors.length > 0 ? (
-            <div className="space-y-1">
-              <div className="text-xs font-medium text-muted-foreground">原作世界锚点</div>
-              {referenceAnchors.map((anchor) => (
-                <div key={anchor.id} className="text-xs text-muted-foreground">
-                  {anchor.label}：{anchor.content}
-                </div>
-              ))}
+    <div className="space-y-4">
+      <div className="rounded-md border bg-background p-4">
+        <div className="text-sm font-medium">选择世界规模</div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          规模会决定 AI 生成多少规则、阵营、具体势力、关键地点和可开书入口。默认推荐“标准长篇”。
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        {PRESET_CARDS.map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            className={`rounded-md border p-4 text-left transition ${
+              preset === item.value ? "border-primary bg-primary/5" : "bg-background hover:border-primary/60"
+            }`}
+            onClick={() => onPresetChange(item.value)}
+          >
+            <div className="text-sm font-semibold">{item.title}</div>
+            <div className="mt-2 text-xs leading-5 text-muted-foreground">{item.description}</div>
+            <div className="mt-3 grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+              <span>势力 {WORLD_SKELETON_PRESET_COUNTS[item.value].forces}</span>
+              <span>地点 {WORLD_SKELETON_PRESET_COUNTS[item.value].locations}</span>
+              <span>冲突 {WORLD_SKELETON_PRESET_COUNTS[item.value].conflicts}</span>
+              <span>入口 {WORLD_SKELETON_PRESET_COUNTS[item.value].storyEntrySuggestions}</span>
             </div>
-          ) : null}
-          {preserveElements.length > 0 ? (
-            <div className="text-xs text-muted-foreground">必须保留：{preserveElements.join("、")}</div>
-          ) : null}
-          {allowedChanges.length > 0 ? (
-            <div className="text-xs text-muted-foreground">允许改造：{allowedChanges.join("、")}</div>
-          ) : null}
-          {forbiddenElements.length > 0 ? (
-            <div className="text-xs text-muted-foreground">禁止偏离：{forbiddenElements.join("、")}</div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {isReferenceMode ? (
-        <WorldReferenceSeedSelector
-          seeds={referenceSeeds}
-          selectedIds={selectedReferenceSeedIds}
-          onToggle={onToggleReferenceSeed}
-          onToggleAll={onToggleAllReferenceSeeds}
-        />
-      ) : null}
-
-      <select
-        className="w-full rounded-md border bg-background p-2 text-sm"
-        value={templateSelectValue}
-        onChange={(event) => onTemplateChange(event.target.value)}
-      >
-        {filteredTemplates.map((template) => (
-          <option key={template.key} value={template.key}>
-            {template.name}
-          </option>
+          </button>
         ))}
-      </select>
-
-      <div className="rounded-md border p-3 text-sm space-y-2">
-        <div className="font-medium">{selectedTemplate?.description ?? "-"}</div>
-        <div className="text-xs text-muted-foreground">当前类型：{currentTypeLabel}</div>
-        <div className="text-xs text-muted-foreground">
-          坑点提醒：{selectedTemplate?.pitfalls.join(" | ") || "-"}
-        </div>
-        <div className="grid gap-2 md:grid-cols-3">
-          {Object.keys(selectedDimensions).map((key) => (
-            <label key={key} className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={Boolean(selectedDimensions[key])}
-                onChange={(event) => onToggleDimension(key, event.target.checked)}
-              />
-              {getDimensionLabel(key)}
-            </label>
-          ))}
-        </div>
       </div>
 
-      {!isReferenceMode ? (
-        <div className="rounded-md border p-3 text-sm">
-          <div className="font-medium mb-2">经典元素</div>
-          <div className="grid gap-2 md:grid-cols-2">
-            {(selectedTemplate?.classicElements ?? []).map((element) => (
-              <label key={element} className="flex items-center gap-2">
+      <div className="rounded-md border p-4">
+        <div className="text-sm font-medium">调整数量</div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          新手建议保持默认；只有明确想要更小或更大的世界时再调整。
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {(Object.keys(COUNT_LABELS) as Array<keyof WorldSkeletonGenerationCounts>).map((key) => {
+            const limit = WORLD_SKELETON_COUNT_LIMITS[key];
+            return (
+              <label key={key} className="rounded-md border p-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium">{COUNT_LABELS[key]}</span>
+                  <span className="text-xs text-muted-foreground">{counts[key]}</span>
+                </div>
                 <input
-                  type="checkbox"
-                  checked={selectedClassicElements.includes(element)}
-                  onChange={(event) => onToggleClassicElement(element, event.target.checked)}
+                  className="mt-3 w-full"
+                  type="range"
+                  min={limit.min}
+                  max={limit.max}
+                  step={1}
+                  value={counts[key]}
+                  onChange={(event) => onCountChange(key, Number(event.target.value))}
                 />
-                {element}
               </label>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      ) : null}
-
-      <div className="space-y-2">
-        <div className="font-medium text-sm">前置世界属性</div>
-        <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-          系统已经先帮你勾选了建议项。通常只需要取消不想要的方向，或补一句自己的偏好。
-        </div>
-        <WorldPropertyOptionSelector
-          options={propertyOptions}
-          selectedIds={selectedPropertyIds}
-          details={propertyDetails}
-          selectedChoiceIds={selectedPropertyChoices}
-          onToggle={onTogglePropertyOption}
-          onChoiceSelect={onPropertyChoiceSelect}
-          onDetailChange={onPropertyDetailChange}
-        />
       </div>
 
-      {!isReferenceMode ? (
-        <WorldLibraryQuickPick
-          worldType={libraryQuickPickWorldType}
-          existingOptionIds={existingPropertyOptionIds}
-          onAdd={onAddLibraryOption}
-        />
-      ) : null}
-
-      <Button onClick={onCreateDraft} disabled={createDraftPending}>
-        {createDraftPending ? "创建中..." : "创建草稿并生成公理建议"}
+      <Button onClick={onGenerateSkeleton} disabled={generating}>
+        {generating ? "生成世界骨架中..." : "生成世界骨架"}
       </Button>
     </div>
   );

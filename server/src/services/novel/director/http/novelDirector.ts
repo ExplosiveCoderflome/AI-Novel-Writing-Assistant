@@ -93,6 +93,7 @@ const projectContextSchema = z.object({
   primaryStoryModeId: z.string().trim().optional(),
   secondaryStoryModeId: z.string().trim().optional(),
   worldId: z.string().trim().optional(),
+  worldSetupMode: z.enum(["auto_generate", "skip"]).optional(),
   writingMode: z.enum(["original", "continuation"]).optional(),
   projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).optional(),
   readerChannelPreference: z.enum(["ai_judge", "male_oriented", "female_oriented", "general"]).optional(),

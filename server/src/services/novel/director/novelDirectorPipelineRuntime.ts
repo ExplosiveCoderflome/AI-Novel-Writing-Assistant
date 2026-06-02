@@ -47,6 +47,7 @@ import {
   type WorkflowStepModuleDescriptor,
 } from "./workflowStepRuntime/WorkflowStepModule";
 import type { DirectorPipelinePhase } from "./recovery/novelDirectorRecovery";
+import { WorldContextGateway } from "../worldContext/WorldContextGateway";
 
 export interface DirectorPipelineRunInput {
   taskId: string;
@@ -101,10 +102,12 @@ export class NovelDirectorPipelineRuntime {
     const safeStartPhase = await this.resolveSafePipelineStartPhase({
       novelId: input.novelId,
       requestedPhase: input.startPhase,
+      request: input.input,
     });
     const sequence: DirectorPipelinePhase[] = [
       "story_macro",
       "book_contract",
+      "world_setup",
       "character_setup",
       "volume_strategy",
       "structured_outline",
@@ -138,6 +141,21 @@ export class NovelDirectorPipelineRuntime {
             targetId: input.novelId,
             approveCurrentGate: bookContractApproval.approveCurrentGate,
             approveAutoExecutionScope: bookContractApproval.approveAutoExecutionScope,
+          });
+        }
+        continue;
+      }
+
+      if (phase === "world_setup") {
+        const module = getDirectorPlanningStepModule("world_setup");
+        if (!(await this.isModuleFactCompleted(module, input))) {
+          await this.deps.runtimeOrchestrator.runStepModule({
+            module,
+            taskId: input.taskId,
+            novelId: input.novelId,
+            targetId: input.novelId,
+            approveCurrentGate: approval.approveCurrentGate,
+            approveAutoExecutionScope: approval.approveAutoExecutionScope,
           });
         }
         continue;
@@ -290,12 +308,14 @@ export class NovelDirectorPipelineRuntime {
   private async resolveSafePipelineStartPhase(input: {
     novelId: string;
     requestedPhase: Exclude<DirectorPipelinePhase, "book_contract">;
+    request: DirectorConfirmRequest;
   }): Promise<DirectorPipelinePhase> {
-    const [workspace, storyMacroPlan, bookContract, characters] = await Promise.all([
+    const [workspace, storyMacroPlan, bookContract, characters, hasActiveWorld] = await Promise.all([
       this.deps.volumeService.getVolumes(input.novelId).catch(() => null),
       this.deps.storyMacroService.getPlan(input.novelId).catch(() => null),
       this.deps.bookContractService.getByNovelId(input.novelId).catch(() => null),
       this.deps.novelContextService.listCharacters(input.novelId).catch(() => []),
+      new WorldContextGateway().hasActiveWorld(input.novelId).catch(() => false),
     ]);
     return resolveSafeDirectorPipelineStartPhase({
       requestedPhase: input.requestedPhase,
@@ -306,6 +326,7 @@ export class NovelDirectorPipelineRuntime {
         && storyMacroPlan.decomposition,
       ),
       hasBookContract: Boolean(bookContract),
+      hasWorldSetupPrepared: input.request.worldSetupMode === "skip" || hasActiveWorld,
       hasCharacters: characters.length > 0,
       hasVolumeWorkspace: Boolean(workspace?.volumes.length),
       hasVolumeStrategyPlan: Boolean(workspace?.strategyPlan),

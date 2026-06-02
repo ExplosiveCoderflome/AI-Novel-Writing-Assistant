@@ -215,6 +215,7 @@ export class NovelDirectorCandidateRuntime {
       primaryStoryModeId: readText(seedPayload.primaryStoryModeId),
       secondaryStoryModeId: readText(seedPayload.secondaryStoryModeId),
       worldId: readText(seedPayload.worldId),
+      worldSetupMode: seedPayload.worldSetupMode === "skip" ? "skip" : undefined,
       writingMode: seedPayload.writingMode === "continuation" ? "continuation" : "original",
       projectMode: seedPayload.projectMode === "ai_led"
         || seedPayload.projectMode === "co_pilot"

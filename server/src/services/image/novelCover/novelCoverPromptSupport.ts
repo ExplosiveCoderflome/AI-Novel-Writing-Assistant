@@ -16,6 +16,7 @@ import type {
   ImagePromptOutputLanguage,
   OptimizeNovelCoverImagePromptRequest,
 } from "../types";
+import { WorldContextGateway, type WorldContextBlock } from "../../novel/worldContext/WorldContextGateway";
 
 interface NovelCoverNovelRecord {
   id: string;
@@ -76,12 +77,32 @@ function parseWorldSummary(value: string | null | undefined): string | null {
   }
 }
 
+function buildWorldSummaryFromContext(block: WorldContextBlock | null | undefined): string | null {
+  if (!block) {
+    return null;
+  }
+  const parts = [
+    normalizeOptionalText(block.summaryText),
+    block.activeForces.length > 0
+      ? `活跃势力：${block.activeForces.slice(0, 3).map((force) => force.name).join("、")}`
+      : null,
+    block.activeLocations.length > 0
+      ? `本书舞台：${block.activeLocations.slice(0, 3).map((location) => location.name).join("、")}`
+      : null,
+  ].filter((item): item is string => Boolean(item));
+  return normalizeOptionalText(parts.join("；"));
+}
+
 function buildNarrativeLabel(mapping: Record<string, string>, value: string | null | undefined): string | null {
   const normalized = normalizeOptionalText(value);
   return normalized ? (mapping[normalized] ?? normalized) : null;
 }
 
-export function toNovelCoverPromptContext(novel: NovelCoverNovelRecord): NovelCoverImagePromptNovelContext {
+export function toNovelCoverPromptContext(
+  novel: NovelCoverNovelRecord,
+  worldContext?: WorldContextBlock | null,
+): NovelCoverImagePromptNovelContext {
+  const worldContextSummary = buildWorldSummaryFromContext(worldContext);
   return {
     title: novel.title,
     description: normalizeOptionalText(novel.description),
@@ -94,7 +115,7 @@ export function toNovelCoverPromptContext(novel: NovelCoverNovelRecord): NovelCo
     primaryStoryModeLabel: normalizeOptionalText(novel.primaryStoryMode?.name),
     secondaryStoryModeLabel: normalizeOptionalText(novel.secondaryStoryMode?.name),
     worldName: normalizeOptionalText(novel.world?.name),
-    worldSummary: parseWorldSummary(novel.storyWorldSliceJson),
+    worldSummary: worldContextSummary ?? parseWorldSummary(novel.storyWorldSliceJson),
     styleTone: normalizeOptionalText(novel.styleTone),
     narrativePovLabel: buildNarrativeLabel(NARRATIVE_POV_LABELS, novel.narrativePov),
     pacePreferenceLabel: buildNarrativeLabel(PACE_PREFERENCE_LABELS, novel.pacePreference),
@@ -148,9 +169,19 @@ export async function loadNovelCoverNovel(novelId: string): Promise<NovelCoverNo
   return novel;
 }
 
+async function loadNovelCoverWorldContext(novelId: string): Promise<WorldContextBlock | null> {
+  return new WorldContextGateway().getWorldContextBlock(novelId, {
+    purpose: "optimize",
+    strength: "light",
+  });
+}
+
 export async function buildNovelCoverSourcePrompt(novelId: string): Promise<string> {
-  const novel = await loadNovelCoverNovel(novelId);
-  return buildDefaultNovelCoverSourceDescription(toNovelCoverPromptContext(novel));
+  const [novel, worldContext] = await Promise.all([
+    loadNovelCoverNovel(novelId),
+    loadNovelCoverWorldContext(novelId),
+  ]);
+  return buildDefaultNovelCoverSourceDescription(toNovelCoverPromptContext(novel, worldContext));
 }
 
 export async function buildNovelCoverTaskPrompt(input: {
@@ -158,19 +189,25 @@ export async function buildNovelCoverTaskPrompt(input: {
   sourcePrompt: string;
   stylePreset?: string | null;
 }): Promise<string> {
-  const novel = await loadNovelCoverNovel(input.novelId);
+  const [novel, worldContext] = await Promise.all([
+    loadNovelCoverNovel(input.novelId),
+    loadNovelCoverWorldContext(input.novelId),
+  ]);
   return buildNovelCoverImagePrompt({
     prompt: input.sourcePrompt.trim(),
     stylePreset: input.stylePreset,
-    novel: toNovelCoverPromptContext(novel),
+    novel: toNovelCoverPromptContext(novel, worldContext),
   });
 }
 
 export async function optimizeNovelCoverPrompt(
   input: OptimizeNovelCoverImagePromptRequest,
 ): Promise<{ prompt: string; outputLanguage: ImagePromptOutputLanguage }> {
-  const novel = await loadNovelCoverNovel(input.novelId);
-  const promptContext = toNovelCoverPromptContext(novel);
+  const [novel, worldContext] = await Promise.all([
+    loadNovelCoverNovel(input.novelId),
+    loadNovelCoverWorldContext(input.novelId),
+  ]);
+  const promptContext = toNovelCoverPromptContext(novel, worldContext);
   const structured = await runStructuredPrompt({
     asset: imageNovelCoverBriefPrompt,
     promptInput: {

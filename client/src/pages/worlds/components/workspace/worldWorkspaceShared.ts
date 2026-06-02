@@ -75,7 +75,7 @@ export const REFINE_ATTRIBUTE_OPTIONS: Array<{ value: RefineAttribute; label: st
 
 export function normalizeLayerText(raw: unknown): string {
   if (typeof raw === "string") {
-    return raw;
+    return formatLayerTextString(raw);
   }
   if (raw === null || raw === undefined) {
     return "";
@@ -88,6 +88,40 @@ export function normalizeLayerText(raw: unknown): string {
     }
   }
   return String(raw);
+}
+
+function formatLayerTextString(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed || (!trimmed.startsWith("{") && !trimmed.startsWith("["))) {
+    return raw;
+  }
+  try {
+    return formatLayerStructuredValue(JSON.parse(trimmed));
+  } catch {
+    return raw;
+  }
+}
+
+function formatLayerStructuredValue(raw: unknown): string {
+  if (typeof raw === "string") {
+    return raw.trim();
+  }
+  if (typeof raw === "number" || typeof raw === "boolean") {
+    return String(raw);
+  }
+  if (Array.isArray(raw)) {
+    return raw.map(formatLayerStructuredValue).filter(Boolean).join("\n");
+  }
+  if (raw && typeof raw === "object") {
+    return Object.entries(raw as Record<string, unknown>)
+      .map(([key, value]) => {
+        const text = formatLayerStructuredValue(value);
+        return text ? `${key}：${text.replace(/\n/g, "；")}` : "";
+      })
+      .filter(Boolean)
+      .join("\n");
+  }
+  return "";
 }
 
 export function pickLayerFieldText(layerKey: LayerKey, source: Record<string, unknown> | undefined): string {

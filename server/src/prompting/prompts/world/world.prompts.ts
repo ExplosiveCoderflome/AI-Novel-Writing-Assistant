@@ -11,6 +11,7 @@ import {
   type WorldInspirationConceptCardPromptInput,
   type WorldLayerGenerationPromptInput,
   type WorldLayerLocalizationPromptInput,
+  type NovelThemeWorldGenerationPromptInput,
   type WorldPropertyOptionsPromptInput,
   type WorldReferenceInspirationPromptInput,
   type WorldStructureBackfillPromptInput,
@@ -24,6 +25,7 @@ import {
   worldDeepeningQuestionsSchema,
   worldImportExtractionSchema,
   worldLooseObjectSchema,
+  novelThemeWorldGenerationSchema,
   worldPropertyOptionsPayloadSchema,
 } from "./world.promptSchemas";
 import { worldReferenceInspirationPayloadSchema } from "../../../services/world/worldReferenceSchema";
@@ -74,7 +76,7 @@ function normalizeWorldStructureSectionPayload(
   value: z.infer<typeof worldStructureSectionOutputSchema>,
   input: WorldStructureSectionPromptInput,
 ): z.infer<typeof worldStructureSectionOutputSchema> {
-  const arraySections = new Set(["factions", "locations"]);
+  const arraySections = new Set(["locations"]);
   const shouldReturnArray = arraySections.has(input.section);
 
   if (shouldReturnArray) {
@@ -86,6 +88,12 @@ function normalizeWorldStructureSectionPayload(
 
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`world.structure.generate 在 section=${input.section} 时必须返回对象。`);
+  }
+  if (input.section === "factions") {
+    const record = value as Record<string, unknown>;
+    if (!Array.isArray(record.factions) && !Array.isArray(record.forces)) {
+      throw new Error("world.structure.generate 在 section=factions 时必须返回包含 factions 或 forces 数组的对象。");
+    }
   }
   return value;
 }
@@ -261,8 +269,8 @@ export const worldVisualizationPrompt: PromptAsset<
       "  },",
       '  "powerTree": [{"level":"L1","description":"..."}],',
       '  "geographyMap": {',
-      '    "nodes": [{"id":"geo-1","label":"..."}],',
-      '    "edges": [{"source":"geo-1","target":"geo-2","relation":"相邻|通道|隔绝|控制"}]',
+      '    "nodes": [{"id":"geo-1","label":"...","x":50,"y":50,"directionHint":"north|south|east|west|center|northeast|northwest|southeast|southwest","regionType":"continent|country|region|city|landmark|border|route|other","terrain":"...","summary":"...","parentId":null,"controllingForceIds":["faction-1"],"risk":"...","storyRelevance":"..."}],',
+      '    "edges": [{"source":"geo-1","target":"geo-2","relation":"相邻|通道|隔绝|控制","routeType":"road|river|sea|portal|trade|military|border|other","distanceHint":"...","direction":"north|south|east|west|center|northeast|northwest|southeast|southwest","risk":"..."}]',
       "  },",
       '  "timeline": [{"year":"...","event":"..."}]',
       "}",
@@ -288,11 +296,15 @@ export const worldVisualizationPrompt: PromptAsset<
       "4. 若文本没有明确力量层级，可保守提炼最稳定的层级结构，不要硬造复杂等级体系。",
       "",
       "geographyMap 规则：",
-      "1. geographyMap 用于提取关键地点之间的空间关系，而不是列地点清单。",
+      "1. geographyMap 用于提取关键地点之间的空间位置与连通关系，而不是列地点清单。",
       "2. nodes 应优先保留对世界运行、势力分布或故事推进有意义的核心地点。",
-      "3. edges.relation 只能使用：相邻、通道、隔绝、控制。",
-      "4. 不要把纯剧情场景、一次性地点或无空间结构价值的地点塞进地图。",
-      "5. 若地点之间关系不明确，不要强行连边。",
+      "3. x/y 使用 0-100 的相对地图坐标：x 越大越偏东，y 越大越偏南；中心地点约为 50/50。",
+      "4. directionHint 必须与 x/y 大体一致；文本没有明确方向时，允许根据叙事层级做保守布局，但不要假装有精确距离。",
+      "5. regionType 用于区分大陆、国家、区域、城市、地标、边境、路线或其他。",
+      "6. edges.relation 只能使用：相邻、通道、隔绝、控制。",
+      "7. routeType 用于标记道路、河流、海路、传送、商道、军道、边界或其他；没有依据时用 other。",
+      "8. 不要把纯剧情场景、一次性地点或无空间结构价值的地点塞进地图。",
+      "9. 若地点之间关系不明确，不要强行连边。",
       "",
       "timeline 规则：",
       "1. timeline 只提取对世界格局有影响的重要历史节点、阶段变化或关键事件。",
@@ -795,6 +807,9 @@ export const worldLayerGenerationPrompt: PromptAsset<
         "只输出一个合法 JSON 对象，不要输出 Markdown、解释、注释、代码块或额外文本。",
         `输出字段只能来自：${input.targetFields.join(", ")}。`,
         "不得新增字段，不得输出目标字段之外的任何键。",
+        "每个字段的值必须是可直接展示给作者阅读的简体中文文本字符串。",
+        "禁止把字段值写成 JSON 对象、数组、嵌套结构、键值表或代码式结构。",
+        "如果某层天然包含多个条目，请在同一个字符串内用自然语言分段或换行表达，不要输出嵌套对象。",
         "",
         "全局硬规则：",
         "1. 必须严格遵守：世界公理、模板约束、用户前置蓝图选择、既有已生成内容。",
@@ -1072,6 +1087,89 @@ export const worldStructureBackfillPrompt: PromptAsset<
       "4. 输出结果必须像一份可直接落库的世界结构草案，而不是读书笔记。",
     ].join("\n")),
     new HumanMessage(input.promptSource),
+  ],
+};
+
+export const novelThemeWorldGenerationPrompt: PromptAsset<
+  NovelThemeWorldGenerationPromptInput,
+  z.infer<typeof novelThemeWorldGenerationSchema>
+> = {
+  id: "novel.world.generate_from_theme",
+  version: "v1",
+  taskType: "planner",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: {
+    maxTokensBudget: 0,
+  },
+  outputSchema: novelThemeWorldGenerationSchema,
+  render: (input) => [
+    new SystemMessage([
+      "你是网文小说的本书世界设计师。",
+      "你的任务是根据一本小说的主题、卖点、读者承诺和类型信息，生成“这本书专属使用”的世界结构数据。",
+      "这不是外部世界库百科，也不是剧情大纲；输出必须服务于后续角色、大纲、章节和一致性生成。",
+      "",
+      "只输出一个合法 JSON 对象，不要输出 Markdown、解释、注释、代码块或额外文本。",
+      "输出结构必须严格为：",
+      "{",
+      '  "title": "...",',
+      '  "coverSummary": "...",',
+      '  "worldType": "...",',
+      '  "structuredData": {',
+      '    "profile": {"summary":"...","identity":"...","tone":"...","themes":["..."],"coreConflict":"..."},',
+      '    "rules": {"summary":"...","axioms":[{"id":"rule-1","name":"...","summary":"...","cost":"...","boundary":"...","enforcement":"..."}],"taboo":["..."],"sharedConsequences":["..."]},',
+      '    "factions": [{"id":"faction-1","name":"...","position":"...","doctrine":"...","goals":["..."],"methods":["..."],"representativeForceIds":["force-1"]}],',
+      '    "forces": [{"id":"force-1","name":"...","type":"...","factionId":"faction-1","summary":"...","baseOfPower":"...","currentObjective":"...","pressure":"...","leader":"...","narrativeRole":"..."}],',
+      '    "locations": [{"id":"location-1","name":"...","terrain":"...","summary":"...","narrativeFunction":"...","risk":"...","entryConstraint":"...","exitCost":"...","controllingForceIds":["force-1"]}],',
+      '    "relations": {',
+      '      "forceRelations": [{"id":"force-relation-1","sourceForceId":"force-1","targetForceId":"force-2","relation":"...","tension":"...","detail":"..."}],',
+      '      "locationControls": [{"id":"location-control-1","forceId":"force-1","locationId":"location-1","relation":"...","detail":"..."}]',
+      "    }",
+      "  }",
+      "}",
+      "",
+      "全局硬规则：",
+      "1. 所有文本必须使用简体中文。",
+      "2. 世界必须紧扣本书主题，不得生成一套与小说卖点无关的通用百科。",
+      "3. 世界设定必须能约束后续生成：力量有代价，秩序有执行者，冲突有来源，地点有叙事功能。",
+      "4. 不要写主角个人剧情，不要替小说生成完整大纲，不要把单次事件当成世界规则。",
+      "5. 允许根据小说信息做合理补全；如果信息不足，要生成稳妥、低风险、可继续扩展的本书舞台。",
+      "",
+      "内容数量要求：",
+      "1. rules.axioms 生成 3-5 条。",
+      "2. factions 生成 2-4 个抽象阵营或立场板块。",
+      "3. forces 生成 3-6 个具体势力、组织、机构或行动主体。",
+      "4. locations 生成 3-6 个会在本书中反复使用的舞台地点。",
+      "5. relations 中只连接真正有意义的势力关系和地点控制关系，不要机械全连接。",
+      "",
+      "字段质量要求：",
+      "1. title 要像一个可展示的世界名，不要只是小说名。",
+      "2. coverSummary 用 1-2 句说明读者一眼能看到的世界面貌。",
+      "3. profile.summary 要说明“这个世界长什么样、如何运行、为什么适合这本书”。",
+      "4. rules 每条 axiom 必须写清规则、代价、边界和执行方式。",
+      "5. faction 是立场或阶层板块，force 是具体执行者；不要混淆。",
+      "6. location 必须有风险、进入门槛、离开代价或叙事功能。",
+      "7. forbidden/taboo/sharedConsequences 要帮助后续生成避免违背世界规则。",
+      "",
+      "面向生成链的要求：",
+      "1. 角色生成应该能从 forces/factions 中找到身份、归属、冲突来源。",
+      "2. 大纲生成应该能从 locations/coreConflict 中找到舞台和长期矛盾。",
+      "3. 章节生成应该能从 rules/taboo/sharedConsequences 中获得不可违背的约束。",
+      "4. 这份世界是本书副本，可以之后保存到世界库；不要假设它已经是通用模板。",
+    ].join("\n")),
+    new HumanMessage([
+      `小说标题：${input.novelTitle}`,
+      `小说简介：${input.description || "未填写"}`,
+      `目标读者：${input.targetAudience || "未填写"}`,
+      `核心卖点：${input.bookSellingPoint || "未填写"}`,
+      `前30章承诺：${input.first30ChapterPromise || "未填写"}`,
+      `商业标签：${input.commercialTags.length > 0 ? input.commercialTags.join("、") : "未填写"}`,
+      `主类型：${input.genreName || "未选择"}`,
+      `主故事模式：${input.primaryStoryModeName || "未选择"}`,
+      `副故事模式：${input.secondaryStoryModeName || "未选择"}`,
+      input.storyMacroContext?.trim() ? `故事宏观规划：\n${input.storyMacroContext.trim()}` : "",
+      input.bookContractContext?.trim() ? `书级创作约定：\n${input.bookContractContext.trim()}` : "",
+    ].join("\n")),
   ],
 };
 

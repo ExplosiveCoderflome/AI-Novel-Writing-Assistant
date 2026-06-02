@@ -4,14 +4,19 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createEmptyWorldReferenceSeedBundle,
   createEmptyWorldReferenceSeedSelection,
-  mapWorldLibraryCategoryToLayer,
   serializeWorldGenerationBlueprint,
+  WORLD_SKELETON_PRESET_COUNTS,
   type WorldOptionRefinementLevel,
   type WorldPropertyOption,
   type WorldReferenceAnchor,
   type WorldReferenceMode,
   type WorldReferenceSeedBundle,
   type WorldReferenceSeedSelection,
+  type WorldGenerationBlueprint,
+  type WorldReferenceContext,
+  type WorldSkeletonGenerationCounts,
+  type WorldSkeletonGenerationPayload,
+  type WorldSkeletonPreset,
 } from "@ai-novel/shared/types/worldWizard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,8 +24,7 @@ import { toast } from "@/components/ui/toast";
 import LLMSelector from "@/components/common/LLMSelector";
 import {
   createWorld,
-  suggestWorldAxioms,
-  updateWorldAxioms,
+  generateWorldSkeleton,
   WORLD_INSPIRATION_ANALYZE_STREAM_PATH,
   type WorldInspirationAnalysisResult,
 } from "@/api/world";
@@ -35,8 +39,6 @@ import {
   buildDefaultReferenceSeedSelection,
   clampOptionsCount,
   DEFAULT_DIMENSIONS,
-  normalizeAxiomTexts,
-  REFERENCE_SEED_SELECTION_KEYS,
   type InspirationMode,
   type WorldGeneratorConceptCard,
 } from "./components/generator/worldGeneratorShared";
@@ -45,7 +47,7 @@ export default function WorldGenerator() {
   const llm = useLLMStore();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [worldName, setWorldName] = useState("");
   const [selectedGenreId, setSelectedGenreId] = useState("");
   const [inspirationMode, setInspirationMode] = useState<InspirationMode>("free");
@@ -75,8 +77,11 @@ export default function WorldGenerator() {
     originalLength: number;
     chunkCount: number;
   } | null>(null);
-  const [worldId, setWorldId] = useState("");
-  const [axioms, setAxioms] = useState<string[]>([]);
+  const [skeletonPreset, setSkeletonPreset] = useState<WorldSkeletonPreset>("standard");
+  const [skeletonCounts, setSkeletonCounts] = useState<WorldSkeletonGenerationCounts>(
+    WORLD_SKELETON_PRESET_COUNTS.standard,
+  );
+  const [skeleton, setSkeleton] = useState<WorldSkeletonGenerationPayload | null>(null);
 
   const {
     genreTreeQuery,
@@ -89,10 +94,7 @@ export default function WorldGenerator() {
     forbiddenElements,
     matchedTemplateWorldType,
     worldTypeAnalysisHint,
-    filteredTemplates,
-    templateSelectValue,
     selectedTemplate,
-    existingPropertyOptionIds,
   } = useWorldGeneratorDerivedState({
     selectedGenreId,
     inspirationMode,
@@ -103,8 +105,6 @@ export default function WorldGenerator() {
     selectedTemplateKey,
     propertyOptions,
   });
-  const currentTypeLabel = selectedGenre?.path || concept?.worldType || selectedTemplate?.worldType || "-";
-  const libraryQuickPickWorldType = matchedTemplateWorldType || selectedGenre?.name || concept?.worldType || undefined;
   const resetGeneratedState = () => {
     setConcept(null);
     setPropertyOptions([]);
@@ -117,8 +117,7 @@ export default function WorldGenerator() {
     setSelectedPropertyChoices({});
     setPropertyDetails({});
     setInspirationSourceMeta(null);
-    setWorldId("");
-    setAxioms([]);
+    setSkeleton(null);
   };
   const analyzeStream = useSSE({
     onDone: async (fullContent) => {
@@ -130,7 +129,7 @@ export default function WorldGenerator() {
         const defaultPropertySelection = buildDefaultPropertySelectionState(nextPropertyOptions);
 
         if (!nextConcept) {
-          throw new Error("世界观分析结果缺少概念卡。");
+          throw new Error("世界分析结果缺少概念卡。");
         }
 
         setConcept(nextConcept);
@@ -143,11 +142,10 @@ export default function WorldGenerator() {
         setSelectedReferenceSeedIds(buildDefaultReferenceSeedSelection(nextReferenceSeeds));
         setPropertyDetails({});
         setInspirationSourceMeta(response.sourceMeta ?? null);
-        setWorldId("");
-        setAxioms([]);
+        setSkeleton(null);
         setStep(2);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "世界观分析结果解析失败。";
+        const message = error instanceof Error ? error.message : "世界分析结果解析失败。";
         toast.error(message);
       }
     },
@@ -183,8 +181,7 @@ export default function WorldGenerator() {
       model: llm.model,
     });
   };
-  const createDraftMutation = useMutation({
-    mutationFn: async () => {
+  const buildGenerationBlueprint = (): WorldGenerationBlueprint => {
       const selectedPropertySelections = selectedPropertyIds
         .map((optionId) => {
           const option = propertyOptions.find((item) => item.id === optionId);
@@ -208,155 +205,107 @@ export default function WorldGenerator() {
         })
         .filter((item): item is NonNullable<typeof item> => Boolean(item));
 
-      const createResp = await createWorld({
-        name: worldName.trim() || "未命名世界",
-        description: concept?.summary ?? inspirationText,
-        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || "自定义",
-        templateKey: selectedTemplate?.key ?? "custom",
-        selectedDimensions: JSON.stringify(selectedDimensions),
-        selectedElements: serializeWorldGenerationBlueprint({
-          version: 1,
-          classicElements: selectedClassicElements,
-          propertySelections: selectedPropertySelections,
-          referenceContext: isReferenceMode
-            ? {
-              mode: referenceMode,
-              preserveElements,
-              allowedChanges,
-              forbiddenElements,
-              anchors: referenceAnchors,
-              referenceSeeds,
-              selectedSeedIds: selectedReferenceSeedIds,
-            }
-            : null,
-        }),
-        knowledgeDocumentIds: effectiveKnowledgeDocumentIds,
-      });
-      const createdId = createResp.data?.id;
-      if (!createdId) {
-        throw new Error("创建世界草稿失败。");
+      return {
+        version: 1,
+        classicElements: selectedClassicElements,
+        propertySelections: selectedPropertySelections,
+        referenceContext: buildReferenceContext(),
+      };
+  };
+  const buildReferenceContext = (): WorldReferenceContext | null => {
+    return isReferenceMode
+      ? {
+        mode: referenceMode,
+        preserveElements,
+        allowedChanges,
+        forbiddenElements,
+        anchors: referenceAnchors,
+        referenceSeeds,
+        selectedSeedIds: selectedReferenceSeedIds,
       }
-      const axiomResp = await suggestWorldAxioms(createdId, {
+      : null;
+  };
+  const generateSkeletonMutation = useMutation({
+    mutationFn: async () => {
+      const response = await generateWorldSkeleton({
+        idea: [
+          inspirationText.trim(),
+          concept?.summary ? `概念卡：${concept.summary}` : "",
+        ].filter(Boolean).join("\n\n") || "生成一个可用于小说创作的世界样本。",
+        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || "自定义",
+        template: selectedTemplate?.name ?? "自定义",
+        referenceContext: buildReferenceContext(),
+        blueprint: buildGenerationBlueprint(),
+        options: {
+          preset: skeletonPreset,
+          counts: skeletonCounts,
+        },
         provider: llm.provider,
         model: llm.model,
       });
-      return {
-        worldId: createdId,
-        axioms: axiomResp.data ?? [],
-      };
+      return response.data;
     },
-    onSuccess: async (payload) => {
-      setWorldId(payload.worldId);
-      setAxioms(normalizeAxiomTexts(payload.axioms));
+    onSuccess: (payload) => {
+      setSkeleton(payload ?? null);
       setStep(3);
-      await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
     },
   });
   const finalizeMutation = useMutation({
     mutationFn: async () => {
-      if (!worldId) {
-        throw new Error("世界草稿不存在。");
+      if (!skeleton) {
+        throw new Error("请先生成世界骨架。");
       }
-      return updateWorldAxioms(worldId, axioms.filter((item) => item.trim()));
+      const blueprint = buildGenerationBlueprint();
+      return createWorld({
+        name: worldName.trim() || skeleton.concept.name || "未命名世界",
+        description: skeleton.structuredData.profile.summary || skeleton.concept.oneSentence,
+        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || "自定义",
+        templateKey: selectedTemplate?.key ?? "custom",
+        selectedDimensions: JSON.stringify(selectedDimensions),
+        selectedElements: serializeWorldGenerationBlueprint(blueprint),
+        knowledgeDocumentIds: effectiveKnowledgeDocumentIds,
+        structure: skeleton.structuredData,
+        bindingSupport: skeleton.bindingSupport,
+      });
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.detail(worldId) });
-      void navigate(`/worlds/${worldId}/workspace`);
+    onSuccess: async (response) => {
+      const createdId = response.data?.id;
+      await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
+      if (createdId) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.detail(createdId) });
+        void navigate(`/worlds/${createdId}/workspace`);
+      }
     },
   });
-  const handleToggleClassicElement = (element: string, checked: boolean) => {
-    setSelectedClassicElements((prev) =>
-      checked ? [...prev, element] : prev.filter((item) => item !== element),
-    );
+  const handlePresetChange = (preset: WorldSkeletonPreset) => {
+    setSkeletonPreset(preset);
+    setSkeletonCounts(WORLD_SKELETON_PRESET_COUNTS[preset]);
+    setSkeleton(null);
   };
-  const handleTogglePropertyOption = (optionId: string, checked: boolean) => {
-    const option = propertyOptions.find((item) => item.id === optionId);
-    setSelectedPropertyIds((prev) =>
-      checked ? Array.from(new Set([...prev, optionId])) : prev.filter((item) => item !== optionId),
-    );
-    if (checked && option?.choices?.length) {
-      setSelectedPropertyChoices((prev) => ({
-        ...prev,
-        [optionId]: prev[optionId] ?? option.choices?.[0]?.id ?? "",
-      }));
-    }
-    if (!checked) {
-      setSelectedPropertyChoices((prev) => {
-        const next = { ...prev };
-        delete next[optionId];
-        return next;
-      });
-      setPropertyDetails((prev) => {
-        const next = { ...prev };
-        delete next[optionId];
-        return next;
-      });
-    }
-  };
-  const handleToggleReferenceSeed = (
-    group: keyof WorldReferenceSeedBundle,
-    id: string,
-    checked: boolean,
-  ) => {
-    const selectionKey = REFERENCE_SEED_SELECTION_KEYS[group];
-    setSelectedReferenceSeedIds((prev) => ({
-      ...prev,
-      [selectionKey]: checked
-        ? Array.from(new Set([...prev[selectionKey], id]))
-        : prev[selectionKey].filter((item) => item !== id),
-    }));
-  };
-  const handleToggleAllReferenceSeeds = (group: keyof WorldReferenceSeedBundle, checked: boolean) => {
-    const selectionKey = REFERENCE_SEED_SELECTION_KEYS[group];
-    const nextIds = checked ? referenceSeeds[group].map((item) => item.id) : [];
-    setSelectedReferenceSeedIds((prev) => ({
-      ...prev,
-      [selectionKey]: nextIds,
-    }));
-  };
-  const handleAddLibraryOption = (item: {
-    id: string;
-    name: string;
-    description?: string | null;
-    category: string;
-  }) => {
-    setPropertyOptions((prev) => {
-      if (prev.some((option) => option.id === item.id)) {
-        return prev;
-      }
-      return [
-        ...prev,
-        {
-          id: item.id,
-          name: item.name,
-          description: item.description?.trim() || `${item.name} 的素材库设定。`,
-          targetLayer: mapWorldLibraryCategoryToLayer(item.category),
-          reason: "来自素材库的可复用设定。",
-          source: "library",
-          libraryItemId: item.id,
-          sourceCategory: item.category,
-        },
-      ];
-    });
-    setSelectedPropertyIds((prev) => (prev.includes(item.id) ? prev : [...prev, item.id]));
+  const handleCountChange = (key: keyof WorldSkeletonGenerationCounts, value: number) => {
+    setSkeletonCounts((prev) => ({ ...prev, [key]: value }));
+    setSkeleton(null);
   };
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>世界观向导（阶段 1-3）</CardTitle>
+          <CardTitle>创建世界样本</CardTitle>
           <LLMSelector />
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
+          <div className="grid gap-2 md:grid-cols-4">
             <Button variant={step === 1 ? "default" : "secondary"} onClick={() => setStep(1)}>
-              1. 灵感捕获
+              1. 世界意图
             </Button>
             <Button variant={step === 2 ? "default" : "secondary"} onClick={() => setStep(2)} disabled={!concept}>
-              2. 模板与蓝图
+              2. 世界规模
             </Button>
-            <Button variant={step === 3 ? "default" : "secondary"} onClick={() => setStep(3)} disabled={!worldId}>
-              3. 核心公理
+            <Button variant={step === 3 ? "default" : "secondary"} onClick={() => setStep(3)} disabled={!skeleton}>
+              3. 骨架预览
+            </Button>
+            <Button variant={step === 4 ? "default" : "secondary"} onClick={() => setStep(4)} disabled={!skeleton}>
+              4. 保存世界
             </Button>
           </div>
 
@@ -434,58 +383,21 @@ export default function WorldGenerator() {
 
           {step === 2 ? (
             <WorldGeneratorStepTwo
-              isReferenceMode={isReferenceMode}
-              referenceMode={referenceMode}
-              referenceAnchors={referenceAnchors}
-              preserveElements={preserveElements}
-              allowedChanges={allowedChanges}
-              forbiddenElements={forbiddenElements}
-              referenceSeeds={referenceSeeds}
-              selectedReferenceSeedIds={selectedReferenceSeedIds}
-              filteredTemplates={filteredTemplates}
-              templateSelectValue={templateSelectValue}
-              selectedTemplate={selectedTemplate}
-              selectedDimensions={selectedDimensions}
-              selectedClassicElements={selectedClassicElements}
-              propertyOptions={propertyOptions}
-              selectedPropertyIds={selectedPropertyIds}
-              propertyDetails={propertyDetails}
-              selectedPropertyChoices={selectedPropertyChoices}
-              existingPropertyOptionIds={existingPropertyOptionIds}
-              currentTypeLabel={currentTypeLabel}
-              libraryQuickPickWorldType={libraryQuickPickWorldType}
-              createDraftPending={createDraftMutation.isPending}
-              onTemplateChange={(value) => {
-                setSelectedTemplateKey(value);
-                setSelectedClassicElements([]);
-              }}
-              onToggleDimension={(key, checked) =>
-                setSelectedDimensions((prev) => ({ ...prev, [key]: checked }))
-              }
-              onToggleClassicElement={handleToggleClassicElement}
-              onToggleReferenceSeed={handleToggleReferenceSeed}
-              onToggleAllReferenceSeeds={handleToggleAllReferenceSeeds}
-              onTogglePropertyOption={handleTogglePropertyOption}
-              onPropertyChoiceSelect={(optionId, choiceId) =>
-                setSelectedPropertyChoices((prev) => ({ ...prev, [optionId]: choiceId }))
-              }
-              onPropertyDetailChange={(optionId, detail) =>
-                setPropertyDetails((prev) => ({ ...prev, [optionId]: detail }))
-              }
-              onAddLibraryOption={handleAddLibraryOption}
-              onCreateDraft={() => createDraftMutation.mutate()}
+              preset={skeletonPreset}
+              counts={skeletonCounts}
+              generating={generateSkeletonMutation.isPending}
+              onPresetChange={handlePresetChange}
+              onCountChange={handleCountChange}
+              onGenerateSkeleton={() => generateSkeletonMutation.mutate()}
             />
           ) : null}
 
-          {step === 3 ? (
+          {(step === 3 || step === 4) && skeleton ? (
             <WorldGeneratorStepThree
-              axioms={axioms}
-              finalizePending={finalizeMutation.isPending}
-              onAxiomChange={(index, value) =>
-                setAxioms((prev) => prev.map((item, itemIndex) => (itemIndex === index ? value : item)))
-              }
-              onAddAxiom={() => setAxioms((prev) => [...prev, ""])}
-              onFinalize={() => finalizeMutation.mutate()}
+              skeleton={skeleton}
+              savePending={finalizeMutation.isPending}
+              onBackToScale={() => setStep(2)}
+              onSave={() => finalizeMutation.mutate()}
             />
           ) : null}
         </CardContent>

@@ -5,6 +5,7 @@ import type {
   CharacterCastOptionDeleteResult,
   CharacterCastQualityAssessment,
   CharacterCastRole,
+  CharacterWorldFocusHints,
   CharacterRelation,
   SupplementalCharacterApplyResult,
   SupplementalCharacterCandidate,
@@ -39,12 +40,15 @@ import {
   buildCharacterCastRepairReasons,
   type CharacterCastBatchAssessment,
 } from "./characterCastQuality";
+import { WorldContextGateway } from "../worldContext/WorldContextGateway";
 
 interface CharacterPrepOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
   storyInput?: string;
+  useWorldContext?: boolean;
+  worldFocusHints?: CharacterWorldFocusHints;
 }
 
 interface CharacterCastApplyOptions {
@@ -63,28 +67,6 @@ function fillIfMissing(existing: string | null | undefined, incoming: string | n
     return undefined;
   }
   return toOptionalText(incoming) ?? undefined;
-}
-
-function buildWorldStage(novel: {
-  world: {
-    name: string;
-    description: string | null;
-    overviewSummary: string | null;
-    conflicts: string | null;
-    magicSystem: string | null;
-  } | null;
-}) {
-  return novel.world
-    ? [
-      novel.world.name,
-      novel.world.description,
-      novel.world.overviewSummary,
-      novel.world.conflicts,
-      novel.world.magicSystem,
-    ]
-      .filter((item) => typeof item === "string" && item.trim().length > 0)
-      .join("\n")
-    : "当前还没有绑定世界观。";
 }
 
 function serializeCharacterCastOption(row: {
@@ -234,9 +216,11 @@ export class CharacterPreparationService {
   private readonly novelContextService = new NovelContextService();
   private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly characterVisibleProfileService = new CharacterVisibleProfileService();
+  private readonly worldContextGateway = new WorldContextGateway();
   private readonly supplementalService = new CharacterPreparationSupplementalService(
     this.novelContextService,
     this.characterDynamicsService,
+    this.worldContextGateway,
   );
 
   private async loadCastGenerationContext(novelId: string, options: CharacterPrepOptions) {
@@ -244,21 +228,11 @@ export class CharacterPreparationService {
       where: { id: novelId },
       include: {
         genre: { select: { name: true } },
-        world: {
-          select: {
-            name: true,
-            description: true,
-            overviewSummary: true,
-            conflicts: true,
-            magicSystem: true,
-          },
-        },
         bible: {
           select: {
             coreSetting: true,
             mainPromise: true,
             characterArcs: true,
-            worldRules: true,
           },
         },
         storyMacroPlan: {
@@ -321,6 +295,16 @@ export class CharacterPreparationService {
       || novel.storyMacroPlan?.storyInput?.trim()
       || novel.description?.trim()
       || "";
+    const worldContext = options.useWorldContext === false
+      ? null
+      : await this.worldContextGateway.getWorldContextBlock(novelId, {
+        purpose: "character",
+        strength: "normal",
+        storyInput,
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature,
+      });
     const storyModeBlock = buildStoryModePromptBlock({
       primary: novel.primaryStoryMode ? normalizeStoryModeOutput(novel.primaryStoryMode) : null,
       secondary: novel.secondaryStoryMode ? normalizeStoryModeOutput(novel.secondaryStoryMode) : null,
@@ -337,8 +321,9 @@ export class CharacterPreparationService {
       corePromise: novel.bible?.mainPromise ?? null,
       coreSetting: novel.bible?.coreSetting ?? null,
       characterArcs: novel.bible?.characterArcs ?? null,
-      worldRules: novel.bible?.worldRules ?? null,
-      worldStage: buildWorldStage(novel),
+      worldRules: worldContext?.worldRulesText ?? null,
+      worldStage: worldContext?.worldStageText ?? null,
+      worldFocusHints: options.useWorldContext === false ? null : options.worldFocusHints,
       storyDecomposition: novel.storyMacroPlan?.decompositionJson ?? null,
       constraintEngine: novel.storyMacroPlan?.constraintEngineJson ?? null,
       bookContract: novel.bookContract,

@@ -1,6 +1,6 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
-import type { DirectorRunMode } from "@ai-novel/shared/types/novelDirector";
+import type { DirectorRunMode, DirectorWorldSetupMode } from "@ai-novel/shared/types/novelDirector";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 
 export const RUN_MODE_OPTIONS: Array<{
@@ -50,6 +50,7 @@ export function buildAutoDirectorRequestPayload(
   workflowTaskId?: string,
   options?: {
     styleProfileId?: string;
+    worldSetupMode?: DirectorWorldSetupMode;
   },
 ) {
   const commercialTags = normalizeCommercialTags(basicForm.commercialTagsText);
@@ -67,6 +68,7 @@ export function buildAutoDirectorRequestPayload(
     primaryStoryModeId: basicForm.primaryStoryModeId || undefined,
     secondaryStoryModeId: basicForm.secondaryStoryModeId || undefined,
     worldId: basicForm.worldId || undefined,
+    worldSetupMode: basicForm.worldId ? undefined : options?.worldSetupMode ?? "auto_generate",
     writingMode: basicForm.writingMode,
     projectMode: basicForm.projectMode,
     readerChannelPreference: basicForm.readerChannelPreference,

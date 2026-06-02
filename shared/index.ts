@@ -13,6 +13,7 @@ export * from "./types/pagination";
 export * from "./types/agent";
 export * from "./types/task";
 export * from "./types/world";
+export * from "./types/novelWorld";
 export * from "./types/worldWizard";
 export * from "./types/writingFormula";
 export * from "./types/styleEngine";

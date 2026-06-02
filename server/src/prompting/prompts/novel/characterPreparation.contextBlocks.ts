@@ -55,6 +55,10 @@ export interface CharacterCastContextBlocksInput {
   characterArcs?: string | null;
   worldRules?: string | null;
   worldStage?: string | null;
+  worldFocusHints?: {
+    preferFaction?: string | null;
+    forceCompliance?: boolean;
+  } | null;
   storyDecomposition?: string | null;
   constraintEngine?: string | null;
   bookContract?: {
@@ -68,6 +72,20 @@ export interface CharacterCastContextBlocksInput {
     relationshipMainline: string;
   } | null;
   existingCharacterNames?: string[];
+}
+
+function formatWorldFocusHints(input: {
+  preferFaction?: string | null;
+  forceCompliance?: boolean;
+} | null | undefined): string | null {
+  const preferFaction = toOptionalText(input?.preferFaction);
+  const lines = [
+    preferFaction ? `优先从「${preferFaction}」相关身份、利益链、敌友关系或压力来源中设计角色。` : null,
+    input?.forceCompliance
+      ? "必须进行世界规则合规检查：角色身份、能力来源、阵营归属、地点和禁忌搭配都不能越过本书世界边界。"
+      : null,
+  ].filter((line): line is string => Boolean(line));
+  return lines.length > 0 ? lines.join("\n") : null;
 }
 
 export function buildCharacterCastContextBlocks(input: CharacterCastContextBlocksInput): PromptContextBlock[] {
@@ -133,7 +151,8 @@ export function buildCharacterCastContextBlocks(input: CharacterCastContextBlock
       priority: 88,
       content: joinLines([
         "【世界舞台】",
-        toOptionalText(input.worldStage) ?? "当前还没有绑定世界观，请优先从故事输入和书级约束推断人物舞台。",
+        toOptionalText(input.worldStage) ?? "本书世界未整理，请优先从故事输入和书级约束推断人物舞台。",
+        formatWorldFocusHints(input.worldFocusHints),
       ]),
     }),
     createBlock({
@@ -204,6 +223,10 @@ export interface CharacterCastSupplementalContextBlocksInput {
   characterArcs?: string | null;
   worldRules?: string | null;
   worldStage?: string | null;
+  worldFocusHints?: {
+    preferFaction?: string | null;
+    forceCompliance?: boolean;
+  } | null;
   storyDecomposition?: string | null;
   constraintEngine?: string | null;
   existingCharactersText?: string | null;
@@ -255,7 +278,8 @@ export function buildSupplementalCharacterContextBlocks(
       priority: 85,
       content: joinLines([
         "【世界与宏观约束】",
-        toOptionalText(input.worldStage) ?? "当前未绑定世界观。",
+        toOptionalText(input.worldStage) ?? "本书世界未整理。",
+        formatWorldFocusHints(input.worldFocusHints),
         `宏观拆解：${stringifyJsonLike(input.storyDecomposition, "暂无")}`,
         `约束引擎：${stringifyJsonLike(input.constraintEngine, "暂无")}`,
       ]),

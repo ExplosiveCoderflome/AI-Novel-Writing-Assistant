@@ -1,4 +1,4 @@
-import type { DirectorIdeaInspiration, DirectorRunMode } from "@ai-novel/shared/types/novelDirector";
+import type { DirectorIdeaInspiration, DirectorRunMode, DirectorWorldSetupMode } from "@ai-novel/shared/types/novelDirector";
 import type {
   DirectorAutoApprovalGroup,
   DirectorAutoApprovalPoint,
@@ -60,6 +60,8 @@ interface NovelAutoDirectorSetupPanelProps {
   runMode: DirectorRunMode;
   runModeOptions: RunModeOption[];
   onRunModeChange: (value: DirectorRunMode) => void;
+  worldSetupMode: DirectorWorldSetupMode;
+  onWorldSetupModeChange: (value: DirectorWorldSetupMode) => void;
   autoExecutionDraft: DirectorAutoExecutionDraftState;
   onAutoExecutionDraftChange: (patch: Partial<DirectorAutoExecutionDraftState>) => void;
   maxChapterCount?: number | null;
@@ -94,6 +96,8 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
     runMode,
     runModeOptions,
     onRunModeChange,
+    worldSetupMode,
+    onWorldSetupModeChange,
     autoExecutionDraft,
     onAutoExecutionDraftChange,
     maxChapterCount,
@@ -116,6 +120,7 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
   } = props;
 
   const hasEditableBasicForm = typeof onBasicFormChange === "function";
+  const selectedWorld = worldOptions.find((world) => world.id === basicForm.worldId) ?? null;
   const useIdeaInspiration = (text: string) => {
     if (idea.trim()) {
       const confirmed = window.confirm("上方起始想法已有内容。确认使用这条灵感并覆盖原内容吗？");
@@ -254,16 +259,16 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <FieldLabel htmlFor="director-basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>绑定世界观</FieldLabel>
+                  <FieldLabel htmlFor="director-basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>规划参考世界样本</FieldLabel>
                   <select
                     id="director-basic-world"
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={basicForm.worldId}
                     onChange={(event) => onBasicFormChange({ worldId: event.target.value })}
                   >
-                    <option value="">不绑定世界观</option>
+                    <option value="">不指定参考世界</option>
                     {worldOptions.length === 0 ? (
-                      <option value="" disabled>暂无可选世界观</option>
+                      <option value="" disabled>暂无可选世界样本</option>
                     ) : null}
                     {worldOptions.map((world) => (
                       <option key={world.id} value={world.id}>{world.name}</option>
@@ -271,8 +276,47 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                   </select>
                   <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                     {worldOptions.length > 0
-                      ? "选择后，自动导演会把这个世界的规则和舞台作为规划边界。"
-                      : "没有可选世界观时，可以先用起始想法开书。"}
+                      ? "这里只给自动导演提供快速参考。完整导入、生成和同步请在小说页的“本书世界”中完成。"
+                      : "没有可选世界样本时，可以先用起始想法开书。"}
+                  </div>
+                  <div className="rounded-lg border bg-muted/15 p-3">
+                    <div className="text-sm font-medium text-foreground">本书世界处理</div>
+                    {selectedWorld ? (
+                      <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                        自动导演会使用「{selectedWorld.name}」作为本书世界样本，并在角色准备前整理可用于本书的世界约束。
+                      </div>
+                    ) : (
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          className={`rounded-lg border p-3 text-left transition ${
+                            worldSetupMode === "auto_generate"
+                              ? "border-primary bg-primary/10 shadow-sm"
+                              : "border-border bg-background hover:border-primary/40"
+                          }`}
+                          onClick={() => onWorldSetupModeChange("auto_generate")}
+                        >
+                          <div className="text-sm font-medium text-foreground">根据宏观规划生成本书世界</div>
+                          <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                            适合奇幻、玄幻、科幻、悬疑等需要世界规则支撑的项目。
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          className={`rounded-lg border p-3 text-left transition ${
+                            worldSetupMode === "skip"
+                              ? "border-primary bg-primary/10 shadow-sm"
+                              : "border-border bg-background hover:border-primary/40"
+                          }`}
+                          onClick={() => onWorldSetupModeChange("skip")}
+                        >
+                          <div className="text-sm font-medium text-foreground">暂不使用世界观</div>
+                          <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                            适合现实题材、轻设定项目，角色和章节会主要依据书级规划推进。
+                          </div>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 

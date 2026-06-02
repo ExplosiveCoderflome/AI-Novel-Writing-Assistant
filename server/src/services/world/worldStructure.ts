@@ -6,6 +6,7 @@ import type {
   WorldForce,
   WorldForceRelation,
   WorldLocation,
+  WorldLocationConnectionRelation,
   WorldLocationControlRelation,
   WorldProfile,
   WorldRule,
@@ -119,6 +120,29 @@ function parseListText(raw: string | null | undefined): string[] {
   return normalizeStringArray(raw ?? "");
 }
 
+function parseLegacyJSON(raw: string | null | undefined): unknown {
+  return safeParseJSON<unknown>(raw, null);
+}
+
+function parseLegacyArray(raw: string | null | undefined, preferredKeys: string[] = []): unknown[] | null {
+  const parsed = parseLegacyJSON(raw);
+  if (Array.isArray(parsed)) {
+    return parsed;
+  }
+  const record = normalizeRecord(parsed);
+  for (const key of preferredKeys) {
+    const value = record[key];
+    if (Array.isArray(value)) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function parseLegacyObject(raw: string | null | undefined): Record<string, unknown> {
+  return normalizeRecord(parseLegacyJSON(raw));
+}
+
 function parseAxiomStrings(raw: string | null | undefined): string[] {
   const parsed = safeParseJSON<unknown>(raw, null);
   if (Array.isArray(parsed)) {
@@ -171,6 +195,7 @@ export function createEmptyWorldRelations() {
   return {
     forceRelations: [] as WorldForceRelation[],
     locationControls: [] as WorldLocationControlRelation[],
+    locationConnections: [] as WorldLocationConnectionRelation[],
   };
 }
 
@@ -292,9 +317,12 @@ function normalizeForce(raw: unknown, index: number): WorldForce | null {
     return {
       id: makeId("force", index, value),
       name: value,
-      type: "",
-      factionId: null,
-      summary: "",
+    type: "",
+    factionId: null,
+    role: null,
+    resources: [],
+    controlledLocationIds: [],
+    summary: "",
       baseOfPower: "",
       currentObjective: "",
       pressure: "",
@@ -312,6 +340,9 @@ function normalizeForce(raw: unknown, index: number): WorldForce | null {
     name,
     type: normalizeText(record.type ?? record.category),
     factionId: normalizeText(record.factionId ?? record.faction) || null,
+    role: normalizeText(record.role) || null,
+    resources: normalizeStringArray(record.resources),
+    controlledLocationIds: normalizeStringArray(record.controlledLocationIds ?? record.locationIds),
     summary: normalizeText(record.summary ?? record.description),
     baseOfPower: normalizeText(record.baseOfPower ?? record.powerBase),
     currentObjective: normalizeText(record.currentObjective ?? record.goal),
@@ -330,10 +361,14 @@ function normalizeLocation(raw: unknown, index: number): WorldLocation | null {
     return {
       id: makeId("location", index, value),
       name: value,
+      type: null,
+      region: null,
       terrain: "",
       summary: "",
       narrativeFunction: "",
       risk: "",
+      riskLevel: undefined,
+      storyRelevance: "",
       entryConstraint: "",
       exitCost: "",
       controllingForceIds: [],
@@ -347,14 +382,68 @@ function normalizeLocation(raw: unknown, index: number): WorldLocation | null {
   return {
     id: normalizeText(record.id) || makeId("location", index, name),
     name,
+    type: normalizeText(record.type ?? record.category) || null,
+    region: normalizeText(record.region) || null,
+    x: normalizeMapCoordinate(record.x),
+    y: normalizeMapCoordinate(record.y),
+    directionHint: normalizeGeographyDirection(record.directionHint ?? record.direction),
     terrain: normalizeText(record.terrain ?? record.type ?? record.category),
     summary: normalizeText(record.summary ?? record.description),
     narrativeFunction: normalizeText(record.narrativeFunction ?? record.function),
     risk: normalizeText(record.risk ?? record.danger),
+    riskLevel: normalizeRiskLevel(record.riskLevel),
+    storyRelevance: normalizeText(record.storyRelevance) || normalizeText(record.narrativeFunction ?? record.function),
     entryConstraint: normalizeText(record.entryConstraint ?? record.access),
     exitCost: normalizeText(record.exitCost ?? record.leaveCost),
     controllingForceIds: normalizeStringArray(record.controllingForceIds ?? record.forceIds),
   };
+}
+
+function normalizeMapCoordinate(raw: unknown): number | undefined {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) {
+    return undefined;
+  }
+  return Math.max(0, Math.min(100, Math.round(raw)));
+}
+
+function normalizeRiskLevel(raw: unknown): number | undefined {
+  if (typeof raw !== "number" || !Number.isFinite(raw)) {
+    return undefined;
+  }
+  return Math.max(1, Math.min(5, Math.round(raw)));
+}
+
+function normalizeGeographyDirection(raw: unknown): WorldLocation["directionHint"] {
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  const normalized = raw.trim().toLowerCase();
+  const aliases: Record<string, WorldLocation["directionHint"]> = {
+    north: "north",
+    "北": "north",
+    "北方": "north",
+    south: "south",
+    "南": "south",
+    "南方": "south",
+    east: "east",
+    "东": "east",
+    "东方": "east",
+    west: "west",
+    "西": "west",
+    "西方": "west",
+    center: "center",
+    "中": "center",
+    "中央": "center",
+    northeast: "northeast",
+    "东北": "northeast",
+    northwest: "northwest",
+    "西北": "northwest",
+    southeast: "southeast",
+    "东南": "southeast",
+    southwest: "southwest",
+    "西南": "southwest",
+  };
+  return aliases[normalized];
 }
 
 function normalizeForceRelation(raw: unknown, index: number): WorldForceRelation | null {
@@ -387,6 +476,23 @@ function normalizeLocationControl(raw: unknown, index: number): WorldLocationCon
     locationId,
     relation: normalizeText(record.relation ?? record.type, "控制"),
     detail: normalizeText(record.detail ?? record.summary ?? record.description),
+  };
+}
+
+function normalizeLocationConnection(raw: unknown, index: number): WorldLocationConnectionRelation | null {
+  const record = normalizeRecord(raw);
+  const sourceLocationId = normalizeText(record.sourceLocationId ?? record.source ?? record.from);
+  const targetLocationId = normalizeText(record.targetLocationId ?? record.target ?? record.to);
+  if (!sourceLocationId || !targetLocationId || sourceLocationId === targetLocationId) {
+    return null;
+  }
+  return {
+    id: normalizeText(record.id) || makeId("location-connection", index, `${sourceLocationId}-${targetLocationId}`),
+    sourceLocationId,
+    targetLocationId,
+    connectionType: normalizeText(record.connectionType ?? record.type ?? record.relation, "道路"),
+    distanceHint: normalizeText(record.distanceHint ?? record.distance),
+    narrativeUse: normalizeText(record.narrativeUse ?? record.detail ?? record.summary ?? record.description),
   };
 }
 
@@ -482,16 +588,42 @@ export function normalizeWorldStructuredData(
           item !== null && forceIds.has(item.forceId) && locationIds.has(item.locationId),
       )
     : fallback.relations.locationControls;
+  const rawLocationConnections = Array.isArray(relationsRecord.locationConnections)
+    ? relationsRecord.locationConnections
+    : Array.isArray(relationsRecord.locationEdges)
+      ? relationsRecord.locationEdges
+      : null;
+  const locationConnections = Array.isArray(rawLocationConnections)
+    ? rawLocationConnections
+      .map((item, index) => normalizeLocationConnection(item, index))
+      .filter(
+        (item): item is WorldLocationConnectionRelation =>
+          item !== null && locationIds.has(item.sourceLocationId) && locationIds.has(item.targetLocationId),
+      )
+    : fallback.relations.locationConnections ?? [];
+  const sanitizedFactions = factions.map((item) => ({
+    ...item,
+    representativeForceIds: item.representativeForceIds.filter((id) => forceIds.has(id)),
+  }));
+  const sanitizedForces = forces.map((item) => ({
+    ...item,
+    controlledLocationIds: (item.controlledLocationIds ?? []).filter((id) => locationIds.has(id)),
+  }));
+  const sanitizedLocations = locations.map((item) => ({
+    ...item,
+    controllingForceIds: item.controllingForceIds.filter((id) => forceIds.has(id)),
+  }));
 
   return {
     profile: normalizeProfile(record.profile, fallback.profile),
     rules: normalizeRules(record.rules, fallback.rules),
-    factions,
-    forces,
-    locations,
+    factions: sanitizedFactions,
+    forces: sanitizedForces,
+    locations: sanitizedLocations,
     relations: {
       forceRelations: dedupeById(forceRelations),
       locationControls: dedupeById(locationControls),
+      locationConnections: dedupeById(locationConnections),
     },
     metadata: {
       schemaVersion:
@@ -533,6 +665,9 @@ function seedForce(name: string, description = "", category = ""): WorldForce {
     name,
     type: category,
     factionId: null,
+    role: null,
+    resources: [],
+    controlledLocationIds: [],
     summary: description,
     baseOfPower: "",
     currentObjective: "",
@@ -546,10 +681,14 @@ function seedLocation(name: string, description = "", terrain = ""): WorldLocati
   return {
     id: makeId("location", 0, name),
     name,
+    type: null,
+    region: null,
     terrain,
     summary: description,
     narrativeFunction: "",
     risk: "",
+    riskLevel: undefined,
+    storyRelevance: "",
     entryConstraint: "",
     exitCost: "",
     controllingForceIds: [],
@@ -560,11 +699,125 @@ function dedupeByName<T extends { name: string }>(items: T[]): T[] {
   return Array.from(new Map(items.map((item) => [item.name, item])).values());
 }
 
+function buildLegacyFactionSeeds(raw: string | null | undefined): { factions: WorldFaction[]; forces: WorldForce[] } {
+  const parsedItems = parseLegacyArray(raw, ["factions", "forces", "organizations"]);
+  if (parsedItems) {
+    const factions = parsedItems
+      .map((item, index) => normalizeFaction(item, index))
+      .filter((item): item is WorldFaction => Boolean(item));
+    const forces = parsedItems
+      .map((item, index) => normalizeForce(item, index))
+      .filter((item): item is WorldForce => Boolean(item));
+    return { factions, forces };
+  }
+  const names = parseListText(raw);
+  return {
+    factions: names.map((name) => seedFaction(name)),
+    forces: names.map((name) => seedForce(name)),
+  };
+}
+
+function inferLegacyLocationName(text: string): string {
+  const normalized = text.replace(/^[-*]\s*/, "").trim();
+  const afterColon = normalized.includes("：") ? normalized.split("：").slice(1).join("：").trim() : normalized;
+  const patterns: Array<[RegExp, string]> = [
+    [/太平洋.*禁航区|太平洋.*异界入口|深海.*异界入口/, "太平洋深海禁航区"],
+    [/北极冰盖|北极.*基地/, "北极冰盖秘密基地"],
+    [/昆仑山|昆仑.*通道/, "昆仑山神话通道"],
+    [/阿尔卑斯.*古堡|欧洲.*古堡/, "阿尔卑斯古堡指挥中心"],
+    [/城市.*地下|地下.*设施/, "全球城市地下设施"],
+    [/南极冰盖|极夜风暴/, "南极旧日封印区"],
+  ];
+  for (const [pattern, name] of patterns) {
+    if (pattern.test(afterColon)) {
+      return name;
+    }
+  }
+  const candidate = afterColon
+    .split(/[，。,.]|被|隐藏|实为|用于|传言|内有|是/)
+    .map((item) => item.trim())
+    .find((item) => item.length >= 2);
+  return candidate ? candidate.slice(0, 24) : normalized.slice(0, 24);
+}
+
+function splitLegacyGeographyClauses(raw: string | null | undefined): string[] {
+  const normalized = raw?.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return [];
+  }
+  const content = normalized.includes("：")
+    ? normalized.split("：").slice(1).join("：").trim()
+    : normalized;
+  return Array.from(
+    new Set(
+      content
+        .split(/[\n;；]+/)
+        .map((item) => item.replace(/^此外[，,]\s*/, "").trim())
+        .filter((item) => item.length >= 4),
+    ),
+  );
+}
+
+function buildLegacyLocationSeeds(geography: string | null | undefined, conflicts: string | null | undefined): WorldLocation[] {
+  const parsedLocations = parseLegacyArray(geography, ["locations", "regions", "places"]);
+  const locations = parsedLocations
+    ? parsedLocations
+      .map((item, index) => normalizeLocation(item, index))
+      .filter((item): item is WorldLocation => Boolean(item))
+    : splitLegacyGeographyClauses(geography)
+      .map((item, index) => seedLocation(inferLegacyLocationName(item), item))
+      .filter((item) => item.name);
+
+  const conflictObject = parseLegacyObject(conflicts);
+  const flashpoints = Array.isArray(conflictObject.flashpoints) ? conflictObject.flashpoints : [];
+  const flashpointLocations = flashpoints
+    .map((item, index) => {
+      const record = normalizeRecord(item);
+      const name = normalizeText(record.location ?? record.name);
+      if (!name) {
+        return null;
+      }
+      return seedLocation(name, normalizeText(record.description), "冲突热点");
+    })
+    .filter((item): item is WorldLocation => Boolean(item));
+
+  return dedupeByName([...locations, ...flashpointLocations]);
+}
+
+function buildLegacyForceRelations(conflicts: string | null | undefined, forces: WorldForce[]): WorldForceRelation[] {
+  const conflictObject = parseLegacyObject(conflicts);
+  const primaryConflicts = Array.isArray(conflictObject.primaryConflicts) ? conflictObject.primaryConflicts : [];
+  const forceByName = new Map(forces.map((item) => [item.name, item]));
+  const relations: WorldForceRelation[] = [];
+  primaryConflicts.forEach((item, index) => {
+    const record = normalizeRecord(item);
+    const parties = normalizeStringArray(record.parties);
+    const matched = parties
+      .map((party) => Array.from(forceByName.values()).find((force) => party.includes(force.name) || force.name.includes(party)))
+      .filter((force): force is WorldForce => Boolean(force));
+    if (matched.length < 2) {
+      return;
+    }
+    relations.push({
+      id: makeId("force-relation", index, `${matched[0].id}-${matched[1].id}`),
+      sourceForceId: matched[0].id,
+      targetForceId: matched[1].id,
+      relation: normalizeText(record.type, "冲突"),
+      tension: normalizeText(record.type),
+      detail: normalizeText(record.description),
+    });
+  });
+  return dedupeById(relations);
+}
+
 export function buildWorldStructureFromLegacySource(source: WorldStructureSource): WorldStructuredData {
   const empty = createEmptyWorldStructure();
-  const factionNames = parseListText(source.factions);
-  const forceNames = parseListText(source.politics);
-  const locationNames = parseListText(source.geography);
+  const factionSeeds = buildLegacyFactionSeeds(source.factions);
+  const policyObject = parseLegacyObject(source.politics);
+  const policyForceName = normalizeText(policyObject.governance) ? "三方联合委员会" : "";
+  const extraForces = policyForceName ? [seedForce(policyForceName, normalizeText(policyObject.governance), "coordination")] : [];
+  const forces = dedupeByName([...factionSeeds.forces, ...extraForces]);
+  const locations = buildLegacyLocationSeeds(source.geography, source.conflicts);
   const axiomTexts = parseAxiomStrings(source.axioms);
 
   const structure = normalizeWorldStructuredData(
@@ -582,10 +835,13 @@ export function buildWorldStructureFromLegacySource(source: WorldStructureSource
         taboo: [],
         sharedConsequences: [],
       },
-      factions: factionNames.map((name) => seedFaction(name)),
-      forces: forceNames.map((name) => seedForce(name)),
-      locations: locationNames.map((name) => seedLocation(name)),
-      relations: createEmptyWorldRelations(),
+      factions: dedupeByName(factionSeeds.factions),
+      forces,
+      locations,
+      relations: {
+        ...createEmptyWorldRelations(),
+        forceRelations: buildLegacyForceRelations(source.conflicts, forces),
+      },
       metadata: {
         schemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
         seededFrom: "legacy-text",
@@ -754,6 +1010,79 @@ function buildFactionLegacyText(structure: WorldStructuredData): string | null {
   return lines.length > 0 ? lines.join("\n") : null;
 }
 
+function buildBackgroundLegacyText(structure: WorldStructuredData, bindingSupport: WorldBindingSupport): string | null {
+  const lines = [
+    structure.profile.identity && `世界身份：${structure.profile.identity}`,
+    structure.profile.summary && `当前处境：${structure.profile.summary}`,
+    structure.profile.coreConflict && `开局压力：${structure.profile.coreConflict}`,
+    bindingSupport.recommendedEntryPoints.length > 0
+      && `可开局入口：${bindingSupport.recommendedEntryPoints.slice(0, 3).join("；")}`,
+  ].filter(Boolean);
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
+function buildPowerLegacyText(structure: WorldStructuredData): string | null {
+  const ruleLines = [
+    structure.rules.summary && `运行规则：${structure.rules.summary}`,
+    ...structure.rules.axioms.map((item) =>
+      [
+        item.name,
+        item.summary,
+        item.cost && `代价：${item.cost}`,
+        item.boundary && `边界：${item.boundary}`,
+      ].filter(Boolean).join(" | "),
+    ),
+  ].filter(Boolean);
+  const resourceLines = structure.forces
+    .filter((item) => item.resources && item.resources.length > 0)
+    .map((item) => `${item.name} 掌握：${(item.resources ?? []).join("、")}`);
+  const lines = [...ruleLines, ...resourceLines].filter(Boolean);
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
+function buildCultureLegacyText(structure: WorldStructuredData): string | null {
+  const lines = [
+    structure.profile.tone && `整体气质：${structure.profile.tone}`,
+    structure.profile.themes.length > 0 && `主题压力：${structure.profile.themes.join("、")}`,
+    ...structure.rules.taboo.map((item) => `禁忌：${item}`),
+    ...structure.rules.sharedConsequences.map((item) => `共同后果：${item}`),
+    ...structure.factions.map((item) =>
+      [
+        item.name,
+        item.doctrine && `价值主张：${item.doctrine}`,
+        item.methods.length > 0 && `常用方式：${item.methods.join("、")}`,
+      ].filter(Boolean).join(" | "),
+    ),
+  ].filter(Boolean);
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
+function buildHistoryLegacyText(structure: WorldStructuredData): string | null {
+  const lines = [
+    structure.profile.identity && `故事开始时的世界阶段：${structure.profile.identity}`,
+    structure.profile.summary && `当前局面来源：${structure.profile.summary}`,
+    structure.profile.coreConflict && `长期矛盾：${structure.profile.coreConflict}`,
+    ...structure.relations.forceRelations.slice(0, 4).map((item) =>
+      [item.relation, item.tension, item.detail].filter(Boolean).join(" | "),
+    ),
+  ].filter(Boolean);
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
+function buildEconomyLegacyText(structure: WorldStructuredData): string | null {
+  const lines = structure.forces
+    .filter((item) => (item.resources ?? []).length > 0 || item.baseOfPower || item.pressure)
+    .map((item) =>
+      [
+        item.name,
+        item.resources && item.resources.length > 0 && `资源：${item.resources.join("、")}`,
+        item.baseOfPower && `权力基础：${item.baseOfPower}`,
+        item.pressure && `压力：${item.pressure}`,
+      ].filter(Boolean).join(" | "),
+    );
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
 function buildPoliticsLegacyText(structure: WorldStructuredData): string | null {
   const forceNameById = new Map(structure.forces.map((item) => [item.id, item.name]));
   const lines = [
@@ -895,12 +1224,17 @@ export function applyStructuredWorldToLegacyFields(
 
   return {
     description: structure.profile.summary || existing?.description || null,
+    background: buildBackgroundLegacyText(structure, bindingSupport) ?? existing?.background ?? null,
     overviewSummary: overviewSummary || existing?.overviewSummary || null,
     axioms: axioms.length > 0 ? JSON.stringify(axioms) : existing?.axioms ?? null,
+    cultures: buildCultureLegacyText(structure) ?? existing?.cultures ?? null,
+    magicSystem: buildPowerLegacyText(structure) ?? existing?.magicSystem ?? null,
     factions: buildFactionLegacyText(structure) ?? existing?.factions ?? null,
     politics: buildPoliticsLegacyText(structure) ?? existing?.politics ?? null,
     geography: buildGeographyLegacyText(structure) ?? existing?.geography ?? null,
     conflicts: buildConflictLegacyText(structure) ?? existing?.conflicts ?? null,
+    history: buildHistoryLegacyText(structure) ?? existing?.history ?? null,
+    economy: buildEconomyLegacyText(structure) ?? existing?.economy ?? null,
     structureJson: JSON.stringify({
       ...structure,
       metadata: {

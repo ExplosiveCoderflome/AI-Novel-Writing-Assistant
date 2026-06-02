@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { WorldOptionRefinementLevel, WorldReferenceAnchor, WorldReferenceMode } from "@ai-novel/shared/types/worldWizard";
 import { Button } from "@/components/ui/button";
 import KnowledgeDocumentPicker from "@/components/knowledge/KnowledgeDocumentPicker";
@@ -7,6 +8,28 @@ import type {
   WorldGeneratorConceptCard,
 } from "./worldGeneratorShared";
 import { REFERENCE_MODE_OPTIONS } from "./worldGeneratorShared";
+
+const INSPIRATION_MODE_CARDS: Array<{
+  value: InspirationMode;
+  title: string;
+  description: string;
+}> = [
+  {
+    value: "free",
+    title: "从一句灵感开始",
+    description: "适合已有题材、气质或故事舞台想法的世界样本。",
+  },
+  {
+    value: "reference",
+    title: "参考作品改造",
+    description: "适合借鉴已有作品的质感，再生成独立的架空世界。",
+  },
+  {
+    value: "random",
+    title: "让 AI 给方向",
+    description: "适合还没有明确想法，只想先获得一个可用世界雏形。",
+  },
+];
 
 interface WorldGeneratorStepOneProps {
   worldName: string;
@@ -90,18 +113,32 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
   } = props;
 
   const isReferenceMode = inspirationMode === "reference";
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
 
   return (
-    <div className="space-y-3">
-      <input
-        className="w-full rounded-md border p-2 text-sm"
-        placeholder="世界名称（可选）"
-        value={worldName}
-        onChange={(event) => onWorldNameChange(event.target.value)}
-      />
+    <div className="space-y-4">
+      <div className="rounded-md border bg-background p-4 space-y-3">
+        <div>
+          <div className="text-sm font-medium">这个世界先叫什么？</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            名称可以留空，系统会先创建一份可继续整理的世界样本。
+          </div>
+        </div>
+        <input
+          className="w-full rounded-md border p-2 text-sm"
+          placeholder="例如：紫霞界、灰烬王朝、雨巷旧城"
+          value={worldName}
+          onChange={(event) => onWorldNameChange(event.target.value)}
+        />
+      </div>
 
       <div className="space-y-2">
-        <div className="text-sm font-medium">世界类型</div>
+        <div>
+          <div className="text-sm font-medium">选择题材基底</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            题材基底决定世界的读者预期、力量规则和常见冲突。
+          </div>
+        </div>
         <select
           className="w-full rounded-md border bg-background p-2 text-sm"
           value={selectedGenreId}
@@ -125,31 +162,38 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
           </div>
         ) : null}
         {genreLoading ? <div className="text-xs text-muted-foreground">正在加载题材基底树...</div> : null}
-        {!genreLoading && genreOptions.length === 0 ? (
-          <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground space-y-2">
-            <div>当前还没有可用题材基底。世界观向导会统一使用题材基底库。</div>
+          {!genreLoading && genreOptions.length === 0 ? (
+            <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground space-y-2">
+            <div>题材基底库为空。创建世界样本需要先准备可选题材基底。</div>
             <Button type="button" variant="outline" onClick={onOpenGenreManager}>
               去题材基底库
             </Button>
           </div>
         ) : null}
         <div className="text-xs text-muted-foreground">
-          这里直接复用题材基底库，不再使用模板内置类型列表作为入口。
-        </div>
-        <div className="text-xs text-muted-foreground">
-          先确定题材基底，再生成概念卡、前置属性和后续模板筛选。
+          先确定题材基底，再生成概念卡、世界属性和后续骨架选择。
         </div>
       </div>
 
-      <select
-        className="w-full rounded-md border bg-background p-2 text-sm"
-        value={inspirationMode}
-        onChange={(event) => onInspirationModeChange(event.target.value as InspirationMode)}
-      >
-        <option value="free">自由输入</option>
-        <option value="reference">参考作品</option>
-        <option value="random">随机灵感</option>
-      </select>
+      <div className="space-y-2">
+        <div className="text-sm font-medium">选择创建方式</div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {INSPIRATION_MODE_CARDS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={[
+                "rounded-md border p-3 text-left transition-colors",
+                inspirationMode === item.value ? "border-primary bg-primary/5" : "border-border/70 bg-background hover:bg-muted/40",
+              ].join(" ")}
+              onClick={() => onInspirationModeChange(item.value)}
+            >
+              <div className="text-sm font-medium text-foreground">{item.title}</div>
+              <div className="mt-2 text-xs text-muted-foreground">{item.description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {isReferenceMode ? (
         <div className="space-y-3">
@@ -218,40 +262,53 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
         placeholder={
           isReferenceMode
             ? "粘贴原作片段、世界总结或你对这部作品的理解；也可以只使用上方知识库文档"
-            : "描述你的世界灵感"
+            : inspirationMode === "random"
+              ? "可选：写下你想避开的题材、喜欢的氛围或目标读者"
+              : "用几句话描述世界的气质、舞台、冲突或力量来源"
         }
         value={inspirationText}
         onChange={(event) => onInspirationTextChange(event.target.value)}
       />
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-md border p-3 text-sm space-y-2">
-          <div className="font-medium">属性选项细化程度</div>
-          <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
-            value={optionRefinementLevel}
-            onChange={(event) => onOptionRefinementLevelChange(event.target.value as WorldOptionRefinementLevel)}
-          >
-            <option value="basic">基础</option>
-            <option value="standard">标准</option>
-            <option value="detailed">详细</option>
-          </select>
-        </div>
-
-        <div className="rounded-md border p-3 text-sm space-y-2">
-          <div className="font-medium">生成前置属性数量</div>
-          <input
-            className="w-full rounded-md border p-2 text-sm"
-            type="number"
-            min={4}
-            max={8}
-            value={optionsCount}
-            onChange={(event) => onOptionsCountChange(Number(event.target.value) || 6)}
-          />
-          <div className="text-xs text-muted-foreground">
-            这一步会参考旧版 V2 的思路，先生成可选择的世界属性，再进入正式创建。
+      <div className="rounded-md border p-3 text-sm space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="font-medium">生成偏好</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              默认会给出 6 个标准世界属性，通常不用调整。
+            </div>
           </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => setPreferencesOpen((value) => !value)}>
+            {preferencesOpen ? "收起偏好" : "调整偏好"}
+          </Button>
         </div>
+        {preferencesOpen ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <div className="font-medium">属性细化程度</div>
+              <select
+                className="w-full rounded-md border bg-background p-2 text-sm"
+                value={optionRefinementLevel}
+                onChange={(event) => onOptionRefinementLevelChange(event.target.value as WorldOptionRefinementLevel)}
+              >
+                <option value="basic">基础</option>
+                <option value="standard">标准</option>
+                <option value="detailed">详细</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <div className="font-medium">世界属性数量</div>
+              <input
+                className="w-full rounded-md border p-2 text-sm"
+                type="number"
+                min={4}
+                max={8}
+                value={optionsCount}
+                onChange={(event) => onOptionsCountChange(Number(event.target.value) || 6)}
+              />
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <Button onClick={onAnalyze} disabled={!canAnalyze}>

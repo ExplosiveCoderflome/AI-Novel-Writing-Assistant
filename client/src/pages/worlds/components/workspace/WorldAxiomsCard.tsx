@@ -43,7 +43,7 @@ export default function WorldAxiomsCard(props: {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="text-sm text-muted-foreground">
-          可以把它理解成“这个世界不能随便打破的底层规则”。后面的自动生成、一致性检查都会参考这里。
+          可以把它理解成“这个世界不能随便打破的底层规则”。后面的自动生成和手册体检都会参考这里。
         </div>
         {draftAxioms.map((axiom, index) => (
           <Input

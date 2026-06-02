@@ -21,8 +21,7 @@ import {
   toOutlineChapterRows,
 } from "./structuredOutline";
 import { titleGenerationService } from "../title/TitleGenerationService";
-import { NovelWorldSliceService } from "./storyWorldSlice/NovelWorldSliceService";
-import { formatStoryWorldSlicePromptBlock } from "./storyWorldSlice/storyWorldSliceFormatting";
+import { WorldContextGateway, type WorldContextPurpose } from "./worldContext/WorldContextGateway";
 import { normalizeNovelBiblePayload } from "./novelBiblePersistence";
 import {
   ChapterGenerateOptions,
@@ -37,7 +36,7 @@ import {
   TitleGenerateOptions,
   briefSummary,
 } from "./novelCoreShared";
-import { buildWorldContextFromNovel, ensureNovelCharacters, queueRagUpsert } from "./novelCoreSupport";
+import { ensureNovelCharacters, queueRagUpsert } from "./novelCoreSupport";
 
 export interface ChapterStreamProductionPort {
   createChapterStream(
@@ -58,11 +57,31 @@ const sharedChapterStreamProductionPort: ChapterStreamProductionPort = {
 };
 
 export class NovelCoreGenerationService {
-  private readonly storyWorldSliceService = new NovelWorldSliceService();
+  private readonly worldContextGateway = new WorldContextGateway();
 
   constructor(
     private readonly chapterProduction: ChapterStreamProductionPort = sharedChapterStreamProductionPort,
   ) {}
+
+  private async getWorldContextText(
+    novelId: string,
+    input: {
+      purpose: WorldContextPurpose;
+      storyInput?: string;
+      provider?: LLMGenerateOptions["provider"];
+      model?: string;
+      temperature?: number;
+    },
+  ): Promise<string> {
+    const block = await this.worldContextGateway.getWorldContextBlock(novelId, {
+      purpose: input.purpose,
+      storyInput: input.storyInput,
+      provider: input.provider,
+      model: input.model,
+      temperature: input.temperature,
+    });
+    return block?.promptBlock ?? "本书世界上下文：暂无。请根据小说基础信息推进，不要凭空新增复杂世界规则。";
+  }
 
   async createOutlineStream(novelId: string, options: OutlineGenerateOptions = {}) {
     const novel = await prisma.novel.findUnique({
@@ -73,17 +92,17 @@ export class NovelCoreGenerationService {
       throw new Error("小说不存在");
     }
 
-    const [storyWorldSlice, referenceContext] = await Promise.all([
-      this.storyWorldSliceService.ensureStoryWorldSlice(novelId, {
+    const [worldContext, referenceContext] = await Promise.all([
+      this.getWorldContextText(novelId, {
+        purpose: "outline",
         storyInput: options.initialPrompt?.trim() || novel.description || "",
-        builderMode: "outline",
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature,
       }),
       novelReferenceService.buildReferenceForStage(novelId, "outline"),
     ]);
 
-    const worldContext = storyWorldSlice
-      ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
-      : buildWorldContextFromNovel(novel);
     const charactersText = novel.characters.length > 0
       ? novel.characters
         .map((character) => `- ${character.name}（${character.role}）${character.personality ? `：${character.personality.slice(0, 80)}` : ""}`)
@@ -134,17 +153,17 @@ export class NovelCoreGenerationService {
       throw new Error("请先生成小说发展走向");
     }
 
-    const [storyWorldSlice, referenceContext] = await Promise.all([
-      this.storyWorldSliceService.ensureStoryWorldSlice(novelId, {
+    const [worldContext, referenceContext] = await Promise.all([
+      this.getWorldContextText(novelId, {
+        purpose: "outline",
         storyInput: novel.outline ?? novel.description ?? "",
-        builderMode: "structured_outline",
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature,
       }),
       novelReferenceService.buildReferenceForStage(novelId, "structured_outline"),
     ]);
 
-    const worldContext = storyWorldSlice
-      ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
-      : buildWorldContextFromNovel(novel);
     const charactersText = novel.characters.length > 0
       ? novel.characters
         .map((character) => `- ${character.name}（${character.role}）${character.personality ? `：${character.personality.slice(0, 80)}` : ""}`)
@@ -272,17 +291,17 @@ export class NovelCoreGenerationService {
     }
 
     await ensureNovelCharacters(novelId, "生成作品圣经");
-    const [storyWorldSlice, referenceContext] = await Promise.all([
-      this.storyWorldSliceService.ensureStoryWorldSlice(novelId, {
+    const [worldContext, referenceContext] = await Promise.all([
+      this.getWorldContextText(novelId, {
+        purpose: "bible",
         storyInput: novel.outline ?? novel.description ?? "",
-        builderMode: "bible",
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature,
       }),
       novelReferenceService.buildReferenceForStage(novelId, "bible"),
     ]);
 
-    const worldContext = storyWorldSlice
-      ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
-      : buildWorldContextFromNovel(novel);
     const streamed = await streamStructuredPrompt({
       asset: novelBiblePrompt,
       promptInput: {
@@ -340,17 +359,17 @@ export class NovelCoreGenerationService {
     }
 
     await ensureNovelCharacters(novelId, "生成剧情拍点");
-    const [storyWorldSlice, referenceContext] = await Promise.all([
-      this.storyWorldSliceService.ensureStoryWorldSlice(novelId, {
+    const [worldContext, referenceContext] = await Promise.all([
+      this.getWorldContextText(novelId, {
+        purpose: "outline",
         storyInput: novel.outline ?? novel.description ?? "",
-        builderMode: "beats",
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature,
       }),
       novelReferenceService.buildReferenceForStage(novelId, "beats"),
     ]);
 
-    const worldContext = storyWorldSlice
-      ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
-      : buildWorldContextFromNovel(novel);
     const targetChapters = options.targetChapters
       ?? Math.max(
         novel.estimatedChapterCount ?? DEFAULT_ESTIMATED_CHAPTER_COUNT,

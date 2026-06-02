@@ -19,6 +19,15 @@ import type {
   VolumeSyncPreview,
 } from "@ai-novel/shared/types/novel";
 import type { StoryWorldSliceOverrides, StoryWorldSliceView } from "@ai-novel/shared/types/storyWorldSlice";
+import type {
+  NovelWorldGenerateInput,
+  NovelWorldImportInput,
+  NovelWorldManualInput,
+  NovelWorldSaveToLibraryInput,
+  NovelWorldSyncDiff,
+  NovelWorldSyncInput,
+  NovelWorldView,
+} from "@ai-novel/shared/types/novelWorld";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { ExistingOutlineChapter } from "./volumePlan.utils";
 
@@ -33,12 +42,26 @@ interface BuildNovelEditPlanningTabsInput {
   sourceNovelBookAnalysisOptions: BasicTabProps["sourceNovelBookAnalysisOptions"];
   isLoadingSourceNovelBookAnalyses: boolean;
   availableBookAnalysisSections: Array<{ key: BookAnalysisSectionKey; title: string }>;
+  novelWorldView?: NovelWorldView | null;
+  novelWorldSyncDiff?: NovelWorldSyncDiff | null;
   worldSliceView?: StoryWorldSliceView | null;
   worldSliceMessage: string;
+  isLoadingNovelWorld: boolean;
+  isImportingNovelWorld: boolean;
+  isGeneratingNovelWorld: boolean;
+  isCreatingManualNovelWorld: boolean;
+  isSavingNovelWorldToLibrary: boolean;
+  isLoadingNovelWorldSyncDiff: boolean;
+  isSyncingNovelWorld: boolean;
   isRefreshingWorldSlice: boolean;
   isSavingWorldSliceOverrides: boolean;
   onBasicFormChange: (patch: Partial<NovelBasicFormState>) => void;
   onSaveBasic: () => void;
+  onImportNovelWorld: (payload: NovelWorldImportInput) => void;
+  onCreateManualNovelWorld: (payload?: NovelWorldManualInput) => void;
+  onGenerateNovelWorld: (payload: NovelWorldGenerateInput) => void;
+  onSaveNovelWorldToLibrary: (payload?: NovelWorldSaveToLibraryInput) => void;
+  onSyncNovelWorld: (payload: NovelWorldSyncInput) => void;
   onRefreshWorldSlice: () => void;
   onSaveWorldSliceOverrides: (patch: StoryWorldSliceOverrides) => void;
   isSavingBasic: boolean;
@@ -149,12 +172,26 @@ export function buildNovelEditPlanningTabs(input: BuildNovelEditPlanningTabsInpu
     sourceNovelBookAnalysisOptions: input.sourceNovelBookAnalysisOptions,
     isLoadingSourceNovelBookAnalyses: input.isLoadingSourceNovelBookAnalyses,
     availableBookAnalysisSections: input.availableBookAnalysisSections,
+    novelWorldView: input.novelWorldView,
+    novelWorldSyncDiff: input.novelWorldSyncDiff,
     worldSliceView: input.worldSliceView,
     worldSliceMessage: input.worldSliceMessage,
+    isLoadingNovelWorld: input.isLoadingNovelWorld,
+    isImportingNovelWorld: input.isImportingNovelWorld,
+    isGeneratingNovelWorld: input.isGeneratingNovelWorld,
+    isCreatingManualNovelWorld: input.isCreatingManualNovelWorld,
+    isSavingNovelWorldToLibrary: input.isSavingNovelWorldToLibrary,
+    isLoadingNovelWorldSyncDiff: input.isLoadingNovelWorldSyncDiff,
+    isSyncingNovelWorld: input.isSyncingNovelWorld,
     isRefreshingWorldSlice: input.isRefreshingWorldSlice,
     isSavingWorldSliceOverrides: input.isSavingWorldSliceOverrides,
     onFormChange: input.onBasicFormChange,
     onSave: input.onSaveBasic,
+    onImportNovelWorld: input.onImportNovelWorld,
+    onCreateManualNovelWorld: input.onCreateManualNovelWorld,
+    onGenerateNovelWorld: input.onGenerateNovelWorld,
+    onSaveNovelWorldToLibrary: input.onSaveNovelWorldToLibrary,
+    onSyncNovelWorld: input.onSyncNovelWorld,
     onRefreshWorldSlice: input.onRefreshWorldSlice,
     onSaveWorldSliceOverrides: input.onSaveWorldSliceOverrides,
     isSaving: input.isSavingBasic,

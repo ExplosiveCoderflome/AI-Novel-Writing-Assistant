@@ -1,4 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { CharacterWorldFocusHints } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../../db/prisma";
 import { StructuredOutputError } from "../../../llm/structuredOutput";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
@@ -27,12 +28,15 @@ import {
   buildCharacterCastRepairReasons,
   type CharacterCastBatchAssessment,
 } from "./characterCastQuality";
+import { WorldContextGateway } from "../worldContext/WorldContextGateway";
 
 export interface CharacterPrepOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
   storyInput?: string;
+  useWorldContext?: boolean;
+  worldFocusHints?: CharacterWorldFocusHints;
 }
 
 type CharacterCastGenerationContextBlocks = ReturnType<typeof buildCharacterCastContextBlocks>;
@@ -45,28 +49,6 @@ interface CharacterCastGenerationContext {
 function toOptionalText(value: string | null | undefined): string | null {
   const normalized = value?.trim() ?? "";
   return normalized || null;
-}
-
-function buildWorldStage(novel: {
-  world: {
-    name: string;
-    description: string | null;
-    overviewSummary: string | null;
-    conflicts: string | null;
-    magicSystem: string | null;
-  } | null;
-}) {
-  return novel.world
-    ? [
-      novel.world.name,
-      novel.world.description,
-      novel.world.overviewSummary,
-      novel.world.conflicts,
-      novel.world.magicSystem,
-    ]
-      .filter((item) => typeof item === "string" && item.trim().length > 0)
-      .join("\n")
-    : "当前还没有绑定世界观。";
 }
 
 function shouldFallbackToStagedAutoCast(error: unknown): error is StructuredOutputError {
@@ -98,25 +80,16 @@ async function loadCastGenerationContext(
   novelId: string,
   options: CharacterPrepOptions,
 ): Promise<CharacterCastGenerationContext> {
+  const worldContextGateway = new WorldContextGateway();
   const novel = await prisma.novel.findUnique({
     where: { id: novelId },
     include: {
       genre: { select: { name: true } },
-      world: {
-        select: {
-          name: true,
-          description: true,
-          overviewSummary: true,
-          conflicts: true,
-          magicSystem: true,
-        },
-      },
       bible: {
         select: {
           coreSetting: true,
           mainPromise: true,
           characterArcs: true,
-          worldRules: true,
         },
       },
       storyMacroPlan: {
@@ -179,6 +152,16 @@ async function loadCastGenerationContext(
     || novel.storyMacroPlan?.storyInput?.trim()
     || novel.description?.trim()
     || "";
+  const worldContext = options.useWorldContext === false
+    ? null
+    : await worldContextGateway.getWorldContextBlock(novelId, {
+      purpose: "character",
+      strength: "normal",
+      storyInput,
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature,
+    });
   const storyModeBlock = buildStoryModePromptBlock({
     primary: novel.primaryStoryMode ? normalizeStoryModeOutput(novel.primaryStoryMode) : null,
     secondary: novel.secondaryStoryMode ? normalizeStoryModeOutput(novel.secondaryStoryMode) : null,
@@ -195,8 +178,9 @@ async function loadCastGenerationContext(
     corePromise: novel.bible?.mainPromise ?? null,
     coreSetting: novel.bible?.coreSetting ?? null,
     characterArcs: novel.bible?.characterArcs ?? null,
-    worldRules: novel.bible?.worldRules ?? null,
-    worldStage: buildWorldStage(novel),
+    worldRules: worldContext?.worldRulesText ?? null,
+    worldStage: worldContext?.worldStageText ?? null,
+    worldFocusHints: options.useWorldContext === false ? null : options.worldFocusHints,
     storyDecomposition: novel.storyMacroPlan?.decompositionJson ?? null,
     constraintEngine: novel.storyMacroPlan?.constraintEngineJson ?? null,
     bookContract: novel.bookContract,

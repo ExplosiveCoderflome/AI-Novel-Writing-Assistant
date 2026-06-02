@@ -85,6 +85,13 @@ export interface NovelApplicationServices {
   getWorldSlice: NovelApplicationMethod;
   refreshWorldSlice: NovelApplicationMethod;
   updateWorldSliceOverrides: NovelApplicationMethod;
+  getNovelWorld: NovelApplicationMethod;
+  getNovelWorldSyncDiff: NovelApplicationMethod;
+  importNovelWorldFromLibrary: NovelApplicationMethod;
+  createManualNovelWorld: NovelApplicationMethod;
+  generateNovelWorldFromTheme: NovelApplicationMethod;
+  saveNovelWorldToLibrary: NovelApplicationMethod;
+  syncNovelWorldWithLibrary: NovelApplicationMethod;
   listCharacterRelations: NovelApplicationMethod;
   listCharacterCastOptions: NovelApplicationMethod;
   generateCharacterCastOptions: NovelApplicationMethod;
@@ -184,6 +191,13 @@ export const novelApplicationServiceMethodNames = [
   "getWorldSlice",
   "refreshWorldSlice",
   "updateWorldSliceOverrides",
+  "getNovelWorld",
+  "getNovelWorldSyncDiff",
+  "importNovelWorldFromLibrary",
+  "createManualNovelWorld",
+  "generateNovelWorldFromTheme",
+  "saveNovelWorldToLibrary",
+  "syncNovelWorldWithLibrary",
   "listCharacterRelations",
   "listCharacterCastOptions",
   "generateCharacterCastOptions",

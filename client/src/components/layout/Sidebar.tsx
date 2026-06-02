@@ -62,7 +62,7 @@ const navGroups: NavGroup[] = [
       { to: "/story-modes", label: "推进模式库", icon: Workflow },
       { to: "/titles", label: "标题工坊", icon: SquarePen },
       { to: "/knowledge", label: "知识库", icon: Database },
-      { to: "/worlds", label: "世界观", icon: Globe2 },
+      { to: "/worlds", label: "世界样本库", icon: Globe2 },
       { to: "/style-engine", label: "写法引擎", icon: WandSparkles },
       { to: "/anti-ai-rules", label: "反 AI 规则", icon: ShieldCheck },
       { to: "/base-characters", label: "基础角色库", icon: UsersRound },

@@ -19,6 +19,11 @@ const castOptionGenerateSchema = z.object({
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
   storyInput: z.string().trim().max(4000).optional(),
+  useWorldContext: z.boolean().optional().default(true),
+  worldFocusHints: z.object({
+    preferFaction: z.string().trim().max(120).optional(),
+    forceCompliance: z.boolean().optional(),
+  }).optional(),
 });
 
 const castOptionApplySchema = z.object({

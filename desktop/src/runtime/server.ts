@@ -212,6 +212,7 @@ function startWorkspaceManagedServer(port: number): ManagedDesktopProcess {
       ALLOW_LAN: "false",
     },
     stdio: "pipe",
+    windowsHide: true,
   });
 
   appendProcessOutput(child.stdout, "desktop.server.stdout", "info");

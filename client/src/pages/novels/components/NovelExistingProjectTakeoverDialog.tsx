@@ -107,7 +107,7 @@ function summarizeCurrentContext(
     basicForm.bookSellingPoint.trim() ? `书级卖点：${basicForm.bookSellingPoint.trim()}` : "",
     genrePath ? `题材：${genrePath}` : "",
     primaryStoryModePath ? `主推进模式：${primaryStoryModePath}` : "",
-    worldName ? `世界观：${worldName}` : "",
+    worldName ? `参考世界样本：${worldName}` : "",
     commercialTags.length > 0 ? `商业标签：${commercialTags.join(" / ")}` : "",
   ].filter(Boolean);
 }

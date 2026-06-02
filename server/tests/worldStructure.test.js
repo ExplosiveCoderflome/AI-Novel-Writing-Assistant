@@ -4,10 +4,14 @@ const {
   applyStructuredWorldToLegacyFields,
   buildStructuredRulesFromAxiomTexts,
   buildWorldBindingSupport,
+  buildWorldStructureFromLegacySource,
   buildWorldStructureSeedFromSource,
   normalizeWorldStructuredData,
   parseWorldStructurePayload,
 } = require("../dist/services/world/worldStructure.js");
+const {
+  mergeWorldStructureSection,
+} = require("../dist/services/world/worldServiceShared.js");
 
 function createSource(overrides = {}) {
   return {
@@ -280,6 +284,58 @@ test("applyStructuredWorldToLegacyFields syncs structured world into legacy text
   assert.ok(parsed.bindingSupport.highPressureForces.some((item) => item.includes("铁卫边防军")));
 });
 
+test("buildWorldStructureFromLegacySource projects generated json legacy fields into handbook structure", () => {
+  const structure = buildWorldStructureFromLegacySource(createSource({
+    name: "旧日",
+    worldType: "克苏鲁神话 / 科幻克苏鲁",
+    description: "现代世界表面正常，旧日入侵和神话势力在暗处维持脆弱平衡。",
+    axioms: JSON.stringify([
+      "规则 1：直接接触旧日存在会造成不可逆理智侵蚀。",
+    ]),
+    geography: "全球地理格局基本与现实一致，但存在若干关键异常区域：太平洋深处某处被列为国际禁航区，传言是克苏鲁异界入口；北极冰盖下隐藏着一个多国联合的秘密研究基地，用于监控和抑制冰封的旧日支配者；中国西南的昆仑山脉深处有上古结界，内有通往神话领域的通道；欧洲阿尔卑斯山区的某座古堡实为秘密组织的指挥中心。",
+    politics: JSON.stringify({
+      governance: "最高协调机构为三方联合委员会，设于北极基地。",
+    }),
+    factions: JSON.stringify([
+      {
+        name: "守夜人议会",
+        description: "全球最大秘密组织，负责监控和遏制克苏鲁入侵，维护信息封锁。",
+      },
+      {
+        name: "万神殿协议",
+        description: "由中西方神话势力代表组成的松散联盟。",
+      },
+      {
+        name: "泰坦星团",
+        description: "由全球顶尖科技公司和军方研究机构组成的非公开联合体。",
+      },
+    ]),
+    conflicts: JSON.stringify({
+      primaryConflicts: [
+        {
+          type: "三方势力制衡博弈",
+          parties: ["守夜人议会", "泰坦星团"],
+          description: "泰坦星团试图扩大克苏鲁能量工程化应用，引发守夜人议会警惕。",
+        },
+      ],
+      flashpoints: [
+        {
+          name: "北极基地控制权暗战",
+          location: "北极冰盖下的三方联合委员会总部",
+          description: "三方围绕基地安保和污染责任互相指责。",
+        },
+      ],
+    }),
+  }));
+
+  assert.ok(structure.forces.some((item) => item.name === "守夜人议会"));
+  assert.ok(structure.forces.some((item) => item.name === "泰坦星团"));
+  assert.ok(structure.locations.some((item) => item.name === "太平洋深海禁航区"));
+  assert.ok(structure.locations.some((item) => item.name === "昆仑山神话通道"));
+  assert.ok(structure.locations.some((item) => item.name === "北极冰盖下的三方联合委员会总部"));
+  assert.ok(structure.relations.forceRelations.some((item) => item.relation === "三方势力制衡博弈"));
+});
+
 test("buildStructuredRulesFromAxiomTexts turns plain texts into structured rules", () => {
   const rules = buildStructuredRulesFromAxiomTexts([
     "现实突破必须付出代价：任何越级突破都会留下社会账本",
@@ -292,6 +348,41 @@ test("buildStructuredRulesFromAxiomTexts turns plain texts into structured rules
   assert.match(rules[0].summary, /任何越级突破都会留下社会账本/);
   assert.equal(rules[1].name, "规则 3");
   assert.equal(rules[1].summary, "人脉网络不能脱离现实资源");
+});
+
+test("mergeWorldStructureSection accepts factions section object with factions and forces", () => {
+  const current = normalizeWorldStructuredData({});
+  const merged = mergeWorldStructureSection(current, "factions", {
+    factions: [
+      {
+        id: "faction-1",
+        name: "守夜人议会",
+        position: "负责压制旧日污染",
+        doctrine: "信息封锁优先于公众知情。",
+        goals: ["维持封印"],
+        methods: ["秘密清除"],
+        representativeForceIds: ["force-1"],
+      },
+    ],
+    forces: [
+      {
+        id: "force-1",
+        name: "守夜人议会行动局",
+        type: "organization",
+        factionId: "faction-1",
+        summary: "负责异常事件现场处置。",
+        baseOfPower: "全球异常档案和特工网络",
+        currentObjective: "封锁北极基地污染外泄",
+        pressure: "公众目击视频正在扩散",
+        leader: null,
+        narrativeRole: "高压清场者",
+      },
+    ],
+  });
+
+  assert.equal(merged.factions.length, 1);
+  assert.equal(merged.forces.length, 1);
+  assert.equal(merged.forces[0].name, "守夜人议会行动局");
 });
 
 test("normalizeWorldStructuredData fills missing sections for partial payloads", () => {
@@ -307,4 +398,41 @@ test("normalizeWorldStructuredData fills missing sections for partial payloads",
   assert.deepEqual(structure.forces, []);
   assert.deepEqual(structure.locations, []);
   assert.deepEqual(structure.relations.forceRelations, []);
+});
+
+test("normalizeWorldStructuredData trims dangling faction and location links", () => {
+  const structure = normalizeWorldStructuredData({
+    factions: [
+      {
+        id: "faction-1",
+        name: "安稳者阵营",
+        position: "维持现实秩序",
+        doctrine: "稳定优先",
+        goals: ["维持家庭体面"],
+        methods: ["相亲撮合"],
+        representativeForceIds: ["force-1", "force-missing"],
+      },
+    ],
+    forces: [
+      {
+        id: "force-1",
+        name: "本地家庭共同体",
+        type: "家庭共同体",
+        summary: "以相亲和房产资源维持阶层优势。",
+        controlledLocationIds: ["location-1", "location-missing"],
+      },
+    ],
+    locations: [
+      {
+        id: "location-1",
+        name: "江心公园",
+        summary: "相亲角所在地。",
+        controllingForceIds: ["force-1", "force-missing"],
+      },
+    ],
+  });
+
+  assert.deepEqual(structure.factions[0].representativeForceIds, ["force-1"]);
+  assert.deepEqual(structure.forces[0].controlledLocationIds, ["location-1"]);
+  assert.deepEqual(structure.locations[0].controllingForceIds, ["force-1"]);
 });

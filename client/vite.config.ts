@@ -53,6 +53,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
+      "@ai-novel/shared": path.resolve(__dirname, "../shared"),
     },
   },
   build: {

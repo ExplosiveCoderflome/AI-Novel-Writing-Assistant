@@ -17,8 +17,12 @@ import type {
   WorldOptionRefinementLevel,
   WorldPropertyOption,
   WorldReferenceAnchor,
+  WorldGenerationBlueprint,
   WorldReferenceMode,
+  WorldReferenceContext,
   WorldReferenceSeedBundle,
+  WorldSkeletonGenerationOptions,
+  WorldSkeletonGenerationPayload,
 } from "@ai-novel/shared/types/worldWizard";
 import { apiClient } from "./client";
 
@@ -212,6 +216,23 @@ export async function analyzeWorldInspiration(payload: {
   const { data } = await apiClient.post<
     ApiResponse<WorldInspirationAnalysisResult>
   >("/worlds/inspiration/analyze", payload);
+  return data;
+}
+
+export async function generateWorldSkeleton(payload: {
+  idea: string;
+  worldType?: string;
+  template?: string;
+  referenceContext?: WorldReferenceContext | null;
+  blueprint?: WorldGenerationBlueprint | null;
+  options: WorldSkeletonGenerationOptions;
+  provider?: LLMProvider;
+  model?: string;
+}) {
+  const { data } = await apiClient.post<ApiResponse<WorldSkeletonGenerationPayload>>(
+    "/worlds/skeleton/generate",
+    payload,
+  );
   return data;
 }
 

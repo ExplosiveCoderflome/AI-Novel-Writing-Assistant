@@ -115,7 +115,6 @@ export function buildBibleText(bible: {
   coreSetting: string | null;
   forbiddenRules: string | null;
   characterArcs: string | null;
-  worldRules: string | null;
 } | null): string {
   if (!bible) {
     return "";
@@ -126,7 +125,6 @@ export function buildBibleText(bible: {
     bible.coreSetting ? `核心设定：${compactText(bible.coreSetting, 140)}` : "",
     bible.forbiddenRules ? `禁止冲突：${compactText(bible.forbiddenRules, 140)}` : "",
     bible.characterArcs ? `角色成长：${compactText(bible.characterArcs, 140)}` : "",
-    bible.worldRules ? `世界规则：${compactText(bible.worldRules, 140)}` : "",
   ].filter(Boolean).join("\n");
 }
 

@@ -11,6 +11,7 @@ import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import { characterVisibleProfileCompletionPrompt } from "../../../prompting/prompts/novel/characterVisibleProfile.prompts";
 import { normalizeStoryModeOutput, buildStoryModePromptBlock } from "../../storyMode/storyModeProfile";
 import type { LLMGenerateOptions } from "../novelCoreShared";
+import { WorldContextGateway } from "../worldContext/WorldContextGateway";
 
 export interface CharacterVisibleProfileGenerateOptions extends LLMGenerateOptions {
   userGuidance?: string;
@@ -173,6 +174,8 @@ function extractBookContractText(bookContract: {
 }
 
 export class CharacterVisibleProfileService {
+  private readonly worldContextGateway = new WorldContextGateway();
+
   async generateCharacterVisibleProfile(
     novelId: string,
     characterId: string,
@@ -226,6 +229,12 @@ export class CharacterVisibleProfileService {
       primary: novel.primaryStoryMode ? normalizeStoryModeOutput(novel.primaryStoryMode) : null,
       secondary: novel.secondaryStoryMode ? normalizeStoryModeOutput(novel.secondaryStoryMode) : null,
     });
+    const worldContext = await this.worldContextGateway.getWorldContextBlock(novelId, {
+      purpose: "character",
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature,
+    });
 
     const result = await runStructuredPrompt({
       asset: characterVisibleProfileCompletionPrompt,
@@ -235,11 +244,11 @@ export class CharacterVisibleProfileService {
         projectMode: novel.projectMode ?? "co_pilot",
         storyModeBlock,
         bookContractText: extractBookContractText(novel.bookContract),
+        worldContextText: worldContext?.promptBlock ?? "",
         bibleText: [
           novel.bible?.mainPromise ? `主线承诺：${novel.bible.mainPromise}` : "",
           novel.bible?.coreSetting ? `核心设定：${novel.bible.coreSetting}` : "",
           novel.bible?.characterArcs ? `角色成长：${novel.bible.characterArcs}` : "",
-          novel.bible?.worldRules ? `世界规则：${novel.bible.worldRules}` : "",
         ].filter(Boolean).join("\n"),
         storyMacroText: [
           novel.storyMacroPlan?.storyInput ? `故事输入：${novel.storyMacroPlan.storyInput}` : "",

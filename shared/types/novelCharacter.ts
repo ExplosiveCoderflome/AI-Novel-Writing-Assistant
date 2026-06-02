@@ -264,12 +264,19 @@ export interface CharacterCastOptionClearResult {
 export type SupplementalCharacterGenerationMode = "linked" | "independent" | "auto";
 export type SupplementalCharacterTargetCastRole = CharacterCastRole | "auto";
 
+export interface CharacterWorldFocusHints {
+  preferFaction?: string;
+  forceCompliance?: boolean;
+}
+
 export interface SupplementalCharacterGenerateInput {
   mode?: SupplementalCharacterGenerationMode;
   anchorCharacterIds?: string[];
   targetCastRole?: SupplementalCharacterTargetCastRole;
   count?: number;
   userPrompt?: string;
+  useWorldContext?: boolean;
+  worldFocusHints?: CharacterWorldFocusHints;
   provider?: LLMProvider;
   model?: string;
   temperature?: number;

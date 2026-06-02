@@ -13,6 +13,7 @@ export const DIRECTOR_CANDIDATE_STEP_IDS: Record<DirectorCandidateStageNode, str
 export const DIRECTOR_PLANNING_STEP_IDS: Record<DirectorPlanningStage, string> = {
   story_macro: DIRECTOR_WORKFLOW_STEP_IDS.planning.story_macro,
   book_contract: DIRECTOR_WORKFLOW_STEP_IDS.planning.book_contract,
+  world_setup: DIRECTOR_WORKFLOW_STEP_IDS.planning.world_setup,
   character_setup: DIRECTOR_WORKFLOW_STEP_IDS.planning.character_setup,
   volume_strategy: DIRECTOR_WORKFLOW_STEP_IDS.planning.volume_strategy,
   structured_outline: DIRECTOR_WORKFLOW_STEP_IDS.planning.structured_outline,

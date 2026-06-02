@@ -30,6 +30,7 @@ test("safe pipeline phase falls back to volume strategy when structured outline 
     requestedPhase: "structured_outline",
     hasStoryMacroPlan: true,
     hasBookContract: true,
+    hasWorldSetupPrepared: true,
     hasCharacters: true,
     hasVolumeWorkspace: true,
     hasVolumeStrategyPlan: false,
@@ -69,12 +70,41 @@ test("safe pipeline phase skips character setup when characters already exist", 
     requestedPhase: "story_macro",
     hasStoryMacroPlan: true,
     hasBookContract: true,
+    hasWorldSetupPrepared: true,
     hasCharacters: true,
     hasVolumeWorkspace: false,
     hasVolumeStrategyPlan: false,
   });
 
   assert.equal(phase, "volume_strategy");
+});
+
+test("safe pipeline phase prepares book world before character setup", () => {
+  const phase = resolveSafeDirectorPipelineStartPhase({
+    requestedPhase: "character_setup",
+    hasStoryMacroPlan: true,
+    hasBookContract: true,
+    hasWorldSetupPrepared: false,
+    hasCharacters: false,
+    hasVolumeWorkspace: false,
+    hasVolumeStrategyPlan: false,
+  });
+
+  assert.equal(phase, "world_setup");
+});
+
+test("safe pipeline phase treats skipped world setup as prepared", () => {
+  const phase = resolveSafeDirectorPipelineStartPhase({
+    requestedPhase: "character_setup",
+    hasStoryMacroPlan: true,
+    hasBookContract: true,
+    hasWorldSetupPrepared: true,
+    hasCharacters: false,
+    hasVolumeWorkspace: false,
+    hasVolumeStrategyPlan: false,
+  });
+
+  assert.equal(phase, "character_setup");
 });
 
 test("asset-first recovery resumes auto execution from existing executable assets", () => {

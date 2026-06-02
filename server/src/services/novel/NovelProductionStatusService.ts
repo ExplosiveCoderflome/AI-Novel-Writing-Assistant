@@ -59,6 +59,15 @@ export interface ProductionRuntimeStatus {
 
 type ProductionChapterProgress = DirectorFactBaseSummary["chapterExecution"] | ChapterExecutionProgressSummary | null;
 
+interface ProductionNovelWorldState {
+  id: string;
+  title: string | null;
+  coverSummary: string | null;
+  sourceWorldId: string | null;
+  hasStructuredData: boolean;
+  hasStorySlice: boolean;
+}
+
 export interface ProductionStatusResult {
   novelId: string;
   title: string;
@@ -84,15 +93,18 @@ export class NovelProductionStatusService {
   private readonly db: Pick<typeof prisma, "novel">;
   private readonly factSummaryService: Pick<DirectorFactSummaryService, "getBaseSummary"> | null;
   private readonly chapterInspector: Pick<ChapterExecutionProgressInspector, "inspectNovel"> | null;
+  private readonly novelWorldReader: ((novelId: string) => Promise<ProductionNovelWorldState | null>) | null;
 
   constructor(input: {
     db?: Pick<typeof prisma, "novel">;
     factSummaryService?: Pick<DirectorFactSummaryService, "getBaseSummary">;
     chapterInspector?: Pick<ChapterExecutionProgressInspector, "inspectNovel">;
+    novelWorldReader?: (novelId: string) => Promise<ProductionNovelWorldState | null>;
   } = {}) {
     this.db = input.db ?? prisma;
     this.factSummaryService = input.factSummaryService ?? null;
     this.chapterInspector = input.chapterInspector ?? null;
+    this.novelWorldReader = input.novelWorldReader ?? null;
   }
 
   async getNovelProductionStatus(input: {
@@ -134,6 +146,8 @@ export class NovelProductionStatusService {
       this.loadDirectorFactSummary(novel.id),
       this.inspectChapterProgress(novel.id),
     ]);
+    const novelWorldState = await this.loadNovelWorldState(novel.id);
+    const worldState = resolveProductionWorldState(novel, novelWorldState);
     const chapterProgress = factSummary?.chapterExecution ?? inspectedChapterProgress;
     const structuredOutlineChapters = novel.structuredOutline?.trim()
       ? parseStructuredOutline(novel.structuredOutline).length
@@ -155,11 +169,12 @@ export class NovelProductionStatusService {
       chapterProgress,
       targetChapterCount,
       structuredOutlineChapters,
+      hasActiveWorld: worldState.hasWorld,
     });
 
     const assetStages: ProductionStatusStage[] = [
       { key: "novel_workspace", label: "小说工作区", status: "completed", detail: `《${novel.title}》` },
-      { key: "world", label: "世界观", status: factProgress.facts.hasWorld ? "completed" : "pending", detail: novel.world?.name ?? null },
+      { key: "world", label: "本书世界", status: factProgress.facts.hasWorld ? "completed" : "pending", detail: worldState.worldName },
       { key: "story_macro", label: "故事宏观规划", status: factProgress.facts.hasStoryMacro ? "completed" : "pending", detail: factProgress.facts.hasStoryMacro ? "宏观规划可用" : null },
       { key: "book_contract", label: "Book Contract", status: factProgress.facts.hasBookContract ? "completed" : "pending", detail: factProgress.facts.hasBookContract ? "书级写法约定可用" : null },
       { key: "characters", label: "核心角色", status: factProgress.facts.hasCharacters ? "completed" : "pending", detail: factProgress.facts.characterCount > 0 ? `${factProgress.facts.characterCount} 个角色` : null },
@@ -244,8 +259,8 @@ export class NovelProductionStatusService {
     return {
       novelId: novel.id,
       title: novel.title,
-      worldId: novel.world?.id ?? null,
-      worldName: novel.world?.name ?? null,
+      worldId: worldState.worldId,
+      worldName: worldState.worldName,
       chapterCount,
       targetChapterCount,
       assetStages,
@@ -282,6 +297,25 @@ export class NovelProductionStatusService {
     } catch {
       return null;
     }
+  }
+
+  private async loadNovelWorldState(novelId: string): Promise<ProductionNovelWorldState | null> {
+    if (this.novelWorldReader) {
+      return this.novelWorldReader(novelId);
+    }
+    const [row = null] = await prisma.$queryRaw<ProductionNovelWorldState[]>`
+      SELECT
+        "id",
+        "title",
+        "coverSummary",
+        "sourceWorldId",
+        CASE WHEN "structuredDataJson" IS NOT NULL AND length(trim("structuredDataJson")) > 0 THEN true ELSE false END AS "hasStructuredData",
+        CASE WHEN "storySliceJson" IS NOT NULL AND length(trim("storySliceJson")) > 0 THEN true ELSE false END AS "hasStorySlice"
+      FROM "NovelWorld"
+      WHERE "novelId" = ${novelId}
+      LIMIT 1
+    `;
+    return row;
   }
 }
 
@@ -346,6 +380,7 @@ function buildFactProgress(input: {
   chapterProgress: ProductionChapterProgress;
   targetChapterCount: number;
   structuredOutlineChapters: number;
+  hasActiveWorld: boolean;
 }): ProductionFactProgress {
   const factSummary = input.factSummary;
   const chapterProgress = input.chapterProgress;
@@ -362,7 +397,7 @@ function buildFactProgress(input: {
     ?? chapterProgress?.chapters?.filter((chapter) => chapter.completedStages.includes("chapter_state_committed")).length
     ?? 0;
   const facts = {
-    hasWorld: Boolean(input.novel.world),
+    hasWorld: input.hasActiveWorld,
     hasStoryMacro: Boolean(factSummary?.book.hasStoryMacro),
     hasBookContract: Boolean(factSummary?.book.hasBookContract),
     hasStoryBible: Boolean(input.novel.bible),
@@ -415,6 +450,24 @@ function buildFactProgress(input: {
     qualityRepairPercent,
     totalPercent: Math.round((planningPercent * 0.35) + (chapterExecutionPercent * 0.5) + (qualityRepairPercent * 0.15)),
     facts,
+  };
+}
+
+function resolveProductionWorldState(
+  novel: { world: { id: string; name: string } | null },
+  novelWorld: ProductionNovelWorldState | null,
+): { hasWorld: boolean; worldId: string | null; worldName: string | null } {
+  if (novelWorld && (novelWorld.hasStructuredData || novelWorld.hasStorySlice || novelWorld.title || novelWorld.coverSummary)) {
+    return {
+      hasWorld: true,
+      worldId: novelWorld.sourceWorldId ?? novel.world?.id ?? null,
+      worldName: novelWorld.title ?? novel.world?.name ?? novelWorld.coverSummary ?? "本书世界",
+    };
+  }
+  return {
+    hasWorld: Boolean(novel.world),
+    worldId: novel.world?.id ?? null,
+    worldName: novel.world?.name ?? null,
   };
 }
 

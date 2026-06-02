@@ -6,7 +6,7 @@ import { getRagQueryForChapter, novelReferenceService } from "../NovelReferenceS
 import { NovelContinuationService } from "../NovelContinuationService";
 import { parseJsonStringArray } from "../novelP0Utils";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
-import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
+import { WorldContextGateway } from "../worldContext/WorldContextGateway";
 import { characterDynamicsQueryService } from "../dynamics/CharacterDynamicsQueryService";
 import { characterResourceLedgerService } from "../characterResource/CharacterResourceLedgerService";
 import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
@@ -19,10 +19,6 @@ import {
   buildStateContextBlockFromCanonical,
 } from "../state/CanonicalStateService";
 import { contextAssemblyService } from "../production/ContextAssemblyService";
-import {
-  buildLegacyWorldContextFromWorld,
-  formatStoryWorldSlicePromptBlock,
-} from "../storyWorldSlice/storyWorldSliceFormatting";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import {
   buildBibleText,
@@ -94,30 +90,6 @@ function extractChapterTail(content: string | null | undefined, maxLength = 520)
     return "";
   }
   return normalized.slice(Math.max(0, normalized.length - maxLength));
-}
-
-function buildWorldContextFromNovel(
-  novel: {
-    world?: {
-      name: string;
-      worldType?: string | null;
-      description?: string | null;
-      axioms?: string | null;
-      background?: string | null;
-      geography?: string | null;
-      magicSystem?: string | null;
-      politics?: string | null;
-      races?: string | null;
-      religions?: string | null;
-      technology?: string | null;
-      conflicts?: string | null;
-      history?: string | null;
-      economy?: string | null;
-      factions?: string | null;
-    } | null;
-  } | null,
-): string {
-  return buildLegacyWorldContextFromWorld(novel?.world ?? null);
 }
 
 function buildSyntheticCharacterResourceIssues(
@@ -263,7 +235,7 @@ function findVolumeWindowSeed(
 
 export class GenerationContextAssembler {
   private readonly continuationService = new NovelContinuationService();
-  private readonly worldSliceService = new NovelWorldSliceService();
+  private readonly worldContextGateway = new WorldContextGateway();
   private readonly styleBindingService = new StyleBindingService();
 
   async assemble(
@@ -356,7 +328,7 @@ export class GenerationContextAssembler {
       where: buildBlockingPendingReviewProposalWhere(novelId, chapterId),
     });
     const [
-      storyWorldSlice,
+      worldContextBlock,
       planPromptBlock,
       pendingReviewProposalCount,
       openAuditIssues,
@@ -372,7 +344,7 @@ export class GenerationContextAssembler {
       payoffLedger,
       characterResourceContext,
     ] = await Promise.all([
-      this.worldSliceService.ensureStoryWorldSlice(novelId, { builderMode: "runtime" }),
+      this.worldContextGateway.getWorldContextBlock(novelId, { purpose: "chapter" }),
       plannerService.buildPlanPromptBlock(novelId, chapterId),
       pendingReviewProposalCountPromise,
       prisma.auditIssue.findMany({
@@ -611,7 +583,6 @@ export class GenerationContextAssembler {
           coreSetting: bible.coreSetting ?? null,
           forbiddenRules: bible.forbiddenRules ?? null,
           characterArcs: bible.characterArcs ?? null,
-          worldRules: bible.worldRules ?? null,
         }
       : null);
     const outlineText = buildOutlineText(novel.outline ?? null);
@@ -632,9 +603,9 @@ export class GenerationContextAssembler {
       ragText = "";
     }
 
-    const worldBlock = storyWorldSlice
-      ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
-      : buildWorldContextFromNovel(novel);
+    const storyWorldSlice = worldContextBlock?.rawSlice ?? null;
+    const worldBlock = worldContextBlock?.promptBlock
+      ?? "本书世界上下文：暂无。请根据小说基础信息、章节任务和已有连续性推进，不要凭空新增复杂世界规则。";
     const storyModeBlock = buildStoryModePromptBlock({
       primary: novel.primaryStoryMode ? normalizeStoryModeOutput(novel.primaryStoryMode) : null,
       secondary: novel.secondaryStoryMode ? normalizeStoryModeOutput(novel.secondaryStoryMode) : null,

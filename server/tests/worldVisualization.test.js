@@ -60,9 +60,38 @@ test("buildFallbackWorldVisualizationPayload keeps timeline and geography usable
   });
 
   assert.ok(payload.geographyMap.nodes.length >= 3);
+  assert.ok(payload.geographyMap.nodes.every((node) => typeof node.x === "number" && typeof node.y === "number"));
+  assert.ok(payload.geographyMap.nodes.every((node) => node.x >= 0 && node.x <= 100 && node.y >= 0 && node.y <= 100));
   assert.ok(payload.powerTree.length >= 3);
   assert.equal(payload.timeline[0].year, "1203年");
   assert.match(payload.timeline[0].event, /黑河谷失守/);
+});
+
+test("buildFallbackWorldVisualizationPayload does not classify urban person groups as race", () => {
+  const payload = buildFallbackWorldVisualizationPayload({
+    id: "world-urban",
+    name: "灰街",
+    worldType: "都市",
+    description: "都市现实世界。",
+    background: null,
+    geography: "江心公园\n天衡大厦",
+    cultures: null,
+    magicSystem: null,
+    politics: "天衡集团与本地土著家庭联盟围绕婚恋资源和职业机会形成现实压力。",
+    races: null,
+    religions: null,
+    technology: null,
+    conflicts: "情感纠葛线人物不应成为种族节点。",
+    history: null,
+    economy: null,
+    factions: "天衡集团\n本地土著家庭联盟\n情感纠葛线人物\n合租屋室友圈",
+  });
+
+  const nodeByLabel = Object.fromEntries(payload.factionGraph.nodes.map((node) => [node.label, node]));
+  assert.equal(nodeByLabel["天衡集团"].type, "organization");
+  assert.equal(nodeByLabel["本地土著家庭联盟"].type, "organization");
+  assert.notEqual(nodeByLabel["情感纠葛线人物"]?.type, "race");
+  assert.notEqual(nodeByLabel["合租屋室友圈"]?.type, "race");
 });
 
 test("buildWorldVisualizationPayload prefers structured relations when structure exists", async () => {
@@ -171,5 +200,10 @@ test("buildWorldVisualizationPayload prefers structured relations when structure
   assert.ok(payload.factionGraph.nodes.some((node) => node.label === "守港军"));
   assert.ok(payload.factionGraph.nodes.some((node) => node.label === "黑市舰队"));
   assert.ok(payload.factionGraph.edges.some((edge) => edge.relation === "对抗"));
-  assert.ok(payload.geographyMap.nodes.some((node) => node.label === "黑门港"));
+  const blackGatePort = payload.geographyMap.nodes.find((node) => node.label === "黑门港");
+  assert.ok(blackGatePort);
+  assert.equal(blackGatePort.regionType, "city");
+  assert.equal(blackGatePort.terrain, "雾港");
+  assert.ok(Array.isArray(blackGatePort.controllingForceIds));
+  assert.ok(typeof blackGatePort.x === "number" && typeof blackGatePort.y === "number");
 });

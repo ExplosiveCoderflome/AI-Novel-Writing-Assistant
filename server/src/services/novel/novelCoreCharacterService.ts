@@ -5,7 +5,8 @@ import {
   characterWorldCheckPrompt,
 } from "../../prompting/prompts/novel/coreCharacter.prompts";
 import { ragServices } from "../rag";
-import { buildWorldContextFromNovel, queueRagDelete, queueRagUpsert } from "./novelCoreSupport";
+import { queueRagDelete, queueRagUpsert } from "./novelCoreSupport";
+import { WorldContextGateway } from "./worldContext/WorldContextGateway";
 import {
   CharacterInput,
   CharacterTimelineSyncOptions,
@@ -15,6 +16,8 @@ import {
 import { serializeCharacterProhibitions } from "./characters/characterHardFacts";
 
 export class NovelCoreCharacterService {
+  private readonly worldContextGateway = new WorldContextGateway();
+
   async listCharacters(novelId: string) {
     return prisma.character.findMany({ where: { novelId }, orderBy: { createdAt: "asc" } });
   }
@@ -311,7 +314,7 @@ export class NovelCoreCharacterService {
     const [novel, character] = await Promise.all([
       prisma.novel.findUnique({
         where: { id: novelId },
-        include: { world: true },
+        select: { id: true },
       }),
       prisma.character.findFirst({
         where: { id: characterId, novelId },
@@ -320,15 +323,21 @@ export class NovelCoreCharacterService {
     if (!novel || !character) {
       throw new Error("小说或角色不存在");
     }
-    if (!novel.world) {
+    const worldContextBlock = await this.worldContextGateway.getWorldContextBlock(novelId, {
+      purpose: "character",
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature,
+    });
+    if (!worldContextBlock) {
       return {
         status: "pass" as const,
-        warnings: ["当前小说未绑定世界观，无法执行严格世界规则检查"],
+        warnings: ["当前没有可用的本书世界上下文，无法执行严格世界规则检查。"],
         issues: [],
       };
     }
 
-    const worldContext = buildWorldContextFromNovel(novel);
+    const worldContext = worldContextBlock.promptBlock;
     try {
       const result = await runStructuredPrompt({
         asset: characterWorldCheckPrompt,

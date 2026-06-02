@@ -240,6 +240,11 @@ export const supplementalCharacterGenerationInputSchema = z.object({
   targetCastRole: z.union([characterCastRoleEnum, z.literal("auto")]).optional().default("auto"),
   count: z.number().int().min(1).max(3).optional(),
   userPrompt: z.string().trim().max(2000).optional(),
+  useWorldContext: z.boolean().optional().default(true),
+  worldFocusHints: z.object({
+    preferFaction: z.string().trim().max(120).optional(),
+    forceCompliance: z.boolean().optional(),
+  }).optional(),
 });
 
 export const supplementalCharacterGenerationResponseSchema = z.object({

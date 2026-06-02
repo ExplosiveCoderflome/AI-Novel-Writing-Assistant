@@ -515,7 +515,13 @@ export default function PipelineTab(props: PipelineTabProps) {
                   <>
                     <div className="rounded-md border p-2"><div className="font-medium">主线承诺</div><div className="text-muted-foreground">{bible.mainPromise ?? "暂无"}</div></div>
                     <div className="rounded-md border p-2"><div className="font-medium">核心设定</div><div className="text-muted-foreground">{bible.coreSetting ?? "暂无"}</div></div>
-                    <div className="rounded-md border p-2"><div className="font-medium">世界规则</div><div className="text-muted-foreground">{bible.worldRules ?? "暂无"}</div></div>
+                    <div className="rounded-md border p-2">
+                      <div className="font-medium">Bible 世界记录</div>
+                      <div className="text-xs leading-5 text-muted-foreground">
+                        这里是作品圣经里的文字记录；章节生成优先读取“本书世界”里的世界手册和使用范围。
+                      </div>
+                      <div className="mt-2 text-muted-foreground">{bible.worldRules ?? "暂无"}</div>
+                    </div>
                   </>
                 ) : (
                   <div className="text-muted-foreground">暂无作品圣经。</div>
