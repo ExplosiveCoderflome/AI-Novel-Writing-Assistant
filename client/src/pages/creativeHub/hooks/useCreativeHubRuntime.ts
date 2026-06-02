@@ -442,6 +442,11 @@ export function useCreativeHubRuntime({
       }] : []);
       setThreadStateLoaded(true);
       currentRunIdRef.current = state.latestTurnSummary?.runId ?? null;
+    }).catch((error) => {
+      if (disposed) return;
+      // Surface the failure and unstick the UI instead of leaving it on the loading state forever.
+      setThreadStateLoaded(true);
+      toast.error(error instanceof Error ? error.message : "加载会话历史失败，请稍后重试。");
     });
     return () => {
       disposed = true;

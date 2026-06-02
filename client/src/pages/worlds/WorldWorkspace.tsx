@@ -491,12 +491,14 @@ export default function WorldWorkspace() {
               })
             }
             onInjectLibraryField={(libraryId) =>
-              void useWorldLibraryItem(libraryId, { worldId: id, targetField: selectedLayerMeta.primaryField }).then(
-                () => invalidateWorld(),
-              )
+              void useWorldLibraryItem(libraryId, { worldId: id, targetField: selectedLayerMeta.primaryField })
+                .then(() => invalidateWorld())
+                .catch((error) => toast.error(error instanceof Error ? error.message : "引用素材到字段失败。"))
             }
             onInjectLibraryStructure={(libraryId, targetCollection) =>
-              void useWorldLibraryItem(libraryId, { worldId: id, targetCollection }).then(() => invalidateWorld())
+              void useWorldLibraryItem(libraryId, { worldId: id, targetCollection })
+                .then(() => invalidateWorld())
+                .catch((error) => toast.error(error instanceof Error ? error.message : "引用素材到结构失败。"))
             }
             onPublishLibrary={() => publishLibraryMutation.mutate()}
             onCreateSnapshot={() => snapshotCreateMutation.mutate()}

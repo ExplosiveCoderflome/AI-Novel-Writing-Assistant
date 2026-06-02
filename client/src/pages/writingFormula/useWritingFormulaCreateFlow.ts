@@ -182,6 +182,9 @@ export function useWritingFormulaCreateFlow({
       resetCreateFlow();
       void refreshStyleData().then(() => {
         onAutoSavedProfileReady(profileId, `写法“${profileName}”已自动保存，已经为你打开当前写法编辑。`);
+      }).catch(() => {
+        // The profile is already saved server-side; still open the editor even if the list refresh failed.
+        onAutoSavedProfileReady(profileId, `写法“${profileName}”已自动保存，但刷新写法列表失败，请稍后手动刷新。`);
       });
       return;
     }

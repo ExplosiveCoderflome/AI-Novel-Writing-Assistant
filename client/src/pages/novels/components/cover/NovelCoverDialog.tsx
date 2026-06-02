@@ -605,7 +605,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                         type="button"
                         size="sm"
                         variant="outline"
-                        disabled={asset.isPrimary || setPrimaryMutation.isPending || deleteAssetMutation.variables === asset.id}
+                        disabled={asset.isPrimary || setPrimaryMutation.isPending || (deleteAssetMutation.isPending && deleteAssetMutation.variables === asset.id)}
                         onClick={() => setPrimaryMutation.mutate(asset.id)}
                       >
                         {asset.isPrimary ? "当前主封面" : "设为当前封面"}
@@ -614,14 +614,14 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                         type="button"
                         size="sm"
                         variant="destructive"
-                        disabled={deleteAssetMutation.variables === asset.id}
+                        disabled={deleteAssetMutation.isPending && deleteAssetMutation.variables === asset.id}
                         onClick={() => {
                           void handleDeleteAsset(asset).catch((error) => {
                             window.alert(getErrorMessage(error, "删除封面失败，请稍后重试。"));
                           });
                         }}
                       >
-                        {deleteAssetMutation.variables === asset.id ? "删除中..." : "删除"}
+                        {deleteAssetMutation.isPending && deleteAssetMutation.variables === asset.id ? "删除中..." : "删除"}
                       </Button>
                     </div>
                   </div>
