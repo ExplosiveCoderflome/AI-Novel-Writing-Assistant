@@ -22,8 +22,9 @@ export function parseDirectorTaskNotice(meta: Record<string, unknown> | null | u
     code: notice.code.trim(),
     summary: notice.summary.trim(),
     action: notice.action && typeof notice.action === "object"
+      && notice.action.type === "open_structured_outline"
       ? {
-        type: notice.action.type === "open_structured_outline" ? "open_structured_outline" : "open_structured_outline",
+        type: "open_structured_outline",
         label: typeof notice.action.label === "string" && notice.action.label.trim()
           ? notice.action.label.trim()
           : "快速修复章节标题",

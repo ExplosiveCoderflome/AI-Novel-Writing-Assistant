@@ -167,7 +167,7 @@ function nearestAnchorIndex(availableChapterOrders: number[], anchorChapterOrder
   return bestIndex;
 }
 
-function buildWindowOrders(
+export function buildWindowOrders(
   anchorChapterOrder: number | null,
   availableChapterOrders: number[] | null | undefined,
   requestedWindowSize?: number | null,
@@ -181,16 +181,24 @@ function buildWindowOrders(
   if (normalizedOrders.length === 0) {
     const fallbackOrders = [anchorChapterOrder];
     if (mode === "surrounding") {
+      // Track unique chapter numbers directly: clamping `anchor - distance` at 1 used to
+      // produce duplicate 1s that were counted against windowSize before dedup, so anchors
+      // near chapter 1 returned fewer chapters than requested. Each iteration always adds a
+      // fresh forward chapter, guaranteeing termination.
+      const surrounding = new Set([anchorChapterOrder]);
       let distance = 1;
-      while (fallbackOrders.length < windowSize) {
-        fallbackOrders.unshift(Math.max(1, anchorChapterOrder - distance));
-        if (fallbackOrders.length >= windowSize) {
-          break;
+      while (surrounding.size < windowSize) {
+        const before = anchorChapterOrder - distance;
+        if (before >= 1) {
+          surrounding.add(before);
+          if (surrounding.size >= windowSize) {
+            break;
+          }
         }
-        fallbackOrders.push(anchorChapterOrder + distance);
+        surrounding.add(anchorChapterOrder + distance);
         distance += 1;
       }
-      return uniqueNumbers(fallbackOrders).slice(0, windowSize);
+      return uniqueNumbers([...surrounding]).slice(0, windowSize);
     }
     for (let offset = 1; fallbackOrders.length < windowSize; offset += 1) {
       fallbackOrders.push(anchorChapterOrder + offset);

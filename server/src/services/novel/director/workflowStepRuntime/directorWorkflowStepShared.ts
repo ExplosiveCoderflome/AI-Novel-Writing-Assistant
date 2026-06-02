@@ -169,7 +169,6 @@ export function resolveCurrentScopedChapter(
   return active
     ?? chapters.find((chapter) => chapter.status === "needs_repair")
     ?? chapters.find((chapter) => chapter.status === "not_started")
-    ?? chapters.find((chapter) => chapter.status === "running")
     ?? null;
 }
 

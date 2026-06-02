@@ -333,10 +333,13 @@ function createChapterDraftExecutableModule(
           const resumeFrom = resumeChapterOrder
             ? `chapter:${resumeChapterOrder}`
             : "chapter_execution";
+          // recoverableRange is always a non-null object; an actual resumable range only
+          // exists when startOrder is set (!= null also rules out an undefined progress).
+          const hasRecoverableRange = progress?.recoverableRange?.startOrder != null;
           return {
-            recoverable: Boolean(progress?.recoverableRange),
+            recoverable: hasRecoverableRange,
             resumeFrom,
-            reason: progress?.recoverableRange
+            reason: hasRecoverableRange
               ? "Chapter execution can resume from the latest observable progress."
             : "Chapter execution requires a new start point.",
         };
