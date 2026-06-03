@@ -320,7 +320,7 @@ function buildContinuitySignal(input: ChapterQualityLoopAssessmentInput): Chapte
 
 function buildRollingWindowSignal(input: ChapterQualityLoopAssessmentInput): ChapterQualityLoopSignal {
   const replanRecommendation = input.runtimePackage?.replanRecommendation ?? null;
-  if (replanRecommendation?.recommended) {
+  if (replanRecommendation?.recommended && replanRecommendation.action === "stop_for_replan") {
     return {
       artifactType: "rolling_window_review",
       status: "invalid",

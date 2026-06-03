@@ -9,7 +9,7 @@ import {
   ListTodo,
 } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import type { DirectorContinuationMode, DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
+import type { DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
 import type { VolumePlan } from "@ai-novel/shared/types/novel";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { getNovelDetail, getNovelQualityReport, getNovelVolumeWorkspace } from "@/api/novel";
@@ -29,7 +29,7 @@ import DirectorBookAutomationCard from "@/components/autoDirector/DirectorBookAu
 import NovelAutoDirectorProgressPanel from "@/pages/novels/components/NovelAutoDirectorProgressPanel";
 import { shouldShowPinnedBookAutomationProjection } from "@/pages/novels/novelEditAutomationStatus";
 import { cn } from "@/lib/utils";
-import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
+import { resolveDirectorContinueMode, resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import {
   applyAutoDirectorResetStepReadiness,
   extractAutoDirectorResetStepsFromMeta,
@@ -100,6 +100,7 @@ function shouldShowBookAutomationProjectionWithoutActiveTask(input: {
     || input.status === "waiting_approval"
     || input.status === "waiting_recovery"
     || input.status === "blocked"
+    || input.status === "failed"
   ) {
     return true;
   }
@@ -116,26 +117,6 @@ function shouldShowBookAutomationProjectionWithoutActiveTask(input: {
       : null,
     directorTaskId: input.requestedDirectorTaskId,
   });
-}
-
-function resolveDirectorContinueMode(task: Pick<
-  UnifiedTaskDetail,
-  "checkpointType" | "currentItemKey" | "currentStage" | "pendingManualRecovery"
-> | null | undefined): DirectorContinuationMode {
-  if (task?.pendingManualRecovery) {
-    return "resume";
-  }
-  if (
-    task?.checkpointType === "replan_required"
-    || task?.currentItemKey === "quality_repair"
-    || task?.currentStage?.includes("质量")
-  ) {
-    return "skip_quality_repair";
-  }
-  if (task?.checkpointType === "chapter_batch_ready") {
-    return "auto_execute_range";
-  }
-  return "resume";
 }
 
 export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {

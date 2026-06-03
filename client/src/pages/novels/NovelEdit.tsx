@@ -77,7 +77,7 @@ import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWor
 import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorDisplayStage, tabFromDirectorProgress, tabFromScope, type NovelWorkspaceFlowTab } from "./novelWorkspaceNavigation";
 import { resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
 import { resolveInternalNavigationTarget } from "@/lib/internalNavigation";
-import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
+import { resolveDirectorContinueMode, resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import {
   getDirectorCockpitActionHref,
   getDirectorCockpitContinuationMode,
@@ -1030,19 +1030,18 @@ export default function NovelEdit() {
       if (!targetTaskId) {
         throw new Error("当前没有可继续的自动导演任务。");
       }
-      return continueNovelWorkflow(
-        targetTaskId,
-        targetTask?.status === "waiting_approval"
-          ? { continuationMode: "resume" }
-          : undefined,
-      );
+      return continueNovelWorkflow(targetTaskId, {
+        continuationMode: resolveDirectorContinueMode(targetTask),
+      });
     },
     onSuccess: async (response, input) => {
       const targetTaskId = input?.directorTaskId || actionTargetDirectorTaskId;
       const targetTask = targetTaskId === visibleDirectorTask?.id ? visibleDirectorTask : activeAutoDirectorTask;
       setDirectorTaskId(response.data?.taskId ?? targetTaskId);
       void invalidateAutoDirectorTaskState(response.data?.taskId ?? targetTaskId);
-      const feedback = resolveWorkflowContinuationFeedback(response.data);
+      const feedback = resolveWorkflowContinuationFeedback(response.data, {
+        mode: resolveDirectorContinueMode(targetTask),
+      });
       if (feedback.tone === "error") {
         toast.error(feedback.message);
         return;

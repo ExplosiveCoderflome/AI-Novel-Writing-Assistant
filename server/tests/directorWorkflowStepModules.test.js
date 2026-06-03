@@ -331,6 +331,72 @@ test("chapter draft completion is scoped to the active auto execution range", as
   assert.equal(completeCriteria, true);
 });
 
+test("chapter state commit completion ignores uncommitted chapters outside the active auto execution range", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  const module = getDirectorExecutionStepModule("chapter_state_commit");
+  const outsideUncommittedChapter = buildProgressChapter(1, {
+    drafted: true,
+    status: "reviewable",
+    completedStages: [
+      "execution_contract_ready",
+      "context_package_ready",
+      "draft_started",
+      "draft_saved",
+      "audit_completed",
+      "repair_completed_or_not_needed",
+      "runtime_package_saved",
+      "chapter_artifacts_synced",
+      "reviewable_or_approved",
+    ],
+  });
+  const chapters = [
+    outsideUncommittedChapter,
+    buildProgressChapter(2, { drafted: true }),
+    buildProgressChapter(3, { drafted: true }),
+  ];
+  prisma.chapter.findMany = async () => chapters.map(buildChapterRowFromProgressChapter);
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+  const context = {
+    taskId: "task-scoped-chapter-state-commit",
+    novelId: "novel-scoped-state-commit",
+    projectionHints: {
+      directorCanonicalState: buildDirectorStateHint({
+        autoExecutionPlan: {
+          mode: "chapter_range",
+          startOrder: 2,
+          endOrder: 3,
+          autoReview: true,
+          autoRepair: true,
+        },
+        autoExecution: {
+          enabled: true,
+          mode: "chapter_range",
+          startOrder: 2,
+          endOrder: 3,
+          totalChapterCount: 2,
+          completedChapterCount: 2,
+          remainingChapterCount: 0,
+          autoReview: true,
+          autoRepair: true,
+        },
+      }, buildChapterProgressSummary(chapters)),
+    },
+  };
+
+  const completion = await module.inspectCompletion(context);
+  const progress = await module.inspectProgress(context);
+  const validation = await module.validateOutput(undefined, context);
+
+  assert.equal(completion.completed, true);
+  assert.equal(completion.evidence.draftedChapterCount, 2);
+  assert.equal(completion.evidence.committedChapterCount, 2);
+  assert.equal(completion.evidence.totalChapters, 2);
+  assert.equal(progress.status, "completed");
+  assert.equal(validation.valid, true);
+});
+
 test("director core step runtime uses explicit dependency assembly", () => {
   const source = fs.readFileSync(
     path.join(

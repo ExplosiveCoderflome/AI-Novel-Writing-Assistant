@@ -1,4 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 
 export interface SectionDraft {
   editedContent: string;
@@ -16,6 +17,7 @@ export interface LLMConfigState {
 }
 
 export interface AggregatedEvidenceItem {
+  sectionKey: BookAnalysisSectionKey;
   sectionTitle: string;
   label: string;
   excerpt: string;

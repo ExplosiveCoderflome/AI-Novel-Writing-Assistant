@@ -1,4 +1,8 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import {
+  BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS,
+  BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS,
+} from "@ai-novel/shared/types/bookAnalysis";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
@@ -38,135 +42,40 @@ function buildSectionStructuredDataContract(sectionKey: BookAnalysisSectionKey):
     "所有内容都必须基于现有 notes 或分析中已经成立的归纳，不得补写无依据的信息。",
   ].join("\n");
 
-  switch (sectionKey) {
-    case "overview":
-      return [
-        commonRules,
-        `当前 section 推荐使用以下固定结构：
-{
-  "oneLinePositioning": "一句话定位",
-  "genreTags": ["题材标签"],
-  "sellingPointTags": ["卖点标签"],
-  "targetReaders": ["目标读者"],
-  "strengths": ["整体优势"],
-  "weaknesses": ["整体短板"]
-}`,
-        "类型要求：oneLinePositioning 为字符串，其余字段为字符串数组。",
-        "targetReaders 与 weaknesses 允许基于多条 notes 做低风险综合判断，但必须能被题材、卖点、读者信号、短板信号、人物塑造、叙事方式等信息支撑；若支撑不足则返回空数组。",
-      ].join("\n\n");
-
-    case "plot_structure":
-      return [
-        commonRules,
-        `当前 section 推荐使用以下固定结构：
-{
-  "mainlineSummary": "主线梗概",
-  "phaseProgressions": ["阶段推进"],
-  "escalationDesigns": ["冲突升级方式"],
-  "highlightDesigns": ["高光设计"],
-  "paceRisks": ["节奏风险"],
-  "structureHighlights": ["结构亮点"],
-  "reusablePatterns": ["可复用套路"]
-}`,
-        "类型要求：mainlineSummary 为字符串，其余字段为字符串数组。",
-      ].join("\n\n");
-
-    case "timeline":
-      return [
-        commonRules,
-        `当前 section 推荐使用以下固定结构：
-{
-  "timeNodes": ["关键时间节点"],
-  "eventOrder": ["事件先后关系"],
-  "phaseDivisions": ["主线阶段划分"],
-  "stateChangeNodes": ["角色状态变化节点"],
-  "tempoRisks": ["时间跨度或节奏风险"]
-}`,
-        "类型要求：所有字段均为字符串数组。",
-      ].join("\n\n");
-
-    case "character_system":
-      return [
-        commonRules,
-        `当前 section 推荐使用以下固定结构：
-{
-  "protagonistPositioning": "主角定位",
-  "supportingFunctions": ["配角功能"],
-  "antagonistFunctions": ["反派功能"],
-  "relationshipNetwork": ["关系网络要点"],
-  "growthArcs": ["成长弧线"],
-  "characterHighlights": ["人物高光"],
-  "clarityRisks": ["人物分工或辨识度风险"]
-}`,
-        "类型要求：protagonistPositioning 为字符串，其余字段为字符串数组。",
-      ].join("\n\n");
-
-    case "worldbuilding":
-      return [
-        commonRules,
-        `当前 section 推荐使用以下固定结构：
-{
-  "worldFramework": "世界框架",
-  "ruleSystem": ["规则系统"],
-  "settingHighlights": ["设定亮点"],
-  "plotSupport": ["设定如何服务剧情"],
-  "settingRisks": ["设定问题或风险"]
-}`,
-        "类型要求：worldFramework 为字符串，其余字段为字符串数组。",
-      ].join("\n\n");
-
-    case "themes":
-      return [
-        commonRules,
-        `当前 section 推荐使用以下固定结构：
-{
-  "coreThemes": ["核心主题"],
-  "motifs": ["象征母题"],
-  "emotionalTone": "情绪基调",
-  "presentationMethods": ["主题呈现方式"],
-  "themeRisks": ["主题表达风险"]
-}`,
-        "类型要求：emotionalTone 为字符串，其余字段为字符串数组。",
-      ].join("\n\n");
-
-    case "style_technique":
-      return [
-        commonRules,
-        `当前 section 推荐使用以下固定结构：
-{
-  "narrativePov": "叙事视角",
-  "languageStyle": "语言风格",
-  "descriptionMethods": ["描写方式"],
-  "dialoguePatterns": ["对话特征"],
-  "rhythmControl": ["节奏控制方式"],
-  "hookDesigns": ["钩子设计"],
-  "reusableTechniques": ["可复用写法"]
-}`,
-        "类型要求：narrativePov、languageStyle 为字符串，其余字段为字符串数组。",
-      ].join("\n\n");
-
-    case "market_highlights":
-      return [
-        commonRules,
-        `当前 section 推荐使用以下固定结构：
-{
-  "hookPoints": ["读者爽点"],
-  "clickDrivers": ["点击驱动"],
-  "characterSellingPoints": ["人物卖点"],
-  "genreSellingPoints": ["题材卖点"],
-  "targetReaderMatches": ["目标读者匹配点"],
-  "commercialRisks": ["商业化风险"]
-}`,
-        "类型要求：所有字段均为字符串数组。",
-        "targetReaderMatches 允许基于题材、卖点与读者信号做低风险匹配判断，但不要伪装成精确人群画像。",
-      ].join("\n\n");
-
-    default:
-      return [
-        commonRules,
-        "当前 section 没有预设固定结构时，structuredData 仍必须保持字段名简洁、稳定，并与该 section 的分析重点直接对应。",
-      ].join("\n\n");
+  const specs = BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS[sectionKey] ?? [];
+  if (specs.length === 0) {
+    return [
+      commonRules,
+      "当前 section 没有预设固定结构时，structuredData 仍必须保持字段名简洁、稳定，并与该 section 的分析重点直接对应。",
+    ].join("\n\n");
   }
+
+  const structureExample = specs.reduce<Record<string, string | string[]>>((acc, field) => {
+    const label = BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[field.key] ?? field.key;
+    acc[field.key] = field.type === "string" ? label : [label];
+    return acc;
+  }, {});
+  const stringFields = specs.filter((field) => field.type === "string").map((field) => field.key);
+  const arrayFields = specs.filter((field) => field.type === "stringArray").map((field) => field.key);
+  const typeRules = [
+    stringFields.length > 0 ? `${stringFields.join("、")} 为字符串。` : "",
+    arrayFields.length > 0 ? `${arrayFields.join("、")} 为字符串数组。` : "",
+  ].filter(Boolean).join(" ");
+  const extraRules: Partial<Record<BookAnalysisSectionKey, string[]>> = {
+    overview: [
+      "targetReaders 与 weaknesses 允许基于多条 notes 做低风险综合判断，但必须能被题材、卖点、读者信号、短板信号、人物塑造、叙事方式等信息支撑；若支撑不足则返回空数组。",
+    ],
+    market_highlights: [
+      "targetReaderMatches 允许基于题材、卖点与读者信号做低风险匹配判断，但不要伪装成精确人群画像。",
+    ],
+  };
+
+  return [
+    commonRules,
+    `当前 section 必须使用以下固定结构：\n${JSON.stringify(structureExample, null, 2)}`,
+    `类型要求：${typeRules}`,
+    ...(extraRules[sectionKey] ?? []),
+  ].join("\n\n");
 }
 
 function buildOverviewMarkdownRequirements(sectionTitle: string, promptFocus: string): string {

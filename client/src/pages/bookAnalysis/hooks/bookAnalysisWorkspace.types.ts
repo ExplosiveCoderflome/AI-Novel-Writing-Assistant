@@ -1,6 +1,7 @@
 import type {
   BookAnalysis,
   BookAnalysisDetail,
+  BookAnalysisPreset,
   BookAnalysisPublishResult,
   BookAnalysisSection,
   BookAnalysisSectionKey,
@@ -36,6 +37,7 @@ export interface BookAnalysisWorkspace {
   selectedVersionId: string;
   selectedNovelId: string;
   includeTimeline: boolean;
+  analysisPreset: BookAnalysisPreset;
   llmConfig: LLMConfigState;
   sectionDrafts: Record<string, SectionDraft>;
   publishFeedback: string;
@@ -54,6 +56,7 @@ export interface BookAnalysisWorkspace {
   setStatus: (status: BookAnalysisStatus | "") => void;
   setSelectedNovelId: (novelId: string) => void;
   setIncludeTimeline: (include: boolean) => void;
+  setAnalysisPreset: (preset: BookAnalysisPreset) => void;
   setLlmConfig: (config: LLMConfigState) => void;
   selectDocument: (documentId: string) => void;
   selectVersion: (versionId: string) => void;

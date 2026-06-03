@@ -2,6 +2,7 @@ import {
   normalizeChapterScenePlan,
   serializeChapterScenePlan,
 } from "@ai-novel/shared/types/chapterLengthControl";
+import { sanitizeCreativeMustAdvanceItems } from "@ai-novel/shared/types/chapterCreativeContract";
 import { createHash } from "node:crypto";
 import { prisma } from "../../db/prisma";
 import { enrichStoryPlan } from "./plannerPlanMetadata";
@@ -91,7 +92,7 @@ function buildPlanTaskSheet(input: PersistPlanInput): string | undefined {
   const objective = sanitizePlanText(input.objective);
   const hookTarget = sanitizePlanText(input.hookTarget);
   const participants = input.participants.map((item) => sanitizePlanText(item)).filter(Boolean);
-  const mustAdvance = input.mustAdvance.map((item) => sanitizePlanText(item)).filter(Boolean);
+  const mustAdvance = sanitizeCreativeMustAdvanceItems(input.mustAdvance.map((item) => sanitizePlanText(item)).filter(Boolean));
   const mustPreserve = input.mustPreserve.map((item) => sanitizePlanText(item)).filter(Boolean);
   const riskNotes = input.riskNotes.map((item) => sanitizePlanText(item)).filter(Boolean);
 
@@ -147,7 +148,7 @@ function buildPlanSceneCards(input: PersistPlanInput): string | undefined {
       key: `plan_scene_${index + 1}`,
       title,
       purpose: objective || reveal || title,
-      mustAdvance: [objective, reveal, conflict].filter(Boolean),
+      mustAdvance: sanitizeCreativeMustAdvanceItems([objective, reveal, conflict].filter(Boolean)),
       mustPreserve: input.mustPreserve.slice(0, 3).map((item) => sanitizePlanText(item)).filter(Boolean),
       entryState,
       exitState,
@@ -194,7 +195,7 @@ export async function persistStoryPlan(input: PersistPlanInput) {
   const serializedRawPlan = JSON.stringify({
     ...input,
     status: input.status ?? "draft",
-    mustAdvance: input.mustAdvance,
+    mustAdvance: sanitizeCreativeMustAdvanceItems(input.mustAdvance),
     mustPreserve: input.mustPreserve,
     sourceIssueIds: input.sourceIssueIds,
     replannedFromPlanId: input.replannedFromPlanId,
@@ -217,7 +218,7 @@ export async function persistStoryPlan(input: PersistPlanInput) {
             participantsJson: JSON.stringify(input.participants),
             revealsJson: JSON.stringify(input.reveals),
             riskNotesJson: JSON.stringify(input.riskNotes),
-            mustAdvanceJson: JSON.stringify(input.mustAdvance),
+            mustAdvanceJson: JSON.stringify(sanitizeCreativeMustAdvanceItems(input.mustAdvance)),
             mustPreserveJson: JSON.stringify(input.mustPreserve),
             sourceIssueIdsJson: JSON.stringify(input.sourceIssueIds),
             replannedFromPlanId: input.replannedFromPlanId,
@@ -241,7 +242,7 @@ export async function persistStoryPlan(input: PersistPlanInput) {
             participantsJson: JSON.stringify(input.participants),
             revealsJson: JSON.stringify(input.reveals),
             riskNotesJson: JSON.stringify(input.riskNotes),
-            mustAdvanceJson: JSON.stringify(input.mustAdvance),
+            mustAdvanceJson: JSON.stringify(sanitizeCreativeMustAdvanceItems(input.mustAdvance)),
             mustPreserveJson: JSON.stringify(input.mustPreserve),
             sourceIssueIdsJson: JSON.stringify(input.sourceIssueIds),
             replannedFromPlanId: input.replannedFromPlanId,

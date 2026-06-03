@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sanitizeCreativeMustAdvanceItems } from "./chapterCreativeContract.js";
 
 const SCENE_COUNT_MIN = 3;
 const SCENE_COUNT_MAX = 8;
@@ -137,12 +138,12 @@ function normalizeSceneCardInput(raw: unknown, index: number): ChapterSceneCard 
     key,
     title,
     purpose,
-    mustAdvance: normalizeStringArray(readAlias(raw, [
+    mustAdvance: sanitizeCreativeMustAdvanceItems(normalizeStringArray(readAlias(raw, [
       "mustAdvance",
       "mustAdvanceItems",
       "advanceItems",
       "deliverables",
-    ])),
+    ]))),
     mustPreserve: normalizeStringArray(readAlias(raw, [
       "mustPreserve",
       "mustPreserveItems",

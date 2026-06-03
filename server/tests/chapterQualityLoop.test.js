@@ -74,6 +74,7 @@ test("buildChapterQualityLoopAssessment routes rolling window failures to replan
       },
       replanRecommendation: {
         recommended: true,
+        action: "stop_for_replan",
         reason: "连续三章推进偏离主线。",
         blockingIssueIds: ["issue-1"],
         blockingLedgerKeys: [],
@@ -104,6 +105,47 @@ test("buildChapterQualityLoopAssessment routes rolling window failures to replan
   );
   assert.equal(assessment.rootCauseCode, "replan_required");
   assert.equal(assessment.blockingObligations[0].kind, "goal_change");
+});
+
+test("buildChapterQualityLoopAssessment keeps local replan suggestions as patch repair", () => {
+  const assessment = buildChapterQualityLoopAssessment({
+    chapterId: "chapter-local-plan",
+    chapterOrder: 4,
+    score: score({ overall: 74, engagement: 72 }),
+    issues: [{
+      severity: "high",
+      category: "pacing",
+      evidence: "本章缺少明确结果。",
+      fixSuggestion: "补一个局部兑现结果。",
+    }],
+    runtimePackage: {
+      context: {
+        chapter: { order: 4 },
+      },
+      audit: {
+        reports: [],
+        openIssues: [],
+      },
+      replanRecommendation: {
+        recommended: true,
+        action: "local_patch_plan",
+        reason: "局部章节计划需要修正。",
+        blockingIssueIds: ["issue-local"],
+        blockingLedgerKeys: [],
+        affectedChapterOrders: [4],
+      },
+      failureClassification: {
+        code: "draft_obligation_unmet",
+        summary: "章节局部义务未满足。",
+        decisionReason: "需要局部修复。",
+        blockingObligations: [],
+      },
+    },
+    evaluatedAt: "2026-04-30T00:00:00.000Z",
+  });
+
+  assert.equal(assessment.recommendedAction, "patch_repair");
+  assert.notEqual(assessment.rootCauseCode, "replan_required");
 });
 
 test("buildChapterQualityLoopAssessment treats low repetition control as a repair risk", () => {

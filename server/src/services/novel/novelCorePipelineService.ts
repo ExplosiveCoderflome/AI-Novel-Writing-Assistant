@@ -805,10 +805,13 @@ export class NovelCorePipelineService {
             const impactedOrders = replanRecommendation.affectedChapterOrders?.length
               ? `影响章节=${replanRecommendation.affectedChapterOrders.join(",")}`
               : `锚点章节=${replanRecommendation.anchorChapterOrder ?? chapter.order}`;
-            replanAlertDetails.push(
-              `第${chapter.order}章需要重规划（${impactedOrders}；原因=${replanRecommendation.triggerReason ?? replanRecommendation.reason}）`,
-            );
-            shouldStopAfterCurrentChapter = true;
+            const detail = `第${chapter.order}章${replanRecommendation.action === "stop_for_replan" ? "需要重规划" : "建议局部处理"}（${impactedOrders}；原因=${replanRecommendation.triggerReason ?? replanRecommendation.reason}）`;
+            if (replanRecommendation.action === "stop_for_replan") {
+              replanAlertDetails.push(detail);
+              shouldStopAfterCurrentChapter = true;
+            } else if (!qualityAlertDetails.includes(detail)) {
+              qualityAlertDetails.push(detail);
+            }
           }
 
           completed += 1;

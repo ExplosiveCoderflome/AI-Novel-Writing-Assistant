@@ -34,6 +34,7 @@ export async function createBookAnalysis(payload: {
   temperature?: number;
   maxTokens?: number;
   includeTimeline?: boolean;
+  enabledSectionKeys?: BookAnalysisSectionKey[];
 }) {
   const { data } = await apiClient.post<ApiResponse<BookAnalysisDetail>>("/book-analysis", payload);
   return data;

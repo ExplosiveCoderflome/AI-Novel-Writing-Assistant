@@ -1,4 +1,10 @@
-import type { BookAnalysis, BookAnalysisStatus } from "@ai-novel/shared/types/bookAnalysis";
+import {
+  BOOK_ANALYSIS_PRESETS,
+  BOOK_ANALYSIS_SECTIONS,
+  type BookAnalysis,
+  type BookAnalysisPreset,
+  type BookAnalysisStatus,
+} from "@ai-novel/shared/types/bookAnalysis";
 import type { KnowledgeDocumentDetail, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
 import LLMSelector from "@/components/common/LLMSelector";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +19,7 @@ interface BookAnalysisSidebarProps {
   selectedVersionId: string;
   keyword: string;
   status: BookAnalysisStatus | "";
-  includeTimeline: boolean;
+  analysisPreset: BookAnalysisPreset;
   llmConfig: LLMConfigState;
   documentOptions: KnowledgeDocumentSummary[];
   versionOptions: KnowledgeDocumentDetail["versions"];
@@ -25,10 +31,34 @@ interface BookAnalysisSidebarProps {
   onSelectVersion: (versionId: string) => void;
   onKeywordChange: (keyword: string) => void;
   onStatusChange: (status: BookAnalysisStatus | "") => void;
-  onIncludeTimelineChange: (includeTimeline: boolean) => void;
+  onAnalysisPresetChange: (preset: BookAnalysisPreset) => void;
   onLlmConfigChange: (config: LLMConfigState) => void;
   onCreate: () => void;
   onOpenAnalysis: (analysisId: string, documentId: string) => void;
+}
+
+const ESTIMATED_SEGMENT_CHARS = 10_000;
+const MAX_ESTIMATED_SEGMENTS = 12;
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat("zh-CN").format(value);
+}
+
+function getBookAnalysisScaleLabel(charCount: number): { label: string; tone: string } {
+  if (charCount >= 300_000) {
+    return { label: "大型书籍", tone: "建议使用成本更可控的模型，或先拆分文档范围。" };
+  }
+  if (charCount >= 100_000) {
+    return { label: "中等体量", tone: "适合标准拆书，生成时间和 token 用量会随章节规模增加。" };
+  }
+  return { label: "轻量体量", tone: "适合快速检查结构、人物和写法特征。" };
+}
+
+function getPresetSectionTitles(sectionKeys: readonly string[]): string {
+  return sectionKeys
+    .map((key) => BOOK_ANALYSIS_SECTIONS.find((section) => section.key === key)?.title)
+    .filter((title): title is string => Boolean(title))
+    .join("、");
 }
 
 export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
@@ -37,7 +67,7 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
     selectedVersionId,
     keyword,
     status,
-    includeTimeline,
+    analysisPreset,
     llmConfig,
     documentOptions,
     versionOptions,
@@ -49,11 +79,22 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
     onSelectVersion,
     onKeywordChange,
     onStatusChange,
-    onIncludeTimelineChange,
+    onAnalysisPresetChange,
     onLlmConfigChange,
     onCreate,
     onOpenAnalysis,
   } = props;
+  const selectedSourceVersion = sourceDocument?.versions.find((version) => version.id === selectedVersionId)
+    ?? sourceDocument?.versions.find((version) => version.isActive)
+    ?? sourceDocument?.versions[0];
+  const sourceCharCount = selectedSourceVersion?.charCount ?? selectedSourceVersion?.content.length ?? 0;
+  const estimatedSegmentCount = sourceCharCount > 0
+    ? Math.min(MAX_ESTIMATED_SEGMENTS, Math.max(1, Math.ceil(sourceCharCount / ESTIMATED_SEGMENT_CHARS)))
+    : 0;
+  const selectedPreset = BOOK_ANALYSIS_PRESETS.find((preset) => preset.key === analysisPreset) ?? BOOK_ANALYSIS_PRESETS[1];
+  const estimatedSectionCount = selectedPreset.sectionKeys.length;
+  const estimatedLlmCalls = estimatedSegmentCount > 0 ? estimatedSegmentCount + estimatedSectionCount : 0;
+  const scale = getBookAnalysisScaleLabel(sourceCharCount);
 
   return (
     <div className="space-y-4">
@@ -111,14 +152,48 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
             />
           </div>
 
-          <label className="flex items-center gap-2 rounded-md border p-2 text-sm text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={includeTimeline}
-              onChange={(event) => onIncludeTimelineChange(event.target.checked)}
-            />
-            生成故事时间线（默认关闭）
-          </label>
+          <div className="space-y-2">
+            <div className="text-sm font-medium">拆书范围</div>
+            <div className="grid gap-2">
+              {BOOK_ANALYSIS_PRESETS.map((preset) => {
+                const selected = preset.key === analysisPreset;
+                return (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    className={`rounded-md border p-3 text-left transition-colors ${
+                      selected ? "border-primary bg-primary/5" : "hover:bg-muted/30"
+                    }`}
+                    onClick={() => onAnalysisPresetChange(preset.key)}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-medium">{preset.title}</div>
+                      <div className="text-xs text-muted-foreground">{preset.sectionKeys.length} 项</div>
+                    </div>
+                    <div className="mt-1 text-xs leading-5 text-muted-foreground">{preset.summary}</div>
+                    <div className="mt-2 text-xs leading-5 text-muted-foreground">
+                      包含：{getPresetSectionTitles(preset.sectionKeys)}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+            拆书会根据书籍内容长度消耗模型 token。书籍越长，分析时间和 token 用量通常越高；建议先确认文档范围，再开始分析。
+          </div>
+
+          {selectedSourceVersion ? (
+            <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
+              <div className="font-medium text-foreground">本次拆书体量：{scale.label}</div>
+              <div className="mt-1">
+                约 {formatCount(sourceCharCount)} 字，预计拆成 {estimatedSegmentCount} 个原文片段，
+                约 {estimatedLlmCalls} 次模型调用。
+              </div>
+              <div className="mt-1">{scale.tone}</div>
+            </div>
+          ) : null}
 
           <Button className="w-full" onClick={onCreate} disabled={!selectedDocumentId || createPending}>
             创建

@@ -14,6 +14,7 @@ import {
   parseChapterScenePlan,
   resolveLengthBudgetContract,
 } from "@ai-novel/shared/types/chapterLengthControl";
+import { sanitizeCreativeMustAdvanceItems } from "@ai-novel/shared/types/chapterCreativeContract";
 import type { ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import { createContextBlock } from "../../core/contextBudget";
@@ -175,10 +176,10 @@ export function buildChapterMissionContext(contextPackage: GenerationContextPack
     targetWordCount: contextPackage.chapter.targetWordCount ?? null,
     planRole: contextPackage.plan?.planRole ?? null,
     hookTarget: compactText(contextPackage.plan?.hookTarget, "Leave a fresh tension point at the ending."),
-    mustAdvance: takeUnique([
+    mustAdvance: sanitizeCreativeMustAdvanceItems(takeUnique([
       ...(stateGoal?.targetConflicts ?? []),
       ...(contextPackage.plan?.mustAdvance ?? []),
-    ], 5),
+    ], 5)),
     mustPreserve: takeUnique([
       ...(stateGoal?.targetRelationships ?? []),
       ...(contextPackage.plan?.mustPreserve ?? []),
