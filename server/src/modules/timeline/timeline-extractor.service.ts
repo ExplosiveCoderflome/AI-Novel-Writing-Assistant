@@ -34,7 +34,11 @@ export class TimelineExtractorService {
         chapterOrder: input.chapterIndex,
         chapterTitle: input.chapterTitle,
         chapterGoal: input.chapterGoal,
-        timelineContextText: timelinePromptAdapter.toPromptBlock(input.timelineContext),
+        timelineContextText: timelinePromptAdapter.toPromptBlock(input.timelineContext, {
+          maxPreviousEvents: 40,
+          maxSoftHooks: 20,
+          maxAddressedHooks: 12,
+        }),
         chapterContent: input.chapterContent,
       },
       options: {

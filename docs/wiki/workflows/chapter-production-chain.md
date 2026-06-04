@@ -33,6 +33,8 @@
 - 正文生成前只做最低可写性检查：章节存在、人物可用、上下文包可组装、任务目标可解释。
 - 生成后用一次结构化接收闸门判断是否可继续、是否需要局部修文、是否需要人工确认。
 - 接收闸门里的 `acceptance` 与 `timeline` 采用并行执行，章节主链只等二者合并后的结果，不再顺序串行等待两个后置 LLM。
+- `acceptance` 与 `timeline` 门禁必须按同章、同正文 content hash、同模型请求写入持久化幂等缓存。任务取消、失败或 worker 重启后，如果正文未变化，应优先复用成功的门禁结果，不能重新触发相同的接收评估或 timeline extractor。
+- 门禁缓存只能保存可复用的成功结果。`acceptance_gate_unavailable`、timeline extractor 失败、缺少 timeline context 等临时系统失败不得写成长期成功缓存；这类结果应保留为当前运行风险，允许后续重试。
 - 时间线检测属于接收闸门的一部分，但独立于质量审校。它检查未来事件泄漏、上一章钩子未承接、时间倒退、事件重复、状态冲突和计划事件缺失。
 - 时间线检测失败时保留正文并标记 `needs_repair`，但不把失败正文抽取出的事件提交为 `occurred` 时间线。
 - 时间线模块不能直接修改正文；它只输出结构化 issues，由现有局部修复或整章修复链路决定怎么修。
@@ -64,6 +66,7 @@
 - 如果任务状态和章节事实冲突，以章节事实为准：有正文但旧任务失败时允许从真实进度继续；旧 `chapterStatus=needs_repair` 但阻塞 issue 已关闭时不能反复进入修复；旧 `chapterStatus=completed` 但正文缺失时不能视为完成。
 - 章节义务上下文的结构化提醒不能挤掉高风险资源和逾期伏笔。审阅与修复上下文应保留资源不可用、资源需确认、urgent/overdue payoff 等关键信号，防止 AI 修文在缺少约束的情况下继续使用失效道具或忽略必须兑现的压力。
 - 接收闸门必须把未兑现义务输出为结构化 `missingObligations`，并给出 `repairability`：局部漏写用 `patchable_obligation_gap`，需要整章调整用 `rewrite_needed`，章节职责与邻章安排失配才用 `plan_misalignment`。
+- `missingObligations` 需要区分硬阻断与质量债务。`must_hit_now` 和 `forbidden_crossing` 缺口会阻断当前章并进入修复；只影响后续跟进的 payoff、角色露面或目标变化缺口，应优先记录为 `continue_with_risk`，让章节链继续推进，避免把可跟进问题放大成重复 patch。
 - 自动修文默认最多一次；失败后记录待修状态或 repair ticket，不进入无限重试。
 - 局部 patch repair 是轻修优先策略，不是章节任务的唯一修复路径。补丁计划 Schema 校验失败、targetExcerpt 不唯一、targetExcerpt 太短、目标片段缺失或补丁无效时，应转为可恢复的局部修复失败，由上层质量链路升级到整章轻修或记录待修状态，不能直接让自动导演任务以原始 Zod 错误失败。
 - `acceptance_gate_unavailable` 或“章节接收判断不可用”属于审校系统风险，不代表正文中存在可替换片段。若当前待处理问题只包含这类风险，批量章节生产应保留当前正文并记录复查债务，等待重新审校或人工复查；不得调用局部 patch prompt，也不得为了系统风险改写正文。
@@ -79,6 +82,7 @@
 - 章节创作合同中的 `mustAdvance` 只能保存剧情推进项。`acceptance_gate_unavailable`、`missing_must_hit`、`mode_fit/acceptance_gate_unavailable` 等系统审计标签只能进入审计、修复或诊断通道，不得写入任务单“必须推进”或 sceneCards 的 `mustAdvance`。
 - `autoReview=false` 时仍可保存正文并进入异步资产回灌。自动导演的 `chapter.quality.review` 事实检查应读取执行计划，把本轮不执行自动审校视为可解释的跳过事实；此时不能因为 `AuditReport` / `QualityReport` 数量为 0 而让已完成正文的批次失败。
 - 同一章正文 content hash 未变化时，不重复跑状态快照、角色资源、伏笔账本和角色动态同步。
+- 同一章规划已经有 `taskSheet` 和 `sceneCards`，且没有新的用户 guidance 时，章节执行合同细化应复用已有规划，不重复调用 `novel.volume.chapter_execution_contract`。带 guidance 的重生成仍允许覆盖旧结果。
 - 任何数据回填、同步、抽取或索引刷新，都必须等章节进入稳定终态后再执行；章节仍处于修复、重写或回退过程中时，只允许保留正文与必要审校结果，不能提前把这类动作挂回热路径。timeline finalization 是进入下一章前的状态闭合步骤，不属于可随意延后的后台资产回灌。
 - 资产同步模式：
   - `adaptive`：默认模式，关键资产异步同步，高风险或周期节点触发全量伏笔校准。

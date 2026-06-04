@@ -1,5 +1,6 @@
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { TimelineCheckResult, TimelineHookDraft } from "@ai-novel/shared/types/timeline";
+import { prisma } from "../../../db/prisma";
 import {
   storyTimelineService,
   timelineCheckerService,
@@ -37,6 +38,16 @@ export interface RunChapterQualityGatesInput {
 export interface RunChapterQualityGatesResult {
   acceptance: ChapterAcceptanceAssessmentResult;
   timelineGate: TimelineGateResult;
+}
+
+type QualityGateCacheKind = "acceptance" | "timeline";
+
+interface PersistedQualityGateCachePayload<T> {
+  schemaVersion: 1;
+  gate: QualityGateCacheKind;
+  contentHash: string;
+  requestKey: string;
+  result: T;
 }
 
 export class ChapterQualityGateService {
@@ -99,6 +110,154 @@ export class ChapterQualityGateService {
     ].join(":");
   }
 
+  private buildGateRequestKey(input: {
+    gate: QualityGateCacheKind;
+    request: ChapterRuntimeRequestInput;
+  }): string {
+    return hashContent(JSON.stringify({
+      gate: input.gate,
+      provider: input.request.provider ?? null,
+      model: input.request.model ?? null,
+      temperature: input.request.temperature ?? null,
+    }));
+  }
+
+  private buildPersistentGateIdentity(input: {
+    gate: QualityGateCacheKind;
+    novelId: string;
+    chapterId: string;
+    content: string;
+    request: ChapterRuntimeRequestInput;
+  }): {
+    artifactType: string;
+    contentHash: string;
+    requestKey: string;
+    syncMode: string;
+  } {
+    const requestKey = this.buildGateRequestKey({
+      gate: input.gate,
+      request: input.request,
+    });
+    return {
+      artifactType: `quality_gate_${input.gate}`,
+      contentHash: hashContent(input.content),
+      requestKey,
+      syncMode: `request_${requestKey.slice(0, 24)}`,
+    };
+  }
+
+  private async readPersistentGateCache<T>(input: {
+    gate: QualityGateCacheKind;
+    novelId: string;
+    chapterId: string;
+    content: string;
+    request: ChapterRuntimeRequestInput;
+  }): Promise<T | null> {
+    const identity = this.buildPersistentGateIdentity(input);
+    try {
+      const row = await prisma.chapterArtifactSyncCheckpoint.findUnique({
+        where: {
+          novelId_chapterId_contentHash_artifactType_syncMode: {
+            novelId: input.novelId,
+            chapterId: input.chapterId,
+            contentHash: identity.contentHash,
+            artifactType: identity.artifactType,
+            syncMode: identity.syncMode,
+          },
+        },
+        select: {
+          status: true,
+          metadataJson: true,
+        },
+      });
+      if (row?.status !== "succeeded" || !row.metadataJson) {
+        return null;
+      }
+      const payload = JSON.parse(row.metadataJson) as PersistedQualityGateCachePayload<T>;
+      if (
+        payload.schemaVersion !== 1
+        || payload.gate !== input.gate
+        || payload.contentHash !== identity.contentHash
+        || payload.requestKey !== identity.requestKey
+      ) {
+        return null;
+      }
+      return payload.result;
+    } catch (error) {
+      console.warn("[chapter-runtime] quality gate cache read skipped", {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        gate: input.gate,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
+    }
+  }
+
+  private async writePersistentGateCache<T>(input: {
+    gate: QualityGateCacheKind;
+    novelId: string;
+    chapterId: string;
+    content: string;
+    request: ChapterRuntimeRequestInput;
+    result: T;
+  }): Promise<void> {
+    const identity = this.buildPersistentGateIdentity(input);
+    const payload: PersistedQualityGateCachePayload<T> = {
+      schemaVersion: 1,
+      gate: input.gate,
+      contentHash: identity.contentHash,
+      requestKey: identity.requestKey,
+      result: input.result,
+    };
+    try {
+      await prisma.chapterArtifactSyncCheckpoint.upsert({
+        where: {
+          novelId_chapterId_contentHash_artifactType_syncMode: {
+            novelId: input.novelId,
+            chapterId: input.chapterId,
+            contentHash: identity.contentHash,
+            artifactType: identity.artifactType,
+            syncMode: identity.syncMode,
+          },
+        },
+        create: {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          contentHash: identity.contentHash,
+          artifactType: identity.artifactType,
+          syncMode: identity.syncMode,
+          status: "succeeded",
+          sourceType: "chapter_quality_gate",
+          sourceStage: input.gate,
+          metadataJson: JSON.stringify(payload),
+        },
+        update: {
+          status: "succeeded",
+          sourceType: "chapter_quality_gate",
+          sourceStage: input.gate,
+          metadataJson: JSON.stringify(payload),
+        },
+      });
+    } catch (error) {
+      console.warn("[chapter-runtime] quality gate cache write skipped", {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        gate: input.gate,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private isCacheableAcceptanceResult(result: ChapterAcceptanceAssessmentResult): boolean {
+    return !result.assessment.riskTags.includes("acceptance_gate_unavailable")
+      && !result.assessment.blockingIssues.some((issue) => issue.code === "acceptance_gate_unavailable");
+  }
+
+  private isCacheableTimelineResult(result: TimelineGateResult): boolean {
+    return result.extractorSucceeded;
+  }
+
   private async runAcceptanceGate(input: RunChapterQualityGatesInput): Promise<ChapterAcceptanceAssessmentResult> {
     const key = this.buildGateCacheKey({
       gate: "acceptance",
@@ -111,6 +270,17 @@ export class ChapterQualityGateService {
     const cached = this.acceptanceGateCache.get(key);
     if (cached) {
       return cached;
+    }
+    const persisted = await this.readPersistentGateCache<ChapterAcceptanceAssessmentResult>({
+      gate: "acceptance",
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      content: input.content,
+      request: input.request,
+    });
+    if (persisted) {
+      rememberCacheValue(this.acceptanceGateCache, key, persisted);
+      return persisted;
     }
     const assessmentPromise = this.acceptanceAssessmentService.assess({
       novelId: input.novelId,
@@ -128,6 +298,16 @@ export class ChapterQualityGateService {
     rememberCacheValue(this.acceptanceGateCache, key, assessmentPromise);
     try {
       const assessment = await assessmentPromise;
+      if (this.isCacheableAcceptanceResult(assessment)) {
+        await this.writePersistentGateCache({
+          gate: "acceptance",
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          content: input.content,
+          request: input.request,
+          result: assessment,
+        });
+      }
       rememberCacheValue(this.acceptanceGateCache, key, assessment);
       return assessment;
     } catch (error) {
@@ -149,11 +329,33 @@ export class ChapterQualityGateService {
     if (cached) {
       return normalizeTimelineGateResult(await cached, input.contextPackage.timelineContext ?? null);
     }
+    const persisted = await this.readPersistentGateCache<TimelineGateResult>({
+      gate: "timeline",
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      content: input.content,
+      request: input.request,
+    });
+    if (persisted) {
+      const normalized = normalizeTimelineGateResult(persisted, input.contextPackage.timelineContext ?? null);
+      rememberCacheValue(this.timelineGateCache, key, normalized);
+      return normalized;
+    }
     const checkPromise = this.executeTimelineGate(input)
       .then((result) => normalizeTimelineGateResult(result, input.contextPackage.timelineContext ?? null));
     rememberCacheValue(this.timelineGateCache, key, checkPromise);
     try {
       const check = await checkPromise;
+      if (this.isCacheableTimelineResult(check)) {
+        await this.writePersistentGateCache({
+          gate: "timeline",
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          content: input.content,
+          request: input.request,
+          result: check,
+        });
+      }
       rememberCacheValue(this.timelineGateCache, key, check);
       return check;
     } catch (error) {
