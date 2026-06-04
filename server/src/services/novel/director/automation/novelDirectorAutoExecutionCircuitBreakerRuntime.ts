@@ -125,7 +125,14 @@ export async function resolveUsageCircuitBreaker(input: {
     novelId: input.novelId,
     taskIds: [input.taskId],
   }).catch(() => null);
-  const chapterBudgetBreaker = largestChapterUsage
+  const activeBudgetChapterIds = new Set([
+    input.autoExecution.nextChapterId,
+    ...(input.autoExecution.remainingChapterIds ?? []),
+  ].filter((chapterId): chapterId is string => Boolean(chapterId?.trim())));
+  const shouldOpenChapterBudgetBreaker = largestChapterUsage
+    ? activeBudgetChapterIds.size === 0 || activeBudgetChapterIds.has(largestChapterUsage.chapterId)
+    : false;
+  const chapterBudgetBreaker = largestChapterUsage && shouldOpenChapterBudgetBreaker
     ? recordChapterUsageBudgetExceededSignal({
       previous: input.autoExecution.circuitBreaker,
       usageRecordId: largestChapterUsage.latestUsageRecordId,

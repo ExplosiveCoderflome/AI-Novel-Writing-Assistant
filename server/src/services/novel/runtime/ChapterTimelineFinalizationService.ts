@@ -17,6 +17,9 @@ import {
 } from "../../../modules/timeline";
 
 export type ChapterTimelineFinalizationMode = "stable" | "degraded";
+type TimelineFinalizationClaimStatus = "claimed" | "already_done" | "running";
+
+const TIMELINE_FINALIZATION_RUNNING_STALE_MS = 15 * 60 * 1000;
 
 export interface ChapterTimelineGateResult {
   result: TimelineCheckResult;
@@ -246,6 +249,38 @@ export class ChapterTimelineFinalizationService {
       });
     }
 
+    const stableClaim = await this.claimCheckpoint({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      contentHash,
+      syncMode: "stable",
+      sourceStage: input.sourceStage,
+      metadata: {
+        reason: input.reason ?? "stable_timeline_finalization_started",
+        sourceStage: input.sourceStage,
+      },
+    });
+    if (stableClaim === "already_done") {
+      return {
+        syncMode: "stable",
+        contentHash,
+        extractorSucceeded: true,
+        eventCount: 0,
+        hookCount: 0,
+        checkpointWritten: true,
+      };
+    }
+    if (stableClaim === "running") {
+      return {
+        syncMode: "stable",
+        contentHash,
+        extractorSucceeded: false,
+        eventCount: 0,
+        hookCount: 0,
+        checkpointWritten: false,
+      };
+    }
+
     const gate = input.timelineGate ?? await this.extractAndCheck({
       novelId: input.novelId,
       chapterId: input.chapterId,
@@ -259,6 +294,18 @@ export class ChapterTimelineFinalizationService {
     });
 
     if (!gate.timelineContext || !gate.extractorSucceeded || gate.result.status === "failed") {
+      await this.markCheckpointFailed({
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        contentHash,
+        syncMode: "stable",
+        sourceStage: input.sourceStage,
+        metadata: {
+          reason: input.reason ?? gate.extractorError ?? `timeline_${gate.result.status}`,
+          sourceStage: input.sourceStage,
+          extractorSucceeded: gate.extractorSucceeded,
+        },
+      });
       return this.finalizeDegraded({
         ...input,
         content,
@@ -285,6 +332,18 @@ export class ChapterTimelineFinalizationService {
         timelineContext: gate.timelineContext,
       });
     } catch (error) {
+      await this.markCheckpointFailed({
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        contentHash,
+        syncMode: "stable",
+        sourceStage: input.sourceStage,
+        metadata: {
+          reason: `stable_commit_failed: ${error instanceof Error ? error.message : String(error)}`,
+          sourceStage: input.sourceStage,
+          extractorSucceeded: gate.extractorSucceeded,
+        },
+      });
       return this.finalizeDegraded({
         ...input,
         content,
@@ -540,6 +599,102 @@ export class ChapterTimelineFinalizationService {
         updatedAt: new Date(),
       },
     });
+  }
+
+  private async claimCheckpoint(input: {
+    novelId: string;
+    chapterId: string;
+    contentHash: string;
+    syncMode: ChapterTimelineFinalizationMode;
+    sourceStage: string;
+    metadata: Record<string, unknown>;
+  }): Promise<TimelineFinalizationClaimStatus> {
+    const where = {
+      novelId_chapterId_contentHash_artifactType_syncMode: {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        contentHash: input.contentHash,
+        artifactType: "timeline_finalization",
+        syncMode: input.syncMode,
+      },
+    };
+    const metadataJson = JSON.stringify(input.metadata);
+    try {
+      await prisma.chapterArtifactSyncCheckpoint.create({
+        data: {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          contentHash: input.contentHash,
+          artifactType: "timeline_finalization",
+          syncMode: input.syncMode,
+          status: "running",
+          sourceType: "chapter_runtime",
+          sourceStage: input.sourceStage,
+          metadataJson,
+        },
+      });
+      return "claimed";
+    } catch {
+      const existing = await prisma.chapterArtifactSyncCheckpoint.findUnique({
+        where,
+        select: { status: true, updatedAt: true },
+      }).catch(() => null);
+      if (existing?.status === "succeeded") {
+        return "already_done";
+      }
+      const staleBefore = new Date(Date.now() - TIMELINE_FINALIZATION_RUNNING_STALE_MS);
+      if (existing?.status === "running" && existing.updatedAt > staleBefore) {
+        return "running";
+      }
+      const claimed = await prisma.chapterArtifactSyncCheckpoint.updateMany({
+        where: {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          contentHash: input.contentHash,
+          artifactType: "timeline_finalization",
+          syncMode: input.syncMode,
+          OR: [
+            { status: { not: "running" } },
+            { updatedAt: { lt: staleBefore } },
+          ],
+        },
+        data: {
+          status: "running",
+          sourceType: "chapter_runtime",
+          sourceStage: input.sourceStage,
+          metadataJson,
+          updatedAt: new Date(),
+        },
+      }).catch(() => ({ count: 0 }));
+      return claimed.count > 0 ? "claimed" : "running";
+    }
+  }
+
+  private async markCheckpointFailed(input: {
+    novelId: string;
+    chapterId: string;
+    contentHash: string;
+    syncMode: ChapterTimelineFinalizationMode;
+    sourceStage: string;
+    metadata: Record<string, unknown>;
+  }): Promise<void> {
+    await prisma.chapterArtifactSyncCheckpoint.updateMany({
+      where: {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        contentHash: input.contentHash,
+        artifactType: "timeline_finalization",
+        syncMode: input.syncMode,
+        status: "running",
+      },
+      data: {
+        status: "failed",
+        sourceType: "chapter_runtime",
+        sourceStage: input.sourceStage,
+        metadataJson: JSON.stringify(input.metadata),
+        updatedAt: new Date(),
+      },
+    }).catch(() => null);
   }
 }
 
