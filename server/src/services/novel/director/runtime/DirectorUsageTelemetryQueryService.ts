@@ -25,6 +25,7 @@ interface DirectorUsageRow {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+  metadataJson: string | null;
   recordedAt: Date | string;
 }
 
@@ -33,6 +34,40 @@ export interface DirectorUsageTelemetryProjection {
   recentUsage: DirectorLlmUsageRecordSummary[];
   stepUsage: DirectorStepUsageSummary[];
   promptUsage: DirectorPromptUsageSummary[];
+}
+
+export interface DirectorChapterUsageBudgetSummary extends DirectorLlmUsageSummary {
+  chapterId: string;
+  latestUsageRecordId: string;
+  nodeKey?: string | null;
+}
+
+interface DirectorUsageMetadata {
+  chapterId?: string | null;
+  volumeId?: string | null;
+  stage?: string | null;
+  itemKey?: string | null;
+  scope?: string | null;
+  entrypoint?: string | null;
+}
+
+function parseUsageMetadata(row: DirectorUsageRow): DirectorUsageMetadata {
+  if (!row.metadataJson) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(row.metadataJson) as Record<string, unknown>;
+    return {
+      chapterId: typeof parsed.chapterId === "string" ? parsed.chapterId : null,
+      volumeId: typeof parsed.volumeId === "string" ? parsed.volumeId : null,
+      stage: typeof parsed.stage === "string" ? parsed.stage : null,
+      itemKey: typeof parsed.itemKey === "string" ? parsed.itemKey : null,
+      scope: typeof parsed.scope === "string" ? parsed.scope : null,
+      entrypoint: typeof parsed.entrypoint === "string" ? parsed.entrypoint : null,
+    };
+  } catch {
+    return {};
+  }
 }
 
 function toIso(value: Date | string | null | undefined): string | null {
@@ -91,11 +126,18 @@ function summarizeRows(rows: DirectorUsageRow[]): DirectorLlmUsageSummary | null
 }
 
 function mapUsageRecord(row: DirectorUsageRow): DirectorLlmUsageRecordSummary {
+  const metadata = parseUsageMetadata(row);
   return {
     id: row.id,
     novelId: row.novelId,
     taskId: row.taskId,
     runId: row.runId,
+    chapterId: metadata.chapterId ?? null,
+    volumeId: metadata.volumeId ?? null,
+    stage: metadata.stage ?? null,
+    itemKey: metadata.itemKey ?? null,
+    scope: metadata.scope ?? null,
+    entrypoint: metadata.entrypoint ?? null,
     stepIdempotencyKey: row.stepIdempotencyKey,
     nodeKey: row.nodeKey,
     promptAssetKey: row.promptAssetKey,
@@ -113,6 +155,34 @@ function mapUsageRecord(row: DirectorUsageRow): DirectorLlmUsageRecordSummary {
     lastRecordedAt: toIso(row.recordedAt),
     recordedAt: toIso(row.recordedAt) ?? new Date(0).toISOString(),
   };
+}
+
+function buildChapterUsage(rows: DirectorUsageRow[]): DirectorChapterUsageBudgetSummary[] {
+  const grouped = new Map<string, DirectorUsageRow[]>();
+  for (const row of rows) {
+    const chapterId = parseUsageMetadata(row).chapterId?.trim();
+    if (!chapterId) {
+      continue;
+    }
+    grouped.set(chapterId, [
+      ...(grouped.get(chapterId) ?? []),
+      row,
+    ]);
+  }
+  return [...grouped.entries()]
+    .map(([chapterId, chapterRows]) => {
+      const sortedRows = chapterRows
+        .slice()
+        .sort((left, right) => toTimestamp(right.recordedAt) - toTimestamp(left.recordedAt));
+      const summary = summarizeRows(sortedRows) ?? emptySummary();
+      return {
+        ...summary,
+        chapterId,
+        latestUsageRecordId: sortedRows[0]?.id ?? chapterId,
+        nodeKey: sortedRows[0]?.nodeKey ?? null,
+      };
+    })
+    .sort((left, right) => right.totalTokens - left.totalTokens);
 }
 
 function buildStepUsage(
@@ -228,6 +298,23 @@ export class DirectorUsageTelemetryQueryService {
     return this.buildProjection(rows, input.steps ?? []);
   }
 
+  async getLargestChapterUsage(input: {
+    novelId: string;
+    taskIds?: string[];
+    since?: Date;
+  }): Promise<DirectorChapterUsageBudgetSummary | null> {
+    const rows = await prisma.directorLlmUsageRecord.findMany({
+      where: {
+        ...normalizeWhereByNovelOrTask(input.novelId, input.taskIds ?? []),
+        ...(input.since ? { recordedAt: { gte: input.since } } : {}),
+      },
+      orderBy: { recordedAt: "desc" },
+      take: 1000,
+      select: this.selectUsageRow(),
+    });
+    return buildChapterUsage(rows)[0] ?? null;
+  }
+
   private buildProjection(
     rows: DirectorUsageRow[],
     steps: DirectorStepRun[],
@@ -262,6 +349,7 @@ export class DirectorUsageTelemetryQueryService {
       promptTokens: true,
       completionTokens: true,
       totalTokens: true,
+      metadataJson: true,
       recordedAt: true,
     } satisfies Record<keyof DirectorUsageRow, true>;
   }

@@ -592,6 +592,18 @@ export class NovelCorePipelineService {
       repairMode: persistedPayload.repairMode ?? options.repairMode ?? "light_repair",
       artifactSyncMode: persistedPayload.artifactSyncMode ?? options.artifactSyncMode ?? "adaptive",
     };
+    const directorTelemetryTask = runtimePayload.workflowTaskId
+      ? await prisma.novelWorkflowTask.findUnique({
+        where: { id: runtimePayload.workflowTaskId },
+        select: {
+          lane: true,
+          directorRun: {
+            select: { id: true },
+          },
+        },
+      }).catch(() => null)
+      : null;
+    const shouldRecordDirectorTelemetry = directorTelemetryTask?.lane === "auto_director";
     let totalRetryCount = Math.max(existingJob?.retryCount ?? 0, 0);
     const qualityAlertDetails = [...(persistedPayload.qualityAlertDetails ?? [])];
     const replanAlertDetails = [...(persistedPayload.replanAlertDetails ?? [])];
@@ -601,6 +613,11 @@ export class NovelCorePipelineService {
       await runWithLlmUsageTracking({
         generationJobId: jobId,
         workflowTaskId: runtimePayload.workflowTaskId,
+        directorTelemetry: shouldRecordDirectorTelemetry,
+        novelId: shouldRecordDirectorTelemetry ? novelId : null,
+        directorRunId: shouldRecordDirectorTelemetry
+          ? directorTelemetryTask?.directorRun?.id ?? runtimePayload.workflowTaskId ?? null
+          : null,
       }, async () => {
         await this.updateJobSafe(jobId, {
           status: "running",

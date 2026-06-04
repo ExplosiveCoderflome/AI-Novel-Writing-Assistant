@@ -152,6 +152,12 @@ export interface DirectorLlmUsageRecordSummary extends DirectorLlmUsageSummary {
   novelId?: string | null;
   taskId?: string | null;
   runId?: string | null;
+  chapterId?: string | null;
+  volumeId?: string | null;
+  stage?: string | null;
+  itemKey?: string | null;
+  scope?: string | null;
+  entrypoint?: string | null;
   stepIdempotencyKey?: string | null;
   nodeKey?: string | null;
   promptAssetKey?: string | null;
