@@ -303,9 +303,18 @@ export class DirectorUsageTelemetryQueryService {
     taskIds?: string[];
     since?: Date;
   }): Promise<DirectorChapterUsageBudgetSummary | null> {
+    // Budget checks must be scoped to the current task only.
+    // normalizeWhereByNovelOrTask uses OR semantics that pull in all historical
+    // novel records across cancelled/failed tasks, causing false positives.
+    const uniqueTaskIds = Array.from(
+      new Set((input.taskIds ?? []).filter((id) => id.trim().length > 0)),
+    );
+    const scopeWhere = uniqueTaskIds.length > 0
+      ? { taskId: { in: uniqueTaskIds } }
+      : { novelId: input.novelId };
     const rows = await prisma.directorLlmUsageRecord.findMany({
       where: {
-        ...normalizeWhereByNovelOrTask(input.novelId, input.taskIds ?? []),
+        ...scopeWhere,
         ...(input.since ? { recordedAt: { gte: input.since } } : {}),
       },
       orderBy: { recordedAt: "desc" },

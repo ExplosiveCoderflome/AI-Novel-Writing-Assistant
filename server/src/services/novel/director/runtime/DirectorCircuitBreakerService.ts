@@ -9,7 +9,10 @@ export const DIRECTOR_CIRCUIT_BREAKER_THRESHOLDS = {
   patchFailureOpenAt: 3,
   replanLoopOpenAt: 3,
   modelFailureOpenAt: 3,
-  chapterTotalTokenLimit: 50_000,
+  // A chapter with one normal repair cycle costs ~55-60k tokens (write + accept×2 + patch
+  // + timeline + artifact_delta). 80k allows up to two repair cycles before triggering.
+  // Anything beyond two repairs per chapter is genuinely abnormal and warrants a pause.
+  chapterTotalTokenLimit: 80_000,
   singleStepTotalTokenLimit: 150_000,
   usageAnomalyOpenAt: 2,
 } as const;
