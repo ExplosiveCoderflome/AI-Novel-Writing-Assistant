@@ -265,6 +265,10 @@ async function prepareDirectorNovelWorld(input: {
   return { mode, hasWorld, generated };
 }
 
+async function inspectDirectorNovelWorldPrepared(novelId: string): Promise<boolean> {
+  return new WorldContextGateway().hasActiveWorld(novelId).catch(() => false);
+}
+
 function createWorldSetupExecutableModule(
   descriptor: WorkflowStepModuleDescriptor,
 ): WorkflowStepModule<{ novelId: string; request: DirectorConfirmRequest }, { mode: "auto_generate" | "skip"; hasWorld: boolean; generated: boolean }> {
@@ -286,11 +290,10 @@ function createWorldSetupExecutableModule(
             nextAction: "prepare_upstream_assets",
           });
         }
-        const gateway = new WorldContextGateway();
         return readyState({
           evidence: {
             artifactType: "world_skeleton",
-            hasActiveWorld: await gateway.hasActiveWorld(novelId),
+            hasActiveWorld: await inspectDirectorNovelWorldPrepared(novelId),
           },
         });
       },
@@ -302,8 +305,7 @@ function createWorldSetupExecutableModule(
             evidence: { artifactType: "world_skeleton", mode, skipped: true },
           });
         }
-        const gateway = new WorldContextGateway();
-        const hasActiveWorld = await gateway.hasActiveWorld(novelId);
+        const hasActiveWorld = await inspectDirectorNovelWorldPrepared(novelId);
         return hasActiveWorld
           ? completedFact(descriptor.id, { evidence: { artifactType: "world_skeleton", mode, hasActiveWorld } })
           : pendingFact(descriptor.id, { evidence: { artifactType: "world_skeleton", mode, hasActiveWorld } });
@@ -346,8 +348,7 @@ function createWorldSetupExecutableModule(
             evidence: { artifactType: "world_skeleton", mode, skipped: true },
           });
         }
-        const gateway = new WorldContextGateway();
-        const hasActiveWorld = await gateway.hasActiveWorld(novelId);
+        const hasActiveWorld = await inspectDirectorNovelWorldPrepared(novelId);
         return hasActiveWorld
           ? buildSimpleProgress({
             status: "completed",
@@ -368,8 +369,7 @@ function createWorldSetupExecutableModule(
         if (mode === "skip") {
           return { recoverable: true, resumeFrom: "world_setup_skipped", reason: "World setup is skipped for this director run." };
         }
-        const gateway = new WorldContextGateway();
-        return (await gateway.hasActiveWorld(novelId))
+        return (await inspectDirectorNovelWorldPrepared(novelId))
           ? { recoverable: true, resumeFrom: "world_setup_artifact", reason: "Novel world already exists." }
           : { recoverable: true, resumeFrom: "world_setup", reason: "Novel world can be prepared." };
       },
@@ -378,7 +378,7 @@ function createWorldSetupExecutableModule(
           return true;
         }
         const { novelId } = await loadDirectorModuleState(context);
-        return output.hasWorld || await new WorldContextGateway().hasActiveWorld(novelId);
+        return output.hasWorld || await inspectDirectorNovelWorldPrepared(novelId);
       },
     },
   );

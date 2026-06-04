@@ -600,11 +600,10 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       promptAssets: [{ id: "audit.chapter.full", version: "v2" }],
     }),
     inspectFacts: async (context) => {
-      const summary = await loadFactBaseSummary(context);
+      const progress = await inspectScopedChapterExecutionProgress(context);
       const autoReviewDisabled = await isAutoQualityReviewDisabled(context);
-      const draftedCount = summary.repair.draftedChapterCount;
-      const reviewedCount = summary.repair.reviewedChapterCount;
-      const drafted = { length: draftedCount };
+      const draftedCount = progress?.draftedChapterCount ?? 0;
+      const reviewedCount = progress?.chapters?.filter((chapter) => chapterHasCompletedStage(chapter, "audit_completed")).length ?? 0;
       const reviewed = reviewedCount;
       const evidence = {
         draftedChapterCount: draftedCount,
@@ -627,12 +626,12 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
             evidence,
           }),
         progress: buildSimpleProgress({
-          status: completed ? "completed" : drafted.length > 0 ? "partially_done" : "blocked",
-          ratio: completed ? 1 : drafted.length > 0 ? reviewed / drafted.length : 0,
+          status: completed ? "completed" : draftedCount > 0 ? "partially_done" : "blocked",
+          ratio: completed ? 1 : draftedCount > 0 ? reviewed / draftedCount : 0,
           label: completed
             ? (autoReviewDisabled ? "本轮不执行自动审校" : "章节审校已完成")
             : "正在根据最新正文补齐审校结果",
-          evidence: { draftedChapterCount: drafted.length, reviewedChapterCount: reviewed, autoReview: !autoReviewDisabled, reviewSkipped: autoReviewDisabled },
+          evidence: { draftedChapterCount: draftedCount, reviewedChapterCount: reviewed, autoReview: !autoReviewDisabled, reviewSkipped: autoReviewDisabled },
           nextAction: completed ? "commit_chapter_state" : "run_quality_review",
         }),
       };
@@ -656,10 +655,10 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       });
     },
     inspectFacts: async (context) => {
-      const summary = await loadFactBaseSummary(context);
-      const draftedChapterCount = summary.repair.draftedChapterCount;
-      const reviewedChapterCount = summary.repair.reviewedChapterCount;
-      const needsRepairChapters = summary.repair.needsRepairChapterCount;
+      const progressSummary = await inspectScopedChapterExecutionProgress(context);
+      const draftedChapterCount = progressSummary?.draftedChapterCount ?? 0;
+      const reviewedChapterCount = progressSummary?.chapters?.filter((chapter) => chapterHasCompletedStage(chapter, "audit_completed")).length ?? 0;
+      const needsRepairChapters = progressSummary?.needsRepairChapters ?? 0;
       const hasRepairContext = reviewedChapterCount > 0 || needsRepairChapters > 0;
       const progress = {
         needsRepairChapters: hasRepairContext ? needsRepairChapters : 1,
@@ -786,10 +785,10 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       adapter: getDirectorExecutionNodeAdapter("quality_repair"),
     }),
     inspectFacts: async (context) => {
-      const summary = await loadFactBaseSummary(context);
-      const draftedChapterCount = summary.repair.draftedChapterCount;
-      const reviewedChapterCount = summary.repair.reviewedChapterCount;
-      const needsRepairChapters = summary.repair.needsRepairChapterCount;
+      const progressSummary = await inspectScopedChapterExecutionProgress(context);
+      const draftedChapterCount = progressSummary?.draftedChapterCount ?? 0;
+      const reviewedChapterCount = progressSummary?.chapters?.filter((chapter) => chapterHasCompletedStage(chapter, "audit_completed")).length ?? 0;
+      const needsRepairChapters = progressSummary?.needsRepairChapters ?? 0;
       const hasRepairContext = reviewedChapterCount > 0 || needsRepairChapters > 0;
       const progress = {
         needsRepairChapters: hasRepairContext ? needsRepairChapters : 1,

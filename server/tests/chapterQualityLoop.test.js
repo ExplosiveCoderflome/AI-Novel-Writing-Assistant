@@ -257,6 +257,21 @@ test("quality loop projection classifies deferred patch repair as non-blocking d
   assert.equal(hasContinuableChapterQualityLoopRiskFlags(riskFlags), true);
 });
 
+test("quality loop projection treats deferred local obligation gaps as non-blocking debt", () => {
+  const riskFlags = JSON.stringify({
+    qualityLoop: {
+      overallStatus: "risk",
+      recommendedAction: "patch_repair",
+      rootCauseCode: "draft_obligation_unmet",
+      terminalAction: "defer_and_continue",
+      blockingObligations: [{ kind: "must_hit_now", summary: "补足本章目标变化" }],
+    },
+  });
+
+  assert.equal(classifyChapterQualityLoopRiskFlags(riskFlags), "non_blocking_quality_debt");
+  assert.equal(hasContinuableChapterQualityLoopRiskFlags(riskFlags), true);
+});
+
 test("quality loop projection keeps replan required blocking even when deferred", () => {
   const riskFlags = JSON.stringify({
     qualityLoop: {
