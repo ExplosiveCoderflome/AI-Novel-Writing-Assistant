@@ -110,6 +110,24 @@ export class ChapterQualityGateService {
     ].join(":");
   }
 
+  async runAcceptanceGateOnly(input: RunChapterQualityGatesInput): Promise<RunChapterQualityGatesResult> {
+    const contentHash = hashContent(input.content);
+    const acceptance = await this.traceChapterGate({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      chapterOrder: input.contextPackage.chapter.order,
+      stage: "acceptance",
+      blocking: true,
+      contentHash,
+      promptAssetKey: "novel.chapter.acceptance_assessment",
+      run: () => this.runAcceptanceGate(input),
+    });
+    return {
+      acceptance,
+      timelineGate: this.buildDeferredTimelineGate(input),
+    };
+  }
+
   private buildGateRequestKey(input: {
     gate: QualityGateCacheKind;
     request: ChapterRuntimeRequestInput;
@@ -256,6 +274,32 @@ export class ChapterQualityGateService {
 
   private isCacheableTimelineResult(result: TimelineGateResult): boolean {
     return result.extractorSucceeded;
+  }
+
+  private buildDeferredTimelineGate(input: RunChapterQualityGatesInput): TimelineGateResult {
+    return {
+      result: {
+        status: "warning",
+        score: 0.9,
+        issues: [{
+          type: "unclear_time_anchor",
+          severity: "info",
+          message: "时间线抽取已移出章节接收热路径，将在正文接收后由时间线定稿补齐。",
+          evidence: "timeline_extraction_deferred",
+          suggestedFix: "无需修文；若下一章开始前仍未完成，系统会先补齐 stable/degraded timeline checkpoint。",
+          relatedEventIds: [],
+          relatedHookIds: [],
+        }],
+      },
+      extractedEvents: [],
+      extractedHooks: [],
+      timeAnchor: null,
+      addressedHookIds: [],
+      resolvedHookIds: [],
+      extractorSucceeded: false,
+      extractorError: "timeline_extraction_deferred",
+      timelineContext: input.contextPackage.timelineContext ?? null,
+    };
   }
 
   private async runAcceptanceGate(input: RunChapterQualityGatesInput): Promise<ChapterAcceptanceAssessmentResult> {

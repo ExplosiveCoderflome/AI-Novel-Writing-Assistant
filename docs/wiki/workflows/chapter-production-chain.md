@@ -11,10 +11,10 @@
 章节生产采用双通道：
 
 ```text
-轻量预检 -> 整章正文生成 -> 接收闸门 -> 时间线检测 -> 可选局部修文
+轻量预检 -> 整章正文生成 -> 接收闸门 -> 可选局部修文
                                       |
                                       v
-                              异步资产回灌通道
+                    时间线定稿 / 异步资产回灌通道
 ```
 
 正文热路径只负责尽快生成、判断、保存和局部修复章节。状态快照、角色资源、关系动态和伏笔账本通过异步、幂等、可批处理的资产回灌通道写入。
@@ -32,15 +32,16 @@
 - 章节合同和 sceneCards 可作为规划、审校、诊断和局部修复辅助资产，不驱动默认正文生成。
 - 正文生成前只做最低可写性检查：章节存在、人物可用、上下文包可组装、任务目标可解释。
 - 生成后用一次结构化接收闸门判断是否可继续、是否需要局部修文、是否需要人工确认。
-- 接收闸门里的 `acceptance` 与 `timeline` 采用并行执行，章节主链只等二者合并后的结果，不再顺序串行等待两个后置 LLM。
-- `acceptance` 与 `timeline` 门禁必须按同章、同正文 content hash、同模型请求写入持久化幂等缓存。任务取消、失败或 worker 重启后，如果正文未变化，应优先复用成功的门禁结果，不能重新触发相同的接收评估或 timeline extractor。
+- 接收闸门热路径只等待 `acceptance`。timeline extractor 不再阻塞正文接收；章节接收后由 `ChapterTimelineFinalizationService` 执行 stable/degraded 时间线定稿。
+- `acceptance` 门禁必须按同章、同正文 content hash、同模型请求写入持久化幂等缓存；timeline 定稿必须按同章、同正文 content hash 写入 `timeline_finalization` checkpoint。任务取消、失败或 worker 重启后，如果正文未变化，应优先复用成功结果，不能重新触发相同的接收评估或 timeline extractor。
 - 门禁缓存只能保存可复用的成功结果。`acceptance_gate_unavailable`、timeline extractor 失败、缺少 timeline context 等临时系统失败不得写成长期成功缓存；这类结果应保留为当前运行风险，允许后续重试。
-- 时间线检测属于接收闸门的一部分，但独立于质量审校。它检查未来事件泄漏、上一章钩子未承接、时间倒退、事件重复、状态冲突和计划事件缺失。
+- 时间线检测独立于质量审校。它检查未来事件泄漏、上一章钩子未承接、时间倒退、事件重复、状态冲突和计划事件缺失，但默认作为接收后的定稿/复查步骤运行。
 - 时间线检测失败时保留正文并标记 `needs_repair`，但不把失败正文抽取出的事件提交为 `occurred` 时间线。
 - 时间线模块不能直接修改正文；它只输出结构化 issues，由现有局部修复或整章修复链路决定怎么修。
 - 高优先级硬约束：章节进入下一章前必须满足 `final_content -> timeline_finalization -> next_chapter`。`final_content` 指初稿通过后的正文、修复通过后的正文，或达到最大修复次数后允许跳过时保留的当前最佳正文。
 - 初稿需要修复时不得提交修复前 timeline。timeline finalization 必须等待最终正文确定；如果修复成功，使用修复后正文提交；如果最大修复次数耗尽但允许 `defer_and_continue`，必须先提交 degraded timeline，再登记质量债务并继续。
 - timeline finalization 只有一个入口：`ChapterTimelineFinalizationService`。它负责保存 `ChapterTimeAnchor`、提交 occurred events、新 hook、hook 承接状态，并写入 `ChapterArtifactSyncCheckpoint`，其中 `artifactType=timeline_finalization`，`syncMode=stable | degraded`。
+- 接收后触发的 timeline finalization 可以后台执行，但下一章生成前的 `ensurePreviousChapterFinalized` 必须兜底补齐。后台化只减少当前章接收等待，不允许跳过下一章前的时间线闭合。
 - `stable` 表示 timeline extractor 成功并基于最终正文完成事件、钩子和时间锚点提交；`degraded` 表示抽取失败、缺少上下文或跳过章节时写入最小时间锚点和 checkpoint。degraded 是“可继续承接的最小状态”，不是质量通过。
 - timeline extractor 失败不能伪装成空事件的 stable commit。抽取失败必须写 degraded checkpoint，并在 metadata 中记录 `extractorSucceeded=false`、失败原因、事件数、hook 数和是否使用 fallback anchor。
 - 下一章生成前必须检查上一章当前正文 content hash 是否已有 `timeline_finalization` checkpoint。没有 checkpoint 时应先补跑 finalization；补跑无法 stable 时提交 degraded checkpoint，不能在没有任何 finalization 记录的情况下继续组装下一章上下文。
