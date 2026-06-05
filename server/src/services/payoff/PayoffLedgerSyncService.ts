@@ -11,6 +11,8 @@ import {
   clearStaleRiskSignal,
   dedupeRiskSignals,
   mapPayoffLedgerRow,
+  resolvePayoffLedgerSyncLedgerKey,
+  sanitizePayoffLedgerSyncItem,
   serializeLedgerJson,
 } from "./payoffLedgerShared";
 import {
@@ -368,7 +370,17 @@ export class PayoffLedgerSyncService {
         },
       });
       const now = new Date();
-      const outputByKey = new Map(result.output.items.map((item) => [item.ledgerKey, item]));
+      const resolvedItemsByKey = new Map<string, typeof result.output.items[number]>();
+      for (const rawItem of result.output.items) {
+        const sanitizedItem = sanitizePayoffLedgerSyncItem(rawItem);
+        const ledgerKey = resolvePayoffLedgerSyncLedgerKey(sanitizedItem, existingRows);
+        resolvedItemsByKey.set(ledgerKey, {
+          ...sanitizedItem,
+          ledgerKey,
+        });
+      }
+      const resolvedItems = Array.from(resolvedItemsByKey.values());
+      const outputByKey = new Map(resolvedItems.map((item) => [item.ledgerKey, item]));
       const chapterLookup = createNovelChapterReferenceLookup(await prisma.chapter.findMany({
         where: { novelId },
         select: {
@@ -378,7 +390,7 @@ export class PayoffLedgerSyncService {
       }));
 
       await prisma.$transaction(async (tx) => {
-        for (const item of result.output.items) {
+        for (const item of resolvedItems) {
           const previous = existingRows.find((row) => row.ledgerKey === item.ledgerKey);
           const normalizedChapterRefs = normalizePayoffLedgerPromptChapterRefs({
             item,

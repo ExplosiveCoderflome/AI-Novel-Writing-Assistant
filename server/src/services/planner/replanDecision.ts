@@ -124,7 +124,7 @@ function resolveAnchorChapterOrder(signal: ReplanSignal, input: ReplanDecisionIn
   if (signal === "overdue_payoff") {
     return pickPayoffAnchor(
       input.snapshot?.narrative.overduePayoffs ?? [],
-      ["targetEndChapterOrder", "targetStartChapterOrder", "lastTouchedChapterOrder", "firstSeenChapterOrder"],
+      ["targetEndChapterOrder", "targetStartChapterOrder"],
       fallbackAnchor,
     );
   }
@@ -155,8 +155,8 @@ function maxOverdueDistance(input: ReplanDecisionInput): number {
     return 0;
   }
   return Math.max(0, ...(input.snapshot?.narrative.overduePayoffs ?? []).map((item) => {
-    const deadline = item.targetEndChapterOrder ?? item.targetStartChapterOrder ?? item.firstSeenChapterOrder ?? currentOrder;
-    return currentOrder - deadline;
+    const deadline = item.targetEndChapterOrder ?? item.targetStartChapterOrder ?? null;
+    return typeof deadline === "number" ? currentOrder - deadline : 0;
   }));
 }
 

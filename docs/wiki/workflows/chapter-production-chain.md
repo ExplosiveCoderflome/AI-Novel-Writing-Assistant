@@ -81,6 +81,7 @@
 - `urgentPayoffs`、`ledgerSummary.urgentCount` 和 `nextAction=advance_payoff` 是生成前的章节职责信号，只能进入写作上下文和接收闸门判断。它们不能在生成后单独触发 `replanRecommendation`，否则系统会把“本章应该推进 payoff”误判成“本章已经失败，需要重规划”。只有逾期 payoff、显式 `nextAction=replan`、高/严重审计问题或人工请求才应打断章节链路进入重规划。
 - `replanRecommendation` 必须携带动作语义：`continue_with_warning` 表示只记录提示并继续；`local_patch_plan` 表示局部计划或修复问题，不停止后续章节；`stop_for_replan` 才表示需要暂停批量流水线进入整窗重规划。调用方不得只看 `recommended=true` 就停止章节执行。
 - 逾期 payoff 需要按当前章节关联度和逾期距离分级。短窗口、未被当前章节目标显式要求、且未超过硬窗口的 overdue payoff 只能输出 `continue_with_warning`，避免同一 ledgerKey 在连续章节里反复触发整窗重规划。
+- 无明确目标窗口的 overdue payoff 只能作为账本风险跟进，不能用 `lastTouchedChapterOrder` 或 `firstSeenChapterOrder` 推导逾期距离，也不能锚定旧章节触发 `stop_for_replan`。伏笔账本同步若发现 AI 输出了无 `targetStartChapterOrder`、`targetEndChapterOrder`、`payoffChapterOrder`、`payoffChapterId` 的 overdue，应降级为 `pending_payoff` 并保留 `payoff_missing_progress` 风险信号。
 - 章节创作合同中的 `mustAdvance` 只能保存剧情推进项。`acceptance_gate_unavailable`、`missing_must_hit`、`mode_fit/acceptance_gate_unavailable` 等系统审计标签只能进入审计、修复或诊断通道，不得写入任务单“必须推进”或 sceneCards 的 `mustAdvance`。
 - `autoReview=false` 时仍可保存正文并进入异步资产回灌。自动导演的 `chapter.quality.review` 事实检查应读取执行计划，把本轮不执行自动审校视为可解释的跳过事实；此时不能因为 `AuditReport` / `QualityReport` 数量为 0 而让已完成正文的批次失败。
 - 同一章正文 content hash 未变化时，不重复跑状态快照、角色资源、伏笔账本和角色动态同步。
@@ -117,6 +118,7 @@
 - 修复循环：检查自动修文次数是否被限制，失败是否落到可继续生产的终态，并确认自动导演质量预算是否已经从局部修复升级到整章修复或重规划。
 - `chapter.draft.write 未满足其完成标准` 高频出现：先查 runtime package 的 `failureClassification` 和 `obligationCoverage`。如果 root cause 是 `draft_obligation_unmet`，应优先检查接收闸门输出的缺失义务和 patch repair；如果是 `replan_required`，检查是否存在单章职责过载或邻章分工失配。
 - 章节反复要求重规划：检查 `rolling_window_review` 的原因是否只来自生成前的紧急 payoff 或 `advance_payoff`。如果审计分数可通过、正文和 artifact delta 已经体现推进，但 runtime package 仍推荐重规划，说明重规划推荐读取了写前状态而不是写后失败证据。
+- 自动导演在高章节数被早期 payoff 卡住：检查是否存在同义重复账本项被 AI 全量对账新建为无目标窗口的 `overdue`。正确行为是同步后处理复用未完成的同名 canonical ledgerKey，并把无明确窗口的 overdue 降级为待推进风险，避免把旧 `lastTouchedChapterOrder` 锚成跨几十章的重规划窗口。
 - 页面看起来反复“更新”：先区分后端是否真的产生新正文。若章节正文未变但 `updatedAt`、RAG job 或任务 heartbeat 持续刷新，检查已有正文复审是否被重新保存为草稿。
 - 正文已经可读但 UI 显示失败：检查正文状态、资产回灌状态和账本校准状态是否被混为一个状态。
 - 第 3-8 章这类章节都显示“建议补写修复 / 质量需修复”：先检查 `riskFlags.qualityLoop` 是否是 `defer_and_continue` 质量债务。若没有 `replan_required`、`recommendedAction=replan` 或 `blockingObligations`，主界面和 AI 驾驶舱不得把它显示为阻塞错误。

@@ -95,7 +95,6 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     onChapterFieldChange,
     onChapterNumberChange,
     onChapterPayoffRefsChange,
-    onAddChapter,
     onRemoveChapter,
     onMoveChapter,
     onApplyBatch,
@@ -391,7 +390,6 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                 generatingChapterListMode={generatingChapterListMode}
                 locked={locked}
                 onGenerateChapterList={onGenerateChapterList}
-                onAddChapter={onAddChapter}
                 onRemoveChapter={onRemoveChapter}
                 onSelectBeatKey={(beatKey) => patchWorkspace(workspaceId, { selectedBeatKey: beatKey })}
                 onSelectChapter={(chapterId) => patchWorkspace(workspaceId, { selectedChapterId: chapterId })}

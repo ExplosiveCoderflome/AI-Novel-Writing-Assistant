@@ -378,3 +378,68 @@ export function getRagQueryForChapter(
   }
   return `novel context chapter ${chapterOrder} ${novelTitle}`;
 }
+
+const MAX_RAG_QUERY_CHARS = 600;
+
+export interface ChapterRagQueryInput {
+  chapterOrder: number;
+  novelTitle: string;
+  chapterTitle?: string | null;
+  objective?: string | null;
+  expectation?: string | null;
+  mustAdvance?: string[];
+  targetConflicts?: string[];
+  participantNames?: string[];
+  structuredOutline?: string | null;
+}
+
+/**
+ * Build a semantically richer retrieval query for chapter drafting.
+ *
+ * The legacy {@link getRagQueryForChapter} only used the chapter title/summary
+ * from the structured outline, which made writer-stage retrieval weak. This
+ * variant folds in the current chapter mission, the beats that must advance,
+ * the active conflicts and the participating characters so the knowledge-base
+ * recall is aligned with what the chapter is actually trying to do. It falls
+ * back to the outline-based query when no runtime mission signal is available.
+ */
+export function buildChapterRagQuery(input: ChapterRagQueryInput): string {
+  const seen = new Set<string>();
+  const terms: string[] = [];
+  const push = (value: string | null | undefined): void => {
+    const normalized = value?.replace(/\s+/g, " ").trim();
+    if (!normalized) {
+      return;
+    }
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    terms.push(normalized);
+  };
+
+  push(input.novelTitle);
+  push(input.chapterTitle);
+  push(input.objective);
+  push(input.expectation);
+  for (const item of input.mustAdvance ?? []) {
+    push(item);
+  }
+  for (const item of input.targetConflicts ?? []) {
+    push(item);
+  }
+  for (const name of (input.participantNames ?? []).slice(0, 6)) {
+    push(name);
+  }
+
+  // If nothing beyond the novel title was collected, the runtime mission is
+  // empty; fall back to the outline-based query to avoid an information-free
+  // retrieval that only matches the book title.
+  if (terms.length <= 1) {
+    return getRagQueryForChapter(input.chapterOrder, input.novelTitle, input.structuredOutline ?? null);
+  }
+
+  const query = terms.join(" ").trim();
+  return query.length > MAX_RAG_QUERY_CHARS ? query.slice(0, MAX_RAG_QUERY_CHARS).trim() : query;
+}

@@ -247,12 +247,28 @@ function createChapterDraftExecutableModule(
           && progress.draftedChapterCount >= progress.totalChapters,
         );
         if (!hasObservedDraft) {
+          // The scoped chapters have no saved draft content. The "no draft"
+          // condition itself is accurate (drafts are persisted synchronously and
+          // the execution loop is awaited before this check), but on its own the
+          // generic message hides *why* nothing was drafted — the run may have
+          // paused for replan/approval, been halted by a usage circuit breaker or
+          // stop signal, or the writer/provider may have raised an error recorded
+          // on the task. Surface that specific reason so the failure is actionable
+          // instead of letting this branch preempt the more precise checks below.
+          const stopDetail = observedState.task.lastError?.trim()
+            || observedState.task.checkpointSummary?.trim()
+            || null;
           return {
             valid: false,
-            reason: "Chapter execution did not produce observable draft content.",
+            reason: stopDetail
+              ? `Chapter execution did not produce observable draft content（实际中断原因：${stopDetail}）。`
+              : "Chapter execution did not produce observable draft content.",
             evidence: {
               draftedChapterCount: progress?.draftedChapterCount ?? 0,
               totalChapters: progress?.totalChapters ?? 0,
+              taskStatus: observedState.task.status,
+              checkpointType: observedState.task.checkpointType ?? null,
+              lastError: observedState.task.lastError ?? null,
             },
           };
         }

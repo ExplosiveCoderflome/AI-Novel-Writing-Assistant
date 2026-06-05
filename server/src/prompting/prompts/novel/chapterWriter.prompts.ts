@@ -41,8 +41,10 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
       "open_conflicts",
       "recent_chapters",
       "opening_constraints",
+      "rag_context",
     ],
     dropOrder: [
+      "rag_context",
       "continuation_constraints",
       "opening_constraints",
     ],
@@ -64,6 +66,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
     { group: "opening_constraints", priority: 80 },
     { group: "style_contract", required: true, priority: 74 },
     { group: "continuation_constraints", priority: 72 },
+    { group: "rag_context", priority: 60 },
   ],
   editableSlots: [
     {

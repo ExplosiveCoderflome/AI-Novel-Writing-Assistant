@@ -125,7 +125,7 @@ export const payoffLedgerSyncPrompt: PromptAsset<
       "2. 同一 canonical payoff 若同时有卷级窗口和章节窗口，以章节窗口为更强约束。",
       "3. 如果已经有明确兑现证据，应优先标成 paid_off。",
       "4. 如果没有足够铺垫就直接兑现，要保留该项并输出风险信号。",
-      "5. 如果已经过了目标窗口仍未兑现，要标成 overdue。",
+      "5. 如果已经过了明确目标窗口仍未兑现，要标成 overdue；没有 targetStartChapterOrder / targetEndChapterOrder / payoffChapterOrder / payoffChapterId 时，不要标成 overdue，只能用 pending_payoff 加 riskSignals 提醒。",
       "6. 如果输入里只有提示和铺垫，没有明确兑现证据，不要误判为 paid_off。",
       "",
       "输出必须严格符合 payoffLedgerSyncOutputSchema。",

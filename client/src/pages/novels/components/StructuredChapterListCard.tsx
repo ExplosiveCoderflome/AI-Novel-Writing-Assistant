@@ -36,7 +36,6 @@ interface StructuredChapterListCardProps {
   generatingChapterListMode: StructuredTabViewProps["generatingChapterListMode"];
   locked: boolean;
   onGenerateChapterList: StructuredTabViewProps["onGenerateChapterList"];
-  onAddChapter: StructuredTabViewProps["onAddChapter"];
   onRemoveChapter: StructuredTabViewProps["onRemoveChapter"];
   onSelectBeatKey: (beatKey: string) => void;
   onSelectChapter: (chapterId: string) => void;
@@ -71,7 +70,6 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
     generatingChapterListMode,
     locked,
     onGenerateChapterList,
-    onAddChapter,
     onRemoveChapter,
     onSelectBeatKey,
     onSelectChapter,
@@ -133,9 +131,6 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
               >
                 {isGeneratingCurrentVolume && generatingChapterListMode === "full_volume" ? "生成中..." : "生成当前卷章节列表"}
               </AiButton>
-              <Button size="sm" variant="outline" onClick={() => onAddChapter(selectedVolume.id)}>
-                新增章节
-              </Button>
             </div>
           </div>
 

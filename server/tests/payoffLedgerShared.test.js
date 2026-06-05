@@ -5,6 +5,9 @@ const {
   buildPayoffLedgerResponse,
   buildSyntheticPayoffIssues,
   classifyPayoffLedgerItems,
+  normalizePayoffLedgerIdentity,
+  resolvePayoffLedgerSyncLedgerKey,
+  sanitizePayoffLedgerSyncItem,
 } = require("../dist/services/payoff/payoffLedgerShared.js");
 
 function createLedgerItem(overrides = {}) {
@@ -164,4 +167,94 @@ test("buildPayoffLedgerResponse orders items by risk and computes summary counts
   assert.equal(response.summary.overdueCount, 1);
   assert.equal(response.summary.paidOffCount, 1);
   assert.equal(response.updatedAt, "2026-04-05T10:00:04.000Z");
+});
+
+test("normalizePayoffLedgerIdentity removes spacing and common punctuation", () => {
+  assert.equal(
+    normalizePayoffLedgerIdentity("第一次小成功：复习完一门课，并测试通过！"),
+    normalizePayoffLedgerIdentity("第一次小成功 复习完一门课并测试通过"),
+  );
+});
+
+test("resolvePayoffLedgerSyncLedgerKey reuses unfinished ledger item with matching title", () => {
+  const existingRows = [
+    createLedgerItem({
+      ledgerKey: "first_success_volume",
+      title: "第一次小成功：复习完一门课并测试通过",
+      scopeType: "volume",
+      currentStatus: "pending_payoff",
+      targetEndChapterOrder: 50,
+      lastTouchedChapterOrder: 50,
+      updatedAt: "2026-04-05T10:00:03.000Z",
+    }),
+    createLedgerItem({
+      ledgerKey: "first_small_success",
+      title: "第一次小成功：复习完一门课并测试通过",
+      scopeType: "book",
+      currentStatus: "pending_payoff",
+      targetEndChapterOrder: 46,
+      lastTouchedChapterOrder: 45,
+      updatedAt: "2026-04-05T10:00:02.000Z",
+    }),
+  ];
+
+  const resolvedKey = resolvePayoffLedgerSyncLedgerKey({
+    ledgerKey: "review_first_success",
+    title: "第一次小成功 复习完一门课并测试通过",
+    scopeType: "book",
+    currentStatus: "overdue",
+    targetStartChapterOrder: null,
+    targetEndChapterOrder: null,
+    riskSignals: [],
+  }, existingRows);
+
+  assert.equal(resolvedKey, "first_small_success");
+});
+
+test("resolvePayoffLedgerSyncLedgerKey does not reuse paid-off or failed title matches", () => {
+  const existingRows = [
+    createLedgerItem({
+      ledgerKey: "paid_first_success",
+      title: "第一次小成功：复习完一门课并测试通过",
+      currentStatus: "paid_off",
+      updatedAt: "2026-04-05T10:00:03.000Z",
+    }),
+    createLedgerItem({
+      ledgerKey: "failed_first_success",
+      title: "第一次小成功：复习完一门课并测试通过",
+      currentStatus: "failed",
+      updatedAt: "2026-04-05T10:00:02.000Z",
+    }),
+  ];
+
+  const resolvedKey = resolvePayoffLedgerSyncLedgerKey({
+    ledgerKey: "review_first_success",
+    title: "第一次小成功：复习完一门课并测试通过",
+    scopeType: "book",
+    currentStatus: "pending_payoff",
+    targetStartChapterOrder: null,
+    targetEndChapterOrder: null,
+    riskSignals: [],
+  }, existingRows);
+
+  assert.equal(resolvedKey, "review_first_success");
+});
+
+test("sanitizePayoffLedgerSyncItem downgrades overdue without explicit payoff window", () => {
+  const item = sanitizePayoffLedgerSyncItem({
+    ledgerKey: "review_first_success",
+    title: "第一次小成功：复习完一门课并测试通过",
+    scopeType: "book",
+    currentStatus: "overdue",
+    targetStartChapterOrder: null,
+    targetEndChapterOrder: null,
+    payoffChapterId: null,
+    payoffChapterOrder: null,
+    riskSignals: [],
+    statusReason: "已过合理兑现窗口，但尚未完成测试。",
+  });
+
+  assert.equal(item.currentStatus, "pending_payoff");
+  assert.equal(item.riskSignals.length, 1);
+  assert.equal(item.riskSignals[0].code, "payoff_missing_progress");
 });
