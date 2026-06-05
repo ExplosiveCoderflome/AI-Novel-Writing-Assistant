@@ -16,7 +16,7 @@ export interface ChapterContentFinalizationAgentRuntime {
 }
 
 export interface ChapterContentFinalizationServiceDeps {
-  qualityGateService: Pick<ChapterQualityGateService, "runGates">;
+  qualityGateService: Pick<ChapterQualityGateService, "runAcceptanceGateOnly">;
   artifactSyncService: Pick<ChapterArtifactSyncService, "syncChapterArtifacts">;
   plannerService: ChapterRuntimePlannerPort;
   timelineFinalizer: Pick<ChapterTimelineFinalizationService, "finalizeCurrentContent">;
@@ -43,7 +43,7 @@ export interface FinalizeChapterContentResult {
 }
 
 export class ChapterContentFinalizationService {
-  private readonly qualityGateService: Pick<ChapterQualityGateService, "runGates">;
+  private readonly qualityGateService: Pick<ChapterQualityGateService, "runAcceptanceGateOnly">;
   private readonly artifactSyncService: Pick<ChapterArtifactSyncService, "syncChapterArtifacts">;
   private readonly plannerService: ChapterRuntimePlannerPort;
   private readonly timelineFinalizer: Pick<ChapterTimelineFinalizationService, "finalizeCurrentContent">;
@@ -59,7 +59,7 @@ export class ChapterContentFinalizationService {
 
   async finalizeChapterContent(input: FinalizeChapterContentInput): Promise<FinalizeChapterContentResult> {
     const finalContent = input.content;
-    const { acceptance, timelineGate } = await this.qualityGateService.runGates({
+    const { acceptance, timelineGate } = await this.qualityGateService.runAcceptanceGateOnly({
       novelId: input.novelId,
       chapterId: input.chapterId,
       contextPackage: input.contextPackage,
@@ -104,14 +104,19 @@ export class ChapterContentFinalizationService {
       || runtimePackage.audit.hasBlockingIssues;
     await this.markChapterStatus(input.chapterId, needsRepair ? "needs_repair" : "pending_review");
     if (!needsRepair) {
-      await this.timelineFinalizer.finalizeCurrentContent({
+      void this.timelineFinalizer.finalizeCurrentContent({
         novelId: input.novelId,
         chapterId: input.chapterId,
         content: finalContent,
         contextPackage: input.contextPackage,
         request: input.request,
-        timelineGate,
         sourceStage: "draft_accepted",
+      }).catch((error) => {
+        console.warn("[chapter-runtime] deferred timeline finalization failed", {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          error: error instanceof Error ? error.message : String(error),
+        });
       });
     }
 

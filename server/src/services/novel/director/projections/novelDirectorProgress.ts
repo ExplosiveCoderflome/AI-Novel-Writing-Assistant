@@ -9,6 +9,7 @@ export const DIRECTOR_PROGRESS = {
   bookContract: 0.14,
   storyMacro: 0.22,
   constraintEngine: 0.30,
+  worldSetup: 0.32,
   characterSetup: 0.36,
   characterSetupReady: 0.42,
   volumeStrategy: 0.48,
@@ -33,6 +34,7 @@ export type DirectorProgressItemKey =
   | "book_contract"
   | "story_macro"
   | "constraint_engine"
+  | "world_setup"
   | "character_setup"
   | "character_cast_apply"
   | "volume_strategy"

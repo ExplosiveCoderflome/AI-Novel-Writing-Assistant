@@ -9,9 +9,11 @@ import { SECTION_PROMPTS } from "./bookAnalysis.constants";
 import type { SectionGenerationResult, SourceNote } from "./bookAnalysis.types";
 import {
   getSectionTitle,
+  normalizeBookAnalysisStructuredData,
   normalizeMaxTokens,
   normalizeTemperature,
   renderNotesForPrompt,
+  selectNotesForBookAnalysisSection,
   toEvidenceList,
 } from "./bookAnalysis.utils";
 
@@ -25,7 +27,7 @@ export class BookAnalysisSectionWriter {
     maxTokens?: number,
   ): Promise<SectionGenerationResult> {
     const prompt = SECTION_PROMPTS[sectionKey];
-    const notesText = renderNotesForPrompt(notes);
+    const notesText = renderNotesForPrompt(selectNotesForBookAnalysisSection(sectionKey, notes), sectionKey);
     try {
       const result = await runStructuredPrompt({
         asset: bookAnalysisSectionPrompt,
@@ -50,8 +52,8 @@ export class BookAnalysisSectionWriter {
           : JSON.stringify(parsed);
       const structuredData =
         (parsed as any).structuredData && typeof (parsed as any).structuredData === "object"
-          ? ((parsed as any).structuredData as Record<string, unknown>)
-          : null;
+          ? normalizeBookAnalysisStructuredData(sectionKey, (parsed as any).structuredData as Record<string, unknown>)
+          : normalizeBookAnalysisStructuredData(sectionKey, null);
       const evidence = toEvidenceList((parsed as any).evidence);
       return {
         markdown,
@@ -61,7 +63,7 @@ export class BookAnalysisSectionWriter {
     } catch {
       return {
         markdown: "",
-        structuredData: null,
+        structuredData: normalizeBookAnalysisStructuredData(sectionKey, null),
         evidence: [],
       };
     }
@@ -77,7 +79,10 @@ export class BookAnalysisSectionWriter {
     temperature?: number;
     maxTokens?: number;
   }): Promise<string> {
-    const notesText = renderNotesForPrompt(input.notes);
+    const notesText = renderNotesForPrompt(
+      selectNotesForBookAnalysisSection(input.sectionKey, input.notes),
+      input.sectionKey,
+    );
     try {
       const result = await runStructuredPrompt({
         asset: bookAnalysisOptimizedDraftPrompt,

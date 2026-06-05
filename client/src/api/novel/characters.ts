@@ -122,6 +122,11 @@ export async function generateCharacterCastOptions(
     model?: string;
     temperature?: number;
     storyInput?: string;
+    useWorldContext?: boolean;
+    worldFocusHints?: {
+      preferFaction?: string;
+      forceCompliance?: boolean;
+    };
   },
 ) {
   const { data } = await apiClient.post<ApiResponse<CharacterCastOption[]>>(

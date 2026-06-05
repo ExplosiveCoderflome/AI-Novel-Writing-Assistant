@@ -12,6 +12,7 @@ interface StructuredRepairLogInput {
   taskType?: TaskType;
   promptMeta?: PromptInvocationMeta;
   validationError?: string;
+  schemaPaths?: string[];
   repairSystem?: string;
   repairHuman?: string;
   rawOutput?: string;
@@ -59,6 +60,7 @@ export function logStructuredRepairSession(input: StructuredRepairLogInput): voi
     latencyMs: input.latencyMs ?? null,
     promptMeta: buildPromptMeta(input.promptMeta),
     validationError: input.validationError ?? null,
+    schemaPaths: input.schemaPaths ?? [],
     repairSystem: input.repairSystem ?? null,
     repairHuman: input.repairHuman ?? null,
     repairOutput: typeof input.rawOutput === "string" ? input.rawOutput : null,

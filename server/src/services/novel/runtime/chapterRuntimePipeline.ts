@@ -507,7 +507,7 @@ function issueLooksLikeNonPatchableReviewRisk(issue: ReviewIssue): boolean {
 }
 
 function shouldFinalizeDegradedForDeferredQualityDebt(runtimePackage: ChapterRuntimePackage): boolean {
-  if (runtimePackage.replanRecommendation?.recommended) {
+  if (runtimePackage.replanRecommendation?.action === "stop_for_replan") {
     return false;
   }
   if (runtimePackage.failureClassification?.code === "replan_required") {

@@ -415,6 +415,7 @@ export function buildRuntimePackage(input: BuildRuntimePackageInput): ChapterRun
         input.auditResult.auditReports,
         input.contextPackage.ledgerSummary ?? null,
       ),
+      action: hasBlockingIssues ? "local_patch_plan" as const : "continue_with_warning" as const,
       reason: input.contextPackage.ledgerSummary?.overdueCount
         ? "Overdue payoff ledger items require replan or explicit payoff handling."
         : hasBlockingIssues
@@ -432,7 +433,7 @@ export function buildRuntimePackage(input: BuildRuntimePackageInput): ChapterRun
   const failureClassification = buildFailureClassification({
     acceptance: input.acceptance,
     hasBlockingIssues,
-    replanRecommended: replanRecommendation.recommended,
+    replanRecommended: replanRecommendation.action === "stop_for_replan",
     missingObligations: input.acceptance.missingObligations,
   });
 

@@ -1,4 +1,5 @@
 import type { StoryPlan, StoryPlanLevel, StoryPlanRole } from "@ai-novel/shared/types/novel";
+import { sanitizeCreativeMustAdvanceItems } from "@ai-novel/shared/types/chapterCreativeContract";
 
 export interface PlannerPlanMetadata {
   planRole: StoryPlanRole | null;
@@ -143,9 +144,9 @@ export function normalizePlanMetadata(
   return {
     planRole: normalizeStoryPlanRole(record.planRole, fallback.planRole ?? (level === "chapter" ? "progress" : null)),
     phaseLabel: collectStringArray(record.phaseLabel)[0] ?? fallback.phaseLabel,
-    mustAdvance: collectStringArray(record.mustAdvance).slice(0, 5).length > 0
-      ? collectStringArray(record.mustAdvance).slice(0, 5)
-      : fallback.mustAdvance,
+    mustAdvance: sanitizeCreativeMustAdvanceItems(collectStringArray(record.mustAdvance)).slice(0, 5).length > 0
+      ? sanitizeCreativeMustAdvanceItems(collectStringArray(record.mustAdvance)).slice(0, 5)
+      : sanitizeCreativeMustAdvanceItems(fallback.mustAdvance).slice(0, 5),
     mustPreserve: collectStringArray(record.mustPreserve).slice(0, 5).length > 0
       ? collectStringArray(record.mustPreserve).slice(0, 5)
       : fallback.mustPreserve,
@@ -188,7 +189,7 @@ export function readPlanMetadataFromPlan(
   const columnMetadata: PlannerPlanMetadata = {
     planRole: plan.planRole ?? fallback.planRole,
     phaseLabel: plan.phaseLabel ?? fallback.phaseLabel,
-    mustAdvance: parseStoredStringArray(plan.mustAdvanceJson).slice(0, 5),
+    mustAdvance: sanitizeCreativeMustAdvanceItems(parseStoredStringArray(plan.mustAdvanceJson)).slice(0, 5),
     mustPreserve: parseStoredStringArray(plan.mustPreserveJson).slice(0, 5),
     sourceIssueIds: parseStoredStringArray(plan.sourceIssueIdsJson).slice(0, 12),
     replannedFromPlanId: plan.replannedFromPlanId ?? fallback.replannedFromPlanId,

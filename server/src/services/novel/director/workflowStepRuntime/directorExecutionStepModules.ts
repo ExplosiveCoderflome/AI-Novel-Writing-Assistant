@@ -92,6 +92,29 @@ function resolveManualChapterDraftPayload(value: unknown): ManualChapterDraftSte
   };
 }
 
+async function inspectScopedChapterExecutionProgress(context: WorkflowStepExecutionContext) {
+  const { state, novelId, request } = await loadDirectorModuleState(context);
+  const progress = await getDirectorCoreStepRuntime().inspectChapterExecutionProgress(novelId);
+  return scopeChapterExecutionProgress(
+    progress,
+    resolveChapterExecutionProgressScope({ state, request }),
+  );
+}
+
+async function inspectScopedChapterStateCommitFacts(context: WorkflowStepExecutionContext) {
+  const progress = await inspectScopedChapterExecutionProgress(context);
+  const draftedChapterCount = progress?.draftedChapterCount ?? 0;
+  const committedChapterCount = progress?.chapters?.filter((chapter) => (
+    chapter.completedStages.includes("chapter_state_committed")
+  )).length ?? 0;
+  const totalChapters = progress?.totalChapters ?? 0;
+  return {
+    draftedChapterCount,
+    committedChapterCount,
+    totalChapters,
+  };
+}
+
 function createChapterDraftExecutableModule(
   descriptor: WorkflowStepModuleDescriptor,
 ): WorkflowStepModule<ChapterDraftStepInput, ChapterDraftStepOutput> {
@@ -224,12 +247,28 @@ function createChapterDraftExecutableModule(
           && progress.draftedChapterCount >= progress.totalChapters,
         );
         if (!hasObservedDraft) {
+          // The scoped chapters have no saved draft content. The "no draft"
+          // condition itself is accurate (drafts are persisted synchronously and
+          // the execution loop is awaited before this check), but on its own the
+          // generic message hides *why* nothing was drafted — the run may have
+          // paused for replan/approval, been halted by a usage circuit breaker or
+          // stop signal, or the writer/provider may have raised an error recorded
+          // on the task. Surface that specific reason so the failure is actionable
+          // instead of letting this branch preempt the more precise checks below.
+          const stopDetail = observedState.task.lastError?.trim()
+            || observedState.task.checkpointSummary?.trim()
+            || null;
           return {
             valid: false,
-            reason: "Chapter execution did not produce observable draft content.",
+            reason: stopDetail
+              ? `Chapter execution did not produce observable draft content（实际中断原因：${stopDetail}）。`
+              : "Chapter execution did not produce observable draft content.",
             evidence: {
               draftedChapterCount: progress?.draftedChapterCount ?? 0,
               totalChapters: progress?.totalChapters ?? 0,
+              taskStatus: observedState.task.status,
+              checkpointType: observedState.task.checkpointType ?? null,
+              lastError: observedState.task.lastError ?? null,
             },
           };
         }
@@ -577,11 +616,10 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       promptAssets: [{ id: "audit.chapter.full", version: "v2" }],
     }),
     inspectFacts: async (context) => {
-      const summary = await loadFactBaseSummary(context);
+      const progress = await inspectScopedChapterExecutionProgress(context);
       const autoReviewDisabled = await isAutoQualityReviewDisabled(context);
-      const draftedCount = summary.repair.draftedChapterCount;
-      const reviewedCount = summary.repair.reviewedChapterCount;
-      const drafted = { length: draftedCount };
+      const draftedCount = progress?.draftedChapterCount ?? 0;
+      const reviewedCount = progress?.chapters?.filter((chapter) => chapterHasCompletedStage(chapter, "audit_completed")).length ?? 0;
       const reviewed = reviewedCount;
       const evidence = {
         draftedChapterCount: draftedCount,
@@ -604,12 +642,12 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
             evidence,
           }),
         progress: buildSimpleProgress({
-          status: completed ? "completed" : drafted.length > 0 ? "partially_done" : "blocked",
-          ratio: completed ? 1 : drafted.length > 0 ? reviewed / drafted.length : 0,
+          status: completed ? "completed" : draftedCount > 0 ? "partially_done" : "blocked",
+          ratio: completed ? 1 : draftedCount > 0 ? reviewed / draftedCount : 0,
           label: completed
             ? (autoReviewDisabled ? "本轮不执行自动审校" : "章节审校已完成")
             : "正在根据最新正文补齐审校结果",
-          evidence: { draftedChapterCount: drafted.length, reviewedChapterCount: reviewed, autoReview: !autoReviewDisabled, reviewSkipped: autoReviewDisabled },
+          evidence: { draftedChapterCount: draftedCount, reviewedChapterCount: reviewed, autoReview: !autoReviewDisabled, reviewSkipped: autoReviewDisabled },
           nextAction: completed ? "commit_chapter_state" : "run_quality_review",
         }),
       };
@@ -633,10 +671,10 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       });
     },
     inspectFacts: async (context) => {
-      const summary = await loadFactBaseSummary(context);
-      const draftedChapterCount = summary.repair.draftedChapterCount;
-      const reviewedChapterCount = summary.repair.reviewedChapterCount;
-      const needsRepairChapters = summary.repair.needsRepairChapterCount;
+      const progressSummary = await inspectScopedChapterExecutionProgress(context);
+      const draftedChapterCount = progressSummary?.draftedChapterCount ?? 0;
+      const reviewedChapterCount = progressSummary?.chapters?.filter((chapter) => chapterHasCompletedStage(chapter, "audit_completed")).length ?? 0;
+      const needsRepairChapters = progressSummary?.needsRepairChapters ?? 0;
       const hasRepairContext = reviewedChapterCount > 0 || needsRepairChapters > 0;
       const progress = {
         needsRepairChapters: hasRepairContext ? needsRepairChapters : 1,
@@ -678,27 +716,33 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       adapter: getDirectorExecutionNodeAdapter("chapter_state_commit"),
     }),
     inspectFacts: async (context) => {
-      const summary = await loadFactBaseSummary(context);
-      const draftedCount = summary.repair.draftedChapterCount;
-      const committedCount = summary.repair.committedChapterCount;
-      const drafted = { length: draftedCount };
-      const committed = committedCount;
+      const {
+        draftedChapterCount,
+        committedChapterCount,
+        totalChapters,
+      } = await inspectScopedChapterStateCommitFacts(context);
+      const evidence = {
+        draftedChapterCount,
+        committedChapterCount,
+        totalChapters,
+      };
+      const completed = draftedChapterCount > 0 && committedChapterCount >= draftedChapterCount;
       return {
-        readiness: drafted.length > 0
-          ? readyState({ evidence: { draftedChapterCount: drafted.length, committedChapterCount: committed } })
+        readiness: draftedChapterCount > 0
+          ? readyState({ evidence })
           : blockedState("Chapter state commit requires drafted chapters.", { code: "missing_chapter_drafts", nextAction: "continue_chapter_execution" }),
-        completion: drafted.length > 0 && committed >= drafted.length
-          ? completedFact(DIRECTOR_EXECUTION_STEP_IDS.chapter_state_commit, { evidence: { draftedChapterCount: drafted.length, committedChapterCount: committed } })
+        completion: completed
+          ? completedFact(DIRECTOR_EXECUTION_STEP_IDS.chapter_state_commit, { evidence })
           : pendingFact(DIRECTOR_EXECUTION_STEP_IDS.chapter_state_commit, {
-            ratio: drafted.length > 0 ? committed / drafted.length : 0,
-            evidence: { draftedChapterCount: drafted.length, committedChapterCount: committed },
+            ratio: draftedChapterCount > 0 ? committedChapterCount / draftedChapterCount : 0,
+            evidence,
           }),
         progress: buildSimpleProgress({
-          status: drafted.length > 0 && committed >= drafted.length ? "completed" : drafted.length > 0 ? "partially_done" : "blocked",
-          ratio: drafted.length > 0 ? committed / drafted.length : 0,
-          label: drafted.length > 0 && committed >= drafted.length ? "章节状态提交已完成" : "正在补齐章节状态提交",
-          evidence: { draftedChapterCount: drafted.length, committedChapterCount: committed },
-          nextAction: drafted.length > 0 && committed >= drafted.length ? "sync_payoff_ledger" : "commit_state",
+          status: completed ? "completed" : draftedChapterCount > 0 ? "partially_done" : "blocked",
+          ratio: draftedChapterCount > 0 ? committedChapterCount / draftedChapterCount : 0,
+          label: completed ? "章节状态提交已完成" : "正在补齐章节状态提交",
+          evidence,
+          nextAction: completed ? "sync_payoff_ledger" : "commit_state",
         }),
       };
     },
@@ -757,10 +801,10 @@ export const DIRECTOR_EXECUTION_STEP_MODULES: Record<
       adapter: getDirectorExecutionNodeAdapter("quality_repair"),
     }),
     inspectFacts: async (context) => {
-      const summary = await loadFactBaseSummary(context);
-      const draftedChapterCount = summary.repair.draftedChapterCount;
-      const reviewedChapterCount = summary.repair.reviewedChapterCount;
-      const needsRepairChapters = summary.repair.needsRepairChapterCount;
+      const progressSummary = await inspectScopedChapterExecutionProgress(context);
+      const draftedChapterCount = progressSummary?.draftedChapterCount ?? 0;
+      const reviewedChapterCount = progressSummary?.chapters?.filter((chapter) => chapterHasCompletedStage(chapter, "audit_completed")).length ?? 0;
+      const needsRepairChapters = progressSummary?.needsRepairChapters ?? 0;
       const hasRepairContext = reviewedChapterCount > 0 || needsRepairChapters > 0;
       const progress = {
         needsRepairChapters: hasRepairContext ? needsRepairChapters : 1,

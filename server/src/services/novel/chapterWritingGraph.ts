@@ -203,6 +203,7 @@ export class ChapterWritingGraph {
         metadata: {
           chapterWriteContext: writeContext,
           chapterBlockMode: "full",
+          ragContext: input.contextPackage.ragContext,
           extraContextBlocks: sanitized.allowedBlocks.filter((block) => block.group === "current_draft_excerpt"),
         },
       },
@@ -282,6 +283,7 @@ export class ChapterWritingGraph {
         metadata: {
           chapterWriteContext,
           chapterBlockMode: "full",
+          ragContext: contextPackage.ragContext,
         },
       },
       fallbackBlocks: sanitized.allowedBlocks,

@@ -53,6 +53,7 @@ class BookAnalysisServiceFacade {
     temperature?: number;
     maxTokens?: number;
     includeTimeline?: boolean;
+    enabledSectionKeys?: BookAnalysisSectionKey[];
   }): Promise<BookAnalysisDetail> {
     return this.commandService.createAnalysis(input);
   }

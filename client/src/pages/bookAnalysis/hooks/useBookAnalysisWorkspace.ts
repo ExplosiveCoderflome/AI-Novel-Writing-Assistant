@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  BookAnalysisPreset,
   BookAnalysisPublishResult,
   BookAnalysisSection,
   BookAnalysisSectionKey,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
+import { BOOK_ANALYSIS_PRESETS } from "@ai-novel/shared/types/bookAnalysis";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   archiveBookAnalysis,
@@ -46,7 +48,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const [selectedDocumentId, setSelectedDocumentId] = useState(searchParams.get("documentId") ?? "");
   const [selectedVersionId, setSelectedVersionId] = useState("");
   const [selectedNovelId, setSelectedNovelId] = useState("");
-  const [includeTimeline, setIncludeTimeline] = useState(false);
+  const [analysisPreset, setAnalysisPreset] = useState<BookAnalysisPreset>("standard");
   const [llmConfig, setLlmConfig] = useState<LLMConfigState>({
     provider: llmStore.provider,
     model: llmStore.model,
@@ -71,6 +73,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       listBookAnalyses({
         keyword: keyword.trim() || undefined,
         status: status || undefined,
+        documentId: selectedDocumentId || undefined,
       }),
     refetchInterval: (query) => {
       const rows = query.state.data?.data ?? [];
@@ -124,6 +127,12 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const novelOptions = useMemo(() => buildNovelOptions(novelsQuery.data?.data?.items ?? []), [novelsQuery.data?.data?.items]);
   const sourceDocument = sourceDocumentQuery.data?.data;
   const versionOptions = sourceDocumentQuery.data?.data?.versions ?? [];
+  const selectedPreset = useMemo(
+    () => BOOK_ANALYSIS_PRESETS.find((preset) => preset.key === analysisPreset) ?? BOOK_ANALYSIS_PRESETS[1],
+    [analysisPreset],
+  );
+  const includeTimeline = selectedPreset.sectionKeys.includes("timeline");
+  const setIncludeTimeline = (include: boolean) => setAnalysisPreset(include ? "complete" : "standard");
 
   const aggregatedEvidence = useMemo(() => {
     if (!selectedAnalysis) {
@@ -132,6 +141,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     return selectedAnalysis.sections.flatMap((section) =>
       section.evidence.map((item) => ({
         ...item,
+        sectionKey: section.sectionKey,
         sectionTitle: section.title,
       })),
     );
@@ -432,6 +442,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       temperature: llmConfig.temperature,
       maxTokens: llmConfig.maxTokens,
       includeTimeline,
+      enabledSectionKeys: selectedPreset.sectionKeys,
     });
   };
 
@@ -563,6 +574,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     selectedVersionId,
     selectedNovelId,
     includeTimeline,
+    analysisPreset,
     llmConfig,
     sectionDrafts,
     publishFeedback,
@@ -591,6 +603,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     setStatus,
     setSelectedNovelId,
     setIncludeTimeline,
+    setAnalysisPreset,
     setLlmConfig,
     selectDocument,
     selectVersion,

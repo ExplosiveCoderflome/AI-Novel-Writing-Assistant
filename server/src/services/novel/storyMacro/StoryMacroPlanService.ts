@@ -47,8 +47,7 @@ import {
   type StoryMacroNovelContext,
   toEditablePlan,
 } from "./storyMacroPlanService.shared";
-import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
-import { formatStoryWorldSlicePromptBlock } from "../storyWorldSlice/storyWorldSliceFormatting";
+import { WorldContextGateway } from "../worldContext/WorldContextGateway";
 
 interface LLMOptions {
   provider?: LLMProvider;
@@ -57,7 +56,7 @@ interface LLMOptions {
 }
 
 export class StoryMacroPlanService {
-  private readonly worldSliceService = new NovelWorldSliceService();
+  private readonly worldContextGateway = new WorldContextGateway();
 
   private async getNovelContext(novelId: string): Promise<StoryMacroNovelContext> {
     const novel = await prisma.novel.findUnique({
@@ -250,6 +249,17 @@ export class StoryMacroPlanService {
     return normalizeRegeneratedFieldValue(field, parsed.output.value);
   }
 
+  private async getWorldProjectContext(novelId: string, storyInput: string | undefined, options: LLMOptions): Promise<string> {
+    const block = await this.worldContextGateway.getWorldContextBlock(novelId, {
+      purpose: "outline",
+      storyInput,
+      provider: options.provider,
+      model: options.model,
+      temperature: options.temperature,
+    });
+    return block?.promptBlock ?? "";
+  }
+
   async getPlan(novelId: string): Promise<StoryMacroPlan | null> {
     await this.getNovelContext(novelId);
     const row = await this.getRow(novelId);
@@ -269,13 +279,10 @@ export class StoryMacroPlanService {
     if (!normalizedInput) {
       throw new Error("故事想法不能为空。");
     }
-    const worldSlice = await this.worldSliceService.ensureStoryWorldSlice(novelId, {
-      storyInput: normalizedInput,
-      builderMode: "story_macro",
-    });
+    const worldContext = await this.getWorldProjectContext(novelId, normalizedInput, options);
     const projectContext = formatProjectContext(
       novel,
-      worldSlice ? formatStoryWorldSlicePromptBlock(worldSlice) : "",
+      worldContext,
     );
     const generated = await this.invokeDecompositionModel(
       normalizedInput,
@@ -308,10 +315,7 @@ export class StoryMacroPlanService {
     if (plan.lockedFields[field]) {
       throw new Error("该字段已锁定，请先解锁后再重生成。");
     }
-    const worldSlice = await this.worldSliceService.ensureStoryWorldSlice(novelId, {
-      storyInput: plan.storyInput ?? undefined,
-      builderMode: "story_macro",
-    });
+    const worldContext = await this.getWorldProjectContext(novelId, plan.storyInput ?? undefined, options);
     const editablePlan = toEditablePlan(plan);
     const nextFieldValue = await this.invokeSingleFieldRegeneration(
       field,
@@ -319,7 +323,7 @@ export class StoryMacroPlanService {
       editablePlan,
       plan.lockedFields,
       options,
-      formatProjectContext(novel, worldSlice ? formatStoryWorldSlicePromptBlock(worldSlice) : ""),
+      formatProjectContext(novel, worldContext),
     );
     const nextPlan = setEditablePlanFieldValue(editablePlan, field, nextFieldValue);
     const constraintEngine = isDecompositionComplete(nextPlan.decomposition)

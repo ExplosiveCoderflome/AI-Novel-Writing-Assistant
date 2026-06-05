@@ -114,6 +114,29 @@ export const inspirationSchema = z.object({
   model: z.string().optional(),
 });
 
+const skeletonPresetSchema = z.enum(["light", "standard", "epic"]);
+
+export const worldSkeletonGenerateSchema = z.object({
+  idea: z.string().trim().min(1).max(20_000),
+  worldType: z.string().trim().optional(),
+  template: z.string().trim().optional(),
+  referenceContext: z.unknown().optional(),
+  blueprint: z.unknown().optional(),
+  options: z.object({
+    preset: skeletonPresetSchema,
+    counts: z.object({
+      rules: z.number().int().min(3).max(6),
+      factionGroups: z.number().int().min(2).max(5),
+      forces: z.number().int().min(3).max(9),
+      locations: z.number().int().min(3).max(10),
+      conflicts: z.number().int().min(2).max(8),
+      storyEntrySuggestions: z.number().int().min(1).max(5),
+    }),
+  }).optional(),
+  provider: providerSchema.optional(),
+  model: z.string().optional(),
+});
+
 export const knowledgeBindingsSchema = z.object({
   documentIds: z.array(z.string().trim().min(1)).default([]),
 });

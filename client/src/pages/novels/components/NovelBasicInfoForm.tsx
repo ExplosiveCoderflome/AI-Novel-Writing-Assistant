@@ -183,7 +183,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
 
         {resourceRecommendation}
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div className="space-y-2">
             <FieldLabel htmlFor="basic-genre" hint={BASIC_INFO_FIELD_HINTS.genreId}>题材基底</FieldLabel>
             <select
@@ -196,23 +196,6 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               {genreOptions.map((genre) => (
                 <option key={genre.id} value={genre.id}>
                   {genre.path}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <FieldLabel htmlFor="basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>绑定世界观</FieldLabel>
-            <select
-              id="basic-world"
-              className="w-full rounded-md border bg-background p-2 text-sm"
-              value={basicForm.worldId}
-              onChange={(event) => onFormChange({ worldId: event.target.value })}
-            >
-              <option value="">不绑定世界观</option>
-              {worldOptions.map((world) => (
-                <option key={world.id} value={world.id}>
-                  {world.name}
                 </option>
               ))}
             </select>
@@ -333,6 +316,29 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         </summary>
 
         <div className="mt-4 space-y-4">
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-sm font-semibold text-foreground">参考世界样本</div>
+            <div className="mt-1 text-xs leading-5 text-muted-foreground">
+              这里只用于记录初始化参考。小说实际使用的世界，请在页面上方“本书世界”卡片中导入、生成或自定义。
+            </div>
+            <div className="mt-3 space-y-2">
+              <FieldLabel htmlFor="basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>参考世界样本</FieldLabel>
+              <select
+                id="basic-world"
+                className="w-full rounded-md border bg-background p-2 text-sm"
+                value={basicForm.worldId}
+                onChange={(event) => onFormChange({ worldId: event.target.value })}
+              >
+                <option value="">不指定参考样本</option>
+                {worldOptions.map((world) => (
+                  <option key={world.id} value={world.id}>
+                    {world.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <SectionBlock
             title="叙事体验"
             description="这些字段定义读者会如何感知这部作品，也会直接影响章节规划的语气、密度和推进方式。"
@@ -474,7 +480,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           <summary className="cursor-pointer list-none">
             <CollapsibleSummary
               title="续写来源设置"
-              description="当前是续写模式，这部分是必填项，所以默认展开。"
+              description="续写模式需要先明确上游来源，所以默认展开。"
               collapsedLabel="展开设置"
               expandedLabel="收起设置"
             />
@@ -573,13 +579,13 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
 
       {continuationSourceMissing ? (
         <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
-          续写模式下需要先选择明确的上游来源，才能保存当前基本信息。
+          续写模式下需要先选择明确的上游来源，才能保存基本信息。
         </div>
       ) : null}
 
       {continuationAnalysisSectionMissing ? (
         <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
-          你已经选择了拆书结果，但还没有选择要注入的拆书章节。
+          拆书结果需要搭配要注入的拆书章节。
         </div>
       ) : null}
 

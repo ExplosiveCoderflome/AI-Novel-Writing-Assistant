@@ -1,5 +1,5 @@
 import type { BookAnalysisEvidenceItem, BookAnalysisSection, BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
-import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
+import { BOOK_ANALYSIS_SECTIONS, BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS } from "@ai-novel/shared/types/bookAnalysis";
 import {
   CHAPTER_HEADING_REGEX,
   CHUNK_OVERLAP_CHARS,
@@ -214,23 +214,127 @@ export function buildSourceSegments(content: string): SourceSegment[] {
   return splitIntoChunkSegments(content);
 }
 
-export function renderNotesForPrompt(notes: SourceNote[]): string {
+function renderNoteField(label: string, values: string[]): string {
+  return `${label}：${values.join("；") || "无"}`;
+}
+
+type SourceNoteStringListKey =
+  | "plotPoints"
+  | "timelineEvents"
+  | "characters"
+  | "worldbuilding"
+  | "themes"
+  | "styleTechniques"
+  | "marketHighlights"
+  | "readerSignals"
+  | "weaknessSignals";
+
+function normalizeStructuredString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeStructuredStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean)
+      .slice(0, 12);
+  }
+  if (typeof value === "string" && value.trim()) {
+    return [value.trim()];
+  }
+  return [];
+}
+
+export function normalizeBookAnalysisStructuredData(
+  sectionKey: BookAnalysisSectionKey,
+  value: Record<string, unknown> | null,
+): Record<string, unknown> {
+  const source = value && typeof value === "object" ? value : {};
+  const normalized: Record<string, unknown> = {};
+  for (const field of BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS[sectionKey]) {
+    normalized[field.key] = field.type === "string"
+      ? normalizeStructuredString(source[field.key])
+      : normalizeStructuredStringArray(source[field.key]);
+  }
+  return normalized;
+}
+
+function getNoteFieldsForSection(sectionKey?: BookAnalysisSectionKey): Array<{
+  label: string;
+  key: SourceNoteStringListKey;
+}> {
+  switch (sectionKey) {
+    case "plot_structure":
+      return [
+        { label: "剧情要点", key: "plotPoints" },
+        { label: "时间线节点", key: "timelineEvents" },
+        { label: "读者信号", key: "readerSignals" },
+        { label: "短板信号", key: "weaknessSignals" },
+      ];
+    case "timeline":
+      return [
+        { label: "时间线节点", key: "timelineEvents" },
+        { label: "剧情要点", key: "plotPoints" },
+        { label: "人物信息", key: "characters" },
+      ];
+    case "character_system":
+      return [
+        { label: "人物信息", key: "characters" },
+        { label: "剧情要点", key: "plotPoints" },
+        { label: "主题信息", key: "themes" },
+      ];
+    case "worldbuilding":
+      return [
+        { label: "设定信息", key: "worldbuilding" },
+        { label: "剧情要点", key: "plotPoints" },
+        { label: "短板信号", key: "weaknessSignals" },
+      ];
+    case "themes":
+      return [
+        { label: "主题信息", key: "themes" },
+        { label: "读者信号", key: "readerSignals" },
+        { label: "短板信号", key: "weaknessSignals" },
+      ];
+    case "style_technique":
+      return [
+        { label: "文风技法", key: "styleTechniques" },
+        { label: "读者信号", key: "readerSignals" },
+        { label: "短板信号", key: "weaknessSignals" },
+      ];
+    case "market_highlights":
+      return [
+        { label: "商业卖点", key: "marketHighlights" },
+        { label: "读者信号", key: "readerSignals" },
+        { label: "短板信号", key: "weaknessSignals" },
+        { label: "人物信息", key: "characters" },
+      ];
+    default:
+      return [
+        { label: "剧情要点", key: "plotPoints" },
+        { label: "时间线节点", key: "timelineEvents" },
+        { label: "人物信息", key: "characters" },
+        { label: "设定信息", key: "worldbuilding" },
+        { label: "主题信息", key: "themes" },
+        { label: "文风技法", key: "styleTechniques" },
+        { label: "商业卖点", key: "marketHighlights" },
+        { label: "读者信号", key: "readerSignals" },
+        { label: "短板信号", key: "weaknessSignals" },
+      ];
+  }
+}
+
+export function renderNotesForPrompt(notes: SourceNote[], sectionKey?: BookAnalysisSectionKey): string {
   return notes
     .map((note) => {
-      const readerSignals = note.readerSignals ?? [];
-      const weaknessSignals = note.weaknessSignals ?? [];
+      const fieldLines = getNoteFieldsForSection(sectionKey).map((field) => {
+        const value = note[field.key];
+        return renderNoteField(field.label, Array.isArray(value) ? value : []);
+      });
       const sections = [
         `## ${note.sourceLabel}`,
         `摘要：${note.summary}`,
-        `剧情要点：${note.plotPoints.join("；") || "无"}`,
-        `时间线节点：${note.timelineEvents.join("；") || "无"}`,
-        `人物信息：${note.characters.join("；") || "无"}`,
-        `设定信息：${note.worldbuilding.join("；") || "无"}`,
-        `主题信息：${note.themes.join("；") || "无"}`,
-        `文风技法：${note.styleTechniques.join("；") || "无"}`,
-        `商业卖点：${note.marketHighlights.join("；") || "无"}`,
-        `读者信号：${readerSignals.join("；") || "无"}`,
-        `短板信号：${weaknessSignals.join("；") || "无"}`,
+        ...fieldLines,
         note.evidence.length > 0
           ? `证据摘录：\n${note.evidence.map((item) => `- ${item.label}：${item.excerpt}`).join("\n")}`
           : "证据摘录：无",
@@ -238,6 +342,40 @@ export function renderNotesForPrompt(notes: SourceNote[]): string {
       return sections.join("\n");
     })
     .join("\n\n");
+}
+
+function hasAnySignal(note: SourceNote, keys: Array<keyof SourceNote>): boolean {
+  return keys.some((key) => {
+    const value = note[key];
+    return Array.isArray(value) && value.length > 0;
+  });
+}
+
+export function selectNotesForBookAnalysisSection(
+  sectionKey: BookAnalysisSectionKey,
+  notes: SourceNote[],
+): SourceNote[] {
+  if (notes.length === 0 || sectionKey === "overview") {
+    return notes;
+  }
+
+  const sectionSignalKeys: Partial<Record<BookAnalysisSectionKey, Array<keyof SourceNote>>> = {
+    plot_structure: ["plotPoints", "timelineEvents"],
+    timeline: ["timelineEvents", "plotPoints"],
+    character_system: ["characters"],
+    worldbuilding: ["worldbuilding"],
+    themes: ["themes", "readerSignals", "weaknessSignals"],
+    style_technique: ["styleTechniques", "readerSignals", "weaknessSignals"],
+    market_highlights: ["marketHighlights", "readerSignals", "weaknessSignals"],
+  };
+
+  const signalKeys = sectionSignalKeys[sectionKey];
+  if (!signalKeys?.length) {
+    return notes;
+  }
+
+  const selected = notes.filter((note) => hasAnySignal(note, signalKeys));
+  return selected.length > 0 ? selected : notes;
 }
 
 export function getSectionTitle(sectionKey: BookAnalysisSectionKey): string {

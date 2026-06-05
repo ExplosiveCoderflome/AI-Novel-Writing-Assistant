@@ -84,6 +84,38 @@ function createCanonicalSnapshot() {
   };
 }
 
+function createStoryWorldSlice() {
+  return {
+    storyId: "novel-1",
+    worldId: "world-slice-1",
+    coreWorldFrame: "星核枯竭的北境舞台。",
+    appliedRules: [{
+      id: "rule-star-core",
+      name: "星核代价",
+      summary: "透支星核会损伤寿命。",
+      whyItMatters: "能力不能无代价升级。",
+    }],
+    activeForces: [],
+    activeLocations: [],
+    activeElements: [],
+    conflictCandidates: [],
+    pressureSources: [],
+    mysterySources: [],
+    suggestedStoryAxes: [],
+    recommendedEntryPoints: [],
+    forbiddenCombinations: ["不要把星核写成普通灵石"],
+    storyScopeBoundary: "前期限定在北境。",
+    metadata: {
+      schemaVersion: 1,
+      builtAt: new Date().toISOString(),
+      sourceWorldUpdatedAt: null,
+      storyInputDigest: "digest",
+      builtFromStructuredData: true,
+      builderMode: "runtime",
+    },
+  };
+}
+
 test("assembler refreshes chapter execution fields after chapter plan regeneration", async () => {
   const staleSceneCards = createSceneCards("旧合同");
   const freshSceneCards = createSceneCards("新合同");
@@ -189,7 +221,17 @@ test("assembler refreshes chapter execution fields after chapter plan regenerati
     characterResourceLedgerService.buildContext = async () => null;
 
     const assembler = new GenerationContextAssembler();
-    assembler.worldSliceService = { ensureStoryWorldSlice: async () => null };
+    const storyWorldSlice = createStoryWorldSlice();
+    assembler.worldContextGateway = {
+      getWorldContextBlock: async (id, options) => {
+        assert.equal(id, "novel-1");
+        assert.deepEqual(options, { purpose: "chapter" });
+        return {
+          promptBlock: "【本书世界上下文｜用途：chapter】\n星核枯竭的北境舞台。",
+          rawSlice: storyWorldSlice,
+        };
+      },
+    };
     assembler.continuationService = {
       buildChapterContextPack: async () => ({
         enabled: false,
@@ -220,6 +262,9 @@ test("assembler refreshes chapter execution fields after chapter plan regenerati
     assert.equal(chapterFindFirstCalls, 2);
     assert.equal(assembled.chapter.taskSheet, "新任务单");
     assert.equal(assembled.contextPackage.chapter.sceneCards, freshSceneCards);
+    assert.equal(assembled.contextPackage.storyWorldSlice, storyWorldSlice);
+    assert.match(assembled.contextPackage.chapter.supportingContextText, /本书世界上下文/);
+    assert.match(assembled.contextPackage.chapter.supportingContextText, /星核枯竭的北境舞台/);
     assert.equal(assembled.contextPackage.chapterWriteContext.chapterBoundary.entryState, "新合同入口1");
     assert.ok(assembled.contextPackage.chapterWriteContext.chapterBoundary.doNotCross.includes("新禁止"));
   } finally {

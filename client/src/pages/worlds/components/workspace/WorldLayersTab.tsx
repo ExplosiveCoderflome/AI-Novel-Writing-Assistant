@@ -74,99 +74,126 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
     refineContent,
     onAbortRefine,
   } = props;
+  const selectedLayerMeta = LAYERS.find((layer) => layer.key === selectedLayer) ?? LAYERS[0];
+  const worldRecord = world as unknown as Record<string, unknown> | undefined;
+  const hasSelectedDraft = Object.prototype.hasOwnProperty.call(layerDrafts, selectedLayerMeta.key);
+  const selectedLayerValue = hasSelectedDraft
+    ? (layerDrafts[selectedLayerMeta.key] ?? "")
+    : pickLayerFieldText(selectedLayerMeta.key, worldRecord);
+  const selectedLayerStatus = layerStates[selectedLayerMeta.key]?.status ?? "pending";
+  const isGeneratingSelectedLayer = generateLayerPending && generateLayerVariable === selectedLayerMeta.key;
+  const isSavingSelectedLayer =
+    saveLayerPending && saveLayerVariable?.layerKey === selectedLayerMeta.key;
+  const isConfirmingSelectedLayer =
+    confirmLayerPending && confirmLayerVariable === selectedLayerMeta.key;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>分层构建</CardTitle>
+        <CardTitle>分层整理世界</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 rounded-md border p-3">
           <Button onClick={onGenerateAll} disabled={generateAllPending || !world}>
-            {generateAllPending ? "六层生成中..." : isInitialLayerGeneration ? "首次 AI 生成六层" : "一键重建六层"}
+            {generateAllPending ? "整理中..." : isInitialLayerGeneration ? "AI 整理六层摘要" : "重新整理六层摘要"}
           </Button>
           <div className="text-xs text-muted-foreground">
             {isInitialLayerGeneration
-              ? "首次 AI 生成会并发构建 6 层。"
-              : "首次生成已完成，支持单层 AI 重写。"}
+              ? "系统会把世界手册整理为基础、力量、社会、文化、历史和冲突六个写作摘要。"
+              : "有世界骨架时会按手册内容整理摘要；没有骨架的旧世界才会补写缺失层级。"}
           </div>
         </div>
 
-        <div className="space-y-3">
-          {LAYERS.map((layer) => {
-            const hasDraft = Object.prototype.hasOwnProperty.call(layerDrafts, layer.key);
-            const worldRecord = world as unknown as Record<string, unknown> | undefined;
-            const layerValue = hasDraft
-              ? (layerDrafts[layer.key] ?? "")
-              : pickLayerFieldText(layer.key, worldRecord);
-            const layerStatus = layerStates[layer.key]?.status ?? "pending";
-            const isGeneratingCurrentLayer = generateLayerPending && generateLayerVariable === layer.key;
-            const isSavingCurrentLayer =
-              saveLayerPending && saveLayerVariable?.layerKey === layer.key;
-            const isConfirmingCurrentLayer =
-              confirmLayerPending && confirmLayerVariable === layer.key;
+        <div className="grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="text-sm font-medium">选择要整理的层级</div>
+            <div className="space-y-2">
+              {LAYERS.map((layer) => {
+                const layerStatus = layerStates[layer.key]?.status ?? "pending";
+                const hasDraft = Object.prototype.hasOwnProperty.call(layerDrafts, layer.key);
 
-            return (
-              <div key={layer.key} className="rounded-md border p-3 space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="font-medium">{layer.label}</div>
-                  <div className="text-xs text-muted-foreground">
-                    状态：{LAYER_STATUS_LABELS[layerStatus] ?? layerStatus}
-                  </div>
-                </div>
-                <textarea
-                  className="min-h-[160px] w-full rounded-md border bg-background p-2 text-sm"
-                  value={layerValue}
-                  onFocus={() => setSelectedLayer(layer.key)}
-                  onChange={(event) =>
-                    setLayerDrafts((prev) => ({
-                      ...prev,
-                      [layer.key]: event.target.value,
-                    }))
-                  }
-                />
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    onClick={() => {
-                      setSelectedLayer(layer.key);
-                      if (isInitialLayerGeneration) {
-                        onGenerateAll();
-                        return;
-                      }
-                      onGenerateLayer(layer.key);
-                    }}
-                    disabled={generateAllPending || generateLayerPending || !world}
+                return (
+                  <button
+                    key={layer.key}
+                    type="button"
+                    className={[
+                      "w-full rounded-md border p-2 text-left text-sm transition-colors",
+                      selectedLayer === layer.key ? "border-primary bg-primary/5" : "border-border/70 bg-background hover:bg-muted/40",
+                    ].join(" ")}
+                    onClick={() => setSelectedLayer(layer.key)}
                   >
-                    {isInitialLayerGeneration
-                      ? generateAllPending
-                        ? "六层生成中..."
-                        : "首次 AI 生成六层"
-                      : isGeneratingCurrentLayer
-                        ? "重写中..."
-                        : "AI 重写本层"}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => onSaveLayer({ layerKey: layer.key, content: layerValue })}
-                    disabled={saveLayerPending || generateAllPending || !layerValue.trim()}
-                  >
-                    {isSavingCurrentLayer ? "保存中..." : "手动保存本层"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => onConfirmLayer(layer.key)}
-                    disabled={confirmLayerPending || generateAllPending}
-                  >
-                    {isConfirmingCurrentLayer ? "确认中..." : "确认本层"}
-                  </Button>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-foreground">{layer.label}</span>
+                      {hasDraft ? <span className="text-xs text-primary">草稿</span> : null}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {LAYER_STATUS_LABELS[layerStatus] ?? layerStatus}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-md border p-3 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="font-medium">{selectedLayerMeta.label}</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  状态：{LAYER_STATUS_LABELS[selectedLayerStatus] ?? selectedLayerStatus}
                 </div>
               </div>
-            );
-          })}
+              {hasSelectedDraft ? <div className="text-xs text-primary">有未保存草稿</div> : null}
+            </div>
+            <textarea
+              className="min-h-[260px] w-full rounded-md border bg-background p-2 text-sm"
+              value={selectedLayerValue}
+              onChange={(event) =>
+                setLayerDrafts((prev) => ({
+                  ...prev,
+                  [selectedLayerMeta.key]: event.target.value,
+                }))
+              }
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => {
+                  if (isInitialLayerGeneration) {
+                    onGenerateAll();
+                    return;
+                  }
+                  onGenerateLayer(selectedLayerMeta.key);
+                }}
+                disabled={generateAllPending || generateLayerPending || !world}
+              >
+                {isInitialLayerGeneration
+                  ? generateAllPending
+                    ? "六层生成中..."
+                    : "首次 AI 生成六层"
+                  : isGeneratingSelectedLayer
+                    ? "重写中..."
+                    : "AI 整理本层"}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => onSaveLayer({ layerKey: selectedLayerMeta.key, content: selectedLayerValue })}
+                disabled={saveLayerPending || generateAllPending || !selectedLayerValue.trim()}
+              >
+                {isSavingSelectedLayer ? "保存中..." : "保存本层"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => onConfirmLayer(selectedLayerMeta.key)}
+                disabled={confirmLayerPending || generateAllPending}
+              >
+                {isConfirmingSelectedLayer ? "确认中..." : "确认本层"}
+              </Button>
+            </div>
+          </div>
         </div>
 
         <div className="rounded-md border p-3">
-          <div className="mb-2 text-sm font-medium">精炼</div>
+          <div className="mb-2 text-sm font-medium">AI 精修</div>
           <div className="grid gap-2 md:grid-cols-4">
             <select
               className="rounded-md border bg-background p-2 text-sm"
@@ -196,7 +223,7 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
               <option value="deep">深度</option>
             </select>
             <Button onClick={onStartRefine} disabled={refineStreaming}>
-              {refineStreaming ? "精炼中..." : `开始精炼 ${selectedLayer === "foundation" ? "当前世界" : ""}`.trim()}
+              {refineStreaming ? "精修中..." : selectedLayer === "foundation" ? "精修世界基底" : "精修本层"}
             </Button>
           </div>
           <StreamOutput content={refineContent} isStreaming={refineStreaming} onAbort={onAbortRefine} />

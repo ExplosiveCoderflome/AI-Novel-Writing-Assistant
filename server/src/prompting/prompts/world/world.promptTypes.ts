@@ -14,6 +14,20 @@ export interface WorldStructureBackfillPromptInput {
   promptSource: string;
 }
 
+export interface NovelThemeWorldGenerationPromptInput {
+  novelTitle: string;
+  description: string;
+  targetAudience: string;
+  bookSellingPoint: string;
+  first30ChapterPromise: string;
+  commercialTags: string[];
+  genreName: string;
+  primaryStoryModeName: string;
+  secondaryStoryModeName: string;
+  storyMacroContext?: string;
+  bookContractContext?: string;
+}
+
 export interface WorldStructureSectionPromptInput {
   section: WorldStructureSectionKey;
   promptSource: string;

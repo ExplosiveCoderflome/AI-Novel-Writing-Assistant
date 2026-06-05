@@ -37,3 +37,23 @@ export function resolveWorkflowContinuationFeedback(
         : "自动导演已继续推进。",
   };
 }
+
+export function resolveDirectorContinueMode(task: Pick<
+  UnifiedTaskDetail,
+  "checkpointType" | "currentItemKey" | "currentStage" | "pendingManualRecovery"
+> | null | undefined): DirectorContinuationMode {
+  if (task?.pendingManualRecovery) {
+    return "resume";
+  }
+  if (
+    task?.checkpointType === "replan_required"
+    || task?.currentItemKey === "quality_repair"
+    || task?.currentStage?.includes("质量")
+  ) {
+    return "skip_quality_repair";
+  }
+  if (task?.checkpointType === "chapter_batch_ready") {
+    return "auto_execute_range";
+  }
+  return "resume";
+}

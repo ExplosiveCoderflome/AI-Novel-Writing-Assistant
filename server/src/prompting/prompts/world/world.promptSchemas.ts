@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { worldStructuredDataSchema } from "../../../services/world/worldSchemas";
 
 export const worldAxiomSuggestionSchema = z.array(z.string().trim()).max(5);
 
@@ -53,6 +54,13 @@ export const worldConsistencyIssuesSchema = z.array(z.object({
 }).passthrough());
 
 export const worldLooseObjectSchema = z.record(z.string(), z.unknown());
+
+export const novelThemeWorldGenerationSchema = z.object({
+  title: z.string().trim().min(1),
+  coverSummary: z.string().trim().min(1),
+  worldType: z.string().trim().min(1),
+  structuredData: worldStructuredDataSchema,
+}).passthrough();
 
 export const worldImportExtractionSchema = z.object({
   name: z.string().trim().optional(),

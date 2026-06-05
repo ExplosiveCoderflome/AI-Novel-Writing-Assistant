@@ -2,6 +2,11 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
 import type { WorldGenerateInput, WorldTextField } from "../../../services/world/worldServiceShared";
+import type {
+  WorldGenerationBlueprint,
+  WorldReferenceContext,
+  WorldSkeletonGenerationOptions,
+} from "@ai-novel/shared/types/worldWizard";
 
 const worldDraftFieldSchema = z.string().trim().min(1).optional().nullable();
 
@@ -45,6 +50,151 @@ export interface WorldDraftRefineAlternativesPromptInput extends WorldDraftRefin
   count: number;
 }
 
+const stringListSchema = z.array(z.string().trim().min(1)).default([]);
+
+const worldSkeletonSchema = z.object({
+  concept: z.object({
+    name: z.string().trim().min(1),
+    oneSentence: z.string().trim().min(1),
+    readerImpression: z.string().trim().min(1),
+    genrePromise: z.string().trim().min(1),
+  }).strict(),
+  structuredData: z.object({
+    profile: z.object({
+      summary: z.string().trim().min(1),
+      identity: z.string().trim().min(1),
+      tone: z.string().trim().min(1),
+      themes: stringListSchema,
+      coreConflict: z.string().trim().min(1),
+    }).strict(),
+    rules: z.object({
+      summary: z.string().trim().min(1),
+      axioms: z.array(z.object({
+        id: z.string().trim().min(1),
+        name: z.string().trim().min(1),
+        summary: z.string().trim().min(1),
+        cost: z.string().trim(),
+        boundary: z.string().trim(),
+        enforcement: z.string().trim(),
+      }).strict()),
+      taboo: stringListSchema,
+      sharedConsequences: stringListSchema,
+    }).strict(),
+    factions: z.array(z.object({
+      id: z.string().trim().min(1),
+      name: z.string().trim().min(1),
+      position: z.string().trim(),
+      doctrine: z.string().trim(),
+      goals: stringListSchema,
+      methods: stringListSchema,
+      representativeForceIds: stringListSchema,
+    }).strict()),
+    forces: z.array(z.object({
+      id: z.string().trim().min(1),
+      name: z.string().trim().min(1),
+      type: z.string().trim(),
+      factionId: z.string().trim().nullable().optional(),
+      role: z.string().trim().nullable().optional(),
+      resources: stringListSchema.optional(),
+      controlledLocationIds: stringListSchema.optional(),
+      summary: z.string().trim().min(1),
+      baseOfPower: z.string().trim(),
+      currentObjective: z.string().trim(),
+      pressure: z.string().trim(),
+      leader: z.string().trim().nullable().optional(),
+      narrativeRole: z.string().trim(),
+    }).strict()),
+    locations: z.array(z.object({
+      id: z.string().trim().min(1),
+      name: z.string().trim().min(1),
+      type: z.string().trim().nullable().optional(),
+      region: z.string().trim().nullable().optional(),
+      x: z.number().min(0).max(100).optional(),
+      y: z.number().min(0).max(100).optional(),
+      directionHint: z.enum(["north", "south", "east", "west", "center", "northeast", "northwest", "southeast", "southwest"]).optional(),
+      terrain: z.string().trim(),
+      summary: z.string().trim().min(1),
+      narrativeFunction: z.string().trim(),
+      risk: z.string().trim(),
+      riskLevel: z.number().int().min(1).max(5).optional(),
+      storyRelevance: z.string().trim().optional(),
+      entryConstraint: z.string().trim(),
+      exitCost: z.string().trim(),
+      controllingForceIds: stringListSchema,
+    }).strict()),
+    relations: z.object({
+      forceRelations: z.array(z.object({
+        id: z.string().trim().min(1),
+        sourceForceId: z.string().trim().min(1),
+        targetForceId: z.string().trim().min(1),
+        relation: z.string().trim().min(1),
+        tension: z.string().trim(),
+        detail: z.string().trim(),
+      }).strict()),
+      locationControls: z.array(z.object({
+        id: z.string().trim().min(1),
+        forceId: z.string().trim().min(1),
+        locationId: z.string().trim().min(1),
+        relation: z.string().trim().min(1),
+        detail: z.string().trim(),
+      }).strict()),
+      locationConnections: z.array(z.object({
+        id: z.string().trim().min(1),
+        sourceLocationId: z.string().trim().min(1),
+        targetLocationId: z.string().trim().min(1),
+        connectionType: z.string().trim().min(1),
+        distanceHint: z.string().trim(),
+        narrativeUse: z.string().trim(),
+      }).strict()).optional(),
+    }).strict(),
+    metadata: z.object({
+      schemaVersion: z.number().optional(),
+      seededFrom: z.string().nullable().optional(),
+      lastBackfilledAt: z.string().nullable().optional(),
+      lastGeneratedAt: z.string().nullable().optional(),
+      lastSectionGenerated: z.string().nullable().optional(),
+    }).passthrough(),
+  }).strict(),
+  bindingSupport: z.object({
+    recommendedEntryPoints: stringListSchema,
+    highPressureForces: stringListSchema,
+    suggestedLocationClusters: z.array(z.object({
+      id: z.string().trim().min(1),
+      label: z.string().trim().min(1),
+      locationIds: stringListSchema,
+      reason: z.string().trim(),
+    }).strict()),
+    compatibleConflicts: stringListSchema,
+    forbiddenCombinations: stringListSchema,
+  }).strict().optional(),
+  storyEntrySuggestions: z.array(z.object({
+    title: z.string().trim().min(1),
+    description: z.string().trim().min(1),
+    recommendedLocationIds: stringListSchema,
+    involvedForceIds: stringListSchema,
+    firstConflict: z.string().trim().min(1),
+  }).strict()),
+  assessment: z.object({
+    completenessScore: z.number().min(0).max(100),
+    readyForNovelUse: z.boolean(),
+    missingParts: z.array(z.object({
+      area: z.enum(["rules", "forces", "locations", "relations", "storyEntry"]),
+      issue: z.string().trim().min(1),
+      suggestedAction: z.string().trim().min(1),
+    }).strict()),
+    recommendedNextActions: stringListSchema,
+  }).strict(),
+}).strict();
+
+export interface WorldSkeletonGenerationPromptInput {
+  idea: string;
+  worldType?: string;
+  template?: string;
+  referenceContext?: WorldReferenceContext | null;
+  blueprint?: WorldGenerationBlueprint | null;
+  options: WorldSkeletonGenerationOptions;
+}
+
 function buildWorldDraftRequirements(input: WorldDraftGenerationPromptInput): string[] {
   const requirements: string[] = [
     "description：用 2-4 句概括世界运行逻辑 + 阅读感受，必须体现“这个世界怎么运作 + 读者体验是什么”，禁止空话",
@@ -79,6 +229,178 @@ function buildWorldDraftRequirements(input: WorldDraftGenerationPromptInput): st
 
   return requirements;
 }
+
+function formatBlueprint(input: WorldSkeletonGenerationPromptInput): string {
+  const blueprint = input.blueprint;
+  if (!blueprint) {
+    return "无";
+  }
+  const propertyLines = blueprint.propertySelections.map((item) =>
+    [
+      item.name,
+      item.choiceLabel && `选择：${item.choiceLabel}`,
+      item.description,
+      item.detail && `补充：${item.detail}`,
+    ].filter(Boolean).join(" | "),
+  );
+  return [
+    blueprint.classicElements.length > 0 ? `经典元素：${blueprint.classicElements.join("、")}` : "",
+    propertyLines.length > 0 ? `用户选定属性：\n${propertyLines.map((item, index) => `${index + 1}. ${item}`).join("\n")}` : "",
+  ].filter(Boolean).join("\n") || "无";
+}
+
+function formatReferenceContext(input: WorldSkeletonGenerationPromptInput): string {
+  const context = input.referenceContext;
+  if (!context) {
+    return "无";
+  }
+  return [
+    `参考方式：${context.mode}`,
+    context.preserveElements.length > 0 ? `必须保留：${context.preserveElements.join("、")}` : "",
+    context.allowedChanges.length > 0 ? `允许改造：${context.allowedChanges.join("、")}` : "",
+    context.forbiddenElements.length > 0 ? `禁止偏离：${context.forbiddenElements.join("、")}` : "",
+    context.anchors.length > 0
+      ? `参考锚点：\n${context.anchors.map((item, index) => `${index + 1}. ${item.label}：${item.content}`).join("\n")}`
+      : "",
+  ].filter(Boolean).join("\n") || "无";
+}
+
+export const worldSkeletonGenerationPrompt: PromptAsset<
+  WorldSkeletonGenerationPromptInput,
+  z.infer<typeof worldSkeletonSchema>
+> = {
+  id: "world.skeleton.generate",
+  version: "v1",
+  taskType: "planner",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: {
+    maxTokensBudget: 0,
+  },
+  semanticRetryPolicy: {
+    maxAttempts: 1,
+  },
+  outputSchema: worldSkeletonSchema,
+  render: (input) => {
+    const counts = input.options.counts;
+    return [
+      new SystemMessage([
+        "你是网文小说世界骨架生成器，服务对象是不懂设定工程的新手作者。",
+        "你的任务不是生成字段表单，而是生成一个可直接用于小说创作的结构化世界样本。",
+        "",
+        "只输出一个合法 JSON 对象，不要输出 Markdown、解释、注释、代码块或额外文本。",
+        "",
+        "输出对象必须包含且只能包含：concept, structuredData, bindingSupport, storyEntrySuggestions, assessment。",
+        "",
+        "全局硬规则：",
+        "1. 所有字段值必须使用简体中文。",
+        "2. 必须严格围绕用户的世界意图、题材、模板、参考约束和用户选定属性生成。",
+        "3. 不要把小说剧情大纲写进世界设定；世界设定只提供规则、势力、地点、关系和可开书入口。",
+        "4. 不要输出空泛标签，例如“势力纷争”“社会复杂”“地点众多”，必须说明如何运作、谁控制、在哪里冲突。",
+        "5. structuredData 必须是主内容源，旧式 background/geography/factions 字段不在本次输出中出现。",
+        "6. factions 是抽象阵营、路线或立场；forces 是具体组织、机构、公司、秘密团体、政权部门或行动主体。",
+        "7. forces 不能是人物名单、情感关系线、临时剧情人物集合、抽象社会压力、价值观标签、生活现象或纯地点人群。",
+        "8. 如果题材是都市/现实/职场/婚恋，forces 应优先是：公司/部门/领导层、房东或中介、相亲资源圈、家庭利益共同体、自由职业接单圈、社区/物业/学校/医院/机关等可行动群体。",
+        "9. 角色关系、前任、暧昧对象、出轨对象、主角室友个人等，应放入 storyEntrySuggestions 或叙事入口说明，不得作为 force。",
+        "10. 每个 force 必须满足四个条件：有稳定名称、有资源或权力、有当前目标、能对角色或地点施压；否则不要生成进 forces。",
+        "11. locations 必须具备地图可绘制性：每个地点都要给出 0-100 的 x/y 坐标、directionHint、terrain、riskLevel、controllingForceIds。",
+        "12. relations.forceRelations 必须描述具体势力之间的利益关系、控制关系、竞争关系或冲突关系，不要写“职场影响生活圈”这类单向情绪影响。",
+        "13. relations.locationConnections 必须描述地点之间的通路、边境、污染扩散或行动路径。",
+        "14. storyEntrySuggestions 必须能直接作为小说开局方向，且引用已生成的地点 id 和势力 id。",
+        "",
+        "数量硬约束：",
+        `1. 核心规则 rules.axioms 必须正好 ${counts.rules} 条。`,
+        `2. 阵营 factions 必须正好 ${counts.factionGroups} 个。`,
+        `3. 具体势力 forces 必须正好 ${counts.forces} 个。`,
+        `4. 关键地点 locations 必须正好 ${counts.locations} 个。`,
+        `5. 势力关系 forceRelations 至少 ${Math.max(1, counts.conflicts)} 条。`,
+        `6. 故事入口 storyEntrySuggestions 必须正好 ${counts.storyEntrySuggestions} 个。`,
+        "",
+        "图谱字段要求：",
+        "1. force.type 使用中文类型，例如：公司、部门、家庭共同体、社群组织、社区组织、中介机构、学校、医院、机关、秘密组织、宗教势力、科技势力、中立势力。",
+        "2. force.role 写该势力在图谱中的叙事身份，例如：压制者、调查者、污染源、掩盖者、交易者。",
+        "3. force.resources 写可争夺资源，不要留空。",
+        "4. location.type 使用中文类型，例如：大陆、国家、城市、边境、禁区、遗迹、基地、异界裂隙。",
+        "5. location.directionHint 只能用 north/south/east/west/center/northeast/northwest/southeast/southwest。",
+        "6. locationConnections.connectionType 使用中文，例如：道路、海路、边境线、地下通道、传送路径、污染扩散路径。",
+        "",
+        "完整度诊断要求：",
+        "1. completenessScore 反映当前世界是否可直接开始写小说。",
+        "2. readyForNovelUse 只有在规则、势力、地点、关系、故事入口都足够清楚时才为 true。",
+        "3. missingParts 只列真正缺口；如果无明显缺口，输出空数组。",
+      ].join("\n")),
+      new HumanMessage([
+        `世界意图：${input.idea}`,
+        `世界类型：${input.worldType || "自定义"}`,
+        `模板：${input.template || "自定义"}`,
+        `规模预设：${input.options.preset}`,
+        "",
+        "用户选定蓝图：",
+        formatBlueprint(input),
+        "",
+        "参考约束：",
+        formatReferenceContext(input),
+        "",
+        "请生成完整世界骨架 JSON。",
+      ].join("\n")),
+    ];
+  },
+  postValidate: (output, input) => {
+    const counts = input.options.counts;
+    if (output.structuredData.rules.axioms.length !== counts.rules) {
+      throw new Error(`世界骨架生成结果的核心规则数量不符合要求，期望 ${counts.rules} 条。`);
+    }
+    if (output.structuredData.factions.length !== counts.factionGroups) {
+      throw new Error(`世界骨架生成结果的阵营数量不符合要求，期望 ${counts.factionGroups} 个。`);
+    }
+    if (output.structuredData.forces.length !== counts.forces) {
+      throw new Error(`世界骨架生成结果的具体势力数量不符合要求，期望 ${counts.forces} 个。`);
+    }
+    if (output.structuredData.locations.length !== counts.locations) {
+      throw new Error(`世界骨架生成结果的关键地点数量不符合要求，期望 ${counts.locations} 个。`);
+    }
+    if (output.storyEntrySuggestions.length !== counts.storyEntrySuggestions) {
+      throw new Error(`世界骨架生成结果的故事入口数量不符合要求，期望 ${counts.storyEntrySuggestions} 个。`);
+    }
+    const forceIds = new Set(output.structuredData.forces.map((item) => item.id));
+    const locationIds = new Set(output.structuredData.locations.map((item) => item.id));
+    const invalidRepresentativeForceId = output.structuredData.factions
+      .flatMap((item) => item.representativeForceIds)
+      .find((id) => !forceIds.has(id));
+    if (invalidRepresentativeForceId) {
+      throw new Error(`世界骨架生成结果存在无法匹配的阵营代表势力 id：${invalidRepresentativeForceId}。`);
+    }
+    const invalidForce = output.structuredData.forces.find((item) => {
+      const text = [item.name, item.type, item.role, item.summary].filter(Boolean).join(" ");
+      return /情感纠葛|暧昧|出轨|前任|人物|角色组|人物组|临时联盟|关系线|情感线|主角团/.test(text);
+    });
+    if (invalidForce) {
+      throw new Error(`世界骨架生成结果把人物关系或剧情人物组误当成势力：${invalidForce.name}。`);
+    }
+    const weakForce = output.structuredData.forces.find((item) =>
+      (item.resources ?? []).length === 0
+      || !item.currentObjective.trim()
+      || !item.pressure.trim()
+      || (item.controlledLocationIds ?? []).length === 0,
+    );
+    if (weakForce) {
+      throw new Error(`世界骨架生成结果存在不可行动或不可施压的弱势力：${weakForce.name}。`);
+    }
+    const invalidForceRelation = output.structuredData.relations.forceRelations.find(
+      (item) => !forceIds.has(item.sourceForceId) || !forceIds.has(item.targetForceId),
+    );
+    if (invalidForceRelation) {
+      throw new Error("世界骨架生成结果存在无法匹配势力 id 的势力关系。");
+    }
+    const invalidLocationConnection = (output.structuredData.relations.locationConnections ?? []).find(
+      (item) => !locationIds.has(item.sourceLocationId) || !locationIds.has(item.targetLocationId),
+    );
+    if (invalidLocationConnection) {
+      throw new Error("世界骨架生成结果存在无法匹配地点 id 的地点连接。");
+    }
+    return output;
+  },
+};
 
 export const worldDraftGenerationPrompt: PromptAsset<
   WorldDraftGenerationPromptInput,

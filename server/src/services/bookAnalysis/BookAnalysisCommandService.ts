@@ -14,6 +14,16 @@ import { buildAnalysisSummaryFromContent, normalizeMaxTokens, normalizeTemperatu
 import { BookAnalysisWatchdogService } from "./BookAnalysisWatchdogService";
 import { BookAnalysisQueryService } from "./BookAnalysisQueryService";
 
+function buildEnabledSectionKeySet(input: {
+  enabledSectionKeys?: BookAnalysisSectionKey[];
+  includeTimeline?: boolean;
+}): Set<BookAnalysisSectionKey> | null {
+  if (!input.enabledSectionKeys) {
+    return null;
+  }
+  return new Set<BookAnalysisSectionKey>(["overview", ...input.enabledSectionKeys]);
+}
+
 export class BookAnalysisCommandService {
   private readonly generationService = new BookAnalysisGenerationService();
   private readonly taskQueue = new BookAnalysisTaskQueue({
@@ -89,9 +99,11 @@ export class BookAnalysisCommandService {
     temperature?: number;
     maxTokens?: number;
     includeTimeline?: boolean;
+    enabledSectionKeys?: BookAnalysisSectionKey[];
   }): Promise<BookAnalysisDetail> {
     const temperature = normalizeTemperature(input.temperature);
     const maxTokens = normalizeMaxTokens(input.maxTokens);
+    const enabledSectionKeySet = buildEnabledSectionKeySet(input);
     const analysisId = await prisma.$transaction(async (tx) => {
       const document = await tx.knowledgeDocument.findUnique({
         where: { id: input.documentId },
@@ -140,7 +152,9 @@ export class BookAnalysisCommandService {
           title: section.title,
           sortOrder: index,
           status: "idle",
-          frozen: section.key === "timeline" ? !input.includeTimeline : false,
+          frozen: enabledSectionKeySet
+            ? !enabledSectionKeySet.has(section.key)
+            : section.key === "timeline" ? !input.includeTimeline : false,
         })),
       });
       return analysis.id;

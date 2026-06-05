@@ -23,8 +23,11 @@ interface ChapterArtifactBackgroundSyncOptions {
   artifactSyncMode?: ArtifactSyncMode;
 }
 
+type ArtifactSyncClaimStatus = "claimed" | "already_done" | "running";
+
 const DEFAULT_ARTIFACT_SYNC_MODE: ArtifactSyncMode = "adaptive";
 const DEFERRED_SYNC_DELAY_MS = 5000;
+const ARTIFACT_SYNC_RUNNING_STALE_MS = 15 * 60 * 1000;
 
 export class ChapterArtifactBackgroundSyncService {
   private readonly artifactDeltaService = new ChapterArtifactDeltaService();
@@ -104,6 +107,19 @@ export class ChapterArtifactBackgroundSyncService {
     })) {
       return;
     }
+    const deltaClaim = await this.claimCheckpoint({
+      novelId,
+      chapterId,
+      contentHash,
+      artifactType: "artifact_delta",
+      syncMode: artifactSyncMode,
+      sourceType: "chapter_background_sync",
+      sourceStage: "chapter_execution",
+      metadata: { reason: "artifact_delta_started" },
+    });
+    if (deltaClaim !== "claimed") {
+      return;
+    }
     const context: ChapterBackgroundSyncContext = {
       chapterId,
       chapterOrder: chapter.order,
@@ -112,25 +128,39 @@ export class ChapterArtifactBackgroundSyncService {
 
     let deltaMetadata: Record<string, unknown> = {};
     let requiresFullReconcileFromDelta = false;
-    await this.runTrackedActivity(novelId, context, "artifact_delta", async () => {
-      const result = await this.artifactDeltaService.syncChapterArtifacts({
+    try {
+      await this.runTrackedActivity(novelId, context, "artifact_delta", async () => {
+        const result = await this.artifactDeltaService.syncChapterArtifacts({
+          novelId,
+          chapterId,
+          content,
+          sourceType: "chapter_background_sync",
+          sourceStage: "chapter_execution",
+        });
+        requiresFullReconcileFromDelta = result.requiresFullReconcile;
+        deltaMetadata = {
+          stateSnapshotId: result.stateSnapshotId,
+          characterResourceProposalCount: result.characterResourceProposalCount,
+          characterDynamicsCount: result.characterDynamicsCount,
+          payoffDeltaCount: result.payoffDeltaCount,
+          canonicalCommittedCount: result.canonicalCommittedCount,
+          syncPlan: result.output.syncPlan,
+          confidence: result.output.confidence,
+        };
+      });
+    } catch (error) {
+      await this.markCheckpointFailed({
         novelId,
         chapterId,
-        content,
+        contentHash,
+        artifactType: "artifact_delta",
+        syncMode: artifactSyncMode,
         sourceType: "chapter_background_sync",
         sourceStage: "chapter_execution",
+        metadata: { reason: error instanceof Error ? error.message : String(error) },
       });
-      requiresFullReconcileFromDelta = result.requiresFullReconcile;
-      deltaMetadata = {
-        stateSnapshotId: result.stateSnapshotId,
-        characterResourceProposalCount: result.characterResourceProposalCount,
-        characterDynamicsCount: result.characterDynamicsCount,
-        payoffDeltaCount: result.payoffDeltaCount,
-        canonicalCommittedCount: result.canonicalCommittedCount,
-        syncPlan: result.output.syncPlan,
-        confidence: result.output.confidence,
-      };
-    });
+      throw error;
+    }
     await this.markCheckpoint({
       novelId,
       chapterId,
@@ -266,6 +296,77 @@ export class ChapterArtifactBackgroundSyncService {
     return row?.status === "succeeded";
   }
 
+  private async claimCheckpoint(input: {
+    novelId: string;
+    chapterId: string;
+    contentHash: string;
+    artifactType: string;
+    syncMode: ArtifactSyncMode;
+    sourceType?: string | null;
+    sourceStage?: string | null;
+    metadata?: Record<string, unknown>;
+  }): Promise<ArtifactSyncClaimStatus> {
+    const where = {
+      novelId_chapterId_contentHash_artifactType_syncMode: {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        contentHash: input.contentHash,
+        artifactType: input.artifactType,
+        syncMode: input.syncMode,
+      },
+    };
+    const metadataJson = JSON.stringify(input.metadata ?? {});
+    try {
+      await prisma.chapterArtifactSyncCheckpoint.create({
+        data: {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          contentHash: input.contentHash,
+          artifactType: input.artifactType,
+          syncMode: input.syncMode,
+          status: "running",
+          sourceType: input.sourceType ?? null,
+          sourceStage: input.sourceStage ?? null,
+          metadataJson,
+        },
+      });
+      return "claimed";
+    } catch {
+      const existing = await prisma.chapterArtifactSyncCheckpoint.findUnique({
+        where,
+        select: { status: true, updatedAt: true },
+      }).catch(() => null);
+      if (existing?.status === "succeeded") {
+        return "already_done";
+      }
+      const staleBefore = new Date(Date.now() - ARTIFACT_SYNC_RUNNING_STALE_MS);
+      if (existing?.status === "running" && existing.updatedAt > staleBefore) {
+        return "running";
+      }
+      const claimed = await prisma.chapterArtifactSyncCheckpoint.updateMany({
+        where: {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          contentHash: input.contentHash,
+          artifactType: input.artifactType,
+          syncMode: input.syncMode,
+          OR: [
+            { status: { not: "running" } },
+            { updatedAt: { lt: staleBefore } },
+          ],
+        },
+        data: {
+          status: "running",
+          sourceType: input.sourceType ?? null,
+          sourceStage: input.sourceStage ?? null,
+          metadataJson,
+          updatedAt: new Date(),
+        },
+      }).catch(() => ({ count: 0 }));
+      return claimed.count > 0 ? "claimed" : "running";
+    }
+  }
+
   private async markCheckpoint(input: {
     novelId: string;
     chapterId: string;
@@ -328,6 +429,35 @@ export class ChapterArtifactBackgroundSyncService {
       await this.clearBackgroundActivity(novelId, chapter.chapterId, kind);
       throw error;
     }
+  }
+
+  private async markCheckpointFailed(input: {
+    novelId: string;
+    chapterId: string;
+    contentHash: string;
+    artifactType: string;
+    syncMode: ArtifactSyncMode;
+    sourceType?: string | null;
+    sourceStage?: string | null;
+    metadata?: Record<string, unknown>;
+  }): Promise<void> {
+    await prisma.chapterArtifactSyncCheckpoint.updateMany({
+      where: {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        contentHash: input.contentHash,
+        artifactType: input.artifactType,
+        syncMode: input.syncMode,
+        status: "running",
+      },
+      data: {
+        status: "failed",
+        sourceType: input.sourceType ?? null,
+        sourceStage: input.sourceStage ?? null,
+        metadataJson: JSON.stringify(input.metadata ?? {}),
+        updatedAt: new Date(),
+      },
+    }).catch(() => null);
   }
 
   private async updateBackgroundActivity(

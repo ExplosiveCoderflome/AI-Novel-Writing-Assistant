@@ -396,6 +396,7 @@ model Novel {
   imageTasks         ImageGenerationTask[]
   imageAssets        ImageAsset[]
   sideEffectJobs     NovelSideEffectJob[]
+  novelWorld         NovelWorld?
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -1085,8 +1086,80 @@ model World {
   deepeningQA        WorldDeepeningQA[]
   consistencyIssues  WorldConsistencyIssue[]
   libraryItems       WorldPropertyLibrary[]
+  novelWorlds        NovelWorld[]
+  assets             WorldAsset[]
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
+}
+
+model NovelWorld {
+  id                    String   @id @default(cuid())
+  novelId               String   @unique
+  sourceWorldId         String?
+  sourceType            String   @default("manual")
+  title                 String?
+  coverSummary          String?
+  structuredDataJson    String?
+  bindingContractJson   String?
+  storySliceJson        String?
+  storySliceOverridesJson String?
+  storySliceSchemaVersion Int    @default(1)
+  storySliceBuiltAt     DateTime?
+  storySliceDigest      String?
+  syncEnabled           Boolean  @default(false)
+  syncDirection         String   @default("none")
+  syncBaseVersion       Int?
+  syncPendingChangesJson String?
+  lastSyncedAt          DateTime?
+  generationPolicyJson  String?
+  generatedFromThemeJson String?
+  savedToLibraryAt      DateTime?
+  novel                 Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  sourceWorld           World?   @relation(fields: [sourceWorldId], references: [id], onDelete: SetNull)
+  syncRecords           WorldSyncRecord[]
+  assets                WorldAsset[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([sourceWorldId])
+  @@index([sourceType])
+}
+
+model WorldSyncRecord {
+  id             String   @id @default(cuid())
+  novelWorldId   String
+  sourceWorldId  String?
+  direction      String
+  syncedFieldsJson String?
+  diffSummary    String?
+  triggeredBy    String   @default("user")
+  novelWorld     NovelWorld @relation(fields: [novelWorldId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+
+  @@index([novelWorldId, createdAt])
+  @@index([sourceWorldId])
+}
+
+model WorldAsset {
+  id                 String   @id @default(cuid())
+  worldId            String?
+  novelWorldId       String?
+  assetType          String
+  title              String
+  description        String?
+  generationPrompt   String?
+  renderDataJson     String?
+  thumbnailUrl       String?
+  version            Int      @default(1)
+  status             String   @default("placeholder")
+  world              World?   @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  novelWorld         NovelWorld? @relation(fields: [novelWorldId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([worldId, assetType])
+  @@index([novelWorldId, assetType])
+  @@index([assetType])
 }
 
 model WorldPropertyLibrary {

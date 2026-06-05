@@ -32,6 +32,8 @@ export const queryKeys = {
     autoDirectorTask: (id: string) => ["novels", "auto-director-task", id] as const,
     directorBookAutomation: (id: string) => ["novels", "director-book-automation", id] as const,
     autoDirectorTakeoverReadiness: (id: string) => ["novels", "auto-director-takeover-readiness", id] as const,
+    novelWorld: (id: string) => ["novels", "novel-world", id] as const,
+    novelWorldSyncDiff: (id: string) => ["novels", "novel-world", id, "sync-diff"] as const,
     worldSlice: (id: string) => ["novels", "world-slice", id] as const,
     snapshots: (id: string) => ["novels", "snapshots", id] as const,
   },

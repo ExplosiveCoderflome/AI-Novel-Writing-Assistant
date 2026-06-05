@@ -181,11 +181,16 @@ export class HybridRetrievalService {
     const baseOwnerTypes = options.ownerTypes
       ? toOwnerTypes(filteredBaseOwnerTypes)
       : toOwnerTypes(NON_KNOWLEDGE_OWNER_TYPES);
-    const knowledgeDocumentIds = await resolveKnowledgeDocumentIds({
-      targetType: options.novelId ? "novel" : options.worldId ? "world" : undefined,
-      targetId: options.novelId ?? options.worldId,
-      knowledgeDocumentIds: options.knowledgeDocumentIds,
-    });
+    const shouldSearchKnowledgeDocuments = Array.isArray(options.knowledgeDocumentIds)
+      || !options.ownerTypes
+      || options.ownerTypes.includes("knowledge_document");
+    const knowledgeDocumentIds = shouldSearchKnowledgeDocuments
+      ? await resolveKnowledgeDocumentIds({
+        targetType: options.novelId ? "novel" : options.worldId ? "world" : undefined,
+        targetId: options.novelId ?? options.worldId,
+        knowledgeDocumentIds: options.knowledgeDocumentIds,
+      })
+      : [];
 
     const baseScope: SearchScopeOptions | null = options.ownerTypes && filteredBaseOwnerTypes.length === 0
       ? null

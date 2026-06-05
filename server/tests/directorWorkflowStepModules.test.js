@@ -268,14 +268,32 @@ function buildChapterRowFromProgressChapter(chapter) {
     sceneCards: null,
     expectation: null,
     generationState: chapter.status === "approved" ? "approved" : "reviewed",
-    chapterStatus: chapter.status === "running" ? "generating" : chapter.status === "reviewable" ? "pending_review" : null,
-    riskFlags: null,
+    chapterStatus: chapter.status === "running"
+      ? "generating"
+      : chapter.status === "reviewable"
+        ? "pending_review"
+        : chapter.status === "needs_repair"
+          ? "needs_repair"
+          : null,
+    riskFlags: chapter.riskFlags ?? null,
     repairHistory: null,
     qualityReports: [],
-    auditReports: hasAudit ? [{ issues: [] }] : [],
+    auditReports: hasAudit ? [{ issues: chapter.auditIssues ?? [] }] : [],
     storyStateSnapshots: hasStateCommit ? [{ id: `state-${chapter.chapterOrder}` }] : [],
     canonicalStateVersions: [],
   };
+}
+
+function buildDeferredQualityDebtRiskFlags() {
+  return JSON.stringify({
+    qualityLoop: {
+      overallStatus: "risk",
+      recommendedAction: "patch_repair",
+      rootCauseCode: "draft_obligation_unmet",
+      terminalAction: "defer_and_continue",
+      blockingObligations: [{ kind: "must_hit_now", summary: "目标变化未补足" }],
+    },
+  });
 }
 
 test("chapter draft completion is scoped to the active auto execution range", async (t) => {
@@ -329,6 +347,131 @@ test("chapter draft completion is scoped to the active auto execution range", as
   assert.equal(progress.evidence.draftedChapterCount, 3);
   assert.equal(progress.evidence.totalChapters, 3);
   assert.equal(completeCriteria, true);
+});
+
+test("chapter state commit completion ignores uncommitted chapters outside the active auto execution range", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  const module = getDirectorExecutionStepModule("chapter_state_commit");
+  const outsideUncommittedChapter = buildProgressChapter(1, {
+    drafted: true,
+    status: "reviewable",
+    completedStages: [
+      "execution_contract_ready",
+      "context_package_ready",
+      "draft_started",
+      "draft_saved",
+      "audit_completed",
+      "repair_completed_or_not_needed",
+      "runtime_package_saved",
+      "chapter_artifacts_synced",
+      "reviewable_or_approved",
+    ],
+  });
+  const chapters = [
+    outsideUncommittedChapter,
+    buildProgressChapter(2, { drafted: true }),
+    buildProgressChapter(3, { drafted: true }),
+  ];
+  prisma.chapter.findMany = async () => chapters.map(buildChapterRowFromProgressChapter);
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+  const context = {
+    taskId: "task-scoped-chapter-state-commit",
+    novelId: "novel-scoped-state-commit",
+    projectionHints: {
+      directorCanonicalState: buildDirectorStateHint({
+        autoExecutionPlan: {
+          mode: "chapter_range",
+          startOrder: 2,
+          endOrder: 3,
+          autoReview: true,
+          autoRepair: true,
+        },
+        autoExecution: {
+          enabled: true,
+          mode: "chapter_range",
+          startOrder: 2,
+          endOrder: 3,
+          totalChapterCount: 2,
+          completedChapterCount: 2,
+          remainingChapterCount: 0,
+          autoReview: true,
+          autoRepair: true,
+        },
+      }, buildChapterProgressSummary(chapters)),
+    },
+  };
+
+  const completion = await module.inspectCompletion(context);
+  const progress = await module.inspectProgress(context);
+  const validation = await module.validateOutput(undefined, context);
+
+  assert.equal(completion.completed, true);
+  assert.equal(completion.evidence.draftedChapterCount, 2);
+  assert.equal(completion.evidence.committedChapterCount, 2);
+  assert.equal(completion.evidence.totalChapters, 2);
+  assert.equal(progress.status, "completed");
+  assert.equal(validation.valid, true);
+});
+
+test("chapter state commit accepts scoped deferred quality debt without a state snapshot", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  const module = getDirectorExecutionStepModule("chapter_state_commit");
+  const deferredChapter = buildProgressChapter(39, {
+    drafted: true,
+    status: "reviewable",
+    riskFlags: buildDeferredQualityDebtRiskFlags(),
+    completedStages: [
+      "execution_contract_ready",
+      "context_package_ready",
+      "draft_started",
+      "draft_saved",
+      "audit_completed",
+      "repair_completed_or_not_needed",
+      "runtime_package_saved",
+      "chapter_artifacts_synced",
+      "reviewable_or_approved",
+    ],
+  });
+  const chapters = [
+    deferredChapter,
+    buildProgressChapter(40, { drafted: true }),
+    buildProgressChapter(41, { drafted: true }),
+  ];
+  prisma.chapter.findMany = async () => chapters.map(buildChapterRowFromProgressChapter);
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+  const context = {
+    taskId: "task-deferred-state-commit",
+    novelId: "novel-deferred-state-commit",
+    projectionHints: {
+      directorCanonicalState: buildDirectorStateHint({
+        autoExecution: {
+          enabled: true,
+          mode: "chapter_range",
+          startOrder: 39,
+          endOrder: 41,
+          totalChapterCount: 3,
+          completedChapterCount: 3,
+          remainingChapterCount: 0,
+          autoReview: true,
+          autoRepair: true,
+        },
+      }, buildChapterProgressSummary(chapters)),
+    },
+  };
+
+  const completion = await module.inspectCompletion(context);
+  const progress = await module.inspectProgress(context);
+  const validation = await module.validateOutput(undefined, context);
+
+  assert.equal(completion.completed, true);
+  assert.equal(completion.evidence.draftedChapterCount, 3);
+  assert.equal(completion.evidence.committedChapterCount, 3);
+  assert.equal(progress.status, "completed");
+  assert.equal(validation.valid, true);
 });
 
 test("director core step runtime uses explicit dependency assembly", () => {
@@ -464,6 +607,87 @@ test("chapter quality review closes when auto review is disabled by the executio
   assert.equal(validation.valid, true);
 });
 
+test("chapter quality review and repair facts are scoped to the active auto execution range", async (t) => {
+  const originalFindMany = prisma.chapter.findMany;
+  const qualityReviewModule = getDirectorExecutionStepModule("chapter_quality_review");
+  const repairModule = getDirectorExecutionStepModule("chapter_repair");
+  const qualityRepairModule = getDirectorExecutionStepModule("quality_repair");
+  const outsideUnreviewedChapter = buildProgressChapter(1, {
+    drafted: true,
+    completedStages: [
+      "execution_contract_ready",
+      "context_package_ready",
+      "draft_started",
+      "draft_saved",
+      "chapter_artifacts_synced",
+    ],
+  });
+  const scopedNeedsRepairChapter = buildProgressChapter(2, {
+    drafted: true,
+    status: "needs_repair",
+    completedStages: [
+      "execution_contract_ready",
+      "context_package_ready",
+      "draft_started",
+      "draft_saved",
+      "audit_completed",
+      "runtime_package_saved",
+      "chapter_artifacts_synced",
+    ],
+    auditIssues: [{ status: "open", severity: "high" }],
+  });
+  const scopedReviewableChapter = buildProgressChapter(3, {
+    drafted: true,
+    status: "reviewable",
+  });
+  const chapters = [
+    outsideUnreviewedChapter,
+    scopedNeedsRepairChapter,
+    scopedReviewableChapter,
+  ];
+  prisma.chapter.findMany = async () => chapters.map(buildChapterRowFromProgressChapter);
+  t.after(() => {
+    prisma.chapter.findMany = originalFindMany;
+  });
+  const context = {
+    taskId: "task-scoped-quality-facts",
+    novelId: "novel-scoped-quality-facts",
+    projectionHints: {
+      directorCanonicalState: buildDirectorStateHint({
+        autoExecution: {
+          enabled: true,
+          mode: "chapter_range",
+          startOrder: 2,
+          endOrder: 3,
+          totalChapterCount: 2,
+          completedChapterCount: 1,
+          remainingChapterCount: 1,
+          autoReview: true,
+          autoRepair: true,
+        },
+      }, buildChapterProgressSummary(chapters)),
+    },
+  };
+
+  const reviewCompletion = await qualityReviewModule.inspectCompletion(context);
+  const repairCompletion = await repairModule.inspectCompletion(context);
+  const repairProgress = await repairModule.inspectProgress(context);
+  const qualityRepairCompletion = await qualityRepairModule.inspectCompletion(context);
+
+  assert.equal(reviewCompletion.completed, true);
+  assert.equal(reviewCompletion.evidence.draftedChapterCount, 2);
+  assert.equal(reviewCompletion.evidence.reviewedChapterCount, 2);
+  assert.equal(repairCompletion.completed, false);
+  assert.equal(repairCompletion.evidence.draftedChapterCount, 2);
+  assert.equal(repairCompletion.evidence.reviewedChapterCount, 2);
+  assert.equal(repairCompletion.evidence.needsRepairChapters, 1);
+  assert.equal(repairProgress.nextAction, "repair_chapter");
+  assert.equal(qualityRepairCompletion.completed, false);
+  assert.equal(qualityRepairCompletion.evidence.draftedChapterCount, 2);
+  assert.equal(qualityRepairCompletion.evidence.reviewedChapterCount, 2);
+  assert.equal(qualityRepairCompletion.evidence.needsRepairChapters, 1);
+});
+
 test("workflow step fact inspections support novel-only manual context", async (t) => {
   const originalFindMany = prisma.chapter.findMany;
   prisma.chapter.findMany = async () => [];
@@ -596,6 +820,7 @@ test("planning workflow keeps story macro and book contract as separate write no
   assert.deepEqual(plan.steps.map((step) => step.stepId), [
     "story.macro.plan",
     "book.contract.create",
+    "book.world.prepare",
     "character.cast.prepare",
     "volume.strategy.plan",
     "volume.beat_sheet.generate",
@@ -605,6 +830,7 @@ test("planning workflow keeps story macro and book contract as separate write no
   ]);
   assert.deepEqual(plan.steps[1].writes, ["book_contract"]);
   assert.deepEqual(plan.steps[1].dependsOn, ["story.macro.plan"]);
+  assert.deepEqual(plan.steps[2].dependsOn, ["book.contract.create"]);
 });
 
 test("workflow step module exposes fact inspection, input, progress, recovery and commit hooks", async () => {

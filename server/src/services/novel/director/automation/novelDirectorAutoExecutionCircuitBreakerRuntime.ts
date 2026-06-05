@@ -19,6 +19,7 @@ import {
 import {
   buildClosedDirectorCircuitBreakerState,
   isDirectorCircuitBreakerOpen,
+  recordChapterUsageBudgetExceededSignal,
   recordModelFailureSignal,
   recordPatchFailureSignal,
   recordReplanLoopSignal,
@@ -120,6 +121,33 @@ export async function resolveUsageCircuitBreaker(input: {
   novelId: string;
   autoExecution: DirectorAutoExecutionState;
 }): Promise<DirectorCircuitBreakerState | null> {
+  const largestChapterUsage = await directorUsageTelemetryQueryService.getLargestChapterUsage({
+    novelId: input.novelId,
+    taskIds: [input.taskId],
+  }).catch(() => null);
+  const activeBudgetChapterIds = new Set([
+    input.autoExecution.nextChapterId,
+    ...(input.autoExecution.remainingChapterIds ?? []),
+  ].filter((chapterId): chapterId is string => Boolean(chapterId?.trim())));
+  const shouldOpenChapterBudgetBreaker = largestChapterUsage
+    ? activeBudgetChapterIds.size === 0 || activeBudgetChapterIds.has(largestChapterUsage.chapterId)
+    : false;
+  const chapterBudgetBreaker = largestChapterUsage && shouldOpenChapterBudgetBreaker
+    ? recordChapterUsageBudgetExceededSignal({
+      previous: input.autoExecution.circuitBreaker,
+      usageRecordId: largestChapterUsage.latestUsageRecordId,
+      totalTokens: largestChapterUsage.totalTokens,
+      chapterId: largestChapterUsage.chapterId,
+      chapterOrder: input.autoExecution.nextChapterId === largestChapterUsage.chapterId
+        ? input.autoExecution.nextChapterOrder
+        : null,
+      nodeKey: largestChapterUsage.nodeKey ?? "chapter_execution_node",
+    })
+    : null;
+  if (chapterBudgetBreaker) {
+    return chapterBudgetBreaker;
+  }
+
   const usage = await directorUsageTelemetryQueryService.getBookUsage({
     novelId: input.novelId,
     taskIds: [input.taskId],

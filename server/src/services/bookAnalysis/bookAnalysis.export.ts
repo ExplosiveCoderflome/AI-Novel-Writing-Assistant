@@ -1,4 +1,8 @@
-import type { BookAnalysisDetail, BookAnalysisSection } from "@ai-novel/shared/types/bookAnalysis";
+import {
+  BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS,
+  type BookAnalysisDetail,
+  type BookAnalysisSection,
+} from "@ai-novel/shared/types/bookAnalysis";
 import { getEffectiveContent } from "./bookAnalysis.utils";
 
 function sectionContentToMarkdown(section: BookAnalysisSection): string {
@@ -7,6 +11,46 @@ function sectionContentToMarkdown(section: BookAnalysisSection): string {
     return "_暂无内容_";
   }
   return content;
+}
+
+function normalizeStructuredValue(value: unknown): string[] {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? [trimmed] : [];
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean)
+      .slice(0, 8);
+  }
+  return [];
+}
+
+function buildStructuredSummaryMarkdown(section: BookAnalysisSection): string[] {
+  const structuredData = section.structuredData;
+  if (!structuredData || typeof structuredData !== "object") {
+    return [];
+  }
+
+  const rows = Object.entries(structuredData)
+    .map(([key, value]) => ({
+      label: BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[key] ?? key,
+      values: normalizeStructuredValue(value),
+    }))
+    .filter((row) => row.values.length > 0)
+    .slice(0, 12);
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  return [
+    "### 关键结论",
+    "",
+    ...rows.map((row) => `- ${row.label}：${row.values.join("；")}`),
+    "",
+  ];
 }
 
 export function buildPublishDocumentTitle(detail: Pick<BookAnalysisDetail, "id" | "documentTitle">): string {
@@ -55,12 +99,14 @@ export function buildPublishMarkdown(
     const content = getEffectiveContent(section).trim();
     const notes = section.notes?.trim() ?? "";
     const evidence = section.evidence.filter((item) => item.label.trim() || item.excerpt.trim());
-    if (!content && !notes && evidence.length === 0) {
+    const structuredSummary = buildStructuredSummaryMarkdown(section);
+    if (!content && !notes && evidence.length === 0 && structuredSummary.length === 0) {
       continue;
     }
     hasPublishableContent = true;
     markdownParts.push(`## ${section.title}`);
     markdownParts.push("");
+    markdownParts.push(...structuredSummary);
     markdownParts.push(content || "_暂无内容_");
     markdownParts.push("");
 
@@ -115,6 +161,7 @@ export function buildAnalysisExportContent(
   for (const section of detail.sections) {
     markdownParts.push(`## ${section.title}`);
     markdownParts.push("");
+    markdownParts.push(...buildStructuredSummaryMarkdown(section));
     markdownParts.push(sectionContentToMarkdown(section));
     if (section.notes?.trim()) {
       markdownParts.push("");

@@ -7,6 +7,7 @@ const {
 } = require("@ai-novel/shared/types/image");
 const { prisma } = require("../dist/db/prisma.js");
 const { ImageGenerationService } = require("../dist/services/image/ImageGenerationService.js");
+const { WorldContextGateway } = require("../dist/services/novel/worldContext/WorldContextGateway.js");
 const {
   toNovelCoverPromptContext,
 } = require("../dist/services/image/novelCover/novelCoverPromptSupport.js");
@@ -72,12 +73,44 @@ test("toNovelCoverPromptContext normalizes missing fields and parses world summa
   assert.equal(context.emotionIntensityLabel, "高情绪浓度");
 });
 
+test("toNovelCoverPromptContext prefers gateway world context for cover visuals", () => {
+  const context = toNovelCoverPromptContext({
+    id: "novel-cover-1",
+    title: "雾港审判局",
+    description: null,
+    targetAudience: null,
+    bookSellingPoint: null,
+    competingFeel: null,
+    first30ChapterPromise: null,
+    commercialTagsJson: null,
+    styleTone: null,
+    narrativePov: null,
+    pacePreference: null,
+    emotionIntensity: null,
+    storyWorldSliceJson: buildWorldSliceJson("旧切片雾港。"),
+    genre: null,
+    primaryStoryMode: null,
+    secondaryStoryMode: null,
+    world: { name: "旧世界" },
+  }, {
+    summaryText: "本书世界雾港，黑雾与审判机构共同塑造城市视觉。",
+    activeForces: [{ id: "force-judge", name: "审判局", roleInStory: "压迫秩序", pressure: "审查" }],
+    activeLocations: [{ id: "loc-harbor", name: "黑雾港口", storyUse: "开篇案件" }],
+  });
+
+  assert.match(context.worldSummary, /本书世界雾港/);
+  assert.match(context.worldSummary, /审判局/);
+  assert.match(context.worldSummary, /黑雾港口/);
+  assert.doesNotMatch(context.worldSummary, /旧切片雾港/);
+});
+
 test("createNovelCoverTask applies novel-cover defaults without coupling to novel tables", async () => {
   const service = new ImageGenerationService();
   service.enqueueTask = () => {};
 
   const originalNovelFindUnique = prisma.novel.findUnique;
   const originalTaskCreate = prisma.imageGenerationTask.create;
+  const originalGetWorldContextBlock = WorldContextGateway.prototype.getWorldContextBlock;
   let createdTaskData = null;
 
   prisma.novel.findUnique = async () => ({
@@ -130,6 +163,11 @@ test("createNovelCoverTask applies novel-cover defaults without coupling to nove
       updatedAt: new Date("2026-05-22T10:00:00.000Z"),
     };
   };
+  WorldContextGateway.prototype.getWorldContextBlock = async () => ({
+    summaryText: "本书世界雾港，黑雾压迫城市，审判局与地下交易同时运作。",
+    activeForces: [{ id: "force-judge", name: "审判局", roleInStory: "秩序压力", pressure: "公开审判" }],
+    activeLocations: [{ id: "loc-harbor", name: "黑雾港口", storyUse: "案件入口" }],
+  });
 
   try {
     const task = await service.createNovelCoverTask({
@@ -149,6 +187,7 @@ test("createNovelCoverTask applies novel-cover defaults without coupling to nove
     assert.equal(task.imageCount, DEFAULT_NOVEL_COVER_IMAGE_COUNT);
     assert.ok(task.prompt.includes("no title text"));
     assert.ok(task.prompt.includes("Project title: 雾港审判局"));
+    assert.ok(task.prompt.includes("本书世界雾港"));
     assert.ok(task.negativePrompt.includes("过度拥挤"));
     assert.ok(task.negativePrompt.includes(DEFAULT_NOVEL_COVER_NEGATIVE_PROMPT));
     assert.equal(createdTaskData.baseCharacterId, null);
@@ -158,5 +197,6 @@ test("createNovelCoverTask applies novel-cover defaults without coupling to nove
   } finally {
     prisma.novel.findUnique = originalNovelFindUnique;
     prisma.imageGenerationTask.create = originalTaskCreate;
+    WorldContextGateway.prototype.getWorldContextBlock = originalGetWorldContextBlock;
   }
 });

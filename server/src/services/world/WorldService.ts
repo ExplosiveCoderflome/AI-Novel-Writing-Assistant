@@ -55,6 +55,7 @@ import {
   type ImportWorldInput,
   type InspirationInput,
   type LayerGenerateInput,
+  type LayerStateMap,
   type LayerUpdateInput,
   type LibraryUseInput,
   type RefineWorldInput,
@@ -71,9 +72,84 @@ import {
   safeParseJSON,
   uniqueKnowledgeDocumentIds,
 } from "./worldServiceShared";
+import { generateWorldSkeleton, type WorldSkeletonGenerateInput } from "./worldSkeletonGeneration";
 import { exportWorldData, importWorldData } from "./worldTransfer";
 import { ragServices } from "../rag";
 import type { RagOwnerType } from "../rag/types";
+
+function buildGeneratedStructurePersistence(
+  world: Parameters<typeof buildWorldStructureFromLegacySource>[0],
+): Pick<Prisma.WorldUpdateInput, "structureJson" | "bindingSupportJson" | "structureSchemaVersion"> {
+  const structure = buildWorldStructureFromLegacySource(world);
+  const bindingSupport = buildWorldBindingSupport(structure);
+  return {
+    structureJson: JSON.stringify({
+      ...structure,
+      metadata: {
+        ...structure.metadata,
+        lastGeneratedAt: nowISO(),
+      },
+    }),
+    bindingSupportJson: JSON.stringify(bindingSupport),
+    structureSchemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
+  };
+}
+
+function markGeneratedLayerStatesFromFields(states: LayerStateMap, fields: Record<string, unknown>): LayerStateMap {
+  const updatedAt = nowISO();
+  for (const layerKey of WORLD_LAYER_ORDER) {
+    const hasLayerText = LAYER_FIELD_MAP[layerKey].some((field) => {
+      const value = fields[field];
+      return typeof value === "string" && value.trim().length > 0;
+    });
+    if (hasLayerText && states[layerKey].status !== "confirmed") {
+      states[layerKey] = { key: layerKey, status: "generated", updatedAt };
+    }
+  }
+  return states;
+}
+
+function buildInitialLayerStatesFromFields(fields: Record<string, unknown>): LayerStateMap {
+  return markGeneratedLayerStatesFromFields(normalizeLayerStates(undefined), fields);
+}
+
+function pickGeneratedLayerFields(
+  fields: Record<string, unknown>,
+  layerKey: WorldLayerKey,
+): Partial<Record<WorldTextField, string>> {
+  const generated: Partial<Record<WorldTextField, string>> = {};
+  for (const field of LAYER_FIELD_MAP[layerKey]) {
+    const value = fields[field];
+    if (typeof value === "string" && value.trim()) {
+      generated[field] = value.trim();
+    }
+  }
+  return generated;
+}
+
+function buildGeneratedLayersFromStructuredFields(
+  fields: Record<string, unknown>,
+): Record<WorldLayerKey, Partial<Record<WorldTextField, string>>> {
+  return WORLD_LAYER_ORDER.reduce((acc, layerKey) => {
+    acc[layerKey] = pickGeneratedLayerFields(fields, layerKey);
+    return acc;
+  }, {} as Record<WorldLayerKey, Partial<Record<WorldTextField, string>>>);
+}
+
+function hasReliableStructuredLayerSource(parsed: {
+  hasStructuredData: boolean;
+  structure: WorldStructuredData;
+}): boolean {
+  if (!parsed.hasStructuredData) {
+    return false;
+  }
+  if (parsed.structure.metadata.seededFrom === "legacy-text") {
+    return false;
+  }
+  return parsed.structure.forces.length > 0
+    || parsed.structure.locations.length > 0
+    || parsed.structure.rules.axioms.length > 0;
+}
 
 export class WorldService {
   async listWorlds() {
@@ -100,6 +176,10 @@ export class WorldService {
 
   async analyzeInspiration(input: InspirationInput, onProgress?: (message: string) => void) {
     return analyzeWorldInspiration(input, onProgress);
+  }
+
+  async generateSkeleton(input: WorldSkeletonGenerateInput) {
+    return generateWorldSkeleton(input);
   }
 
   async createWorld(input: CreateWorldInput) {
@@ -147,6 +227,10 @@ export class WorldService {
       ? normalizeWorldBindingSupport(input.bindingSupport)
       : buildWorldBindingSupport(seededStructure);
     const structuredFields = applyStructuredWorldToLegacyFields(seededStructure, input, bindingSupport);
+    const initialLayerStates = buildInitialLayerStatesFromFields({
+      ...input,
+      ...structuredFields,
+    });
 
     const world = await prisma.world.create({
       data: {
@@ -155,22 +239,22 @@ export class WorldService {
         worldType: input.worldType,
         templateKey: input.templateKey ?? "custom",
         axioms: input.axioms ?? (structuredFields.axioms as string | null | undefined) ?? null,
-        background: input.background,
+        background: input.background ?? (structuredFields.background as string | null | undefined) ?? null,
         geography: input.geography ?? (structuredFields.geography as string | null | undefined) ?? null,
-        cultures: input.cultures,
-        magicSystem: input.magicSystem,
+        cultures: input.cultures ?? (structuredFields.cultures as string | null | undefined) ?? null,
+        magicSystem: input.magicSystem ?? (structuredFields.magicSystem as string | null | undefined) ?? null,
         politics: input.politics ?? (structuredFields.politics as string | null | undefined) ?? null,
         races: input.races,
         religions: input.religions,
         technology: input.technology,
         conflicts: input.conflicts ?? (structuredFields.conflicts as string | null | undefined) ?? null,
-        history: input.history,
-        economy: input.economy,
+        history: input.history ?? (structuredFields.history as string | null | undefined) ?? null,
+        economy: input.economy ?? (structuredFields.economy as string | null | undefined) ?? null,
         factions: input.factions ?? (structuredFields.factions as string | null | undefined) ?? null,
         selectedDimensions: input.selectedDimensions,
         selectedElements: input.selectedElements,
         status: "draft",
-        layerStates: JSON.stringify(normalizeLayerStates(undefined)),
+        layerStates: JSON.stringify(initialLayerStates),
         overviewSummary: (structuredFields.overviewSummary as string | null | undefined) ?? null,
         structureJson: structuredFields.structureJson as string,
         bindingSupportJson: structuredFields.bindingSupportJson as string,
@@ -231,6 +315,7 @@ export class WorldService {
         ? normalizeWorldBindingSupport(input.bindingSupport, currentBindingSupport)
         : buildWorldBindingSupport(nextStructure);
       structuredUpdate = applyStructuredWorldToLegacyFields(nextStructure, world, nextBindingSupport);
+      markGeneratedLayerStatesFromFields(states, structuredUpdate);
     }
 
     const updated = await prisma.world.update({
@@ -328,6 +413,40 @@ export class WorldService {
     if (!world) {
       throw new Error("World not found.");
     }
+
+    const parsedStructure = parseWorldStructurePayload(world.structureJson, world.bindingSupportJson);
+    if (hasReliableStructuredLayerSource(parsedStructure)) {
+      const structuredFields = applyStructuredWorldToLegacyFields(
+        parsedStructure.structure,
+        world,
+        parsedStructure.bindingSupport,
+      );
+      const generated = pickGeneratedLayerFields(structuredFields, layerKey);
+      if (Object.keys(generated).length > 0) {
+        const states = normalizeLayerStates(world.layerStates);
+        states[layerKey] = { key: layerKey, status: "generated", updatedAt: nowISO() };
+        markDownstreamStale(states, layerKey);
+
+        const updated = await prisma.world.update({
+          where: { id: worldId },
+          data: {
+            status: "refining",
+            layerStates: JSON.stringify(states),
+            ...structuredFields,
+          },
+        });
+        await this.createSnapshot(worldId, `${layerKey}-structured-layer`);
+        this.queueRagUpsert("world", worldId);
+
+        return {
+          world: updated,
+          layerKey,
+          generated,
+          layerStates: states,
+        };
+      }
+    }
+
     const generated = await buildWorldLayerGeneration({
       provider: input.provider ?? "deepseek",
       model: input.model,
@@ -343,6 +462,7 @@ export class WorldService {
       data: {
         status: "refining",
         layerStates: JSON.stringify(states),
+        ...buildGeneratedStructurePersistence(applyGeneratedWorldFields(world, generated)),
         ...generated,
       },
     });
@@ -361,6 +481,39 @@ export class WorldService {
     const world = await prisma.world.findUnique({ where: { id: worldId } });
     if (!world) {
       throw new Error("World not found.");
+    }
+
+    const parsedStructure = parseWorldStructurePayload(world.structureJson, world.bindingSupportJson);
+    if (hasReliableStructuredLayerSource(parsedStructure)) {
+      const structuredFields = applyStructuredWorldToLegacyFields(
+        parsedStructure.structure,
+        world,
+        parsedStructure.bindingSupport,
+      );
+      const generatedByLayer = buildGeneratedLayersFromStructuredFields(structuredFields);
+
+      const states = normalizeLayerStates(world.layerStates);
+      const updatedAt = nowISO();
+      for (const layerKey of WORLD_LAYER_ORDER) {
+        states[layerKey] = { key: layerKey, status: "generated", updatedAt };
+      }
+
+      const updated = await prisma.world.update({
+        where: { id: worldId },
+        data: {
+          status: "refining",
+          layerStates: JSON.stringify(states),
+          ...structuredFields,
+        },
+      });
+      await this.createSnapshot(worldId, "structured-layers-generated-all");
+      this.queueRagUpsert("world", worldId);
+
+      return {
+        world: updated,
+        generated: generatedByLayer,
+        layerStates: states,
+      };
     }
 
     const generatedByLayer = WORLD_LAYER_ORDER.reduce((acc, layerKey) => {
@@ -392,6 +545,7 @@ export class WorldService {
       data: {
         status: "refining",
         layerStates: JSON.stringify(states),
+        ...buildGeneratedStructurePersistence(applyGeneratedWorldFields(world, mergedGenerated)),
         ...mergedGenerated,
       },
     });

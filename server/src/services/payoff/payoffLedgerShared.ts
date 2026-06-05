@@ -32,6 +32,29 @@ type PayoffLedgerRowLike = {
   updatedAt: Date;
 };
 
+type PayoffLedgerSyncCandidate = {
+  ledgerKey: string;
+  title: string;
+  scopeType: "book" | "volume" | "chapter";
+  currentStatus: PayoffLedgerStatus;
+  targetStartChapterOrder?: number | null;
+  targetEndChapterOrder?: number | null;
+  payoffChapterId?: string | null;
+  payoffChapterOrder?: number | null;
+  riskSignals: PayoffLedgerRiskSignal[];
+  statusReason?: string | null;
+};
+
+type ExistingLedgerIdentityRow = {
+  ledgerKey: string;
+  title: string;
+  scopeType: "book" | "volume" | "chapter";
+  currentStatus: PayoffLedgerStatus;
+  targetEndChapterOrder: number | null;
+  lastTouchedChapterOrder: number | null;
+  updatedAt: Date | string;
+};
+
 export interface SyntheticPayoffIssue {
   ledgerKey: string;
   code: string;
@@ -87,6 +110,89 @@ export function appendStaleRiskSignal(
 
 export function clearStaleRiskSignal(signals: PayoffLedgerRiskSignal[]): PayoffLedgerRiskSignal[] {
   return signals.filter((signal) => signal.code !== "sync_stale");
+}
+
+export function normalizePayoffLedgerIdentity(value: string | null | undefined): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s"'“”‘’`.,，。:：;；!！?？()[\]{}（）【】《》<>、\\/|_\-—~·…]+/g, "");
+}
+
+function isUnfinishedPayoffStatus(status: PayoffLedgerStatus): boolean {
+  return status !== "paid_off" && status !== "failed";
+}
+
+function hasExplicitPayoffWindow(item: PayoffLedgerSyncCandidate): boolean {
+  return typeof item.targetStartChapterOrder === "number"
+    || typeof item.targetEndChapterOrder === "number"
+    || typeof item.payoffChapterOrder === "number"
+    || Boolean(item.payoffChapterId?.trim());
+}
+
+function compareExistingLedgerIdentityRows(
+  item: PayoffLedgerSyncCandidate,
+  left: ExistingLedgerIdentityRow,
+  right: ExistingLedgerIdentityRow,
+): number {
+  const leftScopeScore = left.scopeType === item.scopeType ? 1 : 0;
+  const rightScopeScore = right.scopeType === item.scopeType ? 1 : 0;
+  if (leftScopeScore !== rightScopeScore) {
+    return rightScopeScore - leftScopeScore;
+  }
+  const leftWindowScore = typeof left.targetEndChapterOrder === "number" ? 1 : 0;
+  const rightWindowScore = typeof right.targetEndChapterOrder === "number" ? 1 : 0;
+  if (leftWindowScore !== rightWindowScore) {
+    return rightWindowScore - leftWindowScore;
+  }
+  const leftTouched = left.lastTouchedChapterOrder ?? Number.NEGATIVE_INFINITY;
+  const rightTouched = right.lastTouchedChapterOrder ?? Number.NEGATIVE_INFINITY;
+  if (leftTouched !== rightTouched) {
+    return rightTouched - leftTouched;
+  }
+  const leftUpdatedAt = new Date(left.updatedAt).getTime() || 0;
+  const rightUpdatedAt = new Date(right.updatedAt).getTime() || 0;
+  if (leftUpdatedAt !== rightUpdatedAt) {
+    return rightUpdatedAt - leftUpdatedAt;
+  }
+  return left.ledgerKey.localeCompare(right.ledgerKey);
+}
+
+export function resolvePayoffLedgerSyncLedgerKey(
+  item: PayoffLedgerSyncCandidate,
+  existingRows: ExistingLedgerIdentityRow[],
+): string {
+  if (existingRows.some((row) => row.ledgerKey === item.ledgerKey)) {
+    return item.ledgerKey;
+  }
+  const identity = normalizePayoffLedgerIdentity(item.title);
+  if (!identity) {
+    return item.ledgerKey;
+  }
+  const candidates = existingRows
+    .filter((row) => isUnfinishedPayoffStatus(row.currentStatus))
+    .filter((row) => normalizePayoffLedgerIdentity(row.title) === identity)
+    .sort((left, right) => compareExistingLedgerIdentityRows(item, left, right));
+  return candidates[0]?.ledgerKey ?? item.ledgerKey;
+}
+
+export function sanitizePayoffLedgerSyncItem<T extends PayoffLedgerSyncCandidate>(item: T): T {
+  if (item.currentStatus !== "overdue" || hasExplicitPayoffWindow(item)) {
+    return item;
+  }
+  return {
+    ...item,
+    currentStatus: "pending_payoff",
+    riskSignals: dedupeRiskSignals([
+      ...item.riskSignals,
+      {
+        code: "payoff_missing_progress",
+        severity: "medium",
+        summary: item.statusReason?.trim()
+          || "AI 对账认为该伏笔已逾期，但缺少明确目标窗口，已按待推进风险继续跟踪。",
+      },
+    ]),
+  };
 }
 
 export function mapPayoffLedgerRow(row: PayoffLedgerRowLike): PayoffLedgerItem {

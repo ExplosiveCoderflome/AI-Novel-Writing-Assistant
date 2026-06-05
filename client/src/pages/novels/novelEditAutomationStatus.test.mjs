@@ -46,14 +46,17 @@ test("replan checkpoints stay action-required even when projection reports waiti
   );
 });
 
-test("historical failed projections do not auto-focus old director tasks", () => {
+test("failed projections auto-focus the latest task because they need attention", () => {
   assert.equal(
     shouldAutofocusProjectedDirectorTask({
-      latestTask: { id: "task-old" },
+      latestTask: { id: "task-failed", status: "failed" },
       status: "failed",
     }),
-    false,
+    true,
   );
+});
+
+test("completed projections do not auto-focus old director tasks", () => {
   assert.equal(
     shouldAutofocusProjectedDirectorTask({
       latestTask: { id: "task-old" },

@@ -7,7 +7,8 @@ function buildNovel(overrides = {}) {
   return {
     id: "novel-1",
     title: "事实进展测试",
-    world: { id: "world-1", name: "测试世界" },
+    world: overrides.world === undefined ? { id: "world-1", name: "测试世界" } : overrides.world,
+    novelWorld: overrides.novelWorld ?? null,
     bible: { mainPromise: "读者承诺", coreSetting: "核心设定" },
     characters: [{ id: "character-1" }, { id: "character-2" }, { id: "character-3" }],
     outline: "发展走向",
@@ -121,6 +122,7 @@ function createService(novel, factSummary, chapterProgress) {
     chapterInspector: {
       inspectNovel: async () => chapterProgress,
     },
+    novelWorldReader: async () => novel.novelWorld ?? null,
   });
 }
 
@@ -139,6 +141,36 @@ test("NovelProductionStatusService does not complete the book from a succeeded j
   assert.equal(status.runtimeStatus.state, "succeeded");
   assert.equal(status.currentStage, "章节正文写作中");
   assert.doesNotMatch(status.currentStage, /完成/);
+});
+
+test("NovelProductionStatusService treats NovelWorld as the production world asset", async () => {
+  const novel = buildNovel({
+    world: null,
+    novelWorld: {
+      id: "novel-world-1",
+      title: "本书雾港",
+      coverSummary: "黑雾与审判机构共同塑造的本书世界。",
+      sourceWorldId: null,
+      hasStructuredData: true,
+      hasStorySlice: false,
+    },
+  });
+  const factSummary = buildFactSummary({ draftedChapterCount: 0, reviewedChapterCount: 0, committedChapterCount: 0 });
+  const chapterProgress = buildChapterProgress({ draftedChapterCount: 0, reviewedChapterCount: 0, committedChapterCount: 0 });
+  const status = await createService(novel, factSummary, chapterProgress).getNovelProductionStatus({
+    novelId: "novel-1",
+    targetChapterCount: 20,
+  });
+
+  const worldStage = status.assetStages.find((stage) => stage.key === "world");
+  assert.equal(status.factProgress.facts.hasWorld, true);
+  assert.equal(status.worldId, null);
+  assert.equal(status.worldName, "本书雾港");
+  assert.equal(worldStage?.label, "本书世界");
+  assert.equal(worldStage?.status, "completed");
+  assert.equal(worldStage?.detail, "本书雾港");
+  assert.notEqual(status.currentStage, "等待生成世界观");
+  assert.doesNotMatch(status.recoveryHint ?? "", /世界观/);
 });
 
 test("NovelProductionStatusService keeps fact progress when the latest job failed", async () => {

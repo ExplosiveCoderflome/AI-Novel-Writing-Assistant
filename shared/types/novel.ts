@@ -25,6 +25,7 @@ export type {
   CharacterVisibleProfileSuggestion,
   CharacterRelation,
   CharacterTimeline,
+  CharacterWorldFocusHints,
   SupplementalCharacterApplyResult,
   SupplementalCharacterCandidate,
   SupplementalCharacterGenerateInput,
@@ -952,6 +953,7 @@ export interface VolumeSyncPreview {
 
 export interface ReplanRecommendation {
   recommended: boolean;
+  action?: "continue_with_warning" | "local_patch_plan" | "stop_for_replan";
   reason: string;
   blockingIssueIds: string[];
   blockingLedgerKeys?: string[];

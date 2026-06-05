@@ -77,7 +77,7 @@ import { syncNovelWorkflowStageSilently, workflowStageFromTab } from "./novelWor
 import { isNovelWorkspaceFlowTab, scopeFromWorkspaceTab, tabFromDirectorDisplayStage, tabFromDirectorProgress, tabFromScope, type NovelWorkspaceFlowTab } from "./novelWorkspaceNavigation";
 import { resolveChapterTitleWarning } from "@/lib/directorTaskNotice";
 import { resolveInternalNavigationTarget } from "@/lib/internalNavigation";
-import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
+import { resolveDirectorContinueMode, resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import {
   getDirectorCockpitActionHref,
   getDirectorCockpitContinuationMode,
@@ -469,9 +469,23 @@ export default function NovelEdit() {
   });
   const {
     worldSliceMessage,
+    novelWorldView,
+    novelWorldSyncDiff,
     worldSliceView,
+    isLoadingNovelWorld,
+    isImportingNovelWorld,
+    isGeneratingNovelWorld,
+    isCreatingManualNovelWorld,
+    isSavingNovelWorldToLibrary,
+    isLoadingNovelWorldSyncDiff,
+    isSyncingNovelWorld,
     isRefreshingWorldSlice,
     isSavingWorldSliceOverrides,
+    importNovelWorld,
+    createManualNovelWorld,
+    generateNovelWorld,
+    saveNovelWorldToLibrary,
+    syncNovelWorld,
     refreshWorldSlice,
     saveWorldSliceOverrides,
   } = useNovelWorldSlice({
@@ -479,6 +493,7 @@ export default function NovelEdit() {
     enabled: shouldLoadWorldSlice,
     llm,
     queryClient,
+    onNovelWorldImported: (worldId) => setBasicForm((prev) => ({ ...prev, worldId })),
   });
   const pipelineJobQuery = useQuery({
     queryKey: queryKeys.novels.pipelineJob(id, currentJobId || "none"),
@@ -1015,19 +1030,18 @@ export default function NovelEdit() {
       if (!targetTaskId) {
         throw new Error("当前没有可继续的自动导演任务。");
       }
-      return continueNovelWorkflow(
-        targetTaskId,
-        targetTask?.status === "waiting_approval"
-          ? { continuationMode: "resume" }
-          : undefined,
-      );
+      return continueNovelWorkflow(targetTaskId, {
+        continuationMode: resolveDirectorContinueMode(targetTask),
+      });
     },
     onSuccess: async (response, input) => {
       const targetTaskId = input?.directorTaskId || actionTargetDirectorTaskId;
       const targetTask = targetTaskId === visibleDirectorTask?.id ? visibleDirectorTask : activeAutoDirectorTask;
       setDirectorTaskId(response.data?.taskId ?? targetTaskId);
       void invalidateAutoDirectorTaskState(response.data?.taskId ?? targetTaskId);
-      const feedback = resolveWorkflowContinuationFeedback(response.data);
+      const feedback = resolveWorkflowContinuationFeedback(response.data, {
+        mode: resolveDirectorContinueMode(targetTask),
+      });
       if (feedback.tone === "error") {
         toast.error(feedback.message);
         return;
@@ -2321,12 +2335,26 @@ export default function NovelEdit() {
     sourceNovelBookAnalysisOptions,
     isLoadingSourceNovelBookAnalyses: sourceBookAnalysesQuery.isLoading,
     availableBookAnalysisSections: [...BOOK_ANALYSIS_SECTIONS],
+    novelWorldView,
+    novelWorldSyncDiff,
     worldSliceView,
     worldSliceMessage,
+    isLoadingNovelWorld,
+    isImportingNovelWorld,
+    isGeneratingNovelWorld,
+    isCreatingManualNovelWorld,
+    isSavingNovelWorldToLibrary,
+    isLoadingNovelWorldSyncDiff,
+    isSyncingNovelWorld,
     isRefreshingWorldSlice,
     isSavingWorldSliceOverrides,
     onBasicFormChange: (patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch)),
     onSaveBasic: () => saveBasicMutation.mutate(),
+    onImportNovelWorld: importNovelWorld,
+    onCreateManualNovelWorld: createManualNovelWorld,
+    onGenerateNovelWorld: generateNovelWorld,
+    onSaveNovelWorldToLibrary: saveNovelWorldToLibrary,
+    onSyncNovelWorld: syncNovelWorld,
     onRefreshWorldSlice: refreshWorldSlice,
     onSaveWorldSliceOverrides: saveWorldSliceOverrides,
     isSavingBasic: saveBasicMutation.isPending,

@@ -238,6 +238,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
   const [supplementalTargetRole, setSupplementalTargetRole] = useState<CharacterCastRole | "auto">("auto");
   const [supplementalCount, setSupplementalCount] = useState<"auto" | "1" | "2" | "3">("auto");
   const [supplementalPrompt, setSupplementalPrompt] = useState("");
+  const [supplementalUseWorldContext, setSupplementalUseWorldContext] = useState(true);
   const [supplementalStatusMessage, setSupplementalStatusMessage] = useState("");
   const [supplementalResult, setSupplementalResult] = useState<SupplementalCharacterGenerationResult | null>(null);
   const previousQuickCreating = useRef(isQuickCreating);
@@ -293,6 +294,10 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
         targetCastRole: supplementalTargetRole,
         count: supplementalCount === "auto" ? undefined : Number(supplementalCount),
         userPrompt: supplementalPrompt.trim() || undefined,
+        useWorldContext: supplementalUseWorldContext,
+        worldFocusHints: supplementalUseWorldContext
+          ? { forceCompliance: true }
+          : undefined,
       });
       setSupplementalResult(response.data ?? null);
       setSupplementalStatusMessage(response.message ?? "补充角色候选已生成。");
@@ -325,7 +330,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel
         title="从角色准备接管"
-        description="AI 会先判断角色资产是否已经齐备，再决定继续补角色还是按你的选择重跑当前步骤。"
+        description="AI 会先判断角色资产是否齐备，再决定继续补角色还是按你的选择重跑当前步骤。"
         entry={directorTakeoverEntry}
       />
       {characterMessage ? <div className="text-sm text-muted-foreground">{characterMessage}</div> : null}
@@ -606,6 +611,15 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                 />
               </div>
 
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={supplementalUseWorldContext}
+                  onChange={(event) => setSupplementalUseWorldContext(event.target.checked)}
+                />
+                基于本书世界生成
+              </label>
+
               <div className="flex flex-wrap gap-2">
                 <AiButton
                   onClick={handleGenerateSupplementalCharacters}
@@ -674,7 +688,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                           <div>第一印象：{candidate.firstImpression || "待补全"}</div>
                           <div>核心恐惧：{candidate.fear || "待补全"}</div>
                           <div>错误信念：{candidate.misbelief || "待补全"}</div>
-                          <div>为什么现在补：{candidate.whyNow || "AI 未额外说明"}</div>
+                          <div>补位原因：{candidate.whyNow || "AI 未额外说明"}</div>
                         </div>
                       </div>
 
@@ -695,7 +709,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                         </div>
                       ) : (
                         <div className="mt-3 rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-                          这名角色更偏向独立补位，当前没有强制绑定的结构化关系。
+                          这名角色更偏向独立补位，不强制写入角色关系。
                         </div>
                       )}
                     </div>

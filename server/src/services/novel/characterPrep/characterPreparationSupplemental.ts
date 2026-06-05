@@ -21,6 +21,7 @@ import {
 } from "../../../prompting/prompts/novel/characterPreparation.promptSchemas";
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import { parseCharacterProhibitionsJson } from "../characters/characterHardFacts";
+import { WorldContextGateway } from "../worldContext/WorldContextGateway";
 
 type CharacterRowForOutput = Awaited<ReturnType<typeof prisma.character.create>>;
 
@@ -109,6 +110,7 @@ export class CharacterPreparationSupplementalService {
   constructor(
     private readonly novelContextService: NovelContextService,
     private readonly characterDynamicsService: CharacterDynamicsService,
+    private readonly worldContextGateway = new WorldContextGateway(),
   ) {}
 
   async generateSupplementalCharacters(
@@ -120,21 +122,11 @@ export class CharacterPreparationSupplementalService {
       where: { id: novelId },
       include: {
         genre: { select: { name: true } },
-        world: {
-          select: {
-            name: true,
-            description: true,
-            overviewSummary: true,
-            conflicts: true,
-            magicSystem: true,
-          },
-        },
         bible: {
           select: {
             coreSetting: true,
             mainPromise: true,
             characterArcs: true,
-            worldRules: true,
           },
         },
         storyMacroPlan: {
@@ -209,6 +201,17 @@ export class CharacterPreparationSupplementalService {
     }
 
     const anchorIds = Array.from(new Set((options.anchorCharacterIds ?? []).filter(Boolean)));
+    const storyInput = novel.storyMacroPlan?.storyInput?.trim() || novel.description?.trim() || "";
+    const worldContext = options.useWorldContext === false
+      ? null
+      : await this.worldContextGateway.getWorldContextBlock(novelId, {
+        purpose: "character",
+        strength: "normal",
+        storyInput,
+        provider: options.provider,
+        model: options.model,
+        temperature: options.temperature,
+      });
     const storyModeBlock = buildStoryModePromptBlock({
       primary: novel.primaryStoryMode ? normalizeStoryModeOutput(novel.primaryStoryMode) : null,
       secondary: novel.secondaryStoryMode ? normalizeStoryModeOutput(novel.secondaryStoryMode) : null,
@@ -230,7 +233,7 @@ export class CharacterPreparationSupplementalService {
       userPrompt: toPromptFallback(options.userPrompt, "无"),
       storyInput: toPromptFallback(
         novel.storyMacroPlan?.storyInput?.trim() || novel.description?.trim(),
-        "暂无明确故事输入，请结合题材、世界观和已有角色自行推断补位方向。",
+        "暂无明确故事输入，请结合题材、本书世界和已有角色自行推断补位方向。",
       ),
       genreName: novel.genre?.name ?? "未指定",
       storyModeBlock,
@@ -241,12 +244,9 @@ export class CharacterPreparationSupplementalService {
       corePromise: novel.bible?.mainPromise ?? "暂无",
       coreSetting: novel.bible?.coreSetting ?? "暂无",
       characterArcs: novel.bible?.characterArcs ?? "暂无",
-      worldRules: novel.bible?.worldRules ?? "暂无",
-      worldStage: novel.world
-        ? [novel.world.name, novel.world.description, novel.world.overviewSummary, novel.world.conflicts, novel.world.magicSystem]
-          .filter((item) => typeof item === "string" && item.trim().length > 0)
-          .join("\n")
-        : "当前还没有绑定世界观。",
+      worldRules: worldContext?.worldRulesText ?? "暂无",
+      worldStage: worldContext?.worldStageText ?? "本书世界未整理，请优先根据故事输入和书级约束推断人物舞台。",
+      worldFocusHints: options.useWorldContext === false ? null : options.worldFocusHints,
       storyDecomposition: novel.storyMacroPlan?.decompositionJson ?? "暂无",
       constraintEngine: novel.storyMacroPlan?.constraintEngineJson ?? "暂无",
       existingCharactersText: novel.characters.length > 0

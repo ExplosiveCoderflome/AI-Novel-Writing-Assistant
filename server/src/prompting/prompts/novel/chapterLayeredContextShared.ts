@@ -139,25 +139,25 @@ export function summarizeOpenConflicts(contextPackage: GenerationContextPackage)
 }
 
 export function summarizeWorldRules(contextPackage: GenerationContextPackage): string[] {
-  if (contextPackage.canonicalState?.worldState) {
-    const world = contextPackage.canonicalState.worldState;
+  const worldSlice = contextPackage.storyWorldSlice;
+  if (worldSlice) {
     return takeUnique([
-      world.summary,
-      ...world.rules.slice(0, 3),
-      ...world.tabooRules.slice(0, 2),
-      world.currentSituation,
+      worldSlice.coreWorldFrame,
+      ...worldSlice.appliedRules.slice(0, 3).map((rule) => `${rule.name}: ${rule.summary}`),
+      ...worldSlice.forbiddenCombinations.slice(0, 2),
+      worldSlice.storyScopeBoundary,
     ], 6);
   }
 
-  const worldSlice = contextPackage.storyWorldSlice;
-  if (!worldSlice) {
+  if (!contextPackage.canonicalState?.worldState) {
     return [];
   }
+  const world = contextPackage.canonicalState.worldState;
   return takeUnique([
-    worldSlice.coreWorldFrame,
-    ...worldSlice.appliedRules.slice(0, 3).map((rule) => `${rule.name}: ${rule.summary}`),
-    ...worldSlice.forbiddenCombinations.slice(0, 2),
-    worldSlice.storyScopeBoundary,
+    world.summary ? `连续性记录：${world.summary}` : "",
+    ...world.rules.slice(0, 3).map((rule) => `连续性规则记录：${rule}`),
+    ...world.tabooRules.slice(0, 2).map((rule) => `连续性禁忌记录：${rule}`),
+    world.currentSituation ? `当前世界状态记录：${world.currentSituation}` : "",
   ], 6);
 }
 

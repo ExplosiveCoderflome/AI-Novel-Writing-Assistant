@@ -1,8 +1,15 @@
-import type { BookAnalysisDetail, BookAnalysisPublishResult, BookAnalysisSection } from "@ai-novel/shared/types/bookAnalysis";
+import { useEffect, useMemo, useState } from "react";
+import type {
+  BookAnalysisDetail,
+  BookAnalysisPublishResult,
+  BookAnalysisSection,
+  BookAnalysisSectionKey,
+} from "@ai-novel/shared/types/bookAnalysis";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AggregatedEvidenceItem, SectionDraft } from "../bookAnalysis.types";
 import { formatDate, formatStage, formatStatus } from "../bookAnalysis.utils";
 import BookAnalysisSectionCard from "./BookAnalysisSectionCard";
@@ -77,6 +84,60 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     onDraftChange,
     getSectionDraft,
   } = props;
+  const [evidenceSectionFilter, setEvidenceSectionFilter] = useState<BookAnalysisSectionKey | "all">("all");
+  const [readingMode, setReadingMode] = useState<"summary" | "full">("summary");
+  const [activeSectionKey, setActiveSectionKey] = useState<BookAnalysisSectionKey | "">("");
+
+  const evidenceCountsBySection = useMemo(() => {
+    const counts = new Map<BookAnalysisSectionKey, number>();
+    for (const item of aggregatedEvidence) {
+      counts.set(item.sectionKey, (counts.get(item.sectionKey) ?? 0) + 1);
+    }
+    return counts;
+  }, [aggregatedEvidence]);
+
+  const filteredEvidence = useMemo(() => {
+    if (evidenceSectionFilter === "all") {
+      return aggregatedEvidence;
+    }
+    return aggregatedEvidence.filter((item) => item.sectionKey === evidenceSectionFilter);
+  }, [aggregatedEvidence, evidenceSectionFilter]);
+  const sectionStats = useMemo(() => {
+    if (!selectedAnalysis) {
+      return {
+        total: 0,
+        succeeded: 0,
+        active: 0,
+        frozen: 0,
+      };
+    }
+    return selectedAnalysis.sections.reduce(
+      (acc, section) => {
+        acc.total += 1;
+        if (section.status === "succeeded") {
+          acc.succeeded += 1;
+        }
+        if (!section.frozen) {
+          acc.active += 1;
+        }
+        if (section.frozen) {
+          acc.frozen += 1;
+        }
+        return acc;
+      },
+      { total: 0, succeeded: 0, active: 0, frozen: 0 },
+    );
+  }, [selectedAnalysis]);
+
+  useEffect(() => {
+    if (!selectedAnalysis?.sections.length) {
+      return;
+    }
+    const hasActiveSection = selectedAnalysis.sections.some((section) => section.sectionKey === activeSectionKey);
+    if (!hasActiveSection) {
+      setActiveSectionKey(selectedAnalysis.sections[0].sectionKey as BookAnalysisSectionKey);
+    }
+  }, [activeSectionKey, selectedAnalysis]);
 
   if (!selectedAnalysis) {
     return (
@@ -90,6 +151,8 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
       </Card>
     );
   }
+  const activeTabValue =
+    activeSectionKey || (selectedAnalysis.sections[0]?.sectionKey as BookAnalysisSectionKey | undefined) || "overview";
 
   return (
     <>
@@ -217,30 +280,115 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
         </CardContent>
       </Card>
 
-      {selectedAnalysis.sections.map((section) => (
-        <BookAnalysisSectionCard
-          key={section.id}
-          section={section}
-          draft={getSectionDraft(section)}
-          canOperate={Boolean(selectedAnalysis)}
-          isRegenerating={pending.regenerate}
-          isOptimizing={pending.optimizePreview && optimizingSectionKey === section.sectionKey}
-          isSaving={pending.saveSection}
-          onDraftChange={onDraftChange}
-          onRegenerate={onRegenerateSection}
-          onOptimize={onOptimizeSection}
-          onApplyOptimizePreview={onApplyOptimizePreview}
-          onCancelOptimizePreview={onCancelOptimizePreview}
-          onSave={onSaveSection}
-        />
-      ))}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle>拆书内容</CardTitle>
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              <Badge variant="outline">完成 {sectionStats.succeeded}/{sectionStats.total}</Badge>
+              <Badge variant="outline">生成 {sectionStats.active} 项</Badge>
+              {sectionStats.frozen > 0 ? <Badge variant="secondary">冻结 {sectionStats.frozen} 项</Badge> : null}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/20 p-3">
+            <div>
+              <div className="text-sm font-medium">阅读模式</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                先快速看关键结论，需要完整分析时再展开正文。
+              </div>
+            </div>
+            <div className="flex rounded-md border bg-background p-1">
+              <Button
+                size="sm"
+                variant={readingMode === "summary" ? "default" : "ghost"}
+                onClick={() => setReadingMode("summary")}
+              >
+                重点速览
+              </Button>
+              <Button
+                size="sm"
+                variant={readingMode === "full" ? "default" : "ghost"}
+                onClick={() => setReadingMode("full")}
+              >
+                完整阅读
+              </Button>
+            </div>
+          </div>
+          <Tabs
+            value={activeTabValue}
+            onValueChange={(value) => setActiveSectionKey(value as BookAnalysisSectionKey)}
+            className="space-y-3"
+          >
+            <TabsList className="flex h-auto flex-wrap justify-start gap-1">
+              {selectedAnalysis.sections.map((section) => (
+                <TabsTrigger key={section.sectionKey} value={section.sectionKey} className="gap-2">
+                  <span>{section.title}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {section.frozen ? "冻结" : formatStatus(section.status)}
+                  </span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {selectedAnalysis.sections.map((section) => (
+              <TabsContent key={section.sectionKey} value={section.sectionKey} className="mt-0">
+                <BookAnalysisSectionCard
+                  section={section}
+                  draft={getSectionDraft(section)}
+                  readingMode={readingMode}
+                  canOperate={Boolean(selectedAnalysis)}
+                  isRegenerating={pending.regenerate}
+                  isOptimizing={pending.optimizePreview && optimizingSectionKey === section.sectionKey}
+                  isSaving={pending.saveSection}
+                  onDraftChange={onDraftChange}
+                  onRegenerate={onRegenerateSection}
+                  onOptimize={onOptimizeSection}
+                  onApplyOptimizePreview={onApplyOptimizePreview}
+                  onCancelOptimizePreview={onCancelOptimizePreview}
+                  onSave={onSaveSection}
+                />
+              </TabsContent>
+            ))}
+          </Tabs>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>证据面板</CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle>证据面板</CardTitle>
+            <Badge variant="outline">{filteredEvidence.length} 条</Badge>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-2">
-          {aggregatedEvidence.map((item, index) => (
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={evidenceSectionFilter === "all" ? "default" : "outline"}
+              onClick={() => setEvidenceSectionFilter("all")}
+            >
+              全部 {aggregatedEvidence.length}
+            </Button>
+            {selectedAnalysis.sections.map((section) => {
+              const count = evidenceCountsBySection.get(section.sectionKey) ?? 0;
+              if (count === 0) {
+                return null;
+              }
+              return (
+                <Button
+                  key={section.sectionKey}
+                  size="sm"
+                  variant={evidenceSectionFilter === section.sectionKey ? "default" : "outline"}
+                  onClick={() => setEvidenceSectionFilter(section.sectionKey as BookAnalysisSectionKey)}
+                >
+                  {section.title} {count}
+                </Button>
+              );
+            })}
+          </div>
+
+          {filteredEvidence.map((item, index) => (
             <div key={`${item.sectionTitle}-${index}`} className="rounded-md border p-3 text-sm">
               <div className="font-medium">
                 {item.sectionTitle} | [{item.sourceLabel}] {item.label}
@@ -250,6 +398,9 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
           ))}
           {aggregatedEvidence.length === 0 ? (
             <div className="text-sm text-muted-foreground">当前分析暂无证据内容。</div>
+          ) : null}
+          {aggregatedEvidence.length > 0 && filteredEvidence.length === 0 ? (
+            <div className="text-sm text-muted-foreground">当前小节暂无证据内容。</div>
           ) : null}
         </CardContent>
       </Card>

@@ -9,6 +9,12 @@ function listBlock<T>(title: string, items: T[], render: (item: T) => string): s
 
 type TimelineContextHook = TimelineContextForChapter["openHooks"][number];
 
+export interface TimelinePromptBlockOptions {
+  maxPreviousEvents?: number;
+  maxSoftHooks?: number;
+  maxAddressedHooks?: number;
+}
+
 function resolveModeOf(hook: TimelineContextHook): TimelineContextHook["resolveMode"] {
   return hook.resolveMode ?? "long_arc";
 }
@@ -23,21 +29,26 @@ function hookLabel(hook: TimelineContextHook): string {
 }
 
 export class TimelinePromptAdapter {
-  toPromptBlock(context: TimelineContextForChapter): string {
+  toPromptBlock(context: TimelineContextForChapter, options: TimelinePromptBlockOptions = {}): string {
+    const maxPreviousEvents = options.maxPreviousEvents ?? 40;
+    const maxSoftHooks = options.maxSoftHooks ?? 20;
+    const maxAddressedHooks = options.maxAddressedHooks ?? 12;
+    const previousEvents = context.previousEvents.slice(-maxPreviousEvents);
     const blockingHooks = context.blockingHooks?.length
       ? context.blockingHooks
       : context.openHooks.filter(isBlockingHook);
     const blockingIds = new Set(blockingHooks.map((hook) => hook.id));
-    const softHooks = context.softHooks?.length
+    const softHooksSource = context.softHooks?.length
       ? context.softHooks
       : context.openHooks.filter((hook) => !blockingIds.has(hook.id));
-    const addressedHooks = context.addressedHooks ?? [];
+    const softHooks = softHooksSource.slice(-maxSoftHooks);
+    const addressedHooks = (context.addressedHooks ?? []).slice(-maxAddressedHooks);
     return [
       "【时间线约束】",
       `当前章节：第 ${context.currentChapterIndex} 章`,
       `当前故事时间：${context.currentTime?.label || "未明确"}`,
       "",
-      listBlock("【已发生关键事件】", context.previousEvents, (event) =>
+      listBlock("【已发生关键事件】", previousEvents, (event) =>
         `${event.title}：${event.summary}${event.storyTimeLabel ? `（${event.storyTimeLabel}）` : ""}`),
       "",
       listBlock("【本章必须推进】", context.plannedEventsThisChapter, (event) =>

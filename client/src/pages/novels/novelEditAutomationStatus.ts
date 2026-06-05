@@ -74,14 +74,19 @@ export function shouldAutofocusProjectedDirectorTask(
   if (!projection?.latestTask?.id) {
     return false;
   }
+  if (
+    projection.status === "failed"
+    || projection.status === "blocked"
+    || projection.status === "waiting_recovery"
+  ) {
+    return true;
+  }
   if (isTerminalWorkflowTaskStatus(projection.latestTask?.status ?? null)) {
     return false;
   }
   return projection.status === "queued"
     || projection.status === "running"
-    || projection.status === "waiting_approval"
-    || projection.status === "waiting_recovery"
-    || projection.status === "blocked";
+    || projection.status === "waiting_approval";
 }
 
 export function resolveTakeoverDialogContextTaskId(input: {

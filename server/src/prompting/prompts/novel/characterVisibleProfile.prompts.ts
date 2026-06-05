@@ -11,6 +11,7 @@ export interface CharacterVisibleProfilePromptInput {
   projectMode: string;
   storyModeBlock: string;
   bookContractText: string;
+  worldContextText: string;
   bibleText: string;
   storyMacroText: string;
   characterName: string;
@@ -85,6 +86,9 @@ export const characterVisibleProfileCompletionPrompt: PromptAsset<
       "",
       "书级承诺：",
       input.bookContractText || "暂无",
+      "",
+      "本书世界上下文：",
+      input.worldContextText || "暂无",
       "",
       "作品圣经：",
       input.bibleText || "暂无",

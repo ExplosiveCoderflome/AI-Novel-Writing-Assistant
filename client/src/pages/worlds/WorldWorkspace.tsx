@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import LLMSelector from "@/components/common/LLMSelector";
-import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
 import {
   answerWorldDeepeningQuestions,
   backfillWorldStructure,
@@ -46,6 +45,7 @@ import WorldAssetsTab from "./components/workspace/WorldAssetsTab";
 import WorldAxiomsCard from "./components/workspace/WorldAxiomsCard";
 import WorldConsistencyTab from "./components/workspace/WorldConsistencyTab";
 import WorldDeepeningTab from "./components/workspace/WorldDeepeningTab";
+import WorldHandbookEditor from "./components/workspace/WorldHandbookEditor";
 import WorldLayersTab from "./components/workspace/WorldLayersTab";
 import WorldOverviewTab from "./components/workspace/WorldOverviewTab";
 import WorldStructureTab from "./components/workspace/WorldStructureTab";
@@ -79,6 +79,8 @@ export default function WorldWorkspace() {
   const [refineAttribute, setRefineAttribute] = useState<RefineAttribute>("background");
   const [refineMode, setRefineMode] = useState<"replace" | "alternatives">("replace");
   const [refineLevel, setRefineLevel] = useState<"light" | "deep">("light");
+  const [activeTab, setActiveTab] = useState("structure");
+  const [advancedStructureOpen, setAdvancedStructureOpen] = useState(false);
 
   const worldDetailQuery = useQuery({
     queryKey: queryKeys.worlds.detail(id),
@@ -270,11 +272,11 @@ export default function WorldWorkspace() {
     mutationFn: (worldId: string) => deleteWorld(worldId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
-      toast.success("世界观已删除。");
+      toast.success("世界样本已删除。");
       navigate("/worlds", { replace: true });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "删除世界观失败。");
+      toast.error(error instanceof Error ? error.message : "删除世界样本失败。");
     },
   });
 
@@ -291,7 +293,7 @@ export default function WorldWorkspace() {
     if (!id || !world) {
       return;
     }
-    const confirmed = window.confirm(`确认删除世界观「${world.name}」？此操作不可恢复。`);
+    const confirmed = window.confirm(`确认删除世界样本「${world.name}」？此操作不可恢复。`);
     if (!confirmed) {
       return;
     }
@@ -311,71 +313,128 @@ export default function WorldWorkspace() {
               onClick={handleDelete}
               disabled={!id || !world || deleteWorldMutation.isPending}
             >
-              {deleteWorldMutation.isPending ? "删除中..." : "删除世界观"}
+              {deleteWorldMutation.isPending ? "删除中..." : "删除世界样本"}
             </Button>
           </div>
         </CardHeader>
       </Card>
 
-      {id ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>参考资料</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <KnowledgeBindingPanel targetType="world" targetId={id} title="已绑定的参考资料" />
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {id ? (
-        <WorldAxiomsCard
-          rawAxioms={world?.axioms}
-          savePending={saveAxiomsMutation.isPending}
-          onSave={(axioms) => saveAxiomsMutation.mutate(axioms)}
-        />
-      ) : null}
-
-      <Tabs defaultValue="layers" className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(nextTab) => {
+          setActiveTab(nextTab);
+          if (nextTab !== "structure") {
+            setAdvancedStructureOpen(false);
+          }
+        }}
+        className="space-y-4"
+      >
         <TabsList className="flex flex-wrap">
-          <TabsTrigger value="structure">结构化设定</TabsTrigger>
-          <TabsTrigger value="layers">分层构建</TabsTrigger>
-          <TabsTrigger value="deepening">问答深化</TabsTrigger>
-          <TabsTrigger value="consistency">一致性</TabsTrigger>
-          <TabsTrigger value="overview">总览{featureFlags.worldVisEnabled ? "/可视化" : ""}</TabsTrigger>
-          <TabsTrigger value="assets">素材/版本/导入导出</TabsTrigger>
+          <TabsTrigger value="structure">整理世界手册</TabsTrigger>
+          <TabsTrigger value="overview">查看手册{featureFlags.worldVisEnabled ? "/可视化" : ""}</TabsTrigger>
+          <TabsTrigger value="layers">分层草稿</TabsTrigger>
+          <TabsTrigger value="deepening">补齐手册</TabsTrigger>
+          <TabsTrigger value="consistency">手册体检</TabsTrigger>
+          <TabsTrigger value="assets">资料与版本</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="structure">
-          <WorldStructureTab
-            initialPayload={structureQuery.data?.data}
-            savePending={saveStructureMutation.isPending}
-            backfillPending={backfillStructureMutation.isPending}
-            generatePending={generateStructureMutation.isPending}
-            onSave={async (structure, bindingSupport) => {
-              await saveStructureMutation.mutateAsync({ structure, bindingSupport });
-              await invalidateWorld();
-            }}
-            onBackfill={async () => {
-              const response = await backfillStructureMutation.mutateAsync();
-              await invalidateWorld();
-              return response.data
-                ? { structure: response.data.structure, bindingSupport: response.data.bindingSupport }
-                : undefined;
-            }}
-            onGenerate={async (section, structure, bindingSupport) => {
-              const response = await generateStructureMutation.mutateAsync({
-                section,
-                structure,
-                bindingSupport,
-                provider: llm.provider,
-                model: llm.model,
-              });
-              return response.data
-                ? { structure: response.data.structure, bindingSupport: response.data.bindingSupport }
-                : undefined;
-            }}
+        <TabsContent value="overview">
+          <WorldOverviewTab
+            summary={overviewQuery.data?.data?.summary}
+            sections={overviewQuery.data?.data?.sections ?? []}
+            structure={structureQuery.data?.data?.structure}
+            visualization={visualizationQuery.data?.data}
+            onOpenStructure={() => setActiveTab("structure")}
+            onOpenLayers={() => setActiveTab("layers")}
           />
+        </TabsContent>
+
+        <TabsContent value="structure">
+          {!advancedStructureOpen ? (
+            <WorldHandbookEditor
+              initialPayload={structureQuery.data?.data}
+              savePending={saveStructureMutation.isPending}
+              backfillPending={backfillStructureMutation.isPending}
+              generatePending={generateStructureMutation.isPending}
+              onSave={async (structure, bindingSupport) => {
+                await saveStructureMutation.mutateAsync({ structure, bindingSupport });
+                await invalidateWorld();
+              }}
+              onBackfill={async () => {
+                const response = await backfillStructureMutation.mutateAsync();
+                await invalidateWorld();
+                return response.data
+                  ? { structure: response.data.structure, bindingSupport: response.data.bindingSupport }
+                  : undefined;
+              }}
+              onGenerate={async (section, structure, bindingSupport) => {
+                const response = await generateStructureMutation.mutateAsync({
+                  section,
+                  structure,
+                  bindingSupport,
+                  provider: llm.provider,
+                  model: llm.model,
+                });
+                return response.data
+                  ? { structure: response.data.structure, bindingSupport: response.data.bindingSupport }
+                  : undefined;
+              }}
+              onOpenDeepening={() => setActiveTab("deepening")}
+              onOpenLayers={() => setActiveTab("layers")}
+              onOpenOverview={() => setActiveTab("overview")}
+              onOpenAdvanced={() => setAdvancedStructureOpen(true)}
+            />
+          ) : (
+            <>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between gap-3">
+                  <CardTitle>高级字段维护</CardTitle>
+                  <Button variant="outline" size="sm" onClick={() => setAdvancedStructureOpen(false)}>
+                    返回整理手册
+                  </Button>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  这里用于处理势力关系、地点控制权、结构导入等细节。普通整理优先回到世界手册。
+                </CardContent>
+              </Card>
+              {id ? (
+                <WorldAxiomsCard
+                  rawAxioms={world?.axioms}
+                  savePending={saveAxiomsMutation.isPending}
+                  onSave={(axioms) => saveAxiomsMutation.mutate(axioms)}
+                />
+              ) : null}
+              <WorldStructureTab
+                initialPayload={structureQuery.data?.data}
+                savePending={saveStructureMutation.isPending}
+                backfillPending={backfillStructureMutation.isPending}
+                generatePending={generateStructureMutation.isPending}
+                onSave={async (structure, bindingSupport) => {
+                  await saveStructureMutation.mutateAsync({ structure, bindingSupport });
+                  await invalidateWorld();
+                }}
+                onBackfill={async () => {
+                  const response = await backfillStructureMutation.mutateAsync();
+                  await invalidateWorld();
+                  return response.data
+                    ? { structure: response.data.structure, bindingSupport: response.data.bindingSupport }
+                    : undefined;
+                }}
+                onGenerate={async (section, structure, bindingSupport) => {
+                  const response = await generateStructureMutation.mutateAsync({
+                    section,
+                    structure,
+                    bindingSupport,
+                    provider: llm.provider,
+                    model: llm.model,
+                  });
+                  return response.data
+                    ? { structure: response.data.structure, bindingSupport: response.data.bindingSupport }
+                    : undefined;
+                }}
+              />
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="layers">
@@ -441,14 +500,6 @@ export default function WorldWorkspace() {
             checkPending={consistencyMutation.isPending}
             onCheck={() => consistencyMutation.mutate()}
             onPatchIssue={(payload) => patchIssueMutation.mutate(payload)}
-          />
-        </TabsContent>
-
-        <TabsContent value="overview">
-          <WorldOverviewTab
-            summary={overviewQuery.data?.data?.summary}
-            sections={overviewQuery.data?.data?.sections ?? []}
-            visualization={visualizationQuery.data?.data}
           />
         </TabsContent>
 

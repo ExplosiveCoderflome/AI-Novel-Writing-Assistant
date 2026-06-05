@@ -77,15 +77,38 @@ function normalizeCharacterResourceDelta(value: unknown): unknown {
   const resourceType = typeof value.resourceType === "string"
     ? resourceTypeAliases[value.resourceType.trim().toLowerCase()] ?? value.resourceType
     : value.resourceType;
+  const statusAfterAliases: Record<string, string> = {
+    active: "available",
+    owned: "available",
+    usable: "available",
+    in_hand: "available",
+    "in hand": "available",
+    held: "available",
+    known: "available",
+    revealed: "available",
+    concealed: "hidden",
+    secret: "hidden",
+    spent: "consumed",
+    used: "consumed",
+    exhausted: "consumed",
+    broken: "damaged",
+    removed: "lost",
+    gone: "lost",
+    missing: "lost",
+  };
+  const statusAfter = typeof value.statusAfter === "string"
+    ? statusAfterAliases[value.statusAfter.trim().toLowerCase()] ?? value.statusAfter
+    : value.statusAfter;
   const narrativeFunction = normalizeCharacterResourceNarrativeFunction({
     rawValue: value.narrativeFunction,
     normalizedResourceType: resourceType,
-    statusAfter: value.statusAfter,
+    statusAfter,
   });
   return {
     ...value,
     resourceType,
     updateType,
+    statusAfter,
     narrativeFunction,
   };
 }
@@ -513,9 +536,10 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "11. characterResourceDeltas.updateType 只能使用 introduced、acquired、revealed、used、transferred、lost、consumed、damaged、destroyed、recovered、stale_marked；新创建/首次出现统一用 introduced。",
       "12. characterResourceDeltas.resourceType 只能使用 physical_item、clue、credential、ability_resource、relationship_token、consumable、hidden_card、world_resource；材料、丹药、一次性药草用 consumable，积分/货币/宗门资源用 world_resource。",
       "13. characterResourceDeltas.narrativeFunction 只能使用 tool、clue、weapon、proof、key、cost、promise、hidden_card、constraint；修炼增益通常用 tool，消耗材料/积分用 cost，凭据/借据用 proof 或 constraint。",
-      "14. payoffDeltas.scopeType 只能使用 book、volume、chapter；全书/故事级伏笔统一用 book，不要输出 story、novel 或 global。",
-      "15. stateDeltas.foreshadowStates 的 setupChapterId/payoffChapterId 只有在能确认真实 chapterId 时才填写；如果只能确认第几章，宁可省略或写入章节序号字符串，不要输出数字。",
-      "16. syncPlan.stateSnapshot、characterResources、characterDynamics 只能是 skip 或 write；只有 payoffLedger 可以是 skip、delta 或 full_reconcile。",
+      "14. characterResourceDeltas.statusAfter 只能使用 available、hidden、borrowed、transferred、lost、consumed、damaged、destroyed、stale；不要输出 active、owned、usable、used、broken 等自定义状态。",
+      "15. payoffDeltas.scopeType 只能使用 book、volume、chapter；全书/故事级伏笔统一用 book，不要输出 story、novel 或 global。",
+      "16. stateDeltas.foreshadowStates 的 setupChapterId/payoffChapterId 只有在能确认真实 chapterId 时才填写；如果只能确认第几章，宁可省略或写入章节序号字符串，不要输出数字。",
+      "17. syncPlan.stateSnapshot、characterResources、characterDynamics 只能是 skip 或 write；只有 payoffLedger 可以是 skip、delta 或 full_reconcile。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

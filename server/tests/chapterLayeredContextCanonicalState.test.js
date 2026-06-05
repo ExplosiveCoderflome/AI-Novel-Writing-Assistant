@@ -112,8 +112,51 @@ test("chapter layered context summaries prefer canonical state when present", ()
   assert.doesNotMatch(stateSummary, /legacy state/);
   assert.equal(conflictSummary[0], "first counterattack still unresolved | the protagonist still owes readers a visible win | resolution hint: land a clear payoff in this chapter");
   assert.deepEqual(worldSummary.slice(0, 3), [
-    "capital pressure and hidden powers",
-    "resources decide leverage",
-    "public exposure has cost",
+    "连续性记录：capital pressure and hidden powers",
+    "连续性规则记录：resources decide leverage",
+    "连续性规则记录：public exposure has cost",
   ]);
+});
+
+test("world summary prefers story world slice over canonical world continuity record", () => {
+  const contextPackage = createContextPackage();
+  contextPackage.storyWorldSlice = {
+    storyId: "novel-1",
+    worldId: "world-slice-1",
+    coreWorldFrame: "星核枯竭的北境舞台。",
+    appliedRules: [{
+      id: "rule-star-core",
+      name: "星核代价",
+      summary: "透支星核会损伤寿命。",
+      whyItMatters: "能力不能无代价升级。",
+    }],
+    activeForces: [],
+    activeLocations: [],
+    activeElements: [],
+    conflictCandidates: [],
+    pressureSources: [],
+    mysterySources: [],
+    suggestedStoryAxes: [],
+    recommendedEntryPoints: [],
+    forbiddenCombinations: ["不要把星核写成普通灵石"],
+    storyScopeBoundary: "前期限定在北境。",
+    metadata: {
+      schemaVersion: 1,
+      builtAt: new Date().toISOString(),
+      sourceWorldUpdatedAt: null,
+      storyInputDigest: "digest",
+      builtFromStructuredData: true,
+      builderMode: "runtime",
+    },
+  };
+
+  const worldSummary = summarizeWorldRules(contextPackage);
+
+  assert.deepEqual(worldSummary, [
+    "星核枯竭的北境舞台。",
+    "星核代价: 透支星核会损伤寿命。",
+    "不要把星核写成普通灵石",
+    "前期限定在北境。",
+  ]);
+  assert.equal(worldSummary.some((item) => item.includes("capital pressure")), false);
 });

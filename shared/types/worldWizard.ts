@@ -1,13 +1,122 @@
 import type {
+  WorldBindingSupport,
   WorldFaction,
   WorldForce,
   WorldLayerKey,
   WorldLocation,
   WorldRule,
+  WorldStructuredData,
 } from "./world";
 
 export type WorldOptionRefinementLevel = "basic" | "standard" | "detailed";
 export type WorldReferenceMode = "extract_base" | "adapt_world" | "tone_rebuild";
+export type WorldSkeletonPreset = "light" | "standard" | "epic";
+
+export interface WorldSkeletonGenerationCounts {
+  rules: number;
+  factionGroups: number;
+  forces: number;
+  locations: number;
+  conflicts: number;
+  storyEntrySuggestions: number;
+}
+
+export interface WorldSkeletonGenerationOptions {
+  preset: WorldSkeletonPreset;
+  counts: WorldSkeletonGenerationCounts;
+}
+
+export interface WorldSkeletonStoryEntrySuggestion {
+  title: string;
+  description: string;
+  recommendedLocationIds: string[];
+  involvedForceIds: string[];
+  firstConflict: string;
+}
+
+export interface WorldSkeletonAssessment {
+  completenessScore: number;
+  readyForNovelUse: boolean;
+  missingParts: Array<{
+    area: "rules" | "forces" | "locations" | "relations" | "storyEntry";
+    issue: string;
+    suggestedAction: string;
+  }>;
+  recommendedNextActions: string[];
+}
+
+export interface WorldSkeletonGenerationPayload {
+  concept: {
+    name: string;
+    oneSentence: string;
+    readerImpression: string;
+    genrePromise: string;
+  };
+  structuredData: WorldStructuredData;
+  bindingSupport: WorldBindingSupport;
+  storyEntrySuggestions: WorldSkeletonStoryEntrySuggestion[];
+  assessment: WorldSkeletonAssessment;
+}
+
+export const WORLD_SKELETON_PRESET_COUNTS: Record<WorldSkeletonPreset, WorldSkeletonGenerationCounts> = {
+  light: {
+    rules: 3,
+    factionGroups: 2,
+    forces: 3,
+    locations: 4,
+    conflicts: 2,
+    storyEntrySuggestions: 2,
+  },
+  standard: {
+    rules: 5,
+    factionGroups: 3,
+    forces: 5,
+    locations: 6,
+    conflicts: 4,
+    storyEntrySuggestions: 3,
+  },
+  epic: {
+    rules: 6,
+    factionGroups: 4,
+    forces: 7,
+    locations: 9,
+    conflicts: 6,
+    storyEntrySuggestions: 4,
+  },
+};
+
+export const WORLD_SKELETON_COUNT_LIMITS: Record<keyof WorldSkeletonGenerationCounts, { min: number; max: number }> = {
+  rules: { min: 3, max: 6 },
+  factionGroups: { min: 2, max: 5 },
+  forces: { min: 3, max: 9 },
+  locations: { min: 3, max: 10 },
+  conflicts: { min: 2, max: 8 },
+  storyEntrySuggestions: { min: 1, max: 5 },
+};
+
+export function normalizeWorldSkeletonGenerationOptions(
+  raw: Partial<WorldSkeletonGenerationOptions> | null | undefined,
+): WorldSkeletonGenerationOptions {
+  const preset: WorldSkeletonPreset =
+    raw?.preset === "light" || raw?.preset === "epic" || raw?.preset === "standard"
+      ? raw.preset
+      : "standard";
+  const defaults = WORLD_SKELETON_PRESET_COUNTS[preset];
+  const rawCounts = raw?.counts ?? {};
+  const counts = Object.fromEntries(
+    Object.entries(WORLD_SKELETON_COUNT_LIMITS).map(([key, limit]) => {
+      const value = Number((rawCounts as Record<string, unknown>)[key]);
+      const fallback = defaults[key as keyof WorldSkeletonGenerationCounts];
+      return [
+        key,
+        Number.isFinite(value)
+          ? Math.max(limit.min, Math.min(limit.max, Math.floor(value)))
+          : fallback,
+      ];
+    }),
+  ) as unknown as WorldSkeletonGenerationCounts;
+  return { preset, counts };
+}
 
 export interface WorldReferenceAnchor {
   id: string;

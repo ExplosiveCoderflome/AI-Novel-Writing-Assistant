@@ -2,11 +2,19 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { setTimeout: delay } = require("node:timers/promises");
 const { prisma } = require("../dist/db/prisma.js");
+const { buildPublishMarkdown } = require("../dist/services/bookAnalysis/bookAnalysis.export.js");
 const { BookAnalysisSourceCacheService } = require("../dist/services/bookAnalysis/bookAnalysis.cache.js");
+const { BookAnalysisCommandService } = require("../dist/services/bookAnalysis/BookAnalysisCommandService.js");
 const { BookAnalysisGenerationService } = require("../dist/services/bookAnalysis/bookAnalysis.generation.js");
+const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/BookAnalysisQueryService.js");
 const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/bookAnalysis.queue.js");
 const { resolveLiveBookAnalysisStatus } = require("../dist/services/bookAnalysis/bookAnalysis.status.js");
-const { buildSourceSegments } = require("../dist/services/bookAnalysis/bookAnalysis.utils.js");
+const {
+  buildSourceSegments,
+  normalizeBookAnalysisStructuredData,
+  renderNotesForPrompt,
+  selectNotesForBookAnalysisSection,
+} = require("../dist/services/bookAnalysis/bookAnalysis.utils.js");
 const { BookAnalysisWatchdogService } = require("../dist/services/bookAnalysis/BookAnalysisWatchdogService.js");
 
 function createDeferred() {
@@ -59,6 +67,115 @@ test("buildSourceSegments recognizes Chinese chapter headings before falling bac
   assert.equal(segments[2].label, "第三章 山场围猎");
 });
 
+test("selectNotesForBookAnalysisSection keeps section prompts focused on relevant note signals", () => {
+  const notes = [
+    {
+      sourceLabel: "片段 1",
+      summary: "人物冲突",
+      plotPoints: [],
+      timelineEvents: [],
+      characters: ["主角被迫站队"],
+      worldbuilding: [],
+      themes: [],
+      styleTechniques: [],
+      marketHighlights: [],
+      readerSignals: [],
+      weaknessSignals: [],
+      evidence: [],
+    },
+    {
+      sourceLabel: "片段 2",
+      summary: "世界设定",
+      plotPoints: [],
+      timelineEvents: [],
+      characters: [],
+      worldbuilding: ["边境禁区由宗门管辖"],
+      themes: [],
+      styleTechniques: [],
+      marketHighlights: [],
+      readerSignals: [],
+      weaknessSignals: [],
+      evidence: [],
+    },
+    {
+      sourceLabel: "片段 3",
+      summary: "文风信号",
+      plotPoints: [],
+      timelineEvents: [],
+      characters: [],
+      worldbuilding: [],
+      themes: [],
+      styleTechniques: ["短句推进追逃压迫感"],
+      marketHighlights: [],
+      readerSignals: [],
+      weaknessSignals: [],
+      evidence: [],
+    },
+  ];
+
+  assert.deepEqual(
+    selectNotesForBookAnalysisSection("character_system", notes).map((note) => note.sourceLabel),
+    ["片段 1"],
+  );
+  assert.deepEqual(
+    selectNotesForBookAnalysisSection("worldbuilding", notes).map((note) => note.sourceLabel),
+    ["片段 2"],
+  );
+  assert.deepEqual(
+    selectNotesForBookAnalysisSection("style_technique", notes).map((note) => note.sourceLabel),
+    ["片段 3"],
+  );
+  assert.equal(selectNotesForBookAnalysisSection("timeline", notes).length, notes.length);
+});
+
+test("renderNotesForPrompt only renders fields needed by the target section", () => {
+  const notes = [{
+    sourceLabel: "片段 1",
+    summary: "主角在禁区边境暴露身份",
+    plotPoints: ["主角身份被试探"],
+    timelineEvents: ["入夜后发生追逃"],
+    characters: ["主角被迫暴露底牌"],
+    worldbuilding: ["禁区边境由宗门封锁"],
+    themes: ["信任裂痕"],
+    styleTechniques: ["短句推进压迫感"],
+    marketHighlights: ["身份反转"],
+    readerSignals: ["智斗爽点"],
+    weaknessSignals: ["说明略密"],
+    evidence: [{ label: "身份试探", excerpt: "他没有立刻承认", sourceLabel: "片段 1" }],
+  }];
+
+  const characterPromptNotes = renderNotesForPrompt(notes, "character_system");
+  assert.match(characterPromptNotes, /人物信息：主角被迫暴露底牌/);
+  assert.match(characterPromptNotes, /剧情要点：主角身份被试探/);
+  assert.doesNotMatch(characterPromptNotes, /设定信息：/);
+  assert.doesNotMatch(characterPromptNotes, /商业卖点：/);
+  assert.doesNotMatch(characterPromptNotes, /文风技法：/);
+
+  const overviewPromptNotes = renderNotesForPrompt(notes, "overview");
+  assert.match(overviewPromptNotes, /设定信息：禁区边境由宗门封锁/);
+  assert.match(overviewPromptNotes, /商业卖点：身份反转/);
+  assert.match(overviewPromptNotes, /文风技法：短句推进压迫感/);
+});
+
+test("normalizeBookAnalysisStructuredData keeps fixed section fields and drops aliases", () => {
+  const normalized = normalizeBookAnalysisStructuredData("overview", {
+    oneLinePositioning: "  强冲突权谋开局  ",
+    genreTags: "权谋",
+    sellingPointTags: ["身份悬念", "", "权力博弈"],
+    targetReaders: ["喜欢智斗的读者"],
+    extraField: "不应保留",
+  });
+
+  assert.deepEqual(normalized, {
+    oneLinePositioning: "强冲突权谋开局",
+    genreTags: ["权谋"],
+    sellingPointTags: ["身份悬念", "权力博弈"],
+    targetReaders: ["喜欢智斗的读者"],
+    strengths: [],
+    weaknesses: [],
+  });
+});
+
 test("resolveLiveBookAnalysisStatus promotes queued rows with live runtime signals", () => {
   assert.equal(
     resolveLiveBookAnalysisStatus({
@@ -92,6 +209,64 @@ test("resolveLiveBookAnalysisStatus promotes queued rows with live runtime signa
     }),
     "failed",
   );
+});
+
+test("BookAnalysisQueryService listAnalyses filters by selected document", async () => {
+  const originalFindMany = prisma.bookAnalysis.findMany;
+  const capturedQueries = [];
+  const now = new Date("2026-06-03T00:00:00.000Z");
+
+  prisma.bookAnalysis.findMany = async (query) => {
+    capturedQueries.push(query);
+    return [{
+      id: "analysis-1",
+      documentId: "document-1",
+      documentVersionId: "version-1",
+      title: "测试拆书",
+      status: "succeeded",
+      summary: "摘要",
+      provider: "deepseek",
+      model: "deepseek-chat",
+      temperature: 0.7,
+      maxTokens: null,
+      progress: 1,
+      heartbeatAt: null,
+      currentStage: null,
+      currentItemKey: null,
+      currentItemLabel: null,
+      cancelRequestedAt: null,
+      attemptCount: 0,
+      maxAttempts: 1,
+      lastError: null,
+      lastRunAt: now,
+      publishedDocumentId: null,
+      createdAt: now,
+      updatedAt: now,
+      document: {
+        id: "document-1",
+        title: "测试文档",
+        fileName: "test.txt",
+        activeVersionId: "version-1",
+        activeVersionNumber: 1,
+      },
+      documentVersion: {
+        id: "version-1",
+        versionNumber: 1,
+      },
+    }];
+  };
+
+  try {
+    const service = new BookAnalysisQueryService();
+    const rows = await service.listAnalyses({ documentId: "document-1" });
+
+    assert.equal(capturedQueries.length, 1);
+    assert.equal(capturedQueries[0].where.documentId, "document-1");
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].documentId, "document-1");
+  } finally {
+    prisma.bookAnalysis.findMany = originalFindMany;
+  }
 });
 
 test("BookAnalysisSourceCacheService persists notes and reuses cache hits", async () => {
@@ -368,6 +543,99 @@ test("BookAnalysisGenerationService runSingleSection fetches reusable source not
     prisma.bookAnalysisSection.update = original.sectionUpdate;
     prisma.bookAnalysisSection.findMany = original.sectionFindMany;
   }
+});
+
+test("BookAnalysisCommandService createAnalysis freezes sections outside enabledSectionKeys", async () => {
+  const originalTransaction = prisma.$transaction;
+  const originalEnqueue = BookAnalysisTaskQueue.prototype.enqueue;
+  let createdSections = [];
+
+  prisma.$transaction = async (callback) => callback({
+    knowledgeDocument: {
+      findUnique: async () => ({
+        id: "document-1",
+        status: "enabled",
+        activeVersionId: "version-1",
+        title: "测试文档",
+        versions: [{ id: "version-1", versionNumber: 1 }],
+      }),
+    },
+    bookAnalysis: {
+      create: async () => ({
+        id: "analysis-1",
+      }),
+    },
+    bookAnalysisSection: {
+      createMany: async ({ data }) => {
+        createdSections = data;
+        return { count: data.length };
+      },
+    },
+  });
+  BookAnalysisTaskQueue.prototype.enqueue = () => {};
+
+  const service = new BookAnalysisCommandService({
+    ensureAnalysisSections: async () => {},
+    getAnalysisById: async () => ({
+      id: "analysis-1",
+      sections: [],
+    }),
+  });
+
+  try {
+    await service.createAnalysis({
+      documentId: "document-1",
+      provider: "deepseek",
+      model: "deepseek-chat",
+      enabledSectionKeys: ["overview", "plot_structure", "character_system"],
+    });
+
+    const sectionState = new Map(createdSections.map((section) => [section.sectionKey, section.frozen]));
+    assert.equal(sectionState.get("overview"), false);
+    assert.equal(sectionState.get("plot_structure"), false);
+    assert.equal(sectionState.get("character_system"), false);
+    assert.equal(sectionState.get("timeline"), true);
+    assert.equal(sectionState.get("worldbuilding"), true);
+    assert.equal(sectionState.get("market_highlights"), true);
+  } finally {
+    prisma.$transaction = originalTransaction;
+    BookAnalysisTaskQueue.prototype.enqueue = originalEnqueue;
+  }
+});
+
+test("buildPublishMarkdown includes structured key conclusions as publishable content", () => {
+  const published = buildPublishMarkdown({
+    id: "analysis-structured",
+    title: "测试拆书",
+    status: "succeeded",
+    documentTitle: "测试文档",
+    documentFileName: "test.txt",
+    documentVersionNumber: 1,
+    currentDocumentVersionNumber: 1,
+    sections: [{
+      id: "section-1",
+      analysisId: "analysis-structured",
+      sectionKey: "overview",
+      title: "拆书总览",
+      status: "succeeded",
+      aiContent: "",
+      editedContent: "",
+      notes: "",
+      structuredData: {
+        oneLinePositioning: "一个以身份反转推动主线的权谋故事",
+        sellingPointTags: ["身份悬念", "权谋博弈"],
+      },
+      evidence: [],
+      frozen: false,
+      sortOrder: 0,
+      updatedAt: new Date().toISOString(),
+    }],
+  }, "2026-06-03T00:00:00.000Z");
+
+  assert.equal(published.hasPublishableContent, true);
+  assert.match(published.content, /### 关键结论/);
+  assert.match(published.content, /一句话定位：一个以身份反转推动主线的权谋故事/);
+  assert.match(published.content, /卖点标签：身份悬念；权谋博弈/);
 });
 
 test("BookAnalysisGenerationService keeps heartbeating during long section generation", async () => {

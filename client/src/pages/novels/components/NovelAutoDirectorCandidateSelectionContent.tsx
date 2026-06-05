@@ -1,4 +1,4 @@
-import type { DirectorIdeaInspiration, DirectorRunMode } from "@ai-novel/shared/types/novelDirector";
+import type { DirectorIdeaInspiration, DirectorRunMode, DirectorWorldSetupMode } from "@ai-novel/shared/types/novelDirector";
 import type {
   DirectorAutoApprovalGroup,
   DirectorAutoApprovalPoint,
@@ -20,6 +20,8 @@ interface NovelAutoDirectorCandidateSelectionContentProps {
   runMode: DirectorRunMode;
   runModeOptions: Array<{ value: DirectorRunMode; label: string; description: string }>;
   onRunModeChange: (value: DirectorRunMode) => void;
+  worldSetupMode: DirectorWorldSetupMode;
+  onWorldSetupModeChange: (value: DirectorWorldSetupMode) => void;
   autoExecutionDraft: DirectorAutoExecutionDraftState;
   maxChapterCount?: number | null;
   onAutoExecutionDraftChange: (patch: Partial<DirectorAutoExecutionDraftState>) => void;
@@ -53,6 +55,8 @@ export default function NovelAutoDirectorCandidateSelectionContent({
   runMode,
   runModeOptions,
   onRunModeChange,
+  worldSetupMode,
+  onWorldSetupModeChange,
   autoExecutionDraft,
   maxChapterCount,
   onAutoExecutionDraftChange,
@@ -86,6 +90,8 @@ export default function NovelAutoDirectorCandidateSelectionContent({
       runMode={runMode}
       runModeOptions={runModeOptions}
       onRunModeChange={onRunModeChange}
+      worldSetupMode={worldSetupMode}
+      onWorldSetupModeChange={onWorldSetupModeChange}
       autoExecutionDraft={autoExecutionDraft}
       maxChapterCount={maxChapterCount}
       onAutoExecutionDraftChange={onAutoExecutionDraftChange}

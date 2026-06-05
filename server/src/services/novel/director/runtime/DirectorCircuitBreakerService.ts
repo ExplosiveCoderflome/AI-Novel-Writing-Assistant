@@ -9,6 +9,10 @@ export const DIRECTOR_CIRCUIT_BREAKER_THRESHOLDS = {
   patchFailureOpenAt: 3,
   replanLoopOpenAt: 3,
   modelFailureOpenAt: 3,
+  // A chapter with one normal repair cycle costs ~55-60k tokens (write + accept×2 + patch
+  // + timeline + artifact_delta). 80k allows up to two repair cycles before triggering.
+  // Anything beyond two repairs per chapter is genuinely abnormal and warrants a pause.
+  chapterTotalTokenLimit: 80_000,
   singleStepTotalTokenLimit: 150_000,
   usageAnomalyOpenAt: 2,
 } as const;
@@ -249,6 +253,35 @@ export function recordUsageAnomalySignal(input: {
     lastUsageRecordId: input.usageRecordId ?? null,
     lastEventAt: new Date().toISOString(),
   };
+}
+
+export function recordChapterUsageBudgetExceededSignal(input: {
+  previous?: DirectorCircuitBreakerState | null;
+  usageRecordId?: string | null;
+  totalTokens: number;
+  chapterId?: string | null;
+  chapterOrder?: number | null;
+  nodeKey?: string | null;
+}): DirectorCircuitBreakerState | null {
+  if (input.totalTokens < DIRECTOR_CIRCUIT_BREAKER_THRESHOLDS.chapterTotalTokenLimit) {
+    return null;
+  }
+  if (input.usageRecordId && input.previous?.lastUsageRecordId === input.usageRecordId) {
+    return input.previous ?? null;
+  }
+  return openDirectorCircuitBreaker({
+    reason: "usage_anomaly",
+    message: `单章 AI 用量达到 ${input.totalTokens} Tokens，已暂停以避免继续异常消耗。`,
+    previous: input.previous,
+    chapterId: input.chapterId,
+    chapterOrder: input.chapterOrder,
+    nodeKey: input.nodeKey ?? "chapter_execution_node",
+    usageAnomalyCount: Math.max(
+      DIRECTOR_CIRCUIT_BREAKER_THRESHOLDS.usageAnomalyOpenAt,
+      (input.previous?.usageAnomalyCount ?? 0) + 1,
+    ),
+    lastUsageRecordId: input.usageRecordId ?? null,
+  });
 }
 
 export function withCircuitBreakerState(

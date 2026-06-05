@@ -85,6 +85,7 @@ test("buildReplanDecision anchors overdue payoff windows around the canonical pa
   });
 
   assert.equal(decision.recommended, true);
+  assert.equal(decision.action, "stop_for_replan");
   assert.equal(decision.signal, "overdue_payoff");
   assert.equal(decision.anchorChapterOrder, 5);
   assert.deepEqual(decision.affectedChapterOrders, [4, 5, 6]);
@@ -132,6 +133,7 @@ test("buildReplanDecision pushes blocking audit issues into a forward repair win
   });
 
   assert.equal(decision.recommended, true);
+  assert.equal(decision.action, "local_patch_plan");
   assert.equal(decision.signal, "blocking_audit");
   assert.equal(decision.anchorChapterOrder, 8);
   assert.deepEqual(decision.affectedChapterOrders, [8, 9, 10]);
@@ -182,6 +184,7 @@ test("buildReplanDecision does not turn urgent payoff context into a replan fail
   });
 
   assert.equal(decision.recommended, false);
+  assert.equal(decision.action, "continue_with_warning");
   assert.equal(decision.signal, "stable");
   assert.deepEqual(decision.affectedChapterOrders, []);
   assert.match(decision.reason, /无需重规划/);
@@ -198,6 +201,7 @@ test("buildReplanDecision can recommend a manual window even when state signals 
   });
 
   assert.equal(decision.recommended, true);
+  assert.equal(decision.action, "stop_for_replan");
   assert.equal(decision.signal, "manual_request");
   assert.deepEqual(decision.affectedChapterOrders, [6, 7]);
   assert.equal(decision.reason, "用户要求重排当前窗口。");
@@ -220,9 +224,188 @@ test("buildReplanDecision stays idle when there are no blocking state signals", 
   });
 
   assert.equal(decision.recommended, false);
+  assert.equal(decision.action, "continue_with_warning");
   assert.equal(decision.signal, "stable");
   assert.deepEqual(decision.affectedChapterOrders, []);
   assert.match(decision.reason, /无需重规划/);
+});
+
+test("buildReplanDecision suppresses short-window overdue payoff that does not affect current chapter", () => {
+  const decision = buildReplanDecision({
+    availableChapterOrders: [1, 2, 3, 4],
+    requestedWindowSize: 3,
+    targetChapterOrder: 2,
+    snapshot: createSnapshot({
+      narrative: {
+        currentChapterOrder: 2,
+        overduePayoffs: [{
+          id: "payoff-1",
+          ledgerKey: "ledger-old-pressure",
+          title: "旧压力残留",
+          summary: "上一章应处理但未处理。",
+          currentStatus: "overdue",
+          targetStartChapterOrder: 1,
+          targetEndChapterOrder: 1,
+          firstSeenChapterOrder: 1,
+          lastTouchedChapterOrder: 1,
+        }],
+      },
+    }),
+    ledgerSummary: {
+      totalCount: 1,
+      pendingCount: 0,
+      urgentCount: 0,
+      overdueCount: 1,
+      paidOffCount: 0,
+      failedCount: 0,
+      updatedAt: null,
+    },
+    chapterStateGoal: {
+      chapterId: "chapter-2",
+      chapterOrder: 2,
+      summary: "推进当前章节独立冲突",
+      targetConflicts: [],
+      targetRelationships: [],
+      targetPayoffs: [],
+      protectedSecrets: [],
+    },
+  });
+
+  assert.equal(decision.signal, "overdue_payoff");
+  assert.equal(decision.recommended, false);
+  assert.equal(decision.action, "continue_with_warning");
+  assert.deepEqual(decision.affectedChapterOrders, []);
+});
+
+test("buildReplanDecision does not hard-stop overdue payoff without explicit window", () => {
+  const decision = buildReplanDecision({
+    availableChapterOrders: [48, 49, 50],
+    requestedWindowSize: 3,
+    targetChapterOrder: 49,
+    snapshot: createSnapshot({
+      narrative: {
+        currentChapterOrder: 49,
+        overduePayoffs: [{
+          id: "payoff-windowless",
+          ledgerKey: "review_first_success",
+          title: "第一次小成功：复习完一门课并测试通过",
+          summary: "AI 对账认为逾期，但没有明确目标窗口。",
+          currentStatus: "overdue",
+          targetStartChapterOrder: null,
+          targetEndChapterOrder: null,
+          firstSeenChapterOrder: 1,
+          lastTouchedChapterOrder: 15,
+        }],
+      },
+    }),
+    ledgerSummary: {
+      totalCount: 1,
+      pendingCount: 0,
+      urgentCount: 0,
+      overdueCount: 1,
+      paidOffCount: 0,
+      failedCount: 0,
+      updatedAt: null,
+    },
+    chapterStateGoal: {
+      chapterId: "chapter-49",
+      chapterOrder: 49,
+      summary: "完成离村后的身份转换",
+      targetConflicts: [],
+      targetRelationships: [],
+      targetPayoffs: [],
+      protectedSecrets: [],
+    },
+  });
+
+  assert.equal(decision.signal, "overdue_payoff");
+  assert.equal(decision.recommended, false);
+  assert.equal(decision.action, "continue_with_warning");
+  assert.deepEqual(decision.affectedChapterOrders, []);
+});
+
+test("buildReplanDecision still hard-stops overdue payoff with explicit distant deadline", () => {
+  const decision = buildReplanDecision({
+    availableChapterOrders: [48, 49, 50],
+    requestedWindowSize: 3,
+    targetChapterOrder: 49,
+    snapshot: createSnapshot({
+      narrative: {
+        currentChapterOrder: 49,
+        overduePayoffs: [{
+          id: "payoff-deadline",
+          ledgerKey: "first_small_success",
+          title: "第一次小成功：复习完一门课并测试通过",
+          summary: "有明确截止章且已经严重逾期。",
+          currentStatus: "overdue",
+          targetStartChapterOrder: 12,
+          targetEndChapterOrder: 15,
+          firstSeenChapterOrder: 1,
+          lastTouchedChapterOrder: 15,
+        }],
+      },
+    }),
+    ledgerSummary: {
+      totalCount: 1,
+      pendingCount: 0,
+      urgentCount: 0,
+      overdueCount: 1,
+      paidOffCount: 0,
+      failedCount: 0,
+      updatedAt: null,
+    },
+  });
+
+  assert.equal(decision.signal, "overdue_payoff");
+  assert.equal(decision.recommended, true);
+  assert.equal(decision.action, "stop_for_replan");
+});
+
+test("buildReplanDecision still hard-stops overdue payoff explicitly targeted by current chapter", () => {
+  const decision = buildReplanDecision({
+    availableChapterOrders: [48, 49, 50],
+    requestedWindowSize: 3,
+    targetChapterOrder: 49,
+    snapshot: createSnapshot({
+      narrative: {
+        currentChapterOrder: 49,
+        overduePayoffs: [{
+          id: "payoff-targeted",
+          ledgerKey: "first_small_success",
+          title: "第一次小成功：复习完一门课并测试通过",
+          summary: "当前章明确要处理这条 payoff。",
+          currentStatus: "overdue",
+          targetStartChapterOrder: null,
+          targetEndChapterOrder: null,
+          firstSeenChapterOrder: 1,
+          lastTouchedChapterOrder: 15,
+        }],
+      },
+    }),
+    ledgerSummary: {
+      totalCount: 1,
+      pendingCount: 0,
+      urgentCount: 0,
+      overdueCount: 1,
+      paidOffCount: 0,
+      failedCount: 0,
+      updatedAt: null,
+    },
+    chapterStateGoal: {
+      chapterId: "chapter-49",
+      chapterOrder: 49,
+      summary: "补齐第一次小成功",
+      targetConflicts: [],
+      targetRelationships: [],
+      targetPayoffs: ["第一次小成功：复习完一门课并测试通过"],
+      protectedSecrets: [],
+    },
+  });
+
+  assert.equal(decision.signal, "overdue_payoff");
+  assert.equal(decision.recommended, true);
+  assert.equal(decision.action, "stop_for_replan");
+  assert.equal(decision.anchorChapterOrder, 49);
 });
 
 test("sanitizeAiReplanWindowDecision filters AI-selected windows to available chapters", () => {

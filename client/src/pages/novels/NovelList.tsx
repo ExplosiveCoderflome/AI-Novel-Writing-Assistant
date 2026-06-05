@@ -471,7 +471,7 @@ export default function NovelList() {
 
                   {novel.world ? (
                     <div className="text-xs text-muted-foreground">
-                      世界观：{novel.world.name}
+                      参考世界样本：{novel.world.name}
                     </div>
                   ) : null}
 

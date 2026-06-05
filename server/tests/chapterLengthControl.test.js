@@ -107,3 +107,38 @@ test("chapter length control serializer preserves canonical scene plan shape", (
   assert.equal(parsed.lengthBudget.softMaxWordCount, 3450);
   assert.equal(parsed.scenes.length, 3);
 });
+
+test("chapter length control filters system audit labels from mustAdvance", () => {
+  const plan = normalizeChapterScenePlan([
+    {
+      title: "开局",
+      objective: "主角进入现场",
+      mustAdvance: ["acceptance_gate_unavailable", "发现真正线索"],
+      entryState: "主角到达",
+      exitState: "线索出现",
+      targetWordCount: 800,
+    },
+    {
+      title: "追问",
+      objective: "冲突升级",
+      mustAdvanceItems: ["plot/missing_must_hit", "逼问证人"],
+      entryState: "线索出现",
+      exitState: "证人松口",
+      targetWordCount: 800,
+    },
+    {
+      title: "钩子",
+      objective: "留下危机",
+      mustAdvance: ["mode_fit/acceptance_gate_unavailable", "敌人现身"],
+      entryState: "证人松口",
+      exitState: "敌人现身",
+      targetWordCount: 800,
+    },
+  ], 2400);
+
+  assert.deepEqual(plan.scenes.map((scene) => scene.mustAdvance), [
+    ["发现真正线索"],
+    ["逼问证人"],
+    ["敌人现身"],
+  ]);
+});

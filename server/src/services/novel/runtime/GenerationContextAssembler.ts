@@ -2,41 +2,24 @@ import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRun
 import { prisma } from "../../../db/prisma";
 import { ragServices } from "../../rag";
 import { plannerService } from "../../planner/PlannerService";
-import { getRagQueryForChapter, novelReferenceService } from "../NovelReferenceService";
+import { buildChapterRagQuery } from "../NovelReferenceService";
 import { NovelContinuationService } from "../NovelContinuationService";
 import { parseJsonStringArray } from "../novelP0Utils";
 import { StyleBindingService } from "../../styleEngine/StyleBindingService";
-import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
+import { WorldContextGateway } from "../worldContext/WorldContextGateway";
 import { characterDynamicsQueryService } from "../dynamics/CharacterDynamicsQueryService";
 import { characterResourceLedgerService } from "../characterResource/CharacterResourceLedgerService";
 import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
 import { buildSyntheticPayoffIssues } from "../../payoff/payoffLedgerShared";
-import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import {
   buildRuntimeLedgerFromCanonical,
   buildRuntimeOpenConflictsFromCanonical,
   buildRuntimeStateSnapshotFromCanonical,
-  buildStateContextBlockFromCanonical,
 } from "../state/CanonicalStateService";
 import { contextAssemblyService } from "../production/ContextAssemblyService";
-import {
-  buildLegacyWorldContextFromWorld,
-  formatStoryWorldSlicePromptBlock,
-} from "../storyWorldSlice/storyWorldSliceFormatting";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import {
-  buildBibleText,
-  buildCharactersContextText,
-  buildDecisionsBlock,
-  buildFactText,
-  buildOpenConflictBlock,
-  buildOutlineText,
   buildPreviousChaptersSummary,
-  buildRecentChapterContentText,
-  buildStyleBlock,
-  buildStyleEngineBlock,
-  buildSummaryText,
-  buildSupportingContextText,
   parseJsonStringArraySafe,
 } from "./runtimeContextBlocks";
 import { mapRowToPlan } from "../storyMacro/storyMacroPlanPersistence";
@@ -94,30 +77,6 @@ function extractChapterTail(content: string | null | undefined, maxLength = 520)
     return "";
   }
   return normalized.slice(Math.max(0, normalized.length - maxLength));
-}
-
-function buildWorldContextFromNovel(
-  novel: {
-    world?: {
-      name: string;
-      worldType?: string | null;
-      description?: string | null;
-      axioms?: string | null;
-      background?: string | null;
-      geography?: string | null;
-      magicSystem?: string | null;
-      politics?: string | null;
-      races?: string | null;
-      religions?: string | null;
-      technology?: string | null;
-      conflicts?: string | null;
-      history?: string | null;
-      economy?: string | null;
-      factions?: string | null;
-    } | null;
-  } | null,
-): string {
-  return buildLegacyWorldContextFromWorld(novel?.world ?? null);
 }
 
 function buildSyntheticCharacterResourceIssues(
@@ -263,7 +222,7 @@ function findVolumeWindowSeed(
 
 export class GenerationContextAssembler {
   private readonly continuationService = new NovelContinuationService();
-  private readonly worldSliceService = new NovelWorldSliceService();
+  private readonly worldContextGateway = new WorldContextGateway();
   private readonly styleBindingService = new StyleBindingService();
 
   async assemble(
@@ -356,14 +315,10 @@ export class GenerationContextAssembler {
       where: buildBlockingPendingReviewProposalWhere(novelId, chapterId),
     });
     const [
-      storyWorldSlice,
-      planPromptBlock,
+      worldContextBlock,
       pendingReviewProposalCount,
       openAuditIssues,
-      bible,
       summaries,
-      facts,
-      styleReference,
       recentChapters,
       decisions,
       characterDynamics,
@@ -372,8 +327,7 @@ export class GenerationContextAssembler {
       payoffLedger,
       characterResourceContext,
     ] = await Promise.all([
-      this.worldSliceService.ensureStoryWorldSlice(novelId, { builderMode: "runtime" }),
-      plannerService.buildPlanPromptBlock(novelId, chapterId),
+      this.worldContextGateway.getWorldContextBlock(novelId, { purpose: "chapter" }),
       pendingReviewProposalCountPromise,
       prisma.auditIssue.findMany({
         where: {
@@ -387,7 +341,6 @@ export class GenerationContextAssembler {
         },
         orderBy: [{ createdAt: "desc" }],
       }),
-      prisma.novelBible.findUnique({ where: { novelId } }),
       prisma.chapterSummary.findMany({
         where: {
           novelId,
@@ -397,12 +350,6 @@ export class GenerationContextAssembler {
         orderBy: { chapter: { order: "desc" } },
         take: 3,
       }),
-      prisma.consistencyFact.findMany({
-        where: { novelId },
-        orderBy: { createdAt: "desc" },
-        take: 8,
-      }),
-      novelReferenceService.buildReferenceForStage(novelId, "chapter"),
       prisma.chapter.findMany({
         where: {
           novelId,
@@ -586,59 +533,9 @@ export class GenerationContextAssembler {
       antiCopyCorpus: continuationPack.antiCopyCorpus,
     } satisfies GenerationContextPackage["continuation"];
 
-    const summaryText = buildSummaryText(previousChaptersSummary);
-    const factText = buildFactText(facts);
-    const recentChapterContentText = buildRecentChapterContentText(recentChapters);
     const previousChapterTail = extractChapterTail(recentChapters[0]?.content);
-    const charactersContextText = buildCharactersContextText(
-      novel.characters.map((item) => ({
-        name: item.name,
-        role: item.role,
-        personality: item.personality ?? null,
-        appearance: item.appearance ?? null,
-        physique: item.physique ?? null,
-        signatureDetail: item.signatureDetail ?? null,
-        voiceTexture: item.voiceTexture ?? null,
-      })),
-    );
-    const characterDynamicsText = characterDynamics
-      ? characterDynamicsQueryService.formatContextDigest(characterDynamics)
-      : "";
-    const combinedCharacterContextText = [charactersContextText, characterDynamicsText].filter(Boolean).join("\n\n");
-    const bibleText = buildBibleText(bible
-      ? {
-          mainPromise: bible.mainPromise ?? null,
-          coreSetting: bible.coreSetting ?? null,
-          forbiddenRules: bible.forbiddenRules ?? null,
-          characterArcs: bible.characterArcs ?? null,
-          worldRules: bible.worldRules ?? null,
-        }
-      : null);
-    const outlineText = buildOutlineText(novel.outline ?? null);
-    const styleBlock = buildStyleBlock(styleReference);
-    const decisionsBlock = buildDecisionsBlock(decisions);
-    const styleEngineBlock = buildStyleEngineBlock(styleContext);
-    const openConflictBlock = buildOpenConflictBlock(mappedOpenConflicts);
-    const stateContextBlock = buildStateContextBlockFromCanonical(canonicalState);
 
-    const ragQuery = getRagQueryForChapter(chapter.order, novel.title, novel.structuredOutline ?? null);
-    let ragText = "";
-    try {
-      ragText = await ragServices.hybridRetrievalService.buildContextBlock(ragQuery, {
-        novelId,
-        currentChapterOrder: chapter.order,
-      });
-    } catch {
-      ragText = "";
-    }
-
-    const worldBlock = storyWorldSlice
-      ? formatStoryWorldSlicePromptBlock(storyWorldSlice)
-      : buildWorldContextFromNovel(novel);
-    const storyModeBlock = buildStoryModePromptBlock({
-      primary: novel.primaryStoryMode ? normalizeStoryModeOutput(novel.primaryStoryMode) : null,
-      secondary: novel.secondaryStoryMode ? normalizeStoryModeOutput(novel.secondaryStoryMode) : null,
-    });
+    const storyWorldSlice = worldContextBlock?.rawSlice ?? null;
     const openingHint = await this.buildOpeningConstraintHint(novelId, chapter.order);
     const baseContextPackage: GenerationContextPackage = {
       chapter: {
@@ -684,6 +581,7 @@ export class GenerationContextAssembler {
       ledgerSummary: canonicalLedger.ledgerSummary,
       timelineContext,
       characterResourceContext,
+      ragContext: "",
       chapterMission: null,
       chapterWriteContext: null,
       chapterReviewContext: null,
@@ -725,6 +623,32 @@ export class GenerationContextAssembler {
       chapterReviewContext,
       chapterRepairContext: null,
     }, []);
+
+    // Retrieve knowledge-base context using a mission-aware query so the recall
+    // matches what this chapter is actually trying to do. Built after the
+    // chapter write context so the query can fold in the chapter mission and
+    // the participating characters rather than only the outline title/summary.
+    const ragQuery = buildChapterRagQuery({
+      chapterOrder: chapter.order,
+      novelTitle: novel.title,
+      chapterTitle: chapterWriteContext.chapterMission.title,
+      objective: chapterWriteContext.chapterMission.objective,
+      expectation: chapterWriteContext.chapterMission.expectation,
+      mustAdvance: chapterWriteContext.chapterMission.mustAdvance,
+      targetConflicts: chapterWriteContext.chapterStateGoal?.targetConflicts ?? [],
+      participantNames: chapterWriteContext.participants.map((participant) => participant.name),
+      structuredOutline: novel.structuredOutline ?? null,
+    });
+    let ragText = "";
+    try {
+      ragText = await ragServices.hybridRetrievalService.buildContextBlock(ragQuery, {
+        novelId,
+        currentChapterOrder: chapter.order,
+      });
+    } catch {
+      ragText = "";
+    }
+
     const contextPackage: GenerationContextPackage = {
       chapter: {
         id: chapter.id,
@@ -739,23 +663,12 @@ export class GenerationContextAssembler {
         taskSheet: chapter.taskSheet ?? null,
         sceneCards: chapter.sceneCards ?? null,
         hook: chapter.hook ?? null,
-        supportingContextText: buildSupportingContextText({
-          worldBlock,
-          storyModeBlock,
-          planPromptBlock,
-          stateContextBlock,
-          openConflictBlock,
-          decisionsBlock,
-          summaryText,
-          recentChapterContentText,
-          factText,
-          ragText,
-          bibleText,
-          outlineText,
-          charactersContextText: combinedCharacterContextText,
-          styleBlock,
-          styleEngineBlock,
-        }),
+        // The writer consumes structured layered blocks (mission, obligations,
+        // hard facts, timeline, style contract, rag_context, ...) rather than a
+        // monolithic supporting-context blob. The legacy blob was assembled here
+        // but read by nobody, so it is no longer built. RAG recall still reaches
+        // the writer via contextPackage.ragContext below.
+        supportingContextText: "",
       },
       plan: mappedPlan,
       canonicalState,
@@ -785,6 +698,7 @@ export class GenerationContextAssembler {
       ledgerSummary: canonicalLedger.ledgerSummary,
       timelineContext,
       characterResourceContext,
+      ragContext: ragText,
       chapterMission: chapterWriteContext.chapterMission,
       chapterWriteContext,
       chapterReviewContext,

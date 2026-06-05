@@ -4,6 +4,7 @@ import type {
   CreativeHubNovelSetupStatus,
 } from "@ai-novel/shared/types/creativeHub";
 import { prisma } from "../../db/prisma";
+import { normalizeWorldStructuredData } from "../world/worldStructure";
 
 type NovelSetupSource = {
   id: string;
@@ -27,6 +28,14 @@ type NovelSetupSource = {
   structuredOutline: string | null;
   genre: { name: string } | null;
   world: { id: string; name: string } | null;
+  novelWorld: {
+    title: string | null;
+    coverSummary: string | null;
+    sourceType: string;
+    sourceWorldId: string | null;
+    structuredDataJson: string | null;
+    storySliceJson: string | null;
+  } | null;
   bible: {
     coreSetting: string | null;
     forbiddenRules: string | null;
@@ -39,6 +48,8 @@ type NovelSetupSource = {
     chapters: number;
   };
 };
+
+type NovelWorldSetupRow = NovelSetupSource["novelWorld"];
 
 function hasText(value: string | null | undefined): boolean {
   return Boolean(value?.trim());
@@ -55,6 +66,63 @@ function compactText(value: string | null | undefined, maxLength = 72): string |
 function joinCurrentValues(values: Array<string | null | undefined>): string | null {
   const normalized = values.map((item) => item?.trim()).filter((item): item is string => Boolean(item));
   return normalized.length > 0 ? normalized.join(" / ") : null;
+}
+
+function parseJson(value: string | null | undefined): unknown {
+  if (!value?.trim()) {
+    return null;
+  }
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function buildNovelWorldSetupSignal(novelWorld: NovelSetupSource["novelWorld"]) {
+  if (!novelWorld) {
+    return {
+      hasWorld: false,
+      hasRules: false,
+      title: null,
+      summary: null,
+      rulePreview: null,
+    };
+  }
+
+  const structure = normalizeWorldStructuredData(parseJson(novelWorld.structuredDataJson));
+  const hasProfile = [
+    structure.profile.identity,
+    structure.profile.summary,
+    structure.profile.tone,
+    novelWorld.title,
+    novelWorld.coverSummary,
+  ].some(hasText);
+  const hasWorldContent = hasProfile
+    || structure.factions.length > 0
+    || structure.forces.length > 0
+    || structure.locations.length > 0
+    || hasText(novelWorld.storySliceJson);
+  const firstRule = structure.rules.axioms[0];
+  const rulePreview = compactText([
+    structure.rules.summary,
+    firstRule ? [firstRule.name, firstRule.summary].filter(Boolean).join("：") : null,
+    structure.rules.taboo[0],
+    structure.rules.sharedConsequences[0],
+  ].find(hasText), 56);
+  const hasRules = hasText(novelWorld.storySliceJson)
+    || hasText(structure.rules.summary)
+    || structure.rules.axioms.length > 0
+    || structure.rules.taboo.length > 0
+    || structure.rules.sharedConsequences.length > 0;
+
+  return {
+    hasWorld: hasWorldContent,
+    hasRules,
+    title: novelWorld.title ?? structure.profile.identity ?? null,
+    summary: compactText(novelWorld.coverSummary ?? structure.profile.summary, 56),
+    rulePreview,
+  };
 }
 
 function projectModeLabel(value: NovelSetupSource["projectMode"]): string | null {
@@ -147,6 +215,7 @@ function withStatus(input: {
 }
 
 function buildChecklist(novel: NovelSetupSource): CreativeHubNovelSetupChecklistItem[] {
+  const novelWorldSignal = buildNovelWorldSetupSignal(novel.novelWorld);
   const premiseLength = novel.description?.trim().length ?? 0;
   const premiseStatus = premiseLength >= 80 ? "ready" : premiseLength > 0 ? "partial" : "missing";
   const storyPromiseStatus = hasText(novel.bible?.mainPromise)
@@ -167,16 +236,19 @@ function buildChecklist(novel: NovelSetupSource): CreativeHubNovelSetupChecklist
     : novel._count.chapters > 0 || hasText(novel.structuredOutline)
       ? "partial"
       : "missing";
-  const worldStatus = novel.world
+  const worldStatus = novelWorldSignal.hasWorld
     ? "ready"
-    : hasText(novel.bible?.coreSetting)
+    : novel.novelWorld || novel.world
       ? "partial"
-      : "missing";
-  const worldRulesStatus = hasText(novel.bible?.worldRules) || hasText(novel.bible?.forbiddenRules)
+      : hasText(novel.bible?.coreSetting)
+        ? "partial"
+        : "missing";
+  const hasBibleWorldRuleNotes = hasText(novel.bible?.worldRules) || hasText(novel.bible?.forbiddenRules);
+  const worldRulesStatus = novelWorldSignal.hasRules
     ? "ready"
-    : novel.world || hasText(novel.bible?.coreSetting)
-      ? "partial"
-      : "missing";
+    : novelWorldSignal.hasWorld || novel.novelWorld || novel.world || hasText(novel.bible?.coreSetting) || hasBibleWorldRuleNotes
+        ? "partial"
+        : "missing";
   const characterStatus = novel._count.characters > 0
     ? "ready"
     : hasText(novel.bible?.characterArcs)
@@ -303,28 +375,34 @@ function buildChecklist(novel: NovelSetupSource): CreativeHubNovelSetupChecklist
       label: "世界观基础",
       status: worldStatus,
       summary: worldStatus === "ready"
-        ? `世界观已绑定${novel.world ? `《${novel.world.name}》` : ""}。`
+        ? `本书世界${novelWorldSignal.title ? `《${novelWorldSignal.title}》` : ""}已整理为本书世界手册。`
         : worldStatus === "partial"
-          ? "已有世界规则种子，但还没形成可复用的世界观。"
+          ? "存在世界种子，建议整理成本书世界手册。"
           : "还缺世界观种子或基本舞台信息。",
-      currentValue: novel.world?.name ?? compactText(novel.bible?.coreSetting, 48),
+      currentValue: novelWorldSignal.title
+        ?? novelWorldSignal.summary
+        ?? novel.world?.name
+        ?? compactText(novel.bible?.coreSetting, 48),
       requiredForProduction: true,
-      recommendedAction: "请先补齐这本书的世界观种子，说明故事舞台、时代背景、基础规则以及会影响主线冲突的环境设定。",
-      optionPrompt: "结合当前题材和核心设定，为这本小说提供 3 套世界观基础设定备选，并说明各自的冲突潜力。",
+      recommendedAction: "请先在本书世界里补齐故事舞台、时代背景、基础规则以及会影响主线冲突的环境设定。",
+      optionPrompt: "结合当前题材和核心设定，为这本小说提供 3 套本书世界基础设定备选，并说明各自的冲突潜力。",
     }),
     withStatus({
       key: "world_rules",
       label: "规则边界",
       status: worldRulesStatus,
       summary: worldRulesStatus === "ready"
-        ? "世界运行规则、禁忌或硬边界已经明确。"
+        ? "本书世界手册里已有可遵守的规则边界。"
         : worldRulesStatus === "partial"
-          ? "已有世界框架，但还没明确关键规则与禁忌。"
+          ? hasBibleWorldRuleNotes
+            ? "已有规则文字记录，建议整理进本书世界手册。"
+            : "世界框架存在，建议补齐关键规则与禁忌。"
           : "还没有整理出会约束剧情的世界规则或禁忌。",
-      currentValue: compactText(novel.bible?.worldRules ?? novel.bible?.forbiddenRules, 56),
+      currentValue: novelWorldSignal.rulePreview
+        ?? compactText(novel.bible?.worldRules ?? novel.bible?.forbiddenRules, 56),
       requiredForProduction: false,
-      recommendedAction: "请提炼这本书必须遵守的世界规则、禁忌和硬边界，尤其是会直接影响剧情推进与角色行动的部分。",
-      optionPrompt: "基于当前设定，为这本小说提供 3 套世界规则与禁忌备选，每套都要说明会如何影响剧情。",
+      recommendedAction: "请在本书世界手册里提炼必须遵守的世界规则、禁忌和硬边界，尤其是会直接影响剧情推进与角色行动的部分。",
+      optionPrompt: "基于当前设定，为这本小说提供 3 套本书世界规则与禁忌备选，每套都要说明会如何影响剧情。",
     }),
     withStatus({
       key: "characters",
@@ -474,7 +552,7 @@ function buildNextStep(checklist: CreativeHubNovelSetupChecklistItem[], stage: C
   }
 }
 
-function buildStatus(novel: NovelSetupSource): CreativeHubNovelSetupStatus {
+export function buildStatus(novel: NovelSetupSource): CreativeHubNovelSetupStatus {
   const checklist = buildChecklist(novel);
   const stage = buildStage(checklist);
   const completedCount = checklist.filter((item) => item.status === "ready").length;
@@ -555,7 +633,23 @@ export class NovelSetupStatusService {
       return null;
     }
 
-    return buildStatus(novel);
+    const [novelWorld = null] = await prisma.$queryRaw<NovelWorldSetupRow[]>`
+      SELECT
+        "title",
+        "coverSummary",
+        "sourceType",
+        "sourceWorldId",
+        "structuredDataJson",
+        "storySliceJson"
+      FROM "NovelWorld"
+      WHERE "novelId" = ${novelId}
+      LIMIT 1
+    `;
+
+    return buildStatus({
+      ...novel,
+      novelWorld,
+    });
   }
 }
 

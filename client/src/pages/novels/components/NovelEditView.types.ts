@@ -71,6 +71,15 @@ import type { ExistingOutlineChapter } from "../volumePlan.utils";
 import type { AITakeoverAction } from "@/components/workflow/AITakeoverContainer";
 import type { LLMSelectorValue } from "@/components/common/LLMSelector";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
+import type {
+  NovelWorldGenerateInput,
+  NovelWorldImportInput,
+  NovelWorldManualInput,
+  NovelWorldSaveToLibraryInput,
+  NovelWorldSyncDiff,
+  NovelWorldSyncInput,
+  NovelWorldView,
+} from "@ai-novel/shared/types/novelWorld";
 import type { ReactNode } from "react";
 
 export interface StructuredChapterListGenerationRequest {
@@ -104,12 +113,26 @@ export interface BasicTabProps {
   }>;
   isLoadingSourceNovelBookAnalyses: boolean;
   availableBookAnalysisSections: Array<{ key: BookAnalysisSectionKey; title: string }>;
+  novelWorldView?: NovelWorldView | null;
+  novelWorldSyncDiff?: NovelWorldSyncDiff | null;
   worldSliceView?: StoryWorldSliceView | null;
   worldSliceMessage: string;
+  isLoadingNovelWorld: boolean;
+  isImportingNovelWorld: boolean;
+  isGeneratingNovelWorld: boolean;
+  isCreatingManualNovelWorld: boolean;
+  isSavingNovelWorldToLibrary: boolean;
+  isLoadingNovelWorldSyncDiff: boolean;
+  isSyncingNovelWorld: boolean;
   isRefreshingWorldSlice: boolean;
   isSavingWorldSliceOverrides: boolean;
   onFormChange: (patch: Partial<BasicTabProps["basicForm"]>) => void;
   onSave: () => void;
+  onImportNovelWorld: (payload: NovelWorldImportInput) => void;
+  onCreateManualNovelWorld: (payload?: NovelWorldManualInput) => void;
+  onGenerateNovelWorld: (payload: NovelWorldGenerateInput) => void;
+  onSaveNovelWorldToLibrary: (payload?: NovelWorldSaveToLibraryInput) => void;
+  onSyncNovelWorld: (payload: NovelWorldSyncInput) => void;
   onRefreshWorldSlice: () => void;
   onSaveWorldSliceOverrides: (patch: StoryWorldSliceOverrides) => void;
   isSaving: boolean;

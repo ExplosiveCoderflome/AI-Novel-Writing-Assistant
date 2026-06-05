@@ -71,7 +71,7 @@ export default function WorldReferenceSeedSelector(props: {
       <div className="space-y-1">
         <div className="font-medium">直接沿用原作设定</div>
         <div className="text-xs text-muted-foreground">
-          系统已经从参考作品里提取出一批现成设定，默认勾选。保留它们可以明显减少你后面手动填写。
+          系统会从参考作品里提取一批可沿用设定，并默认勾选。保留它们可以明显减少后续手动填写。
         </div>
       </div>
 

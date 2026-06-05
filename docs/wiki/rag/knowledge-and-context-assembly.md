@@ -10,7 +10,7 @@
 
 知识库文档是长期资料资产，不是一次性上传输入。RAG 检索、绑定资料和上下文组装应通过统一服务和 Context Resolver 处理，Prompt 模板不直接查数据库。
 
-默认检索规则遵循“显式选择优先、绑定资料次之、全局启用文档兜底”，同时保留业务实体自身的内部上下文。
+默认检索规则遵循“显式选择优先、绑定资料次之、全局启用文档兜底”，同时保留业务实体自身的内部上下文。若业务调用显式限定 `ownerTypes`，检索服务必须尊重该范围；未包含 `knowledge_document` 时，不得自动混入知识库文档。
 
 ## 当前规则
 
@@ -21,6 +21,7 @@
 - 小说或世界观存在绑定知识文档时，相关生成链路优先使用绑定文档。
 - 用户显式传入 `knowledgeDocumentIds` 时，只检索这些文档。
 - 没有显式选择且没有绑定时，可搜索所有启用知识库文档。
+- 业务调用显式传入 `ownerTypes` 时，`ownerTypes` 是硬范围。只有未传 `ownerTypes`、显式包含 `knowledge_document`，或显式传入 `knowledgeDocumentIds` 时，知识库文档才参与检索。
 - 小说/世界观自身的 RAG 内容仍保留，并与知识库检索结果融合排序。
 - Prompt 模板只声明需要哪些上下文；Context Broker / Resolver 负责读取、预算、过滤、摘要和组装。
 - RAG 与上下文组装的失败要在 preview 或 trace 中可解释，不能静默丢 required context。
@@ -42,6 +43,7 @@
 ## 失败模式
 
 - 检索结果不符合当前小说：检查是否有显式文档筛选或小说/世界绑定覆盖了全局默认。
+- 世界观分层生成混入无关小说文档：检查调用方是否只需要 `world` / `world_library_item`，以及 RAG 服务是否错误忽略了显式 `ownerTypes` 范围。
 - Prompt 输入过大：检查 Context Broker 的预算、摘要和 dropped block 记录。
 - 知识库健康正常但生成没引用资料：检查 resolver 是否接入当前 workflow、prompt 是否声明 context requirement。
 - 旧版本内容仍被检索：检查激活版本和 chunk rebuild 是否对齐。

@@ -19,6 +19,8 @@ type ReplanSignal =
   | "stable";
 
 type WindowMode = "forward" | "surrounding";
+type ReplanAction = "continue_with_warning" | "local_patch_plan" | "stop_for_replan";
+const OVERDUE_PAYOFF_STOP_WINDOW = 3;
 
 export interface ReplanDecisionInput {
   requestedWindowSize?: number | null;
@@ -49,6 +51,7 @@ export interface ReplanDecision extends ReplanRecommendation {
   triggerReason: string;
   windowReason: string;
   whyTheseChapters: string;
+  action: ReplanAction;
 }
 
 function uniqueStrings(items: Array<string | null | undefined>): string[] {
@@ -121,7 +124,7 @@ function resolveAnchorChapterOrder(signal: ReplanSignal, input: ReplanDecisionIn
   if (signal === "overdue_payoff") {
     return pickPayoffAnchor(
       input.snapshot?.narrative.overduePayoffs ?? [],
-      ["targetEndChapterOrder", "targetStartChapterOrder", "lastTouchedChapterOrder", "firstSeenChapterOrder"],
+      ["targetEndChapterOrder", "targetStartChapterOrder"],
       fallbackAnchor,
     );
   }
@@ -144,6 +147,49 @@ function pickSignal(input: ReplanDecisionInput, blockingIssues: AuditIssue[], bl
     return "manual_request";
   }
   return "stable";
+}
+
+function maxOverdueDistance(input: ReplanDecisionInput): number {
+  const currentOrder = pickFallbackAnchor(input);
+  if (!currentOrder) {
+    return 0;
+  }
+  return Math.max(0, ...(input.snapshot?.narrative.overduePayoffs ?? []).map((item) => {
+    const deadline = item.targetEndChapterOrder ?? item.targetStartChapterOrder ?? null;
+    return typeof deadline === "number" ? currentOrder - deadline : 0;
+  }));
+}
+
+function overduePayoffAffectsCurrentChapter(input: ReplanDecisionInput): boolean {
+  const currentOrder = pickFallbackAnchor(input);
+  if (!currentOrder) {
+    return false;
+  }
+  const goalPayoffs = uniqueStrings(input.chapterStateGoal?.targetPayoffs ?? []);
+  return (input.snapshot?.narrative.overduePayoffs ?? []).some((item) => {
+    const inCurrentWindow = typeof item.targetStartChapterOrder === "number"
+      && typeof item.targetEndChapterOrder === "number"
+      && item.targetStartChapterOrder <= currentOrder
+      && item.targetEndChapterOrder >= currentOrder;
+    const explicitlyTargeted = goalPayoffs.some((goal) => goal.includes(item.title) || item.title.includes(goal));
+    return inCurrentWindow || explicitlyTargeted;
+  });
+}
+
+function resolveReplanAction(signal: ReplanSignal, input: ReplanDecisionInput): ReplanAction {
+  if (input.forceRecommended || signal === "manual_request" || signal === "next_action_replan") {
+    return "stop_for_replan";
+  }
+  if (signal === "blocking_audit") {
+    return "local_patch_plan";
+  }
+  if (signal === "overdue_payoff") {
+    if (overduePayoffAffectsCurrentChapter(input) || maxOverdueDistance(input) >= OVERDUE_PAYOFF_STOP_WINDOW) {
+      return "stop_for_replan";
+    }
+    return "continue_with_warning";
+  }
+  return "continue_with_warning";
 }
 
 function resolveWindowMode(signal: ReplanSignal): WindowMode {
@@ -314,10 +360,14 @@ export function buildReplanDecision(input: ReplanDecisionInput): ReplanDecision 
   ]);
   const blockingLedgerKeys = collectBlockingLedgerKeys(input.blockingLedgerKeys, input.snapshot);
   const signal = pickSignal(input, blockingIssues, blockingLedgerKeys);
-  const recommended = input.forceRecommended
-    || signal === "overdue_payoff"
-    || signal === "next_action_replan"
-    || signal === "blocking_audit";
+  const action = resolveReplanAction(signal, input);
+  const recommended = action !== "continue_with_warning"
+    && (
+      input.forceRecommended
+      || signal === "overdue_payoff"
+      || signal === "next_action_replan"
+      || signal === "blocking_audit"
+    );
   const anchorChapterOrder = resolveAnchorChapterOrder(signal, input);
   const requestedWindowSize = input.requestedWindowSize ?? resolveDefaultWindowSize();
   const affectedChapterOrders = recommended
@@ -345,6 +395,7 @@ export function buildReplanDecision(input: ReplanDecisionInput): ReplanDecision 
     triggerReason,
     windowReason,
     whyTheseChapters: buildWhyTheseChapters(signal, affectedChapterOrders, input.chapterStateGoal),
+    action,
     signal,
     triggerType: input.triggerType?.trim() || "state_driven",
     sourceIssueIds: uniqueStrings(input.sourceIssueIds ?? []),

@@ -44,6 +44,7 @@ const createSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(256).max(32768).optional(),
   includeTimeline: z.boolean().optional().default(false),
+  enabledSectionKeys: z.array(sectionKeySchema).min(1).optional(),
 });
 
 const publishSchema = z.object({

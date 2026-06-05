@@ -1,6 +1,9 @@
 import { prisma } from "../../../db/prisma";
 import { NovelCoreService } from "../NovelCoreService";
 import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
+import { NovelWorldInstanceService } from "../worldContext/NovelWorldInstanceService";
+import { NovelWorldLibrarySaveService } from "../worldContext/NovelWorldLibrarySaveService";
+import { NovelWorldManualService } from "../worldContext/NovelWorldManualService";
 import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { CharacterVisibleProfileService } from "../characterProfile/CharacterVisibleProfileService";
@@ -21,6 +24,9 @@ import type { NovelApplicationServices } from "./NovelApplicationContracts";
 export class DefaultNovelApplicationServices {
   private readonly core = new NovelCoreService();
   private readonly worldSliceService = new NovelWorldSliceService();
+  private readonly novelWorldInstanceService = new NovelWorldInstanceService();
+  private readonly novelWorldManualService = new NovelWorldManualService(this.novelWorldInstanceService);
+  private readonly novelWorldLibrarySaveService = new NovelWorldLibrarySaveService(this.novelWorldInstanceService);
   private readonly characterPreparationService = new CharacterPreparationService();
   private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly characterVisibleProfileService = new CharacterVisibleProfileService();
@@ -521,6 +527,34 @@ export class DefaultNovelApplicationServices {
 
   updateWorldSliceOverrides(...args: Parameters<NovelWorldSliceService["updateWorldSliceOverrides"]>) {
     return this.worldSliceService.updateWorldSliceOverrides(...args);
+  }
+
+  getNovelWorld(...args: Parameters<NovelWorldInstanceService["getNovelWorldView"]>) {
+    return this.novelWorldInstanceService.getNovelWorldView(...args);
+  }
+
+  getNovelWorldSyncDiff(...args: Parameters<NovelWorldInstanceService["getSyncDiff"]>) {
+    return this.novelWorldInstanceService.getSyncDiff(...args);
+  }
+
+  importNovelWorldFromLibrary(...args: Parameters<NovelWorldInstanceService["importFromWorldLibrary"]>) {
+    return this.novelWorldInstanceService.importFromWorldLibrary(...args);
+  }
+
+  createManualNovelWorld(...args: Parameters<NovelWorldManualService["createManualNovelWorld"]>) {
+    return this.novelWorldManualService.createManualNovelWorld(...args);
+  }
+
+  generateNovelWorldFromTheme(...args: Parameters<NovelWorldInstanceService["generateFromNovelTheme"]>) {
+    return this.novelWorldInstanceService.generateFromNovelTheme(...args);
+  }
+
+  saveNovelWorldToLibrary(...args: Parameters<NovelWorldLibrarySaveService["saveNovelWorldToLibrary"]>) {
+    return this.novelWorldLibrarySaveService.saveNovelWorldToLibrary(...args);
+  }
+
+  syncNovelWorldWithLibrary(...args: Parameters<NovelWorldInstanceService["syncWithLibrary"]>) {
+    return this.novelWorldInstanceService.syncWithLibrary(...args);
   }
 
   listCharacterRelations(...args: Parameters<CharacterPreparationService["listCharacterRelations"]>) {

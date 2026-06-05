@@ -406,6 +406,8 @@ export interface DirectorTaskSeedPayloadSnapshot {
   idea?: string;
   batches?: DirectorCandidateBatch[];
   directorCommandResults?: Record<string, unknown>;
+  worldId?: string | null;
+  worldSetupMode?: "auto_generate" | "skip" | null;
   runMode?: DirectorRunMode;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
   autoApproval?: DirectorAutoApprovalConfig | null;
@@ -548,6 +550,7 @@ export interface DirectorProjectContextInput {
   primaryStoryModeId?: string;
   secondaryStoryModeId?: string;
   worldId?: string;
+  worldSetupMode?: "auto_generate" | "skip";
   writingMode?: "original" | "continuation";
   projectMode?: ProjectMode;
   readerChannelPreference?: "ai_judge" | "male_oriented" | "female_oriented" | "general";
@@ -570,6 +573,8 @@ export interface DirectorProjectContextInput {
   continuationBookAnalysisId?: string;
   continuationBookAnalysisSections?: BookAnalysisSectionKey[];
 }
+
+export type DirectorWorldSetupMode = NonNullable<DirectorProjectContextInput["worldSetupMode"]>;
 
 export interface DirectorCandidatesRequest extends DirectorProjectContextInput, DirectorLLMOptions {
   idea: string;
