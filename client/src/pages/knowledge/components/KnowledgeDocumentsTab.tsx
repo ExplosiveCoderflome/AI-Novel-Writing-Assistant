@@ -14,11 +14,17 @@ import {
   getRagJobProgressWidth,
 } from "./knowledgeRagUi";
 
+export interface BatchUploadResult {
+  fileName: string;
+  status: "uploaded" | "skipped" | "failed";
+  reason?: string;
+}
+
 interface KnowledgeDocumentsTabProps {
-  uploadTitle: string;
-  onUploadTitleChange: (value: string) => void;
   uploadBusy: boolean;
-  onUploadFile: (file: File) => Promise<void>;
+  onUploadFiles: (files: File[]) => Promise<void>;
+  uploadResults: BatchUploadResult[];
+  onClearUploadResults: () => void;
   keyword: string;
   onKeywordChange: (value: string) => void;
   status: KnowledgeDocumentStatus | "";
@@ -31,10 +37,10 @@ interface KnowledgeDocumentsTabProps {
 }
 
 export default function KnowledgeDocumentsTab({
-  uploadTitle,
-  onUploadTitleChange,
   uploadBusy,
-  onUploadFile,
+  onUploadFiles,
+  uploadResults,
+  onClearUploadResults,
   keyword,
   onKeywordChange,
   status,
@@ -168,28 +174,59 @@ export default function KnowledgeDocumentsTab({
           <CardTitle>上传文档</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Input
-            value={uploadTitle}
-            onChange={(event) => onUploadTitleChange(event.target.value)}
-            placeholder="可选标题，留空则使用文件名"
-          />
           <input
             type="file"
             accept=".txt,text/plain"
+            multiple
             className="w-full rounded-md border bg-background p-2 text-sm"
             onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (!file) {
+              const fileList = event.target.files;
+              if (!fileList || fileList.length === 0) {
                 return;
               }
-              void onUploadFile(file);
+              const files = Array.from(fileList);
+              event.target.value = "";
+              void onUploadFiles(files);
             }}
             disabled={uploadBusy}
           />
           <div className="text-xs text-muted-foreground">
-            仅支持 `.txt`，前端会读取文本后提交 JSON。上传同名标题时会自动追加新版本并切换激活版本。
+            支持一次选择多个 `.txt` 文件。已存在同名且内容相同的文档会自动跳过。
           </div>
+          {uploadBusy ? (
+            <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+              正在上传并检查重复…
+            </div>
+          ) : null}
+          {!uploadBusy && uploadResults.length > 0 ? (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium">上传结果</span>
+                <Button size="sm" variant="ghost" onClick={onClearUploadResults} className="h-6 px-2 text-xs">
+                  清除
+                </Button>
+              </div>
+              <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
+                {uploadResults.map((result, index) => (
+                  <div key={index} className="flex items-center gap-2 text-xs">
+                    <span className={
+                      result.status === "uploaded"
+                        ? "text-green-600 dark:text-green-400"
+                        : result.status === "skipped"
+                          ? "text-yellow-600 dark:text-yellow-400"
+                          : "text-red-600 dark:text-red-400"
+                    }>
+                      {result.status === "uploaded" ? "✓" : result.status === "skipped" ? "⊘" : "✗"}
+                    </span>
+                    <span className="min-w-0 truncate">{result.fileName}</span>
+                    {result.reason ? (
+                      <span className="ml-auto shrink-0 text-muted-foreground">{result.reason}</span>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
