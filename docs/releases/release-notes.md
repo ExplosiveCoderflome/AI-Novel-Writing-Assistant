@@ -4,6 +4,26 @@
 
 ## 更新历史
 
+### 2026-06-08（生成链路四阶段优化全量落地）
+
+生成链路优化（1.D + Phase 2 + Phase 3）：修复质量债务高发根因、消除每章重复全量查询、实现 N+1 章节执行预取，全书自动执行效率和质量双提升。
+
+**1.D 质量修复闭环子项**
+- **根因A（修复器结构化义务）**：`prepareChapterRepairExecution` 改为传入结构化 `issuesJson`，包含 `missingObligations`（kind/summary/evidence）和 `blockingIssueCodes`，修复器不再只看压扁文本猜问题类型，可定向补写未兑现义务。
+- **根因B（宽松锚点重试）**：`ChapterPatchRepairService` 锚点失配后，先用 `continuity_only` 宽松模式重试一次，再升级 `heavy_repair`；同步将 `patchRepair` 预算从 1 提升到 2，减少过早升级。
+- **根因E（issueSignature 拆分）**：`buildDirectorQualityLoopIssueSignature` 在签名头加 `length|` / `content|` 前缀，长度类与内容类问题获得独立预算计数器，避免补丁修好长度后浮出内容问题时触发误升级。
+
+**Phase 2 上下文分层缓存**
+- 新增 `BatchContextCache`：将 novel 全量查询（world/characters/storyMacroPlan/volumePlans，共 10+ 子查询）缓存为进程内稳定层，按 `novelId` 命中；订阅 `character:changed` / `volume:updated` / `outline:revised` / `pipeline:completed` 自动失效。
+- `GenerationContextAssembler` 稳定层走缓存，每章仅重查动态字段（canonicalState/payoffLedger/factLedger/recentChapters/RAG 等）。
+- 移除 `timelineContextService.buildForChapter` 调用（PR-B 后写作路径已不消费 timelineContext），`contextPackage.timelineContext = null`。
+- 合并 `baseContextPackage` + `contextPackage` 双重构建为单一 `sharedFields` 展开，消除 ~30 个字段两遍手抄。
+
+**Phase 3 N+1 执行预取**
+- `novelCorePipelineService` 在每章 `runPipelineChapter` 完成后（factLedger 已写入），非阻塞（fire-and-forget）触发下一章的 JIT task sheet 预取。
+- 仅在 `full_book_autopilot` 模式启用；预取失败不影响流水线，下一章组装时自动重试。
+- 结合 `BatchContextCache`，N+1 章正式组装时 novel 稳定层已命中缓存、task sheet 已就绪，组装延迟大幅降低。
+
 ### 2026-06-08（懒规划 JIT task sheet 重构）
 
 懒规划（Phase 1）：把 task sheet 从"规划阶段全量预生成"改为"执行前即时生成（Just-In-Time）"，消除全量拆章门控并解决 task sheet 与实际前文脱节问题。

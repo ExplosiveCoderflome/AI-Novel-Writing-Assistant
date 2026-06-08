@@ -116,13 +116,79 @@ if (request.controlPolicy?.advanceMode === "full_book_autopilot") {
 
 ---
 
+---
+
+## 质量修复闭环子项（1.D）
+
+### 根因A — 修复器传入结构化义务信息
+
+**文件**：`server/src/services/novel/runtime/repair/chapterRepairRuntime.ts`
+
+新增 `buildRepairIssuesPayload(issues, runtimePackage)`：
+- 在 `ReviewIssue[]` 之外，追加 `missingObligations`（kind/summary/evidence）和 `blockingIssueCodes`
+- 两处重写路径（patch 失败升级 + 强制重写）均使用结构化 JSON，修复器可据此定向补写义务
+
+### 根因B — patchRepair 预算提升 + 宽松锚点重试
+
+**文件**：`DirectorQualityLoopBudgetLedgerService.ts`
+- `DIRECTOR_QUALITY_LOOP_BUDGET_LIMITS.patchRepair`: 1 → 2
+
+**文件**：`chapterRepairRuntime.ts`（patch 失败 catch 块）
+- 首次 `ChapterPatchRepairFailedError` → 用 `continuity_only` 模式重试一次（宽松锚点）
+- 宽松重试成功 → 返回 patch 结果
+- 宽松重试仍失败 → 升级 `heavy_repair`
+
+### 根因E — issueSignature 拆分 length/content 分别计预算
+
+**文件**：`DirectorQualityLoopBudgetLedgerService.ts`
+- 新增 `classifyIssueNoticeCode(noticeCode)` → 返回 `"length"` 或 `"content"`
+- `buildDirectorQualityLoopIssueSignature` 在签名头部加入 class 前缀
+- 长度类问题（`LENGTH_*`）与内容类问题获得独立预算计数器，避免补丁修好长度后内容问题被误算重复
+
+---
+
+## 上下文分层缓存（Phase 2）
+
+### BatchContextCache
+
+**文件**：`server/src/services/novel/runtime/BatchContextCache.ts`（新建）
+
+- 进程内 singleton，按 `novelId` 缓存完整的 novel Prisma 查询结果（含 world/characters/storyMacroPlan/volumePlans）
+- TTL = 30 分钟，最多缓存 8 个 novelId
+- 失效：订阅 `character:changed` / `volume:updated` / `outline:revised` / `pipeline:completed` 事件自动失效
+
+### GenerationContextAssembler 重构
+
+**文件**：`server/src/services/novel/runtime/GenerationContextAssembler.ts`
+
+1. **稳定层缓存**：将 novel 大查询替换为 `batchContextCache.getNovelRow(novelId)`，每章节省 10+ 并行子查询
+2. **移除 timelineContext**（缺陷5）：删除 `timelineContextService.buildForChapter` 调用，`timelineContext: null`；`ChapterQualityGateService` 对 null 有防御
+3. **合并双 contextPackage**（缺陷6）：用 `sharedFields` 对象一次性组装共享字段，最终 `contextPackage = { ...sharedFields, ragContext, chapterMission, chapterWriteContext, chapterReviewContext, chapterRepairContext }`；消除 ~30 个字段两遍手抄
+
+---
+
+## N+1 章执行预取（Phase 3）
+
+**文件**：`server/src/services/novel/novelCorePipelineService.ts`
+
+- 在每章 `runPipelineChapter` 完成后（factLedger 已写入），**非阻塞**触发下一章（N+1）的 JIT task sheet 预取
+- 仅在 `advanceMode === "full_book_autopilot"` 时启用
+- 预取失败不影响流水线，下一章正式组装时会自动重试
+- 配合 `BatchContextCache`：novel 稳定层已缓存，预取仅需生成 task sheet，组装近乎瞬时
+
+---
+
 ## 相关文件
 
 - `server/src/services/novel/planning/ChapterPlanJITService.ts`（新建）
+- `server/src/services/novel/runtime/BatchContextCache.ts`（新建）
 - `server/src/services/novel/director/phases/novelDirectorStructuredOutlinePhase.ts`（改造）
-- `server/src/services/novel/runtime/GenerationContextAssembler.ts`（JIT 接入点）
+- `server/src/services/novel/runtime/GenerationContextAssembler.ts`（JIT 接入 + 缓存 + 合并）
+- `server/src/services/novel/runtime/repair/chapterRepairRuntime.ts`（结构化义务 + 宽松锚点重试）
+- `server/src/services/novel/director/runtime/DirectorQualityLoopBudgetLedgerService.ts`（预算提升 + 签名拆分）
+- `server/src/services/novel/novelCorePipelineService.ts`（N+1 预取）
 - `server/src/services/novel/fact/NovelFactService.ts`（factLedger 数据源，PR-A 已就绪）
 
 ## 与四阶段优化方案的关系
 
-本改动实施方案文档 `.claude/plan/novel-generation-pipeline-optimization.md` 阶段一（懒规划重构），解决缺陷 1（全量拆章门控）和缺陷 2（task sheet 与正文脱节），并直接缓解根因 D（义务不可达）。
+本改动实施方案文档 `.claude/plan/novel-generation-pipeline-optimization.md` 阶段一（懒规划重构）、阶段二（上下文分层缓存）、阶段三（N+1 预取），以及 1.D 质量修复闭环子项（根因 A/B/E）的全量实施。

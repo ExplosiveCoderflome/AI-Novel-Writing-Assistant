@@ -99,6 +99,40 @@ function resolveIssueCodes(runtimePackage: ChapterRuntimePackage | null | undefi
     ?? [];
 }
 
+/**
+ * 构建修复 prompt 所用的结构化 issuesJson。
+ *
+ * Root A 修复：在 ReviewIssue 列表之外，额外透传：
+ *  - missingObligations：本章未兑现的义务（kind/summary/evidence），修复器可据此定向补写
+ *  - blockingIssueCodes：审计层给出的精确 code（如 OBLIGATION_UNMET / LENGTH_OVER_HARD_MAX），
+ *    避免修复器只看压扁文本猜问题类型
+ */
+function buildRepairIssuesPayload(
+  issues: ReviewIssue[],
+  runtimePackage: ChapterRuntimePackage | null | undefined,
+): string {
+  const missingObligations = runtimePackage?.obligationCoverage?.missing ?? [];
+  const blockingIssueCodes = resolveIssueCodes(runtimePackage);
+
+  if (missingObligations.length === 0 && blockingIssueCodes.length === 0) {
+    return JSON.stringify(issues, null, 2);
+  }
+
+  return JSON.stringify(
+    {
+      issues,
+      missingObligations: missingObligations.map((o) => ({
+        kind: o.kind,
+        summary: o.summary,
+        ...(o.evidence ? { evidence: o.evidence } : {}),
+      })),
+      blockingIssueCodes,
+    },
+    null,
+    2,
+  );
+}
+
 function resolveRepairContext(input: {
   repairContext?: ChapterRepairContext | null;
   runtimePackage?: ChapterRuntimePackage | null;
@@ -204,6 +238,43 @@ export async function prepareChapterRepairExecution(
       if (activeRepairMode === "detect_only") {
         throw error;
       }
+
+      // Root B 宽松锚点重试：patch 锚点失配时，用 continuity_only 模式再试一次，
+      // 给 LLM 更宽泛的定位空间，避免直接升级 heavy_repair。
+      const looseAnchorMode: PatchRepairMode = "continuity_only";
+      const looseAnchorHint = "宽松锚点重试（anchor-loose retry）：不要求精确匹配原文，以段落语义为锚，优先修连续性问题。";
+      try {
+        const retried = await patchRepairService.repair({
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          novelTitle: input.novelTitle,
+          chapterTitle: input.chapterTitle,
+          content: input.content,
+          issues,
+          runtimePackage: input.runtimePackage,
+          repairContext: input.repairContext,
+          provider: input.options.provider,
+          model: input.options.model,
+          temperature: input.options.temperature,
+          repairMode: looseAnchorMode,
+          modeHint: looseAnchorHint,
+        });
+        return {
+          kind: "patched",
+          content: retried.content,
+          issues,
+          finalRepairMode: looseAnchorMode,
+          modeHint: looseAnchorHint,
+          escalatedFromPatch: false,
+          patchFailure: null,
+        };
+      } catch (retryError) {
+        if (!(retryError instanceof ChapterPatchRepairFailedError)) {
+          throw retryError;
+        }
+        // 宽松锚点重试仍失败 → 升级 heavy_repair
+      }
+
       activeRepairMode = "heavy_repair";
       modeHint = getRepairModeHint(activeRepairMode, issueCodes);
       return {
@@ -219,7 +290,7 @@ export async function prepareChapterRepairExecution(
             bibleContent: resolveBibleContent(input),
             chapterTitle: input.chapterTitle,
             chapterContent: input.content,
-            issuesJson: JSON.stringify(issues, null, 2),
+            issuesJson: buildRepairIssuesPayload(issues, input.runtimePackage),
             ragContext: buildRepairRagContext(input),
             modeHint,
           },
@@ -254,7 +325,7 @@ export async function prepareChapterRepairExecution(
         bibleContent: resolveBibleContent(input),
         chapterTitle: input.chapterTitle,
         chapterContent: input.content,
-        issuesJson: JSON.stringify(issues, null, 2),
+        issuesJson: buildRepairIssuesPayload(issues, input.runtimePackage),
         ragContext: buildRepairRagContext(input),
         modeHint,
       },

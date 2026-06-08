@@ -9,7 +9,8 @@ import type {
 } from "@ai-novel/shared/types/novelDirector";
 
 export const DIRECTOR_QUALITY_LOOP_BUDGET_LIMITS = {
-  patchRepair: 1,
+  /** patch 预算提升到 2：首次锚点失配后允许一次宽松锚点重试（Root B）*/
+  patchRepair: 2,
   chapterRewrite: 1,
   windowReplan: 1,
 } as const;
@@ -73,13 +74,26 @@ export function buildDirectorQualityLoopBudgetWindow(input: {
   };
 }
 
+/**
+ * 将 noticeCode 归类为 length 类或 content 类。
+ *
+ * Root E 修复：长度问题（LENGTH_OVER_*、LENGTH_UNDER_*）与内容问题分属不同签名命名空间，
+ * 补丁修好长度后浮出内容问题时，两者不再共用预算计数，避免签名漂移导致误升级。
+ */
+function classifyIssueNoticeCode(noticeCode: string | null | undefined): "length" | "content" {
+  const code = (noticeCode ?? "").toUpperCase().trim();
+  return code.startsWith("LENGTH_") ? "length" : "content";
+}
+
 export function buildDirectorQualityLoopIssueSignature(input: {
   reason?: string | null;
   noticeCode?: string | null;
   riskLevel?: string | null;
   repairMode?: string | null;
 }): string {
+  const issueClass = classifyIssueNoticeCode(input.noticeCode);
   return [
+    issueClass,
     normalizeText(input.noticeCode) || "quality_loop",
     normalizeText(input.riskLevel) || "risk_unknown",
     normalizeText(input.repairMode) || "repair_unknown",
