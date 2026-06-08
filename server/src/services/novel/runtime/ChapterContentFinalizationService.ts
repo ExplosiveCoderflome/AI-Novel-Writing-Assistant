@@ -1,6 +1,7 @@
 import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../../db/prisma";
 import { openConflictService } from "../../state/OpenConflictService";
+import { novelFactService } from "../fact/NovelFactService";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import type { StyleReviewResult } from "./PostGenerationStyleReviewRunner";
@@ -118,6 +119,13 @@ export class ChapterContentFinalizationService {
           error: error instanceof Error ? error.message : String(error),
         });
       });
+      void this.writeAcceptedFacts(input.novelId, input.contextPackage).catch((error) => {
+        console.warn("[chapter-runtime] deferred fact ledger write failed", {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
     }
 
     if (!needsRepair && input.deferArtifactBackgroundSync && input.scheduleDeferredArtifactBackgroundSync !== false) {
@@ -165,5 +173,52 @@ export class ChapterContentFinalizationService {
       where: { id: chapterId },
       data: { chapterStatus },
     });
+  }
+
+  /**
+   * 章节接收通过后，将已完成的义务条目和已兑现的伏笔写入事实账本。
+   * 这是事实账本的主要自动写入路径。
+   *
+   * 数据来源（均来自 chapterWriteContext，不需要额外 LLM 调用）：
+   * - obligationContract.mustHitNow：本章必须完成的过程性目标
+   * - payoffDirectives[operation=payoff|partial_reveal]：本章已兑现的伏笔
+   */
+  private async writeAcceptedFacts(
+    novelId: string,
+    contextPackage: GenerationContextPackage,
+  ): Promise<void> {
+    const chapterOrder = contextPackage.chapter.order;
+    const writeCtx = contextPackage.chapterWriteContext;
+    if (!writeCtx) {
+      return;
+    }
+    const items: Array<{ text: string; category: "completed" | "revealed" }> = [];
+
+    // 来源1：义务合同 mustHitNow — 已在本章必须完成的过程性目标
+    for (const item of writeCtx.obligationContract.mustHitNow) {
+      const text = item.trim();
+      if (text) {
+        items.push({ text: `第${chapterOrder}章已完成：${text}`, category: "completed" });
+      }
+    }
+
+    // 来源2：payoffDirectives 中 operation=payoff|partial_reveal — 已兑现的伏笔
+    for (const directive of writeCtx.payoffDirectives) {
+      if (directive.operation === "payoff" || directive.operation === "partial_reveal") {
+        const text = directive.title.trim();
+        if (text) {
+          const prefix = directive.operation === "payoff" ? "已完全揭示" : "已部分揭示";
+          items.push({
+            text: `第${chapterOrder}章${prefix}：${text}`,
+            category: "revealed",
+          });
+        }
+      }
+    }
+
+    if (items.length === 0) {
+      return;
+    }
+    await novelFactService.writeFacts(novelId, chapterOrder, items);
   }
 }

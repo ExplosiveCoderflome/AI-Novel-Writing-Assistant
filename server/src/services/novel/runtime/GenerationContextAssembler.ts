@@ -33,6 +33,7 @@ import {
   getRuntimePromptBudgetProfiles,
 } from "../../../prompting/prompts/novel/chapterLayeredContext";
 import { timelineContextService } from "../../../modules/timeline";
+import { novelFactService } from "../fact/NovelFactService";
 import {
   buildRuntimeCharacterHardFactsList,
   parseCharacterProhibitionsJson,
@@ -615,6 +616,24 @@ export class GenerationContextAssembler {
       volumeWindow,
       contextPackage: baseContextPackage,
     });
+
+    // 填充事实账本：读取已发生不可逆事实，注入 completedMilestones
+    try {
+      const factEntries = await novelFactService.listForChapter({
+        novelId,
+        beforeChapterOrder: chapter.order,
+      });
+      if (factEntries.length > 0) {
+        chapterWriteContext.completedMilestones = factEntries.map((entry) => entry.text);
+      }
+    } catch (error) {
+      console.warn("[context-assembler] fact ledger read failed, completedMilestones will be empty", {
+        novelId,
+        chapterOrder: chapter.order,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     const chapterReviewContext = buildChapterReviewContext(chapterWriteContext, baseContextPackage);
     const chapterRepairContext = buildChapterRepairContextFromPackage({
       ...baseContextPackage,

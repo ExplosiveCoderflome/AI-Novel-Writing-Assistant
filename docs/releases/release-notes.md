@@ -4,7 +4,17 @@
 
 ## 更新历史
 
-### 2026-06-08
+### 2026-06-08（事实账本）
+
+事实账本（Novel Fact Ledger）：用一张极简的 `NovelFactEntry` 表替代 timeline 对写章上下文的介入，
+让 `completedMilestones` 字段得到真实填充，防止 LLM 在后续章节重复写出已发生的事件。
+
+- 新增 `NovelFactEntry` 数据表，记录已发生的不可逆事实（completed/revealed/state_changed 三类）。
+- 章节接收通过后，系统自动从 `obligationContract.mustHitNow` 和 `payoffDirectives(payoff/partial_reveal)` 提取已完成条目写入事实账本，无额外 LLM 调用。
+- `GenerationContextAssembler` 在组装写章上下文时读取事实账本，填充 `ChapterWriteContext.completedMilestones`，让写章 LLM 知晓"哪些事情已经发生，不要再重复"。
+- 事实账本读取策略：completed/revealed 类全量返回（不限章节距离），state_changed 类只取最近 15 章，控制上下文长度。
+
+### 2026-06-08（质量守卫）
 
 小说生成质量守卫：针对世界设定污染、已完成事件反复重写、场景模式重复和卷节奏失控四类系统性问题，在上下文层、共享类型层和 Agent 工具层分别新增守卫机制。
 

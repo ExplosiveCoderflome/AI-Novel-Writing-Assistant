@@ -397,6 +397,7 @@ model Novel {
   imageAssets        ImageAsset[]
   sideEffectJobs     NovelSideEffectJob[]
   novelWorld         NovelWorld?
+  factEntries        NovelFactEntry[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -2897,4 +2898,23 @@ model TimelineCheckReport {
 
   @@index([novelId, chapterIndex])
   @@index([novelId, status])
+}
+
+// 事实账本：记录小说中已发生的不可逆事实，用于防止后续章节重复或矛盾
+model NovelFactEntry {
+  id           String   @id @default(cuid())
+  novelId      String
+  // 事实发生在第几章（用于排序和范围查询）
+  chapterOrder Int
+  // 一两句话描述，例如"陈建国已在第7章取得个体户执照"
+  text         String
+  // completed=过程性目标已完成；revealed=信息已揭示；state_changed=不可逆状态变化
+  category     String   @default("completed")
+  // auto=系统自动写入；manual=Agent工具手动写入
+  source       String   @default("auto")
+  novel        Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@index([novelId, chapterOrder])
+  @@index([novelId, category])
 }
