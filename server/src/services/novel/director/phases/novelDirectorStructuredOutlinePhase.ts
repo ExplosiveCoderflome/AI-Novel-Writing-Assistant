@@ -360,6 +360,12 @@ export async function runDirectorStructuredOutlinePhase(input: {
     }
 
     if (recoveryCursor.step === "chapter_detail_bundle") {
+      // 懒规划模式（JIT）：全书自动执行时跳过预生成 task sheet，
+      // 改为执行前即时生成（见 ChapterPlanJITService）。
+      if (isFullBookAutopilotRunMode(request.runMode)) {
+        break;
+      }
+
       const targetDetailMode = recoveryCursor.detailMode as StructuredOutlineDetailMode | null;
       if (
         !recoveryCursor.chapterId
@@ -537,14 +543,18 @@ export async function runDirectorStructuredOutlinePhase(input: {
     throw new Error("自动导演已生成拆章结果，但章节资源没有成功同步到执行区。");
   }
   const persistedChapterByOrder = new Map(persistedChapters.map((chapter) => [chapter.order, chapter] as const));
-  const missingExecutionContextOrders = selectedChapterOrders.filter((order) => {
-    const chapter = persistedChapterByOrder.get(order);
-    return !chapter || !hasDirectorSyncedChapterExecutionContext(chapter);
-  });
-  if (missingExecutionContextOrders.length > 0) {
-    throw new Error(
-      `${autoExecutionScopeLabel}还有第 ${missingExecutionContextOrders.slice(0, 5).join("、")} 章缺少已同步的章节执行上下文，不能直接进入章节执行。请先补齐基础章节信息。`,
-    );
+  // 懒规划（JIT）模式：task sheet 尚未预生成属预期状态，跳过执行上下文完整性检查。
+  // 非 autopilot 路径仍做完整性检查，确保手动执行有完整 task sheet。
+  if (!isFullBookAutopilotRunMode(request.runMode)) {
+    const missingExecutionContextOrders = selectedChapterOrders.filter((order) => {
+      const chapter = persistedChapterByOrder.get(order);
+      return !chapter || !hasDirectorSyncedChapterExecutionContext(chapter);
+    });
+    if (missingExecutionContextOrders.length > 0) {
+      throw new Error(
+        `${autoExecutionScopeLabel}还有第 ${missingExecutionContextOrders.slice(0, 5).join("、")} 章缺少已同步的章节执行上下文，不能直接进入章节执行。请先补齐基础章节信息。`,
+      );
+    }
   }
 
   await dependencies.novelContextService.updateNovel(novelId, {

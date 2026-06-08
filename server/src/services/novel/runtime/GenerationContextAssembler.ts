@@ -38,6 +38,8 @@ import {
   buildRuntimeCharacterHardFactsList,
   parseCharacterProhibitionsJson,
 } from "../characters/characterHardFacts";
+import { NovelVolumeService } from "../volume/NovelVolumeService";
+import { ChapterPlanJITService } from "../planning/ChapterPlanJITService";
 
 const OPENING_COMPARE_LIMIT = 3;
 const OPENING_SLICE_LENGTH = 220;
@@ -225,6 +227,12 @@ export class GenerationContextAssembler {
   private readonly continuationService = new NovelContinuationService();
   private readonly worldContextGateway = new WorldContextGateway();
   private readonly styleBindingService = new StyleBindingService();
+  private readonly volumeService = new NovelVolumeService();
+  private readonly chapterPlanJITService = new ChapterPlanJITService({
+    ensureChapterExecutionContract: (novelId, chapterId, options) => (
+      this.volumeService.ensureChapterExecutionContract(novelId, chapterId, options)
+    ),
+  });
 
   async assemble(
     novelId: string,
@@ -303,6 +311,11 @@ export class GenerationContextAssembler {
       throw new Error("Novel or chapter not found.");
     }
 
+    // 懒规划 JIT：全书 autopilot 路径在 ensureChapterPlan 之前确保 task sheet 就绪。
+    // JIT 生成时会注入已发生事实（factLedger），解决 task sheet 与实际前文脱节问题。
+    if (request.controlPolicy?.advanceMode === "full_book_autopilot") {
+      await this.chapterPlanJITService.ensureExecutionReady(novelId, chapterId);
+    }
     const ensuredPlan = await plannerService.ensureChapterPlan(novelId, chapterId, request);
     const refreshedChapter = await prisma.chapter.findFirst({
       where: { id: chapterId, novelId },

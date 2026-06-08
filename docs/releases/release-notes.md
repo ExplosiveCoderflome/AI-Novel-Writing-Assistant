@@ -4,6 +4,14 @@
 
 ## 更新历史
 
+### 2026-06-08（懒规划 JIT task sheet 重构）
+
+懒规划（Phase 1）：把 task sheet 从"规划阶段全量预生成"改为"执行前即时生成（Just-In-Time）"，消除全量拆章门控并解决 task sheet 与实际前文脱节问题。
+
+- **全量拆章门控已消除**：全书自动执行（`full_book_autopilot`）模式下，`structured_outline` 阶段跳过 `chapter_detail_bundle` 步骤，只生成章节标题和节奏锚点（`chapter_list`），即可进入章节执行阶段，不再等待所有 N 章 task sheet 预生成完毕。
+- **新增 `ChapterPlanJITService`**：在每章执行前（`GenerationContextAssembler.assemble`）自动生成 task sheet。生成时将已写章节的事实账本（`NovelFactService.listForChapter`）注入提示词，task sheet 义务不再与实际前文矛盾，从根本上缓解根因 D（义务不可达）。
+- **兼容性保障**：旧小说若 task sheet 已存在且事实账本条目 < 3 条（前文未写 / 首章），跳过 JIT 直接复用，不破坏存量数据。手动单章模式不受影响。
+
 ### 2026-06-08（质量债务根因诊断埋点）
 
 质量债务根因归因（Phase 0）：在章节 defer_and_continue 路径埋入结构化归因数据，支撑后续优化方向决策。
