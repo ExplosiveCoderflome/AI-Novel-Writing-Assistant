@@ -13,7 +13,6 @@ import {
   isChapterEmptyContentError,
   type ChapterEmptyContentError,
 } from "./chapterEmptyContentError";
-import type { ChapterTimelineFinalizationService } from "./ChapterTimelineFinalizationService";
 import {
   ChapterContentFinalizationService,
   type FinalizeChapterContentResult,
@@ -27,7 +26,6 @@ export interface ChapterStreamGenerationOrchestratorDeps {
   assembler: Pick<GenerationContextAssembler, "assemble">;
   chapterWritingGraph: Pick<ChapterWritingGraph, "createChapterStream">;
   readinessService: Pick<ChapterRuntimeReadinessService, "assertReady">;
-  timelineFinalizer: Pick<ChapterTimelineFinalizationService, "ensurePreviousChapterFinalized">;
   contentFinalizationService: Pick<ChapterContentFinalizationService, "finalizeChapterContent" | "markChapterStatus">;
   agentRuntime: ChapterStreamGenerationAgentRuntime;
   validateRequest: (input: ChapterRuntimeRequestInput) => ChapterRuntimeRequestInput;
@@ -139,7 +137,6 @@ export class ChapterStreamGenerationOrchestrator {
   ): Promise<PreparedRuntimeChapter> {
     const request = this.deps.validateRequest(options);
     await this.deps.ensureNovelCharacters(novelId, "generate chapter content");
-    await this.ensurePreviousChapterTimelineFinalized(novelId, chapterId, request);
     const assembled = await this.deps.assembler.assemble(novelId, chapterId, request);
     this.deps.readinessService.assertReady(assembled.contextPackage);
     this.assertStateDrivenReady(assembled.contextPackage, request);
@@ -219,25 +216,6 @@ export class ChapterStreamGenerationOrchestrator {
         `Chapter generation is blocked until review is resolved.${reasons.length > 0 ? ` ${reasons.join(" | ")}` : ""}`,
       );
     }
-  }
-
-  private async ensurePreviousChapterTimelineFinalized(
-    novelId: string,
-    chapterId: string,
-    request: ChapterRuntimeRequestInput,
-  ): Promise<void> {
-    const chapter = await prisma.chapter.findFirst({
-      where: { id: chapterId, novelId },
-      select: { order: true },
-    });
-    if (!chapter || chapter.order <= 1) {
-      return;
-    }
-    await this.deps.timelineFinalizer.ensurePreviousChapterFinalized({
-      novelId,
-      currentChapterOrder: chapter.order,
-      request,
-    });
   }
 
   private async resolveWriterResultWithEmptyRetry(input: {

@@ -4,15 +4,17 @@
 
 ## 更新历史
 
-### 2026-06-08（事实账本）
+### 2026-06-08（事实账本 + 写章路径瘦身）
 
 事实账本（Novel Fact Ledger）：用一张极简的 `NovelFactEntry` 表替代 timeline 对写章上下文的介入，
-让 `completedMilestones` 字段得到真实填充，防止 LLM 在后续章节重复写出已发生的事件。
+让 `completedMilestones` 字段得到真实填充，防止 LLM 在后续章节重复写出已发生的事件；
+同时彻底移除 timeline finalization 在写章路径中的所有干预点（PR-B）。
 
 - 新增 `NovelFactEntry` 数据表，记录已发生的不可逆事实（completed/revealed/state_changed 三类）。
 - 章节接收通过后，系统自动从 `obligationContract.mustHitNow` 和 `payoffDirectives(payoff/partial_reveal)` 提取已完成条目写入事实账本，无额外 LLM 调用。
 - `GenerationContextAssembler` 在组装写章上下文时读取事实账本，填充 `ChapterWriteContext.completedMilestones`，让写章 LLM 知晓"哪些事情已经发生，不要再重复"。
 - 事实账本读取策略：completed/revealed 类全量返回（不限章节距离），state_changed 类只取最近 15 章，控制上下文长度。
+- PR-B：从 `chapterWriter.prompts.ts` requiredGroups 移除 `timeline_context`；从 `ChapterContentFinalizationService`、`ChapterStreamGenerationOrchestrator`、`ChapterPipelineRuntimeAdapter`、`ChapterRuntimeCoordinator`、`ChapterRepairStreamRuntime`、`chapterRuntimePipeline` 移除全部 `timelineFinalizer` 依赖和调用点。`ChapterTimelineFinalizationService` 本身及前端时间轴展示不受影响。
 
 ### 2026-06-08（质量守卫）
 

@@ -99,16 +99,6 @@ interface RunPipelineChapterDeps {
     runId: string | null;
     startMs: number | null;
   }) => Promise<FinalizedRuntimeResult>;
-  finalizeChapterTimeline?: (input: {
-    novelId: string;
-    chapterId: string;
-    request: ChapterRuntimeRequestInput;
-    contextPackage: GenerationContextPackage;
-    content: string;
-    mode: "stable" | "degraded";
-    reason: string;
-    qualityDebt?: boolean;
-  }) => Promise<void>;
   markChapterGenerationState: (
     chapterId: string,
     generationState: "reviewed" | "approved",
@@ -180,15 +170,6 @@ export async function runPipelineChapterWithRuntime(
 
     if (!autoReview) {
       await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, content, artifactSyncMode);
-      await deps.finalizeChapterTimeline?.({
-        novelId,
-        chapterId,
-        request,
-        contextPackage: assembled.contextPackage,
-        content,
-        mode: "stable",
-        reason: "auto_review_disabled_final_content",
-      });
       await deps.markChapterGenerationState(chapterId, "approved");
       return {
         reviewExecuted: false,
@@ -281,18 +262,6 @@ export async function runPipelineChapterWithRuntime(
   }
 
   await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, latestResult.finalContent, artifactSyncMode);
-  if (!pass && shouldFinalizeDegradedForDeferredQualityDebt(latestResult.runtimePackage)) {
-    await deps.finalizeChapterTimeline?.({
-      novelId,
-      chapterId,
-      request,
-      contextPackage: assembled.contextPackage,
-      content: latestResult.finalContent,
-      mode: "degraded",
-      reason: "max_repair_attempts_exhausted",
-      qualityDebt: true,
-    });
-  }
 
   return {
     reviewExecuted: true,
@@ -506,20 +475,3 @@ function issueLooksLikeNonPatchableReviewRisk(issue: ReviewIssue): boolean {
     || combined.includes("结构化判断缺失");
 }
 
-function shouldFinalizeDegradedForDeferredQualityDebt(runtimePackage: ChapterRuntimePackage): boolean {
-  if (runtimePackage.replanRecommendation?.action === "stop_for_replan") {
-    return false;
-  }
-  if (runtimePackage.failureClassification?.code === "replan_required") {
-    return false;
-  }
-  if ((runtimePackage.failureClassification?.blockingObligations ?? []).length > 0) {
-    return false;
-  }
-  const acceptanceStatus = runtimePackage.meta?.acceptanceStatus;
-  const continuePolicy = runtimePackage.meta?.continuePolicy;
-  if (acceptanceStatus === "needs_manual_review" || continuePolicy === "pause") {
-    return false;
-  }
-  return true;
-}

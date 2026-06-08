@@ -5,7 +5,6 @@ import { novelFactService } from "../fact/NovelFactService";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import type { StyleReviewResult } from "./PostGenerationStyleReviewRunner";
-import type { ChapterTimelineFinalizationService } from "./ChapterTimelineFinalizationService";
 import { ChapterQualityGateService } from "./ChapterQualityGateService";
 import {
   buildRuntimePackage,
@@ -20,7 +19,6 @@ export interface ChapterContentFinalizationServiceDeps {
   qualityGateService: Pick<ChapterQualityGateService, "runAcceptanceGateOnly">;
   artifactSyncService: Pick<ChapterArtifactSyncService, "syncChapterArtifacts">;
   plannerService: ChapterRuntimePlannerPort;
-  timelineFinalizer: Pick<ChapterTimelineFinalizationService, "finalizeCurrentContent">;
   agentRuntime: ChapterContentFinalizationAgentRuntime;
 }
 
@@ -47,14 +45,12 @@ export class ChapterContentFinalizationService {
   private readonly qualityGateService: Pick<ChapterQualityGateService, "runAcceptanceGateOnly">;
   private readonly artifactSyncService: Pick<ChapterArtifactSyncService, "syncChapterArtifacts">;
   private readonly plannerService: ChapterRuntimePlannerPort;
-  private readonly timelineFinalizer: Pick<ChapterTimelineFinalizationService, "finalizeCurrentContent">;
   private readonly agentRuntime: ChapterContentFinalizationAgentRuntime;
 
   constructor(deps: ChapterContentFinalizationServiceDeps) {
     this.qualityGateService = deps.qualityGateService;
     this.artifactSyncService = deps.artifactSyncService;
     this.plannerService = deps.plannerService;
-    this.timelineFinalizer = deps.timelineFinalizer;
     this.agentRuntime = deps.agentRuntime;
   }
 
@@ -105,20 +101,6 @@ export class ChapterContentFinalizationService {
       || runtimePackage.audit.hasBlockingIssues;
     await this.markChapterStatus(input.chapterId, needsRepair ? "needs_repair" : "pending_review");
     if (!needsRepair) {
-      void this.timelineFinalizer.finalizeCurrentContent({
-        novelId: input.novelId,
-        chapterId: input.chapterId,
-        content: finalContent,
-        contextPackage: input.contextPackage,
-        request: input.request,
-        sourceStage: "draft_accepted",
-      }).catch((error) => {
-        console.warn("[chapter-runtime] deferred timeline finalization failed", {
-          novelId: input.novelId,
-          chapterId: input.chapterId,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      });
       void this.writeAcceptedFacts(input.novelId, input.contextPackage).catch((error) => {
         console.warn("[chapter-runtime] deferred fact ledger write failed", {
           novelId: input.novelId,

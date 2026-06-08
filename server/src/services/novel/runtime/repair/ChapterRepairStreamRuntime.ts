@@ -14,7 +14,6 @@ import {
 } from "../../novelCoreShared";
 import type { ChapterArtifactSyncService } from "../ChapterArtifactSyncService";
 import type { GenerationContextAssembler } from "../GenerationContextAssembler";
-import type { ChapterTimelineFinalizationService } from "../ChapterTimelineFinalizationService";
 import {
   ChapterContextAssemblyError,
   assembleChapterAuditContextPackage,
@@ -38,7 +37,6 @@ export interface ChapterRepairStreamRuntimeDeps {
     options: ReviewOptions,
   ) => Promise<RepairReviewResult>;
   resolveAuditIssues?: (novelId: string, issueIds: string[]) => Promise<unknown>;
-  timelineFinalizer?: Pick<ChapterTimelineFinalizationService, "finalizeCurrentContent">;
 }
 
 export class ChapterRepairStreamRuntime {
@@ -202,23 +200,6 @@ export class ChapterRepairStreamRuntime {
       content: repairedContent,
     });
     if (isPass(review.score)) {
-      if (this.deps.timelineFinalizer) {
-        const assembledContextPackage = await assembleChapterAuditContextPackage({
-          assembler: this.deps.assembler,
-          novelId: input.novelId,
-          chapterId: input.chapterId,
-          options: input.options,
-          operation: "repair",
-        });
-        await this.deps.timelineFinalizer.finalizeCurrentContent({
-          novelId: input.novelId,
-          chapterId: input.chapterId,
-          content: repairedContent,
-          contextPackage: assembledContextPackage,
-          request: input.options,
-          sourceStage: "repair_accepted",
-        });
-      }
       await prisma.chapter.update({
         where: { id: input.chapterId },
         data: { generationState: "approved" },

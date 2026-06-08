@@ -81,8 +81,20 @@ Already completed — do NOT re-pursue or re-trigger
 - `server/src/prisma/schema.prisma`（NovelFactEntry 模型）
 - `shared/types/chapterRuntime.ts`（completedMilestones 字段，已有）
 
-## 后续（PR-B）
+## PR-B 变更记录（已完成）
 
-- `chapterWriter.prompts.ts` → `requiredGroups` 移除 `timeline_context`
-- `ChapterContentFinalizationService` → 移除 `timelineFinalizer` 依赖
-- `ChapterStreamGenerationOrchestrator` → 移除 `ensurePreviousChapterFinalized` 调用
+PR-B 目标：从写章路径彻底移除 timeline 干预，写章上下文不再有 `timeline_context` block。
+
+已修改文件：
+
+| 文件 | 变更内容 |
+|------|---------|
+| `chapterWriter.prompts.ts` | `requiredGroups` / `preferredGroups` / `contextRequirements` 移除 `timeline_context` |
+| `ChapterContentFinalizationService.ts` | 移除 `timelineFinalizer` 依赖及 finalize 调用 |
+| `ChapterStreamGenerationOrchestrator.ts` | 移除 `timelineFinalizer` 依赖及 `ensurePreviousChapterTimelineFinalized` 调用和方法 |
+| `ChapterPipelineRuntimeAdapter.ts` | 移除 `timelineFinalizer` 依赖及 `finalizeChapterTimeline` callback |
+| `ChapterRuntimeCoordinator.ts` | 移除 `timelineFinalizer` 可选依赖及向所有子服务的注入 |
+| `ChapterRepairStreamRuntime.ts` | 移除 `timelineFinalizer` 可选依赖及修复通过后的 finalize 调用 |
+| `chapterRuntimePipeline.ts` | 移除 `finalizeChapterTimeline?` 接口定义及两处调用点，移除 `shouldFinalizeDegradedForDeferredQualityDebt` 函数 |
+
+> `ChapterTimelineFinalizationService` 本身及 `StoryTimelineEvent` 表保留，前端时间轴展示功能不受影响。
