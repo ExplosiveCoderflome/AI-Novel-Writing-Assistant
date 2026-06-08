@@ -53,6 +53,7 @@ export type AgentToolName =
   | "explain_world_conflict"
   | "rebuild_story_world_slice"
   | "audit_chapter_continuity"
+  | "analyze_quality_debt_attribution"
   | "list_writing_formulas"
   | "get_writing_formula_detail"
   | "explain_formula_match"

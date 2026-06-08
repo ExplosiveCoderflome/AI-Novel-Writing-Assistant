@@ -7,6 +7,7 @@ import {
 } from "@ai-novel/shared/types/chapterQualityLoop";
 import { prisma } from "../../../db/prisma";
 import { directorAutomationLedgerEventService } from "../director/runtime/DirectorAutomationLedgerEventService";
+import type { QualityDebtAttribution } from "../runtime/chapterRuntimePipeline";
 
 interface RecordChapterQualityLoopInput {
   novelId: string;
@@ -19,6 +20,8 @@ interface RecordChapterQualityLoopInput {
   terminalAction?: "defer_and_continue" | null;
   taskId?: string | null;
   runId?: string | null;
+  /** 阶段0 归因数据：仅在 terminalAction=defer_and_continue 时有意义 */
+  qualityDebtAttribution?: QualityDebtAttribution | null;
 }
 
 type ChapterQualityLoopChapter = {
@@ -47,6 +50,7 @@ function serializeRiskFlags(
   assessment: ChapterQualityLoopAssessment,
   source: RecordChapterQualityLoopInput["source"],
   terminalAction?: RecordChapterQualityLoopInput["terminalAction"],
+  qualityDebtAttribution?: RecordChapterQualityLoopInput["qualityDebtAttribution"],
 ): string {
   const parsed = parseJsonObject(previous);
   return JSON.stringify({
@@ -55,6 +59,7 @@ function serializeRiskFlags(
       ...assessment,
       source,
       ...(terminalAction ? { terminalAction } : {}),
+      ...(qualityDebtAttribution ? { qualityDebtAttribution } : {}),
     },
   });
 }
@@ -102,6 +107,7 @@ export function buildChapterQualityLoopChapterUpdate(
   assessment: ChapterQualityLoopAssessment,
   source: RecordChapterQualityLoopInput["source"],
   terminalAction?: RecordChapterQualityLoopInput["terminalAction"],
+  qualityDebtAttribution?: RecordChapterQualityLoopInput["qualityDebtAttribution"],
 ): Prisma.ChapterUpdateInput {
   const nextRepairHistory = appendRepairHistory(chapter.repairHistory, assessment, terminalAction);
   const shouldContinueChapter = assessment.recommendedAction === "continue" || terminalAction === "defer_and_continue";
@@ -109,7 +115,7 @@ export function buildChapterQualityLoopChapterUpdate(
     ? resolveContinuableChapterStatus(chapter)
     : "needs_repair";
   return {
-    riskFlags: serializeRiskFlags(chapter.riskFlags, assessment, source, terminalAction),
+    riskFlags: serializeRiskFlags(chapter.riskFlags, assessment, source, terminalAction, qualityDebtAttribution),
     ...(nextRepairHistory !== undefined ? { repairHistory: nextRepairHistory } : {}),
     ...(nextChapterStatus ? { chapterStatus: nextChapterStatus } : {}),
   };
@@ -142,7 +148,7 @@ export class ChapterQualityLoopService {
     });
     await prisma.chapter.update({
       where: { id: input.chapterId },
-      data: buildChapterQualityLoopChapterUpdate(chapter, assessment, input.source, input.terminalAction ?? null),
+      data: buildChapterQualityLoopChapterUpdate(chapter, assessment, input.source, input.terminalAction ?? null, input.qualityDebtAttribution),
     });
     await directorAutomationLedgerEventService.recordQualityLoopAssessment({
       taskId: input.taskId,

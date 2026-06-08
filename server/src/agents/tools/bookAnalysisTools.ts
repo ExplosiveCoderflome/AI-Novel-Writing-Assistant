@@ -2,6 +2,8 @@ import { prisma } from "../../db/prisma";
 import { AgentToolError, type AgentToolName } from "../types";
 import type { AgentToolDefinition } from "./toolTypes";
 import {
+  analyzeQualityDebtAttributionInputSchema,
+  analyzeQualityDebtAttributionOutputSchema,
   auditChapterContinuityInputSchema,
   auditChapterContinuityOutputSchema,
   bookAnalysisIdInputSchema,
@@ -9,7 +11,9 @@ import {
   getBookAnalysisFailureReasonOutputSchema,
   listBookAnalysesInputSchema,
   listBookAnalysesOutputSchema,
+  type qualityDebtChapterAttributionSchema,
 } from "./bookAnalysisToolSchemas";
+import { z } from "zod";
 
 export const bookAnalysisToolDefinitions: Partial<
   Record<AgentToolName, AgentToolDefinition<Record<string, unknown>, Record<string, unknown>>>
@@ -291,6 +295,217 @@ export const bookAnalysisToolDefinitions: Partial<
         openingPatternClusters,
         hasCriticalIssues,
         summary,
+        recommendation,
+      });
+    },
+  },
+
+  analyze_quality_debt_attribution: {
+    name: "analyze_quality_debt_attribution",
+    title: "质量债务根因归因分析",
+    description: "扫描已记录质量债务（defer_and_continue）的章节，聚合根因 A/B/D/E 占比、Top 失败 issue code 和缺失义务种类，产出决策报告。不需要 LLM，基于 riskFlags 数据直接计算。",
+    category: "inspect",
+    riskLevel: "low",
+    domainAgent: "NovelAgent",
+    resourceScopes: ["novel", "chapter"],
+    parserHints: {
+      intent: "inspect_failure_reason",
+      aliases: ["质量债务归因", "质量债务分析", "根因分析", "analyze quality debt", "quality debt attribution"],
+      phrases: [
+        "为什么章节总是修复失败",
+        "质量债务的根本原因是什么",
+        "分析哪些章节有质量问题",
+        "质量债务根因报告",
+        "修复失败的原因统计",
+      ],
+      requiresNovelContext: true,
+      whenToUse: "用户想了解已记录质量债务章节的根因分布，以决定优化方向。",
+      whenNotToUse: "用户在查询单章详细内容或生成状态。",
+    },
+    inputSchema: analyzeQualityDebtAttributionInputSchema,
+    outputSchema: analyzeQualityDebtAttributionOutputSchema,
+    execute: async (context, rawInput) => {
+      const input = analyzeQualityDebtAttributionInputSchema.parse(rawInput);
+      const novelId = input.novelId?.trim() || context.novelId;
+      if (!novelId) {
+        throw new AgentToolError("INVALID_INPUT", "没有当前小说上下文，无法执行质量债务归因分析。");
+      }
+
+      const chapters = await prisma.chapter.findMany({
+        where: {
+          novelId,
+          order: {
+            gte: input.startOrder ?? 1,
+            ...(input.endOrder != null ? { lte: input.endOrder } : {}),
+          },
+          riskFlags: { not: null },
+        },
+        orderBy: { order: "asc" },
+        select: { id: true, order: true, title: true, riskFlags: true },
+      });
+
+      // 过滤出 terminalAction = defer_and_continue 的章节
+      type AttributionData = z.infer<typeof qualityDebtChapterAttributionSchema>;
+      const deferredChapters: AttributionData[] = [];
+
+      for (const chapter of chapters) {
+        let riskFlagsObj: Record<string, unknown> = {};
+        try {
+          if (chapter.riskFlags) {
+            const parsed = JSON.parse(chapter.riskFlags) as unknown;
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+              riskFlagsObj = parsed as Record<string, unknown>;
+            }
+          }
+        } catch {
+          continue;
+        }
+
+        const qualityLoop = riskFlagsObj.qualityLoop;
+        if (!qualityLoop || typeof qualityLoop !== "object" || Array.isArray(qualityLoop)) {
+          continue;
+        }
+        const loop = qualityLoop as Record<string, unknown>;
+        if (loop.terminalAction !== "defer_and_continue") {
+          continue;
+        }
+
+        const attribution = loop.qualityDebtAttribution;
+        if (!attribution || typeof attribution !== "object" || Array.isArray(attribution)) {
+          // 旧数据，无归因信息
+          deferredChapters.push({
+            chapterOrder: chapter.order,
+            chapterId: chapter.id,
+            title: chapter.title ?? `第${chapter.order}章`,
+            firstFailureIssueCodes: [],
+            secondFailureIssueCodes: [],
+            firstFailureClassificationCode: null,
+            patchAnchorFailed: false,
+            sameObligationRepeated: false,
+            planMisaligned: false,
+            lengthVsContentDrift: false,
+            missingObligationKinds: [],
+            primaryRootCause: "unknown",
+          });
+          continue;
+        }
+
+        const attr = attribution as Record<string, unknown>;
+        const firstIssueCodes = Array.isArray(attr.firstFailureIssueCodes)
+          ? attr.firstFailureIssueCodes.filter((c): c is string => typeof c === "string")
+          : [];
+        const secondIssueCodes = Array.isArray(attr.secondFailureIssueCodes)
+          ? attr.secondFailureIssueCodes.filter((c): c is string => typeof c === "string")
+          : [];
+        const obligationKinds = Array.isArray(attr.missingObligationKinds)
+          ? attr.missingObligationKinds.filter((k): k is string => typeof k === "string")
+          : [];
+        const patchAnchorFailed = attr.patchAnchorFailed === true;
+        const sameObligationRepeated = attr.sameObligationRepeated === true;
+        const planMisaligned = attr.planMisaligned === true;
+        const lengthVsContentDrift = attr.lengthVsContentDrift === true;
+        const classCode = typeof attr.firstFailureClassificationCode === "string"
+          ? attr.firstFailureClassificationCode
+          : null;
+
+        // 推断主要根因（优先级：D > B > A > E > unknown）
+        let primaryRootCause: AttributionData["primaryRootCause"] = "unknown";
+        if (planMisaligned) {
+          primaryRootCause = "D";
+        } else if (patchAnchorFailed) {
+          primaryRootCause = "B";
+        } else if (sameObligationRepeated) {
+          primaryRootCause = "A";
+        } else if (lengthVsContentDrift) {
+          primaryRootCause = "E";
+        }
+
+        deferredChapters.push({
+          chapterOrder: chapter.order,
+          chapterId: chapter.id,
+          title: chapter.title ?? `第${chapter.order}章`,
+          firstFailureIssueCodes: firstIssueCodes,
+          secondFailureIssueCodes: secondIssueCodes,
+          firstFailureClassificationCode: classCode,
+          patchAnchorFailed,
+          sameObligationRepeated,
+          planMisaligned,
+          lengthVsContentDrift,
+          missingObligationKinds: obligationKinds,
+          primaryRootCause,
+        });
+      }
+
+      const attributed = deferredChapters.filter((c) => c.primaryRootCause !== "unknown" || c.firstFailureIssueCodes.length > 0);
+      const attributedCount = attributed.length;
+      const totalDeferred = deferredChapters.length;
+
+      // 根因占比
+      const countByRoot = { A: 0, B: 0, D: 0, E: 0, unknown: 0 };
+      for (const c of deferredChapters) {
+        countByRoot[c.primaryRootCause] += 1;
+      }
+      const denominator = totalDeferred || 1;
+      const rootCauseRatios = {
+        A: Number((countByRoot.A / denominator).toFixed(3)),
+        B: Number((countByRoot.B / denominator).toFixed(3)),
+        D: Number((countByRoot.D / denominator).toFixed(3)),
+        E: Number((countByRoot.E / denominator).toFixed(3)),
+        unknown: Number((countByRoot.unknown / denominator).toFixed(3)),
+      };
+
+      // Top 失败 issue code
+      const issueCodeCount: Record<string, number> = {};
+      for (const c of deferredChapters) {
+        for (const code of [...c.firstFailureIssueCodes, ...c.secondFailureIssueCodes]) {
+          issueCodeCount[code] = (issueCodeCount[code] ?? 0) + 1;
+        }
+      }
+      const topFailureIssueCodes = Object.entries(issueCodeCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([code, count]) => ({ code, count }));
+
+      // Top 缺失义务种类
+      const obligationKindCount: Record<string, number> = {};
+      for (const c of deferredChapters) {
+        for (const kind of c.missingObligationKinds) {
+          obligationKindCount[kind] = (obligationKindCount[kind] ?? 0) + 1;
+        }
+      }
+      const topMissingObligationKinds = Object.entries(obligationKindCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([kind, count]) => ({ kind, count }));
+
+      // 生成决策建议
+      const dominantRoot = Object.entries(countByRoot)
+        .filter(([k]) => k !== "unknown")
+        .sort((a, b) => b[1] - a[1])[0]?.[0] ?? "unknown";
+      const recommendationMap: Record<string, string> = {
+        D: "根因 D（义务不可达）占主导 → 优先实施阶段一懒规划，JIT task sheet 生成可直接解决。",
+        A: "根因 A（开环修复）占主导 → 优先修复修复闭环（1.D 子项），让修复器拿到结构化义务。",
+        B: "根因 B（patch 锚点失配）占主导 → 考虑将 patchRepair 预算提到 2，并允许宽松锚点重试。",
+        E: "根因 E（签名漂移）占主导 → 拆分 length/content issueSignature 分别计预算。",
+        unknown: "暂无足够归因数据，建议运行更多章节后再分析。",
+      };
+      const recommendation = totalDeferred === 0
+        ? "当前小说没有记录质量债务章节，无需处理。"
+        : recommendationMap[dominantRoot] ?? recommendationMap.unknown;
+
+      const startOrder = input.startOrder ?? 1;
+      const endOrder = input.endOrder ?? chapters[chapters.length - 1]?.order ?? startOrder;
+      const checkedRange = `ch${startOrder}-${endOrder}`;
+
+      return analyzeQualityDebtAttributionOutputSchema.parse({
+        novelId,
+        checkedRange,
+        totalDeferredChapters: totalDeferred,
+        attributedChapters: attributedCount,
+        rootCauseRatios,
+        topFailureIssueCodes,
+        topMissingObligationKinds,
+        chapters: deferredChapters,
         recommendation,
       });
     },

@@ -33,6 +33,31 @@ export interface PipelineRuntimeInput extends ChapterRuntimeRequestInput {
   repairMode?: "detect_only" | "light_repair" | "heavy_repair" | "continuity_only" | "character_only" | "ending_only";
 }
 
+/**
+ * 质量债务根因归因数据，在章节以 defer_and_continue 结束时收集。
+ * 用于 analyze_quality_debt_attribution 工具聚合根因占比。
+ */
+export interface QualityDebtAttribution {
+  /** 首次验收失败的 issue code 列表（来自 runtimePackage.audit.openIssues） */
+  firstFailureIssueCodes: string[];
+  /** 二次验收失败的 issue code 列表（修复后再次失败时才有值） */
+  secondFailureIssueCodes: string[];
+  /** 首次失败的 failureClassification.code（判定根因 D） */
+  firstFailureClassificationCode: string | null;
+  /** patch 锚点失配，升级到 heavy_repair（判定根因 B） */
+  patchAnchorFailed: boolean;
+  /** 首次与二次的 openIssue codes 完全一致（判定根因 A：义务未传达给修复器） */
+  sameObligationRepeated: boolean;
+  /** firstFailureClassificationCode === "draft_obligation_unmet" → 义务不可达（判定根因 D） */
+  planMisaligned: boolean;
+  /** 首次为 length 类 issue、二次为 content 类（判定根因 E：签名漂移） */
+  lengthVsContentDrift: boolean;
+  /** 首次失败缺失的义务种类（来自 obligationCoverage.missing[].kind） */
+  missingObligationKinds: string[];
+  /** 已消耗的 Director 预算操作（由外层 Director 写入） */
+  budgetActionsConsumed?: Array<"patch_repair" | "chapter_rewrite" | "window_replan">;
+}
+
 export interface PipelineRuntimeResult {
   reviewExecuted: boolean;
   pass: boolean;
@@ -41,6 +66,8 @@ export interface PipelineRuntimeResult {
   runtimePackage: ChapterRuntimePackage | null;
   retryCountUsed: number;
   recoverableRepairFailure?: PipelineRecoverableRepairFailure | null;
+  /** 仅在章节最终未通过时填充，供 defer_and_continue 路径记录根因 */
+  qualityDebtAttribution?: QualityDebtAttribution | null;
 }
 
 export interface FinalizedRuntimeResult {
@@ -146,6 +173,13 @@ export async function runPipelineChapterWithRuntime(
   let latestLengthControl: ChapterRuntimePackage["lengthControl"] | undefined;
   let recoverableRepairFailure: PipelineRecoverableRepairFailure | null = null;
 
+  // 归因追踪变量
+  let firstFailureIssueCodes: string[] = [];
+  let firstFailureClassificationCode: string | null = null;
+  let firstMissingObligationKinds: string[] = [];
+  let repairEscalatedFromPatch = false;
+  let secondFailureIssueCodes: string[] = [];
+
   for (let attempt = 0; attempt <= effectiveMaxRetries; attempt += 1) {
     await hooks.onCheckCancelled?.();
     if (!content.trim()) {
@@ -224,7 +258,20 @@ export async function runPipelineChapterWithRuntime(
       break;
     }
 
+    // 收集首次失败的归因信息（只在第一次失败时记录）
+    if (attempt === 0) {
+      firstFailureIssueCodes = extractIssueCodes(latestResult.runtimePackage);
+      firstFailureClassificationCode = latestResult.runtimePackage.failureClassification?.code ?? null;
+      firstMissingObligationKinds = (latestResult.runtimePackage.obligationCoverage?.missing ?? [])
+        .map((m) => String(m.kind))
+        .filter((kind) => kind.trim().length > 0);
+    }
+
     if (shouldPauseForAcceptance || !autoRepair || repairMode === "detect_only" || attempt >= effectiveMaxRetries) {
+      // 若是 attempt >= effectiveMaxRetries，这是第二次失败，记录二次 codes
+      if (attempt > 0) {
+        secondFailureIssueCodes = extractIssueCodes(latestResult.runtimePackage);
+      }
       break;
     }
 
@@ -245,9 +292,11 @@ export async function runPipelineChapterWithRuntime(
     });
     if (repairResult.recoverableFailure) {
       recoverableRepairFailure = repairResult.recoverableFailure;
+      repairEscalatedFromPatch = repairResult.escalatedFromPatch;
       await deps.markChapterNeedsRepair(chapterId);
       break;
     }
+    repairEscalatedFromPatch = repairResult.escalatedFromPatch;
     content = repairResult.content;
     retryCountUsed += 1;
     await deps.saveDraftAndArtifacts(novelId, chapterId, content, "repaired", {
@@ -263,6 +312,17 @@ export async function runPipelineChapterWithRuntime(
 
   await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, latestResult.finalContent, artifactSyncMode);
 
+  // 章节未通过时构建归因对象
+  const qualityDebtAttribution: QualityDebtAttribution | null = (!pass && firstFailureIssueCodes.length > 0)
+    ? buildQualityDebtAttribution({
+        firstFailureIssueCodes,
+        secondFailureIssueCodes,
+        firstFailureClassificationCode,
+        firstMissingObligationKinds,
+        patchAnchorFailed: repairEscalatedFromPatch,
+      })
+    : null;
+
   return {
     reviewExecuted: true,
     pass,
@@ -271,6 +331,7 @@ export async function runPipelineChapterWithRuntime(
     runtimePackage: latestResult.runtimePackage,
     retryCountUsed,
     recoverableRepairFailure,
+    qualityDebtAttribution,
   };
 }
 
@@ -417,11 +478,13 @@ async function repairDraftContent(input: {
   };
 }): Promise<{
   content: string;
+  escalatedFromPatch: boolean;
   recoverableFailure?: PipelineRecoverableRepairFailure | null;
 }> {
   if (!input.forceFullRewrite && shouldDeferNonPatchableReviewRisk(input.runtimePackage, input.issues)) {
     return {
       content: input.content,
+      escalatedFromPatch: false,
       recoverableFailure: {
         chapterId: input.runtimePackage.chapterId,
         message: "章节接收判断暂时不可用，正文已保留，后续需要重新审校或人工复查。",
@@ -449,6 +512,7 @@ async function repairDraftContent(input: {
   });
   return {
     content: repaired.content.trim() || input.content,
+    escalatedFromPatch: repaired.escalatedFromPatch,
     recoverableFailure: null,
   };
 }
@@ -473,5 +537,65 @@ function issueLooksLikeNonPatchableReviewRisk(issue: ReviewIssue): boolean {
     || combined.includes("接收闸门未返回可用结构化结果")
     || combined.includes("章节接收判断不可用")
     || combined.includes("结构化判断缺失");
+}
+
+/** 从 runtimePackage 提取 openIssues 的 code 列表（过滤空值） */
+function extractIssueCodes(runtimePackage: ChapterRuntimePackage): string[] {
+  return (runtimePackage.audit.openIssues ?? [])
+    .map((issue) => issue.code)
+    .filter((code): code is string => typeof code === "string" && code.trim().length > 0);
+}
+
+const LENGTH_ISSUE_CODE_PREFIXES = ["LENGTH_", "length_"];
+
+function isLengthIssueCode(code: string): boolean {
+  return LENGTH_ISSUE_CODE_PREFIXES.some((prefix) => code.startsWith(prefix));
+}
+
+/** 根据收集到的埋点数据构建结构化归因 */
+function buildQualityDebtAttribution(input: {
+  firstFailureIssueCodes: string[];
+  secondFailureIssueCodes: string[];
+  firstFailureClassificationCode: string | null;
+  firstMissingObligationKinds: string[];
+  patchAnchorFailed: boolean;
+}): QualityDebtAttribution {
+  const {
+    firstFailureIssueCodes,
+    secondFailureIssueCodes,
+    firstFailureClassificationCode,
+    firstMissingObligationKinds,
+    patchAnchorFailed,
+  } = input;
+
+  // 根因 A：首次和二次 codes 完全一致（修复未解决义务问题）
+  const hasBothFailures = secondFailureIssueCodes.length > 0;
+  const firstSet = new Set(firstFailureIssueCodes);
+  const secondSet = new Set(secondFailureIssueCodes);
+  const sameObligationRepeated = hasBothFailures
+    && firstSet.size > 0
+    && firstSet.size === secondSet.size
+    && [...firstSet].every((code) => secondSet.has(code));
+
+  // 根因 D：义务分类 = 义务不可达
+  const planMisaligned = firstFailureClassificationCode === "draft_obligation_unmet"
+    || firstFailureClassificationCode === "replan_required";
+
+  // 根因 E：首次 length 类、二次 content 类（签名漂移）
+  const firstHasLengthOnly = firstFailureIssueCodes.length > 0
+    && firstFailureIssueCodes.every(isLengthIssueCode);
+  const secondHasContentIssue = secondFailureIssueCodes.some((code) => !isLengthIssueCode(code));
+  const lengthVsContentDrift = hasBothFailures && firstHasLengthOnly && secondHasContentIssue;
+
+  return {
+    firstFailureIssueCodes,
+    secondFailureIssueCodes,
+    firstFailureClassificationCode,
+    patchAnchorFailed,
+    sameObligationRepeated,
+    planMisaligned,
+    lengthVsContentDrift,
+    missingObligationKinds: firstMissingObligationKinds,
+  };
 }
 

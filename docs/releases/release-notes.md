@@ -4,6 +4,14 @@
 
 ## 更新历史
 
+### 2026-06-08（质量债务根因诊断埋点）
+
+质量债务根因归因（Phase 0）：在章节 defer_and_continue 路径埋入结构化归因数据，支撑后续优化方向决策。
+
+- `chapterRuntimePipeline` 新增 `QualityDebtAttribution` 接口，收集首次/二次失败 issue code、`failureClassification.code`、patch 锚点失配标记、缺失义务种类，并自动推断根因 A/B/D/E 标签（A=开环修复、B=patch 失配、D=义务不可达、E=签名漂移）。
+- `ChapterQualityLoopService.recordAssessment` 接受 `qualityDebtAttribution` 并将其写入 `chapter.riskFlags` JSON 的 `qualityLoop` 节点，落库后可被聚合工具读取。
+- 新增 Agent 工具 `analyze_quality_debt_attribution`：确定性扫描（无 LLM），读取所有 defer_and_continue 章节的归因数据，输出根因 A/B/D/E 占比、Top 失败 issue code（TOP5）、Top 缺失义务种类（TOP3）及决策建议，帮助确定阶段一/阶段二的优化侧重。
+
 ### 2026-06-08（事实账本 + 写章路径瘦身）
 
 事实账本（Novel Fact Ledger）：用一张极简的 `NovelFactEntry` 表替代 timeline 对写章上下文的介入，
