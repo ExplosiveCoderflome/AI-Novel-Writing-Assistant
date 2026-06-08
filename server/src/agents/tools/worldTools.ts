@@ -9,10 +9,15 @@ import {
   getWorldDetailOutputSchema,
   listWorldsInputSchema,
   listWorldsOutputSchema,
+  rebuildStoryWorldSliceInputSchema,
+  rebuildStoryWorldSliceOutputSchema,
   unbindWorldFromNovelInputSchema,
   unbindWorldFromNovelOutputSchema,
   worldIdInputSchema,
 } from "./worldToolSchemas";
+import { NovelWorldSliceService } from "../../services/novel/storyWorldSlice/NovelWorldSliceService";
+
+const novelWorldSliceService = new NovelWorldSliceService();
 
 export const worldToolDefinitions: Partial<
   Record<AgentToolName, AgentToolDefinition<Record<string, unknown>, Record<string, unknown>>>
@@ -270,6 +275,55 @@ export const worldToolDefinitions: Partial<
           ? "建议先确认冲突字段是否应以世界观为准，再更新对应层内容或相关小说设定。"
           : "当前无需处理冲突。",
         summary: failureSummary,
+      });
+    },
+  },
+  rebuild_story_world_slice: {
+    name: "rebuild_story_world_slice",
+    title: "重建本书世界切片",
+    description: "强制重新生成当前小说的本书世界切片，修复世界设定来源与小说故事背景不匹配（如历史世界绑定到现代故事）导致的旧世界词汇污染问题。",
+    category: "mutate",
+    riskLevel: "medium",
+    domainAgent: "WorldAgent",
+    resourceScopes: ["world", "novel"],
+    parserHints: {
+      intent: "inspect_world",
+      aliases: ["重建世界切片", "修复世界切片", "刷新世界切片", "rebuild world slice"],
+      phrases: [
+        "世界设定和故事不匹配",
+        "世界切片有旧名词污染",
+        "世界绑定来源不对",
+        "重新生成本书世界设定",
+        "切片过时了",
+      ],
+      requiresNovelContext: true,
+      whenToUse: "用户反映世界设定词汇与当前故事不匹配，或世界切片 isStale=true，或需要强制刷新切片内容。",
+      whenNotToUse: "用户只是查看世界观详情或绑定状态。",
+    },
+    inputSchema: rebuildStoryWorldSliceInputSchema,
+    outputSchema: rebuildStoryWorldSliceOutputSchema,
+    execute: async (context, rawInput) => {
+      const input = rebuildStoryWorldSliceInputSchema.parse(rawInput);
+      const novelId = input.novelId?.trim() || context.novelId;
+      if (!novelId) {
+        throw new AgentToolError("INVALID_INPUT", "没有当前小说上下文，无法重建世界切片。");
+      }
+      const view = await novelWorldSliceService.refreshWorldSlice(novelId, {
+        storyInput: input.storyInput,
+        builderMode: "manual_refresh",
+        provider: context.provider as any,
+        model: context.model,
+        temperature: context.temperature,
+      });
+      return rebuildStoryWorldSliceOutputSchema.parse({
+        novelId,
+        worldId: view.worldId ?? null,
+        worldName: view.worldName ?? null,
+        coreWorldFrame: view.slice?.coreWorldFrame ?? null,
+        isStale: view.isStale,
+        summary: view.worldId
+          ? `已重建本书世界切片：${view.worldName ?? view.worldId}。${view.slice?.coreWorldFrame ? `核心舞台：${view.slice.coreWorldFrame.slice(0, 60)}` : ""}`
+          : "当前小说未绑定世界，无法重建切片。请先绑定世界观，再执行本操作。",
       });
     },
   },

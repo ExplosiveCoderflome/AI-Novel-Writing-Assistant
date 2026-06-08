@@ -51,6 +51,8 @@ export type AgentToolName =
   | "list_worlds"
   | "get_world_detail"
   | "explain_world_conflict"
+  | "rebuild_story_world_slice"
+  | "audit_chapter_continuity"
   | "list_writing_formulas"
   | "get_writing_formula_detail"
   | "explain_formula_match"

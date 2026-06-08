@@ -73,3 +73,38 @@ export const getBookAnalysisFailureReasonOutputSchema = z.object({
   recoveryHint: toolSummarySchema,
   summary: toolSummarySchema,
 });
+
+export const auditChapterContinuityInputSchema = z.object({
+  novelId: toolRequiredIdSchema,
+  startOrder: z.number().int().min(1).optional().describe("起始章节序号，默认 1"),
+  endOrder: z.number().int().min(1).optional().describe("结束章节序号，默认小说最后一章"),
+});
+
+export const continuityMilestoneBreakSchema = z.object({
+  chapterOrder: toolCountSchema,
+  milestone: z.string(),
+  issue: z.string(),
+});
+
+export const continuitySubplotResetSchema = z.object({
+  subplot: z.string(),
+  resetAtChapterOrder: toolCountSchema,
+  previousState: z.string(),
+});
+
+export const continuityRepetitionClusterSchema = z.object({
+  pattern: z.string(),
+  occurrences: z.array(toolCountSchema),
+});
+
+export const auditChapterContinuityOutputSchema = z.object({
+  novelId: z.string(),
+  checkedRange: z.string(),
+  chapterCount: toolCountSchema,
+  milestoneBreaks: z.array(continuityMilestoneBreakSchema),
+  repetitionClusters: z.array(continuityRepetitionClusterSchema),
+  openingPatternClusters: z.array(continuityRepetitionClusterSchema),
+  hasCriticalIssues: z.boolean(),
+  summary: toolSummarySchema,
+  recommendation: toolSummarySchema,
+});
