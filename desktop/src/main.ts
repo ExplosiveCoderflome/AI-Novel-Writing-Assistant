@@ -8,7 +8,7 @@ import {
   importLegacyDatabaseFromPath,
   resolveSuggestedLegacyDatabasePath,
 } from "./runtime/dataImport";
-import { appendDesktopLog, logDesktopError } from "./runtime/logging";
+import { appendDesktopLog, cleanupDesktopLogs, logDesktopError } from "./runtime/logging";
 import { resolveDesktopServerPort, startDesktopServer } from "./runtime/server";
 import {
   isPortableDesktopRuntime,
@@ -333,6 +333,7 @@ function createSplashWindow(): BrowserWindow {
 
 async function bootstrapDesktopApp(): Promise<void> {
   appendBootstrapStage("app-ready", "Electron app reported ready.");
+  cleanupDesktopLogs();
   setBootstrapSnapshot(createBootstrapSnapshot({
     state: "launching",
     stage: "app-ready",

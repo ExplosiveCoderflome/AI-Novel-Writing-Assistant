@@ -51,6 +51,8 @@ import {
 } from "./services/bootstrap/SystemResourceBootstrapService";
 import { initializeRagSettingsCompatibility } from "./services/settings/RagCompatibilityBootstrapService";
 import { DirectorWorker } from "./workers/directorWorker";
+import { cleanupLogDirectory, resolveLogRetentionConfig } from "./platform/logging/logRetention";
+import { resolveLogsRoot } from "./runtime/appPaths";
 
 getSharedNovelServices();
 registerNovelEventHandlers(novelEventBus);
@@ -218,6 +220,26 @@ function logServerReady(host: string, port: number): void {
   }
 }
 
+function scheduleLogRetentionCleanup(): void {
+  setImmediate(() => {
+    try {
+      const summary = cleanupLogDirectory(resolveLogsRoot(), resolveLogRetentionConfig());
+      if (summary.deletedFiles > 0 || summary.failedFiles > 0) {
+        console.info("[server.logs] cleanup completed.", {
+          deletedFiles: summary.deletedFiles,
+          deletedBytes: summary.deletedBytes,
+          failedFiles: summary.failedFiles,
+        });
+      }
+      for (const failure of summary.failures.slice(0, 5)) {
+        console.warn("[server.logs] cleanup failed for file.", failure);
+      }
+    } catch (error) {
+      console.warn("[server.logs] cleanup skipped.", error);
+    }
+  });
+}
+
 function initializeBackgroundServices(): BackgroundServicesHandle {
   ragServices.ragWorker.start();
   novelSideEffectWorker.start();
@@ -264,6 +286,7 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
 }
 
 export async function startServer(options?: ServerStartOptions): Promise<StartedServer> {
+  scheduleLogRetentionCleanup();
   await ensureRuntimeDatabaseReady();
 
   const ragCompatibilityReport = await initializeRagSettingsCompatibility();

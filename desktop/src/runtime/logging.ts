@@ -1,5 +1,10 @@
 import fs from "node:fs";
 import { resolveDesktopLogsDir, resolveDesktopMainLogFile } from "./paths";
+import {
+  cleanupDesktopLogDirectory,
+  resolveDesktopLogRetentionConfig,
+  rotateDesktopLogFileIfNeeded,
+} from "./logRetention";
 
 type DesktopLogLevel = "info" | "warn" | "error";
 
@@ -19,8 +24,27 @@ function formatLogLine(level: DesktopLogLevel, source: string, message: string):
 export function appendDesktopLog(source: string, message: string, level: DesktopLogLevel = "info"): string {
   ensureDesktopLogsDir();
   const targetPath = resolveDesktopMainLogFile();
+  rotateDesktopLogFileIfNeeded(targetPath, resolveDesktopLogRetentionConfig());
   fs.appendFileSync(targetPath, formatLogLine(level, source, message), "utf8");
   return targetPath;
+}
+
+export function cleanupDesktopLogs(): void {
+  try {
+    const summary = cleanupDesktopLogDirectory(resolveDesktopLogsDir(), resolveDesktopLogRetentionConfig());
+    if (summary.deletedFiles > 0 || summary.failedFiles > 0) {
+      appendDesktopLog(
+        "desktop.logs.cleanup",
+        `cleanup deletedFiles=${summary.deletedFiles} deletedBytes=${summary.deletedBytes} failedFiles=${summary.failedFiles}`,
+        summary.failedFiles > 0 ? "warn" : "info",
+      );
+    }
+    for (const failure of summary.failures.slice(0, 5)) {
+      appendDesktopLog("desktop.logs.cleanup", `failed file=${failure.filePath} message=${failure.message}`, "warn");
+    }
+  } catch (error) {
+    logDesktopError("desktop.logs.cleanup", error);
+  }
 }
 
 function normalizeUnknownError(error: unknown): string {
