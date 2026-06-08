@@ -2,6 +2,7 @@ import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/
 import { prisma } from "../../../db/prisma";
 import { openConflictService } from "../../state/OpenConflictService";
 import { novelFactService } from "../fact/NovelFactService";
+import { novelChapterSummaryService } from "../NovelChapterSummaryService";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import type { StyleReviewResult } from "./PostGenerationStyleReviewRunner";
@@ -108,6 +109,28 @@ export class ChapterContentFinalizationService {
           error: error instanceof Error ? error.message : String(error),
         });
       });
+
+      // 方案B：对已接受章节生成摘要，并把正文即兴产生的硬事实（承诺/交易条款/事件性质）
+      // 桥接进 Fact Ledger。await 以保证下一章 JIT 组装前账本已就绪（时序正确性）。
+      // 同时补齐 autopilot 模式下缺失的章节摘要。失败不阻断定稿返回。
+      try {
+        await novelChapterSummaryService.generateChapterSummary(
+          input.novelId,
+          input.chapterId,
+          {
+            provider: input.request.provider,
+            model: input.request.model,
+            // 不透传写作温度：摘要/事实抽取使用服务默认低温，保证抽取稳定。
+            contentOverride: finalContent,
+          },
+        );
+      } catch (error) {
+        console.warn("[chapter-runtime] chapter summary + concreteFacts extraction failed", {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     if (!needsRepair && input.deferArtifactBackgroundSync && input.scheduleDeferredArtifactBackgroundSync !== false) {
