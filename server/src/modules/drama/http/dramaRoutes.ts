@@ -9,8 +9,29 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { validate } from "../../../middleware/validate";
 import { dramaProjectService } from "../../../services/drama/DramaProjectService";
+import { dramaStrategyService } from "../../../services/drama/DramaStrategyService";
+import { dramaEpisodeOutlineService } from "../../../services/drama/DramaEpisodeOutlineService";
+import { rhythmEngine } from "../../../services/drama/engine/rhythmEngine";
 
 const router = Router();
+
+const llmOptionsSchema = z
+  .object({
+    provider: z.string().optional(),
+    model: z.string().optional(),
+    temperature: z.number().min(0).max(2).optional(),
+  })
+  .optional();
+
+const outlineRequestSchema = z
+  .object({
+    startOrder: z.number().int().min(1).optional(),
+    count: z.number().int().min(1).max(40).optional(),
+    provider: z.string().optional(),
+    model: z.string().optional(),
+    temperature: z.number().min(0).max(2).optional(),
+  })
+  .optional();
 
 const idParamsSchema = z.object({
   id: z.string().trim().min(1),
@@ -93,6 +114,70 @@ router.post(
         success: true,
         data,
         message: "Drama source bundle assembled.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// 赛道库（供前端选赛道）
+router.get("/tracks", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    data: rhythmEngine.listTracks(),
+    message: "Drama tracks loaded.",
+  });
+});
+
+// 钩子类型库
+router.get("/hooks", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    data: rhythmEngine.listHooks(),
+    message: "Drama hooks loaded.",
+  });
+});
+
+// 生成改编策略
+router.post(
+  "/projects/:id/strategy",
+  validate({ params: idParamsSchema, body: llmOptionsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const data = await dramaStrategyService.generateStrategy(id, (req.body ?? {}) as never);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Drama strategy generated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// 生成分集大纲
+router.post(
+  "/projects/:id/outline",
+  validate({ params: idParamsSchema, body: outlineRequestSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const body = (req.body ?? {}) as {
+        startOrder?: number;
+        count?: number;
+      };
+      const data = await dramaEpisodeOutlineService.generateOutline(
+        id,
+        { startOrder: body.startOrder, count: body.count },
+        (req.body ?? {}) as never,
+      );
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Drama episode outline generated.",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);
