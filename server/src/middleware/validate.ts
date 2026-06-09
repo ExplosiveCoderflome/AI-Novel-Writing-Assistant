@@ -18,7 +18,9 @@ export function validate(schema: ValidationSchema): RequestHandler {
         schema.query.parse(req.query);
       }
       if (schema.params) {
-        schema.params.parse(req.params);
+        // 回写校验/强制转换后的结果，使 z.coerce.* 真正生效
+        // （req.params 为只读字典引用，用 Object.assign 原地更新而非替换引用）
+        Object.assign(req.params, schema.params.parse(req.params) as Record<string, unknown>);
       }
       next();
     } catch (error) {

@@ -20,7 +20,9 @@ export class DramaContextAssembler {
     if (!project) {
       throw new Error(`未找到短剧项目：${projectId}`);
     }
-    const episode = project.episodes.find((item) => item.order === episodeOrder);
+    // 防御：即使调用方传入字符串型 order 也能正确匹配
+    const targetOrder = Number(episodeOrder);
+    const episode = project.episodes.find((item) => item.order === targetOrder);
     if (!episode) {
       throw new Error(`未找到短剧第 ${episodeOrder} 集大纲。`);
     }
