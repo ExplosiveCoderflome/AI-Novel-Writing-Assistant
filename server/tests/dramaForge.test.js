@@ -49,6 +49,10 @@ test("http drama video provider maps create and status responses", async () => {
       res.end(JSON.stringify({ taskId: "task_1", status: "completed", resultUrl: "https://example.test/video.mp4" }));
       return;
     }
+    if (req.method === "GET" && req.url === "/status/task_fail") {
+      res.end(JSON.stringify({ taskId: "task_fail", status: "error", message: "quota exceeded" }));
+      return;
+    }
     res.statusCode = 404;
     res.end(JSON.stringify({ error: "not found" }));
   });
@@ -74,6 +78,11 @@ test("http drama video provider maps create and status responses", async () => {
     const refreshed = await provider.getTask("task_1");
     assert.equal(refreshed.status, "succeeded");
     assert.equal(refreshed.resultUrl, "https://example.test/video.mp4");
+    assert.equal(refreshed.failureReason, undefined);
+
+    const failed = await provider.getTask("task_fail");
+    assert.equal(failed.status, "failed");
+    assert.equal(failed.failureReason, "quota exceeded");
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
@@ -94,5 +103,17 @@ test("drama migrations include pipeline tables for sqlite and postgres", () => {
     assert.match(sql, /DramaEpisode/);
     assert.match(sql, /DramaStoryboard/);
     assert.match(sql, /DramaVideoPrompt/);
+  }
+  const sqliteProjectionSql = fs.readFileSync(
+    path.join(root, "migrations.sqlite", "20260609170000_drama_video_task_projection", "migration.sql"),
+    "utf8",
+  );
+  const postgresProjectionSql = fs.readFileSync(
+    path.join(root, "migrations", "20260609170000_drama_video_task_projection", "migration.sql"),
+    "utf8",
+  );
+  for (const sql of [sqliteProjectionSql, postgresProjectionSql]) {
+    assert.match(sql, /resultUrl/);
+    assert.match(sql, /failureReason/);
   }
 });

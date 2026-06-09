@@ -9,6 +9,7 @@ export interface VideoGenerationResult {
   providerTaskId: string;
   status: "queued" | "running" | "succeeded" | "failed";
   resultUrl?: string;
+  failureReason?: string;
   raw?: unknown;
 }
 
@@ -72,6 +73,17 @@ function normalizeTimeoutMs(value: unknown): number {
   return Number.isFinite(numeric) && numeric > 0 ? numeric : 120000;
 }
 
+function normalizeProviderPayload(payload: Record<string, unknown>, fallbackTaskId: string): VideoGenerationResult {
+  const status = normalizeStatus(payload.status);
+  return {
+    providerTaskId: readStringField(payload, ["providerTaskId", "taskId", "id", "requestId"]) ?? fallbackTaskId,
+    status,
+    resultUrl: readStringField(payload, ["resultUrl", "videoUrl", "url"]),
+    failureReason: status === "failed" ? readStringField(payload, ["failureReason", "error", "message"]) : undefined,
+    raw: payload,
+  };
+}
+
 async function readJsonResponse(response: Response): Promise<Record<string, unknown>> {
   const text = await response.text();
   if (!text.trim()) {
@@ -105,12 +117,7 @@ export class HttpVideoProvider implements VideoProviderPort {
 
   async createTask(input: VideoGenerationRequest): Promise<VideoGenerationResult> {
     const payload = await this.postJson(this.config.createUrl, input);
-    return {
-      providerTaskId: readStringField(payload, ["providerTaskId", "taskId", "id", "requestId"]) ?? `http_${Date.now()}`,
-      status: normalizeStatus(payload.status),
-      resultUrl: readStringField(payload, ["resultUrl", "videoUrl", "url"]),
-      raw: payload,
-    };
+    return normalizeProviderPayload(payload, `http_${Date.now()}`);
   }
 
   async getTask(providerTaskId: string): Promise<VideoGenerationResult> {
@@ -123,12 +130,7 @@ export class HttpVideoProvider implements VideoProviderPort {
     }
     const url = this.config.statusUrl.replace("{taskId}", encodeURIComponent(providerTaskId));
     const payload = await this.getJson(url);
-    return {
-      providerTaskId: readStringField(payload, ["providerTaskId", "taskId", "id", "requestId"]) ?? providerTaskId,
-      status: normalizeStatus(payload.status),
-      resultUrl: readStringField(payload, ["resultUrl", "videoUrl", "url"]),
-      raw: payload,
-    };
+    return normalizeProviderPayload(payload, providerTaskId);
   }
 
   private buildHeaders(): Record<string, string> {

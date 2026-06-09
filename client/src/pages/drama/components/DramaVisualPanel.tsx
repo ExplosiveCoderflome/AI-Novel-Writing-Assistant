@@ -207,9 +207,12 @@ function safeJson<T>(input: string | null | undefined, fallback: T): T {
 function VideoPromptDetails({ prompt, compact = false }: { prompt: DramaVideoPrompt; compact?: boolean }) {
   const providerResult = safeJson<{
     resultUrl?: string;
+    failureReason?: string;
     status?: string;
     raw?: unknown;
   }>(prompt.providerResult, {});
+  const resultUrl = prompt.resultUrl || providerResult.resultUrl;
+  const failureReason = prompt.failureReason || providerResult.failureReason;
 
   return (
     <div className="mt-3 space-y-2">
@@ -234,10 +237,10 @@ function VideoPromptDetails({ prompt, compact = false }: { prompt: DramaVideoPro
         {prompt.durationSec ? <span>时长：{prompt.durationSec} 秒</span> : null}
         {providerResult.status ? <span>视频通道状态：{providerResult.status}</span> : null}
       </div>
-      {providerResult.resultUrl ? (
+      {resultUrl ? (
         <a
           className="inline-flex items-center gap-1 text-sm text-primary underline-offset-4 hover:underline"
-          href={providerResult.resultUrl}
+          href={resultUrl}
           target="_blank"
           rel="noreferrer"
         >
@@ -247,7 +250,7 @@ function VideoPromptDetails({ prompt, compact = false }: { prompt: DramaVideoPro
       ) : null}
       {prompt.status === "failed" ? (
         <div className="rounded-md border border-destructive/40 p-3 text-sm text-destructive">
-          视频任务失败。请刷新状态或重新生成提示词后再创建任务。
+          {failureReason ? `视频任务失败：${failureReason}` : "视频任务失败。请刷新状态或重新生成提示词后再创建任务。"}
         </div>
       ) : null}
     </div>

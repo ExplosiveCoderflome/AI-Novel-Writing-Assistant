@@ -71,6 +71,8 @@ export class DramaVideoPromptService {
         provider,
         providerTaskId: result.providerTaskId,
         status: result.status,
+        resultUrl: result.resultUrl ?? null,
+        failureReason: result.failureReason ?? null,
         providerResult: JSON.stringify(result),
       },
     });
@@ -87,6 +89,8 @@ export class DramaVideoPromptService {
       where: { id: videoPromptId },
       data: {
         status: result.status,
+        resultUrl: result.resultUrl ?? null,
+        failureReason: result.failureReason ?? null,
         providerResult: JSON.stringify(result),
       },
     });

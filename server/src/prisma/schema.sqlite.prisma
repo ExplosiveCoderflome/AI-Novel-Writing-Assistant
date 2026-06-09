@@ -3094,6 +3094,8 @@ model DramaVideoPrompt {
   durationSec    Int?
   status         String   @default("prompted")
   providerTaskId String?
+  resultUrl      String?
+  failureReason  String?
   providerResult String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

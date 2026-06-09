@@ -36,7 +36,7 @@
 | 多内容源 | 已有后端骨架 | `original` / `text_import` 已接入 AI 结构化 SourceBundle adapter。 |
 | 角色资源 | 已有后端骨架 | 可导入 SourceBundle 角色、编辑项目角色、保存到角色库、从角色库导入。完整角色工作台仍待做。 |
 | 前端工作台 | 主路径已可用，仍需浏览器验收 | `/drama` 与 `/drama/projects/:id` 已覆盖创建向导、小说选择、AI 赛道推荐、素材补充建议、下一步任务卡、分集台本、质量问题、角色、分镜视频和导出入口；仍缺完整浏览器端验收。 |
-| 分镜/视频/剧本保真 | 分镜与视频链路已到通用 provider adapter | 已新增分镜、镜头、视频提示词、mock VideoProvider、通用 HTTP VideoProvider 和 provider 选择/状态汇总，并用服务级契约测试锁定修复优先于视频生产。具体供应商深度适配与剧本保真层仍未实现。 |
+| 分镜/视频/剧本保真 | 分镜与视频链路已到通用 provider adapter | 已新增分镜、镜头、视频提示词、mock VideoProvider、通用 HTTP VideoProvider 和 provider 选择/状态汇总；视频任务会投影 `resultUrl` 与 `failureReason`，并用服务级契约测试锁定修复优先于视频生产。具体供应商深度适配与剧本保真层仍未实现。 |
 
 ## 3. 产品边界
 

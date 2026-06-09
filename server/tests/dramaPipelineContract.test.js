@@ -297,5 +297,7 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
   assert.equal(task.provider, "mock");
   assert.match(task.providerTaskId, /^mock_/);
   assert.equal(task.status, "queued");
+  assert.equal(task.resultUrl, null);
+  assert.equal(task.failureReason, null);
   assert.match(task.providerResult, /providerTaskId/);
 });

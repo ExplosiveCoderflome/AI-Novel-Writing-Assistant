@@ -155,6 +155,8 @@ export interface DramaVideoPrompt {
   durationSec?: number | null;
   status: string;
   providerTaskId?: string | null;
+  resultUrl?: string | null;
+  failureReason?: string | null;
   providerResult?: string | null;
 }
 
