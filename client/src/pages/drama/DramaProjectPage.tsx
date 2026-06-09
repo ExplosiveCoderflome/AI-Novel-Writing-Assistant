@@ -585,6 +585,7 @@ export default function DramaProjectPage() {
             () => importDramaCharacterFromLibrary(project.id, libraryId),
             "角色已导入当前项目。",
           )}
+          onRefreshProject={() => void projectQuery.refetch()}
         />
       ) : null}
       {activeTab === "visual" ? (

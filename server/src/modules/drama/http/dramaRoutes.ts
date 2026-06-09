@@ -1,7 +1,10 @@
+import fs from "fs";
+import path from "path";
 import { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { validate } from "../../../middleware/validate";
+import { dramaCharacterImageService } from "../../../services/drama/DramaCharacterImageService";
 import { dramaCharacterService } from "../../../services/drama/DramaCharacterService";
 import { dramaEpisodeService } from "../../../services/drama/DramaEpisodeService";
 import { dramaEpisodeOutlineService } from "../../../services/drama/DramaEpisodeOutlineService";
@@ -397,5 +400,123 @@ router.post("/video-prompts/:videoPromptId/provider-task/refresh", validate({ pa
     next(error);
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 角色图片生成（形象图 + 三视图）
+// ─────────────────────────────────────────────────────────────────────────────
+
+const charImageParamsSchema = z.object({
+  characterId: z.string().trim().min(1),
+});
+
+const charImageBodySchema = z
+  .object({ provider: z.string().trim().optional() })
+  .optional();
+
+/** GET /api/drama/projects/:id/characters/:characterId/image-status */
+router.get(
+  "/projects/:id/characters/:characterId/image-status",
+  validate({ params: characterParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { characterId } = req.params as z.infer<typeof characterParamsSchema>;
+      const data = await dramaCharacterImageService.getImageStatus(characterId);
+      res.status(200).json({ success: true, data, message: "Character image status loaded." });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/** POST /api/drama/projects/:id/characters/:characterId/generate-portrait */
+router.post(
+  "/projects/:id/characters/:characterId/generate-portrait",
+  validate({ params: characterParamsSchema, body: charImageBodySchema }),
+  async (req, res, next) => {
+    try {
+      const { characterId } = req.params as z.infer<typeof characterParamsSchema>;
+      const provider = (req.body as { provider?: string } | undefined)?.provider;
+      const data = await dramaCharacterImageService.generatePortrait(
+        characterId,
+        provider as Parameters<typeof dramaCharacterImageService.generatePortrait>[1],
+      );
+      res.status(200).json({ success: true, data, message: "Portrait generation completed." });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/** POST /api/drama/projects/:id/characters/:characterId/generate-three-view */
+router.post(
+  "/projects/:id/characters/:characterId/generate-three-view",
+  validate({ params: characterParamsSchema, body: charImageBodySchema }),
+  async (req, res, next) => {
+    try {
+      const { characterId } = req.params as z.infer<typeof characterParamsSchema>;
+      const provider = (req.body as { provider?: string } | undefined)?.provider;
+      const data = await dramaCharacterImageService.generateThreeView(
+        characterId,
+        provider as Parameters<typeof dramaCharacterImageService.generateThreeView>[1],
+      );
+      res.status(200).json({ success: true, data, message: "Three-view generation completed." });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 角色图片文件服务（本地存储直出）
+// ─────────────────────────────────────────────────────────────────────────────
+
+const threeViewParamsSchema = z.object({
+  characterId: z.string().trim().min(1),
+  view: z.enum(["front", "side", "back"]),
+});
+
+/** GET /api/drama/character-images/:characterId/portrait */
+router.get("/character-images/:characterId/portrait", async (req, res, next) => {
+  try {
+    const { characterId } = req.params as z.infer<typeof charImageParamsSchema>;
+    const resolved = await dramaCharacterImageService.resolveExistingImagePath(
+      characterId,
+      "portrait",
+    );
+    if (!resolved) {
+      res.status(404).json({ success: false, message: "形象图尚未生成。" });
+      return;
+    }
+    res.setHeader("Content-Type", resolved.mimeType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    fs.createReadStream(resolved.filePath).pipe(res);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** GET /api/drama/character-images/:characterId/three-view/:view */
+router.get(
+  "/character-images/:characterId/three-view/:view",
+  validate({ params: threeViewParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { characterId, view } = req.params as z.infer<typeof threeViewParamsSchema>;
+      const resolved = await dramaCharacterImageService.resolveExistingImagePath(
+        characterId,
+        `three-view-${view}`,
+      );
+      if (!resolved) {
+        res.status(404).json({ success: false, message: `${view} 三视图尚未生成。` });
+        return;
+      }
+      res.setHeader("Content-Type", resolved.mimeType);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      fs.createReadStream(resolved.filePath).pipe(res);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 export default router;

@@ -2973,6 +2973,10 @@ model DramaCharacter {
   voiceProfile       String?
   relations          String?
   sourceCharacterRef String?
+  // 角色形象图 JSON: { status:"idle"|"generating"|"done"|"error", url?:string, prompt?:string, generatedAt?:string }
+  portraitData       String?
+  // 三视图 JSON: [{ view:"front"|"side"|"back", url?:string, status:string, ... }, ...]
+  threeViewData      String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

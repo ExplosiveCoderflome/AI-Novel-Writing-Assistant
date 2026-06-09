@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, Mic2, Save, UserRound, Video } from "lucide-react";
-import type { DramaCharacter, DramaCharacterLibraryItem, DramaProjectDetail } from "@/api/drama";
+import { Download, ImageIcon, Loader2, Mic2, Save, UserRound, Video } from "lucide-react";
+import type {
+  DramaCharacter,
+  DramaCharacterLibraryItem,
+  DramaCharacterPortraitData,
+  DramaCharacterThreeViewItem,
+  DramaProjectDetail,
+} from "@/api/drama";
+import {
+  generateDramaCharacterPortrait,
+  generateDramaCharacterThreeView,
+} from "@/api/drama";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,11 +79,188 @@ function assetCompleteness(draft: DramaCharacterAssetInput) {
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 角色图片展示与生成
+// ─────────────────────────────────────────────────────────────────────────────
+
+function parsePortrait(raw: string | null | undefined): DramaCharacterPortraitData {
+  if (!raw) return { status: "idle" };
+  try { return JSON.parse(raw) as DramaCharacterPortraitData; } catch { return { status: "idle" }; }
+}
+
+function parseThreeView(raw: string | null | undefined): DramaCharacterThreeViewItem[] {
+  if (!raw) return [];
+  try { return JSON.parse(raw) as DramaCharacterThreeViewItem[]; } catch { return []; }
+}
+
+const THREE_VIEW_LABELS: Record<string, string> = { front: "正面", side: "侧面", back: "背面" };
+
+function CharacterImagesBlock(props: {
+  projectId: string;
+  character: DramaCharacter;
+  onRefresh: () => void;
+}) {
+  const [portrait, setPortrait] = useState<DramaCharacterPortraitData>(() =>
+    parsePortrait(props.character.portraitData),
+  );
+  const [threeView, setThreeView] = useState<DramaCharacterThreeViewItem[]>(() =>
+    parseThreeView(props.character.threeViewData),
+  );
+  const [genPortraitBusy, setGenPortraitBusy] = useState(false);
+  const [genThreeBusy, setGenThreeBusy] = useState(false);
+
+  // 当角色数据从父组件更新时同步
+  useEffect(() => {
+    setPortrait(parsePortrait(props.character.portraitData));
+    setThreeView(parseThreeView(props.character.threeViewData));
+  }, [props.character.portraitData, props.character.threeViewData]);
+
+  async function handleGeneratePortrait() {
+    setGenPortraitBusy(true);
+    setPortrait({ status: "generating" });
+    try {
+      const result = await generateDramaCharacterPortrait(props.projectId, props.character.id);
+      setPortrait(result.data ?? { status: "error", error: "无结果" });
+      props.onRefresh();
+    } catch (error) {
+      setPortrait({ status: "error", error: error instanceof Error ? error.message : "生成失败" });
+    } finally {
+      setGenPortraitBusy(false);
+    }
+  }
+
+  async function handleGenerateThreeView() {
+    setGenThreeBusy(true);
+    setThreeView([
+      { view: "front", status: "generating" },
+      { view: "side", status: "generating" },
+      { view: "back", status: "generating" },
+    ]);
+    try {
+      const result = await generateDramaCharacterThreeView(props.projectId, props.character.id);
+      setThreeView(result.data ?? []);
+      props.onRefresh();
+    } catch (error) {
+      setThreeView([
+        { view: "front", status: "error", error: error instanceof Error ? error.message : "生成失败" },
+        { view: "side", status: "error" },
+        { view: "back", status: "error" },
+      ]);
+    } finally {
+      setGenThreeBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3 border-t pt-3">
+      <p className="text-xs font-medium text-muted-foreground">
+        角色参考图 — 生成后将锁定跨集视觉一致性
+      </p>
+
+      {/* 形象图 */}
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="flex-shrink-0">
+          {portrait.status === "done" && portrait.url ? (
+            <a href={portrait.url} target="_blank" rel="noreferrer">
+              <img
+                src={portrait.url}
+                alt={`${props.character.name} 形象图`}
+                className="h-28 w-20 rounded-md border object-cover shadow-sm"
+              />
+            </a>
+          ) : (
+            <div className="flex h-28 w-20 items-center justify-center rounded-md border border-dashed bg-muted text-muted-foreground">
+              {portrait.status === "generating" ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <ImageIcon className="h-5 w-5" />
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <p className="text-sm font-medium">形象图（详图）</p>
+          <p className="text-xs text-muted-foreground">
+            {portrait.status === "idle" && "尚未生成"}
+            {portrait.status === "generating" && "正在生成..."}
+            {portrait.status === "done" && "✓ 已生成，视频生成将自动引用"}
+            {portrait.status === "error" && `生成失败：${portrait.error ?? "未知错误"}`}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={genPortraitBusy || portrait.status === "generating"}
+            onClick={handleGeneratePortrait}
+          >
+            {genPortraitBusy || portrait.status === "generating" ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ImageIcon className="h-3.5 w-3.5" />
+            )}
+            {portrait.status === "done" ? "重新生成形象图" : "生成形象图"}
+          </Button>
+        </div>
+      </div>
+
+      {/* 三视图 */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium">三视图（正/侧/背）</p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={genThreeBusy || threeView.some((item) => item.status === "generating")}
+            onClick={handleGenerateThreeView}
+          >
+            {genThreeBusy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Video className="h-3.5 w-3.5" />
+            )}
+            {threeView.some((item) => item.status === "done") ? "重新生成三视图" : "生成三视图"}
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(["front", "side", "back"] as const).map((view) => {
+            const item = threeView.find((tv) => tv.view === view);
+            return (
+              <div key={view} className="flex flex-col items-center gap-1">
+                {item?.status === "done" && item.url ? (
+                  <a href={item.url} target="_blank" rel="noreferrer">
+                    <img
+                      src={item.url}
+                      alt={`${THREE_VIEW_LABELS[view]}视`}
+                      className="h-24 w-16 rounded-md border object-cover shadow-sm"
+                    />
+                  </a>
+                ) : (
+                  <div className="flex h-24 w-16 items-center justify-center rounded-md border border-dashed bg-muted text-muted-foreground">
+                    {item?.status === "generating" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImageIcon className="h-4 w-4" />
+                    )}
+                  </div>
+                )}
+                <span className="text-xs text-muted-foreground">{THREE_VIEW_LABELS[view]}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CharacterAssetEditor(props: {
+  projectId: string;
   character: DramaCharacter;
   busy: boolean;
   onSave: (character: DramaCharacter, input: DramaCharacterAssetInput) => void;
   onSaveToLibrary: (character: DramaCharacter) => void;
+  onRefreshCharacter: () => void;
 }) {
   const [draft, setDraft] = useState<DramaCharacterAssetInput>(() => buildDraft(props.character));
 
@@ -195,6 +382,12 @@ function CharacterAssetEditor(props: {
             保存到短剧角色库
           </Button>
         </div>
+
+        <CharacterImagesBlock
+          projectId={props.projectId}
+          character={props.character}
+          onRefresh={props.onRefreshCharacter}
+        />
       </CardContent>
     </Card>
   );
@@ -207,6 +400,7 @@ export function DramaCharactersPanel(props: {
   onSave: (character: DramaCharacter, input: DramaCharacterAssetInput) => void;
   onSaveToLibrary: (character: DramaCharacter) => void;
   onImportFromLibrary: (libraryId: string) => void;
+  onRefreshProject: () => void;
 }) {
   const characters = props.project.characters ?? [];
   const [selectedLibraryId, setSelectedLibraryId] = useState("");
@@ -251,10 +445,12 @@ export function DramaCharactersPanel(props: {
           {characters.map((character) => (
             <CharacterAssetEditor
               key={character.id}
+              projectId={props.project.id}
               character={character}
               busy={props.busy}
               onSave={props.onSave}
               onSaveToLibrary={props.onSaveToLibrary}
+              onRefreshCharacter={props.onRefreshProject}
             />
           ))}
         </div>

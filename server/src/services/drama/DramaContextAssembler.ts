@@ -46,14 +46,34 @@ export class DramaContextAssembler {
         isPaywall: episode.isPaywall,
         beatSheet: safeJsonParse(episode.beatSheet, {}),
       }, null, 2),
-      charactersDigest: project.characters.map((character) => [
-        character.name,
-        character.archetype ? `原型：${character.archetype}` : "",
-        character.persona ? `人设：${character.persona}` : "",
-        character.speechStyle ? `口吻：${character.speechStyle}` : "",
-        character.visualAnchor ? `视觉：${compactText(character.visualAnchor, 160)}` : "",
-        character.relations ? `关系：${compactText(character.relations, 160)}` : "",
-      ].filter(Boolean).join("；")).join("\n") || "暂无角色资源",
+      charactersDigest: project.characters.map((character) => {
+        // 提取角色参考图 URL（形象图 + 三视图）
+        const refImageUrls: string[] = [];
+        if (character.portraitData) {
+          try {
+            const pd = JSON.parse(character.portraitData) as { status?: string; url?: string };
+            if (pd.status === "done" && pd.url) refImageUrls.push(`形象图:${pd.url}`);
+          } catch { /* skip */ }
+        }
+        if (character.threeViewData) {
+          try {
+            const tvd = JSON.parse(character.threeViewData) as Array<{ view?: string; status?: string; url?: string }>;
+            for (const item of tvd) {
+              if (item.status === "done" && item.url) refImageUrls.push(`${item.view}视:${item.url}`);
+            }
+          } catch { /* skip */ }
+        }
+
+        return [
+          character.name,
+          character.archetype ? `原型：${character.archetype}` : "",
+          character.persona ? `人设：${character.persona}` : "",
+          character.speechStyle ? `口吻：${character.speechStyle}` : "",
+          character.visualAnchor ? `视觉：${compactText(character.visualAnchor, 160)}` : "",
+          refImageUrls.length > 0 ? `参考图：[${refImageUrls.join("，")}]（请保持人物视觉一致性）` : "",
+          character.relations ? `关系：${compactText(character.relations, 160)}` : "",
+        ].filter(Boolean).join("；");
+      }).join("\n") || "暂无角色资源",
       factsDigest: project.facts.map((fact) => `E${fact.episodeOrder} ${fact.category}：${fact.text}`).join("\n") || "暂无事实",
       previousDigest: project.episodes
         .filter((item) => item.order < episodeOrder && item.content)

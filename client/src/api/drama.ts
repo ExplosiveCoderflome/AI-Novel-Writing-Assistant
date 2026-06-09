@@ -94,6 +94,23 @@ export interface DramaSourceBundle {
   rawText?: string | null;
 }
 
+export interface DramaCharacterPortraitData {
+  status: "idle" | "generating" | "done" | "error";
+  url?: string;
+  prompt?: string;
+  generatedAt?: string;
+  error?: string;
+}
+
+export interface DramaCharacterThreeViewItem {
+  view: "front" | "side" | "back";
+  status: "idle" | "generating" | "done" | "error";
+  url?: string;
+  prompt?: string;
+  generatedAt?: string;
+  error?: string;
+}
+
 export interface DramaCharacter {
   id: string;
   projectId?: string;
@@ -104,6 +121,10 @@ export interface DramaCharacter {
   visualAnchor?: string | null;
   voiceProfile?: string | null;
   relations?: string | null;
+  /** JSON 字符串，解析为 DramaCharacterPortraitData */
+  portraitData?: string | null;
+  /** JSON 字符串，解析为 DramaCharacterThreeViewItem[] */
+  threeViewData?: string | null;
 }
 
 export interface DramaCharacterLibraryItem {
@@ -325,4 +346,31 @@ export async function downloadDramaExport(id: string, format: "markdown" | "json
     responseType: "blob",
   });
   return response.data;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 角色图片生成
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getDramaCharacterImageStatus(id: string, characterId: string) {
+  const { data } = await apiClient.get<ApiResponse<{ portrait: DramaCharacterPortraitData; threeView: DramaCharacterThreeViewItem[] }>>(
+    `/drama/projects/${id}/characters/${characterId}/image-status`,
+  );
+  return data;
+}
+
+export async function generateDramaCharacterPortrait(id: string, characterId: string, provider?: string) {
+  const { data } = await apiClient.post<ApiResponse<DramaCharacterPortraitData>>(
+    `/drama/projects/${id}/characters/${characterId}/generate-portrait`,
+    provider ? { provider } : {},
+  );
+  return data;
+}
+
+export async function generateDramaCharacterThreeView(id: string, characterId: string, provider?: string) {
+  const { data } = await apiClient.post<ApiResponse<DramaCharacterThreeViewItem[]>>(
+    `/drama/projects/${id}/characters/${characterId}/generate-three-view`,
+    provider ? { provider } : {},
+  );
+  return data;
 }
