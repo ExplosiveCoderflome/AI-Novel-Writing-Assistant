@@ -20,7 +20,7 @@
 
 ## 2. 当前执行状态
 
-截至 2026-06-09，本计划已推进到 Phase 6 纵向骨架：短剧项目、三类内容源、防腐层、策略、分集、台本、质量闸、修复、导出、角色库、分镜、视频提示词、mock VideoProvider 和通用 HTTP VideoProvider 已具备 API 与类型验证。前端工作台已能覆盖主路径入口、下一步引导、质量问题汇总和视频任务状态；具体供应商深度适配与浏览器端完整验收仍未完成。
+截至 2026-06-09，本计划已推进到 Phase 6 纵向骨架：短剧项目、三类内容源、防腐层、策略、分集、台本、质量闸、修复、导出、角色库、分镜、视频提示词、mock VideoProvider 和通用 HTTP VideoProvider 已具备 API 与类型验证。前端工作台已能覆盖主路径入口、下一步引导、质量问题汇总和视频任务状态；服务级主链路契约已覆盖“台本 -> 质量可修复 -> 修复 -> 分镜 -> 视频提示词 -> provider 任务”，具体供应商深度适配与浏览器端完整验收仍未完成。
 
 | 范围 | 当前状态 | 证据与缺口 |
 | --- | --- | --- |
@@ -32,11 +32,11 @@
 | 节奏引擎 | 部分完成 | 已有赛道模板、钩子库、默认付费卡点策略和情绪曲线目标。规则仍是代码常量，尚未支持可编辑规则库或种子数据管理。 |
 | 策略/分集大纲 | 已收口 Prompt 注册 | 短剧 PromptAsset 已迁入 `server/src/prompting/prompts/drama/` 并注册。 |
 | 台本产线 | 已有后端骨架 | 已新增上下文装配、逐集台本生成、单集修复和 Markdown/JSON 导出 API。 |
-| 质量闸 | 已有后端骨架 | 已新增短剧质量闸 PromptAsset 与 `qualityFlags` 写入。 |
+| 质量闸 | 已有后端骨架 | 已新增短剧质量闸 PromptAsset 与 `qualityFlags` 写入；`repairable` 与 `blocked` 会进入 `needs_repair`，避免可修复台本直接进入分镜和视频阶段。 |
 | 多内容源 | 已有后端骨架 | `original` / `text_import` 已接入 AI 结构化 SourceBundle adapter。 |
 | 角色资源 | 已有后端骨架 | 可导入 SourceBundle 角色、编辑项目角色、保存到角色库、从角色库导入。完整角色工作台仍待做。 |
 | 前端工作台 | 主路径已可用，仍需浏览器验收 | `/drama` 与 `/drama/projects/:id` 已覆盖创建向导、小说选择、AI 赛道推荐、素材补充建议、下一步任务卡、分集台本、质量问题、角色、分镜视频和导出入口；仍缺完整浏览器端验收。 |
-| 分镜/视频/剧本保真 | 分镜与视频链路已到通用 provider adapter | 已新增分镜、镜头、视频提示词、mock VideoProvider、通用 HTTP VideoProvider 和 provider 选择/状态汇总。具体供应商深度适配与剧本保真层仍未实现。 |
+| 分镜/视频/剧本保真 | 分镜与视频链路已到通用 provider adapter | 已新增分镜、镜头、视频提示词、mock VideoProvider、通用 HTTP VideoProvider 和 provider 选择/状态汇总，并用服务级契约测试锁定修复优先于视频生产。具体供应商深度适配与剧本保真层仍未实现。 |
 
 ## 3. 产品边界
 
@@ -532,6 +532,7 @@ UI copy 必须从用户视角说明下一步能得到什么，不写实现迁移
 必须覆盖：
 
 - `services/drama` 低耦合守卫。
+- `台本 -> 质量闸 -> 修复 -> 分镜 -> 视频提示词 -> provider 任务` 的服务级主链路契约，特别是 `repairable` 质量结果必须先进入修复队列。
 - `SourceContentRegistry` 注册、resolve、未注册错误。
 - `NovelSourceAdapter` 能从小说数据生成 SourceBundle。
 - `RhythmEngine` 卡点计算和赛道钩子推荐。

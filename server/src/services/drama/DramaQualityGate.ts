@@ -26,7 +26,7 @@ export class DramaQualityGate {
     });
     const output = result.output;
     const status = output.status === "approved" ? "approved"
-      : output.status === "blocked" ? "needs_repair"
+      : output.status === "repairable" || output.status === "blocked" ? "needs_repair"
         : "reviewed";
     await prisma.dramaEpisode.update({
       where: { id: context.episode.id },
