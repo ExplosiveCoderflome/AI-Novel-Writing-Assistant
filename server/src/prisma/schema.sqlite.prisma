@@ -397,6 +397,7 @@ model Novel {
   imageAssets        ImageAsset[]
   sideEffectJobs     NovelSideEffectJob[]
   novelWorld         NovelWorld?
+  factEntries        NovelFactEntry[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -2897,4 +2898,18 @@ model TimelineCheckReport {
 
   @@index([novelId, chapterIndex])
   @@index([novelId, status])
+}
+
+model NovelFactEntry {
+  id           String   @id @default(cuid())
+  novelId      String
+  chapterOrder Int
+  text         String
+  category     String   @default("completed")
+  source       String   @default("auto")
+  novel        Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  @@index([novelId, chapterOrder])
+  @@index([novelId, category])
 }

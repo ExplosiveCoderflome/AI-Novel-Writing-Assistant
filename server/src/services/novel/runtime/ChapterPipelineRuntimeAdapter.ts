@@ -10,7 +10,6 @@ import {
 import {
   isChapterEmptyContentError,
 } from "./chapterEmptyContentError";
-import type { ChapterTimelineFinalizationService } from "./ChapterTimelineFinalizationService";
 import type { ChapterContentFinalizationService } from "./ChapterContentFinalizationService";
 import type { ChapterStreamGenerationOrchestrator } from "./ChapterStreamGenerationOrchestrator";
 
@@ -21,7 +20,6 @@ export interface ChapterPipelineRuntimeAdapterDeps {
   >;
   artifactSyncService: Pick<ChapterArtifactSyncService, "saveDraftAndArtifacts" | "syncChapterArtifacts">;
   contentFinalizationService: Pick<ChapterContentFinalizationService, "finalizeChapterContent">;
-  timelineFinalizer: Pick<ChapterTimelineFinalizationService, "finalizeCurrentContent">;
   ensureNovelCharacters: (novelId: string, actionName: string, minCount?: number) => Promise<void>;
 }
 
@@ -75,19 +73,6 @@ export class ChapterPipelineRuntimeAdapter {
               finalContent: finalized.finalContent,
               runtimePackage: finalized.runtimePackage,
             };
-          },
-          finalizeChapterTimeline: async (input) => {
-            await this.deps.timelineFinalizer.finalizeCurrentContent({
-              novelId: input.novelId,
-              chapterId: input.chapterId,
-              content: input.content,
-              contextPackage: input.contextPackage,
-              request: input.request,
-              mode: input.mode,
-              reason: input.reason,
-              sourceStage: input.mode === "degraded" ? "defer_and_continue" : "pipeline_final_content",
-              qualityDebt: input.qualityDebt,
-            });
           },
           markChapterGenerationState: (targetChapterId, generationState) =>
             this.markChapterGenerationState(targetChapterId, generationState),

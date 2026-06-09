@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { resolveLogsRoot } from "../runtime/appPaths";
+import { resolveLogRetentionConfig, rotateLogFileIfNeeded } from "../platform/logging/logRetention";
 
 const LOG_TRUE_VALUES = new Set(["1", "true", "on", "yes"]);
 const LOG_FALSE_VALUES = new Set(["0", "false", "off", "no"]);
@@ -169,6 +170,7 @@ function appendSessionLog(kind: "llm" | "llm-repair", entry: unknown): void {
 
   try {
     fs.mkdirSync(path.dirname(logPath), { recursive: true });
+    rotateLogFileIfNeeded(logPath, resolveLogRetentionConfig());
     fs.appendFileSync(logPath, `${JSON.stringify(toJsonSafeValue(entry))}\n`, "utf8");
     const announced = kind === "llm" ? announcedLogPath : announcedRepairLogPath;
     if (announced !== logPath) {

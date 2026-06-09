@@ -155,6 +155,7 @@ export function buildVolumeWindowContext(seed: RuntimeVolumeSeed): VolumeWindowC
     adjacentSummary: adjacentSummary || "No adjacent volume summary.",
     pendingPayoffs: takeUnique(current.openPayoffs ?? [], 5),
     softFutureSummary: compactText(seed.softFutureSummary, "No future volume summary."),
+    keyMilestoneGuards: [],
   };
 }
 
@@ -288,6 +289,8 @@ export function buildChapterWriteContext(input: {
     styleConstraints: summarizeStyleConstraints(input.contextPackage),
     continuationConstraints: summarizeContinuationConstraints(input.contextPackage),
     ragFacts: [],
+  completedMilestones: [],
+  recentScenePatterns: [],
   };
 }
 
@@ -632,6 +635,9 @@ export function buildChapterWriterContextBlocks(
         wordRange.targetWordCount != null
           ? `Target length: around ${wordRange.targetWordCount} Chinese characters (acceptable range ${wordRange.minWordCount}-${wordRange.maxWordCount}; do not end clearly below the minimum).`
           : "",
+        writeContext.completedMilestones.length > 0
+          ? toListBlock("Already completed — do NOT re-pursue or re-trigger", writeContext.completedMilestones)
+          : "",
         toListBlock("Must advance", writeContext.chapterMission.mustAdvance),
         toListBlock("Must preserve", writeContext.chapterMission.mustPreserve),
         toListBlock("Risk notes", writeContext.chapterMission.riskNotes),
@@ -750,6 +756,14 @@ export function buildChapterWriterContextBlocks(
               `Current volume: ${writeContext.volumeWindow.title}`,
               `Volume mission: ${writeContext.volumeWindow.missionSummary}`,
               toListBlock("Current volume pending payoffs", writeContext.volumeWindow.pendingPayoffs.slice(0, 3)),
+              writeContext.volumeWindow.keyMilestoneGuards.length > 0
+                ? toListBlock(
+                  "Volume key milestone guards — pacing constraints",
+                  writeContext.volumeWindow.keyMilestoneGuards
+                    .filter((guard) => guard.status !== "done")
+                    .map((guard) => `[${guard.targetChapterRange}] ${guard.event}: ${guard.note}`),
+                )
+                : "",
             ].filter(Boolean).join("\n")
           : "Current volume: none",
       })
@@ -836,7 +850,15 @@ export function buildChapterWriterContextBlocks(
         id: "opening_constraints",
         group: "opening_constraints",
         priority: 80,
-        content: `Opening anti-repeat hint:\n${writeContext.openingAntiRepeatHint}`,
+        content: [
+          `Opening anti-repeat hint:\n${writeContext.openingAntiRepeatHint}`,
+          writeContext.recentScenePatterns.length > 0
+            ? toListBlock(
+              "Scene pattern blacklist — do NOT repeat these exact time+location+action combinations",
+              writeContext.recentScenePatterns.slice(0, 6),
+            )
+            : "",
+        ].filter(Boolean).join("\n\n"),
       })
       : null,
     includeStyleContract

@@ -4,11 +4,17 @@ import { ragServices } from "../rag";
 import type { RagOwnerType } from "../rag/types";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { chapterSummaryPrompt } from "../../prompting/prompts/novel/review.prompts";
+import { novelFactService, type NovelFactWriteItem } from "./fact/NovelFactService";
 
 interface LLMGenerateOptions {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+  /**
+   * 正文覆盖：定稿流程接入时传入刚定稿的 finalContent，
+   * 避免依赖"正文是否已落库"的时序（DB 中可能尚未写入）。
+   */
+  contentOverride?: string;
 }
 
 type FactCategory = "plot" | "character" | "world";
@@ -60,9 +66,10 @@ export class NovelChapterSummaryService {
       throw new Error("章节不存在。");
     }
 
-    const content = (chapter.content ?? "").trim();
+    const content = (options.contentOverride ?? chapter.content ?? "").trim();
     const existingExpectation = (chapter.expectation ?? "").trim();
     let summary = "";
+    let concreteFacts: NovelFactWriteItem[] = [];
 
     if (content) {
       try {
@@ -82,8 +89,16 @@ export class NovelChapterSummaryService {
         });
         const parsed = result.output;
         summary = normalizeSummary(parsed.summary ?? "");
+        concreteFacts = (parsed.concreteFacts ?? [])
+          .map((fact) => ({
+            text: fact.text.trim(),
+            category: fact.category,
+            source: "auto" as const,
+          }))
+          .filter((fact) => fact.text.length > 0);
       } catch {
         summary = "";
+        concreteFacts = [];
       }
     }
 
@@ -123,6 +138,21 @@ export class NovelChapterSummaryService {
       });
     });
 
+    // 桥接 Fact Ledger：将正文即兴产生的硬事实写入事实账本，
+    // 供后续章节 JIT task sheet 通过 completedMilestones 消费，防止后文改写本章设定。
+    if (concreteFacts.length > 0) {
+      try {
+        await novelFactService.writeFacts(novelId, chapter.order, concreteFacts);
+      } catch (error) {
+        // 事实写入失败不应阻断摘要生成主流程
+        console.warn("[chapter-summary] concreteFacts ledger write failed", {
+          novelId,
+          chapterId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     this.queueRagUpsert("chapter", chapterId);
     this.queueRagUpsert("chapter_summary", chapterId);
 
@@ -130,6 +160,7 @@ export class NovelChapterSummaryService {
       chapterId,
       summary,
       expectation: summary,
+      concreteFactCount: concreteFacts.length,
     };
   }
 
@@ -139,3 +170,5 @@ export class NovelChapterSummaryService {
     });
   }
 }
+
+export const novelChapterSummaryService = new NovelChapterSummaryService();

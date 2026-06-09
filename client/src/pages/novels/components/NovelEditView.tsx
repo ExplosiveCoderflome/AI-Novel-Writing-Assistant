@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, RotateCcw } from "lucide-react";
 import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,9 @@ import StoryMacroPlanTab from "./StoryMacroPlanTab";
 import StructuredOutlineTab from "./StructuredOutlineTab";
 import VersionHistoryTab from "./VersionHistoryTab";
 import BasicInfoTab from "./BasicInfoTab";
+import { devResetNovelChapters } from "@/api/novel";
+import { toast } from "@/components/ui/toast";
+import { queryKeys } from "@/api/queryKeys";
 import MobileNovelEditView from "../mobile/MobileNovelEditView";
 import type { NovelEditViewProps } from "./NovelEditView.types";
 import {
@@ -64,6 +68,21 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
 
   const [isProjectToolsOpen, setIsProjectToolsOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  const resetChaptersMutation = useMutation({
+    mutationFn: () => devResetNovelChapters(id),
+    onSuccess: async (result) => {
+      toast.success(`已重置 ${result.resetCount} 个章节正文，可重新生成。`);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapters(id) }),
+      ]);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "章节重置失败，请重试。");
+    },
+  });
 
   const totalChapters = chapterTab.chapters.length;
   const generatedChapters = chapterTab.chapters.filter((item) => Boolean(item.content?.trim())).length;
@@ -294,6 +313,35 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                   </Card>
                 </div>
                 <KnowledgeBindingPanel targetType="novel" targetId={id} title="参考知识" />
+
+                {/* 开发工具区 —— 仅在 DEV 环境可见 */}
+                {import.meta.env.DEV ? (
+                  <Card className="border-dashed border-yellow-500/60 bg-yellow-50/30 dark:bg-yellow-950/10">
+                    <CardHeader>
+                      <CardTitle className="text-sm text-yellow-700 dark:text-yellow-400">🛠 开发工具</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        重置后，所有章节正文、事实账本、摘要和质量报告将被清空，章节状态回到"未规划"。规划层数据（人物、大纲、卷规划）保留不变。
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-yellow-500/60 text-yellow-700 hover:bg-yellow-100 dark:text-yellow-400 dark:hover:bg-yellow-900/30"
+                        disabled={resetChaptersMutation.isPending}
+                        onClick={() => {
+                          if (window.confirm(`确认重置本小说所有 ${totalChapters} 个章节的正文？此操作不可撤销（但快照数据保留）。`)) {
+                            resetChaptersMutation.mutate();
+                          }
+                        }}
+                      >
+                        {resetChaptersMutation.isPending
+                          ? <><Loader2 className="animate-spin" />重置中…</>
+                          : <><RotateCcw />重置所有章节正文</>}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : null}
               </DialogContent>
             </Dialog>
 

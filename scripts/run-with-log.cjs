@@ -2,6 +2,14 @@ const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 
+const DEFAULT_RETENTION_DAYS = 30;
+const DEFAULT_LLM_RETENTION_DAYS = 14;
+const DEFAULT_MAX_FILE_MB = 50;
+const DEFAULT_MIN_AGE_HOURS = 24;
+const HOURS_PER_DAY = 24;
+const MS_PER_HOUR = 60 * 60 * 1000;
+const BYTES_PER_MB = 1024 * 1024;
+
 function sanitizeSegment(value) {
   return String(value || "session")
     .trim()
@@ -18,6 +26,11 @@ function parseArgs(argv) {
   const options = {
     name: "session",
     dir: path.resolve(process.cwd(), ".logs"),
+    cleanup: readBoolean(process.env.AI_NOVEL_LOG_CLEANUP_ENABLED, true),
+    retentionDays: readPositiveNumber(process.env.AI_NOVEL_LOG_RETENTION_DAYS, DEFAULT_RETENTION_DAYS),
+    llmRetentionDays: readPositiveNumber(process.env.AI_NOVEL_LLM_LOG_RETENTION_DAYS, DEFAULT_LLM_RETENTION_DAYS),
+    maxFileMb: readPositiveNumber(process.env.AI_NOVEL_LOG_MAX_FILE_MB, DEFAULT_MAX_FILE_MB),
+    minAgeHours: readPositiveNumber(process.env.AI_NOVEL_LOG_MIN_AGE_HOURS, DEFAULT_MIN_AGE_HOURS),
     help: false,
     commandArgs,
   };
@@ -41,9 +54,45 @@ function parseArgs(argv) {
       index += 1;
       continue;
     }
+
+    if (arg === "--retention-days" && optionArgs[index + 1]) {
+      options.retentionDays = readPositiveNumber(optionArgs[index + 1], options.retentionDays);
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--llm-retention-days" && optionArgs[index + 1]) {
+      options.llmRetentionDays = readPositiveNumber(optionArgs[index + 1], options.llmRetentionDays);
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--max-file-mb" && optionArgs[index + 1]) {
+      options.maxFileMb = readPositiveNumber(optionArgs[index + 1], options.maxFileMb);
+      index += 1;
+      continue;
+    }
+
+    if (arg === "--no-cleanup") {
+      options.cleanup = false;
+      continue;
+    }
   }
 
   return options;
+}
+
+function readPositiveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function readBoolean(value, fallback) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return fallback;
+  if (["1", "true", "on", "yes"].includes(normalized)) return true;
+  if (["0", "false", "off", "no"].includes(normalized)) return false;
+  return fallback;
 }
 
 function pad(value) {
@@ -70,6 +119,9 @@ function printHelp() {
     "Usage: node scripts/run-with-log.cjs [--name session] [--dir .logs] -- <command> [args...]",
   );
   console.log(
+    "Options: --retention-days 30 --llm-retention-days 14 --max-file-mb 50 --no-cleanup",
+  );
+  console.log(
     "Example: node scripts/run-with-log.cjs --name server -- pnpm --filter @ai-novel/server dev",
   );
 }
@@ -85,6 +137,96 @@ function writeMeta(metaPath, meta) {
 function appendChunk(logStream, targetStream, chunk) {
   targetStream.write(chunk);
   logStream.write(chunk);
+}
+
+function getLogFileKind(filePath) {
+  const fileName = path.basename(filePath);
+  if (fileName.endsWith(".llm-repair.jsonl")) return "llm-repair";
+  if (fileName.endsWith(".llm.jsonl")) return "llm";
+  if (fileName.endsWith(".log") || fileName.endsWith(".meta.json")) return "standard";
+  return null;
+}
+
+function collectFiles(directoryPath, output) {
+  for (const entry of fs.readdirSync(directoryPath, { withFileTypes: true })) {
+    const fullPath = path.join(directoryPath, entry.name);
+    if (entry.isDirectory()) {
+      collectFiles(fullPath, output);
+    } else if (entry.isFile()) {
+      output.push(fullPath);
+    }
+  }
+}
+
+function shouldDeleteLogFile(kind, stat, options, nowMs) {
+  const ageMs = nowMs - stat.mtimeMs;
+  if (ageMs < options.minAgeHours * MS_PER_HOUR) {
+    return false;
+  }
+  const retentionDays = kind === "llm" ? options.llmRetentionDays : options.retentionDays;
+  return ageMs > retentionDays * HOURS_PER_DAY * MS_PER_HOUR;
+}
+
+function cleanupLogDirectory(options) {
+  const summary = {
+    scannedFiles: 0,
+    deletedFiles: 0,
+    skippedFiles: 0,
+    failedFiles: 0,
+    deletedBytes: 0,
+  };
+  if (!options.cleanup || !fs.existsSync(options.dir)) {
+    return summary;
+  }
+  const files = [];
+  collectFiles(options.dir, files);
+  const nowMs = Date.now();
+  for (const filePath of files) {
+    const kind = getLogFileKind(filePath);
+    if (!kind) {
+      summary.skippedFiles += 1;
+      continue;
+    }
+    summary.scannedFiles += 1;
+    try {
+      const stat = fs.statSync(filePath);
+      if (!shouldDeleteLogFile(kind, stat, options, nowMs)) {
+        continue;
+      }
+      fs.unlinkSync(filePath);
+      summary.deletedFiles += 1;
+      summary.deletedBytes += stat.size;
+    } catch (error) {
+      summary.failedFiles += 1;
+      console.warn(`[run-with-log] cleanup failed for ${filePath}: ${error.message || error}`);
+    }
+  }
+  return summary;
+}
+
+function rotateFileIfNeeded(filePath, maxFileMb) {
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  const stat = fs.statSync(filePath);
+  if (stat.size <= maxFileMb * BYTES_PER_MB) {
+    return null;
+  }
+  const directoryPath = path.dirname(filePath);
+  const fileName = path.basename(filePath);
+  const knownSuffix = [".llm-repair.jsonl", ".llm.jsonl", ".meta.json", ".log"]
+    .find((suffix) => fileName.endsWith(suffix));
+  const extension = knownSuffix || path.extname(filePath);
+  const baseName = extension ? fileName.slice(0, -extension.length) : fileName;
+  const stamp = formatTimestampParts(new Date()).isoLike;
+  let rotatedPath = path.join(directoryPath, `${baseName}-${stamp}${extension}`);
+  let suffix = 1;
+  while (fs.existsSync(rotatedPath)) {
+    rotatedPath = path.join(directoryPath, `${baseName}-${stamp}-${suffix}${extension}`);
+    suffix += 1;
+  }
+  fs.renameSync(filePath, rotatedPath);
+  return rotatedPath;
 }
 
 async function main() {
@@ -103,6 +245,12 @@ async function main() {
   const startedAt = new Date();
   const { datePart, isoLike } = formatTimestampParts(startedAt);
   const sessionDir = path.join(options.dir, datePart);
+  const cleanupSummary = cleanupLogDirectory(options);
+  if (cleanupSummary.deletedFiles > 0 || cleanupSummary.failedFiles > 0) {
+    console.log(
+      `[run-with-log] cleanup deletedFiles=${cleanupSummary.deletedFiles} deletedBytes=${cleanupSummary.deletedBytes} failedFiles=${cleanupSummary.failedFiles}`,
+    );
+  }
   ensureDir(sessionDir);
 
   const baseName = `${isoLike}-${options.name}`;
@@ -110,6 +258,9 @@ async function main() {
   const metaPath = path.join(sessionDir, `${baseName}.meta.json`);
   const llmLogPath = path.join(sessionDir, `${baseName}.llm.jsonl`);
   const llmRepairLogPath = path.join(sessionDir, `${baseName}.llm-repair.jsonl`);
+  rotateFileIfNeeded(logPath, options.maxFileMb);
+  rotateFileIfNeeded(llmLogPath, options.maxFileMb);
+  rotateFileIfNeeded(llmRepairLogPath, options.maxFileMb);
   const logStream = fs.createWriteStream(logPath, { flags: "a" });
 
   const meta = {
