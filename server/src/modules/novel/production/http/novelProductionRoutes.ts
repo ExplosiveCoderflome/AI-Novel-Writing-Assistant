@@ -253,6 +253,85 @@ export function registerNovelProductionRoutes(input: RegisterNovelProductionRout
     },
   );
 
+  // ─── 开发工具：重置所有章节正文 ───────────────────────────────────────────────
+  // 仅供本地测试使用。清除章节正文、生成状态、事实账本、摘要、质量报告等，
+  // 让下次自动驾驶可以从零重新跑，节省重建项目的时间。
+  router.post(
+    "/:id/dev/reset-chapters",
+    validate({ params: idParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { id } = req.params as z.infer<typeof idParamsSchema>;
+
+        // 1. 找出所有章节 id 和 order
+        const chapters = await prisma.chapter.findMany({
+          where: { novelId: id },
+          select: { id: true, order: true },
+        });
+        if (chapters.length === 0) {
+          res.status(200).json({
+            success: true,
+            data: { resetCount: 0 },
+            message: "No chapters to reset.",
+          } satisfies ApiResponse<{ resetCount: number }>);
+          return;
+        }
+        const chapterIds = chapters.map((c) => c.id);
+        const orders = chapters.map((c) => c.order);
+
+        // 2. 事务内清除章节本体数据
+        await prisma.$transaction(async (tx) => {
+          await tx.chapter.updateMany({
+            where: { id: { in: chapterIds } },
+            data: {
+              content: "",
+              generationState: "planned",
+              chapterStatus: "unplanned",
+              repairHistory: null,
+              qualityScore: null,
+              continuityScore: null,
+              characterScore: null,
+              pacingScore: null,
+              riskFlags: null,
+              hook: null,
+              expectation: null,
+            },
+          });
+          await tx.chapterSummary.deleteMany({ where: { novelId: id, chapterId: { in: chapterIds } } });
+          await tx.consistencyFact.deleteMany({ where: { novelId: id, chapterId: { in: chapterIds } } });
+          await tx.characterTimeline.deleteMany({ where: { novelId: id, chapterId: { in: chapterIds } } });
+          await tx.characterCandidate.deleteMany({ where: { novelId: id, sourceChapterId: { in: chapterIds } } });
+          await tx.characterFactionTrack.deleteMany({ where: { novelId: id, chapterId: { in: chapterIds } } });
+          await tx.characterRelationStage.deleteMany({ where: { novelId: id, chapterId: { in: chapterIds } } });
+          await tx.qualityReport.deleteMany({ where: { novelId: id, chapterId: { in: chapterIds } } });
+          await tx.auditReport.deleteMany({ where: { novelId: id, chapterId: { in: chapterIds } } });
+          await tx.stateChangeProposal.deleteMany({ where: { novelId: id, chapterId: { in: chapterIds } } });
+          await tx.openConflict.deleteMany({ where: { novelId: id, chapterId: { in: chapterIds } } });
+          await tx.storyStateSnapshot.deleteMany({ where: { novelId: id, sourceChapterId: { in: chapterIds } } });
+        });
+
+        // 3. 事务外清除事实账本（按 order 范围）
+        if (orders.length > 0) {
+          await prisma.novelFactEntry.deleteMany({
+            where: {
+              novelId: id,
+              chapterOrder: { in: orders },
+            },
+          });
+        }
+
+        res.status(200).json({
+          success: true,
+          data: { resetCount: chapters.length },
+          message: `Reset ${chapters.length} chapters.`,
+        } satisfies ApiResponse<{ resetCount: number }>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+  // ─────────────────────────────────────────────────────────────────────────────
+
   router.post(
     "/:id/title/generate",
     validate({ params: idParamsSchema, body: titleGenerateSchema }),
