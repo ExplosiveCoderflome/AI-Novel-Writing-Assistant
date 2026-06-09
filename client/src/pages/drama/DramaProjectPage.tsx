@@ -567,9 +567,12 @@ export default function DramaProjectPage() {
             runAction(
               () => updateDramaCharacter(project.id, character.id, {
                 name: input.name.trim(),
-                archetype: input.archetype.trim() || undefined,
-                persona: input.persona.trim() || undefined,
-                speechStyle: input.speechStyle.trim() || undefined,
+                archetype: input.screenRole.trim() || undefined,
+                persona: input.audienceRead.trim() || undefined,
+                speechStyle: input.lineRule.trim() || undefined,
+                visualAnchor: input.visualAnchor.trim() || undefined,
+                voiceProfile: input.voiceAnchor.trim() || undefined,
+                relations: input.relationMap.trim() || undefined,
               }),
               `${input.name || character.name} 已保存。`,
             );
