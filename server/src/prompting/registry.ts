@@ -86,6 +86,42 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/genre/genre.prompts").genreTreePrompt as UnknownPromptAsset,
   },
   {
+    key: "drama.source.original_bundle@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaOriginalSourcePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.source.text_bundle@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaTextImportSourcePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.strategy@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaStrategyPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.episodeOutline@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaEpisodeOutlinePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.episode.script@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaScriptPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.episode.quality@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaQualityPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.episode.repair@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaRepairPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.storyboard@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaStoryboardPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.video.prompt@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaVideoPromptPrompt as UnknownPromptAsset,
+  },
+  {
     key: "planner.book.plan@v1",
     load: () => require("./prompts/planner/plannerPlan.prompts").plannerBookPlanPrompt as UnknownPromptAsset,
   },

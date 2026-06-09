@@ -10,10 +10,13 @@
 import { prisma } from "../../db/prisma";
 import { sourceContentRegistry } from "./source/SourceContentPort";
 import { novelSourceAdapter } from "./source/NovelSourceAdapter";
+import { originalSourceAdapter } from "./source/OriginalSourceAdapter";
+import { textImportSourceAdapter } from "./source/TextImportSourceAdapter";
 import type { DramaSourceType, SourceBundle, SourceRef } from "./contracts/sourceBundle";
 
-// 注册内置内容源 adapter（P0 先接入 novel_import；original/text_import 见 P3）
 sourceContentRegistry.register(novelSourceAdapter);
+sourceContentRegistry.register(originalSourceAdapter);
+sourceContentRegistry.register(textImportSourceAdapter);
 
 export interface CreateDramaProjectInput {
   title: string;
@@ -35,6 +38,7 @@ export class DramaProjectService {
         title: input.title,
         source: input.source,
         sourceRef: input.sourceRef ?? null,
+        sourceInput: input.rawText ?? input.inspiration ?? null,
         track: input.track ?? null,
         theme: input.theme ?? null,
         targetEpisodes: input.targetEpisodes ?? 80,
@@ -70,6 +74,8 @@ export class DramaProjectService {
     const ref: SourceRef = {
       type: project.source as DramaSourceType,
       ref: project.sourceRef ?? undefined,
+      inspiration: project.source === "original" ? project.sourceInput ?? undefined : undefined,
+      rawText: project.source === "text_import" ? project.sourceInput ?? undefined : undefined,
     };
     const bundle = await adapter.loadBundle(ref);
 

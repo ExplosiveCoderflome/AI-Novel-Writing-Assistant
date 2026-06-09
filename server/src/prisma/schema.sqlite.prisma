@@ -2926,6 +2926,7 @@ model DramaProject {
   title          String
   source         String   @default("original")
   sourceRef      String?
+  sourceInput    String?
   track          String?
   theme          String?
   orientation    String   @default("vertical_paid")
@@ -2939,6 +2940,9 @@ model DramaProject {
   characters     DramaCharacter[]
   episodes       DramaEpisode[]
   facts          DramaFact[]
+  characterLibraryItems DramaCharacterLibrary[]
+  storyboards    DramaStoryboard[]
+  videoPrompts   DramaVideoPrompt[]
 
   @@index([source])
   @@index([status])
@@ -2997,6 +3001,8 @@ model DramaEpisode {
   updatedAt    DateTime @updatedAt
 
   project      DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  storyboards  DramaStoryboard[]
+  videoPrompts DramaVideoPrompt[]
 
   @@unique([projectId, order])
   @@index([projectId, status])
@@ -3015,4 +3021,87 @@ model DramaFact {
 
   @@index([projectId, episodeOrder])
   @@index([projectId, category])
+}
+
+model DramaCharacterLibrary {
+  id           String   @id @default(cuid())
+  projectId    String?
+  name         String
+  archetype    String?
+  persona      String?
+  speechStyle  String?
+  visualAnchor String?
+  voiceProfile String?
+  relations    String?
+  tags         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project      DramaProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([name])
+}
+
+model DramaStoryboard {
+  id        String   @id @default(cuid())
+  projectId String
+  episodeId String
+  version   Int      @default(1)
+  status    String   @default("draft")
+  summary   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode   DramaEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  shots     DramaShot[]
+
+  @@index([projectId])
+  @@index([episodeId])
+}
+
+model DramaShot {
+  id            String   @id @default(cuid())
+  storyboardId  String
+  order         Int
+  shotSize      String?
+  cameraMove    String?
+  durationSec   Int?
+  location      String?
+  action        String
+  dialogue      String?
+  characterRefs String?
+  visualPrompt  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  storyboard    DramaStoryboard @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
+
+  @@unique([storyboardId, order])
+  @@index([storyboardId])
+}
+
+model DramaVideoPrompt {
+  id             String   @id @default(cuid())
+  projectId      String
+  episodeId      String?
+  shotId         String?
+  provider       String   @default("mock")
+  prompt         String
+  negativePrompt String?
+  aspectRatio    String   @default("9:16")
+  durationSec    Int?
+  status         String   @default("prompted")
+  providerTaskId String?
+  providerResult String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project        DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode        DramaEpisode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([episodeId])
+  @@index([provider, status])
 }

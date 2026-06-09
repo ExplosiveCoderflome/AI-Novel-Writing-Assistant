@@ -7,7 +7,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
-import { dramaEpisodeOutlinePrompt } from "./prompts/episodeOutline.prompts";
+import { dramaEpisodeOutlinePrompt } from "../../prompting/prompts/drama/drama.prompts";
 import { rhythmEngine, type TrackId } from "./engine/rhythmEngine";
 import type { DramaLLMOptions } from "./DramaStrategyService";
 

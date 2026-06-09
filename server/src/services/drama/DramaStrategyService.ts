@@ -6,7 +6,7 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
-import { dramaStrategyPrompt } from "./prompts/strategy.prompts";
+import { dramaStrategyPrompt } from "../../prompting/prompts/drama/drama.prompts";
 import {
   DEFAULT_PAYWALL_STRATEGY,
   rhythmEngine,
