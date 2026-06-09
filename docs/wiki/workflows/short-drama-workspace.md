@@ -25,6 +25,7 @@
 - 来源素材不足时，工作台应提供 AI 补充建议，把缺口转成用户能回答的问题和下一步建议。补充建议属于新手引导层，不应把 `SourceBundle` 的内部字段或质量快照裸露给用户作为任务说明。
 - 视频任务状态必须在项目内可刷新并可汇总查看；provider 状态、任务 id、结果链接、失败提示和重新刷新入口都属于分镜视频生产链，不应要求用户离开短剧工作台查看。
 - 视频 provider 仍通过 `VideoProviderPort` 抽象接入；可用 provider 必须由后端注册表暴露给前端，前端只能让用户选择已注册 provider，不能把 provider 名称写死在按钮逻辑里。前端只能把它呈现为短剧项目内的后续生产步骤，不能把短剧工作台变成泛用视频工具。
+- 通用 HTTP 视频通道只在配置 `DRAMA_VIDEO_HTTP_CREATE_URL` 后注册；可选配置包括 `DRAMA_VIDEO_HTTP_STATUS_URL`（支持 `{taskId}` 占位符）、`DRAMA_VIDEO_HTTP_API_KEY`、`DRAMA_VIDEO_HTTP_PROVIDER_ID`、`DRAMA_VIDEO_HTTP_PROVIDER_LABEL`、`DRAMA_VIDEO_HTTP_PROVIDER_DESCRIPTION` 和 `DRAMA_VIDEO_HTTP_TIMEOUT_MS`。外部接口返回的 `taskId` / `providerTaskId` / `id`、`status`、`resultUrl` / `videoUrl` 会被标准化为 `DramaVideoPrompt` 的 provider 任务状态。
 
 ## Failure Modes
 

@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const http = require("node:http");
 const path = require("node:path");
 
 test("drama prompt assets are registered", () => {
@@ -35,6 +36,47 @@ test("drama video provider registry exposes mock provider", async () => {
   });
   assert.match(result.providerTaskId, /^mock_/);
   assert.equal(result.status, "queued");
+});
+
+test("http drama video provider maps create and status responses", async () => {
+  const server = http.createServer((req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    if (req.method === "POST" && req.url === "/create") {
+      res.end(JSON.stringify({ taskId: "task_1", status: "processing" }));
+      return;
+    }
+    if (req.method === "GET" && req.url === "/status/task_1") {
+      res.end(JSON.stringify({ taskId: "task_1", status: "completed", resultUrl: "https://example.test/video.mp4" }));
+      return;
+    }
+    res.statusCode = 404;
+    res.end(JSON.stringify({ error: "not found" }));
+  });
+
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address();
+    assert.equal(typeof address, "object");
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const { HttpVideoProvider } = require("../dist/services/drama/video/VideoProviderPort.js");
+    const provider = new HttpVideoProvider({
+      provider: "http-test",
+      createUrl: `${baseUrl}/create`,
+      statusUrl: `${baseUrl}/status/{taskId}`,
+    });
+    const created = await provider.createTask({
+      prompt: "vertical drama shot",
+      aspectRatio: "9:16",
+    });
+    assert.equal(created.providerTaskId, "task_1");
+    assert.equal(created.status, "running");
+
+    const refreshed = await provider.getTask("task_1");
+    assert.equal(refreshed.status, "succeeded");
+    assert.equal(refreshed.resultUrl, "https://example.test/video.mp4");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
 
 test("drama migrations include pipeline tables for sqlite and postgres", () => {
