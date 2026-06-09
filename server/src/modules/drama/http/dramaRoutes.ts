@@ -6,6 +6,7 @@ import { dramaCharacterService } from "../../../services/drama/DramaCharacterSer
 import { dramaEpisodeService } from "../../../services/drama/DramaEpisodeService";
 import { dramaEpisodeOutlineService } from "../../../services/drama/DramaEpisodeOutlineService";
 import { dramaExportService } from "../../../services/drama/DramaExportService";
+import { dramaGuidanceService } from "../../../services/drama/guidance/DramaGuidanceService";
 import { dramaProjectService } from "../../../services/drama/DramaProjectService";
 import { dramaQualityGate } from "../../../services/drama/DramaQualityGate";
 import { dramaRepairService } from "../../../services/drama/DramaRepairService";
@@ -105,6 +106,26 @@ const providerTaskSchema = z
   })
   .optional();
 
+const trackRecommendationSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  sourceType: z.enum(["novel_import", "original", "text_import"]),
+  sourceDigest: z.string().trim().max(20000).optional(),
+  theme: z.string().trim().max(120).optional(),
+  targetEpisodes: z.number().int().min(1).max(500).optional(),
+  provider: z.string().optional(),
+  model: z.string().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+});
+
+const sourceSupplementSchema = z
+  .object({
+    userSupplement: z.string().trim().max(8000).optional(),
+    provider: z.string().optional(),
+    model: z.string().optional(),
+    temperature: z.number().min(0).max(2).optional(),
+  })
+  .optional();
+
 router.get("/projects", async (_req, res, next) => {
   try {
     const data = await dramaProjectService.listProjects();
@@ -147,12 +168,35 @@ router.post("/projects/:id/source-bundle", validate({ params: idParamsSchema }),
   }
 });
 
+router.post(
+  "/projects/:id/source-supplement",
+  validate({ params: idParamsSchema, body: sourceSupplementSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const data = await dramaGuidanceService.analyzeSourceSupplement(id, (req.body ?? {}) as never);
+      res.status(200).json({ success: true, data, message: "Drama source supplement guidance generated." });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 router.get("/tracks", (_req, res) => {
   res.status(200).json({ success: true, data: rhythmEngine.listTracks(), message: "Drama tracks loaded." });
 });
 
 router.get("/hooks", (_req, res) => {
   res.status(200).json({ success: true, data: rhythmEngine.listHooks(), message: "Drama hooks loaded." });
+});
+
+router.post("/track-recommendation", validate({ body: trackRecommendationSchema }), async (req, res, next) => {
+  try {
+    const data = await dramaGuidanceService.recommendTrack(req.body as z.infer<typeof trackRecommendationSchema>);
+    res.status(200).json({ success: true, data, message: "Drama track recommendation generated." });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get("/character-library", async (req, res, next) => {

@@ -8,6 +8,8 @@ test("drama prompt assets are registered", () => {
   const prompts = [
     ["drama.source.original_bundle", "v1"],
     ["drama.source.text_bundle", "v1"],
+    ["drama.track.recommendation", "v1"],
+    ["drama.source.supplement", "v1"],
     ["drama.strategy", "v1"],
     ["drama.episodeOutline", "v1"],
     ["drama.episode.script", "v1"],

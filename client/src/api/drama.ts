@@ -10,6 +10,33 @@ export interface DramaLLMOptions {
   temperature?: number;
 }
 
+export interface DramaTrackRecommendation {
+  recommendedTrack: string;
+  reason: string;
+  fitSignals: string[];
+  risks: string[];
+  alternatives: Array<{
+    track: string;
+    reason: string;
+  }>;
+}
+
+export interface DramaSourceSupplementGuidance {
+  readiness: "ready" | "needs_supplement" | "needs_rebuild";
+  summary: string;
+  missingItems: Array<{
+    area: string;
+    problem: string;
+    impact: string;
+  }>;
+  questions: Array<{
+    question: string;
+    guidance: string;
+    priority: "high" | "medium" | "low";
+  }>;
+  nextAction: "continue" | "supplement_notes" | "rebuild_source_bundle";
+}
+
 export interface CreateDramaProjectPayload {
   title: string;
   source: DramaSourceType;
@@ -155,6 +182,27 @@ export async function getDramaProject(id: string) {
 
 export async function assembleDramaSourceBundle(id: string) {
   const { data } = await apiClient.post<ApiResponse<unknown>>(`/drama/projects/${id}/source-bundle`, {});
+  return data;
+}
+
+export async function recommendDramaTrack(payload: {
+  title: string;
+  sourceType: DramaSourceType;
+  sourceDigest?: string;
+  theme?: string;
+  targetEpisodes?: number;
+}) {
+  const { data } = await apiClient.post<ApiResponse<DramaTrackRecommendation>>("/drama/track-recommendation", payload);
+  return data;
+}
+
+export async function analyzeDramaSourceSupplement(id: string, payload: DramaLLMOptions & {
+  userSupplement?: string;
+} = {}) {
+  const { data } = await apiClient.post<ApiResponse<DramaSourceSupplementGuidance>>(
+    `/drama/projects/${id}/source-supplement`,
+    payload,
+  );
   return data;
 }
 

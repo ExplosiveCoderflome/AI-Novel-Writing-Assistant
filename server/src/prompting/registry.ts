@@ -94,6 +94,14 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/drama/drama.prompts").dramaTextImportSourcePrompt as UnknownPromptAsset,
   },
   {
+    key: "drama.track.recommendation@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaTrackRecommendationPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.source.supplement@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaSourceSupplementPrompt as UnknownPromptAsset,
+  },
+  {
     key: "drama.strategy@v1",
     load: () => require("./prompts/drama/drama.prompts").dramaStrategyPrompt as UnknownPromptAsset,
   },

@@ -8,7 +8,9 @@ import {
   generateDramaOutline,
   generateDramaStrategy,
   listDramaProjects,
+  recommendDramaTrack,
   type CreateDramaProjectPayload,
+  type DramaTrackRecommendation,
   type DramaProject,
   type DramaSourceType,
 } from "@/api/drama";
@@ -51,6 +53,43 @@ function statusLabel(status: string): string {
     completed: "已完成",
   };
   return labels[status] ?? status;
+}
+
+function trackLabel(track: string): string {
+  return TRACK_OPTIONS.find((option) => option.value === track)?.label ?? track;
+}
+
+function buildRecommendationDigest(form: {
+  source: DramaSourceType;
+  inspiration: string;
+  rawText: string;
+  sourceRef: string;
+}, selectedNovel?: { title?: string | null; _count?: { chapters: number } } | null): string {
+  if (form.source === "original") {
+    return form.inspiration.trim();
+  }
+  if (form.source === "text_import") {
+    return form.rawText.trim().slice(0, 12000);
+  }
+  if (selectedNovel) {
+    return `已选择小说《${selectedNovel.title || "未命名小说"}》，共 ${selectedNovel._count?.chapters ?? 0} 章。`;
+  }
+  return "";
+}
+
+function hasSourceContent(form: {
+  source: DramaSourceType;
+  inspiration: string;
+  rawText: string;
+  sourceRef: string;
+}): boolean {
+  if (form.source === "novel_import") {
+    return Boolean(form.sourceRef.trim());
+  }
+  if (form.source === "original") {
+    return Boolean(form.inspiration.trim());
+  }
+  return Boolean(form.rawText.trim());
 }
 
 function buildCreatePayload(form: {
@@ -154,6 +193,7 @@ export default function DramaWorkspacePage() {
     targetEpisodes: "80",
   });
   const [busyProjectId, setBusyProjectId] = useState("");
+  const [trackRecommendation, setTrackRecommendation] = useState<DramaTrackRecommendation | null>(null);
 
   const projectsQuery = useQuery({
     queryKey: queryKeys.drama.projects,
@@ -170,6 +210,7 @@ export default function DramaWorkspacePage() {
     () => novels.find((novel) => novel.id === form.sourceRef),
     [form.sourceRef, novels],
   );
+  const canRecommendTrack = hasSourceContent(form);
 
   const createMutation = useMutation({
     mutationFn: (payload: CreateDramaProjectPayload) => createDramaProject(payload),
@@ -188,6 +229,24 @@ export default function DramaWorkspacePage() {
         rawText: "",
         theme: "",
       }));
+    },
+  });
+
+  const trackRecommendationMutation = useMutation({
+    mutationFn: () => recommendDramaTrack({
+      title: form.title.trim() || selectedNovel?.title || "短剧项目",
+      sourceType: form.source,
+      sourceDigest: buildRecommendationDigest(form, selectedNovel),
+      theme: form.theme.trim() || undefined,
+      targetEpisodes: Number(form.targetEpisodes) || 80,
+    }),
+    onSuccess: (response) => {
+      const recommendation = response.data;
+      if (recommendation) {
+        setTrackRecommendation(recommendation);
+        setForm((current) => ({ ...current, track: recommendation.recommendedTrack }));
+        toast.success("已推荐适合的短剧赛道。");
+      }
     },
   });
 
@@ -265,6 +324,7 @@ export default function DramaWorkspacePage() {
       sourceRef: "",
       title: source === "original" && !current.title ? "原创短剧项目" : current.title,
     }));
+    setTrackRecommendation(null);
     setStepIndex(1);
   };
 
@@ -419,6 +479,44 @@ export default function DramaWorkspacePage() {
                     onChange={(event) => setForm((current) => ({ ...current, theme: event.target.value }))}
                   />
                 </label>
+                <div className="space-y-3 rounded-lg border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="text-sm font-medium">赛道推荐</div>
+                      <p className="text-sm text-muted-foreground">根据当前素材推荐更适合的竖屏短剧赛道。</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={trackRecommendationMutation.isPending || !canRecommendTrack}
+                      onClick={() => trackRecommendationMutation.mutate()}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      {trackRecommendationMutation.isPending ? "推荐中..." : "推荐赛道"}
+                    </Button>
+                  </div>
+                  {trackRecommendation ? (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="default">{trackLabel(trackRecommendation.recommendedTrack)}</Badge>
+                        <span className="text-muted-foreground">{trackRecommendation.reason}</span>
+                      </div>
+                      {trackRecommendation.fitSignals.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {trackRecommendation.fitSignals.map((signal) => (
+                            <Badge key={signal} variant="secondary">{signal}</Badge>
+                          ))}
+                        </div>
+                      ) : null}
+                      {trackRecommendation.risks.length > 0 ? (
+                        <div className="rounded-md border border-dashed p-2 text-muted-foreground">
+                          {trackRecommendation.risks.join("；")}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
               </div>
             ) : null}
 

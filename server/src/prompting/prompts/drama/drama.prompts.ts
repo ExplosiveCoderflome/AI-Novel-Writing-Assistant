@@ -33,6 +33,137 @@ export const dramaSourceBundleOutputSchema = z.object({
 
 export type DramaSourceBundleOutput = z.infer<typeof dramaSourceBundleOutputSchema>;
 
+const dramaTrackIdSchema = z.enum([
+  "counterattack",
+  "rebirth_revenge",
+  "war_god",
+  "live_in_son",
+  "miracle_doctor",
+  "rich_family",
+  "sweet_love",
+  "hidden_identity",
+]);
+
+export const dramaTrackRecommendationOutputSchema = z.object({
+  recommendedTrack: dramaTrackIdSchema,
+  reason: z.string().trim().min(1),
+  fitSignals: z.array(z.string().trim().min(1)).min(1).max(6),
+  risks: z.array(z.string().trim().min(1)).max(5).default([]),
+  alternatives: z.array(z.object({
+    track: dramaTrackIdSchema,
+    reason: z.string().trim().min(1),
+  })).max(3).default([]),
+});
+
+export type DramaTrackRecommendationOutput = z.infer<typeof dramaTrackRecommendationOutputSchema>;
+
+export interface DramaTrackRecommendationPromptInput {
+  title: string;
+  sourceType: string;
+  sourceDigest: string;
+  theme?: string;
+  targetEpisodes: number;
+  trackCatalog: string;
+}
+
+export const dramaTrackRecommendationPrompt: PromptAsset<
+  DramaTrackRecommendationPromptInput,
+  DramaTrackRecommendationOutput
+> = {
+  id: "drama.track.recommendation",
+  version: "v1",
+  taskType: "outline_planning",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: { maxTokensBudget: 5000 },
+  outputSchema: dramaTrackRecommendationOutputSchema,
+  render: (input) => [
+    new SystemMessage([
+      "你是竖屏付费短剧选题策划，负责帮创作新手从故事素材中选择最适合的短剧赛道。",
+      "必须根据故事核心冲突、主角处境、爽点兑现方式和付费短剧赛道规则作判断。",
+      "只能从给定赛道目录中选择 recommendedTrack 和 alternatives.track。",
+      "只输出符合 schema 的 JSON，不要 Markdown。",
+    ].join("\n")),
+    new HumanMessage([
+      `【项目名】${input.title}`,
+      `【内容来源】${input.sourceType}`,
+      `【题材补充】${input.theme || "未填写"}`,
+      `【目标集数】${input.targetEpisodes}`,
+      "",
+      `【赛道目录】\n${input.trackCatalog}`,
+      "",
+      `【故事素材】\n${input.sourceDigest}`,
+      "",
+      "请推荐一个最适合的短剧赛道，并给出适配信号、风险和备选赛道。",
+    ].join("\n")),
+  ],
+};
+
+export const dramaSourceSupplementOutputSchema = z.object({
+  readiness: z.enum(["ready", "needs_supplement", "needs_rebuild"]),
+  summary: z.string().trim().min(1),
+  missingItems: z.array(z.object({
+    area: z.enum(["synopsis", "beats", "characters", "facts", "world", "other"]),
+    problem: z.string().trim().min(1),
+    impact: z.string().trim().min(1),
+  })).max(8),
+  questions: z.array(z.object({
+    question: z.string().trim().min(1),
+    guidance: z.string().trim().min(1),
+    priority: z.enum(["high", "medium", "low"]),
+  })).min(1).max(8),
+  nextAction: z.enum(["continue", "supplement_notes", "rebuild_source_bundle"]),
+});
+
+export type DramaSourceSupplementOutput = z.infer<typeof dramaSourceSupplementOutputSchema>;
+
+export interface DramaSourceSupplementPromptInput {
+  projectTitle: string;
+  sourceType: string;
+  targetEpisodes: number;
+  qualitySnapshot: string;
+  synopsis: string;
+  beatsDigest: string;
+  charactersDigest: string;
+  factsDigest: string;
+  userSupplement?: string;
+}
+
+export const dramaSourceSupplementPrompt: PromptAsset<
+  DramaSourceSupplementPromptInput,
+  DramaSourceSupplementOutput
+> = {
+  id: "drama.source.supplement",
+  version: "v1",
+  taskType: "outline_planning",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: { maxTokensBudget: 7000 },
+  outputSchema: dramaSourceSupplementOutputSchema,
+  render: (input) => [
+    new SystemMessage([
+      "你是竖屏短剧素材诊断助手，负责判断 SourceBundle 是否足够进入策略、分集和台本生成。",
+      "你的输出要帮助创作新手补齐最关键的信息，问题必须具体、易回答、能直接改善后续生成。",
+      "不要把普通小瑕疵说成阻断；只有素材严重不足或需要重整内容包时才建议 rebuild_source_bundle。",
+      "只输出符合 schema 的 JSON，不要 Markdown。",
+    ].join("\n")),
+    new HumanMessage([
+      `【项目】${input.projectTitle}`,
+      `【来源】${input.sourceType}`,
+      `【目标集数】${input.targetEpisodes}`,
+      `【质量快照】\n${input.qualitySnapshot}`,
+      "",
+      `【梗概】\n${input.synopsis || "空"}`,
+      `【节拍摘要】\n${input.beatsDigest || "空"}`,
+      `【角色摘要】\n${input.charactersDigest || "空"}`,
+      `【硬事实】\n${input.factsDigest || "空"}`,
+      input.userSupplement ? `【用户补充】\n${input.userSupplement}` : "",
+      "",
+      "请输出素材可用性诊断、缺口、补充问题和下一步建议。",
+    ].filter(Boolean).join("\n")),
+  ],
+};
+
 export interface DramaOriginalSourcePromptInput {
   title: string;
   inspiration: string;

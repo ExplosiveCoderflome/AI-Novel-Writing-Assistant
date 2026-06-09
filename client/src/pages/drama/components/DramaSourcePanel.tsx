@@ -1,6 +1,14 @@
-import type { DramaProjectDetail } from "@/api/drama";
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import {
+  analyzeDramaSourceSupplement,
+  type DramaProjectDetail,
+  type DramaSourceSupplementGuidance,
+} from "@/api/drama";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "@/components/ui/toast";
 
 function safeJson<T>(input: string | null | undefined, fallback: T): T {
   if (!input) {
@@ -73,6 +81,97 @@ function SourceQualityChecklist(props: {
   );
 }
 
+function readinessLabel(readiness: DramaSourceSupplementGuidance["readiness"]): string {
+  const labels: Record<DramaSourceSupplementGuidance["readiness"], string> = {
+    ready: "可继续",
+    needs_supplement: "建议补充",
+    needs_rebuild: "建议重整素材",
+  };
+  return labels[readiness];
+}
+
+function nextActionLabel(nextAction: DramaSourceSupplementGuidance["nextAction"]): string {
+  const labels: Record<DramaSourceSupplementGuidance["nextAction"], string> = {
+    continue: "继续生成策略",
+    supplement_notes: "先补充说明",
+    rebuild_source_bundle: "补充后重整素材",
+  };
+  return labels[nextAction];
+}
+
+function SourceSupplementPanel({ project }: { project: DramaProjectDetail }) {
+  const [userSupplement, setUserSupplement] = useState("");
+  const [guidance, setGuidance] = useState<DramaSourceSupplementGuidance | null>(null);
+  const mutation = useMutation({
+    mutationFn: () => analyzeDramaSourceSupplement(project.id, {
+      userSupplement: userSupplement.trim() || undefined,
+    }),
+    onSuccess: (response) => {
+      if (response.data) {
+        setGuidance(response.data);
+        toast.success("素材补充建议已生成。");
+      }
+    },
+  });
+
+  return (
+    <Card className="rounded-lg">
+      <CardHeader className="gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <CardTitle className="text-lg">补充素材建议</CardTitle>
+          <CardDescription>让系统指出影响策略、分集和台本生成的素材缺口。</CardDescription>
+        </div>
+        <Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+          {mutation.isPending ? "分析中..." : "生成补充建议"}
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <label className="block space-y-1.5 text-sm">
+          <span className="font-medium">可选补充说明</span>
+          <textarea
+            className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            value={userSupplement}
+            placeholder="例如：主角必须保留复仇线，男女主感情线要更甜，反派不能太脸谱化。"
+            onChange={(event) => setUserSupplement(event.target.value)}
+          />
+        </label>
+        {guidance ? (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={guidance.readiness === "ready" ? "default" : "secondary"}>
+                {readinessLabel(guidance.readiness)}
+              </Badge>
+              <Badge variant="outline">{nextActionLabel(guidance.nextAction)}</Badge>
+            </div>
+            <p className="text-sm leading-6 text-muted-foreground">{guidance.summary}</p>
+            {guidance.missingItems.length > 0 ? (
+              <div className="grid gap-2 md:grid-cols-2">
+                {guidance.missingItems.map((item, index) => (
+                  <div key={`${item.area}-${index}`} className="rounded-md border p-3 text-sm">
+                    <div className="font-medium">{item.problem}</div>
+                    <div className="mt-1 text-muted-foreground">{item.impact}</div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <div className="space-y-2">
+              {guidance.questions.map((question, index) => (
+                <div key={`${question.priority}-${index}`} className="rounded-md border p-3 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{question.priority}</Badge>
+                    <span className="font-medium">{question.question}</span>
+                  </div>
+                  <div className="mt-1 text-muted-foreground">{question.guidance}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function DramaSourcePanel({ project }: { project: DramaProjectDetail }) {
   const bundle = project.sourceBundle;
   const beats = safeJson<Array<Record<string, unknown>>>(bundle?.beats, []);
@@ -95,6 +194,7 @@ export function DramaSourcePanel({ project }: { project: DramaProjectDetail }) {
         characterCount={characters.length}
         factCount={facts.length}
       />
+      <SourceSupplementPanel project={project} />
       <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <Card className="rounded-lg">
           <CardHeader>
