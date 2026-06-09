@@ -53,6 +53,76 @@ export interface DramaEpisode {
   durationSec?: number | null;
   status: string;
   qualityFlags?: string | null;
+  storyboards?: DramaStoryboard[];
+  videoPrompts?: DramaVideoPrompt[];
+}
+
+export interface DramaSourceBundle {
+  id: string;
+  projectId: string;
+  synopsis?: string | null;
+  beats?: string | null;
+  worldNotes?: string | null;
+  hardFacts?: string | null;
+  rawText?: string | null;
+}
+
+export interface DramaCharacter {
+  id: string;
+  projectId?: string;
+  name: string;
+  archetype?: string | null;
+  persona?: string | null;
+  speechStyle?: string | null;
+  visualAnchor?: string | null;
+  voiceProfile?: string | null;
+  relations?: string | null;
+}
+
+export interface DramaShot {
+  id: string;
+  storyboardId: string;
+  order: number;
+  shotSize?: string | null;
+  cameraMove?: string | null;
+  durationSec?: number | null;
+  location?: string | null;
+  action: string;
+  dialogue?: string | null;
+  characterRefs?: string | null;
+  visualPrompt?: string | null;
+}
+
+export interface DramaStoryboard {
+  id: string;
+  projectId: string;
+  episodeId: string;
+  version: number;
+  status: string;
+  summary?: string | null;
+  shots?: DramaShot[];
+}
+
+export interface DramaVideoPrompt {
+  id: string;
+  projectId: string;
+  episodeId?: string | null;
+  shotId?: string | null;
+  provider: string;
+  prompt: string;
+  negativePrompt?: string | null;
+  aspectRatio: string;
+  durationSec?: number | null;
+  status: string;
+  providerTaskId?: string | null;
+  providerResult?: string | null;
+}
+
+export type DramaProjectDetail = DramaProject & {
+  sourceBundle?: DramaSourceBundle | null;
+  characters?: DramaCharacter[];
+  episodes?: DramaEpisode[];
+  videoPrompts?: DramaVideoPrompt[];
 }
 
 export async function listDramaProjects() {
@@ -66,10 +136,7 @@ export async function createDramaProject(payload: CreateDramaProjectPayload) {
 }
 
 export async function getDramaProject(id: string) {
-  const { data } = await apiClient.get<ApiResponse<DramaProject & {
-    sourceBundle?: unknown;
-    characters?: unknown[];
-  }>>(`/drama/projects/${id}`);
+  const { data } = await apiClient.get<ApiResponse<DramaProjectDetail>>(`/drama/projects/${id}`);
   return data;
 }
 

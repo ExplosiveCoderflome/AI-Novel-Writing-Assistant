@@ -54,7 +54,21 @@ export class DramaProjectService {
   async getProject(projectId: string) {
     return prisma.dramaProject.findUnique({
       where: { id: projectId },
-      include: { sourceBundle: true, characters: true },
+      include: {
+        sourceBundle: true,
+        characters: { orderBy: { createdAt: "asc" } },
+        episodes: {
+          orderBy: { order: "asc" },
+          include: {
+            storyboards: {
+              orderBy: { createdAt: "desc" },
+              include: { shots: { orderBy: { order: "asc" } } },
+            },
+            videoPrompts: { orderBy: { createdAt: "desc" } },
+          },
+        },
+        videoPrompts: { orderBy: { createdAt: "desc" } },
+      },
     });
   }
 

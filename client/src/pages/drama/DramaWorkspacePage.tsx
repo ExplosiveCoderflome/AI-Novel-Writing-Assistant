@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Layers3, ListVideo, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, Layers3, ListVideo, Plus, RefreshCw, Sparkles } from "lucide-react";
 import {
   assembleDramaSourceBundle,
   createDramaProject,
@@ -92,6 +93,12 @@ function ProjectCard(props: {
         </div>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
+        <Button asChild type="button" size="sm">
+          <Link to={`/drama/projects/${props.project.id}`}>
+            打开工作台
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </Button>
         <Button
           type="button"
           size="sm"
