@@ -5,13 +5,11 @@ import {
   ArrowLeft,
   CheckCircle2,
   Download,
-  Film,
   Layers3,
   ListVideo,
   RefreshCw,
   Save,
   Sparkles,
-  Video,
   Wand2,
 } from "lucide-react";
 import {
@@ -24,19 +22,21 @@ import {
   generateDramaStrategy,
   generateDramaVideoPrompt,
   getDramaProject,
+  importDramaCharacterFromLibrary,
+  listDramaCharacterLibrary,
   repairDramaEpisode,
+  refreshDramaVideoProviderTask,
   reviewDramaEpisode,
   saveDramaCharacterToLibrary,
   type DramaEpisode,
   type DramaProjectDetail,
-  type DramaShot,
-  type DramaStoryboard,
-  type DramaVideoPrompt,
   updateDramaCharacter,
   updateDramaEpisode,
 } from "@/api/drama";
 import { queryKeys } from "@/api/queryKeys";
 import { DramaCharactersPanel } from "@/pages/drama/components/DramaCharactersPanel";
+import { DramaSourcePanel } from "@/pages/drama/components/DramaSourcePanel";
+import { DramaVisualPanel } from "@/pages/drama/components/DramaVisualPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -141,68 +141,6 @@ function ProjectProgress(props: { project: DramaProjectDetail }) {
           <span>{step.label}</span>
         </div>
       ))}
-    </div>
-  );
-}
-
-function SourcePanel({ project }: { project: DramaProjectDetail }) {
-  const bundle = project.sourceBundle;
-  const beats = safeJson<Array<Record<string, unknown>>>(bundle?.beats, []);
-  const facts = safeJson<Array<{ text?: string; category?: string }>>(bundle?.hardFacts, []);
-
-  if (!bundle) {
-    return (
-      <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-        还没有整理来源素材。先点击“整理素材”，系统会把小说、灵感或导入文本整理成短剧可用的梗概、节拍、角色和硬事实。
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle className="text-lg">故事素材</CardTitle>
-          <CardDescription>用于后续策略、分集和台本生成的标准内容包。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <section className="space-y-2">
-            <h3 className="text-sm font-medium">梗概</h3>
-            <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{bundle.synopsis || "暂无梗概"}</p>
-          </section>
-          <section className="space-y-2">
-            <h3 className="text-sm font-medium">设定要点</h3>
-            <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{bundle.worldNotes || "暂无设定要点"}</p>
-          </section>
-        </CardContent>
-      </Card>
-      <div className="space-y-4">
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-lg">来源节拍</CardTitle>
-          </CardHeader>
-          <CardContent className="max-h-[360px] space-y-2 overflow-auto">
-            {beats.length > 0 ? beats.slice(0, 24).map((beat, index) => (
-              <div key={index} className="rounded-md border p-3 text-sm">
-                <div className="font-medium">{compactText(beat.title || beat.summary || `节拍 ${index + 1}`)}</div>
-                <div className="mt-1 text-muted-foreground">{compactText(beat.summary || beat.description || beat)}</div>
-              </div>
-            )) : <div className="text-sm text-muted-foreground">暂无来源节拍。</div>}
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-lg">硬事实</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {facts.length > 0 ? facts.slice(0, 12).map((fact, index) => (
-              <div key={index} className="rounded-md border px-3 py-2 text-sm">
-                {fact.text || compactText(fact)}
-              </div>
-            )) : <div className="text-sm text-muted-foreground">暂无硬事实。</div>}
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
@@ -426,86 +364,6 @@ function EpisodesPanel(props: {
   );
 }
 
-function VisualPanel(props: {
-  project: DramaProjectDetail;
-  selectedOrder: number | null;
-  onSelectOrder: (order: number) => void;
-  onStoryboard: (order: number) => void;
-  onVideoPrompt: (shot: DramaShot) => void;
-  onProviderTask: (prompt: DramaVideoPrompt) => void;
-  busy: boolean;
-}) {
-  const episodes = props.project.episodes ?? [];
-  const selectedEpisode = episodes.find((episode) => episode.order === props.selectedOrder) ?? episodes[0];
-  const storyboards = selectedEpisode?.storyboards ?? [];
-  const storyboard = storyboards[0] as DramaStoryboard | undefined;
-  const promptsByShot = new Map((props.project.videoPrompts ?? []).filter((prompt) => prompt.shotId).map((prompt) => [prompt.shotId, prompt]));
-
-  if (!selectedEpisode) {
-    return <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">先生成分集和台本，再进入分镜与视频提示词。</div>;
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <select
-          className="h-10 rounded-md border bg-background px-3 text-sm"
-          value={selectedEpisode.order}
-          onChange={(event) => props.onSelectOrder(Number(event.target.value))}
-        >
-          {episodes.map((episode) => (
-            <option key={episode.id} value={episode.order}>第 {episode.order} 集 {episode.title}</option>
-          ))}
-        </select>
-        <Button type="button" disabled={props.busy || !selectedEpisode.content?.trim()} onClick={() => props.onStoryboard(selectedEpisode.order)}>
-          <Film className="h-4 w-4" />
-          生成分镜
-        </Button>
-      </div>
-      {!storyboard ? (
-        <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">当前集还没有分镜。</div>
-      ) : (
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-lg">分镜</CardTitle>
-            <CardDescription>{storyboard.summary || "已生成镜头序列。"}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {(storyboard.shots ?? []).map((shot) => {
-              const prompt = promptsByShot.get(shot.id);
-              return (
-                <div key={shot.id} className="rounded-lg border p-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="font-medium">镜头 {shot.order} · {shot.shotSize || "景别待定"}</div>
-                      <div className="text-sm text-muted-foreground">{shot.action}</div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" type="button" variant="outline" disabled={props.busy} onClick={() => props.onVideoPrompt(shot)}>
-                        <Video className="h-4 w-4" />
-                        视频提示词
-                      </Button>
-                      {prompt ? (
-                        <Button size="sm" type="button" disabled={props.busy} onClick={() => props.onProviderTask(prompt)}>
-                          <Sparkles className="h-4 w-4" />
-                          创建视频任务
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-                  {prompt ? (
-                    <pre className="mt-3 whitespace-pre-wrap rounded-md bg-muted/30 p-3 text-xs leading-5">{prompt.prompt}</pre>
-                  ) : null}
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
-
 export default function DramaProjectPage() {
   const { id } = useParams();
   const queryClient = useQueryClient();
@@ -515,6 +373,11 @@ export default function DramaProjectPage() {
   const projectQuery = useQuery({
     queryKey: queryKeys.drama.project(id ?? "none"),
     queryFn: () => getDramaProject(id!),
+    enabled: Boolean(id),
+  });
+  const characterLibraryQuery = useQuery({
+    queryKey: queryKeys.drama.characterLibrary(id),
+    queryFn: () => listDramaCharacterLibrary(id),
     enabled: Boolean(id),
   });
 
@@ -532,6 +395,7 @@ export default function DramaProjectPage() {
     }
     await queryClient.invalidateQueries({ queryKey: queryKeys.drama.project(id) });
     await queryClient.invalidateQueries({ queryKey: queryKeys.drama.projects });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.drama.characterLibrary(id) });
   };
 
   const actionMutation = useMutation({
@@ -652,7 +516,7 @@ export default function DramaProjectPage() {
         ))}
       </div>
 
-      {activeTab === "source" ? <SourcePanel project={project} /> : null}
+      {activeTab === "source" ? <DramaSourcePanel project={project} /> : null}
       {activeTab === "strategy" ? <StrategyPanel project={project} /> : null}
       {activeTab === "episodes" ? (
         <EpisodesPanel
@@ -669,6 +533,7 @@ export default function DramaProjectPage() {
       {activeTab === "characters" ? (
         <DramaCharactersPanel
           project={project}
+          library={characterLibraryQuery.data?.data ?? []}
           busy={actionMutation.isPending}
           onSave={(character, input) => {
             if (!input.name.trim()) {
@@ -689,10 +554,14 @@ export default function DramaProjectPage() {
             () => saveDramaCharacterToLibrary(project.id, character.id),
             `${character.name} 已保存到角色库。`,
           )}
+          onImportFromLibrary={(libraryId) => runAction(
+            () => importDramaCharacterFromLibrary(project.id, libraryId),
+            "角色已导入当前项目。",
+          )}
         />
       ) : null}
       {activeTab === "visual" ? (
-        <VisualPanel
+        <DramaVisualPanel
           project={project}
           selectedOrder={selectedOrderValue}
           onSelectOrder={setSelectedOrder}
@@ -700,6 +569,7 @@ export default function DramaProjectPage() {
           onStoryboard={(order) => runAction(() => generateDramaStoryboard(project.id, order), `第 ${order} 集分镜已生成。`)}
           onVideoPrompt={(shot) => runAction(() => generateDramaVideoPrompt(project.id, shot.id), `镜头 ${shot.order} 的视频提示词已生成。`)}
           onProviderTask={(prompt) => runAction(() => createDramaVideoProviderTask(prompt.id), "视频任务已创建。")}
+          onRefreshProviderTask={(prompt) => runAction(() => refreshDramaVideoProviderTask(prompt.id), "视频任务状态已刷新。")}
         />
       ) : null}
       {activeTab === "export" ? (

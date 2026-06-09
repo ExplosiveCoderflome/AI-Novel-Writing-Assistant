@@ -79,6 +79,19 @@ export interface DramaCharacter {
   relations?: string | null;
 }
 
+export interface DramaCharacterLibraryItem {
+  id: string;
+  projectId?: string | null;
+  name: string;
+  archetype?: string | null;
+  persona?: string | null;
+  speechStyle?: string | null;
+  visualAnchor?: string | null;
+  voiceProfile?: string | null;
+  relations?: string | null;
+  tags?: string | null;
+}
+
 export interface DramaShot {
   id: string;
   storyboardId: string;
@@ -205,7 +218,7 @@ export async function saveDramaCharacterToLibrary(id: string, characterId: strin
 }
 
 export async function listDramaCharacterLibrary(projectId?: string) {
-  const { data } = await apiClient.get<ApiResponse<unknown[]>>("/drama/character-library", {
+  const { data } = await apiClient.get<ApiResponse<DramaCharacterLibraryItem[]>>("/drama/character-library", {
     params: projectId ? { projectId } : undefined,
   });
   return data;

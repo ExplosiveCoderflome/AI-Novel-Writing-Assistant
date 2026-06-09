@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Save } from "lucide-react";
-import type { DramaCharacter, DramaProjectDetail } from "@/api/drama";
+import { Download, Save } from "lucide-react";
+import type { DramaCharacter, DramaCharacterLibraryItem, DramaProjectDetail } from "@/api/drama";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -81,25 +81,62 @@ function CharacterEditor(props: {
 
 export function DramaCharactersPanel(props: {
   project: DramaProjectDetail;
+  library: DramaCharacterLibraryItem[];
   busy: boolean;
   onSave: (character: DramaCharacter, input: { name: string; archetype: string; persona: string; speechStyle: string }) => void;
   onSaveToLibrary: (character: DramaCharacter) => void;
+  onImportFromLibrary: (libraryId: string) => void;
 }) {
   const characters = props.project.characters ?? [];
-  if (characters.length === 0) {
-    return <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">还没有角色资源。整理素材后会自动导入主要角色。</div>;
-  }
+  const [selectedLibraryId, setSelectedLibraryId] = useState("");
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {characters.map((character) => (
-        <CharacterEditor
-          key={character.id}
-          character={character}
-          busy={props.busy}
-          onSave={props.onSave}
-          onSaveToLibrary={props.onSaveToLibrary}
-        />
-      ))}
+    <div className="space-y-4">
+      <Card className="rounded-lg">
+        <CardHeader>
+          <CardTitle className="text-lg">角色库导入</CardTitle>
+          <CardDescription>从已沉淀的短剧角色中选择一个加入当前项目。</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <select
+            className="h-10 min-w-[260px] rounded-md border bg-background px-3 text-sm"
+            value={selectedLibraryId}
+            disabled={props.busy || props.library.length === 0}
+            onChange={(event) => setSelectedLibraryId(event.target.value)}
+          >
+            <option value="" disabled>{props.library.length > 0 ? "选择角色库角色" : "暂无可导入角色"}</option>
+            {props.library.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}{item.archetype ? ` · ${item.archetype}` : ""}
+              </option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={props.busy || !selectedLibraryId}
+            onClick={() => props.onImportFromLibrary(selectedLibraryId)}
+          >
+            <Download className="h-4 w-4" />
+            导入角色
+          </Button>
+        </CardContent>
+      </Card>
+
+      {characters.length === 0 ? (
+        <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">还没有角色资源。整理素材后会自动导入主要角色。</div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {characters.map((character) => (
+            <CharacterEditor
+              key={character.id}
+              character={character}
+              busy={props.busy}
+              onSave={props.onSave}
+              onSaveToLibrary={props.onSaveToLibrary}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
