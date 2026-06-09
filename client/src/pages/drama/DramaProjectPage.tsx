@@ -33,6 +33,7 @@ import {
 import { queryKeys } from "@/api/queryKeys";
 import { DramaCharactersPanel } from "@/pages/drama/components/DramaCharactersPanel";
 import { DramaNextStepPanel } from "@/pages/drama/components/DramaNextStepPanel";
+import { DramaQualityPanel } from "@/pages/drama/components/DramaQualityPanel";
 import { DramaSourcePanel } from "@/pages/drama/components/DramaSourcePanel";
 import { DramaVisualPanel } from "@/pages/drama/components/DramaVisualPanel";
 import { Badge } from "@/components/ui/badge";
@@ -40,12 +41,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 
-type DramaTab = "source" | "strategy" | "episodes" | "characters" | "visual" | "export";
+type DramaTab = "source" | "strategy" | "episodes" | "quality" | "characters" | "visual" | "export";
 
 const TABS: Array<{ key: DramaTab; label: string }> = [
   { key: "source", label: "来源素材" },
   { key: "strategy", label: "短剧策略" },
   { key: "episodes", label: "分集台本" },
+  { key: "quality", label: "质量问题" },
   { key: "characters", label: "角色" },
   { key: "visual", label: "分镜视频" },
   { key: "export", label: "导出" },
@@ -528,6 +530,16 @@ export default function DramaProjectPage() {
           onReview={(order) => runAction(() => reviewDramaEpisode(project.id, order), `第 ${order} 集质量检查完成。`)}
           onRepair={(order) => runAction(() => repairDramaEpisode(project.id, order), `第 ${order} 集已按质量建议修复。`)}
           onSave={handleSaveEpisode}
+        />
+      ) : null}
+      {activeTab === "quality" ? (
+        <DramaQualityPanel
+          project={project}
+          busy={actionMutation.isPending}
+          onSelectEpisode={setSelectedOrder}
+          onOpenEpisodes={() => setActiveTab("episodes")}
+          onReview={(order) => runAction(() => reviewDramaEpisode(project.id, order), `第 ${order} 集质量检查完成。`)}
+          onRepair={(order) => runAction(() => repairDramaEpisode(project.id, order), `第 ${order} 集已按质量建议修复。`)}
         />
       ) : null}
       {activeTab === "characters" ? (
