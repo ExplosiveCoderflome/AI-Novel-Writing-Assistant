@@ -163,6 +163,17 @@ export async function generateDramaEpisodeScript(id: string, order: number, payl
   return data;
 }
 
+export async function updateDramaEpisode(id: string, order: number, payload: {
+  title?: string;
+  content?: string;
+  hookOpening?: string | null;
+  cliffhanger?: string | null;
+  durationSec?: number | null;
+}) {
+  const { data } = await apiClient.patch<ApiResponse<DramaEpisode>>(`/drama/projects/${id}/episodes/${order}`, payload);
+  return data;
+}
+
 export async function reviewDramaEpisode(id: string, order: number, payload: DramaLLMOptions = {}) {
   const { data } = await apiClient.post<ApiResponse<unknown>>(`/drama/projects/${id}/episodes/${order}/review`, payload);
   return data;

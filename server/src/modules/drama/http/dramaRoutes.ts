@@ -3,6 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { validate } from "../../../middleware/validate";
 import { dramaCharacterService } from "../../../services/drama/DramaCharacterService";
+import { dramaEpisodeService } from "../../../services/drama/DramaEpisodeService";
 import { dramaEpisodeOutlineService } from "../../../services/drama/DramaEpisodeOutlineService";
 import { dramaExportService } from "../../../services/drama/DramaExportService";
 import { dramaProjectService } from "../../../services/drama/DramaProjectService";
@@ -69,6 +70,14 @@ const repairRequestSchema = z
     temperature: z.number().min(0).max(2).optional(),
   })
   .optional();
+
+const episodeUpdateSchema = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+  content: z.string().max(200000).optional(),
+  hookOpening: z.string().trim().max(1000).nullable().optional(),
+  cliffhanger: z.string().trim().max(1000).nullable().optional(),
+  durationSec: z.number().int().min(1).max(600).nullable().optional(),
+});
 
 const characterUpdateSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
@@ -239,6 +248,16 @@ router.post("/projects/:id/episodes/:order/script", validate({ params: episodePa
     const { id, order } = req.params as unknown as z.infer<typeof episodeParamsSchema>;
     const data = await dramaScriptService.generateEpisodeScript(id, order, (req.body ?? {}) as never);
     res.status(200).json({ success: true, data, message: "Drama episode script generated." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/projects/:id/episodes/:order", validate({ params: episodeParamsSchema, body: episodeUpdateSchema }), async (req, res, next) => {
+  try {
+    const { id, order } = req.params as unknown as z.infer<typeof episodeParamsSchema>;
+    const data = await dramaEpisodeService.updateEpisode(id, order, req.body as z.infer<typeof episodeUpdateSchema>);
+    res.status(200).json({ success: true, data, message: "Drama episode updated." });
   } catch (error) {
     next(error);
   }

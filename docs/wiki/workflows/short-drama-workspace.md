@@ -14,6 +14,8 @@
 - `/drama/projects/:id` 是项目工作台，必须展示当前项目的来源素材、策略、分集、角色、质量状态、分镜视频和导出入口。
 - `GET /api/drama/projects/:id` 应返回工作台首屏需要的聚合数据，包括 `sourceBundle`、`characters`、`episodes`、`storyboards`、`shots` 和 `videoPrompts`。
 - 前端可以提供主路径快捷按钮，但按钮必须服务于可见产物：生成后用户应能立即看到素材、策略、分集、台本或质量结果。
+- 单集台本允许用户人工编辑；保存正文后必须把旧 `qualityFlags` 视为过期并清空，避免旧质量结论覆盖新内容。
+- 角色卡是台本、分镜和视频一致性的共享输入；编辑角色名、人设和说话风格后，后续生成应读取更新后的项目角色。
 - 视频 provider 仍通过 `VideoProviderPort` 抽象接入；前端只能把它呈现为短剧项目内的后续生产步骤，不能把短剧工作台变成泛用视频工具。
 
 ## Failure Modes

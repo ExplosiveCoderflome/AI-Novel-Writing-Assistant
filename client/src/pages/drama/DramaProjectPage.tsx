@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -9,6 +9,7 @@ import {
   Layers3,
   ListVideo,
   RefreshCw,
+  Save,
   Sparkles,
   Video,
   Wand2,
@@ -25,13 +26,17 @@ import {
   getDramaProject,
   repairDramaEpisode,
   reviewDramaEpisode,
+  saveDramaCharacterToLibrary,
   type DramaEpisode,
   type DramaProjectDetail,
   type DramaShot,
   type DramaStoryboard,
   type DramaVideoPrompt,
+  updateDramaCharacter,
+  updateDramaEpisode,
 } from "@/api/drama";
 import { queryKeys } from "@/api/queryKeys";
+import { DramaCharactersPanel } from "@/pages/drama/components/DramaCharactersPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,6 +89,24 @@ function compactText(input: unknown): string {
   }
   return JSON.stringify(input, null, 2);
 }
+
+const STRATEGY_LABELS: Record<string, string> = {
+  positioning: "受众定位",
+  mainPleasureLine: "主爽点线",
+  paywallNote: "付费卡点规划",
+  emotionCurveNote: "情绪曲线",
+  deviationDeclaration: "改编边界",
+};
+
+const SCORE_LABELS: Record<string, string> = {
+  hook: "开场钩子",
+  density: "信息密度",
+  paywall: "付费卡点",
+  emotion: "情绪曲线",
+  duration: "时长",
+  consistency: "一致性",
+  overall: "综合",
+};
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -195,7 +218,7 @@ function StrategyPanel({ project }: { project: DramaProjectDetail }) {
       {entries.length > 0 ? entries.map(([key, value]) => (
         <Card key={key} className="rounded-lg">
           <CardHeader>
-            <CardTitle className="text-base">{key}</CardTitle>
+            <CardTitle className="text-base">{STRATEGY_LABELS[key] ?? key}</CardTitle>
           </CardHeader>
           <CardContent>
             <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">{compactText(value)}</pre>
@@ -235,14 +258,52 @@ function EpisodeCard(props: {
 }
 
 function QualityFlags({ episode }: { episode: DramaEpisode }) {
-  const quality = safeJson<Record<string, unknown>>(episode.qualityFlags, {});
+  const quality = safeJson<{
+    status?: string;
+    score?: Record<string, number>;
+    flags?: Array<{ severity?: string; code?: string; evidence?: string; suggestion?: string }>;
+    repairPlan?: { mode?: string; instruction?: string };
+  }>(episode.qualityFlags, {});
   if (!episode.qualityFlags) {
     return <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">还没有质量检查结果。</div>;
   }
   return (
-    <pre className="max-h-[320px] overflow-auto rounded-md border bg-muted/20 p-4 text-xs leading-5">
-      {JSON.stringify(quality, null, 2)}
-    </pre>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={quality.status === "approved" ? "default" : "secondary"}>{quality.status || "已检查"}</Badge>
+        {quality.score?.overall != null ? <span className="text-sm text-muted-foreground">综合 {quality.score.overall}</span> : null}
+      </div>
+      {quality.score ? (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {Object.entries(quality.score).map(([key, value]) => (
+            <div key={key} className="rounded-md border px-3 py-2 text-sm">
+              <div className="text-xs text-muted-foreground">{SCORE_LABELS[key] ?? key}</div>
+              <div className="mt-1 font-medium">{value}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {quality.flags?.length ? (
+        <div className="space-y-2">
+          {quality.flags.map((flag, index) => (
+            <div key={`${flag.code ?? "flag"}-${index}`} className="rounded-md border p-3 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">{flag.severity || "notice"}</Badge>
+                <span className="font-medium">{flag.code || "质量提示"}</span>
+              </div>
+              <p className="mt-2 text-muted-foreground">{flag.evidence}</p>
+              <p className="mt-1">{flag.suggestion}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {quality.repairPlan?.instruction ? (
+        <div className="rounded-md border border-dashed p-3 text-sm">
+          <div className="font-medium">建议修复</div>
+          <p className="mt-1 text-muted-foreground">{quality.repairPlan.instruction}</p>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -253,10 +314,28 @@ function EpisodesPanel(props: {
   onGenerateScript: (order: number) => void;
   onReview: (order: number) => void;
   onRepair: (order: number) => void;
+  onSave: (order: number, input: { title: string; hookOpening: string; cliffhanger: string; content: string; durationSec: string }) => void;
   busy: boolean;
 }) {
   const episodes = props.project.episodes ?? [];
   const selectedEpisode = episodes.find((episode) => episode.order === props.selectedOrder) ?? episodes[0];
+  const [draft, setDraft] = useState({
+    title: "",
+    hookOpening: "",
+    cliffhanger: "",
+    content: "",
+    durationSec: "",
+  });
+
+  useEffect(() => {
+    setDraft({
+      title: selectedEpisode?.title ?? "",
+      hookOpening: selectedEpisode?.hookOpening ?? "",
+      cliffhanger: selectedEpisode?.cliffhanger ?? "",
+      content: selectedEpisode?.content ?? "",
+      durationSec: selectedEpisode?.durationSec != null ? String(selectedEpisode.durationSec) : "",
+    });
+  }, [selectedEpisode?.id, selectedEpisode?.title, selectedEpisode?.hookOpening, selectedEpisode?.cliffhanger, selectedEpisode?.content, selectedEpisode?.durationSec]);
 
   if (episodes.length === 0) {
     return <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">还没有分集大纲。先生成前 12 集分集。</div>;
@@ -294,6 +373,10 @@ function EpisodesPanel(props: {
                 <RefreshCw className="h-4 w-4" />
                 修复
               </Button>
+              <Button size="sm" type="button" variant="outline" disabled={props.busy} onClick={() => props.onSave(selectedEpisode.order, draft)}>
+                <Save className="h-4 w-4" />
+                保存编辑
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -303,14 +386,34 @@ function EpisodesPanel(props: {
               <div className="rounded-md border p-3 text-sm">状态：{statusLabel(selectedEpisode.status)}</div>
             </div>
             <section className="space-y-2">
-              <h3 className="text-sm font-medium">结尾卡点</h3>
-              <p className="text-sm leading-6 text-muted-foreground">{selectedEpisode.cliffhanger || "暂无卡点"}</p>
+              <h3 className="text-sm font-medium">本集信息</h3>
+              <div className="grid gap-3 lg:grid-cols-2">
+                <label className="block space-y-1.5 text-sm">
+                  <span className="font-medium">标题</span>
+                  <input className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} />
+                </label>
+                <label className="block space-y-1.5 text-sm">
+                  <span className="font-medium">预计时长（秒）</span>
+                  <input className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={draft.durationSec} onChange={(event) => setDraft((current) => ({ ...current, durationSec: event.target.value }))} />
+                </label>
+                <label className="block space-y-1.5 text-sm lg:col-span-2">
+                  <span className="font-medium">开场钩子</span>
+                  <textarea className="min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm" value={draft.hookOpening} onChange={(event) => setDraft((current) => ({ ...current, hookOpening: event.target.value }))} />
+                </label>
+                <label className="block space-y-1.5 text-sm lg:col-span-2">
+                  <span className="font-medium">结尾卡点</span>
+                  <textarea className="min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm" value={draft.cliffhanger} onChange={(event) => setDraft((current) => ({ ...current, cliffhanger: event.target.value }))} />
+                </label>
+              </div>
             </section>
             <section className="space-y-2">
               <h3 className="text-sm font-medium">台本</h3>
-              <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-md border bg-muted/20 p-4 text-sm leading-6">
-                {selectedEpisode.content?.trim() || "还没有生成台本。"}
-              </pre>
+              <textarea
+                className="min-h-[420px] w-full rounded-md border bg-background px-3 py-2 text-sm leading-6"
+                value={draft.content}
+                placeholder="还没有生成台本。可以先生成，也可以手动写入。"
+                onChange={(event) => setDraft((current) => ({ ...current, content: event.target.value }))}
+              />
             </section>
             <section className="space-y-2">
               <h3 className="text-sm font-medium">质量结果</h3>
@@ -319,29 +422,6 @@ function EpisodesPanel(props: {
           </CardContent>
         </Card>
       ) : null}
-    </div>
-  );
-}
-
-function CharactersPanel({ project }: { project: DramaProjectDetail }) {
-  const characters = project.characters ?? [];
-  if (characters.length === 0) {
-    return <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">还没有角色资源。整理素材后会自动导入主要角色。</div>;
-  }
-  return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {characters.map((character) => (
-        <Card key={character.id} className="rounded-lg">
-          <CardHeader>
-            <CardTitle className="text-base">{character.name}</CardTitle>
-            <CardDescription>{character.archetype || "未设置角色原型"}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>{character.persona || "暂无人设描述"}</p>
-            <p>{character.speechStyle || "暂无说话风格"}</p>
-          </CardContent>
-        </Card>
-      ))}
     </div>
   );
 }
@@ -477,6 +557,33 @@ export default function DramaProjectPage() {
     downloadBlob(blob, `${project.title}-short-drama.${format === "json" ? "json" : "md"}`);
   };
 
+  const handleSaveEpisode = (order: number, input: {
+    title: string;
+    hookOpening: string;
+    cliffhanger: string;
+    content: string;
+    durationSec: string;
+  }) => {
+    if (!project) {
+      return;
+    }
+    const durationSec = input.durationSec.trim() ? Number(input.durationSec) : undefined;
+    if (!input.title.trim()) {
+      toast.error("请填写本集标题。");
+      return;
+    }
+    runAction(
+      () => updateDramaEpisode(project.id, order, {
+        title: input.title.trim(),
+        hookOpening: input.hookOpening.trim() || null,
+        cliffhanger: input.cliffhanger.trim() || null,
+        content: input.content,
+        durationSec: durationSec !== undefined && Number.isFinite(durationSec) ? durationSec : null,
+      }),
+      `第 ${order} 集已保存。`,
+    );
+  };
+
   if (projectQuery.isLoading) {
     return <div className="rounded-md border p-4 text-sm text-muted-foreground">正在加载短剧项目...</div>;
   }
@@ -556,9 +663,34 @@ export default function DramaProjectPage() {
           onGenerateScript={(order) => runAction(() => generateDramaEpisodeScript(project.id, order), `第 ${order} 集台本已生成。`)}
           onReview={(order) => runAction(() => reviewDramaEpisode(project.id, order), `第 ${order} 集质量检查完成。`)}
           onRepair={(order) => runAction(() => repairDramaEpisode(project.id, order), `第 ${order} 集已按质量建议修复。`)}
+          onSave={handleSaveEpisode}
         />
       ) : null}
-      {activeTab === "characters" ? <CharactersPanel project={project} /> : null}
+      {activeTab === "characters" ? (
+        <DramaCharactersPanel
+          project={project}
+          busy={actionMutation.isPending}
+          onSave={(character, input) => {
+            if (!input.name.trim()) {
+              toast.error("请填写角色名。");
+              return;
+            }
+            runAction(
+              () => updateDramaCharacter(project.id, character.id, {
+                name: input.name.trim(),
+                archetype: input.archetype.trim() || undefined,
+                persona: input.persona.trim() || undefined,
+                speechStyle: input.speechStyle.trim() || undefined,
+              }),
+              `${input.name || character.name} 已保存。`,
+            );
+          }}
+          onSaveToLibrary={(character) => runAction(
+            () => saveDramaCharacterToLibrary(project.id, character.id),
+            `${character.name} 已保存到角色库。`,
+          )}
+        />
+      ) : null}
       {activeTab === "visual" ? (
         <VisualPanel
           project={project}
