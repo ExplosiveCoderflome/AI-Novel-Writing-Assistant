@@ -20,23 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import { getNovelList } from "@/api/novel/core";
-
-const TRACK_OPTIONS = [
-  { value: "counterattack", label: "逆袭" },
-  { value: "rebirth_revenge", label: "重生复仇" },
-  { value: "war_god", label: "战神归来" },
-  { value: "live_in_son", label: "赘婿" },
-  { value: "miracle_doctor", label: "神医" },
-  { value: "rich_family", label: "豪门恩怨" },
-  { value: "sweet_love", label: "甜宠" },
-  { value: "hidden_identity", label: "马甲文" },
-] as const;
-
-const SOURCE_LABELS: Record<DramaSourceType, string> = {
-  novel_import: "小说导入",
-  original: "原创短剧",
-  text_import: "文本导入",
-};
+import { DRAMA_SOURCE_LABELS, DRAMA_TRACK_OPTIONS, dramaTrackLabel } from "./dramaDisplay";
 
 const WIZARD_STEPS = [
   { key: "source", label: "来源" },
@@ -53,10 +37,6 @@ function statusLabel(status: string): string {
     completed: "已完成",
   };
   return labels[status] ?? status;
-}
-
-function trackLabel(track: string): string {
-  return TRACK_OPTIONS.find((option) => option.value === track)?.label ?? track;
 }
 
 function buildRecommendationDigest(form: {
@@ -129,11 +109,11 @@ function ProjectCard(props: {
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <CardTitle className="text-lg leading-6">{props.project.title}</CardTitle>
-            <Badge variant="secondary">{SOURCE_LABELS[props.project.source]}</Badge>
+            <Badge variant="secondary">{DRAMA_SOURCE_LABELS[props.project.source]}</Badge>
             <Badge variant="outline">{statusLabel(props.project.status)}</Badge>
           </div>
           <CardDescription>
-            {props.project.track || "未选择赛道"} · {props.project.targetEpisodes} 集
+            {dramaTrackLabel(props.project.track)} · {props.project.targetEpisodes} 集
           </CardDescription>
         </div>
       </CardHeader>
@@ -455,7 +435,7 @@ export default function DramaWorkspacePage() {
                       value={form.track}
                       onChange={(event) => setForm((current) => ({ ...current, track: event.target.value }))}
                     >
-                      {TRACK_OPTIONS.map((option) => (
+                      {DRAMA_TRACK_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
@@ -499,7 +479,7 @@ export default function DramaWorkspacePage() {
                   {trackRecommendation ? (
                     <div className="space-y-2 text-sm">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="default">{trackLabel(trackRecommendation.recommendedTrack)}</Badge>
+                        <Badge variant="default">{dramaTrackLabel(trackRecommendation.recommendedTrack)}</Badge>
                         <span className="text-muted-foreground">{trackRecommendation.reason}</span>
                       </div>
                       {trackRecommendation.fitSignals.length > 0 ? (

@@ -37,6 +37,7 @@ import { DramaNextStepPanel } from "@/pages/drama/components/DramaNextStepPanel"
 import { DramaQualityPanel } from "@/pages/drama/components/DramaQualityPanel";
 import { DramaSourcePanel } from "@/pages/drama/components/DramaSourcePanel";
 import { DramaVisualPanel } from "@/pages/drama/components/DramaVisualPanel";
+import { dramaTrackLabel } from "@/pages/drama/dramaDisplay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -483,6 +484,7 @@ export default function DramaProjectPage() {
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-normal">{project.title}</h1>
             <Badge variant="secondary">{statusLabel(project.status)}</Badge>
+            <Badge variant="outline">{dramaTrackLabel(project.track)}</Badge>
             <Badge variant="outline">{project.targetEpisodes} 集</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
