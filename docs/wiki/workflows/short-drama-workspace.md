@@ -11,6 +11,7 @@
 ## Current Rule
 
 - `/drama` 是短剧入口和项目列表，不承载完整生产链。
+- 新建项目必须使用低认知负担向导组织为“来源 -> 内容 -> 规格”。导入小说时不暴露内部 ID，应显示小说标题和章节数，并自动生成可读项目名。
 - `/drama/projects/:id` 是项目工作台，必须展示当前项目的来源素材、策略、分集、角色、质量状态、分镜视频和导出入口。
 - `GET /api/drama/projects/:id` 应返回工作台首屏需要的聚合数据，包括 `sourceBundle`、`characters`、`episodes`、`storyboards`、`shots` 和 `videoPrompts`。
 - 前端可以提供主路径快捷按钮，但按钮必须服务于可见产物：生成后用户应能立即看到素材、策略、分集、台本或质量结果。
