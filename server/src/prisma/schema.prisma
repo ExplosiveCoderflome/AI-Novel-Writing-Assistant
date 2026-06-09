@@ -2918,3 +2918,136 @@ model NovelFactEntry {
   @@index([novelId, chapterOrder])
   @@index([novelId, category])
 }
+
+// ============================================================
+// 短剧创作模块（Drama）—— 独立 bounded context
+// 所有 Drama* 表自成一套，不与 Novel 建外键关系（仅软引用 sourceRef）。
+// 与小说模块的唯一接触点是 services/drama/source/NovelSourceAdapter（只读）。
+// 分类字段统一用 String + 注释（不用 enum），降低双 schema 维护成本。
+// ============================================================
+
+model DramaProject {
+  id             String   @id @default(cuid())
+  title          String
+  // 内容源：novel_import=导入小说；original=独立原创；text_import=文本转剧本
+  source         String   @default("original")
+  // 软引用：内容源标识（如 novelId），不建外键，保证可拆分
+  sourceRef      String?
+  // 赛道：逆袭/重生复仇/战神/赘婿/神医/豪门/甜宠/马甲文...
+  track          String?
+  theme          String?
+  // 形态：vertical_paid=竖屏付费短剧
+  orientation    String   @default("vertical_paid")
+  targetEpisodes Int      @default(80)
+  // 策略 JSON：主爽点线/付费卡点分布/情绪曲线目标/改编偏离声明
+  strategy       String?
+  // 状态：draft/strategized/outlined/scripting/completed
+  status         String   @default("draft")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sourceBundle   DramaSourceBundle?
+  characters     DramaCharacter[]
+  episodes       DramaEpisode[]
+  facts          DramaFact[]
+
+  @@index([source])
+  @@index([status])
+}
+
+model DramaSourceBundle {
+  id         String   @id @default(cuid())
+  projectId  String   @unique
+  // 剧情梗概
+  synopsis   String?
+  // 情节节拍 JSON 数组（来源无关）
+  beats      String?
+  // 设定要点
+  worldNotes String?
+  // 硬事实 JSON 数组（一致性约束）
+  hardFacts  String?
+  // 原始文本（text_import 用）
+  rawText    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  project    DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model DramaCharacter {
+  id                 String   @id @default(cuid())
+  projectId          String
+  name               String
+  // 原型：霸总/赘婿/重生复仇/马甲/扮猪吃老虎...
+  archetype          String?
+  // 人设标签
+  persona            String?
+  // 说话风格
+  speechStyle        String?
+  // 视觉锚点 JSON：外形/服化/参考图 assetId（跨集视觉一致性用）
+  visualAnchor       String?
+  // 声线 JSON：配音用
+  voiceProfile       String?
+  // 关系 JSON
+  relations          String?
+  // 软引用：源角色标识（来自小说角色时）
+  sourceCharacterRef String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project            DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model DramaEpisode {
+  id           String   @id @default(cuid())
+  projectId    String
+  order        Int
+  title        String
+  // 台本正文
+  content      String?  @default("")
+  // 黄金3秒钩子开场
+  hookOpening  String?
+  // 集尾卡点（cliffhanger）
+  cliffhanger  String?
+  // 主钩子类型：身份反转/打脸/扮猪吃老虎/马甲掉落/误会/危机/情感拉扯...
+  hookType     String?
+  // 是否付费卡点集
+  isPaywall    Boolean  @default(false)
+  // 情绪净值：爽感曲线建模，正=释放，负=憋屈蓄势
+  emotionNet   Int?
+  // 集内节拍 JSON
+  beatSheet    String?
+  // 源映射 JSON：← 源 SourceBundle 节拍 / 小说章节区间
+  sourceMap    String?
+  durationSec  Int?
+  // 状态：planned/scripted/reviewed/needs_repair/approved
+  status       String   @default("planned")
+  // 质量标记 JSON
+  qualityFlags String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project      DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, order])
+  @@index([projectId, status])
+}
+
+model DramaFact {
+  id           String   @id @default(cuid())
+  projectId    String
+  // 事实发生在第几集
+  episodeOrder Int
+  text         String
+  // completed/revealed/state_changed
+  category     String   @default("completed")
+  source       String   @default("auto")
+  createdAt    DateTime @default(now())
+
+  project      DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, episodeOrder])
+  @@index([projectId, category])
+}

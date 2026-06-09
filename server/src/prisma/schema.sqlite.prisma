@@ -2913,3 +2913,106 @@ model NovelFactEntry {
   @@index([novelId, chapterOrder])
   @@index([novelId, category])
 }
+
+// ============================================================
+// 短剧创作模块（Drama）—— 独立 bounded context
+// 所有 Drama* 表自成一套，不与 Novel 建外键关系（仅软引用 sourceRef）。
+// 与小说模块的唯一接触点是 services/drama/source/NovelSourceAdapter（只读）。
+// 分类字段统一用 String + 注释（不用 enum），降低双 schema 维护成本。
+// ============================================================
+
+model DramaProject {
+  id             String   @id @default(cuid())
+  title          String
+  source         String   @default("original")
+  sourceRef      String?
+  track          String?
+  theme          String?
+  orientation    String   @default("vertical_paid")
+  targetEpisodes Int      @default(80)
+  strategy       String?
+  status         String   @default("draft")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sourceBundle   DramaSourceBundle?
+  characters     DramaCharacter[]
+  episodes       DramaEpisode[]
+  facts          DramaFact[]
+
+  @@index([source])
+  @@index([status])
+}
+
+model DramaSourceBundle {
+  id         String   @id @default(cuid())
+  projectId  String   @unique
+  synopsis   String?
+  beats      String?
+  worldNotes String?
+  hardFacts  String?
+  rawText    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  project    DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model DramaCharacter {
+  id                 String   @id @default(cuid())
+  projectId          String
+  name               String
+  archetype          String?
+  persona            String?
+  speechStyle        String?
+  visualAnchor       String?
+  voiceProfile       String?
+  relations          String?
+  sourceCharacterRef String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project            DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model DramaEpisode {
+  id           String   @id @default(cuid())
+  projectId    String
+  order        Int
+  title        String
+  content      String?  @default("")
+  hookOpening  String?
+  cliffhanger  String?
+  hookType     String?
+  isPaywall    Boolean  @default(false)
+  emotionNet   Int?
+  beatSheet    String?
+  sourceMap    String?
+  durationSec  Int?
+  status       String   @default("planned")
+  qualityFlags String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project      DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, order])
+  @@index([projectId, status])
+}
+
+model DramaFact {
+  id           String   @id @default(cuid())
+  projectId    String
+  episodeOrder Int
+  text         String
+  category     String   @default("completed")
+  source       String   @default("auto")
+  createdAt    DateTime @default(now())
+
+  project      DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, episodeOrder])
+  @@index([projectId, category])
+}
