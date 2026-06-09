@@ -1,5 +1,12 @@
 import { ExternalLink, Film, RefreshCw, Sparkles, Video } from "lucide-react";
-import type { DramaEpisode, DramaProjectDetail, DramaShot, DramaStoryboard, DramaVideoPrompt } from "@/api/drama";
+import type {
+  DramaEpisode,
+  DramaProjectDetail,
+  DramaShot,
+  DramaStoryboard,
+  DramaVideoPrompt,
+  DramaVideoProvider,
+} from "@/api/drama";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +17,10 @@ export function DramaVisualPanel(props: {
   onSelectOrder: (order: number) => void;
   onStoryboard: (order: number) => void;
   onVideoPrompt: (shot: DramaShot) => void;
-  onProviderTask: (prompt: DramaVideoPrompt) => void;
+  videoProviders: DramaVideoProvider[];
+  selectedProvider: string;
+  onSelectProvider: (provider: string) => void;
+  onProviderTask: (prompt: DramaVideoPrompt, provider: string) => void;
   onRefreshProviderTask: (prompt: DramaVideoPrompt) => void;
   busy: boolean;
 }) {
@@ -58,20 +68,40 @@ export function DramaVisualPanel(props: {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <select
-          className="h-10 rounded-md border bg-background px-3 text-sm"
-          value={selectedEpisode.order}
-          onChange={(event) => props.onSelectOrder(Number(event.target.value))}
-        >
-          {episodes.map((episode) => (
-            <option key={episode.id} value={episode.order}>第 {episode.order} 集 {episode.title}</option>
-          ))}
-        </select>
-        <Button type="button" disabled={props.busy || !selectedEpisode.content?.trim()} onClick={() => props.onStoryboard(selectedEpisode.order)}>
-          <Film className="h-4 w-4" />
-          生成分镜
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={selectedEpisode.order}
+            onChange={(event) => props.onSelectOrder(Number(event.target.value))}
+          >
+            {episodes.map((episode) => (
+              <option key={episode.id} value={episode.order}>第 {episode.order} 集 {episode.title}</option>
+            ))}
+          </select>
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={props.selectedProvider}
+            onChange={(event) => props.onSelectProvider(event.target.value)}
+          >
+            {props.videoProviders.length > 0 ? props.videoProviders.map((provider) => (
+              <option key={provider.provider} value={provider.provider}>{provider.label}</option>
+            )) : (
+              <option value={props.selectedProvider}>{props.selectedProvider}</option>
+            )}
+          </select>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" disabled={props.busy || !selectedEpisode.content?.trim()} onClick={() => props.onStoryboard(selectedEpisode.order)}>
+            <Film className="h-4 w-4" />
+            生成分镜
+          </Button>
+        </div>
       </div>
+      {props.videoProviders.length > 0 ? (
+        <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+          当前视频通道：{props.videoProviders.find((provider) => provider.provider === props.selectedProvider)?.description || props.selectedProvider}
+        </div>
+      ) : null}
       {!storyboard ? (
         <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">当前集还没有分镜。</div>
       ) : (
@@ -97,7 +127,7 @@ export function DramaVisualPanel(props: {
                       </Button>
                       {prompt ? (
                         <>
-                          <Button size="sm" type="button" disabled={props.busy || Boolean(prompt.providerTaskId)} onClick={() => props.onProviderTask(prompt)}>
+                          <Button size="sm" type="button" disabled={props.busy || Boolean(prompt.providerTaskId)} onClick={() => props.onProviderTask(prompt, props.selectedProvider)}>
                             <Sparkles className="h-4 w-4" />
                             {prompt.providerTaskId ? "任务已创建" : "创建视频任务"}
                           </Button>
@@ -141,7 +171,7 @@ export function DramaVisualPanel(props: {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {!prompt.providerTaskId ? (
-                      <Button size="sm" type="button" disabled={props.busy} onClick={() => props.onProviderTask(prompt)}>
+                      <Button size="sm" type="button" disabled={props.busy} onClick={() => props.onProviderTask(prompt, props.selectedProvider)}>
                         <Sparkles className="h-4 w-4" />
                         创建任务
                       </Button>
@@ -202,7 +232,7 @@ function VideoPromptDetails({ prompt, compact = false }: { prompt: DramaVideoPro
       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
         <span>画幅：{prompt.aspectRatio}</span>
         {prompt.durationSec ? <span>时长：{prompt.durationSec} 秒</span> : null}
-        {providerResult.status ? <span>provider 状态：{providerResult.status}</span> : null}
+        {providerResult.status ? <span>视频通道状态：{providerResult.status}</span> : null}
       </div>
       {providerResult.resultUrl ? (
         <a

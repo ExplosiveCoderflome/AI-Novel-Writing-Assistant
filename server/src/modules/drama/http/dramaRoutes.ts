@@ -15,6 +15,7 @@ import { dramaStoryboardService } from "../../../services/drama/DramaStoryboardS
 import { dramaStrategyService } from "../../../services/drama/DramaStrategyService";
 import { dramaVideoPromptService } from "../../../services/drama/DramaVideoPromptService";
 import { rhythmEngine } from "../../../services/drama/engine/rhythmEngine";
+import { videoProviderRegistry } from "../../../services/drama/video/VideoProviderPort";
 
 const router = Router();
 
@@ -188,6 +189,11 @@ router.get("/tracks", (_req, res) => {
 
 router.get("/hooks", (_req, res) => {
   res.status(200).json({ success: true, data: rhythmEngine.listHooks(), message: "Drama hooks loaded." });
+});
+
+router.get("/video-providers", (_req, res) => {
+  const data = videoProviderRegistry.listProviders();
+  res.status(200).json({ success: true, data, message: "Drama video providers loaded." });
 });
 
 router.post("/track-recommendation", validate({ body: trackRecommendationSchema }), async (req, res, next) => {

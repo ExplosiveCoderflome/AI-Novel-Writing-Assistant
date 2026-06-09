@@ -158,6 +158,12 @@ export interface DramaVideoPrompt {
   providerResult?: string | null;
 }
 
+export interface DramaVideoProvider {
+  provider: string;
+  label: string;
+  description?: string;
+}
+
 export type DramaProjectDetail = DramaProject & {
   sourceBundle?: DramaSourceBundle | null;
   characters?: DramaCharacter[];
@@ -286,6 +292,11 @@ export async function generateDramaStoryboard(id: string, order: number, payload
 
 export async function getDramaStoryboard(storyboardId: string) {
   const { data } = await apiClient.get<ApiResponse<unknown>>(`/drama/storyboards/${storyboardId}`);
+  return data;
+}
+
+export async function listDramaVideoProviders() {
+  const { data } = await apiClient.get<ApiResponse<DramaVideoProvider[]>>("/drama/video-providers");
   return data;
 }
 

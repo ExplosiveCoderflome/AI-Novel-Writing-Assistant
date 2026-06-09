@@ -79,6 +79,7 @@ export const queryKeys = {
     characters: (id: string) => ["drama", "characters", id] as const,
     characterLibrary: (projectId?: string) => ["drama", "character-library", projectId ?? "global"] as const,
     storyboard: (storyboardId: string) => ["drama", "storyboard", storyboardId] as const,
+    videoProviders: ["drama", "video-providers"] as const,
   },
   storyModes: {
     all: ["story-modes"] as const,

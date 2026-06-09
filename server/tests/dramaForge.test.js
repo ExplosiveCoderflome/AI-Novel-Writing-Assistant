@@ -26,6 +26,8 @@ test("drama prompt assets are registered", () => {
 test("drama video provider registry exposes mock provider", async () => {
   const { videoProviderRegistry } = require("../dist/services/drama/video/VideoProviderPort.js");
   const provider = videoProviderRegistry.resolve("mock");
+  const providers = videoProviderRegistry.listProviders();
+  assert.equal(providers.some((item) => item.provider === "mock"), true);
   const result = await provider.createTask({
     prompt: "vertical drama shot",
     aspectRatio: "9:16",

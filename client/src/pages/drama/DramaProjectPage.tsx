@@ -21,6 +21,7 @@ import {
   getDramaProject,
   importDramaCharacterFromLibrary,
   listDramaCharacterLibrary,
+  listDramaVideoProviders,
   repairDramaEpisode,
   refreshDramaVideoProviderTask,
   reviewDramaEpisode,
@@ -369,6 +370,7 @@ export default function DramaProjectPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<DramaTab>("source");
   const [selectedOrder, setSelectedOrder] = useState<number | null>(null);
+  const [selectedVideoProvider, setSelectedVideoProvider] = useState("mock");
 
   const projectQuery = useQuery({
     queryKey: queryKeys.drama.project(id ?? "none"),
@@ -380,8 +382,16 @@ export default function DramaProjectPage() {
     queryFn: () => listDramaCharacterLibrary(id),
     enabled: Boolean(id),
   });
+  const videoProvidersQuery = useQuery({
+    queryKey: queryKeys.drama.videoProviders,
+    queryFn: listDramaVideoProviders,
+  });
 
   const project = projectQuery.data?.data;
+  const videoProviders = videoProvidersQuery.data?.data ?? [];
+  const activeVideoProvider = videoProviders.some((provider) => provider.provider === selectedVideoProvider)
+    ? selectedVideoProvider
+    : videoProviders[0]?.provider ?? "mock";
   const selectedOrderValue = useMemo(() => {
     if (selectedOrder) {
       return selectedOrder;
@@ -500,7 +510,7 @@ export default function DramaProjectPage() {
         onRepairEpisode={(order) => runAction(() => repairDramaEpisode(project.id, order), `第 ${order} 集已按质量建议修复。`)}
         onGenerateStoryboard={(order) => runAction(() => generateDramaStoryboard(project.id, order), `第 ${order} 集分镜已生成。`)}
         onGenerateVideoPrompt={(shot) => runAction(() => generateDramaVideoPrompt(project.id, shot.id), `镜头 ${shot.order} 的视频提示词已生成。`)}
-        onCreateProviderTask={(prompt) => runAction(() => createDramaVideoProviderTask(prompt.id), "视频任务已创建。")}
+        onCreateProviderTask={(prompt) => runAction(() => createDramaVideoProviderTask(prompt.id, activeVideoProvider), "视频任务已创建。")}
         onExportMarkdown={() => void handleExport("markdown")}
       />
 
@@ -580,7 +590,10 @@ export default function DramaProjectPage() {
           busy={actionMutation.isPending}
           onStoryboard={(order) => runAction(() => generateDramaStoryboard(project.id, order), `第 ${order} 集分镜已生成。`)}
           onVideoPrompt={(shot) => runAction(() => generateDramaVideoPrompt(project.id, shot.id), `镜头 ${shot.order} 的视频提示词已生成。`)}
-          onProviderTask={(prompt) => runAction(() => createDramaVideoProviderTask(prompt.id), "视频任务已创建。")}
+          videoProviders={videoProviders}
+          selectedProvider={activeVideoProvider}
+          onSelectProvider={setSelectedVideoProvider}
+          onProviderTask={(prompt, provider) => runAction(() => createDramaVideoProviderTask(prompt.id, provider), "视频任务已创建。")}
           onRefreshProviderTask={(prompt) => runAction(() => refreshDramaVideoProviderTask(prompt.id), "视频任务状态已刷新。")}
         />
       ) : null}
