@@ -5,11 +5,8 @@ import {
   ArrowLeft,
   CheckCircle2,
   Download,
-  Layers3,
-  ListVideo,
   RefreshCw,
   Save,
-  Sparkles,
   Wand2,
 } from "lucide-react";
 import {
@@ -35,6 +32,7 @@ import {
 } from "@/api/drama";
 import { queryKeys } from "@/api/queryKeys";
 import { DramaCharactersPanel } from "@/pages/drama/components/DramaCharactersPanel";
+import { DramaNextStepPanel } from "@/pages/drama/components/DramaNextStepPanel";
 import { DramaSourcePanel } from "@/pages/drama/components/DramaSourcePanel";
 import { DramaVisualPanel } from "@/pages/drama/components/DramaVisualPanel";
 import { Badge } from "@/components/ui/badge";
@@ -487,20 +485,22 @@ export default function DramaProjectPage() {
 
       <ProjectProgress project={project} />
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" disabled={actionMutation.isPending} onClick={() => runAction(() => assembleDramaSourceBundle(project.id), "短剧素材已整理。")}>
-          <Layers3 className="h-4 w-4" />
-          整理素材
-        </Button>
-        <Button type="button" variant="outline" disabled={actionMutation.isPending || !project.sourceBundle} onClick={() => runAction(() => generateDramaStrategy(project.id), "短剧策略已生成。")}>
-          <Sparkles className="h-4 w-4" />
-          生成策略
-        </Button>
-        <Button type="button" disabled={actionMutation.isPending || !project.strategy} onClick={() => runAction(() => generateDramaOutline(project.id, { startOrder: 1, count: 12 }), "前 12 集分集已生成。")}>
-          <ListVideo className="h-4 w-4" />
-          生成前 12 集
-        </Button>
-      </div>
+      <DramaNextStepPanel
+        project={project}
+        busy={actionMutation.isPending}
+        onSetTab={setActiveTab}
+        onSelectEpisode={setSelectedOrder}
+        onAssembleSource={() => runAction(() => assembleDramaSourceBundle(project.id), "短剧素材已整理。")}
+        onGenerateStrategy={() => runAction(() => generateDramaStrategy(project.id), "短剧策略已生成。")}
+        onGenerateOutline={() => runAction(() => generateDramaOutline(project.id, { startOrder: 1, count: 12 }), "前 12 集分集已生成。")}
+        onGenerateScript={(order) => runAction(() => generateDramaEpisodeScript(project.id, order), `第 ${order} 集台本已生成。`)}
+        onReviewEpisode={(order) => runAction(() => reviewDramaEpisode(project.id, order), `第 ${order} 集质量检查完成。`)}
+        onRepairEpisode={(order) => runAction(() => repairDramaEpisode(project.id, order), `第 ${order} 集已按质量建议修复。`)}
+        onGenerateStoryboard={(order) => runAction(() => generateDramaStoryboard(project.id, order), `第 ${order} 集分镜已生成。`)}
+        onGenerateVideoPrompt={(shot) => runAction(() => generateDramaVideoPrompt(project.id, shot.id), `镜头 ${shot.order} 的视频提示词已生成。`)}
+        onCreateProviderTask={(prompt) => runAction(() => createDramaVideoProviderTask(prompt.id), "视频任务已创建。")}
+        onExportMarkdown={() => void handleExport("markdown")}
+      />
 
       <div className="flex gap-2 overflow-x-auto border-b pb-2">
         {TABS.map((tab) => (
