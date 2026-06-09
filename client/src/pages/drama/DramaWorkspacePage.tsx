@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
+import { getNovelList } from "@/api/novel/core";
 
 const TRACK_OPTIONS = [
   { value: "counterattack", label: "逆袭" },
@@ -143,8 +144,13 @@ export default function DramaWorkspacePage() {
     queryKey: queryKeys.drama.projects,
     queryFn: listDramaProjects,
   });
+  const novelsQuery = useQuery({
+    queryKey: queryKeys.novels.list(1, 100),
+    queryFn: () => getNovelList({ page: 1, limit: 100 }),
+  });
 
   const projects = useMemo(() => projectsQuery.data?.data ?? [], [projectsQuery.data?.data]);
+  const novels = useMemo(() => novelsQuery.data?.data?.items ?? [], [novelsQuery.data?.data?.items]);
 
   const createMutation = useMutation({
     mutationFn: (payload: CreateDramaProjectPayload) => createDramaProject(payload),
@@ -184,7 +190,7 @@ export default function DramaWorkspacePage() {
       return;
     }
     if (form.source === "novel_import" && !form.sourceRef.trim()) {
-      toast.error("请填写要导入的小说 ID。");
+      toast.error("请选择要改编的小说。");
       return;
     }
     if (form.source === "original" && !form.inspiration.trim()) {
@@ -229,7 +235,11 @@ export default function DramaWorkspacePage() {
                 <select
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                   value={form.source}
-                  onChange={(event) => setForm((current) => ({ ...current, source: event.target.value as DramaSourceType }))}
+                  onChange={(event) => setForm((current) => ({
+                    ...current,
+                    source: event.target.value as DramaSourceType,
+                    sourceRef: "",
+                  }))}
                 >
                   <option value="original">原创短剧</option>
                   <option value="novel_import">导入小说</option>
@@ -252,12 +262,22 @@ export default function DramaWorkspacePage() {
 
             {form.source === "novel_import" ? (
               <label className="block space-y-1.5 text-sm">
-                <span className="font-medium">小说 ID</span>
-                <input
+                <span className="font-medium">选择小说</span>
+                <select
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                   value={form.sourceRef}
+                  disabled={novelsQuery.isLoading || novels.length === 0}
                   onChange={(event) => setForm((current) => ({ ...current, sourceRef: event.target.value }))}
-                />
+                >
+                  <option value="" disabled>
+                    {novelsQuery.isLoading ? "正在加载小说..." : novels.length > 0 ? "请选择要改编的小说" : "暂无可导入小说"}
+                  </option>
+                  {novels.map((novel) => (
+                    <option key={novel.id} value={novel.id}>
+                      {novel.title || "未命名小说"}（{novel._count.chapters} 章）
+                    </option>
+                  ))}
+                </select>
               </label>
             ) : null}
 
