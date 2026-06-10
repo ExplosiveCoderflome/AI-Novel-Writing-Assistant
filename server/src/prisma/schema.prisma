@@ -2955,6 +2955,7 @@ model DramaProject {
   characterLibraryItems DramaCharacterLibrary[]
   storyboards    DramaStoryboard[]
   videoPrompts   DramaVideoPrompt[]
+  batchJobs      DramaBatchJob[]
 
   @@index([source])
   @@index([status])
@@ -3041,6 +3042,7 @@ model DramaEpisode {
   project      DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   storyboards  DramaStoryboard[]
   videoPrompts DramaVideoPrompt[]
+  batchJobs    DramaBatchJob[]
 
   @@unique([projectId, order])
   @@index([projectId, status])
@@ -3147,4 +3149,25 @@ model DramaVideoPrompt {
   @@index([projectId])
   @@index([episodeId])
   @@index([provider, status])
+}
+
+model DramaBatchJob {
+  id        String   @id @default(cuid())
+  projectId String
+  episodeId String?
+  // keyframes/videos/tts/full_episode
+  type      String
+  // pending/running/paused/done/failed
+  status    String   @default("pending")
+  // JSON: { total, done, failed, failedShotIds, provider, errors }
+  progress  String   @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode   DramaEpisode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([episodeId, status])
+  @@index([type, status])
 }

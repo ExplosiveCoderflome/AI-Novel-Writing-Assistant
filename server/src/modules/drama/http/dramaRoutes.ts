@@ -18,6 +18,7 @@ import { dramaStoryboardService } from "../../../services/drama/DramaStoryboardS
 import { dramaStrategyService } from "../../../services/drama/DramaStrategyService";
 import { dramaVideoPromptService } from "../../../services/drama/DramaVideoPromptService";
 import { rhythmEngine } from "../../../services/drama/engine/rhythmEngine";
+import { dramaBatchOrchestrator } from "../../../services/drama/production/DramaBatchOrchestrator";
 import { dramaShotKeyframeService } from "../../../services/drama/visual/DramaShotKeyframeService";
 import { videoProviderRegistry } from "../../../services/drama/video/VideoProviderPort";
 
@@ -34,6 +35,12 @@ const llmOptionsSchema = z
 const imageProviderBodySchema = z
   .object({ provider: z.string().trim().optional() })
   .optional();
+
+const batchJobBodySchema = z.object({
+  type: z.enum(["keyframes", "videos"]),
+  provider: z.string().trim().optional(),
+  failedShotIds: z.array(z.string().trim().min(1)).optional(),
+});
 
 const outlineRequestSchema = z
   .object({
@@ -363,6 +370,17 @@ router.get("/projects/:id/episodes/:order/export", validate({ params: episodePar
     res.setHeader("Content-Type", data.contentType);
     res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(data.filename)}"`);
     res.status(200).send(data.body);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/projects/:id/episodes/:order/batch-jobs", validate({ params: episodeParamsSchema, body: batchJobBodySchema }), async (req, res, next) => {
+  try {
+    const { id, order } = req.params as unknown as z.infer<typeof episodeParamsSchema>;
+    const body = req.body as z.infer<typeof batchJobBodySchema>;
+    const data = await dramaBatchOrchestrator.createEpisodeBatchJob(id, order, body);
+    res.status(201).json({ success: true, data, message: "Drama batch job created." });
   } catch (error) {
     next(error);
   }

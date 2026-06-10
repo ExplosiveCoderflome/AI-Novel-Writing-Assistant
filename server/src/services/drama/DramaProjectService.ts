@@ -68,6 +68,7 @@ export class DramaProjectService {
           },
         },
         videoPrompts: { orderBy: { createdAt: "desc" } },
+        batchJobs: { orderBy: { createdAt: "desc" }, take: 20 },
       },
     });
   }

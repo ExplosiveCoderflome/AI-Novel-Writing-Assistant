@@ -54,6 +54,7 @@ function installPipelineStubs() {
     storyboards: [],
     shots: [],
     videoPrompts: [],
+    batchJobs: [],
     keyframeInput: null,
     generatedImagesRoot: fs.mkdtempSync(path.join(os.tmpdir(), "drama-keyframes-")),
   };
@@ -155,7 +156,11 @@ function installPipelineStubs() {
     dramaEpisode: {
       update: tx.dramaEpisode.update,
       findUnique: async ({ where }) => {
-        if (where.projectId_order.projectId !== "project_1" || where.projectId_order.order !== state.episode.order) {
+        const matchesComposite = where.projectId_order
+          && where.projectId_order.projectId === "project_1"
+          && where.projectId_order.order === state.episode.order;
+        const matchesId = where.id === state.episode.id;
+        if (!matchesComposite && !matchesId) {
           return null;
         }
         return {
@@ -196,10 +201,33 @@ function installPipelineStubs() {
         return created;
       },
       findUnique: async ({ where }) => state.videoPrompts.find((prompt) => prompt.id === where.id) ?? null,
+      findFirst: async ({ where }) => state.videoPrompts.find((prompt) =>
+        prompt.projectId === where.projectId
+        && prompt.episodeId === where.episodeId
+        && prompt.shotId === where.shotId,
+      ) ?? null,
       update: async ({ where, data }) => {
         const prompt = state.videoPrompts.find((item) => item.id === where.id);
         Object.assign(prompt, data);
         return prompt;
+      },
+    },
+    dramaBatchJob: {
+      create: async ({ data }) => {
+        const created = {
+          id: `batch_job_${state.batchJobs.length + 1}`,
+          createdAt: new Date("2026-06-10T00:00:00.000Z"),
+          updatedAt: new Date("2026-06-10T00:00:00.000Z"),
+          ...data,
+        };
+        state.batchJobs.push(created);
+        return created;
+      },
+      findUnique: async ({ where }) => state.batchJobs.find((job) => job.id === where.id) ?? null,
+      update: async ({ where, data }) => {
+        const job = state.batchJobs.find((item) => item.id === where.id);
+        Object.assign(job, data, { updatedAt: new Date("2026-06-10T00:00:00.000Z") });
+        return job;
       },
     },
   };
@@ -334,7 +362,7 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
   const { DramaQualityGate } = require("../dist/services/drama/DramaQualityGate.js");
   const { DramaRepairService } = require("../dist/services/drama/DramaRepairService.js");
   const { DramaStoryboardService } = require("../dist/services/drama/DramaStoryboardService.js");
-  const { DramaVideoPromptService } = require("../dist/services/drama/DramaVideoPromptService.js");
+  const { DramaBatchOrchestrator } = require("../dist/services/drama/production/DramaBatchOrchestrator.js");
 
   const script = await new DramaScriptService().generateEpisodeScript("project_1", 1);
   assert.match(script.content, /林澈/);
@@ -356,27 +384,44 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
   assert.equal(storyboard.shots.length, 1);
   assert.equal(storyboard.shots[0].characterRefs, JSON.stringify(["林澈"]));
 
-  const { DramaShotKeyframeService } = require("../dist/services/drama/visual/DramaShotKeyframeService.js");
-  const keyframe = await new DramaShotKeyframeService().generateKeyframe(storyboard.shots[0].id, "openai");
-  assert.equal(keyframe.status, "done");
-  assert.equal(keyframe.url, "/api/drama/shot-images/shot_1/keyframe");
+  const batchOrchestrator = new DramaBatchOrchestrator();
+  const keyframeJob = await batchOrchestrator.createEpisodeBatchJob(
+    "project_1",
+    1,
+    { type: "keyframes", provider: "openai" },
+    { autoStart: false },
+  );
+  const finishedKeyframes = await batchOrchestrator.runBatchJob(keyframeJob.id);
+  const keyframeProgress = JSON.parse(finishedKeyframes.progress);
+  assert.equal(finishedKeyframes.status, "done");
+  assert.equal(keyframeProgress.total, 1);
+  assert.equal(keyframeProgress.done, 1);
   assert.equal(state.keyframeInput.sceneType, "chapter_illustration");
   assert.equal(state.keyframeInput.size, "1024x1536");
   assert.match(state.shots[0].keyframeData, /shot-images/);
 
-  const videoService = new DramaVideoPromptService();
-  const prompt = await videoService.generateVideoPromptForShot("project_1", storyboard.shots[0].id);
+  const videoJob = await batchOrchestrator.createEpisodeBatchJob(
+    "project_1",
+    1,
+    { type: "videos", provider: "mock" },
+    { autoStart: false },
+  );
+  const finishedVideos = await batchOrchestrator.runBatchJob(videoJob.id);
+  const videoProgress = JSON.parse(finishedVideos.progress);
+  assert.equal(finishedVideos.status, "done");
+  assert.equal(videoProgress.total, 1);
+  assert.equal(videoProgress.done, 1);
+
+  const prompt = state.videoPrompts[0];
   assert.equal(prompt.aspectRatio, "9:16");
   assert.match(prompt.prompt, /vertical drama/);
-
-  const task = await videoService.createProviderTask(prompt.id, "mock");
-  assert.equal(task.provider, "mock");
-  assert.match(task.providerTaskId, /^mock_/);
-  assert.equal(task.status, "queued");
-  assert.equal(task.resultUrl, null);
-  assert.equal(task.failureReason, null);
-  assert.match(task.providerResult, /providerTaskId/);
-  assert.deepEqual(JSON.parse(task.providerResult).raw.refImages, [
+  assert.equal(prompt.provider, "mock");
+  assert.match(prompt.providerTaskId, /^mock_/);
+  assert.equal(prompt.status, "queued");
+  assert.equal(prompt.resultUrl, null);
+  assert.equal(prompt.failureReason, null);
+  assert.match(prompt.providerResult, /providerTaskId/);
+  assert.deepEqual(JSON.parse(prompt.providerResult).raw.refImages, [
     "/api/drama/shot-images/shot_1/keyframe",
     "/api/drama/character-images/character_1/character-sheet",
   ]);

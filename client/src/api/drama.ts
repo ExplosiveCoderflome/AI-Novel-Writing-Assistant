@@ -198,11 +198,37 @@ export interface DramaVideoProvider {
   supportsRefImages: boolean;
 }
 
+export type DramaBatchJobType = "keyframes" | "videos";
+
+export interface DramaBatchProgress {
+  total: number;
+  done: number;
+  failed: number;
+  skipped?: number;
+  failedShotIds: string[];
+  provider?: string;
+  targetShotIds?: string[];
+  currentShotId?: string;
+  errors?: Array<{ shotId: string; message: string }>;
+}
+
+export interface DramaBatchJob {
+  id: string;
+  projectId: string;
+  episodeId?: string | null;
+  type: DramaBatchJobType;
+  status: "pending" | "running" | "paused" | "done" | "failed";
+  progress: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type DramaProjectDetail = DramaProject & {
   sourceBundle?: DramaSourceBundle | null;
   characters?: DramaCharacter[];
   episodes?: DramaEpisode[];
   videoPrompts?: DramaVideoPrompt[];
+  batchJobs?: DramaBatchJob[];
 }
 
 export async function listDramaProjects() {
@@ -356,6 +382,18 @@ export async function createDramaVideoProviderTask(videoPromptId: string, provid
 
 export async function refreshDramaVideoProviderTask(videoPromptId: string) {
   const { data } = await apiClient.post<ApiResponse<unknown>>(`/drama/video-prompts/${videoPromptId}/provider-task/refresh`, {});
+  return data;
+}
+
+export async function createDramaEpisodeBatchJob(id: string, order: number, payload: {
+  type: DramaBatchJobType;
+  provider?: string;
+  failedShotIds?: string[];
+}) {
+  const { data } = await apiClient.post<ApiResponse<DramaBatchJob>>(
+    `/drama/projects/${id}/episodes/${order}/batch-jobs`,
+    payload,
+  );
   return data;
 }
 

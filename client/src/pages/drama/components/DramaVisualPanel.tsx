@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Film, ImageIcon, RefreshCw, Sparkles, Video } from "lucide-react";
 import type {
+  DramaBatchJob,
+  DramaBatchJobType,
+  DramaBatchProgress,
   DramaEpisode,
   DramaProjectDetail,
   DramaShot,
@@ -20,6 +23,7 @@ export function DramaVisualPanel(props: {
   selectedOrder: number | null;
   onSelectOrder: (order: number) => void;
   onStoryboard: (order: number) => void;
+  onBatchJob: (order: number, input: { type: DramaBatchJobType; provider?: string; failedShotIds?: string[] }) => void;
   onKeyframe: (shot: DramaShot, provider?: string) => void;
   onVideoPrompt: (shot: DramaShot) => void;
   videoProviders: DramaVideoProvider[];
@@ -35,6 +39,9 @@ export function DramaVisualPanel(props: {
   const storyboard = storyboards[0] as DramaStoryboard | undefined;
   const videoPrompts = props.project.videoPrompts ?? [];
   const promptsByShot = new Map(videoPrompts.filter((prompt) => prompt.shotId).map((prompt) => [prompt.shotId, prompt]));
+  const selectedBatchJobs = (props.project.batchJobs ?? []).filter((job) => job.episodeId === selectedEpisode?.id);
+  const latestKeyframeBatch = selectedBatchJobs.find((job) => job.type === "keyframes");
+  const latestVideoBatch = selectedBatchJobs.find((job) => job.type === "videos");
   const [selectedImageProvider, setSelectedImageProvider] = useState("");
   const apiKeyQuery = useQuery({
     queryKey: ["api-key-settings"],
@@ -63,6 +70,9 @@ export function DramaVisualPanel(props: {
     succeeded: videoPrompts.filter((prompt) => prompt.status === "succeeded").length,
     failed: videoPrompts.filter((prompt) => prompt.status === "failed").length,
   };
+  const hasStoryboardShots = Boolean(storyboard?.shots?.length);
+  const keyframeBatchActive = isActiveBatch(latestKeyframeBatch);
+  const videoBatchActive = isActiveBatch(latestVideoBatch);
 
   if (!selectedEpisode) {
     return <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">先生成分集和台本，再进入分镜与视频提示词。</div>;
@@ -137,8 +147,54 @@ export function DramaVisualPanel(props: {
             <Film className="h-4 w-4" />
             生成分镜
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={props.busy || !hasStoryboardShots || imageProviders.length === 0 || keyframeBatchActive}
+            onClick={() => props.onBatchJob(selectedEpisode.order, { type: "keyframes", provider: activeImageProvider || undefined })}
+          >
+            <ImageIcon className="h-4 w-4" />
+            生成本集首帧
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={props.busy || !hasStoryboardShots || videoBatchActive}
+            onClick={() => props.onBatchJob(selectedEpisode.order, { type: "videos", provider: props.selectedProvider })}
+          >
+            <Sparkles className="h-4 w-4" />
+            创建本集视频任务
+          </Button>
         </div>
       </div>
+      {latestKeyframeBatch || latestVideoBatch ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {latestKeyframeBatch ? (
+            <BatchJobStatus
+              job={latestKeyframeBatch}
+              title="首帧批量任务"
+              disabled={props.busy || imageProviders.length === 0}
+              onRetry={(failedShotIds) => props.onBatchJob(selectedEpisode.order, {
+                type: "keyframes",
+                provider: activeImageProvider || undefined,
+                failedShotIds,
+              })}
+            />
+          ) : null}
+          {latestVideoBatch ? (
+            <BatchJobStatus
+              job={latestVideoBatch}
+              title="视频批量任务"
+              disabled={props.busy}
+              onRetry={(failedShotIds) => props.onBatchJob(selectedEpisode.order, {
+                type: "videos",
+                provider: props.selectedProvider,
+                failedShotIds,
+              })}
+            />
+          ) : null}
+        </div>
+      ) : null}
       {props.videoProviders.length > 0 ? (
         <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
           当前视频通道：{props.videoProviders.find((provider) => provider.provider === props.selectedProvider)?.description || props.selectedProvider}
@@ -260,6 +316,77 @@ function safeJson<T>(input: string | null | undefined, fallback: T): T {
 
 function parseKeyframe(raw: string | null | undefined): DramaShotKeyframeData {
   return safeJson<DramaShotKeyframeData>(raw, { status: "idle" });
+}
+
+function parseBatchProgress(raw: string | null | undefined): DramaBatchProgress {
+  return safeJson<DramaBatchProgress>(raw, {
+    total: 0,
+    done: 0,
+    failed: 0,
+    skipped: 0,
+    failedShotIds: [],
+    errors: [],
+  });
+}
+
+function isActiveBatch(job: DramaBatchJob | undefined): boolean {
+  return job?.status === "pending" || job?.status === "running";
+}
+
+function batchStatusLabel(status: DramaBatchJob["status"]): string {
+  const labels: Record<DramaBatchJob["status"], string> = {
+    pending: "等待中",
+    running: "执行中",
+    paused: "已暂停",
+    done: "已完成",
+    failed: "有失败项",
+  };
+  return labels[status] ?? status;
+}
+
+function BatchJobStatus(props: {
+  job: DramaBatchJob;
+  title: string;
+  disabled: boolean;
+  onRetry: (failedShotIds: string[]) => void;
+}) {
+  const progress = parseBatchProgress(props.job.progress);
+  const total = Math.max(0, progress.total ?? 0);
+  const done = Math.max(0, progress.done ?? 0);
+  const percent = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  const failedShotIds = progress.failedShotIds ?? [];
+  return (
+    <div className="rounded-md border p-3 text-sm">
+      <div className="flex items-center justify-between gap-3">
+        <div className="font-medium">{props.title}</div>
+        <Badge variant={props.job.status === "failed" ? "destructive" : "outline"}>{batchStatusLabel(props.job.status)}</Badge>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded bg-muted">
+        <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
+      </div>
+      <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+        <span>{done}/{total}</span>
+        {progress.skipped ? <span>已跳过 {progress.skipped}</span> : null}
+        {progress.failed ? <span>失败 {progress.failed}</span> : null}
+        {progress.provider ? <span>通道：{progress.provider}</span> : null}
+      </div>
+      {failedShotIds.length > 0 ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-destructive">失败镜头：{failedShotIds.join("、")}</span>
+          <Button
+            size="sm"
+            type="button"
+            variant="outline"
+            disabled={props.disabled || isActiveBatch(props.job)}
+            onClick={() => props.onRetry(failedShotIds)}
+          >
+            <RefreshCw className="h-4 w-4" />
+            重试失败镜头
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function KeyframePreview({ shot, keyframe }: { shot: DramaShot; keyframe: DramaShotKeyframeData }) {
