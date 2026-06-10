@@ -29,20 +29,31 @@ test("drama video provider registry exposes mock provider", async () => {
   const provider = videoProviderRegistry.resolve("mock");
   const providers = videoProviderRegistry.listProviders();
   assert.equal(providers.some((item) => item.provider === "mock"), true);
+  assert.equal(providers.find((item) => item.provider === "mock")?.supportsRefImages, true);
   const result = await provider.createTask({
     prompt: "vertical drama shot",
     aspectRatio: "9:16",
     durationSec: 5,
+    refImages: ["https://example.test/character-sheet.png"],
   });
   assert.match(result.providerTaskId, /^mock_/);
   assert.equal(result.status, "queued");
+  assert.deepEqual(result.raw.refImages, ["https://example.test/character-sheet.png"]);
 });
 
 test("http drama video provider maps create and status responses", async () => {
+  const createBodies = [];
   const server = http.createServer((req, res) => {
     res.setHeader("Content-Type", "application/json");
     if (req.method === "POST" && req.url === "/create") {
-      res.end(JSON.stringify({ taskId: "task_1", status: "processing" }));
+      let body = "";
+      req.on("data", (chunk) => {
+        body += chunk;
+      });
+      req.on("end", () => {
+        createBodies.push(body ? JSON.parse(body) : {});
+        res.end(JSON.stringify({ taskId: "task_1", status: "processing" }));
+      });
       return;
     }
     if (req.method === "GET" && req.url === "/status/task_1") {
@@ -67,13 +78,27 @@ test("http drama video provider maps create and status responses", async () => {
       provider: "http-test",
       createUrl: `${baseUrl}/create`,
       statusUrl: `${baseUrl}/status/{taskId}`,
+      supportsRefImages: true,
     });
     const created = await provider.createTask({
       prompt: "vertical drama shot",
       aspectRatio: "9:16",
+      refImages: ["https://example.test/character-sheet.png"],
     });
     assert.equal(created.providerTaskId, "task_1");
     assert.equal(created.status, "running");
+    assert.deepEqual(createBodies[0].refImages, ["https://example.test/character-sheet.png"]);
+
+    const providerWithoutRefImages = new HttpVideoProvider({
+      provider: "http-test-no-refs",
+      createUrl: `${baseUrl}/create`,
+    });
+    await providerWithoutRefImages.createTask({
+      prompt: "vertical drama shot",
+      aspectRatio: "9:16",
+      refImages: ["https://example.test/character-sheet.png"],
+    });
+    assert.equal(Object.hasOwn(createBodies[1], "refImages"), false);
 
     const refreshed = await provider.getTask("task_1");
     assert.equal(refreshed.status, "succeeded");

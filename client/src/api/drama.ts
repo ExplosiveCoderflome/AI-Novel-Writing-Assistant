@@ -185,6 +185,7 @@ export interface DramaVideoProvider {
   provider: string;
   label: string;
   description?: string;
+  supportsRefImages: boolean;
 }
 
 export type DramaProjectDetail = DramaProject & {

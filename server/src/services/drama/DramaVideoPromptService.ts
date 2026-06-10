@@ -2,8 +2,90 @@ import { prisma } from "../../db/prisma";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { dramaVideoPromptPrompt } from "../../prompting/prompts/drama/drama.prompts";
 import { dramaContextAssembler } from "./DramaContextAssembler";
+import { safeJsonParse } from "./utils/json";
 import { videoProviderRegistry } from "./video/VideoProviderPort";
 import type { DramaLLMOptions } from "./DramaStrategyService";
+import type { VideoGenerationRequest } from "./video/VideoProviderPort";
+
+interface PortraitReferenceData {
+  status?: string;
+  url?: string;
+}
+
+interface VideoPromptReferenceSource {
+  projectId: string;
+  shotId?: string | null;
+}
+
+function normalizeReferenceKey(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed.toLowerCase() : null;
+}
+
+function parseCharacterRefs(raw: string | null | undefined): string[] {
+  const parsed = safeJsonParse<unknown>(raw, raw ?? []);
+  if (Array.isArray(parsed)) {
+    return parsed
+      .map((item) => typeof item === "string" ? item.trim() : "")
+      .filter(Boolean);
+  }
+  if (typeof parsed === "string" && parsed.trim()) {
+    return [parsed.trim()];
+  }
+  return [];
+}
+
+function normalizeRefImageUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed.startsWith("/")) {
+    return trimmed;
+  }
+  const baseUrl = process.env.DRAMA_VIDEO_REF_IMAGE_BASE_URL?.trim() || process.env.APP_BASE_URL?.trim();
+  if (!baseUrl) {
+    return trimmed;
+  }
+  try {
+    return new URL(trimmed, baseUrl).toString();
+  } catch {
+    return trimmed;
+  }
+}
+
+async function collectShotReferenceImages(videoPrompt: VideoPromptReferenceSource): Promise<string[]> {
+  if (!videoPrompt.shotId) {
+    return [];
+  }
+  const shot = await prisma.dramaShot.findUnique({
+    where: { id: videoPrompt.shotId },
+    select: { characterRefs: true },
+  });
+  const refs = parseCharacterRefs(shot?.characterRefs);
+  if (!refs.length) {
+    return [];
+  }
+  const refKeys = new Set(refs.map(normalizeReferenceKey).filter((key): key is string => Boolean(key)));
+  const characters = await prisma.dramaCharacter.findMany({
+    where: { projectId: videoPrompt.projectId },
+    select: { id: true, name: true, portraitData: true },
+  });
+  const urls: string[] = [];
+  for (const character of characters) {
+    const idKey = normalizeReferenceKey(character.id);
+    const nameKey = normalizeReferenceKey(character.name);
+    if ((!idKey || !refKeys.has(idKey)) && (!nameKey || !refKeys.has(nameKey))) {
+      continue;
+    }
+    const portrait = safeJsonParse<PortraitReferenceData>(character.portraitData, {});
+    const url = typeof portrait.url === "string" ? normalizeRefImageUrl(portrait.url) : "";
+    if (portrait.status === "done" && url) {
+      urls.push(url);
+    }
+  }
+  return [...new Set(urls)];
+}
 
 export class DramaVideoPromptService {
   async generateVideoPromptForShot(projectId: string, shotId: string, options: DramaLLMOptions = {}) {
@@ -59,12 +141,17 @@ export class DramaVideoPromptService {
       throw new Error(`未找到视频提示词：${videoPromptId}`);
     }
     const adapter = videoProviderRegistry.resolve(provider);
-    const result = await adapter.createTask({
+    const refImages = adapter.supportsRefImages ? await collectShotReferenceImages(videoPrompt) : [];
+    const request: VideoGenerationRequest = {
       prompt: videoPrompt.prompt,
       negativePrompt: videoPrompt.negativePrompt,
       aspectRatio: videoPrompt.aspectRatio,
       durationSec: videoPrompt.durationSec,
-    });
+    };
+    if (refImages.length) {
+      request.refImages = refImages;
+    }
+    const result = await adapter.createTask(request);
     return prisma.dramaVideoPrompt.update({
       where: { id: videoPromptId },
       data: {

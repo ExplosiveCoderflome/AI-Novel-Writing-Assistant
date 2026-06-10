@@ -3,6 +3,7 @@ export interface VideoGenerationRequest {
   negativePrompt?: string | null;
   aspectRatio: string;
   durationSec?: number | null;
+  refImages?: string[];
 }
 
 export interface VideoGenerationResult {
@@ -17,6 +18,7 @@ export interface VideoProviderPort {
   readonly provider: string;
   readonly label?: string;
   readonly description?: string;
+  readonly supportsRefImages?: boolean;
   createTask(input: VideoGenerationRequest): Promise<VideoGenerationResult>;
   getTask(providerTaskId: string): Promise<VideoGenerationResult>;
 }
@@ -25,6 +27,7 @@ export class MockVideoProvider implements VideoProviderPort {
   readonly provider = "mock";
   readonly label = "模拟视频通道";
   readonly description = "用于联调视频生成链路的本地模拟 provider，不会生成真实视频。";
+  readonly supportsRefImages = true;
 
   async createTask(input: VideoGenerationRequest): Promise<VideoGenerationResult> {
     return {
@@ -73,6 +76,22 @@ function normalizeTimeoutMs(value: unknown): number {
   return Number.isFinite(numeric) && numeric > 0 ? numeric : 120000;
 }
 
+function normalizeBooleanFlag(value: unknown): boolean {
+  const raw = String(value ?? "").trim().toLowerCase();
+  return ["1", "true", "yes", "y", "on"].includes(raw);
+}
+
+function buildProviderCreateBody(
+  input: VideoGenerationRequest,
+  supportsRefImages: boolean,
+): VideoGenerationRequest {
+  if (supportsRefImages) {
+    return input;
+  }
+  const { refImages: _refImages, ...rest } = input;
+  return rest;
+}
+
 function normalizeProviderPayload(payload: Record<string, unknown>, fallbackTaskId: string): VideoGenerationResult {
   const status = normalizeStatus(payload.status);
   return {
@@ -100,6 +119,7 @@ export class HttpVideoProvider implements VideoProviderPort {
   readonly provider: string;
   readonly label: string;
   readonly description?: string;
+  readonly supportsRefImages: boolean;
 
   constructor(private readonly config: {
     provider: string;
@@ -109,14 +129,19 @@ export class HttpVideoProvider implements VideoProviderPort {
     statusUrl?: string;
     apiKey?: string;
     timeoutMs?: number;
+    supportsRefImages?: boolean;
   }) {
     this.provider = config.provider;
     this.label = config.label ?? config.provider;
     this.description = config.description;
+    this.supportsRefImages = config.supportsRefImages ?? false;
   }
 
   async createTask(input: VideoGenerationRequest): Promise<VideoGenerationResult> {
-    const payload = await this.postJson(this.config.createUrl, input);
+    const payload = await this.postJson(
+      this.config.createUrl,
+      buildProviderCreateBody(input, this.supportsRefImages),
+    );
     return normalizeProviderPayload(payload, `http_${Date.now()}`);
   }
 
@@ -188,11 +213,13 @@ class VideoProviderRegistry {
     provider: string;
     label: string;
     description?: string;
+    supportsRefImages: boolean;
   }> {
     return [...this.providers.values()].map((provider) => ({
       provider: provider.provider,
       label: provider.label ?? provider.provider,
       description: provider.description,
+      supportsRefImages: provider.supportsRefImages ?? false,
     }));
   }
 }
@@ -210,5 +237,6 @@ if (httpCreateUrl) {
     statusUrl: process.env.DRAMA_VIDEO_HTTP_STATUS_URL?.trim() || undefined,
     apiKey: process.env.DRAMA_VIDEO_HTTP_API_KEY?.trim() || undefined,
     timeoutMs: normalizeTimeoutMs(process.env.DRAMA_VIDEO_HTTP_TIMEOUT_MS),
+    supportsRefImages: normalizeBooleanFlag(process.env.DRAMA_VIDEO_HTTP_SUPPORTS_REF_IMAGES),
   }));
 }

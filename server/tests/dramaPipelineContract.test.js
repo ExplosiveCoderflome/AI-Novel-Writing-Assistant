@@ -79,6 +79,11 @@ function installPipelineStubs() {
         visualAnchor: JSON.stringify({ hint: "黑色西装，克制表情" }),
         voiceProfile: null,
         relations: "与反派主管对立",
+        portraitData: JSON.stringify({
+          status: "done",
+          url: "/api/drama/character-images/character_1/character-sheet",
+        }),
+        threeViewData: null,
         sourceCharacterRef: null,
         createdAt: new Date("2026-06-09T00:00:00.000Z"),
         updatedAt: new Date("2026-06-09T00:00:00.000Z"),
@@ -138,6 +143,9 @@ function installPipelineStubs() {
     },
     dramaFact: {
       createMany: tx.dramaFact.createMany,
+    },
+    dramaCharacter: {
+      findMany: async ({ where }) => buildProject().characters.filter((character) => character.projectId === where.projectId),
     },
     dramaShot: {
       findUnique: async ({ where }) => {
@@ -300,4 +308,7 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
   assert.equal(task.resultUrl, null);
   assert.equal(task.failureReason, null);
   assert.match(task.providerResult, /providerTaskId/);
+  assert.deepEqual(JSON.parse(task.providerResult).raw.refImages, [
+    "/api/drama/character-images/character_1/character-sheet",
+  ]);
 });
