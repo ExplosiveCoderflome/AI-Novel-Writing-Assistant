@@ -12,6 +12,11 @@ interface PortraitReferenceData {
   url?: string;
 }
 
+interface KeyframeReferenceData {
+  status?: string;
+  url?: string;
+}
+
 interface VideoPromptReferenceSource {
   projectId: string;
   shotId?: string | null;
@@ -60,18 +65,22 @@ async function collectShotReferenceImages(videoPrompt: VideoPromptReferenceSourc
   }
   const shot = await prisma.dramaShot.findUnique({
     where: { id: videoPrompt.shotId },
-    select: { characterRefs: true },
+    select: { characterRefs: true, keyframeData: true },
   });
+  const urls: string[] = [];
+  const keyframe = safeJsonParse<KeyframeReferenceData>(shot?.keyframeData, {});
+  if (keyframe.status === "done" && typeof keyframe.url === "string" && keyframe.url.trim()) {
+    urls.push(normalizeRefImageUrl(keyframe.url));
+  }
   const refs = parseCharacterRefs(shot?.characterRefs);
   if (!refs.length) {
-    return [];
+    return [...new Set(urls)];
   }
   const refKeys = new Set(refs.map(normalizeReferenceKey).filter((key): key is string => Boolean(key)));
   const characters = await prisma.dramaCharacter.findMany({
     where: { projectId: videoPrompt.projectId },
     select: { id: true, name: true, portraitData: true },
   });
-  const urls: string[] = [];
   for (const character of characters) {
     const idKey = normalizeReferenceKey(character.id);
     const nameKey = normalizeReferenceKey(character.name);

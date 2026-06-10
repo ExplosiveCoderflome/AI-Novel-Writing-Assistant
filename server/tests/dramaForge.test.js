@@ -141,4 +141,15 @@ test("drama migrations include pipeline tables for sqlite and postgres", () => {
     assert.match(sql, /resultUrl/);
     assert.match(sql, /failureReason/);
   }
+  const sqliteKeyframeSql = fs.readFileSync(
+    path.join(root, "migrations.sqlite", "20260610090000_drama_shot_keyframes", "migration.sql"),
+    "utf8",
+  );
+  const postgresKeyframeSql = fs.readFileSync(
+    path.join(root, "migrations", "20260610090000_drama_shot_keyframes", "migration.sql"),
+    "utf8",
+  );
+  for (const sql of [sqliteKeyframeSql, postgresKeyframeSql]) {
+    assert.match(sql, /keyframeData/);
+  }
 });

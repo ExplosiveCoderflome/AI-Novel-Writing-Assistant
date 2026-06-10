@@ -1,12 +1,16 @@
-import { ExternalLink, Film, RefreshCw, Sparkles, Video } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ExternalLink, Film, ImageIcon, RefreshCw, Sparkles, Video } from "lucide-react";
 import type {
   DramaEpisode,
   DramaProjectDetail,
   DramaShot,
+  DramaShotKeyframeData,
   DramaStoryboard,
   DramaVideoPrompt,
   DramaVideoProvider,
 } from "@/api/drama";
+import { getAPIKeySettings } from "@/api/settings";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +20,7 @@ export function DramaVisualPanel(props: {
   selectedOrder: number | null;
   onSelectOrder: (order: number) => void;
   onStoryboard: (order: number) => void;
+  onKeyframe: (shot: DramaShot, provider?: string) => void;
   onVideoPrompt: (shot: DramaShot) => void;
   videoProviders: DramaVideoProvider[];
   selectedProvider: string;
@@ -30,6 +35,27 @@ export function DramaVisualPanel(props: {
   const storyboard = storyboards[0] as DramaStoryboard | undefined;
   const videoPrompts = props.project.videoPrompts ?? [];
   const promptsByShot = new Map(videoPrompts.filter((prompt) => prompt.shotId).map((prompt) => [prompt.shotId, prompt]));
+  const [selectedImageProvider, setSelectedImageProvider] = useState("");
+  const apiKeyQuery = useQuery({
+    queryKey: ["api-key-settings"],
+    queryFn: getAPIKeySettings,
+    staleTime: 60_000,
+  });
+  const imageProviders = useMemo(
+    () =>
+      (apiKeyQuery.data?.data ?? []).filter(
+        (item) => item.isActive && item.isConfigured && item.supportsImageGeneration && item.currentImageModel,
+      ),
+    [apiKeyQuery.data?.data],
+  );
+  useEffect(() => {
+    if (imageProviders.length > 0 && !selectedImageProvider) {
+      setSelectedImageProvider(imageProviders[0]!.provider);
+    }
+  }, [imageProviders, selectedImageProvider]);
+  const activeImageProvider = imageProviders.some((provider) => provider.provider === selectedImageProvider)
+    ? selectedImageProvider
+    : imageProviders[0]?.provider ?? "";
   const promptStats = {
     prompted: videoPrompts.length,
     withTask: videoPrompts.filter((prompt) => Boolean(prompt.providerTaskId)).length,
@@ -82,11 +108,27 @@ export function DramaVisualPanel(props: {
             className="h-10 rounded-md border bg-background px-3 text-sm"
             value={props.selectedProvider}
             onChange={(event) => props.onSelectProvider(event.target.value)}
+            aria-label="视频通道"
           >
             {props.videoProviders.length > 0 ? props.videoProviders.map((provider) => (
               <option key={provider.provider} value={provider.provider}>{provider.label}</option>
             )) : (
               <option value={props.selectedProvider}>{props.selectedProvider}</option>
+            )}
+          </select>
+          <select
+            className="h-10 rounded-md border bg-background px-3 text-sm"
+            value={activeImageProvider}
+            disabled={imageProviders.length === 0}
+            onChange={(event) => setSelectedImageProvider(event.target.value)}
+            aria-label="首帧图片 Provider"
+          >
+            {imageProviders.length > 0 ? imageProviders.map((provider) => (
+              <option key={provider.provider} value={provider.provider}>
+                {provider.name} · {provider.currentImageModel}
+              </option>
+            )) : (
+              <option value="">未配置图片 Provider</option>
             )}
           </select>
         </div>
@@ -113,6 +155,7 @@ export function DramaVisualPanel(props: {
           <CardContent className="space-y-3">
             {(storyboard.shots ?? []).map((shot) => {
               const prompt = promptsByShot.get(shot.id);
+              const keyframe = parseKeyframe(shot.keyframeData);
               return (
                 <div key={shot.id} className="rounded-lg border p-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -121,6 +164,16 @@ export function DramaVisualPanel(props: {
                       <div className="text-sm text-muted-foreground">{shot.action}</div>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        type="button"
+                        variant={keyframe.status === "done" ? "outline" : "default"}
+                        disabled={props.busy || imageProviders.length === 0 || keyframe.status === "generating"}
+                        onClick={() => props.onKeyframe(shot, activeImageProvider || undefined)}
+                      >
+                        <ImageIcon className="h-4 w-4" />
+                        {keyframe.status === "done" ? "重生成首帧" : "生成首帧"}
+                      </Button>
                       <Button size="sm" type="button" variant="outline" disabled={props.busy} onClick={() => props.onVideoPrompt(shot)}>
                         <Video className="h-4 w-4" />
                         视频提示词
@@ -141,6 +194,7 @@ export function DramaVisualPanel(props: {
                       ) : null}
                     </div>
                   </div>
+                  <KeyframePreview shot={shot} keyframe={keyframe} />
                   {prompt ? (
                     <VideoPromptDetails prompt={prompt} />
                   ) : null}
@@ -202,6 +256,39 @@ function safeJson<T>(input: string | null | undefined, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function parseKeyframe(raw: string | null | undefined): DramaShotKeyframeData {
+  return safeJson<DramaShotKeyframeData>(raw, { status: "idle" });
+}
+
+function KeyframePreview({ shot, keyframe }: { shot: DramaShot; keyframe: DramaShotKeyframeData }) {
+  const hasImage = keyframe.status === "done" && keyframe.url;
+  return (
+    <div className="mt-3 grid gap-3 md:grid-cols-[160px_1fr]">
+      {hasImage ? (
+        <a href={keyframe.url} target="_blank" rel="noreferrer" className="block">
+          <img
+            src={keyframe.url}
+            alt={`镜头 ${shot.order} 首帧图`}
+            className="h-56 w-full rounded-md border object-cover md:h-40"
+          />
+        </a>
+      ) : (
+        <div className="flex h-40 w-full items-center justify-center rounded-md border border-dashed bg-muted text-xs text-muted-foreground">
+          {keyframe.status === "generating" ? "首帧图生成中" : keyframe.status === "error" ? "首帧图生成失败" : "尚未生成首帧"}
+        </div>
+      )}
+      <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
+        <div className="mb-1 font-medium text-foreground">镜头画面</div>
+        <div>{shot.visualPrompt || shot.action}</div>
+        {shot.location ? <div className="mt-1">地点：{shot.location}</div> : null}
+        {keyframe.status === "error" && keyframe.error ? (
+          <div className="mt-2 text-destructive">{keyframe.error}</div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function VideoPromptDetails({ prompt, compact = false }: { prompt: DramaVideoPrompt; compact?: boolean }) {

@@ -31,6 +31,9 @@
 - 通用 HTTP 视频通道只在配置 `DRAMA_VIDEO_HTTP_CREATE_URL` 后注册；可选配置包括 `DRAMA_VIDEO_HTTP_STATUS_URL`（支持 `{taskId}` 占位符）、`DRAMA_VIDEO_HTTP_API_KEY`、`DRAMA_VIDEO_HTTP_PROVIDER_ID`、`DRAMA_VIDEO_HTTP_PROVIDER_LABEL`、`DRAMA_VIDEO_HTTP_PROVIDER_DESCRIPTION`、`DRAMA_VIDEO_HTTP_TIMEOUT_MS` 和 `DRAMA_VIDEO_HTTP_SUPPORTS_REF_IMAGES`。外部接口返回的 `taskId` / `providerTaskId` / `id`、`status`、`resultUrl` / `videoUrl` 会被标准化为 `DramaVideoPrompt` 的 provider 任务状态。
 - 视频 provider 是否接收角色参考图必须由后端注册表的 `supportsRefImages` 声明。镜头创建 provider 任务时，服务层只读取该镜头 `characterRefs` 指向的项目角色；当角色 `portraitData` 为 `done` 且包含 URL 时，设计稿会作为 `refImages` 传给支持参考图的 provider。未声明支持的 provider 不接收 `refImages`，避免外部接口因未知字段失败。
 - 角色设计稿端点通常是 `/api/drama/character-images/...` 的相对地址。对云端视频 provider，可配置 `DRAMA_VIDEO_REF_IMAGE_BASE_URL`（或通用 `APP_BASE_URL`）把相对地址规范化为绝对 URL；若 provider 需要 base64 或临时对象存储，应在 provider 适配层扩展，不应把上传逻辑塞进前端按钮。
+- `DramaShot.keyframeData` 是镜头首帧图状态字段，保存 `{ status, url, prompt, provider, generatedAt, error }`。首帧图通过项目内镜头生成入口创建，图片文件存放在 `drama-shots/{shotId}/`，公开 URL 使用 `/api/drama/shot-images/{shotId}/keyframe`。
+- 镜头已有 `keyframeData.status === "done"` 时，创建视频 provider 任务必须把首帧图 URL 放在 `refImages` 首位，再追加该镜头角色的设计稿 URL。这样 provider 支持 image-to-video 时能优先锁定构图，不支持参考图时仍由能力声明降级为文本视频任务。
+- 分镜视频页的首帧图生成使用图片 Provider 配置，只展示已配置、已启用且支持图片生成的 Provider；视频 Provider 选择与图片 Provider 选择是两条独立能力，不应混用。
 
 ## Failure Modes
 
@@ -39,6 +42,7 @@
 - 裸展示策略 JSON 或质量 JSON 可以作为早期调试状态，但后续应逐步卡片化为用户能理解的字段。
 - 把 `repairable` 保存成普通已检查状态会让下一步任务跳过修复，直接进入分镜和视频任务。质量状态投影必须保持“可修复问题优先处理”的顺序。
 - provider 未声明参考图能力却收到角色图字段，可能导致外部 HTTP 接口直接拒绝任务。参考图注入应以 `supportsRefImages` 为唯一开关。
+- 视频任务只接收角色设计稿而忽略已生成首帧图，会让 image-to-video 失去构图锚点。首帧图和角色设计稿都存在时，首帧图必须排在 `refImages[0]`。
 
 ## Related Modules
 

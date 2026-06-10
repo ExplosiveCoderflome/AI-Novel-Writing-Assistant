@@ -17,6 +17,7 @@ import {
   generateDramaOutline,
   generateDramaStoryboard,
   generateDramaStrategy,
+  generateDramaShotKeyframe,
   generateDramaVideoPrompt,
   getDramaProject,
   importDramaCharacterFromLibrary,
@@ -595,6 +596,7 @@ export default function DramaProjectPage() {
           onSelectOrder={setSelectedOrder}
           busy={actionMutation.isPending}
           onStoryboard={(order) => runAction(() => generateDramaStoryboard(project.id, order), `第 ${order} 集分镜已生成。`)}
+          onKeyframe={(shot) => runAction(() => generateDramaShotKeyframe(project.id, shot.id), `镜头 ${shot.order} 的首帧图已生成。`)}
           onVideoPrompt={(shot) => runAction(() => generateDramaVideoPrompt(project.id, shot.id), `镜头 ${shot.order} 的视频提示词已生成。`)}
           videoProviders={videoProviders}
           selectedProvider={activeVideoProvider}

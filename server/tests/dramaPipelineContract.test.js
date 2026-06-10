@@ -1,15 +1,22 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 
 function clearDramaModules() {
   for (const key of Object.keys(require.cache)) {
     if (
       key.includes("\\dist\\services\\drama\\")
       || key.includes("/dist/services/drama/")
+      || key.includes("\\dist\\services\\image\\provider.js")
+      || key.includes("/dist/services/image/provider.js")
       || key.includes("\\dist\\db\\prisma.js")
       || key.includes("/dist/db/prisma.js")
       || key.includes("\\dist\\prompting\\core\\promptRunner.js")
       || key.includes("/dist/prompting/core/promptRunner.js")
+      || key.includes("\\dist\\runtime\\appPaths.js")
+      || key.includes("/dist/runtime/appPaths.js")
     ) {
       delete require.cache[key];
     }
@@ -47,6 +54,8 @@ function installPipelineStubs() {
     storyboards: [],
     shots: [],
     videoPrompts: [],
+    keyframeInput: null,
+    generatedImagesRoot: fs.mkdtempSync(path.join(os.tmpdir(), "drama-keyframes-")),
   };
 
   function buildProject() {
@@ -130,6 +139,11 @@ function installPipelineStubs() {
         });
         return { count: data.length };
       },
+      update: async ({ where, data }) => {
+        const shot = state.shots.find((item) => item.id === where.id);
+        Object.assign(shot, data);
+        return shot;
+      },
     },
   };
 
@@ -156,9 +170,11 @@ function installPipelineStubs() {
           storyboard: {
             ...state.storyboards.find((item) => item.id === shot.storyboardId),
             episode: state.episode,
+            project: buildProject(),
           },
         };
       },
+      update: tx.dramaShot.update,
     },
     dramaVideoPrompt: {
       create: async ({ data }) => {
@@ -264,6 +280,37 @@ function installPipelineStubs() {
     exports: { prisma },
   };
 
+  const imageProviderPath = require.resolve("../dist/services/image/provider.js");
+  require.cache[imageProviderPath] = {
+    id: imageProviderPath,
+    filename: imageProviderPath,
+    loaded: true,
+    exports: {
+      generateImagesByProvider: async (input) => {
+        state.keyframeInput = input;
+        return {
+          provider: input.provider,
+          model: input.model,
+          images: [{
+            url: "data:image/png;base64,iVBORw0KGgo=",
+          }],
+        };
+      },
+      isImageProviderSupported: () => true,
+      resolveImageModel: async () => "gpt-image-test",
+    },
+  };
+
+  const appPathsPath = require.resolve("../dist/runtime/appPaths.js");
+  require.cache[appPathsPath] = {
+    id: appPathsPath,
+    filename: appPathsPath,
+    loaded: true,
+    exports: {
+      resolveGeneratedImagesRoot: () => state.generatedImagesRoot,
+    },
+  };
+
   return state;
 }
 
@@ -296,6 +343,14 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
   assert.equal(storyboard.shots.length, 1);
   assert.equal(storyboard.shots[0].characterRefs, JSON.stringify(["林澈"]));
 
+  const { DramaShotKeyframeService } = require("../dist/services/drama/visual/DramaShotKeyframeService.js");
+  const keyframe = await new DramaShotKeyframeService().generateKeyframe(storyboard.shots[0].id, "openai");
+  assert.equal(keyframe.status, "done");
+  assert.equal(keyframe.url, "/api/drama/shot-images/shot_1/keyframe");
+  assert.equal(state.keyframeInput.sceneType, "chapter_illustration");
+  assert.equal(state.keyframeInput.size, "1024x1536");
+  assert.match(state.shots[0].keyframeData, /shot-images/);
+
   const videoService = new DramaVideoPromptService();
   const prompt = await videoService.generateVideoPromptForShot("project_1", storyboard.shots[0].id);
   assert.equal(prompt.aspectRatio, "9:16");
@@ -309,6 +364,7 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
   assert.equal(task.failureReason, null);
   assert.match(task.providerResult, /providerTaskId/);
   assert.deepEqual(JSON.parse(task.providerResult).raw.refImages, [
+    "/api/drama/shot-images/shot_1/keyframe",
     "/api/drama/character-images/character_1/character-sheet",
   ]);
 });

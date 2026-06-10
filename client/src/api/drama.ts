@@ -127,6 +127,15 @@ export interface DramaCharacter {
   threeViewData?: string | null;
 }
 
+export interface DramaShotKeyframeData {
+  status: "idle" | "generating" | "done" | "error";
+  url?: string;
+  prompt?: string;
+  provider?: string;
+  generatedAt?: string;
+  error?: string;
+}
+
 export interface DramaCharacterLibraryItem {
   id: string;
   projectId?: string | null;
@@ -152,6 +161,7 @@ export interface DramaShot {
   dialogue?: string | null;
   characterRefs?: string | null;
   visualPrompt?: string | null;
+  keyframeData?: string | null;
 }
 
 export interface DramaStoryboard {
@@ -326,6 +336,14 @@ export async function listDramaVideoProviders() {
 
 export async function generateDramaVideoPrompt(id: string, shotId: string, payload: DramaLLMOptions = {}) {
   const { data } = await apiClient.post<ApiResponse<unknown>>(`/drama/projects/${id}/shots/${shotId}/video-prompt`, payload);
+  return data;
+}
+
+export async function generateDramaShotKeyframe(id: string, shotId: string, provider?: string) {
+  const { data } = await apiClient.post<ApiResponse<DramaShotKeyframeData>>(
+    `/drama/projects/${id}/shots/${shotId}/keyframe`,
+    provider ? { provider } : {},
+  );
   return data;
 }
 

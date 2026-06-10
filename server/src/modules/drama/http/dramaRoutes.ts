@@ -18,6 +18,7 @@ import { dramaStoryboardService } from "../../../services/drama/DramaStoryboardS
 import { dramaStrategyService } from "../../../services/drama/DramaStrategyService";
 import { dramaVideoPromptService } from "../../../services/drama/DramaVideoPromptService";
 import { rhythmEngine } from "../../../services/drama/engine/rhythmEngine";
+import { dramaShotKeyframeService } from "../../../services/drama/visual/DramaShotKeyframeService";
 import { videoProviderRegistry } from "../../../services/drama/video/VideoProviderPort";
 
 const router = Router();
@@ -28,6 +29,10 @@ const llmOptionsSchema = z
     model: z.string().optional(),
     temperature: z.number().min(0).max(2).optional(),
   })
+  .optional();
+
+const imageProviderBodySchema = z
+  .object({ provider: z.string().trim().optional() })
   .optional();
 
 const outlineRequestSchema = z
@@ -55,6 +60,7 @@ const shotParamsSchema = z.object({
   shotId: z.string().trim().min(1),
 });
 const videoPromptParamsSchema = z.object({ videoPromptId: z.string().trim().min(1) });
+const shotImageParamsSchema = z.object({ shotId: z.string().trim().min(1) });
 
 const createProjectSchema = z.object({
   title: z.string().trim().min(1).max(120),
@@ -380,6 +386,20 @@ router.post("/projects/:id/shots/:shotId/video-prompt", validate({ params: shotP
   }
 });
 
+router.post("/projects/:id/shots/:shotId/keyframe", validate({ params: shotParamsSchema, body: imageProviderBodySchema }), async (req, res, next) => {
+  try {
+    const { shotId } = req.params as z.infer<typeof shotParamsSchema>;
+    const provider = (req.body as { provider?: string } | undefined)?.provider;
+    const data = await dramaShotKeyframeService.generateKeyframe(
+      shotId,
+      provider as Parameters<typeof dramaShotKeyframeService.generateKeyframe>[1],
+    );
+    res.status(200).json({ success: true, data, message: "Drama shot keyframe generated." });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/video-prompts/:videoPromptId/provider-task", validate({ params: videoPromptParamsSchema, body: providerTaskSchema }), async (req, res, next) => {
   try {
     const { videoPromptId } = req.params as z.infer<typeof videoPromptParamsSchema>;
@@ -409,10 +429,6 @@ const charImageParamsSchema = z.object({
   characterId: z.string().trim().min(1),
 });
 
-const charImageBodySchema = z
-  .object({ provider: z.string().trim().optional() })
-  .optional();
-
 /** GET /api/drama/projects/:id/characters/:characterId/image-status */
 router.get(
   "/projects/:id/characters/:characterId/image-status",
@@ -433,7 +449,7 @@ router.get(
  */
 router.post(
   "/projects/:id/characters/:characterId/generate-character-sheet",
-  validate({ params: characterParamsSchema, body: charImageBodySchema }),
+  validate({ params: characterParamsSchema, body: imageProviderBodySchema }),
   async (req, res, next) => {
     try {
       const { characterId } = req.params as z.infer<typeof characterParamsSchema>;
@@ -452,7 +468,7 @@ router.post(
 /** POST /api/drama/projects/:id/characters/:characterId/generate-portrait （兼容旧调用） */
 router.post(
   "/projects/:id/characters/:characterId/generate-portrait",
-  validate({ params: characterParamsSchema, body: charImageBodySchema }),
+  validate({ params: characterParamsSchema, body: imageProviderBodySchema }),
   async (req, res, next) => {
     try {
       const { characterId } = req.params as z.infer<typeof characterParamsSchema>;
@@ -471,7 +487,7 @@ router.post(
 /** POST /api/drama/projects/:id/characters/:characterId/generate-three-view （兼容旧调用，转发到设计稿） */
 router.post(
   "/projects/:id/characters/:characterId/generate-three-view",
-  validate({ params: characterParamsSchema, body: charImageBodySchema }),
+  validate({ params: characterParamsSchema, body: imageProviderBodySchema }),
   async (req, res, next) => {
     try {
       const { characterId } = req.params as z.infer<typeof characterParamsSchema>;
@@ -494,6 +510,23 @@ router.post(
 const threeViewParamsSchema = z.object({
   characterId: z.string().trim().min(1),
   view: z.enum(["front", "side", "back"]),
+});
+
+/** GET /api/drama/shot-images/:shotId/keyframe */
+router.get("/shot-images/:shotId/keyframe", validate({ params: shotImageParamsSchema }), async (req, res, next) => {
+  try {
+    const { shotId } = req.params as z.infer<typeof shotImageParamsSchema>;
+    const resolved = await dramaShotKeyframeService.resolveExistingKeyframePath(shotId);
+    if (!resolved) {
+      res.status(404).json({ success: false, message: "镜头首帧图尚未生成。" });
+      return;
+    }
+    res.setHeader("Content-Type", resolved.mimeType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    fs.createReadStream(resolved.filePath).pipe(res);
+  } catch (error) {
+    next(error);
+  }
 });
 
 /** GET /api/drama/character-images/:characterId/character-sheet */
