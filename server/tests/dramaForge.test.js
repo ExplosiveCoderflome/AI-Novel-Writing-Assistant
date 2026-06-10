@@ -24,6 +24,81 @@ test("drama prompt assets are registered", () => {
   }
 });
 
+test("drama paywall plan schema is machine readable", () => {
+  const { dramaStrategyOutputSchema } = require("../dist/prompting/prompts/drama/drama.prompts.js");
+  const { describeDramaPaywallPlan, resolveDramaPaywallPlan } = require("../dist/services/drama/engine/paywallPlanPolicy.js");
+  const strategy = dramaStrategyOutputSchema.parse({
+    positioning: "面向喜欢隐藏身份逆袭的竖屏短剧用户。",
+    mainPleasureLine: "林澈持续受辱后逐步掉马甲打脸。",
+    paywallNote: "第 12 集进入首付费强卡点。",
+    paywallPlan: {
+      firstPaywallAt: 12,
+      freeEpisodes: 10,
+      paywallCadence: 1,
+      cliffhangerStrengthThreshold: 86,
+      buildupBeforePaywall: "第 11 集让主角被误解到低谷，第 12 集用董事长跪迎反转。",
+      intensityCurve: [{
+        fromEpisode: 1,
+        toEpisode: 12,
+        goal: "免费段完成身份羞辱蓄势并推到首付费反转。",
+        targetEmotionNet: -4,
+      }],
+    },
+    emotionCurveNote: "憋屈蓄势后用身份反转释放。",
+    deviationDeclaration: "保留隐藏身份主线，压缩支线。",
+  });
+  const plan = resolveDramaPaywallPlan(JSON.stringify(strategy), 80);
+  assert.equal(plan.firstPaywallAt, 12);
+  assert.equal(plan.cliffhangerStrengthThreshold, 86);
+  assert.match(describeDramaPaywallPlan(plan), /首付费集：第 12 集/);
+
+  const fallback = resolveDramaPaywallPlan(JSON.stringify({ mainPleasureLine: "旧策略" }), 10);
+  assert.equal(fallback.firstPaywallAt, 10);
+});
+
+test("drama quality gate escalates weak paywall beats from paywall plan", () => {
+  const { applyPaywallQualityRules } = require("../dist/services/drama/DramaQualityGate.js");
+  const strategyJson = JSON.stringify({
+    paywallPlan: {
+      firstPaywallAt: 12,
+      freeEpisodes: 10,
+      paywallCadence: 1,
+      cliffhangerStrengthThreshold: 85,
+      buildupBeforePaywall: "首付费前一集压到阶段低谷。",
+      intensityCurve: [{ fromEpisode: 1, toEpisode: 12, goal: "蓄势到反转", targetEmotionNet: -4 }],
+    },
+  });
+  const baseQuality = {
+    status: "approved",
+    score: { hook: 90, density: 88, paywall: 70, emotion: 82, duration: 86, consistency: 90, overall: 86 },
+    flags: [],
+  };
+  const paywallResult = applyPaywallQualityRules(baseQuality, {
+    episode: { order: 12, title: "董事长跪迎", emotionNet: 4, isPaywall: true },
+    episodes: [],
+    strategyJson,
+    targetEpisodes: 80,
+  });
+  assert.equal(paywallResult.status, "repairable");
+  assert.equal(paywallResult.flags.some((flag) => flag.code === "paywall_cliffhanger_below_plan"), true);
+  assert.match(paywallResult.repairPlan.instruction, /强化/);
+
+  const prePaywallResult = applyPaywallQualityRules({
+    ...baseQuality,
+    score: { ...baseQuality.score, paywall: 90 },
+  }, {
+    episode: { order: 11, title: "误会升级", emotionNet: -1, isPaywall: false },
+    episodes: [
+      { order: 10, title: "受辱", emotionNet: -4, isPaywall: false },
+      { order: 11, title: "误会升级", emotionNet: -1, isPaywall: false },
+    ],
+    strategyJson,
+    targetEpisodes: 80,
+  });
+  assert.equal(prePaywallResult.status, "repairable");
+  assert.equal(prePaywallResult.flags.some((flag) => flag.code === "pre_paywall_buildup_not_lowest"), true);
+});
+
 test("drama video provider registry exposes mock provider", async () => {
   const { videoProviderRegistry } = require("../dist/services/drama/video/VideoProviderPort.js");
   const provider = videoProviderRegistry.resolve("mock");

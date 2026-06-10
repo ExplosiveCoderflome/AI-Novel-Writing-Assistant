@@ -9,6 +9,10 @@ import { prisma } from "../../db/prisma";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { dramaEpisodeOutlinePrompt } from "../../prompting/prompts/drama/drama.prompts";
 import { rhythmEngine, type TrackId } from "./engine/rhythmEngine";
+import {
+  describeDramaPaywallPlan,
+  resolveDramaPaywallPlan,
+} from "./engine/paywallPlanPolicy";
 import type { DramaLLMOptions } from "./DramaStrategyService";
 
 interface SourceBeatLite {
@@ -42,6 +46,7 @@ export class DramaEpisodeOutlineService {
     }
     const track = rhythmEngine.getTrack(project.track as TrackId)!;
     const synopsis = project.sourceBundle?.synopsis?.trim() ?? "";
+    const paywallPlan = resolveDramaPaywallPlan(project.strategy, project.targetEpisodes);
 
     const startOrder = Math.max(1, input.startOrder ?? 1);
     const count = Math.min(40, Math.max(1, input.count ?? 12));
@@ -67,7 +72,7 @@ export class DramaEpisodeOutlineService {
     // 确定性卡点集号
     const paywallInRange: number[] = [];
     for (let order = startOrder; order <= endOrder; order += 1) {
-      if (rhythmEngine.isPaywallEpisode(order, project.targetEpisodes)) {
+      if (rhythmEngine.isPaywallEpisode(order, project.targetEpisodes, paywallPlan)) {
         paywallInRange.push(order);
       }
     }
@@ -83,6 +88,7 @@ export class DramaEpisodeOutlineService {
         startOrder,
         count: endOrder - startOrder + 1,
         paywallEpisodes: paywallInRange.join("、"),
+        paywallPlanDigest: describeDramaPaywallPlan(paywallPlan),
       },
       options: {
         provider: options.provider,
@@ -97,7 +103,7 @@ export class DramaEpisodeOutlineService {
     );
 
     for (const episode of episodes) {
-      const isPaywall = rhythmEngine.isPaywallEpisode(episode.order, project.targetEpisodes);
+      const isPaywall = rhythmEngine.isPaywallEpisode(episode.order, project.targetEpisodes, paywallPlan);
       const sourceMap = episode.sourceBeatRefs && episode.sourceBeatRefs.length > 0
         ? JSON.stringify({ beatRefs: episode.sourceBeatRefs })
         : null;

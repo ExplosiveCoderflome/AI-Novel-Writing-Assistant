@@ -103,6 +103,7 @@ const STRATEGY_LABELS: Record<string, string> = {
   positioning: "受众定位",
   mainPleasureLine: "主爽点线",
   paywallNote: "付费卡点规划",
+  paywallPlan: "付费卡点计划",
   emotionCurveNote: "情绪曲线",
   deviationDeclaration: "改编边界",
 };

@@ -244,6 +244,19 @@ export const dramaStrategyOutputSchema = z.object({
   positioning: z.string().trim().min(1),
   mainPleasureLine: z.string().trim().min(1),
   paywallNote: z.string().trim().min(1),
+  paywallPlan: z.object({
+    firstPaywallAt: z.number().int().min(8).max(15),
+    freeEpisodes: z.number().int().min(1).max(20),
+    paywallCadence: z.number().int().min(1).max(5),
+    cliffhangerStrengthThreshold: z.number().int().min(60).max(100),
+    buildupBeforePaywall: z.string().trim().min(1),
+    intensityCurve: z.array(z.object({
+      fromEpisode: z.number().int().min(1),
+      toEpisode: z.number().int().min(1),
+      goal: z.string().trim().min(1),
+      targetEmotionNet: z.number().int().min(-5).max(5),
+    })).min(1).max(8),
+  }),
   emotionCurveNote: z.string().trim().min(1),
   deviationDeclaration: z.string().trim().min(1),
 });
@@ -291,6 +304,8 @@ export const dramaStrategyPrompt: PromptAsset<
       `【首付费点】第 ${input.firstPaywallAt} 集`,
       "",
       "请输出这部竖屏付费短剧的改编策略 JSON。",
+      "paywallPlan.firstPaywallAt 必须在第 8-15 集之间，并结合素材确定首付费点。",
+      "paywallPlan.intensityCurve 要把免费引流、付费前蓄憋屈、首付费强卡点和后续连续付费卡点拆成可执行区间。",
     ].join("\n")),
   ],
 };
@@ -321,6 +336,7 @@ export interface DramaEpisodeOutlinePromptInput {
   startOrder: number;
   count: number;
   paywallEpisodes: string;
+  paywallPlanDigest: string;
 }
 
 export const dramaEpisodeOutlinePrompt: PromptAsset<
@@ -348,8 +364,10 @@ export const dramaEpisodeOutlinePrompt: PromptAsset<
       `【内容节拍摘要】\n${input.beatsDigest}`,
       `【本次生成区间】第 ${input.startOrder} 集起，共 ${input.count} 集`,
       `【付费卡点集号】${input.paywallEpisodes || "无"}`,
+      `【付费卡点计划】\n${input.paywallPlanDigest}`,
       "",
       "请输出该区间的分集大纲 JSON。",
+      "如果本区间包含首付费集，首付费前一集应形成阶段性低谷，首付费集结尾必须达到计划中的强卡点目标。",
     ].join("\n")),
   ],
 };
@@ -435,6 +453,9 @@ export interface DramaQualityPromptInput {
   content: string;
   factsDigest: string;
   charactersDigest: string;
+  strategyJson: string;
+  paywallPlanDigest: string;
+  episodeRhythmDigest: string;
 }
 
 export const dramaQualityPrompt: PromptAsset<DramaQualityPromptInput, DramaQualityOutput> = {
@@ -455,10 +476,13 @@ export const dramaQualityPrompt: PromptAsset<DramaQualityPromptInput, DramaQuali
     new HumanMessage([
       `【本集大纲】\n${input.episodeJson}`,
       `【台本】\n${input.content}`,
+      `【策略】\n${input.strategyJson}`,
+      `【付费卡点计划】\n${input.paywallPlanDigest}`,
+      `【相邻分集节奏】\n${input.episodeRhythmDigest}`,
       `【事实账本】\n${input.factsDigest}`,
       `【角色】\n${input.charactersDigest}`,
       "",
-      "请输出质量评估 JSON。",
+      "请输出质量评估 JSON。付费集要重点判断结尾卡点是否达到计划强度；首付费前一集要判断是否承担蓄憋屈低谷功能。",
     ].join("\n")),
   ],
 };
