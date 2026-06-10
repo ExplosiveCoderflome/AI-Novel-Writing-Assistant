@@ -30,6 +30,7 @@ import {
   refreshDramaVideoProviderTask,
   reviewDramaEpisode,
   saveDramaCharacterToLibrary,
+  type DramaEpisodeExportFormat,
   type DramaEpisode,
   type DramaProjectDetail,
   updateDramaCharacter,
@@ -451,12 +452,13 @@ export default function DramaProjectPage() {
     downloadBlob(blob, `${project.title}-short-drama.${format === "json" ? "json" : "md"}`);
   };
 
-  const handleEpisodeExport = async (order: number, format: "srt") => {
+  const handleEpisodeExport = async (order: number, format: DramaEpisodeExportFormat) => {
     if (!project) {
       return;
     }
     const blob = await downloadDramaEpisodeExport(project.id, order, format);
-    downloadBlob(blob, `${project.title}-E${order}.${format}`);
+    const suffix = format === "timeline-json" ? "timeline.json" : "srt";
+    downloadBlob(blob, `${project.title}-E${order}.${suffix}`);
   };
 
   const handleSaveEpisode = (order: number, input: {
@@ -650,10 +652,16 @@ export default function DramaProjectPage() {
               导出 JSON
             </Button>
             {selectedOrderValue ? (
-              <Button type="button" variant="outline" onClick={() => void handleEpisodeExport(selectedOrderValue, "srt")}>
-                <Download className="h-4 w-4" />
-                导出本集 SRT
-              </Button>
+              <>
+                <Button type="button" variant="outline" onClick={() => void handleEpisodeExport(selectedOrderValue, "srt")}>
+                  <Download className="h-4 w-4" />
+                  导出本集 SRT
+                </Button>
+                <Button type="button" variant="outline" onClick={() => void handleEpisodeExport(selectedOrderValue, "timeline-json")}>
+                  <Download className="h-4 w-4" />
+                  导出剪辑草稿
+                </Button>
+              </>
             ) : null}
           </CardContent>
         </Card>

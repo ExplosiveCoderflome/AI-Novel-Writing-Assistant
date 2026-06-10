@@ -372,7 +372,8 @@ router.get("/projects/:id/export", validate({ params: idParamsSchema }), async (
 router.get("/projects/:id/episodes/:order/export", validate({ params: episodeParamsSchema }), async (req, res, next) => {
   try {
     const { id, order } = req.params as unknown as z.infer<typeof episodeParamsSchema>;
-    const data = await dramaExportService.exportEpisode(id, order, "srt");
+    const format = req.query.format === "timeline-json" ? "timeline-json" : "srt";
+    const data = await dramaExportService.exportEpisode(id, order, format);
     res.setHeader("Content-Type", data.contentType);
     res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(data.filename)}"`);
     res.status(200).send(data.body);

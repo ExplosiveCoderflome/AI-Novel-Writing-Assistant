@@ -170,6 +170,7 @@ function installPipelineStubs() {
             ...storyboard,
             shots: state.shots.filter((shot) => shot.storyboardId === storyboard.id),
           })),
+          videoPrompts: state.videoPrompts,
         };
       },
     },
@@ -451,4 +452,19 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
   assert.equal(srt.filename, "逆袭短剧-E1.srt");
   assert.match(srt.body, /00:00:00,000 --> 00:00:02,000/);
   assert.match(srt.body, /林澈：让董事长下来。/);
+
+  const timeline = await new DramaExportService().exportEpisode("project_1", 1, "timeline-json");
+  assert.equal(timeline.contentType, "application/json; charset=utf-8");
+  assert.equal(timeline.filename, "逆袭短剧-E1-timeline.json");
+  const timelineBody = JSON.parse(timeline.body);
+  assert.equal(timelineBody.format, "ai-novel.drama.timeline.v1");
+  assert.equal(timelineBody.episode.order, 1);
+  assert.equal(timelineBody.tracks.video[0].shotOrder, 1);
+  assert.equal(timelineBody.tracks.video[0].status, "queued");
+  assert.equal(timelineBody.tracks.video[0].providerTaskId, prompt.providerTaskId);
+  assert.equal(timelineBody.tracks.video[0].posterUrl, "/api/drama/shot-images/shot_1/keyframe");
+  assert.equal(timelineBody.tracks.audio[0].voiceId, "lin-voice");
+  assert.match(timelineBody.tracks.audio[0].audioUrl, /^data:audio\/wav;base64,/);
+  assert.equal(timelineBody.tracks.subtitles[0].endSec, 2);
+  assert.match(timelineBody.warnings[0], /镜头 1/);
 });

@@ -435,7 +435,9 @@ export async function downloadDramaExport(id: string, format: "markdown" | "json
   return response.data;
 }
 
-export async function downloadDramaEpisodeExport(id: string, order: number, format: "srt") {
+export type DramaEpisodeExportFormat = "srt" | "timeline-json";
+
+export async function downloadDramaEpisodeExport(id: string, order: number, format: DramaEpisodeExportFormat) {
   const response = await apiClient.get<Blob>(`/drama/projects/${id}/episodes/${order}/export`, {
     params: { format },
     responseType: "blob",
