@@ -73,6 +73,10 @@ const shotParamsSchema = z.object({
 });
 const videoPromptParamsSchema = z.object({ videoPromptId: z.string().trim().min(1) });
 const shotImageParamsSchema = z.object({ shotId: z.string().trim().min(1) });
+const shotImageVersionParamsSchema = z.object({
+  shotId: z.string().trim().min(1),
+  version: z.string().trim().regex(/^v?\d+$/),
+});
 
 const createProjectSchema = z.object({
   title: z.string().trim().min(1).max(120),
@@ -481,6 +485,10 @@ router.post("/video-prompts/:videoPromptId/provider-task/refresh", validate({ pa
 const charImageParamsSchema = z.object({
   characterId: z.string().trim().min(1),
 });
+const charImageVersionParamsSchema = z.object({
+  characterId: z.string().trim().min(1),
+  version: z.string().trim().regex(/^v?\d+$/),
+});
 
 /** GET /api/drama/projects/:id/characters/:characterId/image-status */
 router.get(
@@ -582,6 +590,24 @@ router.get("/shot-images/:shotId/keyframe", validate({ params: shotImageParamsSc
   }
 });
 
+/** GET /api/drama/shot-images/:shotId/keyframe/v1 */
+router.get("/shot-images/:shotId/keyframe/:version", validate({ params: shotImageVersionParamsSchema }), async (req, res, next) => {
+  try {
+    const { shotId, version } = req.params as z.infer<typeof shotImageVersionParamsSchema>;
+    const numericVersion = Number(version.replace(/^v/i, ""));
+    const resolved = await dramaShotKeyframeService.resolveArchivedKeyframePath(shotId, numericVersion);
+    if (!resolved) {
+      res.status(404).json({ success: false, message: "镜头首帧历史版本尚未生成。" });
+      return;
+    }
+    res.setHeader("Content-Type", resolved.mimeType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    fs.createReadStream(resolved.filePath).pipe(res);
+  } catch (error) {
+    next(error);
+  }
+});
+
 /** GET /api/drama/character-images/:characterId/character-sheet */
 router.get("/character-images/:characterId/character-sheet", async (req, res, next) => {
   try {
@@ -592,6 +618,28 @@ router.get("/character-images/:characterId/character-sheet", async (req, res, ne
     );
     if (!resolved) {
       res.status(404).json({ success: false, message: "角色设计稿尚未生成。" });
+      return;
+    }
+    res.setHeader("Content-Type", resolved.mimeType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    fs.createReadStream(resolved.filePath).pipe(res);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** GET /api/drama/character-images/:characterId/character-sheet/v1 */
+router.get("/character-images/:characterId/character-sheet/:version", validate({ params: charImageVersionParamsSchema }), async (req, res, next) => {
+  try {
+    const { characterId, version } = req.params as z.infer<typeof charImageVersionParamsSchema>;
+    const numericVersion = Number(version.replace(/^v/i, ""));
+    const resolved = await dramaCharacterImageService.resolveArchivedImagePath(
+      characterId,
+      "character-sheet",
+      numericVersion,
+    );
+    if (!resolved) {
+      res.status(404).json({ success: false, message: "角色设计稿历史版本尚未生成。" });
       return;
     }
     res.setHeader("Content-Type", resolved.mimeType);

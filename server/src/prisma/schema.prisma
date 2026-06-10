@@ -3137,6 +3137,8 @@ model DramaVideoPrompt {
   aspectRatio    String   @default("9:16")
   durationSec    Int?
   status         String   @default("prompted")
+  version        Int      @default(1)
+  supersededById String?
   providerTaskId String?
   resultUrl      String?
   failureReason  String?
@@ -3149,6 +3151,7 @@ model DramaVideoPrompt {
 
   @@index([projectId])
   @@index([episodeId])
+  @@index([projectId, shotId, version])
   @@index([provider, status])
 }
 

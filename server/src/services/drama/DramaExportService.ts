@@ -189,7 +189,7 @@ export class DramaExportService {
       where: { projectId_order: { projectId, order } },
       include: {
         project: { select: { title: true } },
-        videoPrompts: { orderBy: { createdAt: "desc" } },
+        videoPrompts: { orderBy: [{ version: "desc" }, { createdAt: "desc" }] },
         storyboards: {
           orderBy: { createdAt: "desc" },
           include: { shots: { orderBy: { order: "asc" } } },
@@ -204,7 +204,7 @@ export class DramaExportService {
     let cursor = 0;
     const videoPromptsByShot = new Map<string, typeof episode.videoPrompts[number]>();
     for (const prompt of episode.videoPrompts) {
-      if (prompt.shotId && !videoPromptsByShot.has(prompt.shotId)) {
+      if (prompt.status !== "superseded" && prompt.shotId && !videoPromptsByShot.has(prompt.shotId)) {
         videoPromptsByShot.set(prompt.shotId, prompt);
       }
     }
@@ -232,6 +232,7 @@ export class DramaExportService {
           sourceUrl: prompt?.resultUrl ?? null,
           status: prompt?.status ?? "missing",
           provider: prompt?.provider ?? null,
+          version: prompt?.version ?? null,
           providerTaskId: prompt?.providerTaskId ?? null,
           posterUrl: readKeyframeUrl(shot.keyframeData),
         };

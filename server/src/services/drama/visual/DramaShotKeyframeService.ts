@@ -14,13 +14,23 @@ import { safeJsonParse } from "../utils/json";
 
 export type ShotKeyframeStatus = "idle" | "generating" | "done" | "error";
 
+export interface ShotKeyframeHistoryItem {
+  version: number;
+  url?: string;
+  prompt?: string;
+  provider?: string;
+  generatedAt?: string;
+}
+
 export interface ShotKeyframeData {
   status: ShotKeyframeStatus;
+  version?: number;
   url?: string;
   prompt?: string;
   provider?: string;
   generatedAt?: string;
   error?: string;
+  history?: ShotKeyframeHistoryItem[];
 }
 
 interface CharacterLite {
@@ -52,9 +62,22 @@ interface ShotKeyframeSource {
 
 const DRAMA_SHOT_IMAGES_DIR = "drama-shots";
 const DEFAULT_PROVIDER: LLMProvider = "openai";
+const KEYFRAME_EXTS: Array<[string, string]> = [
+  ["png", "image/png"],
+  ["jpg", "image/jpeg"],
+  ["webp", "image/webp"],
+];
 
 function dramaShotDir(shotId: string): string {
   return path.join(resolveGeneratedImagesRoot(), DRAMA_SHOT_IMAGES_DIR, shotId);
+}
+
+function currentKeyframeUrl(shotId: string): string {
+  return `/api/drama/shot-images/${shotId}/keyframe`;
+}
+
+function archivedKeyframeUrl(shotId: string, version: number): string {
+  return `/api/drama/shot-images/${shotId}/keyframe/v${version}`;
 }
 
 async function saveImageToDisk(imageUrl: string, destPath: string): Promise<void> {
@@ -82,6 +105,55 @@ function inferExtension(imageUrl: string): string {
   } catch {
     return "png";
   }
+}
+
+function normalizePositiveVersion(value: unknown): number | null {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : null;
+}
+
+function readKeyframeVersion(data: ShotKeyframeData): number {
+  const explicit = normalizePositiveVersion(data.version);
+  if (explicit) {
+    return explicit;
+  }
+  return data.status === "done" ? 1 : 0;
+}
+
+function normalizeHistoryItem(input: unknown): ShotKeyframeHistoryItem | null {
+  if (!input || typeof input !== "object") {
+    return null;
+  }
+  const record = input as Record<string, unknown>;
+  const version = normalizePositiveVersion(record.version);
+  if (!version) {
+    return null;
+  }
+  return {
+    version,
+    url: typeof record.url === "string" && record.url.trim() ? record.url.trim() : undefined,
+    prompt: typeof record.prompt === "string" ? record.prompt : undefined,
+    provider: typeof record.provider === "string" ? record.provider : undefined,
+    generatedAt: typeof record.generatedAt === "string" ? record.generatedAt : undefined,
+  };
+}
+
+function readKeyframeHistory(data: ShotKeyframeData): ShotKeyframeHistoryItem[] {
+  return Array.isArray(data.history)
+    ? data.history.map(normalizeHistoryItem).filter((item): item is ShotKeyframeHistoryItem => Boolean(item))
+    : [];
+}
+
+async function removeCurrentKeyframeVariants(shotId: string, keepExt: string): Promise<void> {
+  await Promise.all(KEYFRAME_EXTS
+    .filter(([ext]) => ext !== keepExt)
+    .map(async ([ext]) => {
+      try {
+        await fs.unlink(path.join(dramaShotDir(shotId), `keyframe.${ext}`));
+      } catch {
+        // Missing alternate formats are expected.
+      }
+    }));
 }
 
 function normalizeReferenceKey(value: unknown): string | null {
@@ -194,7 +266,19 @@ export class DramaShotKeyframeService {
       throw new AppError(`图片 Provider ${provider} 暂不支持。`, 400);
     }
 
-    const generatingData: ShotKeyframeData = { status: "generating", provider };
+    const existingData = safeJsonParse<ShotKeyframeData>(shot.keyframeData, { status: "idle" });
+    const history = readKeyframeHistory(existingData);
+    const archivedCurrent = await this.archiveCurrentKeyframe(shotId, existingData);
+    const nextHistory = archivedCurrent ? history.concat(archivedCurrent) : history;
+    const nextVersion = existingData.status === "done"
+      ? readKeyframeVersion(existingData) + 1
+      : Math.max(1, readKeyframeVersion(existingData) || 1);
+    const generatingData: ShotKeyframeData = {
+      status: "generating",
+      provider,
+      version: nextVersion,
+      history: nextHistory,
+    };
     await prisma.dramaShot.update({
       where: { id: shotId },
       data: { keyframeData: JSON.stringify(generatingData) },
@@ -232,13 +316,16 @@ export class DramaShotKeyframeService {
       const ext = inferExtension(imageUrl);
       const localPath = path.join(dramaShotDir(shotId), `keyframe.${ext}`);
       await saveImageToDisk(imageUrl, localPath);
+      await removeCurrentKeyframeVariants(shotId, ext);
 
       const doneData: ShotKeyframeData = {
         status: "done",
-        url: `/api/drama/shot-images/${shotId}/keyframe`,
+        version: nextVersion,
+        url: currentKeyframeUrl(shotId),
         prompt,
         provider,
         generatedAt: new Date().toISOString(),
+        history: nextHistory,
       };
       await prisma.dramaShot.update({
         where: { id: shotId },
@@ -249,7 +336,9 @@ export class DramaShotKeyframeService {
       const errorData: ShotKeyframeData = {
         status: "error",
         provider,
+        version: nextVersion,
         error: error instanceof Error ? error.message : String(error),
+        history: nextHistory,
       };
       await prisma.dramaShot.update({
         where: { id: shotId },
@@ -259,15 +348,51 @@ export class DramaShotKeyframeService {
     }
   }
 
+  private async archiveCurrentKeyframe(shotId: string, data: ShotKeyframeData): Promise<ShotKeyframeHistoryItem | null> {
+    if (data.status !== "done") {
+      return null;
+    }
+    const version = readKeyframeVersion(data);
+    if (!version) {
+      return null;
+    }
+    const resolved = await this.resolveExistingKeyframePath(shotId);
+    const historyItem: ShotKeyframeHistoryItem = {
+      version,
+      prompt: data.prompt,
+      provider: data.provider,
+      generatedAt: data.generatedAt,
+    };
+    if (!resolved) {
+      return historyItem;
+    }
+    const ext = path.extname(resolved.filePath).replace(".", "").toLowerCase() || "png";
+    const archivePath = path.join(dramaShotDir(shotId), `keyframe.v${version}.${ext}`);
+    await fs.copyFile(resolved.filePath, archivePath);
+    return {
+      ...historyItem,
+      url: archivedKeyframeUrl(shotId, version),
+    };
+  }
+
   async resolveExistingKeyframePath(shotId: string): Promise<{ filePath: string; mimeType: string } | null> {
     const dir = dramaShotDir(shotId);
-    const exts: Array<[string, string]> = [
-      ["png", "image/png"],
-      ["jpg", "image/jpeg"],
-      ["webp", "image/webp"],
-    ];
-    for (const [ext, mimeType] of exts) {
+    for (const [ext, mimeType] of KEYFRAME_EXTS) {
       const filePath = path.join(dir, `keyframe.${ext}`);
+      try {
+        await fs.access(filePath);
+        return { filePath, mimeType };
+      } catch {
+        // Try the next supported extension.
+      }
+    }
+    return null;
+  }
+
+  async resolveArchivedKeyframePath(shotId: string, version: number): Promise<{ filePath: string; mimeType: string } | null> {
+    const dir = dramaShotDir(shotId);
+    for (const [ext, mimeType] of KEYFRAME_EXTS) {
+      const filePath = path.join(dir, `keyframe.v${version}.${ext}`);
       try {
         await fs.access(filePath);
         return { filePath, mimeType };

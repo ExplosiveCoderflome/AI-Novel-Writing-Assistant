@@ -146,6 +146,33 @@ function installPipelineStubs() {
         return shot;
       },
     },
+    dramaVideoPrompt: {
+      create: async ({ data }) => {
+        const created = {
+          id: `video_prompt_${state.videoPrompts.length + 1}`,
+          createdAt: new Date("2026-06-09T00:00:00.000Z"),
+          updatedAt: new Date("2026-06-09T00:00:00.000Z"),
+          version: data.version ?? 1,
+          supersededById: null,
+          ...data,
+        };
+        state.videoPrompts.push(created);
+        return created;
+      },
+      updateMany: async ({ where, data }) => {
+        let count = 0;
+        for (const prompt of state.videoPrompts) {
+          if (where.projectId && prompt.projectId !== where.projectId) continue;
+          if (where.episodeId && prompt.episodeId !== where.episodeId) continue;
+          if (where.shotId && prompt.shotId !== where.shotId) continue;
+          if (where.id?.not && prompt.id === where.id.not) continue;
+          if (where.status?.not && prompt.status === where.status.not) continue;
+          Object.assign(prompt, data, { updatedAt: new Date("2026-06-09T00:00:00.000Z") });
+          count += 1;
+        }
+        return { count };
+      },
+    },
   };
 
   const prisma = {
@@ -170,7 +197,10 @@ function installPipelineStubs() {
             ...storyboard,
             shots: state.shots.filter((shot) => shot.storyboardId === storyboard.id),
           })),
-          videoPrompts: state.videoPrompts,
+          videoPrompts: [...state.videoPrompts].sort((left, right) =>
+            (right.version ?? 1) - (left.version ?? 1)
+            || right.createdAt.getTime() - left.createdAt.getTime()
+          ),
         };
       },
     },
@@ -196,22 +226,25 @@ function installPipelineStubs() {
       update: tx.dramaShot.update,
     },
     dramaVideoPrompt: {
-      create: async ({ data }) => {
-        const created = { id: `video_prompt_${state.videoPrompts.length + 1}`, createdAt: new Date("2026-06-09T00:00:00.000Z"), ...data };
-        state.videoPrompts.push(created);
-        return created;
-      },
+      create: tx.dramaVideoPrompt.create,
       findUnique: async ({ where }) => state.videoPrompts.find((prompt) => prompt.id === where.id) ?? null,
-      findFirst: async ({ where }) => state.videoPrompts.find((prompt) =>
-        prompt.projectId === where.projectId
-        && prompt.episodeId === where.episodeId
-        && prompt.shotId === where.shotId,
-      ) ?? null,
+      findFirst: async ({ where }) => [...state.videoPrompts]
+        .filter((prompt) =>
+          (!where.projectId || prompt.projectId === where.projectId)
+          && (!where.episodeId || prompt.episodeId === where.episodeId)
+          && (!where.shotId || prompt.shotId === where.shotId)
+          && (!where.status?.not || prompt.status !== where.status.not)
+        )
+        .sort((left, right) =>
+          (right.version ?? 1) - (left.version ?? 1)
+          || right.createdAt.getTime() - left.createdAt.getTime()
+        )[0] ?? null,
       update: async ({ where, data }) => {
         const prompt = state.videoPrompts.find((item) => item.id === where.id);
         Object.assign(prompt, data);
         return prompt;
       },
+      updateMany: tx.dramaVideoPrompt.updateMany,
     },
     dramaBatchJob: {
       create: async ({ data }) => {
@@ -489,9 +522,30 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
   assert.equal(timelineBody.tracks.video[0].shotOrder, 1);
   assert.equal(timelineBody.tracks.video[0].status, "queued");
   assert.equal(timelineBody.tracks.video[0].providerTaskId, prompt.providerTaskId);
+  assert.equal(timelineBody.tracks.video[0].version, 1);
   assert.equal(timelineBody.tracks.video[0].posterUrl, "/api/drama/shot-images/shot_1/keyframe");
   assert.equal(timelineBody.tracks.audio[0].voiceId, "lin-voice");
   assert.match(timelineBody.tracks.audio[0].audioUrl, /^data:audio\/wav;base64,/);
   assert.equal(timelineBody.tracks.subtitles[0].endSec, 2);
   assert.match(timelineBody.warnings[0], /镜头 1/);
+
+  const { DramaVideoPromptService } = require("../dist/services/drama/DramaVideoPromptService.js");
+  const videoPromptService = new DramaVideoPromptService();
+  const regeneratedPrompt = await videoPromptService.generateVideoPromptForShot("project_1", "shot_1");
+  assert.equal(regeneratedPrompt.version, 2);
+  assert.equal(regeneratedPrompt.status, "prompted");
+  assert.equal(prompt.status, "superseded");
+  assert.equal(prompt.supersededById, regeneratedPrompt.id);
+  await assert.rejects(
+    () => videoPromptService.createProviderTask(prompt.id, "mock"),
+    /已有新版/,
+  );
+
+  const { DramaShotKeyframeService } = require("../dist/services/drama/visual/DramaShotKeyframeService.js");
+  const keyframeData = await new DramaShotKeyframeService().generateKeyframe("shot_1", "openai");
+  assert.equal(keyframeData.version, 2);
+  assert.equal(keyframeData.history.length, 1);
+  assert.equal(keyframeData.history[0].version, 1);
+  assert.equal(keyframeData.history[0].url, "/api/drama/shot-images/shot_1/keyframe/v1");
+  assert.equal(fs.existsSync(path.join(state.generatedImagesRoot, "drama-shots", "shot_1", "keyframe.v1.png")), true);
 });

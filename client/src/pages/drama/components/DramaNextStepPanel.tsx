@@ -59,7 +59,7 @@ function firstShotWithoutVideoPrompt(episodes: DramaEpisode[], videoPrompts: Dra
   episode: DramaEpisode;
   shot: DramaShot;
 } | undefined {
-  const promptedShotIds = new Set(videoPrompts.map((prompt) => prompt.shotId).filter(Boolean));
+  const promptedShotIds = new Set(videoPrompts.filter(isActiveVideoPrompt).map((prompt) => prompt.shotId).filter(Boolean));
   for (const episode of episodes) {
     for (const storyboard of episode.storyboards ?? []) {
       for (const shot of storyboard.shots ?? []) {
@@ -73,12 +73,16 @@ function firstShotWithoutVideoPrompt(episodes: DramaEpisode[], videoPrompts: Dra
 }
 
 function firstPromptWithoutProviderTask(videoPrompts: DramaVideoPrompt[]): DramaVideoPrompt | undefined {
-  return videoPrompts.find((prompt) => !prompt.providerTaskId);
+  return videoPrompts.find((prompt) => isActiveVideoPrompt(prompt) && !prompt.providerTaskId);
+}
+
+function isActiveVideoPrompt(prompt: DramaVideoPrompt): boolean {
+  return prompt.status !== "superseded";
 }
 
 function buildNextStep(project: DramaProjectDetail): NextStep {
   const episodes = project.episodes ?? [];
-  const videoPrompts = project.videoPrompts ?? [];
+  const videoPrompts = (project.videoPrompts ?? []).filter(isActiveVideoPrompt);
   const repairable = firstRepairableEpisode(episodes);
   const unreviewed = firstEpisodeWithoutReview(episodes);
   const unscripted = firstEpisodeWithoutScript(episodes);
@@ -258,7 +262,7 @@ export function DramaNextStepPanel(props: {
         <span>已整理素材：{props.project.sourceBundle ? "是" : "否"}</span>
         <span>策略：{props.project.strategy ? "已生成" : "未生成"}</span>
         <span>分集：{props.project.episodes?.length ?? 0} 集</span>
-        <span>视频提示词：{props.project.videoPrompts?.length ?? 0} 条</span>
+        <span>当前视频提示词：{(props.project.videoPrompts ?? []).filter(isActiveVideoPrompt).length} 条</span>
       </CardContent>
     </Card>
   );

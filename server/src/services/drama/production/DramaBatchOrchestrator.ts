@@ -74,6 +74,7 @@ interface BatchVideoPrompt {
   shotId?: string | null;
   providerTaskId?: string | null;
   status: string;
+  version?: number | null;
 }
 
 type BatchProcessResult = {
@@ -122,6 +123,10 @@ function hasDoneKeyframe(raw: string | null | undefined): boolean {
 function hasDoneDialogueAudio(raw: string | null | undefined): boolean {
   const parsed = safeJsonParse<{ status?: string; items?: unknown[] }>(raw, {});
   return parsed.status === "done" && Array.isArray(parsed.items) && parsed.items.length > 0;
+}
+
+function isActiveVideoPrompt(prompt: BatchVideoPrompt): boolean {
+  return prompt.status !== "superseded";
 }
 
 function addCostUnits(left: DramaBatchCostUnits, right: DramaBatchCostUnits): DramaBatchCostUnits {
@@ -344,8 +349,8 @@ export class DramaBatchOrchestrator {
     provider?: string,
   ): Promise<"processed" | "skipped"> {
     let prompt = await prisma.dramaVideoPrompt.findFirst({
-      where: { projectId, episodeId, shotId },
-      orderBy: { createdAt: "desc" },
+      where: { projectId, episodeId, shotId, status: { not: "superseded" } },
+      orderBy: [{ version: "desc" }, { createdAt: "desc" }],
     });
     if (prompt?.providerTaskId && prompt.status !== "failed") {
       return "skipped";
@@ -407,7 +412,7 @@ export class DramaBatchOrchestrator {
           orderBy: { createdAt: "desc" },
           include: { shots: { orderBy: { order: "asc" } } },
         },
-        videoPrompts: { orderBy: { createdAt: "desc" } },
+        videoPrompts: { orderBy: [{ version: "desc" }, { createdAt: "desc" }] },
       },
     });
     if (!episode) {
@@ -444,7 +449,7 @@ export class DramaBatchOrchestrator {
     const unit = this.resolveCostUnit(type, provider);
     const latestPromptByShot = new Map<string, BatchVideoPrompt>();
     for (const prompt of videoPrompts) {
-      if (prompt.shotId && !latestPromptByShot.has(prompt.shotId)) {
+      if (prompt.shotId && isActiveVideoPrompt(prompt) && !latestPromptByShot.has(prompt.shotId)) {
         latestPromptByShot.set(prompt.shotId, prompt);
       }
     }

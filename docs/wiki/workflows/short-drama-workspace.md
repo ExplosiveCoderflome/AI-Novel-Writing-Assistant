@@ -31,7 +31,10 @@
 - 通用 HTTP 视频通道只在配置 `DRAMA_VIDEO_HTTP_CREATE_URL` 后注册；可选配置包括 `DRAMA_VIDEO_HTTP_STATUS_URL`（支持 `{taskId}` 占位符）、`DRAMA_VIDEO_HTTP_API_KEY`、`DRAMA_VIDEO_HTTP_PROVIDER_ID`、`DRAMA_VIDEO_HTTP_PROVIDER_LABEL`、`DRAMA_VIDEO_HTTP_PROVIDER_DESCRIPTION`、`DRAMA_VIDEO_HTTP_TIMEOUT_MS` 和 `DRAMA_VIDEO_HTTP_SUPPORTS_REF_IMAGES`。外部接口返回的 `taskId` / `providerTaskId` / `id`、`status`、`resultUrl` / `videoUrl` 会被标准化为 `DramaVideoPrompt` 的 provider 任务状态。
 - 视频 provider 是否接收角色参考图必须由后端注册表的 `supportsRefImages` 声明。镜头创建 provider 任务时，服务层只读取该镜头 `characterRefs` 指向的项目角色；当角色 `portraitData` 为 `done` 且包含 URL 时，设计稿会作为 `refImages` 传给支持参考图的 provider。未声明支持的 provider 不接收 `refImages`，避免外部接口因未知字段失败。
 - 角色设计稿端点通常是 `/api/drama/character-images/...` 的相对地址。对云端视频 provider，可配置 `DRAMA_VIDEO_REF_IMAGE_BASE_URL`（或通用 `APP_BASE_URL`）把相对地址规范化为绝对 URL；若 provider 需要 base64 或临时对象存储，应在 provider 适配层扩展，不应把上传逻辑塞进前端按钮。
-- `DramaShot.keyframeData` 是镜头首帧图状态字段，保存 `{ status, url, prompt, provider, generatedAt, error }`。首帧图通过项目内镜头生成入口创建，图片文件存放在 `drama-shots/{shotId}/`，公开 URL 使用 `/api/drama/shot-images/{shotId}/keyframe`。
+- `DramaShot.keyframeData` 是镜头首帧图状态字段，保存 `{ status, version, url, prompt, provider, generatedAt, error, history }`。首帧图通过项目内镜头生成入口创建，图片文件存放在 `drama-shots/{shotId}/`，当前公开 URL 使用 `/api/drama/shot-images/{shotId}/keyframe`。
+- 首帧图和角色设计稿重生成必须保留历史版本。服务层在写入新图前把当前文件归档为 `keyframe.vN.{ext}` 或 `character-sheet.vN.{ext}`，并把可打开的历史 URL 写入 `history`。当前 URL 保持稳定，方便视频生成链路始终读取当前版；历史 URL 只用于人工回看和对比。
+- `DramaVideoPrompt` 是镜头视频提示词的版本化记录。重新生成提示词时必须创建新记录并递增 `version`，同镜头旧的非历史记录要标记为 `status = "superseded"` 并写入 `supersededById`。不要覆盖旧记录，也不要让旧记录继续创建新 provider 任务。
+- 工作台可以展示全部视频提示词历史，但“下一步”引导、单镜创建 provider 任务、批量视频任务、成本估算和 timeline 导出只能消费非 `superseded` 的最高版本。排序应优先使用 `version desc`，再用 `createdAt desc` 处理旧数据或同版本边界。
 - 镜头已有 `keyframeData.status === "done"` 时，创建视频 provider 任务必须把首帧图 URL 放在 `refImages` 首位，再追加该镜头角色的设计稿 URL。这样 provider 支持 image-to-video 时能优先锁定构图，不支持参考图时仍由能力声明降级为文本视频任务。
 - 分镜视频页的首帧图生成使用图片 Provider 配置，只展示已配置、已启用且支持图片生成的 Provider；视频 Provider 选择与图片 Provider 选择是两条独立能力，不应混用。
 - TTS provider 通过 `TTSProviderPort` 抽象接入，可用 provider 由 `/api/drama/tts-providers` 暴露给前端。默认 `mock` 只用于本地联调；通用 HTTP 配音通道只在配置 `DRAMA_TTS_HTTP_SYNTHESIZE_URL` 后注册，并把外部服务返回的 `audioUrl` / `url` / `resultUrl` 和 `durationSec` / `duration` / `seconds` 标准化为镜头台词音频。
@@ -42,7 +45,7 @@
 - 批量任务成本估算入口为 `/api/drama/projects/:id/episodes/:order/batch-jobs/estimate`，使用与创建任务相同的目标镜头筛选规则。`progress.cost` 保存 `{ currency, estimated, actual, estimatedUnits, actualUnits, unit }`；创建任务时写入预计费用，运行时只把真正处理的镜头计入实际费用，跳过项不增加实际成本。
 - 成本单价属于 provider 能力声明的一部分。视频和 TTS provider 可暴露 `costPerSecond / currency`，首帧图使用图片 Provider 的按图单价配置；未配置单价时仍展示 `0`，不阻塞生产任务。
 - 批量首帧任务只处理最新分镜下的目标镜头；已有可用首帧图的镜头应计入跳过，失败镜头写入 `failedShotIds`，前端用同一入口携带 `failedShotIds` 发起失败项重试。
-- 批量视频任务按镜头顺序串行处理：没有视频提示词时先生成提示词，再创建 provider 任务；已有非失败 provider 任务的镜头计入跳过。视频文件生成仍由 provider 侧异步完成，批量任务负责把每个镜头的视频任务创建到可轮询状态。
+- 批量视频任务按镜头顺序串行处理：没有当前视频提示词时先生成提示词，再创建 provider 任务；当前提示词已有非失败 provider 任务的镜头计入跳过。视频文件生成仍由 provider 侧异步完成，批量任务负责把每个镜头的视频任务创建到可轮询状态。
 - 批量配音任务按镜头顺序串行处理：已有可用 `dialogueAudioData` 的镜头计入跳过；没有台词的镜头保存 `idle` 状态；provider 失败时写入镜头错误状态和批量任务失败列表，用户可只重试失败镜头。
 
 ## Failure Modes
@@ -58,6 +61,8 @@
 - 成本预估不能替代 provider 侧真实账单。没有配置单价时必须显示为未配置或 0；实际费用只代表系统按已配置单价和已处理镜头推算出的项目内生产成本。
 - 批量任务不能把 provider 任务成功创建误判为视频成片完成。`videos` 批量任务的 `done` 表示镜头已进入 provider 任务队列或被跳过，最终视频结果仍以 `DramaVideoPrompt.status / resultUrl / failureReason` 为准。
 - 配音任务不能把说话人文本当作固定角色 ID。声线绑定只能来自当前项目角色名与对白说话人的匹配；无法匹配时应保留台词合成能力，并把缺失 voiceId 暴露为后续角色资产补全问题。
+- 多次生成后如果仍按 `createdAt desc` 直接取第一条视频提示词，旧数据迁移、同版本旧记录或历史记录都可能进入批量和导出链路。所有生产消费者必须先排除 `superseded`，再按版本选择当前记录。
+- 图片重生成如果只覆盖 `keyframe.png` 或 `character-sheet.png` 而不归档，用户无法回看旧构图，视频参考图也难以追溯。历史归档必须在写入新文件前完成；新图扩展名变化时要清理其他当前文件变体，避免静态服务继续读到旧格式文件。
 
 ## Related Modules
 

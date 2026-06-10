@@ -26,21 +26,35 @@ import {
 
 export type CharacterImageStatus = "idle" | "generating" | "done" | "error";
 
+export interface CharacterImageHistoryItem {
+  version: number;
+  url?: string;
+  prompt?: string;
+  provider?: string;
+  generatedAt?: string;
+}
+
 export interface CharacterSheetData {
   status: CharacterImageStatus;
+  version?: number;
   /** 角色设计稿公开 URL（面部特写 + 三视图合图） */
   url?: string;
   prompt?: string;
+  provider?: string;
   generatedAt?: string;
   error?: string;
+  history?: CharacterImageHistoryItem[];
 }
 
 export interface PortraitData {
   status: CharacterImageStatus;
+  version?: number;
   url?: string;
   prompt?: string;
+  provider?: string;
   generatedAt?: string;
   error?: string;
+  history?: CharacterImageHistoryItem[];
 }
 
 export type ThreeViewName = "front" | "side" | "back";
@@ -60,9 +74,22 @@ export interface ThreeViewItem {
 
 const DRAMA_IMAGES_DIR = "drama-characters";
 const DEFAULT_PROVIDER = "openai" as const;
+const IMAGE_EXTS: Array<[string, string]> = [
+  ["png", "image/png"],
+  ["jpg", "image/jpeg"],
+  ["webp", "image/webp"],
+];
 
 function dramaCharacterDir(charId: string): string {
   return path.join(resolveGeneratedImagesRoot(), DRAMA_IMAGES_DIR, charId);
+}
+
+function currentCharacterSheetUrl(characterId: string): string {
+  return `/api/drama/character-images/${characterId}/character-sheet`;
+}
+
+function archivedCharacterSheetUrl(characterId: string, version: number): string {
+  return `/api/drama/character-images/${characterId}/character-sheet/v${version}`;
 }
 
 async function saveImageToDisk(imageUrl: string, destPath: string): Promise<void> {
@@ -91,6 +118,58 @@ function inferExtension(imageUrl: string): string {
   } catch {
     return "png";
   }
+}
+
+function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizePositiveVersion(value: unknown): number | null {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : null;
+}
+
+function readImageVersion(data: CharacterSheetData): number {
+  const explicit = normalizePositiveVersion(data.version);
+  if (explicit) return explicit;
+  return data.status === "done" ? 1 : 0;
+}
+
+function normalizeHistoryItem(input: unknown): CharacterImageHistoryItem | null {
+  if (!input || typeof input !== "object") return null;
+  const record = input as Record<string, unknown>;
+  const version = normalizePositiveVersion(record.version);
+  if (!version) return null;
+  return {
+    version,
+    url: typeof record.url === "string" && record.url.trim() ? record.url.trim() : undefined,
+    prompt: typeof record.prompt === "string" ? record.prompt : undefined,
+    provider: typeof record.provider === "string" ? record.provider : undefined,
+    generatedAt: typeof record.generatedAt === "string" ? record.generatedAt : undefined,
+  };
+}
+
+function readImageHistory(data: CharacterSheetData): CharacterImageHistoryItem[] {
+  return Array.isArray(data.history)
+    ? data.history.map(normalizeHistoryItem).filter((item): item is CharacterImageHistoryItem => Boolean(item))
+    : [];
+}
+
+async function removeCurrentCharacterSheetVariants(characterId: string, keepExt: string): Promise<void> {
+  await Promise.all(IMAGE_EXTS
+    .filter(([ext]) => ext !== keepExt)
+    .map(async ([ext]) => {
+      try {
+        await fs.unlink(path.join(dramaCharacterDir(characterId), `character-sheet.${ext}`));
+      } catch {
+        // Missing alternate formats are expected.
+      }
+    }));
 }
 
 function extractVisualDesc(visualAnchor: string | null | undefined): string {
@@ -157,8 +236,21 @@ export class DramaCharacterImageService {
       throw new AppError(`图片 Provider ${provider} 暂不支持。`, 400);
     }
 
+    const existingData = safeJsonParse<CharacterSheetData>(character.portraitData, { status: "idle" });
+    const history = readImageHistory(existingData);
+    const archivedCurrent = await this.archiveCurrentCharacterSheet(characterId, existingData);
+    const nextHistory = archivedCurrent ? history.concat(archivedCurrent) : history;
+    const nextVersion = existingData.status === "done"
+      ? readImageVersion(existingData) + 1
+      : Math.max(1, readImageVersion(existingData) || 1);
+
     // 标记 generating（同时写入 portraitData 供视频生成链路读取）
-    const generatingData: CharacterSheetData = { status: "generating" };
+    const generatingData: CharacterSheetData = {
+      status: "generating",
+      provider,
+      version: nextVersion,
+      history: nextHistory,
+    };
     await prisma.dramaCharacter.update({
       where: { id: characterId },
       data: {
@@ -186,13 +278,16 @@ export class DramaCharacterImageService {
       const fileName = `character-sheet.${ext}`;
       const localPath = path.join(dramaCharacterDir(characterId), fileName);
       await saveImageToDisk(imageUrl, localPath);
+      await removeCurrentCharacterSheetVariants(characterId, ext);
 
-      const publicUrl = `/api/drama/character-images/${characterId}/character-sheet`;
       const doneData: CharacterSheetData = {
         status: "done",
-        url: publicUrl,
+        version: nextVersion,
+        url: currentCharacterSheetUrl(characterId),
         prompt,
+        provider,
         generatedAt: new Date().toISOString(),
+        history: nextHistory,
       };
 
       // 回填到 portraitData（视频生成链路读这个字段）
@@ -205,7 +300,10 @@ export class DramaCharacterImageService {
     } catch (err) {
       const errorData: CharacterSheetData = {
         status: "error",
+        provider,
+        version: nextVersion,
         error: err instanceof Error ? err.message : String(err),
+        history: nextHistory,
       };
       await prisma.dramaCharacter.update({
         where: { id: characterId },
@@ -213,6 +311,33 @@ export class DramaCharacterImageService {
       });
       throw err;
     }
+  }
+
+  private async archiveCurrentCharacterSheet(characterId: string, data: CharacterSheetData): Promise<CharacterImageHistoryItem | null> {
+    if (data.status !== "done") {
+      return null;
+    }
+    const version = readImageVersion(data);
+    if (!version) {
+      return null;
+    }
+    const resolved = await this.resolveExistingImagePath(characterId, "character-sheet");
+    const historyItem: CharacterImageHistoryItem = {
+      version,
+      prompt: data.prompt,
+      provider: data.provider,
+      generatedAt: data.generatedAt,
+    };
+    if (!resolved) {
+      return historyItem;
+    }
+    const ext = path.extname(resolved.filePath).replace(".", "").toLowerCase() || "png";
+    const archivePath = path.join(dramaCharacterDir(characterId), `character-sheet.v${version}.${ext}`);
+    await fs.copyFile(resolved.filePath, archivePath);
+    return {
+      ...historyItem,
+      url: archivedCharacterSheetUrl(characterId, version),
+    };
   }
 
   /**
@@ -276,18 +401,31 @@ export class DramaCharacterImageService {
       ? "character-sheet"
       : type;
 
-    const exts: Array<[string, string]> = [
-      ["png", "image/png"],
-      ["jpg", "image/jpeg"],
-      ["webp", "image/webp"],
-    ];
-    for (const [ext, mime] of exts) {
+    for (const [ext, mime] of IMAGE_EXTS) {
       const fp = path.join(dir, `${fileBase}.${ext}`);
       try {
         await fs.access(fp);
         return { filePath: fp, mimeType: mime };
       } catch {
         // not found, try next
+      }
+    }
+    return null;
+  }
+
+  async resolveArchivedImagePath(
+    characterId: string,
+    type: "character-sheet",
+    version: number,
+  ): Promise<{ filePath: string; mimeType: string } | null> {
+    const dir = dramaCharacterDir(characterId);
+    for (const [ext, mimeType] of IMAGE_EXTS) {
+      const filePath = path.join(dir, `${type}.v${version}.${ext}`);
+      try {
+        await fs.access(filePath);
+        return { filePath, mimeType };
+      } catch {
+        // Try the next supported extension.
       }
     }
     return null;

@@ -40,7 +40,8 @@ export function DramaVisualPanel(props: {
   const storyboards = selectedEpisode?.storyboards ?? [];
   const storyboard = storyboards[0] as DramaStoryboard | undefined;
   const videoPrompts = props.project.videoPrompts ?? [];
-  const promptsByShot = new Map(videoPrompts.filter((prompt) => prompt.shotId).map((prompt) => [prompt.shotId, prompt]));
+  const activeVideoPrompts = videoPrompts.filter(isActiveVideoPrompt);
+  const promptsByShot = buildLatestPromptsByShot(activeVideoPrompts);
   const selectedBatchJobs = (props.project.batchJobs ?? []).filter((job) => job.episodeId === selectedEpisode?.id);
   const latestKeyframeBatch = selectedBatchJobs.find((job) => job.type === "keyframes");
   const latestVideoBatch = selectedBatchJobs.find((job) => job.type === "videos");
@@ -67,11 +68,12 @@ export function DramaVisualPanel(props: {
     ? selectedImageProvider
     : imageProviders[0]?.provider ?? "";
   const promptStats = {
-    prompted: videoPrompts.length,
-    withTask: videoPrompts.filter((prompt) => Boolean(prompt.providerTaskId)).length,
-    queued: videoPrompts.filter((prompt) => prompt.status === "queued" || prompt.status === "running").length,
-    succeeded: videoPrompts.filter((prompt) => prompt.status === "succeeded").length,
-    failed: videoPrompts.filter((prompt) => prompt.status === "failed").length,
+    prompted: activeVideoPrompts.length,
+    withTask: activeVideoPrompts.filter((prompt) => Boolean(prompt.providerTaskId)).length,
+    queued: activeVideoPrompts.filter((prompt) => prompt.status === "queued" || prompt.status === "running").length,
+    succeeded: activeVideoPrompts.filter((prompt) => prompt.status === "succeeded").length,
+    failed: activeVideoPrompts.filter((prompt) => prompt.status === "failed").length,
+    history: videoPrompts.length - activeVideoPrompts.length,
   };
   const hasStoryboardShots = Boolean(storyboard?.shots?.length);
   const keyframeBatchActive = isActiveBatch(latestKeyframeBatch);
@@ -117,9 +119,9 @@ export function DramaVisualPanel(props: {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-5">
+      <div className="grid gap-3 md:grid-cols-6">
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">视频提示词</div>
+          <div className="text-xs text-muted-foreground">当前提示词</div>
           <div className="mt-1 text-lg font-semibold">{promptStats.prompted}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
@@ -137,6 +139,10 @@ export function DramaVisualPanel(props: {
         <div className="rounded-md border p-3 text-sm">
           <div className="text-xs text-muted-foreground">失败</div>
           <div className="mt-1 text-lg font-semibold">{promptStats.failed}</div>
+        </div>
+        <div className="rounded-md border p-3 text-sm">
+          <div className="text-xs text-muted-foreground">历史版本</div>
+          <div className="mt-1 text-lg font-semibold">{promptStats.history}</div>
         </div>
       </div>
 
@@ -278,6 +284,11 @@ export function DramaVisualPanel(props: {
                     <div className="space-y-1">
                       <div className="font-medium">镜头 {shot.order} · {shot.shotSize || "景别待定"}</div>
                       <div className="text-sm text-muted-foreground">{shot.action}</div>
+                      <div className="flex flex-wrap gap-2">
+                        {keyframe.status === "done" ? <Badge variant="outline">首帧 v{keyframe.version ?? 1}</Badge> : null}
+                        {keyframe.history?.length ? <Badge variant="secondary">{keyframe.history.length} 个首帧历史</Badge> : null}
+                        {prompt ? <Badge variant="outline">提示词 v{prompt.version ?? 1}</Badge> : null}
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button
@@ -334,14 +345,16 @@ export function DramaVisualPanel(props: {
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2 text-sm">
                       <Badge variant="secondary">{prompt.provider}</Badge>
+                      <Badge variant="outline">v{prompt.version ?? 1}</Badge>
                       <Badge variant={prompt.status === "failed" ? "destructive" : "outline"}>{prompt.status}</Badge>
+                      {!isActiveVideoPrompt(prompt) ? <Badge variant="secondary">历史版本</Badge> : null}
                       {prompt.providerTaskId ? <span className="text-muted-foreground">任务：{prompt.providerTaskId}</span> : null}
                     </div>
                     <p className="line-clamp-2 text-sm text-muted-foreground">{prompt.prompt}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {!prompt.providerTaskId ? (
-                      <Button size="sm" type="button" disabled={props.busy} onClick={() => props.onProviderTask(prompt, props.selectedProvider)}>
+                      <Button size="sm" type="button" disabled={props.busy || !isActiveVideoPrompt(prompt)} onClick={() => props.onProviderTask(prompt, props.selectedProvider)}>
                         <Sparkles className="h-4 w-4" />
                         创建任务
                       </Button>
@@ -387,6 +400,20 @@ function parseBatchProgress(raw: string | null | undefined): DramaBatchProgress 
     failedShotIds: [],
     errors: [],
   });
+}
+
+function isActiveVideoPrompt(prompt: DramaVideoPrompt): boolean {
+  return prompt.status !== "superseded";
+}
+
+function buildLatestPromptsByShot(prompts: DramaVideoPrompt[]): Map<string, DramaVideoPrompt> {
+  const result = new Map<string, DramaVideoPrompt>();
+  for (const prompt of prompts) {
+    if (prompt.shotId && !result.has(prompt.shotId)) {
+      result.set(prompt.shotId, prompt);
+    }
+  }
+  return result;
 }
 
 function isActiveBatch(job: DramaBatchJob | undefined): boolean {
@@ -454,27 +481,75 @@ function BatchJobStatus(props: {
 function KeyframePreview({ shot, keyframe }: { shot: DramaShot; keyframe: DramaShotKeyframeData }) {
   const hasImage = keyframe.status === "done" && keyframe.url;
   return (
-    <div className="mt-3 grid gap-3 md:grid-cols-[160px_1fr]">
-      {hasImage ? (
-        <a href={keyframe.url} target="_blank" rel="noreferrer" className="block">
-          <img
-            src={keyframe.url}
-            alt={`镜头 ${shot.order} 首帧图`}
-            className="h-56 w-full rounded-md border object-cover md:h-40"
-          />
-        </a>
-      ) : (
-        <div className="flex h-40 w-full items-center justify-center rounded-md border border-dashed bg-muted text-xs text-muted-foreground">
-          {keyframe.status === "generating" ? "首帧图生成中" : keyframe.status === "error" ? "首帧图生成失败" : "尚未生成首帧"}
+    <div className="mt-3 space-y-3">
+      <div className="grid gap-3 md:grid-cols-[160px_1fr]">
+        {hasImage ? (
+          <a href={keyframe.url} target="_blank" rel="noreferrer" className="block">
+            <img
+              src={keyframe.url}
+              alt={`镜头 ${shot.order} 首帧图`}
+              className="h-56 w-full rounded-md border object-cover md:h-40"
+            />
+          </a>
+        ) : (
+          <div className="flex h-40 w-full items-center justify-center rounded-md border border-dashed bg-muted text-xs text-muted-foreground">
+            {keyframe.status === "generating" ? "首帧图生成中" : keyframe.status === "error" ? "首帧图生成失败" : "尚未生成首帧"}
+          </div>
+        )}
+        <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
+          <div className="mb-1 flex flex-wrap items-center gap-2 font-medium text-foreground">
+            <span>镜头画面</span>
+            {keyframe.status === "done" ? <Badge variant="outline">v{keyframe.version ?? 1}</Badge> : null}
+          </div>
+          <div>{shot.visualPrompt || shot.action}</div>
+          {shot.location ? <div className="mt-1">地点：{shot.location}</div> : null}
+          {keyframe.provider ? <div className="mt-1">首帧通道：{keyframe.provider}</div> : null}
+          {keyframe.status === "error" && keyframe.error ? (
+            <div className="mt-2 text-destructive">{keyframe.error}</div>
+          ) : null}
         </div>
-      )}
-      <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-        <div className="mb-1 font-medium text-foreground">镜头画面</div>
-        <div>{shot.visualPrompt || shot.action}</div>
-        {shot.location ? <div className="mt-1">地点：{shot.location}</div> : null}
-        {keyframe.status === "error" && keyframe.error ? (
-          <div className="mt-2 text-destructive">{keyframe.error}</div>
-        ) : null}
+      </div>
+      <KeyframeHistory history={keyframe.history ?? []} />
+    </div>
+  );
+}
+
+function formatLocalTime(value: string | undefined): string {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
+}
+
+function KeyframeHistory({ history }: { history: NonNullable<DramaShotKeyframeData["history"]> }) {
+  if (!history.length) {
+    return null;
+  }
+  const items = [...history].sort((left, right) => right.version - left.version);
+  return (
+    <div className="rounded-md border border-dashed p-3 text-xs">
+      <div className="mb-2 font-medium">首帧历史版本</div>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => {
+          const label = `v${item.version}${item.provider ? ` · ${item.provider}` : ""}`;
+          return item.url ? (
+            <a
+              key={`${item.version}-${item.url}`}
+              href={item.url}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-md border px-2 py-1 text-primary underline-offset-4 hover:underline"
+              title={formatLocalTime(item.generatedAt)}
+            >
+              {label}
+            </a>
+          ) : (
+            <span key={item.version} className="rounded-md border px-2 py-1 text-muted-foreground" title={formatLocalTime(item.generatedAt)}>
+              {label}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
@@ -528,7 +603,9 @@ function VideoPromptDetails({ prompt, compact = false }: { prompt: DramaVideoPro
         <>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <Badge variant="secondary">{prompt.provider}</Badge>
+            <Badge variant="outline">v{prompt.version ?? 1}</Badge>
             <Badge variant={prompt.status === "failed" ? "destructive" : "outline"}>{prompt.status}</Badge>
+            {!isActiveVideoPrompt(prompt) ? <Badge variant="secondary">历史版本</Badge> : null}
             {prompt.providerTaskId ? <span className="text-muted-foreground">任务：{prompt.providerTaskId}</span> : null}
           </div>
           <pre className="whitespace-pre-wrap rounded-md bg-muted/30 p-3 text-xs leading-5">{prompt.prompt}</pre>
@@ -541,6 +618,7 @@ function VideoPromptDetails({ prompt, compact = false }: { prompt: DramaVideoPro
         </div>
       ) : null}
       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+        <span>版本：v{prompt.version ?? 1}</span>
         <span>画幅：{prompt.aspectRatio}</span>
         {prompt.durationSec ? <span>时长：{prompt.durationSec} 秒</span> : null}
         {providerResult.status ? <span>视频通道状态：{providerResult.status}</span> : null}

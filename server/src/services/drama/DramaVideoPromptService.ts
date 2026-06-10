@@ -129,18 +129,39 @@ export class DramaVideoPromptService {
       },
     });
     const output = result.output;
-    return prisma.dramaVideoPrompt.create({
-      data: {
-        projectId,
-        episodeId: shot.storyboard.episodeId,
-        shotId,
-        provider: "mock",
-        prompt: output.prompt,
-        negativePrompt: output.negativePrompt ?? null,
-        aspectRatio: output.aspectRatio || "9:16",
-        durationSec: output.durationSec ?? shot.durationSec,
-        status: "prompted",
-      },
+    const latest = await prisma.dramaVideoPrompt.findFirst({
+      where: { projectId, shotId },
+      orderBy: [{ version: "desc" }, { createdAt: "desc" }],
+    });
+    const version = (latest?.version ?? 0) + 1;
+    return prisma.$transaction(async (tx) => {
+      const created = await tx.dramaVideoPrompt.create({
+        data: {
+          projectId,
+          episodeId: shot.storyboard.episodeId,
+          shotId,
+          provider: "mock",
+          prompt: output.prompt,
+          negativePrompt: output.negativePrompt ?? null,
+          aspectRatio: output.aspectRatio || "9:16",
+          durationSec: output.durationSec ?? shot.durationSec,
+          status: "prompted",
+          version,
+        },
+      });
+      await tx.dramaVideoPrompt.updateMany({
+        where: {
+          projectId,
+          shotId,
+          id: { not: created.id },
+          status: { not: "superseded" },
+        },
+        data: {
+          status: "superseded",
+          supersededById: created.id,
+        },
+      });
+      return created;
     });
   }
 
@@ -148,6 +169,9 @@ export class DramaVideoPromptService {
     const videoPrompt = await prisma.dramaVideoPrompt.findUnique({ where: { id: videoPromptId } });
     if (!videoPrompt) {
       throw new Error(`未找到视频提示词：${videoPromptId}`);
+    }
+    if (videoPrompt.status === "superseded") {
+      throw new Error("该视频提示词已有新版，请使用当前版本创建视频任务。");
     }
     const adapter = videoProviderRegistry.resolve(provider);
     const refImages = adapter.supportsRefImages ? await collectShotReferenceImages(videoPrompt) : [];

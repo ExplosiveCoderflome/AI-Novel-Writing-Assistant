@@ -126,7 +126,12 @@ function CharacterImagesBlock(props: {
 
   async function handleGenerate() {
     setBusy(true);
-    setSheet({ status: "generating" });
+    setSheet((current) => ({
+      status: "generating",
+      provider: selectedProvider || current.provider,
+      version: current.status === "done" ? (current.version ?? 1) + 1 : current.version,
+      history: current.history,
+    }));
     try {
       const result = await generateDramaCharacterPortrait(
         props.projectId,
@@ -205,7 +210,7 @@ function CharacterImagesBlock(props: {
       )}
 
       {/* 操作按钮 */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
           size="sm"
@@ -221,8 +226,54 @@ function CharacterImagesBlock(props: {
           {sheet.status === "done" ? "重新生成设计稿" : "生成角色设计稿"}
         </Button>
         {sheet.status === "done" && (
-          <span className="text-xs text-muted-foreground">✓ 视频生成将自动引用此图作为角色参考</span>
+          <>
+            <Badge variant="outline">v{sheet.version ?? 1}</Badge>
+            <span className="text-xs text-muted-foreground">视频生成将自动引用此图作为角色参考</span>
+          </>
         )}
+        {sheet.history?.length ? <Badge variant="secondary">{sheet.history.length} 个历史版本</Badge> : null}
+      </div>
+      <CharacterImageHistory history={sheet.history ?? []} />
+    </div>
+  );
+}
+
+function formatLocalTime(value: string | undefined): string {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
+}
+
+function CharacterImageHistory({ history }: { history: NonNullable<DramaCharacterPortraitData["history"]> }) {
+  if (!history.length) {
+    return null;
+  }
+  const items = [...history].sort((left, right) => right.version - left.version);
+  return (
+    <div className="rounded-md border border-dashed p-3 text-xs">
+      <div className="mb-2 font-medium">设计稿历史版本</div>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => {
+          const label = `v${item.version}${item.provider ? ` · ${item.provider}` : ""}`;
+          return item.url ? (
+            <a
+              key={`${item.version}-${item.url}`}
+              href={item.url}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-md border px-2 py-1 text-primary underline-offset-4 hover:underline"
+              title={formatLocalTime(item.generatedAt)}
+            >
+              {label}
+            </a>
+          ) : (
+            <span key={item.version} className="rounded-md border px-2 py-1 text-muted-foreground" title={formatLocalTime(item.generatedAt)}>
+              {label}
+            </span>
+          );
+        })}
       </div>
     </div>
   );

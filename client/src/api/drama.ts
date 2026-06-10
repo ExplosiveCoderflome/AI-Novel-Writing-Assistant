@@ -96,10 +96,13 @@ export interface DramaSourceBundle {
 
 export interface DramaCharacterPortraitData {
   status: "idle" | "generating" | "done" | "error";
+  version?: number;
   url?: string;
   prompt?: string;
+  provider?: string;
   generatedAt?: string;
   error?: string;
+  history?: DramaGenerationHistoryItem[];
 }
 
 export interface DramaCharacterThreeViewItem {
@@ -127,13 +130,23 @@ export interface DramaCharacter {
   threeViewData?: string | null;
 }
 
+export interface DramaGenerationHistoryItem {
+  version: number;
+  url?: string;
+  prompt?: string;
+  provider?: string;
+  generatedAt?: string;
+}
+
 export interface DramaShotKeyframeData {
   status: "idle" | "generating" | "done" | "error";
+  version?: number;
   url?: string;
   prompt?: string;
   provider?: string;
   generatedAt?: string;
   error?: string;
+  history?: DramaGenerationHistoryItem[];
 }
 
 export interface DramaDialogueAudioItem {
@@ -204,6 +217,8 @@ export interface DramaVideoPrompt {
   aspectRatio: string;
   durationSec?: number | null;
   status: string;
+  version?: number;
+  supersededById?: string | null;
   providerTaskId?: string | null;
   resultUrl?: string | null;
   failureReason?: string | null;

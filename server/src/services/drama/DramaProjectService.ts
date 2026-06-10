@@ -64,10 +64,10 @@ export class DramaProjectService {
               orderBy: { createdAt: "desc" },
               include: { shots: { orderBy: { order: "asc" } } },
             },
-            videoPrompts: { orderBy: { createdAt: "desc" } },
+            videoPrompts: { orderBy: [{ version: "desc" }, { createdAt: "desc" }] },
           },
         },
-        videoPrompts: { orderBy: { createdAt: "desc" } },
+        videoPrompts: { orderBy: [{ version: "desc" }, { createdAt: "desc" }] },
         batchJobs: { orderBy: { createdAt: "desc" }, take: 20 },
       },
     });

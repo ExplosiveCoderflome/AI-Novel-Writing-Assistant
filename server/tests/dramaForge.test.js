@@ -250,4 +250,17 @@ test("drama migrations include pipeline tables for sqlite and postgres", () => {
   for (const sql of [sqliteDialogueAudioSql, postgresDialogueAudioSql]) {
     assert.match(sql, /dialogueAudioData/);
   }
+  const sqliteGenerationVersionSql = fs.readFileSync(
+    path.join(root, "migrations.sqlite", "20260610143000_drama_generation_versions", "migration.sql"),
+    "utf8",
+  );
+  const postgresGenerationVersionSql = fs.readFileSync(
+    path.join(root, "migrations", "20260610143000_drama_generation_versions", "migration.sql"),
+    "utf8",
+  );
+  for (const sql of [sqliteGenerationVersionSql, postgresGenerationVersionSql]) {
+    assert.match(sql, /version/);
+    assert.match(sql, /supersededById/);
+    assert.match(sql, /DramaVideoPrompt_projectId_shotId_version_idx/);
+  }
 });
