@@ -3,6 +3,8 @@ const test = require("node:test");
 const promptRunner = require("../dist/prompting/core/promptRunner.js");
 const { prisma } = require("../dist/db/prisma.js");
 const { ChapterRuntimeCoordinator } = require("../dist/services/novel/runtime/ChapterRuntimeCoordinator.js");
+const { directorAutomationLedgerEventService } = require("../dist/services/novel/director/runtime/DirectorAutomationLedgerEventService.js");
+const { novelChapterSummaryService } = require("../dist/services/novel/NovelChapterSummaryService.js");
 const { PostGenerationStyleReviewRunner } = require("../dist/services/novel/runtime/PostGenerationStyleReviewRunner.js");
 const { openConflictService } = require("../dist/services/state/OpenConflictService.js");
 
@@ -216,6 +218,10 @@ function createRepairAssembledChapter() {
         recentChapterSummaries: [],
         openingAntiRepeatHint: "Recent openings: none.",
         styleConstraints: [],
+        continuationConstraints: [],
+        completedMilestones: [],
+        recentScenePatterns: [],
+        characterHardFacts: [],
       },
     },
   };
@@ -284,7 +290,7 @@ test("createChapterStream uses lightweight readiness without forcing execution c
   assert.ok(assembleIndex < writerIndex);
 });
 
-test("finalizeChapterContent runs acceptance and timeline gates in parallel and caches repeated content", async () => {
+test("finalizeChapterContent runs acceptance gate once and defers timeline extraction", async () => {
   const coordinator = new ChapterRuntimeCoordinator({
     acceptanceAssessmentService: {
       assess: async () => {
@@ -342,7 +348,18 @@ test("finalizeChapterContent runs acceptance and timeline gates in parallel and 
   let acceptanceCalls = 0;
   let timelineCalls = 0;
   const originalListOpenConflicts = openConflictService.listOpenConflicts;
+  const originalCheckpointFindUnique = prisma.chapterArtifactSyncCheckpoint.findUnique;
+  const originalCheckpointUpsert = prisma.chapterArtifactSyncCheckpoint.upsert;
+  const originalGenerateChapterSummary = novelChapterSummaryService.generateChapterSummary;
   openConflictService.listOpenConflicts = async () => [];
+  prisma.chapterArtifactSyncCheckpoint.findUnique = async () => null;
+  prisma.chapterArtifactSyncCheckpoint.upsert = async () => undefined;
+  novelChapterSummaryService.generateChapterSummary = async () => ({
+    chapterId: "chapter-1",
+    summary: "ok",
+    expectation: "ok",
+    concreteFactCount: 0,
+  });
   try {
     coordinator.qualityGateService.executeTimelineGate = async () => {
       timelineCalls += 1;
@@ -397,14 +414,11 @@ test("finalizeChapterContent runs acceptance and timeline gates in parallel and 
     const duration = Date.now() - start;
 
     const firstAcceptanceStart = gateCalls.find((item) => item[0] === "acceptance-start")[1];
-    const firstTimelineStart = gateCalls.find((item) => item[0] === "timeline-start")[1];
     const firstAcceptanceEnd = gateCalls.find((item) => item[0] === "acceptance-end")[1];
-    const firstTimelineEnd = gateCalls.find((item) => item[0] === "timeline-end")[1];
 
     assert.equal(acceptanceCalls, 1);
-    assert.equal(timelineCalls, 1);
-    assert.ok(Math.abs(firstAcceptanceStart - firstTimelineStart) < 50);
-    assert.ok(duration < 180);
+    assert.equal(timelineCalls, 0);
+    assert.ok(duration < 160);
 
     await coordinator.contentFinalizationService.finalizeChapterContent({
       novelId: "novel-1",
@@ -420,18 +434,19 @@ test("finalizeChapterContent runs acceptance and timeline gates in parallel and 
     });
 
     assert.equal(acceptanceCalls, 1);
-    assert.equal(timelineCalls, 1);
+    assert.equal(timelineCalls, 0);
     assert.ok(firstAcceptanceEnd >= firstAcceptanceStart);
-    assert.ok(firstTimelineEnd >= firstTimelineStart);
   } finally {
     openConflictService.listOpenConflicts = originalListOpenConflicts;
+    prisma.chapterArtifactSyncCheckpoint.findUnique = originalCheckpointFindUnique;
+    prisma.chapterArtifactSyncCheckpoint.upsert = originalCheckpointUpsert;
+    novelChapterSummaryService.generateChapterSummary = originalGenerateChapterSummary;
   }
 });
 
-test("finalizeChapterContent commits timeline only after chapter reaches a stable review result", async () => {
+test("finalizeChapterContent syncs accepted artifacts only after chapter reaches a stable review result", async () => {
   let acceptanceMode = "repairable";
   const syncCalls = [];
-  const finalizationCalls = [];
   const coordinator = new ChapterRuntimeCoordinator({
     acceptanceAssessmentService: {
       assess: async () => ({
@@ -477,44 +492,9 @@ test("finalizeChapterContent commits timeline only after chapter reaches a stabl
         syncCalls.push(args);
       },
     },
-    timelineFinalizer: {
-      finalizeCurrentContent: async (input) => {
-        finalizationCalls.push(input);
-      },
-      ensurePreviousChapterFinalized: async () => null,
-    },
   });
   coordinator.contentFinalizationService.markChapterStatus = async () => undefined;
   coordinator.contentFinalizationService.finishTraceRun = async () => undefined;
-  coordinator.qualityGateService.executeTimelineGate = async () => ({
-    result: {
-      status: "passed",
-      score: 0.96,
-      issues: [],
-    },
-    extractedEvents: [{
-      title: "主角完成行动",
-      summary: "本章关键推进",
-      type: "plot",
-      occurred: true,
-      confidence: 0.96,
-      stateChanges: [],
-      possibleHooks: [],
-    }],
-    extractedHooks: [],
-    timelineContext: {
-      currentTime: {
-        storyDayIndex: 1,
-        label: "第一天",
-      },
-      openHooks: [],
-      plannedEvents: [],
-      forbiddenEvents: [],
-      chapterObjective: null,
-      mustAddressHooks: [],
-      optionalHooks: [],
-    },
-  });
   coordinator.buildRuntimePackage = (input) => ({
     audit: {
       score: input.auditResult.score,
@@ -533,7 +513,18 @@ test("finalizeChapterContent commits timeline only after chapter reaches a stabl
   });
 
   const originalListOpenConflicts = openConflictService.listOpenConflicts;
+  const originalCheckpointFindUnique = prisma.chapterArtifactSyncCheckpoint.findUnique;
+  const originalCheckpointUpsert = prisma.chapterArtifactSyncCheckpoint.upsert;
+  const originalGenerateChapterSummary = novelChapterSummaryService.generateChapterSummary;
   openConflictService.listOpenConflicts = async () => [];
+  prisma.chapterArtifactSyncCheckpoint.findUnique = async () => null;
+  prisma.chapterArtifactSyncCheckpoint.upsert = async () => undefined;
+  novelChapterSummaryService.generateChapterSummary = async () => ({
+    chapterId: "chapter-1",
+    summary: "ok",
+    expectation: "ok",
+    concreteFactCount: 0,
+  });
 
   try {
     await coordinator.contentFinalizationService.finalizeChapterContent({
@@ -561,7 +552,6 @@ test("finalizeChapterContent commits timeline only after chapter reaches a stabl
       startMs: null,
       deferArtifactBackgroundSync: true,
     });
-    assert.equal(finalizationCalls.length, 0);
     assert.equal(syncCalls.length, 0);
 
     acceptanceMode = "accepted";
@@ -590,14 +580,150 @@ test("finalizeChapterContent commits timeline only after chapter reaches a stabl
       startMs: null,
       deferArtifactBackgroundSync: true,
     });
-    assert.equal(finalizationCalls.length, 1);
     assert.equal(syncCalls.length, 1);
-    assert.equal(finalizationCalls[0].chapterId, "chapter-1");
-    assert.equal(finalizationCalls[0].content, "正文版本二");
-    assert.equal(finalizationCalls[0].sourceStage, "draft_accepted");
-    assert.equal(finalizationCalls[0].timelineGate.extractedEvents.length, 1);
+    assert.equal(syncCalls[0][1], "chapter-1");
+    assert.equal(syncCalls[0][2], "正文版本二");
   } finally {
     openConflictService.listOpenConflicts = originalListOpenConflicts;
+    prisma.chapterArtifactSyncCheckpoint.findUnique = originalCheckpointFindUnique;
+    prisma.chapterArtifactSyncCheckpoint.upsert = originalCheckpointUpsert;
+    novelChapterSummaryService.generateChapterSummary = originalGenerateChapterSummary;
+  }
+});
+
+test("finalizeChapterContent writes only acceptance-covered mustHitNow facts before summary", async () => {
+  const calls = [];
+  const eventCalls = [];
+  const createdFacts = [];
+  const assembled = createRepairAssembledChapter();
+  const contextPackage = JSON.parse(JSON.stringify(assembled.contextPackage));
+  contextPackage.chapterWriteContext.obligationContract = {
+    mustHitNow: [
+      "主角当众拒绝婚约，明确站到家族对立面。",
+      "拿到青铜钥匙，并发现钥匙来自失踪师父。",
+    ],
+    mustPreserve: [],
+    requiredPayoffTouches: [],
+    requiredCharacterAppearances: [],
+    requiredGoalChanges: [],
+    canDefer: [],
+    forbiddenCrossings: [],
+  };
+  contextPackage.chapterWriteContext.payoffDirectives = [{
+    title: "旧伏笔提前揭示",
+    ledgerKey: "hook-1",
+    operation: "payoff",
+    reason: "测试写前指令不应入账。",
+    forbiddenReveal: null,
+  }];
+
+  const coordinator = new ChapterRuntimeCoordinator({
+    acceptanceAssessmentService: {
+      assess: async () => ({
+        assessment: {
+          status: "continue_with_risk",
+          score: {
+            coherence: 95,
+            pacing: 95,
+            repetition: 95,
+            engagement: 95,
+            voice: 95,
+            overall: 95,
+          },
+          blockingIssues: [],
+          repairDirectives: [],
+          missingObligations: [{
+            kind: "must_hit_now",
+            summary: "拿到青铜钥匙，并发现钥匙来自失踪师父。",
+            evidence: "正文只提到钥匙，没有拿到。",
+          }],
+          repairability: "patchable_obligation_gap",
+          decisionReason: "一条本章义务未兑现，但不阻断后续章节。",
+          riskTags: [],
+          assetSyncRecommendation: {
+            priority: "normal",
+            reason: "ok",
+            requiresFullPayoffReconcile: false,
+          },
+          continuePolicy: "continue",
+          summary: "partial",
+        },
+        score: {
+          coherence: 95,
+          pacing: 95,
+          repetition: 95,
+          engagement: 95,
+          voice: 95,
+          overall: 95,
+        },
+        issues: [],
+        auditReports: [],
+      }),
+    },
+  });
+
+  const originalChapterUpdate = prisma.chapter.update;
+  const originalCheckpointFindUnique = prisma.chapterArtifactSyncCheckpoint.findUnique;
+  const originalCheckpointUpsert = prisma.chapterArtifactSyncCheckpoint.upsert;
+  const originalFactFindMany = prisma.novelFactEntry.findMany;
+  const originalFactCreateMany = prisma.novelFactEntry.createMany;
+  const originalListOpenConflicts = openConflictService.listOpenConflicts;
+  const originalGenerateChapterSummary = novelChapterSummaryService.generateChapterSummary;
+  const originalRecordEvent = directorAutomationLedgerEventService.recordEvent;
+
+  prisma.chapter.update = async () => undefined;
+  prisma.chapterArtifactSyncCheckpoint.findUnique = async () => null;
+  prisma.chapterArtifactSyncCheckpoint.upsert = async () => undefined;
+  prisma.novelFactEntry.findMany = async () => [];
+  prisma.novelFactEntry.createMany = async ({ data }) => {
+    calls.push("facts");
+    createdFacts.push(...data);
+    return { count: data.length };
+  };
+  openConflictService.listOpenConflicts = async () => [];
+  novelChapterSummaryService.generateChapterSummary = async () => {
+    calls.push("summary");
+    return {
+      chapterId: "chapter-1",
+      summary: "ok",
+      expectation: "ok",
+      concreteFactCount: 0,
+    };
+  };
+  directorAutomationLedgerEventService.recordEvent = async (input) => {
+    eventCalls.push(input);
+  };
+
+  try {
+    await coordinator.contentFinalizationService.finalizeChapterContent({
+      novelId: "novel-1",
+      chapterId: "chapter-1",
+      request: {},
+      contextPackage,
+      content: "正文写出了主角当众拒绝婚约，但没有拿到钥匙。",
+      runId: null,
+      startMs: null,
+    });
+
+    assert.deepEqual(calls, ["facts", "summary"]);
+    assert.deepEqual(createdFacts.map((item) => item.text), [
+      "第1章已完成：主角当众拒绝婚约，明确站到家族对立面。",
+    ]);
+    assert.deepEqual(createdFacts.map((item) => item.category), ["completed"]);
+    assert.equal(createdFacts.some((item) => item.text.includes("已完全揭示")), false);
+    assert.equal(eventCalls.length, 1);
+    assert.equal(eventCalls[0].type, "continue_with_risk");
+    assert.equal(eventCalls[0].metadata.excludedObligations.length, 1);
+    assert.equal(eventCalls[0].metadata.excludedObligations[0].text, "拿到青铜钥匙，并发现钥匙来自失踪师父。");
+  } finally {
+    prisma.chapter.update = originalChapterUpdate;
+    prisma.chapterArtifactSyncCheckpoint.findUnique = originalCheckpointFindUnique;
+    prisma.chapterArtifactSyncCheckpoint.upsert = originalCheckpointUpsert;
+    prisma.novelFactEntry.findMany = originalFactFindMany;
+    prisma.novelFactEntry.createMany = originalFactCreateMany;
+    openConflictService.listOpenConflicts = originalListOpenConflicts;
+    novelChapterSummaryService.generateChapterSummary = originalGenerateChapterSummary;
+    directorAutomationLedgerEventService.recordEvent = originalRecordEvent;
   }
 });
 

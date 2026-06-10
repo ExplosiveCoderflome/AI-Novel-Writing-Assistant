@@ -1,6 +1,9 @@
+import { createHash } from "node:crypto";
 import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../../db/prisma";
 import { openConflictService } from "../../state/OpenConflictService";
+import { directorAutomationLedgerEventService } from "../director/runtime/DirectorAutomationLedgerEventService";
+import { filterAcceptedFactItems, type FactLedgerExcludedItem } from "../fact/factLedgerFilter";
 import { novelFactService } from "../fact/NovelFactService";
 import { novelChapterSummaryService } from "../NovelChapterSummaryService";
 import { ChapterArtifactSyncService } from "./ChapterArtifactSyncService";
@@ -102,13 +105,22 @@ export class ChapterContentFinalizationService {
       || runtimePackage.audit.hasBlockingIssues;
     await this.markChapterStatus(input.chapterId, needsRepair ? "needs_repair" : "pending_review");
     if (!needsRepair) {
-      void this.writeAcceptedFacts(input.novelId, input.contextPackage).catch((error) => {
-        console.warn("[chapter-runtime] deferred fact ledger write failed", {
+      // 保证义务账本在下一章 JIT 上下文组装前完成；失败只告警，不阻断定稿返回。
+      try {
+        await this.writeAcceptedFacts(
+          input.novelId,
+          input.chapterId,
+          input.runId,
+          input.contextPackage,
+          runtimePackage,
+        );
+      } catch (error) {
+        console.warn("[chapter-runtime] fact ledger write failed", {
           novelId: input.novelId,
           chapterId: input.chapterId,
           error: error instanceof Error ? error.message : String(error),
         });
-      });
+      }
 
       // 方案B：对已接受章节生成摘要，并把正文即兴产生的硬事实（承诺/交易条款/事件性质）
       // 桥接进 Fact Ledger。await 以保证下一章 JIT 组装前账本已就绪（时序正确性）。
@@ -181,49 +193,108 @@ export class ChapterContentFinalizationService {
   }
 
   /**
-   * 章节接收通过后，将已完成的义务条目和已兑现的伏笔写入事实账本。
-   * 这是事实账本的主要自动写入路径。
+   * 章节接收通过后，仅将验收确认已完成的 mustHitNow 义务写入事实账本。
    *
-   * 数据来源（均来自 chapterWriteContext，不需要额外 LLM 调用）：
-   * - obligationContract.mustHitNow：本章必须完成的过程性目标
-   * - payoffDirectives[operation=payoff|partial_reveal]：本章已兑现的伏笔
+   * payoffDirectives 是写前指令，不是正文观测结果；伏笔“已揭示”事实应由
+   * payoff ledger 状态迁移或 timeline gate 的 resolvedHookIds 等观测来源写入。
    */
   private async writeAcceptedFacts(
     novelId: string,
+    chapterId: string,
+    runId: string | null,
     contextPackage: GenerationContextPackage,
+    runtimePackage: ChapterRuntimePackage,
   ): Promise<void> {
     const chapterOrder = contextPackage.chapter.order;
     const writeCtx = contextPackage.chapterWriteContext;
     if (!writeCtx) {
       return;
     }
-    const items: Array<{ text: string; category: "completed" | "revealed" }> = [];
-
-    // 来源1：义务合同 mustHitNow — 已在本章必须完成的过程性目标
-    for (const item of writeCtx.obligationContract.mustHitNow) {
-      const text = item.trim();
-      if (text) {
-        items.push({ text: `第${chapterOrder}章已完成：${text}`, category: "completed" });
-      }
+    const obligationCoverage = runtimePackage.obligationCoverage ?? {
+      status: "satisfied" as const,
+      missing: [],
+      summary: "旧运行记录未包含章节义务覆盖信息。",
+    };
+    const filtered = filterAcceptedFactItems({
+      chapterOrder,
+      mustHitNow: writeCtx.obligationContract?.mustHitNow ?? [],
+      obligationCoverage,
+      acceptanceRiskTags: runtimePackage.meta?.riskTags ?? [],
+    });
+    if (filtered.excluded.length > 0) {
+      await this.recordExcludedFactItems({
+        novelId,
+        chapterId,
+        chapterOrder,
+        runId,
+        obligationCoverageStatus: obligationCoverage.status,
+        excluded: filtered.excluded,
+      });
     }
 
-    // 来源2：payoffDirectives 中 operation=payoff|partial_reveal — 已兑现的伏笔
-    for (const directive of writeCtx.payoffDirectives) {
-      if (directive.operation === "payoff" || directive.operation === "partial_reveal") {
-        const text = directive.title.trim();
-        if (text) {
-          const prefix = directive.operation === "payoff" ? "已完全揭示" : "已部分揭示";
-          items.push({
-            text: `第${chapterOrder}章${prefix}：${text}`,
-            category: "revealed",
-          });
-        }
-      }
-    }
-
-    if (items.length === 0) {
+    if (filtered.accepted.length === 0) {
       return;
     }
-    await novelFactService.writeFacts(novelId, chapterOrder, items);
+    await novelFactService.writeFacts(novelId, chapterOrder, filtered.accepted);
+  }
+
+  private async recordExcludedFactItems(input: {
+    novelId: string;
+    chapterId: string;
+    chapterOrder: number;
+    runId: string | null;
+    obligationCoverageStatus: ChapterRuntimePackage["obligationCoverage"]["status"];
+    excluded: FactLedgerExcludedItem[];
+  }): Promise<void> {
+    for (const item of input.excluded) {
+      console.warn("[fact-ledger] skipped unverified chapter obligation", {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        chapterOrder: input.chapterOrder,
+        reason: item.reason,
+        matchedMissingKind: item.matchedMissingKind ?? null,
+        matchedMissingSummary: item.matchedMissingSummary ?? null,
+        matchScore: item.matchScore ?? null,
+        text: item.text,
+      });
+    }
+
+    const fingerprint = createHash("sha1")
+      .update(JSON.stringify(input.excluded.map((item) => ({
+        text: item.text,
+        reason: item.reason,
+        matchedMissingKind: item.matchedMissingKind ?? null,
+        matchedMissingSummary: item.matchedMissingSummary ?? null,
+      }))))
+      .digest("hex")
+      .slice(0, 16);
+    await directorAutomationLedgerEventService.recordEvent({
+      type: "continue_with_risk",
+      idempotencyKey: [
+        input.novelId,
+        input.chapterId,
+        input.chapterOrder,
+        "fact-ledger-obligation-filter",
+        fingerprint,
+      ].join(":"),
+      runId: input.runId,
+      novelId: input.novelId,
+      nodeKey: "chapter_execution_node",
+      summary: `本章 ${input.excluded.length} 条义务未由验收确认，未写入事实账本。`,
+      affectedScope: `chapter:${input.chapterId}`,
+      severity: "medium",
+      metadata: {
+        decision: "exclude_unverified_fact_items",
+        chapterOrder: input.chapterOrder,
+        obligationCoverageStatus: input.obligationCoverageStatus,
+        excludedObligations: input.excluded,
+      },
+    }).catch((error) => {
+      console.warn("[fact-ledger] skipped obligation exclusion event failed", {
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
   }
 }
