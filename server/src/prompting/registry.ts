@@ -118,6 +118,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/drama/drama.prompts").dramaQualityPrompt as UnknownPromptAsset,
   },
   {
+    key: "drama.episode.compliance@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaCompliancePrompt as UnknownPromptAsset,
+  },
+  {
     key: "drama.episode.repair@v1",
     load: () => require("./prompts/drama/drama.prompts").dramaRepairPrompt as UnknownPromptAsset,
   },

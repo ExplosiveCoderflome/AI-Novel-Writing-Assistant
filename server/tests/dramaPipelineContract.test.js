@@ -301,6 +301,14 @@ function installPipelineStubs() {
             },
           };
         }
+        if (asset.id === "drama.episode.compliance") {
+          return {
+            output: {
+              level: "pass",
+              items: [],
+            },
+          };
+        }
         if (asset.id === "drama.episode.repair") {
           return {
             output: {

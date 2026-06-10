@@ -15,6 +15,7 @@ test("drama prompt assets are registered", () => {
     ["drama.episodeOutline", "v1"],
     ["drama.episode.script", "v1"],
     ["drama.episode.quality", "v1"],
+    ["drama.episode.compliance", "v1"],
     ["drama.episode.repair", "v1"],
     ["drama.storyboard", "v1"],
     ["drama.video.prompt", "v1"],
@@ -97,6 +98,43 @@ test("drama quality gate escalates weak paywall beats from paywall plan", () => 
   });
   assert.equal(prePaywallResult.status, "repairable");
   assert.equal(prePaywallResult.flags.some((flag) => flag.code === "pre_paywall_buildup_not_lowest"), true);
+});
+
+test("drama compliance report merges into quality state", () => {
+  const {
+    mergeComplianceIntoQuality,
+    mergeComplianceIntoStoredQuality,
+  } = require("../dist/services/drama/DramaComplianceService.js");
+  const quality = {
+    status: "approved",
+    score: { hook: 90, density: 88, paywall: 90, emotion: 82, duration: 86, consistency: 90, overall: 88 },
+    flags: [],
+  };
+  const compliance = {
+    level: "block",
+    items: [{
+      rule: "医疗误导",
+      excerpt: "包治百病",
+      suggestion: "改成角色夸张吹嘘，并让台词避免承诺疗效。",
+    }],
+  };
+  const merged = mergeComplianceIntoQuality(quality, compliance);
+  assert.equal(merged.status, "blocked");
+  assert.equal(merged.compliance.level, "block");
+  assert.equal(merged.flags[0].code, "compliance_block");
+  assert.match(merged.repairPlan.instruction, /避免承诺疗效/);
+
+  const stored = mergeComplianceIntoStoredQuality(JSON.stringify({
+    status: "approved",
+    flags: [{ code: "compliance_warn", evidence: "旧合规提示", suggestion: "旧建议" }],
+  }), {
+    level: "warn",
+    items: [{ rule: "低俗擦边", excerpt: "不合适桥段", suggestion: "改为剧情冲突。" }],
+  });
+  assert.equal(stored.compliance.level, "warn");
+  assert.equal(stored.flags.length, 1);
+  assert.equal(stored.flags[0].code, "compliance_warn");
+  assert.match(stored.flags[0].suggestion, /剧情冲突/);
 });
 
 test("drama video provider registry exposes mock provider", async () => {

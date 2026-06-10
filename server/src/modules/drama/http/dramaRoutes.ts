@@ -6,6 +6,7 @@ import { z } from "zod";
 import { validate } from "../../../middleware/validate";
 import { dramaCharacterImageService } from "../../../services/drama/DramaCharacterImageService";
 import { dramaCharacterService } from "../../../services/drama/DramaCharacterService";
+import { dramaComplianceService } from "../../../services/drama/DramaComplianceService";
 import { dramaEpisodeService } from "../../../services/drama/DramaEpisodeService";
 import { dramaEpisodeOutlineService } from "../../../services/drama/DramaEpisodeOutlineService";
 import { dramaExportService } from "../../../services/drama/DramaExportService";
@@ -348,6 +349,26 @@ router.post("/projects/:id/episodes/:order/review", validate({ params: episodePa
     const { id, order } = req.params as unknown as z.infer<typeof episodeParamsSchema>;
     const data = await dramaQualityGate.reviewEpisode(id, order, (req.body ?? {}) as never);
     res.status(200).json({ success: true, data, message: "Drama episode reviewed." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/projects/:id/compliance", validate({ params: idParamsSchema, body: llmOptionsSchema }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof idParamsSchema>;
+    const data = await dramaComplianceService.checkProject(id, (req.body ?? {}) as never);
+    res.status(200).json({ success: true, data, message: "Drama project compliance checked." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/projects/:id/episodes/:order/compliance", validate({ params: episodeParamsSchema, body: llmOptionsSchema }), async (req, res, next) => {
+  try {
+    const { id, order } = req.params as unknown as z.infer<typeof episodeParamsSchema>;
+    const data = await dramaComplianceService.checkEpisode(id, order, (req.body ?? {}) as never);
+    res.status(200).json({ success: true, data, message: "Drama episode compliance checked." });
   } catch (error) {
     next(error);
   }

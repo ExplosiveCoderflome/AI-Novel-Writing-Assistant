@@ -1,10 +1,11 @@
-import { AlertTriangle, CheckCircle2, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, CheckCircle2, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import type { DramaEpisode, DramaProjectDetail } from "@/api/drama";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type QualityStatus = "approved" | "repairable" | "continue_with_warning" | "blocked";
+type ComplianceLevel = "pass" | "warn" | "block";
 
 interface QualityFlag {
   severity?: "low" | "medium" | "high" | "critical";
@@ -17,6 +18,14 @@ interface QualityResult {
   status?: QualityStatus;
   score?: Record<string, number>;
   flags?: QualityFlag[];
+  compliance?: {
+    level: ComplianceLevel;
+    items: Array<{
+      rule: string;
+      excerpt: string;
+      suggestion: string;
+    }>;
+  };
   repairPlan?: {
     mode?: "patch" | "regenerate";
     instruction?: string;
@@ -66,6 +75,22 @@ function qualityVariant(status?: QualityStatus): "default" | "secondary" | "dest
   return "outline";
 }
 
+function complianceLabel(level?: ComplianceLevel): string {
+  const labels: Record<ComplianceLevel, string> = {
+    pass: "合规通过",
+    warn: "合规提醒",
+    block: "合规需修复",
+  };
+  return level ? labels[level] : "未预检";
+}
+
+function complianceVariant(level?: ComplianceLevel): "default" | "secondary" | "destructive" | "outline" {
+  if (level === "pass") return "default";
+  if (level === "block") return "destructive";
+  if (level === "warn") return "secondary";
+  return "outline";
+}
+
 function buildQualityItems(project: DramaProjectDetail): EpisodeQualityItem[] {
   return (project.episodes ?? []).map((episode) => ({
     episode,
@@ -79,11 +104,12 @@ function summarize(items: EpisodeQualityItem[]) {
   const blocked = checked.filter((item) => item.quality?.status === "blocked");
   const warning = checked.filter((item) => item.quality?.status === "continue_with_warning");
   const approved = checked.filter((item) => item.quality?.status === "approved" || item.episode.status === "approved");
+  const complianceRisk = checked.filter((item) => item.quality?.compliance?.level === "warn" || item.quality?.compliance?.level === "block");
   const scores = checked
     .map((item) => item.quality?.score?.overall)
     .filter((score): score is number => typeof score === "number");
   const average = scores.length > 0 ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length) : null;
-  return { checked, needsRepair, blocked, warning, approved, average };
+  return { checked, needsRepair, blocked, warning, approved, complianceRisk, average };
 }
 
 export function DramaQualityPanel(props: {
@@ -92,6 +118,7 @@ export function DramaQualityPanel(props: {
   onSelectEpisode: (order: number) => void;
   onOpenEpisodes: () => void;
   onReview: (order: number) => void;
+  onComplianceAll: () => void;
   onRepair: (order: number) => void;
 }) {
   const items = buildQualityItems(props.project);
@@ -100,9 +127,12 @@ export function DramaQualityPanel(props: {
     item.quality?.status === "repairable"
     || item.quality?.status === "blocked"
     || item.quality?.status === "continue_with_warning"
+    || item.quality?.compliance?.level === "warn"
+    || item.quality?.compliance?.level === "block"
     || item.episode.status === "needs_repair"
   );
   const uncheckedItems = items.filter((item) => Boolean(item.episode.content?.trim()) && !item.quality);
+  const scriptedCount = items.filter((item) => Boolean(item.episode.content?.trim())).length;
 
   const openEpisode = (order: number) => {
     props.onSelectEpisode(order);
@@ -119,7 +149,18 @@ export function DramaQualityPanel(props: {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <div className="text-sm font-medium">质量与合规</div>
+          <div className="text-xs text-muted-foreground">先检查台本质量，再确认平台合规风险。</div>
+        </div>
+        <Button type="button" variant="outline" disabled={props.busy || scriptedCount === 0} onClick={props.onComplianceAll}>
+          <ShieldCheck className="h-4 w-4" />
+          检查全部台本合规
+        </Button>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-6">
         <div className="rounded-md border p-3 text-sm">
           <div className="text-xs text-muted-foreground">已检查</div>
           <div className="mt-1 text-lg font-semibold">{summary.checked.length}</div>
@@ -135,6 +176,10 @@ export function DramaQualityPanel(props: {
         <div className="rounded-md border p-3 text-sm">
           <div className="text-xs text-muted-foreground">已通过</div>
           <div className="mt-1 text-lg font-semibold">{summary.approved.length}</div>
+        </div>
+        <div className="rounded-md border p-3 text-sm">
+          <div className="text-xs text-muted-foreground">合规风险</div>
+          <div className="mt-1 text-lg font-semibold">{summary.complianceRisk.length}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
           <div className="text-xs text-muted-foreground">平均分</div>
@@ -160,6 +205,11 @@ export function DramaQualityPanel(props: {
                   <div className="flex flex-wrap items-center gap-2">
                     <CardTitle className="text-base">第 {item.episode.order} 集：{item.episode.title}</CardTitle>
                     <Badge variant={qualityVariant(item.quality?.status)}>{statusLabel(item.quality?.status)}</Badge>
+                    {item.quality?.compliance ? (
+                      <Badge variant={complianceVariant(item.quality.compliance.level)}>
+                        {complianceLabel(item.quality.compliance.level)}
+                      </Badge>
+                    ) : null}
                     {item.quality?.score?.overall != null ? (
                       <Badge variant="outline">综合 {item.quality.score.overall}</Badge>
                     ) : null}

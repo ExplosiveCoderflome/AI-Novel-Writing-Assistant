@@ -448,6 +448,17 @@ export const dramaQualityOutputSchema = z.object({
 
 export type DramaQualityOutput = z.infer<typeof dramaQualityOutputSchema>;
 
+export const dramaComplianceOutputSchema = z.object({
+  level: z.enum(["pass", "warn", "block"]),
+  items: z.array(z.object({
+    rule: z.string().trim().min(1),
+    excerpt: z.string().trim().min(1),
+    suggestion: z.string().trim().min(1),
+  })).max(12).default([]),
+});
+
+export type DramaComplianceOutput = z.infer<typeof dramaComplianceOutputSchema>;
+
 export interface DramaQualityPromptInput {
   episodeJson: string;
   content: string;
@@ -483,6 +494,39 @@ export const dramaQualityPrompt: PromptAsset<DramaQualityPromptInput, DramaQuali
       `【角色】\n${input.charactersDigest}`,
       "",
       "请输出质量评估 JSON。付费集要重点判断结尾卡点是否达到计划强度；首付费前一集要判断是否承担蓄憋屈低谷功能。",
+    ].join("\n")),
+  ],
+};
+
+export interface DramaCompliancePromptInput {
+  episodeJson: string;
+  content: string;
+  charactersDigest: string;
+  factsDigest: string;
+}
+
+export const dramaCompliancePrompt: PromptAsset<DramaCompliancePromptInput, DramaComplianceOutput> = {
+  id: "drama.episode.compliance",
+  version: "v1",
+  taskType: "chapter_review",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: { maxTokensBudget: 7000 },
+  outputSchema: dramaComplianceOutputSchema,
+  render: (input) => [
+    new SystemMessage([
+      "你是竖屏短剧平台合规预检员，负责在台本进入拍摄或视频生成前发现高频驳回风险。",
+      "检查范围包括但不限于：暴力血腥过度呈现、医疗误导、封建迷信宣称、低俗擦边、违法犯罪教学、广告法绝对化用语、未成年人不当内容、危险行为模仿。",
+      "level=pass 表示未发现明显平台驳回风险；level=warn 表示可继续但建议改写；level=block 表示进入生产前必须修复。",
+      "只输出符合 schema 的 JSON，不要 Markdown。",
+    ].join("\n")),
+    new HumanMessage([
+      `【本集大纲】\n${input.episodeJson}`,
+      `【台本】\n${input.content}`,
+      `【角色】\n${input.charactersDigest}`,
+      `【事实账本】\n${input.factsDigest}`,
+      "",
+      "请输出平台合规预检报告 JSON。items 中每条必须给出命中的规则、原文片段和面向编剧的修改建议。",
     ].join("\n")),
   ],
 };

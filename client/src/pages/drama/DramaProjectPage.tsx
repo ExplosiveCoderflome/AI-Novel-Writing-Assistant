@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import {
   assembleDramaSourceBundle,
+  checkDramaProjectCompliance,
   createDramaEpisodeBatchJob,
   createDramaVideoProviderTask,
   downloadDramaEpisodeExport,
@@ -618,6 +619,7 @@ export default function DramaProjectPage() {
           onSelectEpisode={setSelectedOrder}
           onOpenEpisodes={() => setActiveTab("episodes")}
           onReview={(order) => runAction(() => reviewDramaEpisode(project.id, order), `第 ${order} 集质量检查完成。`)}
+          onComplianceAll={() => runAction(() => checkDramaProjectCompliance(project.id), "合规预检完成。")}
           onRepair={(order) => runAction(() => repairDramaEpisode(project.id, order), `第 ${order} 集已按质量建议修复。`)}
         />
       ) : null}

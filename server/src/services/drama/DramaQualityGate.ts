@@ -9,6 +9,10 @@ import {
   describeDramaPaywallPlan,
   resolveDramaPaywallPlan,
 } from "./engine/paywallPlanPolicy";
+import {
+  dramaComplianceService,
+  mergeComplianceIntoQuality,
+} from "./DramaComplianceService";
 import { rhythmEngine } from "./engine/rhythmEngine";
 import type { DramaLLMOptions } from "./DramaStrategyService";
 
@@ -121,12 +125,14 @@ export class DramaQualityGate {
         temperature: options.temperature ?? 0.2,
       },
     });
-    const output = applyPaywallQualityRules(result.output, {
+    const qualityOutput = applyPaywallQualityRules(result.output, {
       episode: context.episode,
       episodes: context.project.episodes,
       strategyJson: context.strategyJson,
       targetEpisodes: context.project.targetEpisodes,
     });
+    const compliance = await dramaComplianceService.checkEpisodeContext(context, options);
+    const output = mergeComplianceIntoQuality(qualityOutput, compliance);
     const status = output.status === "approved" ? "approved"
       : output.status === "repairable" || output.status === "blocked" ? "needs_repair"
         : "reviewed";

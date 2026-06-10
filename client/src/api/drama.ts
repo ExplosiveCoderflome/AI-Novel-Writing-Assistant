@@ -296,6 +296,28 @@ export interface DramaBatchJob {
   updatedAt: string;
 }
 
+export interface DramaComplianceReport {
+  level: "pass" | "warn" | "block";
+  items: Array<{
+    rule: string;
+    excerpt: string;
+    suggestion: string;
+  }>;
+}
+
+export interface DramaComplianceBatchResult {
+  checked: number;
+  pass: number;
+  warn: number;
+  block: number;
+  results: Array<{
+    episodeOrder: number;
+    title: string;
+    level: DramaComplianceReport["level"];
+    itemCount: number;
+  }>;
+}
+
 export type DramaProjectDetail = DramaProject & {
   sourceBundle?: DramaSourceBundle | null;
   characters?: DramaCharacter[];
@@ -376,6 +398,22 @@ export async function updateDramaEpisode(id: string, order: number, payload: {
 
 export async function reviewDramaEpisode(id: string, order: number, payload: DramaLLMOptions = {}) {
   const { data } = await apiClient.post<ApiResponse<unknown>>(`/drama/projects/${id}/episodes/${order}/review`, payload);
+  return data;
+}
+
+export async function checkDramaEpisodeCompliance(id: string, order: number, payload: DramaLLMOptions = {}) {
+  const { data } = await apiClient.post<ApiResponse<DramaComplianceReport>>(
+    `/drama/projects/${id}/episodes/${order}/compliance`,
+    payload,
+  );
+  return data;
+}
+
+export async function checkDramaProjectCompliance(id: string, payload: DramaLLMOptions = {}) {
+  const { data } = await apiClient.post<ApiResponse<DramaComplianceBatchResult>>(
+    `/drama/projects/${id}/compliance`,
+    payload,
+  );
   return data;
 }
 
