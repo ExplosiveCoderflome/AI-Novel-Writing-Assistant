@@ -15,6 +15,8 @@ export interface TTSProviderPort {
   readonly provider: string;
   readonly label?: string;
   readonly description?: string;
+  readonly costPerSecond?: number;
+  readonly currency?: string;
   synthesize(input: TTSGenerationRequest): Promise<TTSGenerationResult>;
 }
 
@@ -24,6 +26,8 @@ export class MockTTSProvider implements TTSProviderPort {
   readonly provider = "mock";
   readonly label = "模拟配音通道";
   readonly description = "用于联调短剧配音链路的本地模拟 provider，不会生成真实语音。";
+  readonly costPerSecond = normalizeCostValue(process.env.DRAMA_TTS_MOCK_COST_PER_SECOND);
+  readonly currency = readCostCurrency();
 
   async synthesize(input: TTSGenerationRequest): Promise<TTSGenerationResult> {
     return {
@@ -37,6 +41,15 @@ export class MockTTSProvider implements TTSProviderPort {
 function normalizeTimeoutMs(value: unknown): number {
   const numeric = Number(value);
   return Number.isFinite(numeric) && numeric > 0 ? numeric : 120000;
+}
+
+function normalizeCostValue(value: unknown): number {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : 0;
+}
+
+function readCostCurrency(): string {
+  return process.env.DRAMA_COST_CURRENCY?.trim() || "CNY";
 }
 
 function readStringField(record: Record<string, unknown>, keys: string[]): string | undefined {
@@ -75,6 +88,8 @@ export class HttpTTSProvider implements TTSProviderPort {
   readonly provider: string;
   readonly label: string;
   readonly description?: string;
+  readonly costPerSecond: number;
+  readonly currency: string;
 
   constructor(private readonly config: {
     provider: string;
@@ -83,10 +98,14 @@ export class HttpTTSProvider implements TTSProviderPort {
     synthesizeUrl: string;
     apiKey?: string;
     timeoutMs?: number;
+    costPerSecond?: number;
+    currency?: string;
   }) {
     this.provider = config.provider;
     this.label = config.label ?? config.provider;
     this.description = config.description;
+    this.costPerSecond = normalizeCostValue(config.costPerSecond);
+    this.currency = config.currency?.trim() || readCostCurrency();
   }
 
   async synthesize(input: TTSGenerationRequest): Promise<TTSGenerationResult> {
@@ -135,11 +154,13 @@ class TTSProviderRegistry {
     return resolved;
   }
 
-  listProviders(): Array<{ provider: string; label: string; description?: string }> {
+  listProviders(): Array<{ provider: string; label: string; description?: string; costPerSecond: number; currency: string }> {
     return [...this.providers.values()].map((provider) => ({
       provider: provider.provider,
       label: provider.label ?? provider.provider,
       description: provider.description,
+      costPerSecond: provider.costPerSecond ?? 0,
+      currency: provider.currency ?? readCostCurrency(),
     }));
   }
 }
@@ -156,5 +177,7 @@ if (httpSynthesizeUrl) {
     synthesizeUrl: httpSynthesizeUrl,
     apiKey: process.env.DRAMA_TTS_HTTP_API_KEY?.trim() || undefined,
     timeoutMs: normalizeTimeoutMs(process.env.DRAMA_TTS_HTTP_TIMEOUT_MS),
+    costPerSecond: normalizeCostValue(process.env.DRAMA_TTS_HTTP_COST_PER_SECOND),
+    currency: process.env.DRAMA_TTS_HTTP_COST_CURRENCY?.trim() || readCostCurrency(),
   }));
 }

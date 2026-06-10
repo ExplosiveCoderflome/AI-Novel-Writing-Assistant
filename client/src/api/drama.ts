@@ -215,12 +215,16 @@ export interface DramaVideoProvider {
   label: string;
   description?: string;
   supportsRefImages: boolean;
+  costPerSecond?: number;
+  currency?: string;
 }
 
 export interface DramaTTSProvider {
   provider: string;
   label: string;
   description?: string;
+  costPerSecond?: number;
+  currency?: string;
 }
 
 export type DramaBatchJobType = "keyframes" | "videos" | "tts";
@@ -235,6 +239,35 @@ export interface DramaBatchProgress {
   targetShotIds?: string[];
   currentShotId?: string;
   errors?: Array<{ shotId: string; message: string }>;
+  useCharacterRefImages?: boolean;
+  cost?: DramaBatchCostBreakdown;
+}
+
+export interface DramaBatchCostUnits {
+  images?: number;
+  seconds?: number;
+  shots?: number;
+  lines?: number;
+}
+
+export interface DramaBatchCostBreakdown {
+  currency: string;
+  estimated: number;
+  actual: number;
+  estimatedUnits: DramaBatchCostUnits;
+  actualUnits: DramaBatchCostUnits;
+  unit: {
+    costPerImage?: number;
+    costPerSecond?: number;
+  };
+}
+
+export interface DramaBatchEstimate {
+  type: DramaBatchJobType;
+  provider: string;
+  total: number;
+  targetShotIds: string[];
+  cost: DramaBatchCostBreakdown;
 }
 
 export interface DramaBatchJob {
@@ -428,6 +461,19 @@ export async function createDramaEpisodeBatchJob(id: string, order: number, payl
 }) {
   const { data } = await apiClient.post<ApiResponse<DramaBatchJob>>(
     `/drama/projects/${id}/episodes/${order}/batch-jobs`,
+    payload,
+  );
+  return data;
+}
+
+export async function estimateDramaEpisodeBatchJob(id: string, order: number, payload: {
+  type: DramaBatchJobType;
+  provider?: string;
+  failedShotIds?: string[];
+  useCharacterRefImages?: boolean;
+}) {
+  const { data } = await apiClient.post<ApiResponse<DramaBatchEstimate>>(
+    `/drama/projects/${id}/episodes/${order}/batch-jobs/estimate`,
     payload,
   );
   return data;

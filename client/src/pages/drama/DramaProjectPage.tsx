@@ -30,6 +30,7 @@ import {
   refreshDramaVideoProviderTask,
   reviewDramaEpisode,
   saveDramaCharacterToLibrary,
+  type DramaBatchCostBreakdown,
   type DramaEpisodeExportFormat,
   type DramaEpisode,
   type DramaProjectDetail,
@@ -123,6 +124,33 @@ function downloadBlob(blob: Blob, filename: string) {
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function readBatchCost(raw: string | null | undefined): DramaBatchCostBreakdown | null {
+  const parsed = safeJson<{ cost?: DramaBatchCostBreakdown }>(raw, {});
+  return parsed.cost ?? null;
+}
+
+function summarizeBatchCosts(project: DramaProjectDetail): DramaBatchCostBreakdown | null {
+  const costs = (project.batchJobs ?? [])
+    .map((job) => readBatchCost(job.progress))
+    .filter((cost): cost is DramaBatchCostBreakdown => Boolean(cost));
+  if (!costs.length) {
+    return null;
+  }
+  const currency = costs[0]?.currency ?? "CNY";
+  return {
+    currency,
+    estimated: costs.reduce((sum, cost) => sum + (cost.estimated ?? 0), 0),
+    actual: costs.reduce((sum, cost) => sum + (cost.actual ?? 0), 0),
+    estimatedUnits: {},
+    actualUnits: {},
+    unit: {},
+  };
+}
+
+function formatBatchCost(cost: DramaBatchCostBreakdown, amount: number): string {
+  return `${cost.currency} ${amount.toFixed(2)}`;
 }
 
 function ProjectProgress(props: { project: DramaProjectDetail }) {
@@ -368,6 +396,7 @@ function EpisodesPanel(props: {
               <QualityFlags episode={selectedEpisode} />
             </section>
             <DramaEpisodeAudioPanel
+              projectId={props.project.id}
               episode={selectedEpisode}
               batchJobs={props.project.batchJobs}
               ttsProviders={props.ttsProviders}
@@ -419,6 +448,7 @@ export default function DramaProjectPage() {
     }
     return project?.episodes?.[0]?.order ?? null;
   }, [project?.episodes, selectedOrder]);
+  const batchCostSummary = project ? summarizeBatchCosts(project) : null;
 
   const invalidateProject = async () => {
     if (!id) {
@@ -515,6 +545,11 @@ export default function DramaProjectPage() {
             <Badge variant="secondary">{statusLabel(project.status)}</Badge>
             <Badge variant="outline">{dramaTrackLabel(project.track)}</Badge>
             <Badge variant="outline">{project.targetEpisodes} 集</Badge>
+            {batchCostSummary ? (
+              <Badge variant="outline">
+                生产费用：已用 {formatBatchCost(batchCostSummary, batchCostSummary.actual)} / 预计 {formatBatchCost(batchCostSummary, batchCostSummary.estimated)}
+              </Badge>
+            ) : null}
           </div>
           <p className="text-sm text-muted-foreground">
             按“素材 → 策略 → 分集 → 台本 → 质量 → 分镜视频”的顺序推进这部短剧。

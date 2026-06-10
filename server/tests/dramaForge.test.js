@@ -30,6 +30,7 @@ test("drama video provider registry exposes mock provider", async () => {
   const providers = videoProviderRegistry.listProviders();
   assert.equal(providers.some((item) => item.provider === "mock"), true);
   assert.equal(providers.find((item) => item.provider === "mock")?.supportsRefImages, true);
+  assert.equal(providers.find((item) => item.provider === "mock")?.costPerSecond, 0);
   const result = await provider.createTask({
     prompt: "vertical drama shot",
     aspectRatio: "9:16",
@@ -46,6 +47,7 @@ test("drama tts provider registry exposes mock provider", async () => {
   const provider = ttsProviderRegistry.resolve("mock");
   const providers = ttsProviderRegistry.listProviders();
   assert.equal(providers.some((item) => item.provider === "mock"), true);
+  assert.equal(providers.find((item) => item.provider === "mock")?.costPerSecond, 0);
   const result = await provider.synthesize({
     text: "你也配进去？",
     voiceId: "lin-voice",
@@ -95,7 +97,11 @@ test("http drama video provider maps create and status responses", async () => {
       createUrl: `${baseUrl}/create`,
       statusUrl: `${baseUrl}/status/{taskId}`,
       supportsRefImages: true,
+      costPerSecond: 0.8,
+      currency: "USD",
     });
+    assert.equal(provider.costPerSecond, 0.8);
+    assert.equal(provider.currency, "USD");
     const created = await provider.createTask({
       prompt: "vertical drama shot",
       aspectRatio: "9:16",
@@ -158,7 +164,11 @@ test("http drama tts provider maps synthesize responses", async () => {
       provider: "http-tts-test",
       synthesizeUrl: `${baseUrl}/tts`,
       apiKey: "test-key",
+      costPerSecond: 0.12,
+      currency: "USD",
     });
+    assert.equal(provider.costPerSecond, 0.12);
+    assert.equal(provider.currency, "USD");
     const result = await provider.synthesize({
       text: "让董事长下来。",
       voiceId: "lin-voice",

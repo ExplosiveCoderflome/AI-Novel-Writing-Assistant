@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Film, ImageIcon, RefreshCw, Sparkles, Video } from "lucide-react";
-import type {
-  DramaBatchJob,
-  DramaBatchJobType,
-  DramaBatchProgress,
-  DramaEpisode,
-  DramaProjectDetail,
-  DramaShot,
-  DramaShotKeyframeData,
-  DramaStoryboard,
-  DramaVideoPrompt,
-  DramaVideoProvider,
+import {
+  estimateDramaEpisodeBatchJob,
+  type DramaBatchCostBreakdown,
+  type DramaBatchJob,
+  type DramaBatchJobType,
+  type DramaBatchProgress,
+  type DramaEpisode,
+  type DramaProjectDetail,
+  type DramaShot,
+  type DramaShotKeyframeData,
+  type DramaStoryboard,
+  type DramaVideoPrompt,
+  type DramaVideoProvider,
 } from "@/api/drama";
 import { getAPIKeySettings } from "@/api/settings";
 import { Button } from "@/components/ui/button";
@@ -74,6 +76,40 @@ export function DramaVisualPanel(props: {
   const hasStoryboardShots = Boolean(storyboard?.shots?.length);
   const keyframeBatchActive = isActiveBatch(latestKeyframeBatch);
   const videoBatchActive = isActiveBatch(latestVideoBatch);
+  const keyframeEstimateQuery = useQuery({
+    queryKey: [
+      "drama",
+      "batch-estimate",
+      props.project.id,
+      selectedEpisode?.order,
+      "keyframes",
+      activeImageProvider,
+      useCharacterRefImages,
+    ],
+    queryFn: () => estimateDramaEpisodeBatchJob(props.project.id, selectedEpisode!.order, {
+      type: "keyframes",
+      provider: activeImageProvider || undefined,
+      useCharacterRefImages,
+    }),
+    enabled: Boolean(selectedEpisode && hasStoryboardShots && activeImageProvider),
+    staleTime: 30_000,
+  });
+  const videoEstimateQuery = useQuery({
+    queryKey: [
+      "drama",
+      "batch-estimate",
+      props.project.id,
+      selectedEpisode?.order,
+      "videos",
+      props.selectedProvider,
+    ],
+    queryFn: () => estimateDramaEpisodeBatchJob(props.project.id, selectedEpisode!.order, {
+      type: "videos",
+      provider: props.selectedProvider,
+    }),
+    enabled: Boolean(selectedEpisode && hasStoryboardShots),
+    staleTime: 30_000,
+  });
 
   if (!selectedEpisode) {
     return <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">先生成分集和台本，再进入分镜与视频提示词。</div>;
@@ -177,6 +213,20 @@ export function DramaVisualPanel(props: {
           </Button>
         </div>
       </div>
+      {hasStoryboardShots ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          <CostEstimate
+            title="首帧预计费用"
+            cost={keyframeEstimateQuery.data?.data?.cost}
+            loading={keyframeEstimateQuery.isFetching}
+          />
+          <CostEstimate
+            title="视频预计费用"
+            cost={videoEstimateQuery.data?.data?.cost}
+            loading={videoEstimateQuery.isFetching}
+          />
+        </div>
+      ) : null}
       {latestKeyframeBatch || latestVideoBatch ? (
         <div className="grid gap-3 md:grid-cols-2">
           {latestKeyframeBatch ? (
@@ -379,6 +429,8 @@ function BatchJobStatus(props: {
         {progress.skipped ? <span>已跳过 {progress.skipped}</span> : null}
         {progress.failed ? <span>失败 {progress.failed}</span> : null}
         {progress.provider ? <span>通道：{progress.provider}</span> : null}
+        {progress.cost ? <span>预计：{formatCost(progress.cost, progress.cost.estimated)}</span> : null}
+        {progress.cost ? <span>实际：{formatCost(progress.cost, progress.cost.actual)}</span> : null}
       </div>
       {failedShotIds.length > 0 ? (
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -424,6 +476,38 @@ function KeyframePreview({ shot, keyframe }: { shot: DramaShot; keyframe: DramaS
           <div className="mt-2 text-destructive">{keyframe.error}</div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function formatCost(cost: DramaBatchCostBreakdown, amount: number): string {
+  return `${cost.currency} ${amount.toFixed(2)}`;
+}
+
+function costUnitLabel(cost: DramaBatchCostBreakdown): string {
+  const parts = [];
+  if (cost.unit.costPerImage) {
+    parts.push(`图片 ${formatCost(cost, cost.unit.costPerImage)}/张`);
+  }
+  if (cost.unit.costPerSecond) {
+    parts.push(`时长 ${formatCost(cost, cost.unit.costPerSecond)}/秒`);
+  }
+  return parts.length ? parts.join("，") : "未配置单价";
+}
+
+function CostEstimate(props: { title: string; cost?: DramaBatchCostBreakdown; loading: boolean }) {
+  return (
+    <div className="rounded-md border border-dashed p-3 text-sm">
+      <div className="text-xs text-muted-foreground">{props.title}</div>
+      <div className="mt-1 font-medium">
+        {props.loading ? "计算中" : props.cost ? formatCost(props.cost, props.cost.estimated) : "待计算"}
+      </div>
+      {props.cost ? (
+        <div className="mt-1 text-xs text-muted-foreground">
+          {costUnitLabel(props.cost)}
+          {props.cost.estimatedUnits.shots ? ` · ${props.cost.estimatedUnits.shots} 个镜头` : ""}
+        </div>
+      ) : null}
     </div>
   );
 }

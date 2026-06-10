@@ -19,6 +19,8 @@ export interface VideoProviderPort {
   readonly label?: string;
   readonly description?: string;
   readonly supportsRefImages?: boolean;
+  readonly costPerSecond?: number;
+  readonly currency?: string;
   createTask(input: VideoGenerationRequest): Promise<VideoGenerationResult>;
   getTask(providerTaskId: string): Promise<VideoGenerationResult>;
 }
@@ -28,6 +30,8 @@ export class MockVideoProvider implements VideoProviderPort {
   readonly label = "模拟视频通道";
   readonly description = "用于联调视频生成链路的本地模拟 provider，不会生成真实视频。";
   readonly supportsRefImages = true;
+  readonly costPerSecond = normalizeCostValue(process.env.DRAMA_VIDEO_MOCK_COST_PER_SECOND);
+  readonly currency = readCostCurrency();
 
   async createTask(input: VideoGenerationRequest): Promise<VideoGenerationResult> {
     return {
@@ -76,6 +80,15 @@ function normalizeTimeoutMs(value: unknown): number {
   return Number.isFinite(numeric) && numeric > 0 ? numeric : 120000;
 }
 
+function normalizeCostValue(value: unknown): number {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) && numeric >= 0 ? numeric : 0;
+}
+
+function readCostCurrency(): string {
+  return process.env.DRAMA_COST_CURRENCY?.trim() || "CNY";
+}
+
 function normalizeBooleanFlag(value: unknown): boolean {
   const raw = String(value ?? "").trim().toLowerCase();
   return ["1", "true", "yes", "y", "on"].includes(raw);
@@ -120,6 +133,8 @@ export class HttpVideoProvider implements VideoProviderPort {
   readonly label: string;
   readonly description?: string;
   readonly supportsRefImages: boolean;
+  readonly costPerSecond: number;
+  readonly currency: string;
 
   constructor(private readonly config: {
     provider: string;
@@ -130,11 +145,15 @@ export class HttpVideoProvider implements VideoProviderPort {
     apiKey?: string;
     timeoutMs?: number;
     supportsRefImages?: boolean;
+    costPerSecond?: number;
+    currency?: string;
   }) {
     this.provider = config.provider;
     this.label = config.label ?? config.provider;
     this.description = config.description;
     this.supportsRefImages = config.supportsRefImages ?? false;
+    this.costPerSecond = normalizeCostValue(config.costPerSecond);
+    this.currency = config.currency?.trim() || readCostCurrency();
   }
 
   async createTask(input: VideoGenerationRequest): Promise<VideoGenerationResult> {
@@ -214,12 +233,16 @@ class VideoProviderRegistry {
     label: string;
     description?: string;
     supportsRefImages: boolean;
+    costPerSecond: number;
+    currency: string;
   }> {
     return [...this.providers.values()].map((provider) => ({
       provider: provider.provider,
       label: provider.label ?? provider.provider,
       description: provider.description,
       supportsRefImages: provider.supportsRefImages ?? false,
+      costPerSecond: provider.costPerSecond ?? 0,
+      currency: provider.currency ?? readCostCurrency(),
     }));
   }
 }
@@ -238,5 +261,7 @@ if (httpCreateUrl) {
     apiKey: process.env.DRAMA_VIDEO_HTTP_API_KEY?.trim() || undefined,
     timeoutMs: normalizeTimeoutMs(process.env.DRAMA_VIDEO_HTTP_TIMEOUT_MS),
     supportsRefImages: normalizeBooleanFlag(process.env.DRAMA_VIDEO_HTTP_SUPPORTS_REF_IMAGES),
+    costPerSecond: normalizeCostValue(process.env.DRAMA_VIDEO_HTTP_COST_PER_SECOND),
+    currency: process.env.DRAMA_VIDEO_HTTP_COST_CURRENCY?.trim() || readCostCurrency(),
   }));
 }

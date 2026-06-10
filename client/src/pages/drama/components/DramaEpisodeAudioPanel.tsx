@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Headphones, RefreshCw } from "lucide-react";
-import type {
-  DramaBatchJob,
-  DramaBatchProgress,
-  DramaDialogueAudioData,
-  DramaEpisode,
-  DramaTTSProvider,
+import {
+  estimateDramaEpisodeBatchJob,
+  type DramaBatchCostBreakdown,
+  type DramaBatchJob,
+  type DramaBatchProgress,
+  type DramaDialogueAudioData,
+  type DramaEpisode,
+  type DramaTTSProvider,
 } from "@/api/drama";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +55,7 @@ function batchStatusLabel(status: DramaBatchJob["status"]): string {
 }
 
 export function DramaEpisodeAudioPanel(props: {
+  projectId: string;
   episode: DramaEpisode;
   batchJobs?: DramaBatchJob[];
   ttsProviders: DramaTTSProvider[];
@@ -65,6 +69,16 @@ export function DramaEpisodeAudioPanel(props: {
   const latestTtsBatch = props.batchJobs?.find((job) => job.episodeId === props.episode.id && job.type === "tts");
   const latestProgress = parseBatchProgress(latestTtsBatch?.progress);
   const ttsActive = isActiveBatch(latestTtsBatch);
+  const hasStoryboardShots = Boolean(props.episode.storyboards?.[0]?.shots?.length);
+  const estimateQuery = useQuery({
+    queryKey: ["drama", "batch-estimate", props.projectId, props.episode.order, "tts", activeProvider],
+    queryFn: () => estimateDramaEpisodeBatchJob(props.projectId, props.episode.order, {
+      type: "tts",
+      provider: activeProvider,
+    }),
+    enabled: hasStoryboardShots,
+    staleTime: 30_000,
+  });
   const audioItems = useMemo(() => {
     const storyboard = props.episode.storyboards?.[0];
     return (storyboard?.shots ?? []).flatMap((shot) => {
@@ -108,7 +122,7 @@ export function DramaEpisodeAudioPanel(props: {
             size="sm"
             type="button"
             variant="outline"
-            disabled={props.busy || ttsActive || !props.episode.storyboards?.[0]?.shots?.length}
+            disabled={props.busy || ttsActive || !hasStoryboardShots}
             onClick={() => props.onBatchJob(props.episode.order, { type: "tts", provider: activeProvider })}
           >
             <Headphones className="h-4 w-4" />
@@ -116,6 +130,10 @@ export function DramaEpisodeAudioPanel(props: {
           </Button>
         </div>
       </div>
+      <CostEstimate
+        cost={estimateQuery.data?.data?.cost}
+        loading={estimateQuery.isFetching}
+      />
 
       {latestTtsBatch ? (
         <div className="rounded-md border p-3 text-sm">
@@ -131,6 +149,8 @@ export function DramaEpisodeAudioPanel(props: {
             {latestProgress.skipped ? <span>已跳过 {latestProgress.skipped}</span> : null}
             {latestProgress.failed ? <span>失败 {latestProgress.failed}</span> : null}
             {latestProgress.provider ? <span>通道：{latestProgress.provider}</span> : null}
+            {latestProgress.cost ? <span>预计：{formatCost(latestProgress.cost, latestProgress.cost.estimated)}</span> : null}
+            {latestProgress.cost ? <span>实际：{formatCost(latestProgress.cost, latestProgress.cost.actual)}</span> : null}
           </div>
           {failedShotIds.length > 0 ? (
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -172,5 +192,26 @@ export function DramaEpisodeAudioPanel(props: {
         <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">生成分镜后可合成本集配音。</div>
       )}
     </section>
+  );
+}
+
+function formatCost(cost: DramaBatchCostBreakdown, amount: number): string {
+  return `${cost.currency} ${amount.toFixed(2)}`;
+}
+
+function CostEstimate(props: { cost?: DramaBatchCostBreakdown; loading: boolean }) {
+  return (
+    <div className="rounded-md border border-dashed p-3 text-sm">
+      <div className="text-xs text-muted-foreground">配音预计费用</div>
+      <div className="mt-1 font-medium">
+        {props.loading ? "计算中" : props.cost ? formatCost(props.cost, props.cost.estimated) : "生成分镜后可计算"}
+      </div>
+      {props.cost ? (
+        <div className="mt-1 text-xs text-muted-foreground">
+          {props.cost.unit.costPerSecond ? `时长 ${formatCost(props.cost, props.cost.unit.costPerSecond)}/秒` : "未配置单价"}
+          {props.cost.estimatedUnits.shots ? ` · ${props.cost.estimatedUnits.shots} 个镜头` : ""}
+        </div>
+      ) : null}
+    </div>
   );
 }

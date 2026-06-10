@@ -357,6 +357,10 @@ function installPipelineStubs() {
 }
 
 test("drama service pipeline keeps repairable quality issues before storyboard and video tasks", async () => {
+  process.env.DRAMA_COST_CURRENCY = "CNY";
+  process.env.DRAMA_IMAGE_COST_PER_IMAGE_OPENAI = "1.25";
+  process.env.DRAMA_VIDEO_MOCK_COST_PER_SECOND = "0.4";
+  process.env.DRAMA_TTS_MOCK_COST_PER_SECOND = "0.2";
   clearDramaModules();
   const state = installPipelineStubs();
   const { DramaScriptService } = require("../dist/services/drama/DramaScriptService.js");
@@ -386,6 +390,14 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
   assert.equal(storyboard.shots[0].characterRefs, JSON.stringify(["林澈"]));
 
   const batchOrchestrator = new DramaBatchOrchestrator();
+  const keyframeEstimate = await batchOrchestrator.estimateEpisodeBatchJob(
+    "project_1",
+    1,
+    { type: "keyframes", provider: "openai" },
+  );
+  assert.equal(keyframeEstimate.cost.estimated, 1.25);
+  assert.equal(keyframeEstimate.cost.estimatedUnits.images, 1);
+
   const keyframeJob = await batchOrchestrator.createEpisodeBatchJob(
     "project_1",
     1,
@@ -397,9 +409,19 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
   assert.equal(finishedKeyframes.status, "done");
   assert.equal(keyframeProgress.total, 1);
   assert.equal(keyframeProgress.done, 1);
+  assert.equal(keyframeProgress.cost.estimated, 1.25);
+  assert.equal(keyframeProgress.cost.actual, 1.25);
   assert.equal(state.keyframeInput.sceneType, "chapter_illustration");
   assert.equal(state.keyframeInput.size, "1024x1536");
   assert.match(state.shots[0].keyframeData, /shot-images/);
+
+  const videoEstimate = await batchOrchestrator.estimateEpisodeBatchJob(
+    "project_1",
+    1,
+    { type: "videos", provider: "mock" },
+  );
+  assert.equal(videoEstimate.cost.estimated, 2);
+  assert.equal(videoEstimate.cost.estimatedUnits.seconds, 5);
 
   const videoJob = await batchOrchestrator.createEpisodeBatchJob(
     "project_1",
@@ -412,6 +434,8 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
   assert.equal(finishedVideos.status, "done");
   assert.equal(videoProgress.total, 1);
   assert.equal(videoProgress.done, 1);
+  assert.equal(videoProgress.cost.estimated, 2);
+  assert.equal(videoProgress.cost.actual, 2);
 
   const prompt = state.videoPrompts[0];
   assert.equal(prompt.aspectRatio, "9:16");
@@ -438,6 +462,9 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
   assert.equal(finishedTts.status, "done");
   assert.equal(ttsProgress.total, 1);
   assert.equal(ttsProgress.done, 1);
+  assert.equal(ttsProgress.cost.estimated, 1);
+  assert.equal(ttsProgress.cost.actual, 0.4);
+  assert.equal(ttsProgress.cost.actualUnits.seconds, 2);
   const audioData = JSON.parse(state.shots[0].dialogueAudioData);
   assert.equal(audioData.status, "done");
   assert.equal(audioData.items[0].speaker, "林澈");

@@ -39,6 +39,8 @@
 - 单集 SRT 导出属于成片组装前的确定性时间轴产物，入口为 `/api/drama/projects/:id/episodes/:order/export?format=srt`。有分镜时按最新分镜的镜头顺序和 `DramaShot.durationSec` 推算字幕时间；当镜头已有 `dialogueAudioData.status === "done"` 且台词项包含音频时长，优先使用真实配音时长生成字幕区间；没有配音时在镜头内部按台词文本长度分配时间；没有可用分镜台词时，退回到单集台本正文逐行导出。
 - 单集剪辑草稿导出入口为 `/api/drama/projects/:id/episodes/:order/export?format=timeline-json`。草稿使用 `ai-novel.drama.timeline.v1` 稳定 JSON 格式，按最新分镜输出镜头顺序、视频轨、配音轨和字幕轨。视频轨读取 `DramaVideoPrompt.resultUrl / status / providerTaskId`，没有可用视频结果时保留缺口 warning；配音轨读取 `DramaShot.dialogueAudioData`；字幕轨复用 SRT 时间轴规则。该格式是内部粗剪交接格式，不等同于已经完成 mp4 合成。
 - `DramaBatchJob` 是短剧生产管理层的整集队列记录，入口为 `/api/drama/projects/:id/episodes/:order/batch-jobs`。当前支持 `keyframes`、`videos` 和 `tts` 三类任务，任务状态使用 `pending / running / paused / done / failed` 字符串，`progress` 保存 `{ total, done, failed, skipped, failedShotIds, provider, targetShotIds, currentShotId, errors }`。
+- 批量任务成本估算入口为 `/api/drama/projects/:id/episodes/:order/batch-jobs/estimate`，使用与创建任务相同的目标镜头筛选规则。`progress.cost` 保存 `{ currency, estimated, actual, estimatedUnits, actualUnits, unit }`；创建任务时写入预计费用，运行时只把真正处理的镜头计入实际费用，跳过项不增加实际成本。
+- 成本单价属于 provider 能力声明的一部分。视频和 TTS provider 可暴露 `costPerSecond / currency`，首帧图使用图片 Provider 的按图单价配置；未配置单价时仍展示 `0`，不阻塞生产任务。
 - 批量首帧任务只处理最新分镜下的目标镜头；已有可用首帧图的镜头应计入跳过，失败镜头写入 `failedShotIds`，前端用同一入口携带 `failedShotIds` 发起失败项重试。
 - 批量视频任务按镜头顺序串行处理：没有视频提示词时先生成提示词，再创建 provider 任务；已有非失败 provider 任务的镜头计入跳过。视频文件生成仍由 provider 侧异步完成，批量任务负责把每个镜头的视频任务创建到可轮询状态。
 - 批量配音任务按镜头顺序串行处理：已有可用 `dialogueAudioData` 的镜头计入跳过；没有台词的镜头保存 `idle` 状态；provider 失败时写入镜头错误状态和批量任务失败列表，用户可只重试失败镜头。
@@ -53,6 +55,7 @@
 - 视频任务只接收角色设计稿而忽略已生成首帧图，会让 image-to-video 失去构图锚点。首帧图和角色设计稿都存在时，首帧图必须排在 `refImages[0]`。
 - SRT 时间轴不能依赖前端临时状态推算；字幕导出必须由后端读取最新分镜和单集台本生成，保证下载文件与当前项目数据一致。
 - 剪辑草稿不能把缺失视频结果伪装成可用成片。没有 `resultUrl` 的镜头必须保留在时间轴中并写出 warning，方便用户知道还需要生成或刷新哪些镜头。
+- 成本预估不能替代 provider 侧真实账单。没有配置单价时必须显示为未配置或 0；实际费用只代表系统按已配置单价和已处理镜头推算出的项目内生产成本。
 - 批量任务不能把 provider 任务成功创建误判为视频成片完成。`videos` 批量任务的 `done` 表示镜头已进入 provider 任务队列或被跳过，最终视频结果仍以 `DramaVideoPrompt.status / resultUrl / failureReason` 为准。
 - 配音任务不能把说话人文本当作固定角色 ID。声线绑定只能来自当前项目角色名与对白说话人的匹配；无法匹配时应保留台词合成能力，并把缺失 voiceId 暴露为后续角色资产补全问题。
 
