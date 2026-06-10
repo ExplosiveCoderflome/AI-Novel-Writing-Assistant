@@ -1,7 +1,50 @@
 import { prisma } from "../../db/prisma";
 
+export type DramaProjectExportFormat = "markdown" | "json";
+export type DramaEpisodeExportFormat = "srt";
+
+interface SubtitleEntry {
+  index: number;
+  startSec: number;
+  endSec: number;
+  text: string;
+}
+
+function splitDialogueLines(text: string | null | undefined): string[] {
+  return (text ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function normalizeDurationSec(value: number | null | undefined, fallback: number): number {
+  return Number.isFinite(value) && Number(value) > 0 ? Number(value) : fallback;
+}
+
+function formatSrtTime(totalSeconds: number): string {
+  const totalMs = Math.max(0, Math.round(totalSeconds * 1000));
+  const hours = Math.floor(totalMs / 3_600_000);
+  const minutes = Math.floor((totalMs % 3_600_000) / 60_000);
+  const seconds = Math.floor((totalMs % 60_000) / 1000);
+  const ms = totalMs % 1000;
+  return [
+    String(hours).padStart(2, "0"),
+    String(minutes).padStart(2, "0"),
+    String(seconds).padStart(2, "0"),
+  ].join(":") + `,${String(ms).padStart(3, "0")}`;
+}
+
+function buildSrt(entries: SubtitleEntry[]): string {
+  return entries.map((entry) => [
+    String(entry.index),
+    `${formatSrtTime(entry.startSec)} --> ${formatSrtTime(entry.endSec)}`,
+    entry.text,
+    "",
+  ].join("\n")).join("\n");
+}
+
 export class DramaExportService {
-  async exportProject(projectId: string, format: "markdown" | "json" = "markdown") {
+  async exportProject(projectId: string, format: DramaProjectExportFormat = "markdown") {
     const project = await prisma.dramaProject.findUnique({
       where: { id: projectId },
       include: {
@@ -47,6 +90,74 @@ export class DramaExportService {
       contentType: "text/markdown; charset=utf-8",
       filename: `${project.title}-short-drama.md`,
       body,
+    };
+  }
+
+  async exportEpisode(projectId: string, order: number, format: DramaEpisodeExportFormat = "srt") {
+    if (format !== "srt") {
+      throw new Error(`暂不支持的短剧单集导出格式：${format}`);
+    }
+    const episode = await prisma.dramaEpisode.findUnique({
+      where: { projectId_order: { projectId, order } },
+      include: {
+        project: { select: { title: true } },
+        storyboards: {
+          orderBy: { createdAt: "desc" },
+          include: { shots: { orderBy: { order: "asc" } } },
+        },
+      },
+    });
+    if (!episode) {
+      throw new Error(`未找到短剧第 ${order} 集。`);
+    }
+    const storyboard = episode.storyboards[0];
+    const entries: SubtitleEntry[] = [];
+    let cursor = 0;
+
+    if (storyboard?.shots.length) {
+      const fallbackShotDuration = Math.max(1, Math.round(normalizeDurationSec(episode.durationSec, storyboard.shots.length * 5) / storyboard.shots.length));
+      for (const shot of storyboard.shots) {
+        const shotDuration = normalizeDurationSec(shot.durationSec, fallbackShotDuration);
+        const lines = splitDialogueLines(shot.dialogue);
+        if (!lines.length) {
+          cursor += shotDuration;
+          continue;
+        }
+        const totalWeight = lines.reduce((sum, line) => sum + Math.max(1, line.length), 0);
+        let shotCursor = cursor;
+        for (const line of lines) {
+          const lineDuration = shotDuration * (Math.max(1, line.length) / totalWeight);
+          const endSec = Math.min(cursor + shotDuration, shotCursor + lineDuration);
+          entries.push({
+            index: entries.length + 1,
+            startSec: shotCursor,
+            endSec,
+            text: line,
+          });
+          shotCursor = endSec;
+        }
+        cursor += shotDuration;
+      }
+    }
+
+    if (!entries.length) {
+      const lines = splitDialogueLines(episode.content);
+      let fallbackCursor = 0;
+      for (const line of lines) {
+        entries.push({
+          index: entries.length + 1,
+          startSec: fallbackCursor,
+          endSec: fallbackCursor + 3,
+          text: line,
+        });
+        fallbackCursor += 3;
+      }
+    }
+
+    return {
+      contentType: "application/x-subrip; charset=utf-8",
+      filename: `${episode.project.title}-E${episode.order}.srt`,
+      body: buildSrt(entries),
     };
   }
 }

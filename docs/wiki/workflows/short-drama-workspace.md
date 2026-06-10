@@ -34,6 +34,7 @@
 - `DramaShot.keyframeData` 是镜头首帧图状态字段，保存 `{ status, url, prompt, provider, generatedAt, error }`。首帧图通过项目内镜头生成入口创建，图片文件存放在 `drama-shots/{shotId}/`，公开 URL 使用 `/api/drama/shot-images/{shotId}/keyframe`。
 - 镜头已有 `keyframeData.status === "done"` 时，创建视频 provider 任务必须把首帧图 URL 放在 `refImages` 首位，再追加该镜头角色的设计稿 URL。这样 provider 支持 image-to-video 时能优先锁定构图，不支持参考图时仍由能力声明降级为文本视频任务。
 - 分镜视频页的首帧图生成使用图片 Provider 配置，只展示已配置、已启用且支持图片生成的 Provider；视频 Provider 选择与图片 Provider 选择是两条独立能力，不应混用。
+- 单集 SRT 导出属于成片组装前的确定性时间轴产物，入口为 `/api/drama/projects/:id/episodes/:order/export?format=srt`。有分镜时按最新分镜的镜头顺序和 `DramaShot.durationSec` 推算字幕时间，每个镜头内部按台词文本长度分配时间；没有可用分镜台词时，退回到单集台本正文逐行导出。
 
 ## Failure Modes
 
@@ -43,6 +44,7 @@
 - 把 `repairable` 保存成普通已检查状态会让下一步任务跳过修复，直接进入分镜和视频任务。质量状态投影必须保持“可修复问题优先处理”的顺序。
 - provider 未声明参考图能力却收到角色图字段，可能导致外部 HTTP 接口直接拒绝任务。参考图注入应以 `supportsRefImages` 为唯一开关。
 - 视频任务只接收角色设计稿而忽略已生成首帧图，会让 image-to-video 失去构图锚点。首帧图和角色设计稿都存在时，首帧图必须排在 `refImages[0]`。
+- SRT 时间轴不能依赖前端临时状态推算；字幕导出必须由后端读取最新分镜和单集台本生成，保证下载文件与当前项目数据一致。
 
 ## Related Modules
 

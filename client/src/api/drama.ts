@@ -367,6 +367,14 @@ export async function downloadDramaExport(id: string, format: "markdown" | "json
   return response.data;
 }
 
+export async function downloadDramaEpisodeExport(id: string, order: number, format: "srt") {
+  const response = await apiClient.get<Blob>(`/drama/projects/${id}/episodes/${order}/export`, {
+    params: { format },
+    responseType: "blob",
+  });
+  return response.data;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 角色图片生成
 // ─────────────────────────────────────────────────────────────────────────────

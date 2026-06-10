@@ -12,6 +12,7 @@ import {
 import {
   assembleDramaSourceBundle,
   createDramaVideoProviderTask,
+  downloadDramaEpisodeExport,
   downloadDramaExport,
   generateDramaEpisodeScript,
   generateDramaOutline,
@@ -433,6 +434,14 @@ export default function DramaProjectPage() {
     downloadBlob(blob, `${project.title}-short-drama.${format === "json" ? "json" : "md"}`);
   };
 
+  const handleEpisodeExport = async (order: number, format: "srt") => {
+    if (!project) {
+      return;
+    }
+    const blob = await downloadDramaEpisodeExport(project.id, order, format);
+    downloadBlob(blob, `${project.title}-E${order}.${format}`);
+  };
+
   const handleSaveEpisode = (order: number, input: {
     title: string;
     hookOpening: string;
@@ -620,6 +629,12 @@ export default function DramaProjectPage() {
               <Download className="h-4 w-4" />
               导出 JSON
             </Button>
+            {selectedOrderValue ? (
+              <Button type="button" variant="outline" onClick={() => void handleEpisodeExport(selectedOrderValue, "srt")}>
+                <Download className="h-4 w-4" />
+                导出本集 SRT
+              </Button>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}

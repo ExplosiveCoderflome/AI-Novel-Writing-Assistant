@@ -154,6 +154,19 @@ function installPipelineStubs() {
     },
     dramaEpisode: {
       update: tx.dramaEpisode.update,
+      findUnique: async ({ where }) => {
+        if (where.projectId_order.projectId !== "project_1" || where.projectId_order.order !== state.episode.order) {
+          return null;
+        }
+        return {
+          ...state.episode,
+          project: { title: "逆袭短剧" },
+          storyboards: state.storyboards.map((storyboard) => ({
+            ...storyboard,
+            shots: state.shots.filter((shot) => shot.storyboardId === storyboard.id),
+          })),
+        };
+      },
     },
     dramaFact: {
       createMany: tx.dramaFact.createMany,
@@ -367,4 +380,11 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
     "/api/drama/shot-images/shot_1/keyframe",
     "/api/drama/character-images/character_1/character-sheet",
   ]);
+
+  const { DramaExportService } = require("../dist/services/drama/DramaExportService.js");
+  const srt = await new DramaExportService().exportEpisode("project_1", 1, "srt");
+  assert.equal(srt.contentType, "application/x-subrip; charset=utf-8");
+  assert.equal(srt.filename, "逆袭短剧-E1.srt");
+  assert.match(srt.body, /00:00:00,000 --> 00:00:05,000/);
+  assert.match(srt.body, /保安：你也配进去？/);
 });

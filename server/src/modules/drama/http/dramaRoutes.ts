@@ -356,6 +356,18 @@ router.get("/projects/:id/export", validate({ params: idParamsSchema }), async (
   }
 });
 
+router.get("/projects/:id/episodes/:order/export", validate({ params: episodeParamsSchema }), async (req, res, next) => {
+  try {
+    const { id, order } = req.params as unknown as z.infer<typeof episodeParamsSchema>;
+    const data = await dramaExportService.exportEpisode(id, order, "srt");
+    res.setHeader("Content-Type", data.contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(data.filename)}"`);
+    res.status(200).send(data.body);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/projects/:id/episodes/:order/storyboard", validate({ params: episodeParamsSchema, body: llmOptionsSchema }), async (req, res, next) => {
   try {
     const { id, order } = req.params as unknown as z.infer<typeof episodeParamsSchema>;
