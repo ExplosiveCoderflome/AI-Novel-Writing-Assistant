@@ -29,6 +29,7 @@ interface CharacterLite {
   archetype?: string | null;
   persona?: string | null;
   visualAnchor?: string | null;
+  portraitData?: string | null;
 }
 
 interface ShotKeyframeSource {
@@ -43,6 +44,7 @@ interface ShotKeyframeSource {
   visualPrompt?: string | null;
   storyboard: {
     project: {
+      id: string;
       characters: CharacterLite[];
     };
   };
@@ -131,6 +133,16 @@ function selectReferencedCharacters(shot: ShotKeyframeSource): CharacterLite[] {
   });
 }
 
+function resolveCharacterRefImageUrl(character: CharacterLite): string | null {
+  if (!character.portraitData) return null;
+  try {
+    const pd = JSON.parse(character.portraitData) as { status?: string; url?: string };
+    return pd.status === "done" && pd.url ? pd.url : null;
+  } catch {
+    return null;
+  }
+}
+
 function buildCharacterPromptLine(character: CharacterLite): string {
   return [
     character.name,
@@ -163,6 +175,7 @@ export class DramaShotKeyframeService {
   async generateKeyframe(
     shotId: string,
     provider: LLMProvider = DEFAULT_PROVIDER,
+    useCharacterRefImages = false,
   ): Promise<ShotKeyframeData> {
     const shot = await prisma.dramaShot.findUnique({
       where: { id: shotId },
@@ -190,6 +203,17 @@ export class DramaShotKeyframeService {
     try {
       const model = await resolveImageModel(provider);
       const prompt = buildShotKeyframePrompt(shot);
+
+      // 开关开启时：取 shot 关联角色的设计稿 URL 作为参考图
+      const refImages: string[] = [];
+      if (useCharacterRefImages) {
+        const referencedChars = selectReferencedCharacters(shot);
+        for (const char of referencedChars) {
+          const url = resolveCharacterRefImageUrl(char);
+          if (url) refImages.push(url);
+        }
+      }
+
       const result = await generateImagesByProvider({
         sceneType: "chapter_illustration",
         provider,
@@ -198,6 +222,7 @@ export class DramaShotKeyframeService {
         negativePrompt: "low quality, blurry, distorted face, extra fingers, duplicate body, text, watermark, subtitles",
         size: "1024x1536",
         count: 1,
+        ...(refImages.length > 0 ? { refImages } : {}),
       });
       const imageUrl = result.images[0]?.url;
       if (!imageUrl) {

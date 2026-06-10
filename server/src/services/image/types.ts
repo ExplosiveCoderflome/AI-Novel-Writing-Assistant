@@ -79,6 +79,8 @@ export interface ImageProviderGenerateInput {
   outputFormat?: ImageOutputFormat;
   outputCompression?: number;
   moderation?: ImageModerationLevel;
+  /** 参考图 URL 列表（支持 http/https 或 data: URI）；provider 不支持时静默忽略 */
+  refImages?: string[];
 }
 
 export interface GeneratedImage {

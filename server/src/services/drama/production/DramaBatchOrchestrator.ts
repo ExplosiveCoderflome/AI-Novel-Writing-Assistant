@@ -20,12 +20,14 @@ export interface DramaBatchProgress {
   targetShotIds?: string[];
   currentShotId?: string;
   errors?: Array<{ shotId: string; message: string }>;
+  useCharacterRefImages?: boolean;
 }
 
 export interface CreateEpisodeBatchJobInput {
   type: DramaBatchJobType;
   provider?: string;
   failedShotIds?: string[];
+  useCharacterRefImages?: boolean;
 }
 
 interface CreateEpisodeBatchJobOptions {
@@ -118,6 +120,7 @@ export class DramaBatchOrchestrator {
       provider,
       targetShotIds,
       errors: [],
+      useCharacterRefImages: input.useCharacterRefImages ?? false,
     });
     const job = await prisma.dramaBatchJob.create({
       data: {
@@ -180,7 +183,7 @@ export class DramaBatchOrchestrator {
         nextProgress.currentShotId = shot.id;
         await this.updateJob(jobId, "running", nextProgress);
         try {
-          const result = await this.processShot(job.type as DramaBatchJobType, job.projectId, episode.id, shot, nextProgress.provider);
+          const result = await this.processShot(job.type as DramaBatchJobType, job.projectId, episode.id, shot, nextProgress.provider, nextProgress.useCharacterRefImages ?? false);
           if (result === "skipped") {
             nextProgress.skipped += 1;
           }
@@ -203,11 +206,11 @@ export class DramaBatchOrchestrator {
     }
   }
 
-  private async processKeyframeShot(shot: BatchShot, provider?: string): Promise<"processed" | "skipped"> {
+  private async processKeyframeShot(shot: BatchShot, provider?: string, useCharacterRefImages = false): Promise<"processed" | "skipped"> {
     if (hasDoneKeyframe(shot.keyframeData)) {
       return "skipped";
     }
-    await this.keyframeService.generateKeyframe(shot.id, (provider || DEFAULT_IMAGE_PROVIDER) as LLMProvider);
+    await this.keyframeService.generateKeyframe(shot.id, (provider || DEFAULT_IMAGE_PROVIDER) as LLMProvider, useCharacterRefImages);
     return "processed";
   }
 
@@ -245,9 +248,10 @@ export class DramaBatchOrchestrator {
     episodeId: string,
     shot: BatchShot,
     provider?: string,
+    useCharacterRefImages = false,
   ): Promise<"processed" | "skipped"> {
     if (type === "keyframes") {
-      return this.processKeyframeShot(shot, provider);
+      return this.processKeyframeShot(shot, provider, useCharacterRefImages);
     }
     if (type === "tts") {
       return this.processTtsShot(shot, provider);

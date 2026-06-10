@@ -627,7 +627,7 @@ export default function DramaProjectPage() {
           busy={actionMutation.isPending}
           onStoryboard={(order) => runAction(() => generateDramaStoryboard(project.id, order), `第 ${order} 集分镜已生成。`)}
           onBatchJob={(order, input) => runAction(() => createDramaEpisodeBatchJob(project.id, order, input), "批量任务已创建。")}
-          onKeyframe={(shot) => runAction(() => generateDramaShotKeyframe(project.id, shot.id), `镜头 ${shot.order} 的首帧图已生成。`)}
+          onKeyframe={(shot, provider, useCharacterRefImages) => runAction(() => generateDramaShotKeyframe(project.id, shot.id, provider, useCharacterRefImages), `镜头 ${shot.order} 的首帧图已生成。`)}
           onVideoPrompt={(shot) => runAction(() => generateDramaVideoPrompt(project.id, shot.id), `镜头 ${shot.order} 的视频提示词已生成。`)}
           videoProviders={videoProviders}
           selectedProvider={activeVideoProvider}

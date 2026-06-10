@@ -395,10 +395,15 @@ export async function generateDramaVideoPrompt(id: string, shotId: string, paylo
   return data;
 }
 
-export async function generateDramaShotKeyframe(id: string, shotId: string, provider?: string) {
+export async function generateDramaShotKeyframe(
+  id: string,
+  shotId: string,
+  provider?: string,
+  useCharacterRefImages?: boolean,
+) {
   const { data } = await apiClient.post<ApiResponse<DramaShotKeyframeData>>(
     `/drama/projects/${id}/shots/${shotId}/keyframe`,
-    provider ? { provider } : {},
+    { ...(provider ? { provider } : {}), ...(useCharacterRefImages ? { useCharacterRefImages } : {}) },
   );
   return data;
 }
@@ -419,6 +424,7 @@ export async function createDramaEpisodeBatchJob(id: string, order: number, payl
   type: DramaBatchJobType;
   provider?: string;
   failedShotIds?: string[];
+  useCharacterRefImages?: boolean;
 }) {
   const { data } = await apiClient.post<ApiResponse<DramaBatchJob>>(
     `/drama/projects/${id}/episodes/${order}/batch-jobs`,

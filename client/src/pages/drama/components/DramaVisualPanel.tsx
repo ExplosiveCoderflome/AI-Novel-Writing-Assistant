@@ -23,8 +23,8 @@ export function DramaVisualPanel(props: {
   selectedOrder: number | null;
   onSelectOrder: (order: number) => void;
   onStoryboard: (order: number) => void;
-  onBatchJob: (order: number, input: { type: DramaBatchJobType; provider?: string; failedShotIds?: string[] }) => void;
-  onKeyframe: (shot: DramaShot, provider?: string) => void;
+  onBatchJob: (order: number, input: { type: DramaBatchJobType; provider?: string; failedShotIds?: string[]; useCharacterRefImages?: boolean }) => void;
+  onKeyframe: (shot: DramaShot, provider?: string, useCharacterRefImages?: boolean) => void;
   onVideoPrompt: (shot: DramaShot) => void;
   videoProviders: DramaVideoProvider[];
   selectedProvider: string;
@@ -43,6 +43,7 @@ export function DramaVisualPanel(props: {
   const latestKeyframeBatch = selectedBatchJobs.find((job) => job.type === "keyframes");
   const latestVideoBatch = selectedBatchJobs.find((job) => job.type === "videos");
   const [selectedImageProvider, setSelectedImageProvider] = useState("");
+  const [useCharacterRefImages, setUseCharacterRefImages] = useState(false);
   const apiKeyQuery = useQuery({
     queryKey: ["api-key-settings"],
     queryFn: getAPIKeySettings,
@@ -141,6 +142,15 @@ export function DramaVisualPanel(props: {
               <option value="">未配置图片 Provider</option>
             )}
           </select>
+          <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
+            <input
+              type="checkbox"
+              checked={useCharacterRefImages}
+              onChange={(event) => setUseCharacterRefImages(event.target.checked)}
+              className="h-4 w-4 accent-primary"
+            />
+            <span>角色参考图</span>
+          </label>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" disabled={props.busy || !selectedEpisode.content?.trim()} onClick={() => props.onStoryboard(selectedEpisode.order)}>
@@ -151,7 +161,7 @@ export function DramaVisualPanel(props: {
             type="button"
             variant="outline"
             disabled={props.busy || !hasStoryboardShots || imageProviders.length === 0 || keyframeBatchActive}
-            onClick={() => props.onBatchJob(selectedEpisode.order, { type: "keyframes", provider: activeImageProvider || undefined })}
+            onClick={() => props.onBatchJob(selectedEpisode.order, { type: "keyframes", provider: activeImageProvider || undefined, useCharacterRefImages })}
           >
             <ImageIcon className="h-4 w-4" />
             生成本集首帧
@@ -225,7 +235,7 @@ export function DramaVisualPanel(props: {
                         type="button"
                         variant={keyframe.status === "done" ? "outline" : "default"}
                         disabled={props.busy || imageProviders.length === 0 || keyframe.status === "generating"}
-                        onClick={() => props.onKeyframe(shot, activeImageProvider || undefined)}
+                        onClick={() => props.onKeyframe(shot, activeImageProvider || undefined, useCharacterRefImages)}
                       >
                         <ImageIcon className="h-4 w-4" />
                         {keyframe.status === "done" ? "重生成首帧" : "生成首帧"}

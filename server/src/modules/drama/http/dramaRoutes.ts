@@ -34,13 +34,17 @@ const llmOptionsSchema = z
   .optional();
 
 const imageProviderBodySchema = z
-  .object({ provider: z.string().trim().optional() })
+  .object({
+    provider: z.string().trim().optional(),
+    useCharacterRefImages: z.boolean().optional(),
+  })
   .optional();
 
 const batchJobBodySchema = z.object({
   type: z.enum(["keyframes", "videos", "tts"]),
   provider: z.string().trim().optional(),
   failedShotIds: z.array(z.string().trim().min(1)).optional(),
+  useCharacterRefImages: z.boolean().optional(),
 });
 
 const outlineRequestSchema = z
@@ -426,10 +430,11 @@ router.post("/projects/:id/shots/:shotId/video-prompt", validate({ params: shotP
 router.post("/projects/:id/shots/:shotId/keyframe", validate({ params: shotParamsSchema, body: imageProviderBodySchema }), async (req, res, next) => {
   try {
     const { shotId } = req.params as z.infer<typeof shotParamsSchema>;
-    const provider = (req.body as { provider?: string } | undefined)?.provider;
+    const body = req.body as { provider?: string; useCharacterRefImages?: boolean } | undefined;
     const data = await dramaShotKeyframeService.generateKeyframe(
       shotId,
-      provider as Parameters<typeof dramaShotKeyframeService.generateKeyframe>[1],
+      body?.provider as Parameters<typeof dramaShotKeyframeService.generateKeyframe>[1],
+      body?.useCharacterRefImages ?? false,
     );
     res.status(200).json({ success: true, data, message: "Drama shot keyframe generated." });
   } catch (error) {

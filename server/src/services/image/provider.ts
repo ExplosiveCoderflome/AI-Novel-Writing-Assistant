@@ -185,6 +185,13 @@ export function buildImageGenerationRequestBody(input: ImageProviderGenerateInpu
     }
   }
 
+  // 参考图注入（OpenAI images/edits 兼容格式）
+  // grok 暂不支持参考图，静默跳过；其他 provider 按 input_image_url 格式透传，
+  // 若 provider 实际不支持，API 层会返回错误，由上层处理。
+  if (input.refImages && input.refImages.length > 0 && input.provider !== "grok") {
+    requestBody.input_image_url = input.refImages[0];
+  }
+
   return requestBody;
 }
 
