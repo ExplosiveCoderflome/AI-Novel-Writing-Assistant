@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Download, ImageIcon, Loader2, Mic2, Save, UserRound, Video } from "lucide-react";
 import type {
   DramaCharacter,
@@ -11,6 +12,7 @@ import {
   generateDramaCharacterPortrait,
   generateDramaCharacterThreeView,
 } from "@/api/drama";
+import { getAPIKeySettings } from "@/api/settings";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,6 +110,29 @@ function CharacterImagesBlock(props: {
   );
   const [genPortraitBusy, setGenPortraitBusy] = useState(false);
   const [genThreeBusy, setGenThreeBusy] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState("");
+
+  // 加载已配置的支持图片生成的 provider 列表
+  const apiKeyQuery = useQuery({
+    queryKey: ["api-key-settings"],
+    queryFn: getAPIKeySettings,
+    staleTime: 60_000,
+  });
+
+  const imageProviders = useMemo(
+    () =>
+      (apiKeyQuery.data?.data ?? []).filter(
+        (item) => item.isActive && item.isConfigured && item.supportsImageGeneration && item.currentImageModel,
+      ),
+    [apiKeyQuery.data?.data],
+  );
+
+  // 自动选中第一个可用 provider
+  useEffect(() => {
+    if (imageProviders.length > 0 && !selectedProvider) {
+      setSelectedProvider(imageProviders[0]!.provider);
+    }
+  }, [imageProviders, selectedProvider]);
 
   // 当角色数据从父组件更新时同步
   useEffect(() => {
@@ -119,7 +144,7 @@ function CharacterImagesBlock(props: {
     setGenPortraitBusy(true);
     setPortrait({ status: "generating" });
     try {
-      const result = await generateDramaCharacterPortrait(props.projectId, props.character.id);
+      const result = await generateDramaCharacterPortrait(props.projectId, props.character.id, selectedProvider || undefined);
       setPortrait(result.data ?? { status: "error", error: "无结果" });
       props.onRefresh();
     } catch (error) {
@@ -137,7 +162,7 @@ function CharacterImagesBlock(props: {
       { view: "back", status: "generating" },
     ]);
     try {
-      const result = await generateDramaCharacterThreeView(props.projectId, props.character.id);
+      const result = await generateDramaCharacterThreeView(props.projectId, props.character.id, selectedProvider || undefined);
       setThreeView(result.data ?? []);
       props.onRefresh();
     } catch (error) {
@@ -153,9 +178,28 @@ function CharacterImagesBlock(props: {
 
   return (
     <div className="space-y-3 border-t pt-3">
-      <p className="text-xs font-medium text-muted-foreground">
-        角色参考图 — 生成后将锁定跨集视觉一致性
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium text-muted-foreground">
+          角色参考图 — 生成后将锁定跨集视觉一致性
+        </p>
+        {/* Provider / 模型选择器 */}
+        {imageProviders.length > 0 ? (
+          <select
+            className="h-7 rounded-md border bg-background px-2 text-xs"
+            value={selectedProvider}
+            disabled={genPortraitBusy || genThreeBusy}
+            onChange={(event) => setSelectedProvider(event.target.value)}
+          >
+            {imageProviders.map((item) => (
+              <option key={item.provider} value={item.provider}>
+                {item.name} · {item.currentImageModel}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="text-xs text-destructive">请先在设置中配置图片生成 Provider</span>
+        )}
+      </div>
 
       {/* 形象图 */}
       <div className="flex flex-wrap items-start gap-3">
