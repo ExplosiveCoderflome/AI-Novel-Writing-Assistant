@@ -5,12 +5,10 @@ import type {
   DramaCharacter,
   DramaCharacterLibraryItem,
   DramaCharacterPortraitData,
-  DramaCharacterThreeViewItem,
   DramaProjectDetail,
 } from "@/api/drama";
 import {
   generateDramaCharacterPortrait,
-  generateDramaCharacterThreeView,
 } from "@/api/drama";
 import { getAPIKeySettings } from "@/api/settings";
 import { Badge } from "@/components/ui/badge";
@@ -90,29 +88,18 @@ function parsePortrait(raw: string | null | undefined): DramaCharacterPortraitDa
   try { return JSON.parse(raw) as DramaCharacterPortraitData; } catch { return { status: "idle" }; }
 }
 
-function parseThreeView(raw: string | null | undefined): DramaCharacterThreeViewItem[] {
-  if (!raw) return [];
-  try { return JSON.parse(raw) as DramaCharacterThreeViewItem[]; } catch { return []; }
-}
-
-const THREE_VIEW_LABELS: Record<string, string> = { front: "正面", side: "侧面", back: "背面" };
 
 function CharacterImagesBlock(props: {
   projectId: string;
   character: DramaCharacter;
   onRefresh: () => void;
 }) {
-  const [portrait, setPortrait] = useState<DramaCharacterPortraitData>(() =>
+  const [sheet, setSheet] = useState<DramaCharacterPortraitData>(() =>
     parsePortrait(props.character.portraitData),
   );
-  const [threeView, setThreeView] = useState<DramaCharacterThreeViewItem[]>(() =>
-    parseThreeView(props.character.threeViewData),
-  );
-  const [genPortraitBusy, setGenPortraitBusy] = useState(false);
-  const [genThreeBusy, setGenThreeBusy] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState("");
 
-  // 加载已配置的支持图片生成的 provider 列表
   const apiKeyQuery = useQuery({
     queryKey: ["api-key-settings"],
     queryFn: getAPIKeySettings,
@@ -127,67 +114,49 @@ function CharacterImagesBlock(props: {
     [apiKeyQuery.data?.data],
   );
 
-  // 自动选中第一个可用 provider
   useEffect(() => {
     if (imageProviders.length > 0 && !selectedProvider) {
       setSelectedProvider(imageProviders[0]!.provider);
     }
   }, [imageProviders, selectedProvider]);
 
-  // 当角色数据从父组件更新时同步
   useEffect(() => {
-    setPortrait(parsePortrait(props.character.portraitData));
-    setThreeView(parseThreeView(props.character.threeViewData));
-  }, [props.character.portraitData, props.character.threeViewData]);
+    setSheet(parsePortrait(props.character.portraitData));
+  }, [props.character.portraitData]);
 
-  async function handleGeneratePortrait() {
-    setGenPortraitBusy(true);
-    setPortrait({ status: "generating" });
+  async function handleGenerate() {
+    setBusy(true);
+    setSheet({ status: "generating" });
     try {
-      const result = await generateDramaCharacterPortrait(props.projectId, props.character.id, selectedProvider || undefined);
-      setPortrait(result.data ?? { status: "error", error: "无结果" });
+      const result = await generateDramaCharacterPortrait(
+        props.projectId,
+        props.character.id,
+        selectedProvider || undefined,
+      );
+      setSheet(result.data ?? { status: "error", error: "无结果" });
       props.onRefresh();
     } catch (error) {
-      setPortrait({ status: "error", error: error instanceof Error ? error.message : "生成失败" });
+      setSheet({ status: "error", error: error instanceof Error ? error.message : "生成失败" });
     } finally {
-      setGenPortraitBusy(false);
+      setBusy(false);
     }
   }
 
-  async function handleGenerateThreeView() {
-    setGenThreeBusy(true);
-    setThreeView([
-      { view: "front", status: "generating" },
-      { view: "side", status: "generating" },
-      { view: "back", status: "generating" },
-    ]);
-    try {
-      const result = await generateDramaCharacterThreeView(props.projectId, props.character.id, selectedProvider || undefined);
-      setThreeView(result.data ?? []);
-      props.onRefresh();
-    } catch (error) {
-      setThreeView([
-        { view: "front", status: "error", error: error instanceof Error ? error.message : "生成失败" },
-        { view: "side", status: "error" },
-        { view: "back", status: "error" },
-      ]);
-    } finally {
-      setGenThreeBusy(false);
-    }
-  }
+  const isGenerating = busy || sheet.status === "generating";
 
   return (
     <div className="space-y-3 border-t pt-3">
+      {/* 标题行 + Provider 选择器 */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium text-muted-foreground">
-          角色参考图 — 生成后将锁定跨集视觉一致性
-        </p>
-        {/* Provider / 模型选择器 */}
+        <div>
+          <p className="text-sm font-medium">角色设计稿</p>
+          <p className="text-xs text-muted-foreground">面部特写 + 全身正/侧/背三视图 — 生成后锁定跨集视觉一致性</p>
+        </div>
         {imageProviders.length > 0 ? (
           <select
             className="h-7 rounded-md border bg-background px-2 text-xs"
             value={selectedProvider}
-            disabled={genPortraitBusy || genThreeBusy}
+            disabled={isGenerating}
             onChange={(event) => setSelectedProvider(event.target.value)}
           >
             {imageProviders.map((item) => (
@@ -201,98 +170,59 @@ function CharacterImagesBlock(props: {
         )}
       </div>
 
-      {/* 形象图 */}
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="flex-shrink-0">
-          {portrait.status === "done" && portrait.url ? (
-            <a href={portrait.url} target="_blank" rel="noreferrer">
-              <img
-                src={portrait.url}
-                alt={`${props.character.name} 形象图`}
-                className="h-28 w-20 rounded-md border object-cover shadow-sm"
-              />
-            </a>
+      {/* 设计稿预览 — 横版大图 */}
+      {sheet.status === "done" && sheet.url ? (
+        <a href={sheet.url} target="_blank" rel="noreferrer" className="block">
+          <img
+            src={sheet.url}
+            alt={`${props.character.name} 角色设计稿`}
+            className="w-full rounded-md border object-contain shadow-sm"
+            style={{ maxHeight: "240px" }}
+          />
+        </a>
+      ) : (
+        <div
+          className="flex w-full items-center justify-center rounded-md border border-dashed bg-muted text-muted-foreground"
+          style={{ height: "140px" }}
+        >
+          {sheet.status === "generating" ? (
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <span className="text-xs">正在生成角色设计稿...</span>
+            </div>
+          ) : sheet.status === "error" ? (
+            <div className="flex flex-col items-center gap-1 px-4 text-center">
+              <ImageIcon className="h-5 w-5 text-destructive" />
+              <span className="text-xs text-destructive">{sheet.error ?? "生成失败"}</span>
+            </div>
           ) : (
-            <div className="flex h-28 w-20 items-center justify-center rounded-md border border-dashed bg-muted text-muted-foreground">
-              {portrait.status === "generating" ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <ImageIcon className="h-5 w-5" />
-              )}
+            <div className="flex flex-col items-center gap-1">
+              <ImageIcon className="h-6 w-6" />
+              <span className="text-xs">尚未生成</span>
             </div>
           )}
         </div>
-        <div className="flex flex-col gap-1.5">
-          <p className="text-sm font-medium">形象图（详图）</p>
-          <p className="text-xs text-muted-foreground">
-            {portrait.status === "idle" && "尚未生成"}
-            {portrait.status === "generating" && "正在生成..."}
-            {portrait.status === "done" && "✓ 已生成，视频生成将自动引用"}
-            {portrait.status === "error" && `生成失败：${portrait.error ?? "未知错误"}`}
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={genPortraitBusy || portrait.status === "generating"}
-            onClick={handleGeneratePortrait}
-          >
-            {genPortraitBusy || portrait.status === "generating" ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <ImageIcon className="h-3.5 w-3.5" />
-            )}
-            {portrait.status === "done" ? "重新生成形象图" : "生成形象图"}
-          </Button>
-        </div>
-      </div>
+      )}
 
-      {/* 三视图 */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium">三视图（正/侧/背）</p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={genThreeBusy || threeView.some((item) => item.status === "generating")}
-            onClick={handleGenerateThreeView}
-          >
-            {genThreeBusy ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Video className="h-3.5 w-3.5" />
-            )}
-            {threeView.some((item) => item.status === "done") ? "重新生成三视图" : "生成三视图"}
-          </Button>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(["front", "side", "back"] as const).map((view) => {
-            const item = threeView.find((tv) => tv.view === view);
-            return (
-              <div key={view} className="flex flex-col items-center gap-1">
-                {item?.status === "done" && item.url ? (
-                  <a href={item.url} target="_blank" rel="noreferrer">
-                    <img
-                      src={item.url}
-                      alt={`${THREE_VIEW_LABELS[view]}视`}
-                      className="h-24 w-16 rounded-md border object-cover shadow-sm"
-                    />
-                  </a>
-                ) : (
-                  <div className="flex h-24 w-16 items-center justify-center rounded-md border border-dashed bg-muted text-muted-foreground">
-                    {item?.status === "generating" ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <ImageIcon className="h-4 w-4" />
-                    )}
-                  </div>
-                )}
-                <span className="text-xs text-muted-foreground">{THREE_VIEW_LABELS[view]}</span>
-              </div>
-            );
-          })}
-        </div>
+      {/* 操作按钮 */}
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant={sheet.status === "done" ? "outline" : "default"}
+          disabled={isGenerating || imageProviders.length === 0}
+          onClick={handleGenerate}
+        >
+          {isGenerating ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <ImageIcon className="h-3.5 w-3.5" />
+          )}
+          {sheet.status === "done" ? "重新生成设计稿" : "生成角色设计稿"}
+        </Button>
+        {sheet.status === "done" && (
+          <span className="text-xs text-muted-foreground">✓ 视频生成将自动引用此图作为角色参考</span>
+        )}
       </div>
     </div>
   );

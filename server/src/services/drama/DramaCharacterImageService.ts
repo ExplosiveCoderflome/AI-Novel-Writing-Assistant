@@ -1,11 +1,12 @@
 /**
  * DramaCharacterImageService
- * 为短剧角色生成形象图（详图）和三视图（正面/侧面/背面）。
+ * 为短剧角色生成「角色设计稿」：一张横版图同时包含面部特写 + 正/侧/背三视图。
+ * 对齐行业标准角色参考图规范，一次生成、全视角一致、作为视频生成的视觉锚点。
  *
  * 设计原则：
  * - 仅依赖平台级图片能力（provider.ts），不导入 novel 业务服务。
- * - 图片存储在独立目录 drama-characters/{charId}/，通过专用端点服务。
- * - 生成进度写回 DramaCharacter.portraitData / threeViewData（JSON 字符串）。
+ * - 图片存储于 drama-characters/{charId}/ 独立目录，通过专用端点服务。
+ * - characterSheetData 存角色设计稿（主）；portraitData/threeViewData 保留后备兼容。
  */
 import fs from "fs/promises";
 import path from "path";
@@ -24,6 +25,15 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type CharacterImageStatus = "idle" | "generating" | "done" | "error";
+
+export interface CharacterSheetData {
+  status: CharacterImageStatus;
+  /** 角色设计稿公开 URL（面部特写 + 三视图合图） */
+  url?: string;
+  prompt?: string;
+  generatedAt?: string;
+  error?: string;
+}
 
 export interface PortraitData {
   status: CharacterImageStatus;
@@ -55,11 +65,7 @@ function dramaCharacterDir(charId: string): string {
   return path.join(resolveGeneratedImagesRoot(), DRAMA_IMAGES_DIR, charId);
 }
 
-/** 将图片 URL 或 base64 data-url 写入磁盘，返回本地路径 */
-async function saveImageToDisk(
-  imageUrl: string,
-  destPath: string,
-): Promise<void> {
+async function saveImageToDisk(imageUrl: string, destPath: string): Promise<void> {
   await fs.mkdir(path.dirname(destPath), { recursive: true });
 
   if (imageUrl.startsWith("data:")) {
@@ -76,7 +82,6 @@ async function saveImageToDisk(
   }
 }
 
-/** 解析 PNG 扩展名（默认 png） */
 function inferExtension(imageUrl: string): string {
   if (imageUrl.startsWith("data:image/jpeg")) return "jpg";
   if (imageUrl.startsWith("data:image/webp")) return "webp";
@@ -88,72 +93,44 @@ function inferExtension(imageUrl: string): string {
   }
 }
 
-/** 构建角色形象图生成提示词 */
-function buildPortraitPrompt(character: {
+function extractVisualDesc(visualAnchor: string | null | undefined): string {
+  if (!visualAnchor?.trim()) return "";
+  try {
+    const parsed = JSON.parse(visualAnchor) as Record<string, unknown>;
+    return typeof parsed.description === "string" ? parsed.description : JSON.stringify(parsed);
+  } catch {
+    return visualAnchor;
+  }
+}
+
+/**
+ * 构建「角色设计稿」提示词：
+ * 单张横版图 = 左侧面部特写（1/3） + 右侧全身三视图正/侧/背（2/3）
+ */
+function buildCharacterSheetPrompt(character: {
   name: string;
   archetype?: string | null;
   persona?: string | null;
   visualAnchor?: string | null;
 }): string {
-  const parts: string[] = [
-    "竖屏短剧角色形象图",
-    `角色名：${character.name}`,
-  ];
-  if (character.archetype) parts.push(`原型：${character.archetype}`);
-  if (character.persona) parts.push(`人设：${character.persona}`);
-  if (character.visualAnchor) {
-    // visualAnchor 可能是 JSON 或纯文字
-    try {
-      const parsed = JSON.parse(character.visualAnchor) as Record<string, unknown>;
-      const desc = typeof parsed.description === "string" ? parsed.description : JSON.stringify(parsed);
-      parts.push(`外形：${desc}`);
-    } catch {
-      parts.push(`外形：${character.visualAnchor}`);
-    }
-  }
-  parts.push(
-    "电影级写实质感，精致五官，高清细节",
-    "8K超高清，专业摄影棚打光，白色背景，全身展示",
-    "亚洲面孔，现代服装风格，无文字水印",
-  );
-  return parts.join("，");
-}
+  const visualDesc = extractVisualDesc(character.visualAnchor);
 
-/** 构建三视图提示词（正/侧/背） */
-function buildThreeViewPrompt(
-  view: ThreeViewName,
-  character: {
-    name: string;
-    archetype?: string | null;
-    visualAnchor?: string | null;
-  },
-): string {
-  const viewLabel: Record<ThreeViewName, string> = {
-    front: "正面",
-    side: "侧面（90度侧视）",
-    back: "背面",
-  };
-  const parts: string[] = [
-    "角色三视图",
-    viewLabel[view],
-    `角色名：${character.name}`,
+  const lines: string[] = [
+    "professional character design reference sheet, single image",
+    "LEFT THIRD: close-up portrait of the character's face (frontal view, detailed facial features, natural expression)",
+    "RIGHT TWO-THIRDS: full-body character turnaround showing three views side by side — front view, side view (90-degree profile), back view",
+    "all four views depict the SAME character with IDENTICAL costume, hairstyle, and color scheme",
+    "white background, clean studio lighting, no text or watermarks",
+    "cinematic quality, photorealistic, 8K detail",
   ];
-  if (character.archetype) parts.push(`原型：${character.archetype}`);
-  if (character.visualAnchor) {
-    try {
-      const parsed = JSON.parse(character.visualAnchor) as Record<string, unknown>;
-      const desc = typeof parsed.description === "string" ? parsed.description : JSON.stringify(parsed);
-      parts.push(`外形：${desc}`);
-    } catch {
-      parts.push(`外形：${character.visualAnchor}`);
-    }
-  }
-  parts.push(
-    "白色背景，全身展示，服装细节清晰",
-    "与其他视角为同一角色，保持造型完全一致",
-    "专业角色设计参考图，无文字水印",
-  );
-  return parts.join("，");
+
+  if (character.archetype) lines.push(`character archetype: ${character.archetype}`);
+  if (character.persona) lines.push(`character trait: ${character.persona}`);
+  if (visualDesc) lines.push(`appearance: ${visualDesc}`);
+
+  lines.push("Asian face, vertical short drama style, professional costume design");
+
+  return lines.join(", ");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -162,63 +139,63 @@ function buildThreeViewPrompt(
 
 export class DramaCharacterImageService {
   /**
-   * 生成角色形象图（详图）。
-   * 立即将状态改为 generating，生成完成后回填 done。
+   * 生成角色设计稿（主方法）：
+   * 一张横版图 = 左侧面部特写 + 右侧全身正/侧/背三视图。
+   * 回填到 portraitData（兼容旧字段，视频生成读这个字段取参考图 URL）。
    */
-  async generatePortrait(
+  async generateCharacterSheet(
     characterId: string,
     provider = DEFAULT_PROVIDER,
-  ): Promise<PortraitData> {
+  ): Promise<CharacterSheetData> {
     const character = await prisma.dramaCharacter.findUnique({
       where: { id: characterId },
     });
     if (!character) {
       throw new AppError(`未找到短剧角色：${characterId}`, 404);
     }
-
     if (!isImageProviderSupported(provider)) {
       throw new AppError(`图片 Provider ${provider} 暂不支持。`, 400);
     }
 
-    // 标记 generating
-    const generatingData: PortraitData = { status: "generating" };
+    // 标记 generating（同时写入 portraitData 供视频生成链路读取）
+    const generatingData: CharacterSheetData = { status: "generating" };
     await prisma.dramaCharacter.update({
       where: { id: characterId },
-      data: { portraitData: JSON.stringify(generatingData) },
+      data: {
+        portraitData: JSON.stringify(generatingData),
+      },
     });
 
     try {
       const model = await resolveImageModel(provider);
-      const prompt = buildPortraitPrompt(character);
+      const prompt = buildCharacterSheetPrompt(character);
 
       const result = await generateImagesByProvider({
         sceneType: "character",
         provider,
         model,
         prompt,
-        size: "1024x1536", // 竖屏比例
+        size: "1536x1024", // 横版 3:2，容纳面部特写 + 三视图
         count: 1,
       });
 
       const imageUrl = result.images[0]?.url;
-      if (!imageUrl) {
-        throw new Error("图片生成结果为空。");
-      }
+      if (!imageUrl) throw new Error("图片生成结果为空。");
 
-      // 存储到磁盘
       const ext = inferExtension(imageUrl);
-      const fileName = `portrait.${ext}`;
+      const fileName = `character-sheet.${ext}`;
       const localPath = path.join(dramaCharacterDir(characterId), fileName);
       await saveImageToDisk(imageUrl, localPath);
 
-      const publicUrl = `/api/drama/character-images/${characterId}/portrait`;
-      const doneData: PortraitData = {
+      const publicUrl = `/api/drama/character-images/${characterId}/character-sheet`;
+      const doneData: CharacterSheetData = {
         status: "done",
         url: publicUrl,
         prompt,
         generatedAt: new Date().toISOString(),
       };
 
+      // 回填到 portraitData（视频生成链路读这个字段）
       await prisma.dramaCharacter.update({
         where: { id: characterId },
         data: { portraitData: JSON.stringify(doneData) },
@@ -226,7 +203,7 @@ export class DramaCharacterImageService {
 
       return doneData;
     } catch (err) {
-      const errorData: PortraitData = {
+      const errorData: CharacterSheetData = {
         status: "error",
         error: err instanceof Error ? err.message : String(err),
       };
@@ -239,86 +216,29 @@ export class DramaCharacterImageService {
   }
 
   /**
-   * 生成三视图（正面、侧面、背面）。
-   * 逐一生成，每张完成后立即写回。
+   * @deprecated 使用 generateCharacterSheet() 替代。
+   * 保留以避免旧调用报错，内部转发到 generateCharacterSheet。
+   */
+  async generatePortrait(
+    characterId: string,
+    provider = DEFAULT_PROVIDER,
+  ): Promise<PortraitData> {
+    return this.generateCharacterSheet(characterId, provider);
+  }
+
+  /**
+   * @deprecated 使用 generateCharacterSheet() 替代。
+   * 三视图已合并进角色设计稿，此方法返回空数组作为兼容占位。
    */
   async generateThreeView(
     characterId: string,
     provider = DEFAULT_PROVIDER,
   ): Promise<ThreeViewItem[]> {
-    const character = await prisma.dramaCharacter.findUnique({
-      where: { id: characterId },
-    });
-    if (!character) {
-      throw new AppError(`未找到短剧角色：${characterId}`, 404);
-    }
-
-    if (!isImageProviderSupported(provider)) {
-      throw new AppError(`图片 Provider ${provider} 暂不支持。`, 400);
-    }
-
-    const views: ThreeViewName[] = ["front", "side", "back"];
-    const items: ThreeViewItem[] = views.map((view) => ({ view, status: "generating" }));
-
-    // 标记全部 generating
-    await prisma.dramaCharacter.update({
-      where: { id: characterId },
-      data: { threeViewData: JSON.stringify(items) },
-    });
-
-    const model = await resolveImageModel(provider);
-
-    for (let i = 0; i < views.length; i++) {
-      const view = views[i]!;
-      try {
-        const prompt = buildThreeViewPrompt(view, character);
-        const result = await generateImagesByProvider({
-          sceneType: "character",
-          provider,
-          model,
-          prompt,
-          size: "1024x1536",
-          count: 1,
-        });
-
-        const imageUrl = result.images[0]?.url;
-        if (!imageUrl) {
-          throw new Error(`${view} 视图生成结果为空。`);
-        }
-
-        const ext = inferExtension(imageUrl);
-        const fileName = `three-view-${view}.${ext}`;
-        const localPath = path.join(dramaCharacterDir(characterId), fileName);
-        await saveImageToDisk(imageUrl, localPath);
-
-        items[i] = {
-          view,
-          status: "done",
-          url: `/api/drama/character-images/${characterId}/three-view/${view}`,
-          prompt,
-          generatedAt: new Date().toISOString(),
-        };
-      } catch (err) {
-        items[i] = {
-          view,
-          status: "error",
-          error: err instanceof Error ? err.message : String(err),
-        };
-      }
-
-      // 每张完成后立即写回，前端可实时刷新
-      await prisma.dramaCharacter.update({
-        where: { id: characterId },
-        data: { threeViewData: JSON.stringify(items) },
-      });
-    }
-
-    return items;
+    // 三视图现在在设计稿里，直接生成设计稿并返回占位
+    await this.generateCharacterSheet(characterId, provider);
+    return [];
   }
 
-  /**
-   * 获取角色当前图片状态。
-   */
   async getImageStatus(characterId: string): Promise<{
     portrait: PortraitData;
     threeView: ThreeViewItem[];
@@ -343,40 +263,26 @@ export class DramaCharacterImageService {
   }
 
   /**
-   * 解析角色图本地文件路径（供 HTTP 端点读文件使用）。
-   */
-  resolvePortraitPath(characterId: string): string {
-    const dir = dramaCharacterDir(characterId);
-    // 优先 png，兼容 jpg/webp
-    for (const ext of ["png", "jpg", "webp"]) {
-      return path.join(dir, `portrait.${ext}`);
-    }
-    return path.join(dir, "portrait.png");
-  }
-
-  resolveThreeViewPath(characterId: string, view: ThreeViewName): string {
-    const dir = dramaCharacterDir(characterId);
-    for (const ext of ["png", "jpg", "webp"]) {
-      return path.join(dir, `three-view-${view}.${ext}`);
-    }
-    return path.join(dir, `three-view-${view}.png`);
-  }
-
-  /**
-   * 实际解析文件：尝试所有扩展名，返回第一个存在的。
+   * 解析角色设计稿本地文件路径（供 HTTP 端点读文件使用）。
    */
   async resolveExistingImagePath(
     characterId: string,
-    type: "portrait" | `three-view-${"front" | "side" | "back"}`,
+    type: "portrait" | "character-sheet" | `three-view-${"front" | "side" | "back"}`,
   ): Promise<{ filePath: string; mimeType: string } | null> {
     const dir = dramaCharacterDir(characterId);
+
+    // character-sheet 和 portrait 都指向同一文件
+    const fileBase = (type === "portrait" || type === "character-sheet")
+      ? "character-sheet"
+      : type;
+
     const exts: Array<[string, string]> = [
       ["png", "image/png"],
       ["jpg", "image/jpeg"],
       ["webp", "image/webp"],
     ];
     for (const [ext, mime] of exts) {
-      const fp = path.join(dir, `${type}.${ext}`);
+      const fp = path.join(dir, `${fileBase}.${ext}`);
       try {
         await fs.access(fp);
         return { filePath: fp, mimeType: mime };

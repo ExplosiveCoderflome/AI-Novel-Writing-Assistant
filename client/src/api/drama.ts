@@ -359,12 +359,18 @@ export async function getDramaCharacterImageStatus(id: string, characterId: stri
   return data;
 }
 
-export async function generateDramaCharacterPortrait(id: string, characterId: string, provider?: string) {
+/** 生成角色设计稿（面部特写 + 三视图合图，推荐使用） */
+export async function generateDramaCharacterSheet(id: string, characterId: string, provider?: string) {
   const { data } = await apiClient.post<ApiResponse<DramaCharacterPortraitData>>(
-    `/drama/projects/${id}/characters/${characterId}/generate-portrait`,
+    `/drama/projects/${id}/characters/${characterId}/generate-character-sheet`,
     provider ? { provider } : {},
   );
   return data;
+}
+
+/** @deprecated 使用 generateDramaCharacterSheet 替代 */
+export async function generateDramaCharacterPortrait(id: string, characterId: string, provider?: string) {
+  return generateDramaCharacterSheet(id, characterId, provider);
 }
 
 export async function generateDramaCharacterThreeView(id: string, characterId: string, provider?: string) {
