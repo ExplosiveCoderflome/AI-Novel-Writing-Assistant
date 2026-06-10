@@ -24,6 +24,7 @@ import {
   getDramaProject,
   importDramaCharacterFromLibrary,
   listDramaCharacterLibrary,
+  listDramaTTSProviders,
   listDramaVideoProviders,
   repairDramaEpisode,
   refreshDramaVideoProviderTask,
@@ -36,6 +37,7 @@ import {
 } from "@/api/drama";
 import { queryKeys } from "@/api/queryKeys";
 import { DramaCharactersPanel } from "@/pages/drama/components/DramaCharactersPanel";
+import { DramaEpisodeAudioPanel } from "@/pages/drama/components/DramaEpisodeAudioPanel";
 import { DramaNextStepPanel } from "@/pages/drama/components/DramaNextStepPanel";
 import { DramaQualityPanel } from "@/pages/drama/components/DramaQualityPanel";
 import { DramaSourcePanel } from "@/pages/drama/components/DramaSourcePanel";
@@ -254,6 +256,8 @@ function EpisodesPanel(props: {
   project: DramaProjectDetail;
   selectedOrder: number | null;
   onSelectOrder: (order: number) => void;
+  ttsProviders: Array<{ provider: string; label: string; description?: string }>;
+  onBatchJob: (order: number, input: { type: "tts"; provider?: string; failedShotIds?: string[] }) => void;
   onGenerateScript: (order: number) => void;
   onReview: (order: number) => void;
   onRepair: (order: number) => void;
@@ -362,6 +366,13 @@ function EpisodesPanel(props: {
               <h3 className="text-sm font-medium">质量结果</h3>
               <QualityFlags episode={selectedEpisode} />
             </section>
+            <DramaEpisodeAudioPanel
+              episode={selectedEpisode}
+              batchJobs={props.project.batchJobs}
+              ttsProviders={props.ttsProviders}
+              busy={props.busy}
+              onBatchJob={props.onBatchJob}
+            />
           </CardContent>
         </Card>
       ) : null}
@@ -390,9 +401,14 @@ export default function DramaProjectPage() {
     queryKey: queryKeys.drama.videoProviders,
     queryFn: listDramaVideoProviders,
   });
+  const ttsProvidersQuery = useQuery({
+    queryKey: queryKeys.drama.ttsProviders,
+    queryFn: listDramaTTSProviders,
+  });
 
   const project = projectQuery.data?.data;
   const videoProviders = videoProvidersQuery.data?.data ?? [];
+  const ttsProviders = ttsProvidersQuery.data?.data ?? [];
   const activeVideoProvider = videoProviders.some((provider) => provider.provider === selectedVideoProvider)
     ? selectedVideoProvider
     : videoProviders[0]?.provider ?? "mock";
@@ -548,6 +564,8 @@ export default function DramaProjectPage() {
           project={project}
           selectedOrder={selectedOrderValue}
           onSelectOrder={setSelectedOrder}
+          ttsProviders={ttsProviders}
+          onBatchJob={(order, input) => runAction(() => createDramaEpisodeBatchJob(project.id, order, input), "配音任务已创建。")}
           busy={actionMutation.isPending}
           onGenerateScript={(order) => runAction(() => generateDramaEpisodeScript(project.id, order), `第 ${order} 集台本已生成。`)}
           onReview={(order) => runAction(() => reviewDramaEpisode(project.id, order), `第 ${order} 集质量检查完成。`)}

@@ -87,7 +87,7 @@ function installPipelineStubs() {
         persona: "冷静克制，擅长反击",
         speechStyle: "短句，压迫感强",
         visualAnchor: JSON.stringify({ hint: "黑色西装，克制表情" }),
-        voiceProfile: null,
+        voiceProfile: JSON.stringify({ voiceId: "lin-voice", emotion: "tense", speed: 1.05 }),
         relations: "与反派主管对立",
         portraitData: JSON.stringify({
           status: "done",
@@ -291,7 +291,7 @@ function installPipelineStubs() {
                 durationSec: 5,
                 location: "公司大厅",
                 action: "林澈被保安拦住，周围员工围观。",
-                dialogue: "保安：你也配进去？",
+                dialogue: "林澈：让董事长下来。",
                 characterRefs: ["林澈"],
                 visualPrompt: "黑色西装青年在现代公司大厅被拦住。",
               }],
@@ -426,10 +426,29 @@ test("drama service pipeline keeps repairable quality issues before storyboard a
     "/api/drama/character-images/character_1/character-sheet",
   ]);
 
+  const ttsJob = await batchOrchestrator.createEpisodeBatchJob(
+    "project_1",
+    1,
+    { type: "tts", provider: "mock" },
+    { autoStart: false },
+  );
+  const finishedTts = await batchOrchestrator.runBatchJob(ttsJob.id);
+  const ttsProgress = JSON.parse(finishedTts.progress);
+  assert.equal(finishedTts.status, "done");
+  assert.equal(ttsProgress.total, 1);
+  assert.equal(ttsProgress.done, 1);
+  const audioData = JSON.parse(state.shots[0].dialogueAudioData);
+  assert.equal(audioData.status, "done");
+  assert.equal(audioData.items[0].speaker, "林澈");
+  assert.equal(audioData.items[0].text, "让董事长下来。");
+  assert.equal(audioData.items[0].voiceId, "lin-voice");
+  assert.match(audioData.items[0].audioUrl, /^data:audio\/wav;base64,/);
+  assert.equal(audioData.items[0].durationSec, 2);
+
   const { DramaExportService } = require("../dist/services/drama/DramaExportService.js");
   const srt = await new DramaExportService().exportEpisode("project_1", 1, "srt");
   assert.equal(srt.contentType, "application/x-subrip; charset=utf-8");
   assert.equal(srt.filename, "逆袭短剧-E1.srt");
-  assert.match(srt.body, /00:00:00,000 --> 00:00:05,000/);
-  assert.match(srt.body, /保安：你也配进去？/);
+  assert.match(srt.body, /00:00:00,000 --> 00:00:02,000/);
+  assert.match(srt.body, /林澈：让董事长下来。/);
 });

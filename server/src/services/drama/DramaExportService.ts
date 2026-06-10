@@ -1,4 +1,5 @@
 import { prisma } from "../../db/prisma";
+import { safeJsonParse } from "./utils/json";
 
 export type DramaProjectExportFormat = "markdown" | "json";
 export type DramaEpisodeExportFormat = "srt";
@@ -8,6 +9,18 @@ interface SubtitleEntry {
   startSec: number;
   endSec: number;
   text: string;
+}
+
+interface DialogueAudioItemLite {
+  lineIndex: number;
+  speaker?: string;
+  text: string;
+  durationSec?: number;
+}
+
+interface DialogueAudioDataLite {
+  status?: string;
+  items?: DialogueAudioItemLite[];
 }
 
 function splitDialogueLines(text: string | null | undefined): string[] {
@@ -41,6 +54,20 @@ function buildSrt(entries: SubtitleEntry[]): string {
     entry.text,
     "",
   ].join("\n")).join("\n");
+}
+
+function readDialogueAudioItems(raw: string | null | undefined): DialogueAudioItemLite[] {
+  const parsed = safeJsonParse<DialogueAudioDataLite>(raw, {});
+  if (parsed.status !== "done" || !Array.isArray(parsed.items)) {
+    return [];
+  }
+  return parsed.items
+    .filter((item) => item && typeof item.text === "string" && item.text.trim())
+    .sort((a, b) => (a.lineIndex ?? 0) - (b.lineIndex ?? 0));
+}
+
+function formatDialogueText(item: DialogueAudioItemLite): string {
+  return item.speaker?.trim() ? `${item.speaker.trim()}：${item.text}` : item.text;
 }
 
 export class DramaExportService {
@@ -118,6 +145,23 @@ export class DramaExportService {
       const fallbackShotDuration = Math.max(1, Math.round(normalizeDurationSec(episode.durationSec, storyboard.shots.length * 5) / storyboard.shots.length));
       for (const shot of storyboard.shots) {
         const shotDuration = normalizeDurationSec(shot.durationSec, fallbackShotDuration);
+        const audioItems = readDialogueAudioItems(shot.dialogueAudioData);
+        if (audioItems.length) {
+          const shotStart = cursor;
+          let audioCursor = cursor;
+          for (const item of audioItems) {
+            const lineDuration = normalizeDurationSec(item.durationSec, 2);
+            entries.push({
+              index: entries.length + 1,
+              startSec: audioCursor,
+              endSec: audioCursor + lineDuration,
+              text: formatDialogueText(item),
+            });
+            audioCursor += lineDuration;
+          }
+          cursor = shotStart + Math.max(shotDuration, audioCursor - shotStart);
+          continue;
+        }
         const lines = splitDialogueLines(shot.dialogue);
         if (!lines.length) {
           cursor += shotDuration;

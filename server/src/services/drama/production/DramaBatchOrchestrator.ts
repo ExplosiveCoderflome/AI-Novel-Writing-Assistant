@@ -4,9 +4,10 @@ import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { safeJsonParse } from "../utils/json";
 import { DramaVideoPromptService } from "../DramaVideoPromptService";
+import { DramaDialogueAudioService } from "../audio/DramaDialogueAudioService";
 import { DramaShotKeyframeService } from "../visual/DramaShotKeyframeService";
 
-export type DramaBatchJobType = "keyframes" | "videos";
+export type DramaBatchJobType = "keyframes" | "videos" | "tts";
 export type DramaBatchJobStatus = "pending" | "running" | "paused" | "done" | "failed";
 
 export interface DramaBatchProgress {
@@ -34,14 +35,21 @@ interface CreateEpisodeBatchJobOptions {
 interface BatchShot {
   id: string;
   keyframeData?: string | null;
+  dialogueAudioData?: string | null;
 }
 
 const DEFAULT_VIDEO_PROVIDER = "mock";
 const DEFAULT_IMAGE_PROVIDER = "openai";
+const DEFAULT_TTS_PROVIDER = "mock";
 
 function hasDoneKeyframe(raw: string | null | undefined): boolean {
   const parsed = safeJsonParse<{ status?: string; url?: string }>(raw, {});
   return parsed.status === "done" && typeof parsed.url === "string" && parsed.url.trim().length > 0;
+}
+
+function hasDoneDialogueAudio(raw: string | null | undefined): boolean {
+  const parsed = safeJsonParse<{ status?: string; items?: unknown[] }>(raw, {});
+  return parsed.status === "done" && Array.isArray(parsed.items) && parsed.items.length > 0;
 }
 
 function normalizeProgress(input: Partial<DramaBatchProgress>): DramaBatchProgress {
@@ -68,6 +76,7 @@ export class DramaBatchOrchestrator {
   constructor(
     private readonly keyframeService = new DramaShotKeyframeService(),
     private readonly videoPromptService = new DramaVideoPromptService(),
+    private readonly dialogueAudioService = new DramaDialogueAudioService(),
   ) {}
 
   async createEpisodeBatchJob(
@@ -99,8 +108,7 @@ export class DramaBatchOrchestrator {
       throw new AppError("没有可处理的镜头。", 400);
     }
 
-    const provider = input.provider?.trim()
-      || (input.type === "videos" ? DEFAULT_VIDEO_PROVIDER : DEFAULT_IMAGE_PROVIDER);
+    const provider = input.provider?.trim() || this.defaultProviderForType(input.type);
     const progress = normalizeProgress({
       total: targetShotIds.length,
       done: 0,
@@ -172,9 +180,7 @@ export class DramaBatchOrchestrator {
         nextProgress.currentShotId = shot.id;
         await this.updateJob(jobId, "running", nextProgress);
         try {
-          const result = job.type === "keyframes"
-            ? await this.processKeyframeShot(shot, nextProgress.provider)
-            : await this.processVideoShot(job.projectId, episode.id, shot.id, nextProgress.provider);
+          const result = await this.processShot(job.type as DramaBatchJobType, job.projectId, episode.id, shot, nextProgress.provider);
           if (result === "skipped") {
             nextProgress.skipped += 1;
           }
@@ -205,6 +211,14 @@ export class DramaBatchOrchestrator {
     return "processed";
   }
 
+  private async processTtsShot(shot: BatchShot, provider?: string): Promise<"processed" | "skipped"> {
+    if (hasDoneDialogueAudio(shot.dialogueAudioData)) {
+      return "skipped";
+    }
+    await this.dialogueAudioService.synthesizeShotDialogue(shot.id, provider || DEFAULT_TTS_PROVIDER);
+    return "processed";
+  }
+
   private async processVideoShot(
     projectId: string,
     episodeId: string,
@@ -223,6 +237,32 @@ export class DramaBatchOrchestrator {
     }
     await this.videoPromptService.createProviderTask(prompt.id, provider || DEFAULT_VIDEO_PROVIDER);
     return "processed";
+  }
+
+  private async processShot(
+    type: DramaBatchJobType,
+    projectId: string,
+    episodeId: string,
+    shot: BatchShot,
+    provider?: string,
+  ): Promise<"processed" | "skipped"> {
+    if (type === "keyframes") {
+      return this.processKeyframeShot(shot, provider);
+    }
+    if (type === "tts") {
+      return this.processTtsShot(shot, provider);
+    }
+    return this.processVideoShot(projectId, episodeId, shot.id, provider);
+  }
+
+  private defaultProviderForType(type: DramaBatchJobType): string {
+    if (type === "keyframes") {
+      return DEFAULT_IMAGE_PROVIDER;
+    }
+    if (type === "tts") {
+      return DEFAULT_TTS_PROVIDER;
+    }
+    return DEFAULT_VIDEO_PROVIDER;
   }
 
   private async updateJob(

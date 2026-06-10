@@ -41,6 +41,22 @@ test("drama video provider registry exposes mock provider", async () => {
   assert.deepEqual(result.raw.refImages, ["https://example.test/character-sheet.png"]);
 });
 
+test("drama tts provider registry exposes mock provider", async () => {
+  const { ttsProviderRegistry } = require("../dist/services/drama/audio/TTSProviderPort.js");
+  const provider = ttsProviderRegistry.resolve("mock");
+  const providers = ttsProviderRegistry.listProviders();
+  assert.equal(providers.some((item) => item.provider === "mock"), true);
+  const result = await provider.synthesize({
+    text: "你也配进去？",
+    voiceId: "lin-voice",
+    speed: 1.05,
+    emotion: "tense",
+  });
+  assert.match(result.audioUrl, /^data:audio\/wav;base64,/);
+  assert.equal(result.durationSec, 2);
+  assert.equal(result.raw.voiceId, "lin-voice");
+});
+
 test("http drama video provider maps create and status responses", async () => {
   const createBodies = [];
   const server = http.createServer((req, res) => {
@@ -113,6 +129,55 @@ test("http drama video provider maps create and status responses", async () => {
   }
 });
 
+test("http drama tts provider maps synthesize responses", async () => {
+  const requestBodies = [];
+  const server = http.createServer((req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    if (req.method === "POST" && req.url === "/tts") {
+      let body = "";
+      req.on("data", (chunk) => {
+        body += chunk;
+      });
+      req.on("end", () => {
+        requestBodies.push(body ? JSON.parse(body) : {});
+        res.end(JSON.stringify({ audioUrl: "https://example.test/line.wav", durationSec: 3.5 }));
+      });
+      return;
+    }
+    res.statusCode = 404;
+    res.end(JSON.stringify({ error: "not found" }));
+  });
+
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    const address = server.address();
+    assert.equal(typeof address, "object");
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const { HttpTTSProvider } = require("../dist/services/drama/audio/TTSProviderPort.js");
+    const provider = new HttpTTSProvider({
+      provider: "http-tts-test",
+      synthesizeUrl: `${baseUrl}/tts`,
+      apiKey: "test-key",
+    });
+    const result = await provider.synthesize({
+      text: "让董事长下来。",
+      voiceId: "lin-voice",
+      speed: 1.05,
+      emotion: "tense",
+    });
+    assert.equal(result.audioUrl, "https://example.test/line.wav");
+    assert.equal(result.durationSec, 3.5);
+    assert.deepEqual(requestBodies[0], {
+      text: "让董事长下来。",
+      voiceId: "lin-voice",
+      speed: 1.05,
+      emotion: "tense",
+    });
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
 test("drama migrations include pipeline tables for sqlite and postgres", () => {
   const root = path.join(__dirname, "..", "src", "prisma");
   const sqlite = fs.readFileSync(
@@ -163,5 +228,16 @@ test("drama migrations include pipeline tables for sqlite and postgres", () => {
   for (const sql of [sqliteBatchJobSql, postgresBatchJobSql]) {
     assert.match(sql, /DramaBatchJob/);
     assert.match(sql, /progress/);
+  }
+  const sqliteDialogueAudioSql = fs.readFileSync(
+    path.join(root, "migrations.sqlite", "20260610130000_drama_dialogue_audio", "migration.sql"),
+    "utf8",
+  );
+  const postgresDialogueAudioSql = fs.readFileSync(
+    path.join(root, "migrations", "20260610130000_drama_dialogue_audio", "migration.sql"),
+    "utf8",
+  );
+  for (const sql of [sqliteDialogueAudioSql, postgresDialogueAudioSql]) {
+    assert.match(sql, /dialogueAudioData/);
   }
 });

@@ -136,6 +136,24 @@ export interface DramaShotKeyframeData {
   error?: string;
 }
 
+export interface DramaDialogueAudioItem {
+  lineIndex: number;
+  speaker?: string;
+  text: string;
+  voiceId?: string;
+  audioUrl: string;
+  durationSec?: number;
+  provider: string;
+}
+
+export interface DramaDialogueAudioData {
+  status: "idle" | "generating" | "done" | "error";
+  provider?: string;
+  items?: DramaDialogueAudioItem[];
+  generatedAt?: string;
+  error?: string;
+}
+
 export interface DramaCharacterLibraryItem {
   id: string;
   projectId?: string | null;
@@ -162,6 +180,7 @@ export interface DramaShot {
   characterRefs?: string | null;
   visualPrompt?: string | null;
   keyframeData?: string | null;
+  dialogueAudioData?: string | null;
 }
 
 export interface DramaStoryboard {
@@ -198,7 +217,13 @@ export interface DramaVideoProvider {
   supportsRefImages: boolean;
 }
 
-export type DramaBatchJobType = "keyframes" | "videos";
+export interface DramaTTSProvider {
+  provider: string;
+  label: string;
+  description?: string;
+}
+
+export type DramaBatchJobType = "keyframes" | "videos" | "tts";
 
 export interface DramaBatchProgress {
   total: number;
@@ -357,6 +382,11 @@ export async function getDramaStoryboard(storyboardId: string) {
 
 export async function listDramaVideoProviders() {
   const { data } = await apiClient.get<ApiResponse<DramaVideoProvider[]>>("/drama/video-providers");
+  return data;
+}
+
+export async function listDramaTTSProviders() {
+  const { data } = await apiClient.get<ApiResponse<DramaTTSProvider[]>>("/drama/tts-providers");
   return data;
 }
 

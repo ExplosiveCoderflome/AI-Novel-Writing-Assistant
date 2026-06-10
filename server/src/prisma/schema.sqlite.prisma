@@ -3080,6 +3080,7 @@ model DramaShot {
   characterRefs String?
   visualPrompt  String?
   keyframeData  String?
+  dialogueAudioData String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

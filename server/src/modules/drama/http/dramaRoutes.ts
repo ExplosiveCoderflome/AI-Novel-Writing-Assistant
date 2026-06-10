@@ -17,6 +17,7 @@ import { dramaScriptService } from "../../../services/drama/DramaScriptService";
 import { dramaStoryboardService } from "../../../services/drama/DramaStoryboardService";
 import { dramaStrategyService } from "../../../services/drama/DramaStrategyService";
 import { dramaVideoPromptService } from "../../../services/drama/DramaVideoPromptService";
+import { ttsProviderRegistry } from "../../../services/drama/audio/TTSProviderPort";
 import { rhythmEngine } from "../../../services/drama/engine/rhythmEngine";
 import { dramaBatchOrchestrator } from "../../../services/drama/production/DramaBatchOrchestrator";
 import { dramaShotKeyframeService } from "../../../services/drama/visual/DramaShotKeyframeService";
@@ -37,7 +38,7 @@ const imageProviderBodySchema = z
   .optional();
 
 const batchJobBodySchema = z.object({
-  type: z.enum(["keyframes", "videos"]),
+  type: z.enum(["keyframes", "videos", "tts"]),
   provider: z.string().trim().optional(),
   failedShotIds: z.array(z.string().trim().min(1)).optional(),
 });
@@ -210,6 +211,11 @@ router.get("/hooks", (_req, res) => {
 router.get("/video-providers", (_req, res) => {
   const data = videoProviderRegistry.listProviders();
   res.status(200).json({ success: true, data, message: "Drama video providers loaded." });
+});
+
+router.get("/tts-providers", (_req, res) => {
+  const data = ttsProviderRegistry.listProviders();
+  res.status(200).json({ success: true, data, message: "Drama TTS providers loaded." });
 });
 
 router.post("/track-recommendation", validate({ body: trackRecommendationSchema }), async (req, res, next) => {
