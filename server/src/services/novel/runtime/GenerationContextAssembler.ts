@@ -1,4 +1,5 @@
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
+import { buildCompressionLog } from "../../../prompting/core/contextBudget";
 import { prisma } from "../../../db/prisma";
 import { ragServices } from "../../rag";
 import { plannerService } from "../../planner/PlannerService";
@@ -25,11 +26,13 @@ import {
 import { mapRowToPlan } from "../storyMacro/storyMacroPlanPersistence";
 import {
   buildBookContractContext,
+  buildNarrativeProgressHint,
   buildChapterRepairContextFromPackage,
   buildChapterReviewContext,
   buildChapterWriteContext,
   buildMacroConstraintContext,
   buildVolumeWindowContext,
+  getAllContextBlocks,
   getRuntimePromptBudgetProfiles,
 } from "../../../prompting/prompts/novel/chapterLayeredContext";
 import { novelFactService } from "../fact/NovelFactService";
@@ -527,6 +530,10 @@ export class GenerationContextAssembler {
         supportingContextText: "",
       },
       plan: mappedPlan,
+      narrativeProgressHint: buildNarrativeProgressHint(
+        chapter.order,
+        novel.estimatedChapterCount,
+      ),
       canonicalState,
       nextAction: resolvedStateDrivenContext.nextAction,
       chapterStateGoal: resolvedStateDrivenContext.chapterStateGoal,
@@ -659,6 +666,11 @@ export class GenerationContextAssembler {
       chapterReviewContext,
       chapterRepairContext,
     };
+    const compressionLog = buildCompressionLog(
+      contextPackage.chapterWriteContext ? getAllContextBlocks(contextPackage) : [],
+      2600,
+    );
+    console.debug("[ctx-budget]", compressionLog);
 
     return {
       novel: { id: novel.id, title: novel.title },
