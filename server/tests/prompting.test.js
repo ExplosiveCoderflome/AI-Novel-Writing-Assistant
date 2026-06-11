@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  buildCompressionLog,
   createContextBlock,
 } = require("../dist/prompting/core/contextBudget.js");
 const {
@@ -619,6 +620,42 @@ test("context selection keeps the freshest structural source while preserving re
   const structuralSource = selection.selectedBlocks.find((block) => block.id === "volume_summary");
   assert.ok(structuralSource);
   assert.equal(structuralSource.required, true);
+});
+
+test("compression log separates summarized blocks from dropped blocks", () => {
+  const requiredBlock = createContextBlock({
+    id: "chapter_target",
+    group: "chapter_target",
+    priority: 100,
+    required: true,
+    content: "keep",
+  });
+  const summarizableBlock = createContextBlock({
+    id: "long_optional",
+    group: "rag_context",
+    priority: 90,
+    content: [
+      "H",
+      "A".repeat(120),
+    ].join("\n"),
+  });
+  const nonSummarizableBlock = createContextBlock({
+    id: "raw_dump",
+    group: "raw_dump",
+    priority: 80,
+    allowSummary: false,
+    content: "B".repeat(120),
+  });
+
+  const log = buildCompressionLog([
+    requiredBlock,
+    summarizableBlock,
+    nonSummarizableBlock,
+  ], requiredBlock.estimatedTokens + 6);
+
+  assert.deepEqual(log.summarized, ["long_optional"]);
+  assert.deepEqual(log.dropped, ["raw_dump"]);
+  assert.equal(log.usedTokens <= log.budgetTokens, true);
 });
 
 test("workflow registry holds execution-first intents when collaboration is still required", () => {
