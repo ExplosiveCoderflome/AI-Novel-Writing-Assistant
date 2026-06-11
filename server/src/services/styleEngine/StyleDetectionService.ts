@@ -61,6 +61,24 @@ export class StyleDetectionService {
       };
     }
 
+    const forbiddenRules = antiRules.filter((rule) => rule.type === "forbidden" && rule.enabled);
+    const literalPatterns = forbiddenRules.flatMap((rule) => (
+      rule.detectPatterns.filter((pattern) => !/[\\^$.*+?()[\]{}|]/.test(pattern))
+    ));
+    if (literalPatterns.length > 0) {
+      const hasHit = literalPatterns.some((pattern) => input.content.includes(pattern));
+      if (!hasHit) {
+        console.debug("[style-detect] fast-scan:skip-llm, no literal forbidden pattern matched");
+        return {
+          riskScore: 0,
+          summary: "快扫未检出字面量违禁词，跳过 LLM 深度检测。",
+          violations: [],
+          canAutoRewrite: false,
+          appliedRuleIds,
+        };
+      }
+    }
+
     const result = await runStructuredPrompt({
       asset: styleDetectionPrompt,
       promptInput: {

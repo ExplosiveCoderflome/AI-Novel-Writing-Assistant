@@ -192,6 +192,25 @@ export function buildChapterMissionContext(contextPackage: GenerationContextPack
   };
 }
 
+export function buildNarrativeProgressHint(
+  currentOrder: number,
+  estimatedTotal: number | null | undefined,
+): string | null {
+  if (!estimatedTotal || estimatedTotal <= 0) return null;
+  const progress = currentOrder / estimatedTotal;
+  const remaining = estimatedTotal - currentOrder;
+  if (progress < 0.25) {
+    return `【叙事进度】第 ${currentOrder} 章 / 预计共 ${estimatedTotal} 章（${Math.round(progress * 100)}%）\n开局阶段：可自由展开世界与人物，建立读者期待。`;
+  }
+  if (progress < 0.75) {
+    return `【叙事进度】第 ${currentOrder} 章 / 预计共 ${estimatedTotal} 章（${Math.round(progress * 100)}%）\n发展阶段：推进既有线索，谨慎开新支线，保持伏笔密度。`;
+  }
+  if (progress < 0.90) {
+    return `【叙事进度】第 ${currentOrder} 章 / 预计共 ${estimatedTotal} 章（${Math.round(progress * 100)}%）\n收敛阶段：优先兑现已埋伏笔，避免新开主线，距结束还有约 ${remaining} 章。`;
+  }
+  return `【叙事进度】第 ${currentOrder} 章 / 预计共 ${estimatedTotal} 章（${Math.round(progress * 100)}%）\n尾声阶段：收束所有主线，为全书收尾，禁止开新支线。`;
+}
+
 function buildChapterBoundaryContract(
   contextPackage: GenerationContextPackage,
   scenePlan: ReturnType<typeof parseChapterScenePlan>,
@@ -251,6 +270,7 @@ export function buildChapterWriteContext(input: {
     bookContract: input.bookContract,
     macroConstraints: input.macroConstraints,
     volumeWindow: input.volumeWindow,
+    narrativeProgressHint: input.contextPackage.narrativeProgressHint ?? null,
     chapterMission: buildChapterMissionContext(input.contextPackage),
     nextAction: input.contextPackage.nextAction,
     chapterStateGoal: input.contextPackage.chapterStateGoal ?? null,
@@ -319,7 +339,12 @@ function buildChapterExecutionObligationContract(input: {
         guide.shouldPreferAppearance
         || guide.plannedChapterOrders.includes(input.chapterOrder)
       ))
-      .map((guide) => guide.name)),
+      .map((guide) => {
+        if (guide.absenceRisk === "high" && guide.absenceSpan > 0) {
+          return `${guide.name}（已缺席 ${guide.absenceSpan} 章，宜自然带出）`;
+        }
+        return guide.name;
+      })),
     requiredGoalChanges: uniqueStrings([
       ...(input.chapterStateGoal?.targetRelationships ?? []),
       ...(input.chapterStateGoal?.targetConflicts ?? []),
@@ -340,6 +365,13 @@ function normalizeChapterWriteContext(writeContext: ChapterWriteContext): Chapte
   const obligationContract = legacyContext.obligationContract ?? {};
   return {
     ...writeContext,
+    volumeWindow: writeContext.volumeWindow
+      ? {
+        ...writeContext.volumeWindow,
+        keyMilestoneGuards: writeContext.volumeWindow.keyMilestoneGuards ?? [],
+      }
+      : null,
+    narrativeProgressHint: writeContext.narrativeProgressHint ?? null,
     obligationContract: {
       mustHitNow: obligationContract.mustHitNow ?? EMPTY_OBLIGATION_CONTRACT.mustHitNow,
       mustPreserve: obligationContract.mustPreserve ?? EMPTY_OBLIGATION_CONTRACT.mustPreserve,
@@ -351,6 +383,11 @@ function normalizeChapterWriteContext(writeContext: ChapterWriteContext): Chapte
     },
     characterHardFacts: writeContext.characterHardFacts ?? [],
     previousChapterTail: writeContext.previousChapterTail ?? null,
+    styleConstraints: writeContext.styleConstraints ?? [],
+    continuationConstraints: writeContext.continuationConstraints ?? [],
+    ragFacts: writeContext.ragFacts ?? [],
+    completedMilestones: writeContext.completedMilestones ?? [],
+    recentScenePatterns: writeContext.recentScenePatterns ?? [],
   };
 }
 
@@ -768,6 +805,15 @@ export function buildChapterWriterContextBlocks(
           : "Current volume: none",
       })
       : null,
+    writeContext.narrativeProgressHint
+      ? createContextBlock({
+        id: "narrative_progress_hint",
+        group: "narrative_progress_hint",
+        priority: 98,
+        required: false,
+        content: writeContext.narrativeProgressHint,
+      })
+      : null,
     includePayoffLedger
       ? createContextBlock({
         id: "payoff_ledger",
@@ -955,6 +1001,60 @@ export function buildChapterRepairContextBlocks(repairContext: ChapterRepairCont
 
 export function getRuntimePromptBudgetProfiles(): PromptBudgetProfile[] {
   return RUNTIME_PROMPT_BUDGET_PROFILES;
+}
+
+export function getAllContextBlocks(contextPackage: GenerationContextPackage): PromptContextBlock[] {
+  const writeContext = contextPackage.chapterWriteContext;
+  if (!writeContext) {
+    return [];
+  }
+
+  const blocks: PromptContextBlock[] = [
+    createContextBlock({
+      id: "book_contract",
+      group: "book_contract",
+      priority: 100,
+      required: true,
+      content: [
+        `Title: ${writeContext.bookContract.title}`,
+        `Genre: ${writeContext.bookContract.genre}`,
+        `Target audience: ${writeContext.bookContract.targetAudience}`,
+        `Selling point: ${writeContext.bookContract.sellingPoint}`,
+        `First 30 chapter promise: ${writeContext.bookContract.first30ChapterPromise}`,
+        `Narrative POV: ${writeContext.bookContract.narrativePov}`,
+        `Pace preference: ${writeContext.bookContract.pacePreference}`,
+        `Emotion intensity: ${writeContext.bookContract.emotionIntensity}`,
+        writeContext.bookContract.toneGuardrails.length > 0 ? `Tone guardrails: ${writeContext.bookContract.toneGuardrails.join(" | ")}` : "",
+        writeContext.bookContract.hardConstraints.length > 0 ? `Hard constraints: ${writeContext.bookContract.hardConstraints.join(" | ")}` : "",
+      ].filter(Boolean).join("\n"),
+    }),
+    ...buildChapterWriterContextBlocks(writeContext),
+  ];
+  if (writeContext.macroConstraints) {
+    blocks.push(createContextBlock({
+      id: "story_macro",
+      group: "story_macro",
+      priority: 98,
+      content: [
+        `Selling point: ${writeContext.macroConstraints.sellingPoint}`,
+        `Core conflict: ${writeContext.macroConstraints.coreConflict}`,
+        `Main hook: ${writeContext.macroConstraints.mainHook}`,
+        `Progression loop: ${writeContext.macroConstraints.progressionLoop}`,
+        `Growth path: ${writeContext.macroConstraints.growthPath}`,
+        `Ending flavor: ${writeContext.macroConstraints.endingFlavor}`,
+        writeContext.macroConstraints.hardConstraints.length > 0 ? `Hard constraints: ${writeContext.macroConstraints.hardConstraints.join(" | ")}` : "",
+      ].filter(Boolean).join("\n"),
+    }));
+  }
+  if (contextPackage.ragContext.trim()) {
+    blocks.push(createContextBlock({
+      id: "rag_context",
+      group: "rag_context",
+      priority: 60,
+      content: contextPackage.ragContext,
+    }));
+  }
+  return blocks;
 }
 
 export function buildChapterRepairContextFromPackage(
