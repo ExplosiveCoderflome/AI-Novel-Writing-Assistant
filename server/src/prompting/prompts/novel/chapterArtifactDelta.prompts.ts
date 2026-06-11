@@ -1,6 +1,7 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
+import { chapterConcreteFactSchema } from "../../../services/novel/chapterSummarySchemas";
 import { characterResourceExtractionUpdateSchema } from "./characterResource.promptSchemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
 import { payoffLedgerSyncItemSchema } from "../payoff/payoffLedgerSync.promptSchemas";
@@ -366,6 +367,12 @@ const chapterArtifactCharacterCandidateSchema = z.preprocess(normalizeCharacterC
   confidence: confidenceSchema,
 }));
 
+const chapterArtifactCharacterKnowledgeStateSchema = z.object({
+  characterName: z.string().trim().min(1),
+  knownFacts: z.array(z.string().trim().min(1)).max(5).default([]),
+  hiddenFacts: z.array(z.string().trim().min(1)).max(5).default([]),
+});
+
 export const chapterArtifactDeltaSyncPlanSchema = z.preprocess(normalizeSyncPlan, z.object({
   stateSnapshot: z.enum(["skip", "write"]).default("write"),
   characterResources: z.enum(["skip", "write"]).default("write"),
@@ -376,12 +383,14 @@ export const chapterArtifactDeltaSyncPlanSchema = z.preprocess(normalizeSyncPlan
 
 export const chapterArtifactDeltaOutputSchema = z.object({
   summary: z.string().trim().min(1),
+  concreteFacts: z.array(chapterConcreteFactSchema).max(12).default([]),
   stateDeltas: chapterArtifactDeltaStateSchema,
   characterResourceDeltas: z.array(z.preprocess(normalizeCharacterResourceDelta, characterResourceExtractionUpdateSchema)).default([]),
   payoffDeltas: z.array(z.preprocess(normalizePayoffDelta, payoffLedgerSyncItemSchema)).default([]),
   relationDynamics: z.array(chapterArtifactRelationDynamicSchema).default([]),
   factionUpdates: z.array(chapterArtifactFactionUpdateSchema).default([]),
   characterCandidates: z.array(chapterArtifactCharacterCandidateSchema).default([]),
+  characterKnowledgeStates: z.array(chapterArtifactCharacterKnowledgeStateSchema).default([]),
   syncPlan: chapterArtifactDeltaSyncPlanSchema,
   confidence: z.number().min(0).max(1),
   requiresFullReconcile: z.boolean().default(false),
@@ -402,7 +411,13 @@ export interface ChapterArtifactDeltaPromptInput {
 }
 
 const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
-  summary: "本章完成一次资源获取，并把一条前置线索推进到待兑现状态。",
+  summary: "程秩在本章确认库房后门存在可利用的通行漏洞，并拿到能开启后门的铜钥匙。读者由此知道潜入库房成为下一步行动选择，但他仍不掌握库房内的守卫布置，相关线索被推进到待兑现状态。",
+  concreteFacts: [
+    {
+      text: "程秩已拿到能打开库房后门的铜钥匙",
+      category: "completed",
+    },
+  ],
   stateDeltas: {
     summary: "主角拿到后门铜钥匙，读者知道后门潜入成为下一步行动可能。",
     characterStates: [
@@ -480,6 +495,13 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
   relationDynamics: [],
   factionUpdates: [],
   characterCandidates: [],
+  characterKnowledgeStates: [
+    {
+      characterName: "程秩",
+      knownFacts: ["后门铜钥匙可以打开库房后门"],
+      hiddenFacts: ["库房内的守卫布置"],
+    },
+  ],
   syncPlan: {
     stateSnapshot: "write",
     characterResources: "write",
@@ -509,7 +531,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
   structuredOutputHint: {
     example: CHAPTER_ARTIFACT_DELTA_EXAMPLE,
     note: [
-      "一次性抽取状态快照、角色资源、伏笔/payoff、关系动态和同步计划。",
+      "一次性抽取章节摘要、硬事实、状态快照、角色资源、伏笔/payoff、关系动态、信息边界和同步计划。",
       "只记录正文中有明确证据或与任务目标强相关的变化。",
       "syncPlan 与 requiresFullReconcile 由你基于剧情风险判断，代码只负责校验与落库。",
     ].join(" "),
@@ -530,16 +552,20 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "5. 默认输出 delta；只有账本明显冲突、已兑现但找不到前置铺垫、关键线索跨多章错位、或本章集中处理多个 payoff 时，才建议 full_reconcile。",
       "6. syncPlan 由你判断，不要依赖关键词；如果没有对应变化，明确 skip 并说明 reason。",
       "7. 所有角色名优先使用已知角色名单；无法确认的新人物放入 characterCandidates，不要强行归到已有角色。",
-      "8. payoffDeltas.currentStatus 只能使用 setup、hinted、pending_payoff、paid_off、failed、overdue；不要输出 active，已推进但未兑现统一用 pending_payoff。",
-      "9. payoffDeltas.riskSignals 必须是对象数组，形如 { code, severity, summary }；没有风险就输出 []，不要输出字符串数组。",
-      "10. relationDynamics 必须使用 sourceCharacterName、targetCharacterName、stageLabel、stageSummary；characterCandidates 必须使用 proposedName、proposedRole、summary。",
-      "11. characterResourceDeltas.updateType 只能使用 introduced、acquired、revealed、used、transferred、lost、consumed、damaged、destroyed、recovered、stale_marked；新创建/首次出现统一用 introduced。",
-      "12. characterResourceDeltas.resourceType 只能使用 physical_item、clue、credential、ability_resource、relationship_token、consumable、hidden_card、world_resource；材料、丹药、一次性药草用 consumable，积分/货币/宗门资源用 world_resource。",
-      "13. characterResourceDeltas.narrativeFunction 只能使用 tool、clue、weapon、proof、key、cost、promise、hidden_card、constraint；修炼增益通常用 tool，消耗材料/积分用 cost，凭据/借据用 proof 或 constraint。",
-      "14. characterResourceDeltas.statusAfter 只能使用 available、hidden、borrowed、transferred、lost、consumed、damaged、destroyed、stale；不要输出 active、owned、usable、used、broken 等自定义状态。",
-      "15. payoffDeltas.scopeType 只能使用 book、volume、chapter；全书/故事级伏笔统一用 book，不要输出 story、novel 或 global。",
-      "16. stateDeltas.foreshadowStates 的 setupChapterId/payoffChapterId 只有在能确认真实 chapterId 时才填写；如果只能确认第几章，宁可省略或写入章节序号字符串，不要输出数字。",
-      "17. syncPlan.stateSnapshot、characterResources、characterDynamics 只能是 skip 或 write；只有 payoffLedger 可以是 skip、delta 或 full_reconcile。",
+      "8. summary 必须使用简体中文，控制在 80-180 字，覆盖关键事件、冲突推进、人物状态变化、本章结果或悬念方向。",
+      "9. concreteFacts 只记录本章正文即兴产生且后续必须保持一致的硬事实，每条不超过 40 字；包括承诺、交易条款、事件性质、关键数字日期地点、身份与状态变化。",
+      "10. concreteFacts.category 只能使用 completed、revealed、state_changed；无明确硬事实时输出 []，不得把抽象目标或氛围描述写入 concreteFacts。",
+      "11. characterKnowledgeStates 只在本章存在显著信息差时填写；knownFacts 写该角色本章后明确知道的事实，hiddenFacts 写该角色仍不知道、后续不能让其超前知情的事实，每组最多 5 条；无信息差输出 []。",
+      "12. payoffDeltas.currentStatus 只能使用 setup、hinted、pending_payoff、paid_off、failed、overdue；不要输出 active，已推进但未兑现统一用 pending_payoff。",
+      "13. payoffDeltas.riskSignals 必须是对象数组，形如 { code, severity, summary }；没有风险就输出 []，不要输出字符串数组。",
+      "14. relationDynamics 必须使用 sourceCharacterName、targetCharacterName、stageLabel、stageSummary；characterCandidates 必须使用 proposedName、proposedRole、summary。",
+      "15. characterResourceDeltas.updateType 只能使用 introduced、acquired、revealed、used、transferred、lost、consumed、damaged、destroyed、recovered、stale_marked；新创建/首次出现统一用 introduced。",
+      "16. characterResourceDeltas.resourceType 只能使用 physical_item、clue、credential、ability_resource、relationship_token、consumable、hidden_card、world_resource；材料、丹药、一次性药草用 consumable，积分/货币/宗门资源用 world_resource。",
+      "17. characterResourceDeltas.narrativeFunction 只能使用 tool、clue、weapon、proof、key、cost、promise、hidden_card、constraint；修炼增益通常用 tool，消耗材料/积分用 cost，凭据/借据用 proof 或 constraint。",
+      "18. characterResourceDeltas.statusAfter 只能使用 available、hidden、borrowed、transferred、lost、consumed、damaged、destroyed、stale；不要输出 active、owned、usable、used、broken 等自定义状态。",
+      "19. payoffDeltas.scopeType 只能使用 book、volume、chapter；全书/故事级伏笔统一用 book，不要输出 story、novel 或 global。",
+      "20. stateDeltas.foreshadowStates 的 setupChapterId/payoffChapterId 只有在能确认真实 chapterId 时才填写；如果只能确认第几章，宁可省略或写入章节序号字符串，不要输出数字。",
+      "21. syncPlan.stateSnapshot、characterResources、characterDynamics 只能是 skip 或 write；只有 payoffLedger 可以是 skip、delta 或 full_reconcile。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

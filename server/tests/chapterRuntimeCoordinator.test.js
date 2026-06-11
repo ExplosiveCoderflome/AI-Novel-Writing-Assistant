@@ -4,7 +4,6 @@ const promptRunner = require("../dist/prompting/core/promptRunner.js");
 const { prisma } = require("../dist/db/prisma.js");
 const { ChapterRuntimeCoordinator } = require("../dist/services/novel/runtime/ChapterRuntimeCoordinator.js");
 const { directorAutomationLedgerEventService } = require("../dist/services/novel/director/runtime/DirectorAutomationLedgerEventService.js");
-const { novelChapterSummaryService } = require("../dist/services/novel/NovelChapterSummaryService.js");
 const { PostGenerationStyleReviewRunner } = require("../dist/services/novel/runtime/PostGenerationStyleReviewRunner.js");
 const { openConflictService } = require("../dist/services/state/OpenConflictService.js");
 
@@ -350,16 +349,9 @@ test("finalizeChapterContent runs acceptance gate once and defers timeline extra
   const originalListOpenConflicts = openConflictService.listOpenConflicts;
   const originalCheckpointFindUnique = prisma.chapterArtifactSyncCheckpoint.findUnique;
   const originalCheckpointUpsert = prisma.chapterArtifactSyncCheckpoint.upsert;
-  const originalGenerateChapterSummary = novelChapterSummaryService.generateChapterSummary;
   openConflictService.listOpenConflicts = async () => [];
   prisma.chapterArtifactSyncCheckpoint.findUnique = async () => null;
   prisma.chapterArtifactSyncCheckpoint.upsert = async () => undefined;
-  novelChapterSummaryService.generateChapterSummary = async () => ({
-    chapterId: "chapter-1",
-    summary: "ok",
-    expectation: "ok",
-    concreteFactCount: 0,
-  });
   try {
     coordinator.qualityGateService.executeTimelineGate = async () => {
       timelineCalls += 1;
@@ -440,7 +432,6 @@ test("finalizeChapterContent runs acceptance gate once and defers timeline extra
     openConflictService.listOpenConflicts = originalListOpenConflicts;
     prisma.chapterArtifactSyncCheckpoint.findUnique = originalCheckpointFindUnique;
     prisma.chapterArtifactSyncCheckpoint.upsert = originalCheckpointUpsert;
-    novelChapterSummaryService.generateChapterSummary = originalGenerateChapterSummary;
   }
 });
 
@@ -515,16 +506,9 @@ test("finalizeChapterContent syncs accepted artifacts only after chapter reaches
   const originalListOpenConflicts = openConflictService.listOpenConflicts;
   const originalCheckpointFindUnique = prisma.chapterArtifactSyncCheckpoint.findUnique;
   const originalCheckpointUpsert = prisma.chapterArtifactSyncCheckpoint.upsert;
-  const originalGenerateChapterSummary = novelChapterSummaryService.generateChapterSummary;
   openConflictService.listOpenConflicts = async () => [];
   prisma.chapterArtifactSyncCheckpoint.findUnique = async () => null;
   prisma.chapterArtifactSyncCheckpoint.upsert = async () => undefined;
-  novelChapterSummaryService.generateChapterSummary = async () => ({
-    chapterId: "chapter-1",
-    summary: "ok",
-    expectation: "ok",
-    concreteFactCount: 0,
-  });
 
   try {
     await coordinator.contentFinalizationService.finalizeChapterContent({
@@ -583,18 +567,20 @@ test("finalizeChapterContent syncs accepted artifacts only after chapter reaches
     assert.equal(syncCalls.length, 1);
     assert.equal(syncCalls[0][1], "chapter-1");
     assert.equal(syncCalls[0][2], "正文版本二");
+    assert.equal(syncCalls[0][3].awaitArtifactDelta, true);
+    assert.equal(syncCalls[0][3].skipLegacySummaryAndFacts, true);
   } finally {
     openConflictService.listOpenConflicts = originalListOpenConflicts;
     prisma.chapterArtifactSyncCheckpoint.findUnique = originalCheckpointFindUnique;
     prisma.chapterArtifactSyncCheckpoint.upsert = originalCheckpointUpsert;
-    novelChapterSummaryService.generateChapterSummary = originalGenerateChapterSummary;
   }
 });
 
-test("finalizeChapterContent writes only acceptance-covered mustHitNow facts before summary", async () => {
+test("finalizeChapterContent writes only acceptance-covered mustHitNow facts before unified artifact sync", async () => {
   const calls = [];
   const eventCalls = [];
   const createdFacts = [];
+  const syncCalls = [];
   const assembled = createRepairAssembledChapter();
   const contextPackage = JSON.parse(JSON.stringify(assembled.contextPackage));
   contextPackage.chapterWriteContext.obligationContract = {
@@ -660,20 +646,22 @@ test("finalizeChapterContent writes only acceptance-covered mustHitNow facts bef
         auditReports: [],
       }),
     },
+    artifactSyncService: {
+      saveDraftAndArtifacts: async () => undefined,
+      syncChapterArtifacts: async (...args) => {
+        calls.push("artifact");
+        syncCalls.push(args);
+      },
+    },
   });
 
   const originalChapterUpdate = prisma.chapter.update;
-  const originalCheckpointFindUnique = prisma.chapterArtifactSyncCheckpoint.findUnique;
-  const originalCheckpointUpsert = prisma.chapterArtifactSyncCheckpoint.upsert;
   const originalFactFindMany = prisma.novelFactEntry.findMany;
   const originalFactCreateMany = prisma.novelFactEntry.createMany;
   const originalListOpenConflicts = openConflictService.listOpenConflicts;
-  const originalGenerateChapterSummary = novelChapterSummaryService.generateChapterSummary;
   const originalRecordEvent = directorAutomationLedgerEventService.recordEvent;
 
   prisma.chapter.update = async () => undefined;
-  prisma.chapterArtifactSyncCheckpoint.findUnique = async () => null;
-  prisma.chapterArtifactSyncCheckpoint.upsert = async () => undefined;
   prisma.novelFactEntry.findMany = async () => [];
   prisma.novelFactEntry.createMany = async ({ data }) => {
     calls.push("facts");
@@ -681,15 +669,6 @@ test("finalizeChapterContent writes only acceptance-covered mustHitNow facts bef
     return { count: data.length };
   };
   openConflictService.listOpenConflicts = async () => [];
-  novelChapterSummaryService.generateChapterSummary = async () => {
-    calls.push("summary");
-    return {
-      chapterId: "chapter-1",
-      summary: "ok",
-      expectation: "ok",
-      concreteFactCount: 0,
-    };
-  };
   directorAutomationLedgerEventService.recordEvent = async (input) => {
     eventCalls.push(input);
   };
@@ -703,9 +682,13 @@ test("finalizeChapterContent writes only acceptance-covered mustHitNow facts bef
       content: "正文写出了主角当众拒绝婚约，但没有拿到钥匙。",
       runId: null,
       startMs: null,
+      deferArtifactBackgroundSync: true,
     });
 
-    assert.deepEqual(calls, ["facts", "summary"]);
+    assert.deepEqual(calls, ["facts", "artifact"]);
+    assert.equal(syncCalls.length, 1);
+    assert.equal(syncCalls[0][3].awaitArtifactDelta, true);
+    assert.equal(syncCalls[0][3].skipLegacySummaryAndFacts, true);
     assert.deepEqual(createdFacts.map((item) => item.text), [
       "第1章已完成：主角当众拒绝婚约，明确站到家族对立面。",
     ]);
@@ -717,12 +700,9 @@ test("finalizeChapterContent writes only acceptance-covered mustHitNow facts bef
     assert.equal(eventCalls[0].metadata.excludedObligations[0].text, "拿到青铜钥匙，并发现钥匙来自失踪师父。");
   } finally {
     prisma.chapter.update = originalChapterUpdate;
-    prisma.chapterArtifactSyncCheckpoint.findUnique = originalCheckpointFindUnique;
-    prisma.chapterArtifactSyncCheckpoint.upsert = originalCheckpointUpsert;
     prisma.novelFactEntry.findMany = originalFactFindMany;
     prisma.novelFactEntry.createMany = originalFactCreateMany;
     openConflictService.listOpenConflicts = originalListOpenConflicts;
-    novelChapterSummaryService.generateChapterSummary = originalGenerateChapterSummary;
     directorAutomationLedgerEventService.recordEvent = originalRecordEvent;
   }
 });

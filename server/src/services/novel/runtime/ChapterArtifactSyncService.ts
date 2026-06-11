@@ -11,6 +11,11 @@ export interface ChapterArtifactSyncOptions {
   scheduleBackgroundSync?: boolean;
   artifactSyncMode?: ArtifactSyncMode;
   syncArtifacts?: boolean;
+  awaitArtifactDelta?: boolean;
+  skipLegacySummaryAndFacts?: boolean;
+  provider?: string;
+  model?: string;
+  temperature?: number;
 }
 
 export class ChapterArtifactSyncService {
@@ -49,53 +54,61 @@ export class ChapterArtifactSyncService {
     content: string,
     options: ChapterArtifactSyncOptions = {},
   ): Promise<void> {
-    const facts = extractFacts(content);
-    const summary = briefSummary(content, facts);
+    if (!options.skipLegacySummaryAndFacts) {
+      const facts = extractFacts(content);
+      const summary = briefSummary(content, facts);
 
-    await withSqliteRetry(
-      () => prisma.$transaction(async (tx) => {
-        await tx.chapterSummary.upsert({
-          where: { chapterId },
-          update: {
-            summary,
-            keyEvents: facts.map((item) => item.content).slice(0, 3).join(""),
-            characterStates: facts.filter((item) => item.category === "character").map((item) => item.content).slice(0, 3).join(""),
-          },
-          create: {
-            novelId,
-            chapterId,
-            summary,
-            keyEvents: facts.map((item) => item.content).slice(0, 3).join(""),
-            characterStates: facts.filter((item) => item.category === "character").map((item) => item.content).slice(0, 3).join(""),
-          },
-        });
-
-        await tx.consistencyFact.deleteMany({ where: { novelId, chapterId } });
-        if (facts.length > 0) {
-          await tx.consistencyFact.createMany({
-            data: facts.map((item) => ({
+      await withSqliteRetry(
+        () => prisma.$transaction(async (tx) => {
+          await tx.chapterSummary.upsert({
+            where: { chapterId },
+            update: {
+              summary,
+              keyEvents: facts.map((item) => item.content).slice(0, 3).join(""),
+              characterStates: facts.filter((item) => item.category === "character").map((item) => item.content).slice(0, 3).join(""),
+            },
+            create: {
               novelId,
               chapterId,
-              category: item.category,
-              content: item.content,
-              source: "chapter_auto_extract",
-            })),
+              summary,
+              keyEvents: facts.map((item) => item.content).slice(0, 3).join(""),
+              characterStates: facts.filter((item) => item.category === "character").map((item) => item.content).slice(0, 3).join(""),
+            },
           });
-        }
-      }),
-      { label: "chapterArtifactSync.summaryAndFacts" },
-    );
+
+          await tx.consistencyFact.deleteMany({ where: { novelId, chapterId } });
+          if (facts.length > 0) {
+            await tx.consistencyFact.createMany({
+              data: facts.map((item) => ({
+                novelId,
+                chapterId,
+                category: item.category,
+                content: item.content,
+                source: "chapter_auto_extract",
+              })),
+            });
+          }
+        }),
+        { label: "chapterArtifactSync.summaryAndFacts" },
+      );
+    }
 
     await this.syncCharacterTimelineForChapter(novelId, chapterId, content);
     if (options.scheduleBackgroundSync !== false) {
       const artifactSyncMode = options.artifactSyncMode ?? "adaptive";
-      if (artifactSyncMode === "strict") {
+      if (options.awaitArtifactDelta || artifactSyncMode === "strict") {
         await chapterArtifactBackgroundSyncService.runChapterSyncNow(novelId, chapterId, content, {
           artifactSyncMode,
+          provider: options.provider,
+          model: options.model,
+          temperature: options.temperature,
         });
       } else {
         chapterArtifactBackgroundSyncService.scheduleChapterSync(novelId, chapterId, content, {
           artifactSyncMode,
+          provider: options.provider,
+          model: options.model,
+          temperature: options.temperature,
         });
       }
     }

@@ -1,5 +1,4 @@
 import { prisma } from "../../../db/prisma";
-import { createHash } from "node:crypto";
 import { payoffLedgerSyncService } from "../../payoff/PayoffLedgerSyncService";
 import {
   parsePipelinePayload,
@@ -11,7 +10,7 @@ import type {
   PipelineBackgroundSyncKind,
   PipelinePayload,
 } from "../novelCoreShared";
-import { ChapterArtifactDeltaService } from "./ChapterArtifactDeltaService";
+import { buildContentHash, ChapterArtifactDeltaService } from "./ChapterArtifactDeltaService";
 
 interface ChapterBackgroundSyncContext {
   chapterId: string;
@@ -21,6 +20,9 @@ interface ChapterBackgroundSyncContext {
 
 interface ChapterArtifactBackgroundSyncOptions {
   artifactSyncMode?: ArtifactSyncMode;
+  provider?: string;
+  model?: string;
+  temperature?: number;
 }
 
 type ArtifactSyncClaimStatus = "claimed" | "already_done" | "running";
@@ -59,7 +61,7 @@ export class ChapterArtifactBackgroundSyncService {
     options: ChapterArtifactBackgroundSyncOptions = {},
   ): Promise<void> {
     const artifactSyncMode = options.artifactSyncMode ?? DEFAULT_ARTIFACT_SYNC_MODE;
-    const contentHash = createHash("sha1").update(content).digest("hex");
+    const contentHash = buildContentHash(content);
     const chapterKey = `${novelId}:${chapterId}:${artifactSyncMode}`;
     const syncKey = `${chapterKey}:${contentHash}`;
     if (
@@ -70,7 +72,7 @@ export class ChapterArtifactBackgroundSyncService {
     }
     this.activeSyncKeys.add(syncKey);
     try {
-      await this.runChapterSync(novelId, chapterId, content, artifactSyncMode, contentHash);
+      await this.runChapterSync(novelId, chapterId, content, artifactSyncMode, contentHash, options);
       this.latestSyncedContentHashByChapter.set(chapterKey, contentHash);
     } catch (error) {
       console.warn("[chapter-artifact-background-sync] background sync failed", {
@@ -90,6 +92,7 @@ export class ChapterArtifactBackgroundSyncService {
     content: string,
     artifactSyncMode: ArtifactSyncMode,
     contentHash: string,
+    options: ChapterArtifactBackgroundSyncOptions,
   ): Promise<void> {
     const chapter = await prisma.chapter.findFirst({
       where: { id: chapterId, novelId },
@@ -136,14 +139,19 @@ export class ChapterArtifactBackgroundSyncService {
           content,
           sourceType: "chapter_background_sync",
           sourceStage: "chapter_execution",
+          provider: options.provider,
+          model: options.model,
+          temperature: options.temperature,
         });
         requiresFullReconcileFromDelta = result.requiresFullReconcile;
         deltaMetadata = {
           stateSnapshotId: result.stateSnapshotId,
           characterResourceProposalCount: result.characterResourceProposalCount,
           characterDynamicsCount: result.characterDynamicsCount,
+          characterKnowledgeStateCount: result.characterKnowledgeStateCount,
           payoffDeltaCount: result.payoffDeltaCount,
           canonicalCommittedCount: result.canonicalCommittedCount,
+          concreteFactCount: result.concreteFactCount,
           syncPlan: result.output.syncPlan,
           confidence: result.output.confidence,
         };
