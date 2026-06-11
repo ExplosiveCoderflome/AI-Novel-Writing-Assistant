@@ -69,7 +69,7 @@ keyMilestoneGuards: z.array(volumeKeyMilestoneGuardSchema).default([])
 
 **预算目标**：writer 阶段当前上下文预算以 `tokenBudgetPolicy.stageTokenCap.writer` 为准，默认值为 2600。高优先必选块应保持克制，避免必选约束本身吞掉过多预算。
 
-**观测方式**：`buildCompressionLog()` 只按 block priority 估算在预算内会保留哪些 block，并记录可选 block 的理论 dropped 列表。它不改变 `selectContextBlocks()`、不触发摘要、不影响生成结果。
+**观测方式**：`buildCompressionLog()` 只按 block priority 估算在预算内会保留哪些 block，并用 `summarizeContextBlock()` 模拟超预算 block 能否被截断摘要；摘要可放入时记录到 `summarized`，否则可选 block 记录到 `dropped`。它不改变 `selectContextBlocks()`、不触发真实生成路径的摘要、不影响生成结果。
 
 **诊断规则**：如果日志显示 `priority >= 99 && required=true` 的必选块长期超过 writer 预算的 25%，应单独评估是否把部分约束降为 `priority=95` 且 `required=false`。不能为了日志好看直接删掉时间线、上一章承接、角色硬事实或本章义务契约。
 

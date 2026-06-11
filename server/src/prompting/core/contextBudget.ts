@@ -79,7 +79,22 @@ export function buildCompressionLog(
   const summarized: string[] = [];
   const sorted = [...blocks].sort((a, b) => b.priority - a.priority);
   for (const block of sorted) {
-    if (!block.required && used + block.estimatedTokens > totalBudgetTokens) {
+    if (used + block.estimatedTokens <= totalBudgetTokens) {
+      used += block.estimatedTokens;
+      continue;
+    }
+
+    const remaining = Math.max(0, totalBudgetTokens - used);
+    const summarizedBlock = summarizeContextBlock(block, remaining);
+    if (summarizedBlock && used + summarizedBlock.estimatedTokens <= totalBudgetTokens) {
+      if (summarizedBlock !== block && !summarized.includes(block.id)) {
+        summarized.push(block.id);
+      }
+      used += summarizedBlock.estimatedTokens;
+      continue;
+    }
+
+    if (!block.required) {
       dropped.push(block.id);
     } else {
       used += block.estimatedTokens;
