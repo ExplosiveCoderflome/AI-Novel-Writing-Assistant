@@ -37,8 +37,8 @@
 - 门禁缓存只能保存可复用的成功结果。`acceptance_gate_unavailable`、timeline extractor 失败、缺少 timeline context 等临时系统失败不得写成长期成功缓存；这类结果应保留为当前运行风险，允许后续重试。
 - 任何会调用 LLM 的后置抽取或资产回灌，都必须在调用模型前抢占持久化 checkpoint，并把状态标记为 `running`。如果同章、同正文 content hash、同 artifactType 和 syncMode 已有 `running` 或 `succeeded` checkpoint，后续入口必须跳过本次 LLM 调用；失败时把 `running` 标记为 `failed`，允许后续重试。仅依赖服务实例内存锁不能满足任务重启、并发后台入口或上一章兜底补跑场景。
 - `artifact_delta` 是章节后置统一抽取的主所有者。`ChapterArtifactDeltaService` 的一次低温结构化调用负责产出 `summary`、`concreteFacts`、`stateDeltas`、`characterResourceDeltas`、`payoffDeltas`、`relationDynamics`、`factionUpdates`、`characterCandidates`、`characterKnowledgeStates` 和 `syncPlan`。
-- `ChapterContentFinalizationService` 在章节无需修复且正文稳定后等待 `artifact_delta` 完成，再允许后续章节组装读取新事实、状态、资源、伏笔和角色动态。自动产线的最终保留稿也必须通过同一条 awaited artifact sync；不得再额外同步调用 `NovelChapterSummaryService` 作为定稿主链路的一部分。
-- `NovelChapterSummaryService` 只保留给手动重新生成摘要或 UI 入口。`CharacterDynamicsMutationService.syncChapterDraftDynamics` 只作为 `artifact_delta` 未执行或失败时的兜底；若同章同正文已有 `artifact_delta` 成功 checkpoint，必须跳过自己的角色动态 LLM 抽取，避免候选角色和关系阶段被重复写入。
+- `ChapterContentFinalizationService` 在章节无需修复且正文稳定后等待 `artifact_delta` 完成，再允许后续章节组装读取新事实、状态、资源、伏笔和角色动态。手动修复完成、自动产线最终保留稿也必须通过同一条 awaited artifact sync；不得再额外同步调用 `NovelChapterSummaryService` 作为定稿主链路的一部分。
+- `NovelChapterSummaryService` 只保留给手动重新生成摘要或 UI 入口。`CharacterDynamicsMutationService.syncChapterDraftDynamics` 只作为 `artifact_delta` 未执行或失败时的手动运维兜底；`chapter:drafted -> character.chapterDraftSync` 自动 side-effect 链路已退役，不应重新接入常规章节事件，否则只会在 awaited artifact delta 后入队空跑。
 - 时间线检测独立于质量审校。它检查未来事件泄漏、上一章钩子未承接、时间倒退、事件重复、状态冲突和计划事件缺失，但默认作为接收后的定稿/复查步骤运行。
 - 时间线检测失败时保留正文并标记 `needs_repair`，但不把失败正文抽取出的事件提交为 `occurred` 时间线。
 - 时间线模块不能直接修改正文；它只输出结构化 issues，由现有局部修复或整章修复链路决定怎么修。

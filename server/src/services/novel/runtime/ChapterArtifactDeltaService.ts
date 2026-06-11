@@ -150,14 +150,17 @@ function buildKnowledgeBoundaryLine(state: ChapterArtifactKnowledgeState): strin
   ].join("");
 }
 
-function mergeKnowledgeBoundaryState(
+export function mergeKnowledgeBoundaryState(
   currentState: string | null | undefined,
   boundaryLine: string,
 ): string {
   const base = String(currentState ?? "")
     .replace(/\n?【信息边界】[^\n]*/g, "")
     .trim();
-  return [base, boundaryLine].filter(Boolean).join("\n").slice(0, 1200);
+  const cappedBoundary = boundaryLine.slice(0, 1200);
+  const baseBudget = Math.max(0, 1200 - cappedBoundary.length - (base ? 1 : 0));
+  const cappedBase = base.slice(0, baseBudget).trim();
+  return [cappedBase, cappedBoundary].filter(Boolean).join("\n");
 }
 
 function normalizeLedgerKey(title: string, fallback: string): string {

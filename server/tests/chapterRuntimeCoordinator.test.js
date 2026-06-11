@@ -3,6 +3,7 @@ const test = require("node:test");
 const promptRunner = require("../dist/prompting/core/promptRunner.js");
 const { prisma } = require("../dist/db/prisma.js");
 const { ChapterRuntimeCoordinator } = require("../dist/services/novel/runtime/ChapterRuntimeCoordinator.js");
+const { mergeKnowledgeBoundaryState } = require("../dist/services/novel/runtime/ChapterArtifactDeltaService.js");
 const { directorAutomationLedgerEventService } = require("../dist/services/novel/director/runtime/DirectorAutomationLedgerEventService.js");
 const { PostGenerationStyleReviewRunner } = require("../dist/services/novel/runtime/PostGenerationStyleReviewRunner.js");
 const { openConflictService } = require("../dist/services/state/OpenConflictService.js");
@@ -236,6 +237,16 @@ function createAgentRuntime() {
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+test("mergeKnowledgeBoundaryState preserves boundary line when current state is long", () => {
+  const base = "甲".repeat(1190);
+  const boundary = "【信息边界】已知：铜钥匙用途；未知/不应超前知情：库房守卫布置";
+  const merged = mergeKnowledgeBoundaryState(base, boundary);
+
+  assert.ok(merged.length <= 1200);
+  assert.ok(merged.includes(boundary));
+  assert.equal(mergeKnowledgeBoundaryState("", boundary), boundary);
+});
 
 test("createChapterStream uses lightweight readiness without forcing execution contract", async () => {
   const calls = [];
@@ -716,7 +727,7 @@ test("createRepairStream escalates patch schema failures to a single heavy repai
   const originalStreamTextPrompt = promptRunner.streamTextPrompt;
 
   const chapterUpdates = [];
-  const syncedContents = [];
+  const syncCalls = [];
   const reviewCalls = [];
   const resolvedIssues = [];
   const frames = [];
@@ -750,8 +761,8 @@ test("createRepairStream escalates patch schema failures to a single heavy repai
         assemble: async () => createRepairAssembledChapter(),
       },
       artifactSyncService: {
-        async syncChapterArtifacts(_novelId, _chapterId, content) {
-          syncedContents.push(content);
+        async syncChapterArtifacts(...args) {
+          syncCalls.push(args);
         },
       },
       reviewChapterAfterRepair: async (_novelId, _chapterId, options) => {
@@ -800,7 +811,10 @@ test("createRepairStream escalates patch schema failures to a single heavy repai
 
     assert.equal(streamedContent, "全文修复片段");
     assert.deepEqual(reviewCalls, ["全文修复后的正文"]);
-    assert.deepEqual(syncedContents, ["全文修复后的正文"]);
+    assert.equal(syncCalls.length, 1);
+    assert.equal(syncCalls[0][2], "全文修复后的正文");
+    assert.equal(syncCalls[0][3].awaitArtifactDelta, true);
+    assert.equal(syncCalls[0][3].skipLegacySummaryAndFacts, true);
     assert.deepEqual(resolvedIssues, [["issue-1"]]);
     assert.deepEqual(chapterUpdates.map((item) => item.generationState), ["repaired", "approved"]);
     assert.equal(frames.at(-1)?.status, "succeeded");

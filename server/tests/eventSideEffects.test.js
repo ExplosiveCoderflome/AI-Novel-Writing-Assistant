@@ -11,6 +11,9 @@ const {
 const {
   UnsupportedNovelSideEffectPayloadError,
 } = require("../dist/events/sideEffects/NovelSideEffectJobHandlers.js");
+const {
+  NOVEL_SIDE_EFFECT_JOB_TYPES,
+} = require("../dist/events/sideEffects/NovelSideEffectJobTypes.js");
 
 function cloneJob(job) {
   return job ? { ...job } : null;
@@ -137,6 +140,10 @@ test("enqueueJob deduplicates by idempotency key", async () => {
   assert.equal(second.created, false);
   assert.equal(first.job.id, second.job.id);
   assert.equal(fake.jobs.length, 1);
+});
+
+test("side effect job types do not expose retired chapter draft dynamics sync", () => {
+  assert.equal(NOVEL_SIDE_EFFECT_JOB_TYPES.includes("character.chapterDraftSync"), false);
 });
 
 test("leaseNext uses conditional update so concurrent workers cannot claim the same job", async () => {
