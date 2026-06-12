@@ -110,26 +110,96 @@ server/src/modules/comic/http/  # 路由注册（对照 modules/drama/http）
 
 ---
 
-## 2. 数据模型（Prisma）
+## 2. 内容源与数据设计（与 drama 同构，深化版）
+
+### 2.1 内容源：三个现有 + 一个新增
+
+| 源类型 | 状态 | 说明 |
+|------|------|------|
+| `novel_import` | **主推路径**，复用现有 adapter | 本项目小说产出直转漫画，见 §2.2 |
+| `original` | 复用 | 一句话灵感起稿 |
+| `text_import` | 复用 | 外部文本（如别处写的小说）转漫画 |
+| `comic_import` | ★新增★ | **上传已有漫画**，见 §2.4 |
+
+### 2.2 主推路径：小说 → 漫画的「导入即快照」原则
+
+drama 的既有模式：`DramaSourceBundle` 把 SourceBundle **快照落库**，运行期不回读 novel 表。
+comic 沿用并强化这一原则，它同时服务两个目标：
+- **可拆分性**：拆分后即使 novel 模块不在同进程/同库，已导入项目照常工作
+- **稳定性**：小说后续续写/修改不会意外漂移已生成的漫画
+
+但现有 `NovelSourceAdapter` 把章节压成 200 字摘要（`truncate(content, 200)`），
+对短剧策略规划够用，**对漫画分格不够**——漫画对白需要原文级细节。解法：
+
+```
+导入时（一次性）：SourceBundle 快照（梗概/节拍/角色/硬事实）→ ComicSourceBundle
+分话规划时（按需快照）：本话覆盖的章节区间（beat.sourceChapterStart/End）
+  → 经 adapter 只读取出章节正文 → 快照进 ComicEpisode.sourceText
+分格脚本生成时：只读 ComicEpisode.sourceText，原文对白直接提取/改写成气泡对白
+```
+
+即 `SourceContentPort` 增加一个可选方法（仍只经 prisma 只读，不破坏守卫）：
+
+```ts
+/** 按章节区间取正文（novel_import 实现；其余源类型返回 rawText 切片或空） */
+loadChapterText?(ref: SourceRef, start: number, end: number): Promise<string>;
+```
+
+### 2.3 自定义与上传：全产线 origin 双来源设计
+
+每个资产环节都支持 `generated | uploaded`，用户可在任意环节用自己的素材替换 AI 产物：
+
+| 环节 | AI 路径 | 自定义路径 |
+|------|------|------|
+| 角色设计稿 | CharacterSheetService 生成 | 上传设计稿图（`sheetData.origin: "uploaded"`） |
+| 画风 | 预置画风模板 | 上传风格参考图进 `stylePreset.referenceImages` |
+| 分话大纲/分格脚本 | LLM 生成 | 可编辑（沿用 drama editable scripts 先例） |
+| 单格画面 | 参考图生图 | **上传图替换任意格**（`imageData.origin: "uploaded"`） |
+| 气泡 | 自动排版 | 前端拖拽微调 anchor 重合成 |
+
+上传一律走现有 `imageAssetStorage` 基础设施落盘，DB 只存路径。
+
+### 2.4 comic_import：上传已有漫画的两种语义
+
+1. **作为内容源（续作/重制）**：上传整话/整本漫画图 → 多模态 LLM 逐页解析
+   （画面描述 + OCR 对白 + 角色识别）→ 产出 SourceBundle（beats/characters/synopsis）
+   → 走正常产线生成续作或重制。解析结果同样快照落库。
+2. **作为资产**：从上传页中框选角色 → 提取为角色参考图（入角色库）；
+   整体画风 → 提取为 stylePreset 风格参考。
+
+MVP 先做语义 2（资产提取，简单且立刻有用），语义 1（整本解析）放 P4 之后。
+
+### 2.5 数据模型（Prisma，与 drama 镜像）
 
 ```prisma
 model ComicProject {
   id          String   @id @default(cuid())
   title       String
-  sourceType  String   // novel_import | original | text_import
-  sourceRef   String?  // novelId 软引用
+  sourceType  String   // novel_import | original | text_import | comic_import
+  sourceRef   String?  // novelId 软引用——不建外键，保证可拆分（drama 既有规范）
   trackId     String?  // 赛道模板（复用 rhythmEngine TrackId）
-  stylePreset String?  // ★全项目画风锁定：风格提示词 + 负面提示词 + 参考图路径（JSON）
+  stylePreset String?  // 画风锁定 JSON：风格词/负面词/referenceImages 路径/origin
   status      String   @default("draft")
+  sourceBundle ComicSourceBundle?
   episodes    ComicEpisode[]
   characters  ComicCharacter[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
+model ComicSourceBundle {
+  // 对照 DramaSourceBundle：SourceBundle JSON 快照，导入即落库，运行期不回读 novel
+  id         String   @id @default(cuid())
+  projectId  String   @unique
+  bundleJson String   // SourceBundle 序列化
+  importedAt DateTime @default(now())
+  project    ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
 model ComicCharacter {
-  // 对照 DramaCharacter：name/persona/visualAnchor/sheetData(JSON 路径+版本历史)
-  // sheetData 复用 CharacterSheetData 结构（面部特写+三视图合图）
+  // 对照 DramaCharacter：name/persona/visualAnchor
+  // sheetData JSON 复用 CharacterSheetData（面部特写+三视图合图）+ origin 字段
+  // sourceCharacterRef String? 软引用源角色（novel characterId）
 }
 
 model ComicEpisode {
@@ -141,6 +211,7 @@ model ComicEpisode {
   cliffhanger  String? // 收尾卡点
   isPaywalled  Boolean @default(false) // 付费卡点（复用 paywallPlanPolicy）
   outline      String? // 本话情节大纲
+  sourceText   String? // ★本话覆盖章节的正文快照（§2.2，分格对白的原文依据）
   status       String  @default("draft")
   panels       ComicPanel[]
   @@unique([projectId, order])
@@ -155,19 +226,32 @@ model ComicPanel {
   dialogues     String? // JSON: [{ speaker, text, bubbleType, anchorHint }]
   characterRefs String? // 角色 id 列表
   visualPrompt  String? // 图像生成提示词
-  imageData     String? // JSON：status/version/url/history（同 keyframeData 结构，history 上限 5）
+  imageData     String? // JSON：status/version/url/origin(generated|uploaded)/history（上限5）
   letteredData  String? // JSON：合成气泡后的成品图路径 + 气泡布局参数
+  motionData    String? // JSON（P5 漫剧）：运镜类型/时长/焦点区域
   @@unique([episodeId, order])
 }
 
+model ComicFact {
+  // 对照 DramaFact：跨话一致性事实账本（服装变更/道具状态/场景状态），
+  // 分格脚本生成时注入，防止跨话视觉漂移
+}
+
+model ComicUploadAsset {
+  // 上传资产登记：kind(character_ref|style_ref|panel_image|imported_page)
+  // + 落盘路径 + 元数据；上传内容不进 DB
+}
+
 model ComicExportJob {
-  // 对照 DramaBatchJob：episodeId / 平台规格 / 切片产物路径列表 / 状态
+  // 对照 DramaBatchJob：episodeId / 格式(strip|video) / 平台规格 / 产物路径列表 / 状态
 }
 ```
 
 要点：
-- `imageData` 沿用 drama `keyframeData` 的 JSON 结构（status/version/history），版本历史**硬上限 5 份**，旧版直接删盘上文件。
-- 所有图片路径走 `generated-images/comic-panels/{panelId}/` 落盘，DB 不存 base64。
+- `imageData` 沿用 drama `keyframeData` JSON 结构（status/version/history），
+  版本历史**硬上限 5 份**，裁剪时同步删盘上文件；`origin: "uploaded"` 的版本不参与自动重抽
+- 所有图片走 `generated-images/comic-panels/{panelId}/` 落盘，DB 不存 base64
+- 对 Novel 全部软引用零外键；角色库与 drama 共享（提升到 adaptation 层的 CharacterLibrary）
 
 ---
 
