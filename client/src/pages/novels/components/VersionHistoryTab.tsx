@@ -21,46 +21,6 @@ function formatSnapshotTrigger(triggerType: string): string {
   return "版本快照";
 }
 
-function summarizeSnapshot(snapshotData: string): {
-  chapterCount: number;
-  writtenChapterCount: number;
-  totalWordCount: number;
-  latestChapterLabel: string;
-  hasOutline: boolean;
-  hasStructuredOutline: boolean;
-  recentChapterTitles: string[];
-} | null {
-  try {
-    const parsed = JSON.parse(snapshotData) as {
-      outline?: string | null;
-      structuredOutline?: string | null;
-      chapters?: Array<{ title?: string | null; order?: number | null; content?: string | null }>;
-    };
-    const chapters = Array.isArray(parsed.chapters) ? parsed.chapters : [];
-    const writtenChapters = chapters.filter((chapter) => Boolean(chapter.content?.trim()));
-    const totalWordCount = writtenChapters.reduce((sum, chapter) => sum + (chapter.content?.trim().length ?? 0), 0);
-    const latestChapter = [...chapters]
-      .sort((left, right) => (right.order ?? 0) - (left.order ?? 0))[0];
-
-    return {
-      chapterCount: chapters.length,
-      writtenChapterCount: writtenChapters.length,
-      totalWordCount,
-      latestChapterLabel: latestChapter
-        ? `第 ${latestChapter.order ?? "?"} 章 · ${latestChapter.title?.trim() || "未命名章节"}`
-        : "暂无章节",
-      hasOutline: Boolean(parsed.outline?.trim()),
-      hasStructuredOutline: Boolean(parsed.structuredOutline?.trim()),
-      recentChapterTitles: chapters
-        .slice(0, 3)
-        .map((chapter) => chapter.title?.trim())
-        .filter((title): title is string => Boolean(title)),
-    };
-  } catch {
-    return null;
-  }
-}
-
 export default function VersionHistoryTab({ novelId }: VersionHistoryTabProps) {
   const queryClient = useQueryClient();
   const snapshotsQuery = useQuery({
@@ -95,7 +55,7 @@ export default function VersionHistoryTab({ novelId }: VersionHistoryTabProps) {
         <div>
           <div className="font-medium">版本历史</div>
           <div className="text-sm text-muted-foreground">
-            这里优先帮你找回最近的稳定版本。恢复前系统会自动再备份一次当前状态，不再默认展示原始快照数据。
+            这里优先帮你找回最近的稳定版本。恢复前系统会自动再备份一次当前状态。
           </div>
         </div>
         <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
@@ -105,7 +65,6 @@ export default function VersionHistoryTab({ novelId }: VersionHistoryTabProps) {
 
       <div className="space-y-3">
         {snapshots.map((snapshot) => {
-          const summary = summarizeSnapshot(snapshot.snapshotData);
           const isRestoringCurrent = restoreMutation.isPending && restoreMutation.variables === snapshot.id;
 
           return (
@@ -120,24 +79,15 @@ export default function VersionHistoryTab({ novelId }: VersionHistoryTabProps) {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline">{summary?.chapterCount ?? 0} 章</Badge>
-                    <Badge variant="outline">{summary?.writtenChapterCount ?? 0} 章有正文</Badge>
-                    <Badge variant="outline">{summary?.totalWordCount ?? 0} 字</Badge>
-                    {summary?.hasOutline ? <Badge variant="secondary">含大纲</Badge> : null}
-                    {summary?.hasStructuredOutline ? <Badge variant="secondary">含拆章</Badge> : null}
+                    <Badge variant={snapshot.triggerType === "manual" ? "secondary" : "outline"}>
+                      {formatSnapshotTrigger(snapshot.triggerType)}
+                    </Badge>
+                    <Badge variant="outline">{new Date(snapshot.createdAt).toLocaleDateString()}</Badge>
                   </div>
 
                   <div className="text-sm leading-6 text-muted-foreground">
-                    {summary
-                      ? `这个版本最近保存到了 ${summary.latestChapterLabel}，适合在你想退回到更稳定的章节推进状态时使用。`
-                      : "这个版本的数据摘要暂时无法解析，但仍然可以恢复。"}
+                    这个版本适合在你想退回到更稳定的章节推进状态时使用。
                   </div>
-
-                  {summary?.recentChapterTitles.length ? (
-                    <div className="text-xs text-muted-foreground">
-                      包含章节：{summary.recentChapterTitles.join(" / ")}
-                    </div>
-                  ) : null}
                 </div>
 
                 <Button
