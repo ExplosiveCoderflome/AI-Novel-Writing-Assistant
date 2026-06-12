@@ -134,6 +134,14 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/drama/drama.prompts").dramaVideoPromptPrompt as UnknownPromptAsset,
   },
   {
+    key: "comic.episodeOutline@v1",
+    load: () => require("./prompts/comic/comic.prompts").comicEpisodeOutlinePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "comic.panelScript@v1",
+    load: () => require("./prompts/comic/comic.prompts").comicPanelScriptPrompt as UnknownPromptAsset,
+  },
+  {
     key: "planner.book.plan@v1",
     load: () => require("./prompts/planner/plannerPlan.prompts").plannerBookPlanPrompt as UnknownPromptAsset,
   },
