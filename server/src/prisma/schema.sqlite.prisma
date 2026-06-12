@@ -3136,3 +3136,162 @@ model DramaBatchJob {
   @@index([episodeId, status])
   @@index([type, status])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Comic（AI 漫画）模块
+// 低耦合要点：所有外键对 Novel 零引用，sourceRef 为软引用（不建外键，保证可拆分）
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ComicProject {
+  id          String   @id @default(cuid())
+  title       String
+  sourceType  String   @default("original")
+  sourceRef   String?
+  sourceInput String?
+  trackId     String?
+  stylePreset String?
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sourceBundle ComicSourceBundle?
+  characters   ComicCharacter[]
+  episodes     ComicEpisode[]
+  facts        ComicFact[]
+  uploadAssets ComicUploadAsset[]
+  exportJobs   ComicExportJob[]
+  batchJobs    ComicBatchJob[]
+
+  @@index([sourceType])
+  @@index([status])
+}
+
+model ComicSourceBundle {
+  id         String   @id @default(cuid())
+  projectId  String   @unique
+  bundleJson String
+  importedAt DateTime @default(now())
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ComicCharacter {
+  id                 String   @id @default(cuid())
+  projectId          String
+  name               String
+  persona            String?
+  visualAnchor       String?
+  sheetData          String?
+  sourceCharacterRef String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model ComicEpisode {
+  id          String   @id @default(cuid())
+  projectId   String
+  order       Int
+  title       String?
+  hookType    String?
+  cliffhanger String?
+  isPaywalled Boolean  @default(false)
+  outline     String?
+  sourceText  String?
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project   ComicProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  panels    ComicPanel[]
+  batchJobs ComicBatchJob[]
+
+  @@unique([projectId, order])
+  @@index([projectId, status])
+}
+
+model ComicPanel {
+  id            String   @id @default(cuid())
+  episodeId     String
+  order         Int
+  panelType     String?
+  action        String
+  dialogues     String?
+  characterRefs String?
+  visualPrompt  String?
+  imageData     String?
+  letteredData  String?
+  motionData    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  episode ComicEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([episodeId, order])
+  @@index([episodeId])
+}
+
+model ComicFact {
+  id           String   @id @default(cuid())
+  projectId    String
+  text         String
+  category     String   @default("completed")
+  episodeOrder Int?
+  createdAt    DateTime @default(now())
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model ComicUploadAsset {
+  id        String   @id @default(cuid())
+  projectId String
+  kind      String
+  filePath  String
+  refId     String?
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, kind])
+}
+
+model ComicExportJob {
+  id        String   @id @default(cuid())
+  projectId String
+  episodeId String?
+  format    String
+  spec      String?
+  status    String   @default("pending")
+  artifacts String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@index([format, status])
+}
+
+model ComicBatchJob {
+  id        String   @id @default(cuid())
+  projectId String
+  episodeId String?
+  type      String
+  status    String   @default("pending")
+  progress  String   @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project ComicProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode ComicEpisode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([episodeId, status])
+  @@index([type, status])
+}

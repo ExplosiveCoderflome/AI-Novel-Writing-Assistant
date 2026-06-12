@@ -3175,3 +3175,198 @@ model DramaBatchJob {
   @@index([episodeId, status])
   @@index([type, status])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Comic（AI 漫画）模块
+// 低耦合要点：所有外键对 Novel 零引用，sourceRef 为软引用（不建外键，保证可拆分）
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ComicProject {
+  id          String   @id @default(cuid())
+  title       String
+  // novel_import | original | text_import | comic_import
+  sourceType  String   @default("original")
+  // 软引用：novel_import 时为 novelId，不建外键，保证可拆分
+  sourceRef   String?
+  // 原创/文本导入的用户输入（sourceInput，对齐 DramaProject）
+  sourceInput String?
+  // 赛道模板 id（复用 rhythmEngine TrackId）
+  trackId     String?
+  // 画风锁定 JSON：{ style, negativeStyle, referenceImages, origin }
+  stylePreset String?
+  // draft/outlined/producing/completed
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sourceBundle ComicSourceBundle?
+  characters   ComicCharacter[]
+  episodes     ComicEpisode[]
+  facts        ComicFact[]
+  uploadAssets ComicUploadAsset[]
+  exportJobs   ComicExportJob[]
+  batchJobs    ComicBatchJob[]
+
+  @@index([sourceType])
+  @@index([status])
+}
+
+model ComicSourceBundle {
+  // SourceBundle JSON 快照，导入即落库，运行期不回读 novel 表（可拆分保证）
+  id         String   @id @default(cuid())
+  projectId  String   @unique
+  bundleJson String   // SourceBundle 序列化（synopsis/beats/characters/hardFacts）
+  importedAt DateTime @default(now())
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ComicCharacter {
+  id               String  @id @default(cuid())
+  projectId        String
+  name             String
+  persona          String?
+  // 视觉锚点描述（外形/服装/标志性特征，注入每格 visualPrompt）
+  visualAnchor     String?
+  // JSON: { status, version, url, origin(generated|uploaded), history(max5) }
+  sheetData        String?
+  // 软引用：novel_import 时为源小说 characterId
+  sourceCharacterRef String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model ComicEpisode {
+  id          String  @id @default(cuid())
+  projectId   String
+  order       Int
+  title       String?
+  // 开场钩子类型（复用 HookTypeId）
+  hookType    String?
+  // 收尾悬念/卡点
+  cliffhanger String?
+  isPaywalled Boolean @default(false)
+  // 本话情节大纲（LLM 产出，可编辑）
+  outline     String?
+  // 本话覆盖章节的正文快照（分格脚本对白的原文依据，novel_import 时填入）
+  sourceText  String?
+  // draft/scripted/generating/reviewing/done
+  status      String  @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  panels  ComicPanel[]
+  batchJobs ComicBatchJob[]
+
+  @@unique([projectId, order])
+  @@index([projectId, status])
+}
+
+model ComicPanel {
+  id           String  @id @default(cuid())
+  episodeId    String
+  order        Int
+  // 镜头语言：establishing/close_up/action/reaction/transition
+  panelType    String?
+  // 画面行为描述
+  action       String
+  // JSON: [{ speaker, text, bubbleType(round|spike|cloud|caption), anchorHint }]
+  dialogues    String?
+  // 本格出场角色 id 列表（JSON array）
+  characterRefs String?
+  // 图像生成提示词（含 stylePreset + characterSheet 注入后的完整 prompt）
+  visualPrompt  String?
+  // JSON: { status, version, url, origin(generated|uploaded), history(max5) }
+  imageData     String?
+  // JSON: { url, bubbleLayout, synthesizedAt }（气泡合成后的成品图）
+  letteredData  String?
+  // JSON（P5）: { motionType(push_in|pull_out|pan|hold), durationMs, focusRegion }
+  motionData    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  episode ComicEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([episodeId, order])
+  @@index([episodeId])
+}
+
+model ComicFact {
+  id        String  @id @default(cuid())
+  projectId String
+  // 事实描述（跨话视觉一致性约束：服装变更/道具状态/场景状态）
+  text      String
+  // completed | revealed | state_changed
+  category  String  @default("completed")
+  // 关联话数（发生时的 episode order）
+  episodeOrder Int?
+  createdAt DateTime @default(now())
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model ComicUploadAsset {
+  id        String  @id @default(cuid())
+  projectId String
+  // character_ref | style_ref | panel_image | imported_page
+  kind      String
+  // 落盘相对路径（不存 base64，仅存路径）
+  filePath  String
+  // 关联实体 id（可选）
+  refId     String?
+  metadata  String? // JSON: 自由元数据（尺寸/原始文件名等）
+  createdAt DateTime @default(now())
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, kind])
+}
+
+model ComicExportJob {
+  id         String  @id @default(cuid())
+  projectId  String
+  episodeId  String?
+  // strip（条漫长图）| video（漫剧 MP4）
+  format     String
+  // JSON: 平台规格（切片高度/分辨率/水印等）
+  spec       String?
+  // pending/running/done/failed
+  status     String  @default("pending")
+  // JSON: 产物路径列表（落盘路径，不进 DB 正文）
+  artifacts  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@index([format, status])
+}
+
+model ComicBatchJob {
+  id        String  @id @default(cuid())
+  projectId String
+  episodeId String?
+  // panels/lettering/export
+  type      String
+  // pending/running/paused/done/failed
+  status    String  @default("pending")
+  // JSON: { total, done, failed, failedPanelIds, provider, errors }
+  progress  String  @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode ComicEpisode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([episodeId, status])
+  @@index([type, status])
+}
