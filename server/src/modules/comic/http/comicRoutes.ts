@@ -315,7 +315,7 @@ router.get("/characters/:charId/sheet", validate({ params: charIdParams }), asyn
 });
 
 router.post(
-  "/characters/:charId/expression/generate",
+  "/characters/:charId/expressions/generate",
   validate({ params: charIdParams, body: charExpressionGenerateSchema }),
   async (req, res, next) => {
     try {
@@ -330,7 +330,7 @@ router.post(
   },
 );
 
-router.get("/characters/:charId/expression", validate({ params: charIdParams }), async (req, res, next) => {
+router.get("/characters/:charId/expressions", validate({ params: charIdParams }), async (req, res, next) => {
   try {
     const { charId } = req.params as z.infer<typeof charIdParams>;
     const data = await comicCharacterImageService.getExpressionData(charId);
@@ -353,7 +353,7 @@ router.get("/character-images/:charId/sheet", validate({ params: charIdParams })
   } catch (err) { next(err); }
 });
 
-router.get("/character-images/:charId/expression", validate({ params: charIdParams }), async (req, res, next) => {
+router.get("/character-images/:charId/expressions", validate({ params: charIdParams }), async (req, res, next) => {
   try {
     const { charId } = req.params as z.infer<typeof charIdParams>;
     const file = await comicCharacterImageService.resolveExpressionFile(charId);

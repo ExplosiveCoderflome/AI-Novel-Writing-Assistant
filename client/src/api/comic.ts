@@ -221,7 +221,7 @@ export function characterSheetImageUrl(charId: string): string {
 }
 
 export function characterExpressionImageUrl(charId: string): string {
-  return `/api/comic/character-images/${charId}/expression`;
+  return `/api/comic/character-images/${charId}/expressions`;
 }
 
 export function characterFaceImageUrl(charId: string): string {
@@ -247,14 +247,14 @@ export async function getCharacterSheetData(charId: string): Promise<CharacterSh
 
 export async function generateCharacterExpressionSheet(charId: string, provider?: string): Promise<CharacterExpressionData> {
   const res = await apiClient.post<ApiResponse<CharacterExpressionData>>(
-    `/comic/characters/${charId}/expression/generate`,
+    `/comic/characters/${charId}/expressions/generate`,
     provider ? { provider } : {},
   );
   return res.data.data!;
 }
 
 export async function getCharacterExpressionData(charId: string): Promise<CharacterExpressionData> {
-  const res = await apiClient.get<ApiResponse<CharacterExpressionData>>(`/comic/characters/${charId}/expression`);
+  const res = await apiClient.get<ApiResponse<CharacterExpressionData>>(`/comic/characters/${charId}/expressions`);
   return res.data.data!;
 }
 
