@@ -52,7 +52,17 @@ export class NovelSourceAdapter implements SourceContentPort {
       }),
       prisma.character.findMany({
         where: { novelId },
-        select: { id: true, name: true, role: true, personality: true, background: true },
+        select: {
+          id: true,
+          name: true,
+          role: true,
+          personality: true,
+          background: true,
+          appearance: true,
+          physique: true,
+          attireStyle: true,
+          signatureDetail: true,
+        },
       }),
       prisma.novelFactEntry.findMany({
         where: { novelId },
@@ -76,6 +86,12 @@ export class NovelSourceAdapter implements SourceContentPort {
       name: character.name,
       persona: [character.role, character.personality].filter(Boolean).join("｜") || undefined,
       relations: character.background ?? undefined,
+      visualHint: [
+        character.appearance,
+        character.physique,
+        character.attireStyle,
+        character.signatureDetail,
+      ].filter(Boolean).join("，") || undefined,
       sourceCharacterRef: character.id,
     }));
 

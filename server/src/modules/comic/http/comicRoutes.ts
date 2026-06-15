@@ -8,6 +8,7 @@ import { ComicPanelScriptService } from "../../../services/comic/ComicPanelScrip
 import { comicPanelImageService } from "../../../services/comic/ComicPanelImageService";
 import { comicBubbleLayoutService } from "../../../services/comic/ComicBubbleLayoutService";
 import { comicExportService } from "../../../services/comic/ComicExportService";
+import { comicCharacterImageService } from "../../../services/comic/ComicCharacterImageService";
 
 const comicProjectService = new ComicProjectService();
 const comicEpisodePlanService = new ComicEpisodePlanService();
@@ -20,6 +21,8 @@ const router = Router();
 const idParams = z.object({ id: z.string().trim().min(1) });
 const episodeIdParams = z.object({ episodeId: z.string().trim().min(1) });
 const panelIdParams = z.object({ panelId: z.string().trim().min(1) });
+const charIdParams = z.object({ charId: z.string().trim().min(1) });
+const charSheetVersionParams = z.object({ charId: z.string().trim().min(1), version: z.coerce.number().int().min(1) });
 
 // ─── Request body schemas ─────────────────────────────────────────────────
 
@@ -34,6 +37,13 @@ const createProjectSchema = z.object({
 
 const styleUpdateSchema = z.object({
   style: z.string().trim().min(1).max(120),
+});
+
+const presetUpdateSchema = z.object({
+  format: z.string().trim().min(1).max(60).optional(),
+  style: z.string().trim().max(120).optional(),
+  promptKeywords: z.string().trim().max(400).optional(),
+  imageSize: z.string().trim().max(20).optional(),
 });
 
 const generateOutlineSchema = z
@@ -126,6 +136,21 @@ router.patch(
       const { id } = req.params as z.infer<typeof idParams>;
       const { style } = req.body as z.infer<typeof styleUpdateSchema>;
       const data = await comicProjectService.updateProjectStyle(id, JSON.stringify({ style }));
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+    } catch (err) { next(err); }
+  },
+);
+
+// ─── Preset (format + style) ──────────────────────────────────────────────
+
+router.patch(
+  "/projects/:id/preset",
+  validate({ params: idParams, body: presetUpdateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParams>;
+      const patch = req.body as z.infer<typeof presetUpdateSchema>;
+      const data = await comicProjectService.updateProjectPreset(id, patch);
       res.json({ success: true, data } satisfies ApiResponse<typeof data>);
     } catch (err) { next(err); }
   },
@@ -249,6 +274,117 @@ router.patch(
     } catch (err) { next(err); }
   },
 );
+
+// ─── Character sheet images ───────────────────────────────────────────────────
+
+const charSheetGenerateSchema = z.object({ provider: z.string().trim().optional() }).optional();
+const charExpressionGenerateSchema = z.object({ provider: z.string().trim().optional() }).optional();
+
+router.post(
+  "/characters/:charId/sheet/generate",
+  validate({ params: charIdParams, body: charSheetGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { charId } = req.params as z.infer<typeof charIdParams>;
+      const body = (req.body ?? {}) as z.infer<typeof charSheetGenerateSchema>;
+      const data = await comicCharacterImageService.generateCharacterSheet(
+        charId,
+        body?.provider as Parameters<typeof comicCharacterImageService.generateCharacterSheet>[1] | undefined,
+      );
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+    } catch (err) { next(err); }
+  },
+);
+
+router.get("/characters/:charId/sheet", validate({ params: charIdParams }), async (req, res, next) => {
+  try {
+    const { charId } = req.params as z.infer<typeof charIdParams>;
+    const data = await comicCharacterImageService.getSheetData(charId);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+router.post(
+  "/characters/:charId/expression/generate",
+  validate({ params: charIdParams, body: charExpressionGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { charId } = req.params as z.infer<typeof charIdParams>;
+      const body = (req.body ?? {}) as z.infer<typeof charExpressionGenerateSchema>;
+      const data = await comicCharacterImageService.generateExpressionSheet(
+        charId,
+        body?.provider as Parameters<typeof comicCharacterImageService.generateExpressionSheet>[1] | undefined,
+      );
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+    } catch (err) { next(err); }
+  },
+);
+
+router.get("/characters/:charId/expression", validate({ params: charIdParams }), async (req, res, next) => {
+  try {
+    const { charId } = req.params as z.infer<typeof charIdParams>;
+    const data = await comicCharacterImageService.getExpressionData(charId);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+// 设计稿图片文件（供 <img src> 直接访问）
+router.get("/character-images/:charId/sheet", validate({ params: charIdParams }), async (req, res, next) => {
+  try {
+    const { charId } = req.params as z.infer<typeof charIdParams>;
+    const file = await comicCharacterImageService.resolveSheetFile(charId);
+    if (!file) {
+      res.status(404).json({ success: false, error: "设计稿尚未生成。" } satisfies ApiResponse<null>);
+      return;
+    }
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.send(await import("fs/promises").then((fs) => fs.readFile(file.filePath)));
+  } catch (err) { next(err); }
+});
+
+router.get("/character-images/:charId/expression", validate({ params: charIdParams }), async (req, res, next) => {
+  try {
+    const { charId } = req.params as z.infer<typeof charIdParams>;
+    const file = await comicCharacterImageService.resolveExpressionFile(charId);
+    if (!file) {
+      res.status(404).json({ success: false, error: "表情设计稿尚未生成。" } satisfies ApiResponse<null>);
+      return;
+    }
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.send(await import("fs/promises").then((fs) => fs.readFile(file.filePath)));
+  } catch (err) { next(err); }
+});
+
+router.get("/character-images/:charId/face", validate({ params: charIdParams }), async (req, res, next) => {
+  try {
+    const { charId } = req.params as z.infer<typeof charIdParams>;
+    const file = await comicCharacterImageService.resolveFaceRegionFile(charId);
+    if (!file) {
+      res.status(404).json({ success: false, error: "角色面部参考图尚未生成。" } satisfies ApiResponse<null>);
+      return;
+    }
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.send(await import("fs/promises").then((fs) => fs.readFile(file.filePath)));
+  } catch (err) { next(err); }
+});
+
+router.get("/character-images/:charId/sheet/v:version", validate({ params: charSheetVersionParams }), async (req, res, next) => {
+  try {
+    const parsed = charSheetVersionParams.parse(req.params);
+    const { charId, version } = parsed;
+    const file = await comicCharacterImageService.resolveArchivedSheetFile(charId, version);
+    if (!file) {
+      res.status(404).json({ success: false, error: "历史设计稿不存在。" } satisfies ApiResponse<null>);
+      return;
+    }
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.send(await import("fs/promises").then((fs) => fs.readFile(file.filePath)));
+  } catch (err) { next(err); }
+});
 
 // ─── Panel images ──────────────────────────────────────────────────────────
 

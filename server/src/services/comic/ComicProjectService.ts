@@ -12,6 +12,42 @@ import type { AdaptationSourceType, SourceBundle, SourceRef } from "../adaptatio
 
 adaptationSourceRegistry.register(novelSourceAdapter);
 
+interface ComicVisualAnchorData {
+  description: string;
+  visualSpec?: {
+    appearance?: string;
+    signatureFeatures?: string;
+  };
+  defaultCostume?: {
+    id: "default";
+    description: string;
+  };
+  behaviorSignature?: {
+    persona?: string;
+  };
+}
+
+function compactVisualAnchor(text: string, maxChars = 40): string {
+  return text
+    .replace(/[，。；、,\.;\s]+/g, "，")
+    .replace(/^，+|，+$/g, "")
+    .slice(0, maxChars);
+}
+
+function buildComicVisualAnchor(character: SourceBundle["characters"][number]): string | null {
+  const visualHint = character.visualHint?.trim() ?? "";
+  const persona = character.persona?.trim() ?? "";
+  const description = compactVisualAnchor(visualHint || persona);
+  if (!description) return null;
+  const data: ComicVisualAnchorData = {
+    description,
+    visualSpec: visualHint ? { appearance: visualHint, signatureFeatures: description } : undefined,
+    defaultCostume: visualHint ? { id: "default", description: visualHint } : undefined,
+    behaviorSignature: persona ? { persona } : undefined,
+  };
+  return JSON.stringify(data);
+}
+
 export interface CreateComicProjectInput {
   title: string;
   sourceType: AdaptationSourceType;
@@ -73,6 +109,21 @@ export class ComicProjectService {
     });
   }
 
+  async updateProjectPreset(
+    projectId: string,
+    patch: { format?: string; style?: string; promptKeywords?: string; imageSize?: string },
+  ) {
+    const project = await prisma.comicProject.findUnique({ where: { id: projectId }, select: { stylePreset: true } });
+    if (!project) throw new Error(`漫画项目不存在：${projectId}`);
+    let current: Record<string, unknown> = {};
+    try { if (project.stylePreset) current = JSON.parse(project.stylePreset); } catch { /* ignore */ }
+    const merged = { ...current, ...Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) };
+    return prisma.comicProject.update({
+      where: { id: projectId },
+      data: { stylePreset: JSON.stringify(merged) },
+    });
+  }
+
   async updateProjectStatus(projectId: string, status: string) {
     return prisma.comicProject.update({
       where: { id: projectId },
@@ -116,7 +167,7 @@ export class ComicProjectService {
             projectId,
             name: character.name,
             persona: character.persona ?? null,
-            visualAnchor: character.visualHint ?? null,
+            visualAnchor: buildComicVisualAnchor(character),
             sourceCharacterRef: character.sourceCharacterRef ?? null,
           })),
         });

@@ -81,12 +81,22 @@ const dialogueSchema = z.object({
   anchorHint: z.string().trim().optional(),
 });
 
+const characterExpressionSchema = z.enum(["neutral", "happy", "angry", "sad", "surprised", "cold"]);
+
+const panelCharacterRefSchema = z.object({
+  name: z.string().trim().min(1),
+  // default=常服；后续服装设计稿生成后可扩展 combat/formal/casual
+  costume: z.enum(["default", "combat", "formal", "casual"]).default("default"),
+  expression: characterExpressionSchema.default("neutral"),
+  lighting: z.string().trim().max(40).optional(),
+});
+
 const panelScriptSchema = z.object({
   order: z.number().int().min(1),
   panelType: z.enum(["establishing", "close_up", "action", "reaction", "transition"]),
   action: z.string().trim().min(1).max(200),
   dialogues: z.array(dialogueSchema).max(3).default([]),
-  characterRefs: z.array(z.string().trim()).max(5).default([]),
+  characterRefs: z.array(panelCharacterRefSchema).max(5).default([]),
   // 发给图像模型的画面提示词（不含气泡文字）
   visualPrompt: z.string().trim().min(1).max(400),
 });
@@ -135,8 +145,11 @@ export const comicPanelScriptPrompt: PromptAsset<
 1. 每格画面只聚焦一个动作/情绪，镜头语言多样（establishing/close_up/action/reaction/transition）
 2. 对白每泡 ≤30 字，每格最多 3 个气泡；思维内容用 cloud 泡，旁白用 caption
 3. anchorHint 指定气泡位置（top-left/top-right/bottom-center 等），避开主体
-4. visualPrompt 仅描述画面内容（不含文字/气泡），包含画风关键词和出场角色
-5. 画风：${input.stylePreset ?? "彩色韩漫"}`,
+4. characterRefs 必须为对象数组：{ name, costume, expression, lighting? }
+5. expression 只能取 neutral/happy/angry/sad/surprised/cold；根据该格对白情绪、动作和镜头目的选择，不要靠固定词替换
+6. costume 默认 default；只有剧情明确换装时才使用 combat/formal/casual
+7. visualPrompt 仅描述画面内容（不含文字/气泡），包含画风关键词、出场角色、服装和表情
+8. 画风：${input.stylePreset ?? "彩色韩漫"}`,
       ),
       new HumanMessage(
         `漫画项目：${input.projectTitle}
@@ -153,6 +166,7 @@ ${input.factDigest ? `## 跨话一致性事实（请严格遵守）\n${input.fac
 ## 任务
 生成约 ${panelTarget} 格的完整分格脚本，返回 panels 数组。
 每格包含：order / panelType / action / dialogues / characterRefs / visualPrompt。
+characterRefs 示例：[{ "name": "沈剑心", "costume": "default", "expression": "cold", "lighting": "side_lit" }]。
 保持情节连贯，镜头语言丰富，对白精炼，最后一格留悬念。`,
       ),
     ];

@@ -1,3 +1,6 @@
+import fs from "fs/promises";
+import path from "path";
+
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { imageGenerationConfig } from "../../config/imageGeneration";
@@ -209,6 +212,68 @@ export async function resolveImageModel(provider: LLMProvider, model?: string): 
   return resolved;
 }
 
+function inferMimeType(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".webp") return "image/webp";
+  return "image/png";
+}
+
+/**
+ * 当 refImagePaths 存在时，用 multipart/form-data 上传本地文件到 /images/edits。
+ * 避免 base64 字符串膨胀（1MB 图片 → 1.33MB base64 字符串 → 占用 Node 堆）。
+ */
+async function generateWithFileRef(
+  input: ImageProviderGenerateInput,
+  refImagePath: string,
+  apiKey: string | undefined,
+  baseURL: string,
+  controller: AbortController,
+): Promise<ImageProviderGenerateResult> {
+  const fileBuffer = await fs.readFile(refImagePath);
+  const mimeType = inferMimeType(refImagePath);
+  const blob = new Blob([fileBuffer], { type: mimeType });
+
+  const form = new FormData();
+  form.append("model", input.model);
+  form.append("prompt", buildPrompt(input.prompt, input.negativePrompt));
+  form.append("n", String(input.count));
+  if (input.provider !== "grok") {
+    form.append("size", input.size);
+  }
+  // 将文件以 image 字段上传，OpenAI /images/edits 兼容格式
+  form.append("image", blob, path.basename(refImagePath));
+
+  const response = await fetch(`${baseURL}/images/edits`, {
+    method: "POST",
+    headers: {
+      // FormData 自动设置 Content-Type: multipart/form-data; boundary=...
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+    },
+    body: form,
+    signal: controller.signal,
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Image API (edits) request failed (${response.status}): ${detail || "unknown error"}`);
+  }
+
+  const payload = (await response.json()) as unknown;
+  const images = parseImagesFromPayload(payload);
+  if (images.length === 0) {
+    throw new Error("Image API returned empty data.");
+  }
+  return {
+    provider: input.provider,
+    model: input.model,
+    images: images.map((item, index) => ({
+      ...item,
+      seed: typeof input.seed === "number" ? input.seed + index : undefined,
+    })),
+  };
+}
+
 export async function generateImagesByProvider(input: ImageProviderGenerateInput): Promise<ImageProviderGenerateResult> {
   if (!isImageProviderSupported(input.provider)) {
     throw new Error(`Provider ${input.provider} does not support image generation currently.`);
@@ -223,6 +288,12 @@ export async function generateImagesByProvider(input: ImageProviderGenerateInput
   );
 
   try {
+    // 优先使用本地文件路径（multipart 上传，避免 base64 膨胀）
+    const refImagePath = input.refImagePaths?.[0];
+    if (refImagePath && input.provider !== "grok") {
+      return await generateWithFileRef(input, refImagePath, apiKey, baseURL, controller);
+    }
+
     const requestBody = buildImageGenerationRequestBody(input);
 
     const response = await fetch(`${baseURL}/images/generations`, {
