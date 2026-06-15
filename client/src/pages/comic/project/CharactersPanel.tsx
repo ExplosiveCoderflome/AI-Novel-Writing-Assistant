@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RefreshCw, Smile, Sparkles, Users } from "lucide-react";
+import {
+  Image as ImageIcon,
+  Loader2,
+  RefreshCw,
+  Smile,
+  Sparkles,
+  User,
+  Users,
+  Wand2,
+} from "lucide-react";
 import {
   characterExpressionImageUrl,
   characterSheetImageUrl,
@@ -15,7 +24,122 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 
-function CharacterSheetCard({
+function parseSheetData(character: ComicCharacter): CharacterSheetData {
+  try {
+    return character.sheetData ? JSON.parse(character.sheetData) : { status: "idle" };
+  } catch {
+    return { status: "idle" };
+  }
+}
+
+function getExpressionData(sheetData: CharacterSheetData): CharacterExpressionData {
+  return sheetData.assets?.expression ?? { status: "idle" };
+}
+
+function getVisualAnchorText(character: ComicCharacter): string {
+  if (!character.visualAnchor) return "";
+
+  try {
+    const parsed = JSON.parse(character.visualAnchor) as Record<string, unknown>;
+    if (typeof parsed.description === "string") return parsed.description;
+    if (typeof parsed.hint === "string") return parsed.hint;
+  } catch {
+    // Free-form visual anchors are still valid input from older projects.
+  }
+
+  return character.visualAnchor;
+}
+
+function CharacterStatusBadges({
+  sheetData,
+  expressionData,
+}: {
+  sheetData: CharacterSheetData;
+  expressionData: CharacterExpressionData;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge variant={sheetData.status === "done" ? "default" : "secondary"} className="text-[11px]">
+        三视图{sheetData.status === "done" ? ` v${sheetData.version ?? 1}` : "待生成"}
+      </Badge>
+      <Badge variant={expressionData.status === "done" ? "default" : "secondary"} className="text-[11px]">
+        表情稿{expressionData.status === "done" ? ` v${expressionData.version ?? 1}` : "待生成"}
+      </Badge>
+    </div>
+  );
+}
+
+function CharacterList({
+  characters,
+  selectedCharacterId,
+  onSelect,
+}: {
+  characters: ComicCharacter[];
+  selectedCharacterId: string;
+  onSelect: (characterId: string) => void;
+}) {
+  return (
+    <aside className="overflow-hidden rounded-lg border bg-background">
+      <div className="border-b px-3 py-3">
+        <p className="text-sm font-semibold">角色列表</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{characters.length} 个角色</p>
+      </div>
+      <div className="max-h-[720px] overflow-y-auto p-2">
+        <div className="space-y-1">
+          {characters.map((character) => {
+            const sheetData = parseSheetData(character);
+            const expressionData = getExpressionData(sheetData);
+            const isSelected = character.id === selectedCharacterId;
+
+            return (
+              <button
+                key={character.id}
+                type="button"
+                className={[
+                  "group w-full rounded-md border px-3 py-2 text-left transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  isSelected ? "border-primary bg-primary/10" : "border-transparent hover:border-border hover:bg-muted/60",
+                ].join(" ")}
+                onClick={() => onSelect(character.id)}
+              >
+                <div className="flex items-start gap-2">
+                  <div
+                    className={[
+                      "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border",
+                      isSelected ? "border-primary/30 bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+                    ].join(" ")}
+                  >
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-sm font-medium">{character.name}</p>
+                      {sheetData.status === "done" && (
+                        <span className="shrink-0 text-[10px] text-muted-foreground">v{sheetData.version ?? 1}</span>
+                      )}
+                    </div>
+                    {character.persona && (
+                      <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        {character.persona}
+                      </p>
+                    )}
+                    <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <span className={sheetData.status === "done" ? "text-primary" : ""}>三视图</span>
+                      <span className="text-border">/</span>
+                      <span className={expressionData.status === "done" ? "text-primary" : ""}>表情稿</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function CharacterDetail({
   character,
   provider,
 }: {
@@ -26,13 +150,15 @@ function CharacterSheetCard({
   const [showSheetTuning, setShowSheetTuning] = useState(false);
   const [draftPrompt, setDraftPrompt] = useState("");
   const [useCurrentImageAsReference, setUseCurrentImageAsReference] = useState(true);
-  const sheetData: CharacterSheetData = (() => {
-    try { return character.sheetData ? JSON.parse(character.sheetData) : { status: "idle" }; } catch { return { status: "idle" }; }
-  })();
-  const expressionData: CharacterExpressionData = sheetData.assets?.expression ?? { status: "idle" };
+
+  const sheetData = parseSheetData(character);
+  const expressionData = getExpressionData(sheetData);
+  const visualAnchorText = getVisualAnchorText(character);
+  const hasSheet = sheetData.status === "done";
 
   const genMut = useMutation({
-    mutationFn: (options?: GenerateCharacterSheetOptions) => generateCharacterSheet(character.id, provider || undefined, options),
+    mutationFn: (options?: GenerateCharacterSheetOptions) =>
+      generateCharacterSheet(character.id, provider || undefined, options),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
       toast.success(`${character.name} 设计稿生成完成`);
@@ -52,6 +178,7 @@ function CharacterSheetCard({
 
   const isGenerating = genMut.isPending || sheetData.status === "generating";
   const isExpressionGenerating = expressionMut.isPending || expressionData.status === "generating";
+
   const openSheetTuning = () => {
     setDraftPrompt(sheetData.prompt ?? "");
     setUseCurrentImageAsReference(true);
@@ -59,171 +186,219 @@ function CharacterSheetCard({
   };
 
   return (
-    <div className="overflow-hidden rounded-lg border bg-card">
-      <div className="relative flex aspect-[3/2] items-center justify-center bg-muted">
-        {sheetData.status === "done" ? (
-          <img
-            src={characterSheetImageUrl(character.id)}
-            alt={`${character.name} 设计稿`}
-            className="h-full w-full object-cover"
-          />
-        ) : isGenerating ? (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-8 w-8 animate-spin" />
-            <span className="text-xs">生成中…</span>
+    <section className="min-w-0 overflow-hidden rounded-lg border bg-background">
+      <div className="flex flex-col gap-3 border-b px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="truncate text-lg font-semibold">{character.name}</h2>
           </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground/40">
-            <Users className="h-10 w-10" />
-            <span className="text-xs">暂无设计稿</span>
-          </div>
-        )}
-        {sheetData.status === "error" && (
-          <div className="absolute inset-x-0 bottom-0 truncate bg-destructive/80 px-2 py-1 text-xs text-white">
-            {sheetData.error}
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-2 p-3">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold">{character.name}</p>
-            {character.persona && (
-              <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{character.persona}</p>
-            )}
-          </div>
-          {sheetData.status === "done" && (
-            <Badge variant="secondary" className="shrink-0 text-[10px]">v{sheetData.version ?? 1}</Badge>
+          {character.persona && (
+            <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted-foreground">{character.persona}</p>
           )}
         </div>
+        <CharacterStatusBadges sheetData={sheetData} expressionData={expressionData} />
+      </div>
 
-        {expressionData.status === "done" ? (
-          <div className="overflow-hidden rounded border bg-muted">
-            <img
-              src={characterExpressionImageUrl(character.id)}
-              alt={`${character.name} 表情稿`}
-              className="aspect-[3/2] w-full object-cover"
-              loading="lazy"
-            />
-          </div>
-        ) : (
-          <div className="flex items-center justify-between rounded border bg-muted/40 px-2 py-1.5 text-[11px] text-muted-foreground">
-            <span className="inline-flex items-center gap-1">
-              <Smile className="h-3 w-3" />
-              表情稿
-            </span>
-            <span>{expressionData.status === "error" ? "生成失败" : "待生成"}</span>
-          </div>
-        )}
-
-        {character.visualAnchor && (
-          <p className="line-clamp-2 rounded bg-muted/50 px-2 py-1 text-[11px] text-muted-foreground">
-            {(() => {
-              try {
-                const parsed = JSON.parse(character.visualAnchor) as Record<string, unknown>;
-                return (typeof parsed.description === "string" ? parsed.description : typeof parsed.hint === "string" ? parsed.hint : character.visualAnchor) ?? "";
-              } catch { return character.visualAnchor; }
-            })()}
-          </p>
-        )}
-
-        {sheetData.status === "done" && showSheetTuning && (
-          <div className="space-y-2 rounded border bg-muted/30 p-2">
-            <textarea
-              className="min-h-[112px] w-full resize-y rounded-md border bg-background px-2 py-1.5 text-xs leading-relaxed"
-              value={draftPrompt}
-              placeholder="输入本次三视图生成提示词"
-              disabled={isGenerating}
-              onChange={(event) => setDraftPrompt(event.target.value)}
-            />
-            {!sheetData.prompt && (
-              <p className="text-[11px] text-muted-foreground">
-                当前角色还没有历史提示词，可直接填写提示词后生成。
-              </p>
-            )}
-            <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={useCurrentImageAsReference}
-                disabled={isGenerating}
-                onChange={(event) => setUseCurrentImageAsReference(event.target.checked)}
-              />
-              使用当前三视图作为参考图
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                size="sm"
-                className="h-7 text-xs"
-                disabled={isGenerating}
-                onClick={() => genMut.mutate({
-                  prompt: draftPrompt,
-                  useCurrentImageAsReference,
-                })}
-              >
-                {isGenerating ? (
-                  <><Loader2 className="h-3 w-3 animate-spin" /> 生成中…</>
-                ) : (
-                  <><Sparkles className="h-3 w-3" /> 生成微调图</>
-                )}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                disabled={isGenerating}
-                onClick={() => setShowSheetTuning(false)}
-              >
-                取消
-              </Button>
+      <div className="grid min-h-[560px] lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+        <div className="min-w-0 border-b lg:border-b-0 lg:border-r">
+          <div className="border-b px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">三视图主设计稿</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">正面、侧面、背面和面部特写用于锁定角色外观。</p>
+              </div>
+              {hasSheet && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={isGenerating || showSheetTuning}
+                  onClick={openSheetTuning}
+                >
+                  <Wand2 className="h-4 w-4" />
+                  调整三视图
+                </Button>
+              )}
             </div>
           </div>
-        )}
 
-        <div className="grid grid-cols-2 gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant={sheetData.status === "done" ? "outline" : "default"}
-            className="h-7 text-xs"
-            disabled={isGenerating || (sheetData.status === "done" && showSheetTuning)}
-            onClick={() => {
-              if (sheetData.status === "done") {
-                openSheetTuning();
-              } else {
-                genMut.mutate(undefined);
-              }
-            }}
-          >
-            {isGenerating ? (
-              <><Loader2 className="h-3 w-3 animate-spin" /> 生成中…</>
-            ) : sheetData.status === "done" ? (
-              <><RefreshCw className="h-3 w-3" /> 三视图</>
+          <div className="flex min-h-[360px] items-center justify-center bg-muted/30 p-4">
+            {hasSheet ? (
+              <img
+                src={characterSheetImageUrl(character.id)}
+                alt={`${character.name} 设计稿`}
+                className="max-h-[520px] w-full rounded-md object-contain"
+              />
+            ) : isGenerating ? (
+              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin" />
+                <span className="text-sm">三视图生成中</span>
+              </div>
             ) : (
-              <><Sparkles className="h-3 w-3" /> 三视图</>
+              <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                <ImageIcon className="h-10 w-10 opacity-40" />
+                <div className="text-center">
+                  <p className="text-sm font-medium text-foreground">还没有三视图</p>
+                  <p className="mt-1 text-xs">先生成主设计稿，再继续制作表情稿和格子图参考。</p>
+                </div>
+                <Button type="button" size="sm" disabled={isGenerating} onClick={() => genMut.mutate(undefined)}>
+                  <Sparkles className="h-4 w-4" />
+                  生成三视图
+                </Button>
+              </div>
             )}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={expressionData.status === "done" ? "outline" : "secondary"}
-            className="h-7 text-xs"
-            disabled={isExpressionGenerating}
-            onClick={() => expressionMut.mutate()}
-          >
-            {isExpressionGenerating ? (
-              <><Loader2 className="h-3 w-3 animate-spin" /> 生成中…</>
-            ) : expressionData.status === "done" ? (
-              <><RefreshCw className="h-3 w-3" /> 表情稿</>
+          </div>
+
+          {sheetData.status === "error" && (
+            <div className="border-t bg-destructive/10 px-4 py-3 text-xs text-destructive">{sheetData.error}</div>
+          )}
+
+          <div className="border-t px-4 py-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">表情设计稿</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">常用表情会在分格生成时作为情绪参考。</p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant={expressionData.status === "done" ? "outline" : "secondary"}
+                disabled={!hasSheet || isExpressionGenerating}
+                onClick={() => expressionMut.mutate()}
+              >
+                {isExpressionGenerating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    生成中
+                  </>
+                ) : expressionData.status === "done" ? (
+                  <>
+                    <RefreshCw className="h-4 w-4" />
+                    更新表情稿
+                  </>
+                ) : (
+                  <>
+                    <Smile className="h-4 w-4" />
+                    生成表情稿
+                  </>
+                )}
+              </Button>
+            </div>
+            {expressionData.status === "done" ? (
+              <div className="overflow-hidden rounded-md border bg-muted">
+                <img
+                  src={characterExpressionImageUrl(character.id)}
+                  alt={`${character.name} 表情稿`}
+                  className="max-h-56 w-full object-contain"
+                  loading="lazy"
+                />
+              </div>
             ) : (
-              <><Smile className="h-3 w-3" /> 表情稿</>
+              <div className="flex min-h-24 items-center justify-center rounded-md border border-dashed bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
+                {expressionData.status === "error"
+                  ? expressionData.error ?? "表情稿生成失败"
+                  : "生成三视图后，可继续生成 6 个核心表情。"}
+              </div>
             )}
-          </Button>
+          </div>
         </div>
+
+        <aside className="min-w-0">
+          <div className="border-b px-4 py-3">
+            <p className="text-sm font-medium">外貌锚点</p>
+            <p className="mt-2 rounded-md bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+              {visualAnchorText || "该角色还没有外貌锚点。"}
+            </p>
+          </div>
+
+          <div className="border-b px-4 py-3">
+            <p className="text-sm font-medium">三视图提示词</p>
+            <div className="mt-2 max-h-48 overflow-y-auto rounded-md border bg-muted/20 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+              {sheetData.prompt || "生成三视图后，这里会显示用于复用和微调的提示词。"}
+            </div>
+          </div>
+
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">三视图微调</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">编辑提示词后重新生成，成功后替换当前主设计稿。</p>
+              </div>
+            </div>
+
+            {hasSheet ? (
+              showSheetTuning ? (
+                <div className="mt-3 space-y-3">
+                  <textarea
+                    className="min-h-[180px] w-full resize-y rounded-md border bg-background px-3 py-2 text-xs leading-relaxed"
+                    value={draftPrompt}
+                    placeholder="输入本次三视图生成提示词"
+                    disabled={isGenerating}
+                    onChange={(event) => setDraftPrompt(event.target.value)}
+                  />
+                  {!sheetData.prompt && (
+                    <p className="text-xs text-muted-foreground">当前角色还没有历史提示词，可直接填写提示词后生成。</p>
+                  )}
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={useCurrentImageAsReference}
+                      disabled={isGenerating}
+                      onChange={(event) => setUseCurrentImageAsReference(event.target.checked)}
+                    />
+                    使用当前三视图作为参考图
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isGenerating}
+                      onClick={() => genMut.mutate({ prompt: draftPrompt, useCurrentImageAsReference })}
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          生成中
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+                          生成微调图
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={isGenerating}
+                      onClick={() => setShowSheetTuning(false)}
+                    >
+                      取消
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  className="mt-3 w-full"
+                  variant="outline"
+                  disabled={isGenerating}
+                  onClick={openSheetTuning}
+                >
+                  <Wand2 className="h-4 w-4" />
+                  打开提示词微调
+                </Button>
+              )
+            ) : (
+              <div className="mt-3 rounded-md border border-dashed bg-muted/30 px-3 py-4 text-xs leading-relaxed text-muted-foreground">
+                先生成三视图，系统会保存本次提示词，并允许基于当前图继续微调。
+              </div>
+            )}
+          </div>
+        </aside>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -234,6 +409,8 @@ export function CharactersPanel({
   project: { characters: ComicCharacter[] };
   provider: string;
 }) {
+  const [selectedCharacterId, setSelectedCharacterId] = useState(project.characters[0]?.id ?? "");
+
   if (project.characters.length === 0) {
     return (
       <div className="space-y-2 py-12 text-center text-sm text-muted-foreground">
@@ -244,19 +421,17 @@ export function CharactersPanel({
     );
   }
 
+  const selectedCharacter =
+    project.characters.find((character) => character.id === selectedCharacterId) ?? project.characters[0];
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-        <p className="mb-1 font-medium text-foreground">角色视觉资产</p>
-        <p className="text-xs leading-relaxed">
-          三视图锁定外貌和服装，表情稿补齐常用情绪。格子图生成会自动组合角色锚点、设计稿和表情裁切参考。
-        </p>
-      </div>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-        {project.characters.map((character) => (
-          <CharacterSheetCard key={character.id} character={character} provider={provider} />
-        ))}
-      </div>
+    <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+      <CharacterList
+        characters={project.characters}
+        selectedCharacterId={selectedCharacter.id}
+        onSelect={setSelectedCharacterId}
+      />
+      <CharacterDetail key={selectedCharacter.id} character={selectedCharacter} provider={provider} />
     </div>
   );
 }
