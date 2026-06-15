@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, RefreshCw, Smile, Sparkles, Users } from "lucide-react";
 import {
@@ -6,6 +7,7 @@ import {
   generateCharacterExpressionSheet,
   generateCharacterSheet,
   type CharacterExpressionData,
+  type GenerateCharacterSheetOptions,
   type CharacterSheetData,
   type ComicCharacter,
 } from "@/api/comic";
@@ -21,16 +23,20 @@ function CharacterSheetCard({
   provider: string;
 }) {
   const queryClient = useQueryClient();
+  const [showSheetTuning, setShowSheetTuning] = useState(false);
+  const [draftPrompt, setDraftPrompt] = useState("");
+  const [useCurrentImageAsReference, setUseCurrentImageAsReference] = useState(true);
   const sheetData: CharacterSheetData = (() => {
     try { return character.sheetData ? JSON.parse(character.sheetData) : { status: "idle" }; } catch { return { status: "idle" }; }
   })();
   const expressionData: CharacterExpressionData = sheetData.assets?.expression ?? { status: "idle" };
 
   const genMut = useMutation({
-    mutationFn: () => generateCharacterSheet(character.id, provider || undefined),
+    mutationFn: (options?: GenerateCharacterSheetOptions) => generateCharacterSheet(character.id, provider || undefined, options),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
       toast.success(`${character.name} 设计稿生成完成`);
+      setShowSheetTuning(false);
     },
     onError: (e) => toast.error(String(e)),
   });
@@ -46,6 +52,11 @@ function CharacterSheetCard({
 
   const isGenerating = genMut.isPending || sheetData.status === "generating";
   const isExpressionGenerating = expressionMut.isPending || expressionData.status === "generating";
+  const openSheetTuning = () => {
+    setDraftPrompt(sheetData.prompt ?? "");
+    setUseCurrentImageAsReference(true);
+    setShowSheetTuning(true);
+  };
 
   return (
     <div className="overflow-hidden rounded-lg border bg-card">
@@ -117,14 +128,74 @@ function CharacterSheetCard({
           </p>
         )}
 
+        {sheetData.status === "done" && showSheetTuning && (
+          <div className="space-y-2 rounded border bg-muted/30 p-2">
+            <textarea
+              className="min-h-[112px] w-full resize-y rounded-md border bg-background px-2 py-1.5 text-xs leading-relaxed"
+              value={draftPrompt}
+              placeholder="输入本次三视图生成提示词"
+              disabled={isGenerating}
+              onChange={(event) => setDraftPrompt(event.target.value)}
+            />
+            {!sheetData.prompt && (
+              <p className="text-[11px] text-muted-foreground">
+                当前角色还没有历史提示词，可直接填写提示词后生成。
+              </p>
+            )}
+            <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={useCurrentImageAsReference}
+                disabled={isGenerating}
+                onChange={(event) => setUseCurrentImageAsReference(event.target.checked)}
+              />
+              使用当前三视图作为参考图
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={isGenerating}
+                onClick={() => genMut.mutate({
+                  prompt: draftPrompt,
+                  useCurrentImageAsReference,
+                })}
+              >
+                {isGenerating ? (
+                  <><Loader2 className="h-3 w-3 animate-spin" /> 生成中…</>
+                ) : (
+                  <><Sparkles className="h-3 w-3" /> 生成微调图</>
+                )}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                disabled={isGenerating}
+                onClick={() => setShowSheetTuning(false)}
+              >
+                取消
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-2">
           <Button
             type="button"
             size="sm"
             variant={sheetData.status === "done" ? "outline" : "default"}
             className="h-7 text-xs"
-            disabled={isGenerating}
-            onClick={() => genMut.mutate()}
+            disabled={isGenerating || (sheetData.status === "done" && showSheetTuning)}
+            onClick={() => {
+              if (sheetData.status === "done") {
+                openSheetTuning();
+              } else {
+                genMut.mutate(undefined);
+              }
+            }}
           >
             {isGenerating ? (
               <><Loader2 className="h-3 w-3 animate-spin" /> 生成中…</>

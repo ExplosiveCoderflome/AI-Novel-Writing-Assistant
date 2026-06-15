@@ -211,6 +211,11 @@ export interface CharacterExpressionData {
   error?: string;
 }
 
+export interface GenerateCharacterSheetOptions {
+  prompt?: string;
+  useCurrentImageAsReference?: boolean;
+}
+
 export function characterSheetImageUrl(charId: string): string {
   return `/api/comic/character-images/${charId}/sheet`;
 }
@@ -223,10 +228,14 @@ export function characterFaceImageUrl(charId: string): string {
   return `/api/comic/character-images/${charId}/face`;
 }
 
-export async function generateCharacterSheet(charId: string, provider?: string): Promise<CharacterSheetData> {
+export async function generateCharacterSheet(
+  charId: string,
+  provider?: string,
+  options?: GenerateCharacterSheetOptions,
+): Promise<CharacterSheetData> {
   const res = await apiClient.post<ApiResponse<CharacterSheetData>>(
     `/comic/characters/${charId}/sheet/generate`,
-    provider ? { provider } : {},
+    { ...(provider ? { provider } : {}), ...(options ?? {}) },
   );
   return res.data.data!;
 }

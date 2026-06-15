@@ -47,6 +47,11 @@ export interface CharacterSheetData {
   };
 }
 
+export interface GenerateCharacterSheetOptions {
+  prompt?: string;
+  useCurrentImageAsReference?: boolean;
+}
+
 export type CharacterExpressionStatus = CharacterSheetStatus;
 export type CharacterExpressionId = "neutral" | "happy" | "angry" | "sad" | "surprised" | "cold";
 
@@ -221,6 +226,7 @@ export class ComicCharacterImageService {
   async generateCharacterSheet(
     charId: string,
     provider: LLMProvider = DEFAULT_PROVIDER,
+    options: GenerateCharacterSheetOptions = {},
   ): Promise<CharacterSheetData> {
     const character = await prisma.comicCharacter.findUnique({ where: { id: charId } });
     if (!character) throw new AppError(`未找到漫画角色：${charId}`, 404);
@@ -245,7 +251,10 @@ export class ComicCharacterImageService {
 
     try {
       const model = await resolveImageModel(provider);
-      const prompt = buildSheetPrompt(character);
+      const prompt = options.prompt?.trim() || buildSheetPrompt(character);
+      const currentReference = options.useCurrentImageAsReference
+        ? await this.resolveSheetFile(charId)
+        : null;
 
       const result = await generateImagesByProvider({
         sceneType: "character",
@@ -254,6 +263,7 @@ export class ComicCharacterImageService {
         prompt,
         size: "1536x1024",
         count: 1,
+        refImagePaths: currentReference ? [currentReference.filePath] : undefined,
       });
 
       const imageUrl = result.images[0]?.url;

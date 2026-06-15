@@ -277,7 +277,13 @@ router.patch(
 
 // ─── Character sheet images ───────────────────────────────────────────────────
 
-const charSheetGenerateSchema = z.object({ provider: z.string().trim().optional() }).optional();
+const charSheetGenerateSchema = z
+  .object({
+    provider: z.string().trim().optional(),
+    prompt: z.string().trim().max(4000).optional(),
+    useCurrentImageAsReference: z.boolean().optional(),
+  })
+  .optional();
 const charExpressionGenerateSchema = z.object({ provider: z.string().trim().optional() }).optional();
 
 router.post(
@@ -290,6 +296,10 @@ router.post(
       const data = await comicCharacterImageService.generateCharacterSheet(
         charId,
         body?.provider as Parameters<typeof comicCharacterImageService.generateCharacterSheet>[1] | undefined,
+        {
+          prompt: body?.prompt,
+          useCurrentImageAsReference: body?.useCurrentImageAsReference,
+        },
       );
       res.json({ success: true, data } satisfies ApiResponse<typeof data>);
     } catch (err) { next(err); }
