@@ -50,6 +50,22 @@ function getVisualAnchorText(character: ComicCharacter): string {
   return character.visualAnchor;
 }
 
+function buildRecommendedSheetPrompt(character: ComicCharacter): string {
+  const visualAnchorText = getVisualAnchorText(character);
+  const lines = [
+    "professional character design reference sheet, single image",
+    "LEFT THIRD: close-up portrait of the character's face, frontal view, detailed facial features, natural expression",
+    "RIGHT TWO-THIRDS: full-body character turnaround showing three views side by side: front view, side view, back view",
+    "all four views depict the SAME character with IDENTICAL costume, hairstyle, and color scheme",
+    "white background, clean studio lighting, no text or watermarks",
+    "manga/webtoon illustration style, clean line art, vibrant colors",
+  ];
+  if (character.persona) lines.push(`character personality: ${character.persona}`);
+  if (visualAnchorText) lines.push(`appearance: ${visualAnchorText}`);
+  lines.push("consistent character design, high quality illustration");
+  return lines.join(", ");
+}
+
 function CharacterStatusBadges({
   sheetData,
   expressionData,
@@ -150,10 +166,13 @@ function CharacterDetail({
   const [showSheetTuning, setShowSheetTuning] = useState(false);
   const [draftPrompt, setDraftPrompt] = useState("");
   const [useCurrentImageAsReference, setUseCurrentImageAsReference] = useState(true);
+  const [lockAppearance, setLockAppearance] = useState(true);
+  const [appearanceOverride, setAppearanceOverride] = useState("");
 
   const sheetData = parseSheetData(character);
   const expressionData = getExpressionData(sheetData);
   const visualAnchorText = getVisualAnchorText(character);
+  const recommendedSheetPrompt = buildRecommendedSheetPrompt(character);
   const hasSheet = sheetData.status === "done";
 
   const genMut = useMutation({
@@ -180,8 +199,10 @@ function CharacterDetail({
   const isExpressionGenerating = expressionMut.isPending || expressionData.status === "generating";
 
   const openSheetTuning = () => {
-    setDraftPrompt(sheetData.prompt ?? "");
+    setDraftPrompt(sheetData.prompt?.trim() || recommendedSheetPrompt);
     setUseCurrentImageAsReference(true);
+    setLockAppearance(true);
+    setAppearanceOverride(visualAnchorText);
     setShowSheetTuning(true);
   };
 
@@ -314,7 +335,7 @@ function CharacterDetail({
           <div className="border-b px-4 py-3">
             <p className="text-sm font-medium">三视图提示词</p>
             <div className="mt-2 max-h-48 overflow-y-auto rounded-md border bg-muted/20 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-              {sheetData.prompt || "生成三视图后，这里会显示用于复用和微调的提示词。"}
+              {sheetData.prompt || recommendedSheetPrompt}
             </div>
           </div>
 
@@ -329,6 +350,24 @@ function CharacterDetail({
             {hasSheet ? (
               showSheetTuning ? (
                 <div className="mt-3 space-y-3">
+                  <div className="rounded-md border bg-muted/30 px-3 py-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-medium">可编辑提示词</p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        disabled={isGenerating}
+                        onClick={() => setDraftPrompt(recommendedSheetPrompt)}
+                      >
+                        恢复推荐提示词
+                      </Button>
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      常规微调只改风格、服装细节或姿态；角色脸型、发型和标志特征会随外貌锚点一起锁定。
+                    </p>
+                  </div>
                   <textarea
                     className="min-h-[180px] w-full resize-y rounded-md border bg-background px-3 py-2 text-xs leading-relaxed"
                     value={draftPrompt}
@@ -337,23 +376,57 @@ function CharacterDetail({
                     onChange={(event) => setDraftPrompt(event.target.value)}
                   />
                   {!sheetData.prompt && (
-                    <p className="text-xs text-muted-foreground">当前角色还没有历史提示词，可直接填写提示词后生成。</p>
+                    <p className="text-xs text-muted-foreground">已填入推荐提示词，可直接微调后生成。</p>
                   )}
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={useCurrentImageAsReference}
-                      disabled={isGenerating}
-                      onChange={(event) => setUseCurrentImageAsReference(event.target.checked)}
-                    />
-                    使用当前三视图作为参考图
-                  </label>
+                  <div className="space-y-2 rounded-md border bg-background px-3 py-2">
+                    <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={useCurrentImageAsReference}
+                        disabled={isGenerating}
+                        onChange={(event) => setUseCurrentImageAsReference(event.target.checked)}
+                      />
+                      <span>使用这张三视图作为参考图</span>
+                    </label>
+                    <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={lockAppearance}
+                        disabled={isGenerating}
+                        onChange={(event) => setLockAppearance(event.target.checked)}
+                      />
+                      <span>锁定角色样貌</span>
+                    </label>
+                    {lockAppearance && (
+                      <div className="space-y-1">
+                        <textarea
+                          className="min-h-16 w-full resize-y rounded-md border bg-muted/20 px-2 py-1.5 text-xs leading-relaxed"
+                          value={appearanceOverride}
+                          placeholder="补充用于锁定角色相貌的关键词，例如发型、眼睛、体型、服装和标志特征"
+                          disabled={isGenerating}
+                          onChange={(event) => setAppearanceOverride(event.target.value)}
+                        />
+                        {!appearanceOverride.trim() && (
+                          <p className="text-[11px] text-muted-foreground">填写样貌关键词后，生成时会优先保持这些特征。</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
                       size="sm"
                       disabled={isGenerating}
-                      onClick={() => genMut.mutate({ prompt: draftPrompt, useCurrentImageAsReference })}
+                      onClick={() =>
+                        genMut.mutate({
+                          prompt: draftPrompt,
+                          useCurrentImageAsReference,
+                          lockAppearance,
+                          appearanceOverride,
+                        })
+                      }
                     >
                       {isGenerating ? (
                         <>

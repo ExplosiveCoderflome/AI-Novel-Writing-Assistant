@@ -214,6 +214,8 @@ export interface CharacterExpressionData {
 export interface GenerateCharacterSheetOptions {
   prompt?: string;
   useCurrentImageAsReference?: boolean;
+  lockAppearance?: boolean;
+  appearanceOverride?: string;
 }
 
 export function characterSheetImageUrl(charId: string): string {

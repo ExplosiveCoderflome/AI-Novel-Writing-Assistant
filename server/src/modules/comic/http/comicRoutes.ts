@@ -282,6 +282,8 @@ const charSheetGenerateSchema = z
     provider: z.string().trim().optional(),
     prompt: z.string().trim().max(4000).optional(),
     useCurrentImageAsReference: z.boolean().optional(),
+    lockAppearance: z.boolean().optional(),
+    appearanceOverride: z.string().trim().max(1000).optional(),
   })
   .optional();
 const charExpressionGenerateSchema = z.object({ provider: z.string().trim().optional() }).optional();
@@ -299,6 +301,8 @@ router.post(
         {
           prompt: body?.prompt,
           useCurrentImageAsReference: body?.useCurrentImageAsReference,
+          lockAppearance: body?.lockAppearance,
+          appearanceOverride: body?.appearanceOverride,
         },
       );
       res.json({ success: true, data } satisfies ApiResponse<typeof data>);

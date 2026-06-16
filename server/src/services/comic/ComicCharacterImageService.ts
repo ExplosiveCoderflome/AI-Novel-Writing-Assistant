@@ -50,6 +50,8 @@ export interface CharacterSheetData {
 export interface GenerateCharacterSheetOptions {
   prompt?: string;
   useCurrentImageAsReference?: boolean;
+  lockAppearance?: boolean;
+  appearanceOverride?: string;
 }
 
 export type CharacterExpressionStatus = CharacterSheetStatus;
@@ -166,6 +168,39 @@ function buildSheetPrompt(character: {
   return lines.join(", ");
 }
 
+function buildAppearanceLockPrompt(character: {
+  name: string;
+  visualAnchor?: string | null;
+}, appearanceOverride?: string): string {
+  const visualDesc = appearanceOverride?.trim() || extractVisualDesc(character.visualAnchor);
+  if (!visualDesc) return "";
+  return [
+    "character identity lock: preserve the same character in every view",
+    `name: ${character.name}`,
+    `appearance: ${visualDesc}`,
+    "keep identical face, hairstyle, body type, costume colors, and signature features",
+  ].join(", ");
+}
+
+function buildTunedSheetPrompt(
+  character: {
+    name: string;
+    visualAnchor?: string | null;
+  },
+  prompt: string,
+  lockAppearance: boolean,
+  appearanceOverride?: string,
+): string {
+  const trimmedPrompt = prompt.trim();
+  if (!lockAppearance) return trimmedPrompt;
+
+  const visualDesc = appearanceOverride?.trim() || extractVisualDesc(character.visualAnchor);
+  if (!visualDesc || trimmedPrompt.includes(visualDesc)) return trimmedPrompt;
+
+  const appearanceLock = buildAppearanceLockPrompt(character, appearanceOverride);
+  return appearanceLock ? `${trimmedPrompt}\n\n${appearanceLock}` : trimmedPrompt;
+}
+
 function buildExpressionPrompt(character: {
   name: string;
   persona?: string | null;
@@ -251,7 +286,9 @@ export class ComicCharacterImageService {
 
     try {
       const model = await resolveImageModel(provider);
-      const prompt = options.prompt?.trim() || buildSheetPrompt(character);
+      const prompt = options.prompt?.trim()
+        ? buildTunedSheetPrompt(character, options.prompt, options.lockAppearance !== false, options.appearanceOverride)
+        : buildSheetPrompt(character);
       const currentReference = options.useCurrentImageAsReference
         ? await this.resolveSheetFile(charId)
         : null;
