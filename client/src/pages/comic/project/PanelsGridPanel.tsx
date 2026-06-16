@@ -63,6 +63,14 @@ function parseLayoutData(raw: string | null | undefined): {
   }
 }
 
+function isPanelImageStale(panel: ComicPanel, imageData: { status?: string; generatedAt?: string }): boolean {
+  if (imageData.status !== "done" || !imageData.generatedAt || !panel.updatedAt) return false;
+  const imageGeneratedAt = Date.parse(imageData.generatedAt);
+  const panelUpdatedAt = Date.parse(panel.updatedAt);
+  if (Number.isNaN(imageGeneratedAt) || Number.isNaN(panelUpdatedAt)) return false;
+  return panelUpdatedAt > imageGeneratedAt + 1000;
+}
+
 function BatchBar({
   episodeId,
   provider,
@@ -221,6 +229,7 @@ function PanelDetailDialog({
   const imageData = parseImageData(panel.imageData);
   const density = densityBadge(panel.densityLevel);
   const layoutData = parseLayoutData(panel.layoutData);
+  const imageStale = isPanelImageStale(panel, imageData);
 
   useEffect(() => {
     setDraftVisualPrompt(panel.visualPrompt);
@@ -260,11 +269,18 @@ function PanelDetailDialog({
         <div className="flex flex-col gap-0 lg:flex-row">
           <div className="border-b bg-muted/30 p-4 lg:w-56 lg:border-b-0 lg:border-r">
             {imageData.status === "done" ? (
-              <img
-                src={panelImageUrl(panel.id)}
-                alt={`第 ${panel.order} 格`}
-                className="mx-auto max-h-72 w-full rounded-md object-contain lg:max-h-none"
-              />
+              <div className="relative">
+                <img
+                  src={panelImageUrl(panel.id)}
+                  alt={`第 ${panel.order} 格`}
+                  className="mx-auto max-h-72 w-full rounded-md object-contain lg:max-h-none"
+                />
+                {imageStale && (
+                  <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                    待重抽
+                  </span>
+                )}
+              </div>
             ) : (
               <div className="flex aspect-[2/3] w-full items-center justify-center rounded-md bg-muted">
                 <ImageOff className="h-8 w-8 text-muted-foreground/40" />
@@ -292,6 +308,11 @@ function PanelDetailDialog({
                 </>
               )}
             </Button>
+            {imageStale && (
+              <p className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs leading-relaxed text-amber-800">
+                画面脚本已在上次生图后修改，重抽后图片才会使用新的脚本。
+              </p>
+            )}
           </div>
 
           <div className="min-w-0 flex-1 space-y-4 p-4">
@@ -507,6 +528,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
         {panels.map((panel) => {
           const imageData = parseImageData(panel.imageData);
           const density = densityBadge(panel.densityLevel);
+          const imageStale = isPanelImageStale(panel, imageData);
           const busy = busyPanelId === panel.id;
           return (
             <div
@@ -518,12 +540,19 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
               onKeyDown={(event) => handlePanelKeyDown(event, panel)}
             >
               {imageData.status === "done" ? (
-                <img
-                  src={panelImageUrl(panel.id)}
-                  alt={`第 ${panel.order} 格`}
-                  className="aspect-[2/3] w-full object-cover"
-                  loading="lazy"
-                />
+                <div className="relative">
+                  <img
+                    src={panelImageUrl(panel.id)}
+                    alt={`第 ${panel.order} 格`}
+                    className="aspect-[2/3] w-full object-cover"
+                    loading="lazy"
+                  />
+                  {imageStale && (
+                    <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                      待重抽
+                    </span>
+                  )}
+                </div>
               ) : (
                 <div className="flex aspect-[2/3] items-center justify-center bg-muted">
                   {busy || imageData.status === "generating" ? (

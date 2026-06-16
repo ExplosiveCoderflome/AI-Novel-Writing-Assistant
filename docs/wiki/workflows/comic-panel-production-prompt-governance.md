@@ -53,6 +53,8 @@
 
 如果用户修改画面脚本后重新生图，旧 `imageData.prompt` 仍代表上一次生图记录，直到新图片生成成功后才更新。
 
+如果 `ComicPanel.updatedAt` 晚于 `imageData.generatedAt`，说明画面脚本或格子元数据在上次生图后被修改。前端应提示“待重抽”，避免用户误以为当前图片已经使用新脚本。
+
 ## Failure Modes
 
 - 如果把最终 provider prompt 当成可编辑主字段，用户可能无意删除角色锚点和表情参考，导致角色崩坏。

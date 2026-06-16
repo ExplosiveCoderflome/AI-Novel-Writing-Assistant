@@ -82,6 +82,8 @@ export interface ComicPanel {
   imageData: string | null; // JSON of PanelImageData
   letteredData: string | null; // JSON
   motionData: string | null; // JSON
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PanelImageData {
