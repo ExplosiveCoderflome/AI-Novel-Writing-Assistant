@@ -117,8 +117,14 @@ export interface ComicPanelScriptPromptInput {
   stylePreset?: string;
   /** stylePreset.promptKeywords，注入每格 visualPrompt 前缀以锁定画风 */
   stylePromptKeywords?: string;
+  /** stylePreset.format，影响 visualPrompt 结构（4koma 需显式描述4子格） */
+  comicFormat?: string;
   /** 跨话一致性事实 */
   factDigest?: string;
+  /** 分格信息密度：relaxed=舒展，balanced=均衡，compact=紧凑 */
+  densityMode?: "relaxed" | "balanced" | "compact";
+  /** 用户本次补充的分格要求，只能影响表达偏好，不得覆盖结构化输出规则 */
+  scriptPromptInstruction?: string;
   targetPanelCount?: number;
 }
 
@@ -141,6 +147,22 @@ export const comicPanelScriptPrompt: PromptAsset<
     const stylePrefix = input.stylePromptKeywords
       ?? (input.stylePreset ? `${input.stylePreset} style` : "webtoon style, vibrant colors, clean lines");
 
+    const is4koma = input.comicFormat === "4koma";
+    const densityMode = input.densityMode ?? "balanced";
+    const densityRuleMap: Record<NonNullable<ComicPanelScriptPromptInput["densityMode"]>, string> = {
+      relaxed:
+        "信息密度模式：舒展。优先情绪反应、单一动作和清晰留白；多数格只放 1 个视觉焦点、0-1 句对白、1-2 名角色，少用复杂背景。每 5-8 格安排一个低密度情绪缓冲。",
+      balanced:
+        "信息密度模式：均衡。大多数格承载 1 个动作或情绪转折、1-2 名角色、1-2 句对白；关键冲突格可提高背景和人物数量，但不要连续堆满。",
+      compact:
+        "信息密度模式：紧凑。允许更多剧情推进和同框信息，但每格仍只能有一个主视觉焦点；高密度格最多 3 句对白、2-4 名角色，并避免 3 个以上高密度格连续出现。",
+    };
+    const visualPromptRule = is4koma
+      ? `7. visualPrompt 必须以风格前缀「${stylePrefix}」开头，然后按四格结构显式描述每个子格内容，格式：
+   Panel1:[起] <画面内容>. Panel2:[承] <画面内容>. Panel3:[转] <画面内容>. Panel4:[合] <画面内容>.
+   每格描述独立，镜头/情绪/内容必须有明显差异，不要重复相近画面。四格合计信息量 > 单格3倍以上。`
+      : `7. visualPrompt 必须以固定风格前缀「${stylePrefix}」开头，然后再描述画面内容（出场角色、服装、表情、场景、构图），不含气泡文字`;
+
     return [
       new SystemMessage(
         `你是资深漫画分镜师，专注竖屏条漫/漫剧（webtoon 形态）。
@@ -152,8 +174,9 @@ export const comicPanelScriptPrompt: PromptAsset<
 4. characterRefs 必须为对象数组：{ name, costume, expression, lighting? }
 5. expression 只能取 neutral/happy/angry/sad/surprised/cold；根据该格对白情绪、动作和镜头目的选择，不要靠固定词替换
 6. costume 默认 default；只有剧情明确换装时才使用 combat/formal/casual
-7. visualPrompt 必须以固定风格前缀「${stylePrefix}」开头，然后再描述画面内容（出场角色、服装、表情、场景、构图），不含气泡文字
-8. 画风：${input.stylePreset ?? "彩色韩漫"}`,
+${visualPromptRule}
+8. ${densityRuleMap[densityMode]}
+9. 画风：${input.stylePreset ?? "彩色韩漫"}`,
       ),
       new HumanMessage(
         `漫画项目：${input.projectTitle}
@@ -167,6 +190,7 @@ ${input.sourceText ? `## 本话原文（对白来源）\n${input.sourceText.slic
 ${characterList}
 
 ${input.factDigest ? `## 跨话一致性事实（请严格遵守）\n${input.factDigest}\n` : ""}
+${input.scriptPromptInstruction ? `## 本次分格补充要求\n${input.scriptPromptInstruction}\n` : ""}
 ## 任务
 生成约 ${panelTarget} 格的完整分格脚本，返回 panels 数组。
 每格包含：order / panelType / action / dialogues / characterRefs / visualPrompt。

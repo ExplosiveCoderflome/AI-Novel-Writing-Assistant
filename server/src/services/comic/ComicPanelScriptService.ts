@@ -7,6 +7,8 @@ import { comicFactService } from "./ComicFactService";
 
 export interface GeneratePanelScriptInput {
   targetPanelCount?: number;
+  densityMode?: "relaxed" | "balanced" | "compact";
+  scriptPromptInstruction?: string;
   /** 强制刷新 sourceText 快照（仅 novel_import 有效） */
   refreshSourceText?: boolean;
 }
@@ -72,10 +74,17 @@ export class ComicPanelScriptService {
     }
 
     const stylePresetRaw = project.stylePreset
-      ? (JSON.parse(project.stylePreset) as { style?: string; promptKeywords?: string })
+      ? (JSON.parse(project.stylePreset) as { style?: string; promptKeywords?: string; format?: string })
       : undefined;
     const stylePreset = stylePresetRaw?.style;
     const stylePromptKeywords = stylePresetRaw?.promptKeywords;
+    const comicFormat = stylePresetRaw?.format;
+    const densityMode = input.densityMode ?? "balanced";
+    const targetPanelCount =
+      input.targetPanelCount
+      ?? (comicFormat === "4koma"
+        ? densityMode === "relaxed" ? 10 : densityMode === "compact" ? 16 : 12
+        : densityMode === "relaxed" ? 30 : densityMode === "compact" ? 65 : 45);
 
     // 取本话及之前的跨话事实
     const factDigest =
@@ -98,8 +107,11 @@ export class ComicPanelScriptService {
         })),
         stylePreset,
         stylePromptKeywords,
+        comicFormat,
         factDigest,
-        targetPanelCount: input.targetPanelCount ?? 45,
+        densityMode,
+        scriptPromptInstruction: input.scriptPromptInstruction,
+        targetPanelCount,
       },
       options: { temperature: 0.55, provider },
     });

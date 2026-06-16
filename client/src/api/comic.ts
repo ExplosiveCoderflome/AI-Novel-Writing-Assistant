@@ -129,6 +129,8 @@ export interface GenerateOutlinePayload {
 
 export interface GenerateScriptPayload {
   targetPanelCount?: number;
+  densityMode?: "relaxed" | "balanced" | "compact";
+  scriptPromptInstruction?: string;
   refreshSourceText?: boolean;
   provider?: string;
 }

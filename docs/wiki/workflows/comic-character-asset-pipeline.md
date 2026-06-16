@@ -70,3 +70,5 @@
 - `server/src/services/comic/ComicPanelImageService.ts`
 - `server/src/modules/comic/http/comicRoutes.ts`
 - `client/src/pages/comic/ComicProjectPage.tsx`
+
+角色资产进入分格生图链路后的提示词治理规则见 [漫画分格提示词治理](./comic-panel-production-prompt-governance.md)。该文档记录信息密度、四格结构、用户可编辑范围和最终 provider prompt 审查边界。

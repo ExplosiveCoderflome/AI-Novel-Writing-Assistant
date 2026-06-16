@@ -63,6 +63,8 @@ const sourceTextSchema = z.object({
 const generateScriptSchema = z
   .object({
     targetPanelCount: z.number().int().min(10).max(80).optional(),
+    densityMode: z.enum(["relaxed", "balanced", "compact"]).optional(),
+    scriptPromptInstruction: z.string().trim().max(1000).optional(),
     refreshSourceText: z.boolean().optional(),
     provider: z.string().trim().optional(),
   })
