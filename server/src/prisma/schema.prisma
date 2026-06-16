@@ -393,6 +393,7 @@ model Novel {
   directorArtifacts  DirectorArtifact[]
   directorLlmUsageRecords DirectorLlmUsageRecord[]
   promptAddendums    PromptAddendum[]
+  promptSlotOverrides PromptSlotOverride[]
   imageTasks         ImageGenerationTask[]
   imageAssets        ImageAsset[]
   sideEffectJobs     NovelSideEffectJob[]
@@ -426,6 +427,22 @@ model PromptAddendum {
   @@index([scope, promptId, enabled])
   @@index([novelId, promptId, enabled])
   @@index([updatedAt])
+}
+
+model PromptSlotOverride {
+  id          String   @id @default(cuid())
+  scope       String
+  novelId     String?
+  promptId    String
+  baseVersion String
+  slots       String   @default("{}")
+  novel       Novel?   @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([scope, novelId, promptId])
+  @@index([promptId])
+  @@index([novelId, promptId])
 }
 
 model CreativeDecision {
@@ -2917,4 +2934,464 @@ model NovelFactEntry {
 
   @@index([novelId, chapterOrder])
   @@index([novelId, category])
+}
+
+// ============================================================
+// 短剧创作模块（Drama）—— 独立 bounded context
+// 所有 Drama* 表自成一套，不与 Novel 建外键关系（仅软引用 sourceRef）。
+// 与小说模块的唯一接触点是 services/drama/source/NovelSourceAdapter（只读）。
+// 分类字段统一用 String + 注释（不用 enum），降低双 schema 维护成本。
+// ============================================================
+
+model DramaProject {
+  id             String   @id @default(cuid())
+  title          String
+  // 内容源：novel_import=导入小说；original=独立原创；text_import=文本转剧本
+  source         String   @default("original")
+  // 软引用：内容源标识（如 novelId），不建外键，保证可拆分
+  sourceRef      String?
+  // 内容源输入快照：original/text_import 保存用户输入，novel_import 可空
+  sourceInput    String?
+  // 赛道：逆袭/重生复仇/战神/赘婿/神医/豪门/甜宠/马甲文...
+  track          String?
+  theme          String?
+  // 形态：vertical_paid=竖屏付费短剧
+  orientation    String   @default("vertical_paid")
+  targetEpisodes Int      @default(80)
+  // 策略 JSON：主爽点线/付费卡点分布/情绪曲线目标/改编偏离声明
+  strategy       String?
+  // 状态：draft/strategized/outlined/scripting/completed
+  status         String   @default("draft")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sourceBundle   DramaSourceBundle?
+  characters     DramaCharacter[]
+  episodes       DramaEpisode[]
+  facts          DramaFact[]
+  characterLibraryItems DramaCharacterLibrary[]
+  storyboards    DramaStoryboard[]
+  videoPrompts   DramaVideoPrompt[]
+  batchJobs      DramaBatchJob[]
+
+  @@index([source])
+  @@index([status])
+}
+
+model DramaSourceBundle {
+  id         String   @id @default(cuid())
+  projectId  String   @unique
+  // 剧情梗概
+  synopsis   String?
+  // 情节节拍 JSON 数组（来源无关）
+  beats      String?
+  // 设定要点
+  worldNotes String?
+  // 硬事实 JSON 数组（一致性约束）
+  hardFacts  String?
+  // 原始文本（text_import 用）
+  rawText    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  project    DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model DramaCharacter {
+  id                 String   @id @default(cuid())
+  projectId          String
+  name               String
+  // 原型：霸总/赘婿/重生复仇/马甲/扮猪吃老虎...
+  archetype          String?
+  // 人设标签
+  persona            String?
+  // 说话风格
+  speechStyle        String?
+  // 视觉锚点 JSON：外形/服化/参考图 assetId（跨集视觉一致性用）
+  visualAnchor       String?
+  // 声线 JSON：配音用
+  voiceProfile       String?
+  // 关系 JSON
+  relations          String?
+  // 软引用：源角色标识（来自小说角色时）
+  sourceCharacterRef String?
+  // 角色形象图 JSON: { status:"idle"|"generating"|"done"|"error", url?:string, prompt?:string, generatedAt?:string }
+  portraitData       String?
+  // 三视图 JSON: [{ view:"front"|"side"|"back", url?:string, status:string, ... }, ...]
+  threeViewData      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  project            DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model DramaEpisode {
+  id           String   @id @default(cuid())
+  projectId    String
+  order        Int
+  title        String
+  // 台本正文
+  content      String?  @default("")
+  // 黄金3秒钩子开场
+  hookOpening  String?
+  // 集尾卡点（cliffhanger）
+  cliffhanger  String?
+  // 主钩子类型：身份反转/打脸/扮猪吃老虎/马甲掉落/误会/危机/情感拉扯...
+  hookType     String?
+  // 是否付费卡点集
+  isPaywall    Boolean  @default(false)
+  // 情绪净值：爽感曲线建模，正=释放，负=憋屈蓄势
+  emotionNet   Int?
+  // 集内节拍 JSON
+  beatSheet    String?
+  // 源映射 JSON：← 源 SourceBundle 节拍 / 小说章节区间
+  sourceMap    String?
+  durationSec  Int?
+  // 状态：planned/scripted/reviewed/needs_repair/approved
+  status       String   @default("planned")
+  // 质量标记 JSON
+  qualityFlags String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project      DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  storyboards  DramaStoryboard[]
+  videoPrompts DramaVideoPrompt[]
+  batchJobs    DramaBatchJob[]
+
+  @@unique([projectId, order])
+  @@index([projectId, status])
+}
+
+model DramaFact {
+  id           String   @id @default(cuid())
+  projectId    String
+  // 事实发生在第几集
+  episodeOrder Int
+  text         String
+  // completed/revealed/state_changed
+  category     String   @default("completed")
+  source       String   @default("auto")
+  createdAt    DateTime @default(now())
+
+  project      DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, episodeOrder])
+  @@index([projectId, category])
+}
+
+model DramaCharacterLibrary {
+  id           String   @id @default(cuid())
+  projectId    String?
+  name         String
+  archetype    String?
+  persona      String?
+  speechStyle  String?
+  visualAnchor String?
+  voiceProfile String?
+  relations    String?
+  tags         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project      DramaProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([name])
+}
+
+model DramaStoryboard {
+  id        String   @id @default(cuid())
+  projectId String
+  episodeId String
+  version   Int      @default(1)
+  status    String   @default("draft")
+  summary   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode   DramaEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  shots     DramaShot[]
+
+  @@index([projectId])
+  @@index([episodeId])
+}
+
+model DramaShot {
+  id            String   @id @default(cuid())
+  storyboardId  String
+  order         Int
+  shotSize      String?
+  cameraMove    String?
+  durationSec   Int?
+  location      String?
+  action        String
+  dialogue      String?
+  characterRefs String?
+  visualPrompt  String?
+  keyframeData  String?
+  dialogueAudioData String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  storyboard    DramaStoryboard @relation(fields: [storyboardId], references: [id], onDelete: Cascade)
+
+  @@unique([storyboardId, order])
+  @@index([storyboardId])
+}
+
+model DramaVideoPrompt {
+  id             String   @id @default(cuid())
+  projectId      String
+  episodeId      String?
+  shotId         String?
+  provider       String   @default("mock")
+  prompt         String
+  negativePrompt String?
+  aspectRatio    String   @default("9:16")
+  durationSec    Int?
+  status         String   @default("prompted")
+  version        Int      @default(1)
+  supersededById String?
+  providerTaskId String?
+  resultUrl      String?
+  failureReason  String?
+  providerResult String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project        DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode        DramaEpisode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([episodeId])
+  @@index([projectId, shotId, version])
+  @@index([provider, status])
+}
+
+model DramaBatchJob {
+  id        String   @id @default(cuid())
+  projectId String
+  episodeId String?
+  // keyframes/videos/tts/full_episode
+  type      String
+  // pending/running/paused/done/failed
+  status    String   @default("pending")
+  // JSON: { total, done, failed, failedShotIds, provider, errors }
+  progress  String   @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   DramaProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode   DramaEpisode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([episodeId, status])
+  @@index([type, status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Comic（AI 漫画）模块
+// 低耦合要点：所有外键对 Novel 零引用，sourceRef 为软引用（不建外键，保证可拆分）
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ComicProject {
+  id          String   @id @default(cuid())
+  title       String
+  // novel_import | original | text_import | comic_import
+  sourceType  String   @default("original")
+  // 软引用：novel_import 时为 novelId，不建外键，保证可拆分
+  sourceRef   String?
+  // 原创/文本导入的用户输入（sourceInput，对齐 DramaProject）
+  sourceInput String?
+  // 赛道模板 id（复用 rhythmEngine TrackId）
+  trackId     String?
+  // 画风锁定 JSON：{ style, negativeStyle, referenceImages, origin }
+  stylePreset String?
+  // draft/outlined/producing/completed
+  status      String   @default("draft")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sourceBundle ComicSourceBundle?
+  characters   ComicCharacter[]
+  episodes     ComicEpisode[]
+  facts        ComicFact[]
+  uploadAssets ComicUploadAsset[]
+  exportJobs   ComicExportJob[]
+  batchJobs    ComicBatchJob[]
+
+  @@index([sourceType])
+  @@index([status])
+}
+
+model ComicSourceBundle {
+  // SourceBundle JSON 快照，导入即落库，运行期不回读 novel 表（可拆分保证）
+  id         String   @id @default(cuid())
+  projectId  String   @unique
+  bundleJson String   // SourceBundle 序列化（synopsis/beats/characters/hardFacts）
+  importedAt DateTime @default(now())
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ComicCharacter {
+  id               String  @id @default(cuid())
+  projectId        String
+  name             String
+  persona          String?
+  // 视觉锚点描述（外形/服装/标志性特征，注入每格 visualPrompt）
+  visualAnchor     String?
+  // JSON: { status, version, url, origin(generated|uploaded), history(max5) }
+  sheetData        String?
+  // 软引用：novel_import 时为源小说 characterId
+  sourceCharacterRef String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model ComicEpisode {
+  id          String  @id @default(cuid())
+  projectId   String
+  order       Int
+  title       String?
+  // 开场钩子类型（复用 HookTypeId）
+  hookType    String?
+  // 收尾悬念/卡点
+  cliffhanger String?
+  isPaywalled Boolean @default(false)
+  // 本话情节大纲（LLM 产出，可编辑）
+  outline     String?
+  // 本话覆盖章节的正文快照（分格脚本对白的原文依据，novel_import 时填入）
+  sourceText  String?
+  // draft/scripted/generating/reviewing/done
+  status      String  @default("draft")
+  // JSON: { densityMode, targetPanelCount, comicFormat, scriptPromptInstruction, promptAssetVersion, generatedAt }
+  scriptConfig String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  panels  ComicPanel[]
+  batchJobs ComicBatchJob[]
+
+  @@unique([projectId, order])
+  @@index([projectId, status])
+}
+
+model ComicPanel {
+  id           String  @id @default(cuid())
+  episodeId    String
+  order        Int
+  // 镜头语言：establishing/close_up/action/reaction/transition
+  panelType    String?
+  // 画面行为描述
+  action       String
+  // JSON: [{ speaker, text, bubbleType(round|spike|cloud|caption), anchorHint }]
+  dialogues    String?
+  // 本格出场角色 id 列表（JSON array）
+  characterRefs String?
+  // 图像生成提示词（含 stylePreset + characterSheet 注入后的完整 prompt）
+  visualPrompt  String?
+  // low/medium/high，LLM 结构化输出，用于控制画面信息密度
+  densityLevel String?
+  // 本格主视觉焦点，辅助用户审查和生图 prompt 微调
+  focus         String?
+  // JSON: { layout, subPanels? }，为四格/单页多格等结构化版式预留
+  layoutData    String?
+  // JSON: { status, version, url, origin(generated|uploaded), history(max5) }
+  imageData     String?
+  // JSON: { url, bubbleLayout, synthesizedAt }（气泡合成后的成品图）
+  letteredData  String?
+  // JSON（P5）: { motionType(push_in|pull_out|pan|hold), durationMs, focusRegion }
+  motionData    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  episode ComicEpisode @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+
+  @@unique([episodeId, order])
+  @@index([episodeId])
+}
+
+model ComicFact {
+  id        String  @id @default(cuid())
+  projectId String
+  // 事实描述（跨话视觉一致性约束：服装变更/道具状态/场景状态）
+  text      String
+  // completed | revealed | state_changed
+  category  String  @default("completed")
+  // 关联话数（发生时的 episode order）
+  episodeOrder Int?
+  createdAt DateTime @default(now())
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model ComicUploadAsset {
+  id        String  @id @default(cuid())
+  projectId String
+  // character_ref | style_ref | panel_image | imported_page
+  kind      String
+  // 落盘相对路径（不存 base64，仅存路径）
+  filePath  String
+  // 关联实体 id（可选）
+  refId     String?
+  metadata  String? // JSON: 自由元数据（尺寸/原始文件名等）
+  createdAt DateTime @default(now())
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, kind])
+}
+
+model ComicExportJob {
+  id         String  @id @default(cuid())
+  projectId  String
+  episodeId  String?
+  // strip（条漫长图）| video（漫剧 MP4）
+  format     String
+  // JSON: 平台规格（切片高度/分辨率/水印等）
+  spec       String?
+  // pending/running/done/failed
+  status     String  @default("pending")
+  // JSON: 产物路径列表（落盘路径，不进 DB 正文）
+  artifacts  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@index([format, status])
+}
+
+model ComicBatchJob {
+  id        String  @id @default(cuid())
+  projectId String
+  episodeId String?
+  // panels/lettering/export
+  type      String
+  // pending/running/paused/done/failed
+  status    String  @default("pending")
+  // JSON: { total, done, failed, failedPanelIds, provider, errors }
+  progress  String  @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  episode ComicEpisode? @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([episodeId, status])
+  @@index([type, status])
 }

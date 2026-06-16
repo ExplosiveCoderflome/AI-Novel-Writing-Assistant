@@ -92,6 +92,7 @@ keyMilestoneGuards: z.array(volumeKeyMilestoneGuardSchema).default([])
 - `narrativeProgressHint` 依赖小说预计总章数。没有 `estimatedChapterCount` 时应自然跳过，不应为了显示进度而猜测总章数。
 - `requiredCharacterAppearances` 的缺席提示只附加在已经进入义务契约的角色上；如果角色根本没有进入该列表，应先检查角色动态概览和选角规则，而不是在提示词里硬塞角色名。
 - `characterKnowledgeStates` 只记录明显信息差。若所有角色都自然知晓同一事实，应省略该字段，避免把普通剧情进展误写成长期信息边界。
+
 - `buildCompressionLog()` 是观测工具。若日志显示 dropped，不代表实际生成已经丢弃同名 block，真实裁剪仍以 prompt runner 的 context selection 为准。
 - `rebuild_story_world_slice` 重建切片后，如果后续又触发了 `ensureStoryWorldSlice` 且 stale 检测显示为最新状态，则已重建的切片会被复用而非再次生成，这是预期行为。
 

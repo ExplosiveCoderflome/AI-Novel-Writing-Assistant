@@ -12,11 +12,10 @@ import { createDefaultContextResolverRegistry } from "./context/defaultContextRe
 import { derivePromptContextRequirements } from "./context/promptContextResolution";
 import type { PromptExecutionContext } from "./context/types";
 import { getRegisteredPromptAsset, listRegisteredPromptAssets } from "./registry";
-import {
-  getPromptAddendumScopeLabels,
-  getPromptCatalogDescription,
-  isPromptAddendumSupported,
-} from "./addendums/PromptAddendumService";
+import { getPromptCatalogDescription } from "./addendums/PromptAddendumService";
+import { CUSTOM_SLOT_CONTEXT_GROUP, resolvePromptOverlays } from "./slots/slotResolution";
+import { promptSlotOverrideService } from "./slots/PromptSlotOverrideService";
+import type { PromptSlotDef } from "./slots/slotTypes";
 
 type UnknownPromptAsset = PromptAsset<unknown, unknown, unknown>;
 
@@ -32,17 +31,10 @@ export interface PromptCatalogItem {
   outputType: "structured" | "text";
   contextPolicy: UnknownPromptAsset["contextPolicy"];
   contextRequirements: PromptContextRequirement[];
-  editableSlots: NonNullable<UnknownPromptAsset["editableSlots"]>;
-  overrideSupported: false;
-  addendumSupported: boolean;
-  addendumScopeLabels: string[];
-  overrideLifecycle: {
-    draftSupported: false;
-    publishSupported: false;
-    runtimeOverrideEnabled: false;
-  };
+  slots: PromptSlotDef[];
+  slotSupported: boolean;
   lockedFields: string[];
-  managementStatus: "complete" | "missing_context_requirements" | "missing_editable_slots";
+  managementStatus: "complete" | "missing_context_requirements" | "missing_slots";
   capabilities: {
     hasOutputSchema: boolean;
     hasPostValidate: boolean;
@@ -67,6 +59,7 @@ export interface PromptPreviewInput {
   contextRequirements?: PromptContextRequirement[];
   maxContextTokens?: number;
   contextMode?: "snapshot" | "fresh" | "hybrid";
+  slotOverrides?: Record<string, unknown>;
 }
 
 export interface PromptPreviewMessage {
@@ -102,11 +95,12 @@ const LOCKED_PROMPT_FIELDS = [
 
 function toCatalogItem(asset: UnknownPromptAsset): PromptCatalogItem {
   const contextRequirements = derivePromptContextRequirements(asset);
-  const editableSlots = asset.editableSlots ?? [];
+  const slots: PromptSlotDef[] = asset.slots ?? [];
+  const slotSupported = slots.length > 0;
   const managementStatus: PromptCatalogItem["managementStatus"] = contextRequirements.length === 0
     ? "missing_context_requirements"
-    : editableSlots.length === 0
-      ? "missing_editable_slots"
+    : !slotSupported
+      ? "missing_slots"
       : "complete";
   return {
     key: buildPromptAssetKey(asset),
@@ -120,15 +114,8 @@ function toCatalogItem(asset: UnknownPromptAsset): PromptCatalogItem {
     outputType: asset.mode === "structured" ? "structured" : "text",
     contextPolicy: asset.contextPolicy,
     contextRequirements,
-    editableSlots,
-    overrideSupported: false,
-    addendumSupported: isPromptAddendumSupported(asset.id),
-    addendumScopeLabels: getPromptAddendumScopeLabels(asset.id),
-    overrideLifecycle: {
-      draftSupported: false,
-      publishSupported: false,
-      runtimeOverrideEnabled: false,
-    },
+    slots,
+    slotSupported,
     lockedFields: LOCKED_PROMPT_FIELDS,
     managementStatus,
     capabilities: {
@@ -153,7 +140,7 @@ function buildPromptTracePreview(input: {
     contextBlockIds: input.prepared.context.selectedBlockIds,
     droppedContextBlockIds: input.prepared.context.droppedBlockIds,
     summarizedContextBlockIds: input.prepared.context.summarizedBlockIds,
-    customAddendumBlockIds: input.prepared.context.selectedBlockIds.filter((id) => id.startsWith("custom_addendum:")),
+    customAddendumBlockIds: input.prepared.context.selectedBlockIds.filter((id) => id.startsWith(`${CUSTOM_SLOT_CONTEXT_GROUP}:`)),
     estimatedInputTokens: input.prepared.context.estimatedInputTokens,
     repairUsed: false,
     repairAttempts: 0,
@@ -171,8 +158,8 @@ function buildPreviewNotes(input: {
   brokerResolution: Awaited<ReturnType<ContextBroker["resolve"]>>;
 }): string[] {
   const notes: string[] = [];
-  if (input.prompt.overrideSupported === false) {
-    notes.push("Prompt override is disabled for this read-only preview.");
+  if (!input.prompt.slotSupported) {
+    notes.push("This prompt has no declared slot definitions — slot overrides are unavailable.");
   }
   if (input.brokerResolution.missingRequiredGroups.length > 0) {
     notes.push(`Missing required context groups: ${input.brokerResolution.missingRequiredGroups.join(", ")}.`);
@@ -206,13 +193,13 @@ function matchesCatalogFilter(item: PromptCatalogItem, filter?: PromptCatalogFil
     item.mode,
     item.language,
     item.contextRequirements.map((requirement) => requirement.group).join(" "),
-    item.editableSlots.map((slot) => `${slot.key} ${slot.label}`).join(" "),
+    item.slots.map((slot) => `${slot.key} ${slot.label}`).join(" "),
   ].some((value) => value.toLowerCase().includes(keyword));
 }
 
 function sortCatalogItems(left: PromptCatalogItem, right: PromptCatalogItem): number {
-  if (left.addendumSupported !== right.addendumSupported) {
-    return left.addendumSupported ? -1 : 1;
+  if (left.slotSupported !== right.slotSupported) {
+    return left.slotSupported ? -1 : 1;
   }
   return left.key.localeCompare(right.key);
 }
@@ -312,10 +299,48 @@ export class PromptWorkbenchService {
       maxTokensBudget: input.maxContextTokens ?? asset.contextPolicy.maxTokensBudget,
       mode: input.contextMode,
     });
+
+    // Resolve slot overlays: merge DB-saved overrides with any draft slotOverrides from the caller
+    let resolvedSlots: import("./slots/slotTypes").ResolvedSlots | undefined;
+    let appendBlocks: import("./core/promptTypes").PromptContextBlock[] = [];
+    const slotDefs: PromptSlotDef[] = asset.slots ?? [];
+    if (slotDefs.length > 0) {
+      const maps = await promptSlotOverrideService.getOverrideMaps({
+        promptId: asset.id,
+        novelId: input.executionContext.novelId,
+      });
+
+      // Draft overrides take priority over saved global overrides (per-slot, novel scope)
+      const draftNovelOverrides: import("./slots/slotTypes").PromptSlotOverrideMap = { ...maps.novel };
+      if (input.slotOverrides) {
+        for (const [key, value] of Object.entries(input.slotOverrides)) {
+          const def = slotDefs.find((d) => d.key === key);
+          if (!def) continue;
+          const hash = (await import("./slots/slotResolution")).hashSlotDefault(
+            def.kind === "toggle" ? def.default : def.default,
+          );
+          draftNovelOverrides[key] = { value: value as string | boolean, baseHash: hash };
+        }
+      }
+
+      const overlays = resolvePromptOverlays({
+        slotDefs,
+        globalOverrides: maps.global,
+        novelOverrides: draftNovelOverrides,
+      });
+      resolvedSlots = overlays.inlineSlots;
+      appendBlocks = overlays.appendBlocks;
+    }
+
+    const allBlocks = appendBlocks.length > 0
+      ? [...brokerResolution.blocks, ...appendBlocks]
+      : brokerResolution.blocks;
+
     const prepared = preparePromptExecution({
       asset,
       promptInput: input.promptInput,
-      contextBlocks: brokerResolution.blocks,
+      contextBlocks: allBlocks,
+      resolvedSlots,
       options: {
         entrypoint: input.executionContext.entrypoint,
         novelId: input.executionContext.novelId,

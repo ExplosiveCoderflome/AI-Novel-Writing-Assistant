@@ -73,6 +73,15 @@ export const queryKeys = {
   genres: {
     all: ["genres"] as const,
   },
+  drama: {
+    projects: ["drama", "projects"] as const,
+    project: (id: string) => ["drama", "project", id] as const,
+    characters: (id: string) => ["drama", "characters", id] as const,
+    characterLibrary: (projectId?: string) => ["drama", "character-library", projectId ?? "global"] as const,
+    storyboard: (storyboardId: string) => ["drama", "storyboard", storyboardId] as const,
+    videoProviders: ["drama", "video-providers"] as const,
+    ttsProviders: ["drama", "tts-providers"] as const,
+  },
   storyModes: {
     all: ["story-modes"] as const,
   },
@@ -114,7 +123,8 @@ export const queryKeys = {
     catalog: (params: string) => ["prompt-workbench", "catalog", params] as const,
     preview: (promptKey: string) => ["prompt-workbench", "preview", promptKey] as const,
     materials: (params: string) => ["prompt-workbench", "materials", params] as const,
-    addendums: (params: string) => ["prompt-workbench", "addendums", params] as const,
+    slotOverrides: (params: string) => ["prompt-workbench", "slot-overrides", params] as const,
+    slotReconcile: (params: string) => ["prompt-workbench", "slot-reconcile", params] as const,
   },
   creativeHub: {
     threads: ["creative-hub", "threads"] as const,

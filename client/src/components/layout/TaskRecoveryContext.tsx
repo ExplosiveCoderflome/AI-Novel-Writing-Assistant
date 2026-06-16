@@ -9,8 +9,6 @@ import {
 import { queryKeys } from "@/api/queryKeys";
 import { toast } from "@/components/ui/toast";
 
-const DISMISSED_RECOVERY_SIGNATURE_STORAGE_KEY = "ai-novel.task-recovery.dismissed-signature";
-
 type RecoveryTaskInput = {
   kind: RecoverableTaskSummary["kind"];
   id: string;
@@ -36,33 +34,10 @@ function recoveryItemKey(item: { kind: string; id: string }): string {
   return `${item.kind}:${item.id}`;
 }
 
-function buildRecoverySignature(items: Array<{ kind: string; id: string }>): string {
-  return items.map(recoveryItemKey).sort().join("|");
-}
-
-function readDismissedRecoverySignature(): string {
-  if (typeof window === "undefined") {
-    return "";
-  }
-  return window.sessionStorage.getItem(DISMISSED_RECOVERY_SIGNATURE_STORAGE_KEY) ?? "";
-}
-
-function writeDismissedRecoverySignature(signature: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  if (signature) {
-    window.sessionStorage.setItem(DISMISSED_RECOVERY_SIGNATURE_STORAGE_KEY, signature);
-    return;
-  }
-  window.sessionStorage.removeItem(DISMISSED_RECOVERY_SIGNATURE_STORAGE_KEY);
-}
-
 export function TaskRecoveryProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [manualOpen, setManualOpen] = useState(false);
   const [recoveryQueryEnabled, setRecoveryQueryEnabled] = useState(false);
-  const [dismissedSignature, setDismissedSignature] = useState(() => readDismissedRecoverySignature());
   const [acceptedRecoveryKeys, setAcceptedRecoveryKeys] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
@@ -82,14 +57,11 @@ export function TaskRecoveryProvider({ children }: { children: ReactNode }) {
     () => rawItems.filter((item) => !acceptedRecoveryKeys.has(recoveryItemKey(item))),
     [acceptedRecoveryKeys, rawItems],
   );
-  const signature = useMemo(() => buildRecoverySignature(items), [items]);
 
   useEffect(() => {
     if (recoveryQuery.isSuccess && rawItems.length === 0) {
       setManualOpen(false);
       setAcceptedRecoveryKeys(new Set());
-      setDismissedSignature("");
-      writeDismissedRecoverySignature("");
     }
   }, [rawItems.length, recoveryQuery.isSuccess]);
 
@@ -144,13 +116,11 @@ export function TaskRecoveryProvider({ children }: { children: ReactNode }) {
     return resumeSingleMutation.variables?.id ?? "";
   }, [resumeSingleMutation.isPending, resumeSingleMutation.variables]);
 
-  const isOpen = items.length > 0 && (manualOpen || signature !== dismissedSignature);
+  const isOpen = items.length > 0 && manualOpen;
 
   const closeDialog = useCallback(() => {
     setManualOpen(false);
-    setDismissedSignature(signature);
-    writeDismissedRecoverySignature(signature);
-  }, [signature]);
+  }, []);
 
   const openDialog = useCallback(() => {
     if (items.length === 0) {

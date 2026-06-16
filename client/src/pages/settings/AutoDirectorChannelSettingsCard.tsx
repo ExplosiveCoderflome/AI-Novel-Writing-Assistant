@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   AUTO_DIRECTOR_EVENT_OPTIONS,
   type AutoDirectorChannelDraft,
@@ -68,6 +70,7 @@ export function AutoDirectorChannelSettingsCard(props: {
   onSave: () => void;
   isSaving: boolean;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
   const {
     channelDraft,
     onBaseUrlChange,
@@ -75,76 +78,94 @@ export function AutoDirectorChannelSettingsCard(props: {
     onSave,
     isSaving,
   } = props;
+  const toggleLabel = isOpen ? "收起导演跟进通道配置" : "展开导演跟进通道配置";
 
   return (
     <Card className="min-w-0 overflow-hidden">
-      <CardHeader>
-        <CardTitle>导演跟进通道配置</CardTitle>
-        <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-          集中配置钉钉与企微的 webhook、回调 token、用户映射和事件订阅。未配完整回调能力时，消息会自动降级成仅跳转站内。
-        </CardDescription>
+      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+        <div className="min-w-0 space-y-1.5">
+          <CardTitle>导演跟进通道配置</CardTitle>
+          <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
+            集中配置钉钉与企微的 webhook、回调 token、用户映射和事件订阅。未配完整回调能力时，消息会自动降级成仅跳转站内。
+          </CardDescription>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0"
+          aria-label={toggleLabel}
+          title={toggleLabel}
+          aria-expanded={isOpen}
+          aria-controls="auto-director-channel-settings-content"
+          onClick={() => setIsOpen((prev) => !prev)}
+        >
+          <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isOpen ? "rotate-180" : "")} />
+        </Button>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">站内访问地址</div>
-          <Input
-            value={channelDraft.baseUrl}
-            placeholder="https://book.example.com"
-            onChange={(event) => onBaseUrlChange(event.target.value)}
-          />
-          <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-xs text-muted-foreground`}>
-            用于钉钉/企微消息里的“打开跟进中心 / 查看详情”链接。未填写时会回退到服务端环境中的站点地址。
+      {isOpen ? (
+        <CardContent id="auto-director-channel-settings-content" className="space-y-6">
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">站内访问地址</div>
+            <Input
+              value={channelDraft.baseUrl}
+              placeholder="https://book.example.com"
+              onChange={(event) => onBaseUrlChange(event.target.value)}
+            />
+            <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-xs text-muted-foreground`}>
+              用于钉钉/企微消息里的“打开跟进中心 / 查看详情”链接。未填写时会回退到服务端环境中的站点地址。
+            </div>
           </div>
-        </div>
 
-        {(["dingtalk", "wecom"] as const).map((channelType) => (
-          <div key={channelType} className="min-w-0 space-y-3 rounded-lg border p-3 sm:p-4">
-            <div className="font-medium">{channelType === "dingtalk" ? "钉钉" : "企业微信"}</div>
-            <div className="grid min-w-0 gap-3 md:grid-cols-2">
+          {(["dingtalk", "wecom"] as const).map((channelType) => (
+            <div key={channelType} className="min-w-0 space-y-3 rounded-lg border p-3 sm:p-4">
+              <div className="font-medium">{channelType === "dingtalk" ? "钉钉" : "企业微信"}</div>
+              <div className="grid min-w-0 gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">Webhook URL</div>
+                  <Input
+                    value={channelDraft[channelType].webhookUrl}
+                    placeholder="https://..."
+                    onChange={(event) => onPatchChannelDraft(channelType, { webhookUrl: event.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">回调 Token</div>
+                  <Input
+                    value={channelDraft[channelType].callbackToken}
+                    placeholder="可选；未配置则只保留站内跳转"
+                    onChange={(event) => onPatchChannelDraft(channelType, { callbackToken: event.target.value })}
+                  />
+                </div>
+              </div>
               <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">Webhook URL</div>
+                <div className="text-xs text-muted-foreground">用户映射 JSON</div>
                 <Input
-                  value={channelDraft[channelType].webhookUrl}
-                  placeholder="https://..."
-                  onChange={(event) => onPatchChannelDraft(channelType, { webhookUrl: event.target.value })}
+                  value={channelDraft[channelType].operatorMapJson}
+                  placeholder='{"ding_user_1":"user_1"}'
+                  onChange={(event) => onPatchChannelDraft(channelType, { operatorMapJson: event.target.value })}
                 />
               </div>
               <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">回调 Token</div>
-                <Input
-                  value={channelDraft[channelType].callbackToken}
-                  placeholder="可选；未配置则只保留站内跳转"
-                  onChange={(event) => onPatchChannelDraft(channelType, { callbackToken: event.target.value })}
+                <div className="text-xs text-muted-foreground">订阅事件</div>
+                <AutoDirectorEventMultiSelect
+                  value={channelDraft[channelType].eventTypes}
+                  onChange={(eventTypes) => onPatchChannelDraft(channelType, { eventTypes })}
                 />
               </div>
             </div>
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">用户映射 JSON</div>
-              <Input
-                value={channelDraft[channelType].operatorMapJson}
-                placeholder='{"ding_user_1":"user_1"}'
-                onChange={(event) => onPatchChannelDraft(channelType, { operatorMapJson: event.target.value })}
-              />
-            </div>
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">订阅事件</div>
-              <AutoDirectorEventMultiSelect
-                value={channelDraft[channelType].eventTypes}
-                onChange={(eventTypes) => onPatchChannelDraft(channelType, { eventTypes })}
-              />
-            </div>
-          </div>
-        ))}
+          ))}
 
-        <div className={AUTO_DIRECTOR_MOBILE_CLASSES.channelSettingsActionRow}>
-          <Button variant="outline" asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
-            <Link to="/settings/model-routes">去看模型路由</Link>
-          </Button>
-          <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onSave} disabled={isSaving}>
-            {isSaving ? "保存中..." : "保存导演跟进通道配置"}
-          </Button>
-        </div>
-      </CardContent>
+          <div className={AUTO_DIRECTOR_MOBILE_CLASSES.channelSettingsActionRow}>
+            <Button variant="outline" asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
+              <Link to="/settings/model-routes">去看模型路由</Link>
+            </Button>
+            <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onSave} disabled={isSaving}>
+              {isSaving ? "保存中..." : "保存导演跟进通道配置"}
+            </Button>
+          </div>
+        </CardContent>
+      ) : null}
     </Card>
   );
 }
