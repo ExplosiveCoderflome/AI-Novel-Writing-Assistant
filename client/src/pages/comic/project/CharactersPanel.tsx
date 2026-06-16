@@ -106,6 +106,7 @@ function CharacterList({
             const sheetData = parseSheetData(character);
             const expressionData = getExpressionData(sheetData);
             const isSelected = character.id === selectedCharacterId;
+            const hasSheet = sheetData.status === "done";
 
             return (
               <button
@@ -121,16 +122,27 @@ function CharacterList({
                 <div className="flex items-start gap-2">
                   <div
                     className={[
-                      "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border",
+                      "relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border",
                       isSelected ? "border-primary/30 bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
                     ].join(" ")}
                   >
                     <User className="h-4 w-4" />
+                    {hasSheet && (
+                      <img
+                        src={characterSheetImageUrl(character.id)}
+                        alt={`${character.name} 头像`}
+                        className="absolute inset-0 h-full w-full object-cover object-left"
+                        loading="lazy"
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                        }}
+                      />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <p className="truncate text-sm font-medium">{character.name}</p>
-                      {sheetData.status === "done" && (
+                      {hasSheet && (
                         <span className="shrink-0 text-[10px] text-muted-foreground">v{sheetData.version ?? 1}</span>
                       )}
                     </div>
@@ -140,7 +152,7 @@ function CharacterList({
                       </p>
                     )}
                     <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
-                      <span className={sheetData.status === "done" ? "text-primary" : ""}>三视图</span>
+                      <span className={hasSheet ? "text-primary" : ""}>三视图</span>
                       <span className="text-border">/</span>
                       <span className={expressionData.status === "done" ? "text-primary" : ""}>表情稿</span>
                     </div>
