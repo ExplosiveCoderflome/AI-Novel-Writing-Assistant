@@ -3256,6 +3256,8 @@ model ComicEpisode {
   sourceText  String?
   // draft/scripted/generating/reviewing/done
   status      String  @default("draft")
+  // JSON: { densityMode, targetPanelCount, comicFormat, scriptPromptInstruction, promptAssetVersion, generatedAt }
+  scriptConfig String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -3281,6 +3283,12 @@ model ComicPanel {
   characterRefs String?
   // 图像生成提示词（含 stylePreset + characterSheet 注入后的完整 prompt）
   visualPrompt  String?
+  // low/medium/high，LLM 结构化输出，用于控制画面信息密度
+  densityLevel String?
+  // 本格主视觉焦点，辅助用户审查和生图 prompt 微调
+  focus         String?
+  // JSON: { layout, subPanels? }，为四格/单页多格等结构化版式预留
+  layoutData    String?
   // JSON: { status, version, url, origin(generated|uploaded), history(max5) }
   imageData     String?
   // JSON: { url, bubbleLayout, synthesizedAt }（气泡合成后的成品图）

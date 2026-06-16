@@ -48,6 +48,7 @@ export interface ComicEpisode {
   outline?: string | null;
   sourceText?: string | null;
   status: string;
+  scriptConfig?: string | null; // JSON of script generation settings
   _count?: { panels: number };
   panels?: ComicPanel[];
 }
@@ -72,9 +73,12 @@ export interface ComicPanel {
   order: number;
   panelType: "establishing" | "close_up" | "action" | "reaction" | "transition";
   action: string;
+  densityLevel?: "low" | "medium" | "high" | null;
+  focus?: string | null;
   dialogues: string | null; // JSON string of ComicDialogue[]
   characterRefs: string | null; // JSON string of string[] or ComicPanelCharacterRef[]
   visualPrompt: string;
+  layoutData: string | null; // JSON
   imageData: string | null; // JSON of PanelImageData
   letteredData: string | null; // JSON
   motionData: string | null; // JSON

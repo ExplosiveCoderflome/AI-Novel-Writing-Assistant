@@ -41,6 +41,28 @@ function parseImageData(
   }
 }
 
+const DENSITY_BADGE: Record<string, { label: string; className: string }> = {
+  low: { label: "低密度", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  medium: { label: "中密度", className: "border-sky-200 bg-sky-50 text-sky-700" },
+  high: { label: "高密度", className: "border-amber-200 bg-amber-50 text-amber-700" },
+};
+
+function densityBadge(value: string | null | undefined): { label: string; className: string } {
+  return DENSITY_BADGE[value ?? ""] ?? { label: "未标注", className: "border-border bg-muted text-muted-foreground" };
+}
+
+function parseLayoutData(raw: string | null | undefined): {
+  layout?: string;
+  subPanels?: Array<{ order?: number; beat?: string; visualPrompt?: string }>;
+} {
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
 function BatchBar({
   episodeId,
   provider,
@@ -197,6 +219,8 @@ function PanelDetailDialog({
   const [isEditing, setIsEditing] = useState(false);
   const [draftVisualPrompt, setDraftVisualPrompt] = useState(panel.visualPrompt);
   const imageData = parseImageData(panel.imageData);
+  const density = densityBadge(panel.densityLevel);
+  const layoutData = parseLayoutData(panel.layoutData);
 
   useEffect(() => {
     setDraftVisualPrompt(panel.visualPrompt);
@@ -272,9 +296,37 @@ function PanelDetailDialog({
 
           <div className="min-w-0 flex-1 space-y-4 p-4">
             <div>
-              <div className="mb-1 text-xs font-semibold text-muted-foreground">动作描述</div>
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-muted-foreground">动作描述</span>
+                <span className={`rounded border px-2 py-0.5 text-[11px] ${density.className}`}>{density.label}</span>
+              </div>
               <div className="rounded bg-muted px-2 py-1.5 text-sm">{panel.action}</div>
             </div>
+
+            {panel.focus && (
+              <div>
+                <div className="mb-1 text-xs font-semibold text-muted-foreground">主视觉焦点</div>
+                <div className="rounded bg-muted/60 px-2 py-1.5 text-sm">{panel.focus}</div>
+              </div>
+            )}
+
+            {layoutData.layout && (
+              <div>
+                <div className="mb-1 text-xs font-semibold text-muted-foreground">版式结构</div>
+                <div className="rounded border bg-muted/40 px-2 py-2 text-xs leading-relaxed text-muted-foreground">
+                  <div className="font-medium text-foreground">{layoutData.layout === "four_koma" ? "四格起承转合" : layoutData.layout}</div>
+                  {layoutData.subPanels?.length ? (
+                    <div className="mt-1 space-y-1">
+                      {layoutData.subPanels.map((subPanel) => (
+                        <div key={`${subPanel.order}-${subPanel.beat}`}>
+                          {subPanel.order}. {subPanel.beat}：{subPanel.visualPrompt}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            )}
 
             <div>
               <div className="mb-1 flex items-center justify-between gap-2">
@@ -454,6 +506,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {panels.map((panel) => {
           const imageData = parseImageData(panel.imageData);
+          const density = densityBadge(panel.densityLevel);
           const busy = busyPanelId === panel.id;
           return (
             <div
@@ -481,8 +534,14 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                 </div>
               )}
               <div className="p-1.5 text-xs text-muted-foreground">
-                <span className="font-medium">第 {panel.order} 格</span>
-                <span className="ml-1 opacity-60">{panel.panelType}</span>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="font-medium">第 {panel.order} 格</span>
+                  <span className={`rounded border px-1.5 py-0.5 text-[10px] ${density.className}`}>{density.label}</span>
+                </div>
+                <div className="mt-1 truncate">
+                  <span className="opacity-60">{panel.panelType}</span>
+                  {panel.focus ? <span className="ml-1">{panel.focus}</span> : null}
+                </div>
               </div>
               <div className="absolute inset-x-0 bottom-8 flex justify-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                 {imageData.status !== "done" && (

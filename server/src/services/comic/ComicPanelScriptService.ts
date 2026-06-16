@@ -117,6 +117,18 @@ export class ComicPanelScriptService {
     });
 
     const panels = result.output.panels;
+    const scriptConfig = {
+      densityMode,
+      targetPanelCount,
+      comicFormat: comicFormat ?? "webtoon",
+      stylePreset,
+      stylePromptKeywords,
+      scriptPromptInstruction: input.scriptPromptInstruction,
+      promptAssetId: comicPanelScriptPrompt.id,
+      promptAssetVersion: comicPanelScriptPrompt.version,
+      provider,
+      generatedAt: new Date().toISOString(),
+    };
 
     // 事务：清空旧格子重建 + 更新话状态
     await prisma.$transaction(async (tx) => {
@@ -126,16 +138,19 @@ export class ComicPanelScriptService {
           episodeId,
           order: panel.order,
           panelType: panel.panelType,
+          densityLevel: panel.densityLevel,
+          focus: panel.focus,
           action: panel.action,
           dialogues: panel.dialogues.length > 0 ? JSON.stringify(panel.dialogues) : null,
           characterRefs:
             panel.characterRefs.length > 0 ? JSON.stringify(panel.characterRefs) : null,
           visualPrompt: panel.visualPrompt,
+          layoutData: panel.layoutData ? JSON.stringify(panel.layoutData) : null,
         })),
       });
       await tx.comicEpisode.update({
         where: { id: episodeId },
-        data: { status: "scripted" },
+        data: { status: "scripted", scriptConfig: JSON.stringify(scriptConfig) },
       });
     });
 

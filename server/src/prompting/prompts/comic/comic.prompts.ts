@@ -94,11 +94,26 @@ const panelCharacterRefSchema = z.object({
 const panelScriptSchema = z.object({
   order: z.number().int().min(1),
   panelType: z.enum(["establishing", "close_up", "action", "reaction", "transition"]),
+  densityLevel: z.enum(["low", "medium", "high"]).default("medium"),
+  focus: z.string().trim().min(1).max(120),
   action: z.string().trim().min(1).max(200),
   dialogues: z.array(dialogueSchema).max(3).default([]),
   characterRefs: z.array(panelCharacterRefSchema).max(5).default([]),
   // 发给图像模型的画面提示词（不含气泡文字）
   visualPrompt: z.string().trim().min(1).max(400),
+  layoutData: z
+    .object({
+      layout: z.enum(["single", "four_koma"]).default("single"),
+      subPanels: z
+        .array(z.object({
+          order: z.number().int().min(1).max(4),
+          beat: z.enum(["起", "承", "转", "合"]),
+          visualPrompt: z.string().trim().min(1).max(180),
+        }))
+        .max(4)
+        .optional(),
+    })
+    .optional(),
 });
 
 export const comicPanelScriptOutputSchema = z.object({
@@ -158,10 +173,10 @@ export const comicPanelScriptPrompt: PromptAsset<
         "信息密度模式：紧凑。允许更多剧情推进和同框信息，但每格仍只能有一个主视觉焦点；高密度格最多 3 句对白、2-4 名角色，并避免 3 个以上高密度格连续出现。",
     };
     const visualPromptRule = is4koma
-      ? `7. visualPrompt 必须以风格前缀「${stylePrefix}」开头，然后按四格结构显式描述每个子格内容，格式：
+      ? `9. visualPrompt 必须以风格前缀「${stylePrefix}」开头，然后按四格结构显式描述每个子格内容，格式：
    Panel1:[起] <画面内容>. Panel2:[承] <画面内容>. Panel3:[转] <画面内容>. Panel4:[合] <画面内容>.
    每格描述独立，镜头/情绪/内容必须有明显差异，不要重复相近画面。四格合计信息量 > 单格3倍以上。`
-      : `7. visualPrompt 必须以固定风格前缀「${stylePrefix}」开头，然后再描述画面内容（出场角色、服装、表情、场景、构图），不含气泡文字`;
+      : `9. visualPrompt 必须以固定风格前缀「${stylePrefix}」开头，然后再描述画面内容（出场角色、服装、表情、场景、构图），不含气泡文字`;
 
     return [
       new SystemMessage(
@@ -174,9 +189,11 @@ export const comicPanelScriptPrompt: PromptAsset<
 4. characterRefs 必须为对象数组：{ name, costume, expression, lighting? }
 5. expression 只能取 neutral/happy/angry/sad/surprised/cold；根据该格对白情绪、动作和镜头目的选择，不要靠固定词替换
 6. costume 默认 default；只有剧情明确换装时才使用 combat/formal/casual
+7. densityLevel 必须取 low/medium/high：low=情绪反应或留白，medium=常规推进，high=场景交代/冲突爆发/多人同框
+8. focus 用一句话说明本格主视觉焦点，不能写空泛总结
 ${visualPromptRule}
-8. ${densityRuleMap[densityMode]}
-9. 画风：${input.stylePreset ?? "彩色韩漫"}`,
+10. ${densityRuleMap[densityMode]}
+11. 画风：${input.stylePreset ?? "彩色韩漫"}`,
       ),
       new HumanMessage(
         `漫画项目：${input.projectTitle}
@@ -193,8 +210,9 @@ ${input.factDigest ? `## 跨话一致性事实（请严格遵守）\n${input.fac
 ${input.scriptPromptInstruction ? `## 本次分格补充要求\n${input.scriptPromptInstruction}\n` : ""}
 ## 任务
 生成约 ${panelTarget} 格的完整分格脚本，返回 panels 数组。
-每格包含：order / panelType / action / dialogues / characterRefs / visualPrompt。
+每格包含：order / panelType / densityLevel / focus / action / dialogues / characterRefs / visualPrompt / layoutData。
 characterRefs 示例：[{ "name": "沈剑心", "costume": "default", "expression": "cold", "lighting": "side_lit" }]。
+四格模式下 layoutData 示例：{ "layout": "four_koma", "subPanels": [{ "order": 1, "beat": "起", "visualPrompt": "..." }] }。
 保持情节连贯，镜头语言丰富，对白精炼，最后一格留悬念。`,
       ),
     ];

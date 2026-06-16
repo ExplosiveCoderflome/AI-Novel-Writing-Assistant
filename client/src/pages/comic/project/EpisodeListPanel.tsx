@@ -26,6 +26,12 @@ const DENSITY_OPTIONS: Array<{
   { value: "compact", label: "紧凑", desc: "剧情推进更密集" },
 ];
 
+const DENSITY_LABELS: Record<DensityMode, string> = {
+  relaxed: "舒展",
+  balanced: "均衡",
+  compact: "紧凑",
+};
+
 function parsePresetFormat(raw: string | null | undefined): string {
   if (!raw) return "webtoon";
   try {
@@ -33,6 +39,20 @@ function parsePresetFormat(raw: string | null | undefined): string {
     return parsed.format ?? "webtoon";
   } catch {
     return "webtoon";
+  }
+}
+
+function parseScriptConfig(raw: string | null | undefined): {
+  densityMode?: DensityMode;
+  targetPanelCount?: number;
+  comicFormat?: string;
+  generatedAt?: string;
+} {
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
   }
 }
 
@@ -199,46 +219,62 @@ export function EpisodeListPanel({
       )}
 
       <div className="grid gap-3 sm:grid-cols-2">
-        {episodes.map((ep) => (
-          <Card key={ep.id} className="rounded-md">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="text-sm">
-                  第 {ep.order} 话 {ep.title ? `《${ep.title}》` : ""}
-                </CardTitle>
-                <div className="flex gap-1">
-                  {ep.isPaywalled && <Badge variant="destructive" className="h-5 text-xs">卡点</Badge>}
-                  <Badge variant="outline" className="h-5 text-xs">{ep._count?.panels ?? 0} 格</Badge>
+        {episodes.map((ep) => {
+          const scriptConfig = parseScriptConfig(ep.scriptConfig);
+          return (
+            <Card key={ep.id} className="rounded-md">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-sm">
+                    第 {ep.order} 话 {ep.title ? `《${ep.title}》` : ""}
+                  </CardTitle>
+                  <div className="flex gap-1">
+                    {ep.isPaywalled && <Badge variant="destructive" className="h-5 text-xs">卡点</Badge>}
+                    <Badge variant="outline" className="h-5 text-xs">{ep._count?.panels ?? 0} 格</Badge>
+                  </div>
                 </div>
-              </div>
-              {ep.outline && (
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{ep.outline}</p>
-              )}
-            </CardHeader>
-            <CardContent className="pt-0">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="w-full"
-                disabled={busyEpId === ep.id || !ep.outline}
-                onClick={() => generateScript(ep)}
-              >
-                {busyEpId === ep.id ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    生成脚本...
-                  </>
-                ) : (
-                  <>
-                    <BookOpen className="h-3.5 w-3.5" />
-                    生成分格脚本
-                  </>
+                {ep.outline && (
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{ep.outline}</p>
                 )}
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+                {scriptConfig.densityMode && (
+                  <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
+                    <span className="rounded border bg-muted/40 px-2 py-0.5">
+                      {DENSITY_LABELS[scriptConfig.densityMode]}密度
+                    </span>
+                    {scriptConfig.targetPanelCount ? (
+                      <span className="rounded border bg-muted/40 px-2 py-0.5">约 {scriptConfig.targetPanelCount} 格</span>
+                    ) : null}
+                    {scriptConfig.comicFormat ? (
+                      <span className="rounded border bg-muted/40 px-2 py-0.5">{scriptConfig.comicFormat}</span>
+                    ) : null}
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  disabled={busyEpId === ep.id || !ep.outline}
+                  onClick={() => generateScript(ep)}
+                >
+                  {busyEpId === ep.id ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      生成脚本...
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="h-3.5 w-3.5" />
+                      生成分格脚本
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

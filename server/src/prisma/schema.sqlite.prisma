@@ -3202,6 +3202,7 @@ model ComicEpisode {
   outline     String?
   sourceText  String?
   status      String   @default("draft")
+  scriptConfig String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -3222,6 +3223,9 @@ model ComicPanel {
   dialogues     String?
   characterRefs String?
   visualPrompt  String?
+  densityLevel  String?
+  focus         String?
+  layoutData    String?
   imageData     String?
   letteredData  String?
   motionData    String?

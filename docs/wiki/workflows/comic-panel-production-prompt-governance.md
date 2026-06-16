@@ -27,6 +27,16 @@
 
 四格漫画项目仍通过项目形态 `4koma` 锁定版式关键词。为了避免把一个项目生成成大量“四格页”，四格模式的默认目标格数低于条漫模式；每张图的四格起承转合结构由 `visualPrompt` 和版式关键词共同约束。
 
+## Persistence Contract
+
+分格提示词控制会把生成时的整话配置和单格结构化结果落库，便于后续审查、重生图和排查提示词效果。
+
+- `ComicEpisode.scriptConfig` 保存本次分格脚本生成配置，包括 `densityMode`、`targetPanelCount`、`comicFormat`、`scriptPromptInstruction`、`promptAssetId`、`promptAssetVersion`、`provider` 和 `generatedAt`。它记录“这次脚本是按什么控制项生成的”，不是新的自由 prompt 入口。
+- `ComicPanel.densityLevel` 保存 LLM 对单格信息密度的结构化判断，取值为 `low / medium / high`。`densityMode` 控制整话倾向，`densityLevel` 记录单格结果，二者不能混用。
+- `ComicPanel.focus` 保存单格主视觉焦点，用于帮助用户审查画面是否聚焦，也为后续重抽和导出提供稳定摘要。
+- `ComicPanel.layoutData` 保存结构化版式信息；四格模式下可记录 `four_koma` 与 `subPanels`，避免只靠一段 `visualPrompt` 承载四格起承转合。
+- `ComicPanel.visualPrompt` 仍是用户可编辑的单格画面脚本；`ComicPanel.imageData.prompt` 仍是上次实际发送给图像模型的最终 prompt 审查记录。
+
 ## User Editable Boundary
 
 允许用户编辑：
