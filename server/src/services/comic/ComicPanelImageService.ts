@@ -144,18 +144,36 @@ const STYLE_ZH_KEYWORDS: Record<string, string> = {
   realistic:       "写实漫画风格，细腻光影，真实感",
 };
 
+// 九宫格方向 → 图像模型理解的位置描述
+const ANCHOR_HINT_DESC: Record<string, string> = {
+  "top-left":      "upper-left corner",
+  "top-center":    "upper center",
+  "top-right":     "upper-right corner",
+  "left-center":   "left side",
+  "center":        "center",
+  "right-center":  "right side",
+  "bottom-left":   "lower-left corner",
+  "bottom-center": "lower center",
+  "bottom-right":  "lower-right corner",
+};
+
 function buildDialoguePrompt(dialogues: DialogueEntry[]): string {
   if (dialogues.length === 0) return "";
   const lines = dialogues.map((d) => {
-    const bubbleDesc = d.bubbleType === "spike" ? "呐喊气泡(spike bubble)"
-      : d.bubbleType === "cloud" ? "思维气泡(thought bubble)"
-      : d.bubbleType === "caption" ? "旁白框(caption box)"
-      : "对话气泡(speech bubble)";
-    const placement = d.anchorHint ? `，位置：${d.anchorHint}` : "";
-    const speaker = d.speaker ? `【${d.speaker}】` : "";
-    return `${bubbleDesc}${placement}，文字内容：「${speaker}${d.text}」`;
+    const bubbleDesc = d.bubbleType === "spike"
+      ? "jagged speech bubble (shouting)"
+      : d.bubbleType === "cloud"
+      ? "cloud thought bubble"
+      : d.bubbleType === "caption"
+      ? "rectangular caption box (narration)"
+      : "round speech bubble";
+    const placement = d.anchorHint
+      ? ` at ${ANCHOR_HINT_DESC[d.anchorHint] ?? d.anchorHint}`
+      : "";
+    const speaker = d.speaker ? `[${d.speaker}]: ` : "";
+    return `${bubbleDesc}${placement} containing text「${speaker}${d.text}」`;
   });
-  return `画面中需包含以下气泡/文字：${lines.join("；")}。文字必须清晰可读。`;
+  return `Include speech bubbles: ${lines.join("; ")}. Text must be legible, high-contrast, not overlapping main subject faces.`;
 }
 
 interface StylePresetData {

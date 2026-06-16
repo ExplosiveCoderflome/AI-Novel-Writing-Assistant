@@ -115,6 +115,8 @@ export interface ComicPanelScriptPromptInput {
   sourceText?: string;
   characters: Array<{ name: string; visualAnchor?: string | null }>;
   stylePreset?: string;
+  /** stylePreset.promptKeywords，注入每格 visualPrompt 前缀以锁定画风 */
+  stylePromptKeywords?: string;
   /** 跨话一致性事实 */
   factDigest?: string;
   targetPanelCount?: number;
@@ -136,6 +138,8 @@ export const comicPanelScriptPrompt: PromptAsset<
     const characterList = input.characters
       .map((c) => `- ${c.name}：${c.visualAnchor ?? "（暂无视觉描述）"}`)
       .join("\n");
+    const stylePrefix = input.stylePromptKeywords
+      ?? (input.stylePreset ? `${input.stylePreset} style` : "webtoon style, vibrant colors, clean lines");
 
     return [
       new SystemMessage(
@@ -148,7 +152,7 @@ export const comicPanelScriptPrompt: PromptAsset<
 4. characterRefs 必须为对象数组：{ name, costume, expression, lighting? }
 5. expression 只能取 neutral/happy/angry/sad/surprised/cold；根据该格对白情绪、动作和镜头目的选择，不要靠固定词替换
 6. costume 默认 default；只有剧情明确换装时才使用 combat/formal/casual
-7. visualPrompt 仅描述画面内容（不含文字/气泡），包含画风关键词、出场角色、服装和表情
+7. visualPrompt 必须以固定风格前缀「${stylePrefix}」开头，然后再描述画面内容（出场角色、服装、表情、场景、构图），不含气泡文字
 8. 画风：${input.stylePreset ?? "彩色韩漫"}`,
       ),
       new HumanMessage(

@@ -3,6 +3,7 @@ import { prisma } from "../../db/prisma";
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { comicPanelScriptPrompt } from "../../prompting/prompts/comic/comic.prompts";
 import { adaptationSourceRegistry } from "../adaptation/source/SourceContentPort";
+import { comicFactService } from "./ComicFactService";
 
 export interface GeneratePanelScriptInput {
   targetPanelCount?: number;
@@ -70,9 +71,11 @@ export class ComicPanelScriptService {
       }
     }
 
-    const stylePreset = project.stylePreset
-      ? (JSON.parse(project.stylePreset) as { style?: string }).style
+    const stylePresetRaw = project.stylePreset
+      ? (JSON.parse(project.stylePreset) as { style?: string; promptKeywords?: string })
       : undefined;
+    const stylePreset = stylePresetRaw?.style;
+    const stylePromptKeywords = stylePresetRaw?.promptKeywords;
 
     // 取本话及之前的跨话事实
     const factDigest =
@@ -94,6 +97,7 @@ export class ComicPanelScriptService {
           visualAnchor: c.visualAnchor,
         })),
         stylePreset,
+        stylePromptKeywords,
         factDigest,
         targetPanelCount: input.targetPanelCount ?? 45,
       },
@@ -122,6 +126,9 @@ export class ComicPanelScriptService {
         data: { status: "scripted" },
       });
     });
+
+    // 异步提取跨话事实，不阻塞响应
+    void comicFactService.extractAndSave(episodeId, provider);
 
     return prisma.comicEpisode.findUnique({
       where: { id: episodeId },
