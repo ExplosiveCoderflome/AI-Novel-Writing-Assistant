@@ -48,14 +48,14 @@ export const chapterEditorRewriteCandidatesPrompt: PromptAsset<
     { group: "world_slice", priority: 76, sourceHint: "World constraints that local edits must preserve." },
     { group: "recent_chapters", priority: 64, sourceHint: "Nearby continuity for editor preview." },
   ],
-  editableSlots: [
+  slots: [
     {
+      kind: "replace" as const,
       key: "chapterEditor.candidateStyle",
       label: "候选改写风格",
-      description: "调整候选版本的差异化表达方式；仅作为管理元数据展示，当前不参与运行时覆盖。",
-      riskLevel: "low",
+      description: "调整候选版本之间的差异化方向和表达偏向。",
+      default: "候选要形成清晰差异，例如更自然、更克制、更强化情绪，但都要可用。",
       maxLength: 600,
-      defaultValue: "候选要形成清晰差异，例如更自然、更克制、更强化情绪，但都要可用。",
     },
   ],
   outputSchema: chapterEditorRewriteCandidatesSchema,
@@ -63,7 +63,10 @@ export const chapterEditorRewriteCandidatesPrompt: PromptAsset<
     mode: "auto",
     note: "返回 2 到 3 个候选改写方案，保持 JSON 稳定。",
   },
-  render: (input) => [
+  render: (input, context) => {
+    const candidateStyle = context.slots?.text("chapterEditor.candidateStyle")
+      ?? "候选要形成清晰差异，例如更自然、更克制、更强化情绪，但都要可用。";
+    return [
     new SystemMessage([
       "你是中文网络小说章节编辑器里的局部改写助手。",
       "你的职责是围绕用户选中的一段正文，给出 2 到 3 个可直接比较的候选改写版本。",
@@ -94,7 +97,7 @@ export const chapterEditorRewriteCandidatesPrompt: PromptAsset<
       "改写范围：",
       "1. selection 表示只改写选中片段。",
       "2. chapter 表示改写整章，但依旧要保持章节事实、主线和卷内定位。",
-      "3. 候选要形成清晰差异，例如更自然、更克制、更强化情绪，但都要可用。",
+      "3. " + candidateStyle,
       "",
       `本次改写意图：${input.operationLabel}`,
       `改写范围：${input.scope === "selection" ? "选中片段" : "整章"}`,
@@ -131,5 +134,6 @@ export const chapterEditorRewriteCandidatesPrompt: PromptAsset<
       "",
       "请只返回 JSON。",
     ].join("\n")),
-  ],
+  ];
+  },
 };

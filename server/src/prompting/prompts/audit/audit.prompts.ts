@@ -103,14 +103,24 @@ export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.inf
     { group: "recent_chapters", priority: 70 },
     { group: "participant_subset", priority: 68 },
   ],
-  editableSlots: [
+  slots: [
     {
+      kind: "replace" as const,
       key: "audit.reportStyle",
       label: "轻审校报告表达",
-      description: "调整轻审校结果的表达侧重；仅作为管理元数据展示，当前不参与运行时覆盖。",
-      riskLevel: "low",
+      description: "调整轻审校结果的表达侧重和判断偏向。",
+      default: "问题必须具体且可执行，默认优先让章节继续推进。",
       maxLength: 500,
-      defaultValue: "问题必须具体且可执行，默认优先让章节继续推进。",
+    },
+    {
+      kind: "append" as const,
+      key: "audit.light.customConstraints",
+      label: "自定义审校补充要求",
+      description: "追加对轻审校的额外关注点或限制，作为上下文块注入审校过程。留空则不追加。",
+      anchor: "chapter_boundary",
+      default: "",
+      maxLength: 2000,
+      placeholderHint: "例如：本书禁用「第一卷」这个说法，出现时视为风格问题；每章必须检查是否有角色口语误用书面语……",
     },
   ],
   structuredOutputHint: {
@@ -118,7 +128,10 @@ export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.inf
     note: "轻审校只做是否继续推进的快速判断。只有明显结构异常、严重偏离合同、硬性长度失控等情况才把 continueRecommendation 设为 full_audit。",
   },
   outputSchema: lightAuditOutputSchema,
-  render: (input, context) => [
+  render: (input, context) => {
+    const reportStyle = context.slots?.text("audit.reportStyle")
+      ?? "问题必须具体且可执行，默认优先让章节继续推进。";
+    return [
     new SystemMessage([
       "你是中文长篇小说章节轻审校助手。",
       "你的任务是快速判断当前章节是否可以继续推进，还是必须升级到完整审校。",
@@ -128,7 +141,7 @@ export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.inf
       "判断规则：",
       "1. 默认优先让章节继续推进，不要把普通质量建议升级成阻塞。",
       "2. 只有在明显结构异常、严重偏离章节任务、关键信息断裂、长度明显失控时，才建议 full_audit。",
-      "3. issues 只保留最关键的 0-4 条，必须具体且可执行。",
+      "3. issues 报告要求：" + reportStyle,
       "4. continueRecommendation 只能是 continue、suggest_repair、full_audit。",
       "5. shouldRunFullAudit 只有在确实需要完整重审校时才设为 true。",
     ].join("\n")),
@@ -149,7 +162,8 @@ export const auditChapterLightPrompt: PromptAsset<AuditChapterPromptInput, z.inf
       "检索补充：",
       input.ragContext || "none",
     ].join("\n")),
-  ],
+  ];
+  },
 };
 
 export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<typeof fullAuditOutputSchema>> = {
@@ -184,14 +198,24 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
     { group: "participant_subset", priority: 68 },
     { group: "open_conflicts", priority: 66 },
   ],
-  editableSlots: [
+  slots: [
     {
+      kind: "replace" as const,
       key: "audit.reportStyle",
       label: "完整审校报告表达",
-      description: "调整完整审校的报告表达方式；仅作为管理元数据展示，当前不参与运行时覆盖。",
-      riskLevel: "low",
+      description: "调整完整审校的报告表达方式和标准。",
+      default: "所有问题都必须具体，evidence 指向明确现象，fixSuggestion 必须可执行。",
       maxLength: 600,
-      defaultValue: "所有问题都必须具体，evidence 指向明确现象，fixSuggestion 必须可执行。",
+    },
+    {
+      kind: "append" as const,
+      key: "audit.full.customConstraints",
+      label: "自定义审校补充要求",
+      description: "追加对完整审校的额外关注点或限制，作为上下文块注入审校过程。留空则不追加。",
+      anchor: "chapter_boundary",
+      default: "",
+      maxLength: 2000,
+      placeholderHint: "例如：本书每章必须检查伏笔延续性；重点关注主角行动动机的一致性……",
     },
   ],
   structuredOutputHint: {
@@ -199,7 +223,10 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
     note: "severity 只能是 low/medium/high/critical；issues.category 只能是 coherence/repetition/pacing/voice/engagement/logic，不要输出 plot、character 或中文分类名。",
   },
   outputSchema: fullAuditOutputSchema,
-  render: (input, context) => [
+  render: (input, context) => {
+    const reportStyle = context.slots?.text("audit.reportStyle")
+      ?? "所有问题都必须具体，evidence 指向明确现象，fixSuggestion 必须可执行。";
+    return [
     new SystemMessage([
       "repetition scoring: 0 means heavily repetitive, 100 means repetition is well controlled; higher is better.",
       "你是中文长篇小说章节审校助手。",
@@ -214,7 +241,7 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
       "",
       "审校原则：",
       "1. 只根据给定正文和上下文判断，不得脑补未提供的剧情、设定或作者意图。",
-      "2. 所有问题都必须具体，evidence 必须指向文本中的明确现象，fixSuggestion 必须可执行。",
+      "2. " + reportStyle,
       "3. score、issues、auditReports 三部分必须彼此一致，不能互相矛盾。",
       "4. requestedTypes 中要求的类型必须全部覆盖；即使问题不明显，也要给出简短结论。",
       "",
@@ -247,5 +274,6 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
       "",
       "输出提醒：顶层 issues.category 只能使用 coherence/repetition/pacing/voice/engagement/logic。",
     ].join("\n")),
-  ],
+  ];
+  },
 };

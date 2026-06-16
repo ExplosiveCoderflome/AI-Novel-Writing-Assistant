@@ -189,6 +189,18 @@ export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, 
       "continuation_constraints",
     ],
   },
+  slots: [
+    {
+      kind: "append" as const,
+      key: "repair.customConstraints",
+      label: "自定义修文补充要求",
+      description: "追加对本次修文的额外约束，作为上下文块注入修文过程。留空则不追加。",
+      anchor: "repair_issues",
+      default: "",
+      maxLength: 2000,
+      placeholderHint: "例如：修复时禁止改动对话内容；只允许压缩重复句式，不得引入新信息……",
+    },
+  ],
   render: (input, context) => [
     new SystemMessage([
       "你是资深网络小说修文编辑。",

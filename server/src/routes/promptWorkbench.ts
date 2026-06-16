@@ -12,11 +12,8 @@ import {
   exportNovelPromptMaterials,
   type NovelMaterialExportInput,
 } from "../prompting/materials";
-import {
-  promptAddendumService,
-  type PromptAddendumFilter,
-  type PromptAddendumInput,
-} from "../prompting/addendums/PromptAddendumService";
+import { promptSlotOverrideService } from "../prompting/slots/PromptSlotOverrideService";
+import { reconcileSlots, adoptSlots, keepMineSlots } from "../prompting/slots/slotReconcile";
 
 const router = Router();
 
@@ -71,6 +68,7 @@ const previewBodySchema = z.object({
   contextRequirements: z.array(contextRequirementSchema).max(30).optional(),
   maxContextTokens: z.number().int().min(0).max(200000).optional(),
   contextMode: z.enum(["snapshot", "fresh", "hybrid"]).optional(),
+  slotOverrides: z.record(z.string(), z.unknown()).optional(),
 }).refine((value) => Boolean(value.promptKey || (value.id && value.version)), {
   message: "Provide promptKey or both id and version.",
   path: ["promptKey"],
@@ -85,23 +83,36 @@ const materialExportBodySchema = z.object({
   maxTokens: z.number().int().min(0).max(200000).optional(),
 });
 
-const addendumQuerySchema = z.object({
-  promptId: z.string().trim().min(1).optional(),
+const slotOverrideQuerySchema = z.object({
+  promptId: z.string().trim().min(1),
   novelId: z.string().trim().min(1).optional(),
 });
 
-const addendumBodySchema = z.object({
-  id: z.string().trim().min(1).optional(),
+const slotOverrideSaveBodySchema = z.object({
   scope: z.enum(["global", "novel"]),
   novelId: z.string().trim().min(1).nullable().optional(),
   promptId: z.string().trim().min(1),
-  title: z.string().trim().min(1).max(80),
-  content: z.string().trim().min(1).max(4000),
-  enabled: z.boolean().optional(),
+  slotUpdates: z.record(z.string(), z.unknown()),
 });
 
-const addendumEnabledBodySchema = z.object({
-  enabled: z.boolean(),
+const slotOverrideDeleteBodySchema = z.object({
+  scope: z.enum(["global", "novel"]),
+  novelId: z.string().trim().min(1).nullable().optional(),
+  promptId: z.string().trim().min(1),
+  slotKeys: z.array(z.string().trim().min(1)).optional(),
+});
+
+const reconcileQuerySchema = z.object({
+  promptId: z.string().trim().min(1),
+  scope: z.enum(["global", "novel"]),
+  novelId: z.string().trim().min(1).optional(),
+});
+
+const adoptKeepBodySchema = z.object({
+  promptId: z.string().trim().min(1),
+  scope: z.enum(["global", "novel"]),
+  novelId: z.string().trim().min(1).nullable().optional(),
+  slotKeys: z.array(z.string().trim().min(1)).min(1),
 });
 
 router.get("/catalog", validate({ query: catalogQuerySchema }), (req, res) => {
@@ -146,55 +157,112 @@ router.post("/materials/export", validate({ body: materialExportBodySchema }), a
   }
 });
 
-router.get("/addendums", validate({ query: addendumQuerySchema }), async (req, res, next) => {
+// Slot overrides
+router.get("/slot-overrides", validate({ query: slotOverrideQuerySchema }), async (req, res, next) => {
   try {
-    const query = req.query as z.infer<typeof addendumQuerySchema>;
-    const data = await promptAddendumService.list(query as PromptAddendumFilter);
+    const query = req.query as z.infer<typeof slotOverrideQuerySchema>;
+    const data = await promptSlotOverrideService.list({
+      promptId: query.promptId,
+      novelId: query.novelId,
+    });
     res.status(200).json({
       success: true,
       data,
-      message: "Prompt addendums loaded.",
+      message: "Slot overrides loaded.",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);
   }
 });
 
-router.put("/addendums", validate({ body: addendumBodySchema }), async (req, res, next) => {
+router.put("/slot-overrides", validate({ body: slotOverrideSaveBodySchema }), async (req, res, next) => {
   try {
-    const body = req.body as z.infer<typeof addendumBodySchema>;
-    const data = await promptAddendumService.save(body as PromptAddendumInput);
+    const body = req.body as z.infer<typeof slotOverrideSaveBodySchema>;
+    const data = await promptSlotOverrideService.save({
+      scope: body.scope,
+      novelId: body.novelId,
+      promptId: body.promptId,
+      slotUpdates: body.slotUpdates,
+    });
     res.status(200).json({
       success: true,
       data,
-      message: "Prompt addendum saved.",
+      message: "Slot override saved.",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);
   }
 });
 
-router.patch("/addendums/:id/enabled", validate({ body: addendumEnabledBodySchema }), async (req, res, next) => {
+router.delete("/slot-overrides", validate({ body: slotOverrideDeleteBodySchema }), async (req, res, next) => {
   try {
-    const body = req.body as z.infer<typeof addendumEnabledBodySchema>;
-    const data = await promptAddendumService.setEnabled(String(req.params.id), body.enabled);
-    res.status(200).json({
-      success: true,
-      data,
-      message: "Prompt addendum updated.",
-    } satisfies ApiResponse<typeof data>);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.delete("/addendums/:id", async (req, res, next) => {
-  try {
-    await promptAddendumService.delete(String(req.params.id));
+    const body = req.body as z.infer<typeof slotOverrideDeleteBodySchema>;
+    await promptSlotOverrideService.deleteSlots({
+      scope: body.scope,
+      novelId: body.novelId,
+      promptId: body.promptId,
+      slotKeys: body.slotKeys,
+    });
     res.status(200).json({
       success: true,
       data: null,
-      message: "Prompt addendum deleted.",
+      message: "Slot override deleted.",
+    } satisfies ApiResponse<null>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/slot-overrides/reconcile", validate({ query: reconcileQuerySchema }), async (req, res, next) => {
+  try {
+    const query = req.query as z.infer<typeof reconcileQuerySchema>;
+    const data = await reconcileSlots({
+      promptId: query.promptId,
+      scope: query.scope,
+      novelId: query.novelId ?? null,
+    });
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Slot reconcile computed.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/slot-overrides/adopt", validate({ body: adoptKeepBodySchema }), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof adoptKeepBodySchema>;
+    await adoptSlots({
+      promptId: body.promptId,
+      scope: body.scope,
+      novelId: body.novelId,
+      slotKeys: body.slotKeys,
+    });
+    res.status(200).json({
+      success: true,
+      data: null,
+      message: "Slots adopted.",
+    } satisfies ApiResponse<null>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/slot-overrides/keep", validate({ body: adoptKeepBodySchema }), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof adoptKeepBodySchema>;
+    await keepMineSlots({
+      promptId: body.promptId,
+      scope: body.scope,
+      novelId: body.novelId,
+      slotKeys: body.slotKeys,
+    });
+    res.status(200).json({
+      success: true,
+      data: null,
+      message: "Slots kept.",
     } satisfies ApiResponse<null>);
   } catch (error) {
     next(error);

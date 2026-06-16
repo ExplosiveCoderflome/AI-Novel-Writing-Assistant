@@ -393,6 +393,7 @@ model Novel {
   directorArtifacts  DirectorArtifact[]
   directorLlmUsageRecords DirectorLlmUsageRecord[]
   promptAddendums    PromptAddendum[]
+  promptSlotOverrides PromptSlotOverride[]
   imageTasks         ImageGenerationTask[]
   imageAssets        ImageAsset[]
   sideEffectJobs     NovelSideEffectJob[]
@@ -426,6 +427,22 @@ model PromptAddendum {
   @@index([scope, promptId, enabled])
   @@index([novelId, promptId, enabled])
   @@index([updatedAt])
+}
+
+model PromptSlotOverride {
+  id          String   @id @default(cuid())
+  scope       String
+  novelId     String?
+  promptId    String
+  baseVersion String
+  slots       String   @default("{}")
+  novel       Novel?   @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([scope, novelId, promptId])
+  @@index([promptId])
+  @@index([novelId, promptId])
 }
 
 model CreativeDecision {

@@ -1,4 +1,95 @@
 import { useMemo, useState } from "react";
+
+const LOCKED_FIELD_LABELS: Record<string, string> = {
+  outputSchema: "输出格式",
+  postValidate: "输出校验",
+  postValidateFailureRecovery: "校验失败恢复",
+  semanticRetryPolicy: "语义重试策略",
+  taskType: "任务类型",
+  mode: "输出模式",
+  contextPolicy: "上下文策略",
+  toolCatalog: "工具目录",
+  approvalBoundary: "审批边界",
+};
+
+const SLOT_KIND_LABELS: Record<string, string> = {
+  replace: "改写",
+  append: "追加约束",
+  choice: "选项",
+  toggle: "开关",
+  token: "内联值",
+};
+
+const CONTEXT_GROUP_LABELS: Record<string, string> = {
+  book_contract: "全书合约",
+  chapter_boundary: "章节边界",
+  chapter_mission: "本章任务",
+  character_dynamics: "角色关系动态",
+  character_hard_facts: "角色硬事实",
+  character_resource_context: "角色资源状态",
+  continuation_constraints: "续写约束",
+  custom_slot: "自定义约束",
+  historical_issues: "历史审校问题",
+  incremental_round_context: "增量生成轮次",
+  local_state: "当前局面",
+  narrative_progress_hint: "叙事进度提示",
+  obligation_contract: "义务合约",
+  open_conflicts: "开放冲突",
+  opening_constraints: "开篇约束",
+  participant_subset: "参与角色",
+  payoff_directives: "伏笔操作指令",
+  payoff_ledger: "伏笔台账",
+  previous_chapter_hook: "上章钩子",
+  previous_chapter_tail: "上章结尾",
+  rag_context: "检索补充",
+  recent_chapters: "近期章节摘要",
+  repair_boundaries: "修文范围约束",
+  repair_issues: "修文问题清单",
+  state_goal: "状态与目标",
+  story_macro: "宏观故事架构",
+  structure_obligations: "结构义务",
+  style_contract: "风格合约",
+  timeline_context: "时间线",
+  volume_window: "卷级进度",
+  world_rules: "世界规则",
+  world_slice: "世界片段",
+};
+
+const SOURCE_TYPE_LABELS: Record<string, string> = {
+  novel: "小说",
+  chapter: "章节",
+  plan: "计划",
+  state: "状态",
+  character: "角色",
+  world: "世界设定",
+  style: "风格",
+  audit: "审校",
+  task: "任务",
+};
+
+const MESSAGE_ROLE_LABELS: Record<string, string> = {
+  system: "系统",
+  human: "用户",
+  assistant: "模型",
+  ai: "模型",
+};
+
+const TASK_TYPE_LABELS: Record<string, string> = {
+  writer: "写作",
+  light_review: "轻审校",
+  critical_review: "完整审校",
+  repair: "修文",
+  summary: "摘要",
+  planning: "规划",
+  translation: "翻译",
+  analysis: "分析",
+  classification: "分类",
+};
+
+const OUTPUT_TYPE_LABELS: Record<string, string> = {
+  structured: "结构化输出",
+  text: "文本输出",
+};
 import type { ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Braces, Eye, LockKeyhole, RefreshCw, Search, ShieldCheck } from "lucide-react";
@@ -17,7 +108,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { PromptAddendumPanel } from "./components/PromptAddendumPanel";
+import { PromptSlotPanel } from "./components/PromptSlotPanel";
 
 const ENTRYPOINT_OPTIONS = [
   { value: "creative_hub", label: "创作中枢" },
@@ -29,7 +120,7 @@ const ENTRYPOINT_OPTIONS = [
 const MANAGEMENT_STATUS_LABELS: Record<PromptCatalogItem["managementStatus"], string> = {
   complete: "元数据完整",
   missing_context_requirements: "缺上下文需求",
-  missing_editable_slots: "缺编辑槽位",
+  missing_slots: "缺槽位声明",
 };
 
 const MATERIAL_IMPORTANCE_LABELS: Record<NovelMaterialImportance, string> = {
@@ -101,16 +192,19 @@ function PromptListItem({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold text-foreground">{prompt.id}</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            {prompt.version} · {prompt.taskType} · {prompt.mode}
+          <div className="truncate text-sm font-semibold text-foreground">
+            {prompt.description || prompt.id}
           </div>
-          <div className="mt-2 max-h-10 overflow-hidden text-xs leading-relaxed text-muted-foreground">
-            {prompt.description}
+          <div className="mt-1 font-mono text-xs text-muted-foreground/70">{prompt.id}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {prompt.version} · {TASK_TYPE_LABELS[prompt.taskType] ?? prompt.taskType} · {OUTPUT_TYPE_LABELS[prompt.mode] ?? prompt.mode}
           </div>
         </div>
-        <Badge variant={prompt.addendumSupported ? "default" : statusBadgeVariant(prompt.managementStatus)} className="shrink-0">
-          {prompt.addendumSupported ? "可补充" : MANAGEMENT_STATUS_LABELS[prompt.managementStatus]}
+        <Badge
+          variant={prompt.slotSupported ? "default" : statusBadgeVariant(prompt.managementStatus)}
+          className="shrink-0"
+        >
+          {prompt.slotSupported ? "可定制" : MANAGEMENT_STATUS_LABELS[prompt.managementStatus]}
         </Badge>
       </div>
     </button>
@@ -140,8 +234,8 @@ function MaterialBlockCard({ block }: { block: NovelMaterialBlock }) {
       <div className="flex flex-col gap-2 border-b bg-muted/40 px-3 py-2 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold">{block.title}</div>
-          <div className="mt-1 text-xs text-muted-foreground">
-            {block.group} · {block.source.type}{block.source.id ? ` · ${block.source.id}` : ""}
+          <div className="mt-1 text-xs text-muted-foreground" title={`${block.group} · ${block.source.type}`}>
+            {CONTEXT_GROUP_LABELS[block.group] ?? block.group} · {SOURCE_TYPE_LABELS[block.source.type] ?? block.source.type}{block.source.id ? ` · ${block.source.id}` : ""}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -198,8 +292,8 @@ function PreviewPanel({ preview }: { preview: PromptPreviewResult | null }) {
         <div className="space-y-3">
           {preview.messages.map((message, index) => (
             <div key={`${message.role}-${index}`} className="rounded-md border">
-              <div className="border-b bg-muted/50 px-3 py-2 text-xs font-semibold uppercase text-muted-foreground">
-                {message.role}
+              <div className="border-b bg-muted/50 px-3 py-2 text-xs font-semibold text-muted-foreground" title={message.role}>
+                {MESSAGE_ROLE_LABELS[message.role] ?? message.role}
               </div>
               <pre className="max-h-80 overflow-auto whitespace-pre-wrap p-3 text-xs leading-relaxed">
                 {message.content}
@@ -290,7 +384,7 @@ export default function PromptWorkbenchPage() {
             </div>
             <h1 className="mt-2 text-2xl font-semibold tracking-normal text-foreground">Prompt Workbench</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              查看内置提示词，并为主要写作链路追加自定义补充要求；当前只开放部分章节写作、审校和修复提示词。
+              查看内置提示词、定制可编辑槽位。槽位覆盖分全局和本书两级，保存后下次真实生成时生效。
             </p>
           </div>
 
@@ -329,11 +423,11 @@ export default function PromptWorkbenchPage() {
                   key={prompt.key}
                   prompt={prompt}
                   active={prompt.key === selectedPrompt?.key}
-                      onSelect={() => {
-                        setSelectedKey(prompt.key);
-                        previewMutation.reset();
-                        materialsMutation.reset();
-                      }}
+                  onSelect={() => {
+                    setSelectedKey(prompt.key);
+                    previewMutation.reset();
+                    materialsMutation.reset();
+                  }}
                 />
               ))
             )}
@@ -347,11 +441,14 @@ export default function PromptWorkbenchPage() {
                 <CardHeader className="pb-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
-                      <CardTitle className="truncate text-xl tracking-normal">{selectedPrompt.id}</CardTitle>
+                      <CardTitle className="text-xl tracking-normal">
+                        {selectedPrompt.description || selectedPrompt.id}
+                      </CardTitle>
+                      <div className="mt-1 font-mono text-xs text-muted-foreground">{selectedPrompt.id}</div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Badge>{selectedPrompt.version}</Badge>
-                        <Badge variant="secondary">{selectedPrompt.taskType}</Badge>
-                        <Badge variant="secondary">{selectedPrompt.outputType}</Badge>
+                        <Badge variant="secondary">{TASK_TYPE_LABELS[selectedPrompt.taskType] ?? selectedPrompt.taskType}</Badge>
+                        <Badge variant="secondary">{OUTPUT_TYPE_LABELS[selectedPrompt.outputType] ?? selectedPrompt.outputType}</Badge>
                         <Badge variant={statusBadgeVariant(selectedPrompt.managementStatus)}>
                           {MANAGEMENT_STATUS_LABELS[selectedPrompt.managementStatus]}
                         </Badge>
@@ -371,23 +468,21 @@ export default function PromptWorkbenchPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="grid gap-5 lg:grid-cols-2">
-                  <DetailSection title="提示词用途">
-                    <div className="rounded-md border bg-muted/30 p-4 text-sm leading-relaxed text-muted-foreground">
-                      {selectedPrompt.description}
-                    </div>
-                  </DetailSection>
-
                   <DetailSection title="基础信息">
-                    <JsonBlock
-                      value={{
-                        key: selectedPrompt.key,
-                        language: selectedPrompt.language,
-                        family: selectedPrompt.family,
-                        maxTokensBudget: selectedPrompt.contextPolicy.maxTokensBudget,
-                        addendumSupported: selectedPrompt.addendumSupported,
-                        addendumScopes: selectedPrompt.addendumScopeLabels,
-                      }}
-                    />
+                    <div className="rounded-md border divide-y text-sm">
+                      {[
+                        { label: "标识符", value: selectedPrompt.key },
+                        { label: "语言", value: selectedPrompt.language === "zh" ? "中文" : selectedPrompt.language },
+                        { label: "分组", value: selectedPrompt.family },
+                        { label: "上下文预算", value: `${selectedPrompt.contextPolicy.maxTokensBudget} tokens` },
+                        { label: "槽位", value: selectedPrompt.slotSupported ? `${selectedPrompt.slots.length} 个可定制槽位` : "不可定制" },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex items-center justify-between gap-4 px-3 py-2">
+                          <span className="text-muted-foreground">{label}</span>
+                          <span className="font-mono text-xs text-right">{value}</span>
+                        </div>
+                      ))}
+                    </div>
                   </DetailSection>
 
                   <DetailSection title="能力标记">
@@ -405,7 +500,7 @@ export default function PromptWorkbenchPage() {
                       {selectedPrompt.contextRequirements.length > 0 ? selectedPrompt.contextRequirements.map((requirement) => (
                         <div key={requirement.group} className="rounded-md border p-3 text-sm">
                           <div className="flex items-center justify-between gap-3">
-                            <span className="font-semibold">{requirement.group}</span>
+                            <span className="font-semibold" title={requirement.group}>{CONTEXT_GROUP_LABELS[requirement.group] ?? requirement.group}</span>
                             <Badge variant={requirement.required ? "default" : "outline"}>
                               {requirement.required ? "必需" : "辅助"}
                             </Badge>
@@ -428,8 +523,11 @@ export default function PromptWorkbenchPage() {
                           可编辑槽位
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {selectedPrompt.editableSlots.length > 0 ? selectedPrompt.editableSlots.map((slot) => (
-                            <Badge key={slot.key} variant="secondary">{slot.label}</Badge>
+                          {selectedPrompt.slots.length > 0 ? selectedPrompt.slots.map((slot) => (
+                            <Badge key={slot.key} variant="secondary">
+                              {slot.label}
+                              <span className="ml-1 opacity-60" title={slot.kind}>·{SLOT_KIND_LABELS[slot.kind] ?? slot.kind}</span>
+                            </Badge>
                           )) : (
                             <span className="text-sm text-muted-foreground">未开放表达槽位。</span>
                           )}
@@ -442,7 +540,9 @@ export default function PromptWorkbenchPage() {
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {selectedPrompt.lockedFields.map((field) => (
-                            <Badge key={field} variant="outline">{field}</Badge>
+                            <Badge key={field} variant="outline" title={field}>
+                              {LOCKED_FIELD_LABELS[field] ?? field}
+                            </Badge>
                           ))}
                         </div>
                       </div>
@@ -453,10 +553,10 @@ export default function PromptWorkbenchPage() {
 
               <Card className="rounded-lg">
                 <CardHeader>
-                  <CardTitle className="text-lg tracking-normal">自定义补充要求</CardTitle>
+                  <CardTitle className="text-lg tracking-normal">槽位定制</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <PromptAddendumPanel prompt={selectedPrompt} />
+                  <PromptSlotPanel prompt={selectedPrompt} />
                 </CardContent>
               </Card>
 
@@ -481,108 +581,108 @@ export default function PromptWorkbenchPage() {
                     </Button>
                   </div>
                   <div className="space-y-4">
-                  <div className="grid gap-3 md:grid-cols-4">
-                    <Input
-                      value={materialNovelId}
-                      onChange={(event) => setMaterialNovelId(event.target.value)}
-                      placeholder="novelId"
-                    />
-                    <Input
-                      value={materialChapterId}
-                      onChange={(event) => setMaterialChapterId(event.target.value)}
-                      placeholder="chapterId"
-                    />
-                    <Input
-                      value={materialTaskId}
-                      onChange={(event) => setMaterialTaskId(event.target.value)}
-                      placeholder="taskId"
-                    />
-                    <Input
-                      value={materialMaxTokens}
-                      onChange={(event) => setMaterialMaxTokens(event.target.value)}
-                      placeholder="资料预算"
-                    />
+                    <div className="grid gap-3 md:grid-cols-4">
+                      <Input
+                        value={materialNovelId}
+                        onChange={(event) => setMaterialNovelId(event.target.value)}
+                        placeholder="小说 ID"
+                      />
+                      <Input
+                        value={materialChapterId}
+                        onChange={(event) => setMaterialChapterId(event.target.value)}
+                        placeholder="章节 ID"
+                      />
+                      <Input
+                        value={materialTaskId}
+                        onChange={(event) => setMaterialTaskId(event.target.value)}
+                        placeholder="任务 ID"
+                      />
+                      <Input
+                        value={materialMaxTokens}
+                        onChange={(event) => setMaterialMaxTokens(event.target.value)}
+                        placeholder="资料预算"
+                      />
+                    </div>
+
+                    <DetailSection title="需要的资料组">
+                      <div className="flex flex-wrap gap-2">
+                        {materialGroups.length > 0 ? materialGroups.map((group) => (
+                          <Badge key={group} variant="outline" title={group}>{CONTEXT_GROUP_LABELS[group] ?? group}</Badge>
+                        )) : (
+                          <span className="text-sm text-muted-foreground">当前提示词未声明资料需求，将读取默认核心资料组。</span>
+                        )}
+                      </div>
+                    </DetailSection>
+
+                    {materialsMutation.data?.data ? (
+                      <div className="space-y-4">
+                        <div className="grid gap-3 md:grid-cols-4">
+                          <div className="rounded-md border p-3">
+                            <div className="text-xs text-muted-foreground">已拿到</div>
+                            <div className="mt-1 text-sm font-semibold">{materialsMutation.data.data.blocks.length}</div>
+                          </div>
+                          <div className="rounded-md border p-3">
+                            <div className="text-xs text-muted-foreground">缺资料组</div>
+                            <div className="mt-1 text-sm font-semibold">{materialsMutation.data.data.missingGroups.length}</div>
+                          </div>
+                          <div className="rounded-md border p-3">
+                            <div className="text-xs text-muted-foreground">缺输入</div>
+                            <div className="mt-1 text-sm font-semibold">{materialsMutation.data.data.missingInputs.length}</div>
+                          </div>
+                          <div className="rounded-md border p-3">
+                            <div className="text-xs text-muted-foreground">裁剪提醒</div>
+                            <div className="mt-1 text-sm font-semibold">{materialsMutation.data.data.warnings.length}</div>
+                          </div>
+                        </div>
+
+                        {materialsMutation.data.data.missingInputs.length > 0 ? (
+                          <div className="rounded-md border bg-amber-50 p-3 text-sm text-amber-900">
+                            需要补充输入：{materialsMutation.data.data.missingInputs.join("、")}
+                          </div>
+                        ) : null}
+                        {materialsMutation.data.data.missingGroups.length > 0 ? (
+                          <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+                            未拿到资料：{materialsMutation.data.data.missingGroups.join("、")}
+                          </div>
+                        ) : null}
+                        {materialsMutation.data.data.warnings.length > 0 ? (
+                          <div className="rounded-md border bg-amber-50 p-3 text-sm text-amber-900">
+                            {materialsMutation.data.data.warnings.join(" ")}
+                          </div>
+                        ) : null}
+
+                        <div className="space-y-3">
+                          {materialsMutation.data.data.blocks.map((item) => (
+                            <MaterialBlockCard key={item.id} block={item} />
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
+                        输入小说 ID 后读取资料，检查当前提示词开工前的资料是否齐全。
+                      </div>
+                    )}
+
+                    <div className="border-t pt-6">
+                      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <h2 className="text-lg font-semibold tracking-normal">预览诊断</h2>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            查看最终消息、上下文选择和诊断结果。
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          onClick={() => previewMutation.mutate(selectedPrompt)}
+                          disabled={previewMutation.isPending}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          {previewMutation.isPending ? "预览中..." : "生成预览"}
+                        </Button>
+                      </div>
+                      <PreviewPanel preview={preview} />
+                    </div>
                   </div>
-
-                  <DetailSection title="需要的资料组">
-                    <div className="flex flex-wrap gap-2">
-                      {materialGroups.length > 0 ? materialGroups.map((group) => (
-                        <Badge key={group} variant="outline">{group}</Badge>
-                      )) : (
-                        <span className="text-sm text-muted-foreground">当前提示词未声明资料需求，将读取默认核心资料组。</span>
-                      )}
-                    </div>
-                  </DetailSection>
-
-                  {materialsMutation.data?.data ? (
-                    <div className="space-y-4">
-                      <div className="grid gap-3 md:grid-cols-4">
-                        <div className="rounded-md border p-3">
-                          <div className="text-xs text-muted-foreground">已拿到</div>
-                          <div className="mt-1 text-sm font-semibold">{materialsMutation.data.data.blocks.length}</div>
-                        </div>
-                        <div className="rounded-md border p-3">
-                          <div className="text-xs text-muted-foreground">缺资料组</div>
-                          <div className="mt-1 text-sm font-semibold">{materialsMutation.data.data.missingGroups.length}</div>
-                        </div>
-                        <div className="rounded-md border p-3">
-                          <div className="text-xs text-muted-foreground">缺输入</div>
-                          <div className="mt-1 text-sm font-semibold">{materialsMutation.data.data.missingInputs.length}</div>
-                        </div>
-                        <div className="rounded-md border p-3">
-                          <div className="text-xs text-muted-foreground">裁剪提醒</div>
-                          <div className="mt-1 text-sm font-semibold">{materialsMutation.data.data.warnings.length}</div>
-                        </div>
-                      </div>
-
-                      {materialsMutation.data.data.missingInputs.length > 0 ? (
-                        <div className="rounded-md border bg-amber-50 p-3 text-sm text-amber-900">
-                          需要补充输入：{materialsMutation.data.data.missingInputs.join("、")}
-                        </div>
-                      ) : null}
-                      {materialsMutation.data.data.missingGroups.length > 0 ? (
-                        <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
-                          未拿到资料：{materialsMutation.data.data.missingGroups.join("、")}
-                        </div>
-                      ) : null}
-                      {materialsMutation.data.data.warnings.length > 0 ? (
-                        <div className="rounded-md border bg-amber-50 p-3 text-sm text-amber-900">
-                          {materialsMutation.data.data.warnings.join(" ")}
-                        </div>
-                      ) : null}
-
-                      <div className="space-y-3">
-                        {materialsMutation.data.data.blocks.map((item) => (
-                          <MaterialBlockCard key={item.id} block={item} />
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                      输入小说 ID 后读取资料，检查当前提示词开工前的资料是否齐全。
-                    </div>
-                  )}
-
-                  <div className="border-t pt-6">
-                    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                      <div>
-                        <h2 className="text-lg font-semibold tracking-normal">预览诊断</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          查看最终消息、上下文选择和诊断结果。
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        onClick={() => previewMutation.mutate(selectedPrompt)}
-                        disabled={previewMutation.isPending}
-                      >
-                        <Eye className="mr-2 h-4 w-4" />
-                        {previewMutation.isPending ? "预览中..." : "生成预览"}
-                      </Button>
-                    </div>
-                    <PreviewPanel preview={preview} />
-                  </div>
-                </div>
                 </div>
               </details>
             </>

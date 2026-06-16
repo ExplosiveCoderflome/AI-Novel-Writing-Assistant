@@ -10,12 +10,65 @@ export interface PromptContextRequirement {
   sourceHint?: string;
 }
 
-export interface PromptEditableSlot {
+// ─── Slot type definitions (mirrors server slotTypes.ts) ──────────────────────
+
+export type PromptSlotKind = "replace" | "append" | "choice" | "toggle" | "token";
+
+export interface PromptSlotDefBase {
   key: string;
   label: string;
   description?: string;
-  defaultValue?: string;
+  anchor?: string;
+  changelog?: string;
 }
+
+export interface PromptSlotDefReplace extends PromptSlotDefBase {
+  kind: "replace";
+  default: string;
+  maxLength?: number;
+  requiredTokens?: string[];
+}
+
+export interface PromptSlotDefAppend extends PromptSlotDefBase {
+  kind: "append";
+  default: string;
+  maxLength?: number;
+  placeholderHint?: string;
+}
+
+export interface PromptSlotChoiceOption {
+  value: string;
+  label: string;
+  copy: string;
+}
+
+export interface PromptSlotDefChoice extends PromptSlotDefBase {
+  kind: "choice";
+  default: string;
+  options: PromptSlotChoiceOption[];
+}
+
+export interface PromptSlotDefToggle extends PromptSlotDefBase {
+  kind: "toggle";
+  default: boolean;
+  copy: string;
+}
+
+export interface PromptSlotDefToken extends PromptSlotDefBase {
+  kind: "token";
+  default: string;
+  patternHint?: string;
+  maxLength?: number;
+}
+
+export type PromptSlotDef =
+  | PromptSlotDefReplace
+  | PromptSlotDefAppend
+  | PromptSlotDefChoice
+  | PromptSlotDefToggle
+  | PromptSlotDefToken;
+
+// ─── Catalog ─────────────────────────────────────────────────────────────────
 
 export interface PromptCatalogItem {
   key: string;
@@ -34,17 +87,10 @@ export interface PromptCatalogItem {
     dropOrder?: string[];
   };
   contextRequirements: PromptContextRequirement[];
-  editableSlots: PromptEditableSlot[];
-  overrideSupported: false;
-  addendumSupported: boolean;
-  addendumScopeLabels: string[];
-  overrideLifecycle: {
-    draftSupported: false;
-    publishSupported: false;
-    runtimeOverrideEnabled: false;
-  };
+  slots: PromptSlotDef[];
+  slotSupported: boolean;
   lockedFields: string[];
-  managementStatus: "complete" | "missing_context_requirements" | "missing_editable_slots";
+  managementStatus: "complete" | "missing_context_requirements" | "missing_slots";
   capabilities: {
     hasOutputSchema: boolean;
     hasPostValidate: boolean;
@@ -53,6 +99,8 @@ export interface PromptCatalogItem {
     hasStructuredOutputHint: boolean;
   };
 }
+
+// ─── Preview ─────────────────────────────────────────────────────────────────
 
 export interface PromptPreviewMessage {
   role: string;
@@ -110,6 +158,85 @@ export interface PromptPreviewResult {
   };
 }
 
+// ─── Slot overrides ───────────────────────────────────────────────────────────
+
+export type PromptSlotOverrideScope = "global" | "novel";
+
+export interface PromptSlotOverrideEntry {
+  value: string | boolean;
+  baseHash: string;
+}
+
+export interface PromptSlotOverrideView {
+  scope: PromptSlotOverrideScope;
+  novelId?: string | null;
+  promptId: string;
+  baseVersion: string;
+  slots: Record<string, PromptSlotOverrideEntry>;
+  updatedAt: string;
+}
+
+export interface PromptSlotOverrideParams {
+  promptId: string;
+  novelId?: string;
+}
+
+export interface PromptSlotOverrideSavePayload {
+  scope: PromptSlotOverrideScope;
+  novelId?: string | null;
+  promptId: string;
+  slotUpdates: Record<string, unknown>;
+}
+
+export interface PromptSlotOverrideDeletePayload {
+  scope: PromptSlotOverrideScope;
+  novelId?: string | null;
+  promptId: string;
+  slotKeys?: string[];
+}
+
+// ─── Reconciliation ───────────────────────────────────────────────────────────
+
+export type PromptSlotReconcileState = "unchanged" | "drifted" | "new" | "orphaned";
+
+export interface PromptSlotReconcileItem {
+  key: string;
+  label: string;
+  kind: PromptSlotKind;
+  state: PromptSlotReconcileState;
+  defaultCurrent: string | boolean;
+  defaultCurrentHash: string;
+  overrideValue?: string | boolean;
+  overrideBaseHash?: string;
+  changelog?: string;
+}
+
+export interface PromptSlotReconcileResult {
+  promptId: string;
+  scope: PromptSlotOverrideScope;
+  novelId?: string | null;
+  items: PromptSlotReconcileItem[];
+  hasDrift: boolean;
+  driftedCount: number;
+  newCount: number;
+  orphanedCount: number;
+}
+
+export interface PromptSlotReconcileParams {
+  promptId: string;
+  scope: PromptSlotOverrideScope;
+  novelId?: string;
+}
+
+export interface PromptSlotAdoptKeepPayload {
+  promptId: string;
+  scope: PromptSlotOverrideScope;
+  novelId?: string | null;
+  slotKeys: string[];
+}
+
+// ─── Materials ────────────────────────────────────────────────────────────────
+
 export type NovelMaterialImportance = "must" | "high" | "medium" | "low";
 
 export interface NovelMaterialBlock {
@@ -144,34 +271,12 @@ export interface NovelMaterialExportResult {
   generatedAt: string;
 }
 
+// ─── Params ───────────────────────────────────────────────────────────────────
+
 export interface PromptCatalogParams {
   keyword?: string;
   taskType?: string;
   mode?: "structured" | "text";
-}
-
-export type PromptAddendumScope = "global" | "novel";
-
-export interface PromptAddendum {
-  id: string;
-  scope: PromptAddendumScope;
-  novelId?: string | null;
-  promptId: string;
-  title: string;
-  content: string;
-  enabled: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PromptAddendumPayload {
-  id?: string;
-  scope: PromptAddendumScope;
-  novelId?: string | null;
-  promptId: string;
-  title: string;
-  content: string;
-  enabled?: boolean;
 }
 
 export interface PromptPreviewPayload {
@@ -188,7 +293,10 @@ export interface PromptPreviewPayload {
   };
   maxContextTokens?: number;
   contextMode?: "snapshot" | "fresh" | "hybrid";
+  slotOverrides?: Record<string, unknown>;
 }
+
+// ─── API functions ─────────────────────────────────────────────────────────────
 
 export async function getPromptCatalog(params: PromptCatalogParams = {}) {
   const { data } = await apiClient.get<ApiResponse<PromptCatalogItem[]>>("/prompt-workbench/catalog", {
@@ -210,27 +318,53 @@ export async function exportNovelPromptMaterials(payload: NovelMaterialExportPay
   return data;
 }
 
-export async function getPromptAddendums(params: { promptId?: string; novelId?: string } = {}) {
-  const { data } = await apiClient.get<ApiResponse<PromptAddendum[]>>("/prompt-workbench/addendums", {
-    params,
-  });
-  return data;
-}
+// Slot override CRUD
 
-export async function savePromptAddendum(payload: PromptAddendumPayload) {
-  const { data } = await apiClient.put<ApiResponse<PromptAddendum>>("/prompt-workbench/addendums", payload);
-  return data;
-}
-
-export async function setPromptAddendumEnabled(id: string, enabled: boolean) {
-  const { data } = await apiClient.patch<ApiResponse<PromptAddendum>>(
-    `/prompt-workbench/addendums/${id}/enabled`,
-    { enabled },
+export async function getSlotOverrides(params: PromptSlotOverrideParams) {
+  const { data } = await apiClient.get<ApiResponse<PromptSlotOverrideView[]>>(
+    "/prompt-workbench/slot-overrides",
+    { params },
   );
   return data;
 }
 
-export async function deletePromptAddendum(id: string) {
-  const { data } = await apiClient.delete<ApiResponse<null>>(`/prompt-workbench/addendums/${id}`);
+export async function saveSlotOverride(payload: PromptSlotOverrideSavePayload) {
+  const { data } = await apiClient.put<ApiResponse<PromptSlotOverrideView>>(
+    "/prompt-workbench/slot-overrides",
+    payload,
+  );
+  return data;
+}
+
+export async function deleteSlotOverride(payload: PromptSlotOverrideDeletePayload) {
+  const { data } = await apiClient.delete<ApiResponse<null>>("/prompt-workbench/slot-overrides", {
+    data: payload,
+  });
+  return data;
+}
+
+// Slot reconciliation
+
+export async function getSlotReconcile(params: PromptSlotReconcileParams) {
+  const { data } = await apiClient.get<ApiResponse<PromptSlotReconcileResult>>(
+    "/prompt-workbench/slot-overrides/reconcile",
+    { params },
+  );
+  return data;
+}
+
+export async function adoptSlots(payload: PromptSlotAdoptKeepPayload) {
+  const { data } = await apiClient.post<ApiResponse<null>>(
+    "/prompt-workbench/slot-overrides/adopt",
+    payload,
+  );
+  return data;
+}
+
+export async function keepMySlots(payload: PromptSlotAdoptKeepPayload) {
+  const { data } = await apiClient.post<ApiResponse<null>>(
+    "/prompt-workbench/slot-overrides/keep",
+    payload,
+  );
   return data;
 }

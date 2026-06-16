@@ -662,3 +662,11 @@ export function listRegisteredPromptAssets(): UnknownPromptAsset[] {
 export function getRegisteredPromptAsset(id: string, version: string): UnknownPromptAsset | null {
   return loadRegisteredPromptAsset(`${id}@${version}`);
 }
+
+export function findRegisteredPromptAssetById(id: string): UnknownPromptAsset | null {
+  hydrateAllPromptAssets();
+  for (const asset of promptAssetByKey.values()) {
+    if (asset.id === id) return asset;
+  }
+  return null;
+}

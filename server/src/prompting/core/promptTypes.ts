@@ -2,6 +2,7 @@ import type { BaseMessage, BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ZodType } from "zod";
 import type { TaskType } from "../../llm/modelRouter";
+import type { PromptSlotDef, ResolvedSlots } from "../slots/slotTypes";
 
 export type PromptMode = "structured" | "text";
 export type PromptLanguage = "zh" | "en";
@@ -65,6 +66,7 @@ export interface PromptRenderContext {
   droppedBlockIds: string[];
   summarizedBlockIds: string[];
   estimatedInputTokens: number;
+  slots?: ResolvedSlots;
 }
 
 export interface PromptInvocationMeta {
@@ -205,6 +207,7 @@ export interface PromptAsset<I, O, R = O> {
   outputSchema?: ZodType<R>;
   structuredOutputHint?: PromptStructuredOutputHint<I, R>;
   editableSlots?: PromptEditableSlot[];
+  slots?: PromptSlotDef[];
   contextRequirements?: PromptContextRequirement[];
   render: (input: I, context: PromptRenderContext) => BaseMessage[];
   postValidate?: (output: R, input: I, context: PromptRenderContext) => O;
