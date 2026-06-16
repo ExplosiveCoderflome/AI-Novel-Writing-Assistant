@@ -355,3 +355,63 @@ export async function listExportJobs(projectId: string): Promise<ComicExportJob[
   const res = await apiClient.get<ApiResponse<ComicExportJob[]>>(`/comic/projects/${projectId}/export-jobs`);
   return res.data.data!;
 }
+
+// ─── Batch jobs ───────────────────────────────────────────────────────────────
+
+export interface BatchProgress {
+  total: number;
+  done: number;
+  failed: number;
+  failedPanelIds: string[];
+  status: "running" | "completed" | "partial";
+}
+
+export interface StartBatchPayload {
+  provider?: string;
+  concurrency?: number;
+  skipDone?: boolean;
+}
+
+export interface BatchCostEstimate {
+  totalPanels: number;
+  pendingPanels: number;
+  estimatedCentsCost: number;
+  providerNote: string;
+}
+
+export async function startEpisodeBatch(
+  episodeId: string,
+  payload?: StartBatchPayload,
+): Promise<{ jobId: string }> {
+  const res = await apiClient.post<ApiResponse<{ jobId: string }>>(
+    `/comic/episodes/${episodeId}/batch/start`,
+    payload ?? {},
+  );
+  return res.data.data!;
+}
+
+export async function retryBatchJob(jobId: string, provider?: string): Promise<{ jobId: string }> {
+  const res = await apiClient.post<ApiResponse<{ jobId: string }>>(
+    `/comic/batch-jobs/${jobId}/retry`,
+    provider ? { provider } : {},
+  );
+  return res.data.data!;
+}
+
+export async function getBatchJob(jobId: string): Promise<ComicBatchJob> {
+  const res = await apiClient.get<ApiResponse<ComicBatchJob>>(`/comic/batch-jobs/${jobId}`);
+  return res.data.data!;
+}
+
+export async function listBatchJobs(projectId: string): Promise<ComicBatchJob[]> {
+  const res = await apiClient.get<ApiResponse<ComicBatchJob[]>>(`/comic/projects/${projectId}/batch-jobs`);
+  return res.data.data!;
+}
+
+export async function estimateBatchCost(episodeId: string, provider?: string): Promise<BatchCostEstimate> {
+  const params = provider ? `?provider=${encodeURIComponent(provider)}` : "";
+  const res = await apiClient.get<ApiResponse<BatchCostEstimate>>(
+    `/comic/episodes/${episodeId}/batch/estimate${params}`,
+  );
+  return res.data.data!;
+}

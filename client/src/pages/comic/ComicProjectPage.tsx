@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -12,7 +12,6 @@ import {
   Pencil,
   RefreshCw,
   Sparkles,
-  Type,
   BookText,
   Palette,
   LayoutTemplate,
@@ -20,20 +19,27 @@ import {
   Hash,
   Users,
   Check,
+  Play,
+  RotateCcw,
+  CircleDollarSign,
 } from "lucide-react";
 import {
+  estimateBatchCost,
   exportComicEpisode,
   generateComicOutline,
   generateComicPanelScript,
   generatePanelImage,
+  getBatchJob,
   getComicProject,
   importComicSourceBundle,
-  letterPanel,
   listComicEpisodes,
   listComicPanels,
   panelImageUrl,
-  panelLetteredImageUrl,
+  retryBatchJob,
+  startEpisodeBatch,
   updateComicPreset,
+  type BatchProgress,
+  type ComicBatchJob,
   type ComicEpisode,
   type ComicPanel,
   type ComicProject,
@@ -179,6 +185,153 @@ function EpisodeListPanel({
   );
 }
 
+// ─── BatchBar ──────────────────────────────────────────────────────────────────
+
+function BatchBar({
+  episodeId,
+  provider,
+  onComplete,
+}: {
+  episodeId: string;
+  provider: string;
+  onComplete: () => void;
+}) {
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [job, setJob] = useState<ComicBatchJob | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 费用估算
+  const { data: estimate } = useQuery({
+    queryKey: ["comic", "batch-estimate", episodeId, provider],
+    queryFn: () => estimateBatchCost(episodeId, provider || undefined),
+    enabled: Boolean(episodeId),
+    staleTime: 30_000,
+  });
+
+  // 轮询 job 状态
+  useEffect(() => {
+    if (!jobId) return;
+    pollRef.current = setInterval(async () => {
+      try {
+        const updated = await getBatchJob(jobId);
+        setJob(updated);
+        if (updated.status !== "running") {
+          clearInterval(pollRef.current!);
+          pollRef.current = null;
+          onComplete();
+        }
+      } catch { /* ignore */ }
+    }, 2500);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [jobId, onComplete]);
+
+  const startMut = useMutation({
+    mutationFn: () =>
+      startEpisodeBatch(episodeId, { provider: provider || undefined, concurrency: 3, skipDone: true }),
+    onSuccess: ({ jobId: id }) => {
+      setJobId(id);
+      setJob(null);
+    },
+    onError: (e) => { void import("@/components/ui/toast").then(({ toast }) => toast.error(String(e))); },
+  });
+
+  const retryMut = useMutation({
+    mutationFn: () => retryBatchJob(jobId!, provider || undefined),
+    onSuccess: ({ jobId: id }) => {
+      setJobId(id);
+      setJob(null);
+    },
+    onError: (e) => { void import("@/components/ui/toast").then(({ toast }) => toast.error(String(e))); },
+  });
+
+  const progress = job ? (JSON.parse(job.progress) as BatchProgress) : null;
+  const isRunning = job?.status === "running" || startMut.isPending;
+  const hasFailures = (progress?.failedPanelIds?.length ?? 0) > 0 && job?.status !== "running";
+  const pendingCount = estimate?.pendingPanels ?? 0;
+
+  return (
+    <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {/* 开始批量 */}
+        <Button
+          type="button"
+          size="sm"
+          disabled={isRunning || pendingCount === 0}
+          onClick={() => startMut.mutate()}
+        >
+          {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+          {isRunning ? "批量生成中…" : `批量生成 ${pendingCount > 0 ? `(${pendingCount}格)` : ""}`}
+        </Button>
+
+        {/* 重试失败 */}
+        {hasFailures && (
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            disabled={retryMut.isPending}
+            onClick={() => retryMut.mutate()}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            重试 {progress!.failedPanelIds.length} 格
+          </Button>
+        )}
+
+        {/* 费用估算 */}
+        {estimate && pendingCount > 0 && (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <CircleDollarSign className="h-3.5 w-3.5" />
+            约 {estimate.estimatedCentsCost} ¢
+          </span>
+        )}
+
+        {/* 完成状态 */}
+        {job?.status === "completed" && (
+          <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ 全部完成</span>
+        )}
+        {job?.status === "partial" && !hasFailures && (
+          <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">部分完成</span>
+        )}
+      </div>
+
+      {/* 进度条 */}
+      {progress && (
+        <div className="space-y-1">
+          <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                job?.status === "partial"
+                  ? "bg-amber-500"
+                  : job?.status === "completed"
+                  ? "bg-green-500"
+                  : "bg-primary"
+              }`}
+              style={{
+                width: `${progress.total > 0 ? Math.round(((progress.done + progress.failed) / progress.total) * 100) : 0}%`,
+              }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] text-muted-foreground">
+            <span>
+              {progress.done} / {progress.total} 完成
+              {progress.failed > 0 && (
+                <span className="ml-1.5 text-destructive">{progress.failed} 失败</span>
+              )}
+            </span>
+            <span>
+              {progress.total > 0
+                ? `${Math.round(((progress.done + progress.failed) / progress.total) * 100)}%`
+                : ""}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PanelsGridPanel({ projectId, provider }: { projectId: string; provider: string }) {
   const queryClient = useQueryClient();
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
@@ -193,7 +346,7 @@ function PanelsGridPanel({ projectId, provider }: { projectId: string; provider:
     ? episodes.find((e) => e.id === selectedEpisodeId)
     : episodes[0];
 
-  const { data: panels = [], isLoading: panelsLoading } = useQuery({
+  const { data: panels = [], isLoading: panelsLoading, refetch: refetchPanels } = useQuery({
     queryKey: ["comic", "panels", activeEpisode?.id],
     queryFn: () => (activeEpisode ? listComicPanels(activeEpisode.id) : Promise.resolve([])),
     enabled: Boolean(activeEpisode),
@@ -209,19 +362,9 @@ function PanelsGridPanel({ projectId, provider }: { projectId: string; provider:
     onError: (e) => toast.error(String(e)),
   });
 
-  const letterMut = useMutation({
-    mutationFn: (panelId: string) => letterPanel(panelId),
-    onMutate: (id) => setBusyPanelId(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["comic", "panels", activeEpisode?.id] });
-      toast.success("气泡排版完成");
-    },
-    onSettled: () => setBusyPanelId(""),
-    onError: (e) => toast.error(String(e)),
-  });
-
   return (
     <div className="space-y-4">
+      {/* 话数切换 */}
       {episodes.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {episodes.map((ep) => (
@@ -237,6 +380,18 @@ function PanelsGridPanel({ projectId, provider }: { projectId: string; provider:
         </div>
       )}
 
+      {/* 批量生成栏 */}
+      {activeEpisode && (
+        <BatchBar
+          episodeId={activeEpisode.id}
+          provider={provider}
+          onComplete={() => {
+            queryClient.invalidateQueries({ queryKey: ["comic", "panels", activeEpisode.id] });
+            void refetchPanels();
+          }}
+        />
+      )}
+
       {panelsLoading && <div className="py-8 text-center text-sm text-muted-foreground">加载中…</div>}
       {!panelsLoading && panels.length === 0 && activeEpisode && (
         <div className="py-8 text-center text-sm text-muted-foreground">
@@ -247,13 +402,12 @@ function PanelsGridPanel({ projectId, provider }: { projectId: string; provider:
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {panels.map((panel) => {
           const imgData = parseImageData(panel.imageData);
-          const hasLettered = Boolean(parseImageData(panel.letteredData).url);
           const busy = busyPanelId === panel.id;
           return (
             <div key={panel.id} className="group relative rounded-lg border bg-muted overflow-hidden">
               {imgData.status === "done" ? (
                 <img
-                  src={hasLettered ? panelLetteredImageUrl(panel.id) : panelImageUrl(panel.id)}
+                  src={panelImageUrl(panel.id)}
                   alt={`第 ${panel.order} 格`}
                   className="aspect-[2/3] w-full object-cover"
                   loading="lazy"
@@ -282,19 +436,6 @@ function PanelsGridPanel({ projectId, provider }: { projectId: string; provider:
                   >
                     <Sparkles className="h-3 w-3" />
                     生图
-                  </Button>
-                )}
-                {imgData.status === "done" && !hasLettered && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    className="h-7 px-2 text-xs"
-                    disabled={busy}
-                    onClick={() => letterMut.mutate(panel.id)}
-                  >
-                    <Type className="h-3 w-3" />
-                    加气泡
                   </Button>
                 )}
                 {imgData.status === "done" && (
@@ -360,7 +501,7 @@ function ExportPanel({ projectId, episodes }: { projectId: string; episodes: Com
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        导出前请确保已为所有格子生成图像并完成气泡排版。
+        导出前请确保所有格子已生成图像。图像内文字由模型直接渲染。
       </p>
     </div>
   );
