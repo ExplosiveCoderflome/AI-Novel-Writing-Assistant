@@ -440,3 +440,73 @@ test("restart_current_step clears chapter body only inside the requested executi
     prisma.$transaction = originals.transaction;
   }
 });
+
+test("downstream reset never wipes chapters that already have written content", async () => {
+  const originals = {
+    chapterFindMany: prisma.chapter.findMany,
+    transaction: prisma.$transaction,
+  };
+  const updates = [];
+  const deletions = [];
+  // chapter-1/2 已写正文（必须保留），chapter-3/4 未写（可重置）。
+  prisma.chapter.findMany = async () => [
+    { id: "chapter-1", content: "第一章已写正文……" },
+    { id: "chapter-2", content: "第二章也已写正文……" },
+    { id: "chapter-3", content: "" },
+    { id: "chapter-4", content: null },
+  ];
+  prisma.$transaction = async (callback) => callback({
+    chapter: {
+      updateMany: async (input) => {
+        updates.push(input);
+        return { count: input.where.id.in.length };
+      },
+    },
+    chapterSummary: { deleteMany: async (input) => deletions.push(["chapterSummary", input]) },
+    consistencyFact: { deleteMany: async (input) => deletions.push(["consistencyFact", input]) },
+    characterTimeline: { deleteMany: async (input) => deletions.push(["characterTimeline", input]) },
+    characterCandidate: { deleteMany: async (input) => deletions.push(["characterCandidate", input]) },
+    characterFactionTrack: { deleteMany: async (input) => deletions.push(["characterFactionTrack", input]) },
+    characterRelationStage: { deleteMany: async (input) => deletions.push(["characterRelationStage", input]) },
+    qualityReport: { deleteMany: async (input) => deletions.push(["qualityReport", input]) },
+    auditReport: { deleteMany: async (input) => deletions.push(["auditReport", input]) },
+    stateChangeProposal: { deleteMany: async (input) => deletions.push(["stateChangeProposal", input]) },
+    openConflict: { deleteMany: async (input) => deletions.push(["openConflict", input]) },
+    storyStateSnapshot: { deleteMany: async (input) => deletions.push(["storyStateSnapshot", input]) },
+  });
+
+  try {
+    await resetDirectorTakeoverCurrentStep({
+      novelId: "novel-1",
+      plan: { strategy: "restart_current_step", effectiveStep: "chapter" },
+      autoExecutionPlan: { mode: "chapter_range", startOrder: 1, endOrder: 4 },
+      takeoverState: buildTakeoverState(),
+      deps: {
+        async getVolumeWorkspace() {
+          throw new Error("chapter range reset should not require volume workspace");
+        },
+        async updateVolumeWorkspace() {
+          throw new Error("chapter execution reset should not rewrite volume workspace");
+        },
+        async cancelPipelineJob() {
+          return null;
+        },
+      },
+    });
+
+    // 只重置 chapter-3/4（content 为空 / null），绝不触碰已写的 chapter-1/2。
+    assert.equal(updates.length, 1);
+    assert.deepEqual(updates[0].where.id.in, ["chapter-3", "chapter-4"]);
+    assert.ok(!updates[0].where.id.in.includes("chapter-1"));
+    assert.ok(!updates[0].where.id.in.includes("chapter-2"));
+    assert.ok(deletions.every(([, input]) => {
+      const chapterIds = input.where.chapterId?.in ?? input.where.sourceChapterId?.in;
+      return Array.isArray(chapterIds)
+        && !chapterIds.includes("chapter-1")
+        && !chapterIds.includes("chapter-2");
+    }));
+  } finally {
+    prisma.chapter.findMany = originals.chapterFindMany;
+    prisma.$transaction = originals.transaction;
+  }
+});

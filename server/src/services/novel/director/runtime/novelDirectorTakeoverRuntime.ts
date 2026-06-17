@@ -18,6 +18,8 @@ import {
   buildDirectorAutoExecutionDeferredQualityState,
   hasDirectorAutoExecutionChapterContract,
   isDirectorAutoExecutionChapterProcessed,
+  normalizeDirectorAutoExecutionPlan,
+  resolveDirectorAutoExecutionPlanChapterRange,
   resolveDirectorAutoExecutionRangeFromState,
   type DirectorAutoExecutionChapterRef,
 } from "../automation/novelDirectorAutoExecution";
@@ -180,6 +182,62 @@ function hasSyncedExecutionChapterDetail(chapter: TakeoverChapterRow): boolean {
     taskSheet: chapter.taskSheet,
     sceneCards: chapter.sceneCards,
   });
+}
+
+/**
+ * 解析「生效自动执行 plan」对应的目标章节序集合（取自执行区持久化章节）。
+ * book = 全部章节；volume = 该卷序范围；chapter_range = [start,end]。
+ * 与 novelDirectorAutoExecutionScopeRuntime 的范围解析保持一致。
+ */
+function resolveTargetOrdersForAutoExecutionRange(input: {
+  chapterRows: TakeoverChapterRow[];
+  plan: DirectorAutoExecutionPlan | DirectorWorkflowSeedPayload["autoExecution"] | null | undefined;
+  volumeChapterRanges?: Array<{ volumeOrder: number; startOrder: number; endOrder: number }>;
+}): number[] {
+  const normalized = normalizeDirectorAutoExecutionPlan(input.plan);
+  const allOrders = input.chapterRows
+    .map((chapter) => chapter.order)
+    .filter((order) => Number.isFinite(order) && order >= 1);
+  if (normalized.mode === "book") {
+    return allOrders;
+  }
+  if (normalized.mode === "volume") {
+    const targetVolume = input.volumeChapterRanges?.find(
+      (range) => range.volumeOrder === (normalized.volumeOrder ?? 1),
+    ) ?? null;
+    if (!targetVolume) {
+      return [];
+    }
+    return allOrders.filter((order) => order >= targetVolume.startOrder && order <= targetVolume.endOrder);
+  }
+  const chapterRange = resolveDirectorAutoExecutionPlanChapterRange(normalized);
+  if (!chapterRange) {
+    return [];
+  }
+  return allOrders.filter((order) => order >= chapterRange.startOrder && order <= chapterRange.endOrder);
+}
+
+/**
+ * 计算目标自动执行范围内「仍缺少完整章节细化」的章节序：
+ * 未处理（未写 / 待修）且缺少完整执行契约的持久化章节。
+ * 与 scope runtime 的 findMissingExecutionContextOrders 同语义——
+ * 这些正是会让 runFromReady 直接抛「缺少完整章节细化」并卡死的章节。
+ */
+function computeMissingExecutionContractOrders(input: {
+  chapterRows: TakeoverChapterRow[];
+  plan: DirectorAutoExecutionPlan | DirectorWorkflowSeedPayload["autoExecution"] | null | undefined;
+  volumeChapterRanges?: Array<{ volumeOrder: number; startOrder: number; endOrder: number }>;
+}): number[] {
+  const targetOrders = new Set(resolveTargetOrdersForAutoExecutionRange(input));
+  if (targetOrders.size === 0) {
+    return [];
+  }
+  return input.chapterRows
+    .filter((chapter) => targetOrders.has(chapter.order))
+    .filter((chapter) => isPendingAutoExecutionChapter(chapter))
+    .filter((chapter) => !hasSyncedExecutionChapterDetail(chapter))
+    .map((chapter) => chapter.order)
+    .sort((left, right) => left - right);
 }
 
 function buildPreparedRangeFromSyncedChapters(
@@ -413,12 +471,21 @@ export async function loadDirectorTakeoverState(input: {
     state: latestSeedPayload?.autoExecution ?? null,
   });
   const requestedAutoExecutionPlan = input.autoExecutionPlan ?? null;
+  const effectiveAutoExecutionPlan = requestedAutoExecutionPlan
+    ?? latestSeedPayload?.autoExecutionPlan
+    ?? reconciledLatestAutoExecutionState
+    ?? null;
   const structuredOutlineCursor = workspace
     ? resolveStructuredOutlineRecoveryCursor({
         workspace,
-        plan: requestedAutoExecutionPlan ?? latestSeedPayload?.autoExecutionPlan ?? reconciledLatestAutoExecutionState ?? null,
+        plan: effectiveAutoExecutionPlan,
       })
     : null;
+  const missingExecutionContractOrders = computeMissingExecutionContractOrders({
+    chapterRows: chapterRows as TakeoverChapterRow[],
+    plan: effectiveAutoExecutionPlan,
+    volumeChapterRanges: assets.volumeChapterRanges,
+  });
   const chapterOrderMap = new Map(chapterRows.map((chapter) => [chapter.id, chapter.order]));
   const activePipelineSnapshot = activePipelineJob
     ? {
@@ -481,6 +548,8 @@ export async function loadDirectorTakeoverState(input: {
       generatedChapterCount,
       approvedChapterCount,
       pendingRepairChapterCount,
+      hasUnpreparedChaptersInRange: missingExecutionContractOrders.length > 0,
+      missingExecutionContractOrders,
     },
     activeTaskId: activeTask?.id ?? null,
     hasActiveTask: Boolean(activeTask),

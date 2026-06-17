@@ -102,6 +102,64 @@ test("continue_existing from basic prefers repair continuation when pending fixe
   assert.deepEqual(plan.skipSteps, ["basic", "story_macro", "character", "outline", "structured", "chapter"]);
 });
 
+test("continue_existing routes back to structured outline when target range still has unprepared chapters", () => {
+  const plan = resolveDirectorTakeoverPlan({
+    entryStep: "chapter",
+    strategy: "continue_existing",
+    snapshot: buildSnapshot({
+      pendingRepairChapterCount: 0,
+      hasUnpreparedChaptersInRange: true,
+      missingExecutionContractOrders: [11, 12, 13, 14, 15],
+    }),
+    activePipelineJob: null,
+    latestCheckpoint: null,
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      nextChapterOrder: 11,
+      nextChapterId: "chapter_11",
+      remainingChapterCount: 5,
+    },
+  });
+
+  // 范围内仍有未细化章节时，继续模式应先回到节奏 / 拆章补齐，而不是进入章节执行。
+  assert.equal(plan.executionMode, "phase");
+  assert.equal(plan.effectiveStep, "structured");
+  assert.equal(plan.startPhase, "structured_outline");
+  // 该路径不应清空正文（接管说明同步修正）。
+  assert.ok(plan.impactNotes.some((note) => note.includes("保留已有正文")));
+});
+
+test("continue_existing keeps running the active batch even if later chapters are unprepared", () => {
+  const plan = resolveDirectorTakeoverPlan({
+    entryStep: "chapter",
+    strategy: "continue_existing",
+    snapshot: buildSnapshot({
+      pendingRepairChapterCount: 0,
+      hasUnpreparedChaptersInRange: true,
+    }),
+    activePipelineJob: {
+      id: "job_1",
+      status: "running",
+      currentStage: "writing",
+      startOrder: 1,
+      endOrder: 10,
+    },
+    latestCheckpoint: null,
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      nextChapterOrder: 5,
+      nextChapterId: "chapter_5",
+      remainingChapterCount: 6,
+    },
+  });
+
+  // 有进行中的批次时不打断它，继续执行当前批次。
+  assert.equal(plan.executionMode, "auto_execution");
+  assert.equal(plan.effectiveStep, "chapter");
+});
+
 test("chapter sync structured outline is accepted by takeover validation readiness", () => {
   assert.equal(isTakeoverStructuredOutlineReadyForValidation({
     structuredOutlineRecoveryStep: "chapter_sync",

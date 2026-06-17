@@ -49,6 +49,14 @@ export interface DirectorTakeoverAssetSnapshot {
   generatedChapterCount?: number;
   approvedChapterCount?: number;
   pendingRepairChapterCount?: number;
+  /**
+   * 目标自动执行范围内是否仍有「未处理且缺少完整章节细化」的章节。
+   * 为真时，继续模式应先回到节奏 / 拆章补齐细化，而非直接进入章节执行
+   * （否则 runFromReady 会抛「缺少完整章节细化」并卡死）。
+   */
+  hasUnpreparedChaptersInRange?: boolean;
+  /** 缺少完整细化的章节序（调试/展示用）。 */
+  missingExecutionContractOrders?: number[];
 }
 
 export interface DirectorTakeoverDecisionInput {
@@ -386,6 +394,11 @@ function resolveExecutionContinuationStep(input: {
   const pendingRepair = hasPendingRepairContext(input);
   if (pendingRepair) {
     return "pipeline";
+  }
+  // 目标范围内仍有未细化章节、且当前没有进行中的批次时，先回到节奏 / 拆章补齐细化，
+  // 而不是直接进入章节执行——否则会因「缺少完整章节细化」抛错卡死，且无法自动补齐。
+  if (input.snapshot.hasUnpreparedChaptersInRange && !input.activePipelineJob) {
+    return null;
   }
   if (input.preferPipeline) {
     return "chapter";
@@ -811,6 +824,7 @@ function buildEntryStepStatus(input: {
   }
   if (input.step === "structured") {
     if (!isStoryMacroReady(snapshot) || !isCharacterReady(snapshot) || !isOutlineReady(snapshot)) return "blocked";
+    if (snapshot.hasUnpreparedChaptersInRange) return "partial";
     if (hasExecutableRange(input)) return "complete";
     if (isStructuredSyncPending(snapshot)) return "partial";
     if (isStructuredReady(snapshot)) return "partial";
@@ -868,9 +882,11 @@ function buildEntryReason(input: {
   if (input.step === "structured") {
     return input.status === "blocked"
       ? "需要先具备卷战略，才能直接从节奏 / 拆章接管。"
-      : hasExecutableRange(input)
-        ? "当前卷节奏板、章节细化和执行区资源已具备，继续模式会直接转入章节执行。"
-        : input.snapshot.structuredOutlineRecoveryStep === "chapter_sync"
+      : input.snapshot.hasUnpreparedChaptersInRange
+        ? "目标范围内还有章节缺少完整细化，继续模式会先回到节奏 / 拆章补齐后再续写，已写正文会保留。"
+        : hasExecutableRange(input)
+          ? "当前卷节奏板、章节细化和执行区资源已具备，继续模式会直接转入章节执行。"
+          : input.snapshot.structuredOutlineRecoveryStep === "chapter_sync"
           ? "当前卷节奏板和章节细化已具备，但还没同步到章节执行区，继续模式会先完成同步。"
           : input.snapshot.structuredOutlineRecoveryStep === "chapter_detail_bundle"
             ? "当前卷已有部分章节细化资源，继续模式会从未完成的章节细化继续。"
@@ -932,7 +948,13 @@ export function buildDirectorTakeoverReadiness(input: {
       label: TAKEOVER_ENTRY_META[step].label,
       description: TAKEOVER_ENTRY_META[step].description,
       available,
-      recommended: step === recommendedStep || (step === "chapter" && recommendedStep === "structured" && Boolean(input.executableRange)),
+      recommended: step === recommendedStep
+        || (
+          step === "chapter"
+          && recommendedStep === "structured"
+          && Boolean(input.executableRange)
+          && !input.snapshot.hasUnpreparedChaptersInRange
+        ),
       status,
       reason: buildEntryReason({
         step,
