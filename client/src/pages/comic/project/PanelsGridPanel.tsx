@@ -4,6 +4,7 @@ import {
   CircleDollarSign,
   FileText,
   ImageOff,
+  LayoutGrid,
   Loader2,
   Pencil,
   Play,
@@ -11,6 +12,7 @@ import {
   RotateCcw,
   Save,
   Sparkles,
+  Rows3,
 } from "lucide-react";
 import {
   estimateBatchCost,
@@ -24,6 +26,7 @@ import {
   updatePanelVisualPrompt,
   type BatchProgress,
   type ComicBatchJob,
+  type ComicDialogue,
   type ComicPanel,
 } from "@/api/comic";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
@@ -207,6 +210,121 @@ function BatchBar({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function parseDialogues(raw: string | null | undefined): ComicDialogue[] {
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as ComicDialogue[];
+  } catch {
+    return [];
+  }
+}
+
+// ─── Strip view ──────────────────────────────────────────────────────────────
+
+function StripView({
+  panels,
+  busyPanelId,
+  onSelect,
+  onGenerate,
+}: {
+  panels: ComicPanel[];
+  busyPanelId: string;
+  onSelect: (panel: ComicPanel) => void;
+  onGenerate: (panelId: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-0">
+      {panels.map((panel, idx) => {
+        const imageData = parseImageData(panel.imageData);
+        const dialogues = parseDialogues(panel.dialogues);
+        const imageStale = isPanelImageStale(panel, imageData);
+        const busy = busyPanelId === panel.id;
+
+        return (
+          <div key={panel.id} className="group relative border-b last:border-b-0">
+            <div className="relative w-full overflow-hidden bg-black">
+              {imageData.status === "done" ? (
+                <>
+                  <img
+                    src={panelImageUrl(panel.id)}
+                    alt={`第 ${panel.order} 格`}
+                    className="w-full object-cover"
+                    loading={idx < 3 ? "eager" : "lazy"}
+                  />
+                  {imageStale && (
+                    <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                      待重抽
+                    </span>
+                  )}
+                  {dialogues.length > 0 && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
+                      {dialogues.map((d, i) => (
+                        <div key={i} className="text-xs leading-relaxed text-white">
+                          {d.speaker && <span className="mr-1 font-bold text-yellow-200">{d.speaker}：</span>}
+                          「{d.text}」
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex h-40 items-center justify-center bg-muted">
+                  {busy || imageData.status === "generating" ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  ) : (
+                    <ImageOff className="h-8 w-8 text-muted-foreground/40" />
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">第 {panel.order} 格</span>
+              <span className="opacity-60">{panel.panelType}</span>
+              {panel.focus && <span className="flex-1 truncate">{panel.focus}</span>}
+              <div className="ml-auto flex shrink-0 items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+                {imageData.status !== "done" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-6 px-2 text-[11px]"
+                    disabled={busy}
+                    onClick={() => onGenerate(panel.id)}
+                  >
+                    <Sparkles className="h-3 w-3" />
+                    生图
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-[11px]"
+                    disabled={busy}
+                    onClick={() => onGenerate(panel.id)}
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    重抽
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-2 text-[11px]"
+                  onClick={() => onSelect(panel)}
+                >
+                  <FileText className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -444,6 +562,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
   const [busyPanelId, setBusyPanelId] = useState("");
   const [selectedPanel, setSelectedPanel] = useState<ComicPanel | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "strip">("grid");
 
   const { data: episodes = [] } = useQuery({
     queryKey: ["comic", "episodes", projectId],
@@ -479,17 +598,37 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
   return (
     <div className="space-y-4">
       {episodes.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {episodes.map((episode) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-1 flex-wrap gap-1.5">
+            {episodes.map((episode) => (
+              <button
+                key={episode.id}
+                type="button"
+                onClick={() => setSelectedEpisodeId(episode.id)}
+                className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${(activeEpisode?.id === episode.id) ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-accent"}`}
+              >
+                第 {episode.order} 话
+              </button>
+            ))}
+          </div>
+          <div className="ml-auto flex rounded-md border bg-background p-0.5">
             <button
-              key={episode.id}
               type="button"
-              onClick={() => setSelectedEpisodeId(episode.id)}
-              className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${(activeEpisode?.id === episode.id) ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-accent"}`}
+              title="格子视图"
+              className={`rounded p-1.5 transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              onClick={() => setViewMode("grid")}
             >
-              第 {episode.order} 话
+              <LayoutGrid className="h-3.5 w-3.5" />
             </button>
-          ))}
+            <button
+              type="button"
+              title="条带视图（阅读流）"
+              className={`rounded p-1.5 transition-colors ${viewMode === "strip" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+              onClick={() => setViewMode("strip")}
+            >
+              <Rows3 className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -524,104 +663,115 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
         />
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-        {panels.map((panel) => {
-          const imageData = parseImageData(panel.imageData);
-          const density = densityBadge(panel.densityLevel);
-          const imageStale = isPanelImageStale(panel, imageData);
-          const busy = busyPanelId === panel.id;
-          return (
-            <div
-              key={panel.id}
-              role="button"
-              tabIndex={0}
-              className="group relative overflow-hidden rounded-lg border bg-muted outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring"
-              onClick={() => setSelectedPanel(panel)}
-              onKeyDown={(event) => handlePanelKeyDown(event, panel)}
-            >
-              {imageData.status === "done" ? (
-                <div className="relative">
-                  <img
-                    src={panelImageUrl(panel.id)}
-                    alt={`第 ${panel.order} 格`}
-                    className="aspect-[2/3] w-full object-cover"
-                    loading="lazy"
-                  />
-                  {imageStale && (
-                    <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                      待重抽
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div className="flex aspect-[2/3] items-center justify-center bg-muted">
-                  {busy || imageData.status === "generating" ? (
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  ) : (
-                    <ImageOff className="h-8 w-8 text-muted-foreground/40" />
-                  )}
-                </div>
-              )}
-              <div className="p-1.5 text-xs text-muted-foreground">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="font-medium">第 {panel.order} 格</span>
-                  <span className={`rounded border px-1.5 py-0.5 text-[10px] ${density.className}`}>{density.label}</span>
-                </div>
-                <div className="mt-1 truncate">
-                  <span className="opacity-60">{panel.panelType}</span>
-                  {panel.focus ? <span className="ml-1">{panel.focus}</span> : null}
-                </div>
-              </div>
-              <div className="absolute inset-x-0 bottom-8 flex justify-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-                {imageData.status !== "done" && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-7 px-2 text-xs"
-                    disabled={busy}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      imageMut.mutate(panel.id);
-                    }}
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    生图
-                  </Button>
+      {viewMode === "strip" ? (
+        <div className="overflow-hidden rounded-lg border">
+          <StripView
+            panels={panels}
+            busyPanelId={busyPanelId}
+            onSelect={setSelectedPanel}
+            onGenerate={(panelId) => imageMut.mutate(panelId)}
+          />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {panels.map((panel) => {
+            const imageData = parseImageData(panel.imageData);
+            const density = densityBadge(panel.densityLevel);
+            const imageStale = isPanelImageStale(panel, imageData);
+            const busy = busyPanelId === panel.id;
+            return (
+              <div
+                key={panel.id}
+                role="button"
+                tabIndex={0}
+                className="group relative overflow-hidden rounded-lg border bg-muted outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => setSelectedPanel(panel)}
+                onKeyDown={(event) => handlePanelKeyDown(event, panel)}
+              >
+                {imageData.status === "done" ? (
+                  <div className="relative">
+                    <img
+                      src={panelImageUrl(panel.id)}
+                      alt={`第 ${panel.order} 格`}
+                      className="aspect-[2/3] w-full object-cover"
+                      loading="lazy"
+                    />
+                    {imageStale && (
+                      <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                        待重抽
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex aspect-[2/3] items-center justify-center bg-muted">
+                    {busy || imageData.status === "generating" ? (
+                      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    ) : (
+                      <ImageOff className="h-8 w-8 text-muted-foreground/40" />
+                    )}
+                  </div>
                 )}
-                {imageData.status === "done" && (
+                <div className="p-1.5 text-xs text-muted-foreground">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-medium">第 {panel.order} 格</span>
+                    <span className={`rounded border px-1.5 py-0.5 text-[10px] ${density.className}`}>{density.label}</span>
+                  </div>
+                  <div className="mt-1 truncate">
+                    <span className="opacity-60">{panel.panelType}</span>
+                    {panel.focus ? <span className="ml-1">{panel.focus}</span> : null}
+                  </div>
+                </div>
+                <div className="absolute inset-x-0 bottom-8 flex justify-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                  {imageData.status !== "done" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      disabled={busy}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        imageMut.mutate(panel.id);
+                      }}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      生图
+                    </Button>
+                  )}
+                  {imageData.status === "done" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      disabled={busy}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        imageMut.mutate(panel.id);
+                      }}
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      重抽
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
                     className="h-7 px-2 text-xs"
-                    disabled={busy}
                     onClick={(event) => {
                       event.stopPropagation();
-                      imageMut.mutate(panel.id);
+                      setSelectedPanel(panel);
                     }}
                   >
-                    <RefreshCw className="h-3 w-3" />
-                    重抽
+                    <FileText className="h-3 w-3" />
+                    提示词
                   </Button>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2 text-xs"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setSelectedPanel(panel);
-                  }}
-                >
-                  <FileText className="h-3 w-3" />
-                  提示词
-                </Button>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -149,4 +149,20 @@ export class ComicEpisodePlanService {
       data: { sourceText },
     });
   }
+
+  async updateEpisode(
+    episodeId: string,
+    patch: { title?: string; outline?: string; cliffhanger?: string; isPaywalled?: boolean },
+  ) {
+    const data: Record<string, unknown> = {};
+    if (patch.title !== undefined) data.title = patch.title.trim() || null;
+    if (patch.outline !== undefined) data.outline = patch.outline.trim() || null;
+    if (patch.cliffhanger !== undefined) data.cliffhanger = patch.cliffhanger.trim() || null;
+    if (patch.isPaywalled !== undefined) data.isPaywalled = patch.isPaywalled;
+    return prisma.comicEpisode.update({
+      where: { id: episodeId },
+      data,
+      include: { _count: { select: { panels: true } } },
+    });
+  }
 }

@@ -11,6 +11,7 @@ import { comicBubbleLayoutService } from "../../../services/comic/ComicBubbleLay
 import { comicExportService } from "../../../services/comic/ComicExportService";
 import { comicCharacterImageService } from "../../../services/comic/ComicCharacterImageService";
 import { comicBatchOrchestrator } from "../../../services/comic/ComicBatchOrchestrator";
+import { comicFactService } from "../../../services/comic/ComicFactService";
 
 const comicProjectService = new ComicProjectService();
 const comicEpisodePlanService = new ComicEpisodePlanService();
@@ -25,6 +26,7 @@ const episodeIdParams = z.object({ episodeId: z.string().trim().min(1) });
 const panelIdParams = z.object({ panelId: z.string().trim().min(1) });
 const charIdParams = z.object({ charId: z.string().trim().min(1) });
 const charSheetVersionParams = z.object({ charId: z.string().trim().min(1), version: z.coerce.number().int().min(1) });
+const factIdParams = z.object({ factId: z.string().trim().min(1) });
 
 // ─── Request body schemas ─────────────────────────────────────────────────
 
@@ -212,6 +214,44 @@ router.patch(
     } catch (err) { next(err); }
   },
 );
+
+const updateEpisodeSchema = z.object({
+  title: z.string().trim().max(30).optional(),
+  outline: z.string().trim().max(1000).optional(),
+  cliffhanger: z.string().trim().max(100).optional(),
+  isPaywalled: z.boolean().optional(),
+});
+
+router.patch(
+  "/episodes/:episodeId",
+  validate({ params: episodeIdParams, body: updateEpisodeSchema }),
+  async (req, res, next) => {
+    try {
+      const { episodeId } = req.params as z.infer<typeof episodeIdParams>;
+      const patch = req.body as z.infer<typeof updateEpisodeSchema>;
+      const data = await comicEpisodePlanService.updateEpisode(episodeId, patch);
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+    } catch (err) { next(err); }
+  },
+);
+
+// ─── Facts ────────────────────────────────────────────────────────────────────
+
+router.get("/projects/:id/facts", validate({ params: idParams }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof idParams>;
+    const data = await comicFactService.listFacts(id);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+router.delete("/facts/:factId", validate({ params: factIdParams }), async (req, res, next) => {
+  try {
+    const { factId } = req.params as z.infer<typeof factIdParams>;
+    await comicFactService.deleteFact(factId);
+    res.json({ success: true, data: null } satisfies ApiResponse<null>);
+  } catch (err) { next(err); }
+});
 
 // ─── Panels ─────────────────────────────────────────────────────────────────
 

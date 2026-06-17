@@ -293,6 +293,18 @@ export async function updateEpisodeSourceText(episodeId: string, sourceText: str
   return res.data.data!;
 }
 
+export interface UpdateEpisodePayload {
+  title?: string;
+  outline?: string;
+  cliffhanger?: string;
+  isPaywalled?: boolean;
+}
+
+export async function updateComicEpisode(episodeId: string, payload: UpdateEpisodePayload): Promise<ComicEpisode> {
+  const res = await apiClient.patch<ApiResponse<ComicEpisode>>(`/comic/episodes/${episodeId}`, payload);
+  return res.data.data!;
+}
+
 // ─── Panels ───────────────────────────────────────────────────────────────────
 
 export async function listComicPanels(episodeId: string): Promise<ComicPanel[]> {
@@ -422,4 +434,26 @@ export async function estimateBatchCost(episodeId: string, provider?: string): P
     `/comic/episodes/${episodeId}/batch/estimate${params}`,
   );
   return res.data.data!;
+}
+
+// ─── Facts ────────────────────────────────────────────────────────────────────
+
+export type ComicFactCategory = "completed" | "revealed" | "state_changed";
+
+export interface ComicFact {
+  id: string;
+  projectId: string;
+  episodeOrder: number;
+  text: string;
+  category: ComicFactCategory;
+  createdAt: string;
+}
+
+export async function listComicFacts(projectId: string): Promise<ComicFact[]> {
+  const res = await apiClient.get<ApiResponse<ComicFact[]>>(`/comic/projects/${projectId}/facts`);
+  return res.data.data!;
+}
+
+export async function deleteComicFact(factId: string): Promise<void> {
+  await apiClient.delete(`/comic/facts/${factId}`);
 }

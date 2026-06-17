@@ -261,7 +261,7 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                   </div>
                   {hasLargeChapterPlan ? (
                     <div className={`rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                      预计超过 200 章，建议先小范围尝试：先查看规划和前期章节方向，确认符合想法后再扩大产出范围。
+                      建议先小范围尝试：先查看规划和前期章节方向，确认符合想法后再扩大产出范围。
                     </div>
                   ) : null}
                 </div>

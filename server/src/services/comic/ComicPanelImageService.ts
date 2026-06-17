@@ -145,35 +145,34 @@ const STYLE_ZH_KEYWORDS: Record<string, string> = {
 };
 
 // 九宫格方向 → 图像模型理解的位置描述
-const ANCHOR_HINT_DESC: Record<string, string> = {
-  "top-left":      "upper-left corner",
-  "top-center":    "upper center",
-  "top-right":     "upper-right corner",
-  "left-center":   "left side",
-  "center":        "center",
-  "right-center":  "right side",
-  "bottom-left":   "lower-left corner",
-  "bottom-center": "lower center",
-  "bottom-right":  "lower-right corner",
+const ANCHOR_HINT_ZH: Record<string, string> = {
+  "top-left":      "左上角",
+  "top-center":    "上方居中",
+  "top-right":     "右上角",
+  "left-center":   "左侧",
+  "center":        "居中",
+  "right-center":  "右侧",
+  "bottom-left":   "左下角",
+  "bottom-center": "下方居中",
+  "bottom-right":  "右下角",
+};
+
+const BUBBLE_TYPE_ZH: Record<string, string> = {
+  round:   "圆形对话气泡",
+  spike:   "尖角爆炸气泡（激动喊叫）",
+  cloud:   "云朵思维气泡（内心独白）",
+  caption: "矩形旁白框（叙述）",
 };
 
 function buildDialoguePrompt(dialogues: DialogueEntry[]): string {
   if (dialogues.length === 0) return "";
-  const lines = dialogues.map((d) => {
-    const bubbleDesc = d.bubbleType === "spike"
-      ? "jagged speech bubble (shouting)"
-      : d.bubbleType === "cloud"
-      ? "cloud thought bubble"
-      : d.bubbleType === "caption"
-      ? "rectangular caption box (narration)"
-      : "round speech bubble";
-    const placement = d.anchorHint
-      ? ` at ${ANCHOR_HINT_DESC[d.anchorHint] ?? d.anchorHint}`
-      : "";
-    const speaker = d.speaker ? `[${d.speaker}]: ` : "";
-    return `${bubbleDesc}${placement} containing text「${speaker}${d.text}」`;
+  const lines = dialogues.map((d, i) => {
+    const bubbleDesc = BUBBLE_TYPE_ZH[d.bubbleType ?? "round"] ?? "圆形对话气泡";
+    const placement = d.anchorHint ? `位于${ANCHOR_HINT_ZH[d.anchorHint] ?? d.anchorHint}` : "";
+    const speaker = d.speaker ? `${d.speaker}说：` : "";
+    return `${i + 1}.${bubbleDesc}${placement ? "，" + placement : ""}，文字内容「${speaker}${d.text}」`;
   });
-  return `Include speech bubbles: ${lines.join("; ")}. Text must be legible, high-contrast, not overlapping main subject faces.`;
+  return `对白气泡（文字必须清晰可读，不遮挡角色脸部）：${lines.join("；")}`;
 }
 
 interface StylePresetData {
@@ -205,15 +204,16 @@ function buildPanelPrompt(
   // 4. 对话/气泡
   const dialoguePart = buildDialoguePrompt(dialogues);
 
-  // 顺序：形态 → 画风 → 角色外貌 → 场景内容 → 质量词 → 气泡
+  // 顺序：形态 → 画风 → 角色外貌 → 对白气泡 → 场景内容 → 质量词
+  // 对白在场景内容之前，确保图像模型赋予更高权重
   const parts = [
     `${formatZh}，${formatEn}`,
     `${styleZh}，${styleEn}`,
   ];
   if (charPart) parts.push(charPart);
+  if (dialoguePart) parts.push(dialoguePart);
   parts.push(`画面内容：${visualPrompt}`);
   parts.push("high quality manga panel, professional illustration");
-  if (dialoguePart) parts.push(dialoguePart);
   return parts.join(". ");
 }
 
