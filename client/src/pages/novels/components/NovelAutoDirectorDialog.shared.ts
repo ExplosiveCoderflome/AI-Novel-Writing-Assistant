@@ -3,11 +3,15 @@ import { normalizeCommercialTags } from "@ai-novel/shared/types/novelFraming";
 import type { DirectorRunMode, DirectorWorldSetupMode } from "@ai-novel/shared/types/novelDirector";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 
-export const RUN_MODE_OPTIONS: Array<{
+export interface DirectorRunModeOption {
   value: DirectorRunMode;
   label: string;
   description: string;
-}> = [
+  recommended?: boolean;
+  recommendation?: string;
+}
+
+export const RUN_MODE_OPTIONS: DirectorRunModeOption[] = [
   {
     value: "full_book_autopilot",
     label: "全书自动成书",
@@ -16,7 +20,9 @@ export const RUN_MODE_OPTIONS: Array<{
   {
     value: "auto_to_ready",
     label: "先准备到可开写（推荐）",
-    description: "AI 会持续推进到章节执行资源准备好后再交给你。",
+    description: "AI 会先准备书级规划、卷章安排和章节执行资源，停在可开写阶段交给你确认。",
+    recommended: true,
+    recommendation: "推荐先查看规划是否符合想法，再开始大量章节产出。",
   },
   {
     value: "auto_to_execution",
