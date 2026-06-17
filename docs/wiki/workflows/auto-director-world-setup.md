@@ -17,6 +17,7 @@
 - 用户选择参考世界样本时，自动导演沿用该 `worldId`，通过 `WorldContextGateway` 确保本书世界实例和角色用途 `StoryWorldSlice` 可用。
 - 用户未选择参考世界样本时，默认根据宏观规划与书级约定自动生成本书 `NovelWorld`，不保存到外部世界库。
 - 用户选择“暂不使用世界观”时，`world_setup` 作为 no-op 完成，后续 Gateway 继续允许返回 `null`。
+- `worldSetupMode=skip` 必须同时作用于恢复起点判断和 Pipeline 顺序执行。即使任务从 `story_macro` 或 `book_contract` 恢复后继续向后推进，也不得再执行 `book.world.prepare`；否则会把用户明确跳过世界观的选择重新变成强制世界准备。
 - 从角色准备或后续阶段恢复时，如果世界准备未完成且未选择跳过，安全起点回退到 `world_setup`。
 - 自动导演只依赖 `WorldContextGateway`，不直接调用旧的小说世界生成入口，也不把自动生成结果推入外部世界库。
 

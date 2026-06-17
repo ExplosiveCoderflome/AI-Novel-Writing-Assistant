@@ -521,6 +521,7 @@ export class NovelDirectorContinueRuntime {
       hasActivePipelineJob: Boolean(takeoverState.activePipelineJob),
       hasExecutableRange: Boolean(takeoverState.executableRange),
       hasAutoExecutionState: Boolean(takeoverState.latestAutoExecutionState?.enabled) || generatedChapterCount > 0,
+      hasMissingExecutionContractInRange: Boolean(takeoverState.snapshot.hasUnpreparedChaptersInRange),
       latestCheckpointType: (
         latestCheckpointType === "replan_required"
         || latestCheckpointType === "chapter_batch_ready"

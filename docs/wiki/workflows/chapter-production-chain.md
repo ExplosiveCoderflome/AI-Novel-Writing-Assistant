@@ -4,7 +4,7 @@
 
 章节生产曾经把章节合同、正文生成、AI 检测、修文、轻校验、角色动态、状态快照、角色资源、伏笔账本等能力串进同一条热路径。能力本身有价值，但全部同步执行会导致用户等待变长、LLM 调用重复、修复循环和账本重复同步。
 
-长篇小说主链路的目标是持续写完整本书。默认路径必须先产出可读正文，再把需要回灌的状态和账本异步处理。
+长篇小说主链路的目标是持续写完整本书。默认路径必须先产出可读正文，再在正文达到稳定接收结果后等待一次统一章节资产 delta 抽取；高成本的全量伏笔对账仍按风险、周期或 strict 模式条件触发。
 
 ## 决策
 
@@ -17,7 +17,7 @@
                     时间线定稿 / 异步资产回灌通道
 ```
 
-正文热路径只负责尽快生成、判断、保存和局部修复章节。状态快照、角色资源、关系动态和伏笔账本通过异步、幂等、可批处理的资产回灌通道写入。
+正文热路径只负责尽快生成、判断、保存和局部修复章节。章节稳定后由 `artifact_delta` 通道一次性回灌摘要、硬事实、状态快照、角色资源、关系动态、信息边界和伏笔 delta；全量伏笔校准保留为条件性后台对账。
 
 ## 当前规则
 
@@ -36,6 +36,9 @@
 - `acceptance` 门禁必须按同章、同正文 content hash、同模型请求写入持久化幂等缓存；timeline 定稿必须按同章、同正文 content hash 写入 `timeline_finalization` checkpoint。任务取消、失败或 worker 重启后，如果正文未变化，应优先复用成功结果，不能重新触发相同的接收评估或 timeline extractor。
 - 门禁缓存只能保存可复用的成功结果。`acceptance_gate_unavailable`、timeline extractor 失败、缺少 timeline context 等临时系统失败不得写成长期成功缓存；这类结果应保留为当前运行风险，允许后续重试。
 - 任何会调用 LLM 的后置抽取或资产回灌，都必须在调用模型前抢占持久化 checkpoint，并把状态标记为 `running`。如果同章、同正文 content hash、同 artifactType 和 syncMode 已有 `running` 或 `succeeded` checkpoint，后续入口必须跳过本次 LLM 调用；失败时把 `running` 标记为 `failed`，允许后续重试。仅依赖服务实例内存锁不能满足任务重启、并发后台入口或上一章兜底补跑场景。
+- `artifact_delta` 是章节后置统一抽取的主所有者。`ChapterArtifactDeltaService` 的一次低温结构化调用负责产出 `summary`、`concreteFacts`、`stateDeltas`、`characterResourceDeltas`、`payoffDeltas`、`relationDynamics`、`factionUpdates`、`characterCandidates`、`characterKnowledgeStates` 和 `syncPlan`。
+- `ChapterContentFinalizationService` 在章节无需修复且正文稳定后等待 `artifact_delta` 完成，再允许后续章节组装读取新事实、状态、资源、伏笔和角色动态。手动修复完成、自动产线最终保留稿也必须通过同一条 awaited artifact sync；不得再额外同步调用 `NovelChapterSummaryService` 作为定稿主链路的一部分。
+- `NovelChapterSummaryService` 只保留给手动重新生成摘要或 UI 入口。`CharacterDynamicsMutationService.syncChapterDraftDynamics` 只作为 `artifact_delta` 未执行或失败时的手动运维兜底；`chapter:drafted -> character.chapterDraftSync` 自动 side-effect 链路已退役，不应重新接入常规章节事件，否则只会在 awaited artifact delta 后入队空跑。
 - 时间线检测独立于质量审校。它检查未来事件泄漏、上一章钩子未承接、时间倒退、事件重复、状态冲突和计划事件缺失，但默认作为接收后的定稿/复查步骤运行。
 - 时间线检测失败时保留正文并标记 `needs_repair`，但不把失败正文抽取出的事件提交为 `occurred` 时间线。
 - 时间线模块不能直接修改正文；它只输出结构化 issues，由现有局部修复或整章修复链路决定怎么修。
@@ -52,6 +55,9 @@
 - 角色硬事实属于生成前必需约束。writer 必须收到 `character_hard_facts` required context，用于约束角色身份、阵营、立场、境界/战力、当前位置、可出场状态和禁止误写项。
 - `participant_subset` 只提供参与角色的软性简介和当前行为提示，不能替代 `character_hard_facts`。在 token 压力下可以压缩软信息，但不能裁掉角色硬事实。
 - `character_hard_facts` 进入 writer 前会按章节参与者、当前高风险角色和动态导向做子集筛选，避免把整本角色硬事实全量塞进正文上下文。
+- 角色信息边界属于 `artifact_delta` 的连续性资产。若本章形成明显信息差，应记录主要角色在章节结束时确认知晓和仍不知道的关键事实，避免后续章节让角色提前知道未见证、未被告知或被刻意隐瞒的信息。
+
+- 角色信息边界属于章节后置抽取的连续性资产。若本章形成明显信息差，应记录主要角色在章节结束时确认知晓和仍不知道的关键事实，避免后续章节让角色提前知道未见证、未被告知或被刻意隐瞒的信息。
 - 角色阵营、身份、境界错误应优先排查角色库和 `character_hard_facts` 上下文，而不是只归因于时间线或质量审计。
 - 审计和修复仍然负责生成后检测角色冲突，但它们是后置保险，不应作为正文生成时的主要角色事实来源。
 - 章节正文写完后，后置门禁会记录统一 trace：章节、阶段、阻断性、内容 hash、时长和 prompt asset key，用于区分 writer 本身耗时与审校耗时。

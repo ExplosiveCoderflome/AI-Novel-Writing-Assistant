@@ -190,7 +190,13 @@ export class ChapterRepairStreamRuntime {
       input.novelId,
       input.chapterId,
       repairedContent,
-      { scheduleBackgroundSync: true },
+      {
+        scheduleBackgroundSync: true,
+        awaitArtifactDelta: true,
+        skipLegacySummaryAndFacts: true,
+        provider: input.options.provider,
+        model: input.options.model,
+      },
     );
 
     const review = await this.deps.reviewChapterAfterRepair(input.novelId, input.chapterId, {

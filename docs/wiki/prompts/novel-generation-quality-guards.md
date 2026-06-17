@@ -55,7 +55,27 @@ keyMilestoneGuards: z.array(volumeKeyMilestoneGuardSchema).default([])
 
 **写入规则**：此字段由卷规划服务在构建 `VolumeWindowContext` 时填入，标注哪些关键事件应在哪个章节范围才允许发生。如为空，不渲染。
 
-### 五、章节连续性诊断工具（`audit_chapter_continuity`）
+### 五、叙事进度与角色缺席信号
+
+**叙事进度字段**：`ChapterWriteContext.narrativeProgressHint` 是可选写作提示，由运行时根据 `chapter.order / novel.estimatedChapterCount` 计算。总章数为空或小于等于 0 时不生成该字段。
+
+**渲染位置**：`buildChapterWriterContextBlocks()` 中以 `narrative_progress_hint` block 注入，`priority=98`，`required=false`。它只提示当前处于开局、发展、收敛或尾声阶段，不能替代章节任务、义务契约、时间线约束或角色硬事实。
+
+**角色缺席信号**：`requiredCharacterAppearances` 仍只由角色选择逻辑决定是否纳入。若已纳入的角色 `absenceRisk=high` 且 `absenceSpan>0`，可在角色名后追加自然带出的提示，提醒 writer 该角色长期缺席，但不强制改写选角结果。
+
+**角色信息边界**：章节后置统一抽取 prompt `chapterArtifactDeltaPrompt` 输出 `characterKnowledgeStates`，只在本章存在显著信息差时记录角色已知事实与仍未知事实。该字段用于更新角色当前状态中的信息边界，`characterDynamicsExtractionPrompt` 的同名字段只作为 artifact delta 未成功时的兜底口径。
+
+**维护边界**：不要用固定章节号硬编码“第几章必须收束”。如果节奏判断需要变化，应调整 `buildNarrativeProgressHint()` 的阶段规则或上游预计总章数，而不是在 prompt 模板中堆特殊分支。
+
+### 六、上下文预算观测
+
+**预算目标**：writer 阶段当前上下文预算以 `tokenBudgetPolicy.stageTokenCap.writer` 为准，默认值为 2600。高优先必选块应保持克制，避免必选约束本身吞掉过多预算。
+
+**观测方式**：`buildCompressionLog()` 只按 block priority 估算在预算内会保留哪些 block，并用 `summarizeContextBlock()` 模拟超预算 block 能否被截断摘要；摘要可放入时记录到 `summarized`，否则可选 block 记录到 `dropped`。它不改变 `selectContextBlocks()`、不触发真实生成路径的摘要、不影响生成结果。
+
+**诊断规则**：如果日志显示 `priority >= 99 && required=true` 的必选块长期超过 writer 预算的 25%，应单独评估是否把部分约束降为 `priority=95` 且 `required=false`。不能为了日志好看直接删掉时间线、上一章承接、角色硬事实或本章义务契约。
+
+### 七、章节连续性诊断工具（`audit_chapter_continuity`）
 
 **Agent 工具**：`inspect` 类，`riskLevel=low`，不需要 LLM，基于关键词组匹配实现确定性检测。
 
@@ -69,6 +89,11 @@ keyMilestoneGuards: z.array(volumeKeyMilestoneGuardSchema).default([])
 
 - `completedMilestones` 和 `recentScenePatterns` 依赖上游服务在构建上下文时正确填入，若上游不填，这两个守卫就不生效。本次修改只建立了接口契约，数据填充需要在章节运行时协调器中实现。
 - `keyMilestoneGuards` 目前初始化为空数组，需要卷规划服务在生成卷结构时填充守卫数据，否则 `volume_window` block 中不会出现守卫内容。
+- `narrativeProgressHint` 依赖小说预计总章数。没有 `estimatedChapterCount` 时应自然跳过，不应为了显示进度而猜测总章数。
+- `requiredCharacterAppearances` 的缺席提示只附加在已经进入义务契约的角色上；如果角色根本没有进入该列表，应先检查角色动态概览和选角规则，而不是在提示词里硬塞角色名。
+- `characterKnowledgeStates` 只记录明显信息差。若所有角色都自然知晓同一事实，应省略该字段，避免把普通剧情进展误写成长期信息边界。
+
+- `buildCompressionLog()` 是观测工具。若日志显示 dropped，不代表实际生成已经丢弃同名 block，真实裁剪仍以 prompt runner 的 context selection 为准。
 - `rebuild_story_world_slice` 重建切片后，如果后续又触发了 `ensureStoryWorldSlice` 且 stale 检测显示为最新状态，则已重建的切片会被复用而非再次生成，这是预期行为。
 
 ## 相关模块

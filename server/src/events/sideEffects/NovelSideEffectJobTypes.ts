@@ -1,7 +1,6 @@
 export const NOVEL_SIDE_EFFECT_PAYLOAD_VERSION = 1;
 
 export const NOVEL_SIDE_EFFECT_JOB_TYPES = [
-  "character.chapterDraftSync",
   "character.volumeRebuild",
   "novel.pipelineSnapshot",
 ] as const;
@@ -9,12 +8,6 @@ export const NOVEL_SIDE_EFFECT_JOB_TYPES = [
 export type NovelSideEffectJobType = (typeof NOVEL_SIDE_EFFECT_JOB_TYPES)[number];
 
 export type NovelSideEffectJobStatus = "pending" | "running" | "succeeded" | "failed" | "dead";
-
-export interface ChapterDraftSyncPayload {
-  novelId: string;
-  chapterId: string;
-  chapterOrder: number;
-}
 
 export interface CharacterVolumeRebuildPayload {
   novelId: string;
@@ -28,7 +21,6 @@ export interface PipelineSnapshotPayload {
 }
 
 export type NovelSideEffectPayload =
-  | ChapterDraftSyncPayload
   | CharacterVolumeRebuildPayload
   | PipelineSnapshotPayload;
 

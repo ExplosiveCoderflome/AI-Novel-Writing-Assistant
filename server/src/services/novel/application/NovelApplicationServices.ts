@@ -20,6 +20,23 @@ import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { NovelChapterEditorService } from "../chapterEditor/NovelChapterEditorService";
 import { ChapterEditorWorkspaceService } from "../chapterEditor/ChapterEditorWorkspaceService";
 import type { NovelApplicationServices } from "./NovelApplicationContracts";
+import type { NovelSnapshotListItem } from "@ai-novel/shared/types/novel";
+
+function toNovelSnapshotListItem(snapshot: {
+  id: string;
+  novelId: string;
+  label: string | null;
+  triggerType: string;
+  createdAt: Date;
+}): NovelSnapshotListItem {
+  return {
+    id: snapshot.id,
+    novelId: snapshot.novelId,
+    label: snapshot.label,
+    triggerType: snapshot.triggerType as NovelSnapshotListItem["triggerType"],
+    createdAt: snapshot.createdAt.toISOString(),
+  };
+}
 
 export class DefaultNovelApplicationServices {
   private readonly core = new NovelCoreService();
@@ -150,10 +167,10 @@ export class DefaultNovelApplicationServices {
     const snapshot = await this.core.createNovelSnapshot(novelId, triggerType, label);
     const volumeWorkspace = await this.volumeService.getVolumes(novelId).catch(() => null);
     if (!volumeWorkspace) {
-      return snapshot;
+      return toNovelSnapshotListItem(snapshot);
     }
     const payload = JSON.parse(snapshot.snapshotData) as Record<string, unknown>;
-    return prisma.novelSnapshot.update({
+    const updatedSnapshot = await prisma.novelSnapshot.update({
       where: { id: snapshot.id },
       data: {
         snapshotData: JSON.stringify({
@@ -163,6 +180,7 @@ export class DefaultNovelApplicationServices {
         }),
       },
     });
+    return toNovelSnapshotListItem(updatedSnapshot);
   }
 
   listNovelSnapshots(...args: Parameters<NovelCoreService["listNovelSnapshots"]>) {

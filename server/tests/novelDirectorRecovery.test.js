@@ -143,6 +143,44 @@ test("asset-first recovery treats full-book autopilot as auto execution", () => 
   });
 });
 
+test("asset-first recovery routes to structured outline when persisted range still lacks execution contracts", () => {
+  // 卷工作区 cursor 误报已完成（chapter_sync），但执行区持久化章节仍缺细化。
+  // 此时必须回到节奏 / 拆章补齐，而不是进入 auto_execution 抛错卡死。
+  const recovery = resolveAssetFirstRecoveryFromSnapshot({
+    runMode: "auto_to_execution",
+    structuredOutlineRecoveryStep: "chapter_sync",
+    volumeCount: 2,
+    hasVolumeStrategyPlan: true,
+    hasActivePipelineJob: false,
+    hasExecutableRange: true,
+    hasAutoExecutionState: true,
+    hasMissingExecutionContractInRange: true,
+    latestCheckpointType: "chapter_batch_ready",
+  });
+
+  assert.deepEqual(recovery, {
+    type: "phase",
+    phase: "structured_outline",
+  });
+});
+
+test("asset-first recovery does not interrupt an active batch to补齐细化", () => {
+  // 有进行中的批次时，缺口信号不应打断当前批次。
+  const recovery = resolveAssetFirstRecoveryFromSnapshot({
+    runMode: "auto_to_execution",
+    structuredOutlineRecoveryStep: "chapter_sync",
+    volumeCount: 2,
+    hasVolumeStrategyPlan: true,
+    hasActivePipelineJob: true,
+    hasExecutableRange: true,
+    hasAutoExecutionState: true,
+    hasMissingExecutionContractInRange: true,
+    latestCheckpointType: "chapter_batch_ready",
+  });
+
+  assert.equal(recovery.type, "auto_execution");
+});
+
 test("asset-first recovery keeps structured outline first when requested scope is not fully detailed", () => {
   const recovery = resolveAssetFirstRecoveryFromSnapshot({
     runMode: "auto_to_execution",

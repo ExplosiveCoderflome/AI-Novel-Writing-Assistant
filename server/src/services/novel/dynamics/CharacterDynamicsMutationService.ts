@@ -19,6 +19,7 @@ import {
   PROJECTION_SOURCE_TYPES,
 } from "./characterDynamicsShared";
 import { buildVolumeWindows, dedupeStrings, mergeProjectionAssignments, resolveCurrentVolume, toCharacterRelationStage } from "./characterDynamicsUtils";
+import { buildContentHash } from "../runtime/ChapterArtifactDeltaService";
 
 type NovelContextCharacterPort = Pick<NovelContextService, "createCharacter">;
 type NovelContextServiceFactory = () => NovelContextCharacterPort;
@@ -588,6 +589,19 @@ export class CharacterDynamicsMutationService {
       }),
     ]);
     if (!chapter?.content?.trim() || !novel) {
+      return;
+    }
+    const artifactDeltaCheckpoint = await prisma.chapterArtifactSyncCheckpoint.findFirst({
+      where: {
+        novelId,
+        chapterId,
+        contentHash: buildContentHash(chapter.content),
+        artifactType: "artifact_delta",
+        status: "succeeded",
+      },
+      select: { id: true },
+    }).catch(() => null);
+    if (artifactDeltaCheckpoint) {
       return;
     }
 

@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  buildCompressionLog,
   createContextBlock,
 } = require("../dist/prompting/core/contextBudget.js");
 const {
@@ -50,6 +51,10 @@ const {
 const {
   chapterWriterPrompt,
 } = require("../dist/prompting/prompts/novel/chapterWriter.prompts.js");
+const {
+  chapterArtifactDeltaPrompt,
+  chapterArtifactDeltaOutputSchema,
+} = require("../dist/prompting/prompts/novel/chapterArtifactDelta.prompts.js");
 const {
   worldDraftGenerationPrompt,
   worldDraftRefineAlternativesPrompt,
@@ -123,6 +128,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "style.recommendation@v1",
     "novel.review.chapter@v1",
     promptKey(chapterWriterPrompt),
+    promptKey(chapterArtifactDeltaPrompt),
     "world.draft.generate@v1",
     "world.draft.refine@v1",
     "world.draft.refine_alternatives@v1",
@@ -146,6 +152,50 @@ test("prompt registry exposes versioned planning assets", () => {
   const chapterAsset = getRegisteredPromptAsset("planner.chapter.plan", "v1");
   assert.ok(chapterAsset);
   assert.equal(chapterAsset.taskType, "planner");
+});
+
+test("chapter artifact delta prompt captures summary facts and knowledge boundaries", () => {
+  const parsed = chapterArtifactDeltaOutputSchema.parse({
+    summary: "程秩在本章拿到后门铜钥匙，并确认库房后门可以作为下一步潜入路线。读者知道钥匙用途，但程秩仍不知道库房内的守卫布置，相关线索被推进到待兑现状态。",
+    concreteFacts: [{
+      text: "程秩已拿到后门铜钥匙",
+      category: "completed",
+    }],
+    stateDeltas: {},
+    characterKnowledgeStates: [{
+      characterName: "程秩",
+      knownFacts: ["后门铜钥匙可以打开库房后门"],
+      hiddenFacts: ["库房内的守卫布置"],
+    }],
+    syncPlan: {
+      stateSnapshot: "write",
+      characterResources: "skip",
+      payoffLedger: "skip",
+      characterDynamics: "skip",
+      reason: "只同步摘要、事实和信息边界。",
+    },
+    confidence: 0.82,
+    requiresFullReconcile: false,
+  });
+
+  assert.equal(parsed.concreteFacts.length, 1);
+  assert.equal(parsed.characterKnowledgeStates[0].hiddenFacts[0], "库房内的守卫布置");
+
+  const messages = chapterArtifactDeltaPrompt.render({
+    novelTitle: "测试小说",
+    chapterOrder: 3,
+    chapterTitle: "库房后门",
+    chapterGoal: "取得潜入凭据",
+    characterRosterText: "- c1 | 程秩 | 主角",
+    previousStateText: "",
+    existingResourceText: "",
+    existingPayoffText: "",
+    chapterContent: "程秩拿到后门铜钥匙，但还不知道库房内的守卫布置。",
+  });
+  const systemText = String(messages[0].content);
+  assert.match(systemText, /concreteFacts/);
+  assert.match(systemText, /characterKnowledgeStates/);
+  assert.match(systemText, /80-180/);
 });
 
 test("prompt registry resolves style prompts by their declared asset versions", () => {
@@ -619,6 +669,42 @@ test("context selection keeps the freshest structural source while preserving re
   const structuralSource = selection.selectedBlocks.find((block) => block.id === "volume_summary");
   assert.ok(structuralSource);
   assert.equal(structuralSource.required, true);
+});
+
+test("compression log separates summarized blocks from dropped blocks", () => {
+  const requiredBlock = createContextBlock({
+    id: "chapter_target",
+    group: "chapter_target",
+    priority: 100,
+    required: true,
+    content: "keep",
+  });
+  const summarizableBlock = createContextBlock({
+    id: "long_optional",
+    group: "rag_context",
+    priority: 90,
+    content: [
+      "H",
+      "A".repeat(120),
+    ].join("\n"),
+  });
+  const nonSummarizableBlock = createContextBlock({
+    id: "raw_dump",
+    group: "raw_dump",
+    priority: 80,
+    allowSummary: false,
+    content: "B".repeat(120),
+  });
+
+  const log = buildCompressionLog([
+    requiredBlock,
+    summarizableBlock,
+    nonSummarizableBlock,
+  ], requiredBlock.estimatedTokens + 6);
+
+  assert.deepEqual(log.summarized, ["long_optional"]);
+  assert.deepEqual(log.dropped, ["raw_dump"]);
+  assert.equal(log.usedTokens <= log.budgetTokens, true);
 });
 
 test("workflow registry holds execution-first intents when collaboration is still required", () => {

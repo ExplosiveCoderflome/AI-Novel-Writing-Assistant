@@ -68,6 +68,7 @@ export class NovelDirectorAutoExecutionRuntime {
     approveAutoExecutionScope?: boolean;
     skipCurrentQualityRepair?: boolean;
   }): Promise<void> {
+    const allowLazyChapterPlanning = isFullBookAutopilotRunMode(input.request.runMode);
     let { range, autoExecution, pipelineJobId } = await prepareRequestedAutoExecutionState(this.deps, {
       novelId: input.novelId,
       request: input.request,
@@ -91,6 +92,7 @@ export class NovelDirectorAutoExecutionRuntime {
           },
           pipelineJobId: null,
           pipelineStatus: "queued",
+          allowLazyChapterPlanning,
         }));
       }
     }
@@ -142,6 +144,7 @@ export class NovelDirectorAutoExecutionRuntime {
           existingState: autoExecution,
           pipelineJobId,
           pipelineStatus: activeRangeJob.status,
+          allowLazyChapterPlanning,
         }));
         await syncAutoExecutionTaskState(this.deps, {
           taskId: input.taskId,
@@ -162,6 +165,7 @@ export class NovelDirectorAutoExecutionRuntime {
           existingState: autoExecution,
           pipelineJobId: null,
           pipelineStatus: "queued",
+          allowLazyChapterPlanning,
         }));
         if ((autoExecution.remainingChapterCount ?? 0) === 0) {
           await recordCompletedCheckpoint(this.deps, {
@@ -216,6 +220,7 @@ export class NovelDirectorAutoExecutionRuntime {
             existingState: autoExecution,
             pipelineJobId: null,
             pipelineStatus: "succeeded",
+            allowLazyChapterPlanning,
           }));
           if ((autoExecution.remainingChapterCount ?? 0) === 0) {
             await recordCompletedCheckpoint(this.deps, {
@@ -260,6 +265,7 @@ export class NovelDirectorAutoExecutionRuntime {
             existingState: autoExecution,
             pipelineJobId,
             pipelineStatus: job.status,
+            allowLazyChapterPlanning,
           }));
           await syncAutoExecutionTaskState(this.deps, {
             taskId: input.taskId,
@@ -279,6 +285,7 @@ export class NovelDirectorAutoExecutionRuntime {
           existingState: autoExecution,
           pipelineJobId,
           pipelineStatus: job.status,
+          allowLazyChapterPlanning,
         }));
         const usageCircuitBreaker = await resolveUsageCircuitBreaker({
           taskId: input.taskId,
@@ -334,6 +341,7 @@ export class NovelDirectorAutoExecutionRuntime {
               existingState: noticeAction.checkpointState,
               pipelineJobId: null,
               pipelineStatus: "queued",
+              allowLazyChapterPlanning,
             }));
             await syncAutoExecutionTaskState(this.deps, {
               taskId: input.taskId,
@@ -454,6 +462,7 @@ export class NovelDirectorAutoExecutionRuntime {
               },
               pipelineJobId: null,
               pipelineStatus: "queued",
+              allowLazyChapterPlanning,
             }));
             await syncAutoExecutionTaskState(this.deps, {
               taskId: input.taskId,
@@ -589,6 +598,7 @@ export class NovelDirectorAutoExecutionRuntime {
             existingState: deferredState,
             pipelineJobId: null,
             pipelineStatus: "queued",
+            allowLazyChapterPlanning,
           }));
           const deferredWasPreserved = (
             autoExecution.nextChapterId !== previousNextChapterId

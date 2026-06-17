@@ -41,7 +41,8 @@
     "db:migrate": "pnpm prisma:migrate",
     "db:seed": "prisma db seed --config prisma.config.ts",
     "db:studio": "prisma studio --config prisma.config.ts",
-    "db:restore": "node scripts/restore-dev-data.cjs"
+    "db:restore": "node scripts/restore-dev-data.cjs",
+    "db:prune-snapshots": "node scripts/prune-snapshots.cjs"
   },
   "dependencies": {
     "@ai-novel/shared": "workspace:*",
@@ -60,6 +61,7 @@
     "helmet": "^8.1.0",
     "langchain": "^1.2.28",
     "morgan": "^1.10.1",
+    "sharp": "^0.35.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

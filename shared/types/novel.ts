@@ -649,6 +649,8 @@ export interface NovelSnapshot {
   createdAt: string;
 }
 
+export type NovelSnapshotListItem = Omit<NovelSnapshot, "snapshotData">;
+
 export interface ChapterPlanScene {
   id: string;
   planId: string;

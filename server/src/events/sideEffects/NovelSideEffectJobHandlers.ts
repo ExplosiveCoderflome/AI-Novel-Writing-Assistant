@@ -3,7 +3,6 @@ import { getSharedNovelServices } from "../../services/novel/application/sharedN
 import { characterDynamicsService } from "../../services/novel/dynamics/CharacterDynamicsService";
 import {
   NOVEL_SIDE_EFFECT_PAYLOAD_VERSION,
-  type ChapterDraftSyncPayload,
   type CharacterVolumeRebuildPayload,
   type PipelineSnapshotPayload,
 } from "./NovelSideEffectJobTypes";
@@ -31,15 +30,6 @@ function parsePayload<T>(job: NovelSideEffectJob): T {
 export class NovelSideEffectJobHandlers {
   async execute(job: NovelSideEffectJob): Promise<void> {
     switch (job.jobType) {
-      case "character.chapterDraftSync": {
-        const payload = parsePayload<ChapterDraftSyncPayload>(job);
-        await characterDynamicsService.syncChapterDraftDynamics(
-          payload.novelId,
-          payload.chapterId,
-          payload.chapterOrder,
-        );
-        return;
-      }
       case "character.volumeRebuild": {
         const payload = parsePayload<CharacterVolumeRebuildPayload>(job);
         await characterDynamicsService.rebuildDynamics(payload.novelId, {

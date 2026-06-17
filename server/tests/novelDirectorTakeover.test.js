@@ -102,6 +102,64 @@ test("continue_existing from basic prefers repair continuation when pending fixe
   assert.deepEqual(plan.skipSteps, ["basic", "story_macro", "character", "outline", "structured", "chapter"]);
 });
 
+test("continue_existing routes back to structured outline when target range still has unprepared chapters", () => {
+  const plan = resolveDirectorTakeoverPlan({
+    entryStep: "chapter",
+    strategy: "continue_existing",
+    snapshot: buildSnapshot({
+      pendingRepairChapterCount: 0,
+      hasUnpreparedChaptersInRange: true,
+      missingExecutionContractOrders: [11, 12, 13, 14, 15],
+    }),
+    activePipelineJob: null,
+    latestCheckpoint: null,
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      nextChapterOrder: 11,
+      nextChapterId: "chapter_11",
+      remainingChapterCount: 5,
+    },
+  });
+
+  // 范围内仍有未细化章节时，继续模式应先回到节奏 / 拆章补齐，而不是进入章节执行。
+  assert.equal(plan.executionMode, "phase");
+  assert.equal(plan.effectiveStep, "structured");
+  assert.equal(plan.startPhase, "structured_outline");
+  // 该路径不应清空正文（接管说明同步修正）。
+  assert.ok(plan.impactNotes.some((note) => note.includes("保留已有正文")));
+});
+
+test("continue_existing keeps running the active batch even if later chapters are unprepared", () => {
+  const plan = resolveDirectorTakeoverPlan({
+    entryStep: "chapter",
+    strategy: "continue_existing",
+    snapshot: buildSnapshot({
+      pendingRepairChapterCount: 0,
+      hasUnpreparedChaptersInRange: true,
+    }),
+    activePipelineJob: {
+      id: "job_1",
+      status: "running",
+      currentStage: "writing",
+      startOrder: 1,
+      endOrder: 10,
+    },
+    latestCheckpoint: null,
+    executableRange: {
+      startOrder: 1,
+      endOrder: 10,
+      nextChapterOrder: 5,
+      nextChapterId: "chapter_5",
+      remainingChapterCount: 6,
+    },
+  });
+
+  // 有进行中的批次时不打断它，继续执行当前批次。
+  assert.equal(plan.executionMode, "auto_execution");
+  assert.equal(plan.effectiveStep, "chapter");
+});
+
 test("chapter sync structured outline is accepted by takeover validation readiness", () => {
   assert.equal(isTakeoverStructuredOutlineReadyForValidation({
     structuredOutlineRecoveryStep: "chapter_sync",
@@ -378,6 +436,200 @@ test("loadDirectorTakeoverState does not trust stale auto execution state when o
 
     assert.equal(state.executableRange, null);
     assert.equal(state.snapshot.structuredOutlineRecoveryStep, "chapter_detail_bundle");
+  } finally {
+    prisma.novel.findUnique = originals.novelFindUnique;
+    prisma.chapter.findMany = originals.chapterFindMany;
+    prisma.generationJob.findFirst = originals.generationJobFindFirst;
+  }
+});
+
+test("loadDirectorTakeoverState treats full-book autopilot outline seeds as JIT executable", async () => {
+  const originals = {
+    novelFindUnique: prisma.novel.findUnique,
+    chapterFindMany: prisma.chapter.findMany,
+    generationJobFindFirst: prisma.generationJob.findFirst,
+  };
+  const workspace = {
+    volumes: [
+      {
+        id: "volume_1",
+        sortOrder: 1,
+        title: "开局卷",
+        chapters: [
+          {
+            id: "chapter_1",
+            volumeId: "volume_1",
+            chapterOrder: 1,
+            title: "拾起异虫",
+            summary: "主角救下濒死毛毛虫。",
+            purpose: null,
+            exclusiveEvent: null,
+            endingState: null,
+            nextChapterEntryState: null,
+            conflictLevel: null,
+            revealLevel: null,
+            targetWordCount: null,
+            mustAvoid: null,
+            payoffRefs: [],
+            taskSheet: null,
+            sceneCards: null,
+          },
+          {
+            id: "chapter_2",
+            volumeId: "volume_1",
+            chapterOrder: 2,
+            title: "街头护虫",
+            summary: "主角当众护住毛毛虫。",
+            purpose: null,
+            exclusiveEvent: null,
+            endingState: null,
+            nextChapterEntryState: null,
+            conflictLevel: null,
+            revealLevel: null,
+            targetWordCount: null,
+            mustAvoid: null,
+            payoffRefs: [],
+            taskSheet: null,
+            sceneCards: null,
+          },
+        ],
+      },
+    ],
+    beatSheets: [
+      {
+        volumeId: "volume_1",
+        beats: [{ key: "beat_1", label: "开局受辱", chapterSpanHint: "1-2" }],
+      },
+    ],
+  };
+
+  prisma.novel.findUnique = async () => ({
+    id: "novel_takeover_jit",
+    title: "JIT Autopilot",
+    description: "A beast-taming opening.",
+    targetAudience: null,
+    bookSellingPoint: null,
+    competingFeel: null,
+    first30ChapterPromise: null,
+    commercialTagsJson: "[]",
+    genreId: null,
+    primaryStoryModeId: null,
+    secondaryStoryModeId: null,
+    worldId: null,
+    writingMode: "original",
+    projectMode: "ai_led",
+    narrativePov: "third_person",
+    pacePreference: "balanced",
+    styleTone: null,
+    emotionIntensity: "medium",
+    aiFreedom: "medium",
+    defaultChapterLength: 3000,
+    estimatedChapterCount: 30,
+    projectStatus: "in_progress",
+    storylineStatus: "in_progress",
+    outlineStatus: "in_progress",
+    resourceReadyScore: null,
+    sourceNovelId: null,
+    sourceKnowledgeDocumentId: null,
+    continuationBookAnalysisId: null,
+    continuationBookAnalysisSections: null,
+    bookContract: {
+      id: "contract_jit",
+      novelId: "novel_takeover_jit",
+      readingPromise: "promise",
+      protagonistFantasy: "fantasy",
+      coreSellingPoint: "selling",
+      chapter3Payoff: "c3",
+      chapter10Payoff: "c10",
+      chapter30Payoff: "c30",
+      escalationLadder: "ladder",
+      relationshipMainline: "relation",
+      absoluteRedLinesJson: "[]",
+      createdAt: new Date(0),
+      updatedAt: new Date(0),
+    },
+  });
+  prisma.chapter.findMany = async () => [
+    {
+      id: "chapter_1",
+      order: 1,
+      expectation: "主角救下濒死毛毛虫，承受全城嘲笑。",
+      generationState: "planned",
+      chapterStatus: "unplanned",
+      content: "",
+      targetWordCount: null,
+      conflictLevel: null,
+      revealLevel: null,
+      mustAvoid: null,
+      taskSheet: null,
+      sceneCards: null,
+    },
+    {
+      id: "chapter_2",
+      order: 2,
+      expectation: "反派羞辱主角，毛毛虫出现异常蜕变征兆。",
+      generationState: "planned",
+      chapterStatus: "unplanned",
+      content: "",
+      targetWordCount: null,
+      conflictLevel: null,
+      revealLevel: null,
+      mustAvoid: null,
+      taskSheet: null,
+      sceneCards: null,
+    },
+  ];
+  prisma.generationJob.findFirst = async () => null;
+
+  try {
+    const state = await loadDirectorTakeoverState({
+      novelId: "novel_takeover_jit",
+      getStoryMacroPlan: async () => ({
+        storyInput: "story",
+        decomposition: { premise: "premise" },
+      }),
+      getDirectorAssetSnapshot: async () => ({
+        characterCount: 4,
+        chapterCount: 2,
+        volumeCount: 1,
+        hasVolumeStrategyPlan: true,
+        firstVolumeId: "volume_1",
+        firstVolumeChapterCount: 2,
+        volumeChapterRanges: [{ volumeOrder: 1, startOrder: 1, endOrder: 2 }],
+        structuredOutlineChapterOrders: [1, 2],
+      }),
+      getVolumeWorkspace: async () => workspace,
+      findActiveAutoDirectorTask: async () => null,
+      findLatestAutoDirectorTask: async () => ({
+        id: "task_full_book_jit",
+        checkpointType: "chapter_batch_ready",
+        checkpointSummary: "ready",
+        resumeTargetJson: JSON.stringify({ chapterId: "chapter_1", volumeId: "volume_1" }),
+        lastError: null,
+        seedPayloadJson: JSON.stringify({
+          runMode: "full_book_autopilot",
+          autoExecutionPlan: { mode: "chapter_range", startOrder: 1, endOrder: 2 },
+          autoExecution: {
+            enabled: true,
+            mode: "chapter_range",
+            startOrder: 1,
+            endOrder: 2,
+            totalChapterCount: 2,
+            firstChapterId: "chapter_1",
+            nextChapterId: "chapter_1",
+            nextChapterOrder: 1,
+            skippedChapterIds: [],
+            skippedChapterOrders: [],
+          },
+        }),
+      }),
+    });
+
+    assert.equal(state.snapshot.hasUnpreparedChaptersInRange, false);
+    assert.deepEqual(state.snapshot.missingExecutionContractOrders, []);
+    assert.equal(state.executableRange?.startOrder, 1);
+    assert.equal(state.executableRange?.endOrder, 2);
+    assert.equal(state.executableRange?.nextChapterOrder, 1);
   } finally {
     prisma.novel.findUnique = originals.novelFindUnique;
     prisma.chapter.findMany = originals.chapterFindMany;

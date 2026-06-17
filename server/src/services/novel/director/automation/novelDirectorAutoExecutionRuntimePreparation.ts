@@ -3,6 +3,7 @@ import type {
   DirectorAutoExecutionState,
   DirectorConfirmRequest,
 } from "@ai-novel/shared/types/novelDirector";
+import { isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
 import {
   applyReviewSkipOverride,
   buildRequestedAutoExecutionState,
@@ -19,6 +20,7 @@ export async function resolveAutoExecutionRuntimeRangeAndState(
     existingState?: DirectorAutoExecutionState | null;
     pipelineJobId?: string | null;
     pipelineStatus?: PipelineJobStatus | null;
+    allowLazyChapterPlanning?: boolean;
   },
 ): Promise<{
   range: DirectorAutoExecutionRange;
@@ -35,6 +37,7 @@ export async function resolveAutoExecutionRuntimeRangeAndState(
     existingState: input.existingState,
     pipelineJobId: input.pipelineJobId,
     pipelineStatus: input.pipelineStatus,
+    allowLazyChapterPlanning: input.allowLazyChapterPlanning,
   });
 }
 
@@ -75,6 +78,7 @@ export async function prepareRequestedAutoExecution(
     existingState: requestedExecutionState,
     pipelineJobId: pipelineJobId || null,
     pipelineStatus: pipelineJobId ? "running" : "queued",
+    allowLazyChapterPlanning: isFullBookAutopilotRunMode(input.request.runMode),
   });
   return {
     range,

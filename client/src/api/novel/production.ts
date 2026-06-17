@@ -4,7 +4,7 @@ import type {
   ArtifactSyncMode,
   CreativeDecision,
   Novel,
-  NovelSnapshot,
+  NovelSnapshotListItem,
   PipelineJob,
   PipelineRepairMode,
   PipelineRunMode,
@@ -39,7 +39,7 @@ export async function getNovelPipelineJob(id: string, jobId: string) {
 }
 
 export async function listNovelSnapshots(id: string) {
-  const { data } = await apiClient.get<ApiResponse<NovelSnapshot[]>>(`/novels/${id}/snapshots`);
+  const { data } = await apiClient.get<ApiResponse<NovelSnapshotListItem[]>>(`/novels/${id}/snapshots`);
   return data;
 }
 
@@ -47,7 +47,7 @@ export async function createNovelSnapshot(
   id: string,
   payload: { triggerType: "manual" | "auto_milestone" | "before_pipeline"; label?: string },
 ) {
-  const { data } = await apiClient.post<ApiResponse<NovelSnapshot>>(`/novels/${id}/snapshots`, payload);
+  const { data } = await apiClient.post<ApiResponse<NovelSnapshotListItem>>(`/novels/${id}/snapshots`, payload);
   return data;
 }
 

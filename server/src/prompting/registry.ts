@@ -86,6 +86,62 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/genre/genre.prompts").genreTreePrompt as UnknownPromptAsset,
   },
   {
+    key: "drama.source.original_bundle@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaOriginalSourcePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.source.text_bundle@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaTextImportSourcePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.track.recommendation@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaTrackRecommendationPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.source.supplement@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaSourceSupplementPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.strategy@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaStrategyPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.episodeOutline@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaEpisodeOutlinePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.episode.script@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaScriptPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.episode.quality@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaQualityPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.episode.compliance@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaCompliancePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.episode.repair@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaRepairPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.storyboard@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaStoryboardPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "drama.video.prompt@v1",
+    load: () => require("./prompts/drama/drama.prompts").dramaVideoPromptPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "comic.episodeOutline@v1",
+    load: () => require("./prompts/comic/comic.prompts").comicEpisodeOutlinePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "comic.panelScript@v1",
+    load: () => require("./prompts/comic/comic.prompts").comicPanelScriptPrompt as UnknownPromptAsset,
+  },
+  {
     key: "planner.book.plan@v1",
     load: () => require("./prompts/planner/plannerPlan.prompts").plannerBookPlanPrompt as UnknownPromptAsset,
   },
@@ -605,4 +661,12 @@ export function listRegisteredPromptAssets(): UnknownPromptAsset[] {
 
 export function getRegisteredPromptAsset(id: string, version: string): UnknownPromptAsset | null {
   return loadRegisteredPromptAsset(`${id}@${version}`);
+}
+
+export function findRegisteredPromptAssetById(id: string): UnknownPromptAsset | null {
+  hydrateAllPromptAssets();
+  for (const asset of promptAssetByKey.values()) {
+    if (asset.id === id) return asset;
+  }
+  return null;
 }

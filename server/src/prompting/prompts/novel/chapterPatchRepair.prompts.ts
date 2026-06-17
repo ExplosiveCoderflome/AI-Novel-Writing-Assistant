@@ -37,6 +37,18 @@ export const chapterPatchRepairPrompt: PromptAsset<
     ],
   },
   outputSchema: chapterPatchRepairPlanSchema,
+  slots: [
+    {
+      kind: "append" as const,
+      key: "patch.customConstraints",
+      label: "自定义补丁补充要求",
+      description: "追加对局部补丁生成的额外约束，作为上下文块注入。留空则不追加。",
+      anchor: "repair_issues",
+      default: "",
+      maxLength: 2000,
+      placeholderHint: "例如：每个补丁块不得超过 3 句；优先修复节奏问题，结构问题标记但不修……",
+    },
+  ],
   render: (input, context) => [
     new SystemMessage([
       "你是网络小说局部修文编辑。",

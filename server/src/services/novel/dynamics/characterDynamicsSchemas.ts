@@ -134,6 +134,11 @@ export const chapterDynamicExtractionSchema = z.object({
     nextTurnPoint: z.string().trim().optional().nullable(),
     confidence: normalizedConfidenceSchema,
   })).default([]),
+  characterKnowledgeStates: z.array(z.object({
+    characterName: z.string().trim().min(1),
+    knownFacts: z.array(z.string().trim().min(1)).max(5).default([]),
+    hiddenFacts: z.array(z.string().trim().min(1)).max(5).default([]),
+  })).optional(),
 });
 
 export const volumeDynamicsProjectionSchema = z.object({

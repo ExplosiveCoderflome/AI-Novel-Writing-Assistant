@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  buildNarrativeProgressHint,
   buildChapterWriteContext,
   buildChapterReviewContext,
   buildChapterRepairContext,
@@ -349,6 +350,7 @@ function createContextPackage() {
       pendingPayoffs: ["伏笔A"],
       softFutureSummary: "第二卷会引出更高层势力。",
     },
+    narrativeProgressHint: buildNarrativeProgressHint(5, 20),
     ledgerPendingItems: [{
       id: "ledger-1",
       novelId: "novel-1",
@@ -591,6 +593,8 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.ok(writeContext.characterHardFacts.some((item) => item.name === "女二"));
   assert.ok(writeContext.characterBehaviorGuides.some((item) => item.volumeResponsibility.includes("反压机会")));
   assert.ok(writeContext.characterBehaviorGuides.some((item) => item.absenceRisk === "high"));
+  assert.ok(writeContext.obligationContract.requiredCharacterAppearances.includes("女二（已缺席 3 章，宜自然带出）"));
+  assert.match(writeContext.narrativeProgressHint, /第 5 章 \/ 预计共 20 章/);
   assert.ok(writeContext.pendingCandidateGuards.some((item) => item.proposedName === "林策"));
   assert.ok(writeContext.openConflictSummaries.some((item) => item.includes("第一次反压仍未落地")));
   assert.equal(writeContext.ledgerSummary.overdueCount, 1);
@@ -639,6 +643,12 @@ test("chapter layered contexts carry volume mission, character duties and repair
     && block.required
     && block.allowSummary === false
     && /第四章尾段/.test(block.content)
+  )));
+  assert.ok(writerBlocks.some((block) => (
+    block.id === "narrative_progress_hint"
+    && block.priority === 98
+    && block.required === false
+    && /发展阶段/.test(block.content)
   )));
   assert.ok(!writerBlocks.some((block) => block.id === "scene_plan"));
   assert.ok(writerBlocks.some((block) => (

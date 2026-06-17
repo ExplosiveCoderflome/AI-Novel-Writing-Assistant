@@ -69,3 +69,36 @@ export function summarizeContextBlock(block: PromptContextBlock, maxTokens: numb
     estimatedTokens: estimateTextTokens(content),
   };
 }
+
+export function buildCompressionLog(
+  blocks: PromptContextBlock[],
+  totalBudgetTokens: number,
+): { dropped: string[]; summarized: string[]; usedTokens: number; budgetTokens: number } {
+  let used = 0;
+  const dropped: string[] = [];
+  const summarized: string[] = [];
+  const sorted = [...blocks].sort((a, b) => b.priority - a.priority);
+  for (const block of sorted) {
+    if (used + block.estimatedTokens <= totalBudgetTokens) {
+      used += block.estimatedTokens;
+      continue;
+    }
+
+    const remaining = Math.max(0, totalBudgetTokens - used);
+    const summarizedBlock = summarizeContextBlock(block, remaining);
+    if (summarizedBlock && used + summarizedBlock.estimatedTokens <= totalBudgetTokens) {
+      if (summarizedBlock !== block && !summarized.includes(block.id)) {
+        summarized.push(block.id);
+      }
+      used += summarizedBlock.estimatedTokens;
+      continue;
+    }
+
+    if (!block.required) {
+      dropped.push(block.id);
+    } else {
+      used += block.estimatedTokens;
+    }
+  }
+  return { dropped, summarized, usedTokens: used, budgetTokens: totalBudgetTokens };
+}

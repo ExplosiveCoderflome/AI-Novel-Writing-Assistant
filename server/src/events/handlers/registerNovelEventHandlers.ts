@@ -42,25 +42,6 @@ async function shouldRebuildCharacterDynamics(novelId: string, reason: VolumeUpd
   return readyVolumeCount > 0;
 }
 
-async function buildChapterDraftSyncKey(input: {
-  novelId: string;
-  chapterId: string;
-}): Promise<string | null> {
-  const chapter = await prisma.chapter.findFirst({
-    where: { id: input.chapterId, novelId: input.novelId },
-    select: { id: true, updatedAt: true, content: true },
-  });
-  if (!chapter) {
-    return null;
-  }
-  return [
-    "character.chapterDraftSync",
-    chapter.id,
-    chapter.updatedAt.getTime(),
-    hashText(chapter.content ?? ""),
-  ].join(":");
-}
-
 async function buildVolumeRebuildSemanticKey(novelId: string, reason: VolumeUpdateReason): Promise<string> {
   const volumes = await prisma.volumePlan.findMany({
     where: { novelId },
@@ -115,29 +96,6 @@ export function registerNovelEventHandlers(
   options: RegisterNovelEventHandlerOptions = {},
 ): void {
   const sideEffectJobs = options.sideEffectJobs ?? novelSideEffectJobService;
-
-  eventBus.on("chapter:drafted", async (event) => {
-    if (event.type !== "chapter:drafted") {
-      return;
-    }
-    const idempotencyKey = await buildChapterDraftSyncKey({
-      novelId: event.payload.novelId,
-      chapterId: event.payload.chapterId,
-    });
-    if (!idempotencyKey) {
-      return;
-    }
-    await sideEffectJobs.enqueueJob({
-      novelId: event.payload.novelId,
-      jobType: "character.chapterDraftSync",
-      idempotencyKey,
-      payload: {
-        novelId: event.payload.novelId,
-        chapterId: event.payload.chapterId,
-        chapterOrder: event.payload.chapterOrder,
-      },
-    });
-  }, 90);
 
   eventBus.on("volume:updated", async (event) => {
     if (event.type !== "volume:updated") {

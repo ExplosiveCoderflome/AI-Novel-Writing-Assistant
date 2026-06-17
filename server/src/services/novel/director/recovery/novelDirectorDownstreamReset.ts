@@ -15,12 +15,20 @@ export async function resetDirectorDownstreamChapterState(
         lte: range.endOrder,
       },
     },
-    select: { id: true },
+    select: { id: true, content: true },
   });
   if (chapterRows.length === 0) {
     return;
   }
-  const chapterIds = chapterRows.map((chapter) => chapter.id);
+  // 仅重置尚未开写的章节。已写正文的章节必须完整保留——content、生成状态、
+  // 以及派生的摘要 / 连续性事实 / 角色时间线都是后续章节续写所依赖的上下文，
+  // 绝不能因为「回到节奏 / 拆章补齐细化」就被清空。
+  const chapterIds = chapterRows
+    .filter((chapter) => !(typeof chapter.content === "string" && chapter.content.trim().length > 0))
+    .map((chapter) => chapter.id);
+  if (chapterIds.length === 0) {
+    return;
+  }
   await prisma.$transaction(async (tx) => {
     await tx.chapter.updateMany({
       where: { id: { in: chapterIds } },

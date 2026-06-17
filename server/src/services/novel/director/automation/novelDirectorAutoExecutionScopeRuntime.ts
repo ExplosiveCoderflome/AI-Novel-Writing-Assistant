@@ -53,6 +53,9 @@ function findMissingExecutionContextOrders(
   chapters: DirectorAutoExecutionChapterRef[],
   range: DirectorAutoExecutionRange,
   state?: DirectorAutoExecutionState | null,
+  options?: {
+    allowLazyChapterPlanning?: boolean;
+  },
 ): number[] {
   const skippedChapterIds = new Set(state?.skippedChapterIds ?? []);
   const skippedChapterOrders = new Set(state?.skippedChapterOrders ?? []);
@@ -63,10 +66,9 @@ function findMissingExecutionContextOrders(
       || !canPreserveDirectorAutoExecutionSkippedChapter(chapter)
     ))
     .filter((chapter) => !isDirectorAutoExecutionChapterProcessed(chapter))
-    .filter((chapter) => (
-      !hasDirectorAutoExecutionChapterContract(chapter)
-      && !hasDirectorSyncedChapterExecutionContext(chapter)
-    ) || !hasDirectorAutoExecutionChapterContract(chapter))
+    .filter((chapter) => options?.allowLazyChapterPlanning
+      ? !hasDirectorSyncedChapterExecutionContext(chapter)
+      : !hasDirectorAutoExecutionChapterContract(chapter))
     .map((chapter) => chapter.order)
     .sort((left, right) => left - right);
 }
@@ -248,6 +250,7 @@ export async function resolveAutoExecutionRangeAndState(input: {
   existingState?: DirectorAutoExecutionState | null;
   pipelineJobId?: string | null;
   pipelineStatus?: PipelineJobStatus | null;
+  allowLazyChapterPlanning?: boolean;
 }): Promise<{
   range: DirectorAutoExecutionRange;
   autoExecution: DirectorAutoExecutionState;
@@ -285,7 +288,9 @@ export async function resolveAutoExecutionRangeAndState(input: {
       `${resolvedScopeLabel}对应的章节执行区还缺少第 ${missingChapterOrders.slice(0, 5).join("、")} 章，请先完成目标范围的拆章同步。`,
     );
   }
-  const missingExecutionContextOrders = findMissingExecutionContextOrders(chapters, range, input.existingState);
+  const missingExecutionContextOrders = findMissingExecutionContextOrders(chapters, range, input.existingState, {
+    allowLazyChapterPlanning: input.allowLazyChapterPlanning,
+  });
   if (missingExecutionContextOrders.length > 0) {
     const resolvedScopeLabel = scopeLabel ?? buildDirectorAutoExecutionScopeLabelFromState(input.existingState, range.totalChapterCount);
     throw new Error(

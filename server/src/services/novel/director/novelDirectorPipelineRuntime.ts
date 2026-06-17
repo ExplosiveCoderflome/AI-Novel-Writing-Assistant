@@ -147,6 +147,9 @@ export class NovelDirectorPipelineRuntime {
       }
 
       if (phase === "world_setup") {
+        if (input.input.worldSetupMode === "skip") {
+          continue;
+        }
         const module = getDirectorPlanningStepModule("world_setup");
         if (!(await this.isModuleFactCompleted(module, input))) {
           await this.deps.runtimeOrchestrator.runStepModule({

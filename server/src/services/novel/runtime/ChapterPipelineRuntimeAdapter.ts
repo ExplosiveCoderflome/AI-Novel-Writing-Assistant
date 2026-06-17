@@ -61,6 +61,10 @@ export class ChapterPipelineRuntimeAdapter {
               {
                 scheduleBackgroundSync: true,
                 artifactSyncMode: syncOptions?.artifactSyncMode ?? options.artifactSyncMode,
+                awaitArtifactDelta: true,
+                skipLegacySummaryAndFacts: true,
+                provider: request.provider,
+                model: request.model,
               },
             ),
           finalizeChapterContent: async (input) => {
