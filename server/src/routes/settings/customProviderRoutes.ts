@@ -3,6 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { prisma } from "../../db/prisma";
 import { setProviderSecretCache } from "../../llm/factory";
+import { evictSharedLimiters } from "../../llm/requestLimiter";
 import { refreshProviderModels } from "../../llm/modelCatalog";
 import { llmProviderSchema } from "../../llm/providerSchema";
 import { isBuiltInProvider } from "../../llm/providers";
@@ -234,6 +235,7 @@ export function registerCustomProviderRoutes(router: Router): void {
         await secretStore.deleteProvider(provider);
         await saveProviderImageModel(provider, null);
         setProviderSecretCache(provider, null);
+        evictSharedLimiters(provider);
         res.status(200).json({
           success: true,
           message: "自定义厂商已删除。",

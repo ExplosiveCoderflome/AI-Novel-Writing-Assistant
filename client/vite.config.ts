@@ -3,6 +3,10 @@ import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+interface DesktopPackageJson {
+  version?: unknown;
+}
+
 function clearStaleOptimizeCache(rootDir: string): void {
   const cacheDir = path.resolve(rootDir, "node_modules/.vite");
   const depsDir = path.join(cacheDir, "deps");
@@ -43,13 +47,27 @@ function resolveDevProxyTarget(): string {
   return `http://${targetHost}:${port}`;
 }
 
+function resolveDesktopAppVersion(): string {
+  const desktopPackagePath = path.resolve(__dirname, "../desktop/package.json");
+  const packageJson = JSON.parse(fs.readFileSync(desktopPackagePath, "utf8")) as DesktopPackageJson;
+  const version = typeof packageJson.version === "string" ? packageJson.version.trim() : "";
+  if (!/^\d+\.\d+\.\d+$/.test(version)) {
+    throw new Error(`desktop/package.json version must be stable semver like 0.3.19, got ${version || "(empty)"}.`);
+  }
+  return version;
+}
+
 clearStaleOptimizeCache(__dirname);
 
 const isDesktopRelativeBaseBuild = process.env.AI_NOVEL_CLIENT_BASE === "relative";
+const appVersion = resolveDesktopAppVersion();
 
 export default defineConfig({
   base: isDesktopRelativeBaseBuild ? "./" : "/",
   plugins: [react()],
+  define: {
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
