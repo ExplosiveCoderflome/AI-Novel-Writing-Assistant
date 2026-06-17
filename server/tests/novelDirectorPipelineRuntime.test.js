@@ -37,6 +37,7 @@ function buildDirectorInput(overrides = {}) {
     emotionIntensity: "medium",
     aiFreedom: "medium",
     estimatedChapterCount: 30,
+    worldSetupMode: "skip",
     ...overrides,
   };
 }
