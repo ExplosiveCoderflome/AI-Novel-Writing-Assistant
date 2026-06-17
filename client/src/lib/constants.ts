@@ -4,6 +4,7 @@ type ViteRuntimeEnv = Partial<ImportMetaEnv> & {
   DEV?: boolean;
   VITE_API_BASE_URL?: string;
   VITE_API_TIMEOUT_MS?: string;
+  VITE_APP_VERSION?: string;
 };
 type BrowserLocation = Pick<Location, "protocol" | "hostname" | "origin">;
 
@@ -43,10 +44,11 @@ function resolveAppRuntime(config: ClientRuntimeConfig): AppRuntimeMode {
 
 const runtimeConfig = resolveRuntimeConfig();
 const viteEnv = resolveViteEnv();
+const viteAppVersion = import.meta.env.VITE_APP_VERSION;
 
 export const APP_RUNTIME: AppRuntimeMode = resolveAppRuntime(runtimeConfig);
 export const APP_RUNTIME_IS_PACKAGED = runtimeConfig.isPackaged === true;
-export const APP_VERSION = runtimeConfig.appVersion?.trim() || "0.0.0";
+export const APP_VERSION = runtimeConfig.appVersion?.trim() || viteAppVersion?.trim() || "0.0.0";
 export const APP_RUNTIME_IS_PORTABLE = runtimeConfig.isPortable === true;
 export const APP_UPDATE_CHANNEL = runtimeConfig.updateChannel?.trim() || "beta";
 
