@@ -383,6 +383,9 @@ export class NovelDirectorAutoExecutionRuntime {
           const completedPipelineJobId = pipelineJobId;
           pipelineJobId = "";
           if ((autoExecution.remainingChapterCount ?? 0) > 0) {
+            if (this.deps.autoConfirmPendingCandidates) {
+              await this.deps.autoConfirmPendingCandidates(input.novelId).catch(() => null);
+            }
             await syncAutoExecutionTaskState(this.deps, {
               taskId: input.taskId,
               novelId: input.novelId,

@@ -3,6 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { BuiltinLLMProvider, LLMProvider } from "@ai-novel/shared/types/llm";
 import { z } from "zod";
 import { setProviderSecretCache } from "../llm/factory";
+import { evictSharedLimiters } from "../llm/requestLimiter";
 import { refreshProviderModels } from "../llm/modelCatalog";
 import { llmProviderSchema } from "../llm/providerSchema";
 import {
@@ -541,6 +542,7 @@ router.put(
         concurrencyLimit: data.concurrencyLimit ?? 0,
         requestIntervalMs: data.requestIntervalMs ?? 0,
       } : null);
+      evictSharedLimiters(provider);
 
       let models = getFallbackModels(provider, data.model ?? undefined);
       let message = "厂商配置已保存。";

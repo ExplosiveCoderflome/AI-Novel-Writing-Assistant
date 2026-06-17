@@ -99,6 +99,19 @@ export function createProviderModelLimiter(options: ProviderModelLimitOptions): 
   return new ProviderModelRequestLimiter(options);
 }
 
+/**
+ * 当 provider 配置变更时调用，淘汰该 provider 下所有旧限速器实例。
+ * 持有旧实例引用的 LLM 客户端仍可完成在途请求，新请求将使用新配置创建的实例。
+ */
+export function evictSharedLimiters(provider: string): void {
+  const prefix = `${provider}:`;
+  for (const key of sharedLimiters.keys()) {
+    if (key.startsWith(prefix)) {
+      sharedLimiters.delete(key);
+    }
+  }
+}
+
 function getSharedProviderModelLimiter(options: ProviderModelLimitOptions): ProviderModelRequestLimiter {
   const key = getLimiterKey(options);
   const existing = sharedLimiters.get(key);
