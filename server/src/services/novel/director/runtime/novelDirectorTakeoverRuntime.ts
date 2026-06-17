@@ -4,6 +4,7 @@ import type {
   DirectorTakeoverExecutableRangeSnapshot,
   DirectorTakeoverPipelineJobSnapshot,
 } from "@ai-novel/shared/types/novelDirector";
+import { isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
 import type { DirectorTakeoverNovelContext, DirectorTakeoverAssetSnapshot } from "./novelDirectorTakeover";
 import type { StoryMacroPlan } from "@ai-novel/shared/types/storyMacro";
 import type { BookContractService } from "../../BookContractService";
@@ -42,6 +43,7 @@ export interface DirectorTakeoverLoadedState {
 interface TakeoverChapterRow {
   id: string;
   order: number;
+  expectation: string | null;
   generationState: string | null;
   chapterStatus: string | null;
   content: string | null;
@@ -184,6 +186,16 @@ function hasSyncedExecutionChapterDetail(chapter: TakeoverChapterRow): boolean {
   });
 }
 
+function hasLazyChapterPlanningSeed(chapter: TakeoverChapterRow): boolean {
+  return hasSyncedExecutionChapterDetail(chapter) || Boolean(chapter.expectation?.trim());
+}
+
+function hasExecutableChapterPlanningContext(chapter: TakeoverChapterRow, allowLazyChapterPlanning?: boolean): boolean {
+  return allowLazyChapterPlanning
+    ? hasLazyChapterPlanningSeed(chapter)
+    : hasSyncedExecutionChapterDetail(chapter);
+}
+
 /**
  * 解析「生效自动执行 plan」对应的目标章节序集合（取自执行区持久化章节）。
  * book = 全部章节；volume = 该卷序范围；chapter_range = [start,end]。
@@ -227,6 +239,7 @@ function computeMissingExecutionContractOrders(input: {
   chapterRows: TakeoverChapterRow[];
   plan: DirectorAutoExecutionPlan | DirectorWorkflowSeedPayload["autoExecution"] | null | undefined;
   volumeChapterRanges?: Array<{ volumeOrder: number; startOrder: number; endOrder: number }>;
+  allowLazyChapterPlanning?: boolean;
 }): number[] {
   const targetOrders = new Set(resolveTargetOrdersForAutoExecutionRange(input));
   if (targetOrders.size === 0) {
@@ -235,7 +248,7 @@ function computeMissingExecutionContractOrders(input: {
   return input.chapterRows
     .filter((chapter) => targetOrders.has(chapter.order))
     .filter((chapter) => isPendingAutoExecutionChapter(chapter))
-    .filter((chapter) => !hasSyncedExecutionChapterDetail(chapter))
+    .filter((chapter) => !hasExecutableChapterPlanningContext(chapter, input.allowLazyChapterPlanning))
     .map((chapter) => chapter.order)
     .sort((left, right) => left - right);
 }
@@ -243,6 +256,9 @@ function computeMissingExecutionContractOrders(input: {
 function buildPreparedRangeFromSyncedChapters(
   chapterRows: TakeoverChapterRow[],
   expectedOrders: number[],
+  options?: {
+    allowLazyChapterPlanning?: boolean;
+  },
 ): DirectorTakeoverExecutableRangeSnapshot | null {
   const normalizedExpectedOrders = Array.from(
     new Set(
@@ -257,7 +273,7 @@ function buildPreparedRangeFromSyncedChapters(
 
   const preparedByOrder = new Map(
     chapterRows
-      .filter((chapter) => hasSyncedExecutionChapterDetail(chapter))
+      .filter((chapter) => hasExecutableChapterPlanningContext(chapter, options?.allowLazyChapterPlanning))
       .map((chapter) => [chapter.order, chapter] as const),
   );
   const prepared = normalizedExpectedOrders
@@ -283,6 +299,9 @@ function buildPreparedRangeFromSyncedChapters(
 function buildPreparedRangeFromState(
   chapterRows: TakeoverChapterRow[],
   state: DirectorWorkflowSeedPayload["autoExecution"] | null | undefined,
+  options?: {
+    allowLazyChapterPlanning?: boolean;
+  },
 ): DirectorTakeoverExecutableRangeSnapshot | null {
   const stateRange = resolveDirectorAutoExecutionRangeFromState(state);
   if (!stateRange) {
@@ -294,6 +313,7 @@ function buildPreparedRangeFromState(
       { length: Math.max(0, stateRange.endOrder - stateRange.startOrder + 1) },
       (_item, index) => stateRange.startOrder + index,
     ),
+    options,
   );
 }
 
@@ -413,6 +433,7 @@ export async function loadDirectorTakeoverState(input: {
       select: {
         id: true,
         order: true,
+        expectation: true,
         generationState: true,
         chapterStatus: true,
         content: true,
@@ -475,6 +496,7 @@ export async function loadDirectorTakeoverState(input: {
     ?? latestSeedPayload?.autoExecutionPlan
     ?? reconciledLatestAutoExecutionState
     ?? null;
+  const allowLazyChapterPlanning = isFullBookAutopilotRunMode(latestSeedPayload?.runMode);
   const structuredOutlineCursor = workspace
     ? resolveStructuredOutlineRecoveryCursor({
         workspace,
@@ -485,6 +507,7 @@ export async function loadDirectorTakeoverState(input: {
     chapterRows: chapterRows as TakeoverChapterRow[],
     plan: effectiveAutoExecutionPlan,
     volumeChapterRanges: assets.volumeChapterRanges,
+    allowLazyChapterPlanning,
   });
   const chapterOrderMap = new Map(chapterRows.map((chapter) => [chapter.id, chapter.order]));
   const activePipelineSnapshot = activePipelineJob
@@ -509,12 +532,14 @@ export async function loadDirectorTakeoverState(input: {
     : buildPreparedRangeFromState(
         chapterRows as TakeoverChapterRow[],
         reconciledLatestAutoExecutionState,
+        { allowLazyChapterPlanning },
       );
   const executableRangeFromSyncedChapters = structuredOutlineCursor
     && (structuredOutlineCursor.step === "chapter_sync" || structuredOutlineCursor.step === "completed")
     ? buildPreparedRangeFromSyncedChapters(
         chapterRows as TakeoverChapterRow[],
         structuredOutlineCursor.selectedChapters.map((chapter) => chapter.chapterOrder),
+        { allowLazyChapterPlanning },
       )
     : null;
   const executableRange = applyAutoExecutionStateCursorToExecutableRange(

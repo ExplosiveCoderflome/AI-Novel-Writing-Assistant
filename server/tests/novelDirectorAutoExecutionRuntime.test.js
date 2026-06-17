@@ -2327,6 +2327,93 @@ test("prepareRequestedAutoExecution rejects chapter ranges with incomplete execu
   );
 });
 
+test("prepareRequestedAutoExecution allows full-book autopilot JIT chapters with outline seeds", async () => {
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          {
+            id: "chapter-1",
+            order: 1,
+            title: "拾起异虫",
+            expectation: "主角在垃圾堆救下濒死毛毛虫，建立第一层情感连接。",
+            generationState: "planned",
+            content: "",
+            targetWordCount: null,
+            conflictLevel: null,
+            revealLevel: null,
+            mustAvoid: null,
+            taskSheet: null,
+            sceneCards: null,
+          },
+          {
+            id: "chapter-2",
+            order: 2,
+            title: "街头护虫",
+            expectation: "反派随从当众羞辱主角，主角护住毛毛虫并埋下蜕变伏笔。",
+            generationState: "planned",
+            content: "",
+            targetWordCount: null,
+            conflictLevel: null,
+            revealLevel: null,
+            mustAvoid: null,
+            taskSheet: null,
+            sceneCards: null,
+          },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        throw new Error("should not start a pipeline in prepareRequestedAutoExecution");
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById() {
+        return null;
+      },
+      async cancelPipelineJob() {},
+    },
+    workflowService: {
+      async bootstrapTask() {
+        throw new Error("should not bootstrap in prepareRequestedAutoExecution");
+      },
+      async getTaskById() {
+        return { status: "waiting_approval" };
+      },
+      async markTaskRunning() {
+        throw new Error("should not mark running in prepareRequestedAutoExecution");
+      },
+      async recordCheckpoint() {
+        throw new Error("should not record checkpoint in prepareRequestedAutoExecution");
+      },
+      async markTaskFailed() {
+        throw new Error("should not mark failed in prepareRequestedAutoExecution");
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  const resolved = await runtime.prepareRequestedAutoExecution({
+    taskId: "task-full-book-jit",
+    novelId: "novel-1",
+    request: buildRequest({
+      runMode: "full_book_autopilot",
+      autoExecutionPlan: {
+        mode: "chapter_range",
+        startOrder: 1,
+        endOrder: 2,
+      },
+    }),
+  });
+
+  assert.deepEqual(resolved.autoExecution.remainingChapterOrders, [1, 2]);
+  assert.equal(resolved.autoExecution.nextChapterOrder, 1);
+});
+
 test("runFromReady keeps persisted replan budget failures blocking after worker recovery", async () => {
   const calls = [];
   const completedOrders = new Set();

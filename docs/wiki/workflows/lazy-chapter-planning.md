@@ -116,6 +116,24 @@ if (request.controlPolicy?.advanceMode === "full_book_autopilot") {
 
 ---
 
+## 自动执行范围预检
+
+`full_book_autopilot` 的 `chapter_batch_ready` 表示章节列表已经同步到执行区，并且每章至少有可供 JIT 使用的执行种子（例如 `Chapter.expectation`），不表示所有章节都已经拥有完整 task sheet / scene cards。
+
+因此自动执行启动、轮询和 takeover/recovery 的范围预检必须区分两类路径：
+
+| 路径 | 预检要求 |
+|------|----------|
+| `full_book_autopilot` | 目标范围内章节必须存在，并具备可触发 JIT 的执行种子；缺少完整 task sheet 属于预期状态，由 `GenerationContextAssembler` 在写章前即时补齐 |
+| 普通 `auto_to_execution`、手动章节范围、非 JIT 路径 | 目标范围内章节必须已有完整执行契约；缺少 task sheet / scene cards / 字数与冲突揭示等细化字段时，应回到节奏 / 拆章补齐 |
+
+失败模式：如果自动执行范围预检仍按普通路径要求完整 task sheet，`full_book_autopilot` 会在 JIT 触发前被 `runFromReady` 拦截，出现“缺少完整章节细化”的失败；这不是章节数据丢失，而是预检层与 JIT 契约不一致。
+
+相关模块：
+- `server/src/services/novel/director/automation/novelDirectorAutoExecutionScopeRuntime.ts`
+- `server/src/services/novel/director/automation/novelDirectorAutoExecutionRuntimePreparation.ts`
+- `server/src/services/novel/director/runtime/novelDirectorTakeoverRuntime.ts`
+
 ---
 
 ## 质量修复闭环子项（1.D）
