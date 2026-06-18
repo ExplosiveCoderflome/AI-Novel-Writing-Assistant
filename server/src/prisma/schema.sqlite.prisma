@@ -3171,13 +3171,15 @@ model ComicProject {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  sourceBundle ComicSourceBundle?
-  characters   ComicCharacter[]
-  episodes     ComicEpisode[]
-  facts        ComicFact[]
-  uploadAssets ComicUploadAsset[]
-  exportJobs   ComicExportJob[]
-  batchJobs    ComicBatchJob[]
+  sourceBundle    ComicSourceBundle?
+  characters      ComicCharacter[]
+  characterAssets ComicCharacterAsset[]
+  scenes          ComicScene[]
+  episodes        ComicEpisode[]
+  facts           ComicFact[]
+  uploadAssets    ComicUploadAsset[]
+  exportJobs      ComicExportJob[]
+  batchJobs       ComicBatchJob[]
 
   @@index([sourceType])
   @@index([status])
@@ -3202,6 +3204,42 @@ model ComicCharacter {
   sourceCharacterRef String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+  project ComicProject           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assets  ComicCharacterAsset[]
+
+  @@index([projectId])
+}
+
+model ComicCharacterAsset {
+  id          String   @id @default(cuid())
+  characterId String
+  projectId   String
+  assetType   String
+  name        String
+  description String?
+  imageData   String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  character ComicCharacter @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  project   ComicProject   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([characterId])
+  @@index([projectId])
+}
+
+model ComicScene {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  sceneType   String   @default("interior")
+  bible       String?
+  sheetData   String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -3239,6 +3277,7 @@ model ComicPanel {
   action        String
   dialogues     String?
   characterRefs String?
+  sceneRef      String?
   visualPrompt  String?
   densityLevel  String?
   focus         String?

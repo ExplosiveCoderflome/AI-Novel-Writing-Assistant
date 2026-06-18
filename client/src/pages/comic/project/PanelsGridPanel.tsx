@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CircleDollarSign,
   FileText,
+  Image as ImageIcon,
   ImageOff,
   LayoutGrid,
   Loader2,
@@ -35,7 +36,14 @@ import { toast } from "@/components/ui/toast";
 
 function parseImageData(
   raw: string | null | undefined,
-): { status?: string; url?: string; prompt?: string; provider?: string; generatedAt?: string } {
+): {
+  status?: string;
+  url?: string;
+  prompt?: string;
+  provider?: string;
+  generatedAt?: string;
+  referenceImages?: Array<{ kind: string; label: string; url: string }>;
+} {
   if (!raw) return {};
   try {
     return JSON.parse(raw);
@@ -43,6 +51,22 @@ function parseImageData(
     return {};
   }
 }
+
+const REF_KIND_LABEL: Record<string, string> = {
+  character_sheet: "三视图",
+  character_expression: "表情稿",
+  character_face: "面部裁剪",
+  asset: "资产",
+  scene: "场景",
+};
+
+const REF_KIND_COLOR: Record<string, string> = {
+  character_sheet: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300",
+  character_expression: "border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-700 dark:bg-pink-900/20 dark:text-pink-300",
+  character_face: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300",
+  asset: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300",
+  scene: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300",
+};
 
 const DENSITY_BADGE: Record<string, { label: string; className: string }> = {
   low: { label: "低密度", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
@@ -524,6 +548,53 @@ function PanelDetailDialog({
                 </div>
               )}
             </div>
+
+            {imageData.referenceImages && imageData.referenceImages.length > 0 && (
+              <div>
+                <div className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+                  <ImageIcon className="h-3 w-3" />
+                  本次生图使用的参考素材
+                  <span className="rounded border bg-muted px-1 py-px text-[10px] font-normal text-muted-foreground">
+                    {imageData.referenceImages.length}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {imageData.referenceImages.map((ref, i) => {
+                    const kindStyle = REF_KIND_COLOR[ref.kind] ?? REF_KIND_COLOR.asset;
+                    const kindLabel = REF_KIND_LABEL[ref.kind] ?? ref.kind;
+                    return (
+                      <a
+                        key={`${ref.url}-${i}`}
+                        href={ref.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={`${kindLabel} · ${ref.label}（点击查看大图）`}
+                        className="group block overflow-hidden rounded border bg-background transition-colors hover:border-primary"
+                      >
+                        <div className="aspect-square bg-muted/30">
+                          <img
+                            src={ref.url}
+                            alt={ref.label}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                            onError={(e) => { e.currentTarget.style.display = "none"; }}
+                          />
+                        </div>
+                        <div className="border-t px-1.5 py-1">
+                          <span className={`inline-block rounded border px-1 py-px text-[9px] leading-none ${kindStyle}`}>
+                            {kindLabel}
+                          </span>
+                          <p className="mt-1 line-clamp-2 text-[10px] leading-tight text-muted-foreground">{ref.label}</p>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-[10px] text-muted-foreground">
+                  这些素材会被合成为雪碧图后传给图像模型，用于锁定角色外形、服装、道具与场景。
+                </p>
+              </div>
+            )}
 
             <div>
               <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-muted-foreground">

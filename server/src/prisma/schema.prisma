@@ -3216,13 +3216,15 @@ model ComicProject {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  sourceBundle ComicSourceBundle?
-  characters   ComicCharacter[]
-  episodes     ComicEpisode[]
-  facts        ComicFact[]
-  uploadAssets ComicUploadAsset[]
-  exportJobs   ComicExportJob[]
-  batchJobs    ComicBatchJob[]
+  sourceBundle    ComicSourceBundle?
+  characters      ComicCharacter[]
+  characterAssets ComicCharacterAsset[]
+  scenes          ComicScene[]
+  episodes        ComicEpisode[]
+  facts           ComicFact[]
+  uploadAssets    ComicUploadAsset[]
+  exportJobs      ComicExportJob[]
+  batchJobs       ComicBatchJob[]
 
   @@index([sourceType])
   @@index([status])
@@ -3251,6 +3253,49 @@ model ComicCharacter {
   sourceCharacterRef String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  project ComicProject           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assets  ComicCharacterAsset[]
+
+  @@index([projectId])
+}
+
+// 角色可选视觉资产：服装变体/武器/道具/载具/技能视觉/自定义
+// imageData JSON: { status, url, prompt, provider, generatedAt, error, origin: "generated"|"uploaded" }
+model ComicCharacterAsset {
+  id          String   @id @default(cuid())
+  characterId String
+  projectId   String
+  // costume | weapon | item | vehicle | ability | other
+  assetType   String
+  name        String   // 资产名（LLM 引用时用此名，如 "月光剑"）
+  description String?  // 注入 visual prompt 的外观描述
+  imageData   String?  // JSON
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  character ComicCharacter @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  project   ComicProject   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([characterId])
+  @@index([projectId])
+}
+
+// 场景一致性实体（L0 场景圣经 + L1 设定图）
+// bible JSON: { palette, keyElements, materials, ambiance, layout }
+// sheetData JSON: { status, url, prompt, provider, generatedAt, error, origin: "generated"|"uploaded" }
+model ComicScene {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String   // 场景名，panel.sceneRef 软引用此名
+  // interior | exterior | landscape | abstract | other
+  sceneType   String   @default("interior")
+  bible       String?  // 结构化场景圣经 JSON
+  sheetData   String?  // establishing 设定图 JSON
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -3298,6 +3343,8 @@ model ComicPanel {
   dialogues    String?
   // 本格出场角色 id 列表（JSON array）
   characterRefs String?
+  // 本格所属场景名（软引用 ComicScene.name，保证可拆分）
+  sceneRef      String?
   // 图像生成提示词（含 stylePreset + characterSheet 注入后的完整 prompt）
   visualPrompt  String?
   // low/medium/high，LLM 结构化输出，用于控制画面信息密度

@@ -9,6 +9,9 @@ import { prisma } from "../../db/prisma";
 import { adaptationSourceRegistry } from "../adaptation/source/SourceContentPort";
 import { novelSourceAdapter } from "../adaptation/source/NovelSourceAdapter";
 import type { AdaptationSourceType, SourceBundle, SourceRef } from "../adaptation/contracts/sourceBundle";
+import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { comicVisualAnchorRewritePrompt, type ComicVisualAnchorRewriteOutput } from "../../prompting/prompts/comic/comic.prompts";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 
 adaptationSourceRegistry.register(novelSourceAdapter);
 
@@ -57,6 +60,8 @@ export interface CreateComicProjectInput {
   /** original / text_import 的原始输入 */
   inspiration?: string;
   rawText?: string;
+  /** JSON 序列化的画风/格式预设，创建时从向导直接传入 */
+  stylePreset?: string;
 }
 
 export class ComicProjectService {
@@ -69,6 +74,7 @@ export class ComicProjectService {
         sourceInput: input.rawText ?? input.inspiration ?? null,
         trackId: input.trackId ?? null,
         status: "draft",
+        stylePreset: input.stylePreset ?? null,
       },
     });
   }
@@ -89,6 +95,7 @@ export class ComicProjectService {
       include: {
         sourceBundle: true,
         characters: { orderBy: { createdAt: "asc" } },
+        scenes: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
         episodes: {
           orderBy: { order: "asc" },
           include: { panels: { orderBy: { order: "asc" } } },
@@ -100,6 +107,93 @@ export class ComicProjectService {
 
   async deleteProject(projectId: string) {
     return prisma.comicProject.delete({ where: { id: projectId } });
+  }
+
+  /**
+   * 更新角色"外貌锚点"。
+   * - appearance：主外貌描述（生图链路的主源头）
+   * - faceShapeOverride：脸型强覆盖（可选）。当与 appearance 中的描述冲突时（如 appearance 写"五官锐利"
+   *   但用户希望脸型圆），此字段在生图 prompt 里以 FINAL OVERRIDE 形式出现，权重高于 appearance，
+   *   并显式告诉模型"忽略前述与脸型冲突的词"。仅传入字段会被更新；其他字段保持。
+   */
+  async updateCharacterVisualAnchor(
+    charId: string,
+    patch: { appearance?: string; faceShapeOverride?: string },
+  ) {
+    const character = await prisma.comicCharacter.findUnique({ where: { id: charId } });
+    if (!character) throw new Error(`角色不存在：${charId}`);
+
+    let existing: Record<string, unknown> = {};
+    if (character.visualAnchor) {
+      try { existing = JSON.parse(character.visualAnchor) as Record<string, unknown>; } catch { /* ignore */ }
+    }
+    const visualSpec = (existing.visualSpec as Record<string, unknown> | undefined) ?? {};
+
+    const nextSpec: Record<string, unknown> = { ...visualSpec };
+    let nextDescription = existing.description as string | undefined;
+
+    if (patch.appearance !== undefined) {
+      const trimmed = patch.appearance.trim();
+      nextSpec.appearance = trimmed;
+      // description 兼容字段（旧版/部分链路读它）
+      nextDescription = trimmed.length > 80 ? trimmed.slice(0, 80) : trimmed;
+    }
+    if (patch.faceShapeOverride !== undefined) {
+      const trimmed = patch.faceShapeOverride.trim();
+      if (trimmed) nextSpec.faceShapeOverride = trimmed;
+      else delete nextSpec.faceShapeOverride; // 空串视为清除
+    }
+
+    const next: Record<string, unknown> = {
+      ...existing,
+      ...(nextDescription !== undefined && { description: nextDescription }),
+      visualSpec: nextSpec,
+    };
+
+    return prisma.comicCharacter.update({
+      where: { id: charId },
+      data: { visualAnchor: JSON.stringify(next) },
+    });
+  }
+
+  /**
+   * AI 协助重写"外貌锚点"。
+   * 不直接落库，返回 { appearance, faceShapeOverride?, rationale } 给前端审阅，
+   * 用户确认后再调用 updateCharacterVisualAnchor 保存。
+   */
+  async rewriteCharacterVisualAnchor(
+    charId: string,
+    input: { userInstruction?: string; provider?: LLMProvider },
+  ): Promise<ComicVisualAnchorRewriteOutput> {
+    const character = await prisma.comicCharacter.findUnique({ where: { id: charId } });
+    if (!character) throw new Error(`角色不存在：${charId}`);
+
+    let currentAppearance = "";
+    let currentFaceShapeOverride: string | undefined;
+    if (character.visualAnchor) {
+      try {
+        const parsed = JSON.parse(character.visualAnchor) as Record<string, unknown>;
+        const spec = parsed.visualSpec as Record<string, unknown> | undefined;
+        if (spec && typeof spec.appearance === "string") currentAppearance = spec.appearance;
+        else if (typeof parsed.description === "string") currentAppearance = parsed.description;
+        if (spec && typeof spec.faceShapeOverride === "string" && spec.faceShapeOverride.trim()) {
+          currentFaceShapeOverride = spec.faceShapeOverride.trim();
+        }
+      } catch { /* ignore */ }
+    }
+
+    const result = await runStructuredPrompt({
+      asset: comicVisualAnchorRewritePrompt,
+      promptInput: {
+        characterName: character.name,
+        persona: character.persona,
+        currentAppearance,
+        currentFaceShapeOverride,
+        userInstruction: input.userInstruction?.trim() || undefined,
+      },
+      options: { temperature: 0.5, provider: input.provider },
+    });
+    return result.output;
   }
 
   async updateProjectStyle(projectId: string, stylePreset: string) {

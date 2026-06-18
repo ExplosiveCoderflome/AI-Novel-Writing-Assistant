@@ -86,6 +86,12 @@ export interface ComicPanel {
   updatedAt?: string;
 }
 
+export interface PanelReferenceImageMeta {
+  kind: "character_sheet" | "character_expression" | "character_face" | "asset" | "scene";
+  label: string;
+  url: string;
+}
+
 export interface PanelImageData {
   status: "idle" | "generating" | "done" | "error";
   version?: number;
@@ -94,6 +100,7 @@ export interface PanelImageData {
   provider?: string;
   generatedAt?: string;
   error?: string;
+  referenceImages?: PanelReferenceImageMeta[];
 }
 
 export interface ComicExportJob {
@@ -456,4 +463,222 @@ export async function listComicFacts(projectId: string): Promise<ComicFact[]> {
 
 export async function deleteComicFact(factId: string): Promise<void> {
   await apiClient.delete(`/comic/facts/${factId}`);
+}
+
+// ─── Character Assets ──────────────────────────────────────────────────────────
+
+export type CharacterAssetType = "costume" | "weapon" | "item" | "vehicle" | "ability" | "other";
+export type AssetImageStatus = "idle" | "generating" | "done" | "error";
+
+export interface AssetImageData {
+  status: AssetImageStatus;
+  url?: string;
+  prompt?: string;
+  provider?: string;
+  generatedAt?: string;
+  error?: string;
+  origin?: "generated" | "uploaded";
+}
+
+export interface ComicCharacterAsset {
+  id: string;
+  characterId: string;
+  projectId: string;
+  assetType: CharacterAssetType;
+  name: string;
+  description: string | null;
+  imageData: string | null; // JSON AssetImageData
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAssetPayload {
+  characterId: string;
+  projectId: string;
+  assetType: CharacterAssetType;
+  name: string;
+  description?: string;
+  sortOrder?: number;
+}
+
+export interface UpdateAssetPayload {
+  name?: string;
+  description?: string;
+  sortOrder?: number;
+  assetType?: CharacterAssetType;
+}
+
+export async function listCharacterAssets(characterId: string): Promise<ComicCharacterAsset[]> {
+  const res = await apiClient.get<ApiResponse<ComicCharacterAsset[]>>(`/comic/characters/${characterId}/assets`);
+  return res.data.data!;
+}
+
+export async function listProjectCharacterAssets(projectId: string): Promise<ComicCharacterAsset[]> {
+  const res = await apiClient.get<ApiResponse<ComicCharacterAsset[]>>(`/comic/projects/${projectId}/character-assets`);
+  return res.data.data!;
+}
+
+export async function createCharacterAsset(payload: CreateAssetPayload): Promise<ComicCharacterAsset> {
+  const res = await apiClient.post<ApiResponse<ComicCharacterAsset>>("/comic/character-assets", payload);
+  return res.data.data!;
+}
+
+export async function updateCharacterAsset(assetId: string, payload: UpdateAssetPayload): Promise<ComicCharacterAsset> {
+  const res = await apiClient.patch<ApiResponse<ComicCharacterAsset>>(`/comic/character-assets/${assetId}`, payload);
+  return res.data.data!;
+}
+
+export async function deleteCharacterAsset(assetId: string): Promise<void> {
+  await apiClient.delete(`/comic/character-assets/${assetId}`);
+}
+
+export async function generateCharacterAssetImage(assetId: string, provider?: string): Promise<ComicCharacterAsset> {
+  const res = await apiClient.post<ApiResponse<ComicCharacterAsset>>(
+    `/comic/character-assets/${assetId}/generate-image`,
+    provider ? { provider } : {},
+  );
+  return res.data.data!;
+}
+
+export async function uploadCharacterAssetImage(assetId: string, file: File): Promise<{ url: string }> {
+  const res = await apiClient.post<ApiResponse<{ url: string }>>(
+    `/comic/character-assets/${assetId}/upload-image`,
+    file,
+    { headers: { "Content-Type": file.type } },
+  );
+  return res.data.data!;
+}
+
+export function characterAssetImageUrl(assetId: string): string {
+  return `/api/comic/character-assets/${assetId}/image`;
+}
+
+export interface UpdateVisualAnchorPayload {
+  /** 主外貌描述 */
+  appearance?: string;
+  /** 脸型强覆盖（FINAL OVERRIDE）；当 appearance 含"锐利/尖锐"等冲突词时用此字段强压脸型 */
+  faceShapeOverride?: string;
+}
+
+export interface VisualAnchorRewriteResult {
+  appearance: string;
+  faceShapeOverride?: string;
+  rationale: string;
+}
+
+export async function rewriteCharacterVisualAnchor(
+  charId: string,
+  payload: { userInstruction?: string; provider?: string },
+): Promise<VisualAnchorRewriteResult> {
+  const res = await apiClient.post<ApiResponse<VisualAnchorRewriteResult>>(
+    `/comic/characters/${charId}/visual-anchor/rewrite`,
+    payload,
+  );
+  return res.data.data!;
+}
+
+/**
+ * 更新角色"外貌锚点"（生图源头）。
+ * 改一次，三视图/表情稿/资产/格子图后续生成都会读新版（已有图不会自动重绘）。
+ */
+export async function updateCharacterVisualAnchor(
+  charId: string,
+  payload: UpdateVisualAnchorPayload,
+): Promise<ComicCharacter> {
+  const res = await apiClient.patch<ApiResponse<ComicCharacter>>(
+    `/comic/characters/${charId}/visual-anchor`,
+    payload,
+  );
+  return res.data.data!;
+}
+
+// ─── Scenes ────────────────────────────────────────────────────────────────────
+
+export type SceneType = "interior" | "exterior" | "landscape" | "abstract" | "other";
+export type SceneSheetStatus = "idle" | "generating" | "done" | "error";
+
+export interface SceneBible {
+  palette?: string;
+  keyElements?: string;
+  materials?: string;
+  ambiance?: string;
+  layout?: string;
+}
+
+export interface SceneSheetData {
+  status: SceneSheetStatus;
+  url?: string;
+  prompt?: string;
+  provider?: string;
+  generatedAt?: string;
+  error?: string;
+  origin?: "generated" | "uploaded";
+}
+
+export interface ComicScene {
+  id: string;
+  projectId: string;
+  name: string;
+  sceneType: SceneType;
+  bible: string | null; // JSON SceneBible
+  sheetData: string | null; // JSON SceneSheetData
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateScenePayload {
+  projectId: string;
+  name: string;
+  sceneType?: SceneType;
+  bible?: SceneBible;
+  sortOrder?: number;
+}
+
+export interface UpdateScenePayload {
+  name?: string;
+  sceneType?: SceneType;
+  bible?: SceneBible;
+  sortOrder?: number;
+}
+
+export async function listComicScenes(projectId: string): Promise<ComicScene[]> {
+  const res = await apiClient.get<ApiResponse<ComicScene[]>>(`/comic/projects/${projectId}/scenes`);
+  return res.data.data!;
+}
+
+export async function createComicScene(payload: CreateScenePayload): Promise<ComicScene> {
+  const res = await apiClient.post<ApiResponse<ComicScene>>("/comic/scenes", payload);
+  return res.data.data!;
+}
+
+export async function updateComicScene(sceneId: string, payload: UpdateScenePayload): Promise<ComicScene> {
+  const res = await apiClient.patch<ApiResponse<ComicScene>>(`/comic/scenes/${sceneId}`, payload);
+  return res.data.data!;
+}
+
+export async function deleteComicScene(sceneId: string): Promise<void> {
+  await apiClient.delete(`/comic/scenes/${sceneId}`);
+}
+
+export async function generateComicSceneImage(sceneId: string, provider?: string): Promise<ComicScene> {
+  const res = await apiClient.post<ApiResponse<ComicScene>>(
+    `/comic/scenes/${sceneId}/generate-image`,
+    provider ? { provider } : {},
+  );
+  return res.data.data!;
+}
+
+export async function uploadComicSceneImage(sceneId: string, file: File): Promise<{ url: string }> {
+  const res = await apiClient.post<ApiResponse<{ url: string }>>(
+    `/comic/scenes/${sceneId}/upload-image`,
+    file,
+    { headers: { "Content-Type": file.type } },
+  );
+  return res.data.data!;
+}
+
+export function comicSceneImageUrl(sceneId: string): string {
+  return `/api/comic/scenes/${sceneId}/image`;
 }

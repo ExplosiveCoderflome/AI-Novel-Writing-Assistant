@@ -12,6 +12,8 @@ import { comicExportService } from "../../../services/comic/ComicExportService";
 import { comicCharacterImageService } from "../../../services/comic/ComicCharacterImageService";
 import { comicBatchOrchestrator } from "../../../services/comic/ComicBatchOrchestrator";
 import { comicFactService } from "../../../services/comic/ComicFactService";
+import { comicCharacterAssetService } from "../../../services/comic/ComicCharacterAssetService";
+import { comicSceneService } from "../../../services/comic/ComicSceneService";
 
 const comicProjectService = new ComicProjectService();
 const comicEpisodePlanService = new ComicEpisodePlanService();
@@ -21,6 +23,8 @@ const router = Router();
 
 // ─── Param schemas ─────────────────────────────────────────────────────────
 
+const assetIdParams = z.object({ assetId: z.string().trim().min(1) });
+const sceneIdParams = z.object({ sceneId: z.string().trim().min(1) });
 const idParams = z.object({ id: z.string().trim().min(1) });
 const episodeIdParams = z.object({ episodeId: z.string().trim().min(1) });
 const panelIdParams = z.object({ panelId: z.string().trim().min(1) });
@@ -37,6 +41,7 @@ const createProjectSchema = z.object({
   trackId: z.string().trim().max(40).optional(),
   inspiration: z.string().trim().max(4000).optional(),
   rawText: z.string().trim().max(200000).optional(),
+  stylePreset: z.string().trim().max(1000).optional(),
 });
 
 const styleUpdateSchema = z.object({
@@ -362,6 +367,51 @@ router.get("/characters/:charId/sheet", validate({ params: charIdParams }), asyn
   } catch (err) { next(err); }
 });
 
+// AI 协助重写"外貌锚点"——返回建议给前端审阅，不直接保存
+router.post(
+  "/characters/:charId/visual-anchor/rewrite",
+  validate({
+    params: charIdParams,
+    body: z.object({
+      userInstruction: z.string().trim().max(500).optional(),
+      provider: z.string().trim().optional(),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      const { charId } = req.params as z.infer<typeof charIdParams>;
+      const body = req.body as { userInstruction?: string; provider?: string };
+      const data = await comicProjectService.rewriteCharacterVisualAnchor(charId, {
+        userInstruction: body.userInstruction,
+        provider: body.provider as LLMProvider | undefined,
+      });
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+    } catch (err) { next(err); }
+  },
+);
+
+// 更新角色"外貌锚点"—— 所有生图链路的源头
+// appearance：主外貌；faceShapeOverride：脸型强覆盖（与 appearance 冲突时高优先级）
+router.patch(
+  "/characters/:charId/visual-anchor",
+  validate({
+    params: charIdParams,
+    body: z.object({
+      appearance: z.string().trim().min(1).max(2000).optional(),
+      faceShapeOverride: z.string().trim().max(500).optional(),
+    }).refine((b) => b.appearance !== undefined || b.faceShapeOverride !== undefined, {
+      message: "至少需要提供 appearance 或 faceShapeOverride 之一",
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      const { charId } = req.params as z.infer<typeof charIdParams>;
+      const data = await comicProjectService.updateCharacterVisualAnchor(charId, req.body);
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+    } catch (err) { next(err); }
+  },
+);
+
 router.post(
   "/characters/:charId/expressions/generate",
   validate({ params: charIdParams, body: charExpressionGenerateSchema }),
@@ -675,5 +725,209 @@ router.get(
     } catch (err) { next(err); }
   },
 );
+
+// ─── Character Assets ─────────────────────────────────────────────────────────
+
+const createAssetSchema = z.object({
+  characterId: z.string().trim().min(1),
+  projectId: z.string().trim().min(1),
+  assetType: z.enum(["costume", "weapon", "item", "vehicle", "ability", "other"]),
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(400).optional(),
+  sortOrder: z.coerce.number().int().min(0).optional(),
+});
+
+const updateAssetSchema = z.object({
+  name: z.string().trim().min(1).max(80).optional(),
+  description: z.string().trim().max(400).optional(),
+  sortOrder: z.coerce.number().int().min(0).optional(),
+  assetType: z.enum(["costume", "weapon", "item", "vehicle", "ability", "other"]).optional(),
+});
+
+// 列出某角色所有资产
+router.get("/characters/:charId/assets", validate({ params: charIdParams }), async (req, res, next) => {
+  try {
+    const { charId } = req.params as z.infer<typeof charIdParams>;
+    const data = await comicCharacterAssetService.listAssets(charId);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+// 列出项目所有资产
+router.get("/projects/:id/character-assets", validate({ params: idParams }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof idParams>;
+    const data = await comicCharacterAssetService.listByProject(id);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+// 创建资产
+router.post("/character-assets", validate({ body: createAssetSchema }), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof createAssetSchema>;
+    const data = await comicCharacterAssetService.createAsset(body);
+    res.status(201).json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+// 更新资产元信息
+router.patch("/character-assets/:assetId", validate({ params: assetIdParams, body: updateAssetSchema }), async (req, res, next) => {
+  try {
+    const { assetId } = req.params as z.infer<typeof assetIdParams>;
+    const body = req.body as z.infer<typeof updateAssetSchema>;
+    const data = await comicCharacterAssetService.updateAsset(assetId, body);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+// 删除资产
+router.delete("/character-assets/:assetId", validate({ params: assetIdParams }), async (req, res, next) => {
+  try {
+    const { assetId } = req.params as z.infer<typeof assetIdParams>;
+    await comicCharacterAssetService.deleteAsset(assetId);
+    res.json({ success: true, data: null } satisfies ApiResponse<null>);
+  } catch (err) { next(err); }
+});
+
+// AI 生成资产图
+router.post("/character-assets/:assetId/generate-image", validate({ params: assetIdParams }), async (req, res, next) => {
+  try {
+    const { assetId } = req.params as z.infer<typeof assetIdParams>;
+    const provider = typeof req.body.provider === "string" ? req.body.provider : undefined;
+    await comicCharacterAssetService.generateAssetImage(assetId, provider);
+    const data = await comicCharacterAssetService.getAsset(assetId);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+// 上传资产图（Content-Type: image/* 直传，body 为原始二进制）
+router.post(
+  "/character-assets/:assetId/upload-image",
+  validate({ params: assetIdParams }),
+  async (req, res, next) => {
+    try {
+      const { assetId } = req.params as z.infer<typeof assetIdParams>;
+      const mimeType = req.headers["content-type"] ?? "image/png";
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk as Buffer);
+      const buffer = Buffer.concat(chunks);
+      if (buffer.length === 0) throw new Error("未收到图片数据");
+      const data = await comicCharacterAssetService.uploadAssetImage(assetId, buffer, mimeType);
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+    } catch (err) { next(err); }
+  },
+);
+
+// 服务资产图文件
+router.get("/character-assets/:assetId/image", validate({ params: assetIdParams }), async (req, res, next) => {
+  try {
+    const { assetId } = req.params as z.infer<typeof assetIdParams>;
+    const { filePath, mimeType } = await comicCharacterAssetService.serveAssetImage(assetId);
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    const { createReadStream } = await import("fs");
+    createReadStream(filePath).pipe(res);
+  } catch (err) { next(err); }
+});
+
+// ─── Scenes ───────────────────────────────────────────────────────────────────
+
+const sceneBibleSchema = z.object({
+  palette: z.string().trim().max(120).optional(),
+  keyElements: z.string().trim().max(200).optional(),
+  materials: z.string().trim().max(120).optional(),
+  ambiance: z.string().trim().max(120).optional(),
+  layout: z.string().trim().max(160).optional(),
+});
+
+const createSceneSchema = z.object({
+  projectId: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(60),
+  sceneType: z.enum(["interior", "exterior", "landscape", "abstract", "other"]).optional(),
+  bible: sceneBibleSchema.optional(),
+  sortOrder: z.coerce.number().int().min(0).optional(),
+});
+
+const updateSceneSchema = z.object({
+  name: z.string().trim().min(1).max(60).optional(),
+  sceneType: z.enum(["interior", "exterior", "landscape", "abstract", "other"]).optional(),
+  bible: sceneBibleSchema.optional(),
+  sortOrder: z.coerce.number().int().min(0).optional(),
+});
+
+// 列出项目所有场景
+router.get("/projects/:id/scenes", validate({ params: idParams }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof idParams>;
+    const data = await comicSceneService.listByProject(id);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+// 创建场景
+router.post("/scenes", validate({ body: createSceneSchema }), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof createSceneSchema>;
+    const data = await comicSceneService.createScene(body);
+    res.status(201).json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+// 更新场景（名称/类型/bible）
+router.patch("/scenes/:sceneId", validate({ params: sceneIdParams, body: updateSceneSchema }), async (req, res, next) => {
+  try {
+    const { sceneId } = req.params as z.infer<typeof sceneIdParams>;
+    const body = req.body as z.infer<typeof updateSceneSchema>;
+    const data = await comicSceneService.updateScene(sceneId, body);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+// 删除场景
+router.delete("/scenes/:sceneId", validate({ params: sceneIdParams }), async (req, res, next) => {
+  try {
+    const { sceneId } = req.params as z.infer<typeof sceneIdParams>;
+    await comicSceneService.deleteScene(sceneId);
+    res.json({ success: true, data: null } satisfies ApiResponse<null>);
+  } catch (err) { next(err); }
+});
+
+// AI 生成场景设定图
+router.post("/scenes/:sceneId/generate-image", validate({ params: sceneIdParams }), async (req, res, next) => {
+  try {
+    const { sceneId } = req.params as z.infer<typeof sceneIdParams>;
+    const provider = typeof req.body.provider === "string" ? req.body.provider : undefined;
+    await comicSceneService.generateSceneSheet(sceneId, provider);
+    const data = await comicSceneService.getScene(sceneId);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+// 上传场景设定图（Content-Type: image/* 直传）
+router.post("/scenes/:sceneId/upload-image", validate({ params: sceneIdParams }), async (req, res, next) => {
+  try {
+    const { sceneId } = req.params as z.infer<typeof sceneIdParams>;
+    const mimeType = req.headers["content-type"] ?? "image/png";
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(chunk as Buffer);
+    const buffer = Buffer.concat(chunks);
+    if (buffer.length === 0) throw new Error("未收到图片数据");
+    const data = await comicSceneService.uploadSceneImage(sceneId, buffer, mimeType);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+// 服务场景图文件
+router.get("/scenes/:sceneId/image", validate({ params: sceneIdParams }), async (req, res, next) => {
+  try {
+    const { sceneId } = req.params as z.infer<typeof sceneIdParams>;
+    const { filePath, mimeType } = await comicSceneService.serveSceneImage(sceneId);
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    const { createReadStream } = await import("fs");
+    createReadStream(filePath).pipe(res);
+  } catch (err) { next(err); }
+});
 
 export default router;
