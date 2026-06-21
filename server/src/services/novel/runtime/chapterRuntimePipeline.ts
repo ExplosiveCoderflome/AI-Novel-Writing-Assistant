@@ -9,6 +9,7 @@ import {
   type ChapterEmptyContentError,
 } from "./chapterEmptyContentError";
 import { runChapterRepairText } from "./repair/chapterRepairRuntime";
+import { AegisEvolutionService } from "../../../services/aegis/AegisEvolutionService";
 
 export interface PipelineRuntimeHooks {
   onCheckCancelled?: () => Promise<void>;
@@ -108,7 +109,7 @@ interface RunPipelineChapterDeps {
     chapterId: string,
     content: string,
     generationState: "drafted" | "repaired",
-    options?: { scheduleBackgroundSync?: boolean; artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"]; syncArtifacts?: boolean },
+    options?: { scheduleBackgroundSync: boolean; artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"]; syncArtifacts?: boolean },
   ) => Promise<void>;
   syncFinalChapterArtifacts: (
     novelId: string,
@@ -126,6 +127,16 @@ interface RunPipelineChapterDeps {
     runId: string | null;
     startMs: number | null;
   }) => Promise<FinalizedRuntimeResult>;
+  finalizeChapterTimeline?: (input: {
+    novelId: string;
+    chapterId: string;
+    request: ChapterRuntimeRequestInput;
+    contextPackage: GenerationContextPackage;
+    content: string;
+    mode: "stable" | "degraded";
+    reason: string;
+    qualityDebt?: boolean;
+  }) => Promise<void>;
   markChapterGenerationState: (
     chapterId: string,
     generationState: "reviewed" | "approved",
@@ -204,6 +215,17 @@ export async function runPipelineChapterWithRuntime(
 
     if (!autoReview) {
       await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, content, artifactSyncMode);
+      if (deps.finalizeChapterTimeline) {
+        await deps.finalizeChapterTimeline({
+          novelId,
+          chapterId,
+          request,
+          contextPackage: assembled.contextPackage,
+          content,
+          mode: "stable",
+          reason: "auto_review_disabled_final_content",
+        });
+      }
       await deps.markChapterGenerationState(chapterId, "approved");
       return {
         reviewExecuted: false,
@@ -311,6 +333,21 @@ export async function runPipelineChapterWithRuntime(
   }
 
   await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, latestResult.finalContent, artifactSyncMode);
+  
+  if (!pass && shouldFinalizeDegradedForDeferredQualityDebt(latestResult.runtimePackage)) {
+    if (deps.finalizeChapterTimeline) {
+      await deps.finalizeChapterTimeline({
+        novelId,
+        chapterId,
+        request,
+        contextPackage: assembled.contextPackage,
+        content: latestResult.finalContent,
+        mode: "degraded",
+        reason: "max_repair_attempts_exhausted",
+        qualityDebt: true,
+      });
+    }
+  }
 
   // 章节未通过时构建归因对象
   const qualityDebtAttribution: QualityDebtAttribution | null = (!pass && firstFailureIssueCodes.length > 0)
@@ -322,6 +359,15 @@ export async function runPipelineChapterWithRuntime(
         patchAnchorFailed: repairEscalatedFromPatch,
       })
     : null;
+
+  // Trigger Aegis Loop 1 prompt self-healing asynchronously in background on failure
+  if (!pass) {
+    try {
+      AegisEvolutionService.triggerEvolution(null, chapterId, "chapter_writer_system.md");
+    } catch (err) {
+      console.error("[Aegis] Failed to trigger prompt self-healing:", err);
+    }
+  }
 
   return {
     reviewExecuted: true,
@@ -599,3 +645,20 @@ function buildQualityDebtAttribution(input: {
   };
 }
 
+function shouldFinalizeDegradedForDeferredQualityDebt(runtimePackage: ChapterRuntimePackage): boolean {
+  if (runtimePackage.replanRecommendation?.action === "stop_for_replan") {
+    return false;
+  }
+  if (runtimePackage.failureClassification?.code === "replan_required") {
+    return false;
+  }
+  if ((runtimePackage.failureClassification?.blockingObligations ?? []).length > 0) {
+    return false;
+  }
+  const acceptanceStatus = runtimePackage.meta?.acceptanceStatus;
+  const continuePolicy = runtimePackage.meta?.continuePolicy;
+  if (acceptanceStatus === "needs_manual_review" || continuePolicy === "pause") {
+    return false;
+  }
+  return true;
+}
