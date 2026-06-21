@@ -9,6 +9,7 @@ import {
   type ChapterEmptyContentError,
 } from "./chapterEmptyContentError";
 import { runChapterRepairText } from "./repair/chapterRepairRuntime";
+import { AegisEvolutionService } from "../../aegis/AegisEvolutionService";
 
 export interface PipelineRuntimeHooks {
   onCheckCancelled?: () => Promise<void>;
@@ -292,6 +293,15 @@ export async function runPipelineChapterWithRuntime(
       reason: "max_repair_attempts_exhausted",
       qualityDebt: true,
     });
+  }
+
+  if (!pass) {
+    // Trigger Aegis Loop 1 prompt self-healing asynchronously in background
+    try {
+      AegisEvolutionService.triggerEvolution(null, chapterId, "chapter_writer_system.md");
+    } catch (err) {
+      console.error("[Aegis] Failed to trigger prompt self-healing:", err);
+    }
   }
 
   return {

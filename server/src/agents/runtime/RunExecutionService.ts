@@ -4,6 +4,7 @@ import { AgentTraceStore } from "../traceStore";
 import { getAgentToolDefinition } from "../toolRegistry";
 import { composeAssistantMessage } from "./answerComposer";
 import { applyToolResultContext, resolveToolInput } from "./executionContext";
+import { LocalProcessSandbox } from "./LocalProcessSandbox";
 import {
   APPROVAL_TTL_MS,
   MAX_TOOL_RETRIES,
@@ -112,13 +113,26 @@ export class RunExecutionService {
 
     try {
       const parsedInput = definition.inputSchema.parse(call.input);
-      const rawOutput = await definition.execute(
-        {
-          ...context,
-          dryRun: call.dryRun ?? false,
-        },
-        parsedInput,
-      );
+      let rawOutput;
+      if (definition.sandbox === true || definition.riskLevel === "high") {
+        rawOutput = await LocalProcessSandbox.execute(
+          call.tool,
+          definition.execute,
+          {
+            ...context,
+            dryRun: call.dryRun ?? false,
+          },
+          parsedInput
+        );
+      } else {
+        rawOutput = await definition.execute(
+          {
+            ...context,
+            dryRun: call.dryRun ?? false,
+          },
+          parsedInput,
+        );
+      }
       const parsedOutput = definition.outputSchema.parse(rawOutput);
       const summary = summarizeOutput(call.tool, parsedOutput);
       const resultStep = await this.store.addStep({
