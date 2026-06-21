@@ -440,20 +440,41 @@ Copy-Item client/.env.example client/.env
 - 启动默认值
 - 数据库里还没保存设置时的回退值
 
-### 3. 启动开发环境
+### 3. Starting Development Environment / 启动开发环境
 
+#### Option A: One-Click Startup (All Services) / 一键启动
 ```bash
 pnpm dev
 ```
+If you have copied `server/.env` and `client/.env`, this is the default one-click command to run all services concurrently.
 
-如果你已经复制好了 `server/.env` 和 `client/.env`，默认就是直接运行这一条。
-不需要在首次启动前手动再执行 `prisma generate`、`prisma db push` 或 `pnpm db:migrate`。
+#### Option B: Separate Startup (Recommended for macOS Debugging) / 分步单独启动
+To monitor backend logs and frontend console separately on macOS, open three separate terminal windows/tabs:
 
-默认情况下：
+1. **Terminal 1: Shared Package Compiler**
+   ```bash
+   pnpm dev:shared
+   ```
+   This watches and compiles the `@ai-novel/shared` package.
 
-- 前端：`http://localhost:5173`
-- 后端：`http://localhost:3000`
-- API：`http://localhost:3000/api`
+2. **Terminal 2: Backend Server**
+   ```bash
+   pnpm dev:server
+   ```
+   This starts the backend Express server on `http://localhost:3000` (which automatically generates the Prisma client and pushes migrations on first startup).
+
+3. **Terminal 3: Frontend Client**
+   ```bash
+   pnpm dev:client
+   ```
+   This starts the Vite React application on `http://localhost:5173`.
+
+Default URLs:
+
+- Frontend Client: `http://localhost:5173`
+- Backend API: `http://localhost:3000`
+- API Endpoint: `http://localhost:3000/api`
+
 
 首次启动服务端时，会自动执行 Prisma generate 和 `db push`。
 只有在你自己修改了 Prisma schema，或者要处理正式迁移流程时，才需要手动使用 Prisma / 数据库相关命令。
