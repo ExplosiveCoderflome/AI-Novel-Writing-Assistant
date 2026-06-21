@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { DirectorIdeaInspiration, DirectorRunMode, DirectorWorldSetupMode } from "@ai-novel/shared/types/novelDirector";
 import type {
   DirectorAutoApprovalGroup,
@@ -85,6 +86,8 @@ interface NovelAutoDirectorSetupPanelProps {
   onReviewCandidates?: () => void;
 }
 
+const DEFAULT_WEBNOVEL_STYLE_PROFILE_NAME = "我的默认网文去 AI 味写法";
+
 export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetupPanelProps) {
   const {
     basicForm,
@@ -124,6 +127,21 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
   const hasEditableBasicForm = typeof onBasicFormChange === "function";
   const hasLargeChapterPlan = basicForm.estimatedChapterCount > 200;
   const selectedWorld = worldOptions.find((world) => world.id === basicForm.worldId) ?? null;
+  const selectedStyleProfile = styleProfileOptions.find((option) => option.id === selectedStyleProfileId) ?? null;
+  const selectedDefaultWebnovelStyle = selectedStyleProfile?.name === DEFAULT_WEBNOVEL_STYLE_PROFILE_NAME;
+  const userStyleSelectionRef = useRef(false);
+
+  useEffect(() => {
+    if (userStyleSelectionRef.current || selectedStyleProfileId || styleProfileOptions.length === 0) {
+      return;
+    }
+    const defaultProfile = styleProfileOptions.find((option) => option.name === DEFAULT_WEBNOVEL_STYLE_PROFILE_NAME);
+    if (!defaultProfile) {
+      return;
+    }
+    onStyleProfileChange(defaultProfile.id);
+  }, [onStyleProfileChange, selectedStyleProfileId, styleProfileOptions]);
+
   const useIdeaInspiration = (text: string) => {
     if (idea.trim()) {
       const confirmed = window.confirm("上方起始想法已有内容。确认使用这条灵感并覆盖原内容吗？");
@@ -336,9 +354,12 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                     id="director-basic-style-profile"
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={selectedStyleProfileId}
-                    onChange={(event) => onStyleProfileChange(event.target.value)}
+                    onChange={(event) => {
+                      userStyleSelectionRef.current = true;
+                      onStyleProfileChange(event.target.value);
+                    }}
                   >
-                    <option value="">先只用文风关键词</option>
+                    <option value="">不绑定写法，仅用文风关键词</option>
                     {styleProfileOptions.map((option) => (
                       <option key={option.id} value={option.id}>{option.name}</option>
                     ))}
@@ -351,6 +372,15 @@ export default function NovelAutoDirectorSetupPanel(props: NovelAutoDirectorSetu
                       本阶段仅生效的写法摘要：{selectedStyleSummary.stageSummaryLines.join("；")}
                     </div>
                   ) : null}
+                  <div className={`rounded-xl border p-3 text-xs leading-6 ${
+                    selectedDefaultWebnovelStyle
+                      ? "border-amber-500/40 bg-amber-50/70 text-amber-950"
+                      : "bg-muted/15 text-muted-foreground"
+                  } ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                    {selectedDefaultWebnovelStyle
+                      ? "推荐写法：按写手级四轮过闸执行，默认检查场景功能、角色口吻、AI 腔和连续性回灌。"
+                      : "建议选择“我的默认网文去 AI 味写法”，让自动导演从开书阶段就按写手级流程控制正文风险。"}
+                  </div>
                 </div>
               </div>
             </section>

@@ -23,6 +23,7 @@ import {
 } from "@/lib/novelWorkflowTaskUi";
 import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
+import WebnovelWorkflowCard from "./home/WebnovelWorkflowCard";
 
 const HOME_NOVEL_FETCH_LIMIT = 12;
 const HOME_RECENT_LIMIT = 6;
@@ -363,6 +364,8 @@ export default function Home() {
         </CardContent>
       </Card>
 
+      <WebnovelWorkflowCard directorCreateLink={DIRECTOR_CREATE_LINK} />
+
       <Card>
         <CardHeader>
           <CardTitle>继续最近项目</CardTitle>
@@ -515,7 +518,7 @@ export default function Home() {
             </div>
           ) : recentNovels.length === 0 ? (
             <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-              暂无小说项目，先从“新建小说”开始。
+              暂无小说项目，建议从“AI 自动导演开书”开始，让系统先搭好方向、世界观和章节执行链。
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
