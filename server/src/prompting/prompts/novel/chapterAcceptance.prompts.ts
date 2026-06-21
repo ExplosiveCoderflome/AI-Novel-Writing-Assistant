@@ -310,6 +310,8 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "6. obligation contract 是本章硬合同。must hit now 与 forbidden crossing 缺口必须写入 missingObligations；可后续承接的 payoff、角色露面或目标变化缺口，只有会影响下一章入口时才写入 missingObligations，否则放入 riskTags。",
       "7. repairability 只能用 none、patchable_obligation_gap、rewrite_needed、plan_misalignment。局部漏写但不阻断下一章时优先 continue_with_risk；只有需要当前章节立刻补齐时才用 patchable_obligation_gap。",
       "8. style_contract 或反 AI 要求属于强约束；发现明显来源实体泄露、模板腔、总结腔时归入 voice。",
+      "8a. 模板腔包括：模板化转场、万能比喻、段尾升华、说明书式设定倾倒、解释型心理描写、角色对话同质化；这些问题不得被当成普通润色建议跳过。",
+      "8b. 如果章节语言顺滑但没有可见状态变化、场景代价或章末压力，应归入 plot 风险；优秀写手级接收标准先看场景是否真的动了。",
       "9. assetSyncRecommendation 只判断资产同步优先级和是否需要全量伏笔对账，不要输出落库细节。",
       "10. blockingIssues.category 只能使用 continuity、character、plot、mode_fit、voice；节奏、重复、中段铺垫、结尾钩子都归入 plot。",
       "11. repairDirectives.target 只能使用 continuity、character、plot、ending、voice；不要输出 middle、pacing、internal_monologue、ending_tone 等自定义目标。",

@@ -80,8 +80,8 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
       key: "writer.antiAiRules",
       label: "反 AI 味规则",
       description: "控制空泛表达、重复回顾和模板化句式。",
-      default: "严格去 AI 味：禁止模板化转场、段尾升华、泛化比喻、说明书式设定倾倒和解释型心理描写；用动作、对话、代价、具体物件和角色专属口吻推进。",
-      maxLength: 800,
+      default: "严格去 AI 味：禁止模板化转场、段尾升华、泛化比喻、说明书式设定倾倒和解释型心理描写；用动作、对话、代价、具体物件、角色专属口吻和潜台词推进。",
+      maxLength: 1000,
     },
     {
       kind: "replace",
@@ -155,7 +155,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
     const tonePreference = slots?.text("writer.tonePreference")
       ?? "使用简体中文，语言自然流畅，适合网文阅读节奏。";
     const antiAiRules = slots?.text("writer.antiAiRules")
-      ?? "严格去 AI 味：禁止模板化转场、段尾升华、泛化比喻、说明书式设定倾倒和解释型心理描写；用动作、对话、代价、具体物件和角色专属口吻推进。";
+      ?? "严格去 AI 味：禁止模板化转场、段尾升华、泛化比喻、说明书式设定倾倒和解释型心理描写；用动作、对话、代价、具体物件、角色专属口吻和潜台词推进。";
     const endingHook = slots?.text("writer.endingHookPreference")
       ?? "结尾必须形成新的钩子（悬念、决策点、突发变化或压力升级），推动读者进入下一章。";
     const povCopy = slots?.choiceCopy("writer.pov")
@@ -211,6 +211,13 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "6. 不得引入新的核心角色、世界规则或与上下文冲突的重大设定。",
         "7. 不得写成总结、复盘、解释性段落为主的章节，正文必须以「正在发生」的内容为主。",
         "",
+        "【写手级四轮内循环】",
+        "输出正文前必须在内部完成四轮判断，但不得把判断过程写出来：",
+        "第一轮：场景功能。确认本章每个主要场景负责推进什么，至少改变信息、关系、风险、资源或决策中的一项。",
+        "第二轮：现场落地。把设定和情绪放进动作、对白、物件、身体反应、误会或后果中，不写说明书。",
+        "第三轮：人物口吻。检查重要角色是否有不同的说话节奏、避讳、试探、嘴硬或小动作，对话不能像同一个旁白。",
+        "第四轮：收束与回灌。结尾必须留下可延续的压力、选择、代价或新义务，并保证本章产生的硬事实可被后续记录。",
+        "",
         "【结构要求】",
         "1. 开头必须迅速进入当前情境，不得长时间铺垫背景或复述上一章。",
         "2. 中段必须出现推进、变化或对抗，不能平铺直叙维持同一状态。",
@@ -232,8 +239,9 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "1. " + tonePreference,
         "2. 优先使用具体动作、对话与可感知细节推进，而不是抽象概述。",
         "3. " + antiAiRules,
-        "4. 对话应服务推进或冲突，不得成为填充内容。",
-        "5. 每一段叙述尽量同时完成两项以上叙事功能（推进情节、揭示人物、制造张力、建构世界），避免仅完成单一功能的过渡性段落。",
+        "4. 对话应服务推进或冲突，同时保留潜台词、试探、错位、停顿或人物面子，不得成为填充内容。",
+        "5. 每一段叙述尽量同时完成两项以上叙事功能（推进情节、揭示人物、制造张力、建构世界、留下代价），避免仅完成单一功能的过渡性段落。",
+        "6. 主角获得收益、信息或胜利时，最好同时留下代价、风险、义务或关系裂口。",
         "",
         "【风格与续写约束】",
         "如果存在 style contract 或 continuation constraints，必须优先满足，视为强约束。",
