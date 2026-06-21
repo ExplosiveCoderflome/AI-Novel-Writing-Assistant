@@ -43,7 +43,7 @@ function resolveDevProxyTarget(): string {
   const port = Number(process.env.PORT ?? 3000);
   const targetHost = configuredHost && !["0.0.0.0", "::"].includes(configuredHost)
     ? configuredHost
-    : "127.0.0.1";
+    : "localhost";
   return `http://${targetHost}:${port}`;
 }
 

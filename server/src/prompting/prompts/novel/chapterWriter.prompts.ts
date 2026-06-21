@@ -80,7 +80,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
       key: "writer.antiAiRules",
       label: "反 AI 味规则",
       description: "控制空泛表达、重复回顾和模板化句式。",
-      default: "控制无效修饰，避免长段空洞描写或「AI感」八股表达。",
+      default: "严格去 AI 味：禁止模板化转场、段尾升华、泛化比喻、说明书式设定倾倒和解释型心理描写；用动作、对话、代价、具体物件和角色专属口吻推进。",
       maxLength: 800,
     },
     {
@@ -155,7 +155,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
     const tonePreference = slots?.text("writer.tonePreference")
       ?? "使用简体中文，语言自然流畅，适合网文阅读节奏。";
     const antiAiRules = slots?.text("writer.antiAiRules")
-      ?? "控制无效修饰，避免长段空洞描写或「AI感」八股表达。";
+      ?? "严格去 AI 味：禁止模板化转场、段尾升华、泛化比喻、说明书式设定倾倒和解释型心理描写；用动作、对话、代价、具体物件和角色专属口吻推进。";
     const endingHook = slots?.text("writer.endingHookPreference")
       ?? "结尾必须形成新的钩子（悬念、决策点、突发变化或压力升级），推动读者进入下一章。";
     const povCopy = slots?.choiceCopy("writer.pov")
