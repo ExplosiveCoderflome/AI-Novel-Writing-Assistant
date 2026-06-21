@@ -469,7 +469,28 @@ To monitor backend logs and frontend console separately on macOS, open three sep
    ```
    This starts the Vite React application on `http://localhost:5173`.
 
+#### Option C: Background Service Management Script (macOS Utility) / 使用后台管理脚本
+We have provided a helper script at [scripts/manage.sh](file:///Users/nvidia/GeneralAgent/scripts/manage.sh) to start, stop, restart, or check the status of the development services in the background:
+
+- **Start all services in background**:
+  ```bash
+  ./scripts/manage.sh start
+  ```
+- **Stop all services**:
+  ```bash
+  ./scripts/manage.sh stop
+  ```
+- **Check service status**:
+  ```bash
+  ./scripts/manage.sh status
+  ```
+- **Restart all services**:
+  ```bash
+  ./scripts/manage.sh restart
+  ```
+
 Default URLs:
+
 
 - Frontend Client: `http://localhost:5173`
 - Backend API: `http://localhost:3000`
