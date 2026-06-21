@@ -363,7 +363,7 @@ export default function KnowledgePage() {
         if (doc.status !== "archived") {
           existingByTitle.set(doc.title, {
             fileName: doc.fileName,
-            activeVersionId: doc.activeVersionId,
+            activeVersionId: doc.activeVersionId ?? null,
           });
         }
       }
