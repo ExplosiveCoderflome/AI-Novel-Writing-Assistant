@@ -304,65 +304,94 @@ export default function Home() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      <section className="overflow-hidden rounded-[2rem] border border-slate-200/70 bg-slate-950 text-slate-50 shadow-[0_28px_80px_rgba(15,23,42,0.22)] dark:border-white/10">
+        <div className="relative isolate px-6 py-7 sm:px-8 lg:px-10">
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_18%_18%,rgba(129,140,248,0.32),transparent_28%),radial-gradient(circle_at_82%_8%,rgba(20,184,166,0.18),transparent_24%),linear-gradient(135deg,#020617,#0f172a_58%,#111827)]" />
+          <div className="absolute right-8 top-8 -z-10 h-40 w-40 rounded-full border border-white/10 bg-white/[0.03] blur-0" />
+          <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="border-white/10 bg-white/10 text-slate-100 hover:bg-white/10">桌面工作台</Badge>
+                <Badge variant="outline" className="border-indigo-300/30 bg-indigo-400/10 text-indigo-100">DeepSeek 写作链路</Badge>
+                <Badge variant="outline" className="border-emerald-300/30 bg-emerald-400/10 text-emerald-100">写手级四轮过闸</Badge>
+              </div>
+              <div className="max-w-3xl space-y-4">
+                <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+                  {hasNovels ? "回到你的小说驾驶舱。" : "从一个想法开出一本能连载的书。"}
+                </h1>
+                <p className="max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
+                  你负责判断方向和取舍。自动导演负责拆卖点、定章节功能、写正文、查 AI 腔、记录人物状态和伏笔债，让新手也能按完整长篇流程推进。
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button asChild size="lg" className="bg-indigo-500 text-white hover:bg-indigo-400">
+                  <Link to={DIRECTOR_CREATE_LINK}>开始自动导演开书</Link>
+                </Button>
+                <Button asChild size="lg" variant="outline" className="border-white/15 bg-white/5 text-slate-100 hover:bg-white/10 hover:text-white">
+                  <Link to="/style-engine">查看写法资产</Link>
+                </Button>
+                <Button asChild size="lg" variant="ghost" className="text-slate-200 hover:bg-white/10 hover:text-white">
+                  <Link to="/help">新手上路</Link>
+                </Button>
+              </div>
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 shadow-2xl backdrop-blur">
+              <div className="rounded-2xl border border-white/10 bg-slate-950/75 p-4">
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="text-sm font-medium text-slate-200">今日写作面板</div>
+                  <div className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs text-emerald-200">本地运行</div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                  <div className="rounded-2xl bg-white/[0.05] p-4">
+                    <div className="text-3xl font-semibold">{novelQuery.isPending ? "--" : liveWorkflowCount}</div>
+                    <div className="mt-1 text-sm text-slate-400">后台推进</div>
+                  </div>
+                  <div className="rounded-2xl bg-white/[0.05] p-4">
+                    <div className="text-3xl font-semibold">{novelQuery.isPending ? "--" : actionRequiredCount}</div>
+                    <div className="mt-1 text-sm text-slate-400">待你决策</div>
+                  </div>
+                  <div className="rounded-2xl bg-white/[0.05] p-4">
+                    <div className="text-3xl font-semibold">{novelQuery.isPending ? "--" : readyForExecutionCount}</div>
+                    <div className="mt-1 text-sm text-slate-400">可写章节</div>
+                  </div>
+                  <div className="rounded-2xl bg-white/[0.05] p-4">
+                    <div className="text-3xl font-semibold">{taskQuery.isPending ? "--" : failedTaskCount}</div>
+                    <div className="mt-1 text-sm text-slate-400">需处理任务</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div className="home-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          title="最近自动推进中"
+          title="自动推进"
           value={liveWorkflowCount}
-          hint="最近项目中仍在后台推进的自动导演或自动执行项目。"
+          hint="后台运行的自动导演或章节执行项目。"
           pending={novelQuery.isPending}
         />
         <MetricCard
-          title="最近待你处理"
+          title="待你处理"
           value={actionRequiredCount}
-          hint="最近项目里等待审核、失败或已取消后需要你决定下一步的项目。"
+          hint="等待审核、恢复或下一步取舍的项目。"
           pending={novelQuery.isPending}
         />
         <MetricCard
-          title="最近可进入章节执行"
+          title="可进入写章"
           value={readyForExecutionCount}
-          hint="最近项目里准备到可开写阶段，可以直接进入章节写作。"
+          hint="准备到可开写阶段的项目。"
           pending={novelQuery.isPending}
         />
         <MetricCard
-          title="后台失败任务"
+          title="失败任务"
           value={failedTaskCount}
-          hint="来自任务中心的失败任务总数，可后续集中处理。"
+          hint="任务中心里需要回看处理的失败项。"
           pending={taskQuery.isPending}
         />
       </div>
-
-      <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-background to-primary/5 shadow-sm">
-        <CardHeader>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge>新手推荐</Badge>
-            <Badge variant="outline">低门槛开书</Badge>
-          </div>
-          <CardTitle>
-            {hasNovels ? "想快速开启下一本书？先交给 AI 自动导演。" : "第一次使用？先让 AI 自动导演带你开一本书。"}
-          </CardTitle>
-          <CardDescription>
-            你只需要提供一个模糊想法，AI 会先帮你生成方向方案、标题包和开书准备，并在关键阶段停下来等你确认，不需要你一开始就把结构全部想清楚。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            <span>适合还没想清楚题材、卖点和前 30 章承诺时使用</span>
-            <span>也适合先快速搭起一本可继续推进的新项目</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild size="lg">
-              <Link to={DIRECTOR_CREATE_LINK}>AI 自动导演开书</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link to="/help">新手上路</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <WebnovelWorkflowCard directorCreateLink={DIRECTOR_CREATE_LINK} />
 
