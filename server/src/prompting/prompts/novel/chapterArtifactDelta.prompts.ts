@@ -556,6 +556,8 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "9. concreteFacts 只记录本章正文即兴产生且后续必须保持一致的硬事实，每条不超过 40 字；包括承诺、交易条款、事件性质、关键数字日期地点、身份与状态变化。",
       "10. concreteFacts.category 只能使用 completed、revealed、state_changed；无明确硬事实时输出 []，不得把抽象目标或氛围描述写入 concreteFacts。",
       "11. characterKnowledgeStates 只在本章存在显著信息差时填写；knownFacts 写该角色本章后明确知道的事实，hiddenFacts 写该角色仍不知道、后续不能让其超前知情的事实，每组最多 5 条；无信息差输出 []。",
+      "11a. 必须把本章真正改变的场景结果写入 delta：关系阶段变化、立场变化、承诺/欠债、新义务、资源得失、信息差变化、风险升级都要可追踪，不能只写一段顺滑摘要。",
+      "11b. 如果正文只产生氛围或情绪，没有可记录变化，summary 要明确指出本章缺少可写回的硬变化，并降低 confidence。",
       "12. payoffDeltas.currentStatus 只能使用 setup、hinted、pending_payoff、paid_off、failed、overdue；不要输出 active，已推进但未兑现统一用 pending_payoff。",
       "13. payoffDeltas.riskSignals 必须是对象数组，形如 { code, severity, summary }；没有风险就输出 []，不要输出字符串数组。",
       "14. relationDynamics 必须使用 sourceCharacterName、targetCharacterName、stageLabel、stageSummary；characterCandidates 必须使用 proposedName、proposedRole、summary。",

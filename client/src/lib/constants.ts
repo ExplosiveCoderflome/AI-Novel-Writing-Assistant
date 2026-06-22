@@ -44,7 +44,7 @@ function resolveAppRuntime(config: ClientRuntimeConfig): AppRuntimeMode {
 
 const runtimeConfig = resolveRuntimeConfig();
 const viteEnv = resolveViteEnv();
-const viteAppVersion = import.meta.env.VITE_APP_VERSION;
+const viteAppVersion = viteEnv.VITE_APP_VERSION;
 
 export const APP_RUNTIME: AppRuntimeMode = resolveAppRuntime(runtimeConfig);
 export const APP_RUNTIME_IS_PACKAGED = runtimeConfig.isPackaged === true;

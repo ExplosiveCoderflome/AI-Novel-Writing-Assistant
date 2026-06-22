@@ -276,6 +276,11 @@ function createVolumeDetailSystemPrompt(detailMode: VolumeChapterDetailPromptInp
     "首个 sceneCard 必须通过 purpose、entryState 或 forbiddenExpansion 明确避开最近章节的重复开场。",
     "至少一个中段 sceneCard 的 mustAdvance 必须明确要求不同于最近章节的推进结果，例如主动试探、关系建立、资源获得、规则认知或计划转向。",
     "如果最近章节已经连续写成外部压迫或被动逃离，本章不得继续只靠同类压迫推进，必须给出新的推进机制。",
+    "任务单必须像优秀写手的开工单：每个场景都要写清本场景改变什么，而不是只写要聊什么、解释什么或铺垫什么。",
+    "每个 sceneCard 的 mustAdvance 至少包含一项可见变化：信息差变化、关系阶段变化、风险升级、资源获得/损失、计划转向或新义务。",
+    "每个 sceneCard 的 exitState 必须比 entryState 多出新的后果、代价、压力或选择；如果两者只是换说法，说明场景无效。",
+    "mustPreserve 必须写入本场景容易写错的人物状态、世界硬规则、信息边界或伏笔操作，不能只写“保持连续性”。",
+    "forbiddenExpansion 必须禁止本场景最容易滑向的水文写法，例如说明书设定、复述上一章、纯聊天、同质化对白、无代价爽点或章末空泛升华。",
   ].join("\n");
 }
 
@@ -302,6 +307,9 @@ function createExecutionContractSystemPrompt(): string {
     "taskSheet 是给正文写作器的简洁执行指令，sceneCards 是 3-8 个场景卡的执行拆解。",
     "taskSheet 和 sceneCards 只能执行当前章的合同，不得提前占用相邻章的一次性事件，也不得重写上一章已经完成的里程碑。",
     "如果最近章节已经连续使用相同开场、相同推进路数或同类钩子，本章必须通过 sceneCards 主动做出差异化。",
+    "每张 sceneCard 都必须说明本场景改变什么：信息、关系、风险、资源、计划或义务至少一项。只负责解释、聊天、铺垫或过渡的场景不可用。",
+    "每张 sceneCard 都必须写清 entryState 和 exitState 的差别，并在 mustAdvance 里放入可被正文兑现的动作、对白压力、交易、失败后果或选择代价。",
+    "每张 sceneCard 的 mustPreserve 必须约束人物状态、信息边界、世界规则和伏笔操作；forbiddenExpansion 必须禁止本场景最容易出现的 AI 腔、设定倾倒或无代价推进。",
   ].join("\n");
 }
 

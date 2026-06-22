@@ -16,7 +16,7 @@
   },
   "scripts": {
     "dev": "pnpm run dev:api",
-    "dev:api": "node scripts/ensure-dev-prisma.cjs && node scripts/stop-stale-dev-server.cjs && ts-node-dev --respawn --transpile-only src/app.ts",
+    "dev:api": "node scripts/ensure-dev-prisma.cjs && node scripts/stop-stale-dev-server.cjs && ts-node-dev --respawn --transpile-only --ignore-watch ../shared/dist --ignore-watch ../client --ignore-watch ../desktop src/app.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/app.js",
     "start:api": "node dist/app.js",

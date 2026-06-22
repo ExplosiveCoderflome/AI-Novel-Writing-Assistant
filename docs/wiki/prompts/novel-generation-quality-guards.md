@@ -15,7 +15,26 @@
 
 ## 当前规则与实现
 
-### 一、世界切片污染防止（`storyWorldSlice.prompts.ts`）
+### 一、写手级四轮过闸
+
+**目标**：让自动导演和章节生产先按优秀写手的判断顺序处理章节，再处理语言润色。它不能保证模型等同真人作家，但能把“好写手会先检查什么”固化到默认路径里。
+
+**四轮顺序**：
+
+1. **场景功能**：每个主要场景至少改变信息、关系、风险、资源或决策中的一项。
+2. **现场落地**：设定和情绪必须落到动作、对白、物件、身体反应、误会或后果中，不写说明书。
+3. **人物口吻**：重要角色要有不同的说话节奏、避讳、试探、嘴硬或小动作。
+4. **收束回灌**：章末留下可延续的压力、选择、代价或新义务，并让新硬事实可被后续记录。
+
+**作用范围**：
+
+- 首页和自动导演入口把“你判断方向，AI 负责规划/写章/审校/回灌”的路径作为推荐用法。
+- 默认写法资产 `我的默认网文去 AI 味写法` 绑定场景功能、状态变化、对白潜台词和场景代价规则。
+- `directorPlanning.prompts.ts` 要求候选、蓝图和 Book Contract 能支撑自然人味正文，不靠宏大说明或抽象主题撑质感。
+- `chapterWriter.prompts.ts` 在正文输出前执行内部四轮判断。
+- `review.prompts.ts` 和 `chapterAcceptance.prompts.ts` 会把“语言顺滑但场景没动”视为质量风险，而不是普通润色问题。
+
+### 二、世界切片污染防止（`storyWorldSlice.prompts.ts`）
 
 **规则**：切片自由文本字段（`coreWorldFrame`、`pressureSources` 等）禁止直接使用世界资产的专有名称，必须使用通用叙事语言（如"地方权贵"而非"曹国栋家族"）。专有名称只允许出现在 `appliedRules/activeForces/activeLocations` 的 `id` 引用字段中。
 
@@ -23,7 +42,7 @@
 
 **失效模式**：如果世界设定本身内部没有结构化 id（即 `structuredDataJson` 为空，走 legacy 路径），则切片可能仍使用旧名词。需要先为世界生成结构化数据。
 
-### 二、已完成里程碑（`ChapterWriteContext.completedMilestones`）
+### 三、已完成里程碑（`ChapterWriteContext.completedMilestones`）
 
 **字段**：在 `chapterWriteContextSchema` 中新增 `completedMilestones: z.array(z.string()).default([])`。
 
@@ -33,7 +52,7 @@
 
 **关联提示词约束**：`chapterWriter.prompts.ts` 系统提示词增加：禁止重复追求 `completedMilestones` 中已完成的目标。
 
-### 三、场景模式黑名单（`ChapterWriteContext.recentScenePatterns`）
+### 四、场景模式黑名单（`ChapterWriteContext.recentScenePatterns`）
 
 **字段**：在 `chapterWriteContextSchema` 中新增 `recentScenePatterns: z.array(z.string()).default([])`。
 
@@ -43,7 +62,7 @@
 
 **关联提示词约束**：`chapterWriter.prompts.ts` 系统提示词增加：禁止重复使用黑名单中的场景模式。
 
-### 四、卷级关键节点守卫（`VolumeWindowContext.keyMilestoneGuards`）
+### 五、卷级关键节点守卫（`VolumeWindowContext.keyMilestoneGuards`）
 
 **字段**：在 `volumeWindowContextSchema` 中新增：
 ```typescript
@@ -55,7 +74,7 @@ keyMilestoneGuards: z.array(volumeKeyMilestoneGuardSchema).default([])
 
 **写入规则**：此字段由卷规划服务在构建 `VolumeWindowContext` 时填入，标注哪些关键事件应在哪个章节范围才允许发生。如为空，不渲染。
 
-### 五、叙事进度与角色缺席信号
+### 六、叙事进度与角色缺席信号
 
 **叙事进度字段**：`ChapterWriteContext.narrativeProgressHint` 是可选写作提示，由运行时根据 `chapter.order / novel.estimatedChapterCount` 计算。总章数为空或小于等于 0 时不生成该字段。
 
@@ -67,7 +86,7 @@ keyMilestoneGuards: z.array(volumeKeyMilestoneGuardSchema).default([])
 
 **维护边界**：不要用固定章节号硬编码“第几章必须收束”。如果节奏判断需要变化，应调整 `buildNarrativeProgressHint()` 的阶段规则或上游预计总章数，而不是在 prompt 模板中堆特殊分支。
 
-### 六、上下文预算观测
+### 七、上下文预算观测
 
 **预算目标**：writer 阶段当前上下文预算以 `tokenBudgetPolicy.stageTokenCap.writer` 为准，默认值为 2600。高优先必选块应保持克制，避免必选约束本身吞掉过多预算。
 
@@ -75,7 +94,7 @@ keyMilestoneGuards: z.array(volumeKeyMilestoneGuardSchema).default([])
 
 **诊断规则**：如果日志显示 `priority >= 99 && required=true` 的必选块长期超过 writer 预算的 25%，应单独评估是否把部分约束降为 `priority=95` 且 `required=false`。不能为了日志好看直接删掉时间线、上一章承接、角色硬事实或本章义务契约。
 
-### 七、章节连续性诊断工具（`audit_chapter_continuity`）
+### 八、章节连续性诊断工具（`audit_chapter_continuity`）
 
 **Agent 工具**：`inspect` 类，`riskLevel=low`，不需要 LLM，基于关键词组匹配实现确定性检测。
 
