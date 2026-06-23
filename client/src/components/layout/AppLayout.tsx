@@ -7,6 +7,7 @@ import Navbar from "./Navbar";
 import NovelWorkspaceRail from "./NovelWorkspaceRail";
 import Sidebar from "./Sidebar";
 import MobileSiteShell from "./mobile/MobileSiteShell";
+import AutoDirectorPauseNotificationWatcher from "@/components/autoDirector/AutoDirectorPauseNotificationWatcher";
 import { TaskRecoveryProvider } from "./TaskRecoveryContext";
 import TaskRecoveryDialog from "./TaskRecoveryDialog";
 import { useIsMobileViewport } from "./mobile/useIsMobileViewport";
@@ -75,6 +76,7 @@ export default function AppLayout() {
     return (
       <TaskRecoveryProvider>
         <div className="min-h-screen bg-background">
+          <AutoDirectorPauseNotificationWatcher />
           <LLMSelectionBootstrap />
           <DesktopModelSetupGate />
           <Suspense fallback={<AppRouteFallback />}>
@@ -90,6 +92,7 @@ export default function AppLayout() {
     return (
       <TaskRecoveryProvider>
         <MobileSiteShell>
+          <AutoDirectorPauseNotificationWatcher />
           <LLMSelectionBootstrap />
           <DesktopModelSetupGate />
           <Suspense fallback={<AppRouteFallback />}>
@@ -104,6 +107,7 @@ export default function AppLayout() {
   return (
     <TaskRecoveryProvider>
       <div className="min-h-screen bg-background">
+        <AutoDirectorPauseNotificationWatcher />
         <LLMSelectionBootstrap />
         <Navbar
           workspaceNavMode={isNovelWorkspace ? workspaceNavMode : undefined}
