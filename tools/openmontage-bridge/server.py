@@ -19,11 +19,13 @@ import sys
 from pathlib import Path
 
 # 如果设置了 OPENMONTAGE_ROOT，则将其加入 sys.path 以便导入 tools.*
-OPENMONTAGE_ROOT = os.environ.get("OPENMONTAGE_ROOT", "")
+# 如果未设置，则默认使用当前目录（即包含整个 OpenMontage 代码库的本地目录）
+OPENMONTAGE_ROOT = os.environ.get("OPENMONTAGE_ROOT", str(Path(__file__).parent.resolve()))
 if OPENMONTAGE_ROOT:
     _om_path = Path(OPENMONTAGE_ROOT).resolve()
     if str(_om_path) not in sys.path:
         sys.path.insert(0, str(_om_path))
+
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware

@@ -1,0 +1,274 @@
+name: cinematic
+version: "2.0"
+description: >
+  Mood-led cinematic pipeline for trailers, brand films, montages, and short-form dramatic edits.
+  Works best with supplied footage, stills, or source media, and can optionally use generated
+  support visuals for gap filling or concept-led inserts. EP orchestration adds quality gates
+  for emotional pacing, color consistency, and audio dynamics.
+category: cinematic
+stability: production
+default_checkpoint_policy: guided
+
+# Reference video input support
+reference_input:
+  supported: true
+  analysis_depth: deep
+  analysis_tools:
+    - video_analyzer
+    - transcript_fetcher
+    - video_downloader
+    - scene_detect
+    - frame_sampler
+
+orchestration:
+  mode: executive-producer
+  skill: pipelines/cinematic/executive-producer
+  budget_default_usd: 2.00
+  max_revisions_per_stage: 3
+  max_send_backs: 3
+  max_wall_time_minutes: 12
+
+extensions:
+  custom_scripts: true
+  custom_playbooks: true
+  custom_skills: true
+  custom_tools: false
+
+required_skills:
+  - pipelines/cinematic/executive-producer
+  - pipelines/cinematic/research-director
+  - pipelines/cinematic/proposal-director
+  - pipelines/cinematic/script-director
+  - pipelines/cinematic/scene-director
+  - pipelines/cinematic/asset-director
+  - pipelines/cinematic/edit-director
+  - pipelines/cinematic/compose-director
+  - pipelines/cinematic/publish-director
+  - meta/reviewer
+  - meta/checkpoint-protocol
+  - meta/animation-runtime-selector
+
+compatible_playbooks:
+  recommended:
+    - flat-motion-graphics
+  also_works:
+    - clean-professional
+    - minimalist-diagram
+  custom_allowed: true
+
+stages:
+  - name: research
+    skill: pipelines/cinematic/research-director
+    produces:
+      - research_brief
+    tools_available:
+      - web_search
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Visual references are specific and relevant to the mood
+      - Sound and music direction is substantive, not generic
+      - Motion commitment is honest about available capabilities
+      - At least 3 genuinely different cinematic directions identified
+    success_criteria:
+      - Schema-valid research_brief artifact
+      - At least 8 web searches executed
+      - Visual references include specific URLs and descriptions
+
+  - name: proposal
+    skill: pipelines/cinematic/proposal-director
+    required_artifacts_in:
+      - research_brief
+    optional_artifacts_in:
+      - source_media_review
+    produces:
+      - proposal_packet
+      - decision_log
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Source mode and emotional arc are clear
+      - Motion-required delivery is explicitly identified when applicable
+      - Delivery shape is realistic for available footage and assets
+      - Cinematic treatment is justified rather than decorative
+      - Delivery promise is explicit and honest
+      - Renderer family is selected and locked
+      - Music plan is resolved
+    success_criteria:
+      - Schema-valid proposal_packet artifact
+      - At least 3 concept options with different emotional arcs
+      - Delivery promise present with motion_required flag
+      - Cost estimate includes per-item breakdown
+    sub_stages:
+      - name: sample
+        description: "10-15 second cinematic preview for reference-driven productions"
+        condition: "video_analysis_brief_exists"
+        human_approval_default: true
+        tools_available: [tts_selector, image_selector, video_selector, video_compose, audio_mixer, color_grade]
+        review_focus:
+          - "Sample captures the approved emotional tone"
+          - "Color palette and lighting match approved direction"
+          - "Music mood matches approved cinematic treatment"
+
+  - name: script
+    skill: pipelines/cinematic/script-director
+    required_artifacts_in:
+      - proposal_packet
+    produces:
+      - script
+    optional_tools:
+      - transcriber
+      - scene_detect
+    tools_available:
+      - transcriber
+      - scene_detect
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Beat map escalates cleanly
+      - Dialogue or title-card usage is sparse and purposeful
+      - Reveal and landing beats are clear
+    success_criteria:
+      - Schema-valid script artifact
+      - Script sections map to identifiable cinematic beats
+
+  - name: scene_plan
+    skill: pipelines/cinematic/scene-director
+    required_artifacts_in:
+      - script
+    optional_artifacts_in:
+      - proposal_packet
+    produces:
+      - scene_plan
+    optional_tools:
+      - frame_sampler
+      - scene_detect
+    tools_available:
+      - frame_sampler
+      - scene_detect
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Hero frames and reveal moments are defined
+      - Source-led scenes remain primary when source media exists
+      - Transition and aspect-ratio choices support the mood
+    success_criteria:
+      - Schema-valid scene_plan artifact
+      - Every beat has a scene treatment and asset path
+
+  - name: assets
+    skill: pipelines/cinematic/asset-director
+    required_artifacts_in:
+      - scene_plan
+    optional_artifacts_in:
+      - script
+      - brief
+    produces:
+      - asset_manifest
+    optional_tools:
+      - subtitle_gen
+      - audio_enhance
+      - image_selector
+      - video_selector
+      - pixabay_music
+      - freesound_music
+      - music_gen
+    tools_available:
+      - subtitle_gen
+      - audio_enhance
+      - image_selector
+      - video_selector
+      - pixabay_music
+      - freesound_music
+      - music_gen
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Source selects and support assets are clearly separated
+      - Motion-required beats use actual video clips rather than still-image substitutes
+      - Music and ambience plan matches the beat map
+      - Optional generated inserts stay limited and justified
+    success_criteria:
+      - Schema-valid asset_manifest artifact
+      - All referenced asset files exist on disk
+
+  - name: edit
+    skill: pipelines/cinematic/edit-director
+    required_artifacts_in:
+      - scene_plan
+      - asset_manifest
+    optional_artifacts_in:
+      - script
+    produces:
+      - edit_decisions
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Emotional pacing is preserved
+      - Strong moments are not overcut or overcovered
+      - Audio cues and title-card timing reinforce the story
+    success_criteria:
+      - Schema-valid edit_decisions artifact
+      - Edit decisions cover the full planned runtime
+
+  - name: compose
+    skill: pipelines/cinematic/compose-director
+    required_artifacts_in:
+      - edit_decisions
+      - asset_manifest
+    optional_artifacts_in:
+      - scene_plan
+    produces:
+      - render_report
+      - final_review
+    required_tools:
+      - video_compose
+      - audio_mixer
+    optional_tools:
+      - video_stitch
+      - video_trimmer
+      - color_grade
+      - audio_enhance
+    tools_available:
+      - video_compose
+      - hyperframes_compose
+      - audio_mixer
+      - video_stitch
+      - video_trimmer
+      - color_grade
+      - audio_enhance
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Output mood matches intended pacing and grade
+      - Motion-required delivery was preserved without silent fallback
+      - Audio dynamics are controlled and intelligible
+      - Letterbox or frame treatment improves rather than harms the output
+      - "render_runtime in edit_decisions matches proposal_packet — silent swap is a CRITICAL governance violation"
+      - "Cinematic work typically picks render_runtime='remotion' (CinematicRenderer) for video-led pieces; render_runtime='hyperframes' for kinetic title cards and HTML/GSAP-driven trailers"
+    success_criteria:
+      - Schema-valid render_report artifact
+      - Output file exists and passes ffprobe validation
+
+  - name: publish
+    skill: pipelines/cinematic/publish-director
+    required_artifacts_in:
+      - render_report
+      - final_review
+    optional_artifacts_in:
+      - proposal_packet
+      - script
+    produces:
+      - publish_log
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Hero export and derivative exports are clearly labeled
+      - Metadata matches the tone and distribution intent
+      - Poster-frame or thumbnail concept is coherent
+    success_criteria:
+      - Schema-valid publish_log artifact
+      - Export package contains video and metadata outputs

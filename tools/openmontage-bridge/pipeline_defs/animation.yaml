@@ -1,0 +1,284 @@
+name: animation
+version: "2.0"
+description: >
+  Animation-first pipeline for motion graphics, diagram-led explainers, kinetic typography,
+  math visuals, and stylized illustrative sequences. Features a research-first pre-production
+  phase: the agent researches the topic and animation techniques, proposes concepts with
+  animation mode selection and cost estimates, and gets explicit user approval before any
+  assets are generated.
+category: animation
+stability: production
+default_checkpoint_policy: guided
+
+# Reference video input support
+reference_input:
+  supported: true
+  analysis_depth: standard
+  analysis_tools:
+    - video_analyzer
+    - transcript_fetcher
+    - video_downloader
+    - scene_detect
+    - frame_sampler
+
+extensions:
+  custom_scripts: true
+  custom_playbooks: true
+  custom_skills: true
+  custom_tools: false
+
+required_skills:
+  - pipelines/animation/executive-producer
+  - pipelines/animation/research-director
+  - pipelines/animation/proposal-director
+  - pipelines/animation/script-director
+  - pipelines/animation/scene-director
+  - pipelines/animation/asset-director
+  - pipelines/animation/edit-director
+  - pipelines/animation/compose-director
+  - pipelines/animation/publish-director
+  - meta/reviewer
+  - meta/checkpoint-protocol
+  - meta/animation-runtime-selector
+
+orchestration:
+  mode: executive-producer
+  skill: pipelines/animation/executive-producer
+  budget_default_usd: 2.00
+  max_revisions_per_stage: 3
+  max_send_backs: 3
+  max_wall_time_minutes: 15
+
+compatible_playbooks:
+  recommended:
+    - flat-motion-graphics
+    - anime-ghibli
+  also_works:
+    - clean-professional
+    - minimalist-diagram
+  custom_allowed: true
+
+stages:
+  # ── Pre-Production ──────────────────────────────────────────────
+
+  - name: research
+    skill: pipelines/animation/research-director
+    produces:
+      - research_brief
+    tools_available: []
+    checkpoint_required: false
+    human_approval_default: false
+    review_focus:
+      - Content landscape mapped with at least 3 existing pieces
+      - Data points are specific and sourced, not vague
+      - Animation technique references researched (at least 2)
+      - At least 3 genuinely different angles discovered with animation_fit
+      - All angles grounded in specific research findings
+    success_criteria:
+      - Schema-valid research_brief with at least 3 data_points
+      - At least 3 angles_discovered, each with grounded_in references
+      - At least 5 sources cited with URLs
+
+  - name: proposal
+    skill: pipelines/animation/proposal-director
+    required_artifacts_in:
+      - research_brief
+    produces:
+      - proposal_packet
+      - decision_log
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Concept options are genuinely different (animation mode, structure, hook)
+      - Animation mode selection is grounded in technique research and tool availability
+      - Each concept includes a reuse strategy (motifs, templates, transition family)
+      - Production plan reflects actual tool availability from preflight
+      - Cost estimate is itemized and honest
+      - Free/local tool options are highlighted where applicable
+      - "Audio architecture decided: single narrator / character dialogue / narrator+characters"
+      - "Provider choice presented as comparison table with costs — agent recommends but user decides"
+      - "render_runtime chosen explicitly — remotion for React scene stack, hyperframes for HTML/GSAP motion graphics, ffmpeg for simple concat. See skills/core/hyperframes.md and skills/meta/animation-runtime-selector.md for the decision matrix. Record in decision_log with category render_runtime_selection."
+    success_criteria:
+      - Schema-valid proposal_packet with at least 3 concept_options
+      - selected_concept includes animation_mode and reuse_strategy
+      - selected_concept includes audio_architecture (single_narrator | character_dialogue | narrator_plus_characters)
+      - cost_estimate has itemized line_items with per-tool costs
+      - cost_estimate includes provider_comparison table with at least 2 provider options
+      - approval.status is "approved" or "approved_with_changes" before proceeding
+    sub_stages:
+      - name: sample
+        description: "10-15 second animation preview for reference-driven productions"
+        condition: "video_analysis_brief_exists"
+        human_approval_default: true
+        tools_available: [tts_selector, image_selector, video_selector, video_compose, audio_mixer, math_animate, diagram_gen]
+        review_focus:
+          - "Sample represents the approved animation mode faithfully"
+          - "Visual identity matches approved playbook and style"
+          - "Pacing matches reference inspiration"
+
+  # ── Production ──────────────────────────────────────────────────
+
+  - name: script
+    skill: pipelines/animation/script-director
+    required_artifacts_in:
+      - proposal_packet
+    optional_artifacts_in:
+      - research_brief
+    produces:
+      - script
+    optional_tools:
+      - transcriber
+    tools_available:
+      - transcriber
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Script beats are concise and animation-friendly
+      - On-screen text remains readable and restrained
+      - Timing structure leaves room for visual holds
+      - Word count within +/-10% of duration target from selected concept
+      - Script incorporates research data points where relevant
+    success_criteria:
+      - Schema-valid script artifact
+      - Script sections map to distinct animation beats
+      - Total duration matches selected concept target within 10%
+
+  - name: scene_plan
+    skill: pipelines/animation/scene-director
+    required_artifacts_in:
+      - script
+    optional_artifacts_in:
+      - proposal_packet
+    produces:
+      - scene_plan
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Scene system is coherent and follows reuse strategy from proposal
+      - Animation mode specified per scene, consistent with proposal
+      - Transition logic is limited and meaningful
+      - Every scene has a feasible tool path
+    success_criteria:
+      - Schema-valid scene_plan artifact
+      - Every scene includes animation mode and visual treatment
+
+  - name: assets
+    skill: pipelines/animation/asset-director
+    required_artifacts_in:
+      - scene_plan
+      - script
+    optional_artifacts_in:
+      - proposal_packet
+    produces:
+      - asset_manifest
+    required_tools:
+      - tts_selector
+    optional_tools:
+      - image_selector
+      - video_selector
+      - math_animate
+      - diagram_gen
+      - code_snippet
+      - music_gen
+    tools_available:
+      - tts_selector
+      - image_selector
+      - video_selector
+      - math_animate
+      - diagram_gen
+      - code_snippet
+      - music_gen
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Asset production path is explicit per scene
+      - Reusable motifs and templates are prepared and referenced
+      - Missing tool paths are surfaced honestly
+      - Total cost within approved budget from proposal_packet
+      - "Layer 3 skills read for EVERY generation tool before writing prompts (check agent_skills field)"
+      - "Clip duration maximized (prefer 10s over 5s) to reduce API calls and cost"
+      - "Use selector tools (video_selector, tts_selector, image_selector) — never call provider tools directly"
+      - "Read Layer 2 skills for each tool BEFORE reading source code — skills contain usage guidance, source code is implementation detail"
+    success_criteria:
+      - Schema-valid asset_manifest artifact
+      - All referenced asset files exist on disk
+      - layer3_skills_read list is present and includes all tools used for generation
+
+  - name: edit
+    skill: pipelines/animation/edit-director
+    required_artifacts_in:
+      - scene_plan
+      - asset_manifest
+    optional_artifacts_in:
+      - script
+    produces:
+      - edit_decisions
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Hold times and staggered reveals are preserved
+      - Motion serves hierarchy rather than decoration
+      - Timeline logic is consistent across scenes
+      - Audio ducking configured for narration segments
+    success_criteria:
+      - Schema-valid edit_decisions artifact
+      - Edit decisions cover all planned animation beats
+
+  - name: compose
+    skill: pipelines/animation/compose-director
+    required_artifacts_in:
+      - edit_decisions
+      - asset_manifest
+    optional_artifacts_in:
+      - scene_plan
+    produces:
+      - render_report
+      - final_review
+    required_tools:
+      - video_compose
+      - audio_mixer
+    optional_tools:
+      - video_stitch
+    tools_available:
+      - video_compose
+      - hyperframes_compose
+      - audio_mixer
+      - video_stitch
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Text and diagrams remain sharp at final resolution
+      - Motion timing survives the final render
+      - Audio sync matches the animatic intent
+      - Duration within +/-5% of target
+      - "render_runtime in edit_decisions matches render_runtime locked in proposal_packet — any swap requires a render_runtime_selection decision in decision_log"
+      - "HyperFrames renders MUST pass `hyperframes lint` and `hyperframes validate` before the render step — never skip validation"
+      - "Post-render self-review MANDATORY: extract keyframes, visually inspect each scene, flag weak frames before presenting to user"
+    success_criteria:
+      - Schema-valid render_report artifact
+      - Output file exists and passes ffprobe validation
+      - self_review_completed is true with per-scene quality notes
+
+  - name: publish
+    skill: pipelines/animation/publish-director
+    required_artifacts_in:
+      - render_report
+      - final_review
+    optional_artifacts_in:
+      - proposal_packet
+      - script
+    produces:
+      - publish_log
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Platform packaging matches the animation style
+      - Metadata reflects the actual topic, animation mode, and visual system
+      - Thumbnail concept matches the final visual language
+    success_criteria:
+      - Schema-valid publish_log artifact
+      - Export package contains video and metadata outputs
