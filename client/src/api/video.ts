@@ -1,6 +1,4 @@
-/**
- * 视频改编 API 客户端
- */
+import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { apiClient } from "./client";
 
 export interface VideoProject {
@@ -53,40 +51,48 @@ export interface BridgeHealthResult {
 
 export async function listVideoProjects(novelId?: string) {
   const params = novelId ? `?novelId=${encodeURIComponent(novelId)}` : "";
-  return apiClient.get<VideoProject[]>(`/video/projects${params}`);
+  const { data } = await apiClient.get<ApiResponse<VideoProject[]>>(`/video/projects${params}`);
+  return data;
 }
 
 export async function createVideoProject(payload: CreateVideoProjectPayload) {
-  return apiClient.post<VideoProject>("/video/projects", payload);
+  const { data } = await apiClient.post<ApiResponse<VideoProject>>("/video/projects", payload);
+  return data;
 }
 
 export async function getVideoProject(id: string) {
-  return apiClient.get<VideoProject>(`/video/projects/${id}`);
+  const { data } = await apiClient.get<ApiResponse<VideoProject>>(`/video/projects/${id}`);
+  return data;
 }
 
 export async function deleteVideoProject(id: string) {
-  return apiClient.delete<null>(`/video/projects/${id}`);
+  const { data } = await apiClient.delete<ApiResponse<null>>(`/video/projects/${id}`);
+  return data;
 }
 
 export async function generateVideoScript(projectId: string, options?: VideoScriptOptions) {
-  return apiClient.post<unknown>(`/video/projects/${projectId}/script`, options ?? {});
+  const { data } = await apiClient.post<ApiResponse<unknown>>(`/video/projects/${projectId}/script`, options ?? {});
+  return data;
 }
 
 export async function submitVideoRender(projectId: string) {
-  return apiClient.post<{ taskId: string; status: string }>(`/video/projects/${projectId}/render`);
+  const { data } = await apiClient.post<ApiResponse<{ taskId: string; status: string }>>(`/video/projects/${projectId}/render`);
+  return data;
 }
 
 export async function getVideoRenderStatus(projectId: string) {
-  return apiClient.get<{
+  const { data } = await apiClient.get<ApiResponse<{
     task_id: string;
     status: string;
     progress: number;
     output_path: string | null;
     error: string | null;
     cost_usd: number;
-  }>(`/video/projects/${projectId}/render/status`);
+  }>>(`/video/projects/${projectId}/render/status`);
+  return data;
 }
 
 export async function checkBridgeHealth() {
-  return apiClient.get<BridgeHealthResult>("/video/bridge/health");
+  const { data } = await apiClient.get<ApiResponse<BridgeHealthResult>>("/video/bridge/health");
+  return data;
 }
