@@ -106,22 +106,30 @@ async def health_check():
     """健康检查：确认 Bridge 服务存活且 OpenMontage 可用。"""
     tools_available = False
     tool_count = 0
+    tools_path = None
+    import_error = None
     try:
+        import tools
+        tools_path = getattr(tools, "__path__", getattr(tools, "__file__", None))
         from tools.tool_registry import registry
         registry.ensure_discovered()
         tool_count = len(registry.list_all())
         tools_available = tool_count > 0
     except Exception as e:
         import traceback
+        import_error = f"{type(e).__name__}: {str(e)}"
         print("Health check discovery failed:")
         traceback.print_exc()
 
     return {
         "status": "ok",
         "openmontage_root": OPENMONTAGE_ROOT or "(not configured)",
+        "tools_path": str(tools_path),
         "tools_available": tools_available,
         "tool_count": tool_count,
+        "import_error": import_error,
     }
+
 
 
 
