@@ -85,6 +85,10 @@ function extractChapterTail(content: string | null | undefined, maxLength = 520)
   return normalized.slice(Math.max(0, normalized.length - maxLength));
 }
 
+function normalizeRuntimeName(value: string | null | undefined): string {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
 function buildSyntheticCharacterResourceIssues(
   context: GenerationContextPackage["characterResourceContext"],
   input: {
@@ -109,15 +113,28 @@ function buildSyntheticCharacterResourceIssues(
     createdAt: now,
     updatedAt: now,
   }));
-  const reviewIssues = context.pendingReviewItems.slice(0, 3).map((item) => ({
-    id: `character-resource:${item.id}:pending-review`,
+  const highRiskIssues = context.highRiskCommittedItems.slice(0, 3).map((item) => ({
+    id: `character-resource:${item.id}:high-risk-committed`,
     reportId: `character-resource:${input.novelId}:${input.chapterId}`,
     auditType: "continuity" as const,
     severity: "medium" as const,
-    code: "character_resource_pending_review",
-    description: `${item.name} 的持有、可见性或消耗状态需要确认，确认前不要写成不可逆事实。`,
+    code: "character_resource_high_risk_committed",
+    description: `${item.name} 已入账但带有高风险信号，本章使用时不要改写其持有、可见性或消耗状态。`,
     evidence: item.evidence[0]?.summary ?? item.summary,
-    fixSuggestion: `将 ${item.name} 的使用写成可回收的小修补，或先在任务中心确认资源变更。`,
+    fixSuggestion: `将 ${item.name} 的使用写成可回收的小修补，避免把高风险资源写成新的不可逆事实。`,
+    status: "open" as const,
+    createdAt: now,
+    updatedAt: now,
+  }));
+  const pendingProposalIssues = context.pendingProposalItems.slice(0, 3).map((proposal) => ({
+    id: `character-resource-proposal:${proposal.id}:pending-review`,
+    reportId: `character-resource:${input.novelId}:${input.chapterId}`,
+    auditType: "continuity" as const,
+    severity: proposal.riskLevel === "high" ? "high" as const : "medium" as const,
+    code: "character_resource_pending_proposal",
+    description: `${proposal.summary} 仍在待确认状态，确认前不要把这条资源变更写成已发生事实。`,
+    evidence: proposal.evidence[0] ?? proposal.summary,
+    fixSuggestion: "先在任务中心确认或忽略这条资源变更；正文生成只应依据已入账资源。",
     status: "open" as const,
     createdAt: now,
     updatedAt: now,
@@ -138,7 +155,7 @@ function buildSyntheticCharacterResourceIssues(
       createdAt: now,
       updatedAt: now,
     }));
-  return [...blockedIssues, ...reviewIssues, ...signalIssues];
+  return [...blockedIssues, ...highRiskIssues, ...pendingProposalIssues, ...signalIssues];
 }
 
 function mapPlan(plan: Awaited<ReturnType<typeof plannerService.getChapterPlan>>): GenerationContextPackage["plan"] {
@@ -173,6 +190,22 @@ function mapPlan(plan: Awaited<ReturnType<typeof plannerService.getChapterPlan>>
     createdAt: plan.createdAt.toISOString(),
     updatedAt: plan.updatedAt.toISOString(),
   };
+}
+
+export function resolveChapterResourceCharacterIds(input: {
+  plan: Awaited<ReturnType<typeof plannerService.getChapterPlan>>;
+  characters: Array<{ id: string; name: string }>;
+}): string[] {
+  const participantNames = new Set(
+    parseJsonStringArray(input.plan?.participantsJson ?? null).map(normalizeRuntimeName).filter(Boolean),
+  );
+  if (participantNames.size === 0) {
+    return [];
+  }
+  return input.characters
+    .filter((character) => participantNames.has(normalizeRuntimeName(character.name)))
+    .map((character) => character.id)
+    .filter(Boolean);
 }
 
 function findVolumeWindowSeed(
@@ -286,6 +319,10 @@ export class GenerationContextAssembler {
       throw new Error("Novel or chapter not found.");
     }
     chapter = refreshedChapter;
+    const resourceCharacterIds = resolveChapterResourceCharacterIds({
+      plan: ensuredPlan,
+      characters: novel.characters,
+    });
     const pendingReviewProposalCountPromise = prisma.stateChangeProposal.count({
       where: buildBlockingPendingReviewProposalWhere(novelId, chapterId),
     });
@@ -356,7 +393,9 @@ export class GenerationContextAssembler {
         chapterOrder: chapter.order,
       }),
       characterResourceLedgerService.buildContext(novelId, {
+        chapterId,
         chapterOrder: chapter.order,
+        ...(resourceCharacterIds.length > 0 ? { characterIds: resourceCharacterIds } : {}),
       }).catch(() => null),
     ]);
 

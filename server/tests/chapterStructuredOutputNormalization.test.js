@@ -8,8 +8,70 @@ const {
   chapterArtifactDeltaOutputSchema,
 } = require("../dist/prompting/prompts/novel/chapterArtifactDelta.prompts.js");
 const {
+  characterResourceExtractionOutputSchema,
+} = require("../dist/prompting/prompts/novel/characterResource.promptSchemas.js");
+const {
   timelineExtractorOutputSchema,
 } = require("../dist/prompting/prompts/novel/timelineExtractor.prompts.js");
+
+function makeResourceDelta(index = 1) {
+  return {
+    resourceName: `关键资源${index}`,
+    resourceType: "credential",
+    updateType: "introduced",
+    holderCharacterName: "主角",
+    ownerType: "character",
+    ownerName: "主角",
+    statusAfter: "available",
+    readerKnows: true,
+    holderKnows: true,
+    knownByCharacterNames: ["主角"],
+    narrativeFunction: "key",
+    summary: `主角获得关键资源${index}。`,
+    narrativeImpact: "影响后续行动边界。",
+    evidence: [`主角收起关键资源${index}。`],
+    confidence: 0.9,
+    riskLevel: "low",
+  };
+}
+
+test("character resource extraction schemas cap resource deltas at eight items", () => {
+  const nineDeltas = Array.from({ length: 9 }, (_, index) => makeResourceDelta(index + 1));
+
+  assert.throws(() => {
+    characterResourceExtractionOutputSchema.parse({
+      updates: nineDeltas,
+      continuityRisks: [],
+    });
+  });
+
+  assert.throws(() => {
+    chapterArtifactDeltaOutputSchema.parse({
+      summary: "本章产生过多资源变化。",
+      stateDeltas: {
+        summary: "状态无变化。",
+        characterStates: [],
+        relationStates: [],
+        informationStates: [],
+        foreshadowStates: [],
+      },
+      characterResourceDeltas: nineDeltas,
+      payoffDeltas: [],
+      relationDynamics: [],
+      factionUpdates: [],
+      characterCandidates: [],
+      syncPlan: {
+        stateSnapshot: "skip",
+        characterResources: "write",
+        payoffLedger: "skip",
+        characterDynamics: "skip",
+        reason: "只测试资源上限。",
+      },
+      confidence: 0.9,
+      requiresFullReconcile: false,
+    });
+  });
+});
 
 test("chapter acceptance schema normalizes common review category and repair target aliases", () => {
   const parsed = chapterAcceptanceAssessmentSchema.parse({

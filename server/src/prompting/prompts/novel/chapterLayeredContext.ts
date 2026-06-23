@@ -411,7 +411,8 @@ export function buildChapterReviewContext(
       writeContext.volumeWindow?.missionSummary ? `volume mission: ${writeContext.volumeWindow.missionSummary}` : "",
       ...(writeContext.characterResourceContext?.setupNeededItems ?? []).map((item) => `resource setup needed: ${item.name} / ${item.summary}`),
       ...(writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `resource unavailable: ${item.name} is ${item.status}; do not use it without repair setup`),
-      ...(writeContext.characterResourceContext?.pendingReviewItems ?? []).map((item) => `resource needs confirmation: ${item.name} / ${item.summary}`),
+      ...(writeContext.characterResourceContext?.highRiskCommittedItems ?? []).map((item) => `committed high-risk resource: ${item.name} / ${item.summary}; use cautiously`),
+      ...(writeContext.characterResourceContext?.pendingProposalItems ?? []).map((item) => `unconfirmed resource proposal: ${item.summary}; do not treat as committed fact`),
       ...writeContext.ledgerPendingItems.map((item) => buildLedgerItemLine(item, "pending payoff")),
       ...writeContext.ledgerUrgentItems.map((item) => buildLedgerItemLine(item, "urgent payoff")),
       ...writeContext.ledgerOverdueItems.map((item) => buildLedgerItemLine(item, "overdue payoff")),
@@ -461,11 +462,16 @@ export function buildChapterRepairContext(input: {
       writeContext.volumeWindow?.missionSummary
         ? `Keep the repair aligned with the current volume mission: ${writeContext.volumeWindow.missionSummary}`
         : "",
+      ...(writeContext.protectedSecrets ?? []).map((item) => `do not disclose: ${item}`),
+      writeContext.pendingCandidateGuards.length > 0
+        ? "Pending character candidates remain read-only unless they are confirmed outside the repair flow."
+        : "",
       ...writeContext.ledgerPendingItems.map((item) => `Do not erase pending payoff setup: ${item.title}`),
       ...writeContext.ledgerUrgentItems.map((item) => `This chapter must visibly touch the urgent payoff thread: ${item.title}`),
       ...writeContext.ledgerOverdueItems.map((item) => `You must either兑现 or explicitly explain the overdue payoff pressure: ${item.title}`),
       ...(writeContext.characterResourceContext?.blockedItems ?? []).map((item) => `Patch resource continuity before using ${item.name}; current status is ${item.status}.`),
-      ...(writeContext.characterResourceContext?.pendingReviewItems ?? []).map((item) => `Do not make an uncertain resource fact irreversible: ${item.name}.`),
+      ...(writeContext.characterResourceContext?.highRiskCommittedItems ?? []).map((item) => `Do not create a new irreversible resource fact from high-risk committed item: ${item.name}.`),
+      ...(writeContext.characterResourceContext?.pendingProposalItems ?? []).map((item) => `Pending proposal is not committed yet; do not write it as fact: ${item.summary}.`),
       writeContext.chapterMission.hookTarget
         ? `Preserve or strengthen the ending tension: ${writeContext.chapterMission.hookTarget}`
         : "",
@@ -473,10 +479,6 @@ export function buildChapterRepairContext(input: {
         .filter((guide) => guide.shouldPreferAppearance || guide.isCoreInVolume)
         .slice(0, 4)
         .map((guide) => `Keep ${guide.name} aligned with current role duty: ${guide.volumeResponsibility ?? guide.volumeRoleLabel ?? guide.role}`),
-      writeContext.pendingCandidateGuards.length > 0
-        ? "Pending character candidates remain read-only unless they are confirmed outside the repair flow."
-        : "",
-      ...(writeContext.protectedSecrets ?? []).map((item) => `do not disclose: ${item}`),
       ...(writeContext.chapterBoundary?.doNotCross ?? []).map((item) => `do not cross boundary: ${item}`),
       ...writeContext.chapterMission.mustPreserve.map((item) => `must preserve: ${item}`),
     ], 12),
@@ -511,7 +513,8 @@ function hasCharacterResourcePressure(writeContext: ChapterWriteContext): boolea
   return context.availableItems.length > 0
     || context.setupNeededItems.length > 0
     || context.blockedItems.length > 0
-    || context.pendingReviewItems.length > 0
+    || context.highRiskCommittedItems.length > 0
+    || context.pendingProposalItems.length > 0
     || context.riskSignals.length > 0;
 }
 
@@ -578,6 +581,11 @@ function buildResourceItemLine(item: NonNullable<ChapterWriteContext["characterR
   return `${item.name} [${item.status}; ${holder}; ${item.narrativeFunction}] ${item.summary}${window ? ` | ${window}` : ""}${constraints ? ` | ${constraints}` : ""}`;
 }
 
+function buildResourceProposalLine(item: NonNullable<ChapterWriteContext["characterResourceContext"]>["pendingProposalItems"][number]): string {
+  const evidence = item.evidence[0] ? ` | evidence=${item.evidence[0]}` : "";
+  return `${item.summary} [risk=${item.riskLevel}; status=${item.status}]${evidence}`;
+}
+
 function buildCharacterResourceContextBlock(writeContext: ChapterWriteContext): string {
   const context = writeContext.characterResourceContext;
   if (!context) {
@@ -588,7 +596,8 @@ function buildCharacterResourceContextBlock(writeContext: ChapterWriteContext): 
     toListBlock("Available resources", context.availableItems.slice(0, 6).map(buildResourceItemLine)),
     toListBlock("Needs setup before use", context.setupNeededItems.slice(0, 5).map(buildResourceItemLine)),
     toListBlock("Unavailable or risky to reuse", context.blockedItems.slice(0, 5).map(buildResourceItemLine)),
-    toListBlock("Pending confirmation", context.pendingReviewItems.slice(0, 4).map(buildResourceItemLine)),
+    toListBlock("High-risk committed resources", context.highRiskCommittedItems.slice(0, 4).map(buildResourceItemLine)),
+    toListBlock("Pending resource proposals (not committed)", context.pendingProposalItems.slice(0, 4).map(buildResourceProposalLine)),
     toListBlock("Resource risk signals", context.riskSignals.slice(0, 5).map((item) => `${item.severity}: ${item.summary}`)),
   ].filter(Boolean).join("\n");
 }

@@ -19,6 +19,7 @@ import {
   serializeLedgerJson,
 } from "../../payoff/payoffLedgerShared";
 import { characterResourceLedgerService } from "../characterResource/CharacterResourceLedgerService";
+import { characterResourceStaleScanService } from "../characterResource/CharacterResourceStaleScanService";
 import {
   compactText,
   normalizeResourceKey,
@@ -70,6 +71,7 @@ export interface ChapterArtifactDeltaSyncResult {
   payoffDeltaCount: number;
   canonicalCommittedCount: number;
   concreteFactCount: number;
+  staleMarkedCount: number;
   requiresFullReconcile: boolean;
 }
 
@@ -347,6 +349,11 @@ export class ChapterArtifactDeltaService {
       sourceStage,
       proposals: resourceProposals,
     });
+    const staleMarkedCount = await characterResourceStaleScanService.scanAfterChapter({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      chapterOrder: chapter.order,
+    }).catch(() => 0);
 
     const [payoffDeltaCount, characterDynamicsCount, characterKnowledgeStateCount] = await Promise.all([
       output.syncPlan.payoffLedger === "skip"
@@ -387,6 +394,7 @@ export class ChapterArtifactDeltaService {
       payoffDeltaCount,
       canonicalCommittedCount: stateCommitResult.committed.length,
       concreteFactCount,
+      staleMarkedCount,
       requiresFullReconcile: output.requiresFullReconcile || output.syncPlan.payoffLedger === "full_reconcile",
     };
   }

@@ -4,15 +4,12 @@ import type {
   DirectorStateProposalResolution,
   DirectorStateProposalResolutionDecision,
 } from "@ai-novel/shared/types/stateProposalResolution";
-import { characterResourceUpdatePayloadSchema } from "@ai-novel/shared/types/characterResource";
-import type { Prisma } from "@prisma/client";
 import { prisma } from "../../../../db/prisma";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
 import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
 import { directorStateProposalResolutionPrompt } from "../../../../prompting/prompts/novel/directorStateProposalResolution.prompts";
-import { characterResourceLedgerService } from "../../characterResource/CharacterResourceLedgerService";
 import { canonicalStateService } from "../../state/CanonicalStateService";
-import { stateVersionLog } from "../../state/StateVersionLog";
+import { stateCommitService } from "../../state/StateCommitService";
 import { directorAutomationLedgerEventService } from "./DirectorAutomationLedgerEventService";
 
 const AUTO_RESOLUTION_TYPES = [
@@ -139,9 +136,10 @@ export class DirectorStateProposalResolutionService {
     const targetIds = this.resolveTargetProposalIds(resolution, proposals);
     if (resolution.decision === "apply") {
       await this.commitProposals({
-        rows: rows.filter((row) => targetIds.includes(row.id)),
+        proposalIds: targetIds,
         novelId: input.novelId,
         chapterId: input.chapterId ?? null,
+        chapterOrder: input.chapterOrder ?? null,
         reason: resolution.reason,
       });
     } else if (resolution.decision === "defer" || resolution.decision === "auto_replan_window") {
@@ -216,47 +214,24 @@ export class DirectorStateProposalResolutionService {
   }
 
   private async commitProposals(input: {
-    rows: PersistedProposalRow[];
+    proposalIds: string[];
     novelId: string;
     chapterId?: string | null;
+    chapterOrder?: number | null;
     reason: string;
   }): Promise<void> {
-    if (input.rows.length === 0) {
+    if (input.proposalIds.length === 0) {
       return;
     }
-    const proposalIds = input.rows.map((row) => row.id);
-    const snapshot = await canonicalStateService.getSnapshot(input.novelId, {
-      chapterId: input.chapterId ?? undefined,
-      includeCurrentChapterState: true,
-    });
-    const versionRecord = await stateVersionLog.createVersion({
+    await stateCommitService.commitExistingProposals({
       novelId: input.novelId,
       chapterId: input.chapterId ?? null,
+      chapterOrder: input.chapterOrder ?? null,
       sourceType: "auto_director",
       sourceStage: "state_resolution",
-      summary: `自动导演处理 ${proposalIds.length} 条状态提案：${input.reason}`,
-      acceptedProposalIds: proposalIds,
-      snapshot,
+      proposalIds: input.proposalIds,
+      reason: `auto_director_state_resolution:${input.reason}`,
     });
-    await withSqliteRetry(
-      () => prisma.$transaction(async (tx) => {
-        for (const row of input.rows) {
-          const proposal = this.toProposal(row);
-          await this.applyCommittedProposal(tx, proposal);
-          await tx.stateChangeProposal.update({
-            where: { id: row.id },
-            data: {
-              status: "committed",
-              committedVersionId: versionRecord.id,
-              validationNotesJson: JSON.stringify(
-                proposal.validationNotes.concat(`auto_director_state_resolution:${input.reason}`),
-              ),
-            },
-          });
-        }
-      }),
-      { label: "directorStateProposalResolution.commitProposals" },
-    );
   }
 
   private async archiveProposals(input: {
@@ -280,27 +255,6 @@ export class DirectorStateProposalResolutionService {
       }),
       { label: "directorStateProposalResolution.archiveProposals" },
     );
-  }
-
-  private async applyCommittedProposal(
-    tx: Prisma.TransactionClient,
-    proposal: StateChangeProposal,
-  ): Promise<void> {
-    if (proposal.proposalType !== "character_resource_update") {
-      return;
-    }
-    const payload = characterResourceUpdatePayloadSchema.safeParse(proposal.payload);
-    if (!payload.success) {
-      return;
-    }
-    await characterResourceLedgerService.applyCommittedUpdate(tx, {
-      novelId: proposal.novelId,
-      chapterId: proposal.chapterId ?? null,
-      chapterOrder: typeof payload.data.chapterOrder === "number" ? payload.data.chapterOrder : null,
-      payload: payload.data,
-      evidence: proposal.evidence,
-      validationNotes: proposal.validationNotes,
-    });
   }
 
   private toProposal(row: PersistedProposalRow): StateChangeProposal {

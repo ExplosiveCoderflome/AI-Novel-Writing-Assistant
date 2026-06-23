@@ -53,6 +53,6 @@ export const characterResourceContinuityRiskSchema = z.object({
 });
 
 export const characterResourceExtractionOutputSchema = z.object({
-  updates: z.array(characterResourceExtractionUpdateSchema).default([]),
+  updates: z.array(characterResourceExtractionUpdateSchema).max(8).default([]),
   continuityRisks: z.array(characterResourceContinuityRiskSchema).default([]),
 });
