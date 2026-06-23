@@ -82,6 +82,11 @@ export const queryKeys = {
     videoProviders: ["drama", "video-providers"] as const,
     ttsProviders: ["drama", "tts-providers"] as const,
   },
+  video: {
+    projects: ["video", "projects"] as const,
+    project: (id: string) => ["video", "project", id] as const,
+    bridgeHealth: ["video", "bridge-health"] as const,
+  },
   storyModes: {
     all: ["story-modes"] as const,
   },
