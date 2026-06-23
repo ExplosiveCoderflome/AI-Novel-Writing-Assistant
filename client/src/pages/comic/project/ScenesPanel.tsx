@@ -15,6 +15,7 @@ import {
   deleteComicScene,
   generateComicSceneImage,
   listComicScenes,
+  prepareComicSceneImage,
   updateComicScene,
   uploadComicSceneImage,
   type ComicScene,
@@ -22,6 +23,8 @@ import {
   type SceneSheetData,
   type SceneType,
 } from "@/api/comic";
+import { ImageGenerationConfirmDialog } from "@/components/image/ImageGenerationConfirmDialog";
+import { useImageGenerationFlow } from "@/components/image/useImageGenerationFlow";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 
@@ -127,6 +130,7 @@ function SceneDetail({
   const [name, setName] = useState(scene.name);
   const [sceneType, setSceneType] = useState<SceneType>(scene.sceneType);
   const [bible, setBible] = useState<SceneBible>(parseBible(scene.bible));
+  const flow = useImageGenerationFlow();
 
   const sheet = parseSheetData(scene.sheetData);
   const hasSheet = sheet.status === "done";
@@ -138,11 +142,14 @@ function SceneDetail({
     onError: (e) => toast.error(String(e)),
   });
 
-  const genMut = useMutation({
-    mutationFn: () => generateComicSceneImage(scene.id, provider || undefined),
-    onSuccess: () => onChanged(),
-    onError: (e) => { toast.error(String(e)); onChanged(); },
-  });
+  const startGenerate = () => {
+    flow.start({
+      prepare: () => prepareComicSceneImage(scene.id, provider || undefined),
+      generate: (overrides) => generateComicSceneImage(scene.id, provider || undefined, overrides),
+      onSuccess: () => onChanged(),
+      onError: () => onChanged(),
+    });
+  };
 
   const uploadMut = useMutation({
     mutationFn: (file: File) => uploadComicSceneImage(scene.id, file),
@@ -156,10 +163,12 @@ function SceneDetail({
     onError: (e) => toast.error(String(e)),
   });
 
-  const generatingBusy = genMut.isPending || isGenerating;
+  const generatingBusy = flow.dialogProps.loading || flow.dialogProps.submitting || isGenerating;
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-lg border bg-background">
+    <>
+      <ImageGenerationConfirmDialog {...flow.dialogProps} />
+      <section className="min-w-0 overflow-hidden rounded-lg border bg-background">
       <div className="flex items-start justify-between gap-3 border-b px-4 py-4">
         <div className="min-w-0 flex-1 space-y-2">
           <input
@@ -260,7 +269,7 @@ function SceneDetail({
               variant="outline"
               className="flex-1"
               disabled={generatingBusy || uploadMut.isPending}
-              onClick={() => genMut.mutate()}
+              onClick={startGenerate}
             >
               {generatingBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {hasSheet ? "重新生成" : "AI 生成"}
@@ -289,7 +298,8 @@ function SceneDetail({
           />
         </aside>
       </div>
-    </section>
+      </section>
+    </>
   );
 }
 

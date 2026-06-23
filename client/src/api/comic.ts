@@ -26,10 +26,13 @@ export interface ComicProjectDetail extends ComicProject {
   batchJobs: ComicBatchJob[];
 }
 
+export type ComicCharacterGender = "male" | "female" | "other" | "unknown";
+
 export interface ComicCharacter {
   id: string;
   projectId: string;
   name: string;
+  gender?: ComicCharacterGender;
   persona?: string | null;
   visualAnchor?: string | null;
   sheetData?: string | null;
@@ -224,6 +227,7 @@ export interface CharacterExpressionData {
   provider?: string;
   generatedAt?: string;
   error?: string;
+  referenceImages?: PanelReferenceImageMeta[];
 }
 
 export interface GenerateCharacterSheetOptions {
@@ -249,9 +253,22 @@ export async function generateCharacterSheet(
   charId: string,
   provider?: string,
   options?: GenerateCharacterSheetOptions,
+  overrides?: ImageGenerationOverrides,
 ): Promise<CharacterSheetData> {
   const res = await apiClient.post<ApiResponse<CharacterSheetData>>(
     `/comic/characters/${charId}/sheet/generate`,
+    { ...(provider ? { provider } : {}), ...(options ?? {}), ...(overrides ?? {}) },
+  );
+  return res.data.data!;
+}
+
+export async function prepareCharacterSheet(
+  charId: string,
+  provider?: string,
+  options?: GenerateCharacterSheetOptions,
+): Promise<ImageGenerationPreview> {
+  const res = await apiClient.post<ApiResponse<ImageGenerationPreview>>(
+    `/comic/characters/${charId}/sheet/prepare`,
     { ...(provider ? { provider } : {}), ...(options ?? {}) },
   );
   return res.data.data!;
@@ -262,10 +279,22 @@ export async function getCharacterSheetData(charId: string): Promise<CharacterSh
   return res.data.data!;
 }
 
-export async function generateCharacterExpressionSheet(charId: string, provider?: string): Promise<CharacterExpressionData> {
+export async function prepareCharacterExpressionSheet(charId: string, provider?: string): Promise<ImageGenerationPreview> {
+  const res = await apiClient.post<ApiResponse<ImageGenerationPreview>>(
+    `/comic/characters/${charId}/expressions/prepare`,
+    provider ? { provider } : {},
+  );
+  return res.data.data!;
+}
+
+export async function generateCharacterExpressionSheet(
+  charId: string,
+  provider?: string,
+  overrides?: ImageGenerationOverrides,
+): Promise<CharacterExpressionData> {
   const res = await apiClient.post<ApiResponse<CharacterExpressionData>>(
     `/comic/characters/${charId}/expressions/generate`,
-    provider ? { provider } : {},
+    { ...(provider ? { provider } : {}), ...(overrides ?? {}) },
   );
   return res.data.data!;
 }
@@ -339,10 +368,22 @@ export async function updatePanelVisualPrompt(panelId: string, visualPrompt: str
 
 // ─── Panel images ─────────────────────────────────────────────────────────────
 
-export async function generatePanelImage(panelId: string, provider?: string): Promise<PanelImageData> {
+export async function preparePanelImage(panelId: string, provider?: string): Promise<ImageGenerationPreview> {
+  const res = await apiClient.post<ApiResponse<ImageGenerationPreview>>(
+    `/comic/panels/${panelId}/image/prepare`,
+    provider ? { provider } : {},
+  );
+  return res.data.data!;
+}
+
+export async function generatePanelImage(
+  panelId: string,
+  provider?: string,
+  overrides?: ImageGenerationOverrides,
+): Promise<PanelImageData> {
   const res = await apiClient.post<ApiResponse<PanelImageData>>(
     `/comic/panels/${panelId}/image/generate`,
-    provider ? { provider } : {},
+    { ...(provider ? { provider } : {}), ...(overrides ?? {}) },
   );
   return res.data.data!;
 }
@@ -533,10 +574,44 @@ export async function deleteCharacterAsset(assetId: string): Promise<void> {
   await apiClient.delete(`/comic/character-assets/${assetId}`);
 }
 
-export async function generateCharacterAssetImage(assetId: string, provider?: string): Promise<ComicCharacterAsset> {
+// ─── 生图前确认弹窗用 ─────────────────────────────────────────────────────────
+
+export interface ImageGenerationPreview {
+  kind: string;
+  title: string;
+  prompt: string;
+  negativePrompt?: string;
+  referenceImages: Array<{ kind: string; label: string; url: string }>;
+  provider: string;
+  size: string;
+  availableProviders?: Array<{ value: string; label: string }>;
+  availableSizes?: string[];
+}
+
+export interface ImageGenerationOverrides {
+  promptOverride?: string;
+  providerOverride?: string;
+  sizeOverride?: string;
+  negativePromptOverride?: string;
+  excludedReferenceImageUrls?: string[];
+}
+
+export async function prepareCharacterAssetImage(assetId: string, provider?: string): Promise<ImageGenerationPreview> {
+  const res = await apiClient.post<ApiResponse<ImageGenerationPreview>>(
+    `/comic/character-assets/${assetId}/prepare-image`,
+    provider ? { provider } : {},
+  );
+  return res.data.data!;
+}
+
+export async function generateCharacterAssetImage(
+  assetId: string,
+  provider?: string,
+  overrides?: ImageGenerationOverrides,
+): Promise<ComicCharacterAsset> {
   const res = await apiClient.post<ApiResponse<ComicCharacterAsset>>(
     `/comic/character-assets/${assetId}/generate-image`,
-    provider ? { provider } : {},
+    { provider, ...overrides },
   );
   return res.data.data!;
 }
@@ -552,6 +627,18 @@ export async function uploadCharacterAssetImage(assetId: string, file: File): Pr
 
 export function characterAssetImageUrl(assetId: string): string {
   return `/api/comic/character-assets/${assetId}/image`;
+}
+
+/** 更新角色性别（所有生图链路的 GENDER LOCK 来源） */
+export async function updateCharacterGender(
+  charId: string,
+  gender: ComicCharacterGender,
+): Promise<ComicCharacter> {
+  const res = await apiClient.patch<ApiResponse<ComicCharacter>>(
+    `/comic/characters/${charId}/gender`,
+    { gender },
+  );
+  return res.data.data!;
 }
 
 export interface UpdateVisualAnchorPayload {
@@ -662,10 +749,22 @@ export async function deleteComicScene(sceneId: string): Promise<void> {
   await apiClient.delete(`/comic/scenes/${sceneId}`);
 }
 
-export async function generateComicSceneImage(sceneId: string, provider?: string): Promise<ComicScene> {
+export async function prepareComicSceneImage(sceneId: string, provider?: string): Promise<ImageGenerationPreview> {
+  const res = await apiClient.post<ApiResponse<ImageGenerationPreview>>(
+    `/comic/scenes/${sceneId}/prepare-image`,
+    provider ? { provider } : {},
+  );
+  return res.data.data!;
+}
+
+export async function generateComicSceneImage(
+  sceneId: string,
+  provider?: string,
+  overrides?: ImageGenerationOverrides,
+): Promise<ComicScene> {
   const res = await apiClient.post<ApiResponse<ComicScene>>(
     `/comic/scenes/${sceneId}/generate-image`,
-    provider ? { provider } : {},
+    { ...(provider ? { provider } : {}), ...(overrides ?? {}) },
   );
   return res.data.data!;
 }

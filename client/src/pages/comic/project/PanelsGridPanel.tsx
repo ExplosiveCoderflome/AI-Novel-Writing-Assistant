@@ -22,6 +22,7 @@ import {
   listComicEpisodes,
   listComicPanels,
   panelImageUrl,
+  preparePanelImage,
   retryBatchJob,
   startEpisodeBatch,
   updatePanelVisualPrompt,
@@ -31,6 +32,8 @@ import {
   type ComicPanel,
 } from "@/api/comic";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
+import { ImageGenerationConfirmDialog } from "@/components/image/ImageGenerationConfirmDialog";
+import { useImageGenerationFlow } from "@/components/image/useImageGenerationFlow";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 
@@ -634,6 +637,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
   const [busyPanelId, setBusyPanelId] = useState("");
   const [selectedPanel, setSelectedPanel] = useState<ComicPanel | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "strip">("grid");
+  const imageFlow = useImageGenerationFlow();
 
   const { data: episodes = [] } = useQuery({
     queryKey: ["comic", "episodes", projectId],
@@ -650,15 +654,25 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
     enabled: Boolean(activeEpisode),
   });
 
-  const imageMut = useMutation({
-    mutationFn: (panelId: string) => generatePanelImage(panelId, provider || undefined),
-    onMutate: (id) => setBusyPanelId(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["comic", "panels", activeEpisode?.id] });
-    },
-    onSettled: () => setBusyPanelId(""),
-    onError: (e) => toast.error(String(e)),
-  });
+  const startPanelGeneration = (panelId: string) => {
+    imageFlow.start({
+      prepare: () => preparePanelImage(panelId, provider || undefined),
+      generate: async (overrides) => {
+        setBusyPanelId(panelId);
+        try {
+          return await generatePanelImage(panelId, provider || undefined, overrides);
+        } finally {
+          setBusyPanelId("");
+        }
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["comic", "panels", activeEpisode?.id] });
+      },
+      onError: () => {
+        queryClient.invalidateQueries({ queryKey: ["comic", "panels", activeEpisode?.id] });
+      },
+    });
+  };
 
   const handlePanelKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, panel: ComicPanel) => {
     if (event.key !== "Enter" && event.key !== " ") return;
@@ -668,6 +682,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
 
   return (
     <div className="space-y-4">
+      <ImageGenerationConfirmDialog {...imageFlow.dialogProps} />
       {episodes.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="flex flex-1 flex-wrap gap-1.5">
@@ -726,7 +741,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
           panel={selectedPanel}
           busy={busyPanelId === selectedPanel.id}
           onClose={() => setSelectedPanel(null)}
-          onGenerate={(panelId) => imageMut.mutate(panelId)}
+          onGenerate={startPanelGeneration}
           onSaved={(panel) => {
             setSelectedPanel(panel);
             queryClient.invalidateQueries({ queryKey: ["comic", "panels", activeEpisode?.id] });
@@ -740,7 +755,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
             panels={panels}
             busyPanelId={busyPanelId}
             onSelect={setSelectedPanel}
-            onGenerate={(panelId) => imageMut.mutate(panelId)}
+            onGenerate={startPanelGeneration}
           />
         </div>
       ) : (
@@ -801,7 +816,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                       disabled={busy}
                       onClick={(event) => {
                         event.stopPropagation();
-                        imageMut.mutate(panel.id);
+                        startPanelGeneration(panel.id);
                       }}
                     >
                       <Sparkles className="h-3 w-3" />
@@ -817,7 +832,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                       disabled={busy}
                       onClick={(event) => {
                         event.stopPropagation();
-                        imageMut.mutate(panel.id);
+                        startPanelGeneration(panel.id);
                       }}
                     >
                       <RefreshCw className="h-3 w-3" />

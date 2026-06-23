@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookMarked,
@@ -23,25 +23,33 @@ import {
   deleteCharacterAsset,
   deleteComicFact,
   generateCharacterAssetImage,
+  prepareCharacterAssetImage,
+  prepareCharacterExpressionSheet,
+  prepareCharacterSheet,
   generateCharacterExpressionSheet,
   generateCharacterSheet,
   listCharacterAssets,
   listComicFacts,
   rewriteCharacterVisualAnchor,
+  updateCharacterGender,
   updateCharacterVisualAnchor,
   uploadCharacterAssetImage,
   type CharacterAssetType,
   type AssetImageData,
   type ComicCharacterAsset,
+  type ComicCharacterGender,
   type CharacterExpressionData,
   type ComicFact,
   type GenerateCharacterSheetOptions,
   type CharacterSheetData,
   type ComicCharacter,
 } from "@/api/comic";
+import { ImageGenerationConfirmDialog } from "@/components/image/ImageGenerationConfirmDialog";
+import { useImageGenerationFlow } from "@/components/image/useImageGenerationFlow";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { GeneratedImageCard } from "@/components/comic/GeneratedImageCard";
 
 function parseSheetData(character: ComicCharacter): CharacterSheetData {
   try {
@@ -183,6 +191,54 @@ function CharacterList({
         </div>
       </div>
     </aside>
+  );
+}
+
+// ─── Gender Selector ──────────────────────────────────────────────────────────
+// 角色性别是所有生图链路（三视图/表情稿/资产/格子图）的 GENDER LOCK 来源。
+// 古风/韩漫语境里"鹅蛋脸/桃花眼"等描述男女通用，必须显式声明性别，否则模型偏向韩漫美男。
+
+const GENDER_LABELS: Record<ComicCharacterGender, string> = {
+  unknown: "未指定",
+  male: "男",
+  female: "女",
+  other: "中性",
+};
+
+const GENDER_BADGE_STYLE: Record<ComicCharacterGender, string> = {
+  unknown: "border-border bg-muted text-muted-foreground",
+  male: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300",
+  female: "border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-700 dark:bg-pink-900/20 dark:text-pink-300",
+  other: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300",
+};
+
+function GenderSelector({ character }: { character: ComicCharacter }) {
+  const queryClient = useQueryClient();
+  const current = (character.gender ?? "unknown") as ComicCharacterGender;
+
+  const mut = useMutation({
+    mutationFn: (g: ComicCharacterGender) => updateCharacterGender(character.id, g),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
+      toast.success("性别已更新，下次生图生效");
+    },
+    onError: (e) => toast.error(String(e)),
+  });
+
+  return (
+    <div className="flex items-center gap-1">
+      <select
+        className={`rounded border px-1.5 py-0.5 text-[11px] leading-tight ${GENDER_BADGE_STYLE[current]} disabled:opacity-50`}
+        value={current}
+        disabled={mut.isPending}
+        title="角色性别（GENDER LOCK）：避免生图把女画成男或反之"
+        onChange={(e) => mut.mutate(e.target.value as ComicCharacterGender)}
+      >
+        {(Object.keys(GENDER_LABELS) as ComicCharacterGender[]).map((g) => (
+          <option key={g} value={g}>{GENDER_LABELS[g]}</option>
+        ))}
+      </select>
+    </div>
   );
 }
 
@@ -475,29 +531,34 @@ function CharacterDetail({
   const visualAnchorText = getVisualAnchorText(character);
   const recommendedSheetPrompt = buildRecommendedSheetPrompt(character);
   const hasSheet = sheetData.status === "done";
+  const sheetFlow = useImageGenerationFlow();
+  const expressionFlow = useImageGenerationFlow();
 
-  const genMut = useMutation({
-    mutationFn: (options?: GenerateCharacterSheetOptions) =>
-      generateCharacterSheet(character.id, provider || undefined, options),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
-      toast.success(`${character.name} 设计稿生成完成`);
-      setShowSheetTuning(false);
-    },
-    onError: (e) => toast.error(String(e)),
-  });
+  const startSheetGeneration = (options?: GenerateCharacterSheetOptions) => {
+    sheetFlow.start({
+      prepare: () => prepareCharacterSheet(character.id, provider || undefined, options),
+      generate: (overrides) => generateCharacterSheet(character.id, provider || undefined, options, overrides),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
+        toast.success(`${character.name} 设计稿生成完成`);
+        setShowSheetTuning(false);
+      },
+    });
+  };
 
-  const expressionMut = useMutation({
-    mutationFn: () => generateCharacterExpressionSheet(character.id, provider || undefined),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
-      toast.success(`${character.name} 表情稿生成完成`);
-    },
-    onError: (e) => toast.error(String(e)),
-  });
+  const startExpressionGeneration = () => {
+    expressionFlow.start({
+      prepare: () => prepareCharacterExpressionSheet(character.id, provider || undefined),
+      generate: (overrides) => generateCharacterExpressionSheet(character.id, provider || undefined, overrides),
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
+        toast.success(`${character.name} 表情稿生成完成`);
+      },
+    });
+  };
 
-  const isGenerating = genMut.isPending || sheetData.status === "generating";
-  const isExpressionGenerating = expressionMut.isPending || expressionData.status === "generating";
+  const isGenerating = sheetFlow.dialogProps.loading || sheetFlow.dialogProps.submitting || sheetData.status === "generating";
+  const isExpressionGenerating = expressionFlow.dialogProps.loading || expressionFlow.dialogProps.submitting || expressionData.status === "generating";
 
   const openSheetTuning = () => {
     setDraftPrompt(sheetData.prompt?.trim() || recommendedSheetPrompt);
@@ -508,11 +569,15 @@ function CharacterDetail({
   };
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-lg border bg-background">
+    <>
+      <ImageGenerationConfirmDialog {...sheetFlow.dialogProps} />
+      <ImageGenerationConfirmDialog {...expressionFlow.dialogProps} />
+      <section className="min-w-0 overflow-hidden rounded-lg border bg-background">
       <div className="flex flex-col gap-3 border-b px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h2 className="truncate text-lg font-semibold">{character.name}</h2>
+            <GenderSelector character={character} />
           </div>
           {character.persona && (
             <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted-foreground">{character.persona}</p>
@@ -563,7 +628,7 @@ function CharacterDetail({
                   <p className="text-sm font-medium text-foreground">还没有三视图</p>
                   <p className="mt-1 text-xs">先生成主设计稿，再继续制作表情稿和格子图参考。</p>
                 </div>
-                <Button type="button" size="sm" disabled={isGenerating} onClick={() => genMut.mutate(undefined)}>
+                <Button type="button" size="sm" disabled={isGenerating} onClick={() => startSheetGeneration(undefined)}>
                   <Sparkles className="h-4 w-4" />
                   生成三视图
                 </Button>
@@ -586,7 +651,7 @@ function CharacterDetail({
                 size="sm"
                 variant={expressionData.status === "done" ? "outline" : "secondary"}
                 disabled={!hasSheet || isExpressionGenerating}
-                onClick={() => expressionMut.mutate()}
+                onClick={startExpressionGeneration}
               >
                 {isExpressionGenerating ? (
                   <>
@@ -717,7 +782,7 @@ function CharacterDetail({
                       size="sm"
                       disabled={isGenerating}
                       onClick={() =>
-                        genMut.mutate({
+                        startSheetGeneration({
                           prompt: draftPrompt,
                           useCurrentImageAsReference,
                           lockAppearance,
@@ -770,7 +835,8 @@ function CharacterDetail({
       </div>
 
       <AssetSection character={character} provider={provider} />
-    </section>
+      </section>
+    </>
   );
 }
 
@@ -785,13 +851,29 @@ const ASSET_TYPE_LABELS: Record<CharacterAssetType, string> = {
   other: "其他",
 };
 
-const ASSET_TYPE_COLORS: Record<CharacterAssetType, string> = {
-  costume: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300",
-  weapon: "border-red-200 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-900/20 dark:text-red-300",
-  item: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300",
-  vehicle: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300",
-  ability: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300",
-  other: "border-border bg-muted text-muted-foreground",
+const ASSET_TYPE_ORDER: CharacterAssetType[] = ["costume", "weapon", "item", "vehicle", "ability", "other"];
+
+const ASSET_TYPE_ACCENT: Record<CharacterAssetType, { chip: string; dot: string; soft: string }> = {
+  costume: { chip: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700/50 dark:bg-violet-900/20 dark:text-violet-300", dot: "bg-violet-500", soft: "hover:bg-violet-50 hover:border-violet-300 dark:hover:bg-violet-900/20" },
+  weapon:  { chip: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-700/50 dark:bg-rose-900/20 dark:text-rose-300", dot: "bg-rose-500", soft: "hover:bg-rose-50 hover:border-rose-300 dark:hover:bg-rose-900/20" },
+  item:    { chip: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-300", dot: "bg-amber-500", soft: "hover:bg-amber-50 hover:border-amber-300 dark:hover:bg-amber-900/20" },
+  vehicle: { chip: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700/50 dark:bg-sky-900/20 dark:text-sky-300", dot: "bg-sky-500", soft: "hover:bg-sky-50 hover:border-sky-300 dark:hover:bg-sky-900/20" },
+  ability: { chip: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700/50 dark:bg-emerald-900/20 dark:text-emerald-300", dot: "bg-emerald-500", soft: "hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-emerald-900/20" },
+  other:   { chip: "border-border bg-muted text-muted-foreground", dot: "bg-muted-foreground/60", soft: "hover:bg-muted/60" },
+};
+
+const STATUS_DOT_STYLE: Record<string, string> = {
+  idle: "bg-muted-foreground/30",
+  generating: "bg-sky-500 animate-pulse",
+  done: "bg-emerald-500",
+  error: "bg-rose-500",
+};
+
+const STATUS_DOT_TITLE: Record<string, string> = {
+  idle: "未生成",
+  generating: "生成中",
+  done: "已就绪",
+  error: "生成失败",
 };
 
 function parseAssetImageData(raw: string | null): AssetImageData {
@@ -811,13 +893,15 @@ function AssetCard({
   onUpdated: () => void;
 }) {
   const imageData = parseAssetImageData(asset.imageData);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const flow = useImageGenerationFlow();
 
-  const genMut = useMutation({
-    mutationFn: () => generateCharacterAssetImage(asset.id, provider || undefined),
-    onSuccess: onUpdated,
-    onError: (e) => { toast.error(String(e)); onUpdated(); },
-  });
+  const triggerGen = () => {
+    flow.start({
+      prepare: () => prepareCharacterAssetImage(asset.id, provider || undefined),
+      generate: (overrides) => generateCharacterAssetImage(asset.id, provider || undefined, overrides),
+      onSuccess: onUpdated,
+    });
+  };
 
   const uploadMut = useMutation({
     mutationFn: (file: File) => uploadCharacterAssetImage(asset.id, file),
@@ -831,91 +915,150 @@ function AssetCard({
     onError: (e) => toast.error(String(e)),
   });
 
-  const typeStyle = ASSET_TYPE_COLORS[asset.assetType as CharacterAssetType] ?? ASSET_TYPE_COLORS.other;
-  const isGenerating = genMut.isPending || imageData.status === "generating";
-  const hasDoneImage = imageData.status === "done";
+  const accent = ASSET_TYPE_ACCENT[asset.assetType as CharacterAssetType] ?? ASSET_TYPE_ACCENT.other;
+  const status = (imageData.status ?? "idle") as "idle" | "generating" | "done" | "error";
 
   return (
-    <div className="overflow-hidden rounded-md border bg-background">
-      {/* 图片区 */}
-      <div className="relative flex h-28 items-center justify-center bg-muted/30">
-        {hasDoneImage ? (
-          <img
-            src={characterAssetImageUrl(asset.id)}
-            alt={asset.name}
-            className="h-full w-full object-contain"
-            loading="lazy"
-          />
-        ) : isGenerating ? (
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        ) : (
-          <ImageIcon className="h-6 w-6 opacity-30 text-muted-foreground" />
-        )}
-        {imageData.status === "error" && (
-          <div className="absolute bottom-0 left-0 right-0 bg-destructive/80 px-1.5 py-0.5 text-[9px] text-white line-clamp-1">
-            {imageData.error}
-          </div>
-        )}
+    <>
+      <ImageGenerationConfirmDialog {...flow.dialogProps} />
+      <GeneratedImageCard
+        status={status}
+        imageUrl={status === "done" ? characterAssetImageUrl(asset.id) : undefined}
+        errorMessage={imageData.error}
+        title={asset.name}
+        subtitle={asset.description ?? undefined}
+        typeBadge={{ label: ASSET_TYPE_LABELS[asset.assetType as CharacterAssetType] ?? asset.assetType, className: accent.chip }}
+        onGenerate={triggerGen}
+        onUpload={(file) => uploadMut.mutate(file)}
+        onDelete={() => deleteMut.mutate()}
+        busy={uploadMut.isPending || deleteMut.isPending}
+        confirmDeleteText={`删除资产「${asset.name}」？此操作不可撤销。`}
+      />
+    </>
+  );
+}
+
+/** 类型快捷按钮 */
+function AssetTypeChip({
+  type,
+  active,
+  onClick,
+}: {
+  type: CharacterAssetType;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const accent = ASSET_TYPE_ACCENT[type];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all",
+        active
+          ? `${accent.chip} ring-2 ring-offset-1 ring-offset-background ring-current/40`
+          : `border-border bg-background text-muted-foreground ${accent.soft}`,
+      ].join(" ")}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${accent.dot}`} />
+      {ASSET_TYPE_LABELS[type]}
+    </button>
+  );
+}
+
+/** 添加输入行：激活某类型后展示，Enter 提交，Esc 取消，连续添加 */
+function AssetAddRow({
+  type,
+  characterId,
+  projectId,
+  onCreated,
+  onClose,
+}: {
+  type: CharacterAssetType;
+  characterId: string;
+  projectId: string;
+  onCreated: () => void;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const createMut = useMutation({
+    mutationFn: () =>
+      createCharacterAsset({
+        characterId,
+        projectId,
+        assetType: type,
+        name: name.trim(),
+        description: desc.trim() || undefined,
+      }),
+    onSuccess: () => {
+      onCreated();
+      setName("");
+      setDesc("");
+      setTimeout(() => inputRef.current?.focus(), 0);
+    },
+    onError: (e) => toast.error(String(e)),
+  });
+
+  const accent = ASSET_TYPE_ACCENT[type];
+  const placeholderName = type === "costume" ? "战斗套装" : type === "weapon" ? "月光剑" : type === "vehicle" ? "踏雪马" : type === "ability" ? "破云剑诀" : "宗门腰牌";
+
+  return (
+    <div className="mb-3 rounded-lg border-2 border-dashed border-primary/30 bg-background px-3 py-2.5">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className={`h-1.5 w-1.5 rounded-full ${accent.dot}`} />
+          <p className="text-[11px] font-semibold text-foreground">
+            新增{ASSET_TYPE_LABELS[type]}
+          </p>
+          <span className="text-[10px] text-muted-foreground">回车提交 · Esc 关闭 · 可连续添加</span>
+        </div>
+        <button
+          type="button"
+          className="text-[11px] text-muted-foreground hover:text-foreground"
+          onClick={onClose}
+        >
+          完成
+        </button>
       </div>
-
-      {/* 信息区 */}
-      <div className="px-2 py-2">
-        <div className="flex items-start justify-between gap-1">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium">{asset.name}</p>
-            {asset.description && (
-              <p className="mt-0.5 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">{asset.description}</p>
-            )}
-          </div>
-          <span className={`shrink-0 rounded border px-1 py-0.5 text-[9px] leading-none ${typeStyle}`}>
-            {ASSET_TYPE_LABELS[asset.assetType as CharacterAssetType] ?? asset.assetType}
-          </span>
-        </div>
-
-        {/* 操作 */}
-        <div className="mt-2 flex items-center gap-1">
-          <button
-            type="button"
-            title={hasDoneImage ? "重新 AI 生图" : "AI 生图"}
-            disabled={isGenerating || uploadMut.isPending}
-            className="flex-1 rounded border px-1.5 py-1 text-[10px] text-muted-foreground hover:bg-muted/60 disabled:opacity-50 flex items-center justify-center gap-1"
-            onClick={() => genMut.mutate()}
-          >
-            {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-            AI 生图
-          </button>
-          <button
-            type="button"
-            title="上传图片"
-            disabled={isGenerating || uploadMut.isPending}
-            className="flex-1 rounded border px-1.5 py-1 text-[10px] text-muted-foreground hover:bg-muted/60 disabled:opacity-50 flex items-center justify-center gap-1"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {uploadMut.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
-            上传
-          </button>
-          <button
-            type="button"
-            title="删除资产"
-            disabled={deleteMut.isPending}
-            className="rounded border p-1 text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-            onClick={() => deleteMut.mutate()}
-          >
-            <Trash2 className="h-3 w-3" />
-          </button>
-        </div>
-
+      <div className="flex gap-2">
         <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) uploadMut.mutate(file);
-            e.target.value = "";
+          ref={inputRef}
+          className="flex-1 rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+          placeholder={`${ASSET_TYPE_LABELS[type]}名称（如：${placeholderName}）`}
+          value={name}
+          disabled={createMut.isPending}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && name.trim()) createMut.mutate();
+            if (e.key === "Escape") onClose();
           }}
         />
+        <input
+          className="flex-[1.2] rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
+          placeholder="外观描述（可选，注入生图提示词）"
+          value={desc}
+          disabled={createMut.isPending}
+          onChange={(e) => setDesc(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && name.trim()) createMut.mutate();
+            if (e.key === "Escape") onClose();
+          }}
+        />
+        <button
+          type="button"
+          disabled={!name.trim() || createMut.isPending}
+          className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+          onClick={() => createMut.mutate()}
+        >
+          {createMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "添加"}
+        </button>
       </div>
     </div>
   );
@@ -929,10 +1072,7 @@ function AssetSection({
   provider: string;
 }) {
   const queryClient = useQueryClient();
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newType, setNewType] = useState<CharacterAssetType>("costume");
-  const [newName, setNewName] = useState("");
-  const [newDesc, setNewDesc] = useState("");
+  const [activeAddType, setActiveAddType] = useState<CharacterAssetType | null>(null);
 
   const assetsKey = ["comic", "character-assets", character.id];
 
@@ -943,109 +1083,95 @@ function AssetSection({
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: assetsKey });
 
-  const createMut = useMutation({
-    mutationFn: () =>
-      createCharacterAsset({
-        characterId: character.id,
-        projectId: character.projectId,
-        assetType: newType,
-        name: newName.trim(),
-        description: newDesc.trim() || undefined,
-      }),
-    onSuccess: () => {
-      refresh();
-      setShowAddForm(false);
-      setNewName("");
-      setNewDesc("");
-    },
-    onError: (e) => toast.error(String(e)),
-  });
+  const grouped = ASSET_TYPE_ORDER
+    .map((type) => ({ type, items: assets.filter((a) => a.assetType === type) }))
+    .filter((g) => g.items.length > 0);
+
+  const isEmpty = !isLoading && assets.length === 0;
 
   return (
-    <div className="border-t px-4 py-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium">角色资产库</p>
-          <span className="rounded border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{assets.length}</span>
-        </div>
-        <button
-          type="button"
-          className="flex items-center gap-1 rounded border px-2 py-1 text-xs text-muted-foreground hover:bg-muted/60"
-          onClick={() => setShowAddForm((v) => !v)}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          添加资产
-        </button>
+    <div className="border-t bg-muted/10 px-4 py-4">
+      {/* 标题 */}
+      <div className="mb-2.5 flex items-baseline gap-2">
+        <p className="text-sm font-semibold">角色资产库</p>
+        <span className="text-[11px] text-muted-foreground">
+          {assets.length > 0
+            ? `${assets.length} 个资产 · 已按类型分组`
+            : "服装、武器、道具一旦录入，生格子图会自动注入到参考图，提升一致性"}
+        </span>
       </div>
-      <p className="mb-3 text-xs text-muted-foreground">
-        为角色添加服装变体、武器、道具等视觉资产，生格子图时会自动合成到参考图中。
-      </p>
 
-      {showAddForm && (
-        <div className="mb-4 rounded-md border bg-muted/20 p-3 space-y-2">
-          <div className="flex gap-2">
-            <select
-              className="rounded border bg-background px-2 py-1 text-xs"
-              value={newType}
-              onChange={(e) => setNewType(e.target.value as CharacterAssetType)}
-            >
-              {Object.entries(ASSET_TYPE_LABELS).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
-              ))}
-            </select>
-            <input
-              className="flex-1 rounded border bg-background px-2 py-1 text-xs"
-              placeholder="资产名称（如：月光剑）"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && newName.trim()) createMut.mutate(); }}
-            />
-          </div>
-          <input
-            className="w-full rounded border bg-background px-2 py-1 text-xs"
-            placeholder="外观描述（可选，注入生图提示词）"
-            value={newDesc}
-            onChange={(e) => setNewDesc(e.target.value)}
+      {/* 类型快捷条 = 主入口 */}
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <span className="text-[10px] text-muted-foreground">添加：</span>
+        {ASSET_TYPE_ORDER.map((t) => (
+          <AssetTypeChip
+            key={t}
+            type={t}
+            active={activeAddType === t}
+            onClick={() => setActiveAddType(activeAddType === t ? null : t)}
           />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={!newName.trim() || createMut.isPending}
-              className="flex-1 rounded border bg-primary px-2 py-1 text-xs text-primary-foreground disabled:opacity-50"
-              onClick={() => createMut.mutate()}
-            >
-              {createMut.isPending ? "添加中..." : "确认添加"}
-            </button>
-            <button
-              type="button"
-              className="rounded border px-2 py-1 text-xs text-muted-foreground hover:bg-muted/60"
-              onClick={() => { setShowAddForm(false); setNewName(""); setNewDesc(""); }}
-            >
-              取消
-            </button>
+        ))}
+      </div>
+
+      {activeAddType && (
+        <AssetAddRow
+          key={activeAddType}
+          type={activeAddType}
+          characterId={character.id}
+          projectId={character.projectId}
+          onCreated={refresh}
+          onClose={() => setActiveAddType(null)}
+        />
+      )}
+
+      {isLoading && (
+        <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          加载中...
+        </div>
+      )}
+
+      {isEmpty && !activeAddType && (
+        <div className="rounded-lg border border-dashed bg-background/50 px-4 py-8 text-center">
+          <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <Plus className="h-5 w-5" />
           </div>
+          <p className="text-xs font-semibold text-foreground">还没有资产</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            点击上方任意彩色标签即可快速添加。<br />
+            生格子图时会自动把对应资产合成到参考图，锁定服装 / 武器 / 道具外形。
+          </p>
         </div>
       )}
 
-      {isLoading && <div className="text-xs text-muted-foreground">加载中...</div>}
-
-      {!isLoading && assets.length === 0 && !showAddForm && (
-        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
-          还没有资产。点击「添加资产」为该角色添加服装、武器或道具。
-        </div>
-      )}
-
-      {assets.length > 0 && (
-        <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-          {assets.map((asset) => (
-            <AssetCard
-              key={asset.id}
-              asset={asset}
-              provider={provider}
-              onDeleted={refresh}
-              onUpdated={refresh}
-            />
-          ))}
+      {grouped.length > 0 && (
+        <div className="space-y-4">
+          {grouped.map(({ type, items }) => {
+            const accent = ASSET_TYPE_ACCENT[type];
+            return (
+              <div key={type}>
+                <div className="mb-1.5 flex items-center gap-1.5">
+                  <span className={`h-1.5 w-1.5 rounded-full ${accent.dot}`} />
+                  <span className="text-[11px] font-semibold text-foreground">
+                    {ASSET_TYPE_LABELS[type]}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{items.length}</span>
+                </div>
+                <div className="grid gap-2.5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+                  {items.map((asset) => (
+                    <AssetCard
+                      key={asset.id}
+                      asset={asset}
+                      provider={provider}
+                      onDeleted={refresh}
+                      onUpdated={refresh}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

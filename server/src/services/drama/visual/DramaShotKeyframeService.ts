@@ -5,11 +5,7 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { resolveGeneratedImagesRoot } from "../../../runtime/appPaths";
-import {
-  generateImagesByProvider,
-  isImageProviderSupported,
-  resolveImageModel,
-} from "../../image/provider";
+import { filterImageGenerationReferences, runImageGeneration, type ImageTargetAdapter } from "../../image/runtime";
 import { safeJsonParse } from "../utils/json";
 
 export type ShotKeyframeStatus = "idle" | "generating" | "done" | "error";
@@ -80,32 +76,6 @@ function archivedKeyframeUrl(shotId: string, version: number): string {
   return `/api/drama/shot-images/${shotId}/keyframe/v${version}`;
 }
 
-async function saveImageToDisk(imageUrl: string, destPath: string): Promise<void> {
-  await fs.mkdir(path.dirname(destPath), { recursive: true });
-
-  if (imageUrl.startsWith("data:")) {
-    const [, base64Payload = ""] = imageUrl.split(",", 2);
-    await fs.writeFile(destPath, Buffer.from(base64Payload, "base64"));
-    return;
-  }
-
-  const response = await fetch(imageUrl);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch generated keyframe (${response.status}): ${imageUrl}`);
-  }
-  await fs.writeFile(destPath, Buffer.from(await response.arrayBuffer()));
-}
-
-function inferExtension(imageUrl: string): string {
-  if (imageUrl.startsWith("data:image/jpeg")) return "jpg";
-  if (imageUrl.startsWith("data:image/webp")) return "webp";
-  try {
-    const ext = path.extname(new URL(imageUrl).pathname).replace(".", "").toLowerCase();
-    return ext || "png";
-  } catch {
-    return "png";
-  }
-}
 
 function normalizePositiveVersion(value: unknown): number | null {
   const numeric = Number(value);
@@ -244,11 +214,10 @@ function buildShotKeyframePrompt(shot: ShotKeyframeSource): string {
 }
 
 export class DramaShotKeyframeService {
-  async generateKeyframe(
+  private async buildKeyframeGenerationContext(
     shotId: string,
-    provider: LLMProvider = DEFAULT_PROVIDER,
     useCharacterRefImages = false,
-  ): Promise<ShotKeyframeData> {
+  ) {
     const shot = await prisma.dramaShot.findUnique({
       where: { id: shotId },
       include: {
@@ -262,90 +231,89 @@ export class DramaShotKeyframeService {
     if (!shot) {
       throw new AppError(`未找到短剧镜头：${shotId}`, 404);
     }
-    if (!isImageProviderSupported(provider)) {
-      throw new AppError(`图片 Provider ${provider} 暂不支持。`, 400);
-    }
 
-    const existingData = safeJsonParse<ShotKeyframeData>(shot.keyframeData, { status: "idle" });
-    const history = readKeyframeHistory(existingData);
-    const archivedCurrent = await this.archiveCurrentKeyframe(shotId, existingData);
-    const nextHistory = archivedCurrent ? history.concat(archivedCurrent) : history;
-    const nextVersion = existingData.status === "done"
-      ? readKeyframeVersion(existingData) + 1
-      : Math.max(1, readKeyframeVersion(existingData) || 1);
-    const generatingData: ShotKeyframeData = {
-      status: "generating",
-      provider,
-      version: nextVersion,
-      history: nextHistory,
-    };
-    await prisma.dramaShot.update({
-      where: { id: shotId },
-      data: { keyframeData: JSON.stringify(generatingData) },
-    });
-
-    try {
-      const model = await resolveImageModel(provider);
-      const prompt = buildShotKeyframePrompt(shot);
-
-      // 开关开启时：取 shot 关联角色的设计稿 URL 作为参考图
-      const refImages: string[] = [];
-      if (useCharacterRefImages) {
-        const referencedChars = selectReferencedCharacters(shot);
-        for (const char of referencedChars) {
-          const url = resolveCharacterRefImageUrl(char);
-          if (url) refImages.push(url);
+    const prompt = buildShotKeyframePrompt(shot);
+    const refImages: string[] = [];
+    const referenceImages: import("../../image/runtime").GeneratedReferenceImageMeta[] = [];
+    if (useCharacterRefImages) {
+      const referencedChars = selectReferencedCharacters(shot);
+      for (const char of referencedChars) {
+        const url = resolveCharacterRefImageUrl(char);
+        if (url) {
+          refImages.push(url);
+          referenceImages.push({
+            kind: "character_sheet",
+            label: `${char.name} · 角色设计稿`,
+            url,
+          });
         }
       }
-
-      const result = await generateImagesByProvider({
-        sceneType: "chapter_illustration",
-        provider,
-        model,
-        prompt,
-        negativePrompt: "low quality, blurry, distorted face, extra fingers, duplicate body, text, watermark, subtitles",
-        size: "1024x1536",
-        count: 1,
-        ...(refImages.length > 0 ? { refImages } : {}),
-      });
-      const imageUrl = result.images[0]?.url;
-      if (!imageUrl) {
-        throw new Error("图片生成结果为空。");
-      }
-
-      const ext = inferExtension(imageUrl);
-      const localPath = path.join(dramaShotDir(shotId), `keyframe.${ext}`);
-      await saveImageToDisk(imageUrl, localPath);
-      await removeCurrentKeyframeVariants(shotId, ext);
-
-      const doneData: ShotKeyframeData = {
-        status: "done",
-        version: nextVersion,
-        url: currentKeyframeUrl(shotId),
-        prompt,
-        provider,
-        generatedAt: new Date().toISOString(),
-        history: nextHistory,
-      };
-      await prisma.dramaShot.update({
-        where: { id: shotId },
-        data: { keyframeData: JSON.stringify(doneData) },
-      });
-      return doneData;
-    } catch (error) {
-      const errorData: ShotKeyframeData = {
-        status: "error",
-        provider,
-        version: nextVersion,
-        error: error instanceof Error ? error.message : String(error),
-        history: nextHistory,
-      };
-      await prisma.dramaShot.update({
-        where: { id: shotId },
-        data: { keyframeData: JSON.stringify(errorData) },
-      });
-      throw error;
     }
+
+    const adapter: ImageTargetAdapter<ShotKeyframeData> = {
+      kind: `drama.shot.keyframe:${shotId}`,
+      loadState: async () => safeJsonParse<ShotKeyframeData>(shot.keyframeData, { status: "idle" }),
+      saveState: async (next) => {
+        await prisma.dramaShot.update({ where: { id: shotId }, data: { keyframeData: JSON.stringify(next) } });
+      },
+      diskPath: (ext) => path.join(dramaShotDir(shotId), `keyframe.${ext}`),
+      publicUrl: () => currentKeyframeUrl(shotId),
+      cleanupOtherExts: (keepExt) => removeCurrentKeyframeVariants(shotId, keepExt),
+      versioning: {
+        enabled: true,
+        maxHistory: 5,
+        archiveCurrent: (current) => this.archiveCurrentKeyframe(shotId, current),
+      },
+    };
+
+    return {
+      adapter,
+      prompt,
+      refImages,
+      referenceImages,
+      size: "1024x1536" as const,
+      negativePrompt: "low quality, blurry, distorted face, extra fingers, duplicate body, text, watermark, subtitles",
+      title: `生成镜头 ${shot.order} 首帧图`,
+    };
+  }
+
+  async prepareKeyframe(
+    shotId: string,
+    provider: LLMProvider = DEFAULT_PROVIDER,
+    useCharacterRefImages = false,
+  ): Promise<import("../../image/runtime").ImageGenerationPreview> {
+    const ctx = await this.buildKeyframeGenerationContext(shotId, useCharacterRefImages);
+    return {
+      kind: ctx.adapter.kind,
+      title: ctx.title,
+      prompt: ctx.prompt,
+      negativePrompt: ctx.negativePrompt,
+      referenceImages: ctx.referenceImages,
+      provider,
+      size: ctx.size,
+    };
+  }
+
+  async generateKeyframe(
+    shotId: string,
+    provider: LLMProvider = DEFAULT_PROVIDER,
+    useCharacterRefImages = false,
+    overrides?: import("../../image/runtime").ImageGenerationOverrides,
+  ): Promise<ShotKeyframeData> {
+    const ctx = await this.buildKeyframeGenerationContext(shotId, useCharacterRefImages);
+    const refs = filterImageGenerationReferences({
+      refImages: ctx.refImages,
+      referenceImages: ctx.referenceImages,
+      excludedReferenceImageUrls: overrides?.excludedReferenceImageUrls,
+    });
+    return runImageGeneration(ctx.adapter, {
+      provider: overrides?.providerOverride ?? provider,
+      prompt: overrides?.promptOverride ?? ctx.prompt,
+      size: overrides?.sizeOverride ?? ctx.size,
+      negativePrompt: overrides?.negativePromptOverride ?? ctx.negativePrompt,
+      ...(refs.refImages && refs.refImages.length > 0 ? { refImages: refs.refImages } : {}),
+      referenceImages: refs.referenceImages && refs.referenceImages.length > 0 ? refs.referenceImages : undefined,
+    });
   }
 
   private async archiveCurrentKeyframe(shotId: string, data: ShotKeyframeData): Promise<ShotKeyframeHistoryItem | null> {

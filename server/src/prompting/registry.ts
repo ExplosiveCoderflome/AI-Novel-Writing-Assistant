@@ -74,6 +74,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/image/image.prompts").imageCharacterPromptOptimizePrompt as UnknownPromptAsset,
   },
   {
+    key: "image.generation_prompt.assist@v1",
+    load: () => require("./prompts/image/image.prompts").imageGenerationPromptAssistPrompt as UnknownPromptAsset,
+  },
+  {
     key: "image.novel_cover.brief@v1",
     load: () => require("./prompts/image/image.prompts").imageNovelCoverBriefPrompt as UnknownPromptAsset,
   },

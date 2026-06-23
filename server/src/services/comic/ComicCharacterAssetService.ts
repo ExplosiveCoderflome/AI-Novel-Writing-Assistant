@@ -13,13 +13,8 @@ import path from "path";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { resolveGeneratedImagesRoot } from "../../runtime/appPaths";
-import {
-  generateImagesByProvider,
-  isImageProviderSupported,
-  resolveImageModel,
-} from "../image/provider";
-import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { resolveComicStyleKeywords } from "./comicStylePrompt";
+import { filterImageGenerationReferences, runImageGeneration, safeJsonParse } from "../image/runtime";
+import { buildGenderLockPrompt, resolveComicStyleKeywords } from "./comicStylePrompt";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,7 +50,6 @@ export interface UpdateAssetInput {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const ASSETS_DIR = "comic-character-assets";
-const DEFAULT_PROVIDER: LLMProvider = "openai";
 const IMAGE_EXTS: Array<[string, string]> = [
   ["png", "image/png"],
   ["jpg", "image/jpeg"],
@@ -68,32 +62,6 @@ function assetDir(assetId: string): string {
 
 export function assetImageUrl(assetId: string): string {
   return `/api/comic/character-assets/${assetId}/image`;
-}
-
-function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
-  if (!raw) return fallback;
-  try { return JSON.parse(raw) as T; } catch { return fallback; }
-}
-
-async function saveImageToDisk(imageUrl: string, destPath: string): Promise<void> {
-  await fs.mkdir(path.dirname(destPath), { recursive: true });
-  if (imageUrl.startsWith("data:")) {
-    const [, b64 = ""] = imageUrl.split(",", 2);
-    await fs.writeFile(destPath, Buffer.from(b64, "base64"));
-  } else {
-    const resp = await fetch(imageUrl);
-    if (!resp.ok) throw new Error(`图片下载失败 (${resp.status}): ${imageUrl}`);
-    await fs.writeFile(destPath, Buffer.from(await resp.arrayBuffer()));
-  }
-}
-
-function inferExtension(url: string): string {
-  if (url.startsWith("data:image/jpeg")) return "jpg";
-  if (url.startsWith("data:image/webp")) return "webp";
-  try {
-    const ext = path.extname(new URL(url).pathname).replace(".", "").toLowerCase();
-    return ext || "png";
-  } catch { return "png"; }
 }
 
 /** 找已存盘的资产图路径 */
@@ -137,11 +105,13 @@ function buildAssetPrompt(params: {
   name: string;
   description?: string;
   characterName: string;
+  characterGender?: string | null;
   characterVisualAnchor?: string | null;
   isRefAvailable: boolean;
   styleKeywords: string;
 }): string {
-  const { assetType, name, description, characterName, characterVisualAnchor, isRefAvailable, styleKeywords } = params;
+  const { assetType, name, description, characterName, characterGender, characterVisualAnchor, isRefAvailable, styleKeywords } = params;
+  const genderLock = buildGenderLockPrompt(characterGender, characterName);
 
   const typeLabels: Record<CharacterAssetType, string> = {
     costume: "costume design reference sheet",
@@ -152,11 +122,13 @@ function buildAssetPrompt(params: {
     other: "visual asset design reference sheet",
   };
 
-  const lines: string[] = [
+  const lines: string[] = [];
+  if (genderLock) lines.push(genderLock);
+  lines.push(
     `professional ${typeLabels[assetType]}`,
     `for character: ${characterName}`,
     `asset name: ${name}`,
-  ];
+  );
 
   if (description) lines.push(`design description: ${description}`);
 
@@ -287,91 +259,93 @@ export class ComicCharacterAssetService {
     return { url };
   }
 
-  // ── AI 生成 ───────────────────────────────────────────────────────────────
+  // ── AI 生成（prepare / generate 共享 buildContext） ──────────────────────
 
-  async generateAssetImage(assetId: string, provider?: string): Promise<void> {
+  private async buildAssetGenerationContext(assetId: string) {
     const asset = await prisma.comicCharacterAsset.findUnique({
       where: { id: assetId },
       include: {
-        character: { select: { id: true, name: true, visualAnchor: true, sheetData: true } },
+        character: { select: { id: true, name: true, gender: true, visualAnchor: true, sheetData: true } },
         project: { select: { stylePreset: true } },
       },
     });
     if (!asset) throw new AppError(`资产不存在：${assetId}`, 404);
 
-    const llmProvider = (provider ?? DEFAULT_PROVIDER) as LLMProvider;
-    if (!isImageProviderSupported(llmProvider)) {
-      throw new AppError(`图片 Provider ${llmProvider} 暂不支持。`, 400);
-    }
-
-    // 三视图参考图（已完成才用）
     const refImagePaths = await resolveSheetRefPaths(asset.characterId);
-
-    // 标记 generating
-    const generatingData: AssetImageData = { status: "generating", provider: llmProvider };
-    await prisma.comicCharacterAsset.update({
-      where: { id: assetId },
-      data: { imageData: JSON.stringify(generatingData) },
+    const prompt = buildAssetPrompt({
+      assetType: asset.assetType as CharacterAssetType,
+      name: asset.name,
+      description: asset.description ?? undefined,
+      characterName: asset.character.name,
+      characterGender: asset.character.gender,
+      characterVisualAnchor: asset.character.visualAnchor,
+      isRefAvailable: refImagePaths.length > 0,
+      styleKeywords: resolveComicStyleKeywords(asset.project.stylePreset),
     });
 
-    try {
-      const model = await resolveImageModel(llmProvider);
-      const prompt = buildAssetPrompt({
-        assetType: asset.assetType as CharacterAssetType,
-        name: asset.name,
-        description: asset.description ?? undefined,
-        characterName: asset.character.name,
-        characterVisualAnchor: asset.character.visualAnchor,
-        isRefAvailable: refImagePaths.length > 0,
-        styleKeywords: resolveComicStyleKeywords(asset.project.stylePreset),
+    // 参考素材元数据（前端预览缩略图用）
+    const referenceImages: import("../image/runtime").GeneratedReferenceImageMeta[] = [];
+    const sheetState = safeJsonParse<{ status?: string }>(asset.character.sheetData, {});
+    if (sheetState.status === "done") {
+      referenceImages.push({
+        kind: "character_sheet",
+        label: `${asset.character.name} · 三视图`,
+        url: `/api/comic/character-images/${asset.character.id}/sheet`,
       });
-
-      console.log(`[comic.asset] generating asset=${assetId} type=${asset.assetType} name=${asset.name}`);
-
-      const result = await generateImagesByProvider({
-        sceneType: "chapter_illustration",
-        provider: llmProvider,
-        model,
-        prompt,
-        refImagePaths: refImagePaths,
-        size: "1024x1024",
-        count: 1,
-      });
-
-      const rawUrl = result.images?.[0]?.url;
-      if (!rawUrl || typeof rawUrl !== "string") {
-        throw new Error("生图结果无效：未返回图片 URL");
-      }
-
-      const ext = inferExtension(rawUrl);
-      const filePath = path.join(assetDir(assetId), `asset.${ext}`);
-      await saveImageToDisk(rawUrl, filePath);
-
-      const url = assetImageUrl(assetId);
-      const doneData: AssetImageData = {
-        status: "done",
-        url,
-        prompt,
-        provider: llmProvider,
-        generatedAt: new Date().toISOString(),
-        origin: "generated",
-      };
-      await prisma.comicCharacterAsset.update({
-        where: { id: assetId },
-        data: { imageData: JSON.stringify(doneData) },
-      });
-    } catch (err) {
-      const errData: AssetImageData = {
-        status: "error",
-        provider: llmProvider,
-        error: err instanceof Error ? err.message : String(err),
-      };
-      await prisma.comicCharacterAsset.update({
-        where: { id: assetId },
-        data: { imageData: JSON.stringify(errData) },
-      });
-      throw err;
     }
+
+    const adapter: import("../image/runtime").ImageTargetAdapter<AssetImageData> = {
+      kind: `comic.character-asset:${assetId}`,
+      loadState: async () => safeJsonParse<AssetImageData>(asset.imageData, { status: "idle" }),
+      saveState: async (next) => {
+        await prisma.comicCharacterAsset.update({ where: { id: assetId }, data: { imageData: JSON.stringify(next) } });
+      },
+      diskPath: (ext) => path.join(assetDir(assetId), `asset.${ext}`),
+      publicUrl: () => assetImageUrl(assetId),
+      buildExtraDoneState: () => ({ origin: "generated" as const }),
+    };
+
+    return {
+      adapter,
+      prompt,
+      refImagePaths,
+      referenceImages,
+      size: "1024x1024" as const,
+      title: `生成${asset.assetType === "costume" ? "服装" : asset.assetType === "weapon" ? "武器" : "资产"}：${asset.name}`,
+    };
+  }
+
+  /** 预览即将发送给图像模型的全部素材（不消耗 token） */
+  async prepareAssetImage(assetId: string, provider?: string): Promise<import("../image/runtime").ImageGenerationPreview> {
+    const ctx = await this.buildAssetGenerationContext(assetId);
+    return {
+      kind: ctx.adapter.kind,
+      title: ctx.title,
+      prompt: ctx.prompt,
+      referenceImages: ctx.referenceImages,
+      provider: provider ?? "openai",
+      size: ctx.size,
+    };
+  }
+
+  async generateAssetImage(
+    assetId: string,
+    provider?: string,
+    overrides?: import("../image/runtime").ImageGenerationOverrides,
+  ): Promise<void> {
+    const ctx = await this.buildAssetGenerationContext(assetId);
+    const refs = filterImageGenerationReferences({
+      refImagePaths: ctx.refImagePaths,
+      referenceImages: ctx.referenceImages,
+      excludedReferenceImageUrls: overrides?.excludedReferenceImageUrls,
+    });
+    await runImageGeneration(ctx.adapter, {
+      provider: overrides?.providerOverride ?? provider,
+      prompt: overrides?.promptOverride ?? ctx.prompt,
+      size: overrides?.sizeOverride ?? ctx.size,
+      refImagePaths: refs.refImagePaths,
+      referenceImages: refs.referenceImages && refs.referenceImages.length > 0 ? refs.referenceImages : undefined,
+    });
   }
 
   // ── 文件服务 ──────────────────────────────────────────────────────────────

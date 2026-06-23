@@ -54,6 +54,29 @@ export interface OptimizeNovelCoverPromptPayload {
   outputLanguage?: ImagePromptOutputLanguage;
 }
 
+export interface ImagePromptAssistPayload {
+  action: "explain" | "optimize";
+  title?: string;
+  kind?: string;
+  prompt: string;
+  negativePrompt?: string;
+  optimizationInstruction?: string;
+  provider?: string;
+  size?: string;
+  referenceImages: Array<{
+    kind: string;
+    label: string;
+  }>;
+}
+
+export interface ImagePromptAssistResult {
+  summary: string;
+  details: string[];
+  risks: string[];
+  optimizedPrompt?: string;
+  changes: string[];
+}
+
 export async function generateCharacterImages(payload: GenerateCharacterImagePayload) {
   const { data } = await apiClient.post<ApiResponse<ImageGenerationTask>>("/images/generate", payload);
   return data;
@@ -77,6 +100,11 @@ export async function optimizeNovelCoverPrompt(payload: OptimizeNovelCoverPrompt
     prompt: string;
     outputLanguage: ImagePromptOutputLanguage;
   }>>("/images/optimize-prompt", payload);
+  return data;
+}
+
+export async function assistImageGenerationPrompt(payload: ImagePromptAssistPayload) {
+  const { data } = await apiClient.post<ApiResponse<ImagePromptAssistResult>>("/images/prompt-assist", payload);
   return data;
 }
 

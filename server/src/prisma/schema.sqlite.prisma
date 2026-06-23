@@ -3198,6 +3198,7 @@ model ComicCharacter {
   id                 String   @id @default(cuid())
   projectId          String
   name               String
+  gender             String   @default("unknown")
   persona            String?
   visualAnchor       String?
   sheetData          String?

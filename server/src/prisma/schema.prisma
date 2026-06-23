@@ -3244,6 +3244,8 @@ model ComicCharacter {
   id               String  @id @default(cuid())
   projectId        String
   name             String
+  // 性别（用于生图时 GENDER LOCK）：male | female | other | unknown
+  gender           String  @default("unknown")
   persona          String?
   // 视觉锚点描述（外形/服装/标志性特征，注入每格 visualPrompt）
   visualAnchor     String?

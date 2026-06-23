@@ -85,9 +85,16 @@ const dialoguesSchema = z.object({
   dialogues: z.array(z.unknown()).max(3),
 });
 
+const excludedReferenceImageUrlsSchema = z.array(z.string().trim().min(1).max(1000)).max(24).optional();
+
 const imageGenerateSchema = z
   .object({
     provider: z.string().trim().optional(),
+    promptOverride: z.string().trim().max(4000).optional(),
+    providerOverride: z.string().trim().optional(),
+    sizeOverride: z.string().trim().max(20).optional(),
+    negativePromptOverride: z.string().trim().max(2000).optional(),
+    excludedReferenceImageUrls: excludedReferenceImageUrlsSchema,
   })
   .optional();
 
@@ -333,9 +340,35 @@ const charSheetGenerateSchema = z
     useCurrentImageAsReference: z.boolean().optional(),
     lockAppearance: z.boolean().optional(),
     appearanceOverride: z.string().trim().max(1000).optional(),
+    promptOverride: z.string().trim().max(4000).optional(),
+    providerOverride: z.string().trim().optional(),
+    sizeOverride: z.string().trim().max(20).optional(),
+    excludedReferenceImageUrls: excludedReferenceImageUrlsSchema,
   })
   .optional();
-const charExpressionGenerateSchema = z.object({ provider: z.string().trim().optional() }).optional();
+const charExpressionGenerateSchema = imageGenerateSchema;
+
+router.post(
+  "/characters/:charId/sheet/prepare",
+  validate({ params: charIdParams, body: charSheetGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { charId } = req.params as z.infer<typeof charIdParams>;
+      const body = (req.body ?? {}) as z.infer<typeof charSheetGenerateSchema>;
+      const data = await comicCharacterImageService.prepareCharacterSheet(
+        charId,
+        body?.provider as Parameters<typeof comicCharacterImageService.prepareCharacterSheet>[1] | undefined,
+        {
+          prompt: body?.prompt,
+          useCurrentImageAsReference: body?.useCurrentImageAsReference,
+          lockAppearance: body?.lockAppearance,
+          appearanceOverride: body?.appearanceOverride,
+        },
+      );
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+    } catch (err) { next(err); }
+  },
+);
 
 router.post(
   "/characters/:charId/sheet/generate",
@@ -352,6 +385,12 @@ router.post(
           useCurrentImageAsReference: body?.useCurrentImageAsReference,
           lockAppearance: body?.lockAppearance,
           appearanceOverride: body?.appearanceOverride,
+        },
+        {
+          promptOverride: body?.promptOverride,
+          providerOverride: body?.providerOverride,
+          sizeOverride: body?.sizeOverride as never,
+          excludedReferenceImageUrls: body?.excludedReferenceImageUrls,
         },
       );
       res.json({ success: true, data } satisfies ApiResponse<typeof data>);
@@ -390,6 +429,23 @@ router.post(
   },
 );
 
+// 更新角色性别（生图链路的 GENDER LOCK 来源）
+router.patch(
+  "/characters/:charId/gender",
+  validate({
+    params: charIdParams,
+    body: z.object({ gender: z.enum(["male", "female", "other", "unknown"]) }),
+  }),
+  async (req, res, next) => {
+    try {
+      const { charId } = req.params as z.infer<typeof charIdParams>;
+      const { gender } = req.body as { gender: "male" | "female" | "other" | "unknown" };
+      const data = await comicProjectService.updateCharacterGender(charId, gender);
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+    } catch (err) { next(err); }
+  },
+);
+
 // 更新角色"外貌锚点"—— 所有生图链路的源头
 // appearance：主外貌；faceShapeOverride：脸型强覆盖（与 appearance 冲突时高优先级）
 router.patch(
@@ -413,6 +469,22 @@ router.patch(
 );
 
 router.post(
+  "/characters/:charId/expressions/prepare",
+  validate({ params: charIdParams, body: charExpressionGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { charId } = req.params as z.infer<typeof charIdParams>;
+      const body = (req.body ?? {}) as z.infer<typeof charExpressionGenerateSchema>;
+      const data = await comicCharacterImageService.prepareExpressionSheet(
+        charId,
+        body?.provider as Parameters<typeof comicCharacterImageService.prepareExpressionSheet>[1] | undefined,
+      );
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+    } catch (err) { next(err); }
+  },
+);
+
+router.post(
   "/characters/:charId/expressions/generate",
   validate({ params: charIdParams, body: charExpressionGenerateSchema }),
   async (req, res, next) => {
@@ -422,6 +494,13 @@ router.post(
       const data = await comicCharacterImageService.generateExpressionSheet(
         charId,
         body?.provider as Parameters<typeof comicCharacterImageService.generateExpressionSheet>[1] | undefined,
+        {
+          promptOverride: body?.promptOverride,
+          providerOverride: body?.providerOverride,
+          sizeOverride: body?.sizeOverride as never,
+          negativePromptOverride: body?.negativePromptOverride,
+          excludedReferenceImageUrls: body?.excludedReferenceImageUrls,
+        },
       );
       res.json({ success: true, data } satisfies ApiResponse<typeof data>);
     } catch (err) { next(err); }
@@ -497,6 +576,22 @@ router.get("/character-images/:charId/sheet/v:version", validate({ params: charS
 // ─── Panel images ──────────────────────────────────────────────────────────
 
 router.post(
+  "/panels/:panelId/image/prepare",
+  validate({ params: panelIdParams, body: imageGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { panelId } = req.params as z.infer<typeof panelIdParams>;
+      const body = (req.body ?? {}) as z.infer<typeof imageGenerateSchema>;
+      const data = await comicPanelImageService.preparePanelImage(
+        panelId,
+        body?.provider as Parameters<typeof comicPanelImageService.preparePanelImage>[1] | undefined,
+      );
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+    } catch (err) { next(err); }
+  },
+);
+
+router.post(
   "/panels/:panelId/image/generate",
   validate({ params: panelIdParams, body: imageGenerateSchema }),
   async (req, res, next) => {
@@ -506,6 +601,13 @@ router.post(
       const data = await comicPanelImageService.generatePanelImage(
         panelId,
         body?.provider as Parameters<typeof comicPanelImageService.generatePanelImage>[1] | undefined,
+        {
+          promptOverride: body?.promptOverride,
+          providerOverride: body?.providerOverride,
+          sizeOverride: body?.sizeOverride as never,
+          negativePromptOverride: body?.negativePromptOverride,
+          excludedReferenceImageUrls: body?.excludedReferenceImageUrls,
+        },
       );
       res.json({ success: true, data } satisfies ApiResponse<typeof data>);
     } catch (err) { next(err); }
@@ -791,11 +893,32 @@ router.delete("/character-assets/:assetId", validate({ params: assetIdParams }),
 });
 
 // AI 生成资产图
-router.post("/character-assets/:assetId/generate-image", validate({ params: assetIdParams }), async (req, res, next) => {
+// 预览即将发送的素材（不消耗 token）
+router.post("/character-assets/:assetId/prepare-image", validate({ params: assetIdParams }), async (req, res, next) => {
   try {
     const { assetId } = req.params as z.infer<typeof assetIdParams>;
     const provider = typeof req.body.provider === "string" ? req.body.provider : undefined;
-    await comicCharacterAssetService.generateAssetImage(assetId, provider);
+    const data = await comicCharacterAssetService.prepareAssetImage(assetId, provider);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+router.post("/character-assets/:assetId/generate-image", validate({ params: assetIdParams }), async (req, res, next) => {
+  try {
+    const { assetId } = req.params as z.infer<typeof assetIdParams>;
+    const body = req.body as {
+      provider?: string;
+      promptOverride?: string;
+      sizeOverride?: string;
+      providerOverride?: string;
+      excludedReferenceImageUrls?: string[];
+    };
+    await comicCharacterAssetService.generateAssetImage(assetId, body.provider, {
+      promptOverride: body.promptOverride,
+      sizeOverride: body.sizeOverride as never,
+      providerOverride: body.providerOverride,
+      excludedReferenceImageUrls: body.excludedReferenceImageUrls,
+    });
     const data = await comicCharacterAssetService.getAsset(assetId);
     res.json({ success: true, data } satisfies ApiResponse<typeof data>);
   } catch (err) { next(err); }
@@ -894,11 +1017,26 @@ router.delete("/scenes/:sceneId", validate({ params: sceneIdParams }), async (re
 });
 
 // AI 生成场景设定图
-router.post("/scenes/:sceneId/generate-image", validate({ params: sceneIdParams }), async (req, res, next) => {
+router.post("/scenes/:sceneId/prepare-image", validate({ params: sceneIdParams, body: imageGenerateSchema }), async (req, res, next) => {
   try {
     const { sceneId } = req.params as z.infer<typeof sceneIdParams>;
-    const provider = typeof req.body.provider === "string" ? req.body.provider : undefined;
-    await comicSceneService.generateSceneSheet(sceneId, provider);
+    const body = (req.body ?? {}) as z.infer<typeof imageGenerateSchema>;
+    const data = await comicSceneService.prepareSceneSheet(sceneId, body?.provider);
+    res.json({ success: true, data } satisfies ApiResponse<typeof data>);
+  } catch (err) { next(err); }
+});
+
+router.post("/scenes/:sceneId/generate-image", validate({ params: sceneIdParams, body: imageGenerateSchema }), async (req, res, next) => {
+  try {
+    const { sceneId } = req.params as z.infer<typeof sceneIdParams>;
+    const body = (req.body ?? {}) as z.infer<typeof imageGenerateSchema>;
+    await comicSceneService.generateSceneSheet(sceneId, body?.provider, {
+      promptOverride: body?.promptOverride,
+      providerOverride: body?.providerOverride,
+      sizeOverride: body?.sizeOverride as never,
+      negativePromptOverride: body?.negativePromptOverride,
+      excludedReferenceImageUrls: body?.excludedReferenceImageUrls,
+    });
     const data = await comicSceneService.getScene(sceneId);
     res.json({ success: true, data } satisfies ApiResponse<typeof data>);
   } catch (err) { next(err); }

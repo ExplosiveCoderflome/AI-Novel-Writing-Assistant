@@ -15,12 +15,13 @@ import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { resolveGeneratedImagesRoot } from "../../runtime/appPaths";
 import {
-  generateImagesByProvider,
-  isImageProviderSupported,
-  resolveImageModel,
-} from "../image/provider";
+  filterImageGenerationReferences,
+  runImageGeneration,
+  safeJsonParse,
+  type ImageTargetAdapter,
+} from "../image/runtime";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { resolveComicStyleKeywords } from "./comicStylePrompt";
+import { buildGenderLockPrompt, resolveComicStyleKeywords } from "./comicStylePrompt";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -66,6 +67,7 @@ export interface CharacterExpressionData {
   provider?: string;
   generatedAt?: string;
   error?: string;
+  referenceImages?: import("../image/runtime").GeneratedReferenceImageMeta[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -101,32 +103,6 @@ function expressionUrl(charId: string): string {
 
 function archivedSheetUrl(charId: string, version: number): string {
   return `/api/comic/character-images/${charId}/sheet/v${version}`;
-}
-
-function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
-  if (!raw) return fallback;
-  try { return JSON.parse(raw) as T; } catch { return fallback; }
-}
-
-async function saveImageToDisk(imageUrl: string, destPath: string): Promise<void> {
-  await fs.mkdir(path.dirname(destPath), { recursive: true });
-  if (imageUrl.startsWith("data:")) {
-    const [, b64 = ""] = imageUrl.split(",", 2);
-    await fs.writeFile(destPath, Buffer.from(b64, "base64"));
-  } else {
-    const resp = await fetch(imageUrl);
-    if (!resp.ok) throw new Error(`图片下载失败 (${resp.status}): ${imageUrl}`);
-    await fs.writeFile(destPath, Buffer.from(await resp.arrayBuffer()));
-  }
-}
-
-function inferExtension(url: string): string {
-  if (url.startsWith("data:image/jpeg")) return "jpg";
-  if (url.startsWith("data:image/webp")) return "webp";
-  try {
-    const ext = path.extname(new URL(url).pathname).replace(".", "").toLowerCase();
-    return ext || "png";
-  } catch { return "png"; }
 }
 
 function readVersion(data: CharacterSheetData): number {
@@ -182,18 +158,22 @@ function extractVisualDesc(visualAnchor: string | null | undefined): string {
 
 function buildSheetPrompt(character: {
   name: string;
+  gender?: string | null;
   persona?: string | null;
   visualAnchor?: string | null;
 }, styleKeywords: string): string {
   const visualDesc = extractVisualDesc(character.visualAnchor);
   const faceOverride = extractFaceShapeOverride(character.visualAnchor);
-  // 关键顺序：先布局 → 强制外貌锚定 → 脸型 FINAL OVERRIDE（若有）→ 画风
-  const lines: string[] = [
+  const genderLock = buildGenderLockPrompt(character.gender, character.name);
+  // 关键顺序：性别锁 → 布局 → 强制外貌锚定 → 脸型 FINAL OVERRIDE（若有）→ 画风
+  const lines: string[] = [];
+  if (genderLock) lines.push(genderLock);
+  lines.push(
     "professional character design reference sheet, single image",
     "LEFT THIRD: close-up portrait of the character's face (frontal view, detailed facial features, natural expression)",
     "RIGHT TWO-THIRDS: full-body character turnaround showing three views side by side — front view, side view (90-degree profile), back view",
     "all four views depict the SAME character with IDENTICAL costume, hairstyle, and color scheme",
-  ];
+  );
   if (visualDesc) {
     lines.push(
       `THIS SPECIFIC CHARACTER must have the following exact appearance: ${visualDesc}`,
@@ -219,19 +199,24 @@ function buildSheetPrompt(character: {
 
 function buildAppearanceLockPrompt(character: {
   name: string;
+  gender?: string | null;
   visualAnchor?: string | null;
 }, appearanceOverride?: string): string {
   const visualDesc = appearanceOverride?.trim() || extractVisualDesc(character.visualAnchor);
   if (!visualDesc) return "";
   const faceOverride = extractFaceShapeOverride(character.visualAnchor);
+  const genderLock = buildGenderLockPrompt(character.gender, character.name);
   const parts = [
     "CHARACTER IDENTITY LOCK (highest priority)",
     `name: ${character.name}`,
     `mandatory appearance: ${visualDesc}`,
+  ];
+  if (genderLock) parts.push(genderLock);
+  parts.push(
     "the face shape, eye shape, brow, nose, mouth, age and body proportion above MUST be preserved exactly",
     "do NOT drift toward generic idealized beauty template; this character has a unique bone structure that defines their identity",
     "keep identical face, hairstyle, body type, costume colors, and signature features across all views",
-  ];
+  );
   if (faceOverride) {
     parts.push(
       `*** FACE SHAPE FINAL OVERRIDE: ${faceOverride} (this overrides any conflicting sharp/pointy descriptions in appearance for bone structure; sharpness may remain in gaze only)`,
@@ -261,17 +246,21 @@ function buildTunedSheetPrompt(
 
 function buildExpressionPrompt(character: {
   name: string;
+  gender?: string | null;
   persona?: string | null;
   visualAnchor?: string | null;
 }, styleKeywords: string): string {
   const visualDesc = extractVisualDesc(character.visualAnchor);
   const faceOverride = extractFaceShapeOverride(character.visualAnchor);
-  const lines: string[] = [
+  const genderLock = buildGenderLockPrompt(character.gender, character.name);
+  const lines: string[] = [];
+  if (genderLock) lines.push(genderLock);
+  lines.push(
     "professional manga character expression sheet, single 1536x1024 horizontal image",
     "six evenly spaced portrait busts in one row, same character, same hairstyle, same costume, same color palette",
     "expressions from left to right: neutral calm, happy smile, angry glare, sad sorrow, surprised shock, cold indifferent",
     "front-facing face and upper shoulders, high facial consistency, clean white background, no text labels, no watermark",
-  ];
+  );
   if (visualDesc) {
     lines.push(
       `THIS SPECIFIC CHARACTER must have the following exact appearance: ${visualDesc}`,
@@ -328,87 +317,108 @@ async function isDerivedFresh(sourcePath: string, derivedPath: string): Promise<
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 export class ComicCharacterImageService {
-  async generateCharacterSheet(
+  private async buildCharacterSheetGenerationContext(
     charId: string,
-    provider: LLMProvider = DEFAULT_PROVIDER,
     options: GenerateCharacterSheetOptions = {},
-  ): Promise<CharacterSheetData> {
+  ) {
     const character = await prisma.comicCharacter.findUnique({
       where: { id: charId },
       include: { project: { select: { stylePreset: true } } },
     });
     if (!character) throw new AppError(`未找到漫画角色：${charId}`, 404);
-    if (!isImageProviderSupported(provider)) throw new AppError(`图片 Provider ${provider} 暂不支持。`, 400);
 
     const styleKeywords = resolveComicStyleKeywords(character.project.stylePreset);
-    const existing = safeJsonParse<CharacterSheetData>(character.sheetData, { status: "idle" });
-    const history: CharacterSheetHistoryItem[] = Array.isArray(existing.history) ? existing.history : [];
+    const prompt = options.prompt?.trim()
+      ? buildTunedSheetPrompt(character, options.prompt, options.lockAppearance !== false, options.appearanceOverride)
+      : buildSheetPrompt(character, styleKeywords);
+    const currentReference = options.useCurrentImageAsReference
+      ? await this.resolveSheetFile(charId)
+      : null;
 
-    // 归档当前设计稿
-    const archived = await this.archiveCurrent(charId, existing);
-    const nextHistory = archived ? [...history, archived].slice(-5) : history;
-    const nextVersion = existing.status === "done" ? readVersion(existing) + 1 : Math.max(1, readVersion(existing) || 1);
-
-    const generatingData: CharacterSheetData = {
-      ...existing,
-      status: "generating",
-      provider,
-      version: nextVersion,
-      history: nextHistory,
+    const archiveCurrentSheet = async (current: CharacterSheetData): Promise<CharacterSheetHistoryItem | null> => {
+      if (current.status !== "done") return null;
+      const version = readVersion(current);
+      if (!version) return null;
+      const resolved = await this.resolveSheetFile(charId);
+      const item: CharacterSheetHistoryItem = {
+        version,
+        prompt: current.prompt,
+        provider: current.provider,
+        generatedAt: current.generatedAt,
+      };
+      if (!resolved) return item;
+      const ext = path.extname(resolved.filePath).replace(".", "").toLowerCase() || "png";
+      const archivePath = path.join(comicCharacterDir(charId), `character-sheet.v${version}.${ext}`);
+      await fs.copyFile(resolved.filePath, archivePath);
+      return { ...item, url: archivedSheetUrl(charId, version) };
     };
-    await prisma.comicCharacter.update({ where: { id: charId }, data: { sheetData: JSON.stringify(generatingData) } });
 
-    try {
-      const model = await resolveImageModel(provider);
-      const prompt = options.prompt?.trim()
-        ? buildTunedSheetPrompt(character, options.prompt, options.lockAppearance !== false, options.appearanceOverride)
-        : buildSheetPrompt(character, styleKeywords);
-      const currentReference = options.useCurrentImageAsReference
-        ? await this.resolveSheetFile(charId)
-        : null;
+    const adapter: ImageTargetAdapter<CharacterSheetData> = {
+      kind: `comic.character.sheet:${charId}`,
+      loadState: async () => safeJsonParse<CharacterSheetData>(character.sheetData, { status: "idle" }),
+      saveState: async (next) => {
+        await prisma.comicCharacter.update({ where: { id: charId }, data: { sheetData: JSON.stringify(next) } });
+      },
+      diskPath: (ext) => path.join(comicCharacterDir(charId), `character-sheet.${ext}`),
+      publicUrl: () => sheetUrl(charId),
+      cleanupOtherExts: (keepExt) => removeOldAssetFiles(charId, "character-sheet", keepExt),
+      versioning: {
+        enabled: true,
+        maxHistory: 5,
+        archiveCurrent: archiveCurrentSheet,
+      },
+    };
 
-      const result = await generateImagesByProvider({
-        sceneType: "character",
-        provider,
-        model,
-        prompt,
-        size: "1536x1024",
-        count: 1,
-        refImagePaths: currentReference ? [currentReference.filePath] : undefined,
-      });
+    const referenceImages: import("../image/runtime").GeneratedReferenceImageMeta[] = currentReference
+      ? [{ kind: "character_sheet", label: `${character.name} · 当前三视图`, url: sheetUrl(charId) }]
+      : [];
 
-      const imageUrl = result.images[0]?.url;
-      if (!imageUrl) throw new Error("图片生成结果为空。");
+    return {
+      adapter,
+      prompt,
+      refImagePaths: currentReference ? [currentReference.filePath] : undefined,
+      referenceImages,
+      size: "1536x1024" as const,
+      title: `${options.prompt?.trim() ? "微调" : "生成"}三视图：${character.name}`,
+    };
+  }
 
-      const ext = inferExtension(imageUrl);
-      const localPath = path.join(comicCharacterDir(charId), `character-sheet.${ext}`);
-      await saveImageToDisk(imageUrl, localPath);
-      await removeOldAssetFiles(charId, "character-sheet", ext);
+  async prepareCharacterSheet(
+    charId: string,
+    provider: LLMProvider = DEFAULT_PROVIDER,
+    options: GenerateCharacterSheetOptions = {},
+  ): Promise<import("../image/runtime").ImageGenerationPreview> {
+    const ctx = await this.buildCharacterSheetGenerationContext(charId, options);
+    return {
+      kind: ctx.adapter.kind,
+      title: ctx.title,
+      prompt: ctx.prompt,
+      referenceImages: ctx.referenceImages,
+      provider,
+      size: ctx.size,
+    };
+  }
 
-      const doneData: CharacterSheetData = {
-        ...existing,
-        status: "done",
-        version: nextVersion,
-        url: sheetUrl(charId),
-        prompt,
-        provider,
-        generatedAt: new Date().toISOString(),
-        history: nextHistory,
-      };
-      await prisma.comicCharacter.update({ where: { id: charId }, data: { sheetData: JSON.stringify(doneData) } });
-      return doneData;
-    } catch (err) {
-      const errorData: CharacterSheetData = {
-        ...existing,
-        status: "error",
-        provider,
-        version: nextVersion,
-        error: err instanceof Error ? err.message : String(err),
-        history: nextHistory,
-      };
-      await prisma.comicCharacter.update({ where: { id: charId }, data: { sheetData: JSON.stringify(errorData) } });
-      throw err;
-    }
+  async generateCharacterSheet(
+    charId: string,
+    provider: LLMProvider = DEFAULT_PROVIDER,
+    options: GenerateCharacterSheetOptions = {},
+    overrides?: import("../image/runtime").ImageGenerationOverrides,
+  ): Promise<CharacterSheetData> {
+    const ctx = await this.buildCharacterSheetGenerationContext(charId, options);
+    const refs = filterImageGenerationReferences({
+      refImagePaths: ctx.refImagePaths,
+      referenceImages: ctx.referenceImages,
+      excludedReferenceImageUrls: overrides?.excludedReferenceImageUrls,
+    });
+    return runImageGeneration(ctx.adapter, {
+      provider: overrides?.providerOverride ?? provider,
+      prompt: overrides?.promptOverride ?? ctx.prompt,
+      size: overrides?.sizeOverride ?? ctx.size,
+      sceneType: "character",
+      refImagePaths: refs.refImagePaths,
+      referenceImages: refs.referenceImages && refs.referenceImages.length > 0 ? refs.referenceImages : undefined,
+    });
   }
 
   async getSheetData(charId: string): Promise<CharacterSheetData> {
@@ -421,98 +431,90 @@ export class ComicCharacterImageService {
     return resolveAssetFile(charId, "character-sheet");
   }
 
-  async generateExpressionSheet(
+  private async buildExpressionSheetGenerationContext(
     charId: string,
-    provider: LLMProvider = DEFAULT_PROVIDER,
-  ): Promise<CharacterExpressionData> {
+  ) {
     const character = await prisma.comicCharacter.findUnique({
       where: { id: charId },
       include: { project: { select: { stylePreset: true } } },
     });
     if (!character) throw new AppError(`未找到漫画角色：${charId}`, 404);
-    if (!isImageProviderSupported(provider)) throw new AppError(`图片 Provider ${provider} 暂不支持。`, 400);
 
     const styleKeywords = resolveComicStyleKeywords(character.project.stylePreset);
-    const existing = safeJsonParse<CharacterSheetData>(character.sheetData, { status: "idle" });
-    const existingExpression = existing.assets?.expression;
-    const nextVersion = existingExpression?.status === "done"
-      ? readExpressionVersion(existingExpression) + 1
-      : Math.max(1, readExpressionVersion(existingExpression) || 1);
+    const prompt = buildExpressionPrompt(character, styleKeywords);
+    const sheetReference = await this.resolveSheetFile(charId);
+    const referenceImages: import("../image/runtime").GeneratedReferenceImageMeta[] = sheetReference
+      ? [{ kind: "character_sheet", label: `${character.name} · 三视图`, url: sheetUrl(charId) }]
+      : [];
 
-    const generatingExpression: CharacterExpressionData = { status: "generating", provider, version: nextVersion };
-    await prisma.comicCharacter.update({
-      where: { id: charId },
-      data: {
-        sheetData: JSON.stringify({
-          ...existing,
-          status: existing.status ?? "idle",
-          assets: { ...(existing.assets ?? {}), expression: generatingExpression },
-        }),
+    // Expression 状态嵌在 sheetData.assets.expression；adapter 负责读写嵌套位置。
+    const adapter: ImageTargetAdapter<CharacterExpressionData> = {
+      kind: `comic.character.expression:${charId}`,
+      loadState: async () => {
+        const latest = await prisma.comicCharacter.findUnique({ where: { id: charId }, select: { sheetData: true } });
+        const sheet = safeJsonParse<CharacterSheetData>(latest?.sheetData, { status: "idle" });
+        return sheet.assets?.expression ?? { status: "idle" };
       },
+      saveState: async (next) => {
+        // 每次写入都重新读最新 sheetData 再合并，避免覆盖三视图状态
+        const latest = await prisma.comicCharacter.findUnique({ where: { id: charId }, select: { sheetData: true } });
+        const sheet = safeJsonParse<CharacterSheetData>(latest?.sheetData, { status: "idle" });
+        const merged: CharacterSheetData = {
+          ...sheet,
+          status: sheet.status ?? "idle",
+          assets: { ...(sheet.assets ?? {}), expression: next },
+        };
+        await prisma.comicCharacter.update({ where: { id: charId }, data: { sheetData: JSON.stringify(merged) } });
+      },
+      diskPath: (ext) => path.join(comicCharacterDir(charId), `character-expression.${ext}`),
+      publicUrl: () => expressionUrl(charId),
+      cleanupOtherExts: (keepExt) => removeOldAssetFiles(charId, "character-expression", keepExt),
+    };
+
+    return {
+      adapter,
+      prompt,
+      refImagePaths: sheetReference ? [sheetReference.filePath] : undefined,
+      referenceImages,
+      size: "1536x1024" as const,
+      title: `生成表情稿：${character.name}`,
+    };
+  }
+
+  async prepareExpressionSheet(
+    charId: string,
+    provider: LLMProvider = DEFAULT_PROVIDER,
+  ): Promise<import("../image/runtime").ImageGenerationPreview> {
+    const ctx = await this.buildExpressionSheetGenerationContext(charId);
+    return {
+      kind: ctx.adapter.kind,
+      title: ctx.title,
+      prompt: ctx.prompt,
+      referenceImages: ctx.referenceImages,
+      provider,
+      size: ctx.size,
+    };
+  }
+
+  async generateExpressionSheet(
+    charId: string,
+    provider: LLMProvider = DEFAULT_PROVIDER,
+    overrides?: import("../image/runtime").ImageGenerationOverrides,
+  ): Promise<CharacterExpressionData> {
+    const ctx = await this.buildExpressionSheetGenerationContext(charId);
+    const refs = filterImageGenerationReferences({
+      refImagePaths: ctx.refImagePaths,
+      referenceImages: ctx.referenceImages,
+      excludedReferenceImageUrls: overrides?.excludedReferenceImageUrls,
     });
-
-    try {
-      const model = await resolveImageModel(provider);
-      const prompt = buildExpressionPrompt(character, styleKeywords);
-      const result = await generateImagesByProvider({
-        sceneType: "character",
-        provider,
-        model,
-        prompt,
-        size: "1536x1024",
-        count: 1,
-      });
-
-      const imageUrl = result.images[0]?.url;
-      if (!imageUrl) throw new Error("图片生成结果为空。");
-
-      const ext = inferExtension(imageUrl);
-      const localPath = path.join(comicCharacterDir(charId), `character-expression.${ext}`);
-      await saveImageToDisk(imageUrl, localPath);
-      await removeOldAssetFiles(charId, "character-expression", ext);
-
-      const doneExpression: CharacterExpressionData = {
-        status: "done",
-        version: nextVersion,
-        url: expressionUrl(charId),
-        prompt,
-        provider,
-        generatedAt: new Date().toISOString(),
-      };
-      const latest = await prisma.comicCharacter.findUnique({ where: { id: charId }, select: { sheetData: true } });
-      const latestData = safeJsonParse<CharacterSheetData>(latest?.sheetData, existing);
-      await prisma.comicCharacter.update({
-        where: { id: charId },
-        data: {
-          sheetData: JSON.stringify({
-            ...latestData,
-            status: latestData.status ?? "idle",
-            assets: { ...(latestData.assets ?? {}), expression: doneExpression },
-          }),
-        },
-      });
-      return doneExpression;
-    } catch (err) {
-      const errorExpression: CharacterExpressionData = {
-        status: "error",
-        provider,
-        version: nextVersion,
-        error: err instanceof Error ? err.message : String(err),
-      };
-      const latest = await prisma.comicCharacter.findUnique({ where: { id: charId }, select: { sheetData: true } });
-      const latestData = safeJsonParse<CharacterSheetData>(latest?.sheetData, existing);
-      await prisma.comicCharacter.update({
-        where: { id: charId },
-        data: {
-          sheetData: JSON.stringify({
-            ...latestData,
-            status: latestData.status ?? "idle",
-            assets: { ...(latestData.assets ?? {}), expression: errorExpression },
-          }),
-        },
-      });
-      throw err;
-    }
+    return runImageGeneration(ctx.adapter, {
+      provider: overrides?.providerOverride ?? provider,
+      prompt: overrides?.promptOverride ?? ctx.prompt,
+      size: overrides?.sizeOverride ?? ctx.size,
+      sceneType: "character",
+      refImagePaths: refs.refImagePaths,
+      referenceImages: refs.referenceImages && refs.referenceImages.length > 0 ? refs.referenceImages : undefined,
+    });
   }
 
   async getExpressionData(charId: string): Promise<CharacterExpressionData> {

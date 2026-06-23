@@ -58,6 +58,21 @@ const optimizePromptSchema = z.discriminatedUnion("sceneType", [
   }),
 ]);
 
+const promptAssistSchema = z.object({
+  action: z.enum(["explain", "optimize"]),
+  title: z.string().trim().max(120).optional(),
+  kind: z.string().trim().max(80).optional(),
+  prompt: z.string().trim().min(1).max(30000),
+  negativePrompt: z.string().trim().max(8000).optional(),
+  optimizationInstruction: z.string().trim().max(2000).optional(),
+  provider: llmProviderSchema.optional(),
+  size: z.enum(IMAGE_SIZES).optional(),
+  referenceImages: z.array(z.object({
+    kind: z.string().trim().min(1).max(80),
+    label: z.string().trim().min(1).max(160),
+  })).max(12).default([]),
+});
+
 const taskParamsSchema = z.object({
   taskId: z.string().trim().min(1),
 });
@@ -146,6 +161,30 @@ router.post("/optimize-prompt", validate({ body: optimizePromptSchema }), async 
       success: true,
       data,
       message: "Image prompt optimized.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/prompt-assist", validate({ body: promptAssistSchema }), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof promptAssistSchema>;
+    const data = await imagePromptOptimizationService.assistGenerationPrompt({
+      action: body.action,
+      title: body.title,
+      kind: body.kind,
+      prompt: body.prompt,
+      negativePrompt: body.negativePrompt,
+      optimizationInstruction: body.optimizationInstruction,
+      provider: body.provider,
+      size: body.size,
+      referenceImages: body.referenceImages,
+    });
+    res.status(200).json({
+      success: true,
+      data,
+      message: body.action === "optimize" ? "Image prompt optimized." : "Image prompt explained.",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);

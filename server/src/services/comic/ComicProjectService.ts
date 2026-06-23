@@ -157,6 +157,19 @@ export class ComicProjectService {
   }
 
   /**
+   * 更新角色性别。生图全链路（三视图/表情稿/资产/格子图）会按此值注入 GENDER LOCK，
+   * 避免外貌描述歧义时模型把男画成女、或反之。
+   */
+  async updateCharacterGender(charId: string, gender: "male" | "female" | "other" | "unknown") {
+    const character = await prisma.comicCharacter.findUnique({ where: { id: charId } });
+    if (!character) throw new Error(`角色不存在：${charId}`);
+    return prisma.comicCharacter.update({
+      where: { id: charId },
+      data: { gender },
+    });
+  }
+
+  /**
    * AI 协助重写"外貌锚点"。
    * 不直接落库，返回 { appearance, faceShapeOverride?, rationale } 给前端审阅，
    * 用户确认后再调用 updateCharacterVisualAnchor 保存。
@@ -260,6 +273,7 @@ export class ComicProjectService {
           data: bundle.characters.map((character) => ({
             projectId,
             name: character.name,
+            gender: character.gender ?? "unknown",
             persona: character.persona ?? null,
             visualAnchor: buildComicVisualAnchor(character),
             sourceCharacterRef: character.sourceCharacterRef ?? null,

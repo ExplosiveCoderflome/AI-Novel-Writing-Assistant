@@ -13,11 +13,7 @@ import path from "path";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { resolveGeneratedImagesRoot } from "../../runtime/appPaths";
-import {
-  generateImagesByProvider,
-  isImageProviderSupported,
-  resolveImageModel,
-} from "../image/provider";
+import { runImageGeneration, safeJsonParse, type ImageTargetAdapter } from "../image/runtime";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { resolveComicStyleKeywords } from "./comicStylePrompt";
 
@@ -75,32 +71,6 @@ function sceneDir(sceneId: string): string {
 
 export function sceneImageUrl(sceneId: string): string {
   return `/api/comic/scenes/${sceneId}/image`;
-}
-
-function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
-  if (!raw) return fallback;
-  try { return JSON.parse(raw) as T; } catch { return fallback; }
-}
-
-async function saveImageToDisk(imageUrl: string, destPath: string): Promise<void> {
-  await fs.mkdir(path.dirname(destPath), { recursive: true });
-  if (imageUrl.startsWith("data:")) {
-    const [, b64 = ""] = imageUrl.split(",", 2);
-    await fs.writeFile(destPath, Buffer.from(b64, "base64"));
-  } else {
-    const resp = await fetch(imageUrl);
-    if (!resp.ok) throw new Error(`图片下载失败 (${resp.status}): ${imageUrl}`);
-    await fs.writeFile(destPath, Buffer.from(await resp.arrayBuffer()));
-  }
-}
-
-function inferExtension(url: string): string {
-  if (url.startsWith("data:image/jpeg")) return "jpg";
-  if (url.startsWith("data:image/webp")) return "webp";
-  try {
-    const ext = path.extname(new URL(url).pathname).replace(".", "").toLowerCase();
-    return ext || "png";
-  } catch { return "png"; }
 }
 
 async function removeOldSceneFiles(sceneId: string, keepExt: string): Promise<void> {
@@ -236,83 +206,67 @@ export class ComicSceneService {
     return { url };
   }
 
-  // ── AI 生成 ───────────────────────────────────────────────────────────────
+  // ── AI 生成（prepare + generate 共享 buildContext） ───────────────────────
 
-  async generateSceneSheet(sceneId: string, provider?: string): Promise<void> {
+  private async buildSceneGenerationContext(sceneId: string) {
     const scene = await prisma.comicScene.findUnique({
       where: { id: sceneId },
       include: { project: { select: { stylePreset: true } } },
     });
     if (!scene) throw new AppError(`场景不存在：${sceneId}`, 404);
 
-    const llmProvider = (provider ?? DEFAULT_PROVIDER) as LLMProvider;
-    if (!isImageProviderSupported(llmProvider)) {
-      throw new AppError(`图片 Provider ${llmProvider} 暂不支持。`, 400);
-    }
-
     const stylePrefix = resolveComicStyleKeywords(scene.project.stylePreset);
     const bible = safeJsonParse<SceneBible>(scene.bible, {});
-
-    // 标记 generating
-    const generatingData: SceneSheetData = { status: "generating", provider: llmProvider };
-    await prisma.comicScene.update({
-      where: { id: sceneId },
-      data: { sheetData: JSON.stringify(generatingData) },
+    const prompt = buildSceneSheetPrompt({
+      name: scene.name,
+      sceneType: scene.sceneType as SceneType,
+      bible,
+      stylePrefix,
     });
 
-    try {
-      const model = await resolveImageModel(llmProvider);
-      const prompt = buildSceneSheetPrompt({
-        name: scene.name,
-        sceneType: scene.sceneType as SceneType,
-        bible,
-        stylePrefix,
-      });
+    const adapter: ImageTargetAdapter<SceneSheetData> = {
+      kind: `comic.scene:${sceneId}`,
+      loadState: async () => safeJsonParse<SceneSheetData>(scene.sheetData, { status: "idle" }),
+      saveState: async (next) => {
+        await prisma.comicScene.update({ where: { id: sceneId }, data: { sheetData: JSON.stringify(next) } });
+      },
+      diskPath: (ext) => path.join(sceneDir(sceneId), `scene-sheet.${ext}`),
+      publicUrl: () => sceneImageUrl(sceneId),
+      cleanupOtherExts: (keepExt) => removeOldSceneFiles(sceneId, keepExt),
+      buildExtraDoneState: () => ({ origin: "generated" as const }),
+    };
 
-      console.log(`[comic.scene] generating scene=${sceneId} name=${scene.name}`);
+    return {
+      adapter,
+      prompt,
+      size: "1024x1024" as const,
+      title: `生成场景设定图：${scene.name}`,
+    };
+  }
 
-      const result = await generateImagesByProvider({
-        sceneType: "chapter_illustration",
-        provider: llmProvider,
-        model,
-        prompt,
-        size: "1024x1024",
-        count: 1,
-      });
+  async prepareSceneSheet(sceneId: string, provider?: string): Promise<import("../image/runtime").ImageGenerationPreview> {
+    const ctx = await this.buildSceneGenerationContext(sceneId);
+    return {
+      kind: ctx.adapter.kind,
+      title: ctx.title,
+      prompt: ctx.prompt,
+      referenceImages: [],
+      provider: provider ?? "openai",
+      size: ctx.size,
+    };
+  }
 
-      const rawUrl = result.images?.[0]?.url;
-      if (!rawUrl) throw new Error("生图结果无效：未返回图片 URL");
-
-      const ext = inferExtension(rawUrl);
-      const filePath = path.join(sceneDir(sceneId), `scene-sheet.${ext}`);
-      await saveImageToDisk(rawUrl, filePath);
-      await removeOldSceneFiles(sceneId, ext);
-
-      const url = sceneImageUrl(sceneId);
-      const doneData: SceneSheetData = {
-        status: "done",
-        url,
-        prompt,
-        provider: llmProvider,
-        generatedAt: new Date().toISOString(),
-        origin: "generated",
-      };
-      await prisma.comicScene.update({
-        where: { id: sceneId },
-        data: { sheetData: JSON.stringify(doneData) },
-      });
-    } catch (err) {
-      const errData: SceneSheetData = {
-        status: "error",
-        provider: llmProvider,
-        error: err instanceof Error ? err.message : String(err),
-      };
-      await prisma.comicScene.update({
-        where: { id: sceneId },
-        data: { sheetData: JSON.stringify(errData) },
-      });
-      throw err;
-    }
+  async generateSceneSheet(
+    sceneId: string,
+    provider?: string,
+    overrides?: import("../image/runtime").ImageGenerationOverrides,
+  ): Promise<void> {
+    const ctx = await this.buildSceneGenerationContext(sceneId);
+    await runImageGeneration(ctx.adapter, {
+      provider: overrides?.providerOverride ?? provider,
+      prompt: overrides?.promptOverride ?? ctx.prompt,
+      size: overrides?.sizeOverride ?? ctx.size,
+    });
   }
 
   // ── 文件服务 ──────────────────────────────────────────────────────────────

@@ -5,10 +5,11 @@ import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { resolveGeneratedImagesRoot } from "../../runtime/appPaths";
 import {
-  generateImagesByProvider,
-  isImageProviderSupported,
-  resolveImageModel,
-} from "../image/provider";
+  filterImageGenerationReferences,
+  runImageGeneration,
+  safeJsonParse,
+  type ImageTargetAdapter,
+} from "../image/runtime";
 import {
   comicCharacterImageService,
   describeCharacterExpression,
@@ -58,36 +59,6 @@ function comicPanelDir(panelId: string): string {
 
 function panelImageUrl(panelId: string): string {
   return `/api/comic/panel-images/${panelId}/panel`;
-}
-
-async function saveImageToDisk(imageUrl: string, destPath: string): Promise<void> {
-  await fs.mkdir(path.dirname(destPath), { recursive: true });
-  if (imageUrl.startsWith("data:")) {
-    const [, base64Payload = ""] = imageUrl.split(",", 2);
-    await fs.writeFile(destPath, Buffer.from(base64Payload, "base64"));
-  } else {
-    const resp = await fetch(imageUrl);
-    if (!resp.ok) {
-      throw new Error(`图片下载失败 (${resp.status}): ${imageUrl}`);
-    }
-    await fs.writeFile(destPath, Buffer.from(await resp.arrayBuffer()));
-  }
-}
-
-function inferExtension(imageUrl: string): string {
-  if (imageUrl.startsWith("data:image/jpeg")) return "jpg";
-  if (imageUrl.startsWith("data:image/webp")) return "webp";
-  try {
-    const ext = path.extname(new URL(imageUrl).pathname).replace(".", "").toLowerCase();
-    return ext || "png";
-  } catch {
-    return "png";
-  }
-}
-
-function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
-  if (!raw) return fallback;
-  try { return JSON.parse(raw) as T; } catch { return fallback; }
 }
 
 interface DialogueEntry {
@@ -214,6 +185,13 @@ function buildDialoguePrompt(dialogues: DialogueEntry[]): string {
   return `对白气泡（气泡内只渲染台词正文，绝对不要出现"说"、"道"、说话人姓名、冒号、引号或任何旁白前缀，文字必须清晰可读且不遮挡角色脸部）：${lines.join("；")}`;
 }
 
+const CROWD_DIVERSITY_PROMPT = [
+  "群众/路人/背景人物约束：如果本格出现非命名群众、围观者、路人、弟子群、士兵群或其他背景人物，他们必须是非主角、非同脸模板",
+  "每个群众人物在年龄、脸型、发型、服饰颜色、体型和站姿上要有清晰差异",
+  "命名角色参考图只用于对应命名角色，不要把命名角色的脸、发型或服装复制到群众人物身上",
+  "avoid repeated identical faces, cloned faces, same hairstyle, same outfit template, duplicated crowd members",
+].join("；");
+
 interface StylePresetData {
   style?: string;
   format?: string;
@@ -238,8 +216,9 @@ function buildPanelPrompt(
   const styleZh = STYLE_ZH_KEYWORDS[presetData.style ?? ""] ?? "彩色韩漫风格，干净线条，鲜艳配色";
 
   // 3. 角色外貌锚定（有设计稿时作为次要文字补充，没有时是主要一致性保障）
+  //    角色描述里已携带【男性】/【女性】/【中性气质】标签，模型据此画对性别
   const charPart = characterDescs.length > 0
-    ? `角色外貌设定：${characterDescs.join("；")}`
+    ? `角色外貌设定（请严格按方括号性别标签画对性别，男性不要画成女性，女性不要画成男性）：${characterDescs.join("；")}`
     : "";
 
   // 4. 对话/气泡
@@ -257,6 +236,7 @@ function buildPanelPrompt(
   if (hasSceneRefImage) {
     parts.push("场景参考图仅用于锁定色调、布局与材质身份，镜头角度、景别与构图必须严格按本格画面内容自由运镜，不要照搬参考图的机位");
   }
+  parts.push(CROWD_DIVERSITY_PROMPT);
   if (dialoguePart) parts.push(dialoguePart);
   parts.push(`画面内容：${visualPrompt}`);
   parts.push("high quality manga panel, professional illustration");
@@ -271,10 +251,7 @@ export class ComicPanelImageService {
    * - 从 ComicCharacter.sheetData 提取参考图（如有）
    * - 图存磁盘，路径写入 ComicPanel.imageData
    */
-  async generatePanelImage(
-    panelId: string,
-    provider: LLMProvider = DEFAULT_PROVIDER,
-  ): Promise<PanelImageData> {
+  private async buildPanelGenerationContext(panelId: string) {
     const panel = await prisma.comicPanel.findUnique({
       where: { id: panelId },
       include: {
@@ -295,9 +272,6 @@ export class ComicPanelImageService {
     });
     if (!panel) throw new AppError(`未找到漫画格子：${panelId}`, 404);
     if (!panel.visualPrompt) throw new AppError("该格子缺少 visualPrompt，无法生成图像。", 400);
-    if (!isImageProviderSupported(provider)) {
-      throw new AppError(`图片 Provider ${provider} 暂不支持。`, 400);
-    }
 
     const project = panel.episode.project;
     const presetData = safeJsonParse<StylePresetData>(project.stylePreset, {});
@@ -321,8 +295,12 @@ export class ComicPanelImageService {
         const desc = character.visualAnchor?.trim()
           ? extractVisualAnchorDesc(character.visualAnchor)
           : "以角色参考图保持外貌一致";
+        const genderTag = character.gender === "male" ? "【男性】"
+          : character.gender === "female" ? "【女性】"
+          : character.gender === "other" ? "【中性气质】"
+          : "";
         const refParts = [
-          `【${character.name}】${desc}`,
+          `${genderTag}【${character.name}】${desc}`,
           `服装:${ref.costume ?? "default"}`,
           `表情:${describeCharacterExpression(ref.expression ?? "neutral")}`,
         ];
@@ -445,86 +423,78 @@ export class ComicPanelImageService {
       }
     }
 
-    // 标记 generating
-    const existing = safeJsonParse<PanelImageData>(panel.imageData, { status: "idle" });
-    const nextVersion = existing.status === "done" ? (existing.version ?? 0) + 1 : 1;
-    const generatingData: PanelImageData = { status: "generating", provider, version: nextVersion };
-    await prisma.comicPanel.update({
-      where: { id: panelId },
-      data: { imageData: JSON.stringify(generatingData) },
-    });
+    const dialogues = safeJsonParse<DialogueEntry[]>(panel.dialogues, []);
+    const prompt = buildPanelPrompt(panel.visualPrompt, dialogues, presetData, characterVisualDescs, sceneDesc, hasSceneRefImage);
+    const rawSize = presetData.imageSize ?? "1024x1536";
+    const imageSize: ImageSize = (IMAGE_SIZES as readonly string[]).includes(rawSize)
+      ? rawSize as ImageSize
+      : "1024x1536";
+    const uniqueRefImagePaths = Array.from(new Set(finalRefImagePaths)).slice(0, 4);
 
+    const adapter: ImageTargetAdapter<PanelImageData> = {
+      kind: `comic.panel:${panelId}`,
+      loadState: async () => safeJsonParse<PanelImageData>(panel.imageData, { status: "idle" }),
+      saveState: async (next) => {
+        await prisma.comicPanel.update({ where: { id: panelId }, data: { imageData: JSON.stringify(next) } });
+      },
+      diskPath: (ext) => path.join(comicPanelDir(panelId), `panel.${ext}`),
+      publicUrl: () => panelImageUrl(panelId),
+      cleanupOtherExts: (keepExt) => cleanOldPanelFiles(panelId, keepExt),
+    };
+
+    return {
+      adapter,
+      prompt,
+      size: imageSize,
+      refImagePaths: uniqueRefImagePaths,
+      referenceImages: referenceMetas,
+      title: `生成第 ${panel.order} 格图像`,
+      cleanup: async () => {
+        await Promise.allSettled(spriteCleanups.map((fn) => fn()));
+      },
+    };
+  }
+
+  async preparePanelImage(
+    panelId: string,
+    provider: LLMProvider = DEFAULT_PROVIDER,
+  ): Promise<import("../image/runtime").ImageGenerationPreview> {
+    const ctx = await this.buildPanelGenerationContext(panelId);
     try {
-      const model = await resolveImageModel(provider);
-      const dialogues = safeJsonParse<DialogueEntry[]>(panel.dialogues, []);
-      const prompt = buildPanelPrompt(panel.visualPrompt, dialogues, presetData, characterVisualDescs, sceneDesc, hasSceneRefImage);
-      const rawSize = presetData.imageSize ?? "1024x1536";
-      const imageSize: ImageSize = (IMAGE_SIZES as readonly string[]).includes(rawSize)
-        ? rawSize as ImageSize
-        : "1024x1536";
-      const uniqueRefImagePaths = Array.from(new Set(finalRefImagePaths)).slice(0, 4);
-
-      console.log(`[comic.image] generating panel=${panelId} order=${panel.order} provider=${provider} model=${model} size=${imageSize}`);
-      console.log(`[comic.image] prompt: ${prompt}`);
-      if (uniqueRefImagePaths.length > 0) {
-        console.log(`[comic.image] spriteRefPaths(${uniqueRefImagePaths.length}): ${uniqueRefImagePaths.join(", ")}`);
-      }
-
-      const t0 = Date.now();
-      const result = await generateImagesByProvider({
-        sceneType: "chapter_illustration",
+      return {
+        kind: ctx.adapter.kind,
+        title: ctx.title,
+        prompt: ctx.prompt,
+        referenceImages: ctx.referenceImages,
         provider,
-        model,
-        prompt,
-        size: imageSize,
-        count: 1,
-        refImagePaths: uniqueRefImagePaths.length > 0 ? uniqueRefImagePaths : undefined,
-      });
-      const elapsed = Date.now() - t0;
-
-      const imageUrl = result.images[0]?.url;
-      if (!imageUrl) throw new Error("图片生成结果为空。");
-
-      console.log(`[comic.image] done panel=${panelId} elapsed=${elapsed}ms`);
-
-      const ext = inferExtension(imageUrl);
-      const localPath = path.join(comicPanelDir(panelId), `panel.${ext}`);
-      await saveImageToDisk(imageUrl, localPath);
-
-      // 清理旧格式文件（同目录其他扩展名）
-      await cleanOldPanelFiles(panelId, ext);
-
-      const doneData: PanelImageData = {
-        status: "done",
-        version: nextVersion,
-        url: panelImageUrl(panelId),
-        prompt,
-        provider,
-        generatedAt: new Date().toISOString(),
-        referenceImages: referenceMetas.length > 0 ? referenceMetas : undefined,
+        size: ctx.size,
       };
-      await prisma.comicPanel.update({
-        where: { id: panelId },
-        data: { imageData: JSON.stringify(doneData) },
-      });
-      return doneData;
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      console.error(`[comic.image] error panel=${panelId}:`, errMsg);
-      const errorData: PanelImageData = {
-        status: "error",
-        provider,
-        version: nextVersion,
-        error: errMsg,
-      };
-      await prisma.comicPanel.update({
-        where: { id: panelId },
-        data: { imageData: JSON.stringify(errorData) },
-      });
-      throw err;
     } finally {
-      // 清理临时雪碧图文件
-      await Promise.allSettled(spriteCleanups.map((fn) => fn()));
+      await ctx.cleanup();
+    }
+  }
+
+  async generatePanelImage(
+    panelId: string,
+    provider: LLMProvider = DEFAULT_PROVIDER,
+    overrides?: import("../image/runtime").ImageGenerationOverrides,
+  ): Promise<PanelImageData> {
+    const ctx = await this.buildPanelGenerationContext(panelId);
+    try {
+      const refs = filterImageGenerationReferences({
+        refImagePaths: ctx.refImagePaths,
+        referenceImages: ctx.referenceImages,
+        excludedReferenceImageUrls: overrides?.excludedReferenceImageUrls,
+      });
+      return await runImageGeneration(ctx.adapter, {
+        provider: overrides?.providerOverride ?? provider,
+        prompt: overrides?.promptOverride ?? ctx.prompt,
+        size: overrides?.sizeOverride ?? ctx.size,
+        refImagePaths: refs.refImagePaths,
+        referenceImages: refs.referenceImages && refs.referenceImages.length > 0 ? refs.referenceImages : undefined,
+      });
+    } finally {
+      await ctx.cleanup();
     }
   }
 

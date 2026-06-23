@@ -14,11 +14,7 @@ import path from "path";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { resolveGeneratedImagesRoot } from "../../runtime/appPaths";
-import {
-  generateImagesByProvider,
-  isImageProviderSupported,
-  resolveImageModel,
-} from "../image/provider";
+import { runImageGeneration, safeJsonParse, type ImageTargetAdapter } from "../image/runtime";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -90,43 +86,6 @@ function currentCharacterSheetUrl(characterId: string): string {
 
 function archivedCharacterSheetUrl(characterId: string, version: number): string {
   return `/api/drama/character-images/${characterId}/character-sheet/v${version}`;
-}
-
-async function saveImageToDisk(imageUrl: string, destPath: string): Promise<void> {
-  await fs.mkdir(path.dirname(destPath), { recursive: true });
-
-  if (imageUrl.startsWith("data:")) {
-    const [, base64Payload = ""] = imageUrl.split(",", 2);
-    const buffer = Buffer.from(base64Payload, "base64");
-    await fs.writeFile(destPath, buffer);
-  } else {
-    const resp = await fetch(imageUrl);
-    if (!resp.ok) {
-      throw new Error(`Failed to fetch generated image (${resp.status}): ${imageUrl}`);
-    }
-    const buffer = Buffer.from(await resp.arrayBuffer());
-    await fs.writeFile(destPath, buffer);
-  }
-}
-
-function inferExtension(imageUrl: string): string {
-  if (imageUrl.startsWith("data:image/jpeg")) return "jpg";
-  if (imageUrl.startsWith("data:image/webp")) return "webp";
-  try {
-    const ext = path.extname(new URL(imageUrl).pathname).replace(".", "").toLowerCase();
-    return ext || "png";
-  } catch {
-    return "png";
-  }
-}
-
-function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
-  if (!raw) return fallback;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
 }
 
 function normalizePositiveVersion(value: unknown): number | null {
@@ -217,6 +176,58 @@ function buildCharacterSheetPrompt(character: {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class DramaCharacterImageService {
+  private async buildCharacterSheetGenerationContext(
+    characterId: string,
+  ) {
+    const character = await prisma.dramaCharacter.findUnique({
+      where: { id: characterId },
+    });
+    if (!character) {
+      throw new AppError(`未找到短剧角色：${characterId}`, 404);
+    }
+
+    const prompt = buildCharacterSheetPrompt(character);
+
+    const adapter: ImageTargetAdapter<CharacterSheetData> = {
+      kind: `drama.character.sheet:${characterId}`,
+      loadState: async () => safeJsonParse<CharacterSheetData>(character.portraitData, { status: "idle" }),
+      saveState: async (next) => {
+        await prisma.dramaCharacter.update({ where: { id: characterId }, data: { portraitData: JSON.stringify(next) } });
+      },
+      diskPath: (ext) => path.join(dramaCharacterDir(characterId), `character-sheet.${ext}`),
+      publicUrl: () => currentCharacterSheetUrl(characterId),
+      cleanupOtherExts: (keepExt) => removeCurrentCharacterSheetVariants(characterId, keepExt),
+      versioning: {
+        enabled: true,
+        maxHistory: 5,
+        archiveCurrent: (current) => this.archiveCurrentCharacterSheet(characterId, current),
+      },
+    };
+
+    return {
+      adapter,
+      prompt,
+      referenceImages: [] as import("../image/runtime").GeneratedReferenceImageMeta[],
+      size: "1536x1024" as const,
+      title: `生成短剧角色设计稿：${character.name}`,
+    };
+  }
+
+  async prepareCharacterSheet(
+    characterId: string,
+    provider = DEFAULT_PROVIDER,
+  ): Promise<import("../image/runtime").ImageGenerationPreview> {
+    const ctx = await this.buildCharacterSheetGenerationContext(characterId);
+    return {
+      kind: ctx.adapter.kind,
+      title: ctx.title,
+      prompt: ctx.prompt,
+      referenceImages: ctx.referenceImages,
+      provider,
+      size: ctx.size,
+    };
+  }
+
   /**
    * 生成角色设计稿（主方法）：
    * 一张横版图 = 左侧面部特写 + 右侧全身正/侧/背三视图。
@@ -225,92 +236,16 @@ export class DramaCharacterImageService {
   async generateCharacterSheet(
     characterId: string,
     provider = DEFAULT_PROVIDER,
+    overrides?: import("../image/runtime").ImageGenerationOverrides,
   ): Promise<CharacterSheetData> {
-    const character = await prisma.dramaCharacter.findUnique({
-      where: { id: characterId },
+    const ctx = await this.buildCharacterSheetGenerationContext(characterId);
+    return runImageGeneration(ctx.adapter, {
+      provider: overrides?.providerOverride ?? provider,
+      prompt: overrides?.promptOverride ?? ctx.prompt,
+      size: overrides?.sizeOverride ?? ctx.size,
+      sceneType: "character",
+      referenceImages: ctx.referenceImages.length > 0 ? ctx.referenceImages : undefined,
     });
-    if (!character) {
-      throw new AppError(`未找到短剧角色：${characterId}`, 404);
-    }
-    if (!isImageProviderSupported(provider)) {
-      throw new AppError(`图片 Provider ${provider} 暂不支持。`, 400);
-    }
-
-    const existingData = safeJsonParse<CharacterSheetData>(character.portraitData, { status: "idle" });
-    const history = readImageHistory(existingData);
-    const archivedCurrent = await this.archiveCurrentCharacterSheet(characterId, existingData);
-    const nextHistory = archivedCurrent ? history.concat(archivedCurrent) : history;
-    const nextVersion = existingData.status === "done"
-      ? readImageVersion(existingData) + 1
-      : Math.max(1, readImageVersion(existingData) || 1);
-
-    // 标记 generating（同时写入 portraitData 供视频生成链路读取）
-    const generatingData: CharacterSheetData = {
-      status: "generating",
-      provider,
-      version: nextVersion,
-      history: nextHistory,
-    };
-    await prisma.dramaCharacter.update({
-      where: { id: characterId },
-      data: {
-        portraitData: JSON.stringify(generatingData),
-      },
-    });
-
-    try {
-      const model = await resolveImageModel(provider);
-      const prompt = buildCharacterSheetPrompt(character);
-
-      const result = await generateImagesByProvider({
-        sceneType: "character",
-        provider,
-        model,
-        prompt,
-        size: "1536x1024", // 横版 3:2，容纳面部特写 + 三视图
-        count: 1,
-      });
-
-      const imageUrl = result.images[0]?.url;
-      if (!imageUrl) throw new Error("图片生成结果为空。");
-
-      const ext = inferExtension(imageUrl);
-      const fileName = `character-sheet.${ext}`;
-      const localPath = path.join(dramaCharacterDir(characterId), fileName);
-      await saveImageToDisk(imageUrl, localPath);
-      await removeCurrentCharacterSheetVariants(characterId, ext);
-
-      const doneData: CharacterSheetData = {
-        status: "done",
-        version: nextVersion,
-        url: currentCharacterSheetUrl(characterId),
-        prompt,
-        provider,
-        generatedAt: new Date().toISOString(),
-        history: nextHistory,
-      };
-
-      // 回填到 portraitData（视频生成链路读这个字段）
-      await prisma.dramaCharacter.update({
-        where: { id: characterId },
-        data: { portraitData: JSON.stringify(doneData) },
-      });
-
-      return doneData;
-    } catch (err) {
-      const errorData: CharacterSheetData = {
-        status: "error",
-        provider,
-        version: nextVersion,
-        error: err instanceof Error ? err.message : String(err),
-        history: nextHistory,
-      };
-      await prisma.dramaCharacter.update({
-        where: { id: characterId },
-        data: { portraitData: JSON.stringify(errorData) },
-      });
-      throw err;
-    }
   }
 
   private async archiveCurrentCharacterSheet(characterId: string, data: CharacterSheetData): Promise<CharacterImageHistoryItem | null> {
