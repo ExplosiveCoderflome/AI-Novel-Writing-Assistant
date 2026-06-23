@@ -111,8 +111,10 @@ async def health_check():
         registry.ensure_discovered()
         tool_count = len(registry.list_all())
         tools_available = tool_count > 0
-    except Exception:
-        pass
+    except Exception as e:
+        import traceback
+        print("Health check discovery failed:")
+        traceback.print_exc()
 
     return {
         "status": "ok",
@@ -120,6 +122,7 @@ async def health_check():
         "tools_available": tools_available,
         "tool_count": tool_count,
     }
+
 
 
 @app.get("/tools")
