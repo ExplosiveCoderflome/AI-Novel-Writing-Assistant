@@ -1,0 +1,25 @@
+name: framework-smoke
+version: "1.0"
+description: Minimal pipeline manifest used to exercise the Phase 0 framework contracts.
+category: custom
+stability: beta
+default_checkpoint_policy: guided
+stages:
+  - name: research
+    produces:
+      - research_brief
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    success_criteria:
+      - Produces a schema-valid research_brief artifact
+  - name: script
+    required_artifacts_in:
+      - research_brief
+    produces:
+      - script
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    success_criteria:
+      - Produces a schema-valid script artifact

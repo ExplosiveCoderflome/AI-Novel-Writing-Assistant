@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openmontage/artifacts/decision_log",
+  "title": "Decision Log",
+  "description": "Audit trail of every meaningful choice made during production. Prevents hidden system behavior, enables reviewer inspection, and guards against context drift.",
+  "type": "object",
+  "required": ["version", "project_id", "decisions"],
+  "properties": {
+    "version": { "type": "string", "const": "1.0" },
+    "project_id": { "type": "string" },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["decision_id", "stage", "category", "subject", "options_considered", "selected", "reason"],
+        "properties": {
+          "decision_id": {
+            "type": "string",
+            "description": "Unique ID, e.g., d-001, d-002"
+          },
+          "stage": {
+            "type": "string",
+            "description": "Pipeline stage where this decision was made"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "pipeline_selection",
+              "provider_selection",
+              "renderer_family_selection",
+              "render_runtime_selection",
+              "playbook_selection",
+              "fallback_decision",
+              "budget_tradeoff",
+              "downgrade_approval",
+              "music_source",
+              "motion_commitment",
+              "concept_selection",
+              "voice_selection",
+              "capability_extension",
+              "playbook_override",
+              "visual_accuracy_check"
+            ],
+            "description": "What class of decision this is"
+          },
+          "subject": {
+            "type": "string",
+            "description": "What is being decided, e.g., 'TTS provider for narration'"
+          },
+          "options_considered": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["option_id", "label", "score", "reason"],
+              "properties": {
+                "option_id": { "type": "string" },
+                "label": { "type": "string", "description": "Human-readable name" },
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Normalized score 0-1 (1 is best)"
+                },
+                "reason": { "type": "string", "description": "Why this option scored this way" },
+                "rejected_because": { "type": "string", "description": "If rejected, why" }
+              },
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "description": "All options evaluated (including rejected ones)"
+          },
+          "selected": {
+            "type": "string",
+            "description": "option_id of the selected option"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why this option was selected over alternatives"
+          },
+          "user_visible": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether this decision was surfaced to the user"
+          },
+          "user_approved": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether the user explicitly approved this decision"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Agent's confidence in this decision (0 = uncertain, 1 = certain)"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

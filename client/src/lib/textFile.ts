@@ -182,21 +182,38 @@ function isValidUtf8(bytes: Uint8Array): boolean {
 
 export async function readTextFile(file: File): Promise<string> {
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const bomEncoding = detectTxtBomEncoding(bytes);
-  const shouldPreferUtf8 = !bomEncoding && isValidUtf8(bytes);
-  const encodings = bomEncoding
-    ? [bomEncoding, ...TEXT_FILE_ENCODING_CANDIDATES.filter((encoding) => encoding !== bomEncoding)]
-    : shouldPreferUtf8
-      ? ["utf-8", ...TEXT_FILE_ENCODING_CANDIDATES.filter((encoding) => encoding !== "utf-8")]
-      : [...TEXT_FILE_ENCODING_CANDIDATES];
 
+  // 1. If BOM is detected, decode and return immediately
+  const bomEncoding = detectTxtBomEncoding(bytes);
+  if (bomEncoding) {
+    try {
+      return new TextDecoder(bomEncoding).decode(bytes).replace(/\u0000/g, "").trim();
+    } catch {
+      // Fallback
+    }
+  }
+
+  // 2. If it is valid UTF-8, decode and return immediately
+  const shouldPreferUtf8 = isValidUtf8(bytes);
+  if (shouldPreferUtf8) {
+    try {
+      return new TextDecoder("utf-8").decode(bytes).replace(/\u0000/g, "").trim();
+    } catch {
+      // Fallback
+    }
+  }
+
+  // 3. Fallback: Loop and score candidate encodings on a sampled prefix
+  const encodings = [...TEXT_FILE_ENCODING_CANDIDATES];
   let bestDecoded = "";
   let bestScore = Number.NEGATIVE_INFINITY;
 
   for (const encoding of encodings) {
     try {
       const decoded = new TextDecoder(encoding).decode(bytes);
-      const score = scoreDecodedTxt(decoded) + (shouldPreferUtf8 && encoding === "utf-8" ? 12 : 0);
+      // Sample the first 10,000 characters to avoid huge array allocations
+      const sample = decoded.slice(0, 10000);
+      const score = scoreDecodedTxt(sample);
       if (score > bestScore) {
         bestDecoded = decoded;
         bestScore = score;

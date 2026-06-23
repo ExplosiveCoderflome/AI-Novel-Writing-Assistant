@@ -25,7 +25,7 @@ import {
 import { getRagEmbeddingModels, getRagSettings, saveRagSettings } from "@/api/settings";
 import { isTxtFile, readTextFile } from "@/lib/textFile";
 import KnowledgeDocumentDetailDialog from "./components/KnowledgeDocumentDetailDialog";
-import KnowledgeDocumentsTab from "./components/KnowledgeDocumentsTab";
+import KnowledgeDocumentsTab, { type BatchUploadResult } from "./components/KnowledgeDocumentsTab";
 import KnowledgeEmbeddingSettingsCard, { type KnowledgeEmbeddingSettingsFormState } from "./components/KnowledgeEmbeddingSettingsCard";
 import KnowledgeOpsTab from "./components/KnowledgeOpsTab";
 
@@ -44,8 +44,8 @@ export default function KnowledgePage() {
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState<KnowledgeDocumentStatus | "">("");
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
-  const [uploadTitle, setUploadTitle] = useState("");
   const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadResults, setUploadResults] = useState<BatchUploadResult[]>([]);
   const [versionBusy, setVersionBusy] = useState(false);
   const [recallQuery, setRecallQuery] = useState("");
   const [recallResult, setRecallResult] = useState<KnowledgeRecallTestResult | null>(null);
@@ -351,56 +351,101 @@ export default function KnowledgePage() {
     previousActiveKnowledgeJobCount.current = activeKnowledgeJobCount;
   }, [activeKnowledgeJobCount, documentListQueryKey, queryClient, selectedDocumentId]);
 
-  const handleUpload = async (file: File) => {
-    if (!isTxtFile(file)) {
-      throw new Error("仅支持 .txt 文件。");
-    }
-    const content = await readTextFile(file);
-    if (!content) {
-      throw new Error("文件内容为空，或编码格式暂不支持。");
-    }
-    await createKnowledgeDocument({
-      title: uploadTitle.trim() || undefined,
-      fileName: file.name,
-      content,
-    });
-  };
-
-  const handleVersionUpload = async (file: File) => {
-    if (!selectedDocumentId) {
-      return;
-    }
-    if (!isTxtFile(file)) {
-      throw new Error("仅支持 .txt 文件。");
-    }
-    const content = await readTextFile(file);
-    if (!content) {
-      throw new Error("文件内容为空，或编码格式暂不支持。");
-    }
-    await createKnowledgeDocumentVersion(selectedDocumentId, {
-      fileName: file.name,
-      content,
-    });
-  };
-
-  const handleUploadFile = async (file: File) => {
+  const handleUploadFiles = async (files: File[]) => {
     try {
       setUploadBusy(true);
-      await handleUpload(file);
-      setUploadTitle("");
+      setUploadResults([]);
+
+      // Load existing documents to check for duplicates
+      const existingDocs = await listKnowledgeDocuments();
+      const existingByTitle = new Map<string, { fileName: string; activeVersionId: string | null }>();
+      for (const doc of existingDocs.data ?? []) {
+        if (doc.status !== "archived") {
+          existingByTitle.set(doc.title, {
+            fileName: doc.fileName,
+            activeVersionId: doc.activeVersionId ?? null,
+          });
+        }
+      }
+
+      const results: BatchUploadResult[] = [];
+      for (const file of files) {
+        if (!isTxtFile(file)) {
+          results.push({ fileName: file.name, status: "skipped", reason: "Not a .txt file" });
+          continue;
+        }
+
+        try {
+          const content = await readTextFile(file);
+          if (!content) {
+            results.push({ fileName: file.name, status: "failed", reason: "Empty or unsupported encoding" });
+            continue;
+          }
+
+          // Derive the title the same way the server does (strip extension)
+          const dotIndex = file.name.lastIndexOf(".");
+          const derivedTitle = dotIndex > 0 ? file.name.slice(0, dotIndex).trim() : file.name.trim();
+          const normalizedTitle = derivedTitle.replace(/\s+/g, " ").trim();
+
+          // Check for existing document with same title
+          const existing = existingByTitle.get(normalizedTitle);
+          if (existing) {
+            // Fetch full document details to compare content hash
+            const allDocs = await listKnowledgeDocuments({ keyword: normalizedTitle });
+            const matchDoc = (allDocs.data ?? []).find((d) => d.title === normalizedTitle && d.status !== "archived");
+            if (matchDoc) {
+              const detail = await getKnowledgeDocument(matchDoc.id);
+              const activeVersion = detail.data?.versions?.find((v) => v.isActive);
+              if (activeVersion && activeVersion.content.trim() === content.trim()) {
+                results.push({ fileName: file.name, status: "skipped", reason: "Same content exists" });
+                continue;
+              }
+            }
+          }
+
+          await createKnowledgeDocument({
+            fileName: file.name,
+            content,
+          });
+          results.push({ fileName: file.name, status: "uploaded" });
+
+          // Update the local map so subsequent files in the same batch can dedup
+          existingByTitle.set(normalizedTitle, { fileName: file.name, activeVersionId: null });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Upload failed";
+          results.push({ fileName: file.name, status: "failed", reason: message });
+        }
+      }
+
+      setUploadResults(results);
       await queryClient.invalidateQueries({ queryKey: documentListQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to load existing documents";
+      setUploadResults([{ fileName: "Batch Upload", status: "failed", reason: message }]);
     } finally {
       setUploadBusy(false);
     }
   };
 
   const handleUploadVersionFile = async (file: File) => {
+    if (!selectedDocumentId) {
+      return;
+    }
     try {
       setVersionBusy(true);
-      await handleVersionUpload(file);
-      if (selectedDocumentId) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(selectedDocumentId) });
+      if (!isTxtFile(file)) {
+        throw new Error("仅支持 .txt 文件。");
       }
+      const content = await readTextFile(file);
+      if (!content) {
+        throw new Error("文件内容为空，或编码格式暂不支持。");
+      }
+      await createKnowledgeDocumentVersion(selectedDocumentId, {
+        fileName: file.name,
+        content,
+      });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(selectedDocumentId) });
       await queryClient.invalidateQueries({ queryKey: documentListQueryKey });
     } finally {
       setVersionBusy(false);
@@ -462,6 +507,14 @@ export default function KnowledgePage() {
     deleteRagJobMutation.mutate(jobId);
   };
 
+  const getOwnerName = (ownerType: string, ownerId: string) => {
+    if (ownerType === "knowledge_document") {
+      const doc = documentsQuery.data?.data?.find((d) => d.id === ownerId);
+      if (doc) return doc.title;
+    }
+    return undefined;
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -484,10 +537,10 @@ export default function KnowledgePage() {
 
         <TabsContent value="documents">
           <KnowledgeDocumentsTab
-            uploadTitle={uploadTitle}
-            onUploadTitleChange={setUploadTitle}
             uploadBusy={uploadBusy}
-            onUploadFile={handleUploadFile}
+            onUploadFiles={handleUploadFiles}
+            uploadResults={uploadResults}
+            onClearUploadResults={() => setUploadResults([])}
             keyword={keyword}
             onKeywordChange={setKeyword}
             status={status}
@@ -514,6 +567,7 @@ export default function KnowledgePage() {
             deletingJobId={deleteRagJobMutation.isPending ? deleteRagJobMutation.variables : undefined}
             onClearFinishedJobs={handleClearFinishedRagJobs}
             onDeleteJob={handleDeleteRagJob}
+            getOwnerName={getOwnerName}
           />
         </TabsContent>
 

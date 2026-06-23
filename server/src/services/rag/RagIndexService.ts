@@ -600,23 +600,32 @@ export class RagIndexService {
       percent: 0.15,
     });
     await this.assertJobNotCancelled(jobId);
-    const embedding = await this.embedTextsInBatches(splitTexts, async ({ processed, total, batchIndex, totalBatches }) => {
-      await this.updateJobProgress(jobId, {
-        stage: "embedding",
-        label: "生成向量",
-        detail: `正在生成向量，第 ${batchIndex}/${totalBatches} 批。`,
-        current: processed,
-        total,
-        documents: docs.length,
-        chunks: total,
-        percent: 0.15 + (total > 0 ? (processed / total) * 0.5 : 0),
+    let embedding: { vectors: number[][]; provider: string; model: string } | null = null;
+    try {
+      embedding = await this.embedTextsInBatches(splitTexts, async ({ processed, total, batchIndex, totalBatches }) => {
+        await this.updateJobProgress(jobId, {
+          stage: "embedding",
+          label: "生成向量",
+          detail: `正在生成向量，第 ${batchIndex}/${totalBatches} 批。`,
+          current: processed,
+          total,
+          documents: docs.length,
+          chunks: total,
+          percent: 0.15 + (total > 0 ? (processed / total) * 0.5 : 0),
+        });
       });
-    });
-    await this.assertJobNotCancelled(jobId);
-    for (const candidate of candidates) {
-      candidate.embedProvider = embedding.provider;
-      candidate.embedModel = embedding.model;
+    } catch (embedError) {
+      console.warn("[RAG] Embedding failed, continuing with SQLite-only indexing.", embedError);
     }
+    await this.assertJobNotCancelled(jobId);
+
+    const embedProvider = embedding?.provider ?? embeddingSettings.embeddingProvider;
+    const embedModel = embedding?.model ?? embeddingSettings.embeddingModel;
+    for (const candidate of candidates) {
+      candidate.embedProvider = embedProvider;
+      candidate.embedModel = embedModel;
+    }
+
     if (candidates.length === 0) {
       await this.updateJobProgress(jobId, {
         stage: "deleting_existing",
@@ -637,84 +646,91 @@ export class RagIndexService {
       });
       return { chunks: 0 };
     }
-    if (embedding.vectors.length !== candidates.length) {
-      throw new Error("RAG embedding 数量与 chunk 数量不一致。");
+
+    let qdrantSuccess = false;
+    if (embedding && embedding.vectors.length === candidates.length) {
+      const vectorSize = embedding.vectors[0]?.length ?? 0;
+      if (vectorSize > 0) {
+        try {
+          await this.updateJobProgress(jobId, {
+            stage: "ensuring_collection",
+            label: "校验集合",
+            detail: `正在校验向量集合，目标维度 ${vectorSize}。`,
+            current: candidates.length,
+            total: candidates.length,
+            documents: docs.length,
+            chunks: candidates.length,
+            percent: 0.7,
+          });
+          await this.assertJobNotCancelled(jobId);
+          await this.vectorStoreService.ensureCollection(vectorSize);
+
+          const existing = await prisma.knowledgeChunk.findMany({
+            where: { tenantId, ownerType, ownerId },
+            select: { id: true },
+          });
+          await this.assertJobNotCancelled(jobId);
+          if (existing.length > 0) {
+            await this.updateJobProgress(jobId, {
+              stage: "deleting_existing",
+              label: "清理旧索引",
+              detail: `发现 ${existing.length} 条旧分块，正在清理。`,
+              current: existing.length,
+              total: existing.length,
+              documents: docs.length,
+              chunks: candidates.length,
+              percent: 0.8,
+            });
+            await this.assertJobNotCancelled(jobId);
+            await this.vectorStoreService.deletePoints(existing.map((item) => item.id));
+          } else {
+            await this.updateJobProgress(jobId, {
+              stage: "deleting_existing",
+              label: "清理旧索引",
+              detail: "未发现旧分块，准备写入新索引。",
+              current: 0,
+              total: 0,
+              documents: docs.length,
+              chunks: candidates.length,
+              percent: 0.8,
+            });
+          }
+
+          await this.updateJobProgress(jobId, {
+            stage: "upserting_vectors",
+            label: "写入向量库",
+            detail: `正在向 Qdrant 写入 ${candidates.length} 个分块。`,
+            current: candidates.length,
+            total: candidates.length,
+            documents: docs.length,
+            chunks: candidates.length,
+            percent: 0.9,
+          });
+          await this.assertJobNotCancelled(jobId);
+          await this.vectorStoreService.upsertPoints(
+            candidates.map((item, index) => ({
+              id: item.id,
+              vector: embedding!.vectors[index],
+              payload: {
+                tenantId: item.tenantId,
+                ownerType: item.ownerType,
+                ownerId: item.ownerId,
+                novelId: item.novelId,
+                worldId: item.worldId,
+                title: item.title,
+                chunkText: item.chunkText,
+                chunkHash: item.chunkHash,
+                chunkOrder: item.chunkOrder,
+                metadataJson: item.metadataJson,
+              },
+            })),
+          );
+          qdrantSuccess = true;
+        } catch (qdrantError) {
+          console.warn("[RAG] Qdrant storage failed, continuing with SQLite-only indexing:", qdrantError);
+        }
+      }
     }
-
-    const vectorSize = embedding.vectors[0]?.length ?? 0;
-    await this.updateJobProgress(jobId, {
-      stage: "ensuring_collection",
-      label: "校验集合",
-      detail: `正在校验向量集合，目标维度 ${vectorSize}。`,
-      current: candidates.length,
-      total: candidates.length,
-      documents: docs.length,
-      chunks: candidates.length,
-      percent: 0.7,
-    });
-    await this.assertJobNotCancelled(jobId);
-    await this.vectorStoreService.ensureCollection(vectorSize);
-
-    const existing = await prisma.knowledgeChunk.findMany({
-      where: { tenantId, ownerType, ownerId },
-      select: { id: true },
-    });
-    await this.assertJobNotCancelled(jobId);
-    if (existing.length > 0) {
-      await this.updateJobProgress(jobId, {
-        stage: "deleting_existing",
-        label: "清理旧索引",
-        detail: `发现 ${existing.length} 条旧分块，正在清理。`,
-        current: existing.length,
-        total: existing.length,
-        documents: docs.length,
-        chunks: candidates.length,
-        percent: 0.8,
-      });
-      await this.assertJobNotCancelled(jobId);
-      await this.vectorStoreService.deletePoints(existing.map((item) => item.id));
-    } else {
-      await this.updateJobProgress(jobId, {
-        stage: "deleting_existing",
-        label: "清理旧索引",
-        detail: "未发现旧分块，准备写入新索引。",
-        current: 0,
-        total: 0,
-        documents: docs.length,
-        chunks: candidates.length,
-        percent: 0.8,
-      });
-    }
-
-    await this.updateJobProgress(jobId, {
-      stage: "upserting_vectors",
-      label: "写入向量库",
-      detail: `正在向 Qdrant 写入 ${candidates.length} 个分块。`,
-      current: candidates.length,
-      total: candidates.length,
-      documents: docs.length,
-      chunks: candidates.length,
-      percent: 0.9,
-    });
-    await this.assertJobNotCancelled(jobId);
-    await this.vectorStoreService.upsertPoints(
-      candidates.map((item, index) => ({
-        id: item.id,
-        vector: embedding.vectors[index],
-        payload: {
-          tenantId: item.tenantId,
-          ownerType: item.ownerType,
-          ownerId: item.ownerId,
-          novelId: item.novelId,
-          worldId: item.worldId,
-          title: item.title,
-          chunkText: item.chunkText,
-          chunkHash: item.chunkHash,
-          chunkOrder: item.chunkOrder,
-          metadataJson: item.metadataJson,
-        },
-      })),
-    );
 
     try {
       await this.updateJobProgress(jobId, {
@@ -754,7 +770,9 @@ export class RagIndexService {
         });
       });
     } catch (error) {
-      await this.vectorStoreService.deletePoints(candidates.map((item) => item.id));
+      if (qdrantSuccess) {
+        await this.vectorStoreService.deletePoints(candidates.map((item) => item.id));
+      }
       throw error;
     }
 
