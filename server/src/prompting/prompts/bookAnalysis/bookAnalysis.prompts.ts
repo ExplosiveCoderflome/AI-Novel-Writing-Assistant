@@ -247,7 +247,7 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "{",
       '  "markdown": "给用户展示的 Markdown 分析稿",',
       '  "structuredData": {},',
-      '  "evidence": [{ "label": "...", "excerpt": "...", "sourceLabel": "...", "fieldKey": "...", "fieldIndex": 0 }]',
+      '  "evidence": [{ "label": "...", "excerpt": "...", "sourceLabel": "...", "fieldKey": "...", "fieldIndex": 0, "chapterIndex": 0, "excerptOffsetRange": { "start": 0, "end": 10 } }]',
       "}",
       "",
       "全局硬规则：",
@@ -282,6 +282,8 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "6. 不要让多条 evidence 反复证明同一件事，优先保留覆盖面更广、信息量更高的证据。",
       "7. 每条 evidence 必须设置 fieldKey，指向本节 structuredData 的具体字段；fieldKey 必须来自本节固定结构，不得自创键名。",
       "8. 字符串字段省略 fieldIndex；数组字段必须设置 fieldIndex，使用 0-based 下标指向对应数组项。",
+      "9. 如果能从 notes 的片段标签或摘录位置判断章节，可设置 chapterIndex；如果不能可靠判断，可省略，后端会做补充匹配。",
+      "10. excerptOffsetRange 表示摘录在源文档中的 0-based 字符区间；只有非常确定时才填写，不确定就省略。",
     ].join("\n")),
     new HumanMessage([
       `请基于以下结构化笔记生成《${input.sectionTitle}》分析稿。`,

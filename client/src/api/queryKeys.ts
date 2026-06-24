@@ -51,6 +51,7 @@ export const queryKeys = {
   knowledge: {
     documents: (params: string) => ["knowledge", "documents", params] as const,
     detail: (id: string) => ["knowledge", "detail", id] as const,
+    chapters: (documentId: string, versionId: string) => ["knowledge", "chapters", documentId, versionId] as const,
     ragJobs: (params: string) => ["knowledge", "rag-jobs", params] as const,
     ragHealth: ["knowledge", "rag-health"] as const,
   },

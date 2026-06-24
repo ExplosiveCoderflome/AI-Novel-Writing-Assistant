@@ -23,4 +23,9 @@ export interface AggregatedEvidenceItem {
   label: string;
   excerpt: string;
   sourceLabel: string;
+  chapterIndex?: number;
+  excerptOffsetRange?: {
+    start: number;
+    end: number;
+  };
 }

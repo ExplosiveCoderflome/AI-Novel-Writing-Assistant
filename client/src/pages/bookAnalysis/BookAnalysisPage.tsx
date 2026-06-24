@@ -47,6 +47,8 @@ export default function BookAnalysisPage() {
           <BookAnalysisDetailPanel
             selectedAnalysis={workspace.selectedAnalysis}
             novelOptions={workspace.novelOptions}
+            documentChapters={workspace.documentChapters}
+            sourceVersionContent={workspace.sourceVersionContent}
             selectedNovelId={workspace.selectedNovelId}
             publishFeedback={workspace.publishFeedback}
             styleProfileFeedback={workspace.styleProfileFeedback}

@@ -22,7 +22,7 @@ import {
   regenerateBookAnalysisSection,
   updateBookAnalysisSection,
 } from "@/api/bookAnalysis";
-import { getKnowledgeDocument, listKnowledgeDocuments } from "@/api/knowledge";
+import { getKnowledgeDocument, getKnowledgeDocumentVersionChapters, listKnowledgeDocuments } from "@/api/knowledge";
 import { getNovelList } from "@/api/novel";
 import { createStyleProfileFromBookAnalysis } from "@/api/styleEngine";
 import { queryKeys } from "@/api/queryKeys";
@@ -124,9 +124,26 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
 
   const analyses = analysesQuery.data?.data ?? [];
   const selectedAnalysis = detailQuery.data?.data;
+
+  const documentChaptersQuery = useQuery({
+    queryKey: queryKeys.knowledge.chapters(
+      selectedAnalysis?.documentId || "none",
+      selectedAnalysis?.documentVersionId || "none",
+    ),
+    queryFn: () => getKnowledgeDocumentVersionChapters(selectedAnalysis!.documentId, selectedAnalysis!.documentVersionId),
+    enabled: Boolean(selectedAnalysis?.documentId && selectedAnalysis?.documentVersionId),
+  });
+
   const documentOptions = documentsQuery.data?.data ?? [];
   const novelOptions = useMemo(() => buildNovelOptions(novelsQuery.data?.data?.items ?? []), [novelsQuery.data?.data?.items]);
   const sourceDocument = sourceDocumentQuery.data?.data;
+  const sourceVersionContent = useMemo(() => {
+    if (!selectedAnalysis || !sourceDocument) {
+      return "";
+    }
+    return sourceDocument.versions.find((version) => version.id === selectedAnalysis.documentVersionId)?.content ?? "";
+  }, [selectedAnalysis, sourceDocument]);
+  const documentChapters = documentChaptersQuery.data?.data?.chapters ?? [];
   const versionOptions = sourceDocumentQuery.data?.data?.versions ?? [];
   const selectedPreset = useMemo(
     () => BOOK_ANALYSIS_PRESETS.find((preset) => preset.key === analysisPreset) ?? BOOK_ANALYSIS_PRESETS[1],
@@ -594,6 +611,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     novelOptions,
     versionOptions,
     sourceDocument,
+    sourceVersionContent,
+    documentChapters,
     aggregatedEvidence,
     optimizingSectionKey,
     pending: {

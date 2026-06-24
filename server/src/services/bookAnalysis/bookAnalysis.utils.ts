@@ -125,16 +125,38 @@ export function toEvidenceList(value: unknown, sourceLabelFallback = ""): BookAn
       const fieldIndex = Number.isInteger(row.fieldIndex) && Number(row.fieldIndex) >= 0
         ? Number(row.fieldIndex)
         : undefined;
+      const chapterIndex = Number.isInteger(row.chapterIndex) && Number(row.chapterIndex) >= 0
+        ? Number(row.chapterIndex)
+        : undefined;
+      const excerptOffsetRange = normalizeExcerptOffsetRange(row.excerptOffsetRange);
       return {
         label: label || "片段",
         excerpt: excerpt || "",
         sourceLabel: sourceLabel || "源文档",
         ...(fieldKey ? { fieldKey } : {}),
         ...(fieldIndex !== undefined ? { fieldIndex } : {}),
+        ...(chapterIndex !== undefined ? { chapterIndex } : {}),
+        ...(excerptOffsetRange ? { excerptOffsetRange } : {}),
       };
     })
     .filter((item): item is BookAnalysisEvidenceItem => Boolean(item))
     .slice(0, 24);
+}
+
+function normalizeExcerptOffsetRange(value: unknown): BookAnalysisEvidenceItem["excerptOffsetRange"] | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  const row = value as Record<string, unknown>;
+  if (!Number.isInteger(row.start) || !Number.isInteger(row.end)) {
+    return undefined;
+  }
+  const start = Number(row.start);
+  const end = Number(row.end);
+  if (start < 0 || end <= start) {
+    return undefined;
+  }
+  return { start, end };
 }
 
 export function normalizeBookAnalysisEvidence(

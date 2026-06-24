@@ -26,6 +26,26 @@ export interface KnowledgeDocumentVersion {
   createdAt: string;
 }
 
+export interface DocumentChapter {
+  id: string;
+  documentVersionId: string;
+  chapterIndex: number;
+  title: string;
+  startOffset: number;
+  endOffset: number;
+  charCount: number;
+  summary?: string | null;
+  splitter?: "rule" | "llm" | "single";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DocumentChapterSplitResult {
+  documentVersionId: string;
+  splitter: "rule" | "llm" | "single";
+  chapters: DocumentChapter[];
+}
+
 export interface KnowledgeBinding {
   id: string;
   targetType: KnowledgeBindingTargetType;

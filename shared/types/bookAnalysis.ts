@@ -190,6 +190,11 @@ export interface BookAnalysisEvidenceItem {
   sourceLabel: string;
   fieldKey?: string;
   fieldIndex?: number;
+  chapterIndex?: number;
+  excerptOffsetRange?: {
+    start: number;
+    end: number;
+  };
 }
 
 export interface BookAnalysisSection {

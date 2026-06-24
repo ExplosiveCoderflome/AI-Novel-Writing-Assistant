@@ -1,6 +1,8 @@
 import type {
   KnowledgeDocument,
   KnowledgeDocumentDetail,
+  DocumentChapter,
+  DocumentChapterSplitResult,
   KnowledgeRecallTestResult,
   KnowledgeDocumentStatus,
   KnowledgeDocumentSummary,
@@ -129,6 +131,34 @@ export async function listKnowledgeDocuments(params?: {
 
 export async function getKnowledgeDocument(id: string) {
   const { data } = await apiClient.get<ApiResponse<KnowledgeDocumentDetail>>(`/knowledge/documents/${id}`);
+  return data;
+}
+
+export async function getKnowledgeDocumentVersionChapters(documentId: string, versionId: string) {
+  const { data } = await apiClient.get<ApiResponse<DocumentChapterSplitResult>>(
+    `/knowledge/documents/${documentId}/versions/${versionId}/chapters`,
+  );
+  return data;
+}
+
+export async function rebuildKnowledgeDocumentVersionChapters(documentId: string, versionId: string) {
+  const { data } = await apiClient.post<ApiResponse<DocumentChapterSplitResult>>(
+    `/knowledge/documents/${documentId}/versions/${versionId}/chapters`,
+    {},
+  );
+  return data;
+}
+
+export async function updateKnowledgeDocumentChapter(
+  documentId: string,
+  versionId: string,
+  chapterIndex: number,
+  payload: { title?: string; summary?: string | null },
+) {
+  const { data } = await apiClient.patch<ApiResponse<DocumentChapter>>(
+    `/knowledge/documents/${documentId}/versions/${versionId}/chapters/${chapterIndex}`,
+    payload,
+  );
   return data;
 }
 

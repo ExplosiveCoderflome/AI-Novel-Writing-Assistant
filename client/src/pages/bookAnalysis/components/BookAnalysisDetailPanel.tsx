@@ -5,6 +5,7 @@ import type {
   BookAnalysisSection,
   BookAnalysisSectionKey,
 } from "@ai-novel/shared/types/bookAnalysis";
+import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,8 @@ interface PendingState {
 interface BookAnalysisDetailPanelProps {
   selectedAnalysis?: BookAnalysisDetail;
   novelOptions: NovelOption[];
+  documentChapters: DocumentChapter[];
+  sourceVersionContent: string;
   selectedNovelId: string;
   publishFeedback: string;
   styleProfileFeedback: string;
@@ -62,6 +65,8 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
   const {
     selectedAnalysis,
     novelOptions,
+    documentChapters,
+    sourceVersionContent,
     selectedNovelId,
     publishFeedback,
     styleProfileFeedback,
@@ -85,6 +90,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     getSectionDraft,
   } = props;
   const [evidenceSectionFilter, setEvidenceSectionFilter] = useState<BookAnalysisSectionKey | "all">("all");
+  const [selectedEvidenceKey, setSelectedEvidenceKey] = useState("");
   const [readingMode, setReadingMode] = useState<"summary" | "full">("summary");
   const [activeSectionKey, setActiveSectionKey] = useState<BookAnalysisSectionKey | "">("");
 
@@ -102,6 +108,21 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     }
     return aggregatedEvidence.filter((item) => item.sectionKey === evidenceSectionFilter);
   }, [aggregatedEvidence, evidenceSectionFilter]);
+  const selectedEvidence = useMemo(() => {
+    if (!selectedEvidenceKey) {
+      return null;
+    }
+    return aggregatedEvidence.find((item, index) => `${item.sectionKey}-${index}` === selectedEvidenceKey) ?? null;
+  }, [aggregatedEvidence, selectedEvidenceKey]);
+  const selectedEvidenceChapter = useMemo(() => {
+    if (!selectedEvidence || selectedEvidence.chapterIndex === undefined) {
+      return null;
+    }
+    return documentChapters.find((chapter) => chapter.chapterIndex === selectedEvidence.chapterIndex) ?? null;
+  }, [documentChapters, selectedEvidence]);
+  const selectedChapterContent = selectedEvidenceChapter && sourceVersionContent
+    ? sourceVersionContent.slice(selectedEvidenceChapter.startOffset, selectedEvidenceChapter.endOffset)
+    : "";
   const sectionStats = useMemo(() => {
     if (!selectedAnalysis) {
       return {
@@ -388,10 +409,40 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
             })}
           </div>
 
+          {selectedEvidence && selectedEvidenceChapter && selectedEvidence.excerptOffsetRange ? (
+            <div className="rounded-md border bg-muted/20 p-3 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="font-medium">
+                  原文定位：{selectedEvidenceChapter.title}
+                </div>
+                <Badge variant="outline">第 {selectedEvidenceChapter.chapterIndex + 1} 章</Badge>
+              </div>
+              <HighlightedChapterExcerpt
+                chapterContent={selectedChapterContent}
+                chapterStartOffset={selectedEvidenceChapter.startOffset}
+                range={selectedEvidence.excerptOffsetRange}
+              />
+            </div>
+          ) : selectedEvidence ? (
+            <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+              这条证据暂无可跳转的章节定位，仍可查看证据摘录。
+            </div>
+          ) : null}
+
           {filteredEvidence.map((item, index) => (
             <div key={`${item.sectionTitle}-${index}`} className="rounded-md border p-3 text-sm">
-              <div className="font-medium">
-                {item.sectionTitle} | [{item.sourceLabel}] {item.label}
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="font-medium">
+                  {item.sectionTitle} | [{item.sourceLabel}] {item.label}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={item.chapterIndex === undefined || !item.excerptOffsetRange}
+                  onClick={() => setSelectedEvidenceKey(`${item.sectionKey}-${aggregatedEvidence.indexOf(item)}`)}
+                >
+                  查看原文
+                </Button>
               </div>
               <div className="mt-1 whitespace-pre-wrap text-muted-foreground">{item.excerpt}</div>
             </div>
@@ -405,5 +456,29 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
         </CardContent>
       </Card>
     </>
+  );
+}
+
+function HighlightedChapterExcerpt(props: {
+  chapterContent: string;
+  chapterStartOffset: number;
+  range: { start: number; end: number };
+}) {
+  const relativeStart = Math.max(0, props.range.start - props.chapterStartOffset);
+  const relativeEnd = Math.min(props.chapterContent.length, Math.max(relativeStart, props.range.end - props.chapterStartOffset));
+  const previewStart = Math.max(0, relativeStart - 360);
+  const previewEnd = Math.min(props.chapterContent.length, relativeEnd + 360);
+  const before = props.chapterContent.slice(previewStart, relativeStart);
+  const highlight = props.chapterContent.slice(relativeStart, relativeEnd);
+  const after = props.chapterContent.slice(relativeEnd, previewEnd);
+
+  return (
+    <div className="mt-3 max-h-[360px] overflow-auto rounded-md border bg-background p-3 leading-7 whitespace-pre-wrap">
+      {previewStart > 0 ? <span className="text-muted-foreground">...</span> : null}
+      <span>{before}</span>
+      <mark className="rounded bg-amber-200 px-1 text-amber-950">{highlight}</mark>
+      <span>{after}</span>
+      {previewEnd < props.chapterContent.length ? <span className="text-muted-foreground">...</span> : null}
+    </div>
   );
 }

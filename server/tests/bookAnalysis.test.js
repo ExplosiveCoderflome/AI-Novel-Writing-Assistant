@@ -9,6 +9,10 @@ const { BookAnalysisCommandService } = require("../dist/services/bookAnalysis/Bo
 const { BookAnalysisGenerationService } = require("../dist/services/bookAnalysis/bookAnalysis.generation.js");
 const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/BookAnalysisQueryService.js");
 const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/bookAnalysis.queue.js");
+const {
+  bindEvidenceToDocumentChapters,
+  DocumentChapterService,
+} = require("../dist/services/knowledge/DocumentChapterService.js");
 const { NovelReferenceService } = require("../dist/services/novel/NovelReferenceService.js");
 const { resolveLiveBookAnalysisStatus } = require("../dist/services/bookAnalysis/bookAnalysis.status.js");
 const { serializeSectionRow } = require("../dist/services/bookAnalysis/bookAnalysis.serialization.js");
@@ -41,6 +45,16 @@ async function waitFor(predicate, timeoutMs = 1500) {
     await delay(10);
   }
   throw new Error("Timed out waiting for condition.");
+}
+
+function createNoopDocumentChapterService() {
+  return {
+    ensureChaptersForVersion: async (documentVersionId) => ({
+      documentVersionId,
+      splitter: "single",
+      chapters: [],
+    }),
+  };
 }
 
 function matchCacheIdentity(row, key) {
@@ -261,6 +275,8 @@ test("normalizeBookAnalysisEvidence keeps valid field bindings and preserves leg
       sourceLabel: "片段 2",
       fieldKey: "escalationDesigns",
       fieldIndex: 1,
+      chapterIndex: 1,
+      excerptOffsetRange: { start: 120, end: 132 },
     },
     {
       label: "脏字段",
@@ -283,6 +299,8 @@ test("normalizeBookAnalysisEvidence keeps valid field bindings and preserves leg
       sourceLabel: "片段 2",
       fieldKey: "escalationDesigns",
       fieldIndex: 1,
+      chapterIndex: 1,
+      excerptOffsetRange: { start: 120, end: 132 },
     },
     {
       label: "脏字段",
@@ -325,6 +343,124 @@ test("normalizeBookAnalysisEvidence keeps valid field bindings and preserves leg
     sourceLabel: "片段 5",
     fieldKey: "escalationDesigns",
   }]);
+});
+
+test("bindEvidenceToDocumentChapters attaches chapter index and source offsets", () => {
+  const content = [
+    "第一章 雪夜摸排",
+    "主角在雪夜摸排山寨。",
+    "",
+    "第二章 卧底试探",
+    "反派身份反转导致局势失控。",
+  ].join("\n");
+  const chapterStart = content.indexOf("第二章");
+  const excerpt = "反派身份反转导致局势失控";
+  const excerptStart = content.indexOf(excerpt);
+  const bound = bindEvidenceToDocumentChapters(
+    [{
+      label: "冲突升级",
+      excerpt,
+      sourceLabel: "片段 2",
+    }],
+    [
+      {
+        id: "chapter-1",
+        documentVersionId: "version-1",
+        chapterIndex: 0,
+        title: "第一章 雪夜摸排",
+        startOffset: 0,
+        endOffset: chapterStart,
+        charCount: chapterStart,
+        summary: null,
+        splitter: "rule",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: "chapter-2",
+        documentVersionId: "version-1",
+        chapterIndex: 1,
+        title: "第二章 卧底试探",
+        startOffset: chapterStart,
+        endOffset: content.length,
+        charCount: content.length - chapterStart,
+        summary: null,
+        splitter: "rule",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ],
+    content,
+  );
+
+  assert.equal(bound[0].chapterIndex, 1);
+  assert.deepEqual(bound[0].excerptOffsetRange, {
+    start: excerptStart,
+    end: excerptStart + excerpt.length,
+  });
+});
+
+test("DocumentChapterService splits standard Chinese chapter headings and caches rows", async () => {
+  const original = {
+    versionFindUnique: prisma.knowledgeDocumentVersion.findUnique,
+    chapterFindMany: prisma.documentChapter.findMany,
+    transaction: prisma.$transaction,
+  };
+  const createdRows = [];
+  const content = [
+    "第一章 雪夜摸排",
+    "正文".repeat(80),
+    "",
+    "第二章 卧底试探",
+    "正文".repeat(80),
+    "",
+    "第三章 山场围猎",
+    "正文".repeat(80),
+  ].join("\n");
+
+  prisma.documentChapter.findMany = async () => createdRows.map((row, index) => ({
+    id: `chapter-${index + 1}`,
+    ...row,
+    summary: null,
+    createdAt: new Date("2026-06-24T00:00:00.000Z"),
+    updatedAt: new Date("2026-06-24T00:00:00.000Z"),
+  }));
+  prisma.knowledgeDocumentVersion.findUnique = async () => ({
+    id: "version-1",
+    documentId: "document-1",
+    content,
+  });
+  prisma.$transaction = async (callback) => callback({
+    documentChapter: {
+      deleteMany: async () => {
+        createdRows.length = 0;
+        return { count: 0 };
+      },
+      createMany: async ({ data }) => {
+        createdRows.push(...data);
+        return { count: data.length };
+      },
+    },
+  });
+
+  const service = new DocumentChapterService();
+
+  try {
+    const result = await service.rebuildChaptersForVersion("version-1", "document-1");
+
+    assert.equal(result.splitter, "rule");
+    assert.equal(result.chapters.length, 3);
+    assert.deepEqual(result.chapters.map((chapter) => chapter.title), [
+      "第一章 雪夜摸排",
+      "第二章 卧底试探",
+      "第三章 山场围猎",
+    ]);
+    assert.ok(result.chapters[1].startOffset > result.chapters[0].startOffset);
+  } finally {
+    prisma.knowledgeDocumentVersion.findUnique = original.versionFindUnique;
+    prisma.documentChapter.findMany = original.chapterFindMany;
+    prisma.$transaction = original.transaction;
+  }
 });
 
 test("resolveLiveBookAnalysisStatus promotes queued rows with live runtime signals", () => {
@@ -676,6 +812,7 @@ test("BookAnalysisGenerationService runFullAnalysis generates overview before de
         throw new Error("optimize should not be used in full analysis test");
       },
     },
+    createNoopDocumentChapterService(),
   );
 
   try {
@@ -770,6 +907,7 @@ test("BookAnalysisGenerationService runFullAnalysis keeps old flow when overview
       },
       generateOptimizedDraft: async () => "",
     },
+    createNoopDocumentChapterService(),
   );
 
   try {
@@ -853,6 +991,7 @@ test("BookAnalysisGenerationService runFullAnalysis continues after overview fai
       },
       generateOptimizedDraft: async () => "",
     },
+    createNoopDocumentChapterService(),
   );
 
   try {
@@ -938,6 +1077,7 @@ test("BookAnalysisGenerationService runFullAnalysis stops after overview when ca
       },
       generateOptimizedDraft: async () => "",
     },
+    createNoopDocumentChapterService(),
   );
 
   try {
@@ -1048,6 +1188,7 @@ test("BookAnalysisGenerationService runSingleSection fetches reusable source not
         throw new Error("optimize should not be used in regenerate test");
       },
     },
+    createNoopDocumentChapterService(),
   );
 
   try {
@@ -1158,6 +1299,7 @@ test("BookAnalysisGenerationService runSingleSection injects persisted overview 
       },
       generateOptimizedDraft: async () => "",
     },
+    createNoopDocumentChapterService(),
   );
 
   try {
@@ -1525,6 +1667,7 @@ test("BookAnalysisGenerationService keeps heartbeating during long section gener
         throw new Error("optimize should not be used in heartbeat test");
       },
     },
+    createNoopDocumentChapterService(),
   );
 
   try {
@@ -1601,6 +1744,7 @@ test("BookAnalysisGenerationService optimizeSectionPreview reuses cached source 
         return "优化后的草稿";
       },
     },
+    createNoopDocumentChapterService(),
   );
 
   try {

@@ -6,6 +6,11 @@ const evidenceItemSchema = z.object({
   sourceLabel: z.string().trim().min(1).optional(),
   fieldKey: z.string().trim().min(1).optional(),
   fieldIndex: z.number().int().min(0).optional(),
+  chapterIndex: z.number().int().min(0).optional(),
+  excerptOffsetRange: z.object({
+    start: z.number().int().min(0),
+    end: z.number().int().min(0),
+  }).optional(),
 }).passthrough();
 
 export const bookAnalysisTimelineNodeSchema = z.object({
@@ -37,4 +42,12 @@ export const bookAnalysisSectionOutputSchema = z.object({
 
 export const bookAnalysisOptimizeDraftOutputSchema = z.object({
   optimizedDraft: z.string().trim().min(1),
+}).passthrough();
+
+export const bookAnalysisChapterSplitOutputSchema = z.object({
+  chapters: z.array(z.object({
+    title: z.string().trim().min(1),
+    startOffset: z.number().int().min(0),
+    endOffset: z.number().int().min(0),
+  }).passthrough()).default([]),
 }).passthrough();

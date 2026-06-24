@@ -7,7 +7,7 @@ import type {
   BookAnalysisSectionKey,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
-import type { KnowledgeDocumentDetail, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
+import type { DocumentChapter, KnowledgeDocumentDetail, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
 import type { AggregatedEvidenceItem, LLMConfigState, SectionDraft } from "../bookAnalysis.types";
 
 export type ExportFormat = "markdown" | "json";
@@ -50,6 +50,8 @@ export interface BookAnalysisWorkspace {
   novelOptions: NovelOption[];
   versionOptions: KnowledgeDocumentDetail["versions"];
   sourceDocument?: KnowledgeDocumentDetail;
+  sourceVersionContent: string;
+  documentChapters: DocumentChapter[];
   aggregatedEvidence: AggregatedEvidenceItem[];
   optimizingSectionKey: BookAnalysisSectionKey | null;
   pending: PendingState;

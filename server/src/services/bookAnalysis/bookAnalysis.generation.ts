@@ -1,4 +1,5 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
@@ -10,6 +11,10 @@ import {
   getSectionStageProgress,
 } from "./bookAnalysis.progress";
 import { BookAnalysisSectionWriter } from "./bookAnalysis.sectionWriter";
+import {
+  bindEvidenceToDocumentChapters,
+  DocumentChapterService,
+} from "../knowledge/DocumentChapterService";
 import type {
   BookAnalysisOverviewContext,
   BookAnalysisProgressUpdate,
@@ -65,6 +70,7 @@ export class BookAnalysisGenerationService {
   constructor(
     private readonly sourceCacheService = new BookAnalysisSourceCacheService(),
     private readonly sectionWriter = new BookAnalysisSectionWriter(),
+    private readonly documentChapterService = new DocumentChapterService(),
   ) {}
 
   async runFullAnalysis(analysisId: string): Promise<void> {
@@ -121,6 +127,10 @@ export class BookAnalysisGenerationService {
           temperature,
           sectionMaxTokens: maxTokens,
         });
+        const documentChapters = await this.getDocumentChaptersSafely(
+          analysis.documentVersionId,
+          analysis.documentVersion.content,
+        );
 
         let completedSections = 0;
         const errors: string[] = [];
@@ -169,6 +179,11 @@ export class BookAnalysisGenerationService {
                 sectionFocusInstruction: overviewSection.focusInstruction,
               },
             );
+            const evidence = bindEvidenceToDocumentChapters(
+              generated.evidence,
+              documentChapters,
+              analysis.documentVersion.content,
+            );
             overviewContext = this.buildOverviewContext(generated);
 
             await prisma.bookAnalysisSection.update({
@@ -183,7 +198,7 @@ export class BookAnalysisGenerationService {
                 aiContent: generated.markdown,
                 structuredDataJson: encodeStructuredData(generated.structuredData),
                 normalizationWarningsJson: encodeNormalizationWarnings(generated.normalizationWarnings),
-                evidenceJson: encodeEvidence(generated.evidence),
+                evidenceJson: encodeEvidence(evidence),
               },
             });
 
@@ -258,6 +273,11 @@ export class BookAnalysisGenerationService {
                 sectionFocusInstruction: section.focusInstruction,
               },
             );
+            const evidence = bindEvidenceToDocumentChapters(
+              generated.evidence,
+              documentChapters,
+              analysis.documentVersion.content,
+            );
 
             await prisma.bookAnalysisSection.update({
               where: {
@@ -271,7 +291,7 @@ export class BookAnalysisGenerationService {
                 aiContent: generated.markdown,
                 structuredDataJson: encodeStructuredData(generated.structuredData),
                 normalizationWarningsJson: encodeNormalizationWarnings(generated.normalizationWarnings),
-                evidenceJson: encodeEvidence(generated.evidence),
+                evidenceJson: encodeEvidence(evidence),
               },
             });
 
@@ -380,6 +400,10 @@ export class BookAnalysisGenerationService {
           temperature,
           sectionMaxTokens: maxTokens,
         });
+        const documentChapters = await this.getDocumentChaptersSafely(
+          analysis.documentVersionId,
+          analysis.documentVersion.content,
+        );
 
         await this.ensureNotCancelled(analysisId);
         await this.updateAnalysisProgress(analysisId, {
@@ -418,6 +442,11 @@ export class BookAnalysisGenerationService {
             sectionFocusInstruction: section.focusInstruction,
           },
         );
+        const evidence = bindEvidenceToDocumentChapters(
+          generated.evidence,
+          documentChapters,
+          analysis.documentVersion.content,
+        );
 
         await prisma.bookAnalysisSection.update({
           where: {
@@ -431,7 +460,7 @@ export class BookAnalysisGenerationService {
             aiContent: generated.markdown,
             structuredDataJson: encodeStructuredData(generated.structuredData),
             normalizationWarningsJson: encodeNormalizationWarnings(generated.normalizationWarnings),
-            evidenceJson: encodeEvidence(generated.evidence),
+            evidenceJson: encodeEvidence(evidence),
           },
         });
 
@@ -560,6 +589,30 @@ export class BookAnalysisGenerationService {
       onProgress: (update) => this.updateAnalysisProgress(input.analysisId, update),
     });
     return result.notes;
+  }
+
+  private async getDocumentChaptersSafely(
+    documentVersionId: string,
+    content: string,
+  ): Promise<DocumentChapter[]> {
+    try {
+      const result = await this.documentChapterService.ensureChaptersForVersion(documentVersionId);
+      return result.chapters;
+    } catch {
+      return [{
+        id: "inline-single-chapter",
+        documentVersionId,
+        chapterIndex: 0,
+        title: "全文",
+        startOffset: 0,
+        endOffset: content.length,
+        charCount: content.length,
+        summary: null,
+        splitter: "single",
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+      }];
+    }
   }
 
   private async updateAnalysisProgress(

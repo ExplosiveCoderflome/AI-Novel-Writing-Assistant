@@ -2631,6 +2631,7 @@ model KnowledgeDocumentVersion {
   charCount          Int
   document           KnowledgeDocument    @relation("KnowledgeDocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
   activeForDocuments KnowledgeDocument[]  @relation("KnowledgeDocumentActiveVersion")
+  chapters           DocumentChapter[]
   bookAnalyses       BookAnalysis[]
   sourceCaches       BookAnalysisSourceCache[]
   createdAt          DateTime             @default(now())
@@ -2638,6 +2639,24 @@ model KnowledgeDocumentVersion {
   @@unique([documentId, versionNumber])
   @@index([documentId, createdAt])
   @@index([contentHash])
+}
+
+model DocumentChapter {
+  id                String                   @id @default(cuid())
+  documentVersionId String
+  chapterIndex      Int
+  title             String
+  startOffset       Int
+  endOffset         Int
+  charCount         Int
+  summary           String?
+  splitter          String                   @default("rule")
+  documentVersion   KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  @@unique([documentVersionId, chapterIndex])
+  @@index([documentVersionId, startOffset])
 }
 
 model KnowledgeBinding {
