@@ -29,12 +29,58 @@ import {
   toImageTask,
 } from "./imageGenerationMappers";
 import type {
+  BookAnalysisCharacterImageGenerationRequest,
   CharacterImageGenerationRequest,
   ImageSize,
   NovelCoverImageGenerationRequest,
 } from "./types";
 
-type SupportedImageSceneType = "character" | "novel_cover";
+type SupportedImageSceneType = "character" | "novel_cover" | "book_analysis_character";
+
+function parseBookAnalysisCharacterProfile(profileJson: string | null): Record<string, unknown> {
+  if (!profileJson?.trim()) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(profileJson) as unknown;
+    return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+function readProfileText(profile: Record<string, unknown>, key: string): string {
+  return typeof profile[key] === "string" ? String(profile[key]).trim() : "";
+}
+
+function buildBookAnalysisCharacterPrompt(
+  prompt: string,
+  stylePreset: string | undefined,
+  character: {
+    name: string;
+    role: string;
+    profileJson: string;
+  },
+): string {
+  const profile = parseBookAnalysisCharacterProfile(character.profileJson);
+  const background = [
+    readProfileText(profile, "outerGoal") ? `外在目标：${readProfileText(profile, "outerGoal")}` : "",
+    readProfileText(profile, "innerNeed") ? `内在需求：${readProfileText(profile, "innerNeed")}` : "",
+    readProfileText(profile, "growthTrajectory") ? `成长轨迹：${readProfileText(profile, "growthTrajectory")}` : "",
+  ].filter(Boolean).join("\n") || "来自拆书角色档案。";
+  return buildCharacterPrompt(prompt, stylePreset, {
+    name: readProfileText(profile, "name") || character.name,
+    role: readProfileText(profile, "role") || character.role,
+    personality: readProfileText(profile, "personality") || readProfileText(profile, "values") || "未明确",
+    appearance: [
+      readProfileText(profile, "appearance"),
+      readProfileText(profile, "physique"),
+      readProfileText(profile, "attireStyle"),
+      readProfileText(profile, "signatureDetail"),
+    ].filter(Boolean).join("；") || null,
+    background,
+  });
+}
 
 function mergeNovelCoverNegativePrompt(input: string | null | undefined): string {
   const normalized = input?.trim();
@@ -50,9 +96,13 @@ function resolveTaskOwnerKey(task: {
   sceneType: string;
   baseCharacterId: string | null;
   novelId: string | null;
+  bookAnalysisCharacterId: string | null;
 }): string | null {
   if (task.sceneType === "novel_cover") {
     return task.novelId;
+  }
+  if (task.sceneType === "book_analysis_character") {
+    return task.bookAnalysisCharacterId;
   }
   if (task.sceneType === "character") {
     return task.baseCharacterId;
@@ -61,7 +111,7 @@ function resolveTaskOwnerKey(task: {
 }
 
 function resolveSceneType(sceneType: string): SupportedImageSceneType {
-  if (sceneType === "character" || sceneType === "novel_cover") {
+  if (sceneType === "character" || sceneType === "novel_cover" || sceneType === "book_analysis_character") {
     return sceneType;
   }
   throw new AppError(`Scene type ${sceneType} is not supported for image generation yet.`, 400);
@@ -71,6 +121,7 @@ function buildAssetOwnerWhere(input: {
   sceneType: SupportedImageSceneType;
   baseCharacterId: string | null;
   novelId: string | null;
+  bookAnalysisCharacterId: string | null;
 }): Record<string, unknown> {
   if (input.sceneType === "novel_cover") {
     if (!input.novelId) {
@@ -79,6 +130,16 @@ function buildAssetOwnerWhere(input: {
     return {
       sceneType: "novel_cover",
       novelId: input.novelId,
+    };
+  }
+
+  if (input.sceneType === "book_analysis_character") {
+    if (!input.bookAnalysisCharacterId) {
+      throw new AppError("Book analysis character image asset is missing bookAnalysisCharacterId.", 400);
+    }
+    return {
+      sceneType: "book_analysis_character",
+      bookAnalysisCharacterId: input.bookAnalysisCharacterId,
     };
   }
 
@@ -92,21 +153,29 @@ function buildAssetOwnerWhere(input: {
 }
 
 function buildMissingOwnerError(sceneType: SupportedImageSceneType): string {
-  return sceneType === "novel_cover"
-    ? "Novel was not found."
-    : "Base character was not found.";
+  if (sceneType === "novel_cover") {
+    return "Novel was not found.";
+  }
+  if (sceneType === "book_analysis_character") {
+    return "Book analysis character was not found.";
+  }
+  return "Base character was not found.";
 }
 
 function resolveCurrentItemLabel(task: {
   sceneType: string;
   baseCharacter?: { name: string } | null;
   novel?: { title: string } | null;
+  bookAnalysisCharacter?: { name: string } | null;
 } | null): string | null {
   if (!task) {
     return null;
   }
   if (task.sceneType === "novel_cover") {
     return task.novel?.title ?? null;
+  }
+  if (task.sceneType === "book_analysis_character") {
+    return task.bookAnalysisCharacter?.name ?? null;
   }
   return task.baseCharacter?.name ?? null;
 }
@@ -138,6 +207,49 @@ export class ImageGenerationService {
         sceneType: "character",
         baseCharacterId: character.id,
         novelId: null,
+        provider,
+        model,
+        prompt,
+        negativePrompt: input.negativePrompt?.trim() || null,
+        stylePreset: input.stylePreset?.trim() || null,
+        size: input.size ?? "1024x1024",
+        imageCount: input.count ?? 1,
+        seed: input.seed,
+        status: "queued",
+        maxRetries: input.maxRetries ?? 2,
+        heartbeatAt: null,
+        currentStage: "queued",
+        currentItemKey: character.id,
+        currentItemLabel: character.name,
+      },
+    });
+    this.enqueueTask(task.id);
+    return toImageTask(task);
+  }
+
+  async createBookAnalysisCharacterTask(input: BookAnalysisCharacterImageGenerationRequest): Promise<ImageGenerationTask> {
+    const provider: LLMProvider = input.provider ?? "openai";
+    if (!isImageProviderSupported(provider)) {
+      throw new AppError(`Provider ${provider} is not supported for image generation yet.`, 400);
+    }
+
+    const character = await prisma.bookAnalysisCharacter.findUnique({
+      where: { id: input.bookAnalysisCharacterId },
+    });
+    if (!character) {
+      throw new AppError("Book analysis character not found.", 404);
+    }
+
+    const model = await resolveImageModel(provider, input.model);
+    const prompt = input.promptMode === "direct"
+      ? input.prompt.trim()
+      : buildBookAnalysisCharacterPrompt(input.prompt, input.stylePreset, character);
+    const task = await prisma.imageGenerationTask.create({
+      data: {
+        sceneType: "book_analysis_character",
+        baseCharacterId: null,
+        novelId: null,
+        bookAnalysisCharacterId: character.id,
         provider,
         model,
         prompt,
@@ -214,6 +326,7 @@ export class ImageGenerationService {
         sceneType: true,
         baseCharacterId: true,
         novelId: true,
+        bookAnalysisCharacterId: true,
       },
     });
     if (!task) {
@@ -291,6 +404,17 @@ export class ImageGenerationService {
     return assets.map((item) => toImageAsset(item));
   }
 
+  async listBookAnalysisCharacterAssets(bookAnalysisCharacterId: string): Promise<ImageAsset[]> {
+    const assets = await prisma.imageAsset.findMany({
+      where: {
+        sceneType: "book_analysis_character",
+        bookAnalysisCharacterId,
+      },
+      orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }],
+    });
+    return assets.map((item) => toImageAsset(item));
+  }
+
   async listNovelCoverAssets(novelId: string): Promise<ImageAsset[]> {
     const assets = await prisma.imageAsset.findMany({
       where: {
@@ -315,6 +439,7 @@ export class ImageGenerationService {
       sceneType,
       baseCharacterId: asset.baseCharacterId,
       novelId: asset.novelId,
+      bookAnalysisCharacterId: asset.bookAnalysisCharacterId,
     });
 
     await prisma.$transaction(async (tx) => {
@@ -344,6 +469,7 @@ export class ImageGenerationService {
       sceneType,
       baseCharacterId: asset.baseCharacterId,
       novelId: asset.novelId,
+      bookAnalysisCharacterId: asset.bookAnalysisCharacterId,
     });
 
     await prisma.$transaction(async (tx) => {
@@ -499,6 +625,12 @@ export class ImageGenerationService {
             title: true,
           },
         },
+        bookAnalysisCharacter: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
     if (!task) {
@@ -594,6 +726,7 @@ export class ImageGenerationService {
           sceneType,
           baseCharacterId: task.baseCharacterId,
           novelId: task.novelId,
+          bookAnalysisCharacterId: task.bookAnalysisCharacterId,
           sortOrder: index,
           url: image.url,
           mimeType: image.mimeType ?? null,
@@ -605,6 +738,7 @@ export class ImageGenerationService {
         sceneType,
         baseCharacterId: task.baseCharacterId,
         novelId: task.novelId,
+        bookAnalysisCharacterId: task.bookAnalysisCharacterId,
       });
 
       await this.ensureNotCancelled(task.id);
@@ -624,6 +758,7 @@ export class ImageGenerationService {
               sceneType,
               baseCharacterId: sceneType === "character" ? task.baseCharacterId : null,
               novelId: sceneType === "novel_cover" ? task.novelId : null,
+              bookAnalysisCharacterId: sceneType === "book_analysis_character" ? task.bookAnalysisCharacterId : null,
               provider: result.provider,
               model: result.model,
               url: persisted.persistedUrl,

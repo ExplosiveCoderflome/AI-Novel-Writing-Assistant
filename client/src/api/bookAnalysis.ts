@@ -12,9 +12,12 @@ import type {
   BookAnalysisCharacterGenerationDepth,
 } from "@ai-novel/shared/types/bookAnalysisCharacter";
 import type { CharacterProfile } from "@ai-novel/shared/types/characterProfile";
+import type { ImageAsset, ImageGenerationTask } from "@ai-novel/shared/types/image";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { apiClient } from "./client";
+import type { ImageGenerationOverrides, ImageGenerationPreview } from "./comic";
 
 export async function listBookAnalyses(params?: {
   keyword?: string;
@@ -166,6 +169,77 @@ export async function updateBookAnalysisCharacter(
 
 export async function deleteBookAnalysisCharacter(id: string, characterId: string) {
   const { data } = await apiClient.delete<ApiResponse<null>>(`/book-analysis/${id}/characters/${characterId}`);
+  return data;
+}
+
+export async function prepareBookAnalysisCharacterImage(
+  id: string,
+  characterId: string,
+  payload: { provider?: LLMProvider } = {},
+) {
+  const { data } = await apiClient.post<ApiResponse<ImageGenerationPreview>>(
+    `/book-analysis/${id}/characters/${characterId}/images/prepare`,
+    payload,
+  );
+  return data;
+}
+
+export async function generateBookAnalysisCharacterImage(
+  id: string,
+  characterId: string,
+  payload: {
+    provider?: LLMProvider;
+    count?: number;
+    stylePreset?: string;
+    overrides?: ImageGenerationOverrides;
+  } = {},
+) {
+  const { data } = await apiClient.post<ApiResponse<ImageGenerationTask>>(
+    `/book-analysis/${id}/characters/${characterId}/images/generate`,
+    {
+      provider: payload.provider,
+      count: payload.count,
+      stylePreset: payload.stylePreset,
+      promptOverride: payload.overrides?.promptOverride,
+      negativePromptOverride: payload.overrides?.negativePromptOverride,
+      providerOverride: payload.overrides?.providerOverride,
+      sizeOverride: payload.overrides?.sizeOverride,
+    },
+  );
+  return data;
+}
+
+export async function listBookAnalysisCharacterImages(id: string, characterId: string) {
+  const { data } = await apiClient.get<ApiResponse<ImageAsset[]>>(
+    `/book-analysis/${id}/characters/${characterId}/images`,
+  );
+  return data;
+}
+
+export async function setPrimaryBookAnalysisCharacterImage(id: string, characterId: string, assetId: string) {
+  const { data } = await apiClient.patch<ApiResponse<ImageAsset>>(
+    `/book-analysis/${id}/characters/${characterId}/images/${assetId}`,
+    {},
+  );
+  return data;
+}
+
+export async function deleteBookAnalysisCharacterImage(id: string, characterId: string, assetId: string) {
+  const { data } = await apiClient.delete<ApiResponse<ImageAsset>>(
+    `/book-analysis/${id}/characters/${characterId}/images/${assetId}`,
+  );
+  return data;
+}
+
+export async function promoteBookAnalysisCharacter(
+  id: string,
+  characterId: string,
+  payload: { includePrimaryImage?: boolean },
+) {
+  const { data } = await apiClient.post<ApiResponse<{
+    baseCharacter: BaseCharacter;
+    clonedPrimaryImageAsset: ImageAsset | null;
+  }>>(`/book-analysis/${id}/characters/${characterId}/promote`, payload);
   return data;
 }
 

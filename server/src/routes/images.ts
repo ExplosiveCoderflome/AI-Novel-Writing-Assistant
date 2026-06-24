@@ -39,6 +39,12 @@ const generateSchema = z.discriminatedUnion("sceneType", [
     promptMode: z.enum(["novel_cover_chain", "direct"]).optional(),
     ...baseGenerateSchema,
   }),
+  z.object({
+    sceneType: z.literal("book_analysis_character"),
+    sceneId: z.string().trim().min(1),
+    promptMode: z.enum(["character_chain", "direct"]).optional(),
+    ...baseGenerateSchema,
+  }),
 ]);
 
 const optimizePromptSchema = z.discriminatedUnion("sceneType", [
@@ -86,6 +92,10 @@ const assetQuerySchema = z.discriminatedUnion("sceneType", [
     sceneType: z.literal("novel_cover"),
     sceneId: z.string().trim().min(1),
   }),
+  z.object({
+    sceneType: z.literal("book_analysis_character"),
+    sceneId: z.string().trim().min(1),
+  }),
 ]);
 
 const assetParamsSchema = z.object({
@@ -102,6 +112,21 @@ router.post("/generate", validate({ body: generateSchema }), async (req, res, ne
       task = await imageGenerationService.createCharacterTask({
         sceneType: "character",
         baseCharacterId: body.sceneId,
+        prompt: body.prompt,
+        promptMode: body.promptMode,
+        negativePrompt: body.negativePrompt,
+        stylePreset: body.stylePreset,
+        provider: body.provider,
+        model: body.model,
+        size: body.size,
+        count: body.count,
+        seed: body.seed,
+        maxRetries: body.maxRetries,
+      });
+    } else if (body.sceneType === "book_analysis_character") {
+      task = await imageGenerationService.createBookAnalysisCharacterTask({
+        sceneType: "book_analysis_character",
+        bookAnalysisCharacterId: body.sceneId,
         prompt: body.prompt,
         promptMode: body.promptMode,
         negativePrompt: body.negativePrompt,
@@ -210,7 +235,9 @@ router.get("/assets", validate({ query: assetQuerySchema }), async (req, res, ne
     const query = req.query as z.infer<typeof assetQuerySchema>;
     const data: ImageAsset[] = query.sceneType === "character"
       ? await imageGenerationService.listCharacterAssets(query.sceneId)
-      : await imageGenerationService.listNovelCoverAssets(query.sceneId);
+      : query.sceneType === "book_analysis_character"
+        ? await imageGenerationService.listBookAnalysisCharacterAssets(query.sceneId)
+        : await imageGenerationService.listNovelCoverAssets(query.sceneId);
     res.status(200).json({
       success: true,
       data,

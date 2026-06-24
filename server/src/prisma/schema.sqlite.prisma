@@ -105,6 +105,7 @@ enum ImageSceneType {
   character
   novel_cover
   chapter_illustration
+  book_analysis_character
 }
 
 enum ProjectMode {
@@ -850,6 +851,8 @@ model BaseCharacter {
   keyEvents   String?
   tags        String   @default("")
   category    String
+  sourceType  String   @default("manual")
+  sourceRefId String?
   revisions   BaseCharacterRevision[]
   libraryLinks CharacterLibraryLink[]
   syncProposals CharacterSyncProposal[]
@@ -857,6 +860,8 @@ model BaseCharacter {
   imageAssets ImageAsset[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([sourceType, sourceRefId])
 }
 
 model BaseCharacterRevision {
@@ -933,6 +938,7 @@ model ImageGenerationTask {
   sceneType       ImageSceneType    @default(character)
   baseCharacterId String?
   novelId         String?
+  bookAnalysisCharacterId String?
   provider        String
   model           String
   prompt          String
@@ -956,6 +962,7 @@ model ImageGenerationTask {
   finishedAt      DateTime?
   baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
   novel           Novel?            @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  bookAnalysisCharacter BookAnalysisCharacter? @relation(fields: [bookAnalysisCharacterId], references: [id], onDelete: Cascade)
   assets          ImageAsset[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -963,6 +970,7 @@ model ImageGenerationTask {
   @@index([sceneType, status])
   @@index([baseCharacterId, createdAt])
   @@index([novelId, createdAt])
+  @@index([bookAnalysisCharacterId, createdAt])
 }
 
 model StyleExtractionTask {
@@ -1015,6 +1023,7 @@ model ImageAsset {
   sceneType       ImageSceneType    @default(character)
   baseCharacterId String?
   novelId         String?
+  bookAnalysisCharacterId String?
   provider        String
   model           String
   url             String
@@ -1029,6 +1038,7 @@ model ImageAsset {
   task            ImageGenerationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
   baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
   novel           Novel?            @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  bookAnalysisCharacter BookAnalysisCharacter? @relation(fields: [bookAnalysisCharacterId], references: [id], onDelete: Cascade)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -1036,6 +1046,7 @@ model ImageAsset {
   @@index([sceneType, createdAt])
   @@index([baseCharacterId, isPrimary, createdAt])
   @@index([novelId, isPrimary, createdAt])
+  @@index([bookAnalysisCharacterId, isPrimary, createdAt])
 }
 
 model NovelGenre {
@@ -2765,6 +2776,8 @@ model BookAnalysisCharacter {
   analysis               BookAnalysis               @relation(fields: [analysisId], references: [id], onDelete: Cascade)
   arcs                   BookAnalysisCharacterArc[]
   scenes                 BookAnalysisCharacterScene[]
+  imageTasks             ImageGenerationTask[]
+  imageAssets            ImageAsset[]
   createdAt              DateTime                   @default(now())
   updatedAt              DateTime                   @updatedAt
 

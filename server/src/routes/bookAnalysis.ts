@@ -6,6 +6,8 @@ import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { bookAnalysisService } from "../services/bookAnalysis/BookAnalysisService";
 import { bookAnalysisCharacterService } from "../services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterService";
+import { bookAnalysisCharacterMediaService } from "../services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterMediaService";
+import { IMAGE_SIZES } from "../services/image/types";
 
 const router = Router();
 
@@ -34,6 +36,12 @@ const analysisSectionParamsSchema = z.object({
 const analysisCharacterParamsSchema = z.object({
   id: z.string().trim().min(1),
   characterId: z.string().trim().min(1),
+});
+
+const analysisCharacterImageParamsSchema = z.object({
+  id: z.string().trim().min(1),
+  characterId: z.string().trim().min(1),
+  assetId: z.string().trim().min(1),
 });
 
 const listQuerySchema = z.object({
@@ -141,6 +149,24 @@ const characterGenerateSchema = z.object({
     "scenes",
   ]),
   characterNames: z.array(z.string().trim().min(1).max(40)).max(8).optional(),
+});
+
+const characterImagePrepareSchema = z.object({
+  provider: providerSchema.optional(),
+});
+
+const characterImageGenerateSchema = z.object({
+  provider: providerSchema.optional(),
+  count: z.number().int().min(1).max(4).optional(),
+  stylePreset: z.string().trim().max(120).optional(),
+  promptOverride: z.string().trim().max(30000).optional(),
+  negativePromptOverride: z.string().trim().max(8000).optional(),
+  providerOverride: providerSchema.optional(),
+  sizeOverride: z.enum(IMAGE_SIZES).optional(),
+});
+
+const characterPromoteSchema = z.object({
+  includePrimaryImage: z.boolean().optional().default(true),
 });
 
 router.use(authMiddleware);
@@ -277,6 +303,127 @@ router.delete(
         data: null,
         message: "Book analysis character deleted.",
       } satisfies ApiResponse<null>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/characters/:characterId/images/prepare",
+  validate({ params: analysisCharacterParamsSchema, body: characterImagePrepareSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId } = req.params as z.infer<typeof analysisCharacterParamsSchema>;
+      const body = req.body as z.infer<typeof characterImagePrepareSchema>;
+      const data = await bookAnalysisCharacterMediaService.prepareImage(id, characterId, body);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Book analysis character image preview prepared.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/characters/:characterId/images/generate",
+  validate({ params: analysisCharacterParamsSchema, body: characterImageGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId } = req.params as z.infer<typeof analysisCharacterParamsSchema>;
+      const body = req.body as z.infer<typeof characterImageGenerateSchema>;
+      const data = await bookAnalysisCharacterMediaService.generateImage(id, characterId, {
+        provider: body.provider,
+        count: body.count,
+        stylePreset: body.stylePreset,
+        overrides: {
+          promptOverride: body.promptOverride,
+          negativePromptOverride: body.negativePromptOverride,
+          providerOverride: body.providerOverride,
+          sizeOverride: body.sizeOverride,
+        },
+      });
+      res.status(202).json({
+        success: true,
+        data,
+        message: "Book analysis character image generation queued.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get(
+  "/:id/characters/:characterId/images",
+  validate({ params: analysisCharacterParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId } = req.params as z.infer<typeof analysisCharacterParamsSchema>;
+      const data = await bookAnalysisCharacterMediaService.listImages(id, characterId);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Book analysis character images loaded.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.patch(
+  "/:id/characters/:characterId/images/:assetId",
+  validate({ params: analysisCharacterImageParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId, assetId } = req.params as z.infer<typeof analysisCharacterImageParamsSchema>;
+      const data = await bookAnalysisCharacterMediaService.setPrimaryImage(id, characterId, assetId);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Book analysis character primary image updated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.delete(
+  "/:id/characters/:characterId/images/:assetId",
+  validate({ params: analysisCharacterImageParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId, assetId } = req.params as z.infer<typeof analysisCharacterImageParamsSchema>;
+      const data = await bookAnalysisCharacterMediaService.deleteImage(id, characterId, assetId);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Book analysis character image deleted.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/characters/:characterId/promote",
+  validate({ params: analysisCharacterParamsSchema, body: characterPromoteSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId } = req.params as z.infer<typeof analysisCharacterParamsSchema>;
+      const body = req.body as z.infer<typeof characterPromoteSchema>;
+      const data = await bookAnalysisCharacterMediaService.promoteToBaseCharacter(id, characterId, body);
+      res.status(201).json({
+        success: true,
+        data,
+        message: "Book analysis character promoted to base character.",
+      } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);
     }

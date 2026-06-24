@@ -8,6 +8,7 @@ const { BookAnalysisSourceCacheService } = require("../dist/services/bookAnalysi
 const { BookAnalysisCommandService } = require("../dist/services/bookAnalysis/BookAnalysisCommandService.js");
 const { BookAnalysisGenerationService } = require("../dist/services/bookAnalysis/bookAnalysis.generation.js");
 const { BookAnalysisCharacterService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterService.js");
+const { BookAnalysisCharacterMediaService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterMediaService.js");
 const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/BookAnalysisQueryService.js");
 const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/bookAnalysis.queue.js");
 const {
@@ -406,6 +407,144 @@ test("BookAnalysisCharacterService persists generated profile arcs and scenes on
     prisma.bookAnalysisCharacter.count = original.characterCount;
     prisma.bookAnalysisCharacter.findMany = original.characterFindMany;
     prisma.$transaction = original.transaction;
+  }
+});
+
+test("BookAnalysisCharacterMediaService queues book-analysis character image tasks", async () => {
+  const original = {
+    characterFindFirst: prisma.bookAnalysisCharacter.findFirst,
+  };
+  const now = new Date("2026-06-24T12:00:00.000Z");
+  const character = {
+    id: "bac-1",
+    analysisId: "analysis-1",
+    name: "林秋",
+    role: "主角",
+    profileJson: JSON.stringify({
+      name: "林秋",
+      role: "主角",
+      appearance: "黑衣，眉眼冷静",
+      personality: "谨慎但敢赌",
+      outerGoal: "查清旧案",
+    }),
+  };
+  const taskCreates = [];
+
+  prisma.bookAnalysisCharacter.findFirst = async ({ where }) =>
+    where.id === "bac-1" && where.analysisId === "analysis-1" ? character : null;
+  const imageService = {
+    createBookAnalysisCharacterTask: async (input) => {
+      taskCreates.push(input);
+      return {
+        id: "task-1",
+        sceneType: input.sceneType,
+        baseCharacterId: null,
+        novelId: null,
+        bookAnalysisCharacterId: input.bookAnalysisCharacterId,
+        provider: input.provider ?? "openai",
+        model: "gpt-image-1",
+        prompt: input.prompt,
+        negativePrompt: input.negativePrompt ?? null,
+        stylePreset: input.stylePreset ?? null,
+        size: input.size ?? "1024x1024",
+        imageCount: input.count ?? 1,
+        seed: input.seed ?? null,
+        status: "queued",
+        progress: 0,
+        retryCount: 0,
+        maxRetries: input.maxRetries ?? 2,
+        heartbeatAt: null,
+        currentStage: "queued",
+        currentItemKey: input.bookAnalysisCharacterId,
+        currentItemLabel: "林秋",
+        cancelRequestedAt: null,
+        error: null,
+      startedAt: null,
+      finishedAt: null,
+      createdAt: now,
+        updatedAt: now,
+      };
+    },
+  };
+
+  const service = new BookAnalysisCharacterMediaService(imageService);
+
+  try {
+    const preview = await service.prepareImage("analysis-1", "bac-1", { provider: "openai" });
+    assert.match(preview.prompt, /黑衣，眉眼冷静/);
+
+    const task = await service.generateImage("analysis-1", "bac-1", {
+      provider: "openai",
+      overrides: {
+        promptOverride: "完整可发送提示词",
+      },
+    });
+    assert.equal(task.sceneType, "book_analysis_character");
+    assert.equal(task.bookAnalysisCharacterId, "bac-1");
+    assert.equal(taskCreates[0].sceneType, "book_analysis_character");
+    assert.equal(taskCreates[0].bookAnalysisCharacterId, "bac-1");
+    assert.equal(taskCreates[0].prompt, "完整可发送提示词");
+  } finally {
+    prisma.bookAnalysisCharacter.findFirst = original.characterFindFirst;
+  }
+});
+
+test("BookAnalysisCharacterMediaService promotes a profile to BaseCharacter with source fields", async () => {
+  const characterLibrarySync = require("../dist/services/character/CharacterLibrarySyncService.js");
+  const original = {
+    characterFindFirst: prisma.bookAnalysisCharacter.findFirst,
+    baseCreate: prisma.baseCharacter.create,
+    createBaseRevision: characterLibrarySync.characterLibrarySyncService.createBaseRevision,
+  };
+  const now = new Date("2026-06-24T12:00:00.000Z");
+  const createdBaseCharacters = [];
+
+  prisma.bookAnalysisCharacter.findFirst = async () => ({
+    id: "bac-1",
+    analysisId: "analysis-1",
+    name: "林秋",
+    role: "主角",
+    profileJson: JSON.stringify({
+      name: "林秋",
+      role: "主角",
+      appearance: "黑衣，眉眼冷静",
+      personality: "谨慎但敢赌",
+      outerGoal: "查清旧案",
+      innerNeed: "放下自责",
+      growthTrajectory: "从独行到信任同伴",
+      highlightScenes: [{ sceneLabel: "雪夜接案", performance: "主动追查旧案" }],
+    }),
+  });
+  prisma.baseCharacter.create = async ({ data }) => {
+    const row = {
+      id: "base-1",
+      ...data,
+      createdAt: now,
+      updatedAt: now,
+    };
+    createdBaseCharacters.push(row);
+    return row;
+  };
+  characterLibrarySync.characterLibrarySyncService.createBaseRevision = async (...args) => ({ id: "rev-1", args });
+
+  const service = new BookAnalysisCharacterMediaService();
+
+  try {
+    const result = await service.promoteToBaseCharacter("analysis-1", "bac-1", {
+      includePrimaryImage: false,
+    });
+
+    assert.equal(result.baseCharacter.id, "base-1");
+    assert.equal(createdBaseCharacters[0].sourceType, "from_book_analysis_character");
+    assert.equal(createdBaseCharacters[0].sourceRefId, "bac-1");
+    assert.match(createdBaseCharacters[0].background, /查清旧案/);
+    assert.match(createdBaseCharacters[0].development, /信任同伴/);
+    assert.match(createdBaseCharacters[0].keyEvents, /雪夜接案/);
+    assert.equal(result.clonedPrimaryImageAsset, null);
+  } finally {
+    prisma.bookAnalysisCharacter.findFirst = original.characterFindFirst;
+    prisma.baseCharacter.create = original.baseCreate;
+    characterLibrarySync.characterLibrarySyncService.createBaseRevision = original.createBaseRevision;
   }
 });
 

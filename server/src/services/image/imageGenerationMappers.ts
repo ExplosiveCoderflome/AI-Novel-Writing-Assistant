@@ -25,6 +25,7 @@ export function toImageTask(row: Awaited<{
   sceneType: string;
   baseCharacterId: string | null;
   novelId: string | null;
+  bookAnalysisCharacterId: string | null;
   provider: string;
   model: string;
   prompt: string;
@@ -85,6 +86,7 @@ export function toImageTask(row: Awaited<{
         sceneType: "character",
         baseCharacterId: row.baseCharacterId ?? "",
         novelId: null,
+        bookAnalysisCharacterId: null,
       };
     case "novel_cover":
       return {
@@ -92,6 +94,7 @@ export function toImageTask(row: Awaited<{
         sceneType: "novel_cover",
         novelId: row.novelId ?? "",
         baseCharacterId: null,
+        bookAnalysisCharacterId: null,
       };
     case "chapter_illustration":
       return {
@@ -99,6 +102,15 @@ export function toImageTask(row: Awaited<{
         sceneType: "chapter_illustration",
         baseCharacterId: row.baseCharacterId,
         novelId: row.novelId,
+        bookAnalysisCharacterId: row.bookAnalysisCharacterId,
+      };
+    case "book_analysis_character":
+      return {
+        ...baseTask,
+        sceneType: "book_analysis_character",
+        bookAnalysisCharacterId: row.bookAnalysisCharacterId ?? "",
+        baseCharacterId: null,
+        novelId: null,
       };
     default:
       throw new AppError(`Unsupported image task scene type: ${row.sceneType}`, 500);
@@ -111,6 +123,7 @@ export function toImageAsset(row: Awaited<{
   sceneType: string;
   baseCharacterId: string | null;
   novelId: string | null;
+  bookAnalysisCharacterId: string | null;
   provider: string;
   model: string;
   url: string;
@@ -164,6 +177,7 @@ export function toImageAsset(row: Awaited<{
         sceneType: "character",
         baseCharacterId: row.baseCharacterId ?? "",
         novelId: null,
+        bookAnalysisCharacterId: null,
       };
     case "novel_cover":
       return {
@@ -171,6 +185,7 @@ export function toImageAsset(row: Awaited<{
         sceneType: "novel_cover",
         novelId: row.novelId ?? "",
         baseCharacterId: null,
+        bookAnalysisCharacterId: null,
       };
     case "chapter_illustration":
       return {
@@ -178,6 +193,15 @@ export function toImageAsset(row: Awaited<{
         sceneType: "chapter_illustration",
         baseCharacterId: row.baseCharacterId,
         novelId: row.novelId,
+        bookAnalysisCharacterId: row.bookAnalysisCharacterId,
+      };
+    case "book_analysis_character":
+      return {
+        ...baseAsset,
+        sceneType: "book_analysis_character",
+        bookAnalysisCharacterId: row.bookAnalysisCharacterId ?? "",
+        baseCharacterId: null,
+        novelId: null,
       };
     default:
       throw new AppError(`Unsupported image asset scene type: ${row.sceneType}`, 500);

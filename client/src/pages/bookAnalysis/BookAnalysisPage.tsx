@@ -83,6 +83,7 @@ export default function BookAnalysisPage() {
           />
           {workspace.selectedAnalysis ? (
             <BookAnalysisCharacterPanel
+              analysisId={workspace.selectedAnalysis.id}
               characters={workspace.characters}
               disabled={workspace.selectedAnalysis.status === "archived"}
               isLoading={workspace.pending.loadCharacters}

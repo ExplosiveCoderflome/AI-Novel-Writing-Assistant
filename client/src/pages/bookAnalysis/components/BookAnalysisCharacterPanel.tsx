@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import BookAnalysisCharacterImagePanel from "./BookAnalysisCharacterImagePanel";
 
 const DEFAULT_DIMENSIONS: BookAnalysisCharacterDimension[] = [
   "basic",
@@ -38,6 +39,7 @@ interface CharacterEditDraft {
 }
 
 interface BookAnalysisCharacterPanelProps {
+  analysisId: string;
   characters: BookAnalysisCharacter[];
   disabled: boolean;
   isLoading: boolean;
@@ -101,6 +103,7 @@ function buildEditDraft(character: BookAnalysisCharacter): CharacterEditDraft {
 export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterPanelProps) {
   const {
     characters,
+    analysisId,
     disabled,
     isLoading,
     pending,
@@ -338,6 +341,11 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                         ))}
                       </div>
                     ) : null}
+                    <BookAnalysisCharacterImagePanel
+                      analysisId={analysisId}
+                      character={character}
+                      disabled={disabled}
+                    />
                   </>
                 )}
               </div>
