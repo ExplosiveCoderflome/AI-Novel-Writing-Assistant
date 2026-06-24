@@ -2719,6 +2719,7 @@ model BookAnalysisSection {
   editedContent      String?
   notes              String?
   structuredDataJson String?
+  normalizationWarningsJson String?
   evidenceJson       String?
   frozen             Boolean                   @default(false)
   sortOrder          Int

@@ -11,6 +11,7 @@ import {
   getSectionTitle,
   normalizeBookAnalysisStructuredData,
   normalizeBookAnalysisEvidence,
+  normalizeBookAnalysisStructuredDataWithWarnings,
   normalizeMaxTokens,
   normalizeTemperature,
   renderNotesForPrompt,
@@ -50,20 +51,22 @@ export class BookAnalysisSectionWriter {
         typeof (parsed as any).markdown === "string" && (parsed as any).markdown.trim()
           ? (parsed as any).markdown.trim()
           : JSON.stringify(parsed);
-      const structuredData =
+      const normalizedStructuredData =
         (parsed as any).structuredData && typeof (parsed as any).structuredData === "object"
-          ? normalizeBookAnalysisStructuredData(sectionKey, (parsed as any).structuredData as Record<string, unknown>)
-          : normalizeBookAnalysisStructuredData(sectionKey, null);
+          ? normalizeBookAnalysisStructuredDataWithWarnings(sectionKey, (parsed as any).structuredData as Record<string, unknown>)
+          : normalizeBookAnalysisStructuredDataWithWarnings(sectionKey, null);
       const evidence = normalizeBookAnalysisEvidence(sectionKey, (parsed as any).evidence);
       return {
         markdown,
-        structuredData,
+        structuredData: normalizedStructuredData.structuredData,
+        normalizationWarnings: normalizedStructuredData.normalizationWarnings,
         evidence,
       };
     } catch {
       return {
         markdown: "",
         structuredData: normalizeBookAnalysisStructuredData(sectionKey, null),
+        normalizationWarnings: [],
         evidence: [],
       };
     }

@@ -216,6 +216,7 @@ export class BookAnalysisCommandService {
           editedContent: section.editedContent,
           notes: section.notes,
           structuredDataJson: section.structuredDataJson,
+          normalizationWarningsJson: section.normalizationWarningsJson,
           evidenceJson: section.evidenceJson,
           frozen: section.frozen,
           sortOrder: section.sortOrder,

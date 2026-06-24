@@ -14,6 +14,7 @@ import type { BookAnalysisProgressUpdate, SourceNote } from "./bookAnalysis.type
 import {
   buildAnalysisSummaryFromContent,
   encodeEvidence,
+  encodeNormalizationWarnings,
   encodeStructuredData,
   getEffectiveContent,
   normalizeMaxTokens,
@@ -135,6 +136,7 @@ export class BookAnalysisGenerationService {
                 status: "succeeded",
                 aiContent: generated.markdown,
                 structuredDataJson: encodeStructuredData(generated.structuredData),
+                normalizationWarningsJson: encodeNormalizationWarnings(generated.normalizationWarnings),
                 evidenceJson: encodeEvidence(generated.evidence),
               },
             });
@@ -278,6 +280,7 @@ export class BookAnalysisGenerationService {
             status: "succeeded",
             aiContent: generated.markdown,
             structuredDataJson: encodeStructuredData(generated.structuredData),
+            normalizationWarningsJson: encodeNormalizationWarnings(generated.normalizationWarnings),
             evidenceJson: encodeEvidence(generated.evidence),
           },
         });

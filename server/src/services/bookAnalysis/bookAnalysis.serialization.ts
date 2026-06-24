@@ -1,7 +1,7 @@
 import type { BookAnalysis, BookAnalysisSection, BookAnalysisSectionKey, BookAnalysisStatus } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { resolveLiveBookAnalysisStatus } from "./bookAnalysis.status";
-import { decodeEvidence, decodeStructuredData } from "./bookAnalysis.utils";
+import { decodeEvidence, decodeNormalizationWarnings, decodeStructuredData } from "./bookAnalysis.utils";
 
 export interface AnalysisRowForSerialize {
   id: string;
@@ -50,6 +50,7 @@ export interface SectionRowForSerialize {
   editedContent: string | null;
   notes: string | null;
   structuredDataJson: string | null;
+  normalizationWarningsJson: string | null;
   evidenceJson: string | null;
   frozen: boolean;
   sortOrder: number;
@@ -105,6 +106,7 @@ export function serializeSectionRow(row: SectionRowForSerialize): BookAnalysisSe
     editedContent: row.editedContent,
     notes: row.notes,
     structuredData: decodeStructuredData(row.structuredDataJson),
+    normalizationWarnings: decodeNormalizationWarnings(row.normalizationWarningsJson),
     evidence: decodeEvidence(row.evidenceJson, row.sectionKey as BookAnalysisSectionKey),
     frozen: row.frozen,
     sortOrder: row.sortOrder,

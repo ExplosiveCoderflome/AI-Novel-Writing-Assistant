@@ -16,6 +16,8 @@ import {
 } from "./bookAnalysis.constants";
 import type { SourceNote, SourceSegment } from "./bookAnalysis.types";
 
+export const BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT = 12;
+
 export function isMissingTableError(error: unknown): boolean {
   return (
     typeof error === "object"
@@ -266,31 +268,56 @@ function normalizeStructuredString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function normalizeStructuredStringArray(value: unknown): string[] {
+function normalizeStructuredStringArrayWithMeta(value: unknown): {
+  value: string[];
+  truncated: boolean;
+} {
+  let items: string[] = [];
   if (Array.isArray(value)) {
-    return value
+    items = value
       .map((item) => (typeof item === "string" ? item.trim() : ""))
-      .filter(Boolean)
-      .slice(0, 12);
+      .filter(Boolean);
+  } else if (typeof value === "string" && value.trim()) {
+    items = [value.trim()];
   }
-  if (typeof value === "string" && value.trim()) {
-    return [value.trim()];
+  return {
+    value: items.slice(0, BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT),
+    truncated: items.length > BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT,
+  };
+}
+
+export function normalizeBookAnalysisStructuredDataWithWarnings(
+  sectionKey: BookAnalysisSectionKey,
+  value: Record<string, unknown> | null,
+): {
+  structuredData: Record<string, unknown>;
+  normalizationWarnings: string[];
+} {
+  const source = value && typeof value === "object" ? value : {};
+  const normalized: Record<string, unknown> = {};
+  const normalizationWarnings: string[] = [];
+  for (const field of BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS[sectionKey]) {
+    if (field.type === "string") {
+      normalized[field.key] = normalizeStructuredString(source[field.key]);
+      continue;
+    }
+    const result = normalizeStructuredStringArrayWithMeta(source[field.key]);
+    normalized[field.key] = result.value;
+    if (result.truncated) {
+      normalizationWarnings.push(field.key);
+    }
   }
-  return [];
+  return {
+    structuredData: normalized,
+    normalizationWarnings,
+  };
 }
 
 export function normalizeBookAnalysisStructuredData(
   sectionKey: BookAnalysisSectionKey,
   value: Record<string, unknown> | null,
 ): Record<string, unknown> {
-  const source = value && typeof value === "object" ? value : {};
-  const normalized: Record<string, unknown> = {};
-  for (const field of BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS[sectionKey]) {
-    normalized[field.key] = field.type === "string"
-      ? normalizeStructuredString(source[field.key])
-      : normalizeStructuredStringArray(source[field.key]);
-  }
-  return normalized;
+  return normalizeBookAnalysisStructuredDataWithWarnings(sectionKey, value).structuredData;
 }
 
 function getNoteFieldsForSection(sectionKey?: BookAnalysisSectionKey): Array<{
@@ -449,6 +476,13 @@ export function encodeEvidence(value: BookAnalysisEvidenceItem[]): string | null
   return JSON.stringify(value);
 }
 
+export function encodeNormalizationWarnings(value: string[] | null | undefined): string | null {
+  if (!Array.isArray(value) || !value.length) {
+    return null;
+  }
+  return JSON.stringify(Array.from(new Set(value.map((item) => item.trim()).filter(Boolean))));
+}
+
 export function decodeStructuredData(value: string | null): Record<string, unknown> | null {
   if (!value) {
     return null;
@@ -463,4 +497,14 @@ export function decodeEvidence(value: string | null, sectionKey?: BookAnalysisSe
   }
   const parsed = safeParseJSON<unknown[]>(value, []);
   return sectionKey ? normalizeBookAnalysisEvidence(sectionKey, parsed) : toEvidenceList(parsed);
+}
+
+export function decodeNormalizationWarnings(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+  const parsed = safeParseJSON<unknown[]>(value, []);
+  return Array.from(new Set(parsed
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean)));
 }

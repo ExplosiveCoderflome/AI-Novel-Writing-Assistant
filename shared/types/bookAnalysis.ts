@@ -195,6 +195,7 @@ export interface BookAnalysisSection {
   editedContent?: string | null;
   notes?: string | null;
   structuredData?: Record<string, unknown> | null;
+  normalizationWarnings?: string[];
   evidence: BookAnalysisEvidenceItem[];
   frozen: boolean;
   sortOrder: number;

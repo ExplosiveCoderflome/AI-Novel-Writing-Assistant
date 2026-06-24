@@ -10,10 +10,12 @@ const { BookAnalysisGenerationService } = require("../dist/services/bookAnalysis
 const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/BookAnalysisQueryService.js");
 const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/bookAnalysis.queue.js");
 const { resolveLiveBookAnalysisStatus } = require("../dist/services/bookAnalysis/bookAnalysis.status.js");
+const { serializeSectionRow } = require("../dist/services/bookAnalysis/bookAnalysis.serialization.js");
 const {
   buildSourceSegments,
   normalizeBookAnalysisEvidence,
   normalizeBookAnalysisStructuredData,
+  normalizeBookAnalysisStructuredDataWithWarnings,
   renderNotesForPrompt,
   selectNotesForBookAnalysisSection,
 } = require("../dist/services/bookAnalysis/bookAnalysis.utils.js");
@@ -176,6 +178,49 @@ test("normalizeBookAnalysisStructuredData keeps fixed section fields and drops a
     strengths: [],
     weaknesses: [],
   });
+});
+
+test("normalizeBookAnalysisStructuredDataWithWarnings reports truncated array fields", () => {
+  const fifteenItems = Array.from({ length: 15 }, (_, index) => `卖点 ${index + 1}`);
+  const normalized = normalizeBookAnalysisStructuredDataWithWarnings("overview", {
+    genreTags: Array.from({ length: 8 }, (_, index) => `题材 ${index + 1}`),
+    sellingPointTags: fifteenItems,
+  });
+
+  assert.deepEqual(normalized.structuredData.sellingPointTags, fifteenItems.slice(0, 12));
+  assert.deepEqual(normalized.normalizationWarnings, ["sellingPointTags"]);
+
+  const short = normalizeBookAnalysisStructuredDataWithWarnings("overview", {
+    sellingPointTags: Array.from({ length: 8 }, (_, index) => `卖点 ${index + 1}`),
+  });
+  assert.deepEqual(short.normalizationWarnings, []);
+
+  const multiField = normalizeBookAnalysisStructuredDataWithWarnings("plot_structure", {
+    phaseProgressions: Array.from({ length: 13 }, (_, index) => `阶段 ${index + 1}`),
+    highlightDesigns: Array.from({ length: 14 }, (_, index) => `高光 ${index + 1}`),
+  });
+  assert.deepEqual(multiField.normalizationWarnings, ["phaseProgressions", "highlightDesigns"]);
+});
+
+test("serializeSectionRow defaults missing normalization warnings to an empty list", () => {
+  const serialized = serializeSectionRow({
+    id: "section-legacy",
+    analysisId: "analysis-legacy",
+    sectionKey: "overview",
+    title: "拆书总览",
+    status: "succeeded",
+    aiContent: "",
+    editedContent: null,
+    notes: null,
+    structuredDataJson: null,
+    normalizationWarningsJson: null,
+    evidenceJson: null,
+    frozen: false,
+    sortOrder: 0,
+    updatedAt: new Date("2026-06-24T00:00:00.000Z"),
+  });
+
+  assert.deepEqual(serialized.normalizationWarnings, []);
 });
 
 test("normalizeBookAnalysisEvidence keeps valid field bindings and preserves legacy evidence", () => {

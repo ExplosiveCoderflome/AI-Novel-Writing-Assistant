@@ -11,6 +11,7 @@ import {
   bookAnalysisSectionOutputSchema,
   bookAnalysisSourceNoteOutputSchema,
 } from "../../../services/bookAnalysis/bookAnalysisSchemas";
+import { BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT } from "../../../services/bookAnalysis/bookAnalysis.utils";
 
 export interface BookAnalysisSourceNotePromptInput {
   segmentLabel: string;
@@ -241,8 +242,9 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "补充约束：",
       "1. structuredData 必须更适合作为程序读取、筛选、展示和复用的数据层，不要把 markdown 大段分析原样搬进去。",
       "2. 若某项信息依据不足，字符串字段返回空字符串，数组字段返回空数组；不要省略字段，不要返回 null，不要自造近义键名。",
-      "3. 数组项使用简洁中文短语，避免长解释；数组内避免同义重复。",
-      "4. 输出时尽量保持字段顺序与约定结构一致。",
+      `3. 数组字段最多保留 ${BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT} 项；如可用信息更多，请按重要度排序后只保留最值得复用的 ${BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT} 项。`,
+      "4. 数组项使用简洁中文短语，避免长解释；数组内避免同义重复。",
+      "5. 输出时尽量保持字段顺序与约定结构一致。",
       "",
       "evidence 规则：",
       "1. evidence 只保留最能支撑结论的 3-8 条证据。",

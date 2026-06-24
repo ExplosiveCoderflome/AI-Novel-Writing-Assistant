@@ -29,6 +29,7 @@ export interface SourceNote {
 export interface SectionGenerationResult {
   markdown: string;
   structuredData: Record<string, unknown> | null;
+  normalizationWarnings: string[];
   evidence: BookAnalysisEvidenceItem[];
 }
 
