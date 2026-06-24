@@ -2641,16 +2641,18 @@ model KnowledgeDocumentVersion {
 }
 
 model KnowledgeBinding {
-  id         String                     @id @default(cuid())
-  targetType KnowledgeBindingTargetType
-  targetId   String
-  documentId String
-  document   KnowledgeDocument          @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  createdAt  DateTime                   @default(now())
+  id               String                     @id @default(cuid())
+  targetType       KnowledgeBindingTargetType
+  targetId         String
+  documentId       String
+  sourceAnalysisId String?
+  document         KnowledgeDocument          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt        DateTime                   @default(now())
 
   @@unique([targetType, targetId, documentId])
   @@index([targetType, targetId])
   @@index([documentId])
+  @@index([sourceAnalysisId])
 }
 
 model BookAnalysis {

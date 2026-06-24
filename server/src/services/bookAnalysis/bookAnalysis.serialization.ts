@@ -105,7 +105,7 @@ export function serializeSectionRow(row: SectionRowForSerialize): BookAnalysisSe
     editedContent: row.editedContent,
     notes: row.notes,
     structuredData: decodeStructuredData(row.structuredDataJson),
-    evidence: decodeEvidence(row.evidenceJson),
+    evidence: decodeEvidence(row.evidenceJson, row.sectionKey as BookAnalysisSectionKey),
     frozen: row.frozen,
     sortOrder: row.sortOrder,
     updatedAt: row.updatedAt.toISOString(),

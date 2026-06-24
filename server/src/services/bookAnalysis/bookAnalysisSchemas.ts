@@ -4,6 +4,8 @@ const evidenceItemSchema = z.object({
   label: z.string().trim().min(1).optional(),
   excerpt: z.string().trim().min(1).optional(),
   sourceLabel: z.string().trim().min(1).optional(),
+  fieldKey: z.string().trim().min(1).optional(),
+  fieldIndex: z.number().int().min(0).optional(),
 }).passthrough();
 
 export const bookAnalysisSourceNoteOutputSchema = z.object({

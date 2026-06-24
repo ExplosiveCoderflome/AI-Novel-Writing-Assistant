@@ -221,7 +221,7 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "{",
       '  "markdown": "给用户展示的 Markdown 分析稿",',
       '  "structuredData": {},',
-      '  "evidence": [{ "label": "...", "excerpt": "...", "sourceLabel": "..." }]',
+      '  "evidence": [{ "label": "...", "excerpt": "...", "sourceLabel": "...", "fieldKey": "...", "fieldIndex": 0 }]',
       "}",
       "",
       "全局硬规则：",
@@ -251,6 +251,8 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "4. sourceLabel 必须尽量对应具体片段标签。",
       "5. 如果某条结论无法找到足够依据，就降低结论强度，而不是硬补证据。",
       "6. 不要让多条 evidence 反复证明同一件事，优先保留覆盖面更广、信息量更高的证据。",
+      "7. 每条 evidence 必须设置 fieldKey，指向本节 structuredData 的具体字段；fieldKey 必须来自本节固定结构，不得自创键名。",
+      "8. 字符串字段省略 fieldIndex；数组字段必须设置 fieldIndex，使用 0-based 下标指向对应数组项。",
     ].join("\n")),
     new HumanMessage([
       `请基于以下结构化笔记生成《${input.sectionTitle}》分析稿。`,

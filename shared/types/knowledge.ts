@@ -31,6 +31,7 @@ export interface KnowledgeBinding {
   targetType: KnowledgeBindingTargetType;
   targetId: string;
   documentId: string;
+  sourceAnalysisId?: string | null;
   createdAt: string;
 }
 

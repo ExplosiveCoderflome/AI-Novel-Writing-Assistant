@@ -10,11 +10,11 @@ import type { SectionGenerationResult, SourceNote } from "./bookAnalysis.types";
 import {
   getSectionTitle,
   normalizeBookAnalysisStructuredData,
+  normalizeBookAnalysisEvidence,
   normalizeMaxTokens,
   normalizeTemperature,
   renderNotesForPrompt,
   selectNotesForBookAnalysisSection,
-  toEvidenceList,
 } from "./bookAnalysis.utils";
 
 export class BookAnalysisSectionWriter {
@@ -54,7 +54,7 @@ export class BookAnalysisSectionWriter {
         (parsed as any).structuredData && typeof (parsed as any).structuredData === "object"
           ? normalizeBookAnalysisStructuredData(sectionKey, (parsed as any).structuredData as Record<string, unknown>)
           : normalizeBookAnalysisStructuredData(sectionKey, null);
-      const evidence = toEvidenceList((parsed as any).evidence);
+      const evidence = normalizeBookAnalysisEvidence(sectionKey, (parsed as any).evidence);
       return {
         markdown,
         structuredData,

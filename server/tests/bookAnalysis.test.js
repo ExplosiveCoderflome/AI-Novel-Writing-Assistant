@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const { setTimeout: delay } = require("node:timers/promises");
 const { prisma } = require("../dist/db/prisma.js");
 const { buildPublishMarkdown } = require("../dist/services/bookAnalysis/bookAnalysis.export.js");
+const { publishAnalysisToNovel } = require("../dist/services/bookAnalysis/bookAnalysis.publish.js");
 const { BookAnalysisSourceCacheService } = require("../dist/services/bookAnalysis/bookAnalysis.cache.js");
 const { BookAnalysisCommandService } = require("../dist/services/bookAnalysis/BookAnalysisCommandService.js");
 const { BookAnalysisGenerationService } = require("../dist/services/bookAnalysis/bookAnalysis.generation.js");
@@ -11,6 +12,7 @@ const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/bookAna
 const { resolveLiveBookAnalysisStatus } = require("../dist/services/bookAnalysis/bookAnalysis.status.js");
 const {
   buildSourceSegments,
+  normalizeBookAnalysisEvidence,
   normalizeBookAnalysisStructuredData,
   renderNotesForPrompt,
   selectNotesForBookAnalysisSection,
@@ -174,6 +176,63 @@ test("normalizeBookAnalysisStructuredData keeps fixed section fields and drops a
     strengths: [],
     weaknesses: [],
   });
+});
+
+test("normalizeBookAnalysisEvidence keeps valid field bindings and preserves legacy evidence", () => {
+  const normalized = normalizeBookAnalysisEvidence("plot_structure", [
+    {
+      label: "冲突升级",
+      excerpt: "反派身份反转导致局势失控",
+      sourceLabel: "片段 2",
+      fieldKey: "escalationDesigns",
+      fieldIndex: 1,
+    },
+    {
+      label: "脏字段",
+      excerpt: "这条证据仍应保留",
+      sourceLabel: "片段 3",
+      fieldKey: "unknownField",
+      fieldIndex: 0,
+    },
+    {
+      label: "旧证据",
+      excerpt: "没有字段绑定的历史数据",
+      sourceLabel: "片段 4",
+    },
+  ]);
+
+  assert.deepEqual(normalized, [
+    {
+      label: "冲突升级",
+      excerpt: "反派身份反转导致局势失控",
+      sourceLabel: "片段 2",
+      fieldKey: "escalationDesigns",
+      fieldIndex: 1,
+    },
+    {
+      label: "脏字段",
+      excerpt: "这条证据仍应保留",
+      sourceLabel: "片段 3",
+    },
+    {
+      label: "旧证据",
+      excerpt: "没有字段绑定的历史数据",
+      sourceLabel: "片段 4",
+    },
+  ]);
+
+  assert.deepEqual(normalizeBookAnalysisEvidence("overview", [{
+    label: "定位",
+    excerpt: "一句话定位证据",
+    sourceLabel: "片段 1",
+    fieldKey: "oneLinePositioning",
+    fieldIndex: 2,
+  }]), [{
+    label: "定位",
+    excerpt: "一句话定位证据",
+    sourceLabel: "片段 1",
+    fieldKey: "oneLinePositioning",
+  }]);
 });
 
 test("resolveLiveBookAnalysisStatus promotes queued rows with live runtime signals", () => {
@@ -636,6 +695,104 @@ test("buildPublishMarkdown includes structured key conclusions as publishable co
   assert.match(published.content, /### 关键结论/);
   assert.match(published.content, /一句话定位：一个以身份反转推动主线的权谋故事/);
   assert.match(published.content, /卖点标签：身份悬念；权谋博弈/);
+});
+
+test("publishAnalysisToNovel replaces only bindings from the same source analysis", async () => {
+  const original = {
+    novelFindUnique: prisma.novel.findUnique,
+    transaction: prisma.$transaction,
+  };
+  const operations = [];
+  const detail = {
+    id: "analysis-publish",
+    title: "测试拆书",
+    status: "succeeded",
+    documentTitle: "测试文档",
+    documentFileName: "test.txt",
+    documentVersionNumber: 1,
+    currentDocumentVersionNumber: 1,
+    sections: [{
+      id: "section-1",
+      analysisId: "analysis-publish",
+      sectionKey: "overview",
+      title: "拆书总览",
+      status: "succeeded",
+      aiContent: "可发布正文",
+      editedContent: null,
+      notes: null,
+      structuredData: null,
+      evidence: [],
+      frozen: false,
+      sortOrder: 0,
+      updatedAt: new Date().toISOString(),
+    }],
+  };
+
+  prisma.novel.findUnique = async () => ({ id: "novel-1" });
+  prisma.$transaction = async (callback) => callback({
+    knowledgeBinding: {
+      deleteMany: async (input) => {
+        operations.push({ type: "deleteMany", input });
+        return { count: 2 };
+      },
+      create: async (input) => {
+        operations.push({ type: "create", input });
+        return input.data;
+      },
+      count: async (input) => {
+        operations.push({ type: "count", input });
+        return 3;
+      },
+    },
+    bookAnalysis: {
+      update: async (input) => {
+        operations.push({ type: "analysisUpdate", input });
+        return input.data;
+      },
+    },
+  });
+
+  try {
+    const result = await publishAnalysisToNovel({
+      analysisId: "analysis-publish",
+      novelId: "novel-1",
+      knowledgeService: {
+        createDocument: async () => ({
+          id: "published-document-3",
+          activeVersionNumber: 1,
+        }),
+      },
+      getAnalysisById: async () => detail,
+    });
+
+    assert.equal(result.knowledgeDocumentId, "published-document-3");
+    assert.equal(result.bindingCount, 3);
+    assert.deepEqual(operations[0], {
+      type: "deleteMany",
+      input: {
+        where: {
+          targetType: "novel",
+          targetId: "novel-1",
+          sourceAnalysisId: "analysis-publish",
+        },
+      },
+    });
+    assert.deepEqual(operations[1], {
+      type: "create",
+      input: {
+        data: {
+          targetType: "novel",
+          targetId: "novel-1",
+          documentId: "published-document-3",
+          sourceAnalysisId: "analysis-publish",
+        },
+      },
+    });
+    assert.equal(operations[2].input.data.publishedDocumentId, "published-document-3");
+  } finally {
+    prisma.novel.findUnique = original.novelFindUnique;
+    prisma.$transaction = original.transaction;
+  }
 });
 
 test("BookAnalysisGenerationService keeps heartbeating during long section generation", async () => {

@@ -181,6 +181,8 @@ export interface BookAnalysisEvidenceItem {
   label: string;
   excerpt: string;
   sourceLabel: string;
+  fieldKey?: string;
+  fieldIndex?: number;
 }
 
 export interface BookAnalysisSection {

@@ -1,12 +1,15 @@
 import {
   BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS,
+  type BookAnalysisEvidenceItem,
   type BookAnalysisSection,
 } from "@ai-novel/shared/types/bookAnalysis";
+import { Info } from "lucide-react";
 
 interface SummaryRow {
   key: string;
   label: string;
   values: string[];
+  evidence: BookAnalysisEvidenceItem[];
 }
 
 function normalizeStructuredValue(value: unknown): string[] {
@@ -34,9 +37,20 @@ function buildSummaryRows(section: BookAnalysisSection): SummaryRow[] {
       key,
       label: BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[key] ?? key,
       values: normalizeStructuredValue(value),
+      evidence: section.evidence.filter((item) => item.fieldKey === key),
     }))
     .filter((row) => row.values.length > 0)
     .slice(0, 8);
+}
+
+function formatEvidenceTooltip(evidence: BookAnalysisEvidenceItem[]): string {
+  return evidence
+    .slice(0, 4)
+    .map((item) => {
+      const indexLabel = item.fieldIndex === undefined ? "" : ` #${item.fieldIndex + 1}`;
+      return `[${item.sourceLabel}] ${item.label}${indexLabel}\n${item.excerpt}`;
+    })
+    .join("\n\n");
 }
 
 export default function BookAnalysisStructuredSummary({ section }: { section: BookAnalysisSection }) {
@@ -54,7 +68,17 @@ export default function BookAnalysisStructuredSummary({ section }: { section: Bo
       <div className="grid gap-2 md:grid-cols-2">
         {rows.map((row) => (
           <div key={row.key} className="rounded-md border bg-background p-3">
-            <div className="text-xs font-medium text-muted-foreground">{row.label}</div>
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <span>{row.label}</span>
+              {row.evidence.length > 0 ? (
+                <span
+                  aria-label={`${row.label}的来源摘录`}
+                  title={formatEvidenceTooltip(row.evidence)}
+                >
+                  <Info className="h-3.5 w-3.5 text-primary" />
+                </span>
+              ) : null}
+            </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {row.values.map((value, index) => (
                 <span

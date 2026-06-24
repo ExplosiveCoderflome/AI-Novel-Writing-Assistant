@@ -113,14 +113,47 @@ export function toEvidenceList(value: unknown, sourceLabelFallback = ""): BookAn
         return null;
       }
       const sourceLabel = typeof row.sourceLabel === "string" ? row.sourceLabel.trim() : sourceLabelFallback;
+      const fieldKey = typeof row.fieldKey === "string" ? row.fieldKey.trim() : "";
+      const fieldIndex = Number.isInteger(row.fieldIndex) && Number(row.fieldIndex) >= 0
+        ? Number(row.fieldIndex)
+        : undefined;
       return {
         label: label || "片段",
         excerpt: excerpt || "",
         sourceLabel: sourceLabel || "源文档",
+        ...(fieldKey ? { fieldKey } : {}),
+        ...(fieldIndex !== undefined ? { fieldIndex } : {}),
       };
     })
     .filter((item): item is BookAnalysisEvidenceItem => Boolean(item))
     .slice(0, 24);
+}
+
+export function normalizeBookAnalysisEvidence(
+  sectionKey: BookAnalysisSectionKey,
+  value: unknown,
+): BookAnalysisEvidenceItem[] {
+  const fieldSpecs = new Map(BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS[sectionKey].map((field) => [field.key, field]));
+  return toEvidenceList(value).map((item) => {
+    if (!item.fieldKey) {
+      const { fieldKey: _fieldKey, fieldIndex: _fieldIndex, ...rest } = item;
+      return rest;
+    }
+    const fieldSpec = fieldSpecs.get(item.fieldKey);
+    if (!fieldSpec) {
+      const { fieldKey: _fieldKey, fieldIndex: _fieldIndex, ...rest } = item;
+      return rest;
+    }
+    if (fieldSpec.type === "string") {
+      const { fieldIndex: _fieldIndex, ...rest } = item;
+      return rest;
+    }
+    if (item.fieldIndex === undefined || !Number.isInteger(item.fieldIndex) || item.fieldIndex < 0) {
+      const { fieldIndex: _fieldIndex, ...rest } = item;
+      return rest;
+    }
+    return item;
+  });
 }
 
 function detectChapterSegments(content: string): SourceSegment[] {
@@ -424,9 +457,10 @@ export function decodeStructuredData(value: string | null): Record<string, unkno
   return parsed && typeof parsed === "object" ? parsed : null;
 }
 
-export function decodeEvidence(value: string | null): BookAnalysisEvidenceItem[] {
+export function decodeEvidence(value: string | null, sectionKey?: BookAnalysisSectionKey): BookAnalysisEvidenceItem[] {
   if (!value) {
     return [];
   }
-  return toEvidenceList(safeParseJSON<unknown[]>(value, []));
+  const parsed = safeParseJSON<unknown[]>(value, []);
+  return sectionKey ? normalizeBookAnalysisEvidence(sectionKey, parsed) : toEvidenceList(parsed);
 }
