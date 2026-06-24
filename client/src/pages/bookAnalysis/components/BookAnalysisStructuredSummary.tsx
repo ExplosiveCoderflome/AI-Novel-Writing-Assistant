@@ -10,6 +10,7 @@ import {
   normalizeBookAnalysisTimelineNodes,
 } from "@ai-novel/shared/utils/bookAnalysisTimeline";
 import { Info } from "lucide-react";
+import type { BookAnalysisMode } from "../hooks/bookAnalysisWorkspace.types";
 
 interface SummaryRow {
   key: string;
@@ -96,7 +97,13 @@ function TimelineNodeList({ nodes }: { nodes: BookAnalysisTimelineNode[] }) {
   );
 }
 
-export default function BookAnalysisStructuredSummary({ section }: { section: BookAnalysisSection }) {
+export default function BookAnalysisStructuredSummary({
+  section,
+  analysisMode = "reference",
+}: {
+  section: BookAnalysisSection;
+  analysisMode?: BookAnalysisMode;
+}) {
   const rows = buildSummaryRows(section);
   const warningLabels = getWarningLabels(section);
   if (rows.length === 0) {
@@ -106,8 +113,10 @@ export default function BookAnalysisStructuredSummary({ section }: { section: Bo
   return (
     <div className="space-y-3 rounded-md border bg-muted/20 p-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-medium">关键结论</div>
-        <div className="text-xs text-muted-foreground">来自结构化拆书结果</div>
+        <div className="text-sm font-medium">{analysisMode === "diagnosis" ? "诊断结论" : "关键结论"}</div>
+        <div className="text-xs text-muted-foreground">
+          {analysisMode === "diagnosis" ? "来自结构化稿件诊断" : "来自结构化拆书结果"}
+        </div>
       </div>
       {warningLabels.length > 0 ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">

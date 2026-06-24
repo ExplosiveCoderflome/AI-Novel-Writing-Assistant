@@ -11,6 +11,7 @@ const { BookAnalysisCharacterService } = require("../dist/services/bookAnalysis/
 const { BookAnalysisCharacterMediaService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterMediaService.js");
 const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/BookAnalysisQueryService.js");
 const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/bookAnalysis.queue.js");
+const { NovelExportService } = require("../dist/modules/export/novelExport.service.js");
 const {
   bindEvidenceToDocumentChapters,
   DocumentChapterService,
@@ -545,6 +546,57 @@ test("BookAnalysisCharacterMediaService promotes a profile to BaseCharacter with
     prisma.bookAnalysisCharacter.findFirst = original.characterFindFirst;
     prisma.baseCharacter.create = original.baseCreate;
     characterLibrarySync.characterLibrarySyncService.createBaseRevision = original.createBaseRevision;
+  }
+});
+
+test("NovelExportService exports generated chapters as a knowledge document for diagnosis", async () => {
+  const original = {
+    novelFindUnique: prisma.novel.findUnique,
+  };
+  const createdDocuments = [];
+  prisma.novel.findUnique = async ({ where }) => {
+    assert.equal(where.id, "novel-1");
+    return {
+      title: "雪夜旧案",
+      description: "刑侦悬疑",
+      chapters: [
+        { order: 1, title: "雨夜来客", content: "主角在雨夜接到旧案线索。" },
+        { order: 2, title: "反向试探", content: "同伴隐瞒关键证词，矛盾升级。" },
+      ],
+    };
+  };
+
+  const service = new NovelExportService();
+  service.knowledgeService = {
+    createDocument: async (input) => {
+      createdDocuments.push(input);
+      return {
+        id: "doc-1",
+        title: input.title,
+        fileName: input.fileName,
+        status: "enabled",
+        activeVersionId: "version-1",
+        activeVersionNumber: 1,
+        latestIndexStatus: "queued",
+        latestIndexError: null,
+        lastIndexedAt: null,
+        createdAt: new Date("2026-06-24T12:00:00.000Z"),
+        updatedAt: new Date("2026-06-24T12:00:00.000Z"),
+        bookAnalysisCount: 0,
+        versions: [],
+      };
+    },
+  };
+
+  try {
+    const result = await service.exportAsKnowledgeDocument("novel-1");
+    assert.equal(result.id, "doc-1");
+    assert.equal(createdDocuments[0].title, "雪夜旧案（诊断稿）");
+    assert.match(createdDocuments[0].fileName, /^雪夜旧案-diagnosis-\d{8}-\d{6}\.txt$/);
+    assert.match(createdDocuments[0].content, /第1章 雨夜来客/);
+    assert.match(createdDocuments[0].content, /同伴隐瞒关键证词/);
+  } finally {
+    prisma.novel.findUnique = original.novelFindUnique;
   }
 });
 

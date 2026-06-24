@@ -33,14 +33,16 @@ import {
   updateBookAnalysisSection,
 } from "@/api/bookAnalysis";
 import { getKnowledgeDocument, getKnowledgeDocumentVersionChapters, listKnowledgeDocuments } from "@/api/knowledge";
-import { getNovelList } from "@/api/novel";
+import { exportNovelAsKnowledgeDocument, getNovelList } from "@/api/novel";
 import { createStyleProfileFromBookAnalysis } from "@/api/styleEngine";
 import { queryKeys } from "@/api/queryKeys";
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import type { LLMConfigState, SectionDraft } from "../bookAnalysis.types";
 import { buildSectionDraft, createDownload, syncDrafts } from "../bookAnalysis.utils";
-import type { BookAnalysisWorkspace, ExportFormat, NovelOption } from "./bookAnalysisWorkspace.types";
+import type { BookAnalysisMode, BookAnalysisWorkspace, ExportFormat, NovelOption } from "./bookAnalysisWorkspace.types";
+
+const DIAGNOSIS_FOCUS_INSTRUCTION = "请从作者自检角度诊断当前稿子，优先指出节奏断点、人物模糊点、主题表达不清、伏笔回收风险和后续改稿优先级。";
 
 function buildNovelOptions(items: Array<{ id: string; title: string }>): NovelOption[] {
   return items.map((item) => ({ id: item.id, title: item.title }));
@@ -53,11 +55,15 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const llmStore = useLLMStore();
 
   const [keyword, setKeyword] = useState("");
+  const [analysisMode, setAnalysisModeState] = useState<BookAnalysisMode>(
+    searchParams.get("mode") === "diagnosis" ? "diagnosis" : "reference",
+  );
   const [status, setStatus] = useState<BookAnalysisStatus | "">("");
   const [selectedAnalysisId, setSelectedAnalysisId] = useState(searchParams.get("analysisId") ?? "");
   const [selectedDocumentId, setSelectedDocumentId] = useState(searchParams.get("documentId") ?? "");
   const [selectedVersionId, setSelectedVersionId] = useState("");
   const [selectedNovelId, setSelectedNovelId] = useState("");
+  const [selectedDiagnosisNovelId, setSelectedDiagnosisNovelId] = useState("");
   const [userFocusInstruction, setUserFocusInstruction] = useState("");
   const [analysisPreset, setAnalysisPreset] = useState<BookAnalysisPreset>("standard");
   const [llmConfig, setLlmConfig] = useState<LLMConfigState>({
@@ -195,13 +201,36 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.characters(analysisId) });
   };
 
-  const openAnalysis = (analysisId: string, documentId: string) => {
+  const setAnalysisMode = (mode: BookAnalysisMode) => {
+    setAnalysisModeState(mode);
+    if (mode === "diagnosis") {
+      setSelectedDocumentId("");
+      setSelectedVersionId("");
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (mode === "diagnosis") {
+        next.set("mode", "diagnosis");
+        next.delete("documentId");
+      } else {
+        next.delete("mode");
+      }
+      return next;
+    });
+  };
+
+  const openAnalysis = (analysisId: string, documentId: string, mode: BookAnalysisMode = analysisMode) => {
     setSelectedAnalysisId(analysisId);
     setSelectedDocumentId(documentId);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("analysisId", analysisId);
       next.set("documentId", documentId);
+      if (mode === "diagnosis") {
+        next.set("mode", "diagnosis");
+      } else {
+        next.delete("mode");
+      }
       return next;
     });
   };
@@ -215,8 +244,51 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       }
       setDraftAnalysisId(created.id);
       setSectionDrafts(syncDrafts(created));
-      openAnalysis(created.id, created.documentId);
+      openAnalysis(created.id, created.documentId, "reference");
       await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.list(listKey) });
+    },
+  });
+
+  const createDiagnosisMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedDiagnosisNovelId) {
+        return null;
+      }
+      const documentResponse = await exportNovelAsKnowledgeDocument(selectedDiagnosisNovelId);
+      const document = documentResponse.data;
+      if (!document) {
+        throw new Error("小说正文导出失败。");
+      }
+      const analysisResponse = await createBookAnalysis({
+        documentId: document.id,
+        versionId: document.activeVersionId || undefined,
+        provider: llmConfig.provider,
+        model: llmConfig.model || undefined,
+        temperature: llmConfig.temperature,
+        maxTokens: llmConfig.maxTokens,
+        userFocusInstruction: userFocusInstruction.trim() || DIAGNOSIS_FOCUS_INSTRUCTION,
+        includeTimeline,
+        enabledSectionKeys: selectedPreset.sectionKeys,
+      });
+      return {
+        document,
+        analysis: analysisResponse.data,
+      };
+    },
+    onSuccess: async (result) => {
+      if (!result?.analysis) {
+        return;
+      }
+      setAnalysisModeState("diagnosis");
+      setSelectedDocumentId(result.document.id);
+      setSelectedVersionId(result.document.activeVersionId ?? "");
+      setDraftAnalysisId(result.analysis.id);
+      setSectionDrafts(syncDrafts(result.analysis));
+      openAnalysis(result.analysis.id, result.document.id, "diagnosis");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.documents("book-analysis-source") });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(result.document.id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.list(listKey) });
+      toast.success("已导出小说正文并创建诊断拆书。");
     },
   });
 
@@ -429,13 +501,17 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   useEffect(() => {
     const nextAnalysisId = searchParams.get("analysisId");
     const nextDocumentId = searchParams.get("documentId");
+    const nextMode = searchParams.get("mode") === "diagnosis" ? "diagnosis" : "reference";
+    if (nextMode !== analysisMode) {
+      setAnalysisModeState(nextMode);
+    }
     if (nextAnalysisId && nextAnalysisId !== selectedAnalysisId) {
       setSelectedAnalysisId(nextAnalysisId);
     }
     if (nextDocumentId && nextDocumentId !== selectedDocumentId) {
       setSelectedDocumentId(nextDocumentId);
     }
-  }, [searchParams, selectedAnalysisId, selectedDocumentId]);
+  }, [analysisMode, searchParams, selectedAnalysisId, selectedDocumentId]);
 
   useEffect(() => {
     if (!selectedDocumentId) {
@@ -488,6 +564,13 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   }, [novelOptions, selectedNovelId]);
 
   useEffect(() => {
+    if (selectedDiagnosisNovelId || novelOptions.length === 0) {
+      return;
+    }
+    setSelectedDiagnosisNovelId(novelOptions[0].id);
+  }, [novelOptions, selectedDiagnosisNovelId]);
+
+  useEffect(() => {
     if (selectedAnalysisId || analyses.length === 0) {
       return;
     }
@@ -516,10 +599,12 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   }, [selectedAnalysisId]);
 
   const selectDocument = (documentId: string) => {
+    setAnalysisModeState("reference");
     setSelectedDocumentId(documentId);
     setSelectedVersionId("");
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
+      next.delete("mode");
       if (documentId) {
         next.set("documentId", documentId);
       } else {
@@ -590,6 +675,10 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       sectionKey,
       focusInstruction: draft?.focusInstruction.trim() ? draft.focusInstruction : null,
     });
+  };
+
+  const createDiagnosisAnalysis = async () => {
+    await createDiagnosisMutation.mutateAsync();
   };
 
   const optimizeSectionPreview = async (section: BookAnalysisSection) => {
@@ -735,12 +824,14 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   };
 
   return {
+    analysisMode,
     keyword,
     status,
     selectedAnalysisId,
     selectedDocumentId,
     selectedVersionId,
     selectedNovelId,
+    selectedDiagnosisNovelId,
     userFocusInstruction,
     includeTimeline,
     analysisPreset,
@@ -775,10 +866,13 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       createCharacter: createCharacterMutation.isPending,
       updateCharacter: updateCharacterMutation.isPending,
       deleteCharacter: deleteCharacterMutation.isPending,
+      createDiagnosis: createDiagnosisMutation.isPending,
     },
     setKeyword,
     setStatus,
+    setAnalysisMode,
     setSelectedNovelId,
+    setSelectedDiagnosisNovelId,
     setUserFocusInstruction,
     setIncludeTimeline,
     setAnalysisPreset,
@@ -787,6 +881,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     selectVersion,
     openAnalysis,
     createAnalysis,
+    createDiagnosisAnalysis,
     copySelectedAnalysis,
     rebuildAnalysis,
     archiveAnalysis,

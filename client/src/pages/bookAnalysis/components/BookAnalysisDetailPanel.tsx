@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { AggregatedEvidenceItem, SectionDraft } from "../bookAnalysis.types";
 import { formatDate, formatStage, formatStatus } from "../bookAnalysis.utils";
+import type { BookAnalysisMode } from "../hooks/bookAnalysisWorkspace.types";
 import BookAnalysisSectionCard from "./BookAnalysisSectionCard";
 
 type ExportFormat = "markdown" | "json";
@@ -34,6 +35,7 @@ interface PendingState {
 }
 
 interface BookAnalysisDetailPanelProps {
+  analysisMode: BookAnalysisMode;
   selectedAnalysis?: BookAnalysisDetail;
   novelOptions: NovelOption[];
   documentChapters: DocumentChapter[];
@@ -63,6 +65,7 @@ interface BookAnalysisDetailPanelProps {
 
 export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelProps) {
   const {
+    analysisMode,
     selectedAnalysis,
     novelOptions,
     documentChapters,
@@ -355,6 +358,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
             {selectedAnalysis.sections.map((section) => (
               <TabsContent key={section.sectionKey} value={section.sectionKey} className="mt-0">
                 <BookAnalysisSectionCard
+                  analysisMode={analysisMode}
                   section={section}
                   draft={getSectionDraft(section)}
                   readingMode={readingMode}

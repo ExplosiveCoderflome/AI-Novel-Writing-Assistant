@@ -25,7 +25,12 @@
 | PR-3 timeline 字段结构升级 | 新增 `timelineNodeArray` 类型、节点含 `label/timeHint/phase/sourceRefs` | ✅ 已合并 |
 | PR-4 timeline 共享 utils 重构 | 节点归一化抽到 shared、`NovelReferenceService` 改用结构化访问 | ✅ 已合并 |
 | PR-5 overview → others 两阶段 | overview 先生成、其他小节并发时接收 `BookAnalysisOverviewContext` | ✅ 已合并 |
-| PR-5.1 收尾小修 | 删除 `runFullAnalysis` 第二阶段残留的 overview summary 分支死代码、`runSingleSection` 注入 overview context | 🟡 待启动 |
+| PR-5.1 收尾小修 | 删除 `runFullAnalysis` 第二阶段残留的 overview summary 分支死代码、`runSingleSection` 注入 overview context | ✅ 已合并 |
+| 阶段一：用户介入 | 全局拆书重点与小节特别关注，创建、重建、单节重跑和 Prompt 均携带 | ✅ 已实施 |
+| 阶段二：章节与证据回溯 | `DocumentChapter` 缓存、evidence 章节定位与原文高亮 | ✅ 已实施 |
+| 阶段三：深度角色档案 | 独立拆书角色、弧线、场景表现与主动生成入口 | ✅ 已实施 |
+| 阶段四：角色配图与升格 | `book_analysis_character` 图片场景、主图管理与升格到角色库 | ✅ 已实施 |
+| 阶段五：诊断模式 | Novel 正文导出为知识文档，复用拆书链路创建诊断分析 | ✅ 已实施 |
 
 ## 3. 范式转移
 

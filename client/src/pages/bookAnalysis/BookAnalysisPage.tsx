@@ -1,5 +1,6 @@
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import BookAnalysisCharacterPanel from "./components/BookAnalysisCharacterPanel";
+import BookAnalysisDiagnosisTipBanner from "./components/BookAnalysisDiagnosisTipBanner";
 import BookAnalysisDetailPanel from "./components/BookAnalysisDetailPanel";
 import BookAnalysisSidebar from "./components/BookAnalysisSidebar";
 import { useBookAnalysisWorkspace } from "./hooks/useBookAnalysisWorkspace";
@@ -20,8 +21,10 @@ export default function BookAnalysisPage() {
       </div>
       <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
         <BookAnalysisSidebar
+          analysisMode={workspace.analysisMode}
           selectedDocumentId={workspace.selectedDocumentId}
           selectedVersionId={workspace.selectedVersionId}
+          selectedDiagnosisNovelId={workspace.selectedDiagnosisNovelId}
           keyword={workspace.keyword}
           status={workspace.status}
           userFocusInstruction={workspace.userFocusInstruction}
@@ -30,22 +33,31 @@ export default function BookAnalysisPage() {
           documentOptions={workspace.documentOptions}
           versionOptions={workspace.versionOptions}
           sourceDocument={workspace.sourceDocument}
+          novelOptions={workspace.novelOptions}
           analyses={workspace.analyses}
           selectedAnalysisId={workspace.selectedAnalysisId}
           createPending={workspace.pending.create}
+          createDiagnosisPending={workspace.pending.createDiagnosis}
+          onModeChange={workspace.setAnalysisMode}
           onSelectDocument={workspace.selectDocument}
           onSelectVersion={workspace.selectVersion}
+          onSelectDiagnosisNovel={workspace.setSelectedDiagnosisNovelId}
           onKeywordChange={workspace.setKeyword}
           onStatusChange={workspace.setStatus}
           onUserFocusInstructionChange={workspace.setUserFocusInstruction}
           onAnalysisPresetChange={workspace.setAnalysisPreset}
           onLlmConfigChange={workspace.setLlmConfig}
           onCreate={() => void workspace.createAnalysis()}
+          onCreateDiagnosis={() => void workspace.createDiagnosisAnalysis()}
           onOpenAnalysis={workspace.openAnalysis}
         />
 
         <div className="min-w-0 space-y-4">
+          {workspace.analysisMode === "diagnosis" && workspace.selectedAnalysis ? (
+            <BookAnalysisDiagnosisTipBanner documentTitle={workspace.selectedAnalysis.documentTitle} />
+          ) : null}
           <BookAnalysisDetailPanel
+            analysisMode={workspace.analysisMode}
             selectedAnalysis={workspace.selectedAnalysis}
             novelOptions={workspace.novelOptions}
             documentChapters={workspace.documentChapters}

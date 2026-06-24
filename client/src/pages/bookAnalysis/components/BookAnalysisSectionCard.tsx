@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SectionDraft } from "../bookAnalysis.types";
 import { formatStatus } from "../bookAnalysis.utils";
+import type { BookAnalysisMode } from "../hooks/bookAnalysisWorkspace.types";
 import BookAnalysisStructuredSummary from "./BookAnalysisStructuredSummary";
 
 interface BookAnalysisSectionCardProps {
+  analysisMode: BookAnalysisMode;
   section: BookAnalysisSection;
   draft: SectionDraft;
   readingMode: "summary" | "full";
@@ -25,6 +27,7 @@ interface BookAnalysisSectionCardProps {
 
 export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardProps) {
   const {
+    analysisMode,
     section,
     draft,
     readingMode,
@@ -73,7 +76,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <BookAnalysisStructuredSummary section={section} />
+        <BookAnalysisStructuredSummary section={section} analysisMode={analysisMode} />
 
         {readingMode === "full" ? (
           <div className="space-y-2">

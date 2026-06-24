@@ -17,6 +17,7 @@ import type { DocumentChapter, KnowledgeDocumentDetail, KnowledgeDocumentSummary
 import type { AggregatedEvidenceItem, LLMConfigState, SectionDraft } from "../bookAnalysis.types";
 
 export type ExportFormat = "markdown" | "json";
+export type BookAnalysisMode = "reference" | "diagnosis";
 
 export interface NovelOption {
   id: string;
@@ -38,15 +39,18 @@ export interface PendingState {
   createCharacter: boolean;
   updateCharacter: boolean;
   deleteCharacter: boolean;
+  createDiagnosis: boolean;
 }
 
 export interface BookAnalysisWorkspace {
+  analysisMode: BookAnalysisMode;
   keyword: string;
   status: BookAnalysisStatus | "";
   selectedAnalysisId: string;
   selectedDocumentId: string;
   selectedVersionId: string;
   selectedNovelId: string;
+  selectedDiagnosisNovelId: string;
   userFocusInstruction: string;
   includeTimeline: boolean;
   analysisPreset: BookAnalysisPreset;
@@ -69,7 +73,9 @@ export interface BookAnalysisWorkspace {
   pending: PendingState;
   setKeyword: (keyword: string) => void;
   setStatus: (status: BookAnalysisStatus | "") => void;
+  setAnalysisMode: (mode: BookAnalysisMode) => void;
   setSelectedNovelId: (novelId: string) => void;
+  setSelectedDiagnosisNovelId: (novelId: string) => void;
   setUserFocusInstruction: (instruction: string) => void;
   setIncludeTimeline: (include: boolean) => void;
   setAnalysisPreset: (preset: BookAnalysisPreset) => void;
@@ -78,6 +84,7 @@ export interface BookAnalysisWorkspace {
   selectVersion: (versionId: string) => void;
   openAnalysis: (analysisId: string, documentId: string) => void;
   createAnalysis: () => Promise<void>;
+  createDiagnosisAnalysis: () => Promise<void>;
   copySelectedAnalysis: () => Promise<void>;
   rebuildAnalysis: (analysisId: string) => void;
   archiveAnalysis: (analysisId: string) => void;

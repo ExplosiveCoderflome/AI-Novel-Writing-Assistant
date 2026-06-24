@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { NOVEL_EXPORT_FORMAT_VALUES, NOVEL_EXPORT_SCOPE_VALUES } from "@ai-novel/shared/types/novelExport";
 import { authMiddleware } from "../../../middleware/auth";
@@ -29,6 +30,24 @@ router.get(
       res.setHeader("Content-Type", data.contentType);
       res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(data.fileName)}"`);
       res.status(200).send(data.content);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/export-as-document",
+  validate({ params: idParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const data = await novelExportService.exportAsKnowledgeDocument(id);
+      res.status(201).json({
+        success: true,
+        data,
+        message: "Novel exported as knowledge document.",
+      } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);
     }

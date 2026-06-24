@@ -13,10 +13,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { LLMConfigState } from "../bookAnalysis.types";
 import { formatDate, formatStatus } from "../bookAnalysis.utils";
+import type { BookAnalysisMode, NovelOption } from "../hooks/bookAnalysisWorkspace.types";
 
 interface BookAnalysisSidebarProps {
+  analysisMode: BookAnalysisMode;
   selectedDocumentId: string;
   selectedVersionId: string;
+  selectedDiagnosisNovelId: string;
   keyword: string;
   status: BookAnalysisStatus | "";
   userFocusInstruction: string;
@@ -25,17 +28,22 @@ interface BookAnalysisSidebarProps {
   documentOptions: KnowledgeDocumentSummary[];
   versionOptions: KnowledgeDocumentDetail["versions"];
   sourceDocument?: KnowledgeDocumentDetail;
+  novelOptions: NovelOption[];
   analyses: BookAnalysis[];
   selectedAnalysisId: string;
   createPending: boolean;
+  createDiagnosisPending: boolean;
+  onModeChange: (mode: BookAnalysisMode) => void;
   onSelectDocument: (documentId: string) => void;
   onSelectVersion: (versionId: string) => void;
+  onSelectDiagnosisNovel: (novelId: string) => void;
   onKeywordChange: (keyword: string) => void;
   onStatusChange: (status: BookAnalysisStatus | "") => void;
   onUserFocusInstructionChange: (instruction: string) => void;
   onAnalysisPresetChange: (preset: BookAnalysisPreset) => void;
   onLlmConfigChange: (config: LLMConfigState) => void;
   onCreate: () => void;
+  onCreateDiagnosis: () => void;
   onOpenAnalysis: (analysisId: string, documentId: string) => void;
 }
 
@@ -65,8 +73,10 @@ function getPresetSectionTitles(sectionKeys: readonly string[]): string {
 
 export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
   const {
+    analysisMode,
     selectedDocumentId,
     selectedVersionId,
+    selectedDiagnosisNovelId,
     keyword,
     status,
     userFocusInstruction,
@@ -75,17 +85,22 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
     documentOptions,
     versionOptions,
     sourceDocument,
+    novelOptions,
     analyses,
     selectedAnalysisId,
     createPending,
+    createDiagnosisPending,
+    onModeChange,
     onSelectDocument,
     onSelectVersion,
+    onSelectDiagnosisNovel,
     onKeywordChange,
     onStatusChange,
     onUserFocusInstructionChange,
     onAnalysisPresetChange,
     onLlmConfigChange,
     onCreate,
+    onCreateDiagnosis,
     onOpenAnalysis,
   } = props;
   const selectedSourceVersion = sourceDocument?.versions.find((version) => version.id === selectedVersionId)
@@ -99,6 +114,7 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
   const estimatedSectionCount = selectedPreset.sectionKeys.length;
   const estimatedLlmCalls = estimatedSegmentCount > 0 ? estimatedSegmentCount + estimatedSectionCount : 0;
   const scale = getBookAnalysisScaleLabel(sourceCharCount);
+  const isDiagnosisMode = analysisMode === "diagnosis";
 
   return (
     <div className="space-y-4">
@@ -107,38 +123,80 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
           <CardTitle>创建拆书分析</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="text-sm font-medium">知识文档</div>
-            <select
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              value={selectedDocumentId}
-              onChange={(event) => onSelectDocument(event.target.value)}
+          <div className="grid grid-cols-2 gap-2 rounded-md border bg-muted/20 p-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={analysisMode === "reference" ? "default" : "ghost"}
+              onClick={() => onModeChange("reference")}
             >
-              <option value="">选择文档</option>
-              {documentOptions.map((document) => (
-                <option key={document.id} value={document.id}>
-                  {document.title}
-                </option>
-              ))}
-            </select>
+              参考作品
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={isDiagnosisMode ? "default" : "ghost"}
+              onClick={() => onModeChange("diagnosis")}
+            >
+              诊断稿子
+            </Button>
           </div>
 
-          <div className="space-y-2">
-            <div className="text-sm font-medium">文档版本</div>
-            <select
-              className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-              value={selectedVersionId}
-              onChange={(event) => onSelectVersion(event.target.value)}
-              disabled={!selectedDocumentId}
-            >
-              <option value="">使用当前激活版本</option>
-              {versionOptions.map((version) => (
-                <option key={version.id} value={version.id}>
-                  v{version.versionNumber} {version.isActive ? "（当前）" : ""}
-                </option>
-              ))}
-            </select>
-          </div>
+          {isDiagnosisMode ? (
+            <div className="space-y-2">
+              <div className="text-sm font-medium">要诊断的小说</div>
+              <select
+                className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                value={selectedDiagnosisNovelId}
+                onChange={(event) => onSelectDiagnosisNovel(event.target.value)}
+              >
+                <option value="">选择小说</option>
+                {novelOptions.map((novel) => (
+                  <option key={novel.id} value={novel.id}>
+                    {novel.title}
+                  </option>
+                ))}
+              </select>
+              <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
+                系统会导出这本小说的当前章节正文，作为新的知识文档创建诊断拆书。
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <div className="text-sm font-medium">知识文档</div>
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  value={selectedDocumentId}
+                  onChange={(event) => onSelectDocument(event.target.value)}
+                >
+                  <option value="">选择文档</option>
+                  {documentOptions.map((document) => (
+                    <option key={document.id} value={document.id}>
+                      {document.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium">文档版本</div>
+                <select
+                  className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                  value={selectedVersionId}
+                  onChange={(event) => onSelectVersion(event.target.value)}
+                  disabled={!selectedDocumentId}
+                >
+                  <option value="">使用当前激活版本</option>
+                  {versionOptions.map((version) => (
+                    <option key={version.id} value={version.id}>
+                      v{version.versionNumber} {version.isActive ? "（当前）" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
 
           <div className="space-y-2">
             <div className="text-sm font-medium">模型</div>
@@ -190,15 +248,19 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
               className="min-h-[92px] w-full rounded-md border bg-background p-3 text-sm"
               value={userFocusInstruction}
               onChange={(event) => onUserFocusInstructionChange(event.target.value)}
-              placeholder="例如：重点观察群像戏轮转、主角语言风格或付费爽点设计。"
+              placeholder={isDiagnosisMode
+                ? "例如：重点检查前三章留存、主角动机清晰度或伏笔回收风险。"
+                : "例如：重点观察群像戏轮转、主角语言风格或付费爽点设计。"}
             />
           </div>
 
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
-            拆书会根据书籍内容长度消耗模型 token。书籍越长，分析时间和 token 用量通常越高；建议先确认文档范围，再开始分析。
+            {isDiagnosisMode
+              ? "诊断会根据小说正文长度消耗模型 token。章节越多，分析时间和 token 用量通常越高；建议先选择适合本次检查的拆书范围。"
+              : "拆书会根据书籍内容长度消耗模型 token。书籍越长，分析时间和 token 用量通常越高；建议先确认文档范围，再开始分析。"}
           </div>
 
-          {selectedSourceVersion ? (
+          {!isDiagnosisMode && selectedSourceVersion ? (
             <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
               <div className="font-medium text-foreground">本次拆书体量：{scale.label}</div>
               <div className="mt-1">
@@ -209,11 +271,17 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
             </div>
           ) : null}
 
-          <Button className="w-full" onClick={onCreate} disabled={!selectedDocumentId || createPending}>
-            创建
+          <Button
+            className="w-full"
+            onClick={isDiagnosisMode ? onCreateDiagnosis : onCreate}
+            disabled={isDiagnosisMode ? !selectedDiagnosisNovelId || createDiagnosisPending : !selectedDocumentId || createPending}
+          >
+            {isDiagnosisMode
+              ? (createDiagnosisPending ? "正在创建诊断..." : "创建诊断拆书")
+              : (createPending ? "正在创建..." : "创建")}
           </Button>
 
-          {sourceDocument ? (
+          {!isDiagnosisMode && sourceDocument ? (
             <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
               版本数：{sourceDocument.versions.length} | 拆书分析：{sourceDocument.bookAnalysisCount}
             </div>
