@@ -4,6 +4,7 @@ import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis
 export interface SectionDraft {
   editedContent: string;
   notes: string;
+  focusInstruction: string;
   frozen: boolean;
   optimizeInstruction: string;
   optimizePreview: string;

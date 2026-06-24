@@ -18,6 +18,12 @@ import {
   selectNotesForBookAnalysisSection,
 } from "./bookAnalysis.utils";
 
+export interface GenerateBookAnalysisSectionOptions {
+  overviewContext?: BookAnalysisOverviewContext | null;
+  userFocusInstruction?: string | null;
+  sectionFocusInstruction?: string | null;
+}
+
 export class BookAnalysisSectionWriter {
   async generateSection(
     sectionKey: BookAnalysisSectionKey,
@@ -26,13 +32,13 @@ export class BookAnalysisSectionWriter {
     model?: string,
     temperature?: number,
     maxTokens?: number,
-    overviewContext?: BookAnalysisOverviewContext | null,
+    options: GenerateBookAnalysisSectionOptions = {},
   ): Promise<SectionGenerationResult> {
     const prompt = SECTION_PROMPTS[sectionKey];
     const notesText = renderNotesForPrompt(selectNotesForBookAnalysisSection(sectionKey, notes), sectionKey);
-    const overviewContextText = sectionKey === "overview" || !overviewContext
+    const overviewContextText = sectionKey === "overview" || !options.overviewContext
       ? ""
-      : renderOverviewContextForPrompt(overviewContext);
+      : renderOverviewContextForPrompt(options.overviewContext);
     try {
       const result = await runStructuredPrompt({
         asset: bookAnalysisSectionPrompt,
@@ -41,6 +47,8 @@ export class BookAnalysisSectionWriter {
           sectionTitle: getSectionTitle(sectionKey),
           promptFocus: prompt,
           overviewContextText,
+          userFocusInstructionText: normalizeInstructionForPrompt(options.userFocusInstruction),
+          sectionFocusInstructionText: normalizeInstructionForPrompt(options.sectionFocusInstruction),
           notesText,
         },
         options: {
@@ -123,6 +131,10 @@ export class BookAnalysisSectionWriter {
       return "";
     }
   }
+}
+
+function normalizeInstructionForPrompt(value: string | null | undefined): string {
+  return value?.trim() || "";
 }
 
 function renderOverviewContextForPrompt(context: BookAnalysisOverviewContext): string {

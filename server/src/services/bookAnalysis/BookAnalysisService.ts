@@ -52,6 +52,7 @@ class BookAnalysisServiceFacade {
     model?: string;
     temperature?: number;
     maxTokens?: number;
+    userFocusInstruction?: string | null;
     includeTimeline?: boolean;
     enabledSectionKeys?: BookAnalysisSectionKey[];
   }): Promise<BookAnalysisDetail> {
@@ -74,8 +75,12 @@ class BookAnalysisServiceFacade {
     return this.commandService.cancelAnalysis(analysisId);
   }
 
-  regenerateSection(analysisId: string, sectionKey: BookAnalysisSectionKey): Promise<BookAnalysisDetail> {
-    return this.commandService.regenerateSection(analysisId, sectionKey);
+  regenerateSection(
+    analysisId: string,
+    sectionKey: BookAnalysisSectionKey,
+    input: { focusInstruction?: string | null } = {},
+  ): Promise<BookAnalysisDetail> {
+    return this.commandService.regenerateSection(analysisId, sectionKey, input);
   }
 
   optimizeSectionPreview(
@@ -92,6 +97,7 @@ class BookAnalysisServiceFacade {
     input: {
       editedContent?: string | null;
       notes?: string | null;
+      focusInstruction?: string | null;
       frozen?: boolean;
     },
   ): Promise<BookAnalysisDetail> {

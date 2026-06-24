@@ -110,6 +110,16 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
             ) : null}
 
             <div className="space-y-2">
+              <div className="text-sm font-medium">本节特别关注</div>
+              <textarea
+                className="min-h-[90px] w-full rounded-md border bg-background p-3 text-sm"
+                value={draft.focusInstruction}
+                onChange={(event) => onDraftChange(section, { focusInstruction: event.target.value })}
+                placeholder="例如：只看阶段推进里的转折证据，或重点检查人物高光是否能复用。"
+              />
+            </div>
+
+            <div className="space-y-2">
               <div className="text-sm font-medium">编辑正文</div>
               <textarea
                 className="min-h-[220px] w-full rounded-md border bg-background p-3 text-sm"

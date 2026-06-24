@@ -18,6 +18,7 @@ import type {
 } from "./bookAnalysis.types";
 import {
   buildAnalysisSummaryFromContent,
+  decodeStructuredData,
   encodeEvidence,
   encodeNormalizationWarnings,
   encodeStructuredData,
@@ -163,6 +164,10 @@ export class BookAnalysisGenerationService {
               model,
               temperature,
               maxTokens,
+              {
+                userFocusInstruction: analysis.userFocusInstruction,
+                sectionFocusInstruction: overviewSection.focusInstruction,
+              },
             );
             overviewContext = this.buildOverviewContext(generated);
 
@@ -247,7 +252,11 @@ export class BookAnalysisGenerationService {
               model,
               temperature,
               maxTokens,
-              overviewContext,
+              {
+                overviewContext,
+                userFocusInstruction: analysis.userFocusInstruction,
+                sectionFocusInstruction: section.focusInstruction,
+              },
             );
 
             await prisma.bookAnalysisSection.update({
@@ -266,9 +275,6 @@ export class BookAnalysisGenerationService {
               },
             });
 
-            if (section.sectionKey === "overview") {
-              summary = buildAnalysisSummaryFromContent(generated.markdown);
-            }
           } catch (error) {
             if (error instanceof AnalysisCancelledError) {
               throw error;
@@ -395,7 +401,23 @@ export class BookAnalysisGenerationService {
           },
         });
 
-        const generated = await this.sectionWriter.generateSection(sectionKey, notes, provider, model, temperature, maxTokens);
+        const overviewContext = sectionKey === "overview"
+          ? null
+          : this.buildOverviewContextFromSection(analysis.sections.find((item) => item.sectionKey === "overview"));
+
+        const generated = await this.sectionWriter.generateSection(
+          sectionKey,
+          notes,
+          provider,
+          model,
+          temperature,
+          maxTokens,
+          {
+            overviewContext,
+            userFocusInstruction: analysis.userFocusInstruction,
+            sectionFocusInstruction: section.focusInstruction,
+          },
+        );
 
         await prisma.bookAnalysisSection.update({
           where: {
@@ -558,11 +580,32 @@ export class BookAnalysisGenerationService {
   }
 
   private buildOverviewContext(generated: SectionGenerationResult): BookAnalysisOverviewContext | null {
-    const structuredData = generated.structuredData && typeof generated.structuredData === "object"
-      ? generated.structuredData
+    return this.buildOverviewContextFromData(generated.markdown, generated.structuredData);
+  }
+
+  private buildOverviewContextFromSection(section: {
+    aiContent: string | null;
+    editedContent: string | null;
+    structuredDataJson: string | null;
+  } | undefined): BookAnalysisOverviewContext | null {
+    if (!section) {
+      return null;
+    }
+    return this.buildOverviewContextFromData(
+      getEffectiveContent(section),
+      decodeStructuredData(section.structuredDataJson),
+    );
+  }
+
+  private buildOverviewContextFromData(
+    markdown: string,
+    rawStructuredData: Record<string, unknown> | null | undefined,
+  ): BookAnalysisOverviewContext | null {
+    const structuredData = rawStructuredData && typeof rawStructuredData === "object"
+      ? rawStructuredData
       : {};
     const context: BookAnalysisOverviewContext = {
-      markdownSummary: buildAnalysisSummaryFromContent(generated.markdown) ?? undefined,
+      markdownSummary: buildAnalysisSummaryFromContent(markdown) ?? undefined,
       oneLinePositioning: readStructuredString(structuredData.oneLinePositioning),
       genreTags: readStructuredStringArray(structuredData.genreTags),
       sellingPointTags: readStructuredStringArray(structuredData.sellingPointTags),

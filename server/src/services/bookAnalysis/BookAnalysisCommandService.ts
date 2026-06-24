@@ -24,6 +24,10 @@ function buildEnabledSectionKeySet(input: {
   return new Set<BookAnalysisSectionKey>(["overview", ...input.enabledSectionKeys]);
 }
 
+function normalizeOptionalInstruction(value: string | null | undefined): string | null {
+  return value?.trim() || null;
+}
+
 export class BookAnalysisCommandService {
   private readonly generationService = new BookAnalysisGenerationService();
   private readonly taskQueue = new BookAnalysisTaskQueue({
@@ -98,6 +102,7 @@ export class BookAnalysisCommandService {
     model?: string;
     temperature?: number;
     maxTokens?: number;
+    userFocusInstruction?: string | null;
     includeTimeline?: boolean;
     enabledSectionKeys?: BookAnalysisSectionKey[];
   }): Promise<BookAnalysisDetail> {
@@ -139,6 +144,7 @@ export class BookAnalysisCommandService {
           model: input.model?.trim() || null,
           temperature,
           maxTokens: maxTokens ?? null,
+          userFocusInstruction: normalizeOptionalInstruction(input.userFocusInstruction),
           progress: 0,
           lastError: null,
           attemptCount: 0,
@@ -194,6 +200,7 @@ export class BookAnalysisCommandService {
           model: source.model,
           temperature: source.temperature,
           maxTokens: source.maxTokens,
+          userFocusInstruction: source.userFocusInstruction,
           progress: 1,
           heartbeatAt: null,
           currentStage: null,
@@ -215,6 +222,7 @@ export class BookAnalysisCommandService {
           aiContent: section.aiContent,
           editedContent: section.editedContent,
           notes: section.notes,
+          focusInstruction: section.focusInstruction,
           structuredDataJson: section.structuredDataJson,
           normalizationWarningsJson: section.normalizationWarningsJson,
           evidenceJson: section.evidenceJson,
@@ -341,7 +349,11 @@ export class BookAnalysisCommandService {
     return detail;
   }
 
-  async regenerateSection(analysisId: string, sectionKey: BookAnalysisSectionKey): Promise<BookAnalysisDetail> {
+  async regenerateSection(
+    analysisId: string,
+    sectionKey: BookAnalysisSectionKey,
+    input: { focusInstruction?: string | null } = {},
+  ): Promise<BookAnalysisDetail> {
     const section = await prisma.bookAnalysisSection.findFirst({
       where: {
         analysisId,
@@ -383,6 +395,9 @@ export class BookAnalysisCommandService {
         },
         data: {
           status: "idle",
+          ...(input.focusInstruction !== undefined
+            ? { focusInstruction: normalizeOptionalInstruction(input.focusInstruction) }
+            : {}),
         },
       });
     });
@@ -414,6 +429,7 @@ export class BookAnalysisCommandService {
     input: {
       editedContent?: string | null;
       notes?: string | null;
+      focusInstruction?: string | null;
       frozen?: boolean;
     },
   ): Promise<BookAnalysisDetail> {
@@ -441,6 +457,9 @@ export class BookAnalysisCommandService {
       data: {
         ...(input.editedContent !== undefined ? { editedContent: finalEditedContent } : {}),
         ...(input.notes !== undefined ? { notes: input.notes?.trim() || null } : {}),
+        ...(input.focusInstruction !== undefined
+          ? { focusInstruction: normalizeOptionalInstruction(input.focusInstruction) }
+          : {}),
         ...(input.frozen !== undefined ? { frozen: input.frozen } : {}),
       },
     });

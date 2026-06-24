@@ -14,6 +14,7 @@ export interface AnalysisRowForSerialize {
   model: string | null;
   temperature: number | null;
   maxTokens: number | null;
+  userFocusInstruction: string | null;
   progress: number;
   heartbeatAt: Date | null;
   currentStage: string | null;
@@ -49,6 +50,7 @@ export interface SectionRowForSerialize {
   aiContent: string | null;
   editedContent: string | null;
   notes: string | null;
+  focusInstruction: string | null;
   structuredDataJson: string | null;
   normalizationWarningsJson: string | null;
   evidenceJson: string | null;
@@ -79,6 +81,7 @@ export function serializeAnalysisRow(row: AnalysisRowForSerialize): BookAnalysis
     model: row.model,
     temperature: row.temperature,
     maxTokens: row.maxTokens,
+    userFocusInstruction: row.userFocusInstruction,
     progress: row.progress,
     heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
     currentStage: row.currentStage,
@@ -106,6 +109,7 @@ export function serializeSectionRow(row: SectionRowForSerialize): BookAnalysisSe
     aiContent: row.aiContent,
     editedContent: row.editedContent,
     notes: row.notes,
+    focusInstruction: row.focusInstruction,
     structuredData,
     normalizationWarnings: decodeNormalizationWarnings(row.normalizationWarningsJson),
     evidence: decodeEvidence(row.evidenceJson, row.sectionKey as BookAnalysisSectionKey, structuredData),

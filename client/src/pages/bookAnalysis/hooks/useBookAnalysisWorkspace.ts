@@ -48,6 +48,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const [selectedDocumentId, setSelectedDocumentId] = useState(searchParams.get("documentId") ?? "");
   const [selectedVersionId, setSelectedVersionId] = useState("");
   const [selectedNovelId, setSelectedNovelId] = useState("");
+  const [userFocusInstruction, setUserFocusInstruction] = useState("");
   const [analysisPreset, setAnalysisPreset] = useState<BookAnalysisPreset>("standard");
   const [llmConfig, setLlmConfig] = useState<LLMConfigState>({
     provider: llmStore.provider,
@@ -217,8 +218,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   });
 
   const regenerateMutation = useMutation({
-    mutationFn: (payload: { id: string; sectionKey: BookAnalysisSectionKey }) =>
-      regenerateBookAnalysisSection(payload.id, payload.sectionKey),
+    mutationFn: (payload: { id: string; sectionKey: BookAnalysisSectionKey; focusInstruction?: string | null }) =>
+      regenerateBookAnalysisSection(payload.id, payload.sectionKey, { focusInstruction: payload.focusInstruction }),
     onSuccess: async (response) => {
       if (!response.data) {
         return;
@@ -233,6 +234,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       sectionKey: BookAnalysisSectionKey;
       editedContent?: string | null;
       notes?: string | null;
+      focusInstruction?: string | null;
       frozen?: boolean;
     }) => updateBookAnalysisSection(payload.id, payload.sectionKey, payload),
     onSuccess: async (response) => {
@@ -441,6 +443,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       model: llmConfig.model || undefined,
       temperature: llmConfig.temperature,
       maxTokens: llmConfig.maxTokens,
+      userFocusInstruction: userFocusInstruction.trim() || undefined,
       includeTimeline,
       enabledSectionKeys: selectedPreset.sectionKeys,
     });
@@ -479,9 +482,12 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     if (!selectedAnalysis) {
       return;
     }
+    const section = selectedAnalysis.sections.find((item) => item.sectionKey === sectionKey);
+    const draft = section ? getSectionDraft(section) : null;
     regenerateMutation.mutate({
       id: selectedAnalysis.id,
       sectionKey,
+      focusInstruction: draft?.focusInstruction.trim() ? draft.focusInstruction : null,
     });
   };
 
@@ -534,6 +540,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       sectionKey: section.sectionKey,
       editedContent,
       notes: draft.notes.trim() ? draft.notes : null,
+      focusInstruction: draft.focusInstruction.trim() ? draft.focusInstruction : null,
       frozen: draft.frozen,
     });
   };
@@ -573,6 +580,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     selectedDocumentId,
     selectedVersionId,
     selectedNovelId,
+    userFocusInstruction,
     includeTimeline,
     analysisPreset,
     llmConfig,
@@ -602,6 +610,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     setKeyword,
     setStatus,
     setSelectedNovelId,
+    setUserFocusInstruction,
     setIncludeTimeline,
     setAnalysisPreset,
     setLlmConfig,

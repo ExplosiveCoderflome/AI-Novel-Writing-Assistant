@@ -36,6 +36,7 @@ export interface BookAnalysisWorkspace {
   selectedDocumentId: string;
   selectedVersionId: string;
   selectedNovelId: string;
+  userFocusInstruction: string;
   includeTimeline: boolean;
   analysisPreset: BookAnalysisPreset;
   llmConfig: LLMConfigState;
@@ -55,6 +56,7 @@ export interface BookAnalysisWorkspace {
   setKeyword: (keyword: string) => void;
   setStatus: (status: BookAnalysisStatus | "") => void;
   setSelectedNovelId: (novelId: string) => void;
+  setUserFocusInstruction: (instruction: string) => void;
   setIncludeTimeline: (include: boolean) => void;
   setAnalysisPreset: (preset: BookAnalysisPreset) => void;
   setLlmConfig: (config: LLMConfigState) => void;

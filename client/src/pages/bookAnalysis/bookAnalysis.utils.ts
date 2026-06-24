@@ -51,6 +51,7 @@ export function syncDrafts(detail: BookAnalysisDetail): Record<string, SectionDr
       {
         editedContent: section.editedContent ?? section.aiContent ?? "",
         notes: section.notes ?? "",
+        focusInstruction: section.focusInstruction ?? "",
         frozen: section.frozen,
         optimizeInstruction: "",
         optimizePreview: "",
@@ -74,6 +75,7 @@ export function buildSectionDraft(section: BookAnalysisSection): SectionDraft {
   return {
     editedContent: section.editedContent ?? section.aiContent ?? "",
     notes: section.notes ?? "",
+    focusInstruction: section.focusInstruction ?? "",
     frozen: section.frozen,
     optimizeInstruction: "",
     optimizePreview: "",

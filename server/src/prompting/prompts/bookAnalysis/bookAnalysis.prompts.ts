@@ -26,6 +26,8 @@ export interface BookAnalysisSectionPromptInput {
   sectionTitle: string;
   promptFocus: string;
   overviewContextText?: string;
+  userFocusInstructionText?: string;
+  sectionFocusInstructionText?: string;
   notesText: string;
 }
 
@@ -257,6 +259,7 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "6. 分析应优先抓最关键、最能支撑结论的信息，不要平均铺开，不要把同一观点换说法重复表达。",
       "7. markdown、structuredData、evidence 三部分必须相互一致，不得互相矛盾。",
       "8. 如果用户消息提供“整本定位（来自总览小节）”，应把它作为当前小节的口径锚点，用于保持作品定位、题材、卖点和短板判断一致；但具体结论仍必须由当前小节 notes 支撑。",
+      "9. 如果用户消息提供拆书关注点，应把它作为筛选和表达优先级；但关注点不能覆盖证据约束、固定结构和当前小节职责。",
       "",
       buildSectionMarkdownRequirements(input.sectionKey, input.sectionTitle, input.promptFocus),
       "",
@@ -289,6 +292,20 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       ...(input.overviewContextText?.trim()
         ? [
             input.overviewContextText.trim(),
+            "",
+          ]
+        : []),
+      ...(input.userFocusInstructionText?.trim()
+        ? [
+            "本次拆书重点关注：",
+            input.userFocusInstructionText.trim(),
+            "",
+          ]
+        : []),
+      ...(input.sectionFocusInstructionText?.trim()
+        ? [
+            "本节特别关注：",
+            input.sectionFocusInstructionText.trim(),
             "",
           ]
         : []),

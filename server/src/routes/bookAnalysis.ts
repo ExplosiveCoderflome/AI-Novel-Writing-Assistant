@@ -43,6 +43,7 @@ const createSchema = z.object({
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(256).max(32768).optional(),
+  userFocusInstruction: z.string().trim().optional(),
   includeTimeline: z.boolean().optional().default(false),
   enabledSectionKeys: z.array(sectionKeySchema).min(1).optional(),
 });
@@ -54,13 +55,22 @@ const publishSchema = z.object({
 const sectionUpdateSchema = z.object({
   editedContent: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  focusInstruction: z.string().nullable().optional(),
   frozen: z.boolean().optional(),
 }).refine(
-  (value) => value.editedContent !== undefined || value.notes !== undefined || value.frozen !== undefined,
+  (value) =>
+    value.editedContent !== undefined ||
+    value.notes !== undefined ||
+    value.focusInstruction !== undefined ||
+    value.frozen !== undefined,
   {
     message: "At least one field must be provided.",
   },
 );
+
+const sectionRegenerateSchema = z.object({
+  focusInstruction: z.string().nullable().optional(),
+});
 
 const sectionOptimizePreviewSchema = z.object({
   currentDraft: z.string(),
@@ -194,11 +204,12 @@ router.post(
 
 router.post(
   "/:id/sections/:sectionKey/regenerate",
-  validate({ params: analysisSectionParamsSchema }),
+  validate({ params: analysisSectionParamsSchema, body: sectionRegenerateSchema }),
   async (req, res, next) => {
     try {
       const { id, sectionKey } = req.params as z.infer<typeof analysisSectionParamsSchema>;
-      const data = await bookAnalysisService.regenerateSection(id, sectionKey);
+      const body = req.body as z.infer<typeof sectionRegenerateSchema>;
+      const data = await bookAnalysisService.regenerateSection(id, sectionKey, body);
       res.status(202).json({
         success: true,
         data,

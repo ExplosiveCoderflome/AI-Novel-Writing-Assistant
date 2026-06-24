@@ -605,10 +605,11 @@ test("BookAnalysisGenerationService runFullAnalysis generates overview before de
         model: "deepseek-chat",
         temperature: 0.3,
         maxTokens: 4800,
+        userFocusInstruction: "重点观察权谋爽点",
         sections: [
-          { analysisId: "analysis-full", sectionKey: "overview", title: "拆书总览", frozen: false },
-          { analysisId: "analysis-full", sectionKey: "plot_structure", title: "剧情结构", frozen: false },
-          { analysisId: "analysis-full", sectionKey: "character_system", title: "人物系统", frozen: false },
+          { analysisId: "analysis-full", sectionKey: "overview", title: "拆书总览", frozen: false, focusInstruction: "总览先抓定位" },
+          { analysisId: "analysis-full", sectionKey: "plot_structure", title: "剧情结构", frozen: false, focusInstruction: "剧情重点看反转" },
+          { analysisId: "analysis-full", sectionKey: "character_system", title: "人物系统", frozen: false, focusInstruction: null },
         ],
       };
     }
@@ -681,13 +682,20 @@ test("BookAnalysisGenerationService runFullAnalysis generates overview before de
     await service.runFullAnalysis("analysis-full");
 
     assert.equal(sectionCalls[0][0], "overview");
+    assert.equal(sectionCalls[0][6].userFocusInstruction, "重点观察权谋爽点");
+    assert.equal(sectionCalls[0][6].sectionFocusInstruction, "总览先抓定位");
     const dependentCalls = sectionCalls.slice(1);
     assert.deepEqual(dependentCalls.map((item) => item[0]).sort(), ["character_system", "plot_structure"]);
     for (const call of dependentCalls) {
-      assert.equal(call[6].oneLinePositioning, "强冲突权谋开局");
-      assert.deepEqual(call[6].genreTags, ["权谋"]);
-      assert.deepEqual(call[6].weaknesses, ["说明略密"]);
+      assert.equal(call[6].userFocusInstruction, "重点观察权谋爽点");
+      assert.equal(call[6].overviewContext.oneLinePositioning, "强冲突权谋开局");
+      assert.deepEqual(call[6].overviewContext.genreTags, ["权谋"]);
+      assert.deepEqual(call[6].overviewContext.weaknesses, ["说明略密"]);
     }
+    const plotCall = dependentCalls.find((item) => item[0] === "plot_structure");
+    const characterCall = dependentCalls.find((item) => item[0] === "character_system");
+    assert.equal(plotCall[6].sectionFocusInstruction, "剧情重点看反转");
+    assert.equal(characterCall[6].sectionFocusInstruction, null);
     assert.ok(sectionUpdates.some((item) => item.where.analysisId_sectionKey.sectionKey === "overview" && item.data.status === "succeeded"));
     assert.ok(analysisUpdates.some((item) => item.data.currentStage === "generating_overview"));
     assert.ok(analysisUpdates.some((item) => item.data.currentStage === "generating_sections"));
@@ -729,9 +737,10 @@ test("BookAnalysisGenerationService runFullAnalysis keeps old flow when overview
         model: "deepseek-chat",
         temperature: 0.3,
         maxTokens: 4800,
+        userFocusInstruction: null,
         sections: [
-          { analysisId: "analysis-no-overview", sectionKey: "plot_structure", title: "剧情结构", frozen: false },
-          { analysisId: "analysis-no-overview", sectionKey: "character_system", title: "人物系统", frozen: false },
+          { analysisId: "analysis-no-overview", sectionKey: "plot_structure", title: "剧情结构", frozen: false, focusInstruction: null },
+          { analysisId: "analysis-no-overview", sectionKey: "character_system", title: "人物系统", frozen: false, focusInstruction: null },
         ],
       };
     }
@@ -767,7 +776,8 @@ test("BookAnalysisGenerationService runFullAnalysis keeps old flow when overview
     await service.runFullAnalysis("analysis-no-overview");
 
     assert.deepEqual(sectionCalls.map((item) => item[0]).sort(), ["character_system", "plot_structure"]);
-    assert.ok(sectionCalls.every((item) => item[6] === null || item[6] === undefined));
+    assert.ok(sectionCalls.every((item) => item[6].overviewContext === null || item[6].overviewContext === undefined));
+    assert.ok(sectionCalls.every((item) => item[6].userFocusInstruction === null));
   } finally {
     prisma.bookAnalysis.findUnique = original.bookAnalysisFindUnique;
     prisma.bookAnalysis.update = original.bookAnalysisUpdate;
@@ -801,9 +811,10 @@ test("BookAnalysisGenerationService runFullAnalysis continues after overview fai
         model: "deepseek-chat",
         temperature: 0.3,
         maxTokens: 4800,
+        userFocusInstruction: null,
         sections: [
-          { analysisId: "analysis-overview-fail", sectionKey: "overview", title: "拆书总览", frozen: false },
-          { analysisId: "analysis-overview-fail", sectionKey: "plot_structure", title: "剧情结构", frozen: false },
+          { analysisId: "analysis-overview-fail", sectionKey: "overview", title: "拆书总览", frozen: false, focusInstruction: null },
+          { analysisId: "analysis-overview-fail", sectionKey: "plot_structure", title: "剧情结构", frozen: false, focusInstruction: null },
         ],
       };
     }
@@ -848,7 +859,7 @@ test("BookAnalysisGenerationService runFullAnalysis continues after overview fai
     await service.runFullAnalysis("analysis-overview-fail");
 
     assert.deepEqual(sectionCalls.map((item) => item[0]), ["overview", "plot_structure"]);
-    assert.equal(sectionCalls[1][6], null);
+    assert.equal(sectionCalls[1][6].overviewContext, null);
     assert.ok(sectionUpdates.some((item) => item.where.analysisId_sectionKey.sectionKey === "overview" && item.data.status === "failed"));
     assert.ok(sectionUpdates.some((item) => item.where.analysisId_sectionKey.sectionKey === "plot_structure" && item.data.status === "succeeded"));
     const finalUpdate = analysisUpdates.find((item) => item.data.status === "failed" && item.data.progress === 1);
@@ -887,9 +898,10 @@ test("BookAnalysisGenerationService runFullAnalysis stops after overview when ca
         model: "deepseek-chat",
         temperature: 0.3,
         maxTokens: 4800,
+        userFocusInstruction: null,
         sections: [
-          { analysisId: "analysis-cancel-after-overview", sectionKey: "overview", title: "拆书总览", frozen: false },
-          { analysisId: "analysis-cancel-after-overview", sectionKey: "plot_structure", title: "剧情结构", frozen: false },
+          { analysisId: "analysis-cancel-after-overview", sectionKey: "overview", title: "拆书总览", frozen: false, focusInstruction: null },
+          { analysisId: "analysis-cancel-after-overview", sectionKey: "plot_structure", title: "剧情结构", frozen: false, focusInstruction: null },
         ],
       };
     }
@@ -1057,9 +1069,119 @@ test("BookAnalysisGenerationService runSingleSection fetches reusable source not
   }
 });
 
+test("BookAnalysisGenerationService runSingleSection injects persisted overview context for dependent sections", async () => {
+  const original = {
+    bookAnalysisFindUnique: prisma.bookAnalysis.findUnique,
+    bookAnalysisUpdate: prisma.bookAnalysis.update,
+    sectionUpdate: prisma.bookAnalysisSection.update,
+    sectionFindMany: prisma.bookAnalysisSection.findMany,
+  };
+
+  const sectionCalls = [];
+
+  prisma.bookAnalysis.findUnique = async (input) => {
+    if (input.include) {
+      return {
+        id: "analysis-single-dependent",
+        status: "queued",
+        summary: "旧摘要",
+        cancelRequestedAt: null,
+        documentVersionId: "version-1",
+        documentVersion: {
+          content: "这是用于拆书的正文。".repeat(80),
+        },
+        provider: "deepseek",
+        model: "deepseek-chat",
+        temperature: 0.3,
+        maxTokens: 4800,
+        userFocusInstruction: "重点看新手可复用写法",
+        sections: [
+          {
+            analysisId: "analysis-single-dependent",
+            sectionKey: "overview",
+            title: "拆书总览",
+            frozen: false,
+            aiContent: "# 拆书总览\n\n这是一部身份反转驱动的权谋文。",
+            editedContent: null,
+            structuredDataJson: JSON.stringify({
+              oneLinePositioning: "身份反转驱动的权谋文",
+              genreTags: ["权谋"],
+              sellingPointTags: ["身份反转"],
+              targetReaders: ["喜欢智斗的读者"],
+              strengths: ["冲突明确"],
+              weaknesses: ["信息密度偏高"],
+            }),
+          },
+          {
+            analysisId: "analysis-single-dependent",
+            sectionKey: "plot_structure",
+            title: "剧情结构",
+            frozen: false,
+            focusInstruction: "重点解释阶段推进",
+          },
+        ],
+      };
+    }
+    return {
+      status: "running",
+      cancelRequestedAt: null,
+    };
+  };
+
+  prisma.bookAnalysis.update = async (input) => input;
+  prisma.bookAnalysisSection.update = async (input) => input;
+  prisma.bookAnalysisSection.findMany = async () => ([{
+    sectionKey: "plot_structure",
+    status: "succeeded",
+    frozen: false,
+    editedContent: null,
+    aiContent: "# 剧情结构",
+  }]);
+
+  const service = new BookAnalysisGenerationService(
+    {
+      getOrBuildSourceNotes: async () => ({
+        notes: [],
+        segmentCount: 1,
+        cacheHit: true,
+      }),
+    },
+    {
+      generateSection: async (...args) => {
+        sectionCalls.push(args);
+        return {
+          markdown: "# 剧情结构",
+          structuredData: {},
+          normalizationWarnings: [],
+          evidence: [],
+        };
+      },
+      generateOptimizedDraft: async () => "",
+    },
+  );
+
+  try {
+    await service.runSingleSection("analysis-single-dependent", "plot_structure");
+
+    assert.equal(sectionCalls.length, 1);
+    assert.equal(sectionCalls[0][0], "plot_structure");
+    assert.equal(sectionCalls[0][6].userFocusInstruction, "重点看新手可复用写法");
+    assert.equal(sectionCalls[0][6].sectionFocusInstruction, "重点解释阶段推进");
+    assert.equal(sectionCalls[0][6].overviewContext.oneLinePositioning, "身份反转驱动的权谋文");
+    assert.deepEqual(sectionCalls[0][6].overviewContext.genreTags, ["权谋"]);
+    assert.deepEqual(sectionCalls[0][6].overviewContext.weaknesses, ["信息密度偏高"]);
+  } finally {
+    prisma.bookAnalysis.findUnique = original.bookAnalysisFindUnique;
+    prisma.bookAnalysis.update = original.bookAnalysisUpdate;
+    prisma.bookAnalysisSection.update = original.sectionUpdate;
+    prisma.bookAnalysisSection.findMany = original.sectionFindMany;
+  }
+});
+
 test("BookAnalysisCommandService createAnalysis freezes sections outside enabledSectionKeys", async () => {
   const originalTransaction = prisma.$transaction;
   const originalEnqueue = BookAnalysisTaskQueue.prototype.enqueue;
+  let createdAnalysis = null;
   let createdSections = [];
 
   prisma.$transaction = async (callback) => callback({
@@ -1073,9 +1195,12 @@ test("BookAnalysisCommandService createAnalysis freezes sections outside enabled
       }),
     },
     bookAnalysis: {
-      create: async () => ({
-        id: "analysis-1",
-      }),
+      create: async ({ data }) => {
+        createdAnalysis = data;
+        return {
+          id: "analysis-1",
+        };
+      },
     },
     bookAnalysisSection: {
       createMany: async ({ data }) => {
@@ -1099,9 +1224,11 @@ test("BookAnalysisCommandService createAnalysis freezes sections outside enabled
       documentId: "document-1",
       provider: "deepseek",
       model: "deepseek-chat",
+      userFocusInstruction: "重点观察开篇爽点",
       enabledSectionKeys: ["overview", "plot_structure", "character_system"],
     });
 
+    assert.equal(createdAnalysis.userFocusInstruction, "重点观察开篇爽点");
     const sectionState = new Map(createdSections.map((section) => [section.sectionKey, section.frozen]));
     assert.equal(sectionState.get("overview"), false);
     assert.equal(sectionState.get("plot_structure"), false);

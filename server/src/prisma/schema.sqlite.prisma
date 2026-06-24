@@ -2666,6 +2666,7 @@ model BookAnalysis {
   model                       String?
   temperature                 Float?
   maxTokens                   Int?
+  userFocusInstruction        String?
   progress                    Float              @default(0)
   pendingManualRecovery       Boolean            @default(false)
   heartbeatAt                 DateTime?
@@ -2718,6 +2719,7 @@ model BookAnalysisSection {
   aiContent          String?
   editedContent      String?
   notes              String?
+  focusInstruction   String?
   structuredDataJson String?
   normalizationWarningsJson String?
   evidenceJson       String?

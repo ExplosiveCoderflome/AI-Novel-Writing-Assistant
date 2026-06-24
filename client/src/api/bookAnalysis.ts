@@ -33,6 +33,7 @@ export async function createBookAnalysis(payload: {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  userFocusInstruction?: string;
   includeTimeline?: boolean;
   enabledSectionKeys?: BookAnalysisSectionKey[];
 }) {
@@ -58,10 +59,14 @@ export async function publishBookAnalysis(id: string, payload: { novelId: string
   return data;
 }
 
-export async function regenerateBookAnalysisSection(id: string, sectionKey: BookAnalysisSectionKey) {
+export async function regenerateBookAnalysisSection(
+  id: string,
+  sectionKey: BookAnalysisSectionKey,
+  payload: { focusInstruction?: string | null } = {},
+) {
   const { data } = await apiClient.post<ApiResponse<BookAnalysisDetail>>(
     `/book-analysis/${id}/sections/${sectionKey}/regenerate`,
-    {},
+    payload,
   );
   return data;
 }
@@ -84,6 +89,7 @@ export async function updateBookAnalysisSection(
   payload: {
     editedContent?: string | null;
     notes?: string | null;
+    focusInstruction?: string | null;
     frozen?: boolean;
   },
 ) {

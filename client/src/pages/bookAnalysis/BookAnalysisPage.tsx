@@ -23,6 +23,7 @@ export default function BookAnalysisPage() {
           selectedVersionId={workspace.selectedVersionId}
           keyword={workspace.keyword}
           status={workspace.status}
+          userFocusInstruction={workspace.userFocusInstruction}
           analysisPreset={workspace.analysisPreset}
           llmConfig={workspace.llmConfig}
           documentOptions={workspace.documentOptions}
@@ -35,6 +36,7 @@ export default function BookAnalysisPage() {
           onSelectVersion={workspace.selectVersion}
           onKeywordChange={workspace.setKeyword}
           onStatusChange={workspace.setStatus}
+          onUserFocusInstructionChange={workspace.setUserFocusInstruction}
           onAnalysisPresetChange={workspace.setAnalysisPreset}
           onLlmConfigChange={workspace.setLlmConfig}
           onCreate={() => void workspace.createAnalysis()}

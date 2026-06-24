@@ -19,6 +19,7 @@ interface BookAnalysisSidebarProps {
   selectedVersionId: string;
   keyword: string;
   status: BookAnalysisStatus | "";
+  userFocusInstruction: string;
   analysisPreset: BookAnalysisPreset;
   llmConfig: LLMConfigState;
   documentOptions: KnowledgeDocumentSummary[];
@@ -31,6 +32,7 @@ interface BookAnalysisSidebarProps {
   onSelectVersion: (versionId: string) => void;
   onKeywordChange: (keyword: string) => void;
   onStatusChange: (status: BookAnalysisStatus | "") => void;
+  onUserFocusInstructionChange: (instruction: string) => void;
   onAnalysisPresetChange: (preset: BookAnalysisPreset) => void;
   onLlmConfigChange: (config: LLMConfigState) => void;
   onCreate: () => void;
@@ -67,6 +69,7 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
     selectedVersionId,
     keyword,
     status,
+    userFocusInstruction,
     analysisPreset,
     llmConfig,
     documentOptions,
@@ -79,6 +82,7 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
     onSelectVersion,
     onKeywordChange,
     onStatusChange,
+    onUserFocusInstructionChange,
     onAnalysisPresetChange,
     onLlmConfigChange,
     onCreate,
@@ -178,6 +182,16 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
                 );
               })}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-sm font-medium">本次拆书重点</div>
+            <textarea
+              className="min-h-[92px] w-full rounded-md border bg-background p-3 text-sm"
+              value={userFocusInstruction}
+              onChange={(event) => onUserFocusInstructionChange(event.target.value)}
+              placeholder="例如：重点观察群像戏轮转、主角语言风格或付费爽点设计。"
+            />
           </div>
 
           <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-900">

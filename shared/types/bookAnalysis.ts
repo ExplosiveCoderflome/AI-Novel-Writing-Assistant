@@ -201,6 +201,7 @@ export interface BookAnalysisSection {
   aiContent?: string | null;
   editedContent?: string | null;
   notes?: string | null;
+  focusInstruction?: string | null;
   structuredData?: Record<string, unknown> | null;
   normalizationWarnings?: string[];
   evidence: BookAnalysisEvidenceItem[];
@@ -226,6 +227,7 @@ export interface BookAnalysis {
   model?: string | null;
   temperature?: number | null;
   maxTokens?: number | null;
+  userFocusInstruction?: string | null;
   progress: number;
   heartbeatAt?: string | null;
   currentStage?: string | null;
