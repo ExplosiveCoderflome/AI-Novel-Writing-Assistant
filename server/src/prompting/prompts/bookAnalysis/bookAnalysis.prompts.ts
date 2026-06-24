@@ -25,6 +25,7 @@ export interface BookAnalysisSectionPromptInput {
   sectionKey: BookAnalysisSectionKey;
   sectionTitle: string;
   promptFocus: string;
+  overviewContextText?: string;
   notesText: string;
 }
 
@@ -255,6 +256,7 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "5. 只有在 notes 的支撑明显不够时，才写“材料不足”或“现有笔记无法支持更强判断”；不要一遇到需要归纳就机械回避。",
       "6. 分析应优先抓最关键、最能支撑结论的信息，不要平均铺开，不要把同一观点换说法重复表达。",
       "7. markdown、structuredData、evidence 三部分必须相互一致，不得互相矛盾。",
+      "8. 如果用户消息提供“整本定位（来自总览小节）”，应把它作为当前小节的口径锚点，用于保持作品定位、题材、卖点和短板判断一致；但具体结论仍必须由当前小节 notes 支撑。",
       "",
       buildSectionMarkdownRequirements(input.sectionKey, input.sectionTitle, input.promptFocus),
       "",
@@ -284,6 +286,12 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "分析重点：",
       input.promptFocus,
       "",
+      ...(input.overviewContextText?.trim()
+        ? [
+            input.overviewContextText.trim(),
+            "",
+          ]
+        : []),
       "可用 notes：",
       input.notesText,
     ].join("\n")),

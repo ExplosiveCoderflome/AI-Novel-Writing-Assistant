@@ -10,7 +10,12 @@ import {
   getSectionStageProgress,
 } from "./bookAnalysis.progress";
 import { BookAnalysisSectionWriter } from "./bookAnalysis.sectionWriter";
-import type { BookAnalysisProgressUpdate, SourceNote } from "./bookAnalysis.types";
+import type {
+  BookAnalysisOverviewContext,
+  BookAnalysisProgressUpdate,
+  SectionGenerationResult,
+  SourceNote,
+} from "./bookAnalysis.types";
 import {
   buildAnalysisSummaryFromContent,
   encodeEvidence,
@@ -28,6 +33,32 @@ class AnalysisCancelledError extends Error {
 }
 
 const BOOK_ANALYSIS_HEARTBEAT_INTERVAL_MS = 20_000;
+const OVERVIEW_SECTION_PROGRESS_SHARE = 0.25;
+
+function getOverviewProgressEnd(totalSections: number): number {
+  const sectionStart = getSectionStageProgress(0, totalSections);
+  return Number((sectionStart + (1 - sectionStart) * OVERVIEW_SECTION_PROGRESS_SHARE).toFixed(4));
+}
+
+function getRemainingSectionProgress(completed: number, total: number, startProgress: number): number {
+  if (total <= 0) {
+    return startProgress;
+  }
+  return Number((startProgress + (1 - startProgress) * (completed / total)).toFixed(4));
+}
+
+function readStructuredString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function readStructuredStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
+}
 
 export class BookAnalysisGenerationService {
   constructor(
@@ -94,13 +125,106 @@ export class BookAnalysisGenerationService {
         const errors: string[] = [];
         let summary = analysis.summary;
 
-        await runWithConcurrency(activeSections, getBookAnalysisSectionConcurrency(), async (section, index) => {
+        const overviewSection = activeSections.find((section) => section.sectionKey === "overview");
+        const remainingSections = overviewSection
+          ? activeSections.filter((section) => section.sectionKey !== "overview")
+          : activeSections;
+        const overviewProgressEnd = overviewSection
+          ? getOverviewProgressEnd(activeSections.length)
+          : getSectionStageProgress(0, activeSections.length);
+        let overviewContext: BookAnalysisOverviewContext | null = null;
+
+        if (overviewSection) {
+          await this.ensureNotCancelled(analysisId);
+          await this.updateAnalysisProgress(analysisId, {
+            stage: "generating_overview",
+            progress: getSectionStageProgress(0, activeSections.length),
+            itemKey: overviewSection.sectionKey,
+            itemLabel: formatSectionProgressLabel(1, activeSections.length, overviewSection.title),
+          });
+
+          await prisma.bookAnalysisSection.update({
+            where: {
+              analysisId_sectionKey: {
+                analysisId,
+                sectionKey: overviewSection.sectionKey,
+              },
+            },
+            data: {
+              status: "running",
+            },
+          });
+
+          try {
+            const generated = await this.sectionWriter.generateSection(
+              "overview",
+              notes,
+              provider,
+              model,
+              temperature,
+              maxTokens,
+            );
+            overviewContext = this.buildOverviewContext(generated);
+
+            await prisma.bookAnalysisSection.update({
+              where: {
+                analysisId_sectionKey: {
+                  analysisId,
+                  sectionKey: overviewSection.sectionKey,
+                },
+              },
+              data: {
+                status: "succeeded",
+                aiContent: generated.markdown,
+                structuredDataJson: encodeStructuredData(generated.structuredData),
+                normalizationWarningsJson: encodeNormalizationWarnings(generated.normalizationWarnings),
+                evidenceJson: encodeEvidence(generated.evidence),
+              },
+            });
+
+            summary = buildAnalysisSummaryFromContent(generated.markdown);
+          } catch (error) {
+            if (error instanceof AnalysisCancelledError) {
+              throw error;
+            }
+            overviewContext = null;
+            errors.push(`${overviewSection.title}: ${error instanceof Error ? error.message : "Unknown error"}`);
+            await prisma.bookAnalysisSection.update({
+              where: {
+                analysisId_sectionKey: {
+                  analysisId,
+                  sectionKey: overviewSection.sectionKey,
+                },
+              },
+              data: {
+                status: "failed",
+              },
+            });
+          } finally {
+            completedSections += 1;
+            await this.updateAnalysisProgress(analysisId, {
+              stage: "generating_overview",
+              progress: overviewProgressEnd,
+              itemKey: overviewSection.sectionKey,
+              itemLabel: formatSectionProgressLabel(1, activeSections.length, overviewSection.title),
+            });
+          }
+
+          await this.ensureNotCancelled(analysisId);
+        }
+
+        let completedRemainingSections = 0;
+        await runWithConcurrency(remainingSections, getBookAnalysisSectionConcurrency(), async (section) => {
+          const sectionIndex = activeSections.findIndex((item) => item.sectionKey === section.sectionKey);
+          const displayIndex = sectionIndex >= 0 ? sectionIndex + 1 : completedSections + 1;
           await this.ensureNotCancelled(analysisId);
           await this.updateAnalysisProgress(analysisId, {
             stage: "generating_sections",
-            progress: getSectionStageProgress(completedSections, activeSections.length),
+            progress: overviewSection
+              ? getRemainingSectionProgress(completedRemainingSections, remainingSections.length, overviewProgressEnd)
+              : getSectionStageProgress(completedSections, activeSections.length),
             itemKey: section.sectionKey,
-            itemLabel: formatSectionProgressLabel(index + 1, activeSections.length, section.title),
+            itemLabel: formatSectionProgressLabel(displayIndex, activeSections.length, section.title),
           });
 
           await prisma.bookAnalysisSection.update({
@@ -123,6 +247,7 @@ export class BookAnalysisGenerationService {
               model,
               temperature,
               maxTokens,
+              overviewContext,
             );
 
             await prisma.bookAnalysisSection.update({
@@ -162,11 +287,14 @@ export class BookAnalysisGenerationService {
             });
           } finally {
             completedSections += 1;
+            completedRemainingSections += 1;
             await this.updateAnalysisProgress(analysisId, {
               stage: "generating_sections",
-              progress: getSectionStageProgress(completedSections, activeSections.length),
+              progress: overviewSection
+                ? getRemainingSectionProgress(completedRemainingSections, remainingSections.length, overviewProgressEnd)
+                : getSectionStageProgress(completedSections, activeSections.length),
               itemKey: section.sectionKey,
-              itemLabel: formatSectionProgressLabel(index + 1, activeSections.length, section.title),
+              itemLabel: formatSectionProgressLabel(displayIndex, activeSections.length, section.title),
             });
           }
         });
@@ -427,6 +555,29 @@ export class BookAnalysisGenerationService {
         currentItemLabel: update.itemLabel ?? null,
       },
     });
+  }
+
+  private buildOverviewContext(generated: SectionGenerationResult): BookAnalysisOverviewContext | null {
+    const structuredData = generated.structuredData && typeof generated.structuredData === "object"
+      ? generated.structuredData
+      : {};
+    const context: BookAnalysisOverviewContext = {
+      markdownSummary: buildAnalysisSummaryFromContent(generated.markdown) ?? undefined,
+      oneLinePositioning: readStructuredString(structuredData.oneLinePositioning),
+      genreTags: readStructuredStringArray(structuredData.genreTags),
+      sellingPointTags: readStructuredStringArray(structuredData.sellingPointTags),
+      targetReaders: readStructuredStringArray(structuredData.targetReaders),
+      strengths: readStructuredStringArray(structuredData.strengths),
+      weaknesses: readStructuredStringArray(structuredData.weaknesses),
+    };
+    const hasSignal = Boolean(context.markdownSummary)
+      || Boolean(context.oneLinePositioning)
+      || context.genreTags.length > 0
+      || context.sellingPointTags.length > 0
+      || context.targetReaders.length > 0
+      || context.strengths.length > 0
+      || context.weaknesses.length > 0;
+    return hasSignal ? context : null;
   }
 
   private async withAnalysisHeartbeat<T>(analysisId: string, run: () => Promise<T>): Promise<T> {

@@ -580,6 +580,367 @@ test("BookAnalysisSourceCacheService preserves reader and weakness signals from 
   }
 });
 
+test("BookAnalysisGenerationService runFullAnalysis generates overview before dependent sections", async () => {
+  const original = {
+    bookAnalysisFindUnique: prisma.bookAnalysis.findUnique,
+    bookAnalysisUpdate: prisma.bookAnalysis.update,
+    bookAnalysisUpdateMany: prisma.bookAnalysis.updateMany,
+    sectionUpdate: prisma.bookAnalysisSection.update,
+  };
+  const analysisUpdates = [];
+  const sectionCalls = [];
+  const sectionUpdates = [];
+
+  prisma.bookAnalysis.findUnique = async (input) => {
+    if (input.include) {
+      return {
+        id: "analysis-full",
+        status: "queued",
+        summary: null,
+        progress: 0,
+        cancelRequestedAt: null,
+        documentVersionId: "version-1",
+        documentVersion: { content: "book-analysis source content ".repeat(80) },
+        provider: "deepseek",
+        model: "deepseek-chat",
+        temperature: 0.3,
+        maxTokens: 4800,
+        sections: [
+          { analysisId: "analysis-full", sectionKey: "overview", title: "拆书总览", frozen: false },
+          { analysisId: "analysis-full", sectionKey: "plot_structure", title: "剧情结构", frozen: false },
+          { analysisId: "analysis-full", sectionKey: "character_system", title: "人物系统", frozen: false },
+        ],
+      };
+    }
+    return { status: "running", cancelRequestedAt: null };
+  };
+  prisma.bookAnalysis.update = async (input) => {
+    analysisUpdates.push(input);
+    return input;
+  };
+  prisma.bookAnalysis.updateMany = async (input) => input;
+  prisma.bookAnalysisSection.update = async (input) => {
+    sectionUpdates.push(input);
+    return input;
+  };
+
+  const service = new BookAnalysisGenerationService(
+    {
+      getOrBuildSourceNotes: async () => ({
+        notes: [{
+          sourceLabel: "片段 1",
+          summary: "缓存摘要",
+          plotPoints: ["主线推进"],
+          timelineEvents: [],
+          characters: ["主角定位"],
+          worldbuilding: [],
+          themes: [],
+          styleTechniques: [],
+          marketHighlights: ["身份反转"],
+          readerSignals: ["智斗爽点"],
+          weaknessSignals: [],
+          evidence: [],
+        }],
+        segmentCount: 1,
+        cacheHit: true,
+      }),
+    },
+    {
+      generateSection: async (...args) => {
+        sectionCalls.push(args);
+        const sectionKey = args[0];
+        if (sectionKey === "overview") {
+          return {
+            markdown: "# 拆书总览\n\n整本书偏强冲突权谋。",
+            structuredData: {
+              oneLinePositioning: "强冲突权谋开局",
+              genreTags: ["权谋"],
+              sellingPointTags: ["身份反转"],
+              targetReaders: ["喜欢智斗的读者"],
+              strengths: ["开局冲突明确"],
+              weaknesses: ["说明略密"],
+            },
+            normalizationWarnings: [],
+            evidence: [],
+          };
+        }
+        return {
+          markdown: `# ${sectionKey}\n\n生成内容`,
+          structuredData: {},
+          normalizationWarnings: [],
+          evidence: [],
+        };
+      },
+      generateOptimizedDraft: async () => {
+        throw new Error("optimize should not be used in full analysis test");
+      },
+    },
+  );
+
+  try {
+    await service.runFullAnalysis("analysis-full");
+
+    assert.equal(sectionCalls[0][0], "overview");
+    const dependentCalls = sectionCalls.slice(1);
+    assert.deepEqual(dependentCalls.map((item) => item[0]).sort(), ["character_system", "plot_structure"]);
+    for (const call of dependentCalls) {
+      assert.equal(call[6].oneLinePositioning, "强冲突权谋开局");
+      assert.deepEqual(call[6].genreTags, ["权谋"]);
+      assert.deepEqual(call[6].weaknesses, ["说明略密"]);
+    }
+    assert.ok(sectionUpdates.some((item) => item.where.analysisId_sectionKey.sectionKey === "overview" && item.data.status === "succeeded"));
+    assert.ok(analysisUpdates.some((item) => item.data.currentStage === "generating_overview"));
+    assert.ok(analysisUpdates.some((item) => item.data.currentStage === "generating_sections"));
+    const progressValues = analysisUpdates
+      .map((item) => item.data.progress)
+      .filter((value) => typeof value === "number");
+    for (let index = 1; index < progressValues.length; index += 1) {
+      assert.ok(progressValues[index] >= progressValues[index - 1], `progress regressed at ${index}`);
+    }
+    assert.ok(analysisUpdates.some((item) => item.data.status === "succeeded" && item.data.progress === 1));
+  } finally {
+    prisma.bookAnalysis.findUnique = original.bookAnalysisFindUnique;
+    prisma.bookAnalysis.update = original.bookAnalysisUpdate;
+    prisma.bookAnalysis.updateMany = original.bookAnalysisUpdateMany;
+    prisma.bookAnalysisSection.update = original.sectionUpdate;
+  }
+});
+
+test("BookAnalysisGenerationService runFullAnalysis keeps old flow when overview is not enabled", async () => {
+  const original = {
+    bookAnalysisFindUnique: prisma.bookAnalysis.findUnique,
+    bookAnalysisUpdate: prisma.bookAnalysis.update,
+    bookAnalysisUpdateMany: prisma.bookAnalysis.updateMany,
+    sectionUpdate: prisma.bookAnalysisSection.update,
+  };
+  const sectionCalls = [];
+
+  prisma.bookAnalysis.findUnique = async (input) => {
+    if (input.include) {
+      return {
+        id: "analysis-no-overview",
+        status: "queued",
+        summary: null,
+        progress: 0,
+        cancelRequestedAt: null,
+        documentVersionId: "version-1",
+        documentVersion: { content: "book-analysis source content ".repeat(80) },
+        provider: "deepseek",
+        model: "deepseek-chat",
+        temperature: 0.3,
+        maxTokens: 4800,
+        sections: [
+          { analysisId: "analysis-no-overview", sectionKey: "plot_structure", title: "剧情结构", frozen: false },
+          { analysisId: "analysis-no-overview", sectionKey: "character_system", title: "人物系统", frozen: false },
+        ],
+      };
+    }
+    return { status: "running", cancelRequestedAt: null };
+  };
+  prisma.bookAnalysis.update = async (input) => input;
+  prisma.bookAnalysis.updateMany = async (input) => input;
+  prisma.bookAnalysisSection.update = async (input) => input;
+
+  const service = new BookAnalysisGenerationService(
+    {
+      getOrBuildSourceNotes: async () => ({
+        notes: [],
+        segmentCount: 1,
+        cacheHit: true,
+      }),
+    },
+    {
+      generateSection: async (...args) => {
+        sectionCalls.push(args);
+        return {
+          markdown: `# ${args[0]}`,
+          structuredData: {},
+          normalizationWarnings: [],
+          evidence: [],
+        };
+      },
+      generateOptimizedDraft: async () => "",
+    },
+  );
+
+  try {
+    await service.runFullAnalysis("analysis-no-overview");
+
+    assert.deepEqual(sectionCalls.map((item) => item[0]).sort(), ["character_system", "plot_structure"]);
+    assert.ok(sectionCalls.every((item) => item[6] === null || item[6] === undefined));
+  } finally {
+    prisma.bookAnalysis.findUnique = original.bookAnalysisFindUnique;
+    prisma.bookAnalysis.update = original.bookAnalysisUpdate;
+    prisma.bookAnalysis.updateMany = original.bookAnalysisUpdateMany;
+    prisma.bookAnalysisSection.update = original.sectionUpdate;
+  }
+});
+
+test("BookAnalysisGenerationService runFullAnalysis continues after overview failure with null context", async () => {
+  const original = {
+    bookAnalysisFindUnique: prisma.bookAnalysis.findUnique,
+    bookAnalysisUpdate: prisma.bookAnalysis.update,
+    bookAnalysisUpdateMany: prisma.bookAnalysis.updateMany,
+    sectionUpdate: prisma.bookAnalysisSection.update,
+  };
+  const analysisUpdates = [];
+  const sectionCalls = [];
+  const sectionUpdates = [];
+
+  prisma.bookAnalysis.findUnique = async (input) => {
+    if (input.include) {
+      return {
+        id: "analysis-overview-fail",
+        status: "queued",
+        summary: null,
+        progress: 0,
+        cancelRequestedAt: null,
+        documentVersionId: "version-1",
+        documentVersion: { content: "book-analysis source content ".repeat(80) },
+        provider: "deepseek",
+        model: "deepseek-chat",
+        temperature: 0.3,
+        maxTokens: 4800,
+        sections: [
+          { analysisId: "analysis-overview-fail", sectionKey: "overview", title: "拆书总览", frozen: false },
+          { analysisId: "analysis-overview-fail", sectionKey: "plot_structure", title: "剧情结构", frozen: false },
+        ],
+      };
+    }
+    return { status: "running", cancelRequestedAt: null };
+  };
+  prisma.bookAnalysis.update = async (input) => {
+    analysisUpdates.push(input);
+    return input;
+  };
+  prisma.bookAnalysis.updateMany = async (input) => input;
+  prisma.bookAnalysisSection.update = async (input) => {
+    sectionUpdates.push(input);
+    return input;
+  };
+
+  const service = new BookAnalysisGenerationService(
+    {
+      getOrBuildSourceNotes: async () => ({
+        notes: [],
+        segmentCount: 1,
+        cacheHit: true,
+      }),
+    },
+    {
+      generateSection: async (...args) => {
+        sectionCalls.push(args);
+        if (args[0] === "overview") {
+          throw new Error("overview failed");
+        }
+        return {
+          markdown: "# 剧情结构",
+          structuredData: {},
+          normalizationWarnings: [],
+          evidence: [],
+        };
+      },
+      generateOptimizedDraft: async () => "",
+    },
+  );
+
+  try {
+    await service.runFullAnalysis("analysis-overview-fail");
+
+    assert.deepEqual(sectionCalls.map((item) => item[0]), ["overview", "plot_structure"]);
+    assert.equal(sectionCalls[1][6], null);
+    assert.ok(sectionUpdates.some((item) => item.where.analysisId_sectionKey.sectionKey === "overview" && item.data.status === "failed"));
+    assert.ok(sectionUpdates.some((item) => item.where.analysisId_sectionKey.sectionKey === "plot_structure" && item.data.status === "succeeded"));
+    const finalUpdate = analysisUpdates.find((item) => item.data.status === "failed" && item.data.progress === 1);
+    assert.ok(finalUpdate);
+    assert.match(finalUpdate.data.lastError, /overview failed/);
+  } finally {
+    prisma.bookAnalysis.findUnique = original.bookAnalysisFindUnique;
+    prisma.bookAnalysis.update = original.bookAnalysisUpdate;
+    prisma.bookAnalysis.updateMany = original.bookAnalysisUpdateMany;
+    prisma.bookAnalysisSection.update = original.sectionUpdate;
+  }
+});
+
+test("BookAnalysisGenerationService runFullAnalysis stops after overview when cancellation is requested", async () => {
+  const original = {
+    bookAnalysisFindUnique: prisma.bookAnalysis.findUnique,
+    bookAnalysisUpdate: prisma.bookAnalysis.update,
+    bookAnalysisUpdateMany: prisma.bookAnalysis.updateMany,
+    sectionUpdate: prisma.bookAnalysisSection.update,
+  };
+  const analysisUpdates = [];
+  const sectionCalls = [];
+  let cancelCheckCount = 0;
+
+  prisma.bookAnalysis.findUnique = async (input) => {
+    if (input.include) {
+      return {
+        id: "analysis-cancel-after-overview",
+        status: "queued",
+        summary: null,
+        progress: 0,
+        cancelRequestedAt: null,
+        documentVersionId: "version-1",
+        documentVersion: { content: "book-analysis source content ".repeat(80) },
+        provider: "deepseek",
+        model: "deepseek-chat",
+        temperature: 0.3,
+        maxTokens: 4800,
+        sections: [
+          { analysisId: "analysis-cancel-after-overview", sectionKey: "overview", title: "拆书总览", frozen: false },
+          { analysisId: "analysis-cancel-after-overview", sectionKey: "plot_structure", title: "剧情结构", frozen: false },
+        ],
+      };
+    }
+    cancelCheckCount += 1;
+    return {
+      status: "running",
+      cancelRequestedAt: cancelCheckCount >= 2 ? new Date("2026-06-24T00:00:00.000Z") : null,
+    };
+  };
+  prisma.bookAnalysis.update = async (input) => {
+    analysisUpdates.push(input);
+    return input;
+  };
+  prisma.bookAnalysis.updateMany = async (input) => input;
+  prisma.bookAnalysisSection.update = async (input) => input;
+
+  const service = new BookAnalysisGenerationService(
+    {
+      getOrBuildSourceNotes: async () => ({
+        notes: [],
+        segmentCount: 1,
+        cacheHit: true,
+      }),
+    },
+    {
+      generateSection: async (...args) => {
+        sectionCalls.push(args);
+        return {
+          markdown: "# 拆书总览",
+          structuredData: {},
+          normalizationWarnings: [],
+          evidence: [],
+        };
+      },
+      generateOptimizedDraft: async () => "",
+    },
+  );
+
+  try {
+    await service.runFullAnalysis("analysis-cancel-after-overview");
+
+    assert.deepEqual(sectionCalls.map((item) => item[0]), ["overview"]);
+    assert.ok(analysisUpdates.some((item) => item.data.status === "cancelled"));
+  } finally {
+    prisma.bookAnalysis.findUnique = original.bookAnalysisFindUnique;
+    prisma.bookAnalysis.update = original.bookAnalysisUpdate;
+    prisma.bookAnalysis.updateMany = original.bookAnalysisUpdateMany;
+    prisma.bookAnalysisSection.update = original.sectionUpdate;
+  }
+});
+
 test("BookAnalysisGenerationService runSingleSection fetches reusable source notes once", async () => {
   const original = {
     bookAnalysisFindUnique: prisma.bookAnalysis.findUnique,

@@ -28,6 +28,8 @@ export function formatStage(stage?: string | null): string {
       return "查缓存";
     case "preparing_notes":
       return "准备 notes";
+    case "generating_overview":
+      return "生成总览";
     case "generating_sections":
       return "生成章节";
     default:

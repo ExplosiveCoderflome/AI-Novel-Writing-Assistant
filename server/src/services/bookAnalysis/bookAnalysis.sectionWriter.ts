@@ -6,7 +6,7 @@ import {
   bookAnalysisSectionPrompt,
 } from "../../prompting/prompts/bookAnalysis/bookAnalysis.prompts";
 import { SECTION_PROMPTS } from "./bookAnalysis.constants";
-import type { SectionGenerationResult, SourceNote } from "./bookAnalysis.types";
+import type { BookAnalysisOverviewContext, SectionGenerationResult, SourceNote } from "./bookAnalysis.types";
 import {
   getSectionTitle,
   normalizeBookAnalysisStructuredData,
@@ -26,9 +26,13 @@ export class BookAnalysisSectionWriter {
     model?: string,
     temperature?: number,
     maxTokens?: number,
+    overviewContext?: BookAnalysisOverviewContext | null,
   ): Promise<SectionGenerationResult> {
     const prompt = SECTION_PROMPTS[sectionKey];
     const notesText = renderNotesForPrompt(selectNotesForBookAnalysisSection(sectionKey, notes), sectionKey);
+    const overviewContextText = sectionKey === "overview" || !overviewContext
+      ? ""
+      : renderOverviewContextForPrompt(overviewContext);
     try {
       const result = await runStructuredPrompt({
         asset: bookAnalysisSectionPrompt,
@@ -36,6 +40,7 @@ export class BookAnalysisSectionWriter {
           sectionKey,
           sectionTitle: getSectionTitle(sectionKey),
           promptFocus: prompt,
+          overviewContextText,
           notesText,
         },
         options: {
@@ -118,4 +123,20 @@ export class BookAnalysisSectionWriter {
       return "";
     }
   }
+}
+
+function renderOverviewContextForPrompt(context: BookAnalysisOverviewContext): string {
+  const lines = [
+    context.markdownSummary ? `总览摘要：${context.markdownSummary}` : "",
+    context.oneLinePositioning ? `一句话定位：${context.oneLinePositioning}` : "",
+    context.genreTags.length > 0 ? `题材标签：${context.genreTags.join("、")}` : "",
+    context.sellingPointTags.length > 0 ? `卖点标签：${context.sellingPointTags.join("、")}` : "",
+    context.targetReaders.length > 0 ? `目标读者：${context.targetReaders.join("、")}` : "",
+    context.strengths.length > 0 ? `整体优势：${context.strengths.join("、")}` : "",
+    context.weaknesses.length > 0 ? `整体短板：${context.weaknesses.join("、")}` : "",
+  ].filter(Boolean);
+
+  return lines.length > 0
+    ? ["## 整本定位（来自总览小节）", ...lines].join("\n")
+    : "";
 }

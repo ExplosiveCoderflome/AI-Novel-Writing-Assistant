@@ -4,7 +4,7 @@ export type AnalysisTask =
   | { analysisId: string; kind: "full" }
   | { analysisId: string; kind: "section"; sectionKey: BookAnalysisSectionKey };
 
-export type BookAnalysisStage = "loading_cache" | "preparing_notes" | "generating_sections";
+export type BookAnalysisStage = "loading_cache" | "preparing_notes" | "generating_overview" | "generating_sections";
 
 export interface SourceSegment {
   label: string;
@@ -31,6 +31,16 @@ export interface SectionGenerationResult {
   structuredData: Record<string, unknown> | null;
   normalizationWarnings: string[];
   evidence: BookAnalysisEvidenceItem[];
+}
+
+export interface BookAnalysisOverviewContext {
+  markdownSummary?: string;
+  oneLinePositioning?: string;
+  genreTags: string[];
+  sellingPointTags: string[];
+  targetReaders: string[];
+  strengths: string[];
+  weaknesses: string[];
 }
 
 export interface SourceNotesResult {
