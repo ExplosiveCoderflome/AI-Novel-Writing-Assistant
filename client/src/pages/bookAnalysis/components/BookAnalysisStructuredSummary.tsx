@@ -5,6 +5,10 @@ import {
   type BookAnalysisSection,
   type BookAnalysisTimelineNode,
 } from "@ai-novel/shared/types/bookAnalysis";
+import {
+  groupBookAnalysisTimelineNodesByPhase,
+  normalizeBookAnalysisTimelineNodes,
+} from "@ai-novel/shared/utils/bookAnalysisTimeline";
 import { Info } from "lucide-react";
 
 interface SummaryRow {
@@ -29,42 +33,6 @@ function normalizeStructuredValue(value: unknown): string[] {
   return [];
 }
 
-function normalizeTimelineNode(value: unknown): BookAnalysisTimelineNode | null {
-  if (typeof value === "string") {
-    const label = value.trim();
-    return label ? { label } : null;
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-  const row = value as Record<string, unknown>;
-  const label = typeof row.label === "string" ? row.label.trim() : "";
-  if (!label) {
-    return null;
-  }
-  const timeHint = typeof row.timeHint === "string" ? row.timeHint.trim() : "";
-  const phase = typeof row.phase === "string" ? row.phase.trim() : "";
-  const sourceRefs = Array.isArray(row.sourceRefs)
-    ? row.sourceRefs.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean)
-    : [];
-  return {
-    label,
-    ...(timeHint ? { timeHint } : {}),
-    ...(phase ? { phase } : {}),
-    ...(sourceRefs.length > 0 ? { sourceRefs } : {}),
-  };
-}
-
-function normalizeTimelineNodes(value: unknown): BookAnalysisTimelineNode[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((item) => normalizeTimelineNode(item))
-    .filter((item): item is BookAnalysisTimelineNode => Boolean(item))
-    .slice(0, 6);
-}
-
 function buildSummaryRows(section: BookAnalysisSection): SummaryRow[] {
   const structuredData = section.structuredData;
   if (!structuredData || typeof structuredData !== "object") {
@@ -80,7 +48,7 @@ function buildSummaryRows(section: BookAnalysisSection): SummaryRow[] {
         key,
         label: BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[key] ?? key,
         values: isTimelineNodeArray ? [] : normalizeStructuredValue(value),
-        timelineNodes: isTimelineNodeArray ? normalizeTimelineNodes(value) : [],
+        timelineNodes: isTimelineNodeArray ? normalizeBookAnalysisTimelineNodes(value, 6) : [],
         evidence: section.evidence.filter((item) => item.fieldKey === key),
       };
     })
@@ -105,18 +73,23 @@ function getWarningLabels(section: BookAnalysisSection): string[] {
 }
 
 function TimelineNodeList({ nodes }: { nodes: BookAnalysisTimelineNode[] }) {
+  const groups = groupBookAnalysisTimelineNodesByPhase(nodes);
   return (
     <div className="mt-2 space-y-2">
-      {nodes.map((node, index) => (
-        <div key={`${node.label}-${index}`} className="rounded-md border bg-muted/20 px-2 py-1.5 text-xs">
-          <div className="leading-5 text-foreground">{node.label}</div>
-          {node.timeHint || node.phase || node.sourceRefs?.length ? (
-            <div className="mt-1 flex flex-wrap gap-1 text-[11px] text-muted-foreground">
-              {node.timeHint ? <span>时间：{node.timeHint}</span> : null}
-              {node.phase ? <span>阶段：{node.phase}</span> : null}
-              {node.sourceRefs?.length ? <span>来源：{node.sourceRefs.join("、")}</span> : null}
+      {groups.map((group) => (
+        <div key={group.phase} className="space-y-1.5">
+          <div className="text-[11px] font-medium text-muted-foreground">{group.phase}</div>
+          {group.nodes.map((node, index) => (
+            <div key={`${group.phase}-${node.label}-${index}`} className="rounded-md border bg-muted/20 px-2 py-1.5 text-xs">
+              <div className="leading-5 text-foreground">{node.label}</div>
+              {node.timeHint || node.sourceRefs?.length ? (
+                <div className="mt-1 flex flex-wrap gap-1 text-[11px] text-muted-foreground">
+                  {node.timeHint ? <span>时间：{node.timeHint}</span> : null}
+                  {node.sourceRefs?.length ? <span>来源：{node.sourceRefs.join("、")}</span> : null}
+                </div>
+              ) : null}
             </div>
-          ) : null}
+          ))}
         </div>
       ))}
     </div>

@@ -2,9 +2,9 @@ import type {
   BookAnalysisEvidenceItem,
   BookAnalysisSection,
   BookAnalysisSectionKey,
-  BookAnalysisTimelineNode,
 } from "@ai-novel/shared/types/bookAnalysis";
 import { BOOK_ANALYSIS_SECTIONS, BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS } from "@ai-novel/shared/types/bookAnalysis";
+import { normalizeBookAnalysisTimelineNodes } from "@ai-novel/shared/utils/bookAnalysisTimeline";
 import {
   CHAPTER_HEADING_REGEX,
   CHUNK_OVERLAP_CHARS,
@@ -303,47 +303,11 @@ function normalizeStructuredStringArrayWithMeta(value: unknown): {
   };
 }
 
-function normalizeStringArray(value: unknown, limit: number): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((item) => (typeof item === "string" ? item.trim() : ""))
-    .filter(Boolean)
-    .slice(0, limit);
-}
-
-function normalizeTimelineNode(value: unknown): BookAnalysisTimelineNode | null {
-  if (typeof value === "string") {
-    const label = value.trim();
-    return label ? { label } : null;
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-  const row = value as Record<string, unknown>;
-  const label = typeof row.label === "string" ? row.label.trim() : "";
-  if (!label) {
-    return null;
-  }
-  const timeHint = typeof row.timeHint === "string" ? row.timeHint.trim() : "";
-  const phase = typeof row.phase === "string" ? row.phase.trim() : "";
-  const sourceRefs = normalizeStringArray(row.sourceRefs, 8);
-  return {
-    label,
-    ...(timeHint ? { timeHint } : {}),
-    ...(phase ? { phase } : {}),
-    ...(sourceRefs.length > 0 ? { sourceRefs } : {}),
-  };
-}
-
 function normalizeStructuredTimelineNodeArrayWithMeta(value: unknown): {
-  value: BookAnalysisTimelineNode[];
+  value: ReturnType<typeof normalizeBookAnalysisTimelineNodes>;
   truncated: boolean;
 } {
-  const items = (Array.isArray(value) ? value : typeof value === "string" && value.trim() ? [value] : [])
-    .map((item) => normalizeTimelineNode(item))
-    .filter((item): item is BookAnalysisTimelineNode => Boolean(item));
+  const items = normalizeBookAnalysisTimelineNodes(value, Number.MAX_SAFE_INTEGER);
   return {
     value: items.slice(0, BOOK_ANALYSIS_TIMELINE_NODE_LIMIT),
     truncated: items.length > BOOK_ANALYSIS_TIMELINE_NODE_LIMIT,

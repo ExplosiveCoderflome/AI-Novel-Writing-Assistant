@@ -1,4 +1,9 @@
 import type { BookAnalysisSectionKey, BookAnalysisTimelineNode } from "@ai-novel/shared/types/bookAnalysis";
+import {
+  BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS,
+  BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS,
+} from "@ai-novel/shared/types/bookAnalysis";
+import { groupBookAnalysisTimelineNodesByPhase } from "@ai-novel/shared/utils/bookAnalysisTimeline";
 import { prisma } from "../../db/prisma";
 import {
   listActiveKnowledgeDocumentContents,
@@ -93,45 +98,32 @@ function formatTimelineNodes(nodes: BookAnalysisTimelineNode[]): string {
   if (nodes.length === 0) {
     return "";
   }
-  const phaseOrder: string[] = [];
-  const phaseGroups = new Map<string, BookAnalysisTimelineNode[]>();
-  for (const node of nodes) {
-    const phase = node.phase?.trim() || "未分阶段";
-    if (!phaseGroups.has(phase)) {
-      phaseGroups.set(phase, []);
-      phaseOrder.push(phase);
-    }
-    phaseGroups.get(phase)?.push(node);
-  }
-  return phaseOrder
-    .map((phase) => {
-      const group = phaseGroups.get(phase) ?? [];
-      return `### ${phase}\n${group.map((node) => formatTimelineNode(node)).join("\n")}`;
-    })
+  return groupBookAnalysisTimelineNodesByPhase(nodes)
+    .map((group) => `### ${group.phase}\n${group.nodes.map((node) => formatTimelineNode(node)).join("\n")}`)
     .join("\n");
 }
 
 function formatTimelineStructuredData(data: Record<string, unknown>): string {
   const normalized = normalizeBookAnalysisStructuredData("timeline", data);
   const lines: string[] = [];
-  const timeNodes = Array.isArray(normalized.timeNodes)
-    ? normalized.timeNodes as BookAnalysisTimelineNode[]
-    : [];
-  const eventOrder = Array.isArray(normalized.eventOrder)
-    ? normalized.eventOrder as BookAnalysisTimelineNode[]
-    : [];
-  if (timeNodes.length > 0) {
-    lines.push("## 关键时间节点", formatTimelineNodes(timeNodes));
-  }
-  if (eventOrder.length > 0) {
-    lines.push("## 事件先后关系", formatTimelineNodes(eventOrder));
-  }
-  for (const key of ["phaseDivisions", "stateChangeNodes", "tempoRisks"]) {
-    const values = Array.isArray(normalized[key])
-      ? (normalized[key] as unknown[]).map((item) => String(item).trim()).filter(Boolean)
+
+  for (const field of BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS.timeline) {
+    const label = BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[field.key] ?? field.key;
+    const value = normalized[field.key];
+    if (field.type === "timelineNodeArray") {
+      const nodes = Array.isArray(value) ? value as BookAnalysisTimelineNode[] : [];
+      const formatted = formatTimelineNodes(nodes);
+      if (formatted) {
+        lines.push(`## ${label}`, formatted);
+      }
+      continue;
+    }
+
+    const values = Array.isArray(value)
+      ? value.map((item) => String(item).trim()).filter(Boolean)
       : [];
     if (values.length > 0) {
-      lines.push(`## ${key}`, values.map((item) => `- ${item}`).join("\n"));
+      lines.push(`## ${label}`, values.map((item) => `- ${item}`).join("\n"));
     }
   }
   return lines.join("\n");

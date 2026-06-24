@@ -14,6 +14,10 @@
       "types": "./dist/imagePrompt.d.ts",
       "default": "./dist/imagePrompt.js"
     },
+    "./utils/*": {
+      "types": "./dist/utils/*.d.ts",
+      "default": "./dist/utils/*.js"
+    },
     "./types/*": {
       "types": "./dist/types/*.d.ts",
       "default": "./dist/types/*.js"

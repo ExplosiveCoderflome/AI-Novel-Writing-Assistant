@@ -5,6 +5,11 @@ import {
   type BookAnalysisSection,
   type BookAnalysisTimelineNode,
 } from "@ai-novel/shared/types/bookAnalysis";
+import {
+  groupBookAnalysisTimelineNodesByPhase,
+  normalizeBookAnalysisTimelineNode,
+  normalizeBookAnalysisTimelineNodes,
+} from "@ai-novel/shared/utils/bookAnalysisTimeline";
 import { getEffectiveContent } from "./bookAnalysis.utils";
 
 function sectionContentToMarkdown(section: BookAnalysisSection): string {
@@ -13,32 +18,6 @@ function sectionContentToMarkdown(section: BookAnalysisSection): string {
     return "_暂无内容_";
   }
   return content;
-}
-
-function normalizeTimelineNode(value: unknown): BookAnalysisTimelineNode | null {
-  if (typeof value === "string") {
-    const label = value.trim();
-    return label ? { label } : null;
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-  const row = value as Record<string, unknown>;
-  const label = typeof row.label === "string" ? row.label.trim() : "";
-  if (!label) {
-    return null;
-  }
-  const timeHint = typeof row.timeHint === "string" ? row.timeHint.trim() : "";
-  const phase = typeof row.phase === "string" ? row.phase.trim() : "";
-  const sourceRefs = Array.isArray(row.sourceRefs)
-    ? row.sourceRefs.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean)
-    : [];
-  return {
-    label,
-    ...(timeHint ? { timeHint } : {}),
-    ...(phase ? { phase } : {}),
-    ...(sourceRefs.length > 0 ? { sourceRefs } : {}),
-  };
 }
 
 function formatTimelineNode(node: BookAnalysisTimelineNode): string {
@@ -61,7 +40,7 @@ function normalizeStructuredValue(value: unknown): string[] {
         if (typeof item === "string") {
           return item.trim();
         }
-        const timelineNode = normalizeTimelineNode(item);
+        const timelineNode = normalizeBookAnalysisTimelineNode(item);
         return timelineNode ? formatTimelineNode(timelineNode) : "";
       })
       .filter(Boolean)
@@ -70,32 +49,22 @@ function normalizeStructuredValue(value: unknown): string[] {
   return [];
 }
 
-function normalizeTimelineNodes(value: unknown): BookAnalysisTimelineNode[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((item) => normalizeTimelineNode(item))
-    .filter((item): item is BookAnalysisTimelineNode => Boolean(item))
-    .slice(0, 12);
-}
-
 function buildTimelineSummaryRows(label: string, nodes: BookAnalysisTimelineNode[]): string[] {
   if (nodes.length === 0) {
     return [];
   }
-  const groups = new Map<string, string[]>();
-  for (const node of nodes) {
-    const phase = node.phase?.trim() || "未分阶段";
-    const meta = [
-      node.timeHint ? `时间：${node.timeHint}` : "",
-      node.sourceRefs?.length ? `来源：${node.sourceRefs.join("、")}` : "",
-    ].filter(Boolean).join("；");
-    const text = meta ? `${node.label}（${meta}）` : node.label;
-    groups.set(phase, [...(groups.get(phase) ?? []), text]);
-  }
+  const groups = groupBookAnalysisTimelineNodesByPhase(nodes).map((group) => ({
+    phase: group.phase,
+    items: group.nodes.map((node) => {
+      const meta = [
+        node.timeHint ? `时间：${node.timeHint}` : "",
+        node.sourceRefs?.length ? `来源：${node.sourceRefs.join("、")}` : "",
+      ].filter(Boolean).join("；");
+      return meta ? `${node.label}（${meta}）` : node.label;
+    }),
+  }));
   const lines = [`- ${label}：`];
-  for (const [phase, items] of groups.entries()) {
+  for (const { phase, items } of groups) {
     lines.push(`  - ${phase}：${items.join("；")}`);
   }
   return lines;
@@ -113,7 +82,7 @@ function buildStructuredSummaryMarkdown(section: BookAnalysisSection): string[] 
     .flatMap(([key, value]) => {
       const label = BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[key] ?? key;
       if (fieldSpecs.get(key) === "timelineNodeArray") {
-        return buildTimelineSummaryRows(label, normalizeTimelineNodes(value));
+        return buildTimelineSummaryRows(label, normalizeBookAnalysisTimelineNodes(value, 12));
       }
       const values = normalizeStructuredValue(value);
       return values.length > 0 ? [`- ${label}：${values.join("；")}`] : [];
