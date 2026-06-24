@@ -96,6 +96,7 @@ export function serializeAnalysisRow(row: AnalysisRowForSerialize): BookAnalysis
 }
 
 export function serializeSectionRow(row: SectionRowForSerialize): BookAnalysisSection {
+  const structuredData = decodeStructuredData(row.structuredDataJson);
   return {
     id: row.id,
     analysisId: row.analysisId,
@@ -105,9 +106,9 @@ export function serializeSectionRow(row: SectionRowForSerialize): BookAnalysisSe
     aiContent: row.aiContent,
     editedContent: row.editedContent,
     notes: row.notes,
-    structuredData: decodeStructuredData(row.structuredDataJson),
+    structuredData,
     normalizationWarnings: decodeNormalizationWarnings(row.normalizationWarningsJson),
-    evidence: decodeEvidence(row.evidenceJson, row.sectionKey as BookAnalysisSectionKey),
+    evidence: decodeEvidence(row.evidenceJson, row.sectionKey as BookAnalysisSectionKey, structuredData),
     frozen: row.frozen,
     sortOrder: row.sortOrder,
     updatedAt: row.updatedAt.toISOString(),

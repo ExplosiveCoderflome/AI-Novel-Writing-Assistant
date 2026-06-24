@@ -9,6 +9,7 @@ const { BookAnalysisCommandService } = require("../dist/services/bookAnalysis/Bo
 const { BookAnalysisGenerationService } = require("../dist/services/bookAnalysis/bookAnalysis.generation.js");
 const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/BookAnalysisQueryService.js");
 const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/bookAnalysis.queue.js");
+const { NovelReferenceService } = require("../dist/services/novel/NovelReferenceService.js");
 const { resolveLiveBookAnalysisStatus } = require("../dist/services/bookAnalysis/bookAnalysis.status.js");
 const { serializeSectionRow } = require("../dist/services/bookAnalysis/bookAnalysis.serialization.js");
 const {
@@ -202,6 +203,35 @@ test("normalizeBookAnalysisStructuredDataWithWarnings reports truncated array fi
   assert.deepEqual(multiField.normalizationWarnings, ["phaseProgressions", "highlightDesigns"]);
 });
 
+test("normalizeBookAnalysisStructuredData supports timeline nodes and legacy strings", () => {
+  const normalized = normalizeBookAnalysisStructuredDataWithWarnings("timeline", {
+    timeNodes: [
+      "旧文本节点",
+      {
+        label: "主角入夜潜入山寨",
+        timeHint: "第一夜",
+        phase: "潜入",
+        sourceRefs: ["片段 1", "", "片段 2"],
+        unknownField: "不应保留",
+      },
+      { label: "" },
+    ],
+    eventOrder: Array.from({ length: 31 }, (_, index) => ({ label: `事件 ${index + 1}` })),
+  });
+
+  assert.deepEqual(normalized.structuredData.timeNodes, [
+    { label: "旧文本节点" },
+    {
+      label: "主角入夜潜入山寨",
+      timeHint: "第一夜",
+      phase: "潜入",
+      sourceRefs: ["片段 1", "片段 2"],
+    },
+  ]);
+  assert.equal(normalized.structuredData.eventOrder.length, 30);
+  assert.deepEqual(normalized.normalizationWarnings, ["eventOrder"]);
+});
+
 test("serializeSectionRow defaults missing normalization warnings to an empty list", () => {
   const serialized = serializeSectionRow({
     id: "section-legacy",
@@ -277,6 +307,23 @@ test("normalizeBookAnalysisEvidence keeps valid field bindings and preserves leg
     excerpt: "一句话定位证据",
     sourceLabel: "片段 1",
     fieldKey: "oneLinePositioning",
+  }]);
+
+  const structured = normalizeBookAnalysisStructuredData("plot_structure", {
+    escalationDesigns: Array.from({ length: 15 }, (_, index) => `升级 ${index + 1}`),
+  });
+  assert.equal(structured.escalationDesigns.length, 12);
+  assert.deepEqual(normalizeBookAnalysisEvidence("plot_structure", [{
+    label: "越界证据",
+    excerpt: "证据本身保留",
+    sourceLabel: "片段 5",
+    fieldKey: "escalationDesigns",
+    fieldIndex: 15,
+  }], structured), [{
+    label: "越界证据",
+    excerpt: "证据本身保留",
+    sourceLabel: "片段 5",
+    fieldKey: "escalationDesigns",
   }]);
 });
 
@@ -837,6 +884,57 @@ test("publishAnalysisToNovel replaces only bindings from the same source analysi
   } finally {
     prisma.novel.findUnique = original.novelFindUnique;
     prisma.$transaction = original.transaction;
+  }
+});
+
+test("NovelReferenceService formats structured timeline nodes by phase", async () => {
+  const original = {
+    knowledgeBindingFindMany: prisma.knowledgeBinding.findMany,
+    knowledgeDocumentFindMany: prisma.knowledgeDocument.findMany,
+    bookAnalysisFindMany: prisma.bookAnalysis.findMany,
+    novelFindUnique: prisma.novel.findUnique,
+  };
+
+  prisma.novel.findUnique = async () => null;
+  prisma.knowledgeBinding.findMany = async () => ([{ documentId: "document-1" }]);
+  prisma.knowledgeDocument.findMany = async (input) => {
+    if (input.include) {
+      return [];
+    }
+    return [{ id: "document-1" }];
+  };
+  prisma.bookAnalysis.findMany = async () => ([{
+    id: "analysis-1",
+    title: "测试拆书",
+    document: { title: "参考书" },
+    documentVersion: { versionNumber: 1 },
+    sections: [{
+      sectionKey: "timeline",
+      title: "故事时间线",
+      structuredDataJson: JSON.stringify({
+        timeNodes: [
+          { label: "主角入夜潜入山寨", timeHint: "第一夜", phase: "潜入", sourceRefs: ["片段 1"] },
+          { label: "反派身份暴露", timeHint: "第三幕", phase: "反转", sourceRefs: ["片段 8"] },
+        ],
+      }),
+      aiContent: null,
+      editedContent: null,
+    }],
+  }]);
+
+  try {
+    const service = new NovelReferenceService();
+    const reference = await service.buildReferenceForStage("novel-1", "chapter");
+
+    assert.match(reference, /\[analysis\.reference\] 测试拆书/);
+    assert.match(reference, /### 潜入/);
+    assert.match(reference, /主角入夜潜入山寨 \(时间=第一夜; 来源=片段 1\)/);
+    assert.match(reference, /### 反转/);
+  } finally {
+    prisma.knowledgeBinding.findMany = original.knowledgeBindingFindMany;
+    prisma.knowledgeDocument.findMany = original.knowledgeDocumentFindMany;
+    prisma.bookAnalysis.findMany = original.bookAnalysisFindMany;
+    prisma.novel.findUnique = original.novelFindUnique;
   }
 });
 

@@ -8,6 +8,13 @@ const evidenceItemSchema = z.object({
   fieldIndex: z.number().int().min(0).optional(),
 }).passthrough();
 
+export const bookAnalysisTimelineNodeSchema = z.object({
+  label: z.string().trim().min(1),
+  timeHint: z.string().trim().min(1).optional(),
+  phase: z.string().trim().min(1).optional(),
+  sourceRefs: z.array(z.string().trim().min(1)).optional(),
+}).passthrough();
+
 export const bookAnalysisSourceNoteOutputSchema = z.object({
   summary: z.string().trim().min(1),
   plotPoints: z.array(z.string().trim().min(1)).max(5).default([]),

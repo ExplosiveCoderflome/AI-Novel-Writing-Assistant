@@ -11,7 +11,10 @@ import {
   bookAnalysisSectionOutputSchema,
   bookAnalysisSourceNoteOutputSchema,
 } from "../../../services/bookAnalysis/bookAnalysisSchemas";
-import { BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT } from "../../../services/bookAnalysis/bookAnalysis.utils";
+import {
+  BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT,
+  BOOK_ANALYSIS_TIMELINE_NODE_LIMIT,
+} from "../../../services/bookAnalysis/bookAnalysis.utils";
 
 export interface BookAnalysisSourceNotePromptInput {
   segmentLabel: string;
@@ -51,16 +54,31 @@ function buildSectionStructuredDataContract(sectionKey: BookAnalysisSectionKey):
     ].join("\n\n");
   }
 
-  const structureExample = specs.reduce<Record<string, string | string[]>>((acc, field) => {
+  const structureExample = specs.reduce<Record<string, unknown>>((acc, field) => {
     const label = BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[field.key] ?? field.key;
-    acc[field.key] = field.type === "string" ? label : [label];
+    if (field.type === "string") {
+      acc[field.key] = label;
+    } else if (field.type === "timelineNodeArray") {
+      acc[field.key] = [{
+        label,
+        timeHint: "时间提示，可省略",
+        phase: "阶段标签，可省略",
+        sourceRefs: ["片段标签，可省略"],
+      }];
+    } else {
+      acc[field.key] = [label];
+    }
     return acc;
   }, {});
   const stringFields = specs.filter((field) => field.type === "string").map((field) => field.key);
   const arrayFields = specs.filter((field) => field.type === "stringArray").map((field) => field.key);
+  const timelineNodeFields = specs.filter((field) => field.type === "timelineNodeArray").map((field) => field.key);
   const typeRules = [
     stringFields.length > 0 ? `${stringFields.join("、")} 为字符串。` : "",
     arrayFields.length > 0 ? `${arrayFields.join("、")} 为字符串数组。` : "",
+    timelineNodeFields.length > 0
+      ? `${timelineNodeFields.join("、")} 为时间线节点数组；每项必须有 label，可选 timeHint、phase、sourceRefs。`
+      : "",
   ].filter(Boolean).join(" ");
   const extraRules: Partial<Record<BookAnalysisSectionKey, string[]>> = {
     overview: [
@@ -68,6 +86,10 @@ function buildSectionStructuredDataContract(sectionKey: BookAnalysisSectionKey):
     ],
     market_highlights: [
       "targetReaderMatches 允许基于题材、卖点与读者信号做低风险匹配判断，但不要伪装成精确人群画像。",
+    ],
+    timeline: [
+      "timeNodes 与 eventOrder 使用节点对象数组，不要退回字符串数组；label 写事件或节点本身，timeHint 写相对或绝对时间提示，phase 写所属阶段。",
+      "sourceRefs 只能填写 notes 中已经出现的 sourceLabel；如果无法确定来源片段，可省略 sourceRefs，不要虚构片段名。",
     ],
   };
 
@@ -242,7 +264,7 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "补充约束：",
       "1. structuredData 必须更适合作为程序读取、筛选、展示和复用的数据层，不要把 markdown 大段分析原样搬进去。",
       "2. 若某项信息依据不足，字符串字段返回空字符串，数组字段返回空数组；不要省略字段，不要返回 null，不要自造近义键名。",
-      `3. 数组字段最多保留 ${BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT} 项；如可用信息更多，请按重要度排序后只保留最值得复用的 ${BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT} 项。`,
+      `3. 普通字符串数组字段最多保留 ${BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT} 项；时间线节点数组最多保留 ${BOOK_ANALYSIS_TIMELINE_NODE_LIMIT} 项；如可用信息更多，请按重要度和叙事顺序筛选保留。`,
       "4. 数组项使用简洁中文短语，避免长解释；数组内避免同义重复。",
       "5. 输出时尽量保持字段顺序与约定结构一致。",
       "",

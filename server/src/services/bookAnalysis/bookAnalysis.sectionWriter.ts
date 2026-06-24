@@ -55,7 +55,11 @@ export class BookAnalysisSectionWriter {
         (parsed as any).structuredData && typeof (parsed as any).structuredData === "object"
           ? normalizeBookAnalysisStructuredDataWithWarnings(sectionKey, (parsed as any).structuredData as Record<string, unknown>)
           : normalizeBookAnalysisStructuredDataWithWarnings(sectionKey, null);
-      const evidence = normalizeBookAnalysisEvidence(sectionKey, (parsed as any).evidence);
+      const evidence = normalizeBookAnalysisEvidence(
+        sectionKey,
+        (parsed as any).evidence,
+        normalizedStructuredData.structuredData,
+      );
       return {
         markdown,
         structuredData: normalizedStructuredData.structuredData,

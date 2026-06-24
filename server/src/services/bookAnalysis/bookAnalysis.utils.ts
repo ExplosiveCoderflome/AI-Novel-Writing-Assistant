@@ -1,4 +1,9 @@
-import type { BookAnalysisEvidenceItem, BookAnalysisSection, BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type {
+  BookAnalysisEvidenceItem,
+  BookAnalysisSection,
+  BookAnalysisSectionKey,
+  BookAnalysisTimelineNode,
+} from "@ai-novel/shared/types/bookAnalysis";
 import { BOOK_ANALYSIS_SECTIONS, BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS } from "@ai-novel/shared/types/bookAnalysis";
 import {
   CHAPTER_HEADING_REGEX,
@@ -17,6 +22,7 @@ import {
 import type { SourceNote, SourceSegment } from "./bookAnalysis.types";
 
 export const BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT = 12;
+export const BOOK_ANALYSIS_TIMELINE_NODE_LIMIT = 30;
 
 export function isMissingTableError(error: unknown): boolean {
   return (
@@ -134,6 +140,7 @@ export function toEvidenceList(value: unknown, sourceLabelFallback = ""): BookAn
 export function normalizeBookAnalysisEvidence(
   sectionKey: BookAnalysisSectionKey,
   value: unknown,
+  structuredData?: Record<string, unknown> | null,
 ): BookAnalysisEvidenceItem[] {
   const fieldSpecs = new Map(BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS[sectionKey].map((field) => [field.key, field]));
   return toEvidenceList(value).map((item) => {
@@ -151,6 +158,16 @@ export function normalizeBookAnalysisEvidence(
       return rest;
     }
     if (item.fieldIndex === undefined || !Number.isInteger(item.fieldIndex) || item.fieldIndex < 0) {
+      const { fieldIndex: _fieldIndex, ...rest } = item;
+      return rest;
+    }
+    const normalizedValue = structuredData?.[item.fieldKey];
+    const maxIndex = Array.isArray(normalizedValue)
+      ? normalizedValue.length
+      : fieldSpec.type === "timelineNodeArray"
+        ? BOOK_ANALYSIS_TIMELINE_NODE_LIMIT
+        : BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT;
+    if (item.fieldIndex >= maxIndex) {
       const { fieldIndex: _fieldIndex, ...rest } = item;
       return rest;
     }
@@ -286,6 +303,53 @@ function normalizeStructuredStringArrayWithMeta(value: unknown): {
   };
 }
 
+function normalizeStringArray(value: unknown, limit: number): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function normalizeTimelineNode(value: unknown): BookAnalysisTimelineNode | null {
+  if (typeof value === "string") {
+    const label = value.trim();
+    return label ? { label } : null;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const row = value as Record<string, unknown>;
+  const label = typeof row.label === "string" ? row.label.trim() : "";
+  if (!label) {
+    return null;
+  }
+  const timeHint = typeof row.timeHint === "string" ? row.timeHint.trim() : "";
+  const phase = typeof row.phase === "string" ? row.phase.trim() : "";
+  const sourceRefs = normalizeStringArray(row.sourceRefs, 8);
+  return {
+    label,
+    ...(timeHint ? { timeHint } : {}),
+    ...(phase ? { phase } : {}),
+    ...(sourceRefs.length > 0 ? { sourceRefs } : {}),
+  };
+}
+
+function normalizeStructuredTimelineNodeArrayWithMeta(value: unknown): {
+  value: BookAnalysisTimelineNode[];
+  truncated: boolean;
+} {
+  const items = (Array.isArray(value) ? value : typeof value === "string" && value.trim() ? [value] : [])
+    .map((item) => normalizeTimelineNode(item))
+    .filter((item): item is BookAnalysisTimelineNode => Boolean(item));
+  return {
+    value: items.slice(0, BOOK_ANALYSIS_TIMELINE_NODE_LIMIT),
+    truncated: items.length > BOOK_ANALYSIS_TIMELINE_NODE_LIMIT,
+  };
+}
+
 export function normalizeBookAnalysisStructuredDataWithWarnings(
   sectionKey: BookAnalysisSectionKey,
   value: Record<string, unknown> | null,
@@ -301,7 +365,9 @@ export function normalizeBookAnalysisStructuredDataWithWarnings(
       normalized[field.key] = normalizeStructuredString(source[field.key]);
       continue;
     }
-    const result = normalizeStructuredStringArrayWithMeta(source[field.key]);
+    const result = field.type === "timelineNodeArray"
+      ? normalizeStructuredTimelineNodeArrayWithMeta(source[field.key])
+      : normalizeStructuredStringArrayWithMeta(source[field.key]);
     normalized[field.key] = result.value;
     if (result.truncated) {
       normalizationWarnings.push(field.key);
@@ -491,12 +557,16 @@ export function decodeStructuredData(value: string | null): Record<string, unkno
   return parsed && typeof parsed === "object" ? parsed : null;
 }
 
-export function decodeEvidence(value: string | null, sectionKey?: BookAnalysisSectionKey): BookAnalysisEvidenceItem[] {
+export function decodeEvidence(
+  value: string | null,
+  sectionKey?: BookAnalysisSectionKey,
+  structuredData?: Record<string, unknown> | null,
+): BookAnalysisEvidenceItem[] {
   if (!value) {
     return [];
   }
   const parsed = safeParseJSON<unknown[]>(value, []);
-  return sectionKey ? normalizeBookAnalysisEvidence(sectionKey, parsed) : toEvidenceList(parsed);
+  return sectionKey ? normalizeBookAnalysisEvidence(sectionKey, parsed, structuredData) : toEvidenceList(parsed);
 }
 
 export function decodeNormalizationWarnings(value: string | null): string[] {

@@ -12,7 +12,14 @@ export type BookAnalysisSectionKey =
   | "style_technique"
   | "market_highlights";
 export type BookAnalysisPreset = "quick" | "standard" | "complete";
-export type BookAnalysisStructuredFieldType = "string" | "stringArray";
+export type BookAnalysisStructuredFieldType = "string" | "stringArray" | "timelineNodeArray";
+
+export interface BookAnalysisTimelineNode {
+  label: string;
+  timeHint?: string;
+  phase?: string;
+  sourceRefs?: string[];
+}
 
 export interface BookAnalysisStructuredFieldSpec {
   key: string;
@@ -129,8 +136,8 @@ export const BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS: Readonly<Record<BookAnalysisS
     { key: "reusablePatterns", type: "stringArray" },
   ],
   timeline: [
-    { key: "timeNodes", type: "stringArray" },
-    { key: "eventOrder", type: "stringArray" },
+    { key: "timeNodes", type: "timelineNodeArray" },
+    { key: "eventOrder", type: "timelineNodeArray" },
     { key: "phaseDivisions", type: "stringArray" },
     { key: "stateChangeNodes", type: "stringArray" },
     { key: "tempoRisks", type: "stringArray" },
