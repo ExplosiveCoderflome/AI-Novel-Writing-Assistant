@@ -2703,6 +2703,7 @@ model BookAnalysis {
   publishedDocument           KnowledgeDocument?  @relation("BookAnalysisPublishedDocument", fields: [publishedDocumentId], references: [id], onDelete: SetNull)
   continuationNovels          Novel[]             @relation("NovelContinuationBookAnalysis")
   sections                    BookAnalysisSection[]
+  characters                  BookAnalysisCharacter[]
   createdAt                   DateTime           @default(now())
   updatedAt                   DateTime           @updatedAt
 
@@ -2749,6 +2750,57 @@ model BookAnalysisSection {
 
   @@unique([analysisId, sectionKey])
   @@index([analysisId, sortOrder])
+}
+
+model BookAnalysisCharacter {
+  id                     String                     @id @default(cuid())
+  analysisId             String
+  name                   String
+  role                   String
+  generationDepth        String                     @default("standard")
+  selectedDimensionsJson String?
+  profileJson            String
+  evidenceJson           String?
+  sortOrder              Int                        @default(0)
+  analysis               BookAnalysis               @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  arcs                   BookAnalysisCharacterArc[]
+  scenes                 BookAnalysisCharacterScene[]
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+
+  @@index([analysisId, sortOrder])
+  @@index([analysisId, name])
+}
+
+model BookAnalysisCharacterArc {
+  id                String                @id @default(cuid())
+  characterId       String
+  chapterIndex      Int?
+  stageLabel        String
+  stateSnapshotJson String?
+  evidenceJson      String?
+  sortOrder         Int                   @default(0)
+  character         BookAnalysisCharacter @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@index([characterId, sortOrder])
+  @@index([chapterIndex])
+}
+
+model BookAnalysisCharacterScene {
+  id              String                @id @default(cuid())
+  characterId     String
+  sceneLabel      String
+  sceneType       String?
+  performanceJson String?
+  evidenceJson    String?
+  sortOrder       Int                   @default(0)
+  character       BookAnalysisCharacter @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([characterId, sortOrder])
 }
 
 model KnowledgeChunk {

@@ -62,6 +62,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/bookAnalysis/bookAnalysisChapter.prompts").bookAnalysisChapterSplitPrompt as UnknownPromptAsset,
   },
   {
+    key: "bookAnalysis.character.generate@v1",
+    load: () => require("./prompts/bookAnalysis/bookAnalysisCharacter.prompts").bookAnalysisCharacterGeneratePrompt as UnknownPromptAsset,
+  },
+  {
     key: "character.base.skeleton@v1",
     load: () => require("./prompts/character/character.prompts").baseCharacterSkeletonPrompt as UnknownPromptAsset,
   },

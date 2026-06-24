@@ -6,6 +6,12 @@ import type {
   BookAnalysisSectionKey,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
+import type {
+  BookAnalysisCharacter,
+  BookAnalysisCharacterDimension,
+  BookAnalysisCharacterGenerationDepth,
+} from "@ai-novel/shared/types/bookAnalysisCharacter";
+import type { CharacterProfile } from "@ai-novel/shared/types/characterProfile";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { apiClient } from "./client";
@@ -104,6 +110,62 @@ export async function archiveBookAnalysis(id: string) {
   const { data } = await apiClient.patch<ApiResponse<BookAnalysisDetail>>(`/book-analysis/${id}`, {
     status: "archived",
   });
+  return data;
+}
+
+export async function listBookAnalysisCharacters(id: string) {
+  const { data } = await apiClient.get<ApiResponse<BookAnalysisCharacter[]>>(`/book-analysis/${id}/characters`);
+  return data;
+}
+
+export async function createBookAnalysisCharacter(
+  id: string,
+  payload: {
+    name: string;
+    role: string;
+    profile?: Partial<CharacterProfile>;
+    generationDepth?: BookAnalysisCharacterGenerationDepth;
+    selectedDimensions?: BookAnalysisCharacterDimension[];
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<BookAnalysisCharacter>>(`/book-analysis/${id}/characters`, payload);
+  return data;
+}
+
+export async function generateBookAnalysisCharacters(
+  id: string,
+  payload: {
+    generationDepth: BookAnalysisCharacterGenerationDepth;
+    selectedDimensions: BookAnalysisCharacterDimension[];
+    characterNames?: string[];
+  },
+) {
+  const { data } = await apiClient.post<ApiResponse<BookAnalysisCharacter[]>>(
+    `/book-analysis/${id}/characters/generate`,
+    payload,
+  );
+  return data;
+}
+
+export async function updateBookAnalysisCharacter(
+  id: string,
+  characterId: string,
+  payload: {
+    name?: string;
+    role?: string;
+    profile?: Partial<CharacterProfile>;
+    selectedDimensions?: BookAnalysisCharacterDimension[];
+  },
+) {
+  const { data } = await apiClient.patch<ApiResponse<BookAnalysisCharacter>>(
+    `/book-analysis/${id}/characters/${characterId}`,
+    payload,
+  );
+  return data;
+}
+
+export async function deleteBookAnalysisCharacter(id: string, characterId: string) {
+  const { data } = await apiClient.delete<ApiResponse<null>>(`/book-analysis/${id}/characters/${characterId}`);
   return data;
 }
 

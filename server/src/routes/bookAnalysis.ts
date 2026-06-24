@@ -5,6 +5,7 @@ import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { bookAnalysisService } from "../services/bookAnalysis/BookAnalysisService";
+import { bookAnalysisCharacterService } from "../services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterService";
 
 const router = Router();
 
@@ -28,6 +29,11 @@ const analysisParamsSchema = z.object({
 const analysisSectionParamsSchema = z.object({
   id: z.string().trim().min(1),
   sectionKey: sectionKeySchema,
+});
+
+const analysisCharacterParamsSchema = z.object({
+  id: z.string().trim().min(1),
+  characterId: z.string().trim().min(1),
 });
 
 const listQuerySchema = z.object({
@@ -85,6 +91,58 @@ const exportQuerySchema = z.object({
   format: z.enum(["markdown", "json"]).default("markdown"),
 });
 
+const characterDimensionSchema = z.enum([
+  "basic",
+  "appearance",
+  "personality",
+  "motivation",
+  "arc",
+  "relations",
+  "scenes",
+]);
+
+const characterDepthSchema = z.enum(["quick", "standard", "deep"]);
+
+const characterProfileSchema = z.record(z.string(), z.unknown());
+
+const characterCreateSchema = z.object({
+  name: z.string().trim().min(1).max(40),
+  role: z.string().trim().min(1).max(80),
+  profile: characterProfileSchema.optional(),
+  generationDepth: characterDepthSchema.optional(),
+  selectedDimensions: z.array(characterDimensionSchema).min(1).max(7).optional(),
+});
+
+const characterUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(40).optional(),
+  role: z.string().trim().min(1).max(80).optional(),
+  profile: characterProfileSchema.optional(),
+  selectedDimensions: z.array(characterDimensionSchema).min(1).max(7).optional(),
+}).refine(
+  (value) =>
+    value.name !== undefined ||
+    value.role !== undefined ||
+    value.profile !== undefined ||
+    value.selectedDimensions !== undefined,
+  {
+    message: "At least one field must be provided.",
+  },
+);
+
+const characterGenerateSchema = z.object({
+  generationDepth: characterDepthSchema.default("standard"),
+  selectedDimensions: z.array(characterDimensionSchema).min(1).max(7).default([
+    "basic",
+    "appearance",
+    "personality",
+    "motivation",
+    "arc",
+    "relations",
+    "scenes",
+  ]),
+  characterNames: z.array(z.string().trim().min(1).max(40)).max(8).optional(),
+});
+
 router.use(authMiddleware);
 
 router.get("/", validate({ query: listQuerySchema }), async (req, res, next) => {
@@ -135,6 +193,95 @@ router.get("/:id", validate({ params: analysisParamsSchema }), async (req, res, 
     next(error);
   }
 });
+
+router.get("/:id/characters", validate({ params: analysisParamsSchema }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof analysisParamsSchema>;
+    const data = await bookAnalysisCharacterService.listCharacters(id);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Book analysis characters loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post(
+  "/:id/characters",
+  validate({ params: analysisParamsSchema, body: characterCreateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof analysisParamsSchema>;
+      const body = req.body as z.infer<typeof characterCreateSchema>;
+      const data = await bookAnalysisCharacterService.createCharacter(id, body);
+      res.status(201).json({
+        success: true,
+        data,
+        message: "Book analysis character created.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/characters/generate",
+  validate({ params: analysisParamsSchema, body: characterGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof analysisParamsSchema>;
+      const body = req.body as z.infer<typeof characterGenerateSchema>;
+      const data = await bookAnalysisCharacterService.generateCharacters(id, body);
+      res.status(201).json({
+        success: true,
+        data,
+        message: "Book analysis characters generated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.patch(
+  "/:id/characters/:characterId",
+  validate({ params: analysisCharacterParamsSchema, body: characterUpdateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId } = req.params as z.infer<typeof analysisCharacterParamsSchema>;
+      const body = req.body as z.infer<typeof characterUpdateSchema>;
+      const data = await bookAnalysisCharacterService.updateCharacter(id, characterId, body);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Book analysis character updated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.delete(
+  "/:id/characters/:characterId",
+  validate({ params: analysisCharacterParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId } = req.params as z.infer<typeof analysisCharacterParamsSchema>;
+      await bookAnalysisCharacterService.deleteCharacter(id, characterId);
+      res.status(200).json({
+        success: true,
+        data: null,
+        message: "Book analysis character deleted.",
+      } satisfies ApiResponse<null>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.post("/:id/rebuild", validate({ params: analysisParamsSchema }), async (req, res, next) => {
   try {

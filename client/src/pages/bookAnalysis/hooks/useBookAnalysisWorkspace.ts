@@ -7,19 +7,29 @@ import type {
   BookAnalysisSectionKey,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
+import type {
+  BookAnalysisCharacterDimension,
+  BookAnalysisCharacterGenerationDepth,
+} from "@ai-novel/shared/types/bookAnalysisCharacter";
+import type { CharacterProfile } from "@ai-novel/shared/types/characterProfile";
 import { BOOK_ANALYSIS_PRESETS } from "@ai-novel/shared/types/bookAnalysis";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   archiveBookAnalysis,
   copyBookAnalysis,
   createBookAnalysis,
+  createBookAnalysisCharacter,
+  deleteBookAnalysisCharacter,
   downloadBookAnalysisExport,
+  generateBookAnalysisCharacters,
   getBookAnalysis,
   listBookAnalyses,
+  listBookAnalysisCharacters,
   optimizeBookAnalysisSectionPreview,
   publishBookAnalysis,
   rebuildBookAnalysis,
   regenerateBookAnalysisSection,
+  updateBookAnalysisCharacter,
   updateBookAnalysisSection,
 } from "@/api/bookAnalysis";
 import { getKnowledgeDocument, getKnowledgeDocumentVersionChapters, listKnowledgeDocuments } from "@/api/knowledge";
@@ -125,6 +135,12 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const analyses = analysesQuery.data?.data ?? [];
   const selectedAnalysis = detailQuery.data?.data;
 
+  const charactersQuery = useQuery({
+    queryKey: queryKeys.bookAnalysis.characters(selectedAnalysisId || "none"),
+    queryFn: () => listBookAnalysisCharacters(selectedAnalysisId),
+    enabled: Boolean(selectedAnalysisId),
+  });
+
   const documentChaptersQuery = useQuery({
     queryKey: queryKeys.knowledge.chapters(
       selectedAnalysis?.documentId || "none",
@@ -144,6 +160,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     return sourceDocument.versions.find((version) => version.id === selectedAnalysis.documentVersionId)?.content ?? "";
   }, [selectedAnalysis, sourceDocument]);
   const documentChapters = documentChaptersQuery.data?.data?.chapters ?? [];
+  const characters = charactersQuery.data?.data ?? [];
   const versionOptions = sourceDocumentQuery.data?.data?.versions ?? [];
   const selectedPreset = useMemo(
     () => BOOK_ANALYSIS_PRESETS.find((preset) => preset.key === analysisPreset) ?? BOOK_ANALYSIS_PRESETS[1],
@@ -172,6 +189,10 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(selectedDocumentId) });
     }
     await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.detail(analysisId) });
+  };
+
+  const refreshCharacterData = async (analysisId: string) => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.characters(analysisId) });
   };
 
   const openAnalysis = (analysisId: string, documentId: string) => {
@@ -339,6 +360,69 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     onError: (error) => {
       const message = error instanceof Error ? error.message : "从拆书生成写法失败。";
       setStyleProfileFeedback(message);
+    },
+  });
+
+  const generateCharactersMutation = useMutation({
+    mutationFn: (payload: {
+      analysisId: string;
+      generationDepth: BookAnalysisCharacterGenerationDepth;
+      selectedDimensions: BookAnalysisCharacterDimension[];
+      characterNames?: string[];
+    }) => generateBookAnalysisCharacters(payload.analysisId, {
+      generationDepth: payload.generationDepth,
+      selectedDimensions: payload.selectedDimensions,
+      characterNames: payload.characterNames,
+    }),
+    onSuccess: async (_response, payload) => {
+      await refreshCharacterData(payload.analysisId);
+    },
+  });
+
+  const createCharacterMutation = useMutation({
+    mutationFn: (payload: {
+      analysisId: string;
+      name: string;
+      role: string;
+      profile?: Partial<CharacterProfile>;
+      generationDepth?: BookAnalysisCharacterGenerationDepth;
+      selectedDimensions?: BookAnalysisCharacterDimension[];
+    }) => createBookAnalysisCharacter(payload.analysisId, {
+      name: payload.name,
+      role: payload.role,
+      profile: payload.profile,
+      generationDepth: payload.generationDepth,
+      selectedDimensions: payload.selectedDimensions,
+    }),
+    onSuccess: async (_response, payload) => {
+      await refreshCharacterData(payload.analysisId);
+    },
+  });
+
+  const updateCharacterMutation = useMutation({
+    mutationFn: (payload: {
+      analysisId: string;
+      characterId: string;
+      name?: string;
+      role?: string;
+      profile?: Partial<CharacterProfile>;
+      selectedDimensions?: BookAnalysisCharacterDimension[];
+    }) => updateBookAnalysisCharacter(payload.analysisId, payload.characterId, {
+      name: payload.name,
+      role: payload.role,
+      profile: payload.profile,
+      selectedDimensions: payload.selectedDimensions,
+    }),
+    onSuccess: async (_response, payload) => {
+      await refreshCharacterData(payload.analysisId);
+    },
+  });
+
+  const deleteCharacterMutation = useMutation({
+    mutationFn: (payload: { analysisId: string; characterId: string }) =>
+      deleteBookAnalysisCharacter(payload.analysisId, payload.characterId),
+    onSuccess: async (_response, payload) => {
+      await refreshCharacterData(payload.analysisId);
     },
   });
 
@@ -590,6 +674,66 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     });
   };
 
+  const generateCharacters = async (input: {
+    generationDepth: BookAnalysisCharacterGenerationDepth;
+    selectedDimensions: BookAnalysisCharacterDimension[];
+    characterNames?: string[];
+  }) => {
+    if (!selectedAnalysis) {
+      return;
+    }
+    await generateCharactersMutation.mutateAsync({
+      analysisId: selectedAnalysis.id,
+      ...input,
+      characterNames: input.characterNames?.map((item) => item.trim()).filter(Boolean),
+    });
+  };
+
+  const createCharacter = async (input: {
+    name: string;
+    role: string;
+    profile?: Partial<CharacterProfile>;
+    generationDepth?: BookAnalysisCharacterGenerationDepth;
+    selectedDimensions?: BookAnalysisCharacterDimension[];
+  }) => {
+    if (!selectedAnalysis) {
+      return;
+    }
+    await createCharacterMutation.mutateAsync({
+      analysisId: selectedAnalysis.id,
+      ...input,
+    });
+  };
+
+  const updateCharacter = async (
+    characterId: string,
+    input: {
+      name?: string;
+      role?: string;
+      profile?: Partial<CharacterProfile>;
+      selectedDimensions?: BookAnalysisCharacterDimension[];
+    },
+  ) => {
+    if (!selectedAnalysis) {
+      return;
+    }
+    await updateCharacterMutation.mutateAsync({
+      analysisId: selectedAnalysis.id,
+      characterId,
+      ...input,
+    });
+  };
+
+  const deleteCharacter = async (characterId: string) => {
+    if (!selectedAnalysis) {
+      return;
+    }
+    await deleteCharacterMutation.mutateAsync({
+      analysisId: selectedAnalysis.id,
+      characterId,
+    });
+  };
+
   return {
     keyword,
     status,
@@ -613,6 +757,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     sourceDocument,
     sourceVersionContent,
     documentChapters,
+    characters,
     aggregatedEvidence,
     optimizingSectionKey,
     pending: {
@@ -625,6 +770,11 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       saveSection: updateSectionMutation.isPending,
       publish: publishMutation.isPending,
       createStyleProfile: createStyleProfileMutation.isPending,
+      loadCharacters: charactersQuery.isLoading,
+      generateCharacters: generateCharactersMutation.isPending,
+      createCharacter: createCharacterMutation.isPending,
+      updateCharacter: updateCharacterMutation.isPending,
+      deleteCharacter: deleteCharacterMutation.isPending,
     },
     setKeyword,
     setStatus,
@@ -648,6 +798,10 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     downloadSelectedAnalysis,
     publishSelectedAnalysis,
     createStyleProfileFromAnalysis,
+    generateCharacters,
+    createCharacter,
+    updateCharacter,
+    deleteCharacter,
     updateSectionDraft,
     getSectionDraft,
   };

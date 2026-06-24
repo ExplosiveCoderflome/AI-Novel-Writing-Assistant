@@ -58,6 +58,7 @@ export const queryKeys = {
   bookAnalysis: {
     list: (params: string) => ["book-analysis", "list", params] as const,
     detail: (id: string) => ["book-analysis", "detail", id] as const,
+    characters: (id: string) => ["book-analysis", "characters", id] as const,
   },
   writingFormula: {
     all: ["writing-formula"] as const,

@@ -7,6 +7,12 @@ import type {
   BookAnalysisSectionKey,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
+import type {
+  BookAnalysisCharacter,
+  BookAnalysisCharacterDimension,
+  BookAnalysisCharacterGenerationDepth,
+} from "@ai-novel/shared/types/bookAnalysisCharacter";
+import type { CharacterProfile } from "@ai-novel/shared/types/characterProfile";
 import type { DocumentChapter, KnowledgeDocumentDetail, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
 import type { AggregatedEvidenceItem, LLMConfigState, SectionDraft } from "../bookAnalysis.types";
 
@@ -27,6 +33,11 @@ export interface PendingState {
   saveSection: boolean;
   publish: boolean;
   createStyleProfile: boolean;
+  loadCharacters: boolean;
+  generateCharacters: boolean;
+  createCharacter: boolean;
+  updateCharacter: boolean;
+  deleteCharacter: boolean;
 }
 
 export interface BookAnalysisWorkspace {
@@ -52,6 +63,7 @@ export interface BookAnalysisWorkspace {
   sourceDocument?: KnowledgeDocumentDetail;
   sourceVersionContent: string;
   documentChapters: DocumentChapter[];
+  characters: BookAnalysisCharacter[];
   aggregatedEvidence: AggregatedEvidenceItem[];
   optimizingSectionKey: BookAnalysisSectionKey | null;
   pending: PendingState;
@@ -77,6 +89,28 @@ export interface BookAnalysisWorkspace {
   downloadSelectedAnalysis: (format: ExportFormat) => Promise<void>;
   publishSelectedAnalysis: () => Promise<void>;
   createStyleProfileFromAnalysis: () => Promise<void>;
+  generateCharacters: (input: {
+    generationDepth: BookAnalysisCharacterGenerationDepth;
+    selectedDimensions: BookAnalysisCharacterDimension[];
+    characterNames?: string[];
+  }) => Promise<void>;
+  createCharacter: (input: {
+    name: string;
+    role: string;
+    profile?: Partial<CharacterProfile>;
+    generationDepth?: BookAnalysisCharacterGenerationDepth;
+    selectedDimensions?: BookAnalysisCharacterDimension[];
+  }) => Promise<void>;
+  updateCharacter: (
+    characterId: string,
+    input: {
+      name?: string;
+      role?: string;
+      profile?: Partial<CharacterProfile>;
+      selectedDimensions?: BookAnalysisCharacterDimension[];
+    },
+  ) => Promise<void>;
+  deleteCharacter: (characterId: string) => Promise<void>;
   updateSectionDraft: (section: BookAnalysisSection, patch: Partial<SectionDraft>) => void;
   getSectionDraft: (section: BookAnalysisSection) => SectionDraft;
 }

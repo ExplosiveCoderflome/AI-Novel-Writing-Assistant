@@ -1,4 +1,5 @@
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
+import BookAnalysisCharacterPanel from "./components/BookAnalysisCharacterPanel";
 import BookAnalysisDetailPanel from "./components/BookAnalysisDetailPanel";
 import BookAnalysisSidebar from "./components/BookAnalysisSidebar";
 import { useBookAnalysisWorkspace } from "./hooks/useBookAnalysisWorkspace";
@@ -80,6 +81,23 @@ export default function BookAnalysisPage() {
             onDraftChange={workspace.updateSectionDraft}
             getSectionDraft={workspace.getSectionDraft}
           />
+          {workspace.selectedAnalysis ? (
+            <BookAnalysisCharacterPanel
+              characters={workspace.characters}
+              disabled={workspace.selectedAnalysis.status === "archived"}
+              isLoading={workspace.pending.loadCharacters}
+              pending={{
+                generate: workspace.pending.generateCharacters,
+                create: workspace.pending.createCharacter,
+                update: workspace.pending.updateCharacter,
+                delete: workspace.pending.deleteCharacter,
+              }}
+              onGenerate={workspace.generateCharacters}
+              onCreate={workspace.createCharacter}
+              onUpdate={workspace.updateCharacter}
+              onDelete={workspace.deleteCharacter}
+            />
+          ) : null}
         </div>
       </div>
     </div>

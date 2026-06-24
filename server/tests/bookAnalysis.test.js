@@ -7,6 +7,7 @@ const { publishAnalysisToNovel } = require("../dist/services/bookAnalysis/bookAn
 const { BookAnalysisSourceCacheService } = require("../dist/services/bookAnalysis/bookAnalysis.cache.js");
 const { BookAnalysisCommandService } = require("../dist/services/bookAnalysis/BookAnalysisCommandService.js");
 const { BookAnalysisGenerationService } = require("../dist/services/bookAnalysis/bookAnalysis.generation.js");
+const { BookAnalysisCharacterService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterService.js");
 const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/BookAnalysisQueryService.js");
 const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/bookAnalysis.queue.js");
 const {
@@ -174,6 +175,238 @@ test("renderNotesForPrompt only renders fields needed by the target section", ()
   assert.match(overviewPromptNotes, /设定信息：禁区边境由宗门封锁/);
   assert.match(overviewPromptNotes, /商业卖点：身份反转/);
   assert.match(overviewPromptNotes, /文风技法：短句推进压迫感/);
+});
+
+test("BookAnalysisCharacterService supports manual character CRUD without touching generation flow", async () => {
+  const original = {
+    analysisFindUnique: prisma.bookAnalysis.findUnique,
+    characterCount: prisma.bookAnalysisCharacter.count,
+    characterCreate: prisma.bookAnalysisCharacter.create,
+    characterFindMany: prisma.bookAnalysisCharacter.findMany,
+    characterFindFirst: prisma.bookAnalysisCharacter.findFirst,
+    characterUpdate: prisma.bookAnalysisCharacter.update,
+    characterDeleteMany: prisma.bookAnalysisCharacter.deleteMany,
+  };
+  const now = new Date("2026-06-24T10:00:00.000Z");
+  const createdRows = [];
+  const deleted = [];
+
+  prisma.bookAnalysis.findUnique = async () => ({ status: "succeeded" });
+  prisma.bookAnalysisCharacter.count = async () => createdRows.length;
+  prisma.bookAnalysisCharacter.create = async ({ data }) => {
+    const row = {
+      id: `char-${createdRows.length + 1}`,
+      analysisId: data.analysisId,
+      name: data.name,
+      role: data.role,
+      generationDepth: data.generationDepth,
+      selectedDimensionsJson: data.selectedDimensionsJson,
+      profileJson: data.profileJson,
+      evidenceJson: data.evidenceJson ?? null,
+      sortOrder: data.sortOrder,
+      createdAt: now,
+      updatedAt: now,
+      arcs: [],
+      scenes: [],
+    };
+    createdRows.push(row);
+    return row;
+  };
+  prisma.bookAnalysisCharacter.findMany = async () => createdRows;
+  prisma.bookAnalysisCharacter.findFirst = async ({ where }) => createdRows.find((row) => row.id === where.id && row.analysisId === where.analysisId) ?? null;
+  prisma.bookAnalysisCharacter.update = async ({ where, data }) => {
+    const row = createdRows.find((item) => item.id === where.id);
+    Object.assign(row, {
+      name: data.name ?? row.name,
+      role: data.role ?? row.role,
+      profileJson: data.profileJson ?? row.profileJson,
+      selectedDimensionsJson: data.selectedDimensionsJson ?? row.selectedDimensionsJson,
+      updatedAt: now,
+    });
+    return { ...row, arcs: [], scenes: [] };
+  };
+  prisma.bookAnalysisCharacter.deleteMany = async ({ where }) => {
+    deleted.push(where);
+    return { count: 1 };
+  };
+
+  const service = new BookAnalysisCharacterService();
+
+  try {
+    const created = await service.createCharacter("analysis-1", {
+      name: " 林秋 ",
+      role: "主角",
+      profile: { personality: "谨慎但敢赌", aliases: ["秋哥"] },
+      selectedDimensions: ["basic", "personality"],
+    });
+    assert.equal(created.name, "林秋");
+    assert.equal(created.profile.personality, "谨慎但敢赌");
+    assert.deepEqual(created.selectedDimensions, ["basic", "personality"]);
+
+    const listed = await service.listCharacters("analysis-1");
+    assert.equal(listed.length, 1);
+    assert.equal(listed[0].profile.aliases[0], "秋哥");
+
+    const updated = await service.updateCharacter("analysis-1", "char-1", {
+      role: "男主角",
+      profile: { outerGoal: "查清旧案" },
+    });
+    assert.equal(updated.role, "男主角");
+    assert.equal(updated.profile.outerGoal, "查清旧案");
+
+    await service.deleteCharacter("analysis-1", "char-1");
+    assert.deepEqual(deleted[0], { id: "char-1", analysisId: "analysis-1" });
+  } finally {
+    prisma.bookAnalysis.findUnique = original.analysisFindUnique;
+    prisma.bookAnalysisCharacter.count = original.characterCount;
+    prisma.bookAnalysisCharacter.create = original.characterCreate;
+    prisma.bookAnalysisCharacter.findMany = original.characterFindMany;
+    prisma.bookAnalysisCharacter.findFirst = original.characterFindFirst;
+    prisma.bookAnalysisCharacter.update = original.characterUpdate;
+    prisma.bookAnalysisCharacter.deleteMany = original.characterDeleteMany;
+  }
+});
+
+test("BookAnalysisCharacterService persists generated profile arcs and scenes on user trigger", async () => {
+  const original = {
+    analysisFindUnique: prisma.bookAnalysis.findUnique,
+    characterCount: prisma.bookAnalysisCharacter.count,
+    characterFindMany: prisma.bookAnalysisCharacter.findMany,
+    transaction: prisma.$transaction,
+  };
+  const now = new Date("2026-06-24T10:00:00.000Z");
+  const promptInputs = [];
+  const characterCreates = [];
+  const arcCreates = [];
+  const sceneCreates = [];
+
+  prisma.bookAnalysis.findUnique = async () => ({
+    id: "analysis-1",
+    status: "succeeded",
+    documentVersionId: "version-1",
+    documentVersion: { content: "第一章 开局\n林秋决定查清旧案。" },
+    provider: "deepseek",
+    model: "deepseek-chat",
+    temperature: 0.4,
+    maxTokens: 4096,
+    sections: [{
+      sectionKey: "character_system",
+      aiContent: "林秋：主角，谨慎但敢赌。",
+      editedContent: null,
+    }],
+  });
+  prisma.bookAnalysisCharacter.count = async () => 0;
+  prisma.bookAnalysisCharacter.findMany = async () => characterCreates.map((row, index) => ({
+    id: row.id,
+    analysisId: row.analysisId,
+    name: row.name,
+    role: row.role,
+    generationDepth: row.generationDepth,
+    selectedDimensionsJson: row.selectedDimensionsJson,
+    profileJson: row.profileJson,
+    evidenceJson: row.evidenceJson,
+    sortOrder: row.sortOrder,
+    createdAt: now,
+    updatedAt: now,
+    arcs: arcCreates
+      .filter((arc) => arc.characterId === row.id)
+      .map((arc, arcIndex) => ({ id: `arc-${arcIndex + 1}`, ...arc, createdAt: now, updatedAt: now })),
+    scenes: sceneCreates
+      .filter((scene) => scene.characterId === row.id)
+      .map((scene, sceneIndex) => ({ id: `scene-${sceneIndex + 1}`, ...scene, createdAt: now, updatedAt: now })),
+    sortOrder: index,
+  }));
+  prisma.$transaction = async (callback) => callback({
+    bookAnalysisCharacter: {
+      create: async ({ data }) => {
+        const row = { id: `char-${characterCreates.length + 1}`, ...data };
+        characterCreates.push(row);
+        return row;
+      },
+    },
+    bookAnalysisCharacterArc: {
+      create: async ({ data }) => {
+        arcCreates.push(data);
+        return data;
+      },
+    },
+    bookAnalysisCharacterScene: {
+      create: async ({ data }) => {
+        sceneCreates.push(data);
+        return data;
+      },
+    },
+  });
+
+  const service = new BookAnalysisCharacterService({
+    getOrBuildSourceNotes: async () => ({
+      notes: [{
+        sourceLabel: "片段 1",
+        summary: "林秋决定查清旧案",
+        plotPoints: ["旧案出现"],
+        timelineEvents: [],
+        characters: ["林秋谨慎但敢赌"],
+        worldbuilding: [],
+        themes: [],
+        styleTechniques: [],
+        marketHighlights: [],
+        evidence: [{ label: "目标", excerpt: "林秋决定查清旧案" }],
+      }],
+      segmentCount: 1,
+      cacheHit: true,
+    }),
+  }, async ({ promptInput }) => {
+    promptInputs.push(promptInput);
+    return {
+      output: {
+        characters: [{
+          name: "林秋",
+          role: "主角",
+          profile: {
+            personality: "谨慎但敢赌",
+            outerGoal: "查清旧案",
+          },
+          evidence: [{ label: "目标", excerpt: "林秋决定查清旧案" }],
+          arcs: [{
+            chapterIndex: 0,
+            stageLabel: "被迫接案",
+            stateSnapshot: { pressure: "高" },
+            evidence: [{ label: "开局", excerpt: "第一章 开局" }],
+          }],
+          scenes: [{
+            sceneLabel: "雪夜接案",
+            sceneType: "高光",
+            performance: { action: "主动追查" },
+            evidence: [{ label: "决定", excerpt: "决定查清旧案" }],
+          }],
+        }],
+      },
+    };
+  });
+
+  try {
+    const characters = await service.generateCharacters("analysis-1", {
+      generationDepth: "standard",
+      selectedDimensions: ["basic", "arc", "scenes"],
+      characterNames: ["林秋"],
+    });
+
+    assert.equal(promptInputs.length, 1);
+    assert.deepEqual(promptInputs[0].characterNames, ["林秋"]);
+    assert.match(promptInputs[0].characterSystemContext, /林秋：主角/);
+    assert.equal(characterCreates.length, 1);
+    assert.equal(arcCreates.length, 1);
+    assert.equal(sceneCreates.length, 1);
+    assert.equal(characters[0].name, "林秋");
+    assert.equal(characters[0].profile.outerGoal, "查清旧案");
+    assert.equal(characters[0].arcs[0].chapterIndex, 0);
+    assert.equal(characters[0].scenes[0].sceneLabel, "雪夜接案");
+  } finally {
+    prisma.bookAnalysis.findUnique = original.analysisFindUnique;
+    prisma.bookAnalysisCharacter.count = original.characterCount;
+    prisma.bookAnalysisCharacter.findMany = original.characterFindMany;
+    prisma.$transaction = original.transaction;
+  }
 });
 
 test("normalizeBookAnalysisStructuredData keeps fixed section fields and drops aliases", () => {

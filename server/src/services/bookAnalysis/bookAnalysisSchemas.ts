@@ -51,3 +51,26 @@ export const bookAnalysisChapterSplitOutputSchema = z.object({
     endOffset: z.number().int().min(0),
   }).passthrough()).default([]),
 }).passthrough();
+
+const bookAnalysisCharacterEvidenceSchema = evidenceItemSchema;
+
+export const bookAnalysisCharacterGenerateOutputSchema = z.object({
+  characters: z.array(z.object({
+    name: z.string().trim().min(1),
+    role: z.string().trim().min(1),
+    profile: z.record(z.string(), z.unknown()).default({}),
+    evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+    arcs: z.array(z.object({
+      chapterIndex: z.number().int().min(0).optional(),
+      stageLabel: z.string().trim().min(1),
+      stateSnapshot: z.record(z.string(), z.unknown()).optional(),
+      evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+    }).passthrough()).default([]),
+    scenes: z.array(z.object({
+      sceneLabel: z.string().trim().min(1),
+      sceneType: z.string().trim().optional(),
+      performance: z.record(z.string(), z.unknown()).optional(),
+      evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+    }).passthrough()).default([]),
+  }).passthrough()).default([]),
+}).passthrough();
