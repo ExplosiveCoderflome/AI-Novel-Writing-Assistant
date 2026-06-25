@@ -1,5 +1,5 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { BookAnalysisEvidenceItem, BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 
 export interface SectionDraft {
   editedContent: string;
@@ -17,15 +17,11 @@ export interface LLMConfigState {
   maxTokens?: number;
 }
 
-export interface AggregatedEvidenceItem {
+export interface AggregatedEvidenceItem extends BookAnalysisEvidenceItem {
   sectionKey: BookAnalysisSectionKey;
   sectionTitle: string;
-  label: string;
-  excerpt: string;
-  sourceLabel: string;
-  chapterIndex?: number;
-  excerptOffsetRange?: {
-    start: number;
-    end: number;
-  };
+}
+
+export interface SectionEvidenceItem extends AggregatedEvidenceItem {
+  evidenceKey: string;
 }

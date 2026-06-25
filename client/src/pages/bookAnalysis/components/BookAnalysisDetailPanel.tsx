@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { AggregatedEvidenceItem, SectionDraft } from "../bookAnalysis.types";
+import type { AggregatedEvidenceItem, SectionDraft, SectionEvidenceItem } from "../bookAnalysis.types";
 import { formatDate, formatStage, formatStatus } from "../bookAnalysis.utils";
 import type { BookAnalysisMode } from "../hooks/bookAnalysisWorkspace.types";
 import BookAnalysisSectionCard from "./BookAnalysisSectionCard";
@@ -92,40 +92,46 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     onDraftChange,
     getSectionDraft,
   } = props;
-  const [evidenceSectionFilter, setEvidenceSectionFilter] = useState<BookAnalysisSectionKey | "all">("all");
   const [selectedEvidenceKey, setSelectedEvidenceKey] = useState("");
   const [readingMode, setReadingMode] = useState<"summary" | "full">("summary");
   const [activeSectionKey, setActiveSectionKey] = useState<BookAnalysisSectionKey | "">("");
 
-  const evidenceCountsBySection = useMemo(() => {
-    const counts = new Map<BookAnalysisSectionKey, number>();
-    for (const item of aggregatedEvidence) {
-      counts.set(item.sectionKey, (counts.get(item.sectionKey) ?? 0) + 1);
-    }
-    return counts;
-  }, [aggregatedEvidence]);
+  const evidenceEntries = useMemo<SectionEvidenceItem[]>(
+    () => aggregatedEvidence.map((item, index) => ({
+      ...item,
+      evidenceKey: `${item.sectionKey}-${index}`,
+    })),
+    [aggregatedEvidence],
+  );
 
-  const filteredEvidence = useMemo(() => {
-    if (evidenceSectionFilter === "all") {
-      return aggregatedEvidence;
+  const evidenceBySection = useMemo(() => {
+    const groups = new Map<BookAnalysisSectionKey, SectionEvidenceItem[]>();
+    for (const item of evidenceEntries) {
+      const next = groups.get(item.sectionKey) ?? [];
+      next.push(item);
+      groups.set(item.sectionKey, next);
     }
-    return aggregatedEvidence.filter((item) => item.sectionKey === evidenceSectionFilter);
-  }, [aggregatedEvidence, evidenceSectionFilter]);
+    return groups;
+  }, [evidenceEntries]);
+
   const selectedEvidence = useMemo(() => {
     if (!selectedEvidenceKey) {
       return null;
     }
-    return aggregatedEvidence.find((item, index) => `${item.sectionKey}-${index}` === selectedEvidenceKey) ?? null;
-  }, [aggregatedEvidence, selectedEvidenceKey]);
+    return evidenceEntries.find((item) => item.evidenceKey === selectedEvidenceKey) ?? null;
+  }, [evidenceEntries, selectedEvidenceKey]);
+
   const selectedEvidenceChapter = useMemo(() => {
     if (!selectedEvidence || selectedEvidence.chapterIndex === undefined) {
       return null;
     }
     return documentChapters.find((chapter) => chapter.chapterIndex === selectedEvidence.chapterIndex) ?? null;
   }, [documentChapters, selectedEvidence]);
+
   const selectedChapterContent = selectedEvidenceChapter && sourceVersionContent
     ? sourceVersionContent.slice(selectedEvidenceChapter.startOffset, selectedEvidenceChapter.endOffset)
     : "";
+
   const sectionStats = useMemo(() => {
     if (!selectedAnalysis) {
       return {
@@ -175,67 +181,87 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
       </Card>
     );
   }
+
   const activeTabValue =
     activeSectionKey || (selectedAnalysis.sections[0]?.sectionKey as BookAnalysisSectionKey | undefined) || "overview";
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1">
-              <CardTitle>{selectedAnalysis.title}</CardTitle>
-              <div className="text-sm text-muted-foreground">
-                {selectedAnalysis.documentTitle} | 源版本 v{selectedAnalysis.documentVersionNumber}
-                {selectedAnalysis.isCurrentVersion ? "" : ` | 当前激活版本 v${selectedAnalysis.currentDocumentVersionNumber}`}
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
+    <div className="space-y-3">
+      <div className="sticky top-16 z-30 rounded-md border bg-background/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/85">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="truncate text-lg font-semibold tracking-normal">{selectedAnalysis.title}</h2>
               <Badge variant="outline">{formatStatus(selectedAnalysis.status)}</Badge>
-              {selectedAnalysis.publishedDocumentId && (
-                <Badge variant="secondary">已发布</Badge>
-              )}
+              {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary">已发布</Badge> : null}
               <Badge variant="outline">进度 {Math.round(selectedAnalysis.progress * 100)}%</Badge>
-              <Button size="sm" variant="outline" onClick={onCopy} disabled={pending.copy}>
-                复制
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onRebuild(selectedAnalysis.id)}
-                disabled={pending.rebuild || selectedAnalysis.status === "archived"}
-              >
-                重新生成
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <Link to={`/tasks?kind=book_analysis&id=${selectedAnalysis.id}`}>在任务中心查看</Link>
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => onDownload("markdown")}>
-                导出 Markdown
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => onDownload("json")}>
-                导出 JSON
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onCreateStyleProfile}
-                disabled={pending.createStyleProfile || selectedAnalysis.status === "archived"}
-              >
-                {pending.createStyleProfile ? "生成写法中..." : "从拆书生成写法"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onArchive(selectedAnalysis.id)}
-                disabled={pending.archive || selectedAnalysis.status === "archived"}
-              >
-                归档
-              </Button>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {selectedAnalysis.documentTitle} | 源版本 v{selectedAnalysis.documentVersionNumber}
+              {selectedAnalysis.isCurrentVersion ? "" : ` | 当前激活版本 v${selectedAnalysis.currentDocumentVersionNumber}`}
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={onCopy} disabled={pending.copy}>
+              复制
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onRebuild(selectedAnalysis.id)}
+              disabled={pending.rebuild || selectedAnalysis.status === "archived"}
+            >
+              重新生成
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link to={`/tasks?kind=book_analysis&id=${selectedAnalysis.id}`}>任务中心</Link>
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onDownload("markdown")}>
+              导出 MD
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onDownload("json")}>
+              导出 JSON
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onCreateStyleProfile}
+              disabled={pending.createStyleProfile || selectedAnalysis.status === "archived"}
+            >
+              {pending.createStyleProfile ? "生成写法中..." : "生成写法"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onArchive(selectedAnalysis.id)}
+              disabled={pending.archive || selectedAnalysis.status === "archived"}
+            >
+              归档
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {selectedAnalysis.lastError ? (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          最近错误：{selectedAnalysis.lastError}
+        </div>
+      ) : null}
+
+      <details className="rounded-md border bg-background p-3">
+        <summary className="cursor-pointer list-none">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-medium">分析信息与发布</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                完成 {sectionStats.succeeded}/{sectionStats.total}，生成 {sectionStats.active} 项
+                {sectionStats.frozen > 0 ? `，冻结 ${sectionStats.frozen} 项` : ""}
+              </div>
+            </div>
+            <Badge variant="outline">展开</Badge>
+          </div>
+        </summary>
+        <div className="mt-3 space-y-3">
           {!selectedAnalysis.isCurrentVersion ? (
             <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
               该分析基于旧版源文档，当前激活文档版本为 v{selectedAnalysis.currentDocumentVersionNumber}。
@@ -296,50 +322,35 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
               </div>
             </div>
           </div>
-          {selectedAnalysis.lastError ? (
-            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-              最近错误：{selectedAnalysis.lastError}
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      </details>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle>拆书内容</CardTitle>
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-              <Badge variant="outline">完成 {sectionStats.succeeded}/{sectionStats.total}</Badge>
-              <Badge variant="outline">生成 {sectionStats.active} 项</Badge>
-              {sectionStats.frozen > 0 ? <Badge variant="secondary">冻结 {sectionStats.frozen} 项</Badge> : null}
-            </div>
+      <section className="rounded-md border bg-background">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-base font-semibold">拆书内容</div>
+            <Badge variant="outline">完成 {sectionStats.succeeded}/{sectionStats.total}</Badge>
+            <Badge variant="outline">生成 {sectionStats.active} 项</Badge>
+            {sectionStats.frozen > 0 ? <Badge variant="secondary">冻结 {sectionStats.frozen} 项</Badge> : null}
           </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/20 p-3">
-            <div>
-              <div className="text-sm font-medium">阅读模式</div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                先快速看关键结论，需要完整分析时再展开正文。
-              </div>
-            </div>
-            <div className="flex rounded-md border bg-background p-1">
-              <Button
-                size="sm"
-                variant={readingMode === "summary" ? "default" : "ghost"}
-                onClick={() => setReadingMode("summary")}
-              >
-                重点速览
-              </Button>
-              <Button
-                size="sm"
-                variant={readingMode === "full" ? "default" : "ghost"}
-                onClick={() => setReadingMode("full")}
-              >
-                完整阅读
-              </Button>
-            </div>
+          <div className="flex rounded-md border bg-background p-1">
+            <Button
+              size="sm"
+              variant={readingMode === "summary" ? "default" : "ghost"}
+              onClick={() => setReadingMode("summary")}
+            >
+              重点速览
+            </Button>
+            <Button
+              size="sm"
+              variant={readingMode === "full" ? "default" : "ghost"}
+              onClick={() => setReadingMode("full")}
+            >
+              完整阅读
+            </Button>
           </div>
+        </div>
+        <div className="space-y-3 p-3">
           <Tabs
             value={activeTabValue}
             onValueChange={(value) => setActiveSectionKey(value as BookAnalysisSectionKey)}
@@ -355,134 +366,39 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                 </TabsTrigger>
               ))}
             </TabsList>
-            {selectedAnalysis.sections.map((section) => (
-              <TabsContent key={section.sectionKey} value={section.sectionKey} className="mt-0">
-                <BookAnalysisSectionCard
-                  analysisMode={analysisMode}
-                  section={section}
-                  draft={getSectionDraft(section)}
-                  readingMode={readingMode}
-                  canOperate={Boolean(selectedAnalysis)}
-                  isRegenerating={pending.regenerate}
-                  isOptimizing={pending.optimizePreview && optimizingSectionKey === section.sectionKey}
-                  isSaving={pending.saveSection}
-                  onDraftChange={onDraftChange}
-                  onRegenerate={onRegenerateSection}
-                  onOptimize={onOptimizeSection}
-                  onApplyOptimizePreview={onApplyOptimizePreview}
-                  onCancelOptimizePreview={onCancelOptimizePreview}
-                  onSave={onSaveSection}
-                />
-              </TabsContent>
-            ))}
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle>证据面板</CardTitle>
-            <Badge variant="outline">{filteredEvidence.length} 条</Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant={evidenceSectionFilter === "all" ? "default" : "outline"}
-              onClick={() => setEvidenceSectionFilter("all")}
-            >
-              全部 {aggregatedEvidence.length}
-            </Button>
             {selectedAnalysis.sections.map((section) => {
-              const count = evidenceCountsBySection.get(section.sectionKey) ?? 0;
-              if (count === 0) {
-                return null;
-              }
+              const sectionEvidence = evidenceBySection.get(section.sectionKey as BookAnalysisSectionKey) ?? [];
+              const isSelectedEvidenceInSection = selectedEvidence?.sectionKey === section.sectionKey;
               return (
-                <Button
-                  key={section.sectionKey}
-                  size="sm"
-                  variant={evidenceSectionFilter === section.sectionKey ? "default" : "outline"}
-                  onClick={() => setEvidenceSectionFilter(section.sectionKey as BookAnalysisSectionKey)}
-                >
-                  {section.title} {count}
-                </Button>
+                <TabsContent key={section.sectionKey} value={section.sectionKey} className="mt-0">
+                  <BookAnalysisSectionCard
+                    analysisMode={analysisMode}
+                    section={section}
+                    draft={getSectionDraft(section)}
+                    readingMode={readingMode}
+                    canOperate={Boolean(selectedAnalysis)}
+                    isRegenerating={pending.regenerate}
+                    isOptimizing={pending.optimizePreview && optimizingSectionKey === section.sectionKey}
+                    isSaving={pending.saveSection}
+                    evidenceItems={sectionEvidence}
+                    selectedEvidenceKey={selectedEvidenceKey}
+                    selectedEvidence={isSelectedEvidenceInSection ? selectedEvidence : null}
+                    selectedEvidenceChapter={isSelectedEvidenceInSection ? selectedEvidenceChapter : null}
+                    selectedChapterContent={isSelectedEvidenceInSection ? selectedChapterContent : ""}
+                    onSelectEvidence={(evidenceKey) => setSelectedEvidenceKey((current) => current === evidenceKey ? "" : evidenceKey)}
+                    onDraftChange={onDraftChange}
+                    onRegenerate={onRegenerateSection}
+                    onOptimize={onOptimizeSection}
+                    onApplyOptimizePreview={onApplyOptimizePreview}
+                    onCancelOptimizePreview={onCancelOptimizePreview}
+                    onSave={onSaveSection}
+                  />
+                </TabsContent>
               );
             })}
-          </div>
-
-          {selectedEvidence && selectedEvidenceChapter && selectedEvidence.excerptOffsetRange ? (
-            <div className="rounded-md border bg-muted/20 p-3 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="font-medium">
-                  原文定位：{selectedEvidenceChapter.title}
-                </div>
-                <Badge variant="outline">第 {selectedEvidenceChapter.chapterIndex + 1} 章</Badge>
-              </div>
-              <HighlightedChapterExcerpt
-                chapterContent={selectedChapterContent}
-                chapterStartOffset={selectedEvidenceChapter.startOffset}
-                range={selectedEvidence.excerptOffsetRange}
-              />
-            </div>
-          ) : selectedEvidence ? (
-            <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
-              这条证据暂无可跳转的章节定位，仍可查看证据摘录。
-            </div>
-          ) : null}
-
-          {filteredEvidence.map((item, index) => (
-            <div key={`${item.sectionTitle}-${index}`} className="rounded-md border p-3 text-sm">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="font-medium">
-                  {item.sectionTitle} | [{item.sourceLabel}] {item.label}
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={item.chapterIndex === undefined || !item.excerptOffsetRange}
-                  onClick={() => setSelectedEvidenceKey(`${item.sectionKey}-${aggregatedEvidence.indexOf(item)}`)}
-                >
-                  查看原文
-                </Button>
-              </div>
-              <div className="mt-1 whitespace-pre-wrap text-muted-foreground">{item.excerpt}</div>
-            </div>
-          ))}
-          {aggregatedEvidence.length === 0 ? (
-            <div className="text-sm text-muted-foreground">当前分析暂无证据内容。</div>
-          ) : null}
-          {aggregatedEvidence.length > 0 && filteredEvidence.length === 0 ? (
-            <div className="text-sm text-muted-foreground">当前小节暂无证据内容。</div>
-          ) : null}
-        </CardContent>
-      </Card>
-    </>
-  );
-}
-
-function HighlightedChapterExcerpt(props: {
-  chapterContent: string;
-  chapterStartOffset: number;
-  range: { start: number; end: number };
-}) {
-  const relativeStart = Math.max(0, props.range.start - props.chapterStartOffset);
-  const relativeEnd = Math.min(props.chapterContent.length, Math.max(relativeStart, props.range.end - props.chapterStartOffset));
-  const previewStart = Math.max(0, relativeStart - 360);
-  const previewEnd = Math.min(props.chapterContent.length, relativeEnd + 360);
-  const before = props.chapterContent.slice(previewStart, relativeStart);
-  const highlight = props.chapterContent.slice(relativeStart, relativeEnd);
-  const after = props.chapterContent.slice(relativeEnd, previewEnd);
-
-  return (
-    <div className="mt-3 max-h-[360px] overflow-auto rounded-md border bg-background p-3 leading-7 whitespace-pre-wrap">
-      {previewStart > 0 ? <span className="text-muted-foreground">...</span> : null}
-      <span>{before}</span>
-      <mark className="rounded bg-amber-200 px-1 text-amber-950">{highlight}</mark>
-      <span>{after}</span>
-      {previewEnd < props.chapterContent.length ? <span className="text-muted-foreground">...</span> : null}
+          </Tabs>
+        </div>
+      </section>
     </div>
   );
 }
