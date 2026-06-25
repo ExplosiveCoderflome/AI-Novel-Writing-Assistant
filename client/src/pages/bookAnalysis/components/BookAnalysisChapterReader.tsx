@@ -115,46 +115,58 @@ const BookAnalysisChapterReader = forwardRef<BookAnalysisChapterReaderHandle, Bo
     }
 
     return (
-      <aside className="sticky top-0 h-[calc(100vh-1rem)] min-h-[640px] rounded-md border bg-background">
-        <div className="border-b p-3">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="text-sm font-semibold">原文章节</div>
-              <div className="mt-1 text-xs text-muted-foreground">{sortedChapters.length} 章可对照</div>
+      <aside className="sticky top-0 isolate h-[calc(100vh-9rem)] min-h-[520px] overflow-hidden rounded-md border bg-background shadow-sm">
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="shrink-0 border-b bg-background px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-sm font-semibold">原文章节</div>
+                <div className="mt-1 text-xs text-muted-foreground">{sortedChapters.length} 章可对照</div>
+              </div>
+              {currentChapterIndex !== null ? (
+                <div className="rounded-md border bg-muted/20 px-2 py-1 text-xs text-muted-foreground">
+                  当前第 {currentChapterIndex + 1} 章
+                </div>
+              ) : null}
             </div>
           </div>
-          <BookAnalysisChapterNavigator
-            chapters={sortedChapters}
-            currentChapterIndex={currentChapterIndex}
-            onSelectChapter={onSelectChapter}
-          />
-        </div>
-        <div ref={containerRef} className="h-[calc(100%-118px)] overflow-auto p-4" onScroll={handleScroll}>
-          <div className="space-y-6">
-            {sortedChapters.map((chapter) => {
-              const content = sourceVersionContent.slice(chapter.startOffset, chapter.endOffset);
-              const isActive = currentChapterIndex === chapter.chapterIndex;
-              const activeHighlight = highlightRange?.chapterIndex === chapter.chapterIndex ? highlightRange : null;
-              return (
-                <section
-                  key={chapter.id}
-                  ref={(element) => setChapterRef(chapter.chapterIndex, element)}
-                  className={`scroll-mt-4 rounded-md border p-4 ${
-                    isActive ? "border-primary/40 bg-primary/5" : "bg-muted/10"
-                  }`}
-                >
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-base font-semibold">{chapter.title}</h3>
-                    <span className="text-xs text-muted-foreground">{chapter.charCount} 字</span>
-                  </div>
-                  <ChapterContent
-                    chapterContent={content}
-                    chapterStartOffset={chapter.startOffset}
-                    highlightRange={activeHighlight}
-                  />
-                </section>
-              );
-            })}
+
+          <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(0,1fr)]">
+            <div className="min-h-0 border-r bg-muted/10">
+              <BookAnalysisChapterNavigator
+                chapters={sortedChapters}
+                currentChapterIndex={currentChapterIndex}
+                onSelectChapter={onSelectChapter}
+              />
+            </div>
+            <div ref={containerRef} className="min-h-0 overflow-auto bg-background p-4" onScroll={handleScroll}>
+              <div className="space-y-4">
+                {sortedChapters.map((chapter) => {
+                  const content = sourceVersionContent.slice(chapter.startOffset, chapter.endOffset);
+                  const isActive = currentChapterIndex === chapter.chapterIndex;
+                  const activeHighlight = highlightRange?.chapterIndex === chapter.chapterIndex ? highlightRange : null;
+                  return (
+                    <section
+                      key={chapter.id}
+                      ref={(element) => setChapterRef(chapter.chapterIndex, element)}
+                      className={`scroll-mt-4 rounded-md border p-4 ${
+                        isActive ? "border-primary/40 bg-primary/5" : "bg-muted/10"
+                      }`}
+                    >
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="text-base font-semibold">{chapter.title}</h3>
+                        <span className="text-xs text-muted-foreground">{chapter.charCount} 字</span>
+                      </div>
+                      <ChapterContent
+                        chapterContent={content}
+                        chapterStartOffset={chapter.startOffset}
+                        highlightRange={activeHighlight}
+                      />
+                    </section>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       </aside>
