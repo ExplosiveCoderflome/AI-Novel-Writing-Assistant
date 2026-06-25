@@ -599,6 +599,8 @@ GeneralAgent/
 
 更细的文档分区说明可以看 [docs/README.md](./docs/README.md)。
 
+完整的文件级项目结构审计见 [docs/sourcegraph/project-source-audit.md](./docs/sourcegraph/project-source-audit.md)，包含所有后端服务、前端页面、Prompt 体系、数据库模型、测试套件和文档体系的逐文件清单与规模统计。
+
 ---
 
 ### 服务端架构 (`server/src/`)
