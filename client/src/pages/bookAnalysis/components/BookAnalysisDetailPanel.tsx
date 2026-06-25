@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { ReactNode } from "react";
 import type { AggregatedEvidenceItem, SectionDraft, SectionEvidenceItem } from "../bookAnalysis.types";
 import { formatDate, formatStage, formatStatus } from "../bookAnalysis.utils";
 import type { BookAnalysisMode } from "../hooks/bookAnalysisWorkspace.types";
@@ -58,6 +59,7 @@ interface BookAnalysisDetailPanelProps {
   currentChapterIndex: number | null;
   chapterHighlightRange: BookAnalysisChapterHighlightRange | null;
   chapterReaderRef: RefObject<BookAnalysisChapterReaderHandle | null>;
+  rightColumnExtra?: ReactNode;
   pending: PendingState;
   onDualPaneChange: (enabled: boolean) => void;
   onActiveChapterChange: (chapterIndex: number) => void;
@@ -97,6 +99,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     currentChapterIndex,
     chapterHighlightRange,
     chapterReaderRef,
+    rightColumnExtra,
     pending,
     onDualPaneChange,
     onActiveChapterChange,
@@ -233,10 +236,11 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
               <h2 className="truncate text-lg font-semibold tracking-normal">{selectedAnalysis.title}</h2>
               <Badge variant="outline">{formatStatus(selectedAnalysis.status)}</Badge>
               {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary">已发布</Badge> : null}
+              {selectedAnalysis.sourceRange ? <Badge variant="secondary">{selectedAnalysis.sourceRange.label ?? "选定章节"}</Badge> : null}
               <Badge variant="outline">进度 {Math.round(selectedAnalysis.progress * 100)}%</Badge>
             </div>
             <div className="text-xs text-muted-foreground">
-              {selectedAnalysis.documentTitle} | 源版本 v{selectedAnalysis.documentVersionNumber}
+              {selectedAnalysis.documentTitle} | 源版本 v{selectedAnalysis.documentVersionNumber}{selectedAnalysis.sourceRange ? ` | 范围：${selectedAnalysis.sourceRange.label ?? "选定章节"}` : ""}
               {selectedAnalysis.isCurrentVersion ? "" : ` | 当前激活版本 v${selectedAnalysis.currentDocumentVersionNumber}`}
             </div>
           </div>
@@ -384,6 +388,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                     <div>模型：{selectedAnalysis.model || "默认"}</div>
                     <div>温度：{selectedAnalysis.temperature ?? "默认"}</div>
                     <div>最大 Tokens：{selectedAnalysis.maxTokens ?? "默认"}</div>
+                    <div>原文范围：{selectedAnalysis.sourceRange?.label ?? "全文"}</div>
                     <div>当前阶段：{formatStage(selectedAnalysis.currentStage)}</div>
                     <div>当前 section：{selectedAnalysis.currentItemLabel ?? "暂无"}</div>
                     <div>最近心跳：{formatDate(selectedAnalysis.heartbeatAt)}</div>
@@ -471,6 +476,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
               </Tabs>
             </div>
           </section>
+          {rightColumnExtra}
         </div>
       </BookAnalysisDualPaneLayout>
     </div>

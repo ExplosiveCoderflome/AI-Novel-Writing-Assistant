@@ -65,6 +65,52 @@ function readStructuredStringArray(value: unknown): string[] {
     .map((item) => (typeof item === "string" ? item.trim() : ""))
     .filter(Boolean);
 }
+interface BookAnalysisSourceScope {
+  content: string;
+  sourceScopeKey: string;
+  label: string | null;
+}
+
+function buildBookAnalysisSourceScope(analysis: {
+  documentVersion: { content: string };
+  sourceStartChapterIndex: number | null;
+  sourceEndChapterIndex: number | null;
+  sourceStartOffset: number | null;
+  sourceEndOffset: number | null;
+  sourceScopeLabel: string | null;
+}): BookAnalysisSourceScope {
+  const fullContent = analysis.documentVersion.content;
+  const hasChapterRange = analysis.sourceStartChapterIndex !== null || analysis.sourceEndChapterIndex !== null;
+  if (!hasChapterRange) {
+    return { content: fullContent, sourceScopeKey: "full", label: null };
+  }
+  const startOffset = analysis.sourceStartOffset;
+  const endOffset = analysis.sourceEndOffset;
+  if (
+    startOffset === null ||
+    endOffset === null ||
+    startOffset < 0 ||
+    endOffset <= startOffset ||
+    endOffset > fullContent.length ||
+    analysis.sourceStartChapterIndex === null ||
+    analysis.sourceEndChapterIndex === null
+  ) {
+    // Offset data is missing or stale (e.g. document content was replaced after analysis was created).
+    // Fall back to full content so the analysis can still run rather than hard-failing.
+    console.warn(
+      `[bookAnalysis] source range offsets invalid for analysis ` +
+        `(chapterRange=${analysis.sourceStartChapterIndex}-${analysis.sourceEndChapterIndex}, ` +
+        `offsets=${startOffset}-${endOffset}, contentLen=${fullContent.length}). ` +
+        `Falling back to full content.`,
+    );
+    return { content: fullContent, sourceScopeKey: "full", label: analysis.sourceScopeLabel };
+  }
+  return {
+    content: fullContent.slice(startOffset, endOffset),
+    sourceScopeKey: `chapters:${analysis.sourceStartChapterIndex}-${analysis.sourceEndChapterIndex}:${startOffset}-${endOffset}`,
+    label: analysis.sourceScopeLabel,
+  };
+}
 
 export class BookAnalysisGenerationService {
   constructor(
@@ -115,17 +161,19 @@ export class BookAnalysisGenerationService {
     const model = analysis.model ?? undefined;
     const temperature = normalizeTemperature(analysis.temperature);
     const maxTokens = normalizeMaxTokens(analysis.maxTokens);
+    const sourceScope = buildBookAnalysisSourceScope(analysis);
 
     await this.withAnalysisHeartbeat(analysisId, async () => {
       try {
         const notes = await this.getSourceNotes({
           analysisId,
           documentVersionId: analysis.documentVersionId,
-          content: analysis.documentVersion.content,
+          content: sourceScope.content,
           provider,
           model,
           temperature,
           sectionMaxTokens: maxTokens,
+          sourceScopeKey: sourceScope.sourceScopeKey,
         });
         const documentChapters = await this.getDocumentChaptersSafely(
           analysis.documentVersionId,
@@ -374,6 +422,7 @@ export class BookAnalysisGenerationService {
     const model = analysis.model ?? undefined;
     const temperature = normalizeTemperature(analysis.temperature);
     const maxTokens = normalizeMaxTokens(analysis.maxTokens);
+    const sourceScope = buildBookAnalysisSourceScope(analysis);
 
     await prisma.bookAnalysis.update({
       where: { id: analysisId },
@@ -394,11 +443,12 @@ export class BookAnalysisGenerationService {
         const notes = await this.getSourceNotes({
           analysisId,
           documentVersionId: analysis.documentVersionId,
-          content: analysis.documentVersion.content,
+          content: sourceScope.content,
           provider,
           model,
           temperature,
           sectionMaxTokens: maxTokens,
+          sourceScopeKey: sourceScope.sourceScopeKey,
         });
         const documentChapters = await this.getDocumentChaptersSafely(
           analysis.documentVersionId,
@@ -551,13 +601,15 @@ export class BookAnalysisGenerationService {
     const model = section.analysis.model ?? undefined;
     const temperature = normalizeTemperature(section.analysis.temperature);
     const maxTokens = normalizeMaxTokens(section.analysis.maxTokens);
+    const sourceScope = buildBookAnalysisSourceScope(section.analysis);
     const notes = await this.sourceCacheService.getOrBuildSourceNotes({
       documentVersionId: section.analysis.documentVersionId,
-      content: section.analysis.documentVersion.content,
+      content: sourceScope.content,
       provider,
       model,
       temperature,
       sectionMaxTokens: maxTokens,
+      sourceScopeKey: sourceScope.sourceScopeKey,
     });
     const baseDraft =
       input.currentDraft.trim() || section.editedContent?.trim() || section.aiContent?.trim() || "";
@@ -582,6 +634,7 @@ export class BookAnalysisGenerationService {
     model?: string;
     temperature?: number;
     sectionMaxTokens?: number;
+    sourceScopeKey?: string;
   }): Promise<SourceNote[]> {
     const result = await this.sourceCacheService.getOrBuildSourceNotes({
       ...input,

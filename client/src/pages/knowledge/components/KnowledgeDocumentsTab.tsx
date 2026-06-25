@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { Upload } from "lucide-react";
 import type { KnowledgeDocumentStatus, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import SelectField from "@/components/common/SelectField";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { RagJobSummary } from "@/api/knowledge";
 import {
@@ -45,6 +48,7 @@ export default function KnowledgeDocumentsTab({
   onReindexDocument,
   onUpdateStatus,
 }: KnowledgeDocumentsTabProps) {
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const statusOptions = [
     { value: "", label: "全部未归档" },
     { value: "enabled", label: "仅启用" },
@@ -60,6 +64,11 @@ export default function KnowledgeDocumentsTab({
       return;
     }
     onUpdateStatus(document.id, "archived");
+  };
+
+  const handleUploadFile = async (file: File) => {
+    await onUploadFile(file);
+    setUploadDialogOpen(false);
   };
 
   const renderDocumentRow = (document: KnowledgeDocumentSummary) => {
@@ -162,40 +171,14 @@ export default function KnowledgeDocumentsTab({
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
+    <>
       <Card>
-        <CardHeader>
-          <CardTitle>上传文档</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Input
-            value={uploadTitle}
-            onChange={(event) => onUploadTitleChange(event.target.value)}
-            placeholder="可选标题，留空则使用文件名"
-          />
-          <input
-            type="file"
-            accept=".txt,text/plain"
-            className="w-full rounded-md border bg-background p-2 text-sm"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (!file) {
-                return;
-              }
-              void onUploadFile(file);
-            }}
-            disabled={uploadBusy}
-          />
-          <div className="text-xs text-muted-foreground">
-            仅支持 `.txt`，前端会读取文本后提交 JSON。上传同名标题时会自动追加新版本并切换激活版本。
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>文档列表</CardTitle>
+          <Button type="button" size="sm" onClick={() => setUploadDialogOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" />
+            上传文档
+          </Button>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-2 md:grid-cols-[1fr_180px]">
@@ -223,6 +206,39 @@ export default function KnowledgeDocumentsTab({
           </div>
         </CardContent>
       </Card>
-    </div>
+
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <AppDialogContent
+          className="max-w-lg"
+          title="上传文档"
+          description="添加可用于检索、拆书和创作参考的文本资料。"
+        >
+          <div className="space-y-3">
+            <Input
+              value={uploadTitle}
+              onChange={(event) => onUploadTitleChange(event.target.value)}
+              placeholder="可选标题，留空则使用文件名"
+            />
+            <input
+              type="file"
+              accept=".txt,text/plain"
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (!file) {
+                  return;
+                }
+                void handleUploadFile(file);
+              }}
+              disabled={uploadBusy}
+            />
+            <div className="text-xs leading-5 text-muted-foreground">
+              仅支持 `.txt`。上传后会创建知识文档并开始索引；同名标题会追加为新版本并设为当前版本。
+            </div>
+          </div>
+        </AppDialogContent>
+      </Dialog>
+    </>
   );
 }

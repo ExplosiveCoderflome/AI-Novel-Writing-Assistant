@@ -7,6 +7,7 @@ import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
+import { DocumentChapterService } from "../knowledge/DocumentChapterService";
 import { getBookAnalysisMaxConcurrentTasks } from "./bookAnalysis.config";
 import { BookAnalysisGenerationService } from "./bookAnalysis.generation";
 import { BookAnalysisTaskQueue } from "./bookAnalysis.queue";
@@ -27,9 +28,32 @@ function buildEnabledSectionKeySet(input: {
 function normalizeOptionalInstruction(value: string | null | undefined): string | null {
   return value?.trim() || null;
 }
+interface BookAnalysisSourceRangeInput {
+  startChapterIndex: number;
+  endChapterIndex: number;
+}
+
+interface ResolvedBookAnalysisSourceRange extends BookAnalysisSourceRangeInput {
+  startOffset: number;
+  endOffset: number;
+  label: string;
+}
+
+function buildSourceRangeLabel(input: {
+  startChapterIndex: number;
+  endChapterIndex: number;
+  startTitle: string;
+  endTitle: string;
+}): string {
+  if (input.startChapterIndex === input.endChapterIndex) {
+    return `第 ${input.startChapterIndex + 1} 章：${input.startTitle}`;
+  }
+  return `第 ${input.startChapterIndex + 1}-${input.endChapterIndex + 1} 章：${input.startTitle} 至 ${input.endTitle}`;
+}
 
 export class BookAnalysisCommandService {
   private readonly generationService = new BookAnalysisGenerationService();
+  private readonly documentChapterService = new DocumentChapterService();
   private readonly taskQueue = new BookAnalysisTaskQueue({
     getMaxConcurrentTasks: getBookAnalysisMaxConcurrentTasks,
     onRunTask: async (task) => {
@@ -103,48 +127,60 @@ export class BookAnalysisCommandService {
     temperature?: number;
     maxTokens?: number;
     userFocusInstruction?: string | null;
+    sourceRange?: BookAnalysisSourceRangeInput | null;
     includeTimeline?: boolean;
     enabledSectionKeys?: BookAnalysisSectionKey[];
   }): Promise<BookAnalysisDetail> {
     const temperature = normalizeTemperature(input.temperature);
     const maxTokens = normalizeMaxTokens(input.maxTokens);
     const enabledSectionKeySet = buildEnabledSectionKeySet(input);
-    const analysisId = await prisma.$transaction(async (tx) => {
-      const document = await tx.knowledgeDocument.findUnique({
-        where: { id: input.documentId },
-        include: {
-          versions: {
-            select: {
-              id: true,
-              versionNumber: true,
-            },
-            orderBy: [{ versionNumber: "desc" }],
+    const document = await prisma.knowledgeDocument.findUnique({
+      where: { id: input.documentId },
+      include: {
+        versions: {
+          select: {
+            id: true,
+            versionNumber: true,
           },
+          orderBy: [{ versionNumber: "desc" }],
         },
-      });
-      if (!document) {
-        throw new AppError("Knowledge document not found.", 404);
-      }
-      if (document.status === "archived") {
-        throw new AppError("Archived knowledge documents cannot be analyzed.", 400);
-      }
-      const version = input.versionId
-        ? document.versions.find((item) => item.id === input.versionId)
-        : document.versions.find((item) => item.id === document.activeVersionId) ?? document.versions[0];
-      if (!version) {
-        throw new AppError("Knowledge document version not found.", 400);
-      }
+      },
+    });
+    if (!document) {
+      throw new AppError("Knowledge document not found.", 404);
+    }
+    if (document.status === "archived") {
+      throw new AppError("Archived knowledge documents cannot be analyzed.", 400);
+    }
+    const version = input.versionId
+      ? document.versions.find((item) => item.id === input.versionId)
+      : document.versions.find((item) => item.id === document.activeVersionId) ?? document.versions[0];
+    if (!version) {
+      throw new AppError("Knowledge document version not found.", 400);
+    }
+    const sourceRange = await this.resolveSourceRange({
+      documentId: document.id,
+      documentVersionId: version.id,
+      range: input.sourceRange ?? null,
+    });
+
+    const analysisId = await prisma.$transaction(async (tx) => {
       const analysis = await tx.bookAnalysis.create({
         data: {
           documentId: document.id,
           documentVersionId: version.id,
-          title: `${document.title} v${version.versionNumber}`,
+          title: sourceRange ? `${document.title} v${version.versionNumber}（${sourceRange.label}）` : `${document.title} v${version.versionNumber}`,
           status: "queued",
           provider: input.provider ?? "deepseek",
           model: input.model?.trim() || null,
           temperature,
           maxTokens: maxTokens ?? null,
           userFocusInstruction: normalizeOptionalInstruction(input.userFocusInstruction),
+          sourceStartChapterIndex: sourceRange?.startChapterIndex ?? null,
+          sourceEndChapterIndex: sourceRange?.endChapterIndex ?? null,
+          sourceStartOffset: sourceRange?.startOffset ?? null,
+          sourceEndOffset: sourceRange?.endOffset ?? null,
+          sourceScopeLabel: sourceRange?.label ?? null,
           progress: 0,
           lastError: null,
           attemptCount: 0,
@@ -172,7 +208,6 @@ export class BookAnalysisCommandService {
     }
     return detail;
   }
-
   async copyAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
     const source = await prisma.bookAnalysis.findUnique({
       where: { id: analysisId },
@@ -201,6 +236,11 @@ export class BookAnalysisCommandService {
           temperature: source.temperature,
           maxTokens: source.maxTokens,
           userFocusInstruction: source.userFocusInstruction,
+          sourceStartChapterIndex: source.sourceStartChapterIndex,
+          sourceEndChapterIndex: source.sourceEndChapterIndex,
+          sourceStartOffset: source.sourceStartOffset,
+          sourceEndOffset: source.sourceEndOffset,
+          sourceScopeLabel: source.sourceScopeLabel,
           progress: 1,
           heartbeatAt: null,
           currentStage: null,
@@ -499,6 +539,33 @@ export class BookAnalysisCommandService {
     return detail;
   }
 
+  private async resolveSourceRange(input: {
+    documentId: string;
+    documentVersionId: string;
+    range?: BookAnalysisSourceRangeInput | null;
+  }): Promise<ResolvedBookAnalysisSourceRange | null> {
+    if (!input.range) {
+      return null;
+    }
+    const result = await this.documentChapterService.ensureChaptersForVersion(input.documentVersionId, input.documentId);
+    const startChapter = result.chapters.find((chapter) => chapter.chapterIndex === input.range?.startChapterIndex);
+    const endChapter = result.chapters.find((chapter) => chapter.chapterIndex === input.range?.endChapterIndex);
+    if (!startChapter || !endChapter || endChapter.endOffset <= startChapter.startOffset) {
+      throw new AppError("Selected chapter range is not available for this document version.", 400);
+    }
+    return {
+      startChapterIndex: startChapter.chapterIndex,
+      endChapterIndex: endChapter.chapterIndex,
+      startOffset: startChapter.startOffset,
+      endOffset: endChapter.endOffset,
+      label: buildSourceRangeLabel({
+        startChapterIndex: startChapter.chapterIndex,
+        endChapterIndex: endChapter.chapterIndex,
+        startTitle: startChapter.title,
+        endTitle: endChapter.title,
+      }),
+    };
+  }
   private enqueueTask(task: { analysisId: string; kind: "full" } | { analysisId: string; kind: "section"; sectionKey: BookAnalysisSectionKey }): void {
     this.taskQueue.enqueue(task);
   }

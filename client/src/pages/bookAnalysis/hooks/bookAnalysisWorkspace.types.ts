@@ -18,6 +18,7 @@ import type { AggregatedEvidenceItem, LLMConfigState, SectionDraft } from "../bo
 
 export type ExportFormat = "markdown" | "json";
 export type BookAnalysisMode = "reference" | "diagnosis";
+export type BookAnalysisSourceRangeDraft = { startChapterIndex: number; endChapterIndex: number } | null;
 
 export interface NovelOption {
   id: string;
@@ -52,6 +53,7 @@ export interface BookAnalysisWorkspace {
   selectedNovelId: string;
   selectedDiagnosisNovelId: string;
   userFocusInstruction: string;
+  selectedSourceRange: BookAnalysisSourceRangeDraft;
   includeTimeline: boolean;
   analysisPreset: BookAnalysisPreset;
   llmConfig: LLMConfigState;
@@ -67,6 +69,10 @@ export interface BookAnalysisWorkspace {
   sourceDocument?: KnowledgeDocumentDetail;
   sourceVersionContent: string;
   documentChapters: DocumentChapter[];
+  sourceChapters: DocumentChapter[];
+  sourceChaptersRequested: boolean;
+  sourceChaptersLoading: boolean;
+  sourceChaptersError: string;
   characters: BookAnalysisCharacter[];
   aggregatedEvidence: AggregatedEvidenceItem[];
   optimizingSectionKey: BookAnalysisSectionKey | null;
@@ -77,6 +83,8 @@ export interface BookAnalysisWorkspace {
   setSelectedNovelId: (novelId: string) => void;
   setSelectedDiagnosisNovelId: (novelId: string) => void;
   setUserFocusInstruction: (instruction: string) => void;
+  setSelectedSourceRange: (range: BookAnalysisSourceRangeDraft) => void;
+  requestSourceChapters: () => void;
   setIncludeTimeline: (include: boolean) => void;
   setAnalysisPreset: (preset: BookAnalysisPreset) => void;
   setLlmConfig: (config: LLMConfigState) => void;

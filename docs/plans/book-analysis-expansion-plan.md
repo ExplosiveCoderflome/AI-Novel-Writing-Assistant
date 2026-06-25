@@ -303,18 +303,21 @@ E1 是"零工程改动 / 可能打开新场景"的旁路验证，建议作为独
 | 阶段三 | 可以深入研究每个角色（多维度档案 + 弧线 + 场景表现） | ~1300 行 | 2 | 4 周 |
 | 阶段四 | 可以为角色配图，并把学到的角色升格到自己的角色库 | ~700 行 | 2 | 3 周 |
 | 阶段五 | 可以用同一套工具诊断自己的稿子（旁路） | ~150 行 | 1 | 1 周 |
+| 阶段六 | 拆书页面变成可聚焦的工作台，主体内容一屏可见 | ~1300 行 | 3 | 4 周 |
 
-总跨度约 3250 行 / 8 个 PR / 12 周。阶段一是其他阶段的前置；阶段三和四强串行；其余可并行。
+总跨度约 4550 行 / 11 个 PR / 16 周。阶段一是其他阶段的前置；阶段三和四强串行；阶段六依赖阶段二（章节）、阶段三（角色档案）已落地；其余可并行。
 
 ### 6.3 阶段依赖
 
 ```
 阶段一 (用户介入 + 收尾) ─┐
-                          ├─→ 阶段二 (章节 + evidence 回溯)
-                          │
+                          ├─→ 阶段二 (章节 + evidence 回溯) ─┐
+                          │                                  │
                           ├─→ 阶段三 (角色档案) ─→ 阶段四 (配图 + 升格)
-                          │
-                          └─→ 阶段五 (拆自己稿子)
+                          │                                  │
+                          ├─→ 阶段五 (拆自己稿子)             │
+                          │                                  ↓
+                          └────────────────────→ 阶段六 (UI 工作台化重构)
 ```
 
 ### 6.4 阶段一：拆书引导能力 + 上轮收尾
@@ -447,7 +450,121 @@ E1 是"零工程改动 / 可能打开新场景"的旁路验证，建议作为独
 - 诊断模式与参考模式有明显文案区分
 - 不破坏现有"参考别人作品"路径
 
-### 6.9 阶段性退出条件
+### 6.9 阶段六：UI 工作台化重构
+
+**交付价值**：拆书页面从"5 个 Card 纵向堆叠的长滚动页"变成"分视图聚焦的研究工作台"。用户主体阅读路径无需滚动；证据与小节内容物理整合；常用任务操作（发布、归档、重跑、下载）通过顶部 sticky 工具栏始终可触达；宽屏用户可启用原文与拆书并排对照阅读。
+
+**当前页面拥堵点（重构动因）**：
+- 主区纵向叠 5 个 Card：工具说明 / 任务详情 / 拆书内容 / 证据面板 / 角色档案，总高度 4-5 屏
+- 任务管理（发布、元信息、错误信息）默认占用一整张 Card，但实际是低频操作
+- 证据面板与小节内容物理割裂，用户读到结论想看出处必须滚动
+- 角色档案与小节内容并列堆叠，但两者是不同视角而非同级内容
+- 章节阅读器内嵌在 DetailPanel 中，没有独立位置承担"对照阅读"职责
+- 顶部工具操作随 Card 滚走，下方触发操作需要回滚
+
+**关键决策**：
+- **任务管理走顶部 sticky 工具栏**：发布、归档、重跑、下载、风格提取整合为始终可见的顶部条，二级操作进下拉菜单，永远可触达不占主区
+- **章节阅读器仅在 L3 双栏视图出现**：L2 视图不为它单独开 Tab；只有用户用双栏对照阅读时才把章节阅读器放进中栏
+- **L2 顶层视图只有两个**：📖 小节分析 / 👥 角色档案，互斥单视图切换
+- **证据从独立 Card 收编为内嵌 Popover**：消费 PR-1 的 evidence fieldKey 绑定能力，挂在结构化关键结论旁
+
+**拆分**：本阶段拆 3 个 PR，每个独立交付价值，可串行也可只做前一两步。
+
+#### 6.9.1 L1 立即重构（约 250 行）
+
+**目标**：消除明显冗余，把页面高度从 4-5 屏压到 2 屏内，主体内容上浮到首屏。
+
+**改造点**：
+
+- 删除"拆书分析工作区"（Card 1，纯工具说明文字）
+- "任务详情"（Card 2）默认折叠，标题栏显示一行"标题 / 状态 / 进度"摘要 + 展开按钮；发布、元信息、风格提取、错误信息全部收入展开内容
+- 错误信息单独提升为顶部 Banner（与诊断模式 banner 同一槽位，强警示状态独占一行）
+- 删除"证据面板"独立 Card：证据 chip 内嵌到 `BookAnalysisStructuredSummary` 关键结论值旁，点击弹出 Popover 显示 excerpt + sourceLabel + 章节跳转按钮
+- 顶部新增 sticky 工具栏：复制 / 归档 / 重跑 / 下载（含格式下拉）/ 发布（含选小说）/ 风格提取，跟随滚动始终可见
+
+**文件层级**：
+- `client/src/pages/bookAnalysis/components/BookAnalysisDetailPanel.tsx` — 删 Card 1、Card 2 改折叠、删 Card 4，整体瘦身
+- `client/src/pages/bookAnalysis/components/BookAnalysisTaskDetailsCollapsible.tsx`（新增）— 折叠的任务详情卡片
+- `client/src/pages/bookAnalysis/components/BookAnalysisWorkspaceToolbar.tsx`（新增）— 顶部 sticky 工具栏
+- `client/src/pages/bookAnalysis/components/BookAnalysisErrorBanner.tsx`（新增）— 错误状态顶部 banner
+- `client/src/pages/bookAnalysis/components/BookAnalysisStructuredSummary.tsx` — 关键结论值旁挂证据 chip + Popover
+- `client/src/pages/bookAnalysis/components/BookAnalysisEvidencePopover.tsx`（新增）— chip 点击展开的证据气泡，含跳转按钮
+- `client/src/pages/bookAnalysis/BookAnalysisPage.tsx` — 主结构调整以容纳 sticky 工具栏
+- `client/src/pages/bookAnalysis/hooks/useBookAnalysisWorkspace.ts` — 新增任务详情展开状态、证据弹出选中状态
+
+**验收要点**：
+- 首屏直接能看到小节 Tab 内容
+- 任务详情折叠后不超过 1 行高度
+- 证据 chip 在每个有 fieldKey 绑定的结构化字段旁出现，点击展开 Popover
+- 错误状态以 Banner 形式置顶，不再藏在 Card 2 内
+- sticky 工具栏滚动时不消失
+
+#### 6.9.2 L2 顶层视图切换（约 450 行）
+
+**目标**：把"小节内容 / 角色档案"两类视图改为顶层 Tab 平级切换，每次只显示一个，彻底消灭主区纵向堆叠。
+
+**改造点**：
+
+- 页面顶部 sticky 工具栏下方新增视图切换 Tab：📖 小节分析 / 👥 角色档案
+- 小节分析视图：现 DetailPanel 的小节 Tab 内容（含 L1 改造后的内嵌证据 Popover）
+- 角色档案视图：现 `BookAnalysisCharacterPanel` 内容
+- 两个视图互斥渲染，切换视图保留 sticky 工具栏始终可见
+- 章节阅读器**不在本阶段独立成视图**，仍以原状态嵌在 DetailPanel 中（等 L3 才提取）
+- 视图状态写入 URL search param（`?view=sections|characters`），刷新和分享链接保持视图
+
+**文件层级**：
+- `client/src/pages/bookAnalysis/components/BookAnalysisWorkbenchViewTabs.tsx`（新增）— 顶层视图切换 Tab
+- `client/src/pages/bookAnalysis/BookAnalysisPage.tsx` — 主结构改为 sticky 工具栏 + 视图 Tab + 内容区
+- `client/src/pages/bookAnalysis/components/BookAnalysisDetailPanel.tsx` — 移除角色档案渲染入口（不再与小节内容堆叠）
+- `client/src/pages/bookAnalysis/hooks/useBookAnalysisWorkspace.ts` — 增加 `activeView: "sections" | "characters"` 状态、URL 同步
+- `client/src/pages/bookAnalysis/hooks/useBookAnalysisActiveView.ts`（新增）— 视图状态独立 hook，含 URL search param 读写
+
+**验收要点**：
+- 视图切换为单视图互斥，无纵向堆叠
+- URL search param 同步、可分享、刷新保留
+- 角色档案视图与小节分析视图共享同一 sticky 工具栏
+- 移动端窄屏行为：Tab 仍可切换，sticky 工具栏自动收缩为下拉菜单（基础响应式）
+
+#### 6.9.3 L3 双栏对照工作台（约 600 行）
+
+**目标**：宽屏（≥1440px）启用"左原文章节阅读器 / 右拆书内容"双栏对照视图；点击证据 chip 时左栏自动定位到来源章节并高亮 excerpt；切换章节时右栏自动滚动到本章相关的关键结论。
+
+**改造点**：
+
+- 在小节分析视图内增加"模式切换"按钮：单栏（当前 L2 形态）/ 双栏（新增）
+- 双栏模式仅在视口宽度 ≥1440px 启用，窄屏自动降级到单栏并隐藏切换按钮
+- 双栏布局：左栏（flex 1）章节阅读器、右栏（flex 1）小节内容
+- 左栏使用现有 `documentChapters` 数据，提取出独立 `BookAnalysisChapterReader` 组件
+- 联动方向 A：右栏证据 chip 点击 → 左栏滚动到 chapterIndex 并高亮 excerpt 范围
+- 联动方向 B：左栏切换当前阅读章节 → 右栏在每个小节标题旁显示"本章涉及"小标，结构化字段中"来自本章的结论"加视觉强调
+- 双栏模式用户偏好持久化（localStorage），下次进入时默认沿用
+- 角色档案视图保持单栏（角色档案与原文对照价值低，不强制双栏）
+
+**文件层级**：
+- `client/src/pages/bookAnalysis/components/BookAnalysisDualPaneLayout.tsx`（新增）— 双栏布局壳
+- `client/src/pages/bookAnalysis/components/BookAnalysisChapterReader.tsx`（新增）— 从 DetailPanel 提取的独立章节阅读器
+- `client/src/pages/bookAnalysis/components/BookAnalysisChapterNavigator.tsx`（新增）— 章节导航（下拉或侧边列表）
+- `client/src/pages/bookAnalysis/components/BookAnalysisDetailPanel.tsx` — 移除章节阅读器逻辑（提取后），增加"本章涉及"小标
+- `client/src/pages/bookAnalysis/components/BookAnalysisStructuredSummary.tsx` — 增加"来自当前章节"视觉强调
+- `client/src/pages/bookAnalysis/hooks/useBookAnalysisChapterCorrelation.ts`（新增）— 双向联动 hook（chip→章节、章节→相关字段）
+- `client/src/pages/bookAnalysis/hooks/useBookAnalysisDualPanePreference.ts`（新增）— 双栏偏好持久化
+- `client/src/pages/bookAnalysis/hooks/useViewportSize.ts`（新增或复用现有响应式 hook）— 视口宽度检测
+
+**验收要点**：
+- 视口 ≥1440px 时显示双栏切换按钮；<1440px 隐藏
+- 双栏模式下证据 chip 点击有动画反馈左栏滚动 + 高亮
+- 左栏切章节时右栏视觉强调"本章相关"字段，不滚动右栏避免干扰
+- 双栏偏好持久化，刷新 / 切换分析保留
+- 单栏与双栏切换无数据丢失（小节展开状态、证据选中状态保留）
+
+#### 6.9.4 阶段六共用前置要求
+
+- 阶段二 A1（DocumentChapter 实体）已落地（L3 双栏需要）
+- 阶段二 A2（evidence chapterIndex 绑定）已落地（L1 证据 Popover 跳转需要）
+- 阶段三 C1（BookAnalysisCharacter）已落地（L2 角色档案视图需要）
+- 不依赖阶段四（配图升格）和阶段五（诊断模式），但需测试不破坏
+
+### 6.10 阶段性退出条件
 
 每阶段合并后留 1-2 周观察期，关注指标：
 
@@ -456,8 +573,11 @@ E1 是"零工程改动 / 可能打开新场景"的旁路验证，建议作为独
 - 阶段三：深度档案生成完成率、用户人工编辑率、弧线 + 场景的填充密度
 - 阶段四：生图触发率（<15% 回看入口位置和成本提示）、单角色平均生图次数、主图设定率、升格次数、升格携带主图勾选率、升格后 BaseCharacter 在新小说创建中的复用率
 - 阶段五：诊断模式拆书启动率、用户在诊断模式产生的人工编辑量
+- 阶段六 L1：任务详情默认折叠后用户主动展开率、证据 chip 点击率（>15% 视为整合有效）、错误 banner 出现频率
+- 阶段六 L2：视图切换频率、URL 分享后落到正确视图的成功率、移动端 sticky 工具栏可用性
+- 阶段六 L3：双栏切换按钮在宽屏的启用率、单角色证据→章节跳转的平均交互链长度（链短意味着对照阅读真有效）、双栏偏好被持久化保留的用户比例
 
-### 6.10 通用约束
+### 6.11 通用约束
 
 - 每阶段开始前更新本 plan 文档对应章节状态
 - 每阶段合并前更新 `docs/releases/release-notes.md`
@@ -476,7 +596,9 @@ E1 是"零工程改动 / 可能打开新场景"的旁路验证，建议作为独
 - **主线场景是"学习场景"**：扩展方向优先级以学习场景为锚点；
 - **方向 A1 + 方向 C 是本期主投入**：方向 D 仅做扩展点预留；
 - **角色图生成复用现有 image 模块**：扩展 `ImageSceneType` 枚举 + 新增可选关联字段，不重建图像链路；
-- **升格默认携带主图**：升格时默认勾选"同时把主图加入角色库"，用户可取消，避免学习场景接受的图丢失。
+- **升格默认携带主图**：升格时默认勾选"同时把主图加入角色库"，用户可取消，避免学习场景接受的图丢失;
+- **任务管理走顶部 sticky 工具栏**：阶段六的发布、归档、重跑、下载、风格提取整合为始终可见的顶部条，二级操作进下拉菜单，不进入视图 Tab；
+- **章节阅读器只在 L3 双栏视图出现**：L2 视图只保留小节分析和角色档案两个 Tab，章节阅读器作为对照阅读的中栏在 L3 才被提取为独立组件。
 
 ### 7.2 待决定
 

@@ -2697,6 +2697,11 @@ model BookAnalysis {
   temperature                 Float?
   maxTokens                   Int?
   userFocusInstruction        String?
+  sourceStartChapterIndex     Int?
+  sourceEndChapterIndex       Int?
+  sourceStartOffset           Int?
+  sourceEndOffset             Int?
+  sourceScopeLabel            String?
   progress                    Float              @default(0)
   pendingManualRecovery       Boolean            @default(false)
   heartbeatAt                 DateTime?
@@ -2730,6 +2735,7 @@ model BookAnalysisSourceCache {
   model             String
   temperature       Float
   notesMaxTokens    Int
+  sourceScopeKey    String                   @default("full")
   segmentVersion    Int                      @default(1)
   segmentCount      Int
   notesJson         String
@@ -2737,7 +2743,7 @@ model BookAnalysisSourceCache {
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
 
-  @@unique([documentVersionId, provider, model, temperature, notesMaxTokens, segmentVersion])
+  @@unique([documentVersionId, sourceScopeKey, provider, model, temperature, notesMaxTokens, segmentVersion])
   @@index([documentVersionId, updatedAt])
 }
 

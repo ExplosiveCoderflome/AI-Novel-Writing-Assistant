@@ -35,6 +35,7 @@ interface GetOrBuildSourceNotesInput {
   model?: string;
   temperature?: number;
   sectionMaxTokens?: number;
+  sourceScopeKey?: string;
   ensureNotCancelled?: () => Promise<void>;
   onProgress?: (update: BookAnalysisProgressUpdate) => Promise<void>;
 }
@@ -42,6 +43,7 @@ interface GetOrBuildSourceNotesInput {
 export class BookAnalysisSourceCacheService {
   async getOrBuildSourceNotes(input: GetOrBuildSourceNotesInput): Promise<SourceNotesResult> {
     const cacheIdentity = this.buildCacheIdentity(input.provider, input.model, input.temperature, input.sectionMaxTokens);
+    const sourceScopeKey = input.sourceScopeKey?.trim() || "full";
 
     await input.onProgress?.({
       stage: "loading_cache",
@@ -52,8 +54,9 @@ export class BookAnalysisSourceCacheService {
 
     const cached = await prisma.bookAnalysisSourceCache.findUnique({
       where: {
-        documentVersionId_provider_model_temperature_notesMaxTokens_segmentVersion: {
+        documentVersionId_sourceScopeKey_provider_model_temperature_notesMaxTokens_segmentVersion: {
           documentVersionId: input.documentVersionId,
+          sourceScopeKey,
           provider: cacheIdentity.provider,
           model: cacheIdentity.model,
           temperature: cacheIdentity.temperature,
@@ -114,8 +117,9 @@ export class BookAnalysisSourceCacheService {
 
     await prisma.bookAnalysisSourceCache.upsert({
       where: {
-        documentVersionId_provider_model_temperature_notesMaxTokens_segmentVersion: {
+        documentVersionId_sourceScopeKey_provider_model_temperature_notesMaxTokens_segmentVersion: {
           documentVersionId: input.documentVersionId,
+          sourceScopeKey,
           provider: cacheIdentity.provider,
           model: cacheIdentity.model,
           temperature: cacheIdentity.temperature,
@@ -129,6 +133,7 @@ export class BookAnalysisSourceCacheService {
       },
       create: {
         documentVersionId: input.documentVersionId,
+        sourceScopeKey,
         provider: cacheIdentity.provider,
         model: cacheIdentity.model,
         temperature: cacheIdentity.temperature,

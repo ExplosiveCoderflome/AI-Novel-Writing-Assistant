@@ -1,5 +1,7 @@
+import { useState } from "react";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import BookAnalysisCharacterPanel from "./components/BookAnalysisCharacterPanel";
+import BookAnalysisCreateDialog from "./components/BookAnalysisCreateDialog";
 import BookAnalysisDiagnosisTipBanner from "./components/BookAnalysisDiagnosisTipBanner";
 import BookAnalysisDetailPanel from "./components/BookAnalysisDetailPanel";
 import BookAnalysisSidebar from "./components/BookAnalysisSidebar";
@@ -11,6 +13,44 @@ export default function BookAnalysisPage() {
   const workspace = useBookAnalysisWorkspace();
   const dualPanePreference = useBookAnalysisDualPanePreference();
   const chapterReader = useBookAnalysisChapterReader();
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  const handleCreate = async () => {
+    try {
+      await workspace.createAnalysis();
+      setCreateDialogOpen(false);
+    } catch {
+      // 保持弹窗打开，用户可在错误提示后重试
+    }
+  };
+
+  const handleCreateDiagnosis = async () => {
+    try {
+      await workspace.createDiagnosisAnalysis();
+      setCreateDialogOpen(false);
+    } catch {
+      // 保持弹窗打开
+    }
+  };
+
+  const characterPanelNode = workspace.selectedAnalysis ? (
+    <BookAnalysisCharacterPanel
+      analysisId={workspace.selectedAnalysis.id}
+      characters={workspace.characters}
+      disabled={workspace.selectedAnalysis.status === "archived"}
+      isLoading={workspace.pending.loadCharacters}
+      pending={{
+        generate: workspace.pending.generateCharacters,
+        create: workspace.pending.createCharacter,
+        update: workspace.pending.updateCharacter,
+        delete: workspace.pending.deleteCharacter,
+      }}
+      onGenerate={workspace.generateCharacters}
+      onCreate={workspace.createCharacter}
+      onUpdate={workspace.updateCharacter}
+      onDelete={workspace.deleteCharacter}
+    />
+  ) : null;
 
   return (
     <div className="space-y-4">
@@ -23,37 +63,16 @@ export default function BookAnalysisPage() {
           label="拆书结果发往创作中枢"
         />
       </div>
-      <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
         <BookAnalysisSidebar
-          analysisMode={workspace.analysisMode}
-          selectedDocumentId={workspace.selectedDocumentId}
-          selectedVersionId={workspace.selectedVersionId}
-          selectedDiagnosisNovelId={workspace.selectedDiagnosisNovelId}
           keyword={workspace.keyword}
           status={workspace.status}
-          userFocusInstruction={workspace.userFocusInstruction}
-          analysisPreset={workspace.analysisPreset}
-          llmConfig={workspace.llmConfig}
-          documentOptions={workspace.documentOptions}
-          versionOptions={workspace.versionOptions}
-          sourceDocument={workspace.sourceDocument}
-          novelOptions={workspace.novelOptions}
           analyses={workspace.analyses}
           selectedAnalysisId={workspace.selectedAnalysisId}
-          createPending={workspace.pending.create}
-          createDiagnosisPending={workspace.pending.createDiagnosis}
-          onModeChange={workspace.setAnalysisMode}
-          onSelectDocument={workspace.selectDocument}
-          onSelectVersion={workspace.selectVersion}
-          onSelectDiagnosisNovel={workspace.setSelectedDiagnosisNovelId}
           onKeywordChange={workspace.setKeyword}
           onStatusChange={workspace.setStatus}
-          onUserFocusInstructionChange={workspace.setUserFocusInstruction}
-          onAnalysisPresetChange={workspace.setAnalysisPreset}
-          onLlmConfigChange={workspace.setLlmConfig}
-          onCreate={() => void workspace.createAnalysis()}
-          onCreateDiagnosis={() => void workspace.createDiagnosisAnalysis()}
           onOpenAnalysis={workspace.openAnalysis}
+          onOpenCreateDialog={() => setCreateDialogOpen(true)}
         />
 
         <div className="min-w-0 space-y-4">
@@ -77,6 +96,7 @@ export default function BookAnalysisPage() {
             currentChapterIndex={chapterReader.currentChapterIndex}
             chapterHighlightRange={chapterReader.highlightRange}
             chapterReaderRef={chapterReader.readerRef}
+            rightColumnExtra={dualPanePreference.dualPaneEnabled ? characterPanelNode : null}
             pending={{
               copy: workspace.pending.copy,
               rebuild: workspace.pending.rebuild,
@@ -106,26 +126,43 @@ export default function BookAnalysisPage() {
             onDraftChange={workspace.updateSectionDraft}
             getSectionDraft={workspace.getSectionDraft}
           />
-          {workspace.selectedAnalysis ? (
-            <BookAnalysisCharacterPanel
-              analysisId={workspace.selectedAnalysis.id}
-              characters={workspace.characters}
-              disabled={workspace.selectedAnalysis.status === "archived"}
-              isLoading={workspace.pending.loadCharacters}
-              pending={{
-                generate: workspace.pending.generateCharacters,
-                create: workspace.pending.createCharacter,
-                update: workspace.pending.updateCharacter,
-                delete: workspace.pending.deleteCharacter,
-              }}
-              onGenerate={workspace.generateCharacters}
-              onCreate={workspace.createCharacter}
-              onUpdate={workspace.updateCharacter}
-              onDelete={workspace.deleteCharacter}
-            />
-          ) : null}
+          {!dualPanePreference.dualPaneEnabled && characterPanelNode}
         </div>
       </div>
+
+      <BookAnalysisCreateDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        analysisMode={workspace.analysisMode}
+        selectedDocumentId={workspace.selectedDocumentId}
+        selectedVersionId={workspace.selectedVersionId}
+        selectedDiagnosisNovelId={workspace.selectedDiagnosisNovelId}
+        userFocusInstruction={workspace.userFocusInstruction}
+        selectedSourceRange={workspace.selectedSourceRange}
+        analysisPreset={workspace.analysisPreset}
+        llmConfig={workspace.llmConfig}
+        documentOptions={workspace.documentOptions}
+        versionOptions={workspace.versionOptions}
+        sourceDocument={workspace.sourceDocument}
+        sourceChapters={workspace.sourceChapters}
+        sourceChaptersRequested={workspace.sourceChaptersRequested}
+        sourceChaptersLoading={workspace.sourceChaptersLoading}
+        sourceChaptersError={workspace.sourceChaptersError}
+        novelOptions={workspace.novelOptions}
+        createPending={workspace.pending.create}
+        createDiagnosisPending={workspace.pending.createDiagnosis}
+        onModeChange={workspace.setAnalysisMode}
+        onSelectDocument={workspace.selectDocument}
+        onSelectVersion={workspace.selectVersion}
+        onSelectDiagnosisNovel={workspace.setSelectedDiagnosisNovelId}
+        onUserFocusInstructionChange={workspace.setUserFocusInstruction}
+        onSourceRangeChange={workspace.setSelectedSourceRange}
+        onRequestSourceChapters={workspace.requestSourceChapters}
+        onAnalysisPresetChange={workspace.setAnalysisPreset}
+        onLlmConfigChange={workspace.setLlmConfig}
+        onCreate={handleCreate}
+        onCreateDiagnosis={handleCreateDiagnosis}
+      />
     </div>
   );
 }

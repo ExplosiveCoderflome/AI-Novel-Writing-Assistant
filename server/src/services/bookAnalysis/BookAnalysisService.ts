@@ -53,6 +53,7 @@ class BookAnalysisServiceFacade {
     temperature?: number;
     maxTokens?: number;
     userFocusInstruction?: string | null;
+    sourceRange?: { startChapterIndex: number; endChapterIndex: number } | null;
     includeTimeline?: boolean;
     enabledSectionKeys?: BookAnalysisSectionKey[];
   }): Promise<BookAnalysisDetail> {

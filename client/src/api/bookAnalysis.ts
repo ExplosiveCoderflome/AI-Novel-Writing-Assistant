@@ -43,6 +43,7 @@ export async function createBookAnalysis(payload: {
   temperature?: number;
   maxTokens?: number;
   userFocusInstruction?: string;
+  sourceRange?: { startChapterIndex: number; endChapterIndex: number } | null;
   includeTimeline?: boolean;
   enabledSectionKeys?: BookAnalysisSectionKey[];
 }) {

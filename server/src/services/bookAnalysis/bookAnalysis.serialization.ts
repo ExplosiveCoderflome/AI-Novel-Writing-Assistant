@@ -15,6 +15,11 @@ export interface AnalysisRowForSerialize {
   temperature: number | null;
   maxTokens: number | null;
   userFocusInstruction: string | null;
+  sourceStartChapterIndex: number | null;
+  sourceEndChapterIndex: number | null;
+  sourceStartOffset: number | null;
+  sourceEndOffset: number | null;
+  sourceScopeLabel: string | null;
   progress: number;
   heartbeatAt: Date | null;
   currentStage: string | null;
@@ -82,6 +87,15 @@ export function serializeAnalysisRow(row: AnalysisRowForSerialize): BookAnalysis
     temperature: row.temperature,
     maxTokens: row.maxTokens,
     userFocusInstruction: row.userFocusInstruction,
+    sourceRange: row.sourceStartChapterIndex !== null && row.sourceEndChapterIndex !== null
+      ? {
+          startChapterIndex: row.sourceStartChapterIndex,
+          endChapterIndex: row.sourceEndChapterIndex,
+          startOffset: row.sourceStartOffset,
+          endOffset: row.sourceEndOffset,
+          label: row.sourceScopeLabel,
+        }
+      : null,
     progress: row.progress,
     heartbeatAt: row.heartbeatAt?.toISOString() ?? null,
     currentStage: row.currentStage,

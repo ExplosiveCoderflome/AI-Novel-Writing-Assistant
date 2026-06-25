@@ -122,6 +122,7 @@ export function buildPublishMarkdown(
     | "documentFileName"
     | "documentVersionNumber"
     | "currentDocumentVersionNumber"
+    | "sourceRange"
     | "sections"
   >,
   publishedAtISO: string,
@@ -135,6 +136,7 @@ export function buildPublishMarkdown(
     `- 来源文档：${detail.documentTitle}`,
     `- 来源文件名：${detail.documentFileName}`,
     `- 来源版本：v${detail.documentVersionNumber}`,
+    `- 来源范围：${detail.sourceRange?.label ?? "全文"}`,
     `- 当前激活版本：v${detail.currentDocumentVersionNumber}`,
     `- 拆书状态：${detail.status}`,
     `- 发布时间：${publishedAtISO}`,
@@ -200,6 +202,7 @@ export function buildAnalysisExportContent(
     `- 文档：${detail.documentTitle}`,
     `- 原文件：${detail.documentFileName}`,
     `- 来源版本：v${detail.documentVersionNumber}`,
+    `- 来源范围：${detail.sourceRange?.label ?? "全文"}`,
     `- 当前激活版本：v${detail.currentDocumentVersionNumber}`,
     `- 状态：${detail.status}`,
     detail.summary ? `- 摘要：${detail.summary}` : "",

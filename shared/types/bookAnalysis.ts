@@ -197,6 +197,14 @@ export interface BookAnalysisEvidenceItem {
   };
 }
 
+export interface BookAnalysisSourceRange {
+  startChapterIndex: number;
+  endChapterIndex: number;
+  startOffset?: number | null;
+  endOffset?: number | null;
+  label?: string | null;
+}
+
 export interface BookAnalysisSection {
   id: string;
   analysisId: string;
@@ -233,6 +241,7 @@ export interface BookAnalysis {
   temperature?: number | null;
   maxTokens?: number | null;
   userFocusInstruction?: string | null;
+  sourceRange?: BookAnalysisSourceRange | null;
   progress: number;
   heartbeatAt?: string | null;
   currentStage?: string | null;

@@ -50,6 +50,13 @@ const listQuerySchema = z.object({
   documentId: z.string().trim().optional(),
 });
 
+
+const sourceRangeSchema = z.object({
+  startChapterIndex: z.number().int().min(0),
+  endChapterIndex: z.number().int().min(0),
+}).refine((value) => value.endChapterIndex >= value.startChapterIndex, {
+  message: "End chapter must be greater than or equal to start chapter.",
+});
 const createSchema = z.object({
   documentId: z.string().trim().min(1),
   versionId: z.string().trim().optional(),
@@ -58,6 +65,7 @@ const createSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(256).max(32768).optional(),
   userFocusInstruction: z.string().trim().optional(),
+  sourceRange: sourceRangeSchema.nullable().optional(),
   includeTimeline: z.boolean().optional().default(false),
   enabledSectionKeys: z.array(sectionKeySchema).min(1).optional(),
 });

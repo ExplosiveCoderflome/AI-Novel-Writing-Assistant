@@ -40,7 +40,7 @@ import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import type { LLMConfigState, SectionDraft } from "../bookAnalysis.types";
 import { buildSectionDraft, createDownload, syncDrafts } from "../bookAnalysis.utils";
-import type { BookAnalysisMode, BookAnalysisWorkspace, ExportFormat, NovelOption } from "./bookAnalysisWorkspace.types";
+import type { BookAnalysisMode, BookAnalysisSourceRangeDraft, BookAnalysisWorkspace, ExportFormat, NovelOption } from "./bookAnalysisWorkspace.types";
 
 const DIAGNOSIS_FOCUS_INSTRUCTION = "请从作者自检角度诊断当前稿子，优先指出节奏断点、人物模糊点、主题表达不清、伏笔回收风险和后续改稿优先级。";
 
@@ -65,6 +65,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const [selectedNovelId, setSelectedNovelId] = useState("");
   const [selectedDiagnosisNovelId, setSelectedDiagnosisNovelId] = useState("");
   const [userFocusInstruction, setUserFocusInstruction] = useState("");
+  const [selectedSourceRange, setSelectedSourceRange] = useState<BookAnalysisSourceRangeDraft>(null);
+  const [sourceChaptersRequested, setSourceChaptersRequested] = useState(false);
   const [analysisPreset, setAnalysisPreset] = useState<BookAnalysisPreset>("standard");
   const [llmConfig, setLlmConfig] = useState<LLMConfigState>({
     provider: llmStore.provider,
@@ -140,6 +142,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
 
   const analyses = analysesQuery.data?.data ?? [];
   const selectedAnalysis = detailQuery.data?.data;
+  const sourceDocument = sourceDocumentQuery.data?.data;
+  const selectedSourceVersionId = selectedVersionId || sourceDocument?.activeVersionId || sourceDocument?.versions[0]?.id || "";
 
   const charactersQuery = useQuery({
     queryKey: queryKeys.bookAnalysis.characters(selectedAnalysisId || "none"),
@@ -156,9 +160,14 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     enabled: Boolean(selectedAnalysis?.documentId && selectedAnalysis?.documentVersionId),
   });
 
+
+  const sourceChaptersQuery = useQuery({
+    queryKey: queryKeys.knowledge.chapters(selectedDocumentId || "none", selectedSourceVersionId || "none"),
+    queryFn: () => getKnowledgeDocumentVersionChapters(selectedDocumentId, selectedSourceVersionId),
+    enabled: analysisMode === "reference" && sourceChaptersRequested && Boolean(selectedDocumentId && selectedSourceVersionId),
+  });
   const documentOptions = documentsQuery.data?.data ?? [];
   const novelOptions = useMemo(() => buildNovelOptions(novelsQuery.data?.data?.items ?? []), [novelsQuery.data?.data?.items]);
-  const sourceDocument = sourceDocumentQuery.data?.data;
   const sourceVersionContent = useMemo(() => {
     if (!selectedAnalysis || !sourceDocument) {
       return "";
@@ -166,6 +175,12 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     return sourceDocument.versions.find((version) => version.id === selectedAnalysis.documentVersionId)?.content ?? "";
   }, [selectedAnalysis, sourceDocument]);
   const documentChapters = documentChaptersQuery.data?.data?.chapters ?? [];
+  const sourceChapters = sourceChaptersQuery.data?.data?.chapters ?? [];
+  const sourceChaptersError = sourceChaptersQuery.error instanceof Error
+    ? sourceChaptersQuery.error.message
+    : sourceChaptersQuery.error
+      ? "章节范围加载失败。"
+      : "";
   const characters = charactersQuery.data?.data ?? [];
   const versionOptions = sourceDocumentQuery.data?.data?.versions ?? [];
   const selectedPreset = useMemo(
@@ -203,6 +218,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
 
   const setAnalysisMode = (mode: BookAnalysisMode) => {
     setAnalysisModeState(mode);
+    setSelectedSourceRange(null);
+    setSourceChaptersRequested(false);
     if (mode === "diagnosis") {
       setSelectedDocumentId("");
       setSelectedVersionId("");
@@ -602,6 +619,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     setAnalysisModeState("reference");
     setSelectedDocumentId(documentId);
     setSelectedVersionId("");
+    setSelectedSourceRange(null);
+    setSourceChaptersRequested(false);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete("mode");
@@ -616,7 +635,11 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
 
   const selectVersion = (versionId: string) => {
     setSelectedVersionId(versionId);
+    setSelectedSourceRange(null);
+    setSourceChaptersRequested(false);
   };
+
+  const requestSourceChapters = () => setSourceChaptersRequested(true);
 
   const createAnalysis = async () => {
     if (!selectedDocumentId) {
@@ -630,6 +653,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       temperature: llmConfig.temperature,
       maxTokens: llmConfig.maxTokens,
       userFocusInstruction: userFocusInstruction.trim() || undefined,
+      sourceRange: selectedSourceRange ?? undefined,
       includeTimeline,
       enabledSectionKeys: selectedPreset.sectionKeys,
     });
@@ -833,6 +857,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     selectedNovelId,
     selectedDiagnosisNovelId,
     userFocusInstruction,
+    selectedSourceRange,
     includeTimeline,
     analysisPreset,
     llmConfig,
@@ -848,6 +873,10 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     sourceDocument,
     sourceVersionContent,
     documentChapters,
+    sourceChapters,
+    sourceChaptersRequested,
+    sourceChaptersLoading: sourceChaptersQuery.isFetching,
+    sourceChaptersError,
     characters,
     aggregatedEvidence,
     optimizingSectionKey,
@@ -874,6 +903,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     setSelectedNovelId,
     setSelectedDiagnosisNovelId,
     setUserFocusInstruction,
+    setSelectedSourceRange,
+    requestSourceChapters,
     setIncludeTimeline,
     setAnalysisPreset,
     setLlmConfig,
