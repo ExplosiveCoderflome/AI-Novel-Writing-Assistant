@@ -10,6 +10,7 @@ import {
   normalizeBookAnalysisTimelineNodes,
 } from "@ai-novel/shared/utils/bookAnalysisTimeline";
 import { Info } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import type { BookAnalysisMode } from "../hooks/bookAnalysisWorkspace.types";
 
 interface SummaryRow {
@@ -34,13 +35,14 @@ function normalizeStructuredValue(value: unknown): string[] {
   return [];
 }
 
-function buildSummaryRows(section: BookAnalysisSection): SummaryRow[] {
+function buildSummaryRows(section: BookAnalysisSection, evidenceItems?: BookAnalysisEvidenceItem[]): SummaryRow[] {
   const structuredData = section.structuredData;
   if (!structuredData || typeof structuredData !== "object") {
     return [];
   }
   const fieldSpecs = new Map((BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS[section.sectionKey] ?? [])
     .map((field) => [field.key, field.type]));
+  const evidenceSource = evidenceItems ?? section.evidence;
 
   return Object.entries(structuredData)
     .map(([key, value]) => {
@@ -50,7 +52,7 @@ function buildSummaryRows(section: BookAnalysisSection): SummaryRow[] {
         label: BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[key] ?? key,
         values: isTimelineNodeArray ? [] : normalizeStructuredValue(value),
         timelineNodes: isTimelineNodeArray ? normalizeBookAnalysisTimelineNodes(value, 6) : [],
-        evidence: section.evidence.filter((item) => item.fieldKey === key),
+        evidence: evidenceSource.filter((item) => item.fieldKey === key),
       };
     })
     .filter((row) => row.values.length > 0 || row.timelineNodes.length > 0)
@@ -100,11 +102,15 @@ function TimelineNodeList({ nodes }: { nodes: BookAnalysisTimelineNode[] }) {
 export default function BookAnalysisStructuredSummary({
   section,
   analysisMode = "reference",
+  evidenceItems,
+  currentChapterIndex = null,
 }: {
   section: BookAnalysisSection;
   analysisMode?: BookAnalysisMode;
+  evidenceItems?: BookAnalysisEvidenceItem[];
+  currentChapterIndex?: number | null;
 }) {
-  const rows = buildSummaryRows(section);
+  const rows = buildSummaryRows(section, evidenceItems);
   const warningLabels = getWarningLabels(section);
   if (rows.length === 0) {
     return null;
@@ -136,19 +142,29 @@ export default function BookAnalysisStructuredSummary({
                   <Info className="h-3.5 w-3.5 text-primary" />
                 </span>
               ) : null}
+              {currentChapterIndex !== null && row.timelineNodes.length > 0 && row.evidence.some((item) => item.chapterIndex === currentChapterIndex) ? (
+                <Badge variant="secondary">本章</Badge>
+              ) : null}
             </div>
             {row.timelineNodes.length > 0 ? (
               <TimelineNodeList nodes={row.timelineNodes} />
             ) : (
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {row.values.map((value, index) => (
-                  <span
-                    key={`${row.key}-${index}-${value}`}
-                    className="rounded-md border bg-muted/30 px-2 py-1 text-xs leading-5 text-foreground"
-                  >
-                    {value}
-                  </span>
-                ))}
+                {row.values.map((value, index) => {
+                  const isCurrentChapterValue = currentChapterIndex !== null && row.evidence.some((item) => (
+                    item.chapterIndex === currentChapterIndex &&
+                    (item.fieldIndex === undefined || item.fieldIndex === index)
+                  ));
+                  return (
+                    <span
+                      key={`${row.key}-${index}-${value}`}
+                      className="inline-flex items-center gap-1 rounded-md border bg-muted/30 px-2 py-1 text-xs leading-5 text-foreground"
+                    >
+                      <span>{value}</span>
+                      {isCurrentChapterValue ? <Badge variant="secondary">本章</Badge> : null}
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>

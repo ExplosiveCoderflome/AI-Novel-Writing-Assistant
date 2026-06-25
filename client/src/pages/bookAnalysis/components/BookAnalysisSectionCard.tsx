@@ -26,6 +26,8 @@ interface BookAnalysisSectionCardProps {
   selectedEvidence: SectionEvidenceItem | null;
   selectedEvidenceChapter: DocumentChapter | null;
   selectedChapterContent: string;
+  isDualPane: boolean;
+  currentChapterIndex: number | null;
   onSelectEvidence: (evidenceKey: string) => void;
   onDraftChange: (section: BookAnalysisSection, patch: Partial<SectionDraft>) => void;
   onRegenerate: (section: BookAnalysisSection) => void;
@@ -37,7 +39,7 @@ interface BookAnalysisSectionCardProps {
 
 function formatEvidenceBinding(item: SectionEvidenceItem): string {
   if (!item.fieldKey) {
-    return "未绑定字段";
+    return item.label;
   }
   const label = BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[item.fieldKey] ?? item.fieldKey;
   return item.fieldIndex === undefined ? label : `${label} #${item.fieldIndex + 1}`;
@@ -58,6 +60,8 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
     selectedEvidence,
     selectedEvidenceChapter,
     selectedChapterContent,
+    isDualPane,
+    currentChapterIndex,
     onSelectEvidence,
     onDraftChange,
     onRegenerate,
@@ -100,7 +104,12 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <BookAnalysisStructuredSummary section={section} analysisMode={analysisMode} />
+        <BookAnalysisStructuredSummary
+          section={section}
+          analysisMode={analysisMode}
+          evidenceItems={evidenceItems}
+          currentChapterIndex={currentChapterIndex}
+        />
 
         {evidenceItems.length > 0 ? (
           <div className="space-y-2 rounded-md border bg-muted/10 p-3">
@@ -121,8 +130,17 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
                     onClick={() => onSelectEvidence(item.evidenceKey)}
                     title={item.excerpt}
                   >
-                    <span className="font-medium">{formatEvidenceBinding(item)}</span>
-                    <span className="ml-1 text-muted-foreground">[{item.sourceLabel}]</span>
+                    {item.fieldKey ? (
+                      <>
+                        <span className="font-medium">{formatEvidenceBinding(item)}</span>
+                        <span className="ml-1 text-muted-foreground">[{item.sourceLabel}]</span>
+                      </>
+                    ) : (
+                      <span className={selected ? "font-medium" : "font-medium text-muted-foreground"}>
+                        {formatEvidenceBinding(item)}
+                        <span className="ml-1 opacity-70">[{item.sourceLabel}]</span>
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -133,7 +151,9 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
                   <div>
                     <div className="font-medium">{selectedEvidence.label}</div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      {formatEvidenceBinding(selectedEvidence)} | {selectedEvidence.sourceLabel}
+                      {selectedEvidence.fieldKey
+                        ? `${formatEvidenceBinding(selectedEvidence)} | ${selectedEvidence.sourceLabel}`
+                        : selectedEvidence.sourceLabel}
                     </div>
                   </div>
                   {selectedEvidence.chapterIndex !== undefined ? (
@@ -141,7 +161,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
                   ) : null}
                 </div>
                 <div className="mt-2 whitespace-pre-wrap text-muted-foreground">{selectedEvidence.excerpt}</div>
-                {selectedEvidenceChapter && selectedEvidence.excerptOffsetRange ? (
+                {!isDualPane && selectedEvidenceChapter && selectedEvidence.excerptOffsetRange ? (
                   <div className="mt-3">
                     <div className="mb-2 text-xs font-medium text-muted-foreground">
                       原文定位：{selectedEvidenceChapter.title}
@@ -152,6 +172,8 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
                       range={selectedEvidence.excerptOffsetRange}
                     />
                   </div>
+                ) : isDualPane && selectedEvidenceChapter && selectedEvidence.excerptOffsetRange ? (
+                  <div className="mt-2 text-xs text-muted-foreground">已在左侧原文章节中定位这条证据。</div>
                 ) : (
                   <div className="mt-2 text-xs text-muted-foreground">这条证据暂无可跳转的章节定位。</div>
                 )}

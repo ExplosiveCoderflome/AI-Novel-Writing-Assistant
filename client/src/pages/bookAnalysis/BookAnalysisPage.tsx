@@ -3,10 +3,14 @@ import BookAnalysisCharacterPanel from "./components/BookAnalysisCharacterPanel"
 import BookAnalysisDiagnosisTipBanner from "./components/BookAnalysisDiagnosisTipBanner";
 import BookAnalysisDetailPanel from "./components/BookAnalysisDetailPanel";
 import BookAnalysisSidebar from "./components/BookAnalysisSidebar";
+import { useBookAnalysisChapterReader } from "./hooks/useBookAnalysisChapterReader";
+import { useBookAnalysisDualPanePreference } from "./hooks/useBookAnalysisDualPanePreference";
 import { useBookAnalysisWorkspace } from "./hooks/useBookAnalysisWorkspace";
 
 export default function BookAnalysisPage() {
   const workspace = useBookAnalysisWorkspace();
+  const dualPanePreference = useBookAnalysisDualPanePreference();
+  const chapterReader = useBookAnalysisChapterReader();
 
   return (
     <div className="space-y-4">
@@ -68,6 +72,11 @@ export default function BookAnalysisPage() {
             lastPublishResult={workspace.lastPublishResult}
             aggregatedEvidence={workspace.aggregatedEvidence}
             optimizingSectionKey={workspace.optimizingSectionKey}
+            dualPaneAvailable={dualPanePreference.dualPaneAvailable}
+            isDualPane={dualPanePreference.dualPaneEnabled}
+            currentChapterIndex={chapterReader.currentChapterIndex}
+            chapterHighlightRange={chapterReader.highlightRange}
+            chapterReaderRef={chapterReader.readerRef}
             pending={{
               copy: workspace.pending.copy,
               rebuild: workspace.pending.rebuild,
@@ -78,6 +87,10 @@ export default function BookAnalysisPage() {
               publish: workspace.pending.publish,
               createStyleProfile: workspace.pending.createStyleProfile,
             }}
+            onDualPaneChange={dualPanePreference.setDualPaneEnabled}
+            onActiveChapterChange={chapterReader.setCurrentChapterIndex}
+            onSelectChapter={chapterReader.scrollToChapter}
+            onEvidenceJump={chapterReader.scrollToEvidence}
             onSelectedNovelChange={workspace.setSelectedNovelId}
             onCopy={() => void workspace.copySelectedAnalysis()}
             onRebuild={workspace.rebuildAnalysis}
