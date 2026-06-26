@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BookAnalysisDetail } from "@ai-novel/shared/types/bookAnalysis";
 import type {
+  BookAnalysisCharacter,
   BookAnalysisCharacterDimension,
   BookAnalysisCharacterGenerationDepth,
 } from "@ai-novel/shared/types/bookAnalysisCharacter";
@@ -25,6 +26,34 @@ export function useAnalysisCharacters(input: {
   const queryClient = useQueryClient();
   const { selectedAnalysis, selectedAnalysisId } = input;
   const [generatingCharacterIds, setGeneratingCharacterIds] = useState<Set<string>>(() => new Set());
+  const [batchSummary, setBatchSummary] = useState<{
+    generated: number;
+    failed: number;
+    pending: number;
+    total: number;
+  } | null>(null);
+
+  const summarizeBatchOutcome = (
+    targetIds: Set<string>,
+    afterCharacters: BookAnalysisCharacter[],
+  ) => {
+    let generated = 0;
+    let failed = 0;
+    let pending = 0;
+    for (const character of afterCharacters) {
+      if (!targetIds.has(character.id)) {
+        continue;
+      }
+      if (character.status === "generated") {
+        generated += 1;
+      } else if (character.status === "failed") {
+        failed += 1;
+      } else {
+        pending += 1;
+      }
+    }
+    return { generated, failed, pending, total: targetIds.size };
+  };
 
   const charactersQuery = useQuery({
     queryKey: queryKeys.bookAnalysis.characters(selectedAnalysisId || "none"),
@@ -96,8 +125,31 @@ export function useAnalysisCharacters(input: {
       selectedDimensions: payload.selectedDimensions,
       includeFailed: true,
     }),
-    onSuccess: async (_response, payload) => {
+    onMutate: () => {
+      const targetIds = new Set(
+        (charactersQuery.data?.data ?? [])
+          .filter((character) => character.status === "candidate" || character.status === "failed")
+          .map((character) => character.id),
+      );
+      return { targetIds };
+    },
+    onSuccess: async (response, payload, context) => {
       await refreshCharacterData(payload.analysisId);
+      const targetIds = context?.targetIds;
+      if (!targetIds || targetIds.size === 0) {
+        setBatchSummary(null);
+        return;
+      }
+      const afterCharacters = response.data ?? [];
+      setBatchSummary(summarizeBatchOutcome(targetIds, afterCharacters));
+    },
+    onError: (_error, _payload, context) => {
+      const targetIds = context?.targetIds;
+      if (!targetIds || targetIds.size === 0) {
+        return;
+      }
+      const afterCharacters = charactersQuery.data?.data ?? [];
+      setBatchSummary(summarizeBatchOutcome(targetIds, afterCharacters));
     },
   });
 
@@ -256,6 +308,8 @@ export function useAnalysisCharacters(input: {
     createCharacter,
     updateCharacter,
     deleteCharacter,
+    batchSummary,
+    dismissBatchSummary: () => setBatchSummary(null),
     pending: {
       loadCharacters: charactersQuery.isLoading,
       generateCharacters: generateCharactersMutation.isPending,

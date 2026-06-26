@@ -66,6 +66,13 @@ interface BookAnalysisCharacterPanelProps {
     generationDepth: BookAnalysisCharacterGenerationDepth;
     selectedDimensions: BookAnalysisCharacterDimension[];
   }) => Promise<void>;
+  batchSummary: {
+    generated: number;
+    failed: number;
+    pending: number;
+    total: number;
+  } | null;
+  onDismissBatchSummary: () => void;
   onCreate: (input: {
     name: string;
     role: string;
@@ -114,6 +121,8 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
     onIdentify,
     onGenerateProfile,
     onGenerateAll,
+    batchSummary,
+    onDismissBatchSummary,
     onCreate,
     onUpdate,
     onDelete,
@@ -136,6 +145,17 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
     [characters],
   );
   const pendingCandidateCount = candidateCharacters.filter((character) => character.status !== "generating").length;
+  const failedCandidateCount = candidateCharacters.filter((character) => character.status === "failed").length;
+  const freshCandidateCount = candidateCharacters.filter((character) => character.status === "candidate").length;
+  const batchButtonTitle = (() => {
+    if (failedCandidateCount > 0 && freshCandidateCount > 0) {
+      return `为 ${freshCandidateCount} 个新候选生成档案，并重试 ${failedCandidateCount} 个失败角色`;
+    }
+    if (failedCandidateCount > 0) {
+      return `重试 ${failedCandidateCount} 个失败的角色`;
+    }
+    return `为 ${freshCandidateCount} 个候选生成深度档案`;
+  })();
   const operationPending = pending.generate || pending.identify || pending.generateProfile || pending.generateAll;
   const identifyDisabled = disabled || pending.identify;
   const generateAllDisabled = disabled || pending.generateAll || selectedDimensions.length === 0 || pendingCandidateCount === 0;
@@ -202,6 +222,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                   size="sm"
                   onClick={() => void onGenerateAll({ generationDepth, selectedDimensions })}
                   disabled={generateAllDisabled}
+                  title={batchButtonTitle}
                 >
                   {pending.generateAll ? "生成中..." : `全部生成 (${pendingCandidateCount})`}
                 </Button>
@@ -257,6 +278,35 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
             </Button>
           </div>
         </div>
+
+        {batchSummary ? (
+          <div
+            className={`flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm ${
+              batchSummary.failed + batchSummary.pending > 0
+                ? "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300"
+                : "border-emerald-500/40 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+            }`}
+          >
+            <div className="space-y-1">
+              <div className="font-medium">
+                {batchSummary.failed + batchSummary.pending === 0
+                  ? `本次批量已生成 ${batchSummary.generated} / ${batchSummary.total} 个角色档案`
+                  : `本次批量已生成 ${batchSummary.generated} 个，未完成 ${batchSummary.failed + batchSummary.pending} 个`}
+              </div>
+              {batchSummary.failed + batchSummary.pending > 0 ? (
+                <div className="text-xs">
+                  {batchSummary.failed > 0 ? `失败 ${batchSummary.failed} 个` : ""}
+                  {batchSummary.failed > 0 && batchSummary.pending > 0 ? "，" : ""}
+                  {batchSummary.pending > 0 ? `因预算用尽未跑 ${batchSummary.pending} 个` : ""}
+                  。可调整预算或扩容后再点「全部生成」继续。
+                </div>
+              ) : null}
+            </div>
+            <Button size="sm" variant="ghost" onClick={onDismissBatchSummary}>
+              知道了
+            </Button>
+          </div>
+        ) : null}
 
         {isLoading ? (
           <div className="text-sm text-muted-foreground">正在读取角色档案。</div>

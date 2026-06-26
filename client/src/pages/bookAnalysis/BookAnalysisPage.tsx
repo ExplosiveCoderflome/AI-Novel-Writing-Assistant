@@ -52,6 +52,8 @@ export default function BookAnalysisPage() {
       onIdentify={workspace.identifyCharacters}
       onGenerateProfile={workspace.generateCharacterProfile}
       onGenerateAll={workspace.generateAllCandidates}
+      batchSummary={workspace.characterBatchSummary}
+      onDismissBatchSummary={workspace.dismissCharacterBatchSummary}
       onCreate={workspace.createCharacter}
       onUpdate={workspace.updateCharacter}
       onDelete={workspace.deleteCharacter}

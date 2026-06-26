@@ -131,6 +131,13 @@ export interface BookAnalysisWorkspace {
     generationDepth: BookAnalysisCharacterGenerationDepth;
     selectedDimensions: BookAnalysisCharacterDimension[];
   }) => Promise<void>;
+  characterBatchSummary: {
+    generated: number;
+    failed: number;
+    pending: number;
+    total: number;
+  } | null;
+  dismissCharacterBatchSummary: () => void;
   createCharacter: (input: {
     name: string;
     role: string;

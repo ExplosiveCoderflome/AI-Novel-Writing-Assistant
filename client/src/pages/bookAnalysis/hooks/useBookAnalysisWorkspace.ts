@@ -607,6 +607,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     identifyCharacters: charactersState.identifyCharacters,
     generateCharacterProfile: charactersState.generateCharacterProfile,
     generateAllCandidates: charactersState.generateAllCandidates,
+    characterBatchSummary: charactersState.batchSummary,
+    dismissCharacterBatchSummary: charactersState.dismissBatchSummary,
     createCharacter: charactersState.createCharacter,
     updateCharacter: charactersState.updateCharacter,
     deleteCharacter: charactersState.deleteCharacter,
