@@ -7,13 +7,13 @@ import type {
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
-import { KnowledgeService } from "../knowledge/KnowledgeService";
+import { KnowledgePublishService } from "../knowledge/KnowledgePublishService";
 import { buildAnalysisExportContent } from "./bookAnalysis.export";
 import { publishAnalysisToNovel } from "./bookAnalysis.publish";
 import { serializeAnalysisRow, serializeSectionRow } from "./bookAnalysis.serialization";
 
 export class BookAnalysisQueryService {
-  private readonly knowledgeService = new KnowledgeService();
+  private readonly knowledgePublishService = new KnowledgePublishService();
 
   async listAnalyses(filters: {
     keyword?: string;
@@ -95,7 +95,7 @@ export class BookAnalysisQueryService {
     return publishAnalysisToNovel({
       analysisId,
       novelId,
-      knowledgeService: this.knowledgeService,
+      knowledgePublishService: this.knowledgePublishService,
       getAnalysisById: (id) => this.getAnalysisById(id),
     });
   }

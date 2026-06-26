@@ -1,18 +1,18 @@
 import type { BookAnalysisDetail, BookAnalysisPublishResult } from "@ai-novel/shared/types/bookAnalysis";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
-import type { KnowledgeService } from "../knowledge/KnowledgeService";
+import { KnowledgePublishService } from "../knowledge/KnowledgePublishService";
 import { buildPublishDocumentTitle, buildPublishFileName, buildPublishMarkdown } from "./bookAnalysis.export";
 
 export async function publishAnalysisToNovel(input: {
   analysisId: string;
   novelId: string;
-  knowledgeService: Pick<KnowledgeService, "createDocument">;
+  knowledgePublishService: Pick<KnowledgePublishService, "publishAnalysisDocument">;
   getAnalysisById: (analysisId: string) => Promise<BookAnalysisDetail | null>;
 }): Promise<BookAnalysisPublishResult> {
   const [detail, novel] = await Promise.all([
     input.getAnalysisById(input.analysisId),
-    prisma.novel.findUnique({ where: { id: input.novelId }, select: { id: true } }),
+    prisma.novel.findUnique({ where: { id: input.novelId }, select: { id: true, title: true } }),
   ]);
 
   if (!detail) {
@@ -31,8 +31,12 @@ export async function publishAnalysisToNovel(input: {
     throw new AppError("Book analysis has no publishable content.", 400);
   }
 
-  const publishedDocument = await input.knowledgeService.createDocument({
-    title: buildPublishDocumentTitle(detail),
+  const publishedDocument = await input.knowledgePublishService.publishAnalysisDocument({
+    sourceAnalysisId: input.analysisId,
+    buildTitle: (versionNumber) => buildPublishDocumentTitle({
+      novelTitle: novel.title,
+      versionNumber,
+    }),
     fileName: buildPublishFileName(detail),
     content: publishPayload.content,
   });
@@ -42,7 +46,10 @@ export async function publishAnalysisToNovel(input: {
       where: {
         targetType: "novel",
         targetId: input.novelId,
-        sourceAnalysisId: input.analysisId,
+        OR: [
+          { sourceAnalysisId: input.analysisId },
+          { documentId: publishedDocument.id },
+        ],
       },
     });
     await tx.knowledgeBinding.create({

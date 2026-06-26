@@ -101,8 +101,9 @@ function buildStructuredSummaryMarkdown(section: BookAnalysisSection): string[] 
   ];
 }
 
-export function buildPublishDocumentTitle(detail: Pick<BookAnalysisDetail, "id" | "documentTitle">): string {
-  return `${detail.documentTitle}｜拆书发布(${detail.id})`;
+export function buildPublishDocumentTitle(input: { novelTitle: string; versionNumber: number }): string {
+  const title = input.novelTitle.trim() || "未命名小说";
+  return `《${title}》拆书 v${input.versionNumber}`;
 }
 
 export function buildPublishFileName(

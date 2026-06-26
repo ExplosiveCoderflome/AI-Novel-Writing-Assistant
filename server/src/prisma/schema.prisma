@@ -71,6 +71,11 @@ enum KnowledgeDocumentStatus {
   archived
 }
 
+enum KnowledgeDocumentKind {
+  user_upload
+  analysis_published
+}
+
 enum KnowledgeIndexStatus {
   idle
   queued
@@ -2615,6 +2620,8 @@ model KnowledgeDocument {
   id                     String                   @id @default(cuid())
   title                  String
   fileName               String
+  kind                   KnowledgeDocumentKind    @default(user_upload)
+  sourceAnalysisId       String?                  @unique
   status                 KnowledgeDocumentStatus  @default(enabled)
   activeVersionId        String?
   activeVersionNumber    Int                      @default(0)
@@ -2630,6 +2637,7 @@ model KnowledgeDocument {
   updatedAt              DateTime                 @updatedAt
 
   @@index([status, updatedAt])
+  @@index([kind, updatedAt])
   @@index([title])
 }
 

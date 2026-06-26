@@ -11,10 +11,12 @@ const knowledgeService = new KnowledgeService();
 const documentChapterService = new DocumentChapterService();
 
 const documentStatusSchema = z.enum(["enabled", "disabled", "archived"]);
+const documentKindSchema = z.enum(["user_upload", "analysis_published"]);
 
 const listDocumentsQuerySchema = z.object({
   keyword: z.string().trim().optional(),
   status: documentStatusSchema.optional(),
+  kind: documentKindSchema.optional(),
 });
 
 const documentParamsSchema = z.object({

@@ -1,5 +1,6 @@
 import type {
   KnowledgeBindingTargetType,
+  KnowledgeDocumentKind,
   KnowledgeDocumentStatus,
   KnowledgeRecallTestResult,
 } from "@ai-novel/shared/types/knowledge";
@@ -67,12 +68,14 @@ export class KnowledgeService {
 
   async listDocuments(filters: {
     keyword?: string;
+    kind?: KnowledgeDocumentKind;
     status?: KnowledgeDocumentStatus;
   } = {}) {
     const keyword = filters.keyword?.trim();
     const rows = await prisma.knowledgeDocument.findMany({
       where: {
         ...(filters.status ? { status: filters.status } : { status: { not: "archived" } }),
+        ...(filters.kind ? { kind: filters.kind } : {}),
         ...(keyword
           ? {
             OR: [
@@ -98,6 +101,8 @@ export class KnowledgeService {
       id: item.id,
       title: item.title,
       fileName: item.fileName,
+      kind: item.kind,
+      sourceAnalysisId: item.sourceAnalysisId,
       status: item.status,
       activeVersionId: item.activeVersionId,
       activeVersionNumber: item.activeVersionNumber,
@@ -147,6 +152,8 @@ export class KnowledgeService {
       id: document.id,
       title: document.title,
       fileName: document.fileName,
+      kind: document.kind,
+      sourceAnalysisId: document.sourceAnalysisId,
       status: document.status,
       activeVersionId: document.activeVersionId,
       activeVersionNumber: document.activeVersionNumber,
@@ -176,21 +183,36 @@ export class KnowledgeService {
     title?: string;
     fileName: string;
     content: string;
+    kind?: KnowledgeDocumentKind;
+    sourceAnalysisId?: string | null;
   }) {
     const normalizedContent = normalizeKnowledgeContent(input.content);
     const title = normalizeKnowledgeDocumentTitle(input.title, input.fileName);
     const contentHash = buildKnowledgeContentHash(normalizedContent);
+    const sourceAnalysisId = input.sourceAnalysisId?.trim() || null;
+    const kind: KnowledgeDocumentKind = input.kind ?? (sourceAnalysisId ? "analysis_published" : "user_upload");
+    if (kind === "analysis_published" && !sourceAnalysisId) {
+      throw new Error("Published analysis documents require sourceAnalysisId.");
+    }
 
     const document = await prisma.$transaction(async (tx) => {
-      const existing = await tx.knowledgeDocument.findFirst({
-        where: {
-          title,
-          status: { not: "archived" },
-        },
-        orderBy: { updatedAt: "desc" },
-      });
+      const existing = sourceAnalysisId
+        ? await tx.knowledgeDocument.findUnique({
+          where: { sourceAnalysisId },
+        })
+        : await tx.knowledgeDocument.findFirst({
+          where: {
+            title,
+            kind: "user_upload",
+            status: { not: "archived" },
+          },
+          orderBy: { updatedAt: "desc" },
+        });
 
       if (existing) {
+        if (existing.status === "archived") {
+          throw new Error("Archived knowledge documents cannot accept new versions.");
+        }
         const nextVersionNumber = existing.activeVersionNumber + 1;
         const version = await tx.knowledgeDocumentVersion.create({
           data: {
@@ -204,7 +226,10 @@ export class KnowledgeService {
         return tx.knowledgeDocument.update({
           where: { id: existing.id },
           data: {
+            title,
             fileName: input.fileName.trim(),
+            kind,
+            sourceAnalysisId,
             activeVersionId: version.id,
             activeVersionNumber: nextVersionNumber,
             latestIndexStatus: "queued",
@@ -221,6 +246,8 @@ export class KnowledgeService {
         data: {
           title,
           fileName: input.fileName.trim(),
+          kind,
+          sourceAnalysisId,
           status: "enabled",
           latestIndexStatus: "queued",
         },
@@ -257,6 +284,7 @@ export class KnowledgeService {
   }
 
   async createDocumentVersion(documentId: string, input: {
+    title?: string;
     fileName?: string;
     content: string;
   }) {
@@ -274,6 +302,10 @@ export class KnowledgeService {
         throw new Error("Archived knowledge documents cannot accept new versions.");
       }
       const nextVersionNumber = existing.activeVersionNumber + 1;
+      const fileName = input.fileName?.trim() || existing.fileName;
+      const title = input.title !== undefined
+        ? normalizeKnowledgeDocumentTitle(input.title, fileName)
+        : existing.title;
       const version = await tx.knowledgeDocumentVersion.create({
         data: {
           documentId,
@@ -286,7 +318,8 @@ export class KnowledgeService {
       return tx.knowledgeDocument.update({
         where: { id: documentId },
         data: {
-          fileName: input.fileName?.trim() || existing.fileName,
+          title,
+          fileName,
           activeVersionId: version.id,
           activeVersionNumber: nextVersionNumber,
           latestIndexStatus: "queued",

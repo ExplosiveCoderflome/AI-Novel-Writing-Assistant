@@ -16,6 +16,8 @@ const { BookAnalysisCharacterService } = require("../dist/services/bookAnalysis/
 const { BookAnalysisCharacterMediaService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterMediaService.js");
 const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/BookAnalysisQueryService.js");
 const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/bookAnalysis.queue.js");
+const { KnowledgeService } = require("../dist/services/knowledge/KnowledgeService.js");
+const { KnowledgePublishService } = require("../dist/services/knowledge/KnowledgePublishService.js");
 const { NovelExportService } = require("../dist/modules/export/novelExport.service.js");
 const {
   bindEvidenceToDocumentChapters,
@@ -1927,7 +1929,7 @@ test("publishAnalysisToNovel replaces only bindings from the same source analysi
     }],
   };
 
-  prisma.novel.findUnique = async () => ({ id: "novel-1" });
+  prisma.novel.findUnique = async () => ({ id: "novel-1", title: "目标小说" });
   prisma.$transaction = async (callback) => callback({
     knowledgeBinding: {
       deleteMany: async (input) => {
@@ -1955,11 +1957,15 @@ test("publishAnalysisToNovel replaces only bindings from the same source analysi
     const result = await publishAnalysisToNovel({
       analysisId: "analysis-publish",
       novelId: "novel-1",
-      knowledgeService: {
-        createDocument: async () => ({
+      knowledgePublishService: {
+        publishAnalysisDocument: async (input) => {
+          assert.equal(input.sourceAnalysisId, "analysis-publish");
+          assert.equal(input.buildTitle(3), "《目标小说》拆书 v3");
+          return {
           id: "published-document-3",
           activeVersionNumber: 1,
-        }),
+          };
+        },
       },
       getAnalysisById: async () => detail,
     });
@@ -1972,7 +1978,10 @@ test("publishAnalysisToNovel replaces only bindings from the same source analysi
         where: {
           targetType: "novel",
           targetId: "novel-1",
-          sourceAnalysisId: "analysis-publish",
+          OR: [
+            { sourceAnalysisId: "analysis-publish" },
+            { documentId: "published-document-3" },
+          ],
         },
       },
     });
@@ -1991,6 +2000,63 @@ test("publishAnalysisToNovel replaces only bindings from the same source analysi
   } finally {
     prisma.novel.findUnique = original.novelFindUnique;
     prisma.$transaction = original.transaction;
+  }
+});
+
+test("KnowledgePublishService reuses published analysis document by sourceAnalysisId", async () => {
+  const originalFindUnique = prisma.knowledgeDocument.findUnique;
+  const calls = [];
+  let existingDocument = null;
+  prisma.knowledgeDocument.findUnique = async ({ where }) => {
+    calls.push({ type: "findUnique", where });
+    return existingDocument;
+  };
+
+  const knowledgeService = {
+    createDocument: async (input) => {
+      calls.push({ type: "createDocument", input });
+      return {
+        id: "published-document-1",
+        activeVersionNumber: 1,
+      };
+    },
+    createDocumentVersion: async (documentId, input) => {
+      calls.push({ type: "createDocumentVersion", documentId, input });
+      return {
+        id: documentId,
+        activeVersionNumber: 3,
+      };
+    },
+  };
+  const service = new KnowledgePublishService(knowledgeService);
+
+  try {
+    await service.publishAnalysisDocument({
+      sourceAnalysisId: "analysis-1",
+      buildTitle: (version) => `《目标小说》拆书 v${version}`,
+      fileName: "analysis.md",
+      content: "发布内容",
+    });
+    assert.equal(calls[0].where.sourceAnalysisId, "analysis-1");
+    assert.equal(calls[1].input.kind, "analysis_published");
+    assert.equal(calls[1].input.sourceAnalysisId, "analysis-1");
+    assert.equal(calls[1].input.title, "《目标小说》拆书 v1");
+
+    existingDocument = {
+      id: "published-document-1",
+      activeVersionNumber: 2,
+    };
+    await service.publishAnalysisDocument({
+      sourceAnalysisId: "analysis-1",
+      buildTitle: (version) => `《目标小说》拆书 v${version}`,
+      fileName: "analysis.md",
+      content: "新版内容",
+    });
+    assert.equal(calls[3].documentId, "published-document-1");
+    assert.equal(calls[3].input.title, "《目标小说》拆书 v3");
+    assert.equal(calls[3].input.content, "新版内容");
+  } finally {
+    prisma.knowledgeDocument.findUnique = originalFindUnique;
   }
 });
 

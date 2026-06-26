@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { KnowledgeDocumentStatus } from "@ai-novel/shared/types/knowledge";
+import { Link } from "react-router-dom";
 import { listKnowledgeDocuments } from "@/api/knowledge";
 import { queryKeys } from "@/api/queryKeys";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
 interface KnowledgeDocumentPickerProps {
@@ -12,6 +14,10 @@ interface KnowledgeDocumentPickerProps {
   description?: string;
   allowAuto?: boolean;
   queryStatus?: KnowledgeDocumentStatus;
+}
+
+function formatDocumentKind(kind: "user_upload" | "analysis_published"): string {
+  return kind === "analysis_published" ? "拆书发布" : "上传文档";
 }
 
 export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerProps) {
@@ -96,10 +102,24 @@ export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerPr
                     }}
                   />
                   <div className="min-w-0">
-                    <div className="font-medium">{item.title}</div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{item.title}</span>
+                      <Badge variant={item.kind === "analysis_published" ? "secondary" : "outline"}>
+                        {formatDocumentKind(item.kind)}
+                      </Badge>
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       {item.fileName} | v{item.activeVersionNumber} | {item.latestIndexStatus}
                     </div>
+                    {item.kind === "analysis_published" && item.sourceAnalysisId ? (
+                      <Link
+                        to={`/book-analysis?analysisId=${item.sourceAnalysisId}`}
+                        className="text-xs text-primary hover:underline"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        查看来源拆书
+                      </Link>
+                    ) : null}
                   </div>
                 </label>
               );

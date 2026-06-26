@@ -17,6 +17,10 @@ import {
   getRagJobProgressWidth,
 } from "./knowledgeRagUi";
 
+function formatDocumentKind(kind: KnowledgeDocumentSummary["kind"]): string {
+  return kind === "analysis_published" ? "拆书发布" : "上传文档";
+}
+
 interface KnowledgeDocumentsTabProps {
   uploadTitle: string;
   onUploadTitleChange: (value: string) => void;
@@ -111,6 +115,9 @@ export default function KnowledgeDocumentsTab({
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
+            <Badge variant={document.kind === "analysis_published" ? "secondary" : "outline"}>
+              {formatDocumentKind(document.kind)}
+            </Badge>
             <Badge variant="outline">{formatStatus(document.status)}</Badge>
             <Badge variant="outline">{formatStatus(displayIndexStatus)}</Badge>
           </div>
@@ -136,6 +143,11 @@ export default function KnowledgeDocumentsTab({
               <Button asChild size="sm" variant="outline">
                 <Link to={`/book-analysis?documentId=${document.id}`}>新建拆书</Link>
               </Button>
+              {document.kind === "analysis_published" && document.sourceAnalysisId ? (
+                <Button asChild size="sm" variant="outline">
+                  <Link to={`/book-analysis?analysisId=${document.sourceAnalysisId}`}>查看来源拆书</Link>
+                </Button>
+              ) : null}
               <Button size="sm" variant="outline" onClick={() => onReindexDocument(document.id)}>
                 重建索引
               </Button>

@@ -4,6 +4,7 @@ import type {
   DocumentChapter,
   DocumentChapterSplitResult,
   KnowledgeRecallTestResult,
+  KnowledgeDocumentKind,
   KnowledgeDocumentStatus,
   KnowledgeDocumentSummary,
 } from "@ai-novel/shared/types/knowledge";
@@ -121,6 +122,7 @@ function buildUnavailableRagHealthResponse(rawResponse?: ApiResponse<RagHealthSt
 
 export async function listKnowledgeDocuments(params?: {
   keyword?: string;
+  kind?: KnowledgeDocumentKind;
   status?: KnowledgeDocumentStatus;
 }) {
   const { data } = await apiClient.get<ApiResponse<KnowledgeDocumentSummary[]>>("/knowledge/documents", {

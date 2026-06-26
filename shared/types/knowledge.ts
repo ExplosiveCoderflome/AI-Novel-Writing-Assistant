@@ -1,4 +1,5 @@
 export type KnowledgeDocumentStatus = "enabled" | "disabled" | "archived";
+export type KnowledgeDocumentKind = "user_upload" | "analysis_published";
 export type KnowledgeIndexStatus = "idle" | "queued" | "running" | "succeeded" | "failed";
 export type KnowledgeBindingTargetType = "novel" | "world";
 
@@ -6,6 +7,8 @@ export interface KnowledgeDocument {
   id: string;
   title: string;
   fileName: string;
+  kind: KnowledgeDocumentKind;
+  sourceAnalysisId?: string | null;
   status: KnowledgeDocumentStatus;
   activeVersionId?: string | null;
   activeVersionNumber: number;
