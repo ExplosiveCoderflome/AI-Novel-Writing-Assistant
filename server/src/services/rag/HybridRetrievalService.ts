@@ -35,6 +35,11 @@ interface SearchScopeOptions {
   keywordCandidates?: number;
 }
 
+export interface RagFacetRetrievalOptions extends Omit<RagSearchOptions, "facets"> {
+  query: string;
+  facets: RagChunkFacets;
+}
+
 function buildFacetWhere(facets?: RagChunkFacets) {
   if (!hasRagFacets(facets)) {
     return {};
@@ -279,6 +284,14 @@ export class HybridRetrievalService {
     }
 
     return fused;
+  }
+
+  async retrieveByFacet(input: RagFacetRetrievalOptions): Promise<RetrievedChunk[]> {
+    const { query, facets, ...options } = input;
+    return this.retrieve(query, {
+      ...options,
+      facets,
+    });
   }
 
   async buildContextBlock(query: string, options: RagSearchOptions = {}): Promise<string> {

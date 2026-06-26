@@ -25,6 +25,7 @@ const {
   DocumentChapterService,
 } = require("../dist/services/knowledge/DocumentChapterService.js");
 const { NovelReferenceService } = require("../dist/services/novel/NovelReferenceService.js");
+const { HybridRetrievalService } = require("../dist/services/rag/HybridRetrievalService.js");
 const { resolveLiveBookAnalysisStatus } = require("../dist/services/bookAnalysis/shared/bookAnalysis.status.js");
 const { serializeSectionRow } = require("../dist/services/bookAnalysis/infrastructure/bookAnalysis.serialization.js");
 const {
@@ -1948,6 +1949,57 @@ test("buildBookAnalysisRagPreChunks turns structured fields into facet chunks", 
   assert.deepEqual(sellingChunk.facets.chapterAnchor, ["2"]);
   assert.equal(sellingChunk.anchor.chapterIndex, 2);
   assert.match(sellingChunk.chunkText, /他摘下面具/);
+});
+
+test("HybridRetrievalService retrieveByFacet applies facet filters", async () => {
+  const originalFindMany = prisma.knowledgeChunk.findMany;
+  const originalDocumentFindMany = prisma.knowledgeDocument.findMany;
+  let capturedWhere = null;
+  prisma.knowledgeDocument.findMany = async () => [{ id: "doc-1" }];
+  prisma.knowledgeChunk.findMany = async ({ where }) => {
+    capturedWhere = where;
+    return [{
+      id: "chunk-1",
+      ownerType: "knowledge_document",
+      ownerId: "doc-1",
+      title: "拆书发布",
+      chunkText: "爽点来自身份反转",
+      chunkOrder: 1,
+      novelId: null,
+      worldId: null,
+      metadataJson: null,
+      updatedAt: new Date(),
+    }];
+  };
+
+  const service = new HybridRetrievalService(
+    {
+      embedTexts: async () => ({ vectors: [[0.1, 0.2]] }),
+    },
+    {
+      ensureCollection: async () => {},
+      search: async () => [],
+    },
+  );
+
+  try {
+    const rows = await service.retrieveByFacet({
+      query: "爽点",
+      tenantId: "tenant-1",
+      knowledgeDocumentIds: ["doc-1"],
+      ownerTypes: ["knowledge_document"],
+      facets: { sellingPointTags: ["身份反转"] },
+    });
+
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].id, "chunk-1");
+    assert.deepEqual(capturedWhere.AND, [{
+      OR: [{ facetKeys: { contains: "|sellingPointTags=身份反转|" } }],
+    }]);
+  } finally {
+    prisma.knowledgeChunk.findMany = originalFindMany;
+    prisma.knowledgeDocument.findMany = originalDocumentFindMany;
+  }
 });
 
 test("publishAnalysisToNovel replaces only bindings from the same source analysis", async () => {
