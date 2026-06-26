@@ -1,5 +1,6 @@
 import { ragConfig } from "../../config/rag";
 import type { RagOwnerType } from "./types";
+import type { RagChunkFacets } from "./chunkFacets";
 
 interface QdrantPayload {
   tenantId: string;
@@ -12,6 +13,14 @@ interface QdrantPayload {
   chunkHash: string;
   chunkOrder: number;
   metadataJson?: string;
+  facetKeys?: string | null;
+  chapterAnchor?: string | string[] | null;
+  genreTags?: string[];
+  sellingPointTags?: string[];
+  targetReaders?: string[];
+  strengths?: string[];
+  weaknesses?: string[];
+  characterRole?: string[];
 }
 
 interface QdrantPoint {
@@ -32,6 +41,7 @@ interface VectorSearchFilter {
   worldId?: string;
   ownerTypes?: RagOwnerType[];
   ownerIds?: string[];
+  facets?: RagChunkFacets;
 }
 
 function buildHeaders(): HeadersInit {
@@ -326,6 +336,16 @@ export class VectorStoreService {
       must.push({
         key: "ownerId",
         match: { any: filter.ownerIds },
+      });
+    }
+    for (const [key, values] of Object.entries(filter.facets ?? {})) {
+      const normalizedValues = Array.from(new Set((values ?? []).map((item) => item.trim()).filter(Boolean)));
+      if (normalizedValues.length === 0) {
+        continue;
+      }
+      must.push({
+        key,
+        match: { any: normalizedValues },
       });
     }
 

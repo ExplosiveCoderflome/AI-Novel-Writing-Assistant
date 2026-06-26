@@ -4,6 +4,7 @@ const { setTimeout: delay } = require("node:timers/promises");
 const { prisma } = require("../dist/db/prisma.js");
 const { buildPublishMarkdown } = require("../dist/services/bookAnalysis/bookAnalysis.export.js");
 const { publishAnalysisToNovel } = require("../dist/services/bookAnalysis/bookAnalysis.publish.js");
+const { buildBookAnalysisRagPreChunks } = require("../dist/services/bookAnalysis/bookAnalysis.publish.facets.js");
 const { BookAnalysisSourceCacheService } = require("../dist/services/bookAnalysis/bookAnalysis.cache.js");
 const { BookAnalysisCommandService } = require("../dist/services/bookAnalysis/BookAnalysisCommandService.js");
 const { BookAnalysisGenerationService } = require("../dist/services/bookAnalysis/bookAnalysis.generation.js");
@@ -1898,6 +1899,57 @@ test("buildPublishMarkdown includes structured key conclusions as publishable co
   assert.match(published.content, /卖点标签：身份悬念；权谋博弈/);
 });
 
+test("buildBookAnalysisRagPreChunks turns structured fields into facet chunks", () => {
+  const chunks = buildBookAnalysisRagPreChunks({
+    id: "analysis-facets",
+    title: "测试拆书",
+    status: "succeeded",
+    documentId: "document-1",
+    documentVersionId: "version-1",
+    documentTitle: "测试文档",
+    documentFileName: "test.txt",
+    documentVersionNumber: 1,
+    currentDocumentVersionNumber: 1,
+    sections: [{
+      id: "section-1",
+      analysisId: "analysis-facets",
+      sectionKey: "overview",
+      title: "拆书总览",
+      status: "succeeded",
+      aiContent: "",
+      editedContent: "",
+      notes: "",
+      structuredData: {
+        genreTags: ["权谋", "悬疑"],
+        sellingPointTags: ["身份反转"],
+        weaknesses: ["信息密度偏高"],
+      },
+      evidence: [{
+        label: "反转",
+        excerpt: "他摘下面具。",
+        sourceLabel: "片段 3",
+        fieldKey: "sellingPointTags",
+        fieldIndex: 0,
+        chapterIndex: 2,
+        excerptOffsetRange: { start: 120, end: 132 },
+      }],
+      frozen: false,
+      sortOrder: 0,
+      updatedAt: new Date().toISOString(),
+    }],
+  });
+
+  const genreChunk = chunks.find((item) => item.metadata.fieldKey === "genreTags");
+  const sellingChunk = chunks.find((item) => item.metadata.fieldKey === "sellingPointTags");
+  assert.ok(genreChunk);
+  assert.deepEqual(genreChunk.facets.genreTags, ["权谋", "悬疑"]);
+  assert.ok(sellingChunk);
+  assert.deepEqual(sellingChunk.facets.sellingPointTags, ["身份反转"]);
+  assert.deepEqual(sellingChunk.facets.chapterAnchor, ["2"]);
+  assert.equal(sellingChunk.anchor.chapterIndex, 2);
+  assert.match(sellingChunk.chunkText, /他摘下面具/);
+});
+
 test("publishAnalysisToNovel replaces only bindings from the same source analysis", async () => {
   const original = {
     novelFindUnique: prisma.novel.findUnique,
@@ -1921,8 +1973,17 @@ test("publishAnalysisToNovel replaces only bindings from the same source analysi
       aiContent: "可发布正文",
       editedContent: null,
       notes: null,
-      structuredData: null,
-      evidence: [],
+      structuredData: {
+        sellingPointTags: ["身份反转"],
+      },
+      evidence: [{
+        label: "反转",
+        excerpt: "主角公开真实身份。",
+        sourceLabel: "片段 1",
+        fieldKey: "sellingPointTags",
+        fieldIndex: 0,
+        chapterIndex: 0,
+      }],
       frozen: false,
       sortOrder: 0,
       updatedAt: new Date().toISOString(),
@@ -1961,6 +2022,7 @@ test("publishAnalysisToNovel replaces only bindings from the same source analysi
         publishAnalysisDocument: async (input) => {
           assert.equal(input.sourceAnalysisId, "analysis-publish");
           assert.equal(input.buildTitle(3), "《目标小说》拆书 v3");
+          assert.ok(input.indexPayload.preChunks.length > 0);
           return {
           id: "published-document-3",
           activeVersionNumber: 1,
@@ -2036,11 +2098,13 @@ test("KnowledgePublishService reuses published analysis document by sourceAnalys
       buildTitle: (version) => `《目标小说》拆书 v${version}`,
       fileName: "analysis.md",
       content: "发布内容",
+      indexPayload: { preChunks: [{ chunkText: "结构化分块" }] },
     });
     assert.equal(calls[0].where.sourceAnalysisId, "analysis-1");
     assert.equal(calls[1].input.kind, "analysis_published");
     assert.equal(calls[1].input.sourceAnalysisId, "analysis-1");
     assert.equal(calls[1].input.title, "《目标小说》拆书 v1");
+    assert.deepEqual(calls[1].input.indexPayload, { preChunks: [{ chunkText: "结构化分块" }] });
 
     existingDocument = {
       id: "published-document-1",
@@ -2051,10 +2115,12 @@ test("KnowledgePublishService reuses published analysis document by sourceAnalys
       buildTitle: (version) => `《目标小说》拆书 v${version}`,
       fileName: "analysis.md",
       content: "新版内容",
+      indexPayload: { preChunks: [{ chunkText: "新版结构化分块" }] },
     });
     assert.equal(calls[3].documentId, "published-document-1");
     assert.equal(calls[3].input.title, "《目标小说》拆书 v3");
     assert.equal(calls[3].input.content, "新版内容");
+    assert.deepEqual(calls[3].input.indexPayload, { preChunks: [{ chunkText: "新版结构化分块" }] });
   } finally {
     prisma.knowledgeDocument.findUnique = originalFindUnique;
   }

@@ -3,6 +3,7 @@ import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { KnowledgePublishService } from "../knowledge/KnowledgePublishService";
 import { buildPublishDocumentTitle, buildPublishFileName, buildPublishMarkdown } from "./bookAnalysis.export";
+import { buildBookAnalysisRagPreChunks } from "./bookAnalysis.publish.facets";
 
 export async function publishAnalysisToNovel(input: {
   analysisId: string;
@@ -39,6 +40,9 @@ export async function publishAnalysisToNovel(input: {
     }),
     fileName: buildPublishFileName(detail),
     content: publishPayload.content,
+    indexPayload: {
+      preChunks: buildBookAnalysisRagPreChunks(detail),
+    },
   });
 
   const bindingCount = await prisma.$transaction(async (tx) => {

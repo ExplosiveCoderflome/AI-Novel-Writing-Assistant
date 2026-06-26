@@ -40,8 +40,8 @@ export class KnowledgeService {
     return errorMap;
   }
 
-  private queueKnowledgeRebuild(documentId: string): void {
-    void ragServices.ragIndexService.enqueueOwnerJob("rebuild", "knowledge_document", documentId).catch(() => {
+  private queueKnowledgeRebuild(documentId: string, payload?: Record<string, unknown>): void {
+    void ragServices.ragIndexService.enqueueOwnerJob("rebuild", "knowledge_document", documentId, { payload }).catch(() => {
       // Keep knowledge document CRUD resilient even if reindex queueing fails.
     });
   }
@@ -185,6 +185,7 @@ export class KnowledgeService {
     content: string;
     kind?: KnowledgeDocumentKind;
     sourceAnalysisId?: string | null;
+    indexPayload?: Record<string, unknown>;
   }) {
     const normalizedContent = normalizeKnowledgeContent(input.content);
     const title = normalizeKnowledgeDocumentTitle(input.title, input.fileName);
@@ -275,7 +276,7 @@ export class KnowledgeService {
       });
     });
 
-    this.queueKnowledgeRebuild(document.id);
+    this.queueKnowledgeRebuild(document.id, input.indexPayload);
     const detail = await this.getDocumentById(document.id);
     if (!detail) {
       throw new Error("Knowledge document not found after creation.");
@@ -287,6 +288,7 @@ export class KnowledgeService {
     title?: string;
     fileName?: string;
     content: string;
+    indexPayload?: Record<string, unknown>;
   }) {
     const normalizedContent = normalizeKnowledgeContent(input.content);
     const contentHash = buildKnowledgeContentHash(normalizedContent);
@@ -332,7 +334,7 @@ export class KnowledgeService {
       });
     });
 
-    this.queueKnowledgeRebuild(document.id);
+    this.queueKnowledgeRebuild(document.id, input.indexPayload);
     const detail = await this.getDocumentById(document.id);
     if (!detail) {
       throw new Error("Knowledge document not found after version creation.");

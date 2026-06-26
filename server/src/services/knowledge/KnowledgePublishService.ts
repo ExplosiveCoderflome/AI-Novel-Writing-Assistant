@@ -9,6 +9,7 @@ export class KnowledgePublishService {
     buildTitle: (versionNumber: number) => string;
     fileName: string;
     content: string;
+    indexPayload?: Record<string, unknown>;
   }) {
     const sourceAnalysisId = input.sourceAnalysisId.trim();
     if (!sourceAnalysisId) {
@@ -28,6 +29,7 @@ export class KnowledgePublishService {
         title: input.buildTitle(existing.activeVersionNumber + 1),
         fileName: input.fileName,
         content: input.content,
+        indexPayload: input.indexPayload,
       });
     }
 
@@ -37,6 +39,7 @@ export class KnowledgePublishService {
       content: input.content,
       kind: "analysis_published",
       sourceAnalysisId,
+      indexPayload: input.indexPayload,
     });
   }
 }

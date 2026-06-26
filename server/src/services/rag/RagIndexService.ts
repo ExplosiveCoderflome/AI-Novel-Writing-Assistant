@@ -7,6 +7,12 @@ import { VectorStoreService } from "./VectorStoreService";
 import { resolveEmbeddingChunkTokenBudget } from "./embeddingModelLimits";
 import type { RagChunkCandidate, RagJobStatus, RagJobType, RagOwnerType, RagSourceDocument } from "./types";
 import { buildChunkId, computeChunkHash, estimateTokenCount, normalizeRagText, splitRagChunks } from "./utils";
+import {
+  encodeFacetKeys,
+  normalizeRagFacets,
+  type RagChunkAnchor,
+  type RagPreChunk,
+} from "./chunkFacets";
 
 type ReindexScope = "novel" | "world" | "all";
 
@@ -34,6 +40,13 @@ interface PendingOwner {
   ownerId: string;
 }
 
+interface SourcePiece {
+  chunkText: string;
+  facets?: import("./chunkFacets").RagChunkFacets;
+  anchor?: RagChunkAnchor;
+  metadata?: Record<string, unknown>;
+}
+
 export interface RagJobProgressSnapshot {
   stage:
     | "queued"
@@ -59,6 +72,7 @@ export interface RagJobProgressSnapshot {
 
 interface RagJobPayloadRecord extends Record<string, unknown> {
   progress?: RagJobProgressSnapshot;
+  preChunks?: RagPreChunk[];
 }
 
 export interface RagJobSummaryRecord {
@@ -188,7 +202,40 @@ export class RagIndexService {
     return { vectors, provider, model };
   }
 
-  private async loadSourceDocuments(ownerType: RagOwnerType, ownerId: string, tenantId: string): Promise<RagSourceDocument[]> {
+  private normalizePreChunks(raw: unknown): RagPreChunk[] {
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+    return raw.flatMap((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) {
+        return [];
+      }
+      const record = item as Record<string, unknown>;
+      const chunkText = typeof record.chunkText === "string" ? normalizeRagText(record.chunkText) : "";
+      if (!chunkText) {
+        return [];
+      }
+      const anchor = record.anchor && typeof record.anchor === "object" && !Array.isArray(record.anchor)
+        ? record.anchor as RagChunkAnchor
+        : undefined;
+      const metadata = record.metadata && typeof record.metadata === "object" && !Array.isArray(record.metadata)
+        ? record.metadata as Record<string, unknown>
+        : undefined;
+      return [{
+        chunkText,
+        facets: normalizeRagFacets(record.facets),
+        anchor,
+        metadata,
+      }];
+    }).slice(0, 200);
+  }
+
+  private async loadSourceDocuments(
+    ownerType: RagOwnerType,
+    ownerId: string,
+    tenantId: string,
+    payload?: RagJobPayloadRecord,
+  ): Promise<RagSourceDocument[]> {
     switch (ownerType) {
       case "novel": {
         const novel = await prisma.novel.findUnique({
@@ -451,8 +498,11 @@ export class RagIndexService {
             tenantId,
             title: document.title,
             content,
+            preChunks: this.normalizePreChunks(payload?.preChunks),
             metadata: {
               fileName: document.fileName,
+              kind: document.kind,
+              sourceAnalysisId: document.sourceAnalysisId,
               status: document.status,
               activeVersionId: document.activeVersionId,
               activeVersionNumber: document.activeVersionNumber,
@@ -475,13 +525,37 @@ export class RagIndexService {
   ): RagChunkCandidate[] {
     const candidates: RagChunkCandidate[] = [];
     for (const document of documents) {
-      const pieces = splitRagChunks(document.content, ragConfig.chunkSize, ragConfig.chunkOverlap, {
+      const sourcePieces: SourcePiece[] = document.preChunks?.length
+        ? document.preChunks.flatMap((preChunk) => {
+          const pieces = splitRagChunks(preChunk.chunkText, ragConfig.chunkSize, ragConfig.chunkOverlap, {
+            maxTokens: options?.maxTokens ?? null,
+          });
+          return pieces.map((chunkText) => ({
+            chunkText,
+            facets: preChunk.facets,
+            anchor: preChunk.anchor,
+            metadata: preChunk.metadata,
+          }));
+        })
+        : splitRagChunks(document.content, ragConfig.chunkSize, ragConfig.chunkOverlap, {
         maxTokens: options?.maxTokens ?? null,
-      });
-      for (let index = 0; index < pieces.length; index += 1) {
-        const chunkText = pieces[index];
+      }).map((chunkText): SourcePiece => ({ chunkText }));
+      for (const piece of sourcePieces) {
+        const chunkText = piece.chunkText;
+        const chunkOrder = candidates.filter((item) =>
+          item.ownerType === document.ownerType && item.ownerId === document.ownerId).length;
+        const metadata = {
+          ...(document.metadata ?? {}),
+          ...(piece.metadata ?? {}),
+          ...(piece.facets && Object.keys(piece.facets).length > 0 ? { facets: piece.facets } : {}),
+          ...(piece.anchor ? { anchor: piece.anchor } : {}),
+        };
+        const facetKeys = encodeFacetKeys(piece.facets);
+        const chapterAnchor = piece.anchor?.chapterIndex !== undefined
+          ? String(piece.anchor.chapterIndex)
+          : piece.facets?.chapterAnchor?.[0] ?? null;
         const chunkHash = computeChunkHash(
-          `${document.tenantId}|${document.ownerType}|${document.ownerId}|${index}|${chunkText}`,
+          `${document.tenantId}|${document.ownerType}|${document.ownerId}|${chunkOrder}|${chunkText}`,
         );
         candidates.push({
           id: buildChunkId(),
@@ -491,10 +565,13 @@ export class RagIndexService {
           title: document.title,
           chunkText,
           chunkHash,
-          chunkOrder: index,
+          chunkOrder,
           tokenEstimate: estimateTokenCount(chunkText),
           language: isCjk(chunkText) ? "zh" : "en",
-          metadataJson: document.metadata ? JSON.stringify(document.metadata) : undefined,
+          metadataJson: Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : undefined,
+          facets: piece.facets,
+          facetKeys,
+          chapterAnchor,
           embedProvider,
           embedModel,
           embedVersion: ragConfig.embeddingVersion,
@@ -557,7 +634,11 @@ export class RagIndexService {
       chunks: 0,
       percent: 0.05,
     });
-    const docs = await this.loadSourceDocuments(ownerType, ownerId, tenantId);
+    const jobPayload = this.parseJobPayload((await prisma.ragIndexJob.findUnique({
+      where: { id: jobId },
+      select: { payloadJson: true },
+    }))?.payloadJson ?? null);
+    const docs = await this.loadSourceDocuments(ownerType, ownerId, tenantId, jobPayload);
     await this.assertJobNotCancelled(jobId);
     if (docs.length === 0) {
       await this.updateJobProgress(jobId, {
@@ -712,6 +793,9 @@ export class RagIndexService {
           chunkHash: item.chunkHash,
           chunkOrder: item.chunkOrder,
           metadataJson: item.metadataJson,
+          facetKeys: item.facetKeys,
+          chapterAnchor: item.chapterAnchor,
+          ...(item.facets ?? {}),
         },
       })),
     );
@@ -746,6 +830,8 @@ export class RagIndexService {
             tokenEstimate: item.tokenEstimate,
             language: item.language,
             metadataJson: item.metadataJson ?? null,
+            facetKeys: item.facetKeys ?? null,
+            chapterAnchor: item.chapterAnchor ?? null,
             embedProvider: item.embedProvider,
             embedModel: item.embedModel,
             embedVersion: item.embedVersion,
@@ -794,6 +880,19 @@ export class RagIndexService {
       orderBy: { createdAt: "desc" },
     });
     if (existing) {
+      if (options?.payload && existing.status === "queued") {
+        const currentPayload = this.parseJobPayload(existing.payloadJson);
+        await prisma.ragIndexJob.update({
+          where: { id: existing.id },
+          data: {
+            payloadJson: JSON.stringify({
+              ...currentPayload,
+              ...options.payload,
+              progress: currentPayload.progress,
+            } satisfies RagJobPayloadRecord),
+          },
+        });
+      }
       return existing;
     }
     const created = await prisma.ragIndexJob.create({

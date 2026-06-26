@@ -29,6 +29,7 @@ export interface RagSourceDocument {
   novelId?: string;
   worldId?: string;
   metadata?: Record<string, unknown>;
+  preChunks?: import("./chunkFacets").RagPreChunk[];
 }
 
 export interface RagChunkCandidate {
@@ -43,6 +44,9 @@ export interface RagChunkCandidate {
   tokenEstimate: number;
   language: string;
   metadataJson?: string;
+  facets?: import("./chunkFacets").RagChunkFacets;
+  facetKeys?: string | null;
+  chapterAnchor?: string | null;
   embedProvider: string;
   embedModel: string;
   embedVersion: number;
@@ -70,6 +74,7 @@ export interface RagSearchOptions {
   worldId?: string;
   ownerTypes?: RagOwnerType[];
   knowledgeDocumentIds?: string[];
+  facets?: import("./chunkFacets").RagChunkFacets;
   vectorCandidates?: number;
   keywordCandidates?: number;
   finalTopK?: number;

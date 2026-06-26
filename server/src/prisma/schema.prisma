@@ -2846,6 +2846,8 @@ model KnowledgeChunk {
   tokenEstimate Int          @default(0)
   language      String       @default("zh")
   metadataJson  String?
+  facetKeys     String?
+  chapterAnchor String?
   embedProvider String
   embedModel    String
   embedVersion  Int          @default(1)
@@ -2856,6 +2858,8 @@ model KnowledgeChunk {
   @@index([tenantId, ownerType, ownerId])
   @@index([tenantId, novelId])
   @@index([tenantId, worldId])
+  @@index([facetKeys])
+  @@index([chapterAnchor])
   @@index([chunkHash])
 }
 

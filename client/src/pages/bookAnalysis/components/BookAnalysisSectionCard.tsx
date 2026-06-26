@@ -3,6 +3,7 @@ import {
   type BookAnalysisSection,
 } from "@ai-novel/shared/types/bookAnalysis";
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
+import { LocateFixed } from "lucide-react";
 import MarkdownViewer from "@/components/common/MarkdownViewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -141,6 +142,12 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
                         <span className="ml-1 opacity-70">[{item.sourceLabel}]</span>
                       </span>
                     )}
+                    {item.chapterIndex !== undefined && item.excerptOffsetRange ? (
+                      <span className="ml-2 inline-flex items-center gap-1 rounded border px-1 text-[11px] text-muted-foreground">
+                        <LocateFixed className="h-3 w-3" />
+                        原文
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}

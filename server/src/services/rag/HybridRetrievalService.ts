@@ -5,6 +5,7 @@ import { EmbeddingService } from "./EmbeddingService";
 import { VectorStoreService } from "./VectorStoreService";
 import { resolveKnowledgeDocumentIds } from "../knowledge/common";
 import { RAG_OWNER_TYPES, type RagOwnerType, type RagSearchOptions, type RetrievedChunk } from "./types";
+import { hasRagFacets, normalizeRagFacets, type RagChunkFacets } from "./chunkFacets";
 
 const RRF_K = 60;
 const NON_KNOWLEDGE_OWNER_TYPES = RAG_OWNER_TYPES.filter((item) => item !== "knowledge_document");
@@ -29,8 +30,29 @@ interface SearchScopeOptions {
   worldId?: string;
   ownerTypes?: RagOwnerType[];
   ownerIds?: string[];
+  facets?: RagChunkFacets;
   vectorCandidates?: number;
   keywordCandidates?: number;
+}
+
+function buildFacetWhere(facets?: RagChunkFacets) {
+  if (!hasRagFacets(facets)) {
+    return {};
+  }
+  const andClauses = Object.entries(facets ?? {}).flatMap(([key, values]) => {
+    const normalizedValues = Array.from(new Set((values ?? []).map((item) => item.trim()).filter(Boolean)));
+    if (normalizedValues.length === 0) {
+      return [];
+    }
+    return [{
+      OR: normalizedValues.map((value) => ({
+        facetKeys: { contains: `|${key}=${value}|` },
+      })),
+    }];
+  });
+  return {
+    AND: andClauses,
+  };
 }
 
 export class HybridRetrievalService {
@@ -111,6 +133,7 @@ export class HybridRetrievalService {
         ...(options.worldId ? { worldId: options.worldId } : {}),
         ...(ownerTypes ? { ownerType: { in: ownerTypes } } : {}),
         ...(ownerIds ? { ownerId: { in: ownerIds } } : {}),
+        ...buildFacetWhere(options.facets),
         OR: terms.map((term) => ({
           chunkText: { contains: term },
         })),
@@ -147,6 +170,7 @@ export class HybridRetrievalService {
         worldId: options.worldId,
         ownerTypes: toOwnerTypes(options.ownerTypes),
         ownerIds: toOwnerIds(options.ownerIds),
+        facets: options.facets,
       });
       return searchRows.map((row) => ({
         id: row.id,
@@ -176,6 +200,7 @@ export class HybridRetrievalService {
     }
     const tenantId = options.tenantId ?? ragConfig.defaultTenantId;
     const finalTopK = options.finalTopK ?? ragConfig.finalTopK;
+    const facets = normalizeRagFacets(options.facets);
     const filteredBaseOwnerTypes = (options.ownerTypes ?? NON_KNOWLEDGE_OWNER_TYPES)
       .filter((item) => item !== "knowledge_document");
     const baseOwnerTypes = options.ownerTypes
@@ -199,6 +224,7 @@ export class HybridRetrievalService {
         novelId: options.novelId,
         worldId: options.worldId,
         ownerTypes: baseOwnerTypes,
+        facets,
         vectorCandidates: options.vectorCandidates,
         keywordCandidates: options.keywordCandidates,
       };
@@ -207,28 +233,41 @@ export class HybridRetrievalService {
         tenantId,
         ownerTypes: ["knowledge_document"],
         ownerIds: knowledgeDocumentIds,
+        facets,
         vectorCandidates: options.vectorCandidates,
         keywordCandidates: options.keywordCandidates,
       }
       : null;
 
-    const [
-      baseVectorRows,
-      baseKeywordRows,
-      knowledgeVectorRows,
-      knowledgeKeywordRows,
-    ] = await Promise.all([
-      baseScope ? this.vectorSearch(normalizedQuery, baseScope) : Promise.resolve([] as RetrievedChunk[]),
-      baseScope ? this.keywordSearch(normalizedQuery, baseScope) : Promise.resolve([] as RetrievedChunk[]),
-      knowledgeScope ? this.vectorSearch(normalizedQuery, knowledgeScope) : Promise.resolve([] as RetrievedChunk[]),
-      knowledgeScope ? this.keywordSearch(normalizedQuery, knowledgeScope) : Promise.resolve([] as RetrievedChunk[]),
-    ]);
+    const runSearches = async (scopes: {
+      baseScope: SearchScopeOptions | null;
+      knowledgeScope: SearchScopeOptions | null;
+    }) => {
+      const [
+        baseVectorRows,
+        baseKeywordRows,
+        knowledgeVectorRows,
+        knowledgeKeywordRows,
+      ] = await Promise.all([
+        scopes.baseScope ? this.vectorSearch(normalizedQuery, scopes.baseScope) : Promise.resolve([] as RetrievedChunk[]),
+        scopes.baseScope ? this.keywordSearch(normalizedQuery, scopes.baseScope) : Promise.resolve([] as RetrievedChunk[]),
+        scopes.knowledgeScope ? this.vectorSearch(normalizedQuery, scopes.knowledgeScope) : Promise.resolve([] as RetrievedChunk[]),
+        scopes.knowledgeScope ? this.keywordSearch(normalizedQuery, scopes.knowledgeScope) : Promise.resolve([] as RetrievedChunk[]),
+      ]);
+      return this.fuseRrf(
+        [...baseVectorRows, ...knowledgeVectorRows],
+        [...baseKeywordRows, ...knowledgeKeywordRows],
+        finalTopK,
+      );
+    };
 
-    let fused = this.fuseRrf(
-      [...baseVectorRows, ...knowledgeVectorRows],
-      [...baseKeywordRows, ...knowledgeKeywordRows],
-      finalTopK,
-    );
+    let fused = await runSearches({ baseScope, knowledgeScope });
+    if (fused.length === 0 && hasRagFacets(facets)) {
+      fused = await runSearches({
+        baseScope: baseScope ? { ...baseScope, facets: undefined } : null,
+        knowledgeScope: knowledgeScope ? { ...knowledgeScope, facets: undefined } : null,
+      });
+    }
 
     const currentChapterOrder = options.currentChapterOrder;
     const decayRate = options.narrativeDecayRate ?? 0.05;
