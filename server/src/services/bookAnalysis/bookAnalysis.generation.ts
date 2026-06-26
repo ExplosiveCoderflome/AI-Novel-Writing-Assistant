@@ -1,8 +1,6 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
-import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
-import { AppError } from "../../middleware/errorHandler";
 import { BookAnalysisBudgetExceededError, BookAnalysisBudgetGuard } from "./bookAnalysis.budget";
 import { BookAnalysisSourceCacheService } from "./bookAnalysis.cache";
 import { getBookAnalysisSectionConcurrency } from "./bookAnalysis.config";
@@ -18,13 +16,10 @@ import {
 } from "../knowledge/DocumentChapterService";
 import type {
   BookAnalysisOverviewContext,
-  BookAnalysisProgressUpdate,
-  SectionGenerationResult,
   SourceNote,
 } from "./bookAnalysis.types";
 import {
   buildAnalysisSummaryFromContent,
-  decodeStructuredData,
   encodeEvidence,
   encodeNormalizationWarnings,
   encodeStructuredData,
@@ -32,14 +27,23 @@ import {
   normalizeMaxTokens,
   normalizeTemperature,
 } from "./bookAnalysis.utils";
+import {
+  AnalysisCancelledError,
+  ensureNotCancelled,
+  markCancelled,
+  markFailed,
+  markSucceeded,
+  updateAnalysisProgress,
+  withAnalysisHeartbeat,
+} from "./generation/lifecycle";
+import { buildBookAnalysisSourceScope } from "./generation/sourceScope";
+import {
+  buildOverviewContext,
+  buildOverviewContextFromSection,
+} from "./generation/overviewContext";
+import { getDocumentChaptersSafely } from "./generation/documentChapters";
+import { optimizeSectionPreview as runOptimizeSectionPreview } from "./generation/optimizeSectionPreview";
 
-class AnalysisCancelledError extends Error {
-  constructor() {
-    super("BOOK_ANALYSIS_CANCELLED");
-  }
-}
-
-const BOOK_ANALYSIS_HEARTBEAT_INTERVAL_MS = 20_000;
 const OVERVIEW_SECTION_PROGRESS_SHARE = 0.25;
 
 function getOverviewProgressEnd(totalSections: number): number {
@@ -54,64 +58,6 @@ function getRemainingSectionProgress(completed: number, total: number, startProg
   return Number((startProgress + (1 - startProgress) * (completed / total)).toFixed(4));
 }
 
-function readStructuredString(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function readStructuredStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((item) => (typeof item === "string" ? item.trim() : ""))
-    .filter(Boolean);
-}
-interface BookAnalysisSourceScope {
-  content: string;
-  sourceScopeKey: string;
-  label: string | null;
-}
-
-function buildBookAnalysisSourceScope(analysis: {
-  documentVersion: { content: string };
-  sourceStartChapterIndex: number | null;
-  sourceEndChapterIndex: number | null;
-  sourceStartOffset: number | null;
-  sourceEndOffset: number | null;
-  sourceScopeLabel: string | null;
-}): BookAnalysisSourceScope {
-  const fullContent = analysis.documentVersion.content;
-  const hasChapterRange = analysis.sourceStartChapterIndex !== null || analysis.sourceEndChapterIndex !== null;
-  if (!hasChapterRange) {
-    return { content: fullContent, sourceScopeKey: "full", label: null };
-  }
-  const startOffset = analysis.sourceStartOffset;
-  const endOffset = analysis.sourceEndOffset;
-  if (
-    startOffset === null ||
-    endOffset === null ||
-    startOffset < 0 ||
-    endOffset <= startOffset ||
-    endOffset > fullContent.length ||
-    analysis.sourceStartChapterIndex === null ||
-    analysis.sourceEndChapterIndex === null
-  ) {
-    // Offset data is missing or stale (e.g. document content was replaced after analysis was created).
-    // Fall back to full content so the analysis can still run rather than hard-failing.
-    console.warn(
-      `[bookAnalysis] source range offsets invalid for analysis ` +
-        `(chapterRange=${analysis.sourceStartChapterIndex}-${analysis.sourceEndChapterIndex}, ` +
-        `offsets=${startOffset}-${endOffset}, contentLen=${fullContent.length}). ` +
-        `Falling back to full content.`,
-    );
-    return { content: fullContent, sourceScopeKey: "full", label: analysis.sourceScopeLabel };
-  }
-  return {
-    content: fullContent.slice(startOffset, endOffset),
-    sourceScopeKey: `chapters:${analysis.sourceStartChapterIndex}-${analysis.sourceEndChapterIndex}:${startOffset}-${endOffset}`,
-    label: analysis.sourceScopeLabel,
-  };
-}
 
 export class BookAnalysisGenerationService {
   constructor(
@@ -134,7 +80,7 @@ export class BookAnalysisGenerationService {
       return;
     }
     if (analysis.cancelRequestedAt) {
-      await this.markCancelled(analysisId, analysis.progress);
+      await markCancelled(analysisId, analysis.progress);
       return;
     }
 
@@ -154,7 +100,7 @@ export class BookAnalysisGenerationService {
     });
 
     if (activeSections.length === 0) {
-      await this.markSucceeded(analysisId, analysis.summary);
+      await markSucceeded(analysisId, analysis.summary);
       return;
     }
 
@@ -165,7 +111,7 @@ export class BookAnalysisGenerationService {
     const sourceScope = buildBookAnalysisSourceScope(analysis);
     const budgetGuard = new BookAnalysisBudgetGuard(analysisId);
 
-    await this.withAnalysisHeartbeat(analysisId, async () => {
+    await withAnalysisHeartbeat(analysisId, async () => {
       try {
         const notes = await this.getSourceNotes({
           analysisId,
@@ -177,7 +123,8 @@ export class BookAnalysisGenerationService {
           sectionMaxTokens: maxTokens,
           sourceScopeKey: sourceScope.sourceScopeKey,
         });
-        const documentChapters = await this.getDocumentChaptersSafely(
+        const documentChapters = await getDocumentChaptersSafely(
+          this.documentChapterService,
           analysis.documentVersionId,
           analysis.documentVersion.content,
         );
@@ -196,8 +143,8 @@ export class BookAnalysisGenerationService {
         let overviewContext: BookAnalysisOverviewContext | null = null;
 
         if (overviewSection) {
-          await this.ensureNotCancelled(analysisId);
-          await this.updateAnalysisProgress(analysisId, {
+          await ensureNotCancelled(analysisId);
+          await updateAnalysisProgress(analysisId, {
             stage: "generating_overview",
             progress: getSectionStageProgress(0, activeSections.length),
             itemKey: overviewSection.sectionKey,
@@ -234,7 +181,7 @@ export class BookAnalysisGenerationService {
               documentChapters,
               analysis.documentVersion.content,
             );
-            overviewContext = this.buildOverviewContext(generated);
+            overviewContext = buildOverviewContext(generated);
 
             await prisma.bookAnalysisSection.update({
               where: {
@@ -273,7 +220,7 @@ export class BookAnalysisGenerationService {
             });
           } finally {
             completedSections += 1;
-            await this.updateAnalysisProgress(analysisId, {
+            await updateAnalysisProgress(analysisId, {
               stage: "generating_overview",
               progress: overviewProgressEnd,
               itemKey: overviewSection.sectionKey,
@@ -281,15 +228,15 @@ export class BookAnalysisGenerationService {
             });
           }
 
-          await this.ensureNotCancelled(analysisId);
+          await ensureNotCancelled(analysisId);
         }
 
         let completedRemainingSections = 0;
         await runWithConcurrency(remainingSections, getBookAnalysisSectionConcurrency(), async (section) => {
           const sectionIndex = activeSections.findIndex((item) => item.sectionKey === section.sectionKey);
           const displayIndex = sectionIndex >= 0 ? sectionIndex + 1 : completedSections + 1;
-          await this.ensureNotCancelled(analysisId);
-          await this.updateAnalysisProgress(analysisId, {
+          await ensureNotCancelled(analysisId);
+          await updateAnalysisProgress(analysisId, {
             stage: "generating_sections",
             progress: overviewSection
               ? getRemainingSectionProgress(completedRemainingSections, remainingSections.length, overviewProgressEnd)
@@ -366,7 +313,7 @@ export class BookAnalysisGenerationService {
           } finally {
             completedSections += 1;
             completedRemainingSections += 1;
-            await this.updateAnalysisProgress(analysisId, {
+            await updateAnalysisProgress(analysisId, {
               stage: "generating_sections",
               progress: overviewSection
                 ? getRemainingSectionProgress(completedRemainingSections, remainingSections.length, overviewProgressEnd)
@@ -377,7 +324,7 @@ export class BookAnalysisGenerationService {
           }
         });
 
-        await this.ensureNotCancelled(analysisId);
+        await ensureNotCancelled(analysisId);
         await prisma.bookAnalysis.update({
           where: { id: analysisId },
           data: {
@@ -394,10 +341,10 @@ export class BookAnalysisGenerationService {
         });
       } catch (error) {
         if (error instanceof AnalysisCancelledError) {
-          await this.markCancelled(analysisId);
+          await markCancelled(analysisId);
           return;
         }
-        await this.markFailed(analysisId, error instanceof Error ? error.message : "Book analysis failed.");
+        await markFailed(analysisId, error instanceof Error ? error.message : "Book analysis failed.");
       }
     });
   }
@@ -418,7 +365,7 @@ export class BookAnalysisGenerationService {
       return;
     }
     if (analysis.cancelRequestedAt) {
-      await this.markCancelled(analysisId, analysis.progress);
+      await markCancelled(analysisId, analysis.progress);
       return;
     }
 
@@ -443,7 +390,7 @@ export class BookAnalysisGenerationService {
       },
     });
 
-    await this.withAnalysisHeartbeat(analysisId, async () => {
+    await withAnalysisHeartbeat(analysisId, async () => {
       try {
         const notes = await this.getSourceNotes({
           analysisId,
@@ -455,13 +402,14 @@ export class BookAnalysisGenerationService {
           sectionMaxTokens: maxTokens,
           sourceScopeKey: sourceScope.sourceScopeKey,
         });
-        const documentChapters = await this.getDocumentChaptersSafely(
+        const documentChapters = await getDocumentChaptersSafely(
+          this.documentChapterService,
           analysis.documentVersionId,
           analysis.documentVersion.content,
         );
 
-        await this.ensureNotCancelled(analysisId);
-        await this.updateAnalysisProgress(analysisId, {
+        await ensureNotCancelled(analysisId);
+        await updateAnalysisProgress(analysisId, {
           stage: "generating_sections",
           progress: getSectionStageProgress(0, 1),
           itemKey: sectionKey,
@@ -482,7 +430,7 @@ export class BookAnalysisGenerationService {
 
         const overviewContext = sectionKey === "overview"
           ? null
-          : this.buildOverviewContextFromSection(analysis.sections.find((item) => item.sectionKey === "overview"));
+          : buildOverviewContextFromSection(analysis.sections.find((item) => item.sectionKey === "overview"));
 
         const generated = await this.sectionWriter.generateSection(
           sectionKey,
@@ -556,11 +504,11 @@ export class BookAnalysisGenerationService {
         });
       } catch (error) {
         if (error instanceof AnalysisCancelledError) {
-          await this.markCancelled(analysisId);
+          await markCancelled(analysisId);
           return;
         }
         if (error instanceof BookAnalysisBudgetExceededError) {
-          await this.markFailed(analysisId, error.message);
+          await markFailed(analysisId, error.message);
           return;
         }
         await prisma.bookAnalysisSection.update({
@@ -574,7 +522,7 @@ export class BookAnalysisGenerationService {
             status: "failed",
           },
         });
-        await this.markFailed(analysisId, error instanceof Error ? error.message : "Section regeneration failed.");
+        await markFailed(analysisId, error instanceof Error ? error.message : "Section regeneration failed.");
       }
     });
   }
@@ -585,55 +533,10 @@ export class BookAnalysisGenerationService {
     currentDraft: string;
     instruction: string;
   }): Promise<string> {
-    const section = await prisma.bookAnalysisSection.findFirst({
-      where: {
-        analysisId: input.analysisId,
-        sectionKey: input.sectionKey,
-      },
-      include: {
-        analysis: {
-          include: {
-            documentVersion: true,
-          },
-        },
-      },
-    });
-    if (!section) {
-      throw new AppError("Book analysis section not found.", 404);
-    }
-    if (section.analysis.status === "archived") {
-      throw new AppError("Archived book analysis cannot be optimized.", 400);
-    }
-    if (section.frozen) {
-      throw new AppError("Frozen sections cannot be optimized until unfrozen.", 400);
-    }
-    const provider = (section.analysis.provider as LLMProvider | null) ?? "deepseek";
-    const model = section.analysis.model ?? undefined;
-    const temperature = normalizeTemperature(section.analysis.temperature);
-    const maxTokens = normalizeMaxTokens(section.analysis.maxTokens);
-    const sourceScope = buildBookAnalysisSourceScope(section.analysis);
-    const notes = await this.sourceCacheService.getOrBuildSourceNotes({
-      documentVersionId: section.analysis.documentVersionId,
-      content: sourceScope.content,
-      provider,
-      model,
-      temperature,
-      sectionMaxTokens: maxTokens,
-      sourceScopeKey: sourceScope.sourceScopeKey,
-    });
-    const baseDraft =
-      input.currentDraft.trim() || section.editedContent?.trim() || section.aiContent?.trim() || "";
-    const optimized = await this.sectionWriter.generateOptimizedDraft({
-      sectionKey: input.sectionKey,
-      currentDraft: baseDraft,
-      instruction: input.instruction,
-      notes: notes.notes,
-      provider,
-      model,
-      temperature,
-      maxTokens,
-    });
-    return optimized.trim() || baseDraft;
+    return runOptimizeSectionPreview({
+      sourceCacheService: this.sourceCacheService,
+      sectionWriter: this.sectionWriter,
+    }, input);
   }
 
   private async getSourceNotes(input: {
@@ -648,183 +551,9 @@ export class BookAnalysisGenerationService {
   }): Promise<SourceNote[]> {
     const result = await this.sourceCacheService.getOrBuildSourceNotes({
       ...input,
-      ensureNotCancelled: () => this.ensureNotCancelled(input.analysisId),
-      onProgress: (update) => this.updateAnalysisProgress(input.analysisId, update),
+      ensureNotCancelled: () => ensureNotCancelled(input.analysisId),
+      onProgress: (update) => updateAnalysisProgress(input.analysisId, update),
     });
     return result.notes;
-  }
-
-  private async getDocumentChaptersSafely(
-    documentVersionId: string,
-    content: string,
-  ): Promise<DocumentChapter[]> {
-    try {
-      const result = await this.documentChapterService.ensureChaptersForVersion(documentVersionId);
-      return result.chapters;
-    } catch {
-      return [{
-        id: "inline-single-chapter",
-        documentVersionId,
-        chapterIndex: 0,
-        title: "全文",
-        startOffset: 0,
-        endOffset: content.length,
-        charCount: content.length,
-        summary: null,
-        splitter: "single",
-        createdAt: new Date(0).toISOString(),
-        updatedAt: new Date(0).toISOString(),
-      }];
-    }
-  }
-
-  private async updateAnalysisProgress(
-    analysisId: string,
-    update: BookAnalysisProgressUpdate,
-  ): Promise<void> {
-    await prisma.bookAnalysis.update({
-      where: { id: analysisId },
-      data: {
-        status: "running",
-        progress: update.progress,
-        heartbeatAt: new Date(),
-        currentStage: update.stage,
-        currentItemKey: update.itemKey ?? null,
-        currentItemLabel: update.itemLabel ?? null,
-      },
-    });
-  }
-
-  private buildOverviewContext(generated: SectionGenerationResult): BookAnalysisOverviewContext | null {
-    return this.buildOverviewContextFromData(generated.markdown, generated.structuredData);
-  }
-
-  private buildOverviewContextFromSection(section: {
-    aiContent: string | null;
-    editedContent: string | null;
-    structuredDataJson: string | null;
-  } | undefined): BookAnalysisOverviewContext | null {
-    if (!section) {
-      return null;
-    }
-    return this.buildOverviewContextFromData(
-      getEffectiveContent(section),
-      decodeStructuredData(section.structuredDataJson),
-    );
-  }
-
-  private buildOverviewContextFromData(
-    markdown: string,
-    rawStructuredData: Record<string, unknown> | null | undefined,
-  ): BookAnalysisOverviewContext | null {
-    const structuredData = rawStructuredData && typeof rawStructuredData === "object"
-      ? rawStructuredData
-      : {};
-    const context: BookAnalysisOverviewContext = {
-      markdownSummary: buildAnalysisSummaryFromContent(markdown) ?? undefined,
-      oneLinePositioning: readStructuredString(structuredData.oneLinePositioning),
-      genreTags: readStructuredStringArray(structuredData.genreTags),
-      sellingPointTags: readStructuredStringArray(structuredData.sellingPointTags),
-      targetReaders: readStructuredStringArray(structuredData.targetReaders),
-      strengths: readStructuredStringArray(structuredData.strengths),
-      weaknesses: readStructuredStringArray(structuredData.weaknesses),
-    };
-    const hasSignal = Boolean(context.markdownSummary)
-      || Boolean(context.oneLinePositioning)
-      || context.genreTags.length > 0
-      || context.sellingPointTags.length > 0
-      || context.targetReaders.length > 0
-      || context.strengths.length > 0
-      || context.weaknesses.length > 0;
-    return hasSignal ? context : null;
-  }
-
-  private async withAnalysisHeartbeat<T>(analysisId: string, run: () => Promise<T>): Promise<T> {
-    const timer = setInterval(() => {
-      void this.touchAnalysisHeartbeat(analysisId).catch(() => {});
-    }, BOOK_ANALYSIS_HEARTBEAT_INTERVAL_MS);
-    timer.unref?.();
-
-    try {
-      return await run();
-    } finally {
-      clearInterval(timer);
-    }
-  }
-
-  private async touchAnalysisHeartbeat(analysisId: string): Promise<void> {
-    await prisma.bookAnalysis.updateMany({
-      where: {
-        id: analysisId,
-        status: {
-          in: ["queued", "running"],
-        },
-      },
-      data: {
-        status: "running",
-        heartbeatAt: new Date(),
-      },
-    });
-  }
-
-  private async ensureNotCancelled(analysisId: string): Promise<void> {
-    const row = await prisma.bookAnalysis.findUnique({
-      where: { id: analysisId },
-      select: {
-        status: true,
-        cancelRequestedAt: true,
-      },
-    });
-    if (!row || row.status === "cancelled" || row.cancelRequestedAt) {
-      throw new AnalysisCancelledError();
-    }
-  }
-
-  private async markSucceeded(analysisId: string, summary?: string | null): Promise<void> {
-    await prisma.bookAnalysis.update({
-      where: { id: analysisId },
-      data: {
-        status: "succeeded",
-        progress: 1,
-        summary: summary ?? undefined,
-        heartbeatAt: null,
-        currentStage: null,
-        currentItemKey: null,
-        currentItemLabel: null,
-        cancelRequestedAt: null,
-      },
-    });
-  }
-
-  private async markFailed(analysisId: string, lastError: string): Promise<void> {
-    await prisma.bookAnalysis.update({
-      where: { id: analysisId },
-      data: {
-        status: "failed",
-        progress: 1,
-        lastError,
-        heartbeatAt: null,
-        currentStage: null,
-        currentItemKey: null,
-        currentItemLabel: null,
-        cancelRequestedAt: null,
-      },
-    });
-  }
-
-  private async markCancelled(analysisId: string, progress?: number): Promise<void> {
-    await prisma.bookAnalysis.update({
-      where: { id: analysisId },
-      data: {
-        status: "cancelled",
-        progress: progress ?? undefined,
-        lastError: null,
-        heartbeatAt: null,
-        currentStage: null,
-        currentItemKey: null,
-        currentItemLabel: null,
-        cancelRequestedAt: null,
-      },
-    });
   }
 }

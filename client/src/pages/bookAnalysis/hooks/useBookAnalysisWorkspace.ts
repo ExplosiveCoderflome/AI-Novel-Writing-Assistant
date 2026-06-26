@@ -2,45 +2,32 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   BookAnalysisPreset,
-  BookAnalysisPublishResult,
-  BookAnalysisSection,
   BookAnalysisSectionKey,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
-import type {
-  BookAnalysisCharacterDimension,
-  BookAnalysisCharacterGenerationDepth,
-} from "@ai-novel/shared/types/bookAnalysisCharacter";
-import type { CharacterProfile } from "@ai-novel/shared/types/characterProfile";
 import { BOOK_ANALYSIS_PRESETS } from "@ai-novel/shared/types/bookAnalysis";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   archiveBookAnalysis,
   copyBookAnalysis,
   createBookAnalysis,
-  createBookAnalysisCharacter,
-  deleteBookAnalysisCharacter,
   downloadBookAnalysisExport,
-  generateBookAnalysisCharacters,
   getBookAnalysis,
   listBookAnalyses,
-  listBookAnalysisCharacters,
-  optimizeBookAnalysisSectionPreview,
-  publishBookAnalysis,
   rebuildBookAnalysis,
   regenerateBookAnalysisSection,
-  updateBookAnalysisCharacter,
-  updateBookAnalysisSection,
 } from "@/api/bookAnalysis";
 import { getKnowledgeDocument, getKnowledgeDocumentVersionChapters, listKnowledgeDocuments } from "@/api/knowledge";
 import { exportNovelAsKnowledgeDocument, getNovelList } from "@/api/novel";
-import { createStyleProfileFromBookAnalysis } from "@/api/styleEngine";
 import { queryKeys } from "@/api/queryKeys";
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
-import type { LLMConfigState, SectionDraft } from "../bookAnalysis.types";
-import { buildSectionDraft, createDownload, syncDrafts } from "../bookAnalysis.utils";
+import type { LLMConfigState } from "../bookAnalysis.types";
+import { createDownload } from "../bookAnalysis.utils";
 import type { BookAnalysisMode, BookAnalysisSourceRangeDraft, BookAnalysisWorkspace, ExportFormat, NovelOption } from "./bookAnalysisWorkspace.types";
+import { useAnalysisPublishing } from "./actions/useAnalysisPublishing";
+import { useAnalysisCharacters } from "./character/useAnalysisCharacters";
+import { useSectionDrafts } from "./drafts/useSectionDrafts";
 
 const DIAGNOSIS_FOCUS_INSTRUCTION = "请从作者自检角度诊断当前稿子，优先指出节奏断点、人物模糊点、主题表达不清、伏笔回收风险和后续改稿优先级。";
 
@@ -50,7 +37,6 @@ function buildNovelOptions(items: Array<{ id: string; title: string }>): NovelOp
 
 export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const llmStore = useLLMStore();
 
@@ -75,12 +61,6 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     temperature: llmStore.temperature,
     maxTokens: llmStore.maxTokens,
   });
-  const [sectionDrafts, setSectionDrafts] = useState<Record<string, SectionDraft>>({});
-  const [draftAnalysisId, setDraftAnalysisId] = useState("");
-  const [optimizingSectionKey, setOptimizingSectionKey] = useState<BookAnalysisSectionKey | null>(null);
-  const [publishFeedback, setPublishFeedback] = useState("");
-  const [styleProfileFeedback, setStyleProfileFeedback] = useState("");
-  const [lastPublishResult, setLastPublishResult] = useState<BookAnalysisPublishResult | null>(null);
 
   const listKey = useMemo(
     () => `${keyword.trim()}-${status || "all"}-${selectedDocumentId || "any"}`,
@@ -146,12 +126,6 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const sourceDocument = sourceDocumentQuery.data?.data;
   const selectedSourceVersionId = selectedVersionId || sourceDocument?.activeVersionId || sourceDocument?.versions[0]?.id || "";
 
-  const charactersQuery = useQuery({
-    queryKey: queryKeys.bookAnalysis.characters(selectedAnalysisId || "none"),
-    queryFn: () => listBookAnalysisCharacters(selectedAnalysisId),
-    enabled: Boolean(selectedAnalysisId),
-  });
-
   const documentChaptersQuery = useQuery({
     queryKey: queryKeys.knowledge.chapters(
       selectedAnalysis?.documentId || "none",
@@ -182,7 +156,6 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     : sourceChaptersQuery.error
       ? "章节范围加载失败。"
       : "";
-  const characters = charactersQuery.data?.data ?? [];
   const versionOptions = sourceDocumentQuery.data?.data?.versions ?? [];
   const selectedPreset = useMemo(
     () => BOOK_ANALYSIS_PRESETS.find((preset) => preset.key === analysisPreset) ?? BOOK_ANALYSIS_PRESETS[1],
@@ -213,9 +186,22 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.detail(analysisId) });
   };
 
-  const refreshCharacterData = async (analysisId: string) => {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.characters(analysisId) });
-  };
+  const sectionDraftsState = useSectionDrafts({
+    selectedAnalysis,
+    refreshAnalysisData,
+  });
+  const charactersState = useAnalysisCharacters({
+    selectedAnalysis,
+    selectedAnalysisId,
+  });
+  const publishingState = useAnalysisPublishing({
+    selectedAnalysis,
+    selectedAnalysisId,
+    selectedNovelId,
+    selectedDocumentId,
+    llmConfig,
+    refreshAnalysisData,
+  });
 
   const setAnalysisMode = (mode: BookAnalysisMode) => {
     setAnalysisModeState(mode);
@@ -260,8 +246,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       if (!created) {
         return;
       }
-      setDraftAnalysisId(created.id);
-      setSectionDrafts(syncDrafts(created));
+      sectionDraftsState.setDraftsFromAnalysis(created);
       openAnalysis(created.id, created.documentId, "reference");
       await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.list(listKey) });
     },
@@ -301,8 +286,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       setAnalysisModeState("diagnosis");
       setSelectedDocumentId(result.document.id);
       setSelectedVersionId(result.document.activeVersionId ?? "");
-      setDraftAnalysisId(result.analysis.id);
-      setSectionDrafts(syncDrafts(result.analysis));
+      sectionDraftsState.setDraftsFromAnalysis(result.analysis);
       openAnalysis(result.analysis.id, result.document.id, "diagnosis");
       await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.documents("book-analysis-source") });
       await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(result.document.id) });
@@ -318,8 +302,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       if (!copied) {
         return;
       }
-      setDraftAnalysisId(copied.id);
-      setSectionDrafts(syncDrafts(copied));
+      sectionDraftsState.setDraftsFromAnalysis(copied);
       openAnalysis(copied.id, copied.documentId);
       await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.list(listKey) });
     },
@@ -331,7 +314,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       if (!response.data) {
         return;
       }
-      setSectionDrafts(syncDrafts(response.data));
+      sectionDraftsState.setDraftsFromAnalysis(response.data);
       await refreshAnalysisData(response.data.id);
     },
   });
@@ -354,166 +337,6 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
         return;
       }
       await refreshAnalysisData(response.data.id);
-    },
-  });
-
-  const updateSectionMutation = useMutation({
-    mutationFn: (payload: {
-      id: string;
-      sectionKey: BookAnalysisSectionKey;
-      editedContent?: string | null;
-      notes?: string | null;
-      focusInstruction?: string | null;
-      frozen?: boolean;
-    }) => updateBookAnalysisSection(payload.id, payload.sectionKey, payload),
-    onSuccess: async (response) => {
-      if (!response.data) {
-        return;
-      }
-      setDraftAnalysisId(response.data.id);
-      setSectionDrafts(syncDrafts(response.data));
-      await refreshAnalysisData(response.data.id);
-    },
-  });
-
-  const optimizePreviewMutation = useMutation({
-    mutationFn: (payload: {
-      id: string;
-      sectionKey: BookAnalysisSectionKey;
-      currentDraft: string;
-      instruction: string;
-    }) => optimizeBookAnalysisSectionPreview(payload.id, payload.sectionKey, payload),
-    onSuccess: (response, payload) => {
-      const optimizedDraft = response.data?.optimizedDraft;
-      if (!optimizedDraft || !selectedAnalysis) {
-        return;
-      }
-      const section = selectedAnalysis.sections.find((item) => item.sectionKey === payload.sectionKey);
-      if (!section) {
-        return;
-      }
-      setSectionDrafts((prev) => ({
-        ...prev,
-        [section.id]: {
-          ...(prev[section.id] ?? buildSectionDraft(section)),
-          optimizePreview: optimizedDraft,
-        },
-      }));
-    },
-    onSettled: () => {
-      setOptimizingSectionKey(null);
-    },
-  });
-
-  const publishMutation = useMutation({
-    mutationFn: (payload: { id: string; novelId: string }) =>
-      publishBookAnalysis(payload.id, { novelId: payload.novelId }),
-    onSuccess: async (response, payload) => {
-      const published = response.data;
-      if (!published) {
-        return;
-      }
-      setLastPublishResult(published);
-      setPublishFeedback(
-        `发布完成：文档 ${published.knowledgeDocumentId}，版本 v${published.knowledgeDocumentVersionNumber}，绑定 ${published.bindingCount} 项`,
-      );
-      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.documents("book-analysis-source") });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novelsKnowledge.bindings(payload.novelId) });
-      await refreshAnalysisData(payload.id);
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "发布失败。";
-      setLastPublishResult(null);
-      setPublishFeedback(message);
-    },
-  });
-
-  const createStyleProfileMutation = useMutation({
-    mutationFn: (payload: { bookAnalysisId: string; name: string }) => createStyleProfileFromBookAnalysis({
-      ...payload,
-      provider: llmConfig.provider,
-      model: llmConfig.model || undefined,
-      temperature: llmConfig.temperature,
-    }),
-    onMutate: () => {
-      setStyleProfileFeedback("正在根据拆书里的“文风与技法”生成写法资产，完成后会自动跳转到写法引擎。");
-    },
-    onSuccess: async (response) => {
-      const createdProfile = response.data;
-      if (!createdProfile) {
-        return;
-      }
-      setStyleProfileFeedback("");
-      toast.success("已从拆书生成写法，正在打开写法引擎。");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.profiles });
-      navigate(`/style-engine?profileId=${createdProfile.id}&source=book-analysis`);
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "从拆书生成写法失败。";
-      setStyleProfileFeedback(message);
-    },
-  });
-
-  const generateCharactersMutation = useMutation({
-    mutationFn: (payload: {
-      analysisId: string;
-      generationDepth: BookAnalysisCharacterGenerationDepth;
-      selectedDimensions: BookAnalysisCharacterDimension[];
-      characterNames?: string[];
-    }) => generateBookAnalysisCharacters(payload.analysisId, {
-      generationDepth: payload.generationDepth,
-      selectedDimensions: payload.selectedDimensions,
-      characterNames: payload.characterNames,
-    }),
-    onSuccess: async (_response, payload) => {
-      await refreshCharacterData(payload.analysisId);
-    },
-  });
-
-  const createCharacterMutation = useMutation({
-    mutationFn: (payload: {
-      analysisId: string;
-      name: string;
-      role: string;
-      profile?: Partial<CharacterProfile>;
-      generationDepth?: BookAnalysisCharacterGenerationDepth;
-      selectedDimensions?: BookAnalysisCharacterDimension[];
-    }) => createBookAnalysisCharacter(payload.analysisId, {
-      name: payload.name,
-      role: payload.role,
-      profile: payload.profile,
-      generationDepth: payload.generationDepth,
-      selectedDimensions: payload.selectedDimensions,
-    }),
-    onSuccess: async (_response, payload) => {
-      await refreshCharacterData(payload.analysisId);
-    },
-  });
-
-  const updateCharacterMutation = useMutation({
-    mutationFn: (payload: {
-      analysisId: string;
-      characterId: string;
-      name?: string;
-      role?: string;
-      profile?: Partial<CharacterProfile>;
-      selectedDimensions?: BookAnalysisCharacterDimension[];
-    }) => updateBookAnalysisCharacter(payload.analysisId, payload.characterId, {
-      name: payload.name,
-      role: payload.role,
-      profile: payload.profile,
-      selectedDimensions: payload.selectedDimensions,
-    }),
-    onSuccess: async (_response, payload) => {
-      await refreshCharacterData(payload.analysisId);
-    },
-  });
-
-  const deleteCharacterMutation = useMutation({
-    mutationFn: (payload: { analysisId: string; characterId: string }) =>
-      deleteBookAnalysisCharacter(payload.analysisId, payload.characterId),
-    onSuccess: async (_response, payload) => {
-      await refreshCharacterData(payload.analysisId);
     },
   });
 
@@ -603,20 +426,6 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     });
   }, [analyses, selectedAnalysisId, setSearchParams]);
 
-  useEffect(() => {
-    if (!selectedAnalysis || draftAnalysisId === selectedAnalysis.id) {
-      return;
-    }
-    setSectionDrafts(syncDrafts(selectedAnalysis));
-    setDraftAnalysisId(selectedAnalysis.id);
-  }, [selectedAnalysis, draftAnalysisId]);
-
-  useEffect(() => {
-    setPublishFeedback("");
-    setLastPublishResult(null);
-    setStyleProfileFeedback("");
-  }, [selectedAnalysisId]);
-
   const selectDocument = (documentId: string) => {
     setAnalysisModeState("reference");
     setSelectedDocumentId(documentId);
@@ -677,26 +486,12 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     archiveMutation.mutate(analysisId);
   };
 
-  const getSectionDraft = (section: BookAnalysisSection): SectionDraft => {
-    return sectionDrafts[section.id] ?? buildSectionDraft(section);
-  };
-
-  const updateSectionDraft = (section: BookAnalysisSection, patch: Partial<SectionDraft>) => {
-    setSectionDrafts((prev) => ({
-      ...prev,
-      [section.id]: {
-        ...(prev[section.id] ?? buildSectionDraft(section)),
-        ...patch,
-      },
-    }));
-  };
-
   const regenerateSection = (sectionKey: BookAnalysisSectionKey) => {
     if (!selectedAnalysis) {
       return;
     }
     const section = selectedAnalysis.sections.find((item) => item.sectionKey === sectionKey);
-    const draft = section ? getSectionDraft(section) : null;
+    const draft = section ? sectionDraftsState.getSectionDraft(section) : null;
     regenerateMutation.mutate({
       id: selectedAnalysis.id,
       sectionKey,
@@ -708,146 +503,12 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     await createDiagnosisMutation.mutateAsync();
   };
 
-  const optimizeSectionPreview = async (section: BookAnalysisSection) => {
-    if (!selectedAnalysis) {
-      return;
-    }
-    const draft = getSectionDraft(section);
-    const instruction = draft.optimizeInstruction.trim();
-    if (!instruction) {
-      return;
-    }
-    setOptimizingSectionKey(section.sectionKey);
-    await optimizePreviewMutation.mutateAsync({
-      id: selectedAnalysis.id,
-      sectionKey: section.sectionKey,
-      currentDraft: draft.editedContent,
-      instruction,
-    });
-  };
-
-  const applySectionOptimizePreview = (section: BookAnalysisSection) => {
-    const draft = getSectionDraft(section);
-    if (!draft.optimizePreview.trim()) {
-      return;
-    }
-    updateSectionDraft(section, {
-      editedContent: draft.optimizePreview,
-      optimizePreview: "",
-    });
-  };
-
-  const clearSectionOptimizePreview = (section: BookAnalysisSection) => {
-    updateSectionDraft(section, {
-      optimizePreview: "",
-    });
-  };
-
-  const saveSection = (section: BookAnalysisSection) => {
-    if (!selectedAnalysis) {
-      return;
-    }
-    const draft = getSectionDraft(section);
-    const normalize = (value: string | null | undefined) => value?.replace(/\r\n?/g, "\n").trim() ?? "";
-    const normalizedDraft = normalize(draft.editedContent);
-    const normalizedAi = normalize(section.aiContent ?? "");
-    const editedContent = normalizedDraft && normalizedDraft !== normalizedAi ? draft.editedContent : null;
-    updateSectionMutation.mutate({
-      id: selectedAnalysis.id,
-      sectionKey: section.sectionKey,
-      editedContent,
-      notes: draft.notes.trim() ? draft.notes : null,
-      focusInstruction: draft.focusInstruction.trim() ? draft.focusInstruction : null,
-      frozen: draft.frozen,
-    });
-  };
-
   const downloadSelectedAnalysis = async (format: ExportFormat) => {
     if (!selectedAnalysisId) {
       return;
     }
     const exported = await downloadBookAnalysisExport(selectedAnalysisId, format);
     createDownload(exported.blob, exported.fileName);
-  };
-
-  const publishSelectedAnalysis = async () => {
-    if (!selectedAnalysisId || !selectedNovelId) {
-      return;
-    }
-    await publishMutation.mutateAsync({
-      id: selectedAnalysisId,
-      novelId: selectedNovelId,
-    });
-  };
-
-  const createStyleProfileFromAnalysis = async () => {
-    if (!selectedAnalysis) {
-      return;
-    }
-    await createStyleProfileMutation.mutateAsync({
-      bookAnalysisId: selectedAnalysis.id,
-      name: `${selectedAnalysis.title}-写法资产`,
-    });
-  };
-
-  const generateCharacters = async (input: {
-    generationDepth: BookAnalysisCharacterGenerationDepth;
-    selectedDimensions: BookAnalysisCharacterDimension[];
-    characterNames?: string[];
-  }) => {
-    if (!selectedAnalysis) {
-      return;
-    }
-    await generateCharactersMutation.mutateAsync({
-      analysisId: selectedAnalysis.id,
-      ...input,
-      characterNames: input.characterNames?.map((item) => item.trim()).filter(Boolean),
-    });
-  };
-
-  const createCharacter = async (input: {
-    name: string;
-    role: string;
-    profile?: Partial<CharacterProfile>;
-    generationDepth?: BookAnalysisCharacterGenerationDepth;
-    selectedDimensions?: BookAnalysisCharacterDimension[];
-  }) => {
-    if (!selectedAnalysis) {
-      return;
-    }
-    await createCharacterMutation.mutateAsync({
-      analysisId: selectedAnalysis.id,
-      ...input,
-    });
-  };
-
-  const updateCharacter = async (
-    characterId: string,
-    input: {
-      name?: string;
-      role?: string;
-      profile?: Partial<CharacterProfile>;
-      selectedDimensions?: BookAnalysisCharacterDimension[];
-    },
-  ) => {
-    if (!selectedAnalysis) {
-      return;
-    }
-    await updateCharacterMutation.mutateAsync({
-      analysisId: selectedAnalysis.id,
-      characterId,
-      ...input,
-    });
-  };
-
-  const deleteCharacter = async (characterId: string) => {
-    if (!selectedAnalysis) {
-      return;
-    }
-    await deleteCharacterMutation.mutateAsync({
-      analysisId: selectedAnalysis.id,
-      characterId,
-    });
   };
 
   return {
@@ -865,10 +526,10 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     includeTimeline,
     analysisPreset,
     llmConfig,
-    sectionDrafts,
-    publishFeedback,
-    styleProfileFeedback,
-    lastPublishResult,
+    sectionDrafts: sectionDraftsState.sectionDrafts,
+    publishFeedback: publishingState.publishFeedback,
+    styleProfileFeedback: publishingState.styleProfileFeedback,
+    lastPublishResult: publishingState.lastPublishResult,
     analyses,
     selectedAnalysis,
     documentOptions,
@@ -881,24 +542,24 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     sourceChaptersRequested,
     sourceChaptersLoading: sourceChaptersQuery.isFetching,
     sourceChaptersError,
-    characters,
+    characters: charactersState.characters,
     aggregatedEvidence,
-    optimizingSectionKey,
+    optimizingSectionKey: sectionDraftsState.optimizingSectionKey,
     pending: {
       create: createMutation.isPending,
       copy: copyMutation.isPending,
       rebuild: rebuildMutation.isPending,
       archive: archiveMutation.isPending,
       regenerate: regenerateMutation.isPending,
-      optimizePreview: optimizePreviewMutation.isPending,
-      saveSection: updateSectionMutation.isPending,
-      publish: publishMutation.isPending,
-      createStyleProfile: createStyleProfileMutation.isPending,
-      loadCharacters: charactersQuery.isLoading,
-      generateCharacters: generateCharactersMutation.isPending,
-      createCharacter: createCharacterMutation.isPending,
-      updateCharacter: updateCharacterMutation.isPending,
-      deleteCharacter: deleteCharacterMutation.isPending,
+      optimizePreview: sectionDraftsState.pending.optimizePreview,
+      saveSection: sectionDraftsState.pending.saveSection,
+      publish: publishingState.pending.publish,
+      createStyleProfile: publishingState.pending.createStyleProfile,
+      loadCharacters: charactersState.pending.loadCharacters,
+      generateCharacters: charactersState.pending.generateCharacters,
+      createCharacter: charactersState.pending.createCharacter,
+      updateCharacter: charactersState.pending.updateCharacter,
+      deleteCharacter: charactersState.pending.deleteCharacter,
       createDiagnosis: createDiagnosisMutation.isPending,
     },
     setKeyword,
@@ -922,18 +583,18 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     rebuildAnalysis,
     archiveAnalysis,
     regenerateSection,
-    optimizeSectionPreview,
-    applySectionOptimizePreview,
-    clearSectionOptimizePreview,
-    saveSection,
+    optimizeSectionPreview: sectionDraftsState.optimizeSectionPreview,
+    applySectionOptimizePreview: sectionDraftsState.applySectionOptimizePreview,
+    clearSectionOptimizePreview: sectionDraftsState.clearSectionOptimizePreview,
+    saveSection: sectionDraftsState.saveSection,
     downloadSelectedAnalysis,
-    publishSelectedAnalysis,
-    createStyleProfileFromAnalysis,
-    generateCharacters,
-    createCharacter,
-    updateCharacter,
-    deleteCharacter,
-    updateSectionDraft,
-    getSectionDraft,
+    publishSelectedAnalysis: publishingState.publishSelectedAnalysis,
+    createStyleProfileFromAnalysis: publishingState.createStyleProfileFromAnalysis,
+    generateCharacters: charactersState.generateCharacters,
+    createCharacter: charactersState.createCharacter,
+    updateCharacter: charactersState.updateCharacter,
+    deleteCharacter: charactersState.deleteCharacter,
+    updateSectionDraft: sectionDraftsState.updateSectionDraft,
+    getSectionDraft: sectionDraftsState.getSectionDraft,
   };
 }
