@@ -7,7 +7,7 @@ import type {
   BookAnalysisSectionKey,
 } from "@ai-novel/shared/types/bookAnalysis";
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
-import { Columns2 } from "lucide-react";
+import { Columns2, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import type {
   BookAnalysisChapterReaderHandle,
 } from "../hooks/useBookAnalysisChapterReader";
 import BookAnalysisDualPaneLayout from "./BookAnalysisDualPaneLayout";
+import BookAnalysisBudgetAdjustDialog from "./BookAnalysisBudgetAdjustDialog";
 import BookAnalysisSectionCard from "./BookAnalysisSectionCard";
 
 type ExportFormat = "markdown" | "json";
@@ -47,6 +48,8 @@ interface PendingState {
   saveSection: boolean;
   publish: boolean;
   createStyleProfile: boolean;
+  updateBudget: boolean;
+  resumeWithBudget: boolean;
 }
 
 interface BookAnalysisDetailPanelProps {
@@ -76,6 +79,8 @@ interface BookAnalysisDetailPanelProps {
   onCopy: () => void;
   onRebuild: (analysisId: string) => void;
   onArchive: (analysisId: string) => void;
+  onUpdateBudget: (budgetTokens: number | null) => Promise<void>;
+  onResumeWithBudget: (budgetTokens: number) => Promise<void>;
   onDownload: (format: ExportFormat) => void;
   onPublish: () => void;
   onCreateStyleProfile: () => void;
@@ -116,6 +121,8 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     onCopy,
     onRebuild,
     onArchive,
+    onUpdateBudget,
+    onResumeWithBudget,
     onDownload,
     onPublish,
     onCreateStyleProfile,
@@ -130,6 +137,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
   const [selectedEvidenceKey, setSelectedEvidenceKey] = useState("");
   const [readingMode, setReadingMode] = useState<"summary" | "full">("full");
   const [activeSectionKey, setActiveSectionKey] = useState<BookAnalysisSectionKey | "">("");
+  const [budgetDialogMode, setBudgetDialogMode] = useState<"adjust" | "resume" | null>(null);
 
   const evidenceEntries = useMemo<SectionEvidenceItem[]>(
     () => aggregatedEvidence.map((item, index) => ({
@@ -237,9 +245,30 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
   const usedTokens = selectedAnalysis.usedTokens ?? 0;
   const budgetUsageRatio = budgetTokens ? Math.min(1, usedTokens / budgetTokens) : 0;
   const budgetExceeded = selectedAnalysis.lastError?.includes("budget_exceeded") ?? false;
+  const budgetResumeAvailable =
+    budgetExceeded && (selectedAnalysis.status === "failed" || selectedAnalysis.status === "cancelled");
+  const canAdjustBudget = selectedAnalysis.status !== "archived";
+  const handleBudgetSubmit = async (nextBudgetTokens: number | null) => {
+    if (budgetDialogMode === "resume") {
+      if (typeof nextBudgetTokens !== "number" || !Number.isFinite(nextBudgetTokens)) {
+        return;
+      }
+      await onResumeWithBudget(nextBudgetTokens);
+      return;
+    }
+    await onUpdateBudget(nextBudgetTokens);
+  };
 
   return (
     <div className="space-y-3">
+      <BookAnalysisBudgetAdjustDialog
+        open={budgetDialogMode !== null}
+        mode={budgetDialogMode ?? "adjust"}
+        analysis={selectedAnalysis}
+        pending={budgetDialogMode === "resume" ? pending.resumeWithBudget : pending.updateBudget}
+        onOpenChange={(open) => setBudgetDialogMode(open ? (budgetDialogMode ?? "adjust") : null)}
+        onSubmit={handleBudgetSubmit}
+      />
       <div className="sticky top-0 z-30 rounded-md border bg-background/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/85">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
@@ -249,11 +278,27 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
               {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary">已发布</Badge> : null}
               {selectedAnalysis.sourceRange ? <Badge variant="secondary">{selectedAnalysis.sourceRange.label ?? "选定章节"}</Badge> : null}
               <Badge variant="outline">进度 {Math.round(selectedAnalysis.progress * 100)}%</Badge>
-              {budgetTokens ? (
+              <span className="inline-flex items-center gap-1">
                 <Badge variant={budgetExceeded ? "destructive" : "outline"}>
-                  预算 {formatTokenCount(usedTokens)}/{formatTokenCount(budgetTokens)}
+                  预算 {budgetTokens
+                    ? `${formatTokenCount(usedTokens)}/${formatTokenCount(budgetTokens)}`
+                    : `${formatTokenCount(usedTokens)}/不限`}
                 </Badge>
-              ) : null}
+                {canAdjustBudget ? (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6"
+                    title="调整拆书预算"
+                    onClick={() => setBudgetDialogMode("adjust")}
+                    disabled={pending.updateBudget || pending.resumeWithBudget}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    <span className="sr-only">调整拆书预算</span>
+                  </Button>
+                ) : null}
+              </span>
             </div>
             <div className="text-xs text-muted-foreground">
               {selectedAnalysis.documentTitle} | 源版本 v{selectedAnalysis.documentVersionNumber}{selectedAnalysis.sourceRange ? ` | 范围：${selectedAnalysis.sourceRange.label ?? "选定章节"}` : ""}
@@ -264,6 +309,15 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
             <Button size="sm" variant="outline" onClick={onCopy} disabled={pending.copy}>
               复制
             </Button>
+            {budgetResumeAvailable ? (
+              <Button
+                size="sm"
+                onClick={() => setBudgetDialogMode("resume")}
+                disabled={pending.resumeWithBudget || selectedAnalysis.status === "archived"}
+              >
+                {pending.resumeWithBudget ? "提交中..." : "扩容预算并续跑"}
+              </Button>
+            ) : null}
             <Button
               size="sm"
               variant="outline"
@@ -324,7 +378,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
       {selectedAnalysis.lastError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
           {budgetExceeded
-            ? `预算用尽，任务已停止。已用 ${formatTokenCount(usedTokens)} / ${formatTokenCount(budgetTokens)} tokens。`
+            ? `预算用尽，任务已停止。累计用量 ${formatTokenCount(usedTokens)} / ${formatTokenCount(budgetTokens)} tokens。建议先扩容预算后续跑。`
             : `最近错误：${selectedAnalysis.lastError}`}
         </div>
       ) : null}

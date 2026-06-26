@@ -75,6 +75,14 @@ const publishSchema = z.object({
   novelId: z.string().trim().min(1),
 });
 
+const budgetUpdateSchema = z.object({
+  budgetTokens: z.number().int().min(1_000).max(10_000_000).nullable(),
+});
+
+const budgetResumeSchema = z.object({
+  budgetTokens: z.number().int().min(1_000).max(10_000_000),
+});
+
 const sectionUpdateSchema = z.object({
   editedContent: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
@@ -452,6 +460,40 @@ router.post("/:id/rebuild", validate({ params: analysisParamsSchema }), async (r
     next(error);
   }
 });
+
+router.patch("/:id/budget", validate({ params: analysisParamsSchema, body: budgetUpdateSchema }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof analysisParamsSchema>;
+    const body = req.body as z.infer<typeof budgetUpdateSchema>;
+    const data = await bookAnalysisService.updateBudget(id, body.budgetTokens);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Book analysis budget updated.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post(
+  "/:id/resume-with-budget",
+  validate({ params: analysisParamsSchema, body: budgetResumeSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof analysisParamsSchema>;
+      const body = req.body as z.infer<typeof budgetResumeSchema>;
+      const data = await bookAnalysisService.resumeWithBudget(id, body.budgetTokens);
+      res.status(202).json({
+        success: true,
+        data,
+        message: "Book analysis budget resume queued.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.post("/:id/copy", validate({ params: analysisParamsSchema }), async (req, res, next) => {
   try {

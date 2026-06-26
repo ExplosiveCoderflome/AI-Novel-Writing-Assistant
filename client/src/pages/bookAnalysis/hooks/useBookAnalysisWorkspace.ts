@@ -25,6 +25,7 @@ import { useLLMStore } from "@/store/llmStore";
 import type { LLMConfigState } from "../bookAnalysis.types";
 import { createDownload } from "../bookAnalysis.utils";
 import type { BookAnalysisMode, BookAnalysisSourceRangeDraft, BookAnalysisWorkspace, ExportFormat, NovelOption } from "./bookAnalysisWorkspace.types";
+import { useAnalysisBudget } from "./actions/useAnalysisBudget";
 import { useAnalysisPublishing } from "./actions/useAnalysisPublishing";
 import { useAnalysisCharacters } from "./character/useAnalysisCharacters";
 import { useSectionDrafts } from "./drafts/useSectionDrafts";
@@ -192,6 +193,11 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const charactersState = useAnalysisCharacters({
     selectedAnalysis,
     selectedAnalysisId,
+  });
+  const budgetState = useAnalysisBudget({
+    selectedAnalysisId,
+    refreshAnalysisData,
+    onAnalysisUpdated: sectionDraftsState.setDraftsFromAnalysis,
   });
   const publishingState = useAnalysisPublishing({
     selectedAnalysis,
@@ -554,6 +560,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       saveSection: sectionDraftsState.pending.saveSection,
       publish: publishingState.pending.publish,
       createStyleProfile: publishingState.pending.createStyleProfile,
+      updateBudget: budgetState.pending.updateBudget,
+      resumeWithBudget: budgetState.pending.resumeWithBudget,
       loadCharacters: charactersState.pending.loadCharacters,
       generateCharacters: charactersState.pending.generateCharacters,
       createCharacter: charactersState.pending.createCharacter,
@@ -589,6 +597,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     downloadSelectedAnalysis,
     publishSelectedAnalysis: publishingState.publishSelectedAnalysis,
     createStyleProfileFromAnalysis: publishingState.createStyleProfileFromAnalysis,
+    updateBudget: budgetState.updateBudget,
+    resumeWithBudget: budgetState.resumeWithBudget,
     generateCharacters: charactersState.generateCharacters,
     createCharacter: charactersState.createCharacter,
     updateCharacter: charactersState.updateCharacter,

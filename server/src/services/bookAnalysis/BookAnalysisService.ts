@@ -69,6 +69,14 @@ class BookAnalysisServiceFacade {
     return this.commandService.rebuildAnalysis(analysisId);
   }
 
+  updateBudget(analysisId: string, budgetTokens: number | null): Promise<BookAnalysisDetail> {
+    return this.commandService.updateBudget(analysisId, budgetTokens);
+  }
+
+  resumeWithBudget(analysisId: string, budgetTokens: number): Promise<BookAnalysisDetail> {
+    return this.commandService.resumeWithBudget(analysisId, budgetTokens);
+  }
+
   retryAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
     return this.commandService.retryAnalysis(analysisId);
   }

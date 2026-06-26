@@ -8,7 +8,10 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { DocumentChapterService } from "../../knowledge/DocumentChapterService";
-import { normalizeBookAnalysisBudgetTokens } from "../caching/bookAnalysis.budget";
+import {
+  BOOK_ANALYSIS_BUDGET_EXCEEDED_CODE,
+  normalizeBookAnalysisBudgetTokens,
+} from "../caching/bookAnalysis.budget";
 import { getBookAnalysisDefaultBudgetTokens, getBookAnalysisMaxConcurrentTasks } from "../shared/bookAnalysis.config";
 import { BookAnalysisGenerationService } from "../bookAnalysis.generation";
 import { BookAnalysisTaskQueue } from "../infrastructure/bookAnalysis.queue";
@@ -29,6 +32,18 @@ function buildEnabledSectionKeySet(input: {
 function normalizeOptionalInstruction(value: string | null | undefined): string | null {
   return value?.trim() || null;
 }
+
+function normalizeBudgetInput(value: number | null | undefined): number | null {
+  if (value === null) {
+    return null;
+  }
+  const normalized = normalizeBookAnalysisBudgetTokens(value);
+  if (normalized === null) {
+    throw new AppError("Budget tokens must be a positive number or null.", 400);
+  }
+  return normalized;
+}
+
 interface BookAnalysisSourceRangeInput {
   startChapterIndex: number;
   endChapterIndex: number;
@@ -287,6 +302,13 @@ export class BookAnalysisCommandService {
   }
 
   async rebuildAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
+    return this.queueRebuildAnalysis(analysisId, { resetUsedTokens: true });
+  }
+
+  private async queueRebuildAnalysis(
+    analysisId: string,
+    options: { resetUsedTokens: boolean; budgetTokens?: number | null },
+  ): Promise<BookAnalysisDetail> {
     const analysis = await prisma.bookAnalysis.findUnique({
       where: { id: analysisId },
       include: {
@@ -306,7 +328,8 @@ export class BookAnalysisCommandService {
           status: "queued",
           pendingManualRecovery: false,
           progress: 0,
-          usedTokens: 0,
+          ...(options.resetUsedTokens ? { usedTokens: 0 } : {}),
+          ...(options.budgetTokens !== undefined ? { budgetTokens: options.budgetTokens } : {}),
           lastError: null,
           heartbeatAt: null,
           currentStage: null,
@@ -333,6 +356,58 @@ export class BookAnalysisCommandService {
       throw new AppError("Book analysis not found after rebuild.", 500);
     }
     return detail;
+  }
+
+  async updateBudget(analysisId: string, budgetTokens: number | null): Promise<BookAnalysisDetail> {
+    const analysis = await prisma.bookAnalysis.findUnique({
+      where: { id: analysisId },
+      select: { status: true },
+    });
+    if (!analysis) {
+      throw new AppError("Book analysis not found.", 404);
+    }
+    if (analysis.status === "archived") {
+      throw new AppError("Archived book analysis budget cannot be updated.", 400);
+    }
+
+    await prisma.bookAnalysis.update({
+      where: { id: analysisId },
+      data: {
+        budgetTokens: normalizeBudgetInput(budgetTokens),
+      },
+    });
+    const detail = await this.queryService.getAnalysisById(analysisId);
+    if (!detail) {
+      throw new AppError("Book analysis not found after budget update.", 500);
+    }
+    return detail;
+  }
+
+  async resumeWithBudget(analysisId: string, budgetTokens: number): Promise<BookAnalysisDetail> {
+    const analysis = await prisma.bookAnalysis.findUnique({
+      where: { id: analysisId },
+      select: {
+        status: true,
+        lastError: true,
+      },
+    });
+    if (!analysis) {
+      throw new AppError("Book analysis not found.", 404);
+    }
+    if (analysis.status !== "failed" && analysis.status !== "cancelled") {
+      throw new AppError("Only failed or cancelled analyses can be resumed with budget.", 400);
+    }
+    if (!analysis.lastError?.includes(BOOK_ANALYSIS_BUDGET_EXCEEDED_CODE)) {
+      throw new AppError("Only budget exceeded analyses can use budget resume.", 400);
+    }
+    const normalizedBudget = normalizeBudgetInput(budgetTokens);
+    if (normalizedBudget === null) {
+      throw new AppError("Budget tokens must be a positive number.", 400);
+    }
+    return this.queueRebuildAnalysis(analysisId, {
+      resetUsedTokens: false,
+      budgetTokens: normalizedBudget,
+    });
   }
 
   async retryAnalysis(analysisId: string): Promise<BookAnalysisDetail> {

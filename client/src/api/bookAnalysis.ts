@@ -1,7 +1,9 @@
 import type {
   BookAnalysis,
+  BookAnalysisBudgetUpdateInput,
   BookAnalysisDetail,
   BookAnalysisPublishResult,
+  BookAnalysisResumeWithBudgetInput,
   BookAnalysisSectionOptimizePreview,
   BookAnalysisSectionKey,
   BookAnalysisStatus,
@@ -54,6 +56,19 @@ export async function createBookAnalysis(payload: {
 
 export async function rebuildBookAnalysis(id: string) {
   const { data } = await apiClient.post<ApiResponse<BookAnalysisDetail>>(`/book-analysis/${id}/rebuild`, {});
+  return data;
+}
+
+export async function updateBookAnalysisBudget(id: string, payload: BookAnalysisBudgetUpdateInput) {
+  const { data } = await apiClient.patch<ApiResponse<BookAnalysisDetail>>(`/book-analysis/${id}/budget`, payload);
+  return data;
+}
+
+export async function resumeBookAnalysisWithBudget(id: string, payload: BookAnalysisResumeWithBudgetInput) {
+  const { data } = await apiClient.post<ApiResponse<BookAnalysisDetail>>(
+    `/book-analysis/${id}/resume-with-budget`,
+    payload,
+  );
   return data;
 }
 

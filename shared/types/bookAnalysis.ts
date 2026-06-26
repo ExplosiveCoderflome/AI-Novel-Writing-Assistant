@@ -274,6 +274,14 @@ export interface BookAnalysisPublishResult {
   publishedAt: string;
 }
 
+export interface BookAnalysisBudgetUpdateInput {
+  budgetTokens: number | null;
+}
+
+export interface BookAnalysisResumeWithBudgetInput {
+  budgetTokens: number;
+}
+
 export interface BookAnalysisSectionOptimizePreview {
   optimizedDraft: string;
 }

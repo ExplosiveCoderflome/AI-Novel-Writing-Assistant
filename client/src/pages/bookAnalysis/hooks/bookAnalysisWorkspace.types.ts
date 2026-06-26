@@ -35,6 +35,8 @@ export interface PendingState {
   saveSection: boolean;
   publish: boolean;
   createStyleProfile: boolean;
+  updateBudget: boolean;
+  resumeWithBudget: boolean;
   loadCharacters: boolean;
   generateCharacters: boolean;
   createCharacter: boolean;
@@ -106,6 +108,8 @@ export interface BookAnalysisWorkspace {
   downloadSelectedAnalysis: (format: ExportFormat) => Promise<void>;
   publishSelectedAnalysis: () => Promise<void>;
   createStyleProfileFromAnalysis: () => Promise<void>;
+  updateBudget: (budgetTokens: number | null) => Promise<void>;
+  resumeWithBudget: (budgetTokens: number) => Promise<void>;
   generateCharacters: (input: {
     generationDepth: BookAnalysisCharacterGenerationDepth;
     selectedDimensions: BookAnalysisCharacterDimension[];

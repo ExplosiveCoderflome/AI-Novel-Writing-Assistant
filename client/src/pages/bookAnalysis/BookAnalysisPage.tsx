@@ -106,6 +106,8 @@ export default function BookAnalysisPage() {
               saveSection: workspace.pending.saveSection,
               publish: workspace.pending.publish,
               createStyleProfile: workspace.pending.createStyleProfile,
+              updateBudget: workspace.pending.updateBudget,
+              resumeWithBudget: workspace.pending.resumeWithBudget,
             }}
             onDualPaneChange={dualPanePreference.setDualPaneEnabled}
             onActiveChapterChange={chapterReader.setCurrentChapterIndex}
@@ -115,6 +117,8 @@ export default function BookAnalysisPage() {
             onCopy={() => void workspace.copySelectedAnalysis()}
             onRebuild={workspace.rebuildAnalysis}
             onArchive={workspace.archiveAnalysis}
+            onUpdateBudget={workspace.updateBudget}
+            onResumeWithBudget={workspace.resumeWithBudget}
             onDownload={(format) => void workspace.downloadSelectedAnalysis(format)}
             onPublish={() => void workspace.publishSelectedAnalysis()}
             onCreateStyleProfile={() => void workspace.createStyleProfileFromAnalysis()}
