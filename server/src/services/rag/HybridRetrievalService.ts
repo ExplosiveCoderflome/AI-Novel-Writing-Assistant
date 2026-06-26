@@ -6,6 +6,7 @@ import { VectorStoreService } from "./VectorStoreService";
 import { resolveKnowledgeDocumentIds } from "../knowledge/common";
 import { RAG_OWNER_TYPES, type RagOwnerType, type RagSearchOptions, type RetrievedChunk } from "./types";
 import { hasRagFacets, normalizeRagFacets, type RagChunkFacets } from "./chunkFacets";
+import { RagRetrievalTracer } from "./RagRetrievalTracer";
 
 const RRF_K = 60;
 const NON_KNOWLEDGE_OWNER_TYPES = RAG_OWNER_TYPES.filter((item) => item !== "knowledge_document");
@@ -204,6 +205,15 @@ export class HybridRetrievalService {
       return [];
     }
     const tenantId = options.tenantId ?? ragConfig.defaultTenantId;
+    const tracer = new RagRetrievalTracer({
+      query: normalizedQuery,
+      tenantId,
+      novelId: options.novelId,
+      worldId: options.worldId,
+      options,
+    });
+
+    try {
     const finalTopK = options.finalTopK ?? ragConfig.finalTopK;
     const facets = normalizeRagFacets(options.facets);
     const filteredBaseOwnerTypes = (options.ownerTypes ?? NON_KNOWLEDGE_OWNER_TYPES)
@@ -243,31 +253,55 @@ export class HybridRetrievalService {
         keywordCandidates: options.keywordCandidates,
       }
       : null;
+    tracer.setScope({
+      resolvedKnowledgeDocumentIds: knowledgeDocumentIds,
+      baseOwnerTypes,
+      shouldSearchKnowledgeDocuments,
+    });
 
     const runSearches = async (scopes: {
       baseScope: SearchScopeOptions | null;
       knowledgeScope: SearchScopeOptions | null;
     }) => {
+      const traceSearch = async (
+        stage: "vector" | "keyword",
+        search: () => Promise<RetrievedChunk[]>,
+      ) => {
+        const startedAt = Date.now();
+        const rows = await search();
+        tracer.record(stage, {
+          elapsedMs: Date.now() - startedAt,
+          count: rows.length,
+        });
+        return rows;
+      };
       const [
         baseVectorRows,
         baseKeywordRows,
         knowledgeVectorRows,
         knowledgeKeywordRows,
       ] = await Promise.all([
-        scopes.baseScope ? this.vectorSearch(normalizedQuery, scopes.baseScope) : Promise.resolve([] as RetrievedChunk[]),
-        scopes.baseScope ? this.keywordSearch(normalizedQuery, scopes.baseScope) : Promise.resolve([] as RetrievedChunk[]),
-        scopes.knowledgeScope ? this.vectorSearch(normalizedQuery, scopes.knowledgeScope) : Promise.resolve([] as RetrievedChunk[]),
-        scopes.knowledgeScope ? this.keywordSearch(normalizedQuery, scopes.knowledgeScope) : Promise.resolve([] as RetrievedChunk[]),
+        scopes.baseScope ? traceSearch("vector", () => this.vectorSearch(normalizedQuery, scopes.baseScope!)) : Promise.resolve([] as RetrievedChunk[]),
+        scopes.baseScope ? traceSearch("keyword", () => this.keywordSearch(normalizedQuery, scopes.baseScope!)) : Promise.resolve([] as RetrievedChunk[]),
+        scopes.knowledgeScope ? traceSearch("vector", () => this.vectorSearch(normalizedQuery, scopes.knowledgeScope!)) : Promise.resolve([] as RetrievedChunk[]),
+        scopes.knowledgeScope ? traceSearch("keyword", () => this.keywordSearch(normalizedQuery, scopes.knowledgeScope!)) : Promise.resolve([] as RetrievedChunk[]),
       ]);
-      return this.fuseRrf(
+      const fusionStartedAt = Date.now();
+      const fusedRows = this.fuseRrf(
         [...baseVectorRows, ...knowledgeVectorRows],
         [...baseKeywordRows, ...knowledgeKeywordRows],
         finalTopK,
       );
+      tracer.record("fusion", {
+        elapsedMs: Date.now() - fusionStartedAt,
+        count: fusedRows.length,
+      });
+      return fusedRows;
     };
 
     let fused = await runSearches({ baseScope, knowledgeScope });
     if (fused.length === 0 && hasRagFacets(facets)) {
+      tracer.record("fallback", { triggered: true });
       fused = await runSearches({
         baseScope: baseScope ? { ...baseScope, facets: undefined } : null,
         knowledgeScope: knowledgeScope ? { ...knowledgeScope, facets: undefined } : null,
@@ -277,13 +311,19 @@ export class HybridRetrievalService {
     const currentChapterOrder = options.currentChapterOrder;
     const decayRate = options.narrativeDecayRate ?? 0.05;
     if (currentChapterOrder != null && Number.isFinite(currentChapterOrder)) {
+      const decayStartedAt = Date.now();
       fused = this.applyNarrativeDecay(fused, currentChapterOrder, decayRate);
       fused = fused
         .sort((a, b) => b.score - a.score || a.chunkOrder - b.chunkOrder)
         .slice(0, finalTopK);
+      tracer.record("decay", { elapsedMs: Date.now() - decayStartedAt });
     }
 
+    tracer.record("hits", { rows: fused });
     return fused;
+    } finally {
+      tracer.flushAsync();
+    }
   }
 
   async retrieveByFacet(input: RagFacetRetrievalOptions): Promise<RetrievedChunk[]> {

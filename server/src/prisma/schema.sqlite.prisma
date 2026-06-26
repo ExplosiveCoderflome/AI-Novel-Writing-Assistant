@@ -2882,6 +2882,26 @@ model RagIndexJob {
   @@index([tenantId, ownerType, ownerId])
 }
 
+model RagRetrievalTrace {
+  id                String   @id @default(cuid())
+  tenantId          String   @default("default")
+  novelId           String?
+  worldId           String?
+  queryDigest       String
+  queryPreview      String?
+  scopeJson         String?
+  candidateCounts   String   @default("{}")
+  hitsJson          String   @default("[]")
+  timingsJson       String   @default("{}")
+  fallbackTriggered Boolean  @default(false)
+  rerankerUsed      Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, novelId, createdAt])
+  @@index([queryDigest])
+}
+
 model NovelSideEffectJob {
   id               String    @id @default(cuid())
   novelId          String?

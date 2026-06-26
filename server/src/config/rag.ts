@@ -33,6 +33,22 @@ function asInt(rawValue: string | undefined, fallback: number, min: number, max:
   return Math.max(min, Math.min(max, value));
 }
 
+function asFloat(rawValue: string | undefined, fallback: number, min: number, max: number): number {
+  const parsed = Number(rawValue ?? "");
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.max(min, Math.min(max, parsed));
+}
+
+function asQueryPersistMode(rawValue: string | undefined): "digest_only" | "preview" | "full" {
+  const normalized = rawValue?.trim().toLowerCase();
+  if (normalized === "digest_only" || normalized === "full") {
+    return normalized;
+  }
+  return "preview";
+}
+
 export function asEmbeddingProvider(rawValue: string | undefined): EmbeddingProvider {
   const trimmed = rawValue?.trim();
   if (!trimmed) {
@@ -99,5 +115,8 @@ export const ragConfig = {
   workerMaxAttempts: asInt(process.env.RAG_WORKER_MAX_ATTEMPTS, 5, 1, 20),
   workerRetryBaseMs: asInt(process.env.RAG_WORKER_RETRY_BASE_MS, 5000, 1000, 300000),
   httpTimeoutMs: asInt(process.env.RAG_HTTP_TIMEOUT_MS, 30000, 1000, 300000),
+  retrievalTraceSampleRate: asFloat(process.env.RAG_RETRIEVAL_TRACE_SAMPLE_RATE, 1, 0, 1),
+  retrievalTraceRetentionDays: asInt(process.env.RAG_RETRIEVAL_TRACE_RETENTION_DAYS, 14, 1, 365),
+  retrievalTraceQueryPersistMode: asQueryPersistMode(process.env.RAG_RETRIEVAL_TRACE_QUERY_PERSIST_MODE),
   providerPriority: [...LLM_PROVIDERS] as EmbeddingProvider[],
 };
