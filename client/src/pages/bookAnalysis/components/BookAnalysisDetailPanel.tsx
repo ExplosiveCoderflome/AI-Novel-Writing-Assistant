@@ -20,9 +20,7 @@ import type {
   BookAnalysisChapterReaderHandle,
 } from "../hooks/useBookAnalysisChapterReader";
 import BookAnalysisDualPaneLayout from "./BookAnalysisDualPaneLayout";
-import BookAnalysisBudgetAdjustDialog from "./BookAnalysisBudgetAdjustDialog";
 import BookAnalysisSectionCard from "./BookAnalysisSectionCard";
-import BookAnalysisWorkspaceToolbar from "./BookAnalysisWorkspaceToolbar";
 
 type ExportFormat = "markdown" | "json";
 
@@ -39,21 +37,15 @@ interface NovelOption {
 }
 
 interface PendingState {
-  copy: boolean;
-  rebuild: boolean;
-  archive: boolean;
   regenerate: boolean;
   optimizePreview: boolean;
   saveSection: boolean;
   publish: boolean;
-  createStyleProfile: boolean;
-  updateBudget: boolean;
-  resumeWithBudget: boolean;
 }
 
 interface BookAnalysisDetailPanelProps {
   analysisMode: BookAnalysisMode;
-  selectedAnalysis?: BookAnalysisDetail;
+  selectedAnalysis: BookAnalysisDetail;
   novelOptions: NovelOption[];
   documentChapters: DocumentChapter[];
   sourceVersionContent: string;
@@ -63,26 +55,17 @@ interface BookAnalysisDetailPanelProps {
   lastPublishResult: BookAnalysisPublishResult | null;
   aggregatedEvidence: AggregatedEvidenceItem[];
   optimizingSectionKey: BookAnalysisSection["sectionKey"] | null;
-  dualPaneAvailable: boolean;
   isDualPane: boolean;
   currentChapterIndex: number | null;
   chapterHighlightRange: BookAnalysisChapterHighlightRange | null;
   chapterReaderRef: RefObject<BookAnalysisChapterReaderHandle | null>;
   rightColumnExtra?: ReactNode;
   pending: PendingState;
-  onDualPaneChange: (enabled: boolean) => void;
   onActiveChapterChange: (chapterIndex: number) => void;
   onSelectChapter: (chapterIndex: number) => void;
   onEvidenceJump: (chapterIndex: number, range: { start: number; end: number }) => void;
   onSelectedNovelChange: (novelId: string) => void;
-  onCopy: () => void;
-  onRebuild: (analysisId: string) => void;
-  onArchive: (analysisId: string) => void;
-  onUpdateBudget: (budgetTokens: number | null) => Promise<void>;
-  onResumeWithBudget: (budgetTokens: number) => Promise<void>;
-  onDownload: (format: ExportFormat) => void;
   onPublish: () => void;
-  onCreateStyleProfile: () => void;
   onRegenerateSection: (section: BookAnalysisSection) => void;
   onOptimizeSection: (section: BookAnalysisSection) => void;
   onApplyOptimizePreview: (section: BookAnalysisSection) => void;
@@ -105,26 +88,17 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     lastPublishResult,
     aggregatedEvidence,
     optimizingSectionKey,
-    dualPaneAvailable,
     isDualPane,
     currentChapterIndex,
     chapterHighlightRange,
     chapterReaderRef,
     rightColumnExtra,
     pending,
-    onDualPaneChange,
     onActiveChapterChange,
     onSelectChapter,
     onEvidenceJump,
     onSelectedNovelChange,
-    onCopy,
-    onRebuild,
-    onArchive,
-    onUpdateBudget,
-    onResumeWithBudget,
-    onDownload,
     onPublish,
-    onCreateStyleProfile,
     onRegenerateSection,
     onOptimizeSection,
     onApplyOptimizePreview,
@@ -136,7 +110,6 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
   const [selectedEvidenceKey, setSelectedEvidenceKey] = useState("");
   const [readingMode, setReadingMode] = useState<"summary" | "full">("full");
   const [activeSectionKey, setActiveSectionKey] = useState<BookAnalysisSectionKey | "">("");
-  const [budgetDialogMode, setBudgetDialogMode] = useState<"adjust" | "resume" | null>(null);
 
   const evidenceEntries = useMemo<SectionEvidenceItem[]>(
     () => aggregatedEvidence.map((item, index) => ({
@@ -189,14 +162,6 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
   };
 
   const sectionStats = useMemo(() => {
-    if (!selectedAnalysis) {
-      return {
-        total: 0,
-        succeeded: 0,
-        active: 0,
-        frozen: 0,
-      };
-    }
     return selectedAnalysis.sections.reduce(
       (acc, section) => {
         acc.total += 1;
@@ -216,7 +181,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
   }, [selectedAnalysis]);
 
   useEffect(() => {
-    if (!selectedAnalysis?.sections.length) {
+    if (!selectedAnalysis.sections.length) {
       return;
     }
     const hasActiveSection = selectedAnalysis.sections.some((section) => section.sectionKey === activeSectionKey);
@@ -225,70 +190,15 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     }
   }, [activeSectionKey, selectedAnalysis]);
 
-  if (!selectedAnalysis) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>拆书分析工作区</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          请先在左侧选择一个分析，或从知识文档创建新分析。
-        </CardContent>
-      </Card>
-    );
-  }
-
   const activeTabValue =
     activeSectionKey || (selectedAnalysis.sections[0]?.sectionKey as BookAnalysisSectionKey | undefined) || "overview";
   const budgetTokens = selectedAnalysis.budgetTokens ?? null;
   const usedTokens = selectedAnalysis.usedTokens ?? 0;
   const budgetUsageRatio = budgetTokens ? Math.min(1, usedTokens / budgetTokens) : 0;
   const budgetExceeded = selectedAnalysis.lastError?.includes("budget_exceeded") ?? false;
-  const handleBudgetSubmit = async (nextBudgetTokens: number | null) => {
-    if (budgetDialogMode === "resume") {
-      if (typeof nextBudgetTokens !== "number" || !Number.isFinite(nextBudgetTokens)) {
-        return;
-      }
-      await onResumeWithBudget(nextBudgetTokens);
-      return;
-    }
-    await onUpdateBudget(nextBudgetTokens);
-  };
 
   return (
     <div className="space-y-3">
-      <BookAnalysisBudgetAdjustDialog
-        open={budgetDialogMode !== null}
-        mode={budgetDialogMode ?? "adjust"}
-        analysis={selectedAnalysis}
-        pending={budgetDialogMode === "resume" ? pending.resumeWithBudget : pending.updateBudget}
-        onOpenChange={(open) => setBudgetDialogMode(open ? (budgetDialogMode ?? "adjust") : null)}
-        onSubmit={handleBudgetSubmit}
-      />
-      <BookAnalysisWorkspaceToolbar
-        selectedAnalysis={selectedAnalysis}
-        selectedNovelId={selectedNovelId}
-        dualPaneAvailable={dualPaneAvailable}
-        isDualPane={isDualPane}
-        pending={{
-          copy: pending.copy,
-          rebuild: pending.rebuild,
-          archive: pending.archive,
-          publish: pending.publish,
-          createStyleProfile: pending.createStyleProfile,
-          updateBudget: pending.updateBudget,
-          resumeWithBudget: pending.resumeWithBudget,
-        }}
-        onCopy={onCopy}
-        onRebuild={onRebuild}
-        onArchive={onArchive}
-        onPublish={onPublish}
-        onCreateStyleProfile={onCreateStyleProfile}
-        onDownload={onDownload}
-        onDualPaneChange={onDualPaneChange}
-        onOpenBudgetAdjust={() => setBudgetDialogMode("adjust")}
-        onOpenBudgetResume={() => setBudgetDialogMode("resume")}
-      />
 
       {selectedAnalysis.lastError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
