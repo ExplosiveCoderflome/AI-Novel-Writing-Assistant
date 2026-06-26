@@ -7,8 +7,6 @@ import type {
   BookAnalysisSectionKey,
 } from "@ai-novel/shared/types/bookAnalysis";
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
-import { Columns2, Pencil } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +22,7 @@ import type {
 import BookAnalysisDualPaneLayout from "./BookAnalysisDualPaneLayout";
 import BookAnalysisBudgetAdjustDialog from "./BookAnalysisBudgetAdjustDialog";
 import BookAnalysisSectionCard from "./BookAnalysisSectionCard";
+import BookAnalysisWorkspaceToolbar from "./BookAnalysisWorkspaceToolbar";
 
 type ExportFormat = "markdown" | "json";
 
@@ -245,9 +244,6 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
   const usedTokens = selectedAnalysis.usedTokens ?? 0;
   const budgetUsageRatio = budgetTokens ? Math.min(1, usedTokens / budgetTokens) : 0;
   const budgetExceeded = selectedAnalysis.lastError?.includes("budget_exceeded") ?? false;
-  const budgetResumeAvailable =
-    budgetExceeded && (selectedAnalysis.status === "failed" || selectedAnalysis.status === "cancelled");
-  const canAdjustBudget = selectedAnalysis.status !== "archived";
   const handleBudgetSubmit = async (nextBudgetTokens: number | null) => {
     if (budgetDialogMode === "resume") {
       if (typeof nextBudgetTokens !== "number" || !Number.isFinite(nextBudgetTokens)) {
@@ -269,111 +265,30 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
         onOpenChange={(open) => setBudgetDialogMode(open ? (budgetDialogMode ?? "adjust") : null)}
         onSubmit={handleBudgetSubmit}
       />
-      <div className="sticky top-0 z-30 rounded-md border bg-background/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/85">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="truncate text-lg font-semibold tracking-normal">{selectedAnalysis.title}</h2>
-              <Badge variant="outline">{formatStatus(selectedAnalysis.status)}</Badge>
-              {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary">已发布</Badge> : null}
-              {selectedAnalysis.sourceRange ? <Badge variant="secondary">{selectedAnalysis.sourceRange.label ?? "选定章节"}</Badge> : null}
-              <Badge variant="outline">进度 {Math.round(selectedAnalysis.progress * 100)}%</Badge>
-              <span className="inline-flex items-center gap-1">
-                <Badge variant={budgetExceeded ? "destructive" : "outline"}>
-                  预算 {budgetTokens
-                    ? `${formatTokenCount(usedTokens)}/${formatTokenCount(budgetTokens)}`
-                    : `${formatTokenCount(usedTokens)}/不限`}
-                </Badge>
-                {canAdjustBudget ? (
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6"
-                    title="调整拆书预算"
-                    onClick={() => setBudgetDialogMode("adjust")}
-                    disabled={pending.updateBudget || pending.resumeWithBudget}
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    <span className="sr-only">调整拆书预算</span>
-                  </Button>
-                ) : null}
-              </span>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {selectedAnalysis.documentTitle} | 源版本 v{selectedAnalysis.documentVersionNumber}{selectedAnalysis.sourceRange ? ` | 范围：${selectedAnalysis.sourceRange.label ?? "选定章节"}` : ""}
-              {selectedAnalysis.isCurrentVersion ? "" : ` | 当前激活版本 v${selectedAnalysis.currentDocumentVersionNumber}`}
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={onCopy} disabled={pending.copy}>
-              复制
-            </Button>
-            {budgetResumeAvailable ? (
-              <Button
-                size="sm"
-                onClick={() => setBudgetDialogMode("resume")}
-                disabled={pending.resumeWithBudget || selectedAnalysis.status === "archived"}
-              >
-                {pending.resumeWithBudget ? "提交中..." : "扩容预算并续跑"}
-              </Button>
-            ) : null}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onRebuild(selectedAnalysis.id)}
-              disabled={pending.rebuild || selectedAnalysis.status === "archived"}
-            >
-              重新生成
-            </Button>
-            <Button
-              size="sm"
-              onClick={onPublish}
-              disabled={!selectedNovelId || pending.publish || selectedAnalysis.status === "archived"}
-              title={!selectedNovelId ? "请在下方「分析信息与发布」中选择目标小说" : "发布到小说知识库"}
-            >
-              {pending.publish ? "发布中..." : "发布"}
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link to={`/tasks?kind=book_analysis&id=${selectedAnalysis.id}`}>任务中心</Link>
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => onDownload("markdown")}>
-              导出 MD
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => onDownload("json")}>
-              导出 JSON
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onCreateStyleProfile}
-              disabled={pending.createStyleProfile || selectedAnalysis.status === "archived"}
-            >
-              {pending.createStyleProfile ? "生成写法中..." : "生成写法"}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onArchive(selectedAnalysis.id)}
-              disabled={pending.archive || selectedAnalysis.status === "archived"}
-            >
-              归档
-            </Button>
-            {dualPaneAvailable ? (
-              <Button
-                type="button"
-                size="sm"
-                variant={isDualPane ? "default" : "outline"}
-                onClick={() => onDualPaneChange(!isDualPane)}
-                title={isDualPane ? "关闭双栏对照" : "打开双栏对照"}
-              >
-                <Columns2 className="mr-1.5 h-3.5 w-3.5" />
-                双栏
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </div>
+      <BookAnalysisWorkspaceToolbar
+        selectedAnalysis={selectedAnalysis}
+        selectedNovelId={selectedNovelId}
+        dualPaneAvailable={dualPaneAvailable}
+        isDualPane={isDualPane}
+        pending={{
+          copy: pending.copy,
+          rebuild: pending.rebuild,
+          archive: pending.archive,
+          publish: pending.publish,
+          createStyleProfile: pending.createStyleProfile,
+          updateBudget: pending.updateBudget,
+          resumeWithBudget: pending.resumeWithBudget,
+        }}
+        onCopy={onCopy}
+        onRebuild={onRebuild}
+        onArchive={onArchive}
+        onPublish={onPublish}
+        onCreateStyleProfile={onCreateStyleProfile}
+        onDownload={onDownload}
+        onDualPaneChange={onDualPaneChange}
+        onOpenBudgetAdjust={() => setBudgetDialogMode("adjust")}
+        onOpenBudgetResume={() => setBudgetDialogMode("resume")}
+      />
 
       {selectedAnalysis.lastError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
