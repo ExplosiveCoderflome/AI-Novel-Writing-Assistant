@@ -57,6 +57,8 @@
 - facet 检索完全无结果：先检查发布时的 `preChunks` 是否进入 RAG job payload，再检查 `KnowledgeChunk.facetKeys` 和 Qdrant payload 是否都写入同一 facet 字段；如果是历史 chunk 没有 facet，应确认检索服务触发无 facet 回退。
 - 拆书发布后结构化结论召回不准：检查 `bookAnalysis.publish.facets` 的字段映射是否把结构化字段映射到正确 facet，不要在消费方临时发明新的 facet 名。
 - 召回质量难以复盘：检查 `RAG_RETRIEVAL_TRACE_SAMPLE_RATE` 是否为 0、`RagRetrievalTrace` 是否有近期记录、`timingsJson` 是否包含 vector / keyword / fusion / reranker / decay / total 六项，以及 facet 命中为空时 `fallbackTriggered` 是否写为 true。
+- trace 中 `rerankerMs` 恒为 0、`rerankerUsed` 恒为 false：这是 reranker 阶段尚未接入前的预留语义，不代表 reranker 失败；接入交叉编码器重排后会回填。
+- 历史 trace 数据无限增长：检查服务启动时是否调用了 `ragRetrievalTraceRetention.start()`，以及 `RAG_RETRIEVAL_TRACE_RETENTION_DAYS` 是否设置合理。
 
 ## 相关模块
 
