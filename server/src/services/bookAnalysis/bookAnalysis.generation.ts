@@ -3,6 +3,7 @@ import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
+import { BookAnalysisBudgetExceededError, BookAnalysisBudgetGuard } from "./bookAnalysis.budget";
 import { BookAnalysisSourceCacheService } from "./bookAnalysis.cache";
 import { getBookAnalysisSectionConcurrency } from "./bookAnalysis.config";
 import { runWithConcurrency } from "./bookAnalysis.concurrent";
@@ -162,6 +163,7 @@ export class BookAnalysisGenerationService {
     const temperature = normalizeTemperature(analysis.temperature);
     const maxTokens = normalizeMaxTokens(analysis.maxTokens);
     const sourceScope = buildBookAnalysisSourceScope(analysis);
+    const budgetGuard = new BookAnalysisBudgetGuard(analysisId);
 
     await this.withAnalysisHeartbeat(analysisId, async () => {
       try {
@@ -251,8 +253,9 @@ export class BookAnalysisGenerationService {
             });
 
             summary = buildAnalysisSummaryFromContent(generated.markdown);
+            await budgetGuard.onSectionFinished(generated.tokenUsage);
           } catch (error) {
-            if (error instanceof AnalysisCancelledError) {
+            if (error instanceof AnalysisCancelledError || error instanceof BookAnalysisBudgetExceededError) {
               throw error;
             }
             overviewContext = null;
@@ -342,9 +345,10 @@ export class BookAnalysisGenerationService {
                 evidenceJson: encodeEvidence(evidence),
               },
             });
+            await budgetGuard.onSectionFinished(generated.tokenUsage);
 
           } catch (error) {
-            if (error instanceof AnalysisCancelledError) {
+            if (error instanceof AnalysisCancelledError || error instanceof BookAnalysisBudgetExceededError) {
               throw error;
             }
             errors.push(`${section.title}: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -423,6 +427,7 @@ export class BookAnalysisGenerationService {
     const temperature = normalizeTemperature(analysis.temperature);
     const maxTokens = normalizeMaxTokens(analysis.maxTokens);
     const sourceScope = buildBookAnalysisSourceScope(analysis);
+    const budgetGuard = new BookAnalysisBudgetGuard(analysisId);
 
     await prisma.bookAnalysis.update({
       where: { id: analysisId },
@@ -513,6 +518,7 @@ export class BookAnalysisGenerationService {
             evidenceJson: encodeEvidence(evidence),
           },
         });
+        await budgetGuard.onSectionFinished(generated.tokenUsage);
 
         const sectionStatuses = await prisma.bookAnalysisSection.findMany({
           where: { analysisId },
@@ -551,6 +557,10 @@ export class BookAnalysisGenerationService {
       } catch (error) {
         if (error instanceof AnalysisCancelledError) {
           await this.markCancelled(analysisId);
+          return;
+        }
+        if (error instanceof BookAnalysisBudgetExceededError) {
+          await this.markFailed(analysisId, error.message);
           return;
         }
         await prisma.bookAnalysisSection.update({

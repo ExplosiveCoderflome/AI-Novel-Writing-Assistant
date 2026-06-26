@@ -139,6 +139,7 @@ export default function BookAnalysisPage() {
         selectedDiagnosisNovelId={workspace.selectedDiagnosisNovelId}
         userFocusInstruction={workspace.userFocusInstruction}
         selectedSourceRange={workspace.selectedSourceRange}
+        budgetTokens={workspace.budgetTokens}
         analysisPreset={workspace.analysisPreset}
         llmConfig={workspace.llmConfig}
         documentOptions={workspace.documentOptions}
@@ -157,6 +158,7 @@ export default function BookAnalysisPage() {
         onSelectDiagnosisNovel={workspace.setSelectedDiagnosisNovelId}
         onUserFocusInstructionChange={workspace.setUserFocusInstruction}
         onSourceRangeChange={workspace.setSelectedSourceRange}
+        onBudgetTokensChange={workspace.setBudgetTokens}
         onRequestSourceChapters={workspace.requestSourceChapters}
         onAnalysisPresetChange={workspace.setAnalysisPreset}
         onLlmConfigChange={workspace.setLlmConfig}

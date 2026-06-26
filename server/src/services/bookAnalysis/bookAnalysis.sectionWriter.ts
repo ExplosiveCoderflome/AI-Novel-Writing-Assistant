@@ -5,6 +5,7 @@ import {
   bookAnalysisOptimizedDraftPrompt,
   bookAnalysisSectionPrompt,
 } from "../../prompting/prompts/bookAnalysis/bookAnalysis.prompts";
+import type { LlmTokenUsageSnapshot } from "../../llm/usageTracking";
 import { SECTION_PROMPTS } from "./bookAnalysis.constants";
 import type { BookAnalysisOverviewContext, SectionGenerationResult, SourceNote } from "./bookAnalysis.types";
 import {
@@ -78,6 +79,7 @@ export class BookAnalysisSectionWriter {
         structuredData: normalizedStructuredData.structuredData,
         normalizationWarnings: normalizedStructuredData.normalizationWarnings,
         evidence,
+        tokenUsage: buildSectionTokenUsage(result.meta.tokenUsage, result.context.estimatedInputTokens, markdown),
       };
     } catch {
       return {
@@ -85,6 +87,7 @@ export class BookAnalysisSectionWriter {
         structuredData: normalizeBookAnalysisStructuredData(sectionKey, null),
         normalizationWarnings: [],
         evidence: [],
+        tokenUsage: null,
       };
     }
   }
@@ -135,6 +138,20 @@ export class BookAnalysisSectionWriter {
 
 function normalizeInstructionForPrompt(value: string | null | undefined): string {
   return value?.trim() || "";
+}
+
+function buildSectionTokenUsage(
+  usage: LlmTokenUsageSnapshot | null | undefined,
+  estimatedInputTokens: number,
+  markdown: string,
+): LlmTokenUsageSnapshot | null {
+  if (usage && usage.totalTokens > 0) {
+    return usage;
+  }
+  const promptTokens = Math.max(0, Math.round(estimatedInputTokens));
+  const completionTokens = Math.max(0, Math.ceil(markdown.length / 4));
+  const totalTokens = promptTokens + completionTokens;
+  return totalTokens > 0 ? { promptTokens, completionTokens, totalTokens } : null;
 }
 
 function renderOverviewContextForPrompt(context: BookAnalysisOverviewContext): string {

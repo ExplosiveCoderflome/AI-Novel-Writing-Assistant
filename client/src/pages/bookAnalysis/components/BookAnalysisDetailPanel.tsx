@@ -26,6 +26,13 @@ import BookAnalysisSectionCard from "./BookAnalysisSectionCard";
 
 type ExportFormat = "markdown" | "json";
 
+function formatTokenCount(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "0";
+  }
+  return new Intl.NumberFormat("zh-CN").format(Math.max(0, Math.round(value)));
+}
+
 interface NovelOption {
   id: string;
   title: string;
@@ -226,6 +233,10 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
 
   const activeTabValue =
     activeSectionKey || (selectedAnalysis.sections[0]?.sectionKey as BookAnalysisSectionKey | undefined) || "overview";
+  const budgetTokens = selectedAnalysis.budgetTokens ?? null;
+  const usedTokens = selectedAnalysis.usedTokens ?? 0;
+  const budgetUsageRatio = budgetTokens ? Math.min(1, usedTokens / budgetTokens) : 0;
+  const budgetExceeded = selectedAnalysis.lastError?.includes("budget_exceeded") ?? false;
 
   return (
     <div className="space-y-3">
@@ -238,6 +249,11 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
               {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary">已发布</Badge> : null}
               {selectedAnalysis.sourceRange ? <Badge variant="secondary">{selectedAnalysis.sourceRange.label ?? "选定章节"}</Badge> : null}
               <Badge variant="outline">进度 {Math.round(selectedAnalysis.progress * 100)}%</Badge>
+              {budgetTokens ? (
+                <Badge variant={budgetExceeded ? "destructive" : "outline"}>
+                  预算 {formatTokenCount(usedTokens)}/{formatTokenCount(budgetTokens)}
+                </Badge>
+              ) : null}
             </div>
             <div className="text-xs text-muted-foreground">
               {selectedAnalysis.documentTitle} | 源版本 v{selectedAnalysis.documentVersionNumber}{selectedAnalysis.sourceRange ? ` | 范围：${selectedAnalysis.sourceRange.label ?? "选定章节"}` : ""}
@@ -307,7 +323,9 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
 
       {selectedAnalysis.lastError ? (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          最近错误：{selectedAnalysis.lastError}
+          {budgetExceeded
+            ? `预算用尽，任务已停止。已用 ${formatTokenCount(usedTokens)} / ${formatTokenCount(budgetTokens)} tokens。`
+            : `最近错误：${selectedAnalysis.lastError}`}
         </div>
       ) : null}
 
@@ -388,6 +406,19 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                     <div>模型：{selectedAnalysis.model || "默认"}</div>
                     <div>温度：{selectedAnalysis.temperature ?? "默认"}</div>
                     <div>最大 Tokens：{selectedAnalysis.maxTokens ?? "默认"}</div>
+                    <div>
+                      预算用量：{budgetTokens
+                        ? `${formatTokenCount(usedTokens)} / ${formatTokenCount(budgetTokens)} tokens`
+                        : "不限"}
+                    </div>
+                    {budgetTokens ? (
+                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={`h-full rounded-full ${budgetExceeded ? "bg-destructive" : "bg-primary"}`}
+                          style={{ width: `${Math.round(budgetUsageRatio * 100)}%` }}
+                        />
+                      </div>
+                    ) : null}
                     <div>原文范围：{selectedAnalysis.sourceRange?.label ?? "全文"}</div>
                     <div>当前阶段：{formatStage(selectedAnalysis.currentStage)}</div>
                     <div>当前 section：{selectedAnalysis.currentItemLabel ?? "暂无"}</div>

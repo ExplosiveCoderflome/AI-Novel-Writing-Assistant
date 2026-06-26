@@ -2696,6 +2696,8 @@ model BookAnalysis {
   model                       String?
   temperature                 Float?
   maxTokens                   Int?
+  budgetTokens                Int?
+  usedTokens                  Int?
   userFocusInstruction        String?
   sourceStartChapterIndex     Int?
   sourceEndChapterIndex       Int?

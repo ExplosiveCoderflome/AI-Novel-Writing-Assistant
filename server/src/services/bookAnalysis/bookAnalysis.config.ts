@@ -1,3 +1,5 @@
+import { DEFAULT_BOOK_ANALYSIS_BUDGET_TOKENS } from "@ai-novel/shared/types/bookAnalysis";
+
 function readInt(rawValue: string | undefined, fallback: number, min: number, max: number): number {
   const parsed = Number(rawValue ?? "");
   if (!Number.isFinite(parsed)) {
@@ -21,6 +23,10 @@ export function getBookAnalysisNotesConcurrency(): number {
 
 export function getBookAnalysisSectionConcurrency(): number {
   return readInt(process.env.BOOK_ANALYSIS_SECTION_CONCURRENCY, 2, 1, 8);
+}
+
+export function getBookAnalysisDefaultBudgetTokens(): number {
+  return readInt(process.env.BOOK_ANALYSIS_BUDGET_TOKENS, DEFAULT_BOOK_ANALYSIS_BUDGET_TOKENS, 1_000, 10_000_000);
 }
 
 export function getBookAnalysisCacheSegmentVersion(): number {

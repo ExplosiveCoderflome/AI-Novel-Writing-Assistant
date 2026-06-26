@@ -52,6 +52,7 @@ class BookAnalysisServiceFacade {
     model?: string;
     temperature?: number;
     maxTokens?: number;
+    budgetTokens?: number | null;
     userFocusInstruction?: string | null;
     sourceRange?: { startChapterIndex: number; endChapterIndex: number } | null;
     includeTimeline?: boolean;

@@ -8,7 +8,8 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
 import { DocumentChapterService } from "../knowledge/DocumentChapterService";
-import { getBookAnalysisMaxConcurrentTasks } from "./bookAnalysis.config";
+import { normalizeBookAnalysisBudgetTokens } from "./bookAnalysis.budget";
+import { getBookAnalysisDefaultBudgetTokens, getBookAnalysisMaxConcurrentTasks } from "./bookAnalysis.config";
 import { BookAnalysisGenerationService } from "./bookAnalysis.generation";
 import { BookAnalysisTaskQueue } from "./bookAnalysis.queue";
 import { buildAnalysisSummaryFromContent, normalizeMaxTokens, normalizeTemperature } from "./bookAnalysis.utils";
@@ -126,6 +127,7 @@ export class BookAnalysisCommandService {
     model?: string;
     temperature?: number;
     maxTokens?: number;
+    budgetTokens?: number | null;
     userFocusInstruction?: string | null;
     sourceRange?: BookAnalysisSourceRangeInput | null;
     includeTimeline?: boolean;
@@ -133,6 +135,7 @@ export class BookAnalysisCommandService {
   }): Promise<BookAnalysisDetail> {
     const temperature = normalizeTemperature(input.temperature);
     const maxTokens = normalizeMaxTokens(input.maxTokens);
+    const budgetTokens = normalizeBookAnalysisBudgetTokens(input.budgetTokens) ?? getBookAnalysisDefaultBudgetTokens();
     const enabledSectionKeySet = buildEnabledSectionKeySet(input);
     const document = await prisma.knowledgeDocument.findUnique({
       where: { id: input.documentId },
@@ -175,6 +178,8 @@ export class BookAnalysisCommandService {
           model: input.model?.trim() || null,
           temperature,
           maxTokens: maxTokens ?? null,
+          budgetTokens,
+          usedTokens: 0,
           userFocusInstruction: normalizeOptionalInstruction(input.userFocusInstruction),
           sourceStartChapterIndex: sourceRange?.startChapterIndex ?? null,
           sourceEndChapterIndex: sourceRange?.endChapterIndex ?? null,
@@ -235,6 +240,8 @@ export class BookAnalysisCommandService {
           model: source.model,
           temperature: source.temperature,
           maxTokens: source.maxTokens,
+          budgetTokens: source.budgetTokens,
+          usedTokens: source.usedTokens,
           userFocusInstruction: source.userFocusInstruction,
           sourceStartChapterIndex: source.sourceStartChapterIndex,
           sourceEndChapterIndex: source.sourceEndChapterIndex,
@@ -299,6 +306,7 @@ export class BookAnalysisCommandService {
           status: "queued",
           pendingManualRecovery: false,
           progress: 0,
+          usedTokens: 0,
           lastError: null,
           heartbeatAt: null,
           currentStage: null,

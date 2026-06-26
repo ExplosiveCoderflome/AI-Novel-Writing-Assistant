@@ -64,6 +64,7 @@ const createSchema = z.object({
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(256).max(32768).optional(),
+  budgetTokens: z.number().int().min(1_000).max(10_000_000).nullable().optional(),
   userFocusInstruction: z.string().trim().optional(),
   sourceRange: sourceRangeSchema.nullable().optional(),
   includeTimeline: z.boolean().optional().default(false),

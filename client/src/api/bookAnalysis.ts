@@ -42,6 +42,7 @@ export async function createBookAnalysis(payload: {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  budgetTokens?: number | null;
   userFocusInstruction?: string;
   sourceRange?: { startChapterIndex: number; endChapterIndex: number } | null;
   includeTimeline?: boolean;

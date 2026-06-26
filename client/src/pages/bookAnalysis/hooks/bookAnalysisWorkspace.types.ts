@@ -54,6 +54,7 @@ export interface BookAnalysisWorkspace {
   selectedDiagnosisNovelId: string;
   userFocusInstruction: string;
   selectedSourceRange: BookAnalysisSourceRangeDraft;
+  budgetTokens: number | null;
   includeTimeline: boolean;
   analysisPreset: BookAnalysisPreset;
   llmConfig: LLMConfigState;
@@ -84,6 +85,7 @@ export interface BookAnalysisWorkspace {
   setSelectedDiagnosisNovelId: (novelId: string) => void;
   setUserFocusInstruction: (instruction: string) => void;
   setSelectedSourceRange: (range: BookAnalysisSourceRangeDraft) => void;
+  setBudgetTokens: (budgetTokens: number | null) => void;
   requestSourceChapters: () => void;
   setIncludeTimeline: (include: boolean) => void;
   setAnalysisPreset: (preset: BookAnalysisPreset) => void;

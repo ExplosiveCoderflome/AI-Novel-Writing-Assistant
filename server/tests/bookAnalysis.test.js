@@ -7,6 +7,11 @@ const { publishAnalysisToNovel } = require("../dist/services/bookAnalysis/bookAn
 const { BookAnalysisSourceCacheService } = require("../dist/services/bookAnalysis/bookAnalysis.cache.js");
 const { BookAnalysisCommandService } = require("../dist/services/bookAnalysis/BookAnalysisCommandService.js");
 const { BookAnalysisGenerationService } = require("../dist/services/bookAnalysis/bookAnalysis.generation.js");
+const {
+  BookAnalysisBudgetExceededError,
+  BookAnalysisBudgetGuard,
+  normalizeBookAnalysisBudgetTokens,
+} = require("../dist/services/bookAnalysis/bookAnalysis.budget.js");
 const { BookAnalysisCharacterService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterService.js");
 const { BookAnalysisCharacterMediaService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterMediaService.js");
 const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/BookAnalysisQueryService.js");
@@ -50,6 +55,39 @@ async function waitFor(predicate, timeoutMs = 1500) {
   throw new Error("Timed out waiting for condition.");
 }
 
+test("BookAnalysisBudgetGuard increments used tokens and throws budget_exceeded", async () => {
+  const original = {
+    findUnique: prisma.bookAnalysis.findUnique,
+    update: prisma.bookAnalysis.update,
+  };
+  let usedTokens = 900;
+  prisma.bookAnalysis.update = async ({ data }) => {
+    usedTokens += data.usedTokens.increment;
+    return { budgetTokens: 1000, usedTokens };
+  };
+  prisma.bookAnalysis.findUnique = async () => ({ budgetTokens: 1000, usedTokens });
+
+  try {
+    assert.equal(normalizeBookAnalysisBudgetTokens(2000.8), 2000);
+    assert.equal(normalizeBookAnalysisBudgetTokens(0), null);
+
+    const guard = new BookAnalysisBudgetGuard("analysis-1");
+    await guard.onSectionFinished({ promptTokens: 20, completionTokens: 30, totalTokens: 50 });
+    assert.equal(usedTokens, 950);
+
+    await assert.rejects(
+      () => guard.onSectionFinished({ promptTokens: 20, completionTokens: 40, totalTokens: 60 }),
+      (error) =>
+        error instanceof BookAnalysisBudgetExceededError &&
+        error.message.includes("budget_exceeded") &&
+        error.usedTokens === 1010,
+    );
+  } finally {
+    prisma.bookAnalysis.findUnique = original.findUnique;
+    prisma.bookAnalysis.update = original.update;
+  }
+});
+
 function createNoopDocumentChapterService() {
   return {
     ensureChaptersForVersion: async (documentVersionId) => ({
@@ -61,7 +99,11 @@ function createNoopDocumentChapterService() {
 }
 
 function matchCacheIdentity(row, key) {
+  if (!key) {
+    return false;
+  }
   return row.documentVersionId === key.documentVersionId
+    && row.sourceScopeKey === key.sourceScopeKey
     && row.provider === key.provider
     && row.model === key.model
     && row.temperature === key.temperature
@@ -1013,13 +1055,13 @@ test("BookAnalysisSourceCacheService persists notes and reuses cache hits", asyn
   };
 
   prisma.bookAnalysisSourceCache.findUnique = async ({ where }) => {
-    const key = where.documentVersionId_provider_model_temperature_notesMaxTokens_segmentVersion;
+    const key = where.documentVersionId_sourceScopeKey_provider_model_temperature_notesMaxTokens_segmentVersion;
     return cacheRows.find((row) => matchCacheIdentity(row, key)) ?? null;
   };
 
   prisma.bookAnalysisSourceCache.upsert = async ({ where, create, update }) => {
     callCounts.upsert += 1;
-    const key = where.documentVersionId_provider_model_temperature_notesMaxTokens_segmentVersion;
+    const key = where.documentVersionId_sourceScopeKey_provider_model_temperature_notesMaxTokens_segmentVersion;
     const index = cacheRows.findIndex((row) => matchCacheIdentity(row, key));
     if (index >= 0) {
       cacheRows[index] = {
@@ -1746,6 +1788,7 @@ test("BookAnalysisGenerationService runSingleSection injects persisted overview 
 
 test("BookAnalysisCommandService createAnalysis freezes sections outside enabledSectionKeys", async () => {
   const originalTransaction = prisma.$transaction;
+  const originalFindUnique = prisma.knowledgeDocument.findUnique;
   const originalEnqueue = BookAnalysisTaskQueue.prototype.enqueue;
   let createdAnalysis = null;
   let createdSections = [];
@@ -1775,6 +1818,13 @@ test("BookAnalysisCommandService createAnalysis freezes sections outside enabled
       },
     },
   });
+  prisma.knowledgeDocument.findUnique = async () => ({
+    id: "document-1",
+    status: "enabled",
+    activeVersionId: "version-1",
+    title: "测试文档",
+    versions: [{ id: "version-1", versionNumber: 1 }],
+  });
   BookAnalysisTaskQueue.prototype.enqueue = () => {};
 
   const service = new BookAnalysisCommandService({
@@ -1795,6 +1845,8 @@ test("BookAnalysisCommandService createAnalysis freezes sections outside enabled
     });
 
     assert.equal(createdAnalysis.userFocusInstruction, "重点观察开篇爽点");
+    assert.equal(typeof createdAnalysis.budgetTokens, "number");
+    assert.equal(createdAnalysis.usedTokens, 0);
     const sectionState = new Map(createdSections.map((section) => [section.sectionKey, section.frozen]));
     assert.equal(sectionState.get("overview"), false);
     assert.equal(sectionState.get("plot_structure"), false);
@@ -1804,6 +1856,7 @@ test("BookAnalysisCommandService createAnalysis freezes sections outside enabled
     assert.equal(sectionState.get("market_highlights"), true);
   } finally {
     prisma.$transaction = originalTransaction;
+    prisma.knowledgeDocument.findUnique = originalFindUnique;
     BookAnalysisTaskQueue.prototype.enqueue = originalEnqueue;
   }
 });

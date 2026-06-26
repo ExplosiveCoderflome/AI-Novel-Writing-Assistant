@@ -1,6 +1,7 @@
 import {
   BOOK_ANALYSIS_PRESETS,
   BOOK_ANALYSIS_SECTIONS,
+  DEFAULT_BOOK_ANALYSIS_BUDGET_TOKENS,
   type BookAnalysisPreset,
 } from "@ai-novel/shared/types/bookAnalysis";
 import type { DocumentChapter, KnowledgeDocumentDetail, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
@@ -8,6 +9,7 @@ import LLMSelector from "@/components/common/LLMSelector";
 import BookAnalysisSourceRangePicker from "./BookAnalysisSourceRangePicker";
 import { Button } from "@/components/ui/button";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import type { LLMConfigState } from "../bookAnalysis.types";
 import type { BookAnalysisMode, BookAnalysisSourceRangeDraft, NovelOption } from "../hooks/bookAnalysisWorkspace.types";
 
@@ -20,6 +22,7 @@ interface BookAnalysisCreateDialogProps {
   selectedDiagnosisNovelId: string;
   userFocusInstruction: string;
   selectedSourceRange: BookAnalysisSourceRangeDraft;
+  budgetTokens: number | null;
   analysisPreset: BookAnalysisPreset;
   llmConfig: LLMConfigState;
   documentOptions: KnowledgeDocumentSummary[];
@@ -38,6 +41,7 @@ interface BookAnalysisCreateDialogProps {
   onSelectDiagnosisNovel: (novelId: string) => void;
   onUserFocusInstructionChange: (instruction: string) => void;
   onSourceRangeChange: (range: BookAnalysisSourceRangeDraft) => void;
+  onBudgetTokensChange: (budgetTokens: number | null) => void;
   onRequestSourceChapters: () => void;
   onAnalysisPresetChange: (preset: BookAnalysisPreset) => void;
   onLlmConfigChange: (config: LLMConfigState) => void;
@@ -79,6 +83,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
     selectedDiagnosisNovelId,
     userFocusInstruction,
     selectedSourceRange,
+    budgetTokens,
     analysisPreset,
     llmConfig,
     documentOptions,
@@ -97,6 +102,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
     onSelectDiagnosisNovel,
     onUserFocusInstructionChange,
     onSourceRangeChange,
+    onBudgetTokensChange,
     onRequestSourceChapters,
     onAnalysisPresetChange,
     onLlmConfigChange,
@@ -261,6 +267,34 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                 }
                 showParameters
               />
+              <div className="grid gap-2 rounded-md border bg-muted/20 p-3 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
+                <div>
+                  <div className="text-sm font-medium">预算上限</div>
+                  <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                    留空使用服务端默认值。累计用量达到上限后停止任务，已完成的小节会保留。
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1000}
+                    max={10000000}
+                    step={1000}
+                    placeholder={DEFAULT_BOOK_ANALYSIS_BUDGET_TOKENS.toLocaleString("zh-CN")}
+                    value={budgetTokens ?? ""}
+                    onChange={(event) => {
+                      if (!event.target.value) {
+                        onBudgetTokensChange(null);
+                        return;
+                      }
+                      const next = Number(event.target.value);
+                      onBudgetTokensChange(Number.isFinite(next) ? Math.max(1000, Math.min(10000000, Math.floor(next))) : null);
+                    }}
+                    className="text-right font-mono tabular-nums"
+                  />
+                  <span className="shrink-0 text-xs text-muted-foreground">tokens</span>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">

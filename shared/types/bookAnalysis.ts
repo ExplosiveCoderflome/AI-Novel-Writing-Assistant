@@ -1,5 +1,7 @@
 import type { LLMProvider } from "./llm";
 
+export const DEFAULT_BOOK_ANALYSIS_BUDGET_TOKENS = 200_000;
+
 export type BookAnalysisStatus = "draft" | "queued" | "running" | "succeeded" | "failed" | "cancelled" | "archived";
 export type BookAnalysisSectionStatus = "idle" | "running" | "succeeded" | "failed";
 export type BookAnalysisSectionKey =
@@ -240,6 +242,8 @@ export interface BookAnalysis {
   model?: string | null;
   temperature?: number | null;
   maxTokens?: number | null;
+  budgetTokens?: number | null;
+  usedTokens?: number | null;
   userFocusInstruction?: string | null;
   sourceRange?: BookAnalysisSourceRange | null;
   progress: number;

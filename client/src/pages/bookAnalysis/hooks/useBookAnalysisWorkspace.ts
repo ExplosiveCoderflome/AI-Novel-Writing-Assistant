@@ -66,6 +66,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const [selectedDiagnosisNovelId, setSelectedDiagnosisNovelId] = useState("");
   const [userFocusInstruction, setUserFocusInstruction] = useState("");
   const [selectedSourceRange, setSelectedSourceRange] = useState<BookAnalysisSourceRangeDraft>(null);
+  const [budgetTokens, setBudgetTokens] = useState<number | null>(null);
   const [sourceChaptersRequested, setSourceChaptersRequested] = useState(false);
   const [analysisPreset, setAnalysisPreset] = useState<BookAnalysisPreset>("standard");
   const [llmConfig, setLlmConfig] = useState<LLMConfigState>({
@@ -283,6 +284,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
         model: llmConfig.model || undefined,
         temperature: llmConfig.temperature,
         maxTokens: llmConfig.maxTokens,
+        budgetTokens: budgetTokens ?? undefined,
         userFocusInstruction: userFocusInstruction.trim() || DIAGNOSIS_FOCUS_INSTRUCTION,
         includeTimeline,
         enabledSectionKeys: selectedPreset.sectionKeys,
@@ -652,6 +654,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       model: llmConfig.model || undefined,
       temperature: llmConfig.temperature,
       maxTokens: llmConfig.maxTokens,
+      budgetTokens: budgetTokens ?? undefined,
       userFocusInstruction: userFocusInstruction.trim() || undefined,
       sourceRange: selectedSourceRange ?? undefined,
       includeTimeline,
@@ -858,6 +861,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     selectedDiagnosisNovelId,
     userFocusInstruction,
     selectedSourceRange,
+    budgetTokens,
     includeTimeline,
     analysisPreset,
     llmConfig,
@@ -904,6 +908,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     setSelectedDiagnosisNovelId,
     setUserFocusInstruction,
     setSelectedSourceRange,
+    setBudgetTokens,
     requestSourceChapters,
     setIncludeTimeline,
     setAnalysisPreset,

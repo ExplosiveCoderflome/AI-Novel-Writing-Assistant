@@ -14,6 +14,8 @@ export interface AnalysisRowForSerialize {
   model: string | null;
   temperature: number | null;
   maxTokens: number | null;
+  budgetTokens: number | null;
+  usedTokens: number | null;
   userFocusInstruction: string | null;
   sourceStartChapterIndex: number | null;
   sourceEndChapterIndex: number | null;
@@ -86,6 +88,8 @@ export function serializeAnalysisRow(row: AnalysisRowForSerialize): BookAnalysis
     model: row.model,
     temperature: row.temperature,
     maxTokens: row.maxTokens,
+    budgetTokens: row.budgetTokens,
+    usedTokens: row.usedTokens,
     userFocusInstruction: row.userFocusInstruction,
     sourceRange: row.sourceStartChapterIndex !== null && row.sourceEndChapterIndex !== null
       ? {
