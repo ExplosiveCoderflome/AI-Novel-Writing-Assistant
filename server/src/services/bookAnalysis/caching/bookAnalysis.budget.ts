@@ -1,5 +1,5 @@
-import { prisma } from "../../db/prisma";
-import type { LlmTokenUsageSnapshot } from "../../llm/usageTracking";
+import { prisma } from "../../../db/prisma";
+import type { LlmTokenUsageSnapshot } from "../../../llm/usageTracking";
 
 export const BOOK_ANALYSIS_BUDGET_EXCEEDED_CODE = "budget_exceeded";
 

@@ -1,13 +1,13 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { runStructuredPrompt } from "../../prompting/core/promptRunner";
+import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import {
   bookAnalysisOptimizedDraftPrompt,
   bookAnalysisSectionPrompt,
-} from "../../prompting/prompts/bookAnalysis/bookAnalysis.prompts";
-import type { LlmTokenUsageSnapshot } from "../../llm/usageTracking";
-import { SECTION_PROMPTS } from "./bookAnalysis.constants";
-import type { BookAnalysisOverviewContext, SectionGenerationResult, SourceNote } from "./bookAnalysis.types";
+} from "../../../prompting/prompts/bookAnalysis/bookAnalysis.prompts";
+import type { LlmTokenUsageSnapshot } from "../../../llm/usageTracking";
+import { SECTION_PROMPTS } from "../shared/bookAnalysis.constants";
+import type { BookAnalysisOverviewContext, SectionGenerationResult, SourceNote } from "../shared/bookAnalysis.types";
 import {
   getSectionTitle,
   normalizeBookAnalysisStructuredData,
@@ -17,7 +17,7 @@ import {
   normalizeTemperature,
   renderNotesForPrompt,
   selectNotesForBookAnalysisSection,
-} from "./bookAnalysis.utils";
+} from "../shared/bookAnalysis.utils";
 
 export interface GenerateBookAnalysisSectionOptions {
   overviewContext?: BookAnalysisOverviewContext | null;

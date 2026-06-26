@@ -1,5 +1,5 @@
 import { prisma } from "../../../db/prisma";
-import type { BookAnalysisProgressUpdate } from "../bookAnalysis.types";
+import type { BookAnalysisProgressUpdate } from "../shared/bookAnalysis.types";
 
 const BOOK_ANALYSIS_HEARTBEAT_INTERVAL_MS = 20_000;
 

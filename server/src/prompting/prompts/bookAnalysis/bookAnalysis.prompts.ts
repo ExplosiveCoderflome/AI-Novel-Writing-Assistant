@@ -10,11 +10,11 @@ import {
   bookAnalysisOptimizeDraftOutputSchema,
   bookAnalysisSectionOutputSchema,
   bookAnalysisSourceNoteOutputSchema,
-} from "../../../services/bookAnalysis/bookAnalysisSchemas";
+} from "../../../services/bookAnalysis/shared/bookAnalysisSchemas";
 import {
   BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT,
   BOOK_ANALYSIS_TIMELINE_NODE_LIMIT,
-} from "../../../services/bookAnalysis/bookAnalysis.utils";
+} from "../../../services/bookAnalysis/shared/bookAnalysis.utils";
 
 export interface BookAnalysisSourceNotePromptInput {
   segmentLabel: string;

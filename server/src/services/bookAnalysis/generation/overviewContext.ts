@@ -1,9 +1,9 @@
-import type { BookAnalysisOverviewContext, SectionGenerationResult } from "../bookAnalysis.types";
+import type { BookAnalysisOverviewContext, SectionGenerationResult } from "../shared/bookAnalysis.types";
 import {
   buildAnalysisSummaryFromContent,
   decodeStructuredData,
   getEffectiveContent,
-} from "../bookAnalysis.utils";
+} from "../shared/bookAnalysis.utils";
 
 function readStructuredString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;

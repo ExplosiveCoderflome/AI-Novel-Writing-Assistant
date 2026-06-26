@@ -1,5 +1,5 @@
 import type { BookAnalysisEvidenceItem, BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
-import type { LlmTokenUsageSnapshot } from "../../llm/usageTracking";
+import type { LlmTokenUsageSnapshot } from "../../../llm/usageTracking";
 
 export type AnalysisTask =
   | { analysisId: string; kind: "full" }

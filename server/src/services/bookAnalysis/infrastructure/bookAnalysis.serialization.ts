@@ -1,7 +1,7 @@
 import type { BookAnalysis, BookAnalysisSection, BookAnalysisSectionKey, BookAnalysisStatus } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { resolveLiveBookAnalysisStatus } from "./bookAnalysis.status";
-import { decodeEvidence, decodeNormalizationWarnings, decodeStructuredData } from "./bookAnalysis.utils";
+import { resolveLiveBookAnalysisStatus } from "../shared/bookAnalysis.status";
+import { decodeEvidence, decodeNormalizationWarnings, decodeStructuredData } from "../shared/bookAnalysis.utils";
 
 export interface AnalysisRowForSerialize {
   id: string;

@@ -10,7 +10,7 @@ import {
   normalizeBookAnalysisTimelineNode,
   normalizeBookAnalysisTimelineNodes,
 } from "@ai-novel/shared/utils/bookAnalysisTimeline";
-import { getEffectiveContent } from "./bookAnalysis.utils";
+import { getEffectiveContent } from "../shared/bookAnalysis.utils";
 
 function sectionContentToMarkdown(section: BookAnalysisSection): string {
   const content = getEffectiveContent(section);

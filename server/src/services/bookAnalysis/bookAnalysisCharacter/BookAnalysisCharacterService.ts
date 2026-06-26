@@ -10,7 +10,7 @@ import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import { bookAnalysisCharacterGeneratePrompt } from "../../../prompting/prompts/bookAnalysis/bookAnalysisCharacter.prompts";
-import { BookAnalysisSourceCacheService } from "../bookAnalysis.cache";
+import { BookAnalysisSourceCacheService } from "../caching/bookAnalysis.cache";
 import {
   decodeEvidence,
   getEffectiveContent,
@@ -18,7 +18,7 @@ import {
   normalizeTemperature,
   renderNotesForPrompt,
   safeParseJSON,
-} from "../bookAnalysis.utils";
+} from "../shared/bookAnalysis.utils";
 
 const DEFAULT_CHARACTER_DIMENSIONS: BookAnalysisCharacterDimension[] = [
   "basic",

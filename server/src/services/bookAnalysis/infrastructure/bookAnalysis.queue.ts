@@ -1,4 +1,4 @@
-import type { AnalysisTask } from "./bookAnalysis.types";
+import type { AnalysisTask } from "../shared/bookAnalysis.types";
 
 function toTaskKey(task: AnalysisTask): string {
   return task.kind === "full" ? `${task.analysisId}:full` : `${task.analysisId}:section:${task.sectionKey}`;

@@ -5,12 +5,12 @@ import type {
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
-import { prisma } from "../../db/prisma";
-import { AppError } from "../../middleware/errorHandler";
-import { KnowledgePublishService } from "../knowledge/KnowledgePublishService";
-import { buildAnalysisExportContent } from "./bookAnalysis.export";
-import { publishAnalysisToNovel } from "./bookAnalysis.publish";
-import { serializeAnalysisRow, serializeSectionRow } from "./bookAnalysis.serialization";
+import { prisma } from "../../../db/prisma";
+import { AppError } from "../../../middleware/errorHandler";
+import { KnowledgePublishService } from "../../knowledge/KnowledgePublishService";
+import { buildAnalysisExportContent } from "../publish/bookAnalysis.export";
+import { publishAnalysisToNovel } from "../publish/bookAnalysis.publish";
+import { serializeAnalysisRow, serializeSectionRow } from "../infrastructure/bookAnalysis.serialization";
 
 export class BookAnalysisQueryService {
   private readonly knowledgePublishService = new KnowledgePublishService();

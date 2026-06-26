@@ -1,5 +1,5 @@
-import { prisma } from "../../db/prisma";
-import { isMissingTableError } from "./bookAnalysis.utils";
+import { prisma } from "../../../db/prisma";
+import { isMissingTableError } from "../shared/bookAnalysis.utils";
 
 const BOOK_ANALYSIS_WATCHDOG_INTERVAL_MS = 15_000;
 const BOOK_ANALYSIS_STALE_TIMEOUT_MS = 120_000;

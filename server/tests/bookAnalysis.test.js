@@ -2,21 +2,21 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { setTimeout: delay } = require("node:timers/promises");
 const { prisma } = require("../dist/db/prisma.js");
-const { buildPublishMarkdown } = require("../dist/services/bookAnalysis/bookAnalysis.export.js");
-const { publishAnalysisToNovel } = require("../dist/services/bookAnalysis/bookAnalysis.publish.js");
-const { buildBookAnalysisRagPreChunks } = require("../dist/services/bookAnalysis/bookAnalysis.publish.facets.js");
-const { BookAnalysisSourceCacheService } = require("../dist/services/bookAnalysis/bookAnalysis.cache.js");
-const { BookAnalysisCommandService } = require("../dist/services/bookAnalysis/BookAnalysisCommandService.js");
+const { buildPublishMarkdown } = require("../dist/services/bookAnalysis/publish/bookAnalysis.export.js");
+const { publishAnalysisToNovel } = require("../dist/services/bookAnalysis/publish/bookAnalysis.publish.js");
+const { buildBookAnalysisRagPreChunks } = require("../dist/services/bookAnalysis/publish/bookAnalysis.publish.facets.js");
+const { BookAnalysisSourceCacheService } = require("../dist/services/bookAnalysis/caching/bookAnalysis.cache.js");
+const { BookAnalysisCommandService } = require("../dist/services/bookAnalysis/application/BookAnalysisCommandService.js");
 const { BookAnalysisGenerationService } = require("../dist/services/bookAnalysis/bookAnalysis.generation.js");
 const {
   BookAnalysisBudgetExceededError,
   BookAnalysisBudgetGuard,
   normalizeBookAnalysisBudgetTokens,
-} = require("../dist/services/bookAnalysis/bookAnalysis.budget.js");
+} = require("../dist/services/bookAnalysis/caching/bookAnalysis.budget.js");
 const { BookAnalysisCharacterService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterService.js");
 const { BookAnalysisCharacterMediaService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterMediaService.js");
-const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/BookAnalysisQueryService.js");
-const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/bookAnalysis.queue.js");
+const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/application/BookAnalysisQueryService.js");
+const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/infrastructure/bookAnalysis.queue.js");
 const { KnowledgeService } = require("../dist/services/knowledge/KnowledgeService.js");
 const { KnowledgePublishService } = require("../dist/services/knowledge/KnowledgePublishService.js");
 const { NovelExportService } = require("../dist/modules/export/novelExport.service.js");
@@ -25,8 +25,8 @@ const {
   DocumentChapterService,
 } = require("../dist/services/knowledge/DocumentChapterService.js");
 const { NovelReferenceService } = require("../dist/services/novel/NovelReferenceService.js");
-const { resolveLiveBookAnalysisStatus } = require("../dist/services/bookAnalysis/bookAnalysis.status.js");
-const { serializeSectionRow } = require("../dist/services/bookAnalysis/bookAnalysis.serialization.js");
+const { resolveLiveBookAnalysisStatus } = require("../dist/services/bookAnalysis/shared/bookAnalysis.status.js");
+const { serializeSectionRow } = require("../dist/services/bookAnalysis/infrastructure/bookAnalysis.serialization.js");
 const {
   buildSourceSegments,
   normalizeBookAnalysisEvidence,
@@ -34,8 +34,8 @@ const {
   normalizeBookAnalysisStructuredDataWithWarnings,
   renderNotesForPrompt,
   selectNotesForBookAnalysisSection,
-} = require("../dist/services/bookAnalysis/bookAnalysis.utils.js");
-const { BookAnalysisWatchdogService } = require("../dist/services/bookAnalysis/BookAnalysisWatchdogService.js");
+} = require("../dist/services/bookAnalysis/shared/bookAnalysis.utils.js");
+const { BookAnalysisWatchdogService } = require("../dist/services/bookAnalysis/application/BookAnalysisWatchdogService.js");
 
 function createDeferred() {
   let resolve;

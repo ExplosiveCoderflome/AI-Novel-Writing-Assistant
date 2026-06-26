@@ -7,7 +7,7 @@ import {
   CHAPTER_HEADING_REGEX,
   MIN_CHAPTER_DETECTION_COUNT,
   MIN_SEGMENT_BODY_LENGTH,
-} from "../bookAnalysis/bookAnalysis.constants";
+} from "../bookAnalysis/shared/bookAnalysis.constants";
 
 type ChapterSplitter = DocumentChapterSplitResult["splitter"];
 

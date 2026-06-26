@@ -9,7 +9,7 @@ import {
   listActiveKnowledgeDocumentContents,
   resolveKnowledgeDocumentIds,
 } from "../knowledge/common";
-import { normalizeBookAnalysisStructuredData } from "../bookAnalysis/bookAnalysis.utils";
+import { normalizeBookAnalysisStructuredData } from "../bookAnalysis/shared/bookAnalysis.utils";
 
 export type NovelReferenceStage =
   | "outline"

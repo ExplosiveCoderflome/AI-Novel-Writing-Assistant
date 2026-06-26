@@ -5,7 +5,7 @@ import {
   type BookAnalysisSection,
   type BookAnalysisTimelineNode,
 } from "@ai-novel/shared/types/bookAnalysis";
-import type { RagChunkFacets, RagChunkFacetKey, RagPreChunk } from "../rag/chunkFacets";
+import type { RagChunkFacets, RagChunkFacetKey, RagPreChunk } from "../../rag/chunkFacets";
 
 const FIELD_FACET_MAP: Record<string, RagChunkFacetKey[]> = {
   genreTags: ["genreTags"],

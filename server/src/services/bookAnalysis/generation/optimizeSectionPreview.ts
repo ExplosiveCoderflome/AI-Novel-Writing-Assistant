@@ -2,12 +2,12 @@ import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
-import type { BookAnalysisSourceCacheService } from "../bookAnalysis.cache";
-import type { BookAnalysisSectionWriter } from "../bookAnalysis.sectionWriter";
+import type { BookAnalysisSourceCacheService } from "../caching/bookAnalysis.cache";
+import type { BookAnalysisSectionWriter } from "../writing/bookAnalysis.sectionWriter";
 import {
   normalizeMaxTokens,
   normalizeTemperature,
-} from "../bookAnalysis.utils";
+} from "../shared/bookAnalysis.utils";
 import { buildBookAnalysisSourceScope } from "./sourceScope";
 
 export async function optimizeSectionPreview(

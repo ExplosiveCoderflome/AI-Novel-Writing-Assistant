@@ -5,14 +5,14 @@ import type {
 } from "@ai-novel/shared/types/bookAnalysis";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { prisma } from "../../db/prisma";
-import { AppError } from "../../middleware/errorHandler";
-import { DocumentChapterService } from "../knowledge/DocumentChapterService";
-import { normalizeBookAnalysisBudgetTokens } from "./bookAnalysis.budget";
-import { getBookAnalysisDefaultBudgetTokens, getBookAnalysisMaxConcurrentTasks } from "./bookAnalysis.config";
-import { BookAnalysisGenerationService } from "./bookAnalysis.generation";
-import { BookAnalysisTaskQueue } from "./bookAnalysis.queue";
-import { buildAnalysisSummaryFromContent, normalizeMaxTokens, normalizeTemperature } from "./bookAnalysis.utils";
+import { prisma } from "../../../db/prisma";
+import { AppError } from "../../../middleware/errorHandler";
+import { DocumentChapterService } from "../../knowledge/DocumentChapterService";
+import { normalizeBookAnalysisBudgetTokens } from "../caching/bookAnalysis.budget";
+import { getBookAnalysisDefaultBudgetTokens, getBookAnalysisMaxConcurrentTasks } from "../shared/bookAnalysis.config";
+import { BookAnalysisGenerationService } from "../bookAnalysis.generation";
+import { BookAnalysisTaskQueue } from "../infrastructure/bookAnalysis.queue";
+import { buildAnalysisSummaryFromContent, normalizeMaxTokens, normalizeTemperature } from "../shared/bookAnalysis.utils";
 import { BookAnalysisWatchdogService } from "./BookAnalysisWatchdogService";
 import { BookAnalysisQueryService } from "./BookAnalysisQueryService";
 

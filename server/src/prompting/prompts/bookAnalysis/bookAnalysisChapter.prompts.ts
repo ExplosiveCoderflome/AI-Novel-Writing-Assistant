@@ -1,7 +1,7 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
-import { bookAnalysisChapterSplitOutputSchema } from "../../../services/bookAnalysis/bookAnalysisSchemas";
+import { bookAnalysisChapterSplitOutputSchema } from "../../../services/bookAnalysis/shared/bookAnalysisSchemas";
 
 export interface BookAnalysisChapterSplitPromptInput {
   content: string;

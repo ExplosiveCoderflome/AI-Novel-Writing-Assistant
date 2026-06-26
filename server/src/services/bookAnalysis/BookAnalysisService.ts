@@ -6,8 +6,8 @@ import type {
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { BookAnalysisCommandService } from "./BookAnalysisCommandService";
-import { BookAnalysisQueryService } from "./BookAnalysisQueryService";
+import { BookAnalysisCommandService } from "./application/BookAnalysisCommandService";
+import { BookAnalysisQueryService } from "./application/BookAnalysisQueryService";
 
 class BookAnalysisServiceFacade {
   private readonly queryService = new BookAnalysisQueryService();

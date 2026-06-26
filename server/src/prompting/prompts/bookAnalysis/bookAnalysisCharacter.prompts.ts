@@ -5,7 +5,7 @@ import type {
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
-import { bookAnalysisCharacterGenerateOutputSchema } from "../../../services/bookAnalysis/bookAnalysisSchemas";
+import { bookAnalysisCharacterGenerateOutputSchema } from "../../../services/bookAnalysis/shared/bookAnalysisSchemas";
 
 export interface BookAnalysisCharacterGeneratePromptInput {
   generationDepth: BookAnalysisCharacterGenerationDepth;

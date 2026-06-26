@@ -2,7 +2,7 @@ import {
   LOADING_CACHE_PROGRESS,
   NOTES_PROGRESS_SHARE,
   SECTION_PROGRESS_SHARE,
-} from "./bookAnalysis.config";
+} from "../shared/bookAnalysis.config";
 
 export function getLoadingCacheProgress(): number {
   return LOADING_CACHE_PROGRESS;

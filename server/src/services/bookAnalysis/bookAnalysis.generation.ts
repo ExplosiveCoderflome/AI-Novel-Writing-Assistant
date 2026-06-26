@@ -1,15 +1,15 @@
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
-import { BookAnalysisBudgetExceededError, BookAnalysisBudgetGuard } from "./bookAnalysis.budget";
-import { BookAnalysisSourceCacheService } from "./bookAnalysis.cache";
-import { getBookAnalysisSectionConcurrency } from "./bookAnalysis.config";
-import { runWithConcurrency } from "./bookAnalysis.concurrent";
+import { BookAnalysisBudgetExceededError, BookAnalysisBudgetGuard } from "./caching/bookAnalysis.budget";
+import { BookAnalysisSourceCacheService } from "./caching/bookAnalysis.cache";
+import { getBookAnalysisSectionConcurrency } from "./shared/bookAnalysis.config";
+import { runWithConcurrency } from "./infrastructure/bookAnalysis.concurrent";
 import {
   formatSectionProgressLabel,
   getSectionStageProgress,
-} from "./bookAnalysis.progress";
-import { BookAnalysisSectionWriter } from "./bookAnalysis.sectionWriter";
+} from "./infrastructure/bookAnalysis.progress";
+import { BookAnalysisSectionWriter } from "./writing/bookAnalysis.sectionWriter";
 import {
   bindEvidenceToDocumentChapters,
   DocumentChapterService,
@@ -17,7 +17,7 @@ import {
 import type {
   BookAnalysisOverviewContext,
   SourceNote,
-} from "./bookAnalysis.types";
+} from "./shared/bookAnalysis.types";
 import {
   buildAnalysisSummaryFromContent,
   encodeEvidence,
@@ -26,7 +26,7 @@ import {
   getEffectiveContent,
   normalizeMaxTokens,
   normalizeTemperature,
-} from "./bookAnalysis.utils";
+} from "./shared/bookAnalysis.utils";
 import {
   AnalysisCancelledError,
   ensureNotCancelled,

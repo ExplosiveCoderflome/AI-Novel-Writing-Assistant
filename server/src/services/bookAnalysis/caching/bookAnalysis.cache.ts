@@ -1,11 +1,11 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { prisma } from "../../db/prisma";
-import { isBuiltInProvider, PROVIDERS } from "../../llm/providers";
-import { AppError } from "../../middleware/errorHandler";
-import { runStructuredPrompt } from "../../prompting/core/promptRunner";
-import { bookAnalysisSourceNotePrompt } from "../../prompting/prompts/bookAnalysis/bookAnalysis.prompts";
-import { getBookAnalysisCacheSegmentVersion, getBookAnalysisNotesConcurrency } from "./bookAnalysis.config";
-import { runWithConcurrency } from "./bookAnalysis.concurrent";
+import { prisma } from "../../../db/prisma";
+import { isBuiltInProvider, PROVIDERS } from "../../../llm/providers";
+import { AppError } from "../../../middleware/errorHandler";
+import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
+import { bookAnalysisSourceNotePrompt } from "../../../prompting/prompts/bookAnalysis/bookAnalysis.prompts";
+import { getBookAnalysisCacheSegmentVersion, getBookAnalysisNotesConcurrency } from "../shared/bookAnalysis.config";
+import { runWithConcurrency } from "../infrastructure/bookAnalysis.concurrent";
 import {
   formatCacheHitLabel,
   formatCacheLookupLabel,
@@ -13,8 +13,8 @@ import {
   getCacheHitProgress,
   getLoadingCacheProgress,
   getNotesStageProgress,
-} from "./bookAnalysis.progress";
-import type { BookAnalysisProgressUpdate, SourceNote, SourceNotesResult } from "./bookAnalysis.types";
+} from "../infrastructure/bookAnalysis.progress";
+import type { BookAnalysisProgressUpdate, SourceNote, SourceNotesResult } from "../shared/bookAnalysis.types";
 import {
   buildSourceSegments,
   compactExcerpt,
@@ -25,7 +25,7 @@ import {
   safeParseJSON,
   toEvidenceList,
   toStringList,
-} from "./bookAnalysis.utils";
+} from "../shared/bookAnalysis.utils";
 
 interface GetOrBuildSourceNotesInput {
   analysisId?: string;

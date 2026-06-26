@@ -1,7 +1,7 @@
 import type { BookAnalysisDetail, BookAnalysisPublishResult } from "@ai-novel/shared/types/bookAnalysis";
-import { prisma } from "../../db/prisma";
-import { AppError } from "../../middleware/errorHandler";
-import { KnowledgePublishService } from "../knowledge/KnowledgePublishService";
+import { prisma } from "../../../db/prisma";
+import { AppError } from "../../../middleware/errorHandler";
+import { KnowledgePublishService } from "../../knowledge/KnowledgePublishService";
 import { buildPublishDocumentTitle, buildPublishFileName, buildPublishMarkdown } from "./bookAnalysis.export";
 import { buildBookAnalysisRagPreChunks } from "./bookAnalysis.publish.facets";
 
