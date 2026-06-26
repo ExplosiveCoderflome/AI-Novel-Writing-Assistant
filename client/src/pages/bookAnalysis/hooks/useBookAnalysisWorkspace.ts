@@ -135,7 +135,6 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     enabled: Boolean(selectedAnalysis?.documentId && selectedAnalysis?.documentVersionId),
   });
 
-
   const sourceChaptersQuery = useQuery({
     queryKey: queryKeys.knowledge.chapters(selectedDocumentId || "none", selectedSourceVersionId || "none"),
     queryFn: () => getKnowledgeDocumentVersionChapters(selectedDocumentId, selectedSourceVersionId),
