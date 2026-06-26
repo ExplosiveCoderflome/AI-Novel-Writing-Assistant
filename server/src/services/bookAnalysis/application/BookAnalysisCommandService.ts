@@ -320,6 +320,7 @@ export class BookAnalysisCommandService {
         where: {
           analysisId,
           frozen: false,
+          status: { not: "succeeded" },
         },
         data: {
           status: "idle",
