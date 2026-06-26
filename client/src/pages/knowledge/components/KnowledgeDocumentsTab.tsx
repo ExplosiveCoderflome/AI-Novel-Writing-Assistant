@@ -33,6 +33,7 @@ interface KnowledgeDocumentsTabProps {
   documents: KnowledgeDocumentSummary[];
   latestKnowledgeDocumentJobs: Map<string, RagJobSummary>;
   onSelectDocument: (id: string) => void;
+  onOpenRecallTest: (id: string) => void;
   onReindexDocument: (id: string) => void;
   onUpdateStatus: (id: string, status: KnowledgeDocumentStatus) => void;
 }
@@ -49,6 +50,7 @@ export default function KnowledgeDocumentsTab({
   documents,
   latestKnowledgeDocumentJobs,
   onSelectDocument,
+  onOpenRecallTest,
   onReindexDocument,
   onUpdateStatus,
 }: KnowledgeDocumentsTabProps) {
@@ -146,6 +148,11 @@ export default function KnowledgeDocumentsTab({
               {document.kind === "analysis_published" && document.sourceAnalysisId ? (
                 <Button asChild size="sm" variant="outline">
                   <Link to={`/book-analysis?analysisId=${document.sourceAnalysisId}`}>查看来源拆书</Link>
+                </Button>
+              ) : null}
+              {document.latestIndexStatus === "succeeded" ? (
+                <Button size="sm" variant="outline" onClick={() => onOpenRecallTest(document.id)}>
+                  召回测试
                 </Button>
               ) : null}
               <Button size="sm" variant="outline" onClick={() => onReindexDocument(document.id)}>

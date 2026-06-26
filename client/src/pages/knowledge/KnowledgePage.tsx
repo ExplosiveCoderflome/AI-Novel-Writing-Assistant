@@ -495,6 +495,11 @@ export default function KnowledgePage() {
             documents={visibleDocuments}
             latestKnowledgeDocumentJobs={latestKnowledgeDocumentJobs}
             onSelectDocument={setSelectedDocumentId}
+            onOpenRecallTest={(id) => {
+              setRecallQuery("");
+              setRecallResult(null);
+              setSelectedDocumentId(id);
+            }}
             onReindexDocument={(id) => reindexMutation.mutate(id)}
             onUpdateStatus={(id, nextStatus) => updateStatusMutation.mutate({ id, status: nextStatus })}
           />
