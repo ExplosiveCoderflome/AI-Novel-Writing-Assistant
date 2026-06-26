@@ -64,8 +64,8 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   });
 
   const listKey = useMemo(
-    () => `${keyword.trim()}-${status || "all"}-${selectedDocumentId || "any"}`,
-    [keyword, selectedDocumentId, status],
+    () => `${keyword.trim()}-${status || "all"}`,
+    [keyword, status],
   );
 
   const analysesQuery = useQuery({
@@ -74,7 +74,6 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       listBookAnalyses({
         keyword: keyword.trim() || undefined,
         status: status || undefined,
-        documentId: selectedDocumentId || undefined,
       }),
     refetchInterval: (query) => {
       const rows = query.state.data?.data ?? [];
