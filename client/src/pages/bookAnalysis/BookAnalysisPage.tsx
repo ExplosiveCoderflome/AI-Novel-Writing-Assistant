@@ -41,11 +41,17 @@ export default function BookAnalysisPage() {
       isLoading={workspace.pending.loadCharacters}
       pending={{
         generate: workspace.pending.generateCharacters,
+        identify: workspace.pending.identifyCharacters,
+        generateProfile: workspace.pending.generateCharacterProfile,
+        generateAll: workspace.pending.generateAllCandidates,
+        generatingIds: workspace.pending.generatingCharacterIds,
         create: workspace.pending.createCharacter,
         update: workspace.pending.updateCharacter,
         delete: workspace.pending.deleteCharacter,
       }}
-      onGenerate={workspace.generateCharacters}
+      onIdentify={workspace.identifyCharacters}
+      onGenerateProfile={workspace.generateCharacterProfile}
+      onGenerateAll={workspace.generateAllCandidates}
       onCreate={workspace.createCharacter}
       onUpdate={workspace.updateCharacter}
       onDelete={workspace.deleteCharacter}

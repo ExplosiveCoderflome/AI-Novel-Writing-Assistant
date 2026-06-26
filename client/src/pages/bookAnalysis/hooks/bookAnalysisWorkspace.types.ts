@@ -39,6 +39,10 @@ export interface PendingState {
   resumeWithBudget: boolean;
   loadCharacters: boolean;
   generateCharacters: boolean;
+  identifyCharacters: boolean;
+  generateCharacterProfile: boolean;
+  generateAllCandidates: boolean;
+  generatingCharacterIds: Set<string>;
   createCharacter: boolean;
   updateCharacter: boolean;
   deleteCharacter: boolean;
@@ -114,6 +118,18 @@ export interface BookAnalysisWorkspace {
     generationDepth: BookAnalysisCharacterGenerationDepth;
     selectedDimensions: BookAnalysisCharacterDimension[];
     characterNames?: string[];
+  }) => Promise<void>;
+  identifyCharacters: () => Promise<void>;
+  generateCharacterProfile: (
+    characterId: string,
+    input: {
+      generationDepth: BookAnalysisCharacterGenerationDepth;
+      selectedDimensions: BookAnalysisCharacterDimension[];
+    },
+  ) => Promise<void>;
+  generateAllCandidates: (input: {
+    generationDepth: BookAnalysisCharacterGenerationDepth;
+    selectedDimensions: BookAnalysisCharacterDimension[];
   }) => Promise<void>;
   createCharacter: (input: {
     name: string;

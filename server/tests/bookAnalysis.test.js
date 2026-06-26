@@ -247,6 +247,11 @@ test("BookAnalysisCharacterService supports manual character CRUD without touchi
       analysisId: data.analysisId,
       name: data.name,
       role: data.role,
+      status: data.status ?? "generated",
+      briefDescription: data.briefDescription ?? null,
+      importance: data.importance ?? null,
+      occurringChaptersJson: data.occurringChaptersJson ?? null,
+      lastGenerationError: data.lastGenerationError ?? null,
       generationDepth: data.generationDepth,
       selectedDimensionsJson: data.selectedDimensionsJson,
       profileJson: data.profileJson,
@@ -267,6 +272,11 @@ test("BookAnalysisCharacterService supports manual character CRUD without touchi
     Object.assign(row, {
       name: data.name ?? row.name,
       role: data.role ?? row.role,
+      status: data.status ?? row.status,
+      briefDescription: data.briefDescription ?? row.briefDescription,
+      importance: data.importance ?? row.importance,
+      occurringChaptersJson: data.occurringChaptersJson ?? row.occurringChaptersJson,
+      lastGenerationError: data.lastGenerationError ?? row.lastGenerationError,
       profileJson: data.profileJson ?? row.profileJson,
       selectedDimensionsJson: data.selectedDimensionsJson ?? row.selectedDimensionsJson,
       updatedAt: now,
@@ -320,6 +330,8 @@ test("BookAnalysisCharacterService persists generated profile arcs and scenes on
     analysisFindUnique: prisma.bookAnalysis.findUnique,
     characterCount: prisma.bookAnalysisCharacter.count,
     characterFindMany: prisma.bookAnalysisCharacter.findMany,
+    characterFindFirst: prisma.bookAnalysisCharacter.findFirst,
+    characterUpdate: prisma.bookAnalysisCharacter.update,
     transaction: prisma.$transaction,
   };
   const now = new Date("2026-06-24T10:00:00.000Z");
@@ -349,6 +361,11 @@ test("BookAnalysisCharacterService persists generated profile arcs and scenes on
     analysisId: row.analysisId,
     name: row.name,
     role: row.role,
+    status: row.status ?? "candidate",
+    briefDescription: row.briefDescription ?? null,
+    importance: row.importance ?? null,
+    occurringChaptersJson: row.occurringChaptersJson ?? null,
+    lastGenerationError: row.lastGenerationError ?? null,
     generationDepth: row.generationDepth,
     selectedDimensionsJson: row.selectedDimensionsJson,
     profileJson: row.profileJson,
@@ -364,6 +381,36 @@ test("BookAnalysisCharacterService persists generated profile arcs and scenes on
       .map((scene, sceneIndex) => ({ id: `scene-${sceneIndex + 1}`, ...scene, createdAt: now, updatedAt: now })),
     sortOrder: index,
   }));
+  prisma.bookAnalysisCharacter.findFirst = async ({ where }) => {
+    const row = characterCreates.find((item) => item.id === where.id && item.analysisId === where.analysisId);
+    if (!row) {
+      return null;
+    }
+    return {
+      ...row,
+      arcs: arcCreates
+        .filter((arc) => arc.characterId === row.id)
+        .map((arc, arcIndex) => ({ id: `arc-${arcIndex + 1}`, ...arc, createdAt: now, updatedAt: now })),
+      scenes: sceneCreates
+        .filter((scene) => scene.characterId === row.id)
+        .map((scene, sceneIndex) => ({ id: `scene-${sceneIndex + 1}`, ...scene, createdAt: now, updatedAt: now })),
+    };
+  };
+  prisma.bookAnalysisCharacter.update = async ({ where, data }) => {
+    const row = characterCreates.find((item) => item.id === where.id);
+    Object.assign(row, {
+      name: data.name ?? row.name,
+      role: data.role ?? row.role,
+      status: data.status ?? row.status,
+      generationDepth: data.generationDepth ?? row.generationDepth,
+      selectedDimensionsJson: data.selectedDimensionsJson ?? row.selectedDimensionsJson,
+      profileJson: data.profileJson ?? row.profileJson,
+      evidenceJson: data.evidenceJson ?? row.evidenceJson,
+      lastGenerationError: data.lastGenerationError ?? row.lastGenerationError,
+      updatedAt: now,
+    });
+    return row;
+  };
   prisma.$transaction = async (callback) => callback({
     bookAnalysisCharacter: {
       create: async ({ data }) => {
@@ -371,14 +418,31 @@ test("BookAnalysisCharacterService persists generated profile arcs and scenes on
         characterCreates.push(row);
         return row;
       },
+      update: async ({ where, data }) => prisma.bookAnalysisCharacter.update({ where, data }),
     },
     bookAnalysisCharacterArc: {
+      deleteMany: async ({ where }) => {
+        for (let index = arcCreates.length - 1; index >= 0; index -= 1) {
+          if (arcCreates[index].characterId === where.characterId) {
+            arcCreates.splice(index, 1);
+          }
+        }
+        return { count: 1 };
+      },
       create: async ({ data }) => {
         arcCreates.push(data);
         return data;
       },
     },
     bookAnalysisCharacterScene: {
+      deleteMany: async ({ where }) => {
+        for (let index = sceneCreates.length - 1; index >= 0; index -= 1) {
+          if (sceneCreates[index].characterId === where.characterId) {
+            sceneCreates.splice(index, 1);
+          }
+        }
+        return { count: 1 };
+      },
       create: async ({ data }) => {
         sceneCreates.push(data);
         return data;
@@ -407,7 +471,7 @@ test("BookAnalysisCharacterService persists generated profile arcs and scenes on
     promptInputs.push(promptInput);
     return {
       output: {
-        characters: [{
+        character: {
           name: "林秋",
           role: "主角",
           profile: {
@@ -427,8 +491,9 @@ test("BookAnalysisCharacterService persists generated profile arcs and scenes on
             performance: { action: "主动追查" },
             evidence: [{ label: "决定", excerpt: "决定查清旧案" }],
           }],
-        }],
+        },
       },
+      meta: { tokenUsage: null },
     };
   });
 
@@ -440,7 +505,7 @@ test("BookAnalysisCharacterService persists generated profile arcs and scenes on
     });
 
     assert.equal(promptInputs.length, 1);
-    assert.deepEqual(promptInputs[0].characterNames, ["林秋"]);
+    assert.equal(promptInputs[0].character.name, "林秋");
     assert.match(promptInputs[0].characterSystemContext, /林秋：主角/);
     assert.equal(characterCreates.length, 1);
     assert.equal(arcCreates.length, 1);
@@ -453,6 +518,8 @@ test("BookAnalysisCharacterService persists generated profile arcs and scenes on
     prisma.bookAnalysis.findUnique = original.analysisFindUnique;
     prisma.bookAnalysisCharacter.count = original.characterCount;
     prisma.bookAnalysisCharacter.findMany = original.characterFindMany;
+    prisma.bookAnalysisCharacter.findFirst = original.characterFindFirst;
+    prisma.bookAnalysisCharacter.update = original.characterUpdate;
     prisma.$transaction = original.transaction;
   }
 });
@@ -467,6 +534,7 @@ test("BookAnalysisCharacterMediaService queues book-analysis character image tas
     analysisId: "analysis-1",
     name: "林秋",
     role: "主角",
+    status: "generated",
     profileJson: JSON.stringify({
       name: "林秋",
       role: "主角",
@@ -551,6 +619,7 @@ test("BookAnalysisCharacterMediaService promotes a profile to BaseCharacter with
     analysisId: "analysis-1",
     name: "林秋",
     role: "主角",
+    status: "generated",
     profileJson: JSON.stringify({
       name: "林秋",
       role: "主角",

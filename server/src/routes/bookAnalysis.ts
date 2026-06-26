@@ -168,6 +168,27 @@ const characterGenerateSchema = z.object({
   characterNames: z.array(z.string().trim().min(1).max(40)).max(8).optional(),
 });
 
+const characterIdentifySchema = z.object({
+  limit: z.number().int().min(1).max(16).optional(),
+}).default({});
+
+const characterProfileGenerateSchema = z.object({
+  generationDepth: characterDepthSchema.default("standard"),
+  selectedDimensions: z.array(characterDimensionSchema).min(1).max(7).default([
+    "basic",
+    "appearance",
+    "personality",
+    "motivation",
+    "arc",
+    "relations",
+    "scenes",
+  ]),
+});
+
+const characterCandidateBatchGenerateSchema = characterProfileGenerateSchema.extend({
+  includeFailed: z.boolean().optional().default(true),
+});
+
 const characterImagePrepareSchema = z.object({
   provider: providerSchema.optional(),
 });
@@ -271,6 +292,25 @@ router.post(
 );
 
 router.post(
+  "/:id/characters/identify",
+  validate({ params: analysisParamsSchema, body: characterIdentifySchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof analysisParamsSchema>;
+      const body = req.body as z.infer<typeof characterIdentifySchema>;
+      const data = await bookAnalysisCharacterService.identifyCharacterCandidates(id, body);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Book analysis character candidates identified.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
   "/:id/characters/generate",
   validate({ params: analysisParamsSchema, body: characterGenerateSchema }),
   async (req, res, next) => {
@@ -282,6 +322,44 @@ router.post(
         success: true,
         data,
         message: "Book analysis characters generated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/characters/generate-candidates",
+  validate({ params: analysisParamsSchema, body: characterCandidateBatchGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof analysisParamsSchema>;
+      const body = req.body as z.infer<typeof characterCandidateBatchGenerateSchema>;
+      const data = await bookAnalysisCharacterService.generateAllCandidates(id, body);
+      res.status(201).json({
+        success: true,
+        data,
+        message: "Book analysis character candidate profiles generated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:id/characters/:characterId/generate-profile",
+  validate({ params: analysisCharacterParamsSchema, body: characterProfileGenerateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId } = req.params as z.infer<typeof analysisCharacterParamsSchema>;
+      const body = req.body as z.infer<typeof characterProfileGenerateSchema>;
+      const data = await bookAnalysisCharacterService.generateCharacterProfile(id, characterId, body);
+      res.status(201).json({
+        success: true,
+        data,
+        message: "Book analysis character profile generated.",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);

@@ -28,7 +28,7 @@
 | PR-5.1 收尾小修 | 删除 `runFullAnalysis` 第二阶段残留的 overview summary 分支死代码、`runSingleSection` 注入 overview context | ✅ 已合并 |
 | 阶段一：用户介入 | 全局拆书重点与小节特别关注，创建、重建、单节重跑和 Prompt 均携带 | ✅ 已实施 |
 | 阶段二：章节与证据回溯 | `DocumentChapter` 缓存、evidence 章节定位与原文高亮 | ✅ 已实施 |
-| 阶段三：深度角色档案 | 独立拆书角色、弧线、场景表现与主动生成入口 | ✅ 已实施 |
+| 阶段三：深度角色档案 | 独立拆书角色、候选识别、按需生成档案、弧线与场景表现 | ✅ 已实施 |
 | 阶段四：角色配图与升格 | `book_analysis_character` 图片场景、主图管理与升格到角色库 | ✅ 已实施 |
 | 阶段五：诊断模式 | Novel 正文导出为知识文档，复用拆书链路创建诊断分析 | ✅ 已实施 |
 | P0 预算恢复补丁 | 预算可调整、预算用尽后扩容续跑、成功小节与冻结小节免覆盖 | ✅ 已实施 |
@@ -109,7 +109,7 @@ E1 是"零工程改动 / 可能打开新场景"的旁路验证，建议作为独
 
 | 模型 | 关系 | 主要字段 | 说明 |
 |---|---|---|---|
-| `BookAnalysisCharacter` | BookAnalysis 1—N | name、role、generationDepth、selectedDimensionsJson、profileJson、evidence | 拆书角色档案，详细度可选 quick/standard/deep |
+| `BookAnalysisCharacter` | BookAnalysis 1—N | name、role、status、briefDescription、importance、occurringChaptersJson、generationDepth、selectedDimensionsJson、profileJson、evidence | 拆书角色候选与完整档案共用实体；candidate 阶段 `profileJson` 可为空，generated 阶段保存 quick/standard/deep 档案 |
 | `BookAnalysisCharacterArc` | Character 1—N | chapterRef、stageLabel、stateSnapshotJson | 角色 × 章节弧线节点，对应想法 3 的"成长追踪" |
 | `BookAnalysisCharacterScene` | Character 1—N | sceneLabel、sceneType、performanceJson、evidence | 角色 × 场景表现，对应想法 4，本期 sceneLabel 是字符串，D1 落地后升级为关联 |
 
@@ -397,11 +397,11 @@ E1 是"零工程改动 / 可能打开新场景"的旁路验证，建议作为独
 
 ### 6.6 阶段三：角色深度档案
 
-**交付价值**：用户可以为拆书结果中的每个角色生成深度档案，选择想分析的维度（外形 / 性格 / 动机 / 弧线 / 关系 / 场景表现）和深度（quick / standard / deep）；档案包含角色在不同章节的状态变化和在关键场景的具体表现。
+**交付价值**：用户可以先低成本识别拆书结果中的角色候选，再为值得研究的角色生成深度档案，选择想分析的维度（外形 / 性格 / 动机 / 弧线 / 关系 / 场景表现）和深度（quick / standard / deep）；档案包含角色在不同章节的状态变化和在关键场景的具体表现。
 
 **拆分**：先 C1 主体，后 C2+C3 子实体。
 
-**C1 范围**：新增 `BookAnalysisCharacter` 实体、shared `CharacterProfileSchema`、生成服务（输入是源 notes + 用户选维度 + 深度 + character_system 已识别角色清单）、UI 主面板（"深度角色档案"Tab）、与 character_system 联动（清单复用、UI 跳转）。
+**C1 范围**：新增 `BookAnalysisCharacter` 实体、shared `CharacterProfileSchema`、候选识别服务、单角色档案生成服务（输入是源 notes + 用户选维度 + 深度 + character_system 已识别角色清单）、批量生成候选入口、UI 主面板（"识别角色"、候选卡、"全部生成"、完整档案卡）、与 character_system 联动（清单复用、UI 跳转）。
 
 **C2+C3 范围**：新增 `BookAnalysisCharacterArc`（角色 × 章节弧线节点）和 `BookAnalysisCharacterScene`（角色 × 场景表现）；弧线节点 chapterRef 依赖阶段二的 Chapter 实体；场景 sceneLabel 本期字符串承载，方向 D 落地后升级关联。
 
@@ -409,6 +409,7 @@ E1 是"零工程改动 / 可能打开新场景"的旁路验证，建议作为独
 
 **验收要点**：
 - 用户可选维度 + 深度生成档案；历史 BookAnalysis 默认不生成，需主动触发
+- 用户可先识别候选角色，再单个或批量生成候选档案；已生成档案不会被重复识别覆盖
 - 与 character_system 共存，角色清单复用
 - 弧线节点能引用真实 chapterIndex（依赖阶段二 A1）
 - 主档案 deep 模式自动生成弧线 + 场景，但用户可禁用

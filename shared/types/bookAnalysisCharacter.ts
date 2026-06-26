@@ -2,6 +2,7 @@ import type { BookAnalysisEvidenceItem } from "./bookAnalysis";
 import type { CharacterProfile } from "./characterProfile";
 
 export type BookAnalysisCharacterGenerationDepth = "quick" | "standard" | "deep";
+export type BookAnalysisCharacterStatus = "candidate" | "generating" | "generated" | "failed";
 
 export type BookAnalysisCharacterDimension =
   | "basic"
@@ -41,6 +42,11 @@ export interface BookAnalysisCharacter {
   analysisId: string;
   name: string;
   role: string;
+  status: BookAnalysisCharacterStatus;
+  briefDescription?: string | null;
+  importance?: string | null;
+  occurringChapters?: string[];
+  lastGenerationError?: string | null;
   generationDepth: BookAnalysisCharacterGenerationDepth;
   selectedDimensions: BookAnalysisCharacterDimension[];
   profile: CharacterProfile;
@@ -56,6 +62,19 @@ export interface BookAnalysisCharacterGenerateInput {
   generationDepth: BookAnalysisCharacterGenerationDepth;
   selectedDimensions: BookAnalysisCharacterDimension[];
   characterNames?: string[];
+}
+
+export interface BookAnalysisCharacterIdentifyInput {
+  limit?: number;
+}
+
+export interface BookAnalysisCharacterProfileGenerateInput {
+  generationDepth: BookAnalysisCharacterGenerationDepth;
+  selectedDimensions: BookAnalysisCharacterDimension[];
+}
+
+export interface BookAnalysisCharacterBatchGenerateInput extends BookAnalysisCharacterProfileGenerateInput {
+  includeFailed?: boolean;
 }
 
 export const BOOK_ANALYSIS_CHARACTER_DIMENSION_LABELS: Readonly<Record<BookAnalysisCharacterDimension, string>> = {

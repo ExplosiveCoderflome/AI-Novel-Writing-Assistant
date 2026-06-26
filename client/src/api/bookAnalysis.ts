@@ -10,8 +10,11 @@ import type {
 } from "@ai-novel/shared/types/bookAnalysis";
 import type {
   BookAnalysisCharacter,
+  BookAnalysisCharacterBatchGenerateInput,
   BookAnalysisCharacterDimension,
   BookAnalysisCharacterGenerationDepth,
+  BookAnalysisCharacterIdentifyInput,
+  BookAnalysisCharacterProfileGenerateInput,
 } from "@ai-novel/shared/types/bookAnalysisCharacter";
 import type { CharacterProfile } from "@ai-novel/shared/types/characterProfile";
 import type { ImageAsset, ImageGenerationTask } from "@ai-novel/shared/types/image";
@@ -162,6 +165,40 @@ export async function generateBookAnalysisCharacters(
 ) {
   const { data } = await apiClient.post<ApiResponse<BookAnalysisCharacter[]>>(
     `/book-analysis/${id}/characters/generate`,
+    payload,
+  );
+  return data;
+}
+
+export async function identifyBookAnalysisCharacterCandidates(
+  id: string,
+  payload: BookAnalysisCharacterIdentifyInput = {},
+) {
+  const { data } = await apiClient.post<ApiResponse<BookAnalysisCharacter[]>>(
+    `/book-analysis/${id}/characters/identify`,
+    payload,
+  );
+  return data;
+}
+
+export async function generateBookAnalysisCharacterProfile(
+  id: string,
+  characterId: string,
+  payload: BookAnalysisCharacterProfileGenerateInput,
+) {
+  const { data } = await apiClient.post<ApiResponse<BookAnalysisCharacter>>(
+    `/book-analysis/${id}/characters/${characterId}/generate-profile`,
+    payload,
+  );
+  return data;
+}
+
+export async function generateAllBookAnalysisCharacterCandidates(
+  id: string,
+  payload: BookAnalysisCharacterBatchGenerateInput,
+) {
+  const { data } = await apiClient.post<ApiResponse<BookAnalysisCharacter[]>>(
+    `/book-analysis/${id}/characters/generate-candidates`,
     payload,
   );
   return data;

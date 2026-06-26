@@ -2784,9 +2784,14 @@ model BookAnalysisCharacter {
   analysisId             String
   name                   String
   role                   String
+  status                 String                     @default("candidate")
+  briefDescription       String?
+  importance             String?
+  occurringChaptersJson  String?
+  lastGenerationError    String?
   generationDepth        String                     @default("standard")
   selectedDimensionsJson String?
-  profileJson            String
+  profileJson            String?
   evidenceJson           String?
   sortOrder              Int                        @default(0)
   analysis               BookAnalysis               @relation(fields: [analysisId], references: [id], onDelete: Cascade)
@@ -2799,6 +2804,7 @@ model BookAnalysisCharacter {
 
   @@index([analysisId, sortOrder])
   @@index([analysisId, name])
+  @@index([analysisId, status])
 }
 
 model BookAnalysisCharacterArc {

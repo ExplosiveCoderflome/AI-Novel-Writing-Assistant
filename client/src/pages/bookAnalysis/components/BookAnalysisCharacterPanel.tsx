@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import BookAnalysisCharacterCandidateCard from "./BookAnalysisCharacterCandidateCard";
 import BookAnalysisCharacterImagePanel from "./BookAnalysisCharacterImagePanel";
 
 const DEFAULT_DIMENSIONS: BookAnalysisCharacterDimension[] = [
@@ -45,14 +46,25 @@ interface BookAnalysisCharacterPanelProps {
   isLoading: boolean;
   pending: {
     generate: boolean;
+    identify: boolean;
+    generateProfile: boolean;
+    generateAll: boolean;
+    generatingIds: Set<string>;
     create: boolean;
     update: boolean;
     delete: boolean;
   };
-  onGenerate: (input: {
+  onIdentify: () => Promise<void>;
+  onGenerateProfile: (
+    characterId: string,
+    input: {
+      generationDepth: BookAnalysisCharacterGenerationDepth;
+      selectedDimensions: BookAnalysisCharacterDimension[];
+    },
+  ) => Promise<void>;
+  onGenerateAll: (input: {
     generationDepth: BookAnalysisCharacterGenerationDepth;
     selectedDimensions: BookAnalysisCharacterDimension[];
-    characterNames?: string[];
   }) => Promise<void>;
   onCreate: (input: {
     name: string;
@@ -71,14 +83,6 @@ interface BookAnalysisCharacterPanelProps {
     },
   ) => Promise<void>;
   onDelete: (characterId: string) => Promise<void>;
-}
-
-function splitCharacterNames(value: string): string[] {
-  return value
-    .split(/[,，、\n]/)
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 8);
 }
 
 function toggleDimension(
@@ -107,34 +111,35 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
     disabled,
     isLoading,
     pending,
-    onGenerate,
+    onIdentify,
+    onGenerateProfile,
+    onGenerateAll,
     onCreate,
     onUpdate,
     onDelete,
   } = props;
   const [generationDepth, setGenerationDepth] = useState<BookAnalysisCharacterGenerationDepth>("standard");
   const [selectedDimensions, setSelectedDimensions] = useState<BookAnalysisCharacterDimension[]>(DEFAULT_DIMENSIONS);
-  const [characterNamesText, setCharacterNamesText] = useState("");
   const [manualName, setManualName] = useState("");
   const [manualRole, setManualRole] = useState("");
   const [manualPersonality, setManualPersonality] = useState("");
   const [editingId, setEditingId] = useState("");
   const [editDraft, setEditDraft] = useState<CharacterEditDraft | null>(null);
+  const [candidateExpanded, setCandidateExpanded] = useState(false);
 
-  const generateDisabled = disabled || pending.generate || selectedDimensions.length === 0;
+  const generatedCharacters = useMemo(
+    () => characters.filter((character) => character.status === "generated"),
+    [characters],
+  );
+  const candidateCharacters = useMemo(
+    () => characters.filter((character) => character.status !== "generated"),
+    [characters],
+  );
+  const pendingCandidateCount = candidateCharacters.filter((character) => character.status !== "generating").length;
+  const operationPending = pending.generate || pending.identify || pending.generateProfile || pending.generateAll;
+  const identifyDisabled = disabled || pending.identify;
+  const generateAllDisabled = disabled || pending.generateAll || selectedDimensions.length === 0 || pendingCandidateCount === 0;
   const createDisabled = disabled || pending.create || !manualName.trim() || !manualRole.trim();
-  const characterNames = useMemo(() => splitCharacterNames(characterNamesText), [characterNamesText]);
-
-  const handleGenerate = async () => {
-    if (generateDisabled) {
-      return;
-    }
-    await onGenerate({
-      generationDepth,
-      selectedDimensions,
-      characterNames: characterNames.length > 0 ? characterNames : undefined,
-    });
-  };
 
   const handleCreate = async () => {
     if (createDisabled) {
@@ -179,32 +184,38 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle>角色档案</CardTitle>
-          <Badge variant="outline">{characters.length} 位</Badge>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">{generatedCharacters.length} 份档案</Badge>
+            {candidateCharacters.length > 0 ? <Badge variant="secondary">{candidateCharacters.length} 个候选</Badge> : null}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px]">
           <div className="space-y-3 rounded-md border p-3">
             <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={() => void onIdentify()} disabled={identifyDisabled}>
+                {pending.identify ? "识别中..." : characters.length > 0 ? "再识别角色" : "识别角色"}
+              </Button>
+              {candidateCharacters.length > 0 ? (
+                <Button
+                  size="sm"
+                  onClick={() => void onGenerateAll({ generationDepth, selectedDimensions })}
+                  disabled={generateAllDisabled}
+                >
+                  {pending.generateAll ? "生成中..." : `全部生成 (${pendingCandidateCount})`}
+                </Button>
+              ) : null}
               <select
                 className="h-9 rounded-md border bg-background px-2 text-sm"
                 value={generationDepth}
                 onChange={(event) => setGenerationDepth(event.target.value as BookAnalysisCharacterGenerationDepth)}
-                disabled={disabled || pending.generate}
+                disabled={disabled || operationPending}
               >
                 <option value="quick">快速</option>
                 <option value="standard">标准</option>
                 <option value="deep">深入</option>
               </select>
-              <Input
-                value={characterNamesText}
-                onChange={(event) => setCharacterNamesText(event.target.value)}
-                placeholder="可指定角色名，用逗号分隔"
-                disabled={disabled || pending.generate}
-              />
-              <Button size="sm" onClick={() => void handleGenerate()} disabled={generateDisabled}>
-                {pending.generate ? "生成中..." : "生成角色档案"}
-              </Button>
             </div>
             <div className="flex flex-wrap gap-2">
               {DEFAULT_DIMENSIONS.map((dimension) => (
@@ -213,7 +224,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                   size="sm"
                   variant={selectedDimensions.includes(dimension) ? "default" : "outline"}
                   onClick={() => setSelectedDimensions((current) => toggleDimension(current, dimension))}
-                  disabled={disabled || pending.generate}
+                  disabled={disabled || operationPending}
                 >
                   {BOOK_ANALYSIS_CHARACTER_DIMENSION_LABELS[dimension]}
                 </Button>
@@ -251,8 +262,42 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
           <div className="text-sm text-muted-foreground">正在读取角色档案。</div>
         ) : null}
 
+        {!isLoading && candidateCharacters.length > 0 ? (
+          <section className="rounded-md border bg-muted/20">
+            <button
+              type="button"
+              className="flex w-full flex-wrap items-center justify-between gap-3 p-3 text-left"
+              onClick={() => setCandidateExpanded((current) => !current)}
+            >
+              <div>
+                <div className="text-sm font-medium">待生成角色</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {candidateCharacters.length} 个候选，可按需生成深度档案。
+                </div>
+              </div>
+              <Badge variant="outline">{candidateExpanded ? "收起" : "展开"}</Badge>
+            </button>
+            {candidateExpanded ? (
+              <div className="grid gap-3 border-t p-3 xl:grid-cols-2">
+                {candidateCharacters.map((character) => (
+                  <BookAnalysisCharacterCandidateCard
+                    key={character.id}
+                    character={character}
+                    disabled={disabled}
+                    isGenerating={pending.generatingIds.has(character.id)}
+                    generationDepth={generationDepth}
+                    selectedDimensions={selectedDimensions}
+                    onGenerate={onGenerateProfile}
+                    onDelete={onDelete}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
         <div className="grid gap-3 xl:grid-cols-2">
-          {characters.map((character) => {
+          {generatedCharacters.map((character) => {
             const isEditing = editingId === character.id && editDraft;
             return (
               <div key={character.id} className="rounded-md border p-3 text-sm">
@@ -354,7 +399,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
         </div>
 
         {!isLoading && characters.length === 0 ? (
-          <div className="text-sm text-muted-foreground">可从人物系统生成角色档案，或先手动添加一个角色。</div>
+          <div className="text-sm text-muted-foreground">可先识别角色候选，再选择需要深挖的角色生成档案。</div>
         ) : null}
       </CardContent>
     </Card>

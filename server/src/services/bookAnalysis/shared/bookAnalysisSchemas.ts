@@ -54,23 +54,39 @@ export const bookAnalysisChapterSplitOutputSchema = z.object({
 
 const bookAnalysisCharacterEvidenceSchema = evidenceItemSchema;
 
-export const bookAnalysisCharacterGenerateOutputSchema = z.object({
-  characters: z.array(z.object({
+export const bookAnalysisCharacterIdentifyOutputSchema = z.object({
+  candidates: z.array(z.object({
     name: z.string().trim().min(1),
-    role: z.string().trim().min(1),
-    profile: z.record(z.string(), z.unknown()).default({}),
-    evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
-    arcs: z.array(z.object({
-      chapterIndex: z.number().int().min(0).optional(),
-      stageLabel: z.string().trim().min(1),
-      stateSnapshot: z.record(z.string(), z.unknown()).optional(),
-      evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
-    }).passthrough()).default([]),
-    scenes: z.array(z.object({
-      sceneLabel: z.string().trim().min(1),
-      sceneType: z.string().trim().optional(),
-      performance: z.record(z.string(), z.unknown()).optional(),
-      evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
-    }).passthrough()).default([]),
+    roleHint: z.string().trim().min(1),
+    importance: z.string().trim().optional(),
+    briefDescription: z.string().trim().optional(),
+    occurringChapters: z.array(z.string().trim().min(1)).default([]),
   }).passthrough()).default([]),
+}).passthrough();
+
+const bookAnalysisCharacterProfileSchema = z.object({
+  name: z.string().trim().min(1),
+  role: z.string().trim().min(1),
+  profile: z.record(z.string(), z.unknown()).default({}),
+  evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+  arcs: z.array(z.object({
+    chapterIndex: z.number().int().min(0).optional(),
+    stageLabel: z.string().trim().min(1),
+    stateSnapshot: z.record(z.string(), z.unknown()).optional(),
+    evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+  }).passthrough()).default([]),
+  scenes: z.array(z.object({
+    sceneLabel: z.string().trim().min(1),
+    sceneType: z.string().trim().optional(),
+    performance: z.record(z.string(), z.unknown()).optional(),
+    evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+  }).passthrough()).default([]),
+}).passthrough();
+
+export const bookAnalysisCharacterProfileOutputSchema = z.object({
+  character: bookAnalysisCharacterProfileSchema,
+}).passthrough();
+
+export const bookAnalysisCharacterGenerateOutputSchema = z.object({
+  characters: z.array(bookAnalysisCharacterProfileSchema).default([]),
 }).passthrough();

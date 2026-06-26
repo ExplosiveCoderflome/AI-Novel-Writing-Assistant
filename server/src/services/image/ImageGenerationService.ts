@@ -59,7 +59,7 @@ function buildBookAnalysisCharacterPrompt(
   character: {
     name: string;
     role: string;
-    profileJson: string;
+    profileJson: string | null;
   },
 ): string {
   const profile = parseBookAnalysisCharacterProfile(character.profileJson);
@@ -238,6 +238,9 @@ export class ImageGenerationService {
     });
     if (!character) {
       throw new AppError("Book analysis character not found.", 404);
+    }
+    if (character.status !== "generated" || !character.profileJson?.trim()) {
+      throw new AppError("Generate the character profile before creating character images.", 400);
     }
 
     const model = await resolveImageModel(provider, input.model);

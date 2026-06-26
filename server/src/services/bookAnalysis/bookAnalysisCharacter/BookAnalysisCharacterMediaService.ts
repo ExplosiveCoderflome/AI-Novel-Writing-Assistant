@@ -53,7 +53,7 @@ function compact(values: Array<string | null | undefined>): string {
   return values.map((item) => item?.trim()).filter((item): item is string => Boolean(item)).join("；");
 }
 
-function buildSourcePrompt(row: { name: string; role: string; profileJson: string }): string {
+function buildSourcePrompt(row: { name: string; role: string; profileJson: string | null }): string {
   const profile = parseProfile(row.profileJson);
   const prompt = buildDefaultCharacterImageSourceDescription({
     name: profile.name || row.name,
@@ -75,7 +75,7 @@ function buildSourcePrompt(row: { name: string; role: string; profileJson: strin
   ]).replace(/；/g, "\n");
 }
 
-function buildBaseCharacterData(row: { id: string; name: string; role: string; profileJson: string }) {
+function buildBaseCharacterData(row: { id: string; name: string; role: string; profileJson: string | null }) {
   const profile = parseProfile(row.profileJson);
   const name = profile.name?.trim() || row.name;
   const role = profile.role?.trim() || row.role;
@@ -124,7 +124,7 @@ export class BookAnalysisCharacterMediaService {
     characterId: string,
     input: { provider?: LLMProvider },
   ): Promise<BookAnalysisCharacterImagePreview> {
-    const character = await this.loadCharacter(analysisId, characterId);
+    const character = await this.loadGeneratedCharacter(analysisId, characterId);
     return {
       kind: "book_analysis_character",
       title: `${character.name} 的角色形象图`,
@@ -146,7 +146,7 @@ export class BookAnalysisCharacterMediaService {
       overrides?: BookAnalysisCharacterImageOverrides;
     },
   ): Promise<ImageGenerationTask> {
-    const character = await this.loadCharacter(analysisId, characterId);
+    const character = await this.loadGeneratedCharacter(analysisId, characterId);
     const sourcePrompt = buildSourcePrompt(character);
     const prompt = input.overrides?.promptOverride?.trim() || sourcePrompt;
     return this.imageService.createBookAnalysisCharacterTask({
@@ -163,7 +163,7 @@ export class BookAnalysisCharacterMediaService {
   }
 
   async listImages(analysisId: string, characterId: string): Promise<ImageAsset[]> {
-    const character = await this.loadCharacter(analysisId, characterId);
+    const character = await this.loadGeneratedCharacter(analysisId, characterId);
     return this.imageService.listBookAnalysisCharacterAssets(character.id);
   }
 
@@ -182,7 +182,7 @@ export class BookAnalysisCharacterMediaService {
     characterId: string,
     input: { includePrimaryImage?: boolean },
   ): Promise<BookAnalysisCharacterPromoteResult> {
-    const character = await this.loadCharacter(analysisId, characterId);
+    const character = await this.loadGeneratedCharacter(analysisId, characterId);
     const baseCharacter = await prisma.baseCharacter.create({
       data: buildBaseCharacterData(character),
     });
@@ -208,6 +208,14 @@ export class BookAnalysisCharacterMediaService {
     });
     if (!character) {
       throw new AppError("Book analysis character not found.", 404);
+    }
+    return character;
+  }
+
+  private async loadGeneratedCharacter(analysisId: string, characterId: string) {
+    const character = await this.loadCharacter(analysisId, characterId);
+    if (character.status !== "generated" || !character.profileJson?.trim()) {
+      throw new AppError("Generate the character profile before using character images or promotion.", 400);
     }
     return character;
   }

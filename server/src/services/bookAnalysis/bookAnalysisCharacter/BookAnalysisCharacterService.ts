@@ -1,177 +1,54 @@
 import type {
   BookAnalysisCharacter,
+  BookAnalysisCharacterBatchGenerateInput,
   BookAnalysisCharacterDimension,
   BookAnalysisCharacterGenerateInput,
   BookAnalysisCharacterGenerationDepth,
+  BookAnalysisCharacterIdentifyInput,
+  BookAnalysisCharacterProfileGenerateInput,
 } from "@ai-novel/shared/types/bookAnalysisCharacter";
 import type { CharacterProfile } from "@ai-novel/shared/types/characterProfile";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
-import { bookAnalysisCharacterGeneratePrompt } from "../../../prompting/prompts/bookAnalysis/bookAnalysisCharacter.prompts";
+import {
+  bookAnalysisCharacterGeneratePrompt,
+  bookAnalysisCharacterIdentifyPrompt,
+  bookAnalysisCharacterProfilePrompt,
+} from "../../../prompting/prompts/bookAnalysis/bookAnalysisCharacter.prompts";
+import { BookAnalysisBudgetGuard } from "../caching/bookAnalysis.budget";
 import { BookAnalysisSourceCacheService } from "../caching/bookAnalysis.cache";
 import {
-  decodeEvidence,
   getEffectiveContent,
   normalizeMaxTokens,
   normalizeTemperature,
   renderNotesForPrompt,
-  safeParseJSON,
 } from "../shared/bookAnalysis.utils";
+import {
+  DEFAULT_CHARACTER_DIMENSIONS,
+  normalizeCandidateName,
+  normalizeDepth,
+  normalizeDimensions,
+  normalizeProfile,
+  parseJsonObject,
+  parseStringArray,
+  serializeCharacter,
+} from "./BookAnalysisCharacterSerializers";
 
-const DEFAULT_CHARACTER_DIMENSIONS: BookAnalysisCharacterDimension[] = [
-  "basic",
-  "appearance",
-  "personality",
-  "motivation",
-  "arc",
-  "relations",
-  "scenes",
-];
+const GENERATED_CHARACTER_BATCH_CONCURRENCY = 3;
+const MAX_IDENTIFIED_CANDIDATES = 16;
 
 type CharacterPromptRunner = typeof runStructuredPrompt;
 
-function parseJsonObject(value: string | null): Record<string, unknown> | null {
-  const parsed = safeParseJSON<Record<string, unknown> | null>(value, null);
-  return parsed && typeof parsed === "object" ? parsed : null;
-}
-
-function parseDimensions(value: string | null): BookAnalysisCharacterDimension[] {
-  const parsed = safeParseJSON<unknown[]>(value, []);
-  const valid = new Set(DEFAULT_CHARACTER_DIMENSIONS);
-  return parsed.filter((item): item is BookAnalysisCharacterDimension =>
-    typeof item === "string" && valid.has(item as BookAnalysisCharacterDimension),
-  );
-}
-
-function normalizeDepth(value: unknown): BookAnalysisCharacterGenerationDepth {
-  return value === "quick" || value === "deep" ? value : "standard";
-}
-
-function normalizeDimensions(value: unknown): BookAnalysisCharacterDimension[] {
-  if (!Array.isArray(value)) {
-    return DEFAULT_CHARACTER_DIMENSIONS;
-  }
-  const valid = new Set(DEFAULT_CHARACTER_DIMENSIONS);
-  const normalized = value.filter((item): item is BookAnalysisCharacterDimension =>
-    typeof item === "string" && valid.has(item as BookAnalysisCharacterDimension),
-  );
-  return normalized.length > 0 ? normalized : DEFAULT_CHARACTER_DIMENSIONS;
-}
-
-function normalizeProfile(input: Record<string, unknown>, fallbackName: string, fallbackRole: string): CharacterProfile {
-  const readString = (key: string) => (typeof input[key] === "string" ? String(input[key]).trim() : "");
-  const profile: CharacterProfile = {
-    name: readString("name") || fallbackName,
-    role: readString("role") || fallbackRole,
-  };
-  for (const key of [
-    "age",
-    "gender",
-    "appearance",
-    "physique",
-    "attireStyle",
-    "signatureDetail",
-    "personality",
-    "values",
-    "speakingStyle",
-    "outerGoal",
-    "innerNeed",
-    "fear",
-    "wound",
-    "misbelief",
-    "growthTrajectory",
-  ] as const) {
-    const value = readString(key);
-    if (value) {
-      profile[key] = value;
-    }
-  }
-  if (Array.isArray(input.aliases)) {
-    profile.aliases = input.aliases.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean);
-  }
-  if (Array.isArray(input.arcStages)) {
-    profile.arcStages = input.arcStages.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean);
-  }
-  if (Array.isArray(input.keyRelations)) {
-    profile.keyRelations = input.keyRelations
-      .map((item) => {
-        if (!item || typeof item !== "object") {
-          return null;
-        }
-        const row = item as Record<string, unknown>;
-        const targetName = typeof row.targetName === "string" ? row.targetName.trim() : "";
-        const relationType = typeof row.relationType === "string" ? row.relationType.trim() : "";
-        if (!targetName || !relationType) {
-          return null;
-        }
-        const relation: NonNullable<CharacterProfile["keyRelations"]>[number] = {
-          targetName,
-          relationType,
-        };
-        const description = typeof row.description === "string" ? row.description.trim() : "";
-        if (description) {
-          relation.description = description;
-        }
-        return relation;
-      })
-      .filter((item): item is NonNullable<CharacterProfile["keyRelations"]>[number] => Boolean(item));
-  }
-  if (Array.isArray(input.highlightScenes)) {
-    profile.highlightScenes = input.highlightScenes
-      .map((item) => {
-        if (!item || typeof item !== "object") {
-          return null;
-        }
-        const row = item as Record<string, unknown>;
-        const sceneLabel = typeof row.sceneLabel === "string" ? row.sceneLabel.trim() : "";
-        const performance = typeof row.performance === "string" ? row.performance.trim() : "";
-        return sceneLabel && performance ? { sceneLabel, performance } : null;
-      })
-      .filter((item): item is NonNullable<CharacterProfile["highlightScenes"]>[number] => Boolean(item));
-  }
-  return profile;
-}
-
-function serializeCharacter(row: any): BookAnalysisCharacter {
-  const profile = normalizeProfile(parseJsonObject(row.profileJson) ?? {}, row.name, row.role);
-  return {
-    id: row.id,
-    analysisId: row.analysisId,
-    name: row.name,
-    role: row.role,
-    generationDepth: normalizeDepth(row.generationDepth),
-    selectedDimensions: parseDimensions(row.selectedDimensionsJson),
-    profile,
-    evidence: decodeEvidence(row.evidenceJson),
-    arcs: (row.arcs ?? []).map((arc: any) => ({
-      id: arc.id,
-      characterId: arc.characterId,
-      chapterIndex: arc.chapterIndex,
-      stageLabel: arc.stageLabel,
-      stateSnapshot: parseJsonObject(arc.stateSnapshotJson),
-      evidence: decodeEvidence(arc.evidenceJson),
-      sortOrder: arc.sortOrder,
-      createdAt: arc.createdAt.toISOString(),
-      updatedAt: arc.updatedAt.toISOString(),
-    })),
-    scenes: (row.scenes ?? []).map((scene: any) => ({
-      id: scene.id,
-      characterId: scene.characterId,
-      sceneLabel: scene.sceneLabel,
-      sceneType: scene.sceneType,
-      performance: parseJsonObject(scene.performanceJson),
-      evidence: decodeEvidence(scene.evidenceJson),
-      sortOrder: scene.sortOrder,
-      createdAt: scene.createdAt.toISOString(),
-      updatedAt: scene.updatedAt.toISOString(),
-    })),
-    sortOrder: row.sortOrder,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
+type CharacterGenerationContext = {
+  provider: LLMProvider;
+  model?: string;
+  temperature: number;
+  maxTokens?: number;
+  characterSystemContext: string;
+  notesText: string;
+};
 
 export class BookAnalysisCharacterService {
   constructor(
@@ -210,6 +87,7 @@ export class BookAnalysisCharacterService {
         analysisId,
         name: profile.name,
         role: profile.role,
+        status: "generated",
         generationDepth: normalizeDepth(input.generationDepth),
         selectedDimensionsJson: JSON.stringify(normalizeDimensions(input.selectedDimensions)),
         profileJson: JSON.stringify(profile),
@@ -249,6 +127,7 @@ export class BookAnalysisCharacterService {
       data: {
         name: profile.name,
         role: profile.role,
+        ...(input.profile !== undefined ? { status: "generated", lastGenerationError: null } : {}),
         profileJson: JSON.stringify(profile),
         ...(input.selectedDimensions !== undefined
           ? { selectedDimensionsJson: JSON.stringify(normalizeDimensions(input.selectedDimensions)) }
@@ -276,6 +155,124 @@ export class BookAnalysisCharacterService {
     analysisId: string,
     input: BookAnalysisCharacterGenerateInput,
   ): Promise<BookAnalysisCharacter[]> {
+    const characterNames = (input.characterNames ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 8);
+    if (characterNames.length > 0) {
+      await this.upsertNamedCandidates(analysisId, characterNames);
+    } else {
+      await this.identifyCharacterCandidates(analysisId);
+    }
+    return this.generateAllCandidates(analysisId, {
+      generationDepth: input.generationDepth,
+      selectedDimensions: input.selectedDimensions,
+      includeFailed: true,
+    });
+  }
+
+  async identifyCharacterCandidates(
+    analysisId: string,
+    input: BookAnalysisCharacterIdentifyInput = {},
+  ): Promise<BookAnalysisCharacter[]> {
+    await this.assertAnalysisWritable(analysisId);
+    const context = await this.buildGenerationContext(analysisId);
+    const existingCharacters = await prisma.bookAnalysisCharacter.findMany({
+      where: { analysisId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+    const result = await this.promptRunner({
+      asset: bookAnalysisCharacterIdentifyPrompt,
+      promptInput: {
+        characterSystemContext: context.characterSystemContext,
+        notesText: context.notesText,
+        existingCharacters: existingCharacters.map((item) => item.name),
+        limit: Math.min(MAX_IDENTIFIED_CANDIDATES, Math.max(1, input.limit ?? MAX_IDENTIFIED_CANDIDATES)),
+      },
+      options: {
+        provider: context.provider,
+        model: context.model,
+        temperature: context.temperature,
+        maxTokens: context.maxTokens,
+      },
+    });
+    await new BookAnalysisBudgetGuard(analysisId).onSectionFinished(result.meta.tokenUsage);
+
+    const candidates = Array.isArray(result.output?.candidates)
+      ? result.output.candidates.slice(0, MAX_IDENTIFIED_CANDIDATES)
+      : [];
+    await this.upsertCandidateRows(analysisId, candidates.map((candidate) => ({
+      name: candidate.name,
+      role: candidate.roleHint,
+      importance: candidate.importance,
+      briefDescription: candidate.briefDescription,
+      occurringChapters: candidate.occurringChapters,
+    })));
+    return this.listCharacters(analysisId);
+  }
+
+  async generateCharacterProfile(
+    analysisId: string,
+    characterId: string,
+    input: BookAnalysisCharacterProfileGenerateInput,
+  ): Promise<BookAnalysisCharacter> {
+    await this.assertAnalysisWritable(analysisId);
+    const context = await this.buildGenerationContext(analysisId);
+    const budgetGuard = new BookAnalysisBudgetGuard(analysisId);
+    await this.runProfileGeneration(analysisId, characterId, input, context, budgetGuard);
+    const rows = await prisma.bookAnalysisCharacter.findMany({
+      where: { id: characterId, analysisId },
+      include: {
+        arcs: { orderBy: [{ sortOrder: "asc" }] },
+        scenes: { orderBy: [{ sortOrder: "asc" }] },
+      },
+    });
+    const row = rows[0];
+    if (!row) {
+      throw new AppError("Book analysis character not found after generation.", 500);
+    }
+    return serializeCharacter(row);
+  }
+
+  async generateAllCandidates(
+    analysisId: string,
+    input: BookAnalysisCharacterBatchGenerateInput,
+  ): Promise<BookAnalysisCharacter[]> {
+    await this.assertAnalysisWritable(analysisId);
+    const statuses = input.includeFailed ? ["candidate", "failed"] : ["candidate"];
+    const candidates = await prisma.bookAnalysisCharacter.findMany({
+      where: {
+        analysisId,
+        status: { in: statuses },
+      },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+    if (candidates.length === 0) {
+      return this.listCharacters(analysisId);
+    }
+
+    const context = await this.buildGenerationContext(analysisId);
+    const budgetGuard = new BookAnalysisBudgetGuard(analysisId);
+    let nextIndex = 0;
+    let stopped = false;
+    const worker = async () => {
+      while (!stopped) {
+        const candidate = candidates[nextIndex];
+        nextIndex += 1;
+        if (!candidate) {
+          return;
+        }
+        try {
+          await this.runProfileGeneration(analysisId, candidate.id, input, context, budgetGuard);
+        } catch (error) {
+          stopped = true;
+          throw error;
+        }
+      }
+    };
+    const workerCount = Math.min(GENERATED_CHARACTER_BATCH_CONCURRENCY, candidates.length);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+    return this.listCharacters(analysisId);
+  }
+
+  private async buildGenerationContext(analysisId: string): Promise<CharacterGenerationContext> {
     const analysis = await prisma.bookAnalysis.findUnique({
       where: { id: analysisId },
       include: {
@@ -302,80 +299,224 @@ export class BookAnalysisCharacterService {
       sectionMaxTokens: maxTokens,
     });
     const characterSystemSection = analysis.sections.find((section) => section.sectionKey === "character_system");
-    const characterSystemContext = characterSystemSection ? getEffectiveContent(characterSystemSection) : "";
-    const result = await this.promptRunner({
-      asset: bookAnalysisCharacterGeneratePrompt,
-      promptInput: {
-        generationDepth: normalizeDepth(input.generationDepth),
-        selectedDimensions: normalizeDimensions(input.selectedDimensions),
-        characterNames: (input.characterNames ?? []).map((item) => item.trim()).filter(Boolean).slice(0, 8),
-        characterSystemContext,
-        notesText: renderNotesForPrompt(notesResult.notes, "character_system"),
-      },
-      options: {
-        provider,
-        model,
-        temperature,
-        maxTokens,
-      },
+    return {
+      provider,
+      model,
+      temperature,
+      maxTokens,
+      characterSystemContext: characterSystemSection ? getEffectiveContent(characterSystemSection) : "",
+      notesText: renderNotesForPrompt(notesResult.notes, "character_system"),
+    };
+  }
+
+  private async upsertNamedCandidates(analysisId: string, names: string[]): Promise<void> {
+    await this.assertAnalysisWritable(analysisId);
+    await this.upsertCandidateRows(analysisId, names.map((name) => ({
+      name,
+      role: "待分析角色",
+      importance: "medium",
+      briefDescription: "用户指定的角色候选。",
+      occurringChapters: [],
+    })));
+  }
+
+  private async upsertCandidateRows(
+    analysisId: string,
+    candidates: Array<{
+      name: string;
+      role: string;
+      importance?: string | null;
+      briefDescription?: string | null;
+      occurringChapters?: string[];
+    }>,
+  ): Promise<void> {
+    const existingCharacters = await prisma.bookAnalysisCharacter.findMany({
+      where: { analysisId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     });
-    const rows = Array.isArray(result.output?.characters) ? result.output.characters.slice(0, 8) : [];
-    const existingCount = await prisma.bookAnalysisCharacter.count({ where: { analysisId } });
+    const existingByName = new Map(existingCharacters.map((item) => [normalizeCandidateName(item.name), item]));
+    let offset = existingCharacters.length;
     await prisma.$transaction(async (tx) => {
-      let offset = existingCount;
-      for (const row of rows) {
-        const name = typeof row.name === "string" ? row.name.trim() : "";
-        const role = typeof row.role === "string" ? row.role.trim() : "";
+      for (const candidate of candidates) {
+        const name = candidate.name.trim();
+        const role = candidate.role.trim();
         if (!name || !role) {
           continue;
         }
-        const profile = normalizeProfile(row.profile && typeof row.profile === "object" ? row.profile : {}, name, role);
+        const key = normalizeCandidateName(name);
+        if (!key) {
+          continue;
+        }
+        const existing = existingByName.get(key);
+        const data = {
+          role,
+          importance: candidate.importance?.trim() || null,
+          briefDescription: candidate.briefDescription?.trim() || null,
+          occurringChaptersJson: JSON.stringify((candidate.occurringChapters ?? []).map((item) => item.trim()).filter(Boolean)),
+        };
+        if (existing) {
+          if (existing.status !== "generated") {
+            await tx.bookAnalysisCharacter.update({
+              where: { id: existing.id },
+              data,
+            });
+          }
+          continue;
+        }
         const created = await tx.bookAnalysisCharacter.create({
           data: {
             analysisId,
-            name: profile.name,
-            role: profile.role,
-            generationDepth: normalizeDepth(input.generationDepth),
-            selectedDimensionsJson: JSON.stringify(normalizeDimensions(input.selectedDimensions)),
-            profileJson: JSON.stringify(profile),
-            evidenceJson: Array.isArray(row.evidence) && row.evidence.length > 0 ? JSON.stringify(row.evidence) : null,
+            name,
+            status: "candidate",
+            generationDepth: "standard",
+            selectedDimensionsJson: JSON.stringify(DEFAULT_CHARACTER_DIMENSIONS),
+            profileJson: null,
+            evidenceJson: null,
             sortOrder: offset,
+            ...data,
           },
         });
+        existingByName.set(key, created);
         offset += 1;
-        for (const [index, arc] of (Array.isArray(row.arcs) ? row.arcs : []).entries()) {
-          if (!arc?.stageLabel) {
-            continue;
-          }
-          await tx.bookAnalysisCharacterArc.create({
-            data: {
-              characterId: created.id,
-              chapterIndex: Number.isInteger(arc.chapterIndex) ? arc.chapterIndex : null,
-              stageLabel: String(arc.stageLabel).trim(),
-              stateSnapshotJson: arc.stateSnapshot ? JSON.stringify(arc.stateSnapshot) : null,
-              evidenceJson: Array.isArray(arc.evidence) && arc.evidence.length > 0 ? JSON.stringify(arc.evidence) : null,
-              sortOrder: index,
-            },
-          });
-        }
-        for (const [index, scene] of (Array.isArray(row.scenes) ? row.scenes : []).entries()) {
-          if (!scene?.sceneLabel) {
-            continue;
-          }
-          await tx.bookAnalysisCharacterScene.create({
-            data: {
-              characterId: created.id,
-              sceneLabel: String(scene.sceneLabel).trim(),
-              sceneType: typeof scene.sceneType === "string" ? scene.sceneType.trim() || null : null,
-              performanceJson: scene.performance ? JSON.stringify(scene.performance) : null,
-              evidenceJson: Array.isArray(scene.evidence) && scene.evidence.length > 0 ? JSON.stringify(scene.evidence) : null,
-              sortOrder: index,
-            },
-          });
-        }
       }
     });
-    return this.listCharacters(analysisId);
+  }
+
+  private async runProfileGeneration(
+    analysisId: string,
+    characterId: string,
+    input: BookAnalysisCharacterProfileGenerateInput,
+    context: CharacterGenerationContext,
+    budgetGuard: BookAnalysisBudgetGuard,
+  ): Promise<void> {
+    const character = await prisma.bookAnalysisCharacter.findFirst({
+      where: { id: characterId, analysisId },
+      include: {
+        arcs: true,
+        scenes: true,
+      },
+    });
+    if (!character) {
+      throw new AppError("Book analysis character not found.", 404);
+    }
+    await prisma.bookAnalysisCharacter.update({
+      where: { id: characterId },
+      data: {
+        status: "generating",
+        lastGenerationError: null,
+      },
+    });
+
+    try {
+      const result = await this.promptRunner({
+        asset: bookAnalysisCharacterProfilePrompt,
+        promptInput: {
+          generationDepth: normalizeDepth(input.generationDepth),
+          selectedDimensions: normalizeDimensions(input.selectedDimensions),
+          character: {
+            name: character.name,
+            role: character.role,
+            briefDescription: character.briefDescription,
+            importance: character.importance,
+            occurringChapters: parseStringArray(character.occurringChaptersJson),
+          },
+          characterSystemContext: context.characterSystemContext,
+          notesText: context.notesText,
+        },
+        options: {
+          provider: context.provider,
+          model: context.model,
+          temperature: context.temperature,
+          maxTokens: context.maxTokens,
+        },
+      });
+      await budgetGuard.onSectionFinished(result.meta.tokenUsage);
+      const row = result.output?.character;
+      const name = typeof row?.name === "string" ? row.name.trim() : character.name;
+      const role = typeof row?.role === "string" ? row.role.trim() : character.role;
+      const profile = normalizeProfile(row?.profile && typeof row.profile === "object" ? row.profile : {}, name, role);
+      await this.replaceGeneratedCharacterContent({
+        characterId,
+        name: profile.name,
+        role: profile.role,
+        generationDepth: normalizeDepth(input.generationDepth),
+        selectedDimensions: normalizeDimensions(input.selectedDimensions),
+        profile,
+        evidence: Array.isArray(row?.evidence) ? row.evidence : [],
+        arcs: Array.isArray(row?.arcs) ? row.arcs : [],
+        scenes: Array.isArray(row?.scenes) ? row.scenes : [],
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await prisma.bookAnalysisCharacter.update({
+        where: { id: characterId },
+        data: {
+          status: "failed",
+          lastGenerationError: message,
+        },
+      });
+      throw error;
+    }
+  }
+
+  private async replaceGeneratedCharacterContent(input: {
+    characterId: string;
+    name: string;
+    role: string;
+    generationDepth: BookAnalysisCharacterGenerationDepth;
+    selectedDimensions: BookAnalysisCharacterDimension[];
+    profile: CharacterProfile;
+    evidence: unknown[];
+    arcs: any[];
+    scenes: any[];
+  }): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      await tx.bookAnalysisCharacterArc.deleteMany({ where: { characterId: input.characterId } });
+      await tx.bookAnalysisCharacterScene.deleteMany({ where: { characterId: input.characterId } });
+      await tx.bookAnalysisCharacter.update({
+        where: { id: input.characterId },
+        data: {
+          name: input.name,
+          role: input.role,
+          status: "generated",
+          generationDepth: input.generationDepth,
+          selectedDimensionsJson: JSON.stringify(input.selectedDimensions),
+          profileJson: JSON.stringify(input.profile),
+          evidenceJson: input.evidence.length > 0 ? JSON.stringify(input.evidence) : null,
+          lastGenerationError: null,
+        },
+      });
+      for (const [index, arc] of input.arcs.entries()) {
+        if (!arc?.stageLabel) {
+          continue;
+        }
+        await tx.bookAnalysisCharacterArc.create({
+          data: {
+            characterId: input.characterId,
+            chapterIndex: Number.isInteger(arc.chapterIndex) ? arc.chapterIndex : null,
+            stageLabel: String(arc.stageLabel).trim(),
+            stateSnapshotJson: arc.stateSnapshot ? JSON.stringify(arc.stateSnapshot) : null,
+            evidenceJson: Array.isArray(arc.evidence) && arc.evidence.length > 0 ? JSON.stringify(arc.evidence) : null,
+            sortOrder: index,
+          },
+        });
+      }
+      for (const [index, scene] of input.scenes.entries()) {
+        if (!scene?.sceneLabel) {
+          continue;
+        }
+        await tx.bookAnalysisCharacterScene.create({
+          data: {
+            characterId: input.characterId,
+            sceneLabel: String(scene.sceneLabel).trim(),
+            sceneType: typeof scene.sceneType === "string" ? scene.sceneType.trim() || null : null,
+            performanceJson: scene.performance ? JSON.stringify(scene.performance) : null,
+            evidenceJson: Array.isArray(scene.evidence) && scene.evidence.length > 0 ? JSON.stringify(scene.evidence) : null,
+            sortOrder: index,
+          },
+        });
+      }
+    });
   }
 
   private async assertAnalysisWritable(analysisId: string): Promise<void> {
