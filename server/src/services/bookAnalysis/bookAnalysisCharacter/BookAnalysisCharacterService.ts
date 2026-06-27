@@ -35,6 +35,7 @@ import {
   parseStringArray,
   serializeCharacter,
 } from "./BookAnalysisCharacterSerializers";
+import { bookAnalysisCharacterRagAdapter } from "./BookAnalysisCharacterRagAdapter";
 
 const GENERATED_CHARACTER_BATCH_CONCURRENCY = 3;
 const MAX_IDENTIFIED_CANDIDATES = 16;
@@ -42,6 +43,7 @@ const MAX_IDENTIFIED_CANDIDATES = 16;
 type CharacterPromptRunner = typeof runStructuredPrompt;
 
 type CharacterGenerationContext = {
+  documentId: string;
   provider: LLMProvider;
   model?: string;
   temperature: number;
@@ -63,6 +65,14 @@ export class BookAnalysisCharacterService {
       include: {
         arcs: { orderBy: [{ sortOrder: "asc" }] },
         scenes: { orderBy: [{ sortOrder: "asc" }] },
+        appearance: {
+          include: {
+            snapshots: {
+              include: { images: { include: { imageAsset: true } } },
+              orderBy: [{ chapterIndex: "asc" }],
+            },
+          },
+        },
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     });
@@ -96,6 +106,14 @@ export class BookAnalysisCharacterService {
       include: {
         arcs: true,
         scenes: true,
+        appearance: {
+          include: {
+            snapshots: {
+              include: { images: { include: { imageAsset: true } } },
+              orderBy: [{ chapterIndex: "asc" }],
+            },
+          },
+        },
       },
     });
     return serializeCharacter(row);
@@ -136,6 +154,14 @@ export class BookAnalysisCharacterService {
       include: {
         arcs: { orderBy: [{ sortOrder: "asc" }] },
         scenes: { orderBy: [{ sortOrder: "asc" }] },
+        appearance: {
+          include: {
+            snapshots: {
+              include: { images: { include: { imageAsset: true } } },
+              orderBy: [{ chapterIndex: "asc" }],
+            },
+          },
+        },
       },
     });
     return serializeCharacter(row);
@@ -222,6 +248,14 @@ export class BookAnalysisCharacterService {
       include: {
         arcs: { orderBy: [{ sortOrder: "asc" }] },
         scenes: { orderBy: [{ sortOrder: "asc" }] },
+        appearance: {
+          include: {
+            snapshots: {
+              include: { images: { include: { imageAsset: true } } },
+              orderBy: [{ chapterIndex: "asc" }],
+            },
+          },
+        },
       },
     });
     const row = rows[0];
@@ -304,6 +338,7 @@ export class BookAnalysisCharacterService {
       model,
       temperature,
       maxTokens,
+      documentId: analysis.documentId,
       characterSystemContext: characterSystemSection ? getEffectiveContent(characterSystemSection) : "",
       notesText: renderNotesForPrompt(notesResult.notes, "character_system"),
     };
@@ -408,20 +443,32 @@ export class BookAnalysisCharacterService {
     });
 
     try {
+      const generationDepth = normalizeDepth(input.generationDepth);
+      const selectedDimensions = normalizeDimensions(input.selectedDimensions);
+      const occurringChapters = parseStringArray(character.occurringChaptersJson);
+      const ragEvidence = generationDepth === "deep" || generationDepth === "exhaustive"
+        ? await bookAnalysisCharacterRagAdapter.retrieveDimensionEvidence({
+          documentId: context.documentId,
+          characterName: character.name,
+          dimensions: selectedDimensions,
+          occurringChapters,
+        })
+        : { promptBlock: "", evidence: [], chunkIds: [] };
       const result = await this.promptRunner({
         asset: bookAnalysisCharacterProfilePrompt,
         promptInput: {
-          generationDepth: normalizeDepth(input.generationDepth),
-          selectedDimensions: normalizeDimensions(input.selectedDimensions),
+          generationDepth,
+          selectedDimensions,
           character: {
             name: character.name,
             role: character.role,
             briefDescription: character.briefDescription,
             importance: character.importance,
-            occurringChapters: parseStringArray(character.occurringChaptersJson),
+            occurringChapters,
           },
           characterSystemContext: context.characterSystemContext,
           notesText: context.notesText,
+          ragEvidenceText: ragEvidence.promptBlock,
         },
         options: {
           provider: context.provider,
@@ -432,17 +479,39 @@ export class BookAnalysisCharacterService {
       });
       await budgetGuard.onSectionFinished(result.meta.tokenUsage);
       const row = result.output?.character;
+      const totalTokens = result.meta.tokenUsage?.totalTokens ?? 0;
       const name = typeof row?.name === "string" ? row.name.trim() : character.name;
       const role = typeof row?.role === "string" ? row.role.trim() : character.role;
       const profile = normalizeProfile(row?.profile && typeof row.profile === "object" ? row.profile : {}, name, role);
+      const modelEvidence = Array.isArray(row?.evidence) ? row.evidence : [];
+      const profileSections = this.normalizeProfileSections(row?.profileSections, selectedDimensions, generationDepth, profile, [
+        ...modelEvidence,
+        ...ragEvidence.evidence,
+      ]);
       await this.replaceGeneratedCharacterContent({
         characterId,
         name: profile.name,
         role: profile.role,
-        generationDepth: normalizeDepth(input.generationDepth),
-        selectedDimensions: normalizeDimensions(input.selectedDimensions),
+        generationDepth,
+        selectedDimensions,
         profile,
-        evidence: Array.isArray(row?.evidence) ? row.evidence : [],
+        evidence: [
+          ...modelEvidence,
+          ...ragEvidence.evidence,
+        ],
+        depthMetadata: {
+          dimensions: Object.fromEntries(selectedDimensions.map((dimension) => [
+            dimension,
+            {
+              depth: generationDepth,
+              totalTokens,
+              chunkIds: ragEvidence.chunkIds,
+            },
+          ])),
+          totalTokens,
+          generatedAt: new Date().toISOString(),
+        },
+        profileSections,
         arcs: Array.isArray(row?.arcs) ? row.arcs : [],
         scenes: Array.isArray(row?.scenes) ? row.scenes : [],
       });
@@ -467,6 +536,8 @@ export class BookAnalysisCharacterService {
     selectedDimensions: BookAnalysisCharacterDimension[];
     profile: CharacterProfile;
     evidence: unknown[];
+    depthMetadata: Record<string, unknown>;
+    profileSections: unknown[];
     arcs: any[];
     scenes: any[];
   }): Promise<void> {
@@ -482,6 +553,8 @@ export class BookAnalysisCharacterService {
           generationDepth: input.generationDepth,
           selectedDimensionsJson: JSON.stringify(input.selectedDimensions),
           profileJson: JSON.stringify(input.profile),
+          depthMetadataJson: JSON.stringify(input.depthMetadata),
+          profileSectionsJson: input.profileSections.length > 0 ? JSON.stringify(input.profileSections) : null,
           evidenceJson: input.evidence.length > 0 ? JSON.stringify(input.evidence) : null,
           lastGenerationError: null,
         },
@@ -519,6 +592,53 @@ export class BookAnalysisCharacterService {
     });
   }
 
+  private normalizeProfileSections(
+    rawSections: unknown,
+    dimensions: BookAnalysisCharacterDimension[],
+    depth: BookAnalysisCharacterGenerationDepth,
+    profile: CharacterProfile,
+    evidence: unknown[],
+  ): unknown[] {
+    if (Array.isArray(rawSections) && rawSections.length > 0) {
+      return rawSections
+        .filter((section) => section && typeof section === "object")
+        .map((section) => ({
+          ...(section as Record<string, unknown>),
+          depth: normalizeDepth((section as Record<string, unknown>).depth ?? depth),
+          updatedAt: new Date().toISOString(),
+        }));
+    }
+    const profileByDimension: Partial<Record<BookAnalysisCharacterDimension, string>> = {
+      basic: [profile.name, profile.role].filter(Boolean).join("："),
+      appearance: [profile.appearance, profile.physique, profile.attireStyle, profile.signatureDetail].filter(Boolean).join("；"),
+      personality: profile.personality,
+      motivation: [profile.outerGoal, profile.innerNeed, profile.fear, profile.wound, profile.misbelief].filter(Boolean).join("；"),
+      arc: profile.growthTrajectory,
+      relations: profile.keyRelations?.map((item) => `${item.targetName}：${item.relationType}${item.description ? `，${item.description}` : ""}`).join("；"),
+      scenes: profile.highlightScenes?.map((item) => `${item.sceneLabel}：${item.performance}`).join("；"),
+      languageStyle: profile.speakingStyle,
+      values: profile.values,
+    };
+    return dimensions
+      .map((dimension) => {
+        const content = profileByDimension[dimension]?.trim();
+        if (!content) {
+          return null;
+        }
+        return {
+          dimension,
+          title: dimension,
+          depth,
+          content,
+          evidence: evidence.filter((item) =>
+            item && typeof item === "object" && (item as Record<string, unknown>).dimension === dimension,
+          ),
+          updatedAt: new Date().toISOString(),
+        };
+      })
+      .filter(Boolean);
+  }
+
   private async assertAnalysisWritable(analysisId: string): Promise<void> {
     const analysis = await this.assertAnalysisExists(analysisId);
     if (analysis.status === "archived") {
@@ -539,3 +659,4 @@ export class BookAnalysisCharacterService {
 }
 
 export const bookAnalysisCharacterService = new BookAnalysisCharacterService();
+

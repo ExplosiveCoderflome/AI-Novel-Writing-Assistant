@@ -1,7 +1,12 @@
 import type {
   BookAnalysisCharacter,
+  BookAnalysisCharacterAppearance,
+  BookAnalysisCharacterAppearanceImage,
+  BookAnalysisCharacterAppearanceSnapshot,
+  BookAnalysisCharacterDepthMetadata,
   BookAnalysisCharacterDimension,
   BookAnalysisCharacterGenerationDepth,
+  BookAnalysisCharacterProfileSection,
   BookAnalysisCharacterStatus,
 } from "@ai-novel/shared/types/bookAnalysisCharacter";
 import type { CharacterProfile } from "@ai-novel/shared/types/characterProfile";
@@ -9,15 +14,21 @@ import {
   decodeEvidence,
   safeParseJSON,
 } from "../shared/bookAnalysis.utils";
+import { toImageAsset } from "../../image/imageGenerationMappers";
 
 export const DEFAULT_CHARACTER_DIMENSIONS: BookAnalysisCharacterDimension[] = [
   "basic",
   "appearance",
   "personality",
+  "capability",
   "motivation",
   "arc",
   "relations",
   "scenes",
+  "languageStyle",
+  "thinkingPattern",
+  "values",
+  "secrets",
 ];
 
 export function parseJsonObject(value: string | null): Record<string, unknown> | null {
@@ -39,7 +50,10 @@ export function parseStringArray(value: string | null): string[] {
 }
 
 export function normalizeDepth(value: unknown): BookAnalysisCharacterGenerationDepth {
-  return value === "quick" || value === "deep" ? value : "standard";
+  if (value === "quick" || value === "brief") {
+    return "brief";
+  }
+  return value === "deep" || value === "exhaustive" ? value : "standard";
 }
 
 function normalizeStatus(value: unknown): BookAnalysisCharacterStatus {
@@ -141,6 +155,90 @@ export function normalizeProfile(input: Record<string, unknown>, fallbackName: s
   return profile;
 }
 
+function parseProfileSections(value: string | null): BookAnalysisCharacterProfileSection[] {
+  const parsed = safeParseJSON<unknown[]>(value, []);
+  const valid = new Set(DEFAULT_CHARACTER_DIMENSIONS);
+  const sections: BookAnalysisCharacterProfileSection[] = [];
+  for (const item of parsed) {
+    if (!item || typeof item !== "object") {
+      continue;
+    }
+    const row = item as Record<string, unknown>;
+    const dimension = typeof row.dimension === "string" && valid.has(row.dimension as BookAnalysisCharacterDimension)
+      ? row.dimension as BookAnalysisCharacterDimension
+      : null;
+    const content = typeof row.content === "string" ? row.content.trim() : "";
+    if (!dimension || !content) {
+      continue;
+    }
+    sections.push({
+      dimension,
+      title: typeof row.title === "string" && row.title.trim() ? row.title.trim() : dimension,
+      depth: normalizeDepth(row.depth),
+      content,
+      evidence: Array.isArray(row.evidence) ? row.evidence as any : [],
+      ...(typeof row.updatedAt === "string" ? { updatedAt: row.updatedAt } : {}),
+    });
+  }
+  return sections;
+}
+
+function parseDepthMetadata(value: string | null): BookAnalysisCharacterDepthMetadata | null {
+  const parsed = parseJsonObject(value);
+  if (!parsed || !parsed.dimensions || typeof parsed.dimensions !== "object" || Array.isArray(parsed.dimensions)) {
+    return null;
+  }
+  return parsed as unknown as BookAnalysisCharacterDepthMetadata;
+}
+
+function serializeAppearanceImage(row: any): BookAnalysisCharacterAppearanceImage {
+  return {
+    id: row.id,
+    snapshotId: row.snapshotId,
+    generationTaskId: row.generationTaskId,
+    imageAssetId: row.imageAssetId,
+    imageAsset: row.imageAsset ? toImageAsset(row.imageAsset) : null,
+    imagePrompt: parseJsonObject(row.imagePromptJson),
+    referenceAssetIds: parseStringArray(row.referenceAssetIdsJson),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function serializeAppearanceSnapshot(row: any): BookAnalysisCharacterAppearanceSnapshot {
+  return {
+    id: row.id,
+    characterId: row.characterId,
+    chapterIndex: row.chapterIndex,
+    chapterTitle: row.chapterTitle,
+    appearance: parseJsonObject(row.appearanceJson),
+    evidence: decodeEvidence(row.evidenceJson),
+    summaryCaption: row.summaryCaption,
+    contextSceneRefs: parseStringArray(row.contextSceneRefsJson),
+    manuallyEdited: Boolean(row.manuallyEdited),
+    images: (row.images ?? []).map(serializeAppearanceImage),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export function serializeAppearance(row: any): BookAnalysisCharacterAppearance | null {
+  if (!row) {
+    return null;
+  }
+  return {
+    id: row.id,
+    characterId: row.characterId,
+    coveragePercent: row.coveragePercent,
+    consolidatedAppearance: parseJsonObject(row.consolidatedAppearanceJson),
+    variantPolicy: parseJsonObject(row.variantPolicyJson),
+    lastIndexedChapterIndex: row.lastIndexedChapterIndex,
+    snapshots: (row.snapshots ?? []).map(serializeAppearanceSnapshot),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
 export function serializeCharacter(row: any): BookAnalysisCharacter {
   const profile = normalizeProfile(parseJsonObject(row.profileJson) ?? {}, row.name, row.role);
   return {
@@ -157,6 +255,9 @@ export function serializeCharacter(row: any): BookAnalysisCharacter {
     selectedDimensions: parseDimensions(row.selectedDimensionsJson),
     profile,
     evidence: decodeEvidence(row.evidenceJson),
+    depthMetadata: parseDepthMetadata(row.depthMetadataJson),
+    profileSections: parseProfileSections(row.profileSectionsJson),
+    appearance: serializeAppearance(row.appearance),
     arcs: (row.arcs ?? []).map((arc: any) => ({
       id: arc.id,
       characterId: arc.characterId,

@@ -755,7 +755,7 @@ export class ImageGenerationService {
         });
         for (let index = 0; index < persistedImages.length; index += 1) {
           const { image, persisted } = persistedImages[index];
-          await tx.imageAsset.create({
+          const asset = await tx.imageAsset.create({
             data: {
               taskId: task.id,
               sceneType,
@@ -782,6 +782,22 @@ export class ImageGenerationService {
               }),
             },
           });
+          if (sceneType === "book_analysis_character") {
+            const pendingAppearanceImage = await tx.bookAnalysisCharacterAppearanceImage.findFirst({
+              where: {
+                generationTaskId: task.id,
+                imageAssetId: null,
+              },
+              orderBy: [{ createdAt: "asc" }],
+              select: { id: true },
+            });
+            if (pendingAppearanceImage) {
+              await tx.bookAnalysisCharacterAppearanceImage.update({
+                where: { id: pendingAppearanceImage.id },
+                data: { imageAssetId: asset.id },
+              });
+            }
+          }
         }
         await tx.imageGenerationTask.update({
           where: { id: task.id },
@@ -837,8 +853,18 @@ export class ImageGenerationService {
             finishedAt: new Date(),
           },
         });
+        await this.cleanupOrphanAppearanceImages(task.id);
       }
     }
+  }
+
+  private async cleanupOrphanAppearanceImages(taskId: string): Promise<void> {
+    await prisma.bookAnalysisCharacterAppearanceImage.deleteMany({
+      where: {
+        generationTaskId: taskId,
+        imageAssetId: null,
+      },
+    });
   }
 
   private async ensureNotCancelled(taskId: string): Promise<void> {
@@ -869,6 +895,7 @@ export class ImageGenerationService {
         finishedAt: new Date(),
       },
     });
+    await this.cleanupOrphanAppearanceImages(taskId);
   }
 
   async resumeTask(taskId: string): Promise<ImageGenerationTask> {

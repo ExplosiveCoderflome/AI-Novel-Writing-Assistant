@@ -14,6 +14,7 @@ const {
   normalizeBookAnalysisBudgetTokens,
 } = require("../dist/services/bookAnalysis/caching/bookAnalysis.budget.js");
 const { BookAnalysisCharacterService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterService.js");
+const { BookAnalysisCharacterAppearanceService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterAppearanceService.js");
 const { BookAnalysisCharacterMediaService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterMediaService.js");
 const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/application/BookAnalysisQueryService.js");
 const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/infrastructure/bookAnalysis.queue.js");
@@ -601,6 +602,143 @@ test("BookAnalysisCharacterMediaService queues book-analysis character image tas
     assert.equal(taskCreates[0].prompt, "完整可发送提示词");
   } finally {
     prisma.bookAnalysisCharacter.findFirst = original.characterFindFirst;
+  }
+});
+
+test("BookAnalysisCharacterMediaService queues appearance snapshot image tasks with pending links", async () => {
+  const original = {
+    snapshotFindFirst: prisma.bookAnalysisCharacterAppearanceSnapshot.findFirst,
+    appearanceImageCreateMany: prisma.bookAnalysisCharacterAppearanceImage.createMany,
+  };
+  const now = new Date("2026-06-24T12:00:00.000Z");
+  const taskCreates = [];
+  const pendingLinks = [];
+  prisma.bookAnalysisCharacterAppearanceSnapshot.findFirst = async ({ where }) =>
+    where.id === "snap-1" && where.characterId === "bac-1"
+      ? {
+        id: "snap-1",
+        characterId: "bac-1",
+        chapterIndex: 3,
+        chapterTitle: "雨夜追踪",
+        appearanceJson: JSON.stringify({ attire: "黑色风衣", state: "左臂带伤" }),
+        summaryCaption: "雨夜中带伤追踪线索",
+        contextSceneRefsJson: JSON.stringify(["旧仓库", "追逐"]),
+        appearance: {
+          consolidatedAppearanceJson: JSON.stringify({ hair: "短发", eyes: "冷静" }),
+        },
+        character: {
+          id: "bac-1",
+          analysisId: "analysis-1",
+          name: "林秋",
+          role: "主角",
+          status: "generated",
+          profileJson: JSON.stringify({
+            name: "林秋",
+            role: "主角",
+            personality: "谨慎但敢赌",
+          }),
+        },
+      }
+      : null;
+  prisma.bookAnalysisCharacterAppearanceImage.createMany = async ({ data }) => {
+    pendingLinks.push(...data);
+    return { count: data.length };
+  };
+  const imageService = {
+    createBookAnalysisCharacterTask: async (input) => {
+      taskCreates.push(input);
+      return {
+        id: "task-appearance-1",
+        sceneType: input.sceneType,
+        baseCharacterId: null,
+        novelId: null,
+        bookAnalysisCharacterId: input.bookAnalysisCharacterId,
+        provider: input.provider ?? "openai",
+        model: "gpt-image-1",
+        prompt: input.prompt,
+        negativePrompt: input.negativePrompt ?? null,
+        stylePreset: input.stylePreset ?? null,
+        size: input.size ?? "1024x1024",
+        imageCount: input.count ?? 1,
+        seed: null,
+        status: "queued",
+        progress: 0,
+        retryCount: 0,
+        maxRetries: 2,
+        heartbeatAt: null,
+        currentStage: "queued",
+        currentItemKey: input.bookAnalysisCharacterId,
+        currentItemLabel: "林秋",
+        cancelRequestedAt: null,
+        error: null,
+        startedAt: null,
+        finishedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+    },
+  };
+  const service = new BookAnalysisCharacterMediaService(imageService);
+
+  try {
+    const preview = await service.prepareAppearanceSnapshotImage("analysis-1", "bac-1", "snap-1", {});
+    assert.match(preview.prompt, /短发/);
+    assert.match(preview.prompt, /左臂带伤/);
+
+    const task = await service.generateAppearanceSnapshotImage("analysis-1", "bac-1", "snap-1", {
+      count: 2,
+    });
+    assert.equal(task.id, "task-appearance-1");
+    assert.equal(taskCreates[0].promptMode, "direct");
+    assert.match(taskCreates[0].prompt, /雨夜中带伤追踪线索/);
+    assert.equal(pendingLinks.length, 2);
+    assert.equal(pendingLinks[0].snapshotId, "snap-1");
+    assert.equal(pendingLinks[0].generationTaskId, "task-appearance-1");
+  } finally {
+    prisma.bookAnalysisCharacterAppearanceSnapshot.findFirst = original.snapshotFindFirst;
+    prisma.bookAnalysisCharacterAppearanceImage.createMany = original.appearanceImageCreateMany;
+  }
+});
+
+test("BookAnalysisCharacterAppearanceService queues scans instead of blocking HTTP callers", async () => {
+  const original = {
+    analysisFindUnique: prisma.bookAnalysis.findUnique,
+    characterCount: prisma.bookAnalysisCharacter.count,
+  };
+  prisma.bookAnalysis.findUnique = async ({ where, select }) => {
+    assert.equal(where.id, "analysis-1");
+    if (select?.status) {
+      return { status: "succeeded" };
+    }
+    return { id: "analysis-1", status: "succeeded" };
+  };
+  prisma.bookAnalysisCharacter.count = async ({ where }) =>
+    where.id === "bac-1" && where.analysisId === "analysis-1" ? 1 : 0;
+
+  const service = new BookAnalysisCharacterAppearanceService();
+  let scanStarted = false;
+  let scanFinished = false;
+  service.scanAppearance = async () => {
+    scanStarted = true;
+    await delay(20);
+    scanFinished = true;
+    return { id: "appearance-1", characterId: "bac-1", coveragePercent: 25, snapshots: [] };
+  };
+
+  try {
+    const job = await service.enqueueAppearanceScan("analysis-1", "bac-1", { targetPercent: 25 });
+    assert.ok(job.jobId);
+    assert.match(job.status, /queued|running/);
+    assert.equal(scanStarted, true);
+    assert.equal(scanFinished, false);
+
+    await delay(40);
+    const completed = service.getAppearanceScanJob(job.jobId);
+    assert.equal(completed.status, "succeeded");
+    assert.equal(scanFinished, true);
+  } finally {
+    prisma.bookAnalysis.findUnique = original.analysisFindUnique;
+    prisma.bookAnalysisCharacter.count = original.characterCount;
   }
 });
 

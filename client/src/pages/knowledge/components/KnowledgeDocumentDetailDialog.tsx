@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { KnowledgeDocumentDetail, KnowledgeRecallTestResult } from "@ai-novel/shared/types/knowledge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,45 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { formatStatus } from "./knowledgeRagUi";
+
+const PREVIEW_CHAR_LIMIT = 3000;
+const EXPAND_WARN_THRESHOLD = 100_000;
+
+function VersionContentPreview({ content }: { content: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const truncated = content.length > PREVIEW_CHAR_LIMIT && !expanded;
+  const displayText = truncated ? content.slice(0, PREVIEW_CHAR_LIMIT) : content;
+  const isLarge = content.length > EXPAND_WARN_THRESHOLD;
+
+  const handleExpand = () => {
+    if (!expanded && isLarge) {
+      if (!window.confirm(`文档共 ${content.length.toLocaleString()} 字符，展开全文可能导致页面卡顿，确认继续？`)) {
+        return;
+      }
+    }
+    setExpanded((v) => !v);
+  };
+
+  return (
+    <div className="mt-3">
+      <pre className="max-h-64 w-full max-w-full overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-all rounded-md bg-muted/40 p-3 text-xs">
+        {displayText}
+        {truncated ? "…" : null}
+      </pre>
+      {content.length > PREVIEW_CHAR_LIMIT ? (
+        <button
+          type="button"
+          className="mt-1 text-xs text-muted-foreground underline-offset-2 hover:underline"
+          onClick={handleExpand}
+        >
+          {expanded
+            ? `收起（共 ${content.length.toLocaleString()} 字符）`
+            : `仅显示前 ${PREVIEW_CHAR_LIMIT.toLocaleString()} 字符，点击展开全文（共 ${content.length.toLocaleString()} 字符）`}
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 interface KnowledgeDocumentDetailDialogProps {
   open: boolean;
@@ -181,9 +221,7 @@ export default function KnowledgeDocumentDetailDialog({
                         </Button>
                       </div>
                     ) : null}
-                    <pre className="mt-3 max-h-64 w-full max-w-full overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-all rounded-md bg-muted/40 p-3 text-xs">
-                      {version.content}
-                    </pre>
+                    <VersionContentPreview content={version.content} />
                   </div>
                 ))}
               </div>

@@ -4,6 +4,11 @@ const evidenceItemSchema = z.object({
   label: z.string().trim().min(1).optional(),
   excerpt: z.string().trim().min(1).optional(),
   sourceLabel: z.string().trim().min(1).optional(),
+  sourceType: z.enum(["notes", "chapter_chunk"]).optional(),
+  quote: z.string().trim().min(1).optional(),
+  chunkId: z.string().trim().min(1).optional(),
+  noteSegmentId: z.string().trim().min(1).optional(),
+  dimension: z.string().trim().min(1).optional(),
   fieldKey: z.string().trim().min(1).optional(),
   fieldIndex: z.number().int().min(0).optional(),
   chapterIndex: z.number().int().min(0).optional(),
@@ -53,6 +58,12 @@ export const bookAnalysisChapterSplitOutputSchema = z.object({
 }).passthrough();
 
 const bookAnalysisCharacterEvidenceSchema = evidenceItemSchema;
+const bookAnalysisCharacterAppearanceEvidenceSchema = z.object({
+  label: z.string().trim().min(1).optional(),
+  excerpt: z.string().trim().min(1).optional(),
+  sourceLabel: z.string().trim().min(1).optional(),
+  chapterIndex: z.number().int().min(0).optional(),
+}).passthrough();
 
 export const bookAnalysisCharacterIdentifyOutputSchema = z.object({
   candidates: z.array(z.object({
@@ -69,6 +80,13 @@ const bookAnalysisCharacterProfileSchema = z.object({
   role: z.string().trim().min(1),
   profile: z.record(z.string(), z.unknown()).default({}),
   evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+  profileSections: z.array(z.object({
+    dimension: z.string().trim().min(1),
+    title: z.string().trim().min(1),
+    depth: z.string().trim().optional(),
+    content: z.string().trim().min(1),
+    evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+  }).passthrough()).default([]),
   arcs: z.array(z.object({
     chapterIndex: z.number().int().min(0).optional(),
     stageLabel: z.string().trim().min(1),
@@ -89,4 +107,16 @@ export const bookAnalysisCharacterProfileOutputSchema = z.object({
 
 export const bookAnalysisCharacterGenerateOutputSchema = z.object({
   characters: z.array(bookAnalysisCharacterProfileSchema).default([]),
+}).passthrough();
+
+export const bookAnalysisCharacterAppearanceSnapshotOutputSchema = z.object({
+  appearance: z.record(z.string(), z.unknown()).default({}),
+  evidence: z.array(bookAnalysisCharacterAppearanceEvidenceSchema).default([]),
+  summaryCaption: z.string().trim().optional(),
+  contextSceneRefs: z.array(z.string().trim().min(1)).default([]),
+}).passthrough();
+
+export const bookAnalysisCharacterAppearanceConsolidateOutputSchema = z.object({
+  consolidatedAppearance: z.record(z.string(), z.unknown()).default({}),
+  variantPolicy: z.record(z.string(), z.unknown()).default({}),
 }).passthrough();

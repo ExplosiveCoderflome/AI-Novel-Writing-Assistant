@@ -31,6 +31,13 @@ export interface BookAnalysisCharacterPromoteResult {
   clonedPrimaryImageAsset: ImageAsset | null;
 }
 
+export interface BookAnalysisCharacterAppearanceImageGenerateInput {
+  provider?: LLMProvider;
+  count?: number;
+  stylePreset?: string;
+  overrides?: BookAnalysisCharacterImageOverrides;
+}
+
 const DEFAULT_NEGATIVE_PROMPT = "低清晰度，畸形，多余肢体，文字水印";
 
 function parseProfile(profileJson: string | null): CharacterProfile {
@@ -106,6 +113,68 @@ function buildBaseCharacterData(row: { id: string; name: string; role: string; p
   };
 }
 
+function parseJsonObject(value: string | null): Record<string, unknown> | null {
+  if (!value?.trim()) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseStringArray(value: string | null): string[] {
+  const parsed = parseJsonObject(value);
+  if (!parsed) {
+    try {
+      const array = JSON.parse(value ?? "[]") as unknown;
+      return Array.isArray(array) ? array.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function renderJsonBlock(label: string, value: Record<string, unknown> | null): string {
+  if (!value || Object.keys(value).length === 0) {
+    return "";
+  }
+  return `${label}：${JSON.stringify(value, null, 2)}`;
+}
+
+function buildAppearanceSnapshotPrompt(input: {
+  character: { name: string; role: string; profileJson: string | null };
+  snapshot: {
+    chapterIndex: number;
+    chapterTitle: string | null;
+    appearanceJson: string | null;
+    summaryCaption: string | null;
+    contextSceneRefsJson: string | null;
+  };
+  consolidatedAppearanceJson: string | null;
+}): string {
+  const profile = parseProfile(input.character.profileJson);
+  const stableAppearance = parseJsonObject(input.consolidatedAppearanceJson);
+  const chapterAppearance = parseJsonObject(input.snapshot.appearanceJson);
+  const sceneRefs = parseStringArray(input.snapshot.contextSceneRefsJson);
+  return [
+    `角色：${profile.name || input.character.name}`,
+    `定位：${profile.role || input.character.role}`,
+    `章节：第 ${input.snapshot.chapterIndex} 章${input.snapshot.chapterTitle ? `《${input.snapshot.chapterTitle}》` : ""}`,
+    input.snapshot.summaryCaption ? `本章形象概括：${input.snapshot.summaryCaption}` : "",
+    renderJsonBlock("稳定外观特征", stableAppearance),
+    renderJsonBlock("本章外貌、服装、状态与配饰", chapterAppearance),
+    sceneRefs.length > 0 ? `场景锚点：${sceneRefs.join("；")}` : "",
+    compact([profile.personality, profile.values, profile.speakingStyle])
+      ? `气质参考：${compact([profile.personality, profile.values, profile.speakingStyle])}`
+      : "",
+    "生成要求：保留稳定特征，突出本章服装、状态和情绪；输出可作为同一角色不同章节形象演变图；避免文字、水印和多余人物。",
+  ].filter(Boolean).join("\n");
+}
+
 async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of stream as Readable) {
@@ -158,8 +227,74 @@ export class BookAnalysisCharacterMediaService {
       stylePreset: input.stylePreset?.trim() || "写实角色设定图",
       provider: (input.overrides?.providerOverride as LLMProvider | undefined) ?? input.provider,
       size: input.overrides?.sizeOverride ?? "1024x1024",
-      count: input.count ?? 2,
+      count: input.count ?? 1,
     });
+  }
+
+  async prepareAppearanceSnapshotImage(
+    analysisId: string,
+    characterId: string,
+    snapshotId: string,
+    input: { provider?: LLMProvider },
+  ): Promise<BookAnalysisCharacterImagePreview> {
+    const snapshot = await this.loadAppearanceSnapshot(analysisId, characterId, snapshotId);
+    return {
+      kind: "book_analysis_character_appearance_snapshot",
+      title: `${snapshot.character.name} 第 ${snapshot.chapterIndex} 章形象图`,
+      prompt: buildAppearanceSnapshotPrompt({
+        character: snapshot.character,
+        snapshot,
+        consolidatedAppearanceJson: snapshot.appearance.consolidatedAppearanceJson,
+      }),
+      negativePrompt: DEFAULT_NEGATIVE_PROMPT,
+      referenceImages: [],
+      provider: input.provider ?? "openai",
+      size: "1024x1024",
+    };
+  }
+
+  async generateAppearanceSnapshotImage(
+    analysisId: string,
+    characterId: string,
+    snapshotId: string,
+    input: BookAnalysisCharacterAppearanceImageGenerateInput,
+  ): Promise<ImageGenerationTask> {
+    const snapshot = await this.loadAppearanceSnapshot(analysisId, characterId, snapshotId);
+    const sourcePrompt = buildAppearanceSnapshotPrompt({
+      character: snapshot.character,
+      snapshot,
+      consolidatedAppearanceJson: snapshot.appearance.consolidatedAppearanceJson,
+    });
+    const prompt = input.overrides?.promptOverride?.trim() || sourcePrompt;
+    const count = 1;
+    const task = await this.imageService.createBookAnalysisCharacterTask({
+      sceneType: "book_analysis_character",
+      bookAnalysisCharacterId: characterId,
+      prompt,
+      promptMode: "direct",
+      negativePrompt: input.overrides?.negativePromptOverride?.trim() || DEFAULT_NEGATIVE_PROMPT,
+      stylePreset: input.stylePreset?.trim() || "同一角色章节形象演变图",
+      provider: (input.overrides?.providerOverride as LLMProvider | undefined) ?? input.provider,
+      size: input.overrides?.sizeOverride ?? "1024x1024",
+      count,
+    });
+    await prisma.bookAnalysisCharacterAppearanceImage.create({
+      data: {
+        snapshotId,
+        generationTaskId: task.id,
+        imagePromptJson: JSON.stringify({
+          prompt,
+          negativePrompt: input.overrides?.negativePromptOverride?.trim() || DEFAULT_NEGATIVE_PROMPT,
+          stylePreset: input.stylePreset?.trim() || "同一角色章节形象演变图",
+          provider: (input.overrides?.providerOverride as LLMProvider | undefined) ?? input.provider ?? "openai",
+          size: input.overrides?.sizeOverride ?? "1024x1024",
+          source: "appearance_snapshot",
+          chapterIndex: snapshot.chapterIndex,
+        }),
+        referenceAssetIdsJson: JSON.stringify([]),
+      },
+    });
+    return task;
   }
 
   async listImages(analysisId: string, characterId: string): Promise<ImageAsset[]> {
@@ -218,6 +353,29 @@ export class BookAnalysisCharacterMediaService {
       throw new AppError("Generate the character profile before using character images or promotion.", 400);
     }
     return character;
+  }
+
+  private async loadAppearanceSnapshot(analysisId: string, characterId: string, snapshotId: string) {
+    const snapshot = await prisma.bookAnalysisCharacterAppearanceSnapshot.findFirst({
+      where: {
+        id: snapshotId,
+        characterId,
+        character: {
+          analysisId,
+        },
+      },
+      include: {
+        appearance: true,
+        character: true,
+      },
+    });
+    if (!snapshot) {
+      throw new AppError("Book analysis character appearance snapshot not found.", 404);
+    }
+    if (snapshot.character.status !== "generated" || !snapshot.character.profileJson?.trim()) {
+      throw new AppError("Generate the character profile before creating appearance snapshot images.", 400);
+    }
+    return snapshot;
   }
 
   private async assertAssetOwner(analysisId: string, characterId: string, assetId: string): Promise<void> {
