@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import BookAnalysisCharacterAppearancePanel from "./BookAnalysisCharacterAppearancePanel";
 import BookAnalysisCharacterCandidateCard from "./BookAnalysisCharacterCandidateCard";
 import BookAnalysisCharacterImagePanel from "./BookAnalysisCharacterImagePanel";
 
@@ -18,10 +19,15 @@ const DEFAULT_DIMENSIONS: BookAnalysisCharacterDimension[] = [
   "basic",
   "appearance",
   "personality",
+  "capability",
   "motivation",
   "arc",
   "relations",
   "scenes",
+  "languageStyle",
+  "thinkingPattern",
+  "values",
+  "secrets",
 ];
 
 const PROFILE_TEXT_FIELDS: Array<keyof CharacterProfile> = [
@@ -169,7 +175,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
       name: manualName.trim(),
       role: manualRole.trim(),
       profile: manualPersonality.trim() ? { personality: manualPersonality.trim() } : undefined,
-      generationDepth: "quick",
+      generationDepth: "brief",
       selectedDimensions: ["basic", "personality"],
     });
     setManualName("");
@@ -233,9 +239,10 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                 onChange={(event) => setGenerationDepth(event.target.value as BookAnalysisCharacterGenerationDepth)}
                 disabled={disabled || operationPending}
               >
-                <option value="quick">快速</option>
+                <option value="brief">简要</option>
                 <option value="standard">标准</option>
                 <option value="deep">深入</option>
+                <option value="exhaustive">完整</option>
               </select>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -436,6 +443,11 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                         ))}
                       </div>
                     ) : null}
+                    <BookAnalysisCharacterAppearancePanel
+                      analysisId={analysisId}
+                      character={character}
+                      disabled={disabled}
+                    />
                     <BookAnalysisCharacterImagePanel
                       analysisId={analysisId}
                       character={character}

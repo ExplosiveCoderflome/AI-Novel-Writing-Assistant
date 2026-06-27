@@ -969,6 +969,7 @@ model ImageGenerationTask {
   novel           Novel?            @relation(fields: [novelId], references: [id], onDelete: Cascade)
   bookAnalysisCharacter BookAnalysisCharacter? @relation(fields: [bookAnalysisCharacterId], references: [id], onDelete: Cascade)
   assets          ImageAsset[]
+  bookAnalysisAppearanceImages BookAnalysisCharacterAppearanceImage[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -1044,6 +1045,7 @@ model ImageAsset {
   baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
   novel           Novel?            @relation(fields: [novelId], references: [id], onDelete: Cascade)
   bookAnalysisCharacter BookAnalysisCharacter? @relation(fields: [bookAnalysisCharacterId], references: [id], onDelete: Cascade)
+  bookAnalysisAppearanceImages BookAnalysisCharacterAppearanceImage[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -2792,11 +2794,15 @@ model BookAnalysisCharacter {
   generationDepth        String                     @default("standard")
   selectedDimensionsJson String?
   profileJson            String?
+  depthMetadataJson      String?
+  profileSectionsJson    String?
   evidenceJson           String?
   sortOrder              Int                        @default(0)
   analysis               BookAnalysis               @relation(fields: [analysisId], references: [id], onDelete: Cascade)
   arcs                   BookAnalysisCharacterArc[]
   scenes                 BookAnalysisCharacterScene[]
+  appearance             BookAnalysisCharacterAppearance?
+  appearanceSnapshots    BookAnalysisCharacterAppearanceSnapshot[]
   imageTasks             ImageGenerationTask[]
   imageAssets            ImageAsset[]
   createdAt              DateTime                   @default(now())
@@ -2805,6 +2811,62 @@ model BookAnalysisCharacter {
   @@index([analysisId, sortOrder])
   @@index([analysisId, name])
   @@index([analysisId, status])
+}
+
+model BookAnalysisCharacterAppearance {
+  id                         String                     @id @default(cuid())
+  characterId                String                     @unique
+  coveragePercent            Int                        @default(0)
+  consolidatedAppearanceJson String?
+  variantPolicyJson          String?
+  lastIndexedChapterIndex    Int?
+  character                  BookAnalysisCharacter      @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  snapshots                  BookAnalysisCharacterAppearanceSnapshot[]
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+
+  @@index([coveragePercent])
+}
+
+model BookAnalysisCharacterAppearanceSnapshot {
+  id                   String                     @id @default(cuid())
+  appearanceId         String
+  characterId          String
+  chapterIndex         Int
+  chapterTitle         String?
+  appearanceJson       String?
+  evidenceJson         String?
+  summaryCaption       String?
+  contextSceneRefsJson String?
+  manuallyEdited       Boolean                    @default(false)
+  appearance           BookAnalysisCharacterAppearance @relation(fields: [appearanceId], references: [id], onDelete: Cascade)
+  character            BookAnalysisCharacter      @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  images               BookAnalysisCharacterAppearanceImage[]
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+
+  @@unique([characterId, chapterIndex])
+  @@index([appearanceId, chapterIndex])
+  @@index([characterId, chapterIndex])
+  @@index([chapterIndex])
+}
+
+model BookAnalysisCharacterAppearanceImage {
+  id                    String                                  @id @default(cuid())
+  snapshotId            String
+  generationTaskId      String?
+  imageAssetId          String?
+  imagePromptJson       String?
+  referenceAssetIdsJson String?
+  snapshot              BookAnalysisCharacterAppearanceSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  generationTask        ImageGenerationTask?                    @relation(fields: [generationTaskId], references: [id], onDelete: SetNull)
+  imageAsset            ImageAsset?                             @relation(fields: [imageAssetId], references: [id], onDelete: Cascade)
+  createdAt             DateTime                                @default(now())
+  updatedAt             DateTime                                @updatedAt
+
+  @@unique([imageAssetId])
+  @@index([generationTaskId])
+  @@index([snapshotId])
 }
 
 model BookAnalysisCharacterArc {

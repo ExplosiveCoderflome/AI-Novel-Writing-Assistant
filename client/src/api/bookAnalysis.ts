@@ -10,6 +10,7 @@ import type {
 } from "@ai-novel/shared/types/bookAnalysis";
 import type {
   BookAnalysisCharacter,
+  BookAnalysisCharacterAppearance,
   BookAnalysisCharacterBatchGenerateInput,
   BookAnalysisCharacterDimension,
   BookAnalysisCharacterGenerationDepth,
@@ -294,6 +295,64 @@ export async function promoteBookAnalysisCharacter(
     baseCharacter: BaseCharacter;
     clonedPrimaryImageAsset: ImageAsset | null;
   }>>(`/book-analysis/${id}/characters/${characterId}/promote`, payload);
+  return data;
+}
+
+export async function getBookAnalysisCharacterAppearance(id: string, characterId: string) {
+  const { data } = await apiClient.get<ApiResponse<BookAnalysisCharacterAppearance | null>>(
+    `/book-analysis/${id}/characters/${characterId}/appearance`,
+  );
+  return data;
+}
+
+export async function scanBookAnalysisCharacterAppearance(
+  id: string,
+  characterId: string,
+  payload: { targetPercent: number },
+) {
+  const { data } = await apiClient.post<ApiResponse<BookAnalysisCharacterAppearance>>(
+    `/book-analysis/${id}/characters/${characterId}/appearance/scan`,
+    payload,
+  );
+  return data;
+}
+
+export async function prepareBookAnalysisCharacterAppearanceImage(
+  id: string,
+  characterId: string,
+  snapshotId: string,
+  payload: { provider?: LLMProvider } = {},
+) {
+  const { data } = await apiClient.post<ApiResponse<ImageGenerationPreview>>(
+    `/book-analysis/${id}/characters/${characterId}/appearance/snapshots/${snapshotId}/images/prepare`,
+    payload,
+  );
+  return data;
+}
+
+export async function generateBookAnalysisCharacterAppearanceImage(
+  id: string,
+  characterId: string,
+  snapshotId: string,
+  payload: {
+    provider?: LLMProvider;
+    count?: number;
+    stylePreset?: string;
+    overrides?: ImageGenerationOverrides;
+  } = {},
+) {
+  const { data } = await apiClient.post<ApiResponse<ImageGenerationTask>>(
+    `/book-analysis/${id}/characters/${characterId}/appearance/snapshots/${snapshotId}/images/generate`,
+    {
+      provider: payload.provider,
+      count: payload.count,
+      stylePreset: payload.stylePreset,
+      promptOverride: payload.overrides?.promptOverride,
+      negativePromptOverride: payload.overrides?.negativePromptOverride,
+      providerOverride: payload.overrides?.providerOverride,
+      sizeOverride: payload.overrides?.sizeOverride,
+    },
+  );
   return data;
 }
 
