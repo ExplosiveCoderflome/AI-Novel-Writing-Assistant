@@ -58,6 +58,12 @@ export const bookAnalysisChapterSplitOutputSchema = z.object({
 }).passthrough();
 
 const bookAnalysisCharacterEvidenceSchema = evidenceItemSchema;
+const bookAnalysisCharacterAppearanceEvidenceSchema = z.object({
+  label: z.string().trim().min(1).optional(),
+  excerpt: z.string().trim().min(1).optional(),
+  sourceLabel: z.string().trim().min(1).optional(),
+  chapterIndex: z.number().int().min(0).optional(),
+}).passthrough();
 
 export const bookAnalysisCharacterIdentifyOutputSchema = z.object({
   candidates: z.array(z.object({
@@ -105,7 +111,7 @@ export const bookAnalysisCharacterGenerateOutputSchema = z.object({
 
 export const bookAnalysisCharacterAppearanceSnapshotOutputSchema = z.object({
   appearance: z.record(z.string(), z.unknown()).default({}),
-  evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+  evidence: z.array(bookAnalysisCharacterAppearanceEvidenceSchema).default([]),
   summaryCaption: z.string().trim().optional(),
   contextSceneRefs: z.array(z.string().trim().min(1)).default([]),
 }).passthrough();

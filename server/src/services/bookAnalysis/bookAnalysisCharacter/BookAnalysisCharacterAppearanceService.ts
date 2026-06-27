@@ -1,6 +1,8 @@
+import { randomUUID } from "node:crypto";
 import type {
   BookAnalysisCharacterAppearance,
   BookAnalysisCharacterAppearanceScanInput,
+  BookAnalysisCharacterAppearanceScanJob,
 } from "@ai-novel/shared/types/bookAnalysisCharacter";
 import type { CharacterProfile } from "@ai-novel/shared/types/characterProfile";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
@@ -14,6 +16,11 @@ import {
 import { DocumentChapterService } from "../../knowledge/DocumentChapterService";
 import { BookAnalysisBudgetGuard } from "../caching/bookAnalysis.budget";
 import { BookAnalysisSourceCacheService } from "../caching/bookAnalysis.cache";
+import { runWithConcurrency } from "../infrastructure/bookAnalysis.concurrent";
+import {
+  getBookAnalysisAppearanceChapterConcurrency,
+  getBookAnalysisAppearanceScanConcurrency,
+} from "../shared/bookAnalysis.config";
 import {
   normalizeMaxTokens,
   normalizeTemperature,
@@ -47,7 +54,33 @@ interface ChapterSlice {
   content: string;
 }
 
+type AppearanceScanJobRow = Omit<BookAnalysisCharacterAppearanceScanJob, "createdAt" | "startedAt" | "finishedAt" | "updatedAt"> & {
+  createdAt: Date;
+  startedAt?: Date | null;
+  finishedAt?: Date | null;
+  updatedAt: Date;
+};
+
+function serializeScanJob(job: AppearanceScanJobRow): BookAnalysisCharacterAppearanceScanJob {
+  return {
+    ...job,
+    createdAt: job.createdAt.toISOString(),
+    startedAt: job.startedAt?.toISOString() ?? null,
+    finishedAt: job.finishedAt?.toISOString() ?? null,
+    updatedAt: job.updatedAt.toISOString(),
+  };
+}
+
+function normalizeErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message.slice(0, 1000) : "Unknown appearance scan error.";
+}
+
 export class BookAnalysisCharacterAppearanceService {
+  private readonly scanJobs = new Map<string, AppearanceScanJobRow>();
+  private readonly scanQueue: string[] = [];
+  private readonly activeScanKeys = new Set<string>();
+  private activeScanCount = 0;
+
   constructor(
     private readonly sourceCache = new BookAnalysisSourceCacheService(),
     private readonly chapterService = new DocumentChapterService(),
@@ -66,6 +99,43 @@ export class BookAnalysisCharacterAppearanceService {
       },
     });
     return serializeAppearance(row);
+  }
+
+  async enqueueAppearanceScan(
+    analysisId: string,
+    characterId: string,
+    input: BookAnalysisCharacterAppearanceScanInput,
+  ): Promise<BookAnalysisCharacterAppearanceScanJob> {
+    const targetPercent = Math.max(0, Math.min(100, Math.round(input.targetPercent)));
+    await this.assertAnalysisWritable(analysisId);
+    await this.assertCharacterExists(analysisId, characterId);
+    const activeJob = this.findActiveScanJob(analysisId, characterId);
+    if (activeJob) {
+      return serializeScanJob(activeJob);
+    }
+
+    const now = new Date();
+    const job: AppearanceScanJobRow = {
+      jobId: randomUUID(),
+      analysisId,
+      characterId,
+      targetPercent,
+      status: "queued",
+      error: null,
+      createdAt: now,
+      startedAt: null,
+      finishedAt: null,
+      updatedAt: now,
+    };
+    this.scanJobs.set(job.jobId, job);
+    this.scanQueue.push(job.jobId);
+    this.scheduleScanJobs();
+    return serializeScanJob(job);
+  }
+
+  getAppearanceScanJob(jobId: string): BookAnalysisCharacterAppearanceScanJob | null {
+    const job = this.scanJobs.get(jobId);
+    return job ? serializeScanJob(job) : null;
   }
 
   async scanAppearance(
@@ -103,7 +173,7 @@ export class BookAnalysisCharacterAppearanceService {
     const chaptersToScan = this.pickChaptersToReachTarget(chapters, existingChapterIndexes, targetCount);
     const budgetGuard = new BookAnalysisBudgetGuard(analysisId);
 
-    for (const chapter of chaptersToScan) {
+    await runWithConcurrency(chaptersToScan, getBookAnalysisAppearanceChapterConcurrency(), async (chapter) => {
       const current = await prisma.bookAnalysisCharacterAppearanceSnapshot.findUnique({
         where: {
           characterId_chapterIndex: {
@@ -113,7 +183,7 @@ export class BookAnalysisCharacterAppearanceService {
         },
       });
       if (current?.manuallyEdited) {
-        continue;
+        return;
       }
       const ragEvidence = await bookAnalysisCharacterRagAdapter.retrieveDimensionEvidence({
         documentId: context.documentId,
@@ -155,7 +225,7 @@ export class BookAnalysisCharacterAppearanceService {
           chapterTitle: chapter.title,
           appearanceJson: JSON.stringify(result.output.appearance ?? {}),
           evidenceJson: JSON.stringify([
-            ...(Array.isArray(result.output.evidence) ? result.output.evidence : []),
+            ...this.normalizeSnapshotEvidence(result.output.evidence, chapter.chapterIndex),
             ...ragEvidence.evidence,
           ]),
           summaryCaption: result.output.summaryCaption?.trim() || null,
@@ -165,14 +235,14 @@ export class BookAnalysisCharacterAppearanceService {
           chapterTitle: chapter.title,
           appearanceJson: JSON.stringify(result.output.appearance ?? {}),
           evidenceJson: JSON.stringify([
-            ...(Array.isArray(result.output.evidence) ? result.output.evidence : []),
+            ...this.normalizeSnapshotEvidence(result.output.evidence, chapter.chapterIndex),
             ...ragEvidence.evidence,
           ]),
           summaryCaption: result.output.summaryCaption?.trim() || null,
           contextSceneRefsJson: JSON.stringify(result.output.contextSceneRefs ?? []),
         },
       });
-    }
+    });
 
     await this.consolidateAppearance(context, characterId, profile, chapters.length, budgetGuard);
     const row = await this.getAppearance(analysisId, characterId);
@@ -234,6 +304,92 @@ export class BookAnalysisCharacterAppearanceService {
         lastIndexedChapterIndex,
       },
     });
+  }
+
+  private normalizeSnapshotEvidence(value: unknown, chapterIndex: number): Array<Record<string, unknown>> {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+      .map((item) => {
+        const { sourceType: _sourceType, chunkId: _chunkId, noteSegmentId: _noteSegmentId, dimension: _dimension, ...rest } = item;
+        return {
+          ...rest,
+          chapterIndex: typeof rest.chapterIndex === "number" ? rest.chapterIndex : chapterIndex,
+        };
+      });
+  }
+
+  private findActiveScanJob(analysisId: string, characterId: string): AppearanceScanJobRow | null {
+    for (const job of this.scanJobs.values()) {
+      if (
+        job.analysisId === analysisId
+        && job.characterId === characterId
+        && (job.status === "queued" || job.status === "running")
+      ) {
+        return job;
+      }
+    }
+    return null;
+  }
+
+  private scheduleScanJobs(): void {
+    while (this.activeScanCount < getBookAnalysisAppearanceScanConcurrency()) {
+      const jobId = this.scanQueue.shift();
+      if (!jobId) {
+        return;
+      }
+      const job = this.scanJobs.get(jobId);
+      if (!job || job.status !== "queued") {
+        continue;
+      }
+      const scanKey = `${job.analysisId}:${job.characterId}`;
+      if (this.activeScanKeys.has(scanKey)) {
+        this.scanQueue.push(jobId);
+        return;
+      }
+      this.activeScanCount += 1;
+      this.activeScanKeys.add(scanKey);
+      void this.runScanJob(job, scanKey).finally(() => {
+        this.activeScanCount = Math.max(0, this.activeScanCount - 1);
+        this.activeScanKeys.delete(scanKey);
+        this.scheduleScanJobs();
+      });
+    }
+  }
+
+  private async runScanJob(job: AppearanceScanJobRow, scanKey: string): Promise<void> {
+    const startedAt = new Date();
+    Object.assign(job, {
+      status: "running" as const,
+      startedAt,
+      updatedAt: startedAt,
+      error: null,
+    });
+    try {
+      await this.scanAppearance(job.analysisId, job.characterId, { targetPercent: job.targetPercent });
+      const finishedAt = new Date();
+      Object.assign(job, {
+        status: "succeeded" as const,
+        finishedAt,
+        updatedAt: finishedAt,
+        error: null,
+      });
+    } catch (error) {
+      const finishedAt = new Date();
+      Object.assign(job, {
+        status: "failed" as const,
+        finishedAt,
+        updatedAt: finishedAt,
+        error: normalizeErrorMessage(error),
+      });
+      console.error("[book-analysis.character.appearance] scan job failed", {
+        jobId: job.jobId,
+        scanKey,
+        error,
+      });
+    }
   }
 
   private async buildContext(analysisId: string): Promise<AppearanceContext> {

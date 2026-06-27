@@ -33,6 +33,12 @@ const analysisCharacterAppearanceSnapshotParamsSchema = z.object({
   snapshotId: z.string().trim().min(1),
 });
 
+const analysisCharacterAppearanceScanJobParamsSchema = z.object({
+  id: z.string().trim().min(1),
+  characterId: z.string().trim().min(1),
+  jobId: z.string().trim().min(1),
+});
+
 const characterDimensionSchema = z.enum([
   "basic",
   "appearance",
@@ -420,11 +426,36 @@ router.post(
     try {
       const { id, characterId } = req.params as z.infer<typeof analysisCharacterParamsSchema>;
       const body = req.body as z.infer<typeof characterAppearanceScanSchema>;
-      const data = await bookAnalysisCharacterAppearanceService.scanAppearance(id, characterId, body);
-      res.status(201).json({
+      const data = await bookAnalysisCharacterAppearanceService.enqueueAppearanceScan(id, characterId, body);
+      res.status(202).json({
         success: true,
         data,
-        message: "Book analysis character appearance scanned.",
+        message: "Book analysis character appearance scan queued.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get(
+  "/:characterId/appearance/scan-jobs/:jobId",
+  validate({ params: analysisCharacterAppearanceScanJobParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId, jobId } = req.params as z.infer<typeof analysisCharacterAppearanceScanJobParamsSchema>;
+      const data = bookAnalysisCharacterAppearanceService.getAppearanceScanJob(jobId);
+      if (!data || data.analysisId !== id || data.characterId !== characterId) {
+        res.status(404).json({
+          success: false,
+          error: "Book analysis character appearance scan job not found.",
+        } satisfies ApiResponse<null>);
+        return;
+      }
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Book analysis character appearance scan job loaded.",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);

@@ -14,6 +14,7 @@ const {
   normalizeBookAnalysisBudgetTokens,
 } = require("../dist/services/bookAnalysis/caching/bookAnalysis.budget.js");
 const { BookAnalysisCharacterService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterService.js");
+const { BookAnalysisCharacterAppearanceService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterAppearanceService.js");
 const { BookAnalysisCharacterMediaService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterMediaService.js");
 const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/application/BookAnalysisQueryService.js");
 const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/infrastructure/bookAnalysis.queue.js");
@@ -696,6 +697,48 @@ test("BookAnalysisCharacterMediaService queues appearance snapshot image tasks w
   } finally {
     prisma.bookAnalysisCharacterAppearanceSnapshot.findFirst = original.snapshotFindFirst;
     prisma.bookAnalysisCharacterAppearanceImage.createMany = original.appearanceImageCreateMany;
+  }
+});
+
+test("BookAnalysisCharacterAppearanceService queues scans instead of blocking HTTP callers", async () => {
+  const original = {
+    analysisFindUnique: prisma.bookAnalysis.findUnique,
+    characterCount: prisma.bookAnalysisCharacter.count,
+  };
+  prisma.bookAnalysis.findUnique = async ({ where, select }) => {
+    assert.equal(where.id, "analysis-1");
+    if (select?.status) {
+      return { status: "succeeded" };
+    }
+    return { id: "analysis-1", status: "succeeded" };
+  };
+  prisma.bookAnalysisCharacter.count = async ({ where }) =>
+    where.id === "bac-1" && where.analysisId === "analysis-1" ? 1 : 0;
+
+  const service = new BookAnalysisCharacterAppearanceService();
+  let scanStarted = false;
+  let scanFinished = false;
+  service.scanAppearance = async () => {
+    scanStarted = true;
+    await delay(20);
+    scanFinished = true;
+    return { id: "appearance-1", characterId: "bac-1", coveragePercent: 25, snapshots: [] };
+  };
+
+  try {
+    const job = await service.enqueueAppearanceScan("analysis-1", "bac-1", { targetPercent: 25 });
+    assert.ok(job.jobId);
+    assert.match(job.status, /queued|running/);
+    assert.equal(scanStarted, true);
+    assert.equal(scanFinished, false);
+
+    await delay(40);
+    const completed = service.getAppearanceScanJob(job.jobId);
+    assert.equal(completed.status, "succeeded");
+    assert.equal(scanFinished, true);
+  } finally {
+    prisma.bookAnalysis.findUnique = original.analysisFindUnique;
+    prisma.bookAnalysisCharacter.count = original.characterCount;
   }
 });
 

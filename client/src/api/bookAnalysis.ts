@@ -11,6 +11,7 @@ import type {
 import type {
   BookAnalysisCharacter,
   BookAnalysisCharacterAppearance,
+  BookAnalysisCharacterAppearanceScanJob,
   BookAnalysisCharacterBatchGenerateInput,
   BookAnalysisCharacterDimension,
   BookAnalysisCharacterGenerationDepth,
@@ -310,9 +311,20 @@ export async function scanBookAnalysisCharacterAppearance(
   characterId: string,
   payload: { targetPercent: number },
 ) {
-  const { data } = await apiClient.post<ApiResponse<BookAnalysisCharacterAppearance>>(
+  const { data } = await apiClient.post<ApiResponse<BookAnalysisCharacterAppearanceScanJob>>(
     `/book-analysis/${id}/characters/${characterId}/appearance/scan`,
     payload,
+  );
+  return data;
+}
+
+export async function getBookAnalysisCharacterAppearanceScanJob(
+  id: string,
+  characterId: string,
+  jobId: string,
+) {
+  const { data } = await apiClient.get<ApiResponse<BookAnalysisCharacterAppearanceScanJob>>(
+    `/book-analysis/${id}/characters/${characterId}/appearance/scan-jobs/${jobId}`,
   );
   return data;
 }

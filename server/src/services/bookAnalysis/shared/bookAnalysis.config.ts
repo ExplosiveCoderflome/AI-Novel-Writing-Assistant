@@ -25,6 +25,14 @@ export function getBookAnalysisSectionConcurrency(): number {
   return readInt(process.env.BOOK_ANALYSIS_SECTION_CONCURRENCY, 2, 1, 8);
 }
 
+export function getBookAnalysisAppearanceScanConcurrency(): number {
+  return readInt(process.env.BOOK_ANALYSIS_APPEARANCE_SCAN_CONCURRENCY, 2, 1, 8);
+}
+
+export function getBookAnalysisAppearanceChapterConcurrency(): number {
+  return readInt(process.env.BOOK_ANALYSIS_APPEARANCE_CHAPTER_CONCURRENCY, 3, 1, 8);
+}
+
 export function getBookAnalysisDefaultBudgetTokens(): number {
   return readInt(process.env.BOOK_ANALYSIS_BUDGET_TOKENS, DEFAULT_BOOK_ANALYSIS_BUDGET_TOKENS, 1_000, 10_000_000);
 }

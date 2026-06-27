@@ -159,6 +159,21 @@ export interface BookAnalysisCharacterAppearanceScanInput {
   targetPercent: number;
 }
 
+export type BookAnalysisCharacterAppearanceScanJobStatus = "queued" | "running" | "succeeded" | "failed";
+
+export interface BookAnalysisCharacterAppearanceScanJob {
+  jobId: string;
+  analysisId: string;
+  characterId: string;
+  targetPercent: number;
+  status: BookAnalysisCharacterAppearanceScanJobStatus;
+  error?: string | null;
+  createdAt: string;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  updatedAt: string;
+}
+
 export interface BookAnalysisCharacterAppearanceImageGenerateInput {
   snapshotId: string;
   provider?: string;

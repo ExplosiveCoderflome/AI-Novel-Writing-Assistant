@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { BookAnalysisCharacter } from "@ai-novel/shared/types/bookAnalysisCharacter";
+import type {
+  BookAnalysisCharacter,
+  BookAnalysisCharacterAppearanceScanJob,
+} from "@ai-novel/shared/types/bookAnalysisCharacter";
 import {
   generateBookAnalysisCharacterAppearanceImage,
   getBookAnalysisCharacterAppearance,
+  getBookAnalysisCharacterAppearanceScanJob,
   prepareBookAnalysisCharacterAppearanceImage,
   scanBookAnalysisCharacterAppearance,
 } from "@/api/bookAnalysis";
@@ -48,20 +52,54 @@ export default function BookAnalysisCharacterAppearancePanel({
   const flow = useImageGenerationFlow();
   const [targetPercent, setTargetPercent] = useState(25);
   const [activeTaskId, setActiveTaskId] = useState("");
+  const [activeScanJobId, setActiveScanJobId] = useState("");
+  const [lastScanJob, setLastScanJob] = useState<BookAnalysisCharacterAppearanceScanJob | null>(null);
   const queryKey = ["book-analysis-character-appearance", analysisId, character.id];
   const appearanceQuery = useQuery({
     queryKey,
     queryFn: () => getBookAnalysisCharacterAppearance(analysisId, character.id),
+    refetchInterval: activeScanJobId ? 2500 : false,
   });
   const appearance = appearanceQuery.data?.data ?? character.appearance ?? null;
 
   const scanMutation = useMutation({
     mutationFn: () => scanBookAnalysisCharacterAppearance(analysisId, character.id, { targetPercent }),
-    onSuccess: async () => {
+    onSuccess: async (response) => {
+      if (response.data?.jobId) {
+        setLastScanJob(null);
+        setActiveScanJobId(response.data.jobId);
+      }
       await queryClient.invalidateQueries({ queryKey });
       await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.characters(analysisId) });
     },
   });
+
+  const scanJobQuery = useQuery({
+    queryKey: ["book-analysis-character-appearance-scan-job", analysisId, character.id, activeScanJobId || "none"],
+    queryFn: () => getBookAnalysisCharacterAppearanceScanJob(analysisId, character.id, activeScanJobId),
+    enabled: Boolean(activeScanJobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.data?.status;
+      return status === "queued" || status === "running" ? 2000 : false;
+    },
+    retry: 1,
+  });
+  const scanJob = scanJobQuery.data?.data;
+  const scanActive = scanMutation.isPending
+    || Boolean(activeScanJobId && (!scanJob || scanJob.status === "queued" || scanJob.status === "running"));
+
+  useEffect(() => {
+    if (!scanJob || !activeScanJobId) {
+      return;
+    }
+    if (scanJob.status === "queued" || scanJob.status === "running") {
+      return;
+    }
+    void queryClient.invalidateQueries({ queryKey });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.characters(analysisId) });
+    setLastScanJob(scanJob);
+    setActiveScanJobId("");
+  }, [activeScanJobId, analysisId, queryClient, queryKey, scanJob]);
 
   const taskQuery = useQuery({
     queryKey: queryKeys.images.task(activeTaskId || "none"),
@@ -116,9 +154,9 @@ export default function BookAnalysisCharacterAppearancePanel({
           size="sm"
           variant="outline"
           onClick={() => scanMutation.mutate()}
-          disabled={disabled || scanMutation.isPending}
+          disabled={disabled || scanActive}
         >
-          {scanMutation.isPending ? "扫描中..." : "增量扫描"}
+          {scanActive ? "扫描中..." : "增量扫描"}
         </Button>
       </div>
 
@@ -131,7 +169,7 @@ export default function BookAnalysisCharacterAppearancePanel({
               size="sm"
               variant={targetPercent === value ? "default" : "outline"}
               onClick={() => setTargetPercent(value)}
-              disabled={disabled || scanMutation.isPending}
+              disabled={disabled || scanActive}
             >
               {value}%
             </Button>
@@ -145,7 +183,7 @@ export default function BookAnalysisCharacterAppearancePanel({
           value={targetPercent}
           onChange={(event) => setTargetPercent(Number(event.target.value))}
           className="w-full accent-primary"
-          disabled={disabled || scanMutation.isPending}
+          disabled={disabled || scanActive}
           aria-label="目标覆盖率"
         />
       </div>
@@ -154,6 +192,17 @@ export default function BookAnalysisCharacterAppearancePanel({
       {scanMutation.error ? (
         <div className="text-xs text-destructive">
           {scanMutation.error instanceof Error ? scanMutation.error.message : "形象扫描失败。"}
+        </div>
+      ) : null}
+      {scanJob || lastScanJob ? (
+        <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">
+          形象扫描：{(scanJob ?? lastScanJob)?.status === "queued" ? "排队中" : (scanJob ?? lastScanJob)?.status === "running" ? "扫描中" : (scanJob ?? lastScanJob)?.status === "succeeded" ? "已完成" : "扫描失败"}
+          {(scanJob ?? lastScanJob)?.error ? <span className="ml-2 text-destructive">{(scanJob ?? lastScanJob)?.error}</span> : null}
+        </div>
+      ) : null}
+      {scanJobQuery.error ? (
+        <div className="text-xs text-destructive">
+          {scanJobQuery.error instanceof Error ? scanJobQuery.error.message : "读取扫描进度失败。"}
         </div>
       ) : null}
       {activeTask ? (

@@ -240,6 +240,7 @@ export const bookAnalysisCharacterAppearanceSnapshotPrompt: PromptAsset<
       "3. 证据必须来自本章正文、notes 或 RAG 原文证据；不得补写原文外设定。",
       "4. summaryCaption 用一句话概括本章适合生图的形象状态。",
       "5. contextSceneRefs 记录与形象状态相关的场景或事件锚点。",
+      "6. evidence 只输出 label、excerpt、sourceLabel、chapterIndex；不要输出 sourceType、chunkId、noteSegmentId、dimension，这些由服务端证据合并阶段处理。",
     ].join("\n")),
     new HumanMessage([
       `角色：${input.character.name}`,
