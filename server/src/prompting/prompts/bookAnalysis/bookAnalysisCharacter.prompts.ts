@@ -55,7 +55,6 @@ export interface BookAnalysisCharacterAppearanceSnapshotPromptInput {
     content: string;
   };
   notesText: string;
-  ragEvidenceText?: string;
 }
 
 export interface BookAnalysisCharacterAppearanceConsolidatePromptInput {
@@ -237,10 +236,11 @@ export const bookAnalysisCharacterAppearanceSnapshotPrompt: PromptAsset<
       "硬规则：",
       "1. 只分析指定角色；本章没有可靠形象信息时 appearance 返回空对象，summaryCaption 可留空。",
       "2. appearance 可包含外貌、服装、配饰、身体状态、伤痕、精神面貌、姿态动作、表情气质等字段。",
-      "3. 证据必须来自本章正文、notes 或 RAG 原文证据；不得补写原文外设定。",
-      "4. summaryCaption 用一句话概括本章适合生图的形象状态。",
-      "5. contextSceneRefs 记录与形象状态相关的场景或事件锚点。",
-      "6. evidence 只输出 label、excerpt、sourceLabel、chapterIndex；不要输出 sourceType、chunkId、noteSegmentId、dimension，这些由服务端证据合并阶段处理。",
+      "3. 本章原文已完整提供，请直接以章节正文为唯一证据来源，不得补写原文外设定，也不要凭印象编造。",
+      "4. SourceNotes 仅作为跨章节背景参考（如稳定特征/历史穿着），不得作为本章形象的直接证据。",
+      "5. summaryCaption 用一句话概括本章适合生图的形象状态。",
+      "6. contextSceneRefs 记录与形象状态相关的场景或事件锚点。",
+      "7. evidence 只输出 label、excerpt、sourceLabel、chapterIndex；不要输出 sourceType、chunkId、noteSegmentId、dimension，这些由服务端证据合并阶段处理。",
     ].join("\n")),
     new HumanMessage([
       `角色：${input.character.name}`,
@@ -248,14 +248,11 @@ export const bookAnalysisCharacterAppearanceSnapshotPrompt: PromptAsset<
       input.character.profile ? `已有档案：${JSON.stringify(input.character.profile).slice(0, 4000)}` : "",
       "",
       `章节：第 ${input.chapter.chapterIndex + 1} 章 ${input.chapter.title}`,
-      "章节正文：",
+      "章节正文（本章形象的唯一证据来源）：",
       input.chapter.content,
       "",
-      "SourceNotes 参考：",
+      "SourceNotes 背景参考（仅本角色相关，跨章节背景，不作为本章证据）：",
       input.notesText || "（暂无）",
-      "",
-      "RAG 原文证据：",
-      input.ragEvidenceText || "（暂无）",
     ].filter(Boolean).join("\n")),
   ],
 };

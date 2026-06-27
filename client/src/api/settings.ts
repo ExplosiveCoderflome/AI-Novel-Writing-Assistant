@@ -85,11 +85,13 @@ export interface RagSettingsStatus {
   embeddingTimeoutMs: number;
   embeddingMaxRetries: number;
   embeddingRetryBaseMs: number;
+  embeddingConcurrency: number;
   enabled: boolean;
   qdrantUrl: string;
   qdrantApiKeyConfigured: boolean;
   qdrantTimeoutMs: number;
   qdrantUpsertMaxBytes: number;
+  qdrantUpsertConcurrency: number;
   chunkSize: number;
   chunkOverlap: number;
   vectorCandidates: number;
@@ -218,12 +220,14 @@ export async function saveRagSettings(payload: {
   embeddingTimeoutMs: number;
   embeddingMaxRetries: number;
   embeddingRetryBaseMs: number;
+  embeddingConcurrency: number;
   enabled: boolean;
   qdrantUrl: string;
   qdrantApiKey?: string;
   clearQdrantApiKey?: boolean;
   qdrantTimeoutMs: number;
   qdrantUpsertMaxBytes: number;
+  qdrantUpsertConcurrency: number;
   chunkSize: number;
   chunkOverlap: number;
   vectorCandidates: number;
@@ -249,11 +253,13 @@ export async function saveRagSettings(payload: {
         | "embeddingTimeoutMs"
         | "embeddingMaxRetries"
         | "embeddingRetryBaseMs"
+        | "embeddingConcurrency"
         | "enabled"
         | "qdrantUrl"
         | "qdrantApiKeyConfigured"
         | "qdrantTimeoutMs"
         | "qdrantUpsertMaxBytes"
+        | "qdrantUpsertConcurrency"
         | "chunkSize"
         | "chunkOverlap"
         | "vectorCandidates"

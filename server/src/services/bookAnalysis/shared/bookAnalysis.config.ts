@@ -30,7 +30,7 @@ export function getBookAnalysisAppearanceScanConcurrency(): number {
 }
 
 export function getBookAnalysisAppearanceChapterConcurrency(): number {
-  return readInt(process.env.BOOK_ANALYSIS_APPEARANCE_CHAPTER_CONCURRENCY, 3, 1, 8);
+  return readInt(process.env.BOOK_ANALYSIS_APPEARANCE_CHAPTER_CONCURRENCY, 6, 1, 8);
 }
 
 export function getBookAnalysisDefaultBudgetTokens(): number {

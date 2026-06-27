@@ -1,6 +1,7 @@
 import { ragConfig } from "../../config/rag";
 import type { RagOwnerType } from "./types";
 import type { RagChunkFacets } from "./chunkFacets";
+import { runWithConcurrency } from "./utils";
 
 interface QdrantPayload {
   tenantId: string;
@@ -209,6 +210,25 @@ export class VectorStoreService {
     return batches;
   }
 
+  private readonly PAYLOAD_INDEX_FIELDS = [
+    "tenantId", "ownerType", "ownerId", "novelId", "worldId",
+    "characterRole", "chapterAnchor", "genreTags", "sellingPointTags",
+  ] as const;
+
+  private async ensurePayloadIndexes(): Promise<void> {
+    for (const field of this.PAYLOAD_INDEX_FIELDS) {
+      try {
+        await this.request(toCollectionUrl("/index"), {
+          method: "PUT",
+          body: JSON.stringify({ field_name: field, field_schema: "keyword" }),
+        });
+      } catch {
+        // 已存在时 Qdrant 返回错误，忽略
+      }
+    }
+    this.logInfo("Payload indexes ensured.", { fields: this.PAYLOAD_INDEX_FIELDS });
+  }
+
   async ensureCollection(dimension: number): Promise<void> {
     if (dimension <= 0) {
       throw new Error("向量维度无效。");
@@ -232,6 +252,7 @@ export class VectorStoreService {
           },
         }),
       });
+      await this.ensurePayloadIndexes();
       this.ensuredDimension = dimension;
       return;
     }
@@ -257,6 +278,8 @@ export class VectorStoreService {
       expectedDimension: dimension,
       existingDimension: existingDimension ?? dimension,
     });
+    // 已有集合也确保 payload index 存在（幂等操作）
+    await this.ensurePayloadIndexes();
     this.ensuredDimension = dimension;
   }
 
@@ -272,14 +295,13 @@ export class VectorStoreService {
       timeoutMs: ragConfig.qdrantTimeoutMs,
       upsertMaxBytes: ragConfig.qdrantUpsertMaxBytes,
     });
-    for (let index = 0; index < batches.length; index += 1) {
-      const batch = batches[index];
+    await runWithConcurrency(batches, ragConfig.qdrantUpsertConcurrency, async (batch, index) => {
       await this.upsertPointBatchAdaptive(batch, {
         batchIndex: index + 1,
         totalBatches: batches.length,
         depth: 0,
       });
-    }
+    });
     this.logInfo("Upsert points finished.", {
       totalPoints: points.length,
       batches: batches.length,

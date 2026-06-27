@@ -227,7 +227,7 @@ export class BookAnalysisCharacterMediaService {
       stylePreset: input.stylePreset?.trim() || "写实角色设定图",
       provider: (input.overrides?.providerOverride as LLMProvider | undefined) ?? input.provider,
       size: input.overrides?.sizeOverride ?? "1024x1024",
-      count: input.count ?? 2,
+      count: input.count ?? 1,
     });
   }
 
@@ -266,7 +266,7 @@ export class BookAnalysisCharacterMediaService {
       consolidatedAppearanceJson: snapshot.appearance.consolidatedAppearanceJson,
     });
     const prompt = input.overrides?.promptOverride?.trim() || sourcePrompt;
-    const count = input.count ?? 2;
+    const count = 1;
     const task = await this.imageService.createBookAnalysisCharacterTask({
       sceneType: "book_analysis_character",
       bookAnalysisCharacterId: characterId,
@@ -278,8 +278,8 @@ export class BookAnalysisCharacterMediaService {
       size: input.overrides?.sizeOverride ?? "1024x1024",
       count,
     });
-    await prisma.bookAnalysisCharacterAppearanceImage.createMany({
-      data: Array.from({ length: count }, () => ({
+    await prisma.bookAnalysisCharacterAppearanceImage.create({
+      data: {
         snapshotId,
         generationTaskId: task.id,
         imagePromptJson: JSON.stringify({
@@ -292,7 +292,7 @@ export class BookAnalysisCharacterMediaService {
           chapterIndex: snapshot.chapterIndex,
         }),
         referenceAssetIdsJson: JSON.stringify([]),
-      })),
+      },
     });
     return task;
   }

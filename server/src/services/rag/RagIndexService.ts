@@ -9,10 +9,14 @@ import type { RagChunkCandidate, RagJobStatus, RagJobType, RagOwnerType, RagSour
 import { buildChunkId, computeChunkHash, estimateTokenCount, normalizeRagText, splitRagChunks } from "./utils";
 import {
   encodeFacetKeys,
+  extractChapterAnchorFromChunk,
+  extractCharacterRolesFromChunk,
   normalizeRagFacets,
   type RagChunkAnchor,
+  type RagChunkFacets,
   type RagPreChunk,
 } from "./chunkFacets";
+import { runWithConcurrency } from "./utils";
 
 type ReindexScope = "novel" | "world" | "all";
 
@@ -172,33 +176,42 @@ export class RagIndexService {
 
   private async embedTextsInBatches(
     texts: string[],
-    onBatchComplete?: (payload: {
-      processed: number;
-      total: number;
-      batchIndex: number;
-      totalBatches: number;
-    }) => Promise<void>,
+    onProgress?: (payload: { processed: number; total: number }) => Promise<void>,
   ): Promise<{ vectors: number[][]; provider: string; model: string }> {
-    const vectors: number[][] = [];
+    if (texts.length === 0) {
+      return { vectors: [], provider: ragConfig.embeddingProvider, model: ragConfig.embeddingModel };
+    }
+    const batchSize = ragConfig.embeddingBatchSize;
+    const concurrency = ragConfig.embeddingConcurrency;
+    const vectors: number[][] = new Array(texts.length);
     let provider = ragConfig.embeddingProvider;
     let model = ragConfig.embeddingModel;
-    const totalBatches = Math.max(1, Math.ceil(texts.length / ragConfig.embeddingBatchSize));
+    let processed = 0;
+    let lastReportPercent = 0;
 
-    for (let cursor = 0, batchIndex = 0; cursor < texts.length; cursor += ragConfig.embeddingBatchSize, batchIndex += 1) {
-      const batch = texts.slice(cursor, cursor + ragConfig.embeddingBatchSize);
-      const result = await this.embeddingService.embedTexts(batch);
+    const batches: { start: number; texts: string[] }[] = [];
+    for (let cursor = 0; cursor < texts.length; cursor += batchSize) {
+      batches.push({ start: cursor, texts: texts.slice(cursor, cursor + batchSize) });
+    }
+
+    await runWithConcurrency(batches, concurrency, async (batch) => {
+      const result = await this.embeddingService.embedTexts(batch.texts);
       provider = result.provider;
       model = result.model;
-      vectors.push(...result.vectors);
-      if (onBatchComplete) {
-        await onBatchComplete({
-          processed: Math.min(cursor + batch.length, texts.length),
-          total: texts.length,
-          batchIndex: batchIndex + 1,
-          totalBatches,
-        });
+      for (let i = 0; i < result.vectors.length; i += 1) {
+        vectors[batch.start + i] = result.vectors[i];
       }
-    }
+      processed += batch.texts.length;
+
+      if (onProgress) {
+        const percent = texts.length > 0 ? processed / texts.length : 1;
+        if (percent - lastReportPercent >= 0.03 || processed >= texts.length) {
+          lastReportPercent = percent;
+          await onProgress({ processed: Math.min(processed, texts.length), total: texts.length });
+        }
+      }
+    });
+
     return { vectors, provider, model };
   }
 
@@ -521,10 +534,12 @@ export class RagIndexService {
     documents: RagSourceDocument[],
     embedProvider: string,
     embedModel: string,
-    options?: { maxTokens?: number | null },
+    options?: { maxTokens?: number | null; knownCharacterNames?: string[] },
   ): RagChunkCandidate[] {
+    const candidateNames = options?.knownCharacterNames ?? [];
     const candidates: RagChunkCandidate[] = [];
     for (const document of documents) {
+      const isKnowledgeDoc = document.ownerType === "knowledge_document";
       const sourcePieces: SourcePiece[] = document.preChunks?.length
         ? document.preChunks.flatMap((preChunk) => {
           const pieces = splitRagChunks(preChunk.chunkText, ragConfig.chunkSize, ragConfig.chunkOverlap, {
@@ -538,8 +553,28 @@ export class RagIndexService {
           }));
         })
         : splitRagChunks(document.content, ragConfig.chunkSize, ragConfig.chunkOverlap, {
-        maxTokens: options?.maxTokens ?? null,
-      }).map((chunkText): SourcePiece => ({ chunkText }));
+          maxTokens: options?.maxTokens ?? null,
+        }).map((chunkText): SourcePiece => {
+          if (!isKnowledgeDoc) {
+            return { chunkText };
+          }
+          // 知识库文档：自动从 chunk 正文抽取章节锚点和角色名，填充 facets
+          const chapterAnchors = extractChapterAnchorFromChunk(chunkText);
+          const characterRoles = candidateNames.length > 0
+            ? extractCharacterRolesFromChunk(chunkText, candidateNames)
+            : [];
+          const facets: RagChunkFacets = {};
+          if (chapterAnchors.length > 0) {
+            facets.chapterAnchor = chapterAnchors;
+          }
+          if (characterRoles.length > 0) {
+            facets.characterRole = characterRoles;
+          }
+          return {
+            chunkText,
+            facets: Object.keys(facets).length > 0 ? facets : undefined,
+          };
+        });
       for (const piece of sourcePieces) {
         const chunkText = piece.chunkText;
         const chunkOrder = candidates.filter((item) =>
@@ -666,8 +701,22 @@ export class RagIndexService {
       embeddingSettings.embeddingProvider,
       embeddingSettings.embeddingModel,
     );
+
+    // 知识库文档索引时，预加载角色候选名用于 chunk facet 自动提取
+    // KnowledgeDocument 没有直接 novelId，取该租户下所有角色名做关键词匹配（数量有限，代价可忽略）
+    let knownCharacterNames: string[] = [];
+    if (ownerType === "knowledge_document") {
+      const chars = await prisma.character.findMany({
+        select: { name: true },
+        take: 300,
+        orderBy: { updatedAt: "desc" },
+      });
+      knownCharacterNames = chars.map((c) => c.name).filter((n) => n.length >= 2);
+    }
+
     const candidates = this.buildChunkCandidates(docs, embeddingSettings.embeddingProvider, embeddingSettings.embeddingModel, {
       maxTokens: embeddingTokenBudget,
+      knownCharacterNames,
     });
     const splitTexts = candidates.map((item) => item.chunkText);
     await this.updateJobProgress(jobId, {
@@ -681,11 +730,11 @@ export class RagIndexService {
       percent: 0.15,
     });
     await this.assertJobNotCancelled(jobId);
-    const embedding = await this.embedTextsInBatches(splitTexts, async ({ processed, total, batchIndex, totalBatches }) => {
+    const embedding = await this.embedTextsInBatches(splitTexts, async ({ processed, total }) => {
       await this.updateJobProgress(jobId, {
         stage: "embedding",
         label: "生成向量",
-        detail: `正在生成向量，第 ${batchIndex}/${totalBatches} 批。`,
+        detail: `已生成 ${processed}/${total} 个向量（${ragConfig.embeddingConcurrency} 并发）。`,
         current: processed,
         total,
         documents: docs.length,
@@ -736,70 +785,56 @@ export class RagIndexService {
     await this.assertJobNotCancelled(jobId);
     await this.vectorStoreService.ensureCollection(vectorSize);
 
-    const existing = await prisma.knowledgeChunk.findMany({
+    // 读取旧 chunk id，但先不删除 — 保持旧数据可检索直到新数据写入完成
+    const oldChunks = await prisma.knowledgeChunk.findMany({
       where: { tenantId, ownerType, ownerId },
       select: { id: true },
     });
+    const oldIds = oldChunks.map((item) => item.id);
     await this.assertJobNotCancelled(jobId);
-    if (existing.length > 0) {
-      await this.updateJobProgress(jobId, {
-        stage: "deleting_existing",
-        label: "清理旧索引",
-        detail: `发现 ${existing.length} 条旧分块，正在清理。`,
-        current: existing.length,
-        total: existing.length,
-        documents: docs.length,
-        chunks: candidates.length,
-        percent: 0.8,
-      });
-      await this.assertJobNotCancelled(jobId);
-      await this.vectorStoreService.deletePoints(existing.map((item) => item.id));
-    } else {
-      await this.updateJobProgress(jobId, {
-        stage: "deleting_existing",
-        label: "清理旧索引",
-        detail: "未发现旧分块，准备写入新索引。",
-        current: 0,
-        total: 0,
-        documents: docs.length,
-        chunks: candidates.length,
-        percent: 0.8,
-      });
-    }
 
     await this.updateJobProgress(jobId, {
       stage: "upserting_vectors",
       label: "写入向量库",
-      detail: `正在向 Qdrant 写入 ${candidates.length} 个分块。`,
+      detail: `正在向 Qdrant 写入 ${candidates.length} 个分块（${ragConfig.qdrantUpsertConcurrency} 并发）。`,
       current: candidates.length,
       total: candidates.length,
       documents: docs.length,
       chunks: candidates.length,
-      percent: 0.9,
+      percent: 0.8,
     });
     await this.assertJobNotCancelled(jobId);
-    await this.vectorStoreService.upsertPoints(
-      candidates.map((item, index) => ({
-        id: item.id,
-        vector: embedding.vectors[index],
-        payload: {
-          tenantId: item.tenantId,
-          ownerType: item.ownerType,
-          ownerId: item.ownerId,
-          novelId: item.novelId,
-          worldId: item.worldId,
-          title: item.title,
-          chunkText: item.chunkText,
-          chunkHash: item.chunkHash,
-          chunkOrder: item.chunkOrder,
-          metadataJson: item.metadataJson,
-          facetKeys: item.facetKeys,
-          chapterAnchor: item.chapterAnchor,
-          ...(item.facets ?? {}),
-        },
-      })),
-    );
 
+    // Phase 3.1: 先写新分块到 Qdrant + DB，成功后再删旧分块，消除可见性空窗
+    const newPoints = candidates.map((item, index) => ({
+      id: item.id,
+      vector: embedding.vectors[index],
+      payload: {
+        tenantId: item.tenantId,
+        ownerType: item.ownerType,
+        ownerId: item.ownerId,
+        novelId: item.novelId,
+        worldId: item.worldId,
+        title: item.title,
+        chunkText: item.chunkText,
+        chunkHash: item.chunkHash,
+        chunkOrder: item.chunkOrder,
+        metadataJson: item.metadataJson,
+        facetKeys: item.facetKeys,
+        chapterAnchor: item.chapterAnchor,
+        ...(item.facets ?? {}),
+      },
+    }));
+
+    // 1. Qdrant 写入新分块
+    try {
+      await this.vectorStoreService.upsertPoints(newPoints);
+    } catch (error) {
+      // 新分块写入失败，旧分块仍在，直接抛出
+      throw error;
+    }
+
+    // 2. DB 写入新分块元数据
     try {
       await this.updateJobProgress(jobId, {
         stage: "writing_metadata",
@@ -809,39 +844,51 @@ export class RagIndexService {
         total: candidates.length,
         documents: docs.length,
         chunks: candidates.length,
-        percent: 0.97,
+        percent: 0.92,
       });
-      await prisma.$transaction(async (tx) => {
-        await tx.knowledgeChunk.deleteMany({
-          where: { tenantId, ownerType, ownerId },
-        });
-        await tx.knowledgeChunk.createMany({
-          data: candidates.map((item) => ({
-            id: item.id,
-            tenantId: item.tenantId,
-            ownerType: item.ownerType,
-            ownerId: item.ownerId,
-            novelId: item.novelId ?? null,
-            worldId: item.worldId ?? null,
-            title: item.title ?? null,
-            chunkText: item.chunkText,
-            chunkHash: item.chunkHash,
-            chunkOrder: item.chunkOrder,
-            tokenEstimate: item.tokenEstimate,
-            language: item.language,
-            metadataJson: item.metadataJson ?? null,
-            facetKeys: item.facetKeys ?? null,
-            chapterAnchor: item.chapterAnchor ?? null,
-            embedProvider: item.embedProvider,
-            embedModel: item.embedModel,
-            embedVersion: item.embedVersion,
-            indexedAt: new Date(),
-          })),
-        });
+      await prisma.knowledgeChunk.createMany({
+        data: candidates.map((item) => ({
+          id: item.id,
+          tenantId: item.tenantId,
+          ownerType: item.ownerType,
+          ownerId: item.ownerId,
+          novelId: item.novelId ?? null,
+          worldId: item.worldId ?? null,
+          title: item.title ?? null,
+          chunkText: item.chunkText,
+          chunkHash: item.chunkHash,
+          chunkOrder: item.chunkOrder,
+          tokenEstimate: item.tokenEstimate,
+          language: item.language,
+          metadataJson: item.metadataJson ?? null,
+          facetKeys: item.facetKeys ?? null,
+          chapterAnchor: item.chapterAnchor ?? null,
+          embedProvider: item.embedProvider,
+          embedModel: item.embedModel,
+          embedVersion: item.embedVersion,
+          indexedAt: new Date(),
+        })),
       });
     } catch (error) {
-      await this.vectorStoreService.deletePoints(candidates.map((item) => item.id));
+      // DB 写入失败，回滚：删除刚写的新 Qdrant 分块
+      await this.vectorStoreService.deletePoints(candidates.map((item) => item.id)).catch(() => {});
       throw error;
+    }
+
+    // 3. 新分块全部就位，安全删除旧分块
+    if (oldIds.length > 0) {
+      await this.updateJobProgress(jobId, {
+        stage: "deleting_existing",
+        label: "清理旧索引",
+        detail: `正在删除 ${oldIds.length} 条旧分块。`,
+        current: oldIds.length,
+        total: oldIds.length,
+        documents: docs.length,
+        chunks: candidates.length,
+        percent: 0.97,
+      });
+      await this.vectorStoreService.deletePoints(oldIds).catch(() => {});
+      await prisma.knowledgeChunk.deleteMany({ where: { id: { in: oldIds } } }).catch(() => {});
     }
 
     await this.updateJobProgress(jobId, {

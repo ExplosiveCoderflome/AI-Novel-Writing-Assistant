@@ -853,8 +853,18 @@ export class ImageGenerationService {
             finishedAt: new Date(),
           },
         });
+        await this.cleanupOrphanAppearanceImages(task.id);
       }
     }
+  }
+
+  private async cleanupOrphanAppearanceImages(taskId: string): Promise<void> {
+    await prisma.bookAnalysisCharacterAppearanceImage.deleteMany({
+      where: {
+        generationTaskId: taskId,
+        imageAssetId: null,
+      },
+    });
   }
 
   private async ensureNotCancelled(taskId: string): Promise<void> {
@@ -885,6 +895,7 @@ export class ImageGenerationService {
         finishedAt: new Date(),
       },
     });
+    await this.cleanupOrphanAppearanceImages(taskId);
   }
 
   async resumeTask(taskId: string): Promise<ImageGenerationTask> {

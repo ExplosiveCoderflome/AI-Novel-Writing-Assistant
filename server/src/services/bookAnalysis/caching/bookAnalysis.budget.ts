@@ -34,16 +34,18 @@ export class BookAnalysisBudgetGuard {
 
   async onSectionFinished(usage: LlmTokenUsageSnapshot | null | undefined): Promise<void> {
     const tokenCount = readUsageTokens(usage);
+    // Prisma increment on NULL yields NULL — read first and compute manually as fallback.
+    const current = await prisma.bookAnalysis.findUnique({
+      where: { id: this.analysisId },
+      select: { budgetTokens: true, usedTokens: true },
+    });
     const updated = tokenCount > 0
       ? await prisma.bookAnalysis.update({
           where: { id: this.analysisId },
-          data: { usedTokens: { increment: tokenCount } },
+          data: { usedTokens: (current?.usedTokens ?? 0) + tokenCount },
           select: { budgetTokens: true, usedTokens: true },
         })
-      : await prisma.bookAnalysis.findUnique({
-          where: { id: this.analysisId },
-          select: { budgetTokens: true, usedTokens: true },
-        });
+      : current;
 
     if (!updated?.budgetTokens) {
       return;

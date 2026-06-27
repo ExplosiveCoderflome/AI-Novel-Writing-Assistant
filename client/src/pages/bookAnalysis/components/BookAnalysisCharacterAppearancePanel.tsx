@@ -231,7 +231,10 @@ export default function BookAnalysisCharacterAppearancePanel({
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="font-medium">第 {snapshot.chapterIndex + 1} 章</div>
                       {snapshot.manuallyEdited ? <Badge variant="outline">手动保留</Badge> : null}
-                      {snapshot.images.length > 0 ? <Badge variant="secondary">{snapshot.images.length} 张图</Badge> : null}
+                      {(() => {
+                        const readyCount = snapshot.images.filter((image) => image.imageAsset).length;
+                        return readyCount > 0 ? <Badge variant="secondary">{readyCount} 张图</Badge> : null;
+                      })()}
                     </div>
                     <Button
                       type="button"

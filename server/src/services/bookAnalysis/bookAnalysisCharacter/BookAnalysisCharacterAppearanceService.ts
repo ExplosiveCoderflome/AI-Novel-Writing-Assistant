@@ -21,6 +21,7 @@ import {
   getBookAnalysisAppearanceChapterConcurrency,
   getBookAnalysisAppearanceScanConcurrency,
 } from "../shared/bookAnalysis.config";
+import type { SourceNote } from "../shared/bookAnalysis.types";
 import {
   normalizeMaxTokens,
   normalizeTemperature,
@@ -31,7 +32,6 @@ import {
   parseJsonObject,
   serializeAppearance,
 } from "./BookAnalysisCharacterSerializers";
-import { bookAnalysisCharacterRagAdapter } from "./BookAnalysisCharacterRagAdapter";
 
 type AppearancePromptRunner = typeof runStructuredPrompt;
 
@@ -43,7 +43,7 @@ interface AppearanceContext {
   model?: string;
   temperature: number;
   maxTokens?: number;
-  notesText: string;
+  notes: SourceNote[];
   sourceStartChapterIndex?: number | null;
   sourceEndChapterIndex?: number | null;
 }
@@ -173,6 +173,8 @@ export class BookAnalysisCharacterAppearanceService {
     const chaptersToScan = this.pickChaptersToReachTarget(chapters, existingChapterIndexes, targetCount);
     const budgetGuard = new BookAnalysisBudgetGuard(analysisId);
 
+    const characterNotesText = this.pickCharacterNotesText(context.notes, character.name);
+
     await runWithConcurrency(chaptersToScan, getBookAnalysisAppearanceChapterConcurrency(), async (chapter) => {
       const current = await prisma.bookAnalysisCharacterAppearanceSnapshot.findUnique({
         where: {
@@ -185,12 +187,6 @@ export class BookAnalysisCharacterAppearanceService {
       if (current?.manuallyEdited) {
         return;
       }
-      const ragEvidence = await bookAnalysisCharacterRagAdapter.retrieveDimensionEvidence({
-        documentId: context.documentId,
-        characterName: character.name,
-        dimensions: ["appearance"],
-        occurringChapters: [chapter.title],
-      });
       const result = await this.promptRunner({
         asset: bookAnalysisCharacterAppearanceSnapshotPrompt,
         promptInput: {
@@ -200,8 +196,7 @@ export class BookAnalysisCharacterAppearanceService {
             profile: { ...profile },
           },
           chapter,
-          notesText: context.notesText,
-          ragEvidenceText: ragEvidence.promptBlock,
+          notesText: characterNotesText,
         },
         options: {
           provider: context.provider,
@@ -211,6 +206,7 @@ export class BookAnalysisCharacterAppearanceService {
         },
       });
       await budgetGuard.onSectionFinished(result.meta.tokenUsage);
+      const snapshotEvidence = this.normalizeSnapshotEvidence(result.output.evidence, chapter.chapterIndex);
       await prisma.bookAnalysisCharacterAppearanceSnapshot.upsert({
         where: {
           characterId_chapterIndex: {
@@ -224,20 +220,14 @@ export class BookAnalysisCharacterAppearanceService {
           chapterIndex: chapter.chapterIndex,
           chapterTitle: chapter.title,
           appearanceJson: JSON.stringify(result.output.appearance ?? {}),
-          evidenceJson: JSON.stringify([
-            ...this.normalizeSnapshotEvidence(result.output.evidence, chapter.chapterIndex),
-            ...ragEvidence.evidence,
-          ]),
+          evidenceJson: JSON.stringify(snapshotEvidence),
           summaryCaption: result.output.summaryCaption?.trim() || null,
           contextSceneRefsJson: JSON.stringify(result.output.contextSceneRefs ?? []),
         },
         update: {
           chapterTitle: chapter.title,
           appearanceJson: JSON.stringify(result.output.appearance ?? {}),
-          evidenceJson: JSON.stringify([
-            ...this.normalizeSnapshotEvidence(result.output.evidence, chapter.chapterIndex),
-            ...ragEvidence.evidence,
-          ]),
+          evidenceJson: JSON.stringify(snapshotEvidence),
           summaryCaption: result.output.summaryCaption?.trim() || null,
           contextSceneRefsJson: JSON.stringify(result.output.contextSceneRefs ?? []),
         },
@@ -304,6 +294,21 @@ export class BookAnalysisCharacterAppearanceService {
         lastIndexedChapterIndex,
       },
     });
+  }
+
+  private pickCharacterNotesText(notes: SourceNote[], characterName: string): string {
+    const trimmedName = characterName.trim();
+    if (!trimmedName) {
+      return "";
+    }
+    const relevant = notes.filter((note) =>
+      Array.isArray(note.characters)
+      && note.characters.some((item) => typeof item === "string" && item.includes(trimmedName)),
+    );
+    if (relevant.length === 0) {
+      return "";
+    }
+    return renderNotesForPrompt(relevant, "character_system");
   }
 
   private normalizeSnapshotEvidence(value: unknown, chapterIndex: number): Array<Record<string, unknown>> {
@@ -423,7 +428,7 @@ export class BookAnalysisCharacterAppearanceService {
       model,
       temperature,
       maxTokens,
-      notesText: renderNotesForPrompt(notesResult.notes, "character_system"),
+      notes: notesResult.notes,
       sourceStartChapterIndex: analysis.sourceStartChapterIndex,
       sourceEndChapterIndex: analysis.sourceEndChapterIndex,
     };
