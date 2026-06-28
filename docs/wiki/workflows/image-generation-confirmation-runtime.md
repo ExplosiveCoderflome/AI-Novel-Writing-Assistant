@@ -23,7 +23,9 @@
 - Prompt 优化入口应允许用户输入自然语言优化要求，例如希望强化的画风、氛围、镜头或保留项；后端 PromptAsset 应优先遵循这些要求，但不得覆盖角色身份、参考图用途、性别锁、无文字/无水印等关键约束。
 - 后端服务应把 prompt、参考图路径、参考图展示元数据、尺寸、负面提示词和 adapter 组装在同一个 generation context 中，避免 `prepare` 和 `generate` 两套逻辑漂移。
 - `runImageGeneration` 是业务表 JSON 状态机图片生成的默认执行入口。业务服务只负责提供 `ImageTargetAdapter`、prompt、参考图和额外 done 状态。
+- 使用 `ImageGenerationTask` 两表模型的入口应保持 `ImageGenerationService` 作为任务创建、查询、资产管理和队列调度 facade；真实执行、取消检查、provider 调用、资产落库、任务重试和 pending 快照图片回填由 `ImageGenerationTaskExecutor` 承担，避免任务执行细节重新堆回 facade。
 - 成功生成后，如果实际使用了可追溯参考素材，应把 `referenceImages` 写入业务状态字段，供前端展示“本次生图使用的参考素材”。
+- 两表模型的参考素材应保存为同 owner 的 `ImageAsset` id；任务执行时解析为本地文件路径或可用 URL 发送给 provider，并在生成资产 metadata 中记录实际使用的 reference asset ids。
 - 格子图这类会临时合成雪碧图的入口，状态中记录雪碧图的组成素材，不持久化临时雪碧图本身；实际 provider 请求仍可使用临时本地文件，并在请求完成后清理。
 - 格子图 prompt 必须防止命名角色参考图扩散到群众人物：如果画面存在群众、路人、围观者、弟子群、士兵群或其他背景人物，应明确要求他们在年龄、脸型、发型、服饰颜色、体型和站姿上有差异，并禁止 repeated identical faces / cloned faces。
 - 自动批量任务可以继续直接调用后端统一运行时，不逐项弹出前端确认。批量任务的前置确认应放在批量任务创建/成本估算/目标范围确认层，而不是阻塞每张图。
@@ -48,6 +50,7 @@
 - Prompt 优化如果自动保存到角色或场景配置，会把一次性试验误写成长设定；除非另有明确保存入口，确认弹窗只能修改本次生成参数。
 - 格子图只给命名角色做外貌锚定时，图片模型可能把主角参考脸复制给群众人物；群众差异化约束是格子图 prompt 的基础保护，不应由用户每次手写。
 - 在业务服务里直接调用 `generateImagesByProvider`，容易漏掉 generating/error 状态、历史归档、旧扩展名清理或 provider 支持校验。
+- 在 `ImageGenerationService` facade 里继续堆任务执行逻辑，会让创建任务、队列调度、取消恢复、provider 调用和资产写入混在一个文件；新增执行规则应优先进入 `ImageGenerationTaskExecutor`。
 - 批量任务如果逐图等待前端弹窗，会破坏自动化生产链；批量确认和单次确认是不同层级，不能混用。
 
 ## Related Modules
@@ -55,6 +58,8 @@
 - `client/src/components/image/ImageGenerationConfirmDialog.tsx`
 - `client/src/components/image/useImageGenerationFlow.ts`
 - `server/src/services/image/runtime/`
+- `server/src/services/image/ImageGenerationService.ts`
+- `server/src/services/image/ImageGenerationTaskExecutor.ts`
 - `server/src/services/comic/ComicCharacterImageService.ts`
 - `server/src/services/comic/ComicCharacterAssetService.ts`
 - `server/src/services/comic/ComicPanelImageService.ts`

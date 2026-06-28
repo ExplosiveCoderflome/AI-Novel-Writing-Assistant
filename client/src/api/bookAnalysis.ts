@@ -11,7 +11,10 @@ import type {
 import type {
   BookAnalysisCharacter,
   BookAnalysisCharacterAppearance,
+  BookAnalysisCharacterAppearanceMergeResult,
   BookAnalysisCharacterAppearanceScanJob,
+  BookAnalysisCharacterAppearanceTerm,
+  BookAnalysisCharacterAppearanceTermStatus,
   BookAnalysisCharacterBatchGenerateInput,
   BookAnalysisCharacterDimension,
   BookAnalysisCharacterGenerationDepth,
@@ -306,6 +309,43 @@ export async function getBookAnalysisCharacterAppearance(id: string, characterId
   return data;
 }
 
+export async function listBookAnalysisCharacterAppearanceTerms(
+  id: string,
+  characterId: string,
+  status?: BookAnalysisCharacterAppearanceTermStatus,
+) {
+  const { data } = await apiClient.get<ApiResponse<BookAnalysisCharacterAppearanceTerm[]>>(
+    `/book-analysis/${id}/characters/${characterId}/appearance/terms`,
+    { params: status ? { status } : undefined },
+  );
+  return data;
+}
+
+export async function mergeBookAnalysisCharacterAppearanceTerms(
+  id: string,
+  characterId: string,
+  payload: { termIds: string[] },
+) {
+  const { data } = await apiClient.post<ApiResponse<BookAnalysisCharacterAppearanceMergeResult>>(
+    `/book-analysis/${id}/characters/${characterId}/appearance/terms/merge`,
+    payload,
+  );
+  return data;
+}
+
+export async function updateBookAnalysisCharacterAppearanceTerm(
+  id: string,
+  characterId: string,
+  termId: string,
+  payload: { status: Exclude<BookAnalysisCharacterAppearanceTermStatus, "merged"> },
+) {
+  const { data } = await apiClient.patch<ApiResponse<BookAnalysisCharacterAppearanceTerm>>(
+    `/book-analysis/${id}/characters/${characterId}/appearance/terms/${termId}`,
+    payload,
+  );
+  return data;
+}
+
 export async function scanBookAnalysisCharacterAppearance(
   id: string,
   characterId: string,
@@ -333,7 +373,7 @@ export async function prepareBookAnalysisCharacterAppearanceImage(
   id: string,
   characterId: string,
   snapshotId: string,
-  payload: { provider?: LLMProvider } = {},
+  payload: { provider?: LLMProvider; referenceImageAssetIds?: string[] } = {},
 ) {
   const { data } = await apiClient.post<ApiResponse<ImageGenerationPreview>>(
     `/book-analysis/${id}/characters/${characterId}/appearance/snapshots/${snapshotId}/images/prepare`,
@@ -350,6 +390,7 @@ export async function generateBookAnalysisCharacterAppearanceImage(
     provider?: LLMProvider;
     count?: number;
     stylePreset?: string;
+    referenceImageAssetIds?: string[];
     overrides?: ImageGenerationOverrides;
   } = {},
 ) {
@@ -359,10 +400,12 @@ export async function generateBookAnalysisCharacterAppearanceImage(
       provider: payload.provider,
       count: payload.count,
       stylePreset: payload.stylePreset,
+      referenceImageAssetIds: payload.referenceImageAssetIds,
       promptOverride: payload.overrides?.promptOverride,
       negativePromptOverride: payload.overrides?.negativePromptOverride,
       providerOverride: payload.overrides?.providerOverride,
       sizeOverride: payload.overrides?.sizeOverride,
+      excludedReferenceImageUrls: payload.overrides?.excludedReferenceImageUrls,
     },
   );
   return data;

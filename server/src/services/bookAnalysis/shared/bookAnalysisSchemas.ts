@@ -65,6 +65,14 @@ const bookAnalysisCharacterAppearanceEvidenceSchema = z.object({
   chapterIndex: z.number().int().min(0).optional(),
 }).passthrough();
 
+const bookAnalysisCharacterAppearanceCandidateTermSchema = z.object({
+  text: z.string().trim().min(1).max(80),
+  category: z.string().trim().min(1).max(40).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  stability: z.string().trim().min(1).max(40).optional(),
+  evidence: z.array(bookAnalysisCharacterAppearanceEvidenceSchema).default([]),
+}).passthrough();
+
 export const bookAnalysisCharacterIdentifyOutputSchema = z.object({
   candidates: z.array(z.object({
     name: z.string().trim().min(1),
@@ -112,6 +120,7 @@ export const bookAnalysisCharacterGenerateOutputSchema = z.object({
 export const bookAnalysisCharacterAppearanceSnapshotOutputSchema = z.object({
   appearance: z.record(z.string(), z.unknown()).default({}),
   evidence: z.array(bookAnalysisCharacterAppearanceEvidenceSchema).default([]),
+  candidateTerms: z.array(bookAnalysisCharacterAppearanceCandidateTermSchema).max(12).default([]),
   summaryCaption: z.string().trim().optional(),
   contextSceneRefs: z.array(z.string().trim().min(1)).default([]),
 }).passthrough();
@@ -119,4 +128,12 @@ export const bookAnalysisCharacterAppearanceSnapshotOutputSchema = z.object({
 export const bookAnalysisCharacterAppearanceConsolidateOutputSchema = z.object({
   consolidatedAppearance: z.record(z.string(), z.unknown()).default({}),
   variantPolicy: z.record(z.string(), z.unknown()).default({}),
+}).passthrough();
+
+export const bookAnalysisCharacterAppearanceMergeOutputSchema = z.object({
+  mergedAppearance: z.string().trim().min(1),
+  consolidatedAppearancePatch: z.record(z.string(), z.unknown()).default({}),
+  acceptedTermIds: z.array(z.string().trim().min(1)).default([]),
+  ignoredTermIds: z.array(z.string().trim().min(1)).default([]),
+  mergeNotes: z.array(z.string().trim().min(1)).default([]),
 }).passthrough();

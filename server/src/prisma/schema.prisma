@@ -949,6 +949,7 @@ model ImageGenerationTask {
   prompt          String
   negativePrompt  String?
   stylePreset     String?
+  referenceImageAssetIdsJson String?
   size            String            @default("1024x1024")
   imageCount      Int               @default(1)
   seed            Int?
@@ -2803,6 +2804,7 @@ model BookAnalysisCharacter {
   scenes                 BookAnalysisCharacterScene[]
   appearance             BookAnalysisCharacterAppearance?
   appearanceSnapshots    BookAnalysisCharacterAppearanceSnapshot[]
+  appearanceTerms        BookAnalysisCharacterAppearanceTerm[]
   imageTasks             ImageGenerationTask[]
   imageAssets            ImageAsset[]
   createdAt              DateTime                   @default(now())
@@ -2842,12 +2844,35 @@ model BookAnalysisCharacterAppearanceSnapshot {
   appearance           BookAnalysisCharacterAppearance @relation(fields: [appearanceId], references: [id], onDelete: Cascade)
   character            BookAnalysisCharacter      @relation(fields: [characterId], references: [id], onDelete: Cascade)
   images               BookAnalysisCharacterAppearanceImage[]
+  terms                BookAnalysisCharacterAppearanceTerm[]
   createdAt            DateTime                   @default(now())
   updatedAt            DateTime                   @updatedAt
 
   @@unique([characterId, chapterIndex])
   @@index([appearanceId, chapterIndex])
   @@index([characterId, chapterIndex])
+  @@index([chapterIndex])
+}
+
+model BookAnalysisCharacterAppearanceTerm {
+  id           String                            @id @default(cuid())
+  characterId  String
+  snapshotId   String
+  chapterIndex Int
+  text         String
+  category     String?
+  confidence   Float?
+  stability    String?
+  evidenceJson String?
+  status       String                            @default("pending")
+  character    BookAnalysisCharacter             @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  snapshot     BookAnalysisCharacterAppearanceSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  createdAt    DateTime                          @default(now())
+  updatedAt    DateTime                          @updatedAt
+
+  @@unique([snapshotId, text])
+  @@index([characterId, status, updatedAt])
+  @@index([snapshotId])
   @@index([chapterIndex])
 }
 

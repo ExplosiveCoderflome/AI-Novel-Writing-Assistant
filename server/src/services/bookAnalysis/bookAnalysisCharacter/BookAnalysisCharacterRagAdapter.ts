@@ -36,11 +36,22 @@ function readChapterIndex(chunk: RetrievedChunk): number | undefined {
   }
 }
 
-function buildDimensionQuery(input: CharacterDimensionRetrievalInput, dimension: BookAnalysisCharacterDimension): string {
+export function buildBookAnalysisCharacterDimensionQuery(
+  input: CharacterDimensionRetrievalInput,
+  dimension: BookAnalysisCharacterDimension,
+): string {
   const label = BOOK_ANALYSIS_CHARACTER_DIMENSION_LABELS[dimension] ?? dimension;
   const chapterHint = input.occurringChapters?.length
     ? ` 出场章节 ${input.occurringChapters.slice(0, 8).join(" ")}`
     : "";
+  if (dimension === "appearance") {
+    return [
+      input.characterName,
+      label,
+      "外貌 容貌 身形 发色 瞳色 衣着 服装 配饰 伤痕 表情 气质 姿态 本章形象",
+      chapterHint,
+    ].filter(Boolean).join(" ");
+  }
   return `${input.characterName} ${label} 原文 细节 台词 行动 心理${chapterHint}`;
 }
 
@@ -51,7 +62,7 @@ export class BookAnalysisCharacterRagAdapter {
 
     await Promise.all(dimensions.map(async (dimension) => {
       const rows = await ragServices.hybridRetrievalService.retrieveByFacet({
-        query: buildDimensionQuery(input, dimension),
+        query: buildBookAnalysisCharacterDimensionQuery(input, dimension),
         ownerTypes: ["knowledge_document"],
         knowledgeDocumentIds: [input.documentId],
         finalTopK: 5,

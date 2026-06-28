@@ -13,7 +13,7 @@ import { Dialog, AppDialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { getAPIKeySettings } from "@/api/settings";
 import type { ImageGenerationOverrides, ImageGenerationPreview } from "@/api/comic";
-import { assistImageGenerationPrompt, type ImagePromptAssistResult } from "@/api/images";
+import { assistImageGenerationPrompt, resolveImageAssetUrl, type ImagePromptAssistResult } from "@/api/images";
 import { toast } from "@/components/ui/toast";
 
 const SIZE_OPTIONS = [
@@ -26,6 +26,7 @@ const REF_KIND_LABEL: Record<string, string> = {
   character_sheet: "三视图",
   character_expression: "表情稿",
   character_face: "面部裁剪",
+  book_analysis_character_base: "基础形象",
   asset: "资产",
   scene: "场景",
 };
@@ -34,6 +35,7 @@ const REF_KIND_COLOR: Record<string, string> = {
   character_sheet: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300",
   character_expression: "border-pink-200 bg-pink-50 text-pink-700 dark:border-pink-700 dark:bg-pink-900/20 dark:text-pink-300",
   character_face: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300",
+  book_analysis_character_base: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300",
   asset: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300",
   scene: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300",
 };
@@ -264,14 +266,14 @@ export function ImageGenerationConfirmDialog({
                         </button>
                         {/* 高度固定 h-32，宽度按图片比例自适应 */}
                         <a
-                          href={ref.url}
+                          href={resolveImageAssetUrl(ref.url)}
                           target="_blank"
                           rel="noreferrer"
                           title={`${kindLabel} · ${ref.label}（点击查看大图）`}
                           className="flex h-32 items-center justify-center bg-muted/30"
                         >
                           <img
-                            src={ref.url}
+                            src={resolveImageAssetUrl(ref.url)}
                             alt={ref.label}
                             className="block h-full w-auto object-contain"
                             loading="lazy"

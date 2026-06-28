@@ -4,6 +4,7 @@ import { z } from "zod";
 import { llmProviderSchema } from "../../../llm/providerSchema";
 import { validate } from "../../../middleware/validate";
 import { bookAnalysisCharacterAppearanceService } from "../../../services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterAppearanceService";
+import { bookAnalysisCharacterAppearanceTermService } from "../../../services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterAppearanceTermService";
 import { bookAnalysisCharacterService } from "../../../services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterService";
 import { bookAnalysisCharacterMediaService } from "../../../services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterMediaService";
 import { IMAGE_SIZES } from "../../../services/image/types";
@@ -37,6 +38,12 @@ const analysisCharacterAppearanceScanJobParamsSchema = z.object({
   id: z.string().trim().min(1),
   characterId: z.string().trim().min(1),
   jobId: z.string().trim().min(1),
+});
+
+const analysisCharacterAppearanceTermParamsSchema = z.object({
+  id: z.string().trim().min(1),
+  characterId: z.string().trim().min(1),
+  termId: z.string().trim().min(1),
 });
 
 const characterDimensionSchema = z.enum([
@@ -114,6 +121,7 @@ const characterCandidateBatchGenerateSchema = characterProfileGenerateSchema.ext
 
 const characterImagePrepareSchema = z.object({
   provider: providerSchema.optional(),
+  referenceImageAssetIds: z.array(z.string().trim().min(1)).max(6).optional(),
 });
 
 const characterImageGenerateSchema = z.object({
@@ -124,6 +132,8 @@ const characterImageGenerateSchema = z.object({
   negativePromptOverride: z.string().trim().max(8000).optional(),
   providerOverride: providerSchema.optional(),
   sizeOverride: z.enum(IMAGE_SIZES).optional(),
+  referenceImageAssetIds: z.array(z.string().trim().min(1)).max(6).optional(),
+  excludedReferenceImageUrls: z.array(z.string().trim().min(1)).max(6).optional(),
 });
 
 const characterPromoteSchema = z.object({
@@ -132,6 +142,20 @@ const characterPromoteSchema = z.object({
 
 const characterAppearanceScanSchema = z.object({
   targetPercent: z.number().int().min(0).max(100),
+});
+
+const characterAppearanceTermStatusSchema = z.enum(["pending", "accepted", "rejected", "merged"]);
+
+const characterAppearanceTermsQuerySchema = z.object({
+  status: characterAppearanceTermStatusSchema.optional(),
+});
+
+const characterAppearanceTermMergeSchema = z.object({
+  termIds: z.array(z.string().trim().min(1)).min(1).max(24),
+});
+
+const characterAppearanceTermUpdateSchema = z.object({
+  status: z.enum(["pending", "accepted", "rejected"]),
 });
 
 router.get("/", validate({ params: analysisParamsSchema }), async (req, res, next) => {
@@ -419,6 +443,63 @@ router.get(
   },
 );
 
+router.get(
+  "/:characterId/appearance/terms",
+  validate({ params: analysisCharacterParamsSchema, query: characterAppearanceTermsQuerySchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId } = req.params as z.infer<typeof analysisCharacterParamsSchema>;
+      const { status } = req.query as z.infer<typeof characterAppearanceTermsQuerySchema>;
+      const data = await bookAnalysisCharacterAppearanceTermService.listTerms(id, characterId, status);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Book analysis character appearance terms loaded.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/:characterId/appearance/terms/merge",
+  validate({ params: analysisCharacterParamsSchema, body: characterAppearanceTermMergeSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId } = req.params as z.infer<typeof analysisCharacterParamsSchema>;
+      const body = req.body as z.infer<typeof characterAppearanceTermMergeSchema>;
+      const data = await bookAnalysisCharacterAppearanceTermService.mergeTerms(id, characterId, body.termIds);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Book analysis character appearance terms merged.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.patch(
+  "/:characterId/appearance/terms/:termId",
+  validate({ params: analysisCharacterAppearanceTermParamsSchema, body: characterAppearanceTermUpdateSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, characterId, termId } = req.params as z.infer<typeof analysisCharacterAppearanceTermParamsSchema>;
+      const body = req.body as z.infer<typeof characterAppearanceTermUpdateSchema>;
+      const data = await bookAnalysisCharacterAppearanceTermService.updateTermStatus(id, characterId, termId, body.status);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Book analysis character appearance term updated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 router.post(
   "/:characterId/appearance/scan",
   validate({ params: analysisCharacterParamsSchema, body: characterAppearanceScanSchema }),
@@ -498,7 +579,9 @@ router.post(
           negativePromptOverride: body.negativePromptOverride,
           providerOverride: body.providerOverride,
           sizeOverride: body.sizeOverride,
+          excludedReferenceImageUrls: body.excludedReferenceImageUrls,
         },
+        referenceImageAssetIds: body.referenceImageAssetIds,
       });
       res.status(202).json({
         success: true,
