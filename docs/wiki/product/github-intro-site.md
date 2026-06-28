@@ -1,0 +1,32 @@
+# GitHub Pages 公开介绍站
+
+## Background
+
+项目的 README 已经承载了完整功能说明、开发记录、运行方式和截图，但它更适合已经进入仓库的读者。公开传播入口需要在更短时间内说明三件事：这个项目解决什么问题、长篇小说生产链怎样推进、访问者下一步应该下载桌面版还是查看源码。
+
+因此公开介绍站应作为独立站点维护，而不是把主客户端首页或 README 直接拿来部署。
+
+## Decision
+
+- 公开介绍站放在 `site/` workspace，使用 React + Vite 构建为纯静态产物。
+- 站点只依赖已有产品截图和公开下载 / 仓库链接，不连接后端，不读取本地用户数据。
+- GitHub Pages 部署由 `.github/workflows/site-pages.yml` 负责，推送到 `main` 或手动触发时构建 `@ai-novel/site` 并发布 `site/dist`。
+- 站点视觉内容优先使用真实产品截图和项目社交预览图，避免用抽象插画替代产品界面。
+
+## Current Rule
+
+介绍站的主要读者是第一次看到项目的人，文案应从用户视角解释：
+
+- AI 小说创作工作台如何帮助新手从一句灵感推进到整本小说。
+- 自动导演、世界 / 角色准备、卷级拆章、章节执行和质量修复之间的关系。
+- 开发者为什么可以从这个项目研究 AI Native Product、Agent Workflow 和长篇生产链。
+- 下载桌面版与查看源码的入口。
+
+站点不应承担应用内功能说明书、开发 changelog 或配置文档职责。详细运行说明仍保留在 README 和 docs 中。
+
+## Related Modules
+
+- `site/`：公开介绍站源码与本地构建说明。
+- `.github/workflows/site-pages.yml`：GitHub Pages 静态部署流程。
+- `images/`：产品截图与 GitHub 社交预览图的源资产。
+- `docs/releases/release-notes.md`：用户可见发布记录。
