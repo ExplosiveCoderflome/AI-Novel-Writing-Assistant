@@ -5,14 +5,18 @@ import {
   BrainCircuit,
   CheckCircle2,
   Download,
+  FileText,
   Github,
   PenLine,
   Sparkles,
 } from "lucide-react";
+import { lazy, Suspense, useSyncExternalStore } from "react";
 import chapterExecutionImage from "./assets/chapter-execution.png";
 import creativeHubImage from "./assets/creative-hub.png";
 import directorChoiceImage from "./assets/director-choice.png";
 import projectPreviewImage from "./assets/project-social-preview.png";
+
+const DocsPage = lazy(() => import("./DocsPage"));
 
 const repoUrl = "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant";
 const releaseUrl = `${repoUrl}/releases/latest`;
@@ -74,24 +78,71 @@ const audience = [
   "正在研究 Agent Workflow、LangGraph 编排和 AI Native 产品落地的开发者。",
 ];
 
+function subscribeHash(callback: () => void) {
+  window.addEventListener("hashchange", callback);
+  return () => window.removeEventListener("hashchange", callback);
+}
+
+function getHashSnapshot() {
+  return window.location.hash || "#/";
+}
+
+function useHashRoute() {
+  return useSyncExternalStore(subscribeHash, getHashSnapshot, () => "#/");
+}
+
 function App() {
+  const hash = useHashRoute();
+  const route = parseRoute(hash);
+
   return (
     <main>
-      <nav className="site-nav" aria-label="主导航">
-        <a className="brand" href="#top" aria-label="AI 小说创作工作台首页">
-          <span className="brand-mark">
-            <BookOpenText size={20} strokeWidth={2.1} />
-          </span>
-          <span>AI 小说创作工作台</span>
-        </a>
-        <div className="nav-links">
-          <a href="#flow">生产链</a>
-          <a href="#console">控制台</a>
-          <a href="#audience">适合谁</a>
-          <a href={repoUrl}>GitHub</a>
-        </div>
-      </nav>
+      <SiteNav />
+      {route.page === "docs" ? (
+        <Suspense fallback={<div className="docs-loading">正在打开文档...</div>}>
+          <DocsPage docId={route.docId} />
+        </Suspense>
+      ) : (
+        <HomePage />
+      )}
+    </main>
+  );
+}
 
+function parseRoute(hash: string): { page: "home" } | { page: "docs"; docId?: string } {
+  const cleanHash = hash.replace(/^#/, "");
+  if (cleanHash === "/docs" || cleanHash === "/docs/") {
+    return { page: "docs" };
+  }
+  if (cleanHash.startsWith("/docs/")) {
+    return { page: "docs", docId: decodeURIComponent(cleanHash.replace("/docs/", "")) };
+  }
+  return { page: "home" };
+}
+
+function SiteNav() {
+  return (
+    <nav className="site-nav" aria-label="主导航">
+      <a className="brand" href="#/" aria-label="AI 小说创作工作台首页">
+        <span className="brand-mark">
+          <BookOpenText size={20} strokeWidth={2.1} />
+        </span>
+        <span>AI 小说创作工作台</span>
+      </a>
+      <div className="nav-links">
+        <a href="#/docs">文档</a>
+        <a href="#flow">生产链</a>
+        <a href="#console">控制台</a>
+        <a href="#audience">适合谁</a>
+        <a href={repoUrl}>GitHub</a>
+      </div>
+    </nav>
+  );
+}
+
+function HomePage() {
+  return (
+    <>
       <section
         id="top"
         className="hero"
@@ -113,6 +164,10 @@ function App() {
             <a className="button ghost" href={repoUrl}>
               <Github size={18} />
               查看 GitHub
+            </a>
+            <a className="button ghost" href="#/docs">
+              <FileText size={18} />
+              阅读文档
             </a>
           </div>
           <div className="route-strip" aria-label="核心生产路径">
@@ -227,6 +282,18 @@ function App() {
         </aside>
       </section>
 
+      <section className="docs-teaser section">
+        <div>
+          <p className="eyebrow">Documentation</p>
+          <h2>把长期规则整理成可浏览文档</h2>
+          <p>文档站只展示经过筛选的产品原则、核心工作流、架构边界、Prompt 与 RAG 规则。</p>
+        </div>
+        <a className="button primary" href="#/docs">
+          <FileText size={18} />
+          打开文档
+        </a>
+      </section>
+
       <section className="cta-section">
         <p className="eyebrow">Open source</p>
         <h2>把长篇小说创作做成可以运行、可以恢复、可以继续改进的生产系统。</h2>
@@ -241,7 +308,7 @@ function App() {
           </a>
         </div>
       </section>
-    </main>
+    </>
   );
 }
 

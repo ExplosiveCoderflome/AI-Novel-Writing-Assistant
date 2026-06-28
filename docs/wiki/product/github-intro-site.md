@@ -13,6 +13,7 @@
 - GitHub Pages 部署由 `.github/workflows/site-pages.yml` 负责，推送到 `main` 或手动触发时构建 `@ai-novel/site` 并发布 `site/dist`。
 - 站点视觉内容优先使用真实产品截图和项目社交预览图，避免用抽象插画替代产品界面。
 - 站点设计方向定义在 `site/DESIGN.md`，采用“文学编辑部 + AI 控制台”的表达：暖纸面承载创作叙事，暗色控制台承载产品可信度。
+- 文档展示采用白名单 manifest，只展示适合公开阅读的长期知识，不自动暴露整个 `docs/` 目录。
 
 ## Current Rule
 
@@ -24,6 +25,19 @@
 - 下载桌面版与查看源码的入口。
 
 站点不应承担应用内功能说明书、开发 changelog 或配置文档职责。详细运行说明仍保留在 README 和 docs 中。
+
+公开文档入口可以展示以下类型：
+
+- 产品理念和新手优先原则。
+- 自动导演、章节生产、拆书、Creative Hub、图片生成等核心工作流。
+- 模块边界、配置、模型选择、Prompt Registry、RAG 上下文等长期维护规则。
+- 用户可见更新日志。
+
+公开文档入口不应默认展示：
+
+- `docs/archive/` 历史归档。
+- `docs/checkpoints/` 阶段检查点。
+- 未整理为长期规则的 `docs/plans/` 执行计划。
 
 ## Design Rule
 
@@ -41,4 +55,6 @@
 - `site/`：公开介绍站源码与本地构建说明。
 - `.github/workflows/site-pages.yml`：GitHub Pages 静态部署流程。
 - `images/`：产品截图与 GitHub 社交预览图的源资产。
+- `site/src/docsManifest.ts`：公开文档白名单。
+- `site/src/DocsPage.tsx`：文档索引与 Markdown 阅读页。
 - `docs/releases/release-notes.md`：用户可见发布记录。
