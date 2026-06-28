@@ -24,7 +24,7 @@ export default function DocsPage({ docId }: DocsPageProps) {
         <div className="docs-sidebar-heading">
           <p className="eyebrow">Docs</p>
           <h1>项目文档</h1>
-          <p>从现有 docs 中筛选公开适合阅读的长期知识。</p>
+          <p>给使用者、潜在用户和感兴趣读者看的项目文档。</p>
         </div>
         <nav>
           {docsManifest.map((category) => (
@@ -70,15 +70,13 @@ function DocsIndex() {
   return (
     <div className="docs-index">
       <div className="docs-hero">
-        <p className="eyebrow">Curated documentation</p>
-        <h1>阅读产品原则、工作流和架构边界</h1>
-        <p>
-          这里不会直接暴露整个 `docs/`。页面只展示适合公开阅读、能帮助理解项目长期维护方式的文档。
-        </p>
+        <p className="eyebrow">Public documentation</p>
+        <h1>了解项目、开始使用、查看路线图</h1>
+        <p>这里展示基础介绍、进阶介绍、使用方法、公开开发计划和更新日志。</p>
         <div className="docs-stats">
           <p>
             <FileText size={18} />
-            {totalDocs} 篇精选文档
+            {totalDocs} 篇公开文档
           </p>
           <p>
             <Search size={18} />

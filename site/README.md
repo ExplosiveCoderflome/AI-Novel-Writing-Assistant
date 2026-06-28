@@ -22,6 +22,6 @@ pnpm --filter @ai-novel/site build
 
 ## 文档入口
 
-站点内置 `#/docs` 文档入口。公开文档通过 `src/docsManifest.ts` 白名单维护，只展示产品原则、核心工作流、架构边界、Prompt / RAG 规则和更新日志。
+站点内置 `#/docs` 文档入口。公开文档通过 `src/docsManifest.ts` 白名单维护，来源限定为 `docs/public/` 下的用户向文档，以及 `docs/releases/release-notes.md`。
 
-不要把整个 `docs/` 目录自动挂到公开站点，`archive`、`checkpoints` 和未整理的执行计划默认不展示。
+不要把整个 `docs/` 目录自动挂到公开站点，内部 wiki、`archive`、`checkpoints`、`plans` 和未整理的执行计划默认不展示。

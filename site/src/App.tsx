@@ -285,8 +285,8 @@ function HomePage() {
       <section className="docs-teaser section">
         <div>
           <p className="eyebrow">Documentation</p>
-          <h2>把长期规则整理成可浏览文档</h2>
-          <p>文档站只展示经过筛选的产品原则、核心工作流、架构边界、Prompt 与 RAG 规则。</p>
+          <h2>查看公开文档与路线图</h2>
+          <p>文档站集中展示项目介绍、使用方法、公开开发计划和更新日志。</p>
         </div>
         <a className="button primary" href="#/docs">
           <FileText size={18} />

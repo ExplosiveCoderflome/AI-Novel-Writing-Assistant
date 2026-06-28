@@ -39,7 +39,7 @@ The public site should feel like an editorial desk for long-form fiction plus a 
 2. Small proof band for the key production capabilities.
 3. Editorial production flow with large screenshots and step copy.
 4. Dark product console section with layered screenshots and system modules.
-5. Curated docs entry that links to selected long-term product and architecture knowledge.
+5. Public docs entry that helps users understand the project, start using it, and read the roadmap.
 6. Audience and download section.
 7. Final open-source CTA.
 

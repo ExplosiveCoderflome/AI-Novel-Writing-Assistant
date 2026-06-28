@@ -13,7 +13,7 @@
 - GitHub Pages 部署由 `.github/workflows/site-pages.yml` 负责，推送到 `main` 或手动触发时构建 `@ai-novel/site` 并发布 `site/dist`。
 - 站点视觉内容优先使用真实产品截图和项目社交预览图，避免用抽象插画替代产品界面。
 - 站点设计方向定义在 `site/DESIGN.md`，采用“文学编辑部 + AI 控制台”的表达：暖纸面承载创作叙事，暗色控制台承载产品可信度。
-- 文档展示采用白名单 manifest，只展示适合公开阅读的长期知识，不自动暴露整个 `docs/` 目录。
+- 文档展示采用白名单 manifest，公开入口只展示面向使用者和潜在用户的文档，不自动暴露整个 `docs/` 目录。
 
 ## Current Rule
 
@@ -24,20 +24,25 @@
 - 开发者为什么可以从这个项目研究 AI Native Product、Agent Workflow 和长篇生产链。
 - 下载桌面版与查看源码的入口。
 
-站点不应承担应用内功能说明书、开发 changelog 或配置文档职责。详细运行说明仍保留在 README 和 docs 中。
+站点不应承担内部架构 wiki、执行计划或检查点浏览器职责。详细开发说明仍保留在 README 和 docs 中。
 
-公开文档入口可以展示以下类型：
+公开文档入口只展示以下来源：
 
-- 产品理念和新手优先原则。
-- 自动导演、章节生产、拆书、Creative Hub、图片生成等核心工作流。
-- 模块边界、配置、模型选择、Prompt Registry、RAG 上下文等长期维护规则。
-- 用户可见更新日志。
+- `docs/public/basic-introduction.md`：项目是什么、适合谁、核心能力和下载入口。
+- `docs/public/advanced-introduction.md`：AI Native 长篇生产链、自动导演、RAG、写法引擎和本地运行等公开解释。
+- `docs/public/usage-guide.md`：面向第一次使用者的安装、配置模型、创建小说和跑通主链指南。
+- `docs/public/development-roadmap.md`：公开路线图，只写高层产品方向。
+- `docs/releases/release-notes.md`：用户可见更新日志。
 
 公开文档入口不应默认展示：
 
+- `docs/wiki/` 内部产品原则、工作流边界、架构规则、Prompt / RAG 维护规则。
 - `docs/archive/` 历史归档。
 - `docs/checkpoints/` 阶段检查点。
-- 未整理为长期规则的 `docs/plans/` 执行计划。
+- `docs/plans/` 执行计划。
+- `TASK.md`、临时任务清单和未整理检查项。
+
+这个边界的原因是：公开站读者通常想快速判断项目是否值得使用或关注，而内部 wiki 面向维护者和 AI agent，包含大量架构约束、失败模式和开发治理规则。两类内容混在同一个入口里，会增加新用户理解成本，也会让内部维护文档承担不适合的传播职责。
 
 ## Design Rule
 
