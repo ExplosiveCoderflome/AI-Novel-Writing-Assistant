@@ -31,6 +31,7 @@
 - `docs/public/basic-introduction.md`：项目是什么、适合谁、核心能力和下载入口。
 - `docs/public/advanced-introduction.md`：AI Native 长篇生产链、自动导演、RAG、写法引擎和本地运行等公开解释。
 - `docs/public/usage-guide.md`：面向第一次使用者的安装、配置模型、创建小说和跑通主链指南。
+- `docs/public/modules/`：与应用侧栏一致的模块介绍，每个侧栏模块至少有一个用户向入口说明页。
 - `docs/public/development-roadmap.md`：公开路线图，只写高层产品方向。
 - `docs/releases/release-notes.md`：用户可见更新日志。
 

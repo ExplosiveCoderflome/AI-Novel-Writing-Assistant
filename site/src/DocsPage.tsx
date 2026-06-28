@@ -71,8 +71,8 @@ function DocsIndex() {
     <div className="docs-index">
       <div className="docs-hero">
         <p className="eyebrow">Public documentation</p>
-        <h1>了解项目、开始使用、查看路线图</h1>
-        <p>这里展示基础介绍、进阶介绍、使用方法、公开开发计划和更新日志。</p>
+        <h1>了解项目、开始使用、找到每个模块</h1>
+        <p>这里展示项目介绍、使用方法、侧栏功能模块、公开开发计划和更新日志。</p>
         <div className="docs-stats">
           <p>
             <FileText size={18} />
