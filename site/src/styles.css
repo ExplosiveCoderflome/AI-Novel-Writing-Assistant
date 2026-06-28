@@ -1,6 +1,6 @@
 :root {
-  color: #171512;
-  background: #faf7ef;
+  color: #101417;
+  background: #f7f9f8;
   font-family:
     Inter, "IBM Plex Sans", "Segoe UI", "PingFang SC", "Microsoft YaHei",
     sans-serif;
@@ -8,16 +8,18 @@
   line-height: 1.5;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --paper: #faf7ef;
-  --paper-deep: #f3eadc;
-  --ink: #171512;
-  --muted: #6d665c;
-  --line: #e6ded2;
-  --console: #151714;
-  --console-elevated: #24251f;
-  --accent: #b85c3e;
-  --accent-soft: #ead6c9;
-  --jade: #4f9f8a;
+  --paper: #f7f9f8;
+  --paper-deep: #edf4f1;
+  --ink: #101417;
+  --muted: #5d6872;
+  --line: #d8e0dd;
+  --console: #101416;
+  --console-elevated: #1d2528;
+  --accent: #147f91;
+  --accent-strong: #0f6776;
+  --accent-soft: #d7edf1;
+  --signal: #d76457;
+  --mint: #55a984;
 }
 
 * {
@@ -53,9 +55,9 @@ p {
 
 .site-nav {
   align-items: center;
-  background: rgb(250 247 239 / 0.86);
+  background: rgb(247 249 248 / 0.88);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgb(230 222 210 / 0.72);
+  border-bottom: 1px solid rgb(216 224 221 / 0.78);
   display: flex;
   height: 68px;
   justify-content: space-between;
@@ -96,7 +98,7 @@ p {
 }
 
 .nav-links {
-  color: #5f584f;
+  color: #51606a;
   font-size: 14px;
   gap: 26px;
 }
@@ -133,7 +135,7 @@ p {
 
 .eyebrow,
 .panel-label {
-  color: var(--accent);
+  color: var(--signal);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
@@ -141,7 +143,7 @@ p {
 }
 
 .hero .eyebrow {
-  color: #f3b88f;
+  color: #8ee7f0;
 }
 
 .hero h1,
@@ -177,17 +179,25 @@ p {
 }
 
 .button {
+  align-items: center;
   border-radius: 8px;
+  display: inline-flex;
   font-weight: 800;
   gap: 9px;
   justify-content: center;
+  line-height: 1;
   min-height: 46px;
   padding: 0 18px;
+  vertical-align: middle;
 }
 
 .button.primary {
   background: var(--accent);
-  color: #fffaf3;
+  color: #f8fffe;
+}
+
+.button.primary:hover {
+  background: var(--accent-strong);
 }
 
 .button.ghost {
@@ -236,7 +246,7 @@ p {
 }
 
 .proof-band svg {
-  color: var(--jade);
+  color: var(--mint);
   flex: 0 0 auto;
 }
 
@@ -307,7 +317,7 @@ p {
 }
 
 .flow-copy span {
-  color: var(--accent);
+  color: var(--signal);
   display: block;
   font-weight: 850;
   margin-bottom: 18px;
@@ -330,7 +340,7 @@ p {
 }
 
 .flow-image {
-  background: #efe5d5;
+  background: #e5eeeb;
   border: 1px solid var(--line);
   margin: 0;
   overflow: hidden;
@@ -346,9 +356,9 @@ p {
 
 .console-section {
   background:
-    radial-gradient(circle at 18% 12%, rgb(184 92 62 / 0.28), transparent 32%),
-    linear-gradient(135deg, #151714, #202018 54%, #11120f);
-  color: #f7f1e8;
+    radial-gradient(circle at 18% 12%, rgb(20 127 145 / 0.26), transparent 34%),
+    linear-gradient(135deg, #101416, #172226 52%, #0c1113);
+  color: #f3fbfa;
   overflow: hidden;
   padding: 104px 7vw;
 }
@@ -358,11 +368,11 @@ p {
 }
 
 .console-heading h2 {
-  color: #fff8ef;
+  color: #f3fbfa;
 }
 
 .console-heading p {
-  color: rgb(247 241 232 / 0.72);
+  color: rgb(243 251 250 / 0.72);
   margin-top: 18px;
 }
 
@@ -423,19 +433,19 @@ p {
 }
 
 .console-modules svg {
-  color: #f3b88f;
+  color: #8ee7f0;
   flex: 0 0 auto;
   margin-top: 3px;
 }
 
 .console-modules h3 {
-  color: #fff8ef;
+  color: #f3fbfa;
   font-size: 18px;
   margin-bottom: 7px;
 }
 
 .console-modules p {
-  color: rgb(247 241 232 / 0.68);
+  color: rgb(243 251 250 / 0.68);
   line-height: 1.68;
 }
 
@@ -460,13 +470,13 @@ p {
 }
 
 .audience-list svg {
-  color: var(--jade);
+  color: var(--mint);
   flex: 0 0 auto;
   margin-top: 4px;
 }
 
 .download-panel {
-  background: #fffaf3;
+  background: #fbfdfc;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 30px;
@@ -495,13 +505,13 @@ p {
 
 .cta-section {
   background: var(--ink);
-  color: #fff8ef;
+  color: #f3fbfa;
   padding: 90px 7vw;
   text-align: center;
 }
 
 .cta-section h2 {
-  color: #fff8ef;
+  color: #f3fbfa;
   margin: 16px auto 0;
   max-width: 950px;
 }

@@ -8,7 +8,7 @@ The public site should feel like an editorial desk for long-form fiction plus a 
 
 - Use real product screenshots as proof. Product imagery should carry the page.
 - Lead with a cinematic, full-bleed hero. The first viewport should communicate "from idea to full novel" immediately.
-- Combine warm literary surfaces with dark console sections.
+- Combine clean editorial surfaces with dark console sections.
 - Keep the interface restrained: thin borders, 8px radii, calm spacing, no decorative blobs.
 
 ## Typography
@@ -20,15 +20,18 @@ The public site should feel like an editorial desk for long-form fiction plus a 
 
 ## Color System
 
-- Paper: `#faf7ef`
-- Ink: `#171512`
-- Muted text: `#6d665c`
-- Line: `#e6ded2`
-- Dark console: `#151714`
-- Elevated console: `#24251f`
-- Accent: `#b85c3e`
-- Accent soft: `#ead6c9`
-- Jade: `#4f9f8a`
+- Paper: `#f7f9f8`
+- Paper deep: `#edf4f1`
+- Ink: `#101417`
+- Muted text: `#5d6872`
+- Line: `#d8e0dd`
+- Dark console: `#101416`
+- Elevated console: `#1d2528`
+- Accent: `#147f91`
+- Accent strong: `#0f6776`
+- Accent soft: `#d7edf1`
+- Signal: `#d76457`
+- Mint: `#55a984`
 
 ## Page Structure
 
