@@ -7,7 +7,7 @@ import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { characterLibrarySyncService } from "../../character/CharacterLibrarySyncService";
 import { imageGenerationService } from "../../image/ImageGenerationService";
-import { persistGeneratedImageAsset, resolveImageAssetFile } from "../../image/imageAssetStorage";
+import { buildImageAssetPublicUrl, persistGeneratedImageAsset, resolveImageAssetFile } from "../../image/imageAssetStorage";
 
 export interface BookAnalysisCharacterImagePreview {
   kind: string;
@@ -273,9 +273,9 @@ export class BookAnalysisCharacterMediaService {
       }), referenceImages.length),
       negativePrompt: DEFAULT_NEGATIVE_PROMPT,
       referenceImages: referenceImages.map((asset) => ({
-        kind: "character_sheet",
+        kind: "book_analysis_character_base",
         label: `${snapshot.character.name} · 基础形象${asset.isPrimary ? "（主图）" : ""}`,
-        url: asset.url,
+        url: buildImageAssetPublicUrl(asset.id),
         assetId: asset.id,
       })),
       provider: input.provider ?? "openai",
@@ -293,7 +293,9 @@ export class BookAnalysisCharacterMediaService {
     const selectedReferenceIds = normalizeReferenceAssetIds(input.referenceImageAssetIds);
     const availableReferenceImages = await this.loadReferenceImageAssets(analysisId, characterId, selectedReferenceIds);
     const excludedUrls = new Set((input.overrides?.excludedReferenceImageUrls ?? []).map((url) => url.trim()).filter(Boolean));
-    const referenceImages = availableReferenceImages.filter((asset) => !excludedUrls.has(asset.url));
+    const referenceImages = availableReferenceImages.filter((asset) =>
+      !excludedUrls.has(asset.url) && !excludedUrls.has(buildImageAssetPublicUrl(asset.id)),
+    );
     const sourcePrompt = appendReferenceInstruction(buildAppearanceSnapshotPrompt({
       character: snapshot.character,
       snapshot,

@@ -726,6 +726,8 @@ test("BookAnalysisCharacterMediaService queues appearance snapshot image tasks w
     assert.match(preview.prompt, /左臂带伤/);
     assert.match(preview.prompt, /基础形象参考/);
     assert.equal(preview.referenceImages.length, 1);
+    assert.equal(preview.referenceImages[0].kind, "book_analysis_character_base");
+    assert.equal(preview.referenceImages[0].url, "/api/images/assets/asset-base-1/file");
     assert.equal(preview.referenceImages[0].assetId, "asset-base-1");
 
     const task = await service.generateAppearanceSnapshotImage("analysis-1", "bac-1", "snap-1", {
