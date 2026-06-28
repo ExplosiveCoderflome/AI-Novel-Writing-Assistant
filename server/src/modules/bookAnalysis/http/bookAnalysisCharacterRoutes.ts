@@ -121,6 +121,7 @@ const characterCandidateBatchGenerateSchema = characterProfileGenerateSchema.ext
 
 const characterImagePrepareSchema = z.object({
   provider: providerSchema.optional(),
+  referenceImageAssetIds: z.array(z.string().trim().min(1)).max(6).optional(),
 });
 
 const characterImageGenerateSchema = z.object({
@@ -131,6 +132,8 @@ const characterImageGenerateSchema = z.object({
   negativePromptOverride: z.string().trim().max(8000).optional(),
   providerOverride: providerSchema.optional(),
   sizeOverride: z.enum(IMAGE_SIZES).optional(),
+  referenceImageAssetIds: z.array(z.string().trim().min(1)).max(6).optional(),
+  excludedReferenceImageUrls: z.array(z.string().trim().min(1)).max(6).optional(),
 });
 
 const characterPromoteSchema = z.object({
@@ -576,7 +579,9 @@ router.post(
           negativePromptOverride: body.negativePromptOverride,
           providerOverride: body.providerOverride,
           sizeOverride: body.sizeOverride,
+          excludedReferenceImageUrls: body.excludedReferenceImageUrls,
         },
+        referenceImageAssetIds: body.referenceImageAssetIds,
       });
       res.status(202).json({
         success: true,

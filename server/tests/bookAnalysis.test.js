@@ -609,12 +609,29 @@ test("BookAnalysisCharacterMediaService queues book-analysis character image tas
 
 test("BookAnalysisCharacterMediaService queues appearance snapshot image tasks with pending links", async () => {
   const original = {
+    characterFindFirst: prisma.bookAnalysisCharacter.findFirst,
     snapshotFindFirst: prisma.bookAnalysisCharacterAppearanceSnapshot.findFirst,
     appearanceImageCreate: prisma.bookAnalysisCharacterAppearanceImage.create,
+    imageAssetFindMany: prisma.imageAsset.findMany,
   };
   const now = new Date("2026-06-24T12:00:00.000Z");
   const taskCreates = [];
   const pendingLinks = [];
+  prisma.bookAnalysisCharacter.findFirst = async ({ where }) =>
+    where.id === "bac-1" && where.analysisId === "analysis-1"
+      ? {
+        id: "bac-1",
+        analysisId: "analysis-1",
+        name: "林秋",
+        role: "主角",
+        status: "generated",
+        profileJson: JSON.stringify({
+          name: "林秋",
+          role: "主角",
+          personality: "谨慎但敢赌",
+        }),
+      }
+      : null;
   prisma.bookAnalysisCharacterAppearanceSnapshot.findFirst = async ({ where }) =>
     where.id === "snap-1" && where.characterId === "bac-1"
       ? {
@@ -642,6 +659,27 @@ test("BookAnalysisCharacterMediaService queues appearance snapshot image tasks w
         },
       }
       : null;
+  prisma.imageAsset.findMany = async () => [{
+    id: "asset-base-1",
+    taskId: "task-base-1",
+    sceneType: "book_analysis_character",
+    bookAnalysisCharacterId: "bac-1",
+    provider: "openai",
+    model: "gpt-image-1",
+    url: "/uploads/base-1.png",
+    sourceUrl: null,
+    localPath: null,
+    mimeType: "image/png",
+    width: 1024,
+    height: 1024,
+    seed: null,
+    prompt: "基础形象",
+    isPrimary: true,
+    sortOrder: 0,
+    metadata: JSON.stringify({ localPath: "D:/tmp/base-1.png" }),
+    createdAt: now,
+    updatedAt: now,
+  }];
   prisma.bookAnalysisCharacterAppearanceImage.create = async ({ data }) => {
     pendingLinks.push(data);
     return { id: `appearance-image-${pendingLinks.length}`, ...data, createdAt: now, updatedAt: now };
@@ -686,6 +724,9 @@ test("BookAnalysisCharacterMediaService queues appearance snapshot image tasks w
     const preview = await service.prepareAppearanceSnapshotImage("analysis-1", "bac-1", "snap-1", {});
     assert.match(preview.prompt, /短发/);
     assert.match(preview.prompt, /左臂带伤/);
+    assert.match(preview.prompt, /基础形象参考/);
+    assert.equal(preview.referenceImages.length, 1);
+    assert.equal(preview.referenceImages[0].assetId, "asset-base-1");
 
     const task = await service.generateAppearanceSnapshotImage("analysis-1", "bac-1", "snap-1", {
       count: 2,
@@ -693,12 +734,16 @@ test("BookAnalysisCharacterMediaService queues appearance snapshot image tasks w
     assert.equal(task.id, "task-appearance-1");
     assert.equal(taskCreates[0].promptMode, "direct");
     assert.match(taskCreates[0].prompt, /雨夜中带伤追踪线索/);
+    assert.deepEqual(taskCreates[0].referenceImageAssetIds, ["asset-base-1"]);
     assert.equal(pendingLinks.length, 1);
     assert.equal(pendingLinks[0].snapshotId, "snap-1");
     assert.equal(pendingLinks[0].generationTaskId, "task-appearance-1");
+    assert.deepEqual(JSON.parse(pendingLinks[0].referenceAssetIdsJson), ["asset-base-1"]);
   } finally {
+    prisma.bookAnalysisCharacter.findFirst = original.characterFindFirst;
     prisma.bookAnalysisCharacterAppearanceSnapshot.findFirst = original.snapshotFindFirst;
     prisma.bookAnalysisCharacterAppearanceImage.create = original.appearanceImageCreate;
+    prisma.imageAsset.findMany = original.imageAssetFindMany;
   }
 });
 

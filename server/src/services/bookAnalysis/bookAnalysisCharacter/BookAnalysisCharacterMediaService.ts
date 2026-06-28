@@ -14,7 +14,7 @@ export interface BookAnalysisCharacterImagePreview {
   title: string;
   prompt: string;
   negativePrompt?: string;
-  referenceImages: Array<{ kind: string; label: string; url: string }>;
+  referenceImages: Array<{ kind: string; label: string; url: string; assetId?: string }>;
   provider: string;
   size: string;
 }
@@ -24,6 +24,7 @@ export interface BookAnalysisCharacterImageOverrides {
   providerOverride?: string;
   sizeOverride?: "512x512" | "768x768" | "1024x1024" | "1024x1536" | "1536x1024";
   negativePromptOverride?: string;
+  excludedReferenceImageUrls?: string[];
 }
 
 export interface BookAnalysisCharacterPromoteResult {
@@ -35,6 +36,7 @@ export interface BookAnalysisCharacterAppearanceImageGenerateInput {
   provider?: LLMProvider;
   count?: number;
   stylePreset?: string;
+  referenceImageAssetIds?: string[];
   overrides?: BookAnalysisCharacterImageOverrides;
 }
 
@@ -175,6 +177,24 @@ function buildAppearanceSnapshotPrompt(input: {
   ].filter(Boolean).join("\n");
 }
 
+function appendReferenceInstruction(prompt: string, referenceCount: number): string {
+  if (referenceCount <= 0) {
+    return prompt;
+  }
+  return [
+    prompt,
+    "",
+    "基础形象参考：本次会附带用户选中的角色基础形象图。请保持同一人物的脸型、发型、体态、标志性细节和整体辨识度，只改变本章场景、服装状态、姿态和情绪表现。",
+  ].join("\n");
+}
+
+function normalizeReferenceAssetIds(value: string[] | undefined): string[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+  return Array.from(new Set(value.map((item) => item.trim()).filter(Boolean))).slice(0, 6);
+}
+
 async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of stream as Readable) {
@@ -235,19 +255,29 @@ export class BookAnalysisCharacterMediaService {
     analysisId: string,
     characterId: string,
     snapshotId: string,
-    input: { provider?: LLMProvider },
+    input: { provider?: LLMProvider; referenceImageAssetIds?: string[] },
   ): Promise<BookAnalysisCharacterImagePreview> {
     const snapshot = await this.loadAppearanceSnapshot(analysisId, characterId, snapshotId);
+    const referenceImages = await this.loadReferenceImageAssets(
+      analysisId,
+      characterId,
+      normalizeReferenceAssetIds(input.referenceImageAssetIds),
+    );
     return {
       kind: "book_analysis_character_appearance_snapshot",
       title: `${snapshot.character.name} 第 ${snapshot.chapterIndex} 章形象图`,
-      prompt: buildAppearanceSnapshotPrompt({
+      prompt: appendReferenceInstruction(buildAppearanceSnapshotPrompt({
         character: snapshot.character,
         snapshot,
         consolidatedAppearanceJson: snapshot.appearance.consolidatedAppearanceJson,
-      }),
+      }), referenceImages.length),
       negativePrompt: DEFAULT_NEGATIVE_PROMPT,
-      referenceImages: [],
+      referenceImages: referenceImages.map((asset) => ({
+        kind: "character_sheet",
+        label: `${snapshot.character.name} · 基础形象${asset.isPrimary ? "（主图）" : ""}`,
+        url: asset.url,
+        assetId: asset.id,
+      })),
       provider: input.provider ?? "openai",
       size: "1024x1024",
     };
@@ -260,11 +290,15 @@ export class BookAnalysisCharacterMediaService {
     input: BookAnalysisCharacterAppearanceImageGenerateInput,
   ): Promise<ImageGenerationTask> {
     const snapshot = await this.loadAppearanceSnapshot(analysisId, characterId, snapshotId);
-    const sourcePrompt = buildAppearanceSnapshotPrompt({
+    const selectedReferenceIds = normalizeReferenceAssetIds(input.referenceImageAssetIds);
+    const availableReferenceImages = await this.loadReferenceImageAssets(analysisId, characterId, selectedReferenceIds);
+    const excludedUrls = new Set((input.overrides?.excludedReferenceImageUrls ?? []).map((url) => url.trim()).filter(Boolean));
+    const referenceImages = availableReferenceImages.filter((asset) => !excludedUrls.has(asset.url));
+    const sourcePrompt = appendReferenceInstruction(buildAppearanceSnapshotPrompt({
       character: snapshot.character,
       snapshot,
       consolidatedAppearanceJson: snapshot.appearance.consolidatedAppearanceJson,
-    });
+    }), referenceImages.length);
     const prompt = input.overrides?.promptOverride?.trim() || sourcePrompt;
     const count = 1;
     const task = await this.imageService.createBookAnalysisCharacterTask({
@@ -277,6 +311,7 @@ export class BookAnalysisCharacterMediaService {
       provider: (input.overrides?.providerOverride as LLMProvider | undefined) ?? input.provider,
       size: input.overrides?.sizeOverride ?? "1024x1024",
       count,
+      referenceImageAssetIds: referenceImages.map((asset) => asset.id),
     });
     await prisma.bookAnalysisCharacterAppearanceImage.create({
       data: {
@@ -290,8 +325,9 @@ export class BookAnalysisCharacterMediaService {
           size: input.overrides?.sizeOverride ?? "1024x1024",
           source: "appearance_snapshot",
           chapterIndex: snapshot.chapterIndex,
+          referenceImageAssetIds: referenceImages.map((asset) => asset.id),
         }),
-        referenceAssetIdsJson: JSON.stringify([]),
+        referenceAssetIdsJson: JSON.stringify(referenceImages.map((asset) => asset.id)),
       },
     });
     return task;
@@ -391,6 +427,33 @@ export class BookAnalysisCharacterMediaService {
     if (!asset) {
       throw new AppError("Book analysis character image asset not found.", 404);
     }
+  }
+
+  private async loadReferenceImageAssets(
+    analysisId: string,
+    characterId: string,
+    referenceImageAssetIds: string[] | undefined,
+  ) {
+    await this.loadGeneratedCharacter(analysisId, characterId);
+    if (referenceImageAssetIds && referenceImageAssetIds.length === 0) {
+      return [];
+    }
+    const rows = await prisma.imageAsset.findMany({
+      where: {
+        sceneType: "book_analysis_character",
+        bookAnalysisCharacterId: characterId,
+        ...(referenceImageAssetIds ? { id: { in: referenceImageAssetIds } } : {}),
+      },
+      orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+    if (!referenceImageAssetIds) {
+      return rows.slice(0, 1);
+    }
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return referenceImageAssetIds.flatMap((id) => {
+      const row = byId.get(id);
+      return row ? [row] : [];
+    });
   }
 
   private async clonePrimaryImage(bookAnalysisCharacterId: string, baseCharacterId: string): Promise<ImageAsset | null> {

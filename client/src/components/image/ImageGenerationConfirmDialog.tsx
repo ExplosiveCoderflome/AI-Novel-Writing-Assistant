@@ -13,7 +13,7 @@ import { Dialog, AppDialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { getAPIKeySettings } from "@/api/settings";
 import type { ImageGenerationOverrides, ImageGenerationPreview } from "@/api/comic";
-import { assistImageGenerationPrompt, type ImagePromptAssistResult } from "@/api/images";
+import { assistImageGenerationPrompt, resolveImageAssetUrl, type ImagePromptAssistResult } from "@/api/images";
 import { toast } from "@/components/ui/toast";
 
 const SIZE_OPTIONS = [
@@ -264,14 +264,14 @@ export function ImageGenerationConfirmDialog({
                         </button>
                         {/* 高度固定 h-32，宽度按图片比例自适应 */}
                         <a
-                          href={ref.url}
+                          href={resolveImageAssetUrl(ref.url)}
                           target="_blank"
                           rel="noreferrer"
                           title={`${kindLabel} · ${ref.label}（点击查看大图）`}
                           className="flex h-32 items-center justify-center bg-muted/30"
                         >
                           <img
-                            src={ref.url}
+                            src={resolveImageAssetUrl(ref.url)}
                             alt={ref.label}
                             className="block h-full w-auto object-contain"
                             loading="lazy"

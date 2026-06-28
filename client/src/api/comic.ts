@@ -581,7 +581,7 @@ export interface ImageGenerationPreview {
   title: string;
   prompt: string;
   negativePrompt?: string;
-  referenceImages: Array<{ kind: string; label: string; url: string }>;
+  referenceImages: Array<{ kind: string; label: string; url: string; assetId?: string }>;
   provider: string;
   size: string;
   availableProviders?: Array<{ value: string; label: string }>;

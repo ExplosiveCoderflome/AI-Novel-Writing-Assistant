@@ -949,6 +949,7 @@ model ImageGenerationTask {
   prompt          String
   negativePrompt  String?
   stylePreset     String?
+  referenceImageAssetIdsJson String?
   size            String            @default("1024x1024")
   imageCount      Int               @default(1)
   seed            Int?

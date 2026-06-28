@@ -373,7 +373,7 @@ export async function prepareBookAnalysisCharacterAppearanceImage(
   id: string,
   characterId: string,
   snapshotId: string,
-  payload: { provider?: LLMProvider } = {},
+  payload: { provider?: LLMProvider; referenceImageAssetIds?: string[] } = {},
 ) {
   const { data } = await apiClient.post<ApiResponse<ImageGenerationPreview>>(
     `/book-analysis/${id}/characters/${characterId}/appearance/snapshots/${snapshotId}/images/prepare`,
@@ -390,6 +390,7 @@ export async function generateBookAnalysisCharacterAppearanceImage(
     provider?: LLMProvider;
     count?: number;
     stylePreset?: string;
+    referenceImageAssetIds?: string[];
     overrides?: ImageGenerationOverrides;
   } = {},
 ) {
@@ -399,10 +400,12 @@ export async function generateBookAnalysisCharacterAppearanceImage(
       provider: payload.provider,
       count: payload.count,
       stylePreset: payload.stylePreset,
+      referenceImageAssetIds: payload.referenceImageAssetIds,
       promptOverride: payload.overrides?.promptOverride,
       negativePromptOverride: payload.overrides?.negativePromptOverride,
       providerOverride: payload.overrides?.providerOverride,
       sizeOverride: payload.overrides?.sizeOverride,
+      excludedReferenceImageUrls: payload.overrides?.excludedReferenceImageUrls,
     },
   );
   return data;

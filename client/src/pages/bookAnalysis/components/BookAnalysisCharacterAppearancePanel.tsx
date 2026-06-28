@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   BookAnalysisCharacter,
@@ -8,6 +8,7 @@ import {
   generateBookAnalysisCharacterAppearanceImage,
   getBookAnalysisCharacterAppearance,
   getBookAnalysisCharacterAppearanceScanJob,
+  listBookAnalysisCharacterImages,
   listBookAnalysisCharacterAppearanceTerms,
   mergeBookAnalysisCharacterAppearanceTerms,
   prepareBookAnalysisCharacterAppearanceImage,
@@ -58,6 +59,8 @@ export default function BookAnalysisCharacterAppearancePanel({
   const [activeScanJobId, setActiveScanJobId] = useState("");
   const [lastScanJob, setLastScanJob] = useState<BookAnalysisCharacterAppearanceScanJob | null>(null);
   const [selectedTermIds, setSelectedTermIds] = useState<string[]>([]);
+  const [selectedReferenceAssetIds, setSelectedReferenceAssetIds] = useState<string[]>([]);
+  const referenceInitializedForCharacter = useRef("");
   const queryKey = ["book-analysis-character-appearance", analysisId, character.id];
   const termsQueryKey = ["book-analysis-character-appearance-terms", analysisId, character.id, "pending"];
   const appearanceQuery = useQuery({
@@ -71,6 +74,11 @@ export default function BookAnalysisCharacterAppearancePanel({
     queryFn: () => listBookAnalysisCharacterAppearanceTerms(analysisId, character.id, "pending"),
   });
   const pendingTerms = termsQuery.data?.data ?? [];
+  const characterImagesQuery = useQuery({
+    queryKey: ["book-analysis-character-images", analysisId, character.id],
+    queryFn: () => listBookAnalysisCharacterImages(analysisId, character.id),
+  });
+  const characterImages = characterImagesQuery.data?.data ?? [];
 
   const scanMutation = useMutation({
     mutationFn: () => scanBookAnalysisCharacterAppearance(analysisId, character.id, { targetPercent }),
@@ -136,6 +144,20 @@ export default function BookAnalysisCharacterAppearancePanel({
     setSelectedTermIds((current) => current.filter((id) => available.has(id)));
   }, [pendingTerms]);
 
+  useEffect(() => {
+    const key = `${analysisId}:${character.id}`;
+    if (referenceInitializedForCharacter.current === key) {
+      return;
+    }
+    if (characterImages.length === 0) {
+      setSelectedReferenceAssetIds([]);
+      return;
+    }
+    const primary = characterImages.find((image) => image.isPrimary) ?? characterImages[0];
+    setSelectedReferenceAssetIds(primary ? [primary.id] : []);
+    referenceInitializedForCharacter.current = key;
+  }, [analysisId, character.id, characterImages]);
+
   const taskQuery = useQuery({
     queryKey: queryKeys.images.task(activeTaskId || "none"),
     queryFn: () => getImageTask(activeTaskId),
@@ -161,11 +183,14 @@ export default function BookAnalysisCharacterAppearancePanel({
 
   const startGenerateSnapshotImage = (snapshotId: string) => {
     void flow.start({
-      prepare: async () => (await prepareBookAnalysisCharacterAppearanceImage(analysisId, character.id, snapshotId)).data!,
+      prepare: async () => (await prepareBookAnalysisCharacterAppearanceImage(analysisId, character.id, snapshotId, {
+        referenceImageAssetIds: selectedReferenceAssetIds,
+      })).data!,
       generate: async (overrides) => {
         const response = await generateBookAnalysisCharacterAppearanceImage(analysisId, character.id, snapshotId, {
           count: 2,
           stylePreset: "同一角色章节形象演变图",
+          referenceImageAssetIds: selectedReferenceAssetIds,
           overrides,
         });
         if (response.data?.id) {
@@ -179,6 +204,12 @@ export default function BookAnalysisCharacterAppearancePanel({
   const toggleTerm = (termId: string, checked: boolean) => {
     setSelectedTermIds((current) =>
       checked ? Array.from(new Set([...current, termId])) : current.filter((id) => id !== termId),
+    );
+  };
+
+  const toggleReferenceAsset = (assetId: string, checked: boolean) => {
+    setSelectedReferenceAssetIds((current) =>
+      checked ? Array.from(new Set([...current, assetId])) : current.filter((id) => id !== assetId),
     );
   };
 
@@ -207,6 +238,48 @@ export default function BookAnalysisCharacterAppearancePanel({
         <div className="text-xs text-muted-foreground">当前外貌</div>
         <div className="mt-1 whitespace-pre-wrap">{currentAppearance || "暂无外貌描述"}</div>
       </div>
+
+      {characterImages.length > 0 ? (
+        <div className="rounded-md border bg-background p-2 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-xs text-muted-foreground">基础形象参考</div>
+              <div className="mt-1 text-sm">生成章节形象图时保持同一角色的脸型、发型和标志细节。</div>
+            </div>
+            <Badge variant="outline">{selectedReferenceAssetIds.length} 张参考图</Badge>
+          </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            {characterImages.map((image) => (
+              <label
+                key={image.id}
+                className="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-xs"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedReferenceAssetIds.includes(image.id)}
+                  onChange={(event) => toggleReferenceAsset(image.id, event.target.checked)}
+                  disabled={disabled || Boolean(activeTaskId)}
+                  className="size-3 accent-primary"
+                />
+                <img
+                  src={resolveImageAssetUrl(image.url)}
+                  alt={`${character.name}基础形象参考`}
+                  className="size-12 rounded object-cover"
+                  loading="lazy"
+                />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{image.isPrimary ? "主图" : `参考 ${image.sortOrder + 1}`}</span>
+                  <span className="block text-muted-foreground">
+                    {image.width && image.height ? `${image.width}×${image.height}` : image.provider}
+                  </span>
+                  </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      ) : characterImagesQuery.isLoading ? (
+        <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">正在读取基础形象图。</div>
+      ) : null}
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">

@@ -27,6 +27,7 @@ interface BaseImageGenerationRequest {
   count?: number;
   seed?: number;
   maxRetries?: number;
+  referenceImageAssetIds?: string[];
 }
 
 export interface CharacterImageGenerationRequest extends BaseImageGenerationRequest {
