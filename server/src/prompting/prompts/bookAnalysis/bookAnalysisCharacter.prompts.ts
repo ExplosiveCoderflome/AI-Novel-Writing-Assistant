@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
 import {
   bookAnalysisCharacterAppearanceConsolidateOutputSchema,
+  bookAnalysisCharacterAppearanceMergeOutputSchema,
   bookAnalysisCharacterAppearanceSnapshotOutputSchema,
   bookAnalysisCharacterGenerateOutputSchema,
   bookAnalysisCharacterIdentifyOutputSchema,
@@ -64,6 +65,24 @@ export interface BookAnalysisCharacterAppearanceConsolidatePromptInput {
     profile?: Record<string, unknown> | null;
   };
   snapshotsText: string;
+}
+
+export interface BookAnalysisCharacterAppearanceMergePromptInput {
+  character: {
+    name: string;
+    role: string;
+    profile?: Record<string, unknown> | null;
+  };
+  currentAppearance: string;
+  consolidatedAppearance?: Record<string, unknown> | null;
+  selectedTerms: Array<{
+    id: string;
+    text: string;
+    category?: string | null;
+    confidence?: number | null;
+    stability?: string | null;
+    evidence?: unknown[];
+  }>;
 }
 
 export const bookAnalysisCharacterIdentifyPrompt: PromptAsset<
@@ -232,7 +251,7 @@ export const bookAnalysisCharacterAppearanceSnapshotPrompt: PromptAsset<
       "你的任务是从单章正文中抽取指定角色在本章的可视化形象状态，供后续形象演变和生图提示使用。",
       "只输出 JSON 对象，不要输出 Markdown 或解释。",
       "结构固定为：",
-      '{ "appearance": {}, "evidence": [], "summaryCaption": "...", "contextSceneRefs": [] }',
+      '{ "appearance": {}, "evidence": [], "candidateTerms": [], "summaryCaption": "...", "contextSceneRefs": [] }',
       "硬规则：",
       "1. 只分析指定角色；本章没有可靠形象信息时 appearance 返回空对象，summaryCaption 可留空。",
       "2. appearance 可包含外貌、服装、配饰、身体状态、伤痕、精神面貌、姿态动作、表情气质等字段。",
@@ -241,6 +260,9 @@ export const bookAnalysisCharacterAppearanceSnapshotPrompt: PromptAsset<
       "5. summaryCaption 用一句话概括本章适合生图的形象状态。",
       "6. contextSceneRefs 记录与形象状态相关的场景或事件锚点。",
       "7. evidence 只输出 label、excerpt、sourceLabel、chapterIndex；不要输出 sourceType、chunkId、noteSegmentId、dimension，这些由服务端证据合并阶段处理。",
+      "8. candidateTerms 输出可供用户勾选的短词条，每条包含 id 不需要输出、text、category、confidence、stability、evidence。",
+      "9. candidateTerms.text 必须是短词条，例如“银灰色短发”“左肩旧伤”“常穿深色风衣”；不要写剧情动作、临时情绪、场景氛围或长句解释。",
+      "10. category 建议使用 stable_feature、chapter_state、clothing、accessory、scar、expression、physique、aura；stability 建议使用 stable、chapter_state、uncertain。",
     ].join("\n")),
     new HumanMessage([
       `角色：${input.character.name}`,
@@ -253,6 +275,53 @@ export const bookAnalysisCharacterAppearanceSnapshotPrompt: PromptAsset<
       "",
       "SourceNotes 背景参考（仅本角色相关，跨章节背景，不作为本章证据）：",
       input.notesText || "（暂无）",
+    ].filter(Boolean).join("\n")),
+  ],
+};
+
+export const bookAnalysisCharacterAppearanceMergePrompt: PromptAsset<
+  BookAnalysisCharacterAppearanceMergePromptInput,
+  z.infer<typeof bookAnalysisCharacterAppearanceMergeOutputSchema>
+> = {
+  id: "bookAnalysis.character.appearance.merge",
+  version: "v1",
+  taskType: "planner",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: {
+    maxTokensBudget: 0,
+  },
+  semanticRetryPolicy: {
+    maxAttempts: 1,
+  },
+  outputSchema: bookAnalysisCharacterAppearanceMergeOutputSchema,
+  render: (input) => [
+    new SystemMessage([
+      "你是中文网文角色外貌融合助手。",
+      "你的任务是把用户选中的外貌词条融合进角色档案外貌，同时给出稳定特征补丁。",
+      "只输出 JSON 对象，不要输出 Markdown 或解释。",
+      "结构固定为：",
+      '{ "mergedAppearance": "...", "consolidatedAppearancePatch": {}, "acceptedTermIds": [], "ignoredTermIds": [], "mergeNotes": [] }',
+      "硬规则：",
+      "1. 不覆盖当前外貌中的高置信稳定特征；只能基于输入词条和证据补充或重写得更清晰。",
+      "2. 临时服装、伤势、伪装、情绪状态只有在证据显示稳定或反复出现时，才写入 mergedAppearance 的稳定外貌描述。",
+      "3. 若词条属于单章状态但不适合写入角色档案，请把它放入 ignoredTermIds，并在 mergeNotes 说明原因。",
+      "4. 冲突信息保留证据更充分、更稳定的一方；冲突说明写入 mergeNotes。",
+      "5. acceptedTermIds 和 ignoredTermIds 只能使用输入里的 term id，不要编造 id。",
+    ].join("\n")),
+    new HumanMessage([
+      `角色：${input.character.name}`,
+      `定位：${input.character.role}`,
+      input.character.profile ? `已有档案摘要：${JSON.stringify(input.character.profile).slice(0, 4000)}` : "",
+      "",
+      "当前角色外貌：",
+      input.currentAppearance || "（暂无）",
+      "",
+      "当前稳定特征：",
+      JSON.stringify(input.consolidatedAppearance ?? {}),
+      "",
+      "用户选中的外貌词条：",
+      JSON.stringify(input.selectedTerms),
     ].filter(Boolean).join("\n")),
   ],
 };

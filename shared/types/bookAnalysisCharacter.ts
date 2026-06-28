@@ -115,6 +115,35 @@ export interface BookAnalysisCharacterAppearanceImage {
   updatedAt: string;
 }
 
+export type BookAnalysisCharacterAppearanceTermStatus = "pending" | "accepted" | "rejected" | "merged";
+
+export interface BookAnalysisCharacterAppearanceTerm {
+  id: string;
+  characterId: string;
+  snapshotId: string;
+  chapterIndex: number;
+  text: string;
+  category?: string | null;
+  confidence?: number | null;
+  stability?: string | null;
+  evidence: BookAnalysisCharacterEvidenceItem[];
+  status: BookAnalysisCharacterAppearanceTermStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BookAnalysisCharacterAppearanceMergeTermsInput {
+  termIds: string[];
+}
+
+export interface BookAnalysisCharacterAppearanceMergeResult {
+  character: BookAnalysisCharacter;
+  appearance: BookAnalysisCharacterAppearance | null;
+  terms: BookAnalysisCharacterAppearanceTerm[];
+  mergedAppearance: string;
+  mergeNotes: string[];
+}
+
 export interface BookAnalysisCharacter {
   id: string;
   analysisId: string;

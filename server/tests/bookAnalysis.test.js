@@ -15,7 +15,9 @@ const {
 } = require("../dist/services/bookAnalysis/caching/bookAnalysis.budget.js");
 const { BookAnalysisCharacterService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterService.js");
 const { BookAnalysisCharacterAppearanceService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterAppearanceService.js");
+const { BookAnalysisCharacterAppearanceTermService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterAppearanceTermService.js");
 const { BookAnalysisCharacterMediaService } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterMediaService.js");
+const { buildBookAnalysisCharacterDimensionQuery } = require("../dist/services/bookAnalysis/bookAnalysisCharacter/BookAnalysisCharacterRagAdapter.js");
 const { BookAnalysisQueryService } = require("../dist/services/bookAnalysis/application/BookAnalysisQueryService.js");
 const { BookAnalysisTaskQueue } = require("../dist/services/bookAnalysis/infrastructure/bookAnalysis.queue.js");
 const { KnowledgeService } = require("../dist/services/knowledge/KnowledgeService.js");
@@ -67,7 +69,7 @@ test("BookAnalysisBudgetGuard increments used tokens and throws budget_exceeded"
   };
   let usedTokens = 900;
   prisma.bookAnalysis.update = async ({ data }) => {
-    usedTokens += data.usedTokens.increment;
+    usedTokens = typeof data.usedTokens === "number" ? data.usedTokens : usedTokens + data.usedTokens.increment;
     return { budgetTokens: 1000, usedTokens };
   };
   prisma.bookAnalysis.findUnique = async () => ({ budgetTokens: 1000, usedTokens });
@@ -608,7 +610,7 @@ test("BookAnalysisCharacterMediaService queues book-analysis character image tas
 test("BookAnalysisCharacterMediaService queues appearance snapshot image tasks with pending links", async () => {
   const original = {
     snapshotFindFirst: prisma.bookAnalysisCharacterAppearanceSnapshot.findFirst,
-    appearanceImageCreateMany: prisma.bookAnalysisCharacterAppearanceImage.createMany,
+    appearanceImageCreate: prisma.bookAnalysisCharacterAppearanceImage.create,
   };
   const now = new Date("2026-06-24T12:00:00.000Z");
   const taskCreates = [];
@@ -640,9 +642,9 @@ test("BookAnalysisCharacterMediaService queues appearance snapshot image tasks w
         },
       }
       : null;
-  prisma.bookAnalysisCharacterAppearanceImage.createMany = async ({ data }) => {
-    pendingLinks.push(...data);
-    return { count: data.length };
+  prisma.bookAnalysisCharacterAppearanceImage.create = async ({ data }) => {
+    pendingLinks.push(data);
+    return { id: `appearance-image-${pendingLinks.length}`, ...data, createdAt: now, updatedAt: now };
   };
   const imageService = {
     createBookAnalysisCharacterTask: async (input) => {
@@ -691,12 +693,12 @@ test("BookAnalysisCharacterMediaService queues appearance snapshot image tasks w
     assert.equal(task.id, "task-appearance-1");
     assert.equal(taskCreates[0].promptMode, "direct");
     assert.match(taskCreates[0].prompt, /雨夜中带伤追踪线索/);
-    assert.equal(pendingLinks.length, 2);
+    assert.equal(pendingLinks.length, 1);
     assert.equal(pendingLinks[0].snapshotId, "snap-1");
     assert.equal(pendingLinks[0].generationTaskId, "task-appearance-1");
   } finally {
     prisma.bookAnalysisCharacterAppearanceSnapshot.findFirst = original.snapshotFindFirst;
-    prisma.bookAnalysisCharacterAppearanceImage.createMany = original.appearanceImageCreateMany;
+    prisma.bookAnalysisCharacterAppearanceImage.create = original.appearanceImageCreate;
   }
 });
 
@@ -739,6 +741,342 @@ test("BookAnalysisCharacterAppearanceService queues scans instead of blocking HT
   } finally {
     prisma.bookAnalysis.findUnique = original.analysisFindUnique;
     prisma.bookAnalysisCharacter.count = original.characterCount;
+  }
+});
+
+test("BookAnalysisCharacterAppearanceService persists pending candidate terms from snapshots", async () => {
+  const original = {
+    analysisFindUnique: prisma.bookAnalysis.findUnique,
+    analysisUpdate: prisma.bookAnalysis.update,
+    characterFindFirst: prisma.bookAnalysisCharacter.findFirst,
+    characterFindUnique: prisma.bookAnalysisCharacter.findUnique,
+    characterCount: prisma.bookAnalysisCharacter.count,
+    appearanceUpsert: prisma.bookAnalysisCharacterAppearance.upsert,
+    appearanceUpdate: prisma.bookAnalysisCharacterAppearance.update,
+    appearanceFindUnique: prisma.bookAnalysisCharacterAppearance.findUnique,
+    snapshotFindMany: prisma.bookAnalysisCharacterAppearanceSnapshot.findMany,
+    snapshotFindUnique: prisma.bookAnalysisCharacterAppearanceSnapshot.findUnique,
+    snapshotUpsert: prisma.bookAnalysisCharacterAppearanceSnapshot.upsert,
+    termFindUnique: prisma.bookAnalysisCharacterAppearanceTerm.findUnique,
+    termCreate: prisma.bookAnalysisCharacterAppearanceTerm.create,
+  };
+  const now = new Date("2026-06-28T10:00:00.000Z");
+  const createdTerms = [];
+  const snapshots = [];
+
+  prisma.bookAnalysis.findUnique = async ({ select, include }) => {
+    if (select?.status) {
+      return { status: "succeeded" };
+    }
+    if (select?.budgetTokens) {
+      return { budgetTokens: null, usedTokens: 0 };
+    }
+    if (include?.documentVersion) {
+      return {
+        id: "analysis-1",
+        status: "succeeded",
+        documentId: "doc-1",
+        documentVersionId: "version-1",
+        provider: "deepseek",
+        model: null,
+        temperature: 0.3,
+        maxTokens: 2000,
+        sourceStartChapterIndex: null,
+        sourceEndChapterIndex: null,
+        documentVersion: { id: "version-1", content: "林秋披着深色风衣，左肩有旧伤。" },
+      };
+    }
+    return { status: "succeeded" };
+  };
+  prisma.bookAnalysis.update = async () => ({ budgetTokens: null, usedTokens: 32 });
+  prisma.bookAnalysisCharacter.findFirst = async () => ({
+    id: "bac-1",
+    analysisId: "analysis-1",
+    name: "林秋",
+    role: "主角",
+    status: "generated",
+    profileJson: JSON.stringify({ name: "林秋", role: "主角" }),
+  });
+  prisma.bookAnalysisCharacter.findUnique = async () => ({
+    id: "bac-1",
+    analysisId: "analysis-1",
+    name: "林秋",
+    role: "主角",
+    status: "generated",
+    profileJson: JSON.stringify({ name: "林秋", role: "主角" }),
+  });
+  prisma.bookAnalysisCharacter.count = async () => 1;
+  prisma.bookAnalysisCharacterAppearance.upsert = async () => ({
+    id: "appearance-1",
+    characterId: "bac-1",
+    coveragePercent: 0,
+    consolidatedAppearanceJson: null,
+    variantPolicyJson: null,
+    lastIndexedChapterIndex: null,
+    createdAt: now,
+    updatedAt: now,
+  });
+  prisma.bookAnalysisCharacterAppearance.update = async () => ({});
+  prisma.bookAnalysisCharacterAppearance.findUnique = async () => ({
+    id: "appearance-1",
+    characterId: "bac-1",
+    coveragePercent: 100,
+    consolidatedAppearanceJson: JSON.stringify({ attire: "深色风衣" }),
+    variantPolicyJson: JSON.stringify({}),
+    lastIndexedChapterIndex: 0,
+    snapshots,
+    createdAt: now,
+    updatedAt: now,
+  });
+  prisma.bookAnalysisCharacterAppearanceSnapshot.findMany = async () => snapshots;
+  prisma.bookAnalysisCharacterAppearanceSnapshot.findUnique = async () => null;
+  prisma.bookAnalysisCharacterAppearanceSnapshot.upsert = async ({ create }) => {
+    const row = {
+      id: "snapshot-1",
+      ...create,
+      images: [],
+      manuallyEdited: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    snapshots.push(row);
+    return row;
+  };
+  prisma.bookAnalysisCharacterAppearanceTerm.findUnique = async () => null;
+  prisma.bookAnalysisCharacterAppearanceTerm.create = async ({ data }) => {
+    createdTerms.push(data);
+    return { id: `term-${createdTerms.length}`, ...data, createdAt: now, updatedAt: now };
+  };
+
+  const sourceCache = {
+    getOrBuildSourceNotes: async () => ({ notes: [] }),
+  };
+  const chapterService = {
+    ensureChaptersForVersion: async () => ({
+      chapters: [{ chapterIndex: 0, title: "雪夜", startOffset: 0, endOffset: 20 }],
+    }),
+  };
+  const promptRunner = async ({ asset }) => {
+    if (asset.id === "bookAnalysis.character.appearance.snapshot") {
+      return {
+        output: {
+          appearance: { attire: "深色风衣" },
+          evidence: [{ excerpt: "披着深色风衣" }],
+          candidateTerms: [{
+            text: "深色风衣",
+            category: "clothing",
+            confidence: 0.92,
+            stability: "chapter_state",
+            evidence: [{ excerpt: "披着深色风衣" }],
+          }],
+          summaryCaption: "披着深色风衣",
+          contextSceneRefs: [],
+        },
+        meta: { tokenUsage: { totalTokens: 10 } },
+      };
+    }
+    return {
+      output: { consolidatedAppearance: { attire: "深色风衣" }, variantPolicy: {} },
+      meta: { tokenUsage: { totalTokens: 10 } },
+    };
+  };
+
+  const service = new BookAnalysisCharacterAppearanceService(sourceCache, chapterService, promptRunner);
+
+  try {
+    await service.scanAppearance("analysis-1", "bac-1", { targetPercent: 100 });
+    assert.equal(createdTerms.length, 1);
+    assert.equal(createdTerms[0].text, "深色风衣");
+    assert.equal(createdTerms[0].status, "pending");
+    assert.equal(createdTerms[0].chapterIndex, 0);
+    assert.match(createdTerms[0].evidenceJson, /chapter_chunk/);
+  } finally {
+    prisma.bookAnalysis.findUnique = original.analysisFindUnique;
+    prisma.bookAnalysis.update = original.analysisUpdate;
+    prisma.bookAnalysisCharacter.findFirst = original.characterFindFirst;
+    prisma.bookAnalysisCharacter.findUnique = original.characterFindUnique;
+    prisma.bookAnalysisCharacter.count = original.characterCount;
+    prisma.bookAnalysisCharacterAppearance.upsert = original.appearanceUpsert;
+    prisma.bookAnalysisCharacterAppearance.update = original.appearanceUpdate;
+    prisma.bookAnalysisCharacterAppearance.findUnique = original.appearanceFindUnique;
+    prisma.bookAnalysisCharacterAppearanceSnapshot.findMany = original.snapshotFindMany;
+    prisma.bookAnalysisCharacterAppearanceSnapshot.findUnique = original.snapshotFindUnique;
+    prisma.bookAnalysisCharacterAppearanceSnapshot.upsert = original.snapshotUpsert;
+    prisma.bookAnalysisCharacterAppearanceTerm.findUnique = original.termFindUnique;
+    prisma.bookAnalysisCharacterAppearanceTerm.create = original.termCreate;
+  }
+});
+
+test("appearance RAG query avoids dialogue and psychology pollution", () => {
+  const query = buildBookAnalysisCharacterDimensionQuery({
+    documentId: "doc-1",
+    characterName: "林秋",
+    dimensions: ["appearance"],
+    occurringChapters: ["第 3 章 雨夜追踪"],
+  }, "appearance");
+
+  assert.match(query, /外貌/);
+  assert.match(query, /服装/);
+  assert.match(query, /伤痕/);
+  assert.match(query, /第 3 章 雨夜追踪/);
+  assert.doesNotMatch(query, /台词/);
+  assert.doesNotMatch(query, /心理/);
+});
+
+test("BookAnalysisCharacterAppearanceTermService merges selected terms into profile appearance", async () => {
+  const original = {
+    analysisFindUnique: prisma.bookAnalysis.findUnique,
+    analysisUpdate: prisma.bookAnalysis.update,
+    characterFindFirst: prisma.bookAnalysisCharacter.findFirst,
+    characterFindUnique: prisma.bookAnalysisCharacter.findUnique,
+    characterCount: prisma.bookAnalysisCharacter.count,
+    characterUpdate: prisma.bookAnalysisCharacter.update,
+    appearanceFindUnique: prisma.bookAnalysisCharacterAppearance.findUnique,
+    appearanceUpsert: prisma.bookAnalysisCharacterAppearance.upsert,
+    termFindMany: prisma.bookAnalysisCharacterAppearanceTerm.findMany,
+    termUpdateMany: prisma.bookAnalysisCharacterAppearanceTerm.updateMany,
+    transaction: prisma.$transaction,
+  };
+  const now = new Date("2026-06-28T11:00:00.000Z");
+  let profileJson = JSON.stringify({ name: "林秋", role: "主角", appearance: "黑衣青年" });
+  let consolidatedAppearanceJson = JSON.stringify({ attire: "黑衣" });
+  const updatedStatuses = [];
+  const termRows = [{
+    id: "term-1",
+    characterId: "bac-1",
+    snapshotId: "snapshot-1",
+    chapterIndex: 2,
+    text: "左肩旧伤",
+    category: "scar",
+    confidence: 0.95,
+    stability: "stable",
+    evidenceJson: JSON.stringify([{ excerpt: "左肩旧伤" }]),
+    status: "pending",
+    createdAt: now,
+    updatedAt: now,
+  }];
+
+  prisma.bookAnalysis.findUnique = async ({ select }) => {
+    if (select?.status) {
+      return { status: "succeeded" };
+    }
+    if (select?.budgetTokens) {
+      return { budgetTokens: null, usedTokens: 0 };
+    }
+    return { provider: "deepseek", model: null, temperature: 0.3, maxTokens: 2000 };
+  };
+  prisma.bookAnalysis.update = async () => ({ budgetTokens: null, usedTokens: 12 });
+  prisma.bookAnalysisCharacter.count = async () => 1;
+  prisma.bookAnalysisCharacter.findFirst = async () => ({
+    id: "bac-1",
+    analysisId: "analysis-1",
+    name: "林秋",
+    role: "主角",
+    profileJson,
+    appearance: { consolidatedAppearanceJson },
+  });
+  prisma.bookAnalysisCharacter.update = async ({ data }) => {
+    profileJson = data.profileJson;
+    return {};
+  };
+  prisma.bookAnalysisCharacter.findUnique = async () => ({
+    id: "bac-1",
+    analysisId: "analysis-1",
+    name: "林秋",
+    role: "主角",
+    status: "generated",
+    briefDescription: null,
+    importance: null,
+    occurringChaptersJson: null,
+    lastGenerationError: null,
+    generationDepth: "standard",
+    selectedDimensionsJson: JSON.stringify(["basic", "appearance"]),
+    profileJson,
+    evidenceJson: null,
+    depthMetadataJson: null,
+    profileSectionsJson: null,
+    appearance: {
+      id: "appearance-1",
+      characterId: "bac-1",
+      coveragePercent: 50,
+      consolidatedAppearanceJson,
+      variantPolicyJson: JSON.stringify({}),
+      lastIndexedChapterIndex: 2,
+      snapshots: [],
+      createdAt: now,
+      updatedAt: now,
+    },
+    arcs: [],
+    scenes: [],
+    sortOrder: 0,
+    createdAt: now,
+    updatedAt: now,
+  });
+  prisma.bookAnalysisCharacterAppearance.findUnique = async () => ({
+    id: "appearance-1",
+    characterId: "bac-1",
+    coveragePercent: 50,
+    consolidatedAppearanceJson,
+    variantPolicyJson: JSON.stringify({}),
+    lastIndexedChapterIndex: 2,
+    snapshots: [],
+    createdAt: now,
+    updatedAt: now,
+  });
+  prisma.bookAnalysisCharacterAppearance.upsert = async ({ create, update }) => {
+    consolidatedAppearanceJson = update.consolidatedAppearanceJson ?? create.consolidatedAppearanceJson;
+    return {};
+  };
+  prisma.bookAnalysisCharacterAppearanceTerm.findMany = async ({ where }) => {
+    if (where?.id?.in) {
+      return termRows.filter((term) => where.id.in.includes(term.id));
+    }
+    return termRows.map((term) => ({
+      ...term,
+      status: updatedStatuses.includes(term.id) ? "merged" : term.status,
+    }));
+  };
+  prisma.bookAnalysisCharacterAppearanceTerm.updateMany = async ({ where, data }) => {
+    updatedStatuses.push(...where.id.in);
+    for (const term of termRows) {
+      if (where.id.in.includes(term.id)) {
+        term.status = data.status;
+      }
+    }
+    return { count: where.id.in.length };
+  };
+  prisma.$transaction = async (callback) => callback(prisma);
+
+  const promptRunner = async () => ({
+    output: {
+      mergedAppearance: "黑衣青年，左肩留有旧伤。",
+      consolidatedAppearancePatch: { scar: "左肩旧伤" },
+      acceptedTermIds: ["term-1"],
+      ignoredTermIds: [],
+      mergeNotes: ["左肩旧伤有明确证据。"],
+    },
+    meta: { tokenUsage: { totalTokens: 12 } },
+  });
+  const service = new BookAnalysisCharacterAppearanceTermService(promptRunner);
+
+  try {
+    const result = await service.mergeTerms("analysis-1", "bac-1", ["term-1"]);
+    assert.match(result.character.profile.appearance, /左肩留有旧伤/);
+    assert.deepEqual(result.appearance.consolidatedAppearance.scar, "左肩旧伤");
+    assert.equal(result.terms.find((term) => term.id === "term-1").status, "merged");
+    assert.deepEqual(result.mergeNotes, ["左肩旧伤有明确证据。"]);
+  } finally {
+    prisma.bookAnalysis.findUnique = original.analysisFindUnique;
+    prisma.bookAnalysis.update = original.analysisUpdate;
+    prisma.bookAnalysisCharacter.findFirst = original.characterFindFirst;
+    prisma.bookAnalysisCharacter.findUnique = original.characterFindUnique;
+    prisma.bookAnalysisCharacter.count = original.characterCount;
+    prisma.bookAnalysisCharacter.update = original.characterUpdate;
+    prisma.bookAnalysisCharacterAppearance.findUnique = original.appearanceFindUnique;
+    prisma.bookAnalysisCharacterAppearance.upsert = original.appearanceUpsert;
+    prisma.bookAnalysisCharacterAppearanceTerm.findMany = original.termFindMany;
+    prisma.bookAnalysisCharacterAppearanceTerm.updateMany = original.termUpdateMany;
+    prisma.$transaction = original.transaction;
   }
 });
 

@@ -3,6 +3,8 @@ import type {
   BookAnalysisCharacterAppearance,
   BookAnalysisCharacterAppearanceImage,
   BookAnalysisCharacterAppearanceSnapshot,
+  BookAnalysisCharacterAppearanceTerm,
+  BookAnalysisCharacterAppearanceTermStatus,
   BookAnalysisCharacterDepthMetadata,
   BookAnalysisCharacterDimension,
   BookAnalysisCharacterGenerationDepth,
@@ -217,6 +219,27 @@ function serializeAppearanceSnapshot(row: any): BookAnalysisCharacterAppearanceS
     contextSceneRefs: parseStringArray(row.contextSceneRefsJson),
     manuallyEdited: Boolean(row.manuallyEdited),
     images: (row.images ?? []).map(serializeAppearanceImage),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function normalizeAppearanceTermStatus(value: unknown): BookAnalysisCharacterAppearanceTermStatus {
+  return value === "accepted" || value === "rejected" || value === "merged" ? value : "pending";
+}
+
+export function serializeAppearanceTerm(row: any): BookAnalysisCharacterAppearanceTerm {
+  return {
+    id: row.id,
+    characterId: row.characterId,
+    snapshotId: row.snapshotId,
+    chapterIndex: row.chapterIndex,
+    text: row.text,
+    category: row.category,
+    confidence: row.confidence,
+    stability: row.stability,
+    evidence: decodeEvidence(row.evidenceJson),
+    status: normalizeAppearanceTermStatus(row.status),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

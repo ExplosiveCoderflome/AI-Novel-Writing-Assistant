@@ -3,6 +3,7 @@ import type {
   BookAnalysisCharacterAppearance,
   BookAnalysisCharacterAppearanceScanInput,
   BookAnalysisCharacterAppearanceScanJob,
+  BookAnalysisCharacterEvidenceItem,
 } from "@ai-novel/shared/types/bookAnalysisCharacter";
 import type { CharacterProfile } from "@ai-novel/shared/types/characterProfile";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
@@ -73,6 +74,44 @@ function serializeScanJob(job: AppearanceScanJobRow): BookAnalysisCharacterAppea
 
 function normalizeErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message.slice(0, 1000) : "Unknown appearance scan error.";
+}
+
+interface AppearanceCandidateTerm {
+  text: string;
+  category?: string | null;
+  confidence?: number | null;
+  stability?: string | null;
+  evidence?: unknown[];
+}
+
+function readCandidateTerms(value: unknown): AppearanceCandidateTerm[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const terms: AppearanceCandidateTerm[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      continue;
+    }
+    const row = item as Record<string, unknown>;
+    const text = typeof row.text === "string" ? row.text.trim() : "";
+    if (!text || text.length > 80 || seen.has(text)) {
+      continue;
+    }
+    seen.add(text);
+    const confidence = typeof row.confidence === "number" && Number.isFinite(row.confidence)
+      ? Math.max(0, Math.min(1, row.confidence))
+      : null;
+    terms.push({
+      text,
+      category: typeof row.category === "string" && row.category.trim() ? row.category.trim().slice(0, 40) : null,
+      confidence,
+      stability: typeof row.stability === "string" && row.stability.trim() ? row.stability.trim().slice(0, 40) : null,
+      evidence: Array.isArray(row.evidence) ? row.evidence : [],
+    });
+  }
+  return terms.slice(0, 12);
 }
 
 export class BookAnalysisCharacterAppearanceService {
@@ -207,7 +246,7 @@ export class BookAnalysisCharacterAppearanceService {
       });
       await budgetGuard.onSectionFinished(result.meta.tokenUsage);
       const snapshotEvidence = this.normalizeSnapshotEvidence(result.output.evidence, chapter.chapterIndex);
-      await prisma.bookAnalysisCharacterAppearanceSnapshot.upsert({
+      const snapshotRow = await prisma.bookAnalysisCharacterAppearanceSnapshot.upsert({
         where: {
           characterId_chapterIndex: {
             characterId,
@@ -231,6 +270,12 @@ export class BookAnalysisCharacterAppearanceService {
           summaryCaption: result.output.summaryCaption?.trim() || null,
           contextSceneRefsJson: JSON.stringify(result.output.contextSceneRefs ?? []),
         },
+      });
+      await this.persistCandidateTerms({
+        characterId,
+        snapshotId: snapshotRow.id,
+        chapterIndex: chapter.chapterIndex,
+        terms: readCandidateTerms(result.output.candidateTerms),
       });
     });
 
@@ -324,6 +369,74 @@ export class BookAnalysisCharacterAppearanceService {
           chapterIndex: typeof rest.chapterIndex === "number" ? rest.chapterIndex : chapterIndex,
         };
       });
+  }
+
+  private normalizeTermEvidence(value: unknown, chapterIndex: number): BookAnalysisCharacterEvidenceItem[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value
+      .filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+      .map((item): BookAnalysisCharacterEvidenceItem => {
+        const { sourceType: _sourceType, chunkId: _chunkId, noteSegmentId: _noteSegmentId, dimension: _dimension, ...rest } = item;
+        const excerpt = typeof rest.excerpt === "string" && rest.excerpt.trim() ? rest.excerpt.trim() : "章节外貌证据";
+        return {
+          ...rest,
+          label: typeof rest.label === "string" && rest.label.trim() ? rest.label.trim() : "外貌词条证据",
+          excerpt,
+          sourceLabel: typeof rest.sourceLabel === "string" && rest.sourceLabel.trim()
+            ? rest.sourceLabel.trim()
+            : `第 ${chapterIndex + 1} 章`,
+          chapterIndex: typeof rest.chapterIndex === "number" ? rest.chapterIndex : chapterIndex,
+          sourceType: "chapter_chunk",
+        };
+      });
+  }
+
+  private async persistCandidateTerms(input: {
+    characterId: string;
+    snapshotId: string;
+    chapterIndex: number;
+    terms: AppearanceCandidateTerm[];
+  }): Promise<void> {
+    for (const term of input.terms) {
+      const evidence = this.normalizeTermEvidence(term.evidence, input.chapterIndex);
+      const existing = await prisma.bookAnalysisCharacterAppearanceTerm.findUnique({
+        where: {
+          snapshotId_text: {
+            snapshotId: input.snapshotId,
+            text: term.text,
+          },
+        },
+      });
+      if (!existing) {
+        await prisma.bookAnalysisCharacterAppearanceTerm.create({
+          data: {
+            characterId: input.characterId,
+            snapshotId: input.snapshotId,
+            chapterIndex: input.chapterIndex,
+            text: term.text,
+            category: term.category ?? null,
+            confidence: term.confidence ?? null,
+            stability: term.stability ?? null,
+            evidenceJson: JSON.stringify(evidence),
+            status: "pending",
+          },
+        });
+        continue;
+      }
+      if (existing.status === "pending" || existing.status === "accepted") {
+        await prisma.bookAnalysisCharacterAppearanceTerm.update({
+          where: { id: existing.id },
+          data: {
+            category: term.category ?? null,
+            confidence: term.confidence ?? null,
+            stability: term.stability ?? null,
+            evidenceJson: JSON.stringify(evidence),
+          },
+        });
+      }
+    }
   }
 
   private findActiveScanJob(analysisId: string, characterId: string): AppearanceScanJobRow | null {
