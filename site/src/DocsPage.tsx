@@ -65,7 +65,7 @@ function preprocessMarkdownDirectives(markdown: string): string {
     output.push(...directive.lines.map((item) => `> ${item}`));
   }
 
-  return output.join("\n");
+  return output.join("\n").replace(/<!--[\s\S]*?-->/g, "");
 }
 
 function normalizeCalloutType(value: string): "tip" | "warn" | "checkpoint" | null {
