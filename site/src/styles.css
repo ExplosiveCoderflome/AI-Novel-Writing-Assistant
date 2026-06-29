@@ -114,27 +114,28 @@ p {
 }
 
 .hero {
+  background-color: #eef5f3;
   background-position: center;
   background-size: cover;
-  color: white;
+  color: var(--ink);
   display: grid;
-  min-height: 86svh;
+  min-height: 82svh;
   overflow: hidden;
-  padding: 118px 7vw 70px;
-  place-items: end start;
+  padding: 118px 7vw 62px;
+  place-items: center start;
   position: relative;
 }
 
 .hero-scrim {
   background:
-    linear-gradient(90deg, rgb(16 15 12 / 0.9), rgb(16 15 12 / 0.58) 48%, rgb(16 15 12 / 0.22)),
-    linear-gradient(0deg, rgb(16 15 12 / 0.64), transparent 44%);
+    linear-gradient(90deg, rgb(247 249 248 / 0.98), rgb(247 249 248 / 0.88) 30%, rgb(247 249 248 / 0.42) 58%, rgb(247 249 248 / 0.08)),
+    linear-gradient(0deg, rgb(247 249 248 / 0.74), transparent 42%);
   inset: 0;
   position: absolute;
 }
 
 .hero-content {
-  max-width: 880px;
+  max-width: 720px;
   position: relative;
   z-index: 1;
 }
@@ -149,7 +150,7 @@ p {
 }
 
 .hero .eyebrow {
-  color: #8ee7f0;
+  color: var(--accent);
 }
 
 .hero h1,
@@ -170,11 +171,11 @@ p {
 }
 
 .hero-copy {
-  color: rgb(255 252 244 / 0.86);
+  color: #2f3b42;
   font-size: clamp(18px, 2vw, 24px);
   line-height: 1.74;
   margin-top: 28px;
-  max-width: 760px;
+  max-width: 700px;
 }
 
 .hero-actions {
@@ -211,18 +212,24 @@ p {
   color: white;
 }
 
+.hero .button.ghost {
+  background: rgb(255 255 255 / 0.72);
+  border-color: rgb(16 20 23 / 0.22);
+  color: var(--ink);
+}
+
 .button.dark {
   background: var(--ink);
 }
 
 .route-strip {
-  border-top: 1px solid rgb(255 255 255 / 0.18);
-  color: rgb(255 252 244 / 0.76);
+  border-top: 1px solid rgb(16 20 23 / 0.16);
+  color: #43515a;
   flex-wrap: wrap;
   font-size: 14px;
   gap: 10px;
   margin-top: 42px;
-  max-width: 760px;
+  max-width: 700px;
   padding-top: 18px;
 }
 

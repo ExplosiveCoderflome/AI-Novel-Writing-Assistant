@@ -14,12 +14,12 @@ import { lazy, Suspense, useSyncExternalStore } from "react";
 import chapterExecutionImage from "./assets/chapter-execution.png";
 import creativeHubImage from "./assets/creative-hub.png";
 import directorChoiceImage from "./assets/director-choice.png";
-import projectPreviewImage from "./assets/project-social-preview.png";
 
 const DocsPage = lazy(() => import("./DocsPage"));
 
 const repoUrl = "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant";
 const releaseUrl = `${repoUrl}/releases/latest`;
+const docsIntroBannerImage = `${import.meta.env.BASE_URL}assets/docs-intro-banner.png`;
 
 const proofItems = [
   "自动导演开书",
@@ -152,7 +152,7 @@ function HomePage() {
       <section
         id="top"
         className="hero"
-        style={{ backgroundImage: `url(${projectPreviewImage})` }}
+        style={{ backgroundImage: `url(${docsIntroBannerImage})` }}
         aria-label="项目介绍"
       >
         <div className="hero-scrim" />
