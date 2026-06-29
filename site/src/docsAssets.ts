@@ -10,18 +10,8 @@ const screenshotAssetModules = import.meta.glob("../../docs/public/flow/screensh
   query: "?url",
 });
 
-const docAssets = {
-  ...(diagramAssetModules as Record<string, string>),
-  ...(screenshotAssetModules as Record<string, string>),
-};
-
-export function resolveDocAssetUrl(docSourcePath: string, assetPath: string | undefined): string | undefined {
-  if (!assetPath || /^(https?:)?\/\//.test(assetPath) || assetPath.startsWith("data:")) {
-    return assetPath;
-  }
-  const sourceParts = docSourcePath.split("/");
-  sourceParts.pop();
-  const normalizedParts = `${sourceParts.join("/")}/${assetPath}`
+function normalizeDocAssetKey(path: string): string {
+  return path
     .split("/")
     .reduce<string[]>((parts, part) => {
       if (!part || part === ".") {
@@ -35,5 +25,23 @@ export function resolveDocAssetUrl(docSourcePath: string, assetPath: string | un
       return parts;
     }, [])
     .join("/");
+}
+
+function buildDocAssetMap(modules: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(modules).map(([path, url]) => [normalizeDocAssetKey(path), url]));
+}
+
+const docAssets = {
+  ...buildDocAssetMap(diagramAssetModules as Record<string, string>),
+  ...buildDocAssetMap(screenshotAssetModules as Record<string, string>),
+};
+
+export function resolveDocAssetUrl(docSourcePath: string, assetPath: string | undefined): string | undefined {
+  if (!assetPath || /^(https?:)?\/\//.test(assetPath) || assetPath.startsWith("data:")) {
+    return assetPath;
+  }
+  const sourceParts = docSourcePath.split("/");
+  sourceParts.pop();
+  const normalizedParts = normalizeDocAssetKey(`${sourceParts.join("/")}/${assetPath}`);
   return docAssets[normalizedParts] ?? assetPath;
 }
