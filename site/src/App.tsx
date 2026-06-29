@@ -8,9 +8,11 @@ import {
   Github,
   PenLine,
   Sparkles,
+  Star,
 } from "lucide-react";
 import { lazy, Suspense, useSyncExternalStore } from "react";
 import appIcon from "./assets/app-icon.png";
+import { formatStarCount, useGithubStars } from "./hooks/useGithubStars";
 import chapterExecutionImage from "./assets/chapter-execution.png";
 import creativeHubImage from "./assets/creative-hub.png";
 import directorChoiceImage from "./assets/director-choice.png";
@@ -121,6 +123,7 @@ function parseRoute(hash: string): { page: "home" } | { page: "docs"; docId?: st
 }
 
 function SiteNav({ page }: { page: "home" | "docs" }) {
+  const stars = useGithubStars("ExplosiveCoderflome", "AI-Novel-Writing-Assistant");
   return (
     <nav className="site-nav" aria-label="主导航">
       <a className="brand" href="#/" aria-label="AI 小说创作工作台首页">
@@ -140,7 +143,16 @@ function SiteNav({ page }: { page: "home" | "docs" }) {
         ) : (
           <a href={releaseUrl}>下载桌面版</a>
         )}
-        <a href={repoUrl}>GitHub</a>
+        <a className="nav-github" href={repoUrl} aria-label={stars !== null ? `GitHub · ${stars} stars` : "GitHub"}>
+          <Github size={15} />
+          <span>GitHub</span>
+          {stars !== null ? (
+            <span className="nav-stars">
+              <Star size={11} strokeWidth={2.4} />
+              {formatStarCount(stars)}
+            </span>
+          ) : null}
+        </a>
       </div>
     </nav>
   );

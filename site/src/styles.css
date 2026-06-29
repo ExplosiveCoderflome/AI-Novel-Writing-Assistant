@@ -118,6 +118,30 @@ p {
   color: var(--accent);
 }
 
+.nav-github {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.nav-stars {
+  align-items: center;
+  background: var(--accent-soft);
+  border-radius: 999px;
+  color: var(--accent-strong);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 3px;
+  line-height: 1;
+  padding: 3px 8px;
+}
+
+.nav-stars svg {
+  color: var(--signal);
+  fill: var(--signal);
+}
+
 .hero {
   background-color: #eef5f3;
   background-position: center;
