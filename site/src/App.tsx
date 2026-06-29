@@ -159,6 +159,7 @@ function SiteNav({ page }: { page: "home" | "docs" }) {
 }
 
 function HomePage() {
+  const stars = useGithubStars("ExplosiveCoderflome", "AI-Novel-Writing-Assistant");
   return (
     <>
       <section
@@ -187,6 +188,17 @@ function HomePage() {
               <FileText size={18} />
               阅读文档
             </a>
+            {stars !== null ? (
+              <a
+                className="button star"
+                href={`${repoUrl}/stargazers`}
+                aria-label={`GitHub ${stars} 颗 star`}
+              >
+                <Star size={18} strokeWidth={2.2} />
+                <span>给个 Star</span>
+                <span className="star-count">{formatStarCount(stars)}</span>
+              </a>
+            ) : null}
           </div>
           <div className="route-strip" aria-label="核心生产路径">
             <span>灵感</span>

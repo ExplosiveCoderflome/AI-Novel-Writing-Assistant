@@ -251,6 +251,30 @@ p {
   background: var(--ink);
 }
 
+.button.star {
+  background: linear-gradient(135deg, #ffd76a 0%, #ffb946 100%);
+  border: 1px solid rgb(140 100 0 / 0.18);
+  color: #4a2f00;
+}
+
+.button.star:hover {
+  background: linear-gradient(135deg, #ffce4a 0%, #ff9d1f 100%);
+}
+
+.button.star svg {
+  color: #4a2f00;
+  fill: #4a2f00;
+}
+
+.button.star .star-count {
+  background: rgb(255 255 255 / 0.62);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+  margin-left: 4px;
+  padding: 2px 9px;
+}
+
 .route-strip {
   border-top: 1px solid rgb(16 20 23 / 0.16);
   color: #43515a;
