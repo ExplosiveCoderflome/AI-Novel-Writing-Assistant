@@ -41,15 +41,19 @@ export function useGithubStars(owner: string, repo: string): number | null {
     }
 
     const controller = new AbortController();
-    fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+    // ungh.cc is a CDN-cached, CORS-enabled GitHub proxy by unjs.
+    // Direct api.github.com is rate-limited to 60 requests/hour per IP,
+    // which gets exhausted quickly behind shared / NAT / VPN egress IPs.
+    fetch(`https://ungh.cc/repos/${owner}/${repo}`, {
       signal: controller.signal,
-      headers: { Accept: "application/vnd.github+json" },
+      headers: { Accept: "application/json" },
     })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
-        if (!data || typeof data.stargazers_count !== "number") return;
-        setCount(data.stargazers_count);
-        writeCache(key, { count: data.stargazers_count, fetchedAt: Date.now() });
+        const stars = data?.repo?.stars;
+        if (typeof stars !== "number") return;
+        setCount(stars);
+        writeCache(key, { count: stars, fetchedAt: Date.now() });
       })
       .catch(() => {
         // ignore network / rate-limit errors; fall back to cached or hide
