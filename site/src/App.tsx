@@ -38,7 +38,7 @@ const productionFlow = [
   {
     marker: "02",
     title: "准备世界、角色和长期承诺",
-    text: "系统把舞台规则、势力边界、角色关系和前期承诺沉淀为可继承资产，后续章节不再只靠临时提示词维持一致。",
+    text: "系统把舞台规则、势力边界、角色关系和前期承诺沉淀为可继承资产，让后续章节减少对临时提示词的依赖。",
     image: creativeHubImage,
   },
   {
@@ -97,7 +97,7 @@ function App() {
 
   return (
     <main>
-      <SiteNav />
+      <SiteNav page={route.page} />
       {route.page === "docs" ? (
         <Suspense fallback={<div className="docs-loading">正在打开文档...</div>}>
           <DocsPage docId={route.docId} />
@@ -120,7 +120,7 @@ function parseRoute(hash: string): { page: "home" } | { page: "docs"; docId?: st
   return { page: "home" };
 }
 
-function SiteNav() {
+function SiteNav({ page }: { page: "home" | "docs" }) {
   return (
     <nav className="site-nav" aria-label="主导航">
       <a className="brand" href="#/" aria-label="AI 小说创作工作台首页">
@@ -131,9 +131,15 @@ function SiteNav() {
       </a>
       <div className="nav-links">
         <a href="#/docs">文档</a>
-        <a href="#flow">生产链</a>
-        <a href="#console">控制台</a>
-        <a href="#audience">适合谁</a>
+        {page === "home" ? (
+          <>
+            <a href="#flow">生产链</a>
+            <a href="#console">控制台</a>
+            <a href="#audience">适合谁</a>
+          </>
+        ) : (
+          <a href={releaseUrl}>下载桌面版</a>
+        )}
         <a href={repoUrl}>GitHub</a>
       </div>
     </nav>

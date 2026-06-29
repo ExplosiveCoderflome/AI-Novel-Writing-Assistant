@@ -1,6 +1,11 @@
-import { ArrowLeft, ArrowRight, FileText, Search } from "lucide-react";
-import { useMemo } from "react";
+import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, FileText, Search } from "lucide-react";
+import { Children, isValidElement, useMemo } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
+import type { Components } from "react-markdown";
+import { Breadcrumb } from "./components/Breadcrumb";
+import { DocsSearch } from "./components/DocsSearch";
+import { createSlugger, DocsToc, parseMarkdownHeadings } from "./components/DocsToc";
 import { getDocContent } from "./docsContent";
 import { docsManifest, flattenedDocs } from "./docsManifest";
 
@@ -10,9 +15,57 @@ type DocsPageProps = {
   docId?: string;
 };
 
+function extractText(children: ReactNode): string {
+  return Children.toArray(children)
+    .map((child) => {
+      if (typeof child === "string" || typeof child === "number") {
+        return String(child);
+      }
+      if (isValidElement<{ children?: ReactNode }>(child)) {
+        return extractText(child.props.children);
+      }
+      return "";
+    })
+    .join("");
+}
+
+function createMarkdownComponents(markdown: string): Components {
+  const slug = createSlugger();
+
+  function Heading2({ children, ...props }: ComponentPropsWithoutRef<"h2">) {
+    return (
+      <h2 id={slug(extractText(children))} {...props}>
+        {children}
+      </h2>
+    );
+  }
+
+  function Heading3({ children, ...props }: ComponentPropsWithoutRef<"h3">) {
+    return (
+      <h3 id={slug(extractText(children))} {...props}>
+        {children}
+      </h3>
+    );
+  }
+
+  void markdown;
+  return {
+    h2: Heading2,
+    h3: Heading3,
+  };
+}
+
 export default function DocsPage({ docId }: DocsPageProps) {
-  const activeDoc = flattenedDocs.find((doc) => doc.id === docId);
+  const activeIndex = flattenedDocs.findIndex((doc) => doc.id === docId);
+  const activeDoc = activeIndex >= 0 ? flattenedDocs[activeIndex] : undefined;
   const markdown = activeDoc ? getDocContent(activeDoc.sourcePath) : undefined;
+  const previousDoc = activeIndex > 0 ? flattenedDocs[activeIndex - 1] : undefined;
+  const nextDoc = activeIndex >= 0 ? flattenedDocs[activeIndex + 1] : undefined;
+  const headings = useMemo(() => (markdown ? parseMarkdownHeadings(markdown) : []), [markdown]);
+  const markdownComponents = useMemo(
+    () => (markdown ? createMarkdownComponents(markdown) : {}),
+    [markdown],
+  );
 
   return (
     <section className="docs-shell">
@@ -24,8 +77,9 @@ export default function DocsPage({ docId }: DocsPageProps) {
         <div className="docs-sidebar-heading">
           <p className="eyebrow">Docs</p>
           <h1>项目文档</h1>
-          <p>给使用者、潜在用户和感兴趣读者看的项目文档。</p>
+          <p>从安装、开书、知识资产到系统配置，按创作路径查找需要的说明。</p>
         </div>
+        <DocsSearch />
         <nav>
           {docsManifest.map((category) => (
             <div className="docs-nav-group" key={category.id}>
@@ -46,16 +100,43 @@ export default function DocsPage({ docId }: DocsPageProps) {
 
       <div className="docs-main">
         {activeDoc && markdown ? (
-          <article className="markdown-doc">
-            <div className="doc-meta">
-              <p className="eyebrow">{activeDoc.categoryTitle}</p>
-              <a href={`${repoUrl}/blob/main/${activeDoc.sourcePath.replace("../../", "")}`}>
-                GitHub 原文
-                <ArrowRight size={15} />
-              </a>
-            </div>
-            <ReactMarkdown>{markdown}</ReactMarkdown>
-          </article>
+          <div className="docs-document-layout">
+            <article className="markdown-doc">
+              <div className="doc-meta">
+                <Breadcrumb categoryTitle={activeDoc.categoryTitle} docTitle={activeDoc.title} />
+                <a href={`${repoUrl}/blob/main/${activeDoc.githubPath}`}>
+                  GitHub 原文
+                  <ArrowRight size={15} />
+                </a>
+              </div>
+              <ReactMarkdown components={markdownComponents}>{markdown}</ReactMarkdown>
+              <nav className="doc-pagination" aria-label="文档翻页">
+                {previousDoc ? (
+                  <a href={`#/docs/${previousDoc.id}`}>
+                    <ChevronLeft size={18} />
+                    <span>
+                      上一篇
+                      <strong>{previousDoc.title}</strong>
+                    </span>
+                  </a>
+                ) : (
+                  <span />
+                )}
+                {nextDoc ? (
+                  <a href={`#/docs/${nextDoc.id}`}>
+                    <span>
+                      下一篇
+                      <strong>{nextDoc.title}</strong>
+                    </span>
+                    <ChevronRight size={18} />
+                  </a>
+                ) : (
+                  <span />
+                )}
+              </nav>
+            </article>
+            <DocsToc headings={headings} />
+          </div>
         ) : (
           <DocsIndex />
         )}
@@ -71,8 +152,8 @@ function DocsIndex() {
     <div className="docs-index">
       <div className="docs-hero">
         <p className="eyebrow">Public documentation</p>
-        <h1>了解项目、开始使用、找到每个模块</h1>
-        <p>这里展示项目介绍、使用方法、侧栏功能模块、公开开发计划和更新日志。</p>
+        <h1>按创作路径查找文档</h1>
+        <p>这里展示安装、使用方法、侧栏功能模块、公开开发计划和更新日志。</p>
         <div className="docs-stats">
           <p>
             <FileText size={18} />
@@ -88,8 +169,8 @@ function DocsIndex() {
         {docsManifest.map((category) => (
           <section className="docs-category" key={category.id}>
             <div>
-              <p className="eyebrow">{category.title}</p>
-              <h2>{category.description}</h2>
+              <h2>{category.title}</h2>
+              <p>{category.description}</p>
             </div>
             <div className="docs-card-list">
               {category.docs.map((doc) => (
