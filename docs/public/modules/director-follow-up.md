@@ -71,3 +71,66 @@
 - 回到小说页确认基础信息和候选项。
 
 大多数暂停都可以通过确认、重试或继续入口恢复。
+
+## Checkpoint 类型清单
+
+导演跟进最重要的作用，是把自动导演当前 checkpoint 翻译成用户能执行的动作。
+
+| checkpoint | 页面含义 | 常见阶段 | 用户动作 | 可自动确认点 |
+|---|---|---|---|---|
+| `candidate_selection_required` | 等待确认书级方向 | 候选方向、书名候选 | 选一个方向、修订候选、重做标题 | `candidate_direction_confirmed` |
+| `book_contract_ready` | 书级规划就绪 | 书契约 | 查看书级承诺、继续后续资产准备 | 无 |
+| `character_setup_required` | 角色准备待确认 | 角色生成、角色阵容应用 | 确认、合并、重做或补充角色 | `character_setup_ready` |
+| `volume_strategy_ready` | 卷战略就绪 | 卷战略、卷骨架 | 确认后进入节奏拆章 | `volume_strategy_ready` |
+| `chapter_batch_ready` | 章节批次可执行 | 节奏板、章节清单、章节细化 | 进入章节执行或授权自动写章 | `structured_outline_ready` |
+| `replan_required` | 需要处理质量修复或重规划 | 审核修复、质量循环 | 查看原因，决定修复、继续或重规划 | `replan_continue` / `low_risk_quality_repair_continue` |
+| `workflow_completed` | 导演主流程完成 | 全局或批次结束 | 查看结果和后续建议 | 无 |
+| `rewrite_snapshot_created` | 重写前备份完成 | 重写/重新生成 | 确认清理后继续 | `rewrite_cleanup_confirmed` |
+
+:::checkpoint checkpoint 不是失败
+当状态是 waiting approval 时，系统通常在等你确认方向、角色、卷规划、章节执行或修复策略。先看导演跟进，不要把项目删除或重复创建。
+:::
+
+## 暂停原因到恢复入口
+
+| 暂停原因 | 说明 | 推荐入口 |
+|---|---|---|
+| 候选方向待确认 | `candidate_direction_batch` 或 `candidate_title_pack` 完成 | 方向选择页 |
+| 角色准备待确认 | 角色阵容可能需要人工确认 | 角色候选页、导演跟进 |
+| 卷战略待确认 | 卷级路线和骨架完成 | 卷规划入口 |
+| 章节批次就绪 | 节奏板、清单、细化完成 | 导演跟进、章节执行入口 |
+| 低风险质量修复 | 章节可修复但需要授权继续 | 章节页、导演跟进 |
+| 需要重规划 | 后续计划可能要变 | 导演跟进、按阶段恢复手册 |
+| Worker 中断 | 后台租约过期或服务重启 | 任务中心恢复 |
+| 高内存任务冲突 | 同一本书同范围已有节奏板/拆章任务 | 任务中心查看正在运行的任务 |
+
+## Auto-approval 配置怎么看
+
+auto-approval 允许系统在指定低风险确认点自动继续。它的常见点位包括：
+
+| auto-approval point | 对应动作 | 风险 |
+|---|---|---|
+| `candidate_direction_confirmed` | 确认候选方向后继续建书 | 低 |
+| `character_setup_ready` | 角色阵容通过后继续卷战略 | 低 |
+| `volume_strategy_ready` | 卷战略通过后继续节奏拆章 | 低 |
+| `structured_outline_ready` | 章节任务准备好后继续写作 | 低 |
+| `chapter_execution_continue` | 一个章节批次完成后继续剩余章节 | 中 |
+| `low_risk_quality_repair_continue` | 低风险质量修复后继续 | 中 |
+| `replan_continue` | 重规划处理后继续 | 高 |
+| `rewrite_cleanup_confirmed` | 重写清理确认后继续 | 高 |
+
+默认更适合自动通过低风险规划点；涉及重规划、重写清理或大范围正文改动时，建议保留人工确认。
+
+## Follow-up 通知关系
+
+导演跟进和 follow-up 通知展示的是同一条主链的不同入口：
+
+- follow-up 负责提醒：任务暂停、等待确认、可恢复、需要处理质量问题。
+- 导演跟进负责解释：为什么暂停、停在哪个 checkpoint、下一步入口是什么。
+- 任务中心负责事实：后台命令是否排队、运行、失败、stale 或完成。
+
+当通知提示“需要处理”，先进入导演跟进；当通知提示“任务失败”或“恢复”，先进入任务中心。
+
+## 和阶段深度文档的关系
+
+如果你看到不理解的阶段名，例如 `beat_sheet`、`volume_skeleton`、`chapter_detail_bundle`，先读《自动导演阶段全景》。如果暂停发生在正文生成、审核或修复之后，读《章节执行链》和《按阶段恢复手册》。

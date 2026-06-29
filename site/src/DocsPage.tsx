@@ -1,11 +1,12 @@
 import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, FileText, Search } from "lucide-react";
-import { Children, isValidElement, useMemo } from "react";
+import { Children, cloneElement, isValidElement, useMemo } from "react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import { Breadcrumb } from "./components/Breadcrumb";
 import { DocsSearch } from "./components/DocsSearch";
 import { createSlugger, DocsToc, parseMarkdownHeadings } from "./components/DocsToc";
+import { resolveDocAssetUrl } from "./docsAssets";
 import { getDocContent } from "./docsContent";
 import { docsManifest, flattenedDocs } from "./docsManifest";
 
@@ -29,7 +30,83 @@ function extractText(children: ReactNode): string {
     .join("");
 }
 
-function createMarkdownComponents(markdown: string): Components {
+function preprocessMarkdownDirectives(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const output: string[] = [];
+  let directive: { type: "tip" | "warn" | "checkpoint"; title: string; lines: string[] } | null = null;
+
+  for (const line of lines) {
+    const open = /^:::(tip|warn|checkpoint)\s*(.*)$/.exec(line.trim());
+    if (open && !directive) {
+      directive = {
+        type: open[1] as "tip" | "warn" | "checkpoint",
+        title: open[2].trim(),
+        lines: [],
+      };
+      continue;
+    }
+    if (directive && line.trim() === ":::") {
+      output.push(`> [!${directive.type.toUpperCase()}]${directive.title ? ` ${directive.title}` : ""}`);
+      output.push(">");
+      output.push(...directive.lines.map((item) => `> ${item}`));
+      directive = null;
+      continue;
+    }
+    if (directive) {
+      directive.lines.push(line);
+      continue;
+    }
+    output.push(line);
+  }
+
+  if (directive) {
+    output.push(`> [!${directive.type.toUpperCase()}]${directive.title ? ` ${directive.title}` : ""}`);
+    output.push(">");
+    output.push(...directive.lines.map((item) => `> ${item}`));
+  }
+
+  return output.join("\n");
+}
+
+function normalizeCalloutType(value: string): "tip" | "warn" | "checkpoint" | null {
+  const normalized = value.toLowerCase();
+  if (normalized === "tip" || normalized === "warn" || normalized === "checkpoint") {
+    return normalized;
+  }
+  return null;
+}
+
+function stripCalloutMarker(children: ReactNode): {
+  type: "tip" | "warn" | "checkpoint" | null;
+  children: ReactNode;
+} {
+  const childArray = Children.toArray(children);
+  const first = childArray[0];
+  if (!isValidElement<{ children?: ReactNode }>(first)) {
+    return { type: null, children };
+  }
+  const text = extractText(first.props.children);
+  const match = /^\s*\[!(TIP|WARN|CHECKPOINT)\]\s*(.*)$/i.exec(text);
+  if (!match) {
+    return { type: null, children };
+  }
+  const type = normalizeCalloutType(match[1]);
+  if (!type) {
+    return { type: null, children };
+  }
+  const replacement = match[2]?.trim() || (
+    type === "checkpoint" ? "Checkpoint" : type === "warn" ? "注意" : "提示"
+  );
+  return {
+    type,
+    children: [
+      cloneElement(first, { ...first.props, children: replacement }),
+      ...childArray.slice(1),
+    ],
+  };
+}
+
+function createMarkdownComponents(docSourcePath: string): Components {
   const slug = createSlugger();
 
   function Heading2({ children, ...props }: ComponentPropsWithoutRef<"h2">) {
@@ -48,23 +125,44 @@ function createMarkdownComponents(markdown: string): Components {
     );
   }
 
-  void markdown;
+  function Image({ src, alt, ...props }: ComponentPropsWithoutRef<"img">) {
+    return <img src={resolveDocAssetUrl(docSourcePath, src)} alt={alt ?? ""} {...props} />;
+  }
+
+  function Blockquote({ children, ...props }: ComponentPropsWithoutRef<"blockquote">) {
+    const callout = stripCalloutMarker(children);
+    if (callout.type) {
+      return (
+        <aside className={`callout ${callout.type}`}>
+          {callout.children}
+        </aside>
+      );
+    }
+    return <blockquote {...props}>{children}</blockquote>;
+  }
+
   return {
+    blockquote: Blockquote,
     h2: Heading2,
     h3: Heading3,
+    img: Image,
   };
 }
 
 export default function DocsPage({ docId }: DocsPageProps) {
   const activeIndex = flattenedDocs.findIndex((doc) => doc.id === docId);
   const activeDoc = activeIndex >= 0 ? flattenedDocs[activeIndex] : undefined;
-  const markdown = activeDoc ? getDocContent(activeDoc.sourcePath) : undefined;
+  const rawMarkdown = activeDoc ? getDocContent(activeDoc.sourcePath) : undefined;
+  const markdown = useMemo(
+    () => (rawMarkdown ? preprocessMarkdownDirectives(rawMarkdown) : undefined),
+    [rawMarkdown],
+  );
   const previousDoc = activeIndex > 0 ? flattenedDocs[activeIndex - 1] : undefined;
   const nextDoc = activeIndex >= 0 ? flattenedDocs[activeIndex + 1] : undefined;
   const headings = useMemo(() => (markdown ? parseMarkdownHeadings(markdown) : []), [markdown]);
   const markdownComponents = useMemo(
-    () => (markdown ? createMarkdownComponents(markdown) : {}),
-    [markdown],
+    () => (activeDoc && markdown ? createMarkdownComponents(activeDoc.sourcePath) : {}),
+    [activeDoc, markdown],
   );
 
   return (

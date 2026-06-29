@@ -52,12 +52,6 @@ export const docsManifest: SiteDocCategory[] = [
         "docs/public/installation.md",
       ),
       doc(
-        "usage-guide",
-        "使用方法",
-        "配置模型、创建小说、使用自动导演和章节执行的推荐路径。",
-        "docs/public/usage-guide.md",
-      ),
-      doc(
         "faq",
         "常见问题",
         "快速处理模型不通、章节失败、知识库不命中等高频问题。",
@@ -68,6 +62,68 @@ export const docsManifest: SiteDocCategory[] = [
         "故障排查",
         "按日志、任务状态、恢复入口和数据备份定位问题。",
         "docs/public/troubleshooting.md",
+      ),
+    ],
+  },
+  {
+    id: "playbooks",
+    title: "实战手册",
+    description: "把深度机制转成日常操作路径和恢复步骤。",
+    docs: [
+      doc(
+        "first-novel-walkthrough",
+        "第一本小说实操路径",
+        "从空项目到章节批次完成，每一步标注对应阶段和产物位置。",
+        "docs/public/playbook/first-novel-walkthrough.md",
+      ),
+      doc(
+        "usage-guide",
+        "使用方法",
+        "配置模型、创建小说、使用自动导演和章节执行的推荐路径。",
+        "docs/public/usage-guide.md",
+      ),
+      doc(
+        "recovery-by-phase",
+        "按阶段恢复手册",
+        "按自动导演阶段处理候选、角色、卷规划、拆章和章节执行故障。",
+        "docs/public/playbook/recovery-by-phase.md",
+      ),
+    ],
+  },
+  {
+    id: "production-depth",
+    title: "生产链深度",
+    description: "理解自动导演、章节执行、RAG 和恢复机制的完整链路。",
+    docs: [
+      doc(
+        "end-to-end-production",
+        "端到端生产链总览",
+        "用三层生产链理解从灵感到章节执行的输入、产物和持久化点。",
+        "docs/public/flow/end-to-end-production.md",
+      ),
+      doc(
+        "auto-director-pipeline",
+        "自动导演阶段全景",
+        "逐阶段解释自动导演的输入、产物、checkpoint、auto-approval 和恢复策略。",
+        "docs/public/flow/auto-director-pipeline.md",
+      ),
+      doc(
+        "chapter-execution",
+        "章节执行链",
+        "解释正文生成、审核、修复、质量债务和状态回灌闭环。",
+        "docs/public/flow/chapter-execution.md",
+      ),
+      doc(
+        "knowledge-and-rag",
+        "知识与 RAG 召回链",
+        "说明知识库、拆书、写法和世界资产在哪些阶段被召回。",
+        "docs/public/flow/knowledge-and-rag.md",
+      ),
+      doc(
+        "module-director-follow-up",
+        "导演跟进",
+        "查看自动导演 checkpoint、暂停原因、auto-approval 和恢复入口。",
+        "docs/public/modules/director-follow-up.md",
       ),
     ],
   },
@@ -106,12 +162,6 @@ export const docsManifest: SiteDocCategory[] = [
         "创作中枢",
         "用对话方式说明目标、发起任务和查看建议。",
         "docs/public/modules/creative-hub.md",
-      ),
-      doc(
-        "module-director-follow-up",
-        "导演跟进",
-        "查看自动导演进度、暂停原因和下一步恢复入口。",
-        "docs/public/modules/director-follow-up.md",
       ),
       doc(
         "module-task-center",

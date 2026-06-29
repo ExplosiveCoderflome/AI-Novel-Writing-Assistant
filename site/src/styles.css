@@ -838,7 +838,9 @@ p {
 .markdown-doc ul,
 .markdown-doc ol,
 .markdown-doc blockquote,
-.markdown-doc pre {
+.markdown-doc pre,
+.markdown-doc table,
+.markdown-doc .callout {
   margin-top: 16px;
 }
 
@@ -874,6 +876,80 @@ p {
   border-left: 3px solid var(--accent);
   color: var(--muted);
   padding-left: 16px;
+}
+
+.markdown-doc table {
+  border-collapse: collapse;
+  display: block;
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-x: auto;
+  width: 100%;
+}
+
+.markdown-doc th,
+.markdown-doc td {
+  border: 1px solid var(--line);
+  min-width: 132px;
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-doc th {
+  background: var(--paper-deep);
+  color: var(--ink);
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.markdown-doc td {
+  background: #fbfdfc;
+  color: #34414a;
+}
+
+.markdown-doc img {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-top: 18px;
+  width: 100%;
+}
+
+.callout {
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+
+.callout.tip {
+  background: #eef8f6;
+  border-color: rgb(20 127 145 / 0.34);
+  border-left-color: var(--accent);
+}
+
+.callout.warn {
+  background: #fff5ed;
+  border-color: rgb(215 100 87 / 0.34);
+  border-left-color: var(--signal);
+}
+
+.callout.checkpoint {
+  background: #f4f0ff;
+  border-color: rgb(99 91 180 / 0.28);
+  border-left-color: #635bb4;
+}
+
+.callout p:first-child {
+  color: var(--ink);
+  font-weight: 850;
+  margin-top: 0;
+}
+
+.callout p,
+.callout li {
+  font-size: 15px;
 }
 
 .docs-search {
@@ -1006,7 +1082,30 @@ p {
 
 .docs-toc nav {
   display: grid;
-  gap: 2px;
+  gap: 5px;
+}
+
+.docs-toc-group {
+  border-top: 1px solid rgb(216 224 221 / 0.72);
+  padding-top: 5px;
+}
+
+.docs-toc-group:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.docs-toc-group summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.docs-toc-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.docs-toc-group summary a {
+  font-weight: 760;
 }
 
 .docs-toc a {
@@ -1014,6 +1113,7 @@ p {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;
+  display: block;
   padding: 6px 8px 6px 10px;
 }
 

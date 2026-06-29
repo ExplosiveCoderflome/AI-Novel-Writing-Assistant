@@ -62,6 +62,8 @@
 
 公开文档应按用户旅程分组：开始使用、模块总览、创作主链、知识与写法、设定资产、衍生工坊、系统配置和项目动态。不要把 20 多个模块平铺到一个“功能模块”分类里。
 
+当公开文档需要解释自动导演、章节执行、RAG 和恢复机制时，应单独设置“实战手册”和“生产链深度”分类，避免把复杂运行时压缩成首页卖点短语。生产链深度文档可以引用代码阶段名，但必须同时给出中文含义、用户动作、产物位置和恢复方式。
+
 文档阅读页应提供：
 
 - 左侧 manifest 导航。
@@ -70,8 +72,12 @@
 - GitHub 原文链接。
 - 文内目录和当前标题高亮。
 - 上一篇 / 下一篇导航。
+- 长文档折叠式目录、表格样式和 tip / warn / checkpoint callout。
+- 面向自动导演阶段的 SVG/PNG 流程图。
 
 这些能力的目的不是把公开站变成内部文档系统，而是降低新用户查找安装、开书、恢复、配置和模块用途的成本。公开站搜索只索引 manifest 登记的公开文档，不应索引内部 wiki、计划、检查点或归档资料。
+
+自动导演阶段文档的来源锚点是 `server/src/services/novel/director/projections/novelDirectorProgress.ts`。`docs/public/flow/auto-director-pipeline.md` 顶部的 `DIRECTOR_PROGRESS_ITEM_KEYS` 必须覆盖代码中的 `DirectorProgressItemKey`，`pnpm check:docs-manifest` 会检查这一点。新增阶段时，文档必须解释阶段含义、产物、checkpoint/auto-approval 行为和失败恢复策略。
 
 ## Related Modules
 
@@ -80,6 +86,7 @@
 - `images/`：产品截图与 GitHub 社交预览图的源资产。
 - `site/src/docsManifest.ts`：公开文档白名单。
 - `site/src/docsContent.ts`：公开文档内容加载。
+- `site/src/docsAssets.ts`：公开文档流程图资源加载。
 - `site/src/DocsPage.tsx`：文档索引与 Markdown 阅读页。
 - `scripts/check-docs-manifest.cjs`：公开文档登记校验。
 - `docs/releases/release-notes.md`：用户可见发布记录。

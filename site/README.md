@@ -26,6 +26,8 @@ pnpm check:docs-manifest
 
 校验会扫描 `docs/public/**/*.md` 和 `docs/releases/release-notes.md`，确认每个公开文档都已登记到 manifest，且没有登记不存在的文件。
 
+校验也会读取 `server/src/services/novel/director/projections/novelDirectorProgress.ts` 中的 `DirectorProgressItemKey`，并确认 `docs/public/flow/auto-director-pipeline.md` 顶部的 `DIRECTOR_PROGRESS_ITEM_KEYS` 覆盖所有自动导演进度阶段。
+
 ## GitHub Pages
 
 `.github/workflows/site-pages.yml` 会在推送到 `main` 或手动触发时构建 `@ai-novel/site`，并把 `site/dist` 发布到 GitHub Pages。
@@ -45,3 +47,5 @@ pnpm check:docs-manifest
 5. 运行 `pnpm --filter @ai-novel/site build`。
 
 文档内容由 `src/docsContent.ts` 使用 Vite glob 自动加载，不需要为每篇 Markdown 手写 import。
+
+深度文档中的流程图放在 `docs/public/flow/diagrams/`。站点通过 `src/docsAssets.ts` 把这些 SVG/PNG 解析为构建产物 URL，Markdown 可以使用相对路径引用，例如 `![端到端三层生产链](./diagrams/end-to-end-production.svg)`。

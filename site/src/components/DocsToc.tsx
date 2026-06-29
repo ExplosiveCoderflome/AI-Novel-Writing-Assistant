@@ -87,9 +87,27 @@ type DocsTocProps = {
   headings: DocHeading[];
 };
 
+type TocGroup = {
+  heading: DocHeading;
+  children: DocHeading[];
+};
+
+function groupHeadings(headings: DocHeading[]): TocGroup[] {
+  const groups: TocGroup[] = [];
+  for (const heading of headings) {
+    if (heading.depth === 2 || groups.length === 0) {
+      groups.push({ heading, children: [] });
+      continue;
+    }
+    groups[groups.length - 1].children.push(heading);
+  }
+  return groups;
+}
+
 export function DocsToc({ headings }: DocsTocProps) {
   const headingIds = useMemo(() => headings.map((heading) => heading.id), [headings]);
   const activeId = useActiveHeading(headingIds);
+  const groups = useMemo(() => groupHeadings(headings), [headings]);
 
   if (headings.length === 0) {
     return null;
@@ -102,17 +120,28 @@ export function DocsToc({ headings }: DocsTocProps) {
         <span>本文目录</span>
       </div>
       <nav>
-        {headings.map((heading) => (
-          <a
-            className={`${heading.depth === 3 ? "nested" : ""} ${
-              activeId === heading.id ? "active" : ""
-            }`.trim()}
-            href={`#${heading.id}`}
-            key={heading.id}
-          >
-            {heading.text}
-          </a>
-        ))}
+        {groups.map((group) => {
+          const childActive = group.children.some((heading) => heading.id === activeId);
+          const groupActive = group.heading.id === activeId || childActive;
+          return (
+            <details className="docs-toc-group" key={group.heading.id} open={groupActive}>
+              <summary>
+                <a className={group.heading.id === activeId ? "active" : ""} href={`#${group.heading.id}`}>
+                  {group.heading.text}
+                </a>
+              </summary>
+              {group.children.map((heading) => (
+                <a
+                  className={`nested ${activeId === heading.id ? "active" : ""}`.trim()}
+                  href={`#${heading.id}`}
+                  key={heading.id}
+                >
+                  {heading.text}
+                </a>
+              ))}
+            </details>
+          );
+        })}
       </nav>
     </aside>
   );
