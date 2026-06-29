@@ -1,6 +1,5 @@
 import {
   ArrowRight,
-  BookOpenText,
   Boxes,
   BrainCircuit,
   CheckCircle2,
@@ -11,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { lazy, Suspense, useSyncExternalStore } from "react";
+import appIcon from "./assets/app-icon.png";
 import chapterExecutionImage from "./assets/chapter-execution.png";
 import creativeHubImage from "./assets/creative-hub.png";
 import directorChoiceImage from "./assets/director-choice.png";
@@ -125,7 +125,7 @@ function SiteNav({ page }: { page: "home" | "docs" }) {
     <nav className="site-nav" aria-label="主导航">
       <a className="brand" href="#/" aria-label="AI 小说创作工作台首页">
         <span className="brand-mark">
-          <BookOpenText size={20} strokeWidth={2.1} />
+          <img src={appIcon} alt="" aria-hidden="true" />
         </span>
         <span>AI 小说创作工作台</span>
       </a>

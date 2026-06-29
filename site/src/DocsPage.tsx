@@ -3,9 +3,10 @@ import { Children, cloneElement, isValidElement, useMemo } from "react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Breadcrumb } from "./components/Breadcrumb";
 import { DocsSearch } from "./components/DocsSearch";
-import { createSlugger, DocsToc, parseMarkdownHeadings } from "./components/DocsToc";
+import { DocsToc, parseMarkdownHeadings, slugify } from "./components/DocsToc";
 import { resolveDocAssetUrl } from "./docsAssets";
 import { getDocContent } from "./docsContent";
 import { docsManifest, flattenedDocs } from "./docsManifest";
@@ -28,6 +29,13 @@ function extractText(children: ReactNode): string {
       return "";
     })
     .join("");
+}
+
+function rewriteMarkdownImageUrls(markdown: string, docSourcePath: string): string {
+  return markdown.replace(/(!\[[^\]]*\]\()([^)\s]+)(\))/g, (full, open, src, close) => {
+    const resolved = resolveDocAssetUrl(docSourcePath, src);
+    return `${open}${resolved ?? src}${close}`;
+  });
 }
 
 function preprocessMarkdownDirectives(markdown: string): string {
@@ -107,11 +115,9 @@ function stripCalloutMarker(children: ReactNode): {
 }
 
 function createMarkdownComponents(docSourcePath: string): Components {
-  const slug = createSlugger();
-
   function Heading2({ children, ...props }: ComponentPropsWithoutRef<"h2">) {
     return (
-      <h2 id={slug(extractText(children))} {...props}>
+      <h2 id={slugify(extractText(children))} {...props}>
         {children}
       </h2>
     );
@@ -119,7 +125,7 @@ function createMarkdownComponents(docSourcePath: string): Components {
 
   function Heading3({ children, ...props }: ComponentPropsWithoutRef<"h3">) {
     return (
-      <h3 id={slug(extractText(children))} {...props}>
+      <h3 id={slugify(extractText(children))} {...props}>
         {children}
       </h3>
     );
@@ -153,10 +159,13 @@ export default function DocsPage({ docId }: DocsPageProps) {
   const activeIndex = flattenedDocs.findIndex((doc) => doc.id === docId);
   const activeDoc = activeIndex >= 0 ? flattenedDocs[activeIndex] : undefined;
   const rawMarkdown = activeDoc ? getDocContent(activeDoc.sourcePath) : undefined;
-  const markdown = useMemo(
-    () => (rawMarkdown ? preprocessMarkdownDirectives(rawMarkdown) : undefined),
-    [rawMarkdown],
-  );
+  const markdown = useMemo(() => {
+    if (!rawMarkdown || !activeDoc) {
+      return undefined;
+    }
+    const withUrls = rewriteMarkdownImageUrls(rawMarkdown, activeDoc.sourcePath);
+    return preprocessMarkdownDirectives(withUrls);
+  }, [rawMarkdown, activeDoc]);
   const previousDoc = activeIndex > 0 ? flattenedDocs[activeIndex - 1] : undefined;
   const nextDoc = activeIndex >= 0 ? flattenedDocs[activeIndex + 1] : undefined;
   const headings = useMemo(() => (markdown ? parseMarkdownHeadings(markdown) : []), [markdown]);
@@ -207,7 +216,9 @@ export default function DocsPage({ docId }: DocsPageProps) {
                   <ArrowRight size={15} />
                 </a>
               </div>
-              <ReactMarkdown components={markdownComponents}>{markdown}</ReactMarkdown>
+              <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+                {markdown}
+              </ReactMarkdown>
               <nav className="doc-pagination" aria-label="文档翻页">
                 {previousDoc ? (
                   <a href={`#/docs/${previousDoc.id}`}>

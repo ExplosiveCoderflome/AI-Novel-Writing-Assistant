@@ -94,13 +94,18 @@ p {
 
 .brand-mark {
   align-items: center;
-  background: var(--ink);
   border-radius: 8px;
-  color: var(--paper);
   display: inline-flex;
   height: 36px;
   justify-content: center;
+  overflow: hidden;
   width: 36px;
+}
+
+.brand-mark img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
 }
 
 .nav-links {

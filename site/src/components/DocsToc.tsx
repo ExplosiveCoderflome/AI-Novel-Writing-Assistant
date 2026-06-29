@@ -1,5 +1,6 @@
 import { ListTree } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { MouseEvent } from "react";
 
 export type DocHeading = {
   id: string;
@@ -7,27 +8,19 @@ export type DocHeading = {
   text: string;
 };
 
-export function createSlugger() {
-  const counts = new Map<string, number>();
-
-  return (text: string) => {
-    const base =
-      text
-        .toLowerCase()
-        .trim()
-        .replace(/[`*_~()[\]{}<>]/g, "")
-        .replace(/[^\p{L}\p{N}\s-]/gu, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-") || "section";
-    const nextCount = counts.get(base) ?? 0;
-    counts.set(base, nextCount + 1);
-    return nextCount === 0 ? base : `${base}-${nextCount + 1}`;
-  };
+export function slugify(text: string): string {
+  return (
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/[`*_~()[\]{}<>]/g, "")
+      .replace(/[^\p{L}\p{N}\s-]/gu, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-") || "section"
+  );
 }
 
 export function parseMarkdownHeadings(markdown: string): DocHeading[] {
-  const slug = createSlugger();
-
   return markdown
     .split(/\r?\n/)
     .map((line) => {
@@ -37,7 +30,7 @@ export function parseMarkdownHeadings(markdown: string): DocHeading[] {
       }
       const text = match[2].replace(/#+$/, "").trim();
       return {
-        id: slug(text),
+        id: slugify(text),
         depth: match[1].length as 2 | 3,
         text,
       };
@@ -104,6 +97,18 @@ function groupHeadings(headings: DocHeading[]): TocGroup[] {
   return groups;
 }
 
+function scrollToHeading(id: string) {
+  const element = document.getElementById(id);
+  if (element) {
+    element.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function handleTocClick(event: MouseEvent<HTMLAnchorElement>, id: string) {
+  event.preventDefault();
+  scrollToHeading(id);
+}
+
 export function DocsToc({ headings }: DocsTocProps) {
   const headingIds = useMemo(() => headings.map((heading) => heading.id), [headings]);
   const activeId = useActiveHeading(headingIds);
@@ -126,7 +131,11 @@ export function DocsToc({ headings }: DocsTocProps) {
           return (
             <details className="docs-toc-group" key={group.heading.id} open={groupActive}>
               <summary>
-                <a className={group.heading.id === activeId ? "active" : ""} href={`#${group.heading.id}`}>
+                <a
+                  className={group.heading.id === activeId ? "active" : ""}
+                  href={`#${group.heading.id}`}
+                  onClick={(event) => handleTocClick(event, group.heading.id)}
+                >
                   {group.heading.text}
                 </a>
               </summary>
@@ -135,6 +144,7 @@ export function DocsToc({ headings }: DocsTocProps) {
                   className={`nested ${activeId === heading.id ? "active" : ""}`.trim()}
                   href={`#${heading.id}`}
                   key={heading.id}
+                  onClick={(event) => handleTocClick(event, heading.id)}
                 >
                   {heading.text}
                 </a>
