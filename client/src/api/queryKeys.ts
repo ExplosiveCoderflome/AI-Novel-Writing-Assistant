@@ -51,12 +51,14 @@ export const queryKeys = {
   knowledge: {
     documents: (params: string) => ["knowledge", "documents", params] as const,
     detail: (id: string) => ["knowledge", "detail", id] as const,
+    chapters: (documentId: string, versionId: string) => ["knowledge", "chapters", documentId, versionId] as const,
     ragJobs: (params: string) => ["knowledge", "rag-jobs", params] as const,
     ragHealth: ["knowledge", "rag-health"] as const,
   },
   bookAnalysis: {
     list: (params: string) => ["book-analysis", "list", params] as const,
     detail: (id: string) => ["book-analysis", "detail", id] as const,
+    characters: (id: string) => ["book-analysis", "characters", id] as const,
   },
   writingFormula: {
     all: ["writing-formula"] as const,
@@ -98,7 +100,7 @@ export const queryKeys = {
   },
   images: {
     task: (taskId: string) => ["images", "task", taskId] as const,
-    assets: (sceneType: "character" | "novel_cover", sceneId: string) => ["images", "assets", sceneType, sceneId] as const,
+    assets: (sceneType: "character" | "novel_cover" | "book_analysis_character", sceneId: string) => ["images", "assets", sceneType, sceneId] as const,
   },
   tasks: {
     overview: ["tasks", "overview"] as const,

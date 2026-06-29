@@ -246,6 +246,7 @@ function scheduleLogRetentionCleanup(): void {
 
 function initializeBackgroundServices(): BackgroundServicesHandle {
   ragServices.ragWorker.start();
+  ragServices.ragRetrievalTraceRetention.start();
   novelSideEffectWorker.start();
   const directorWorker = new DirectorWorker();
   void directorWorker.start().catch((error) => {
@@ -283,6 +284,7 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
       directorWorker.stop();
       novelSideEffectWorker.stop();
       ragServices.ragWorker.stop();
+      ragServices.ragRetrievalTraceRetention.stop();
       bookAnalysisService.stopWatchdog();
       novelPipelineRuntimeService.stopWatchdog();
     },

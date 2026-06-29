@@ -128,15 +128,6 @@ export const canonicalCharacterResourceSummarySchema = z.object({
   riskLevel: characterResourceRiskLevelSchema,
 });
 
-export const characterResourceContextSchema = z.object({
-  summary: z.string(),
-  availableItems: z.array(characterResourceLedgerItemSchema).default([]),
-  setupNeededItems: z.array(characterResourceLedgerItemSchema).default([]),
-  blockedItems: z.array(characterResourceLedgerItemSchema).default([]),
-  pendingReviewItems: z.array(characterResourceLedgerItemSchema).default([]),
-  riskSignals: z.array(characterResourceRiskSignalSchema).default([]),
-});
-
 export const characterResourceProposalSummarySchema = z.object({
   id: z.string(),
   novelId: z.string(),
@@ -152,6 +143,16 @@ export const characterResourceProposalSummarySchema = z.object({
   validationNotes: z.array(z.string()).default([]),
   createdAt: z.string(),
   updatedAt: z.string(),
+});
+
+export const characterResourceContextSchema = z.object({
+  summary: z.string(),
+  availableItems: z.array(characterResourceLedgerItemSchema).default([]),
+  setupNeededItems: z.array(characterResourceLedgerItemSchema).default([]),
+  blockedItems: z.array(characterResourceLedgerItemSchema).default([]),
+  highRiskCommittedItems: z.array(characterResourceLedgerItemSchema).default([]),
+  pendingProposalItems: z.array(characterResourceProposalSummarySchema).default([]),
+  riskSignals: z.array(characterResourceRiskSignalSchema).default([]),
 });
 
 export const characterResourceLedgerResponseSchema = z.object({

@@ -67,6 +67,7 @@ export function buildDefaultDirectorCoreStepModuleRuntimeDeps(): DirectorCoreSte
       novelId: string,
       extra?: Record<string, unknown>,
     ) => buildDirectorWorkflowSeedPayload(input, novelId, extra),
+    autoConfirmPendingCandidates: (novelId: string) => characterDynamicsService.autoConfirmPendingCandidates(novelId),
   });
   const runtimeOrchestrator = new NovelDirectorRuntimeOrchestrator({
     directorRuntime,

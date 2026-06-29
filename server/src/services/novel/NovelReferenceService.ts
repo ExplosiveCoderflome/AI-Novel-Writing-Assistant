@@ -1,9 +1,15 @@
-import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { BookAnalysisSectionKey, BookAnalysisTimelineNode } from "@ai-novel/shared/types/bookAnalysis";
+import {
+  BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS,
+  BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS,
+} from "@ai-novel/shared/types/bookAnalysis";
+import { groupBookAnalysisTimelineNodesByPhase } from "@ai-novel/shared/utils/bookAnalysisTimeline";
 import { prisma } from "../../db/prisma";
 import {
   listActiveKnowledgeDocumentContents,
   resolveKnowledgeDocumentIds,
 } from "../knowledge/common";
+import { normalizeBookAnalysisStructuredData } from "../bookAnalysis/shared/bookAnalysis.utils";
 
 export type NovelReferenceStage =
   | "outline"
@@ -80,6 +86,49 @@ function formatStructuredData(data: Record<string, unknown>): string {
   return lines.join("\n");
 }
 
+function formatTimelineNode(node: BookAnalysisTimelineNode): string {
+  const meta = [
+    node.timeHint ? `时间=${node.timeHint}` : "",
+    node.sourceRefs?.length ? `来源=${node.sourceRefs.join(", ")}` : "",
+  ].filter(Boolean).join("; ");
+  return meta ? `- ${node.label} (${meta})` : `- ${node.label}`;
+}
+
+function formatTimelineNodes(nodes: BookAnalysisTimelineNode[]): string {
+  if (nodes.length === 0) {
+    return "";
+  }
+  return groupBookAnalysisTimelineNodesByPhase(nodes)
+    .map((group) => `### ${group.phase}\n${group.nodes.map((node) => formatTimelineNode(node)).join("\n")}`)
+    .join("\n");
+}
+
+function formatTimelineStructuredData(data: Record<string, unknown>): string {
+  const normalized = normalizeBookAnalysisStructuredData("timeline", data);
+  const lines: string[] = [];
+
+  for (const field of BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS.timeline) {
+    const label = BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[field.key] ?? field.key;
+    const value = normalized[field.key];
+    if (field.type === "timelineNodeArray") {
+      const nodes = Array.isArray(value) ? value as BookAnalysisTimelineNode[] : [];
+      const formatted = formatTimelineNodes(nodes);
+      if (formatted) {
+        lines.push(`## ${label}`, formatted);
+      }
+      continue;
+    }
+
+    const values = Array.isArray(value)
+      ? value.map((item) => String(item).trim()).filter(Boolean)
+      : [];
+    if (values.length > 0) {
+      lines.push(`## ${label}`, values.map((item) => `- ${item}`).join("\n"));
+    }
+  }
+  return lines.join("\n");
+}
+
 function parseStructuredData(json: string | null): Record<string, unknown> | null {
   if (!json?.trim()) {
     return null;
@@ -97,6 +146,7 @@ function parseStructuredData(json: string | null): Record<string, unknown> | nul
 
 function extractSectionText(
   section: {
+    sectionKey: string;
     title: string;
     structuredDataJson: string | null;
     aiContent: string | null;
@@ -105,7 +155,12 @@ function extractSectionText(
 ): string {
   const data = parseStructuredData(section.structuredDataJson);
   if (data && Object.keys(data).length > 0) {
-    return `## ${section.title}\n${formatStructuredData(data)}`;
+    const structuredText = section.sectionKey === "timeline"
+      ? formatTimelineStructuredData(data)
+      : formatStructuredData(data);
+    if (structuredText.trim()) {
+      return `## ${section.title}\n${structuredText}`;
+    }
   }
   const fallback = section.editedContent?.trim() || section.aiContent?.trim() || "";
   if (!fallback) {

@@ -130,7 +130,7 @@ export default function ResourceRiskPanel(props: ChapterExecutionInsightsSidebar
         <ResourceGroup title="可用资源" items={chapterResourceContext?.availableItems ?? []} emptyText="没有需要特别依赖的可用资源。" />
         <ResourceGroup title="需要铺垫" items={chapterResourceContext?.setupNeededItems ?? []} emptyText="没有必须先铺垫的资源。" />
         <ResourceGroup title="不能提前使用" items={chapterResourceContext?.blockedItems ?? []} emptyText="没有被消耗、丢失或毁坏的关键资源。" />
-        <ResourceGroup title="待确认" items={chapterResourceContext?.pendingReviewItems ?? []} emptyText="没有需要你确认的高风险资源。" />
+        <ResourceGroup title="高风险已入账" items={chapterResourceContext?.highRiskCommittedItems ?? []} emptyText="没有需要谨慎使用的高风险已入账资源。" />
 
         {pendingCharacterResourceProposals.length > 0 ? (
           <div className="space-y-2 rounded-lg border border-border/70 bg-muted/10 p-3">

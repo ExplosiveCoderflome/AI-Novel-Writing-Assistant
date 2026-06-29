@@ -121,7 +121,8 @@ function hasRuntimeResourceData(runtimePackage: ChapterRuntimePackage | null | u
       context.availableItems.length > 0
       || context.setupNeededItems.length > 0
       || context.blockedItems.length > 0
-      || context.pendingReviewItems.length > 0
+      || context.highRiskCommittedItems.length > 0
+      || context.pendingProposalItems.length > 0
       || context.riskSignals.length > 0
     ),
   );

@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const {
   GenerationContextAssembler,
   buildBlockingPendingReviewProposalWhere,
+  resolveChapterResourceCharacterIds,
 } = require("../dist/services/novel/runtime/GenerationContextAssembler.js");
 const { prisma } = require("../dist/db/prisma.js");
 const { plannerService } = require("../dist/services/planner/PlannerService.js");
@@ -25,6 +26,25 @@ test("blocking pending-review proposals are scoped to the current chapter plus g
       { chapterId: null },
     ],
   });
+});
+
+test("chapter resource character ids are resolved from plan participant names", () => {
+  const now = new Date();
+  const ids = resolveChapterResourceCharacterIds({
+    plan: {
+      participantsJson: JSON.stringify(["女二", "主角"]),
+      scenes: [],
+      createdAt: now,
+      updatedAt: now,
+    },
+    characters: [
+      { id: "char-1", name: "主角" },
+      { id: "char-2", name: "女二" },
+      { id: "char-3", name: "路人" },
+    ],
+  });
+
+  assert.deepEqual(ids, ["char-1", "char-2"]);
 });
 
 function createSceneCards(prefix) {

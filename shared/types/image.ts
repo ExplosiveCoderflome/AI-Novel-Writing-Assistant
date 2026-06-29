@@ -1,4 +1,4 @@
-export type ImageSceneType = "character" | "novel_cover" | "chapter_illustration";
+export type ImageSceneType = "character" | "novel_cover" | "chapter_illustration" | "book_analysis_character";
 
 export type ImageTaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
 
@@ -36,24 +36,35 @@ export type CharacterImageGenerationTask = BaseImageGenerationTask & {
   sceneType: "character";
   baseCharacterId: string;
   novelId?: null;
+  bookAnalysisCharacterId?: null;
 };
 
 export type NovelCoverImageGenerationTask = BaseImageGenerationTask & {
   sceneType: "novel_cover";
   novelId: string;
   baseCharacterId?: null;
+  bookAnalysisCharacterId?: null;
 };
 
 export type ChapterIllustrationImageGenerationTask = BaseImageGenerationTask & {
   sceneType: "chapter_illustration";
   baseCharacterId?: string | null;
   novelId?: string | null;
+  bookAnalysisCharacterId?: string | null;
+};
+
+export type BookAnalysisCharacterImageGenerationTask = BaseImageGenerationTask & {
+  sceneType: "book_analysis_character";
+  bookAnalysisCharacterId: string;
+  baseCharacterId?: null;
+  novelId?: null;
 };
 
 export type ImageGenerationTask =
   | CharacterImageGenerationTask
   | NovelCoverImageGenerationTask
-  | ChapterIllustrationImageGenerationTask;
+  | ChapterIllustrationImageGenerationTask
+  | BookAnalysisCharacterImageGenerationTask;
 
 interface BaseImageAsset {
   id: string;
@@ -80,21 +91,32 @@ export type CharacterImageAsset = BaseImageAsset & {
   sceneType: "character";
   baseCharacterId: string;
   novelId?: null;
+  bookAnalysisCharacterId?: null;
 };
 
 export type NovelCoverImageAsset = BaseImageAsset & {
   sceneType: "novel_cover";
   novelId: string;
   baseCharacterId?: null;
+  bookAnalysisCharacterId?: null;
 };
 
 export type ChapterIllustrationImageAsset = BaseImageAsset & {
   sceneType: "chapter_illustration";
   baseCharacterId?: string | null;
   novelId?: string | null;
+  bookAnalysisCharacterId?: string | null;
+};
+
+export type BookAnalysisCharacterImageAsset = BaseImageAsset & {
+  sceneType: "book_analysis_character";
+  bookAnalysisCharacterId: string;
+  baseCharacterId?: null;
+  novelId?: null;
 };
 
 export type ImageAsset =
   | CharacterImageAsset
   | NovelCoverImageAsset
-  | ChapterIllustrationImageAsset;
+  | ChapterIllustrationImageAsset
+  | BookAnalysisCharacterImageAsset;

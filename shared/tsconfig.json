@@ -10,5 +10,5 @@
     "sourceMap": true,
     "noEmit": false
   },
-  "include": ["*.ts", "types/**/*.ts"]
+  "include": ["*.ts", "types/**/*.ts", "utils/**/*.ts"]
 }

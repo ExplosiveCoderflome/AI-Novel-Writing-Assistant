@@ -3,20 +3,33 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { z } from "zod";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
+import { DocumentChapterService } from "../services/knowledge/DocumentChapterService";
 import { KnowledgeService } from "../services/knowledge/KnowledgeService";
 
 const router = Router();
 const knowledgeService = new KnowledgeService();
+const documentChapterService = new DocumentChapterService();
 
 const documentStatusSchema = z.enum(["enabled", "disabled", "archived"]);
+const documentKindSchema = z.enum(["user_upload", "analysis_published"]);
 
 const listDocumentsQuerySchema = z.object({
   keyword: z.string().trim().optional(),
   status: documentStatusSchema.optional(),
+  kind: documentKindSchema.optional(),
 });
 
 const documentParamsSchema = z.object({
   id: z.string().trim().min(1),
+});
+
+const documentVersionParamsSchema = z.object({
+  id: z.string().trim().min(1),
+  versionId: z.string().trim().min(1),
+});
+
+const chapterParamsSchema = documentVersionParamsSchema.extend({
+  chapterIndex: z.coerce.number().int().min(0),
 });
 
 const createDocumentSchema = z.object({
@@ -32,6 +45,13 @@ const createVersionSchema = z.object({
 
 const activateVersionSchema = z.object({
   versionId: z.string().trim().min(1),
+});
+
+const patchChapterSchema = z.object({
+  title: z.string().trim().optional(),
+  summary: z.string().nullable().optional(),
+}).refine((value) => value.title !== undefined || value.summary !== undefined, {
+  message: "At least one field must be provided.",
 });
 
 const recallTestSchema = z.object({
@@ -124,6 +144,61 @@ router.post(
         success: true,
         data,
         message: "Knowledge document version activated.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get(
+  "/documents/:id/versions/:versionId/chapters",
+  validate({ params: documentVersionParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, versionId } = req.params as z.infer<typeof documentVersionParamsSchema>;
+      const data = await documentChapterService.ensureChaptersForVersion(versionId, id);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Document chapters loaded.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/documents/:id/versions/:versionId/chapters",
+  validate({ params: documentVersionParamsSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, versionId } = req.params as z.infer<typeof documentVersionParamsSchema>;
+      const data = await documentChapterService.rebuildChaptersForVersion(versionId, id);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Document chapters rebuilt.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.patch(
+  "/documents/:id/versions/:versionId/chapters/:chapterIndex",
+  validate({ params: chapterParamsSchema, body: patchChapterSchema }),
+  async (req, res, next) => {
+    try {
+      const { id, versionId, chapterIndex } = chapterParamsSchema.parse(req.params);
+      const body = req.body as z.infer<typeof patchChapterSchema>;
+      const data = await documentChapterService.updateChapter(versionId, chapterIndex, body, id);
+      res.status(200).json({
+        success: true,
+        data,
+        message: "Document chapter updated.",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);

@@ -6,7 +6,7 @@ import type {
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 import { bookAnalysisService } from "../../bookAnalysis/BookAnalysisService";
-import { resolveLiveBookAnalysisStatus } from "../../bookAnalysis/bookAnalysis.status";
+import { resolveLiveBookAnalysisStatus } from "../../bookAnalysis/shared/bookAnalysis.status";
 import {
   buildTaskRecoveryHint,
   isArchivableTaskStatus,

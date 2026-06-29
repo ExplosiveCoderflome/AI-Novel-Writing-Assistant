@@ -23,6 +23,7 @@ import {
   type StructuredOutputStrategy,
 } from "./structuredOutput";
 import { getStructuredFallbackSettings } from "./structuredFallbackSettings";
+import { extractLlmTokenUsage } from "./usageTracking";
 import { runWithEnforcedTimeout } from "./invokeTimeout";
 import {
   buildStructuredError,
@@ -236,6 +237,7 @@ async function invokeStructuredAttempt<T>(input: {
     return parseStructuredLlmRawContentDetailed({
       rawContent,
       schema: input.baseInput.schema,
+      tokenUsage: extractLlmTokenUsage(result),
       provider: resolved.provider,
       model: resolved.model,
       apiKey: input.target.apiKey,

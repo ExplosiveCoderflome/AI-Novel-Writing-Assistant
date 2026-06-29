@@ -145,4 +145,5 @@ export interface NovelDirectorAutoExecutionRuntimeDeps {
     temperature?: number;
   }) => Promise<DirectorStateProposalResolutionRunResult>;
   automationLedgerEventService?: AutomationLedgerEventPort;
+  autoConfirmPendingCandidates?: (novelId: string) => Promise<void>;
 }

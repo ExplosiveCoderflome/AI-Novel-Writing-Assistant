@@ -71,6 +71,11 @@ enum KnowledgeDocumentStatus {
   archived
 }
 
+enum KnowledgeDocumentKind {
+  user_upload
+  analysis_published
+}
+
 enum KnowledgeIndexStatus {
   idle
   queued
@@ -105,6 +110,7 @@ enum ImageSceneType {
   character
   novel_cover
   chapter_illustration
+  book_analysis_character
 }
 
 enum ProjectMode {
@@ -850,6 +856,8 @@ model BaseCharacter {
   keyEvents   String?
   tags        String   @default("")
   category    String
+  sourceType  String   @default("manual")
+  sourceRefId String?
   revisions   BaseCharacterRevision[]
   libraryLinks CharacterLibraryLink[]
   syncProposals CharacterSyncProposal[]
@@ -857,6 +865,8 @@ model BaseCharacter {
   imageAssets ImageAsset[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([sourceType, sourceRefId])
 }
 
 model BaseCharacterRevision {
@@ -933,11 +943,13 @@ model ImageGenerationTask {
   sceneType       ImageSceneType    @default(character)
   baseCharacterId String?
   novelId         String?
+  bookAnalysisCharacterId String?
   provider        String
   model           String
   prompt          String
   negativePrompt  String?
   stylePreset     String?
+  referenceImageAssetIdsJson String?
   size            String            @default("1024x1024")
   imageCount      Int               @default(1)
   seed            Int?
@@ -956,13 +968,16 @@ model ImageGenerationTask {
   finishedAt      DateTime?
   baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
   novel           Novel?            @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  bookAnalysisCharacter BookAnalysisCharacter? @relation(fields: [bookAnalysisCharacterId], references: [id], onDelete: Cascade)
   assets          ImageAsset[]
+  bookAnalysisAppearanceImages BookAnalysisCharacterAppearanceImage[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
   @@index([sceneType, status])
   @@index([baseCharacterId, createdAt])
   @@index([novelId, createdAt])
+  @@index([bookAnalysisCharacterId, createdAt])
 }
 
 model StyleExtractionTask {
@@ -1015,6 +1030,7 @@ model ImageAsset {
   sceneType       ImageSceneType    @default(character)
   baseCharacterId String?
   novelId         String?
+  bookAnalysisCharacterId String?
   provider        String
   model           String
   url             String
@@ -1029,6 +1045,8 @@ model ImageAsset {
   task            ImageGenerationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
   baseCharacter   BaseCharacter?    @relation(fields: [baseCharacterId], references: [id], onDelete: Cascade)
   novel           Novel?            @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  bookAnalysisCharacter BookAnalysisCharacter? @relation(fields: [bookAnalysisCharacterId], references: [id], onDelete: Cascade)
+  bookAnalysisAppearanceImages BookAnalysisCharacterAppearanceImage[]
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -1036,6 +1054,7 @@ model ImageAsset {
   @@index([sceneType, createdAt])
   @@index([baseCharacterId, isPrimary, createdAt])
   @@index([novelId, isPrimary, createdAt])
+  @@index([bookAnalysisCharacterId, isPrimary, createdAt])
 }
 
 model NovelGenre {
@@ -2604,6 +2623,8 @@ model KnowledgeDocument {
   id                     String                   @id @default(cuid())
   title                  String
   fileName               String
+  kind                   KnowledgeDocumentKind    @default(user_upload)
+  sourceAnalysisId       String?                  @unique
   status                 KnowledgeDocumentStatus  @default(enabled)
   activeVersionId        String?
   activeVersionNumber    Int                      @default(0)
@@ -2619,6 +2640,7 @@ model KnowledgeDocument {
   updatedAt              DateTime                 @updatedAt
 
   @@index([status, updatedAt])
+  @@index([kind, updatedAt])
   @@index([title])
 }
 
@@ -2631,6 +2653,7 @@ model KnowledgeDocumentVersion {
   charCount          Int
   document           KnowledgeDocument    @relation("KnowledgeDocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
   activeForDocuments KnowledgeDocument[]  @relation("KnowledgeDocumentActiveVersion")
+  chapters           DocumentChapter[]
   bookAnalyses       BookAnalysis[]
   sourceCaches       BookAnalysisSourceCache[]
   createdAt          DateTime             @default(now())
@@ -2640,17 +2663,37 @@ model KnowledgeDocumentVersion {
   @@index([contentHash])
 }
 
+model DocumentChapter {
+  id                String                   @id @default(cuid())
+  documentVersionId String
+  chapterIndex      Int
+  title             String
+  startOffset       Int
+  endOffset         Int
+  charCount         Int
+  summary           String?
+  splitter          String                   @default("rule")
+  documentVersion   KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  @@unique([documentVersionId, chapterIndex])
+  @@index([documentVersionId, startOffset])
+}
+
 model KnowledgeBinding {
-  id         String                     @id @default(cuid())
-  targetType KnowledgeBindingTargetType
-  targetId   String
-  documentId String
-  document   KnowledgeDocument          @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  createdAt  DateTime                   @default(now())
+  id               String                     @id @default(cuid())
+  targetType       KnowledgeBindingTargetType
+  targetId         String
+  documentId       String
+  sourceAnalysisId String?
+  document         KnowledgeDocument          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt        DateTime                   @default(now())
 
   @@unique([targetType, targetId, documentId])
   @@index([targetType, targetId])
   @@index([documentId])
+  @@index([sourceAnalysisId])
 }
 
 model BookAnalysis {
@@ -2664,6 +2707,14 @@ model BookAnalysis {
   model                       String?
   temperature                 Float?
   maxTokens                   Int?
+  budgetTokens                Int?
+  usedTokens                  Int?      @default(0)
+  userFocusInstruction        String?
+  sourceStartChapterIndex     Int?
+  sourceEndChapterIndex       Int?
+  sourceStartOffset           Int?
+  sourceEndOffset             Int?
+  sourceScopeLabel            String?
   progress                    Float              @default(0)
   pendingManualRecovery       Boolean            @default(false)
   heartbeatAt                 DateTime?
@@ -2681,6 +2732,7 @@ model BookAnalysis {
   publishedDocument           KnowledgeDocument?  @relation("BookAnalysisPublishedDocument", fields: [publishedDocumentId], references: [id], onDelete: SetNull)
   continuationNovels          Novel[]             @relation("NovelContinuationBookAnalysis")
   sections                    BookAnalysisSection[]
+  characters                  BookAnalysisCharacter[]
   createdAt                   DateTime           @default(now())
   updatedAt                   DateTime           @updatedAt
 
@@ -2696,6 +2748,7 @@ model BookAnalysisSourceCache {
   model             String
   temperature       Float
   notesMaxTokens    Int
+  sourceScopeKey    String                   @default("full")
   segmentVersion    Int                      @default(1)
   segmentCount      Int
   notesJson         String
@@ -2703,7 +2756,7 @@ model BookAnalysisSourceCache {
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
 
-  @@unique([documentVersionId, provider, model, temperature, notesMaxTokens, segmentVersion])
+  @@unique([documentVersionId, sourceScopeKey, provider, model, temperature, notesMaxTokens, segmentVersion])
   @@index([documentVersionId, updatedAt])
 }
 
@@ -2716,7 +2769,9 @@ model BookAnalysisSection {
   aiContent          String?
   editedContent      String?
   notes              String?
+  focusInstruction   String?
   structuredDataJson String?
+  normalizationWarningsJson String?
   evidenceJson       String?
   frozen             Boolean                   @default(false)
   sortOrder          Int
@@ -2725,6 +2780,149 @@ model BookAnalysisSection {
 
   @@unique([analysisId, sectionKey])
   @@index([analysisId, sortOrder])
+}
+
+model BookAnalysisCharacter {
+  id                     String                     @id @default(cuid())
+  analysisId             String
+  name                   String
+  role                   String
+  status                 String                     @default("candidate")
+  briefDescription       String?
+  importance             String?
+  occurringChaptersJson  String?
+  lastGenerationError    String?
+  generationDepth        String                     @default("standard")
+  selectedDimensionsJson String?
+  profileJson            String?
+  depthMetadataJson      String?
+  profileSectionsJson    String?
+  evidenceJson           String?
+  sortOrder              Int                        @default(0)
+  analysis               BookAnalysis               @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  arcs                   BookAnalysisCharacterArc[]
+  scenes                 BookAnalysisCharacterScene[]
+  appearance             BookAnalysisCharacterAppearance?
+  appearanceSnapshots    BookAnalysisCharacterAppearanceSnapshot[]
+  appearanceTerms        BookAnalysisCharacterAppearanceTerm[]
+  imageTasks             ImageGenerationTask[]
+  imageAssets            ImageAsset[]
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+
+  @@index([analysisId, sortOrder])
+  @@index([analysisId, name])
+  @@index([analysisId, status])
+}
+
+model BookAnalysisCharacterAppearance {
+  id                         String                     @id @default(cuid())
+  characterId                String                     @unique
+  coveragePercent            Int                        @default(0)
+  consolidatedAppearanceJson String?
+  variantPolicyJson          String?
+  lastIndexedChapterIndex    Int?
+  character                  BookAnalysisCharacter      @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  snapshots                  BookAnalysisCharacterAppearanceSnapshot[]
+  createdAt                  DateTime                   @default(now())
+  updatedAt                  DateTime                   @updatedAt
+
+  @@index([coveragePercent])
+}
+
+model BookAnalysisCharacterAppearanceSnapshot {
+  id                   String                     @id @default(cuid())
+  appearanceId         String
+  characterId          String
+  chapterIndex         Int
+  chapterTitle         String?
+  appearanceJson       String?
+  evidenceJson         String?
+  summaryCaption       String?
+  contextSceneRefsJson String?
+  manuallyEdited       Boolean                    @default(false)
+  appearance           BookAnalysisCharacterAppearance @relation(fields: [appearanceId], references: [id], onDelete: Cascade)
+  character            BookAnalysisCharacter      @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  images               BookAnalysisCharacterAppearanceImage[]
+  terms                BookAnalysisCharacterAppearanceTerm[]
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+
+  @@unique([characterId, chapterIndex])
+  @@index([appearanceId, chapterIndex])
+  @@index([characterId, chapterIndex])
+  @@index([chapterIndex])
+}
+
+model BookAnalysisCharacterAppearanceTerm {
+  id           String                            @id @default(cuid())
+  characterId  String
+  snapshotId   String
+  chapterIndex Int
+  text         String
+  category     String?
+  confidence   Float?
+  stability    String?
+  evidenceJson String?
+  status       String                            @default("pending")
+  character    BookAnalysisCharacter             @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  snapshot     BookAnalysisCharacterAppearanceSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  createdAt    DateTime                          @default(now())
+  updatedAt    DateTime                          @updatedAt
+
+  @@unique([snapshotId, text])
+  @@index([characterId, status, updatedAt])
+  @@index([snapshotId])
+  @@index([chapterIndex])
+}
+
+model BookAnalysisCharacterAppearanceImage {
+  id                    String                                  @id @default(cuid())
+  snapshotId            String
+  generationTaskId      String?
+  imageAssetId          String?
+  imagePromptJson       String?
+  referenceAssetIdsJson String?
+  snapshot              BookAnalysisCharacterAppearanceSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  generationTask        ImageGenerationTask?                    @relation(fields: [generationTaskId], references: [id], onDelete: SetNull)
+  imageAsset            ImageAsset?                             @relation(fields: [imageAssetId], references: [id], onDelete: Cascade)
+  createdAt             DateTime                                @default(now())
+  updatedAt             DateTime                                @updatedAt
+
+  @@unique([imageAssetId])
+  @@index([generationTaskId])
+  @@index([snapshotId])
+}
+
+model BookAnalysisCharacterArc {
+  id                String                @id @default(cuid())
+  characterId       String
+  chapterIndex      Int?
+  stageLabel        String
+  stateSnapshotJson String?
+  evidenceJson      String?
+  sortOrder         Int                   @default(0)
+  character         BookAnalysisCharacter @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@index([characterId, sortOrder])
+  @@index([chapterIndex])
+}
+
+model BookAnalysisCharacterScene {
+  id              String                @id @default(cuid())
+  characterId     String
+  sceneLabel      String
+  sceneType       String?
+  performanceJson String?
+  evidenceJson    String?
+  sortOrder       Int                   @default(0)
+  character       BookAnalysisCharacter @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([characterId, sortOrder])
 }
 
 model KnowledgeChunk {
@@ -2741,6 +2939,8 @@ model KnowledgeChunk {
   tokenEstimate Int          @default(0)
   language      String       @default("zh")
   metadataJson  String?
+  facetKeys     String?
+  chapterAnchor String?
   embedProvider String
   embedModel    String
   embedVersion  Int          @default(1)
@@ -2751,6 +2951,8 @@ model KnowledgeChunk {
   @@index([tenantId, ownerType, ownerId])
   @@index([tenantId, novelId])
   @@index([tenantId, worldId])
+  @@index([facetKeys])
+  @@index([chapterAnchor])
   @@index([chunkHash])
 }
 
@@ -2771,6 +2973,26 @@ model RagIndexJob {
 
   @@index([status, runAfter])
   @@index([tenantId, ownerType, ownerId])
+}
+
+model RagRetrievalTrace {
+  id                String   @id @default(cuid())
+  tenantId          String   @default("default")
+  novelId           String?
+  worldId           String?
+  queryDigest       String
+  queryPreview      String?
+  scopeJson         String?
+  candidateCounts   String   @default("{}")
+  hitsJson          String   @default("[]")
+  timingsJson       String   @default("{}")
+  fallbackTriggered Boolean  @default(false)
+  rerankerUsed      Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, novelId, createdAt])
+  @@index([queryDigest])
 }
 
 model NovelSideEffectJob {
@@ -3171,13 +3393,15 @@ model ComicProject {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  sourceBundle ComicSourceBundle?
-  characters   ComicCharacter[]
-  episodes     ComicEpisode[]
-  facts        ComicFact[]
-  uploadAssets ComicUploadAsset[]
-  exportJobs   ComicExportJob[]
-  batchJobs    ComicBatchJob[]
+  sourceBundle    ComicSourceBundle?
+  characters      ComicCharacter[]
+  characterAssets ComicCharacterAsset[]
+  scenes          ComicScene[]
+  episodes        ComicEpisode[]
+  facts           ComicFact[]
+  uploadAssets    ComicUploadAsset[]
+  exportJobs      ComicExportJob[]
+  batchJobs       ComicBatchJob[]
 
   @@index([sourceType])
   @@index([status])
@@ -3196,12 +3420,49 @@ model ComicCharacter {
   id                 String   @id @default(cuid())
   projectId          String
   name               String
+  gender             String   @default("unknown")
   persona            String?
   visualAnchor       String?
   sheetData          String?
   sourceCharacterRef String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+  project ComicProject           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assets  ComicCharacterAsset[]
+
+  @@index([projectId])
+}
+
+model ComicCharacterAsset {
+  id          String   @id @default(cuid())
+  characterId String
+  projectId   String
+  assetType   String
+  name        String
+  description String?
+  imageData   String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  character ComicCharacter @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  project   ComicProject   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([characterId])
+  @@index([projectId])
+}
+
+model ComicScene {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  sceneType   String   @default("interior")
+  bible       String?
+  sheetData   String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   project ComicProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -3239,6 +3500,7 @@ model ComicPanel {
   action        String
   dialogues     String?
   characterRefs String?
+  sceneRef      String?
   visualPrompt  String?
   densityLevel  String?
   focus         String?

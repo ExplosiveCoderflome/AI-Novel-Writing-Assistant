@@ -309,27 +309,20 @@ export function registerNovelCharacterResourceRoutes(
         }
 
         const payload = characterResourceUpdatePayloadSchema.parse(parsePayload(row.payloadJson));
-        const evidence = parseStringArray(row.evidenceJson);
-        const validationNotes = parseStringArray(row.validationNotesJson);
-        await prisma.$transaction(async (tx) => {
-          const chapter = row.chapterId
-            ? await tx.chapter.findFirst({
-                where: { id: row.chapterId, novelId: id },
-                select: { order: true },
-              })
-            : null;
-          await characterResourceLedgerService.applyCommittedUpdate(tx, {
-            novelId: id,
-            chapterId: row.chapterId,
-            chapterOrder: typeof payload.chapterOrder === "number" ? payload.chapterOrder : chapter?.order ?? null,
-            payload,
-            evidence,
-            validationNotes,
-          });
-          await tx.stateChangeProposal.update({
-            where: { id: proposalId },
-            data: { status: "committed" },
-          });
+        const chapter = row.chapterId
+          ? await prisma.chapter.findFirst({
+              where: { id: row.chapterId, novelId: id },
+              select: { order: true },
+            })
+          : null;
+        await stateCommitService.commitExistingProposals({
+          novelId: id,
+          proposalIds: [proposalId],
+          chapterId: row.chapterId,
+          chapterOrder: typeof payload.chapterOrder === "number" ? payload.chapterOrder : chapter?.order ?? null,
+          sourceType: "manual_resource_confirm",
+          sourceStage: "chapter_resource_review",
+          reason: "character_resource_manual_confirm",
         });
 
         const data: CharacterResourceLedgerResponse = {

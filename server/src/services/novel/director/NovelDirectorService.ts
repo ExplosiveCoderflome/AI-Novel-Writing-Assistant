@@ -138,6 +138,7 @@ export class NovelDirectorService {
     },
     replanNovel: (novelId, input) => this.novelService.replanNovel(novelId, input),
     resolveStateProposals: (input) => directorStateProposalResolutionService.resolvePendingProposals(input),
+    autoConfirmPendingCandidates: (novelId) => this.characterDynamicsService.autoConfirmPendingCandidates(novelId),
   });
   private readonly directorRuntimeOrchestrator = new NovelDirectorRuntimeOrchestrator({
     directorRuntime: this.directorRuntime,

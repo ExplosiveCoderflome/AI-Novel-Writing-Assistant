@@ -36,6 +36,8 @@ export interface SourceBeat {
 /** 角色（来源无关） */
 export interface SourceCharacter {
   name: string;
+  /** 角色性别（生图链路 GENDER LOCK 用）：male | female | other | unknown */
+  gender?: "male" | "female" | "other" | "unknown";
   persona?: string;
   relations?: string;
   /** 视觉提示（外形/气质），后续可升级为视觉锚点 */

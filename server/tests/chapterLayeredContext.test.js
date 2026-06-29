@@ -554,7 +554,23 @@ function createContextPackage() {
         createdAt: now,
         updatedAt: now,
       }],
-      pendingReviewItems: [],
+      highRiskCommittedItems: [],
+      pendingProposalItems: [{
+        id: "proposal-1",
+        novelId: "novel-1",
+        chapterId: "chapter-5",
+        sourceType: "manual_resource_extract",
+        sourceStage: "chapter_resource_review",
+        proposalType: "character_resource_update",
+        riskLevel: "medium",
+        status: "pending_review",
+        summary: "女二暗账副本可能已经交给主角",
+        payload: {},
+        evidence: ["女二把副本推到桌上。"],
+        validationNotes: ["medium risk resource update"],
+        createdAt: now,
+        updatedAt: now,
+      }],
       riskSignals: [{
         code: "resource_destroyed_reuse",
         severity: "high",
@@ -617,6 +633,8 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("overdue payoff: 第一次反压收益")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("resource setup needed: 女二暗账副本")));
   assert.ok(reviewContext.structureObligations.some((item) => item.includes("resource unavailable: 旧通行证")));
+  assert.ok(reviewContext.structureObligations.some((item) => item.includes("unconfirmed resource proposal: 女二暗账副本可能已经交给主角")));
+  assert.ok(!reviewContext.structureObligations.some((item) => item.includes("resource needs confirmation")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("Pending character candidates remain read-only")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("女二")));
   assert.ok(repairContext.allowedEditBoundaries.some((item) => item.includes("urgent payoff thread: 黑市账户异常")));
@@ -669,6 +687,8 @@ test("chapter layered contexts carry volume mission, character duties and repair
     block.id === "character_resource_context"
     && /维修通道钥匙/.test(block.content)
     && /旧通行证/.test(block.content)
+    && /Pending resource proposals \(not committed\)/.test(block.content)
+    && /女二暗账副本可能已经交给主角/.test(block.content)
   )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "character_dynamics"

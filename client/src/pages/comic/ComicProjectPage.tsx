@@ -26,6 +26,7 @@ import {
 import { ComicImageGenerationNotice } from "@/pages/comic/ComicImageGenerationNotice";
 import { COMIC_FORMATS } from "@/pages/comic/ComicWorkspacePage";
 import { CharactersPanel } from "@/pages/comic/project/CharactersPanel";
+import { ScenesPanel } from "@/pages/comic/project/ScenesPanel";
 import { EpisodeListPanel } from "@/pages/comic/project/EpisodeListPanel";
 import { PanelsGridPanel } from "@/pages/comic/project/PanelsGridPanel";
 import { getAPIKeySettings } from "@/api/settings";
@@ -106,7 +107,14 @@ export default function ComicProjectPage() {
   const queryClient = useQueryClient();
   const [showFormatPicker, setShowFormatPicker] = useState(false);
   const [showStylePicker, setShowStylePicker] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState<string>("");
+  // 图片模型选择跨项目/跨刷新保留（用户通常长期用同一个图片模型）
+  const [selectedProvider, setSelectedProvider] = useState<string>(() => {
+    try { return localStorage.getItem("comic.preferredImageProvider") ?? ""; } catch { return ""; }
+  });
+  const handleProviderChange = (value: string) => {
+    setSelectedProvider(value);
+    try { localStorage.setItem("comic.preferredImageProvider", value); } catch { /* ignore */ }
+  };
 
   const { data: project, isLoading } = useQuery({
     queryKey: ["comic", "project", id],
@@ -128,7 +136,11 @@ export default function ComicProjectPage() {
         .filter((p) => p.supportsImageGeneration && p.isConfigured)
         .map((p) => ({ value: p.provider, label: p.displayName ?? p.name })),
   });
-  const resolvedProvider = selectedProvider || providerOptions[0]?.value || "";
+  // 缓存的 provider 仍存在于可用列表才用，否则回退到第一个（避免引用已失效的 provider 配置）
+  const resolvedProvider =
+    (selectedProvider && providerOptions.some((p) => p.value === selectedProvider))
+      ? selectedProvider
+      : providerOptions[0]?.value || "";
 
   const presetMut = useMutation({
     mutationFn: (payload: Parameters<typeof updateComicPreset>[1]) => updateComicPreset(id!, payload),
@@ -163,7 +175,7 @@ export default function ComicProjectPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5 px-4 py-6">
+    <div className="w-full space-y-5 px-4 py-6 lg:px-6">
       {/* 顶部导航 */}
       <div className="flex items-center gap-2">
         <Button asChild type="button" variant="ghost" size="sm" className="-ml-2">
@@ -344,7 +356,7 @@ export default function ComicProjectPage() {
               <select
                 className="rounded-md border bg-background px-2.5 py-1 text-xs"
                 value={resolvedProvider}
-                onChange={(e) => setSelectedProvider(e.target.value)}
+                onChange={(e) => handleProviderChange(e.target.value)}
               >
                 {providerOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -358,7 +370,6 @@ export default function ComicProjectPage() {
       <Tabs defaultValue="outline">
         <TabsList className="w-full justify-start gap-1">
           <TabsTrigger value="outline">分话大纲</TabsTrigger>
-          <TabsTrigger value="panels">格子图</TabsTrigger>
           <TabsTrigger value="characters">
             角色
             {project.characters.length > 0 && (
@@ -367,6 +378,8 @@ export default function ComicProjectPage() {
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="scenes">场景</TabsTrigger>
+          <TabsTrigger value="panels">格子图</TabsTrigger>
           <TabsTrigger value="export">导出</TabsTrigger>
         </TabsList>
 
@@ -374,12 +387,16 @@ export default function ComicProjectPage() {
           <EpisodeListPanel projectId={id!} project={project} />
         </TabsContent>
 
-        <TabsContent value="panels" className="mt-4">
-          <PanelsGridPanel projectId={id!} provider={resolvedProvider} />
-        </TabsContent>
-
         <TabsContent value="characters" className="mt-4">
           <CharactersPanel project={project} provider={resolvedProvider} />
+        </TabsContent>
+
+        <TabsContent value="scenes" className="mt-4">
+          <ScenesPanel project={project} provider={resolvedProvider} />
+        </TabsContent>
+
+        <TabsContent value="panels" className="mt-4">
+          <PanelsGridPanel projectId={id!} provider={resolvedProvider} />
         </TabsContent>
 
         <TabsContent value="export" className="mt-4">

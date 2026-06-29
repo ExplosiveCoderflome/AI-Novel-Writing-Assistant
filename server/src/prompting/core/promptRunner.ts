@@ -485,6 +485,7 @@ function buildPromptRunResult<T>(input: {
     model: input.model,
     latencyMs: input.latencyMs,
     invocation: input.invocation,
+    tokenUsage: input.tokenUsage ?? null,
   };
   logPromptCompletion({
     meta: input.invocation,
@@ -796,6 +797,7 @@ export async function runStructuredPrompt<I, O, R = O>(input: {
       latencyMs: Date.now() - startedAt,
       invocation: resolved.invocation,
       renderedPromptChars,
+      tokenUsage: result.tokenUsage,
       postValidateFailureRecovered: resolved.postValidateFailureRecovered,
     });
   } catch (error) {

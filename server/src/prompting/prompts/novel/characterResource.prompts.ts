@@ -88,6 +88,7 @@ export const characterResourceExtractionPrompt: PromptAsset<
       "3. 关键资源被销毁、消耗、丢失、提前暴露，风险至少为 medium。",
       "4. 影响后续卷级规划、伏笔兑现或主角行动边界的变化，风险至少为 medium。",
       "5. 明显连续性问题放入 continuityRisks，例如未获得却使用、已消耗却复用、读者未知却被当作已铺垫。",
+      "6. updates 最多输出 8 条；优先保留会跨章影响行动边界、伏笔兑现或资源归属的变化。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

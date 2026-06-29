@@ -9,6 +9,7 @@ import {
   KEYWORD_CANDIDATES_KEY,
   QDRANT_API_KEY_KEY,
   QDRANT_TIMEOUT_MS_KEY,
+  QDRANT_UPSERT_CONCURRENCY_KEY,
   QDRANT_UPSERT_MAX_BYTES_KEY,
   QDRANT_URL_KEY,
   RAG_ENABLED_KEY,
@@ -25,6 +26,7 @@ const INITIAL_RAG_RUNTIME_DEFAULTS = {
   qdrantApiKey: ragConfig.qdrantApiKey,
   qdrantTimeoutMs: ragConfig.qdrantTimeoutMs,
   qdrantUpsertMaxBytes: ragConfig.qdrantUpsertMaxBytes,
+  qdrantUpsertConcurrency: ragConfig.qdrantUpsertConcurrency,
   chunkSize: ragConfig.chunkSize,
   chunkOverlap: ragConfig.chunkOverlap,
   vectorCandidates: ragConfig.vectorCandidates,
@@ -42,6 +44,7 @@ export interface RagRuntimeSettings {
   qdrantApiKeyConfigured: boolean;
   qdrantTimeoutMs: number;
   qdrantUpsertMaxBytes: number;
+  qdrantUpsertConcurrency: number;
   chunkSize: number;
   chunkOverlap: number;
   vectorCandidates: number;
@@ -60,6 +63,7 @@ export interface RagRuntimeSettingsInput {
   clearQdrantApiKey?: boolean;
   qdrantTimeoutMs: number;
   qdrantUpsertMaxBytes: number;
+  qdrantUpsertConcurrency: number;
   chunkSize: number;
   chunkOverlap: number;
   vectorCandidates: number;
@@ -107,6 +111,7 @@ function applyRagRuntimeSettings(
   ragConfig.qdrantApiKey = qdrantApiKey;
   ragConfig.qdrantTimeoutMs = settings.qdrantTimeoutMs;
   ragConfig.qdrantUpsertMaxBytes = settings.qdrantUpsertMaxBytes;
+  ragConfig.qdrantUpsertConcurrency = settings.qdrantUpsertConcurrency;
   ragConfig.chunkSize = settings.chunkSize;
   ragConfig.chunkOverlap = settings.chunkOverlap;
   ragConfig.vectorCandidates = settings.vectorCandidates;
@@ -130,6 +135,7 @@ function getDefaultSettings(): RagRuntimeSettings {
     qdrantApiKeyConfigured: Boolean(normalizeOptionalText(INITIAL_RAG_RUNTIME_DEFAULTS.qdrantApiKey)),
     qdrantTimeoutMs: clampInt(INITIAL_RAG_RUNTIME_DEFAULTS.qdrantTimeoutMs, 30000, 1000, 300000),
     qdrantUpsertMaxBytes: clampInt(INITIAL_RAG_RUNTIME_DEFAULTS.qdrantUpsertMaxBytes, 24 * 1024 * 1024, 1024 * 1024, 64 * 1024 * 1024),
+    qdrantUpsertConcurrency: clampInt(INITIAL_RAG_RUNTIME_DEFAULTS.qdrantUpsertConcurrency, 3, 1, 16),
     chunkSize: clampInt(INITIAL_RAG_RUNTIME_DEFAULTS.chunkSize, 800, 200, 4000),
     chunkOverlap: clampInt(INITIAL_RAG_RUNTIME_DEFAULTS.chunkOverlap, 120, 0, 1000),
     vectorCandidates: clampInt(INITIAL_RAG_RUNTIME_DEFAULTS.vectorCandidates, 40, 1, 200),
@@ -176,6 +182,12 @@ export async function getRagRuntimeSettings(): Promise<RagRuntimeSettings> {
         1024 * 1024,
         64 * 1024 * 1024,
       ),
+      qdrantUpsertConcurrency: clampInt(
+        Number(valueMap.get(QDRANT_UPSERT_CONCURRENCY_KEY)),
+        defaults.qdrantUpsertConcurrency,
+        1,
+        16,
+      ),
       chunkSize: clampInt(Number(valueMap.get(CHUNK_SIZE_KEY)), defaults.chunkSize, 200, 4000),
       chunkOverlap: clampInt(Number(valueMap.get(CHUNK_OVERLAP_KEY)), defaults.chunkOverlap, 0, 1000),
       vectorCandidates: clampInt(Number(valueMap.get(VECTOR_CANDIDATES_KEY)), defaults.vectorCandidates, 1, 200),
@@ -198,6 +210,7 @@ export async function getRagRuntimeSettings(): Promise<RagRuntimeSettings> {
         qdrantUrl: defaults.qdrantUrl,
         qdrantTimeoutMs: defaults.qdrantTimeoutMs,
         qdrantUpsertMaxBytes: defaults.qdrantUpsertMaxBytes,
+        qdrantUpsertConcurrency: defaults.qdrantUpsertConcurrency,
         chunkSize: defaults.chunkSize,
         chunkOverlap: defaults.chunkOverlap,
         vectorCandidates: defaults.vectorCandidates,
@@ -242,6 +255,7 @@ export async function saveRagRuntimeSettings(
       1024 * 1024,
       64 * 1024 * 1024,
     ),
+    qdrantUpsertConcurrency: clampInt(input.qdrantUpsertConcurrency, previous.qdrantUpsertConcurrency, 1, 16),
     chunkSize: clampInt(input.chunkSize, previous.chunkSize, 200, 4000),
     chunkOverlap: clampInt(input.chunkOverlap, previous.chunkOverlap, 0, 1000),
     vectorCandidates: clampInt(input.vectorCandidates, previous.vectorCandidates, 1, 200),
@@ -277,6 +291,11 @@ export async function saveRagRuntimeSettings(
       where: { key: QDRANT_UPSERT_MAX_BYTES_KEY },
       update: { value: String(settings.qdrantUpsertMaxBytes) },
       create: { key: QDRANT_UPSERT_MAX_BYTES_KEY, value: String(settings.qdrantUpsertMaxBytes) },
+    }),
+    prisma.appSetting.upsert({
+      where: { key: QDRANT_UPSERT_CONCURRENCY_KEY },
+      update: { value: String(settings.qdrantUpsertConcurrency) },
+      create: { key: QDRANT_UPSERT_CONCURRENCY_KEY, value: String(settings.qdrantUpsertConcurrency) },
     }),
     prisma.appSetting.upsert({
       where: { key: CHUNK_SIZE_KEY },

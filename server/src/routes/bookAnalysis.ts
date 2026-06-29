@@ -4,6 +4,7 @@ import { z } from "zod";
 import { llmProviderSchema } from "../llm/providerSchema";
 import { authMiddleware } from "../middleware/auth";
 import { validate } from "../middleware/validate";
+import { bookAnalysisCharacterRouter } from "../modules/bookAnalysis/http/bookAnalysisCharacterRoutes";
 import { bookAnalysisService } from "../services/bookAnalysis/BookAnalysisService";
 
 const router = Router();
@@ -36,6 +37,13 @@ const listQuerySchema = z.object({
   documentId: z.string().trim().optional(),
 });
 
+
+const sourceRangeSchema = z.object({
+  startChapterIndex: z.number().int().min(0),
+  endChapterIndex: z.number().int().min(0),
+}).refine((value) => value.endChapterIndex >= value.startChapterIndex, {
+  message: "End chapter must be greater than or equal to start chapter.",
+});
 const createSchema = z.object({
   documentId: z.string().trim().min(1),
   versionId: z.string().trim().optional(),
@@ -43,6 +51,9 @@ const createSchema = z.object({
   model: z.string().trim().optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(256).max(32768).optional(),
+  budgetTokens: z.number().int().min(1_000).max(10_000_000).nullable().optional(),
+  userFocusInstruction: z.string().trim().optional(),
+  sourceRange: sourceRangeSchema.nullable().optional(),
   includeTimeline: z.boolean().optional().default(false),
   enabledSectionKeys: z.array(sectionKeySchema).min(1).optional(),
 });
@@ -51,16 +62,33 @@ const publishSchema = z.object({
   novelId: z.string().trim().min(1),
 });
 
+const budgetUpdateSchema = z.object({
+  budgetTokens: z.number().int().min(1_000).max(10_000_000).nullable(),
+});
+
+const budgetResumeSchema = z.object({
+  budgetTokens: z.number().int().min(1_000).max(10_000_000),
+});
+
 const sectionUpdateSchema = z.object({
   editedContent: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  focusInstruction: z.string().nullable().optional(),
   frozen: z.boolean().optional(),
 }).refine(
-  (value) => value.editedContent !== undefined || value.notes !== undefined || value.frozen !== undefined,
+  (value) =>
+    value.editedContent !== undefined ||
+    value.notes !== undefined ||
+    value.focusInstruction !== undefined ||
+    value.frozen !== undefined,
   {
     message: "At least one field must be provided.",
   },
 );
+
+const sectionRegenerateSchema = z.object({
+  focusInstruction: z.string().nullable().optional(),
+});
 
 const sectionOptimizePreviewSchema = z.object({
   currentDraft: z.string(),
@@ -76,6 +104,7 @@ const exportQuerySchema = z.object({
 });
 
 router.use(authMiddleware);
+router.use("/:id/characters", bookAnalysisCharacterRouter);
 
 router.get("/", validate({ query: listQuerySchema }), async (req, res, next) => {
   try {
@@ -140,6 +169,40 @@ router.post("/:id/rebuild", validate({ params: analysisParamsSchema }), async (r
   }
 });
 
+router.patch("/:id/budget", validate({ params: analysisParamsSchema, body: budgetUpdateSchema }), async (req, res, next) => {
+  try {
+    const { id } = req.params as z.infer<typeof analysisParamsSchema>;
+    const body = req.body as z.infer<typeof budgetUpdateSchema>;
+    const data = await bookAnalysisService.updateBudget(id, body.budgetTokens);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Book analysis budget updated.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post(
+  "/:id/resume-with-budget",
+  validate({ params: analysisParamsSchema, body: budgetResumeSchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof analysisParamsSchema>;
+      const body = req.body as z.infer<typeof budgetResumeSchema>;
+      const data = await bookAnalysisService.resumeWithBudget(id, body.budgetTokens);
+      res.status(202).json({
+        success: true,
+        data,
+        message: "Book analysis budget resume queued.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 router.post("/:id/copy", validate({ params: analysisParamsSchema }), async (req, res, next) => {
   try {
     const { id } = req.params as z.infer<typeof analysisParamsSchema>;
@@ -194,11 +257,12 @@ router.post(
 
 router.post(
   "/:id/sections/:sectionKey/regenerate",
-  validate({ params: analysisSectionParamsSchema }),
+  validate({ params: analysisSectionParamsSchema, body: sectionRegenerateSchema }),
   async (req, res, next) => {
     try {
       const { id, sectionKey } = req.params as z.infer<typeof analysisSectionParamsSchema>;
-      const data = await bookAnalysisService.regenerateSection(id, sectionKey);
+      const body = req.body as z.infer<typeof sectionRegenerateSchema>;
+      const data = await bookAnalysisService.regenerateSection(id, sectionKey, body);
       res.status(202).json({
         success: true,
         data,

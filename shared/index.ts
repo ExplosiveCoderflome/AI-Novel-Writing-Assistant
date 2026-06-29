@@ -29,3 +29,4 @@ export * from "./types/autoDirectorValidation";
 export * from "./types/novelWorkflow";
 export * from "./types/volumePlanning";
 export * from "./types/canonicalState";
+export * from "./utils/bookAnalysisTimeline";

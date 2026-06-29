@@ -25,6 +25,10 @@ export class ComicPanelScriptService {
         project: {
           include: {
             characters: { orderBy: { createdAt: "asc" } },
+            characterAssets: {
+              orderBy: [{ assetType: "asc" }, { sortOrder: "asc" }],
+            },
+            scenes: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
             sourceBundle: true,
             facts: { orderBy: { episodeOrder: "asc" } },
           },
@@ -105,6 +109,26 @@ export class ComicPanelScriptService {
           name: c.name,
           visualAnchor: c.visualAnchor,
         })),
+        characterAssets: project.characterAssets
+          .map((a) => {
+            const charName = project.characters.find((c) => c.id === a.characterId)?.name;
+            if (!charName) return null;
+            return {
+              characterName: charName,
+              assetType: a.assetType,
+              name: a.name,
+              description: a.description ?? undefined,
+            };
+          })
+          .filter((a): a is NonNullable<typeof a> => a !== null),
+        existingScenes: project.scenes.map((s) => {
+          let summary = "";
+          try {
+            const bible = s.bible ? (JSON.parse(s.bible) as { keyElements?: string }) : null;
+            summary = bible?.keyElements ?? "";
+          } catch { /* ignore */ }
+          return { name: s.name, sceneType: s.sceneType, summary: summary || undefined };
+        }),
         stylePreset,
         stylePromptKeywords,
         comicFormat,
@@ -117,6 +141,7 @@ export class ComicPanelScriptService {
     });
 
     const panels = result.output.panels;
+    const scenes = result.output.scenes ?? [];
     const scriptConfig = {
       densityMode,
       targetPanelCount,
@@ -130,8 +155,31 @@ export class ComicPanelScriptService {
       generatedAt: new Date().toISOString(),
     };
 
-    // 事务：清空旧格子重建 + 更新话状态
+    // 已存在的场景名集合（跨话/用户编辑过的不覆盖）
+    const existingSceneNames = new Set(project.scenes.map((s) => s.name));
+
+    // 事务：upsert 场景（仅新增）+ 清空旧格子重建 + 更新话状态
     await prisma.$transaction(async (tx) => {
+      // 仅创建尚不存在的场景草案，保留用户编辑过的 bible 与跨话场景
+      const newScenes = scenes.filter((s) => !existingSceneNames.has(s.name));
+      if (newScenes.length > 0) {
+        await tx.comicScene.createMany({
+          data: newScenes.map((s, i) => ({
+            projectId: project.id,
+            name: s.name,
+            sceneType: s.sceneType,
+            bible: JSON.stringify({
+              palette: s.palette,
+              keyElements: s.keyElements,
+              materials: s.materials ?? "",
+              ambiance: s.ambiance ?? "",
+              layout: s.layout ?? "",
+            }),
+            sortOrder: project.scenes.length + i,
+          })),
+        });
+      }
+
       await tx.comicPanel.deleteMany({ where: { episodeId } });
       await tx.comicPanel.createMany({
         data: panels.map((panel) => ({
@@ -141,6 +189,7 @@ export class ComicPanelScriptService {
           densityLevel: panel.densityLevel,
           focus: panel.focus,
           action: panel.action,
+          sceneRef: panel.sceneRef?.trim() || null,
           dialogues: panel.dialogues.length > 0 ? JSON.stringify(panel.dialogues) : null,
           characterRefs:
             panel.characterRefs.length > 0 ? JSON.stringify(panel.characterRefs) : null,

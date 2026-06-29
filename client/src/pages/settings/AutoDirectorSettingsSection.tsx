@@ -8,6 +8,7 @@ import {
 } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
 import { AutoDirectorApprovalPreferenceCard } from "./AutoDirectorApprovalPreferenceCard";
+import { AutoDirectorBrowserNotificationSettingsCard } from "./AutoDirectorBrowserNotificationSettingsCard";
 import { AutoDirectorChannelSettingsCard } from "./AutoDirectorChannelSettingsCard";
 import {
   buildAutoDirectorChannelDraft,
@@ -82,6 +83,8 @@ export default function AutoDirectorSettingsSection(props: {
 
   return (
     <>
+      <AutoDirectorBrowserNotificationSettingsCard onActionResult={onActionResult} />
+
       <AutoDirectorApprovalPreferenceCard
         settings={approvalPreference}
         draftCodes={approvalCodes}
