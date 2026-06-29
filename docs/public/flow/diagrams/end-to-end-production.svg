@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">端到端三层生产链</title>
+  <desc id="desc">从灵感层到自动导演层，再到章节执行层的产物流向。</desc>
+  <defs>
+    <style>
+      .bg{fill:#f7f9f8}.band{fill:#fbfdfc;stroke:#d8e0dd;stroke-width:2}.title{font:700 24px 'Microsoft YaHei',sans-serif;fill:#101417}.text{font:500 16px 'Microsoft YaHei',sans-serif;fill:#34414a}.small{font:500 14px 'Microsoft YaHei',sans-serif;fill:#5d6872}.node{fill:#d7edf1;stroke:#147f91;stroke-width:2}.warn{fill:#fff2df;stroke:#d76457;stroke-width:2}.arrow{stroke:#147f91;stroke-width:3;fill:none;marker-end:url(#arrow)}
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#147f91"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1200" height="520"/>
+  <rect class="band" x="40" y="42" width="1120" height="118" rx="8"/>
+  <rect class="band" x="40" y="202" width="1120" height="128" rx="8"/>
+  <rect class="band" x="40" y="372" width="1120" height="108" rx="8"/>
+  <text class="title" x="70" y="82">灵感层</text>
+  <text class="small" x="70" y="112">一句灵感、题材偏好、读者感受</text>
+  <rect class="node" x="300" y="70" width="180" height="58" rx="8"/><text class="text" x="330" y="105">候选方向</text>
+  <rect class="node" x="535" y="70" width="180" height="58" rx="8"/><text class="text" x="568" y="105">书名候选</text>
+  <rect class="warn" x="770" y="70" width="220" height="58" rx="8"/><text class="text" x="805" y="105">确认书级方向</text>
+  <path class="arrow" d="M480 99 H535"/><path class="arrow" d="M715 99 H770"/>
+  <text class="title" x="70" y="242">自动导演层</text>
+  <text class="small" x="70" y="272">创建小说、沉淀资产、拆成章节任务</text>
+  <rect class="node" x="300" y="238" width="145" height="54" rx="8"/><text class="text" x="323" y="270">书契约</text>
+  <rect class="node" x="475" y="238" width="145" height="54" rx="8"/><text class="text" x="505" y="270">世界</text>
+  <rect class="node" x="650" y="238" width="145" height="54" rx="8"/><text class="text" x="680" y="270">角色</text>
+  <rect class="node" x="825" y="238" width="145" height="54" rx="8"/><text class="text" x="852" y="270">卷规划</text>
+  <rect class="warn" x="995" y="238" width="130" height="54" rx="8"/><text class="text" x="1018" y="270">章节就绪</text>
+  <path class="arrow" d="M445 265 H475"/><path class="arrow" d="M620 265 H650"/><path class="arrow" d="M795 265 H825"/><path class="arrow" d="M970 265 H995"/>
+  <path class="arrow" d="M880 128 C880 165 372 174 372 238"/>
+  <text class="title" x="70" y="412">章节执行层</text>
+  <text class="small" x="70" y="442">正文生成、审核、修复、状态回灌</text>
+  <rect class="node" x="300" y="402" width="145" height="54" rx="8"/><text class="text" x="323" y="434">写正文</text>
+  <rect class="node" x="475" y="402" width="145" height="54" rx="8"/><text class="text" x="505" y="434">审核</text>
+  <rect class="node" x="650" y="402" width="145" height="54" rx="8"/><text class="text" x="680" y="434">修复</text>
+  <rect class="node" x="825" y="402" width="200" height="54" rx="8"/><text class="text" x="855" y="434">状态/伏笔回灌</text>
+  <path class="arrow" d="M445 429 H475"/><path class="arrow" d="M620 429 H650"/><path class="arrow" d="M795 429 H825"/>
+  <path class="arrow" d="M1060 292 C1060 345 372 350 372 402"/>
+</svg>

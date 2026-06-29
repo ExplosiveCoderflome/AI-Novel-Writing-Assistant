@@ -13,8 +13,8 @@ The public site should feel like an editorial desk for long-form fiction plus a 
 
 ## Typography
 
-- Large headings should use a serif-first stack to create a literary/editorial tone.
-- Body and UI text should use a clean sans stack for clarity.
+- Large headings should use a Chinese serif-first stack (`Source Han Serif SC` / `Noto Serif SC` / Songti before Georgia) to avoid mixed Chinese-English heading weight jumps.
+- Body and UI text should use a Chinese sans-first stack (`PingFang SC` / Microsoft YaHei before Inter) for clearer Chinese reading.
 - Do not use viewport-scaled fonts directly. Use `clamp()` with clear min/max values.
 - Keep letter spacing at 0.
 
@@ -42,6 +42,17 @@ The public site should feel like an editorial desk for long-form fiction plus a 
 5. Public docs entry that helps users understand the project, start using it, browse sidebar modules, and read the roadmap.
 6. Audience and download section.
 7. Final open-source CTA.
+
+## Documentation Experience
+
+- The docs index should be organized by user journey, not by a flat list of modules.
+- The sidebar keeps the registered manifest structure visible and includes local search.
+- Document pages should include breadcrumb, GitHub source link, right-side table of contents, active heading highlight, and previous / next navigation.
+- Long technical docs should use collapsible grouped TOC sections, markdown tables, and callout blocks for tips, warnings, and checkpoints.
+- Flow diagrams should be concrete product workflow diagrams stored as SVG/PNG assets, not decorative illustrations.
+- Search only indexes manifest-registered public documents. It must not expose internal wiki, plans, checkpoints, archive documents, or temporary task notes.
+- Document category headings use semantic hierarchy: category title is the section heading, category description is supporting text, and each document card title is a lower-level heading.
+- The screenshot wall in the home page console section should use a stable responsive grid, not floating overlapping images that break between tablet and desktop widths.
 
 ## Copy Rules
 

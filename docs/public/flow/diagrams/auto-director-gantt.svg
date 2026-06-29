@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="520" viewBox="0 0 1400 520" role="img" aria-labelledby="title desc">
+  <title id="title">自动导演阶段甘特图</title>
+  <desc id="desc">自动导演从候选方向到章节批次就绪的阶段分组。</desc>
+  <defs>
+    <style>
+      .bg{fill:#f7f9f8}.axis{stroke:#d8e0dd;stroke-width:2}.label{font:700 18px 'Microsoft YaHei',sans-serif;fill:#101417}.small{font:500 13px 'Microsoft YaHei',sans-serif;fill:#34414a}.bar{fill:#d7edf1;stroke:#147f91;stroke-width:2}.gate{fill:#fff2df;stroke:#d76457;stroke-width:2}.group{font:800 15px 'Microsoft YaHei',sans-serif;fill:#d76457}
+    </style>
+  </defs>
+  <rect class="bg" width="1400" height="520"/>
+  <line class="axis" x1="120" y1="88" x2="1300" y2="88"/>
+  <text class="group" x="140" y="52">候选</text>
+  <text class="group" x="430" y="52">立项</text>
+  <text class="group" x="560" y="52">资产准备</text>
+  <text class="group" x="900" y="52">卷规划</text>
+  <text class="group" x="1080" y="52">章节细化</text>
+  <g transform="translate(120 110)">
+    <rect class="bar" x="0" y="0" width="145" height="42" rx="8"/><text class="small" x="14" y="27">seed alignment</text>
+    <rect class="bar" x="155" y="0" width="145" height="42" rx="8"/><text class="small" x="174" y="27">framing</text>
+    <rect class="bar" x="310" y="0" width="145" height="42" rx="8"/><text class="small" x="326" y="27">direction batch</text>
+    <rect class="bar" x="465" y="0" width="145" height="42" rx="8"/><text class="small" x="490" y="27">title pack</text>
+    <rect class="gate" x="620" y="0" width="165" height="42" rx="8"/><text class="small" x="642" y="27">候选确认</text>
+  </g>
+  <g transform="translate(280 190)">
+    <rect class="bar" x="0" y="0" width="145" height="42" rx="8"/><text class="small" x="28" y="27">novel create</text>
+    <rect class="bar" x="165" y="0" width="145" height="42" rx="8"/><text class="small" x="194" y="27">story macro</text>
+    <rect class="bar" x="330" y="0" width="145" height="42" rx="8"/><text class="small" x="362" y="27">contract</text>
+    <rect class="bar" x="495" y="0" width="145" height="42" rx="8"/><text class="small" x="520" y="27">world</text>
+    <rect class="bar" x="660" y="0" width="145" height="42" rx="8"/><text class="small" x="690" y="27">character</text>
+    <rect class="gate" x="825" y="0" width="165" height="42" rx="8"/><text class="small" x="852" y="27">角色确认</text>
+  </g>
+  <g transform="translate(600 270)">
+    <rect class="bar" x="0" y="0" width="155" height="42" rx="8"/><text class="small" x="23" y="27">volume strategy</text>
+    <rect class="bar" x="175" y="0" width="155" height="42" rx="8"/><text class="small" x="205" y="27">skeleton</text>
+    <rect class="gate" x="350" y="0" width="150" height="42" rx="8"/><text class="small" x="377" y="27">卷战略确认</text>
+  </g>
+  <g transform="translate(760 350)">
+    <rect class="bar" x="0" y="0" width="145" height="42" rx="8"/><text class="small" x="35" y="27">beat sheet</text>
+    <rect class="bar" x="160" y="0" width="145" height="42" rx="8"/><text class="small" x="190" y="27">chapter list</text>
+    <rect class="bar" x="320" y="0" width="145" height="42" rx="8"/><text class="small" x="350" y="27">sync</text>
+    <rect class="bar" x="480" y="0" width="170" height="42" rx="8"/><text class="small" x="500" y="27">detail bundle</text>
+    <rect class="gate" x="670" y="0" width="150" height="42" rx="8"/><text class="small" x="694" y="27">批次就绪</text>
+  </g>
+  <text class="label" x="120" y="470">浅蓝为自动生成/同步阶段；橙色为可能暂停等待确认的 checkpoint。</text>
+</svg>

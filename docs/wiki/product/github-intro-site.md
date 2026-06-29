@@ -14,6 +14,7 @@
 - 站点视觉内容优先使用真实产品截图和项目社交预览图，避免用抽象插画替代产品界面。
 - 站点设计方向定义在 `site/DESIGN.md`，采用“文学编辑部 + AI 控制台”的表达：暖纸面承载创作叙事，暗色控制台承载产品可信度。
 - 文档展示采用白名单 manifest，公开入口只展示面向使用者和潜在用户的文档，不自动暴露整个 `docs/` 目录。
+- 文档内容由 `site/src/docsContent.ts` 使用 Vite glob 自动加载，公开范围仍由 `site/src/docsManifest.ts` 决定；新增公开文档必须登记到 manifest，并通过 `pnpm check:docs-manifest` 校验。
 
 ## Current Rule
 
@@ -28,9 +29,10 @@
 
 公开文档入口只展示以下来源：
 
-- `docs/public/basic-introduction.md`：项目是什么、适合谁、核心能力和下载入口。
-- `docs/public/advanced-introduction.md`：AI Native 长篇生产链、自动导演、RAG、写法引擎和本地运行等公开解释。
+- `docs/public/introduction.md`：项目是什么、适合谁、核心能力、长篇生产链和下载入口。
+- `docs/public/installation.md`：Windows 安装、桌面版准备、模型连接和 Qdrant 可选配置。
 - `docs/public/usage-guide.md`：面向第一次使用者的安装、配置模型、创建小说和跑通主链指南。
+- `docs/public/faq.md` 与 `docs/public/troubleshooting.md`：用户常见问题、任务排查、模型连接、知识库召回和数据备份建议。
 - `docs/public/modules/`：与应用侧栏一致的模块介绍，每个侧栏模块至少有一个用户向入口说明页。
 - `docs/public/development-roadmap.md`：公开路线图，只写高层产品方向。
 - `docs/releases/release-notes.md`：用户可见更新日志。
@@ -56,11 +58,35 @@
 
 新增站点页面或视觉改动时，应先检查 `site/DESIGN.md`，避免把站点改回普通营销页。
 
+## Documentation Rule
+
+公开文档应按用户旅程分组：开始使用、模块总览、创作主链、知识与写法、设定资产、衍生工坊、系统配置和项目动态。不要把 20 多个模块平铺到一个“功能模块”分类里。
+
+当公开文档需要解释自动导演、章节执行、RAG 和恢复机制时，应单独设置“实战手册”和“生产链深度”分类，避免把复杂运行时压缩成首页卖点短语。生产链深度文档可以引用代码阶段名，但必须同时给出中文含义、用户动作、产物位置和恢复方式。
+
+文档阅读页应提供：
+
+- 左侧 manifest 导航。
+- 本地全文搜索。
+- 面包屑。
+- GitHub 原文链接。
+- 文内目录和当前标题高亮。
+- 上一篇 / 下一篇导航。
+- 长文档折叠式目录、表格样式和 tip / warn / checkpoint callout。
+- 面向自动导演阶段的 SVG/PNG 流程图。
+
+这些能力的目的不是把公开站变成内部文档系统，而是降低新用户查找安装、开书、恢复、配置和模块用途的成本。公开站搜索只索引 manifest 登记的公开文档，不应索引内部 wiki、计划、检查点或归档资料。
+
+自动导演阶段文档的来源锚点是 `server/src/services/novel/director/projections/novelDirectorProgress.ts`。`docs/public/flow/auto-director-pipeline.md` 顶部的 `DIRECTOR_PROGRESS_ITEM_KEYS` 必须覆盖代码中的 `DirectorProgressItemKey`，`pnpm check:docs-manifest` 会检查这一点。新增阶段时，文档必须解释阶段含义、产物、checkpoint/auto-approval 行为和失败恢复策略。
+
 ## Related Modules
 
 - `site/`：公开介绍站源码与本地构建说明。
 - `.github/workflows/site-pages.yml`：GitHub Pages 静态部署流程。
 - `images/`：产品截图与 GitHub 社交预览图的源资产。
 - `site/src/docsManifest.ts`：公开文档白名单。
+- `site/src/docsContent.ts`：公开文档内容加载。
+- `site/src/docsAssets.ts`：公开文档流程图资源加载。
 - `site/src/DocsPage.tsx`：文档索引与 Markdown 阅读页。
+- `scripts/check-docs-manifest.cjs`：公开文档登记校验。
 - `docs/releases/release-notes.md`：用户可见发布记录。

@@ -7,6 +7,10 @@ on:
       - main
     paths:
       - "site/**"
+      - "docs/public/**"
+      - "docs/releases/release-notes.md"
+      - "scripts/check-docs-manifest.cjs"
+      - "package.json"
       - ".github/workflows/site-pages.yml"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -40,6 +44,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Check docs manifest
+        run: pnpm check:docs-manifest
 
       - name: Build project site
         run: pnpm --filter @ai-novel/site build
