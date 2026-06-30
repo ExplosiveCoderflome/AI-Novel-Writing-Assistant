@@ -13,6 +13,7 @@ import {
 import { lazy, Suspense, useSyncExternalStore } from "react";
 import appIcon from "./assets/app-icon.png";
 import { formatStarCount, useGithubStars } from "./hooks/useGithubStars";
+import { usePageMeta } from "./hooks/usePageMeta";
 import chapterExecutionImage from "./assets/chapter-execution.png";
 import creativeHubImage from "./assets/creative-hub.png";
 import directorChoiceImage from "./assets/director-choice.png";
@@ -160,6 +161,7 @@ function SiteNav({ page }: { page: "home" | "docs" }) {
 
 function HomePage() {
   const stars = useGithubStars("ExplosiveCoderflome", "AI-Novel-Writing-Assistant");
+  usePageMeta(null);
   return (
     <>
       <section

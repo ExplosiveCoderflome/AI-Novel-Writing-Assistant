@@ -10,6 +10,7 @@ import { DocsToc, parseMarkdownHeadings, slugify } from "./components/DocsToc";
 import { resolveDocAssetUrl } from "./docsAssets";
 import { getDocContent } from "./docsContent";
 import { docsManifest, flattenedDocs } from "./docsManifest";
+import { usePageMeta } from "./hooks/usePageMeta";
 
 const repoUrl = "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant";
 
@@ -168,6 +169,15 @@ export default function DocsPage({ docId }: DocsPageProps) {
   }, [rawMarkdown, activeDoc]);
   const previousDoc = activeIndex > 0 ? flattenedDocs[activeIndex - 1] : undefined;
   const nextDoc = activeIndex >= 0 ? flattenedDocs[activeIndex + 1] : undefined;
+  usePageMeta(
+    activeDoc
+      ? {
+          title: `${activeDoc.title} · ${activeDoc.categoryTitle}`,
+          description: activeDoc.description,
+          canonicalPath: `#/docs/${activeDoc.id}`,
+        }
+      : { title: "项目文档", description: "AI 小说创作工作台公开文档：安装、使用方法、自动导演阶段全景、章节执行链、按阶段恢复手册和模块说明。", canonicalPath: "#/docs" },
+  );
   const headings = useMemo(() => (markdown ? parseMarkdownHeadings(markdown) : []), [markdown]);
   const markdownComponents = useMemo(
     () => (activeDoc && markdown ? createMarkdownComponents(activeDoc.sourcePath) : {}),
