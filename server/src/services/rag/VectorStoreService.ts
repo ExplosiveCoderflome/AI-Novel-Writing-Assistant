@@ -11,6 +11,10 @@ interface QdrantPayload {
   worldId?: string;
   title?: string;
   chunkText: string;
+  contextPrefix?: string;
+  contextVersion?: number;
+  contextSourceHash?: string;
+  searchText?: string;
   chunkHash: string;
   chunkOrder: number;
   metadataJson?: string;

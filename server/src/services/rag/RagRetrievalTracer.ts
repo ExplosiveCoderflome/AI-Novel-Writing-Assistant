@@ -18,6 +18,8 @@ interface TraceCandidateCounts {
   vector: number;
   keyword: number;
   fused: number;
+  rerankerInput: number;
+  rerankerOutput: number;
   final: number;
 }
 
@@ -63,7 +65,7 @@ function snapshotHits(rows: RetrievedChunk[]): Array<{
   ownerId: string;
   score: number;
   rank: number;
-  source: "vector" | "keyword";
+  source: "vector" | "keyword" | "reranked";
 }> {
   return rows.slice(0, 50).map((row, index) => ({
     chunkId: row.id,
@@ -90,11 +92,14 @@ export class RagRetrievalTracer {
     vector: 0,
     keyword: 0,
     fused: 0,
+    rerankerInput: 0,
+    rerankerOutput: 0,
     final: 0,
   };
   private hits: ReturnType<typeof snapshotHits> = [];
   private fallbackTriggered = false;
   private rerankerUsed = false;
+  private rerankerError: string | null = null;
   private extraScope: Record<string, unknown> = {};
 
   constructor(private readonly context: RagRetrievalTraceContext) {
@@ -132,6 +137,11 @@ export class RagRetrievalTracer {
     if (stage === "reranker") {
       this.timings.rerankerMs += Number(payload.elapsedMs ?? 0);
       this.rerankerUsed = Boolean(payload.used);
+      this.candidateCounts.rerankerInput = Number(payload.inputCount ?? this.candidateCounts.rerankerInput);
+      this.candidateCounts.rerankerOutput = Number(payload.outputCount ?? this.candidateCounts.rerankerOutput);
+      this.rerankerError = typeof payload.error === "string" && payload.error.trim()
+        ? payload.error.trim().slice(0, 300)
+        : null;
       return;
     }
     if (stage === "decay") {
@@ -170,6 +180,9 @@ export class RagRetrievalTracer {
       vectorCandidates: options.vectorCandidates,
       keywordCandidates: options.keywordCandidates,
       finalTopK: options.finalTopK,
+      rerankerEnabled: options.rerankerEnabled,
+      rerankerCandidateLimit: options.rerankerCandidateLimit,
+      rerankerError: this.rerankerError,
       facets: options.facets,
       currentChapterOrder: options.currentChapterOrder,
       ...this.extraScope,

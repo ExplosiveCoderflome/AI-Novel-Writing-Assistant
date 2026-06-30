@@ -175,12 +175,17 @@ export default function KnowledgeDocumentDetailDialog({
                               <div key={hit.id} className="min-w-0 max-w-full overflow-hidden rounded-md border p-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <div className="min-w-0 break-all font-medium">
-                                    命中 {index + 1} | {hit.source === "vector" ? "向量" : "关键词"} | 分块 #{hit.chunkOrder + 1}
+                                    命中 {index + 1} | {hit.source === "reranked" ? "重排" : hit.source === "vector" ? "向量" : "关键词"} | 分块 #{hit.chunkOrder + 1}
                                   </div>
                                   <Badge variant="outline">得分 {hit.score.toFixed(4)}</Badge>
                                 </div>
                                 {hit.title ? (
                                   <div className="mt-1 break-all text-xs text-muted-foreground">{hit.title}</div>
+                                ) : null}
+                                {hit.contextPrefix ? (
+                                  <div className="mt-2 break-all rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
+                                    {hit.contextPrefix}
+                                  </div>
                                 ) : null}
                                 <pre className="mt-3 max-h-52 w-full max-w-full overflow-x-hidden overflow-y-auto whitespace-pre-wrap break-all rounded-md bg-muted/40 p-3 text-xs">
                                   {hit.chunkText}

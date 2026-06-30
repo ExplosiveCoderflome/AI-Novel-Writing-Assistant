@@ -465,6 +465,7 @@ export class KnowledgeService {
         score: item.score,
         source: item.source,
         title: item.title,
+        contextPrefix: item.contextPrefix,
         chunkText: item.chunkText,
         chunkOrder: item.chunkOrder,
       })),

@@ -72,8 +72,9 @@ export interface KnowledgeRecallTestHit {
   id: string;
   ownerId: string;
   score: number;
-  source: "vector" | "keyword";
+  source: "vector" | "keyword" | "reranked";
   title?: string;
+  contextPrefix?: string;
   chunkText: string;
   chunkOrder: number;
 }

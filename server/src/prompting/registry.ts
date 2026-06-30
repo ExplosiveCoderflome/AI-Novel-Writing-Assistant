@@ -190,6 +190,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/planner/replanWindowDecision.prompts").replanWindowDecisionPrompt as UnknownPromptAsset,
   },
   {
+    key: "rag.contextual_chunk.prefix@v1",
+    load: () => require("./prompts/rag/contextualChunk.prompts").ragContextualChunkPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.director.candidates@v1",
     load: () => require("./prompts/novel/directorPlanning.prompts").directorCandidatePrompt as UnknownPromptAsset,
   },

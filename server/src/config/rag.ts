@@ -49,6 +49,10 @@ function asQueryPersistMode(rawValue: string | undefined): "digest_only" | "prev
   return "preview";
 }
 
+function normalizeOptionalUrl(value: string | undefined): string {
+  return (normalizeOptionalText(value) ?? "").replace(/\/+$/, "");
+}
+
 export function asEmbeddingProvider(rawValue: string | undefined): EmbeddingProvider {
   const trimmed = rawValue?.trim();
   if (!trimmed) {
@@ -122,5 +126,15 @@ export const ragConfig = {
   retrievalTraceSampleRate: asFloat(process.env.RAG_RETRIEVAL_TRACE_SAMPLE_RATE, 1, 0, 1),
   retrievalTraceRetentionDays: asInt(process.env.RAG_RETRIEVAL_TRACE_RETENTION_DAYS, 14, 1, 365),
   retrievalTraceQueryPersistMode: asQueryPersistMode(process.env.RAG_RETRIEVAL_TRACE_QUERY_PERSIST_MODE),
+  rerankerEnabled: isEnabled(process.env.RAG_RERANKER_ENABLED, false),
+  rerankerEndpoint: normalizeOptionalUrl(process.env.RAG_RERANKER_ENDPOINT),
+  rerankerApiKey: process.env.RAG_RERANKER_API_KEY ?? "",
+  rerankerModel: normalizeOptionalText(process.env.RAG_RERANKER_MODEL) ?? "bge-reranker-v2-m3",
+  rerankerTimeoutMs: asInt(process.env.RAG_RERANKER_TIMEOUT_MS ?? "10000", 10000, 1000, 120000),
+  rerankerCandidateLimit: asInt(process.env.RAG_RERANKER_CANDIDATE_LIMIT ?? "0", 0, 0, 200),
+  contextualRetrievalEnabled: isEnabled(process.env.RAG_CONTEXTUAL_RETRIEVAL_ENABLED, false),
+  contextualRetrievalVersion: asInt(process.env.RAG_CONTEXTUAL_RETRIEVAL_VERSION ?? "1", 1, 1, 100),
+  contextualRetrievalTimeoutMs: asInt(process.env.RAG_CONTEXTUAL_RETRIEVAL_TIMEOUT_MS ?? "15000", 15000, 1000, 120000),
+  contextualRetrievalConcurrency: asInt(process.env.RAG_CONTEXTUAL_RETRIEVAL_CONCURRENCY ?? "2", 2, 1, 8),
   providerPriority: [...LLM_PROVIDERS] as EmbeddingProvider[],
 };

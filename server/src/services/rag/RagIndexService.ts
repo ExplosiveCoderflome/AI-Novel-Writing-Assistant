@@ -4,6 +4,7 @@ import { ragConfig } from "../../config/rag";
 import { getRagEmbeddingSettings } from "../settings/RagSettingsService";
 import { EmbeddingService } from "./EmbeddingService";
 import { VectorStoreService } from "./VectorStoreService";
+import { RagContextualChunkService, type RagContextualChunkDocument } from "./RagContextualChunkService";
 import { resolveEmbeddingChunkTokenBudget } from "./embeddingModelLimits";
 import type { RagChunkCandidate, RagJobStatus, RagJobType, RagOwnerType, RagSourceDocument } from "./types";
 import { buildChunkId, computeChunkHash, estimateTokenCount, normalizeRagText, splitRagChunks } from "./utils";
@@ -99,6 +100,7 @@ export class RagIndexService {
   constructor(
     private readonly embeddingService: EmbeddingService,
     private readonly vectorStoreService: VectorStoreService,
+    private readonly contextualChunkService: RagContextualChunkService = new RagContextualChunkService(),
   ) {}
 
   private parseJobPayload(payloadJson: string | null): RagJobPayloadRecord {
@@ -618,6 +620,20 @@ export class RagIndexService {
     return candidates;
   }
 
+  private buildContextualDocumentMap(documents: RagSourceDocument[]): Map<string, RagContextualChunkDocument> {
+    return new Map(documents.map((document) => [
+      `${document.ownerType}:${document.ownerId}`,
+      {
+        ownerType: document.ownerType,
+        ownerId: document.ownerId,
+        title: document.title,
+        novelId: document.novelId,
+        worldId: document.worldId,
+        metadata: document.metadata,
+      },
+    ]));
+  }
+
   private async deleteOwnerChunks(
     ownerType: RagOwnerType,
     ownerId: string,
@@ -718,17 +734,21 @@ export class RagIndexService {
       maxTokens: embeddingTokenBudget,
       knownCharacterNames,
     });
-    const splitTexts = candidates.map((item) => item.chunkText);
     await this.updateJobProgress(jobId, {
       stage: "chunking",
       label: "切分分块",
-      detail: `已读取 ${docs.length} 份文档，生成 ${splitTexts.length} 个分块。`,
-      current: splitTexts.length,
-      total: splitTexts.length,
+      detail: `已读取 ${docs.length} 份文档，生成 ${candidates.length} 个分块。`,
+      current: candidates.length,
+      total: candidates.length,
       documents: docs.length,
-      chunks: splitTexts.length,
+      chunks: candidates.length,
       percent: 0.15,
     });
+    await this.contextualChunkService.applyToCandidates({
+      candidates,
+      documentsByOwner: this.buildContextualDocumentMap(docs),
+    });
+    const splitTexts = candidates.map((item) => item.searchText ?? item.chunkText);
     await this.assertJobNotCancelled(jobId);
     const embedding = await this.embedTextsInBatches(splitTexts, async ({ processed, total }) => {
       await this.updateJobProgress(jobId, {
@@ -817,6 +837,10 @@ export class RagIndexService {
         worldId: item.worldId,
         title: item.title,
         chunkText: item.chunkText,
+        contextPrefix: item.contextPrefix,
+        contextVersion: item.contextVersion,
+        contextSourceHash: item.contextSourceHash,
+        searchText: item.searchText,
         chunkHash: item.chunkHash,
         chunkOrder: item.chunkOrder,
         metadataJson: item.metadataJson,

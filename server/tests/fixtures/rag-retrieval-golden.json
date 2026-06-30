@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "description": "RAG retrieval golden set for reranker/contextual retrieval regression checks. Fill expectedChunkIds or expectedOwnerIds from a prepared test corpus before running live acceptance.",
+  "cases": [
+    { "id": "character-fact-01", "category": "character_fact", "query": "主角当前掌握的关键凭证是什么", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["主角", "凭证"] },
+    { "id": "character-fact-02", "category": "character_fact", "query": "谁知道后门铜钥匙的存在", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["铜钥匙", "知道"] },
+    { "id": "character-fact-03", "category": "character_fact", "query": "反派现在掌握了哪些可以威胁主角的证据", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["反派", "证据"] },
+    { "id": "character-fact-04", "category": "character_fact", "query": "女主和主角最近一次关系转折是什么", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["关系", "转折"] },
+    { "id": "character-fact-05", "category": "character_fact", "query": "主角当前不能公开使用的能力限制", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["能力", "限制"] },
+    { "id": "character-fact-06", "category": "character_fact", "query": "配角承诺过会在后续提供什么帮助", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["承诺", "帮助"] },
+
+    { "id": "world-rule-01", "category": "world_rule", "query": "这个世界的力量体系有哪些硬性代价", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["力量体系", "代价"] },
+    { "id": "world-rule-02", "category": "world_rule", "query": "贵族和平民之间的制度冲突是什么", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["制度", "冲突"] },
+    { "id": "world-rule-03", "category": "world_rule", "query": "禁区为什么不能随便进入", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["禁区", "规则"] },
+    { "id": "world-rule-04", "category": "world_rule", "query": "城市治安系统会如何追踪嫌疑人", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["治安", "追踪"] },
+    { "id": "world-rule-05", "category": "world_rule", "query": "宗门或组织的晋升规则是什么", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["晋升", "规则"] },
+    { "id": "world-rule-06", "category": "world_rule", "query": "世界观中不能被轻易打破的禁忌是什么", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["禁忌", "世界观"] },
+
+    { "id": "chapter-continuity-01", "category": "chapter_continuity", "query": "上一章结尾留下的行动钩子是什么", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["结尾", "钩子"] },
+    { "id": "chapter-continuity-02", "category": "chapter_continuity", "query": "第十章之前主角已经知道哪些真相", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["第十章", "真相"] },
+    { "id": "chapter-continuity-03", "category": "chapter_continuity", "query": "最近三章未兑现的伏笔有哪些", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["伏笔", "未兑现"] },
+    { "id": "chapter-continuity-04", "category": "chapter_continuity", "query": "当前章节之前角色受伤状态是什么", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["受伤", "状态"] },
+    { "id": "chapter-continuity-05", "category": "chapter_continuity", "query": "本卷中段的主要矛盾升级点是什么", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["矛盾", "升级"] },
+    { "id": "chapter-continuity-06", "category": "chapter_continuity", "query": "主角上一次失败造成了什么后果", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["失败", "后果"] },
+
+    { "id": "style-01", "category": "style", "query": "这本书需要保持的叙述节奏是什么", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["节奏", "叙述"] },
+    { "id": "style-02", "category": "style", "query": "对话风格应该偏克制还是情绪外放", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["对话", "风格"] },
+    { "id": "style-03", "category": "style", "query": "战斗场景应该避免哪些套路", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["战斗", "避免"] },
+    { "id": "style-04", "category": "style", "query": "主角内心独白的长度和语气要求", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["内心独白", "语气"] },
+    { "id": "style-05", "category": "style", "query": "章节结尾需要怎样制造追读感", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["结尾", "追读"] },
+    { "id": "style-06", "category": "style", "query": "文风中不能出现的 AI 腔表达", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["AI腔", "表达"] },
+
+    { "id": "knowledge-doc-01", "category": "knowledge_document", "query": "导入资料中提到的核心卖点是什么", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["资料", "卖点"] },
+    { "id": "knowledge-doc-02", "category": "knowledge_document", "query": "参考书里角色登场节奏如何安排", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["角色登场", "节奏"] },
+    { "id": "knowledge-doc-03", "category": "knowledge_document", "query": "资料中有哪些适合复用的冲突模板", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["冲突", "模板"] },
+    { "id": "knowledge-doc-04", "category": "knowledge_document", "query": "参考资料对开篇三章提出了哪些要求", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["开篇", "三章"] },
+    { "id": "knowledge-doc-05", "category": "knowledge_document", "query": "资料中提到的读者爽点对应哪些场景", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["爽点", "场景"] },
+    { "id": "knowledge-doc-06", "category": "knowledge_document", "query": "资料里哪些设定会影响世界规则检索", "expectedChunkIds": [], "expectedOwnerIds": [], "expectedContextTerms": ["设定", "世界规则"] }
+  ]
+}

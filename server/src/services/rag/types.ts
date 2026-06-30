@@ -44,6 +44,10 @@ export interface RagChunkCandidate {
   tokenEstimate: number;
   language: string;
   metadataJson?: string;
+  contextPrefix?: string;
+  contextVersion?: number;
+  contextSourceHash?: string;
+  searchText?: string;
   facets?: import("./chunkFacets").RagChunkFacets;
   facetKeys?: string | null;
   chapterAnchor?: string | null;
@@ -65,7 +69,9 @@ export interface RetrievedChunk {
   novelId?: string;
   worldId?: string;
   metadataJson?: string;
-  source: "vector" | "keyword";
+  contextPrefix?: string;
+  retrievalSource?: "vector" | "keyword" | "reranked";
+  source: "vector" | "keyword" | "reranked";
 }
 
 export interface RagSearchOptions {
@@ -78,6 +84,8 @@ export interface RagSearchOptions {
   vectorCandidates?: number;
   keywordCandidates?: number;
   finalTopK?: number;
+  rerankerEnabled?: boolean;
+  rerankerCandidateLimit?: number;
   /** 当前章节序号，用于叙事距离衰减：距离越近的章节权重越高 */
   currentChapterOrder?: number;
   /** 距离衰减系数，默认 0.05，越大衰减越快 */
