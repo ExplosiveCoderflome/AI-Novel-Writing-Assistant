@@ -29,17 +29,17 @@ function buildSitemap(docIds) {
   </url>`;
 
   const docsEntry = `  <url>
-    <loc>${SITE_BASE}#/docs</loc>
+    <loc>${SITE_BASE}docs</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>`;
 
-  const docEntries = docIds.map((id) => `  <url>
-    <loc>${SITE_BASE}#/docs/${id}</loc>
+  const docEntries = docIds.map((id, index) => `  <url>
+    <loc>${SITE_BASE}docs/${id}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>${index < 4 ? "0.8" : "0.7"}</priority>
   </url>`);
 
   return `<?xml version="1.0" encoding="UTF-8"?>

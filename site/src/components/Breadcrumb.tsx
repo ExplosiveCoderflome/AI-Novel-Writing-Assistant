@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react";
+import { docsPath } from "../routing";
 
 type BreadcrumbProps = {
   categoryTitle: string;
@@ -8,7 +9,7 @@ type BreadcrumbProps = {
 export function Breadcrumb({ categoryTitle, docTitle }: BreadcrumbProps) {
   return (
     <nav className="breadcrumb" aria-label="文档位置">
-      <a href="#/docs">文档</a>
+      <a href={docsPath()}>文档</a>
       <ChevronRight size={14} />
       <span>{categoryTitle}</span>
       <ChevronRight size={14} />

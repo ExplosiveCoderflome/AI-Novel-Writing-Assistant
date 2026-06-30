@@ -10,8 +10,11 @@ function cacheKey(owner: string, repo: string) {
 }
 
 function readCache(key: string): CacheEntry | null {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return null;
+  }
   try {
-    const raw = localStorage.getItem(key);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CacheEntry;
     if (typeof parsed.count !== "number" || typeof parsed.fetchedAt !== "number") return null;
@@ -22,8 +25,11 @@ function readCache(key: string): CacheEntry | null {
 }
 
 function writeCache(key: string, entry: CacheEntry) {
+  if (typeof window === "undefined" || !window.localStorage) {
+    return;
+  }
   try {
-    localStorage.setItem(key, JSON.stringify(entry));
+    window.localStorage.setItem(key, JSON.stringify(entry));
   } catch {
     // localStorage may be unavailable in private mode — silently ignore
   }

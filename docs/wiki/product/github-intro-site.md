@@ -79,6 +79,19 @@
 
 自动导演阶段文档的来源锚点是 `server/src/services/novel/director/projections/novelDirectorProgress.ts`。`docs/public/flow/auto-director-pipeline.md` 顶部的 `DIRECTOR_PROGRESS_ITEM_KEYS` 必须覆盖代码中的 `DirectorProgressItemKey`，`pnpm check:docs-manifest` 会检查这一点。新增阶段时，文档必须解释阶段含义、产物、checkpoint/auto-approval 行为和失败恢复策略。
 
+## Routing And Prerender Rule
+
+公开文档站使用 History 路由，不再把文档路径放在 hash 里。面向用户和搜索引擎的标准路径是 `/AI-Novel-Writing-Assistant/docs/<docId>`，文档首页是 `/AI-Novel-Writing-Assistant/docs`。组件、搜索结果、面包屑、分页和 Markdown 内部文档链接都应输出真实路径；`#/docs/<docId>` 只作为旧链接兼容入口，由首页脚本替换为新路径。
+
+GitHub Pages 仍是静态托管，因此必须同时保留两层能力：
+
+- `site/public/404.html` 负责把找不到物理文件的真实路径编码到 query，再回到首页恢复路径。
+- `site/index.html` 的早期脚本负责解码 404 query，并兼容旧 hash 文档链接。
+
+构建阶段必须预渲染公开文档。`site/scripts/prerender.cjs` 在 Vite build 后遍历 `docsManifest`，为首页、文档首页和每篇公开文档写出完整 HTML。预渲染 HTML 必须包含正文、标题、description、canonical 和构建后的 hashed asset URL，不能只留下空的 `#root` 等客户端加载。
+
+为了同时兼容 GitHub Pages 和本地 Vite preview 的无尾斜杠访问，非首页路由需要同时写出目录版 `index.html` 和 `.html` 副本，例如 `dist/docs/introduction/index.html` 与 `dist/docs/introduction.html`。sitemap 应始终使用无 hash、无尾斜杠的真实路径。
+
 ## Related Modules
 
 - `site/`：公开介绍站源码与本地构建说明。

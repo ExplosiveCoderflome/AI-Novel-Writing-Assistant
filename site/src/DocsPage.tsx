@@ -11,6 +11,7 @@ import { resolveDocAssetUrl } from "./docsAssets";
 import { getDocContent } from "./docsContent";
 import { docsManifest, flattenedDocs } from "./docsManifest";
 import { usePageMeta } from "./hooks/usePageMeta";
+import { docsPath, sitePath } from "./routing";
 
 const repoUrl = "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant";
 
@@ -36,6 +37,12 @@ function rewriteMarkdownImageUrls(markdown: string, docSourcePath: string): stri
   return markdown.replace(/(!\[[^\]]*\]\()([^)\s]+)(\))/g, (full, open, src, close) => {
     const resolved = resolveDocAssetUrl(docSourcePath, src);
     return `${open}${resolved ?? src}${close}`;
+  });
+}
+
+function rewriteMarkdownRouteUrls(markdown: string): string {
+  return markdown.replace(/(\[[^\]]+\]\()#\/docs(?:\/([^)#\s]+))?(#[^)]+)?(\))/g, (_full, open, docId, hash = "", close) => {
+    return `${open}${docsPath(docId)}${hash}${close}`;
   });
 }
 
@@ -133,7 +140,11 @@ function createMarkdownComponents(docSourcePath: string): Components {
   }
 
   function Image({ src, alt, ...props }: ComponentPropsWithoutRef<"img">) {
-    return <img src={resolveDocAssetUrl(docSourcePath, src)} alt={alt ?? ""} {...props} />;
+    const resolvedSrc = resolveDocAssetUrl(docSourcePath, src);
+    if (!resolvedSrc) {
+      return null;
+    }
+    return <img src={resolvedSrc} alt={alt ?? ""} {...props} />;
   }
 
   function Blockquote({ children, ...props }: ComponentPropsWithoutRef<"blockquote">) {
@@ -164,7 +175,7 @@ export default function DocsPage({ docId }: DocsPageProps) {
     if (!rawMarkdown || !activeDoc) {
       return undefined;
     }
-    const withUrls = rewriteMarkdownImageUrls(rawMarkdown, activeDoc.sourcePath);
+    const withUrls = rewriteMarkdownRouteUrls(rewriteMarkdownImageUrls(rawMarkdown, activeDoc.sourcePath));
     return preprocessMarkdownDirectives(withUrls);
   }, [rawMarkdown, activeDoc]);
   const previousDoc = activeIndex > 0 ? flattenedDocs[activeIndex - 1] : undefined;
@@ -174,9 +185,9 @@ export default function DocsPage({ docId }: DocsPageProps) {
       ? {
           title: `${activeDoc.title} · ${activeDoc.categoryTitle}`,
           description: activeDoc.description,
-          canonicalPath: `#/docs/${activeDoc.id}`,
+          canonicalPath: `/docs/${activeDoc.id}`,
         }
-      : { title: "项目文档", description: "AI 小说创作工作台公开文档：安装、使用方法、自动导演阶段全景、章节执行链、按阶段恢复手册和模块说明。", canonicalPath: "#/docs" },
+      : { title: "项目文档", description: "AI 小说创作工作台公开文档：安装、使用方法、自动导演阶段全景、章节执行链、按阶段恢复手册和模块说明。", canonicalPath: "/docs" },
   );
   const headings = useMemo(() => (markdown ? parseMarkdownHeadings(markdown) : []), [markdown]);
   const markdownComponents = useMemo(
@@ -187,7 +198,7 @@ export default function DocsPage({ docId }: DocsPageProps) {
   return (
     <section className="docs-shell">
       <aside className="docs-sidebar" aria-label="文档目录">
-        <a className="docs-back" href="#/">
+        <a className="docs-back" href={sitePath("/")}>
           <ArrowLeft size={16} />
           返回首页
         </a>
@@ -204,7 +215,7 @@ export default function DocsPage({ docId }: DocsPageProps) {
               {category.docs.map((doc) => (
                 <a
                   className={activeDoc?.id === doc.id ? "active" : ""}
-                  href={`#/docs/${doc.id}`}
+                  href={docsPath(doc.id)}
                   key={doc.id}
                 >
                   {doc.title}
@@ -231,7 +242,7 @@ export default function DocsPage({ docId }: DocsPageProps) {
               </ReactMarkdown>
               <nav className="doc-pagination" aria-label="文档翻页">
                 {previousDoc ? (
-                  <a href={`#/docs/${previousDoc.id}`}>
+                  <a href={docsPath(previousDoc.id)}>
                     <ChevronLeft size={18} />
                     <span>
                       上一篇
@@ -242,7 +253,7 @@ export default function DocsPage({ docId }: DocsPageProps) {
                   <span />
                 )}
                 {nextDoc ? (
-                  <a href={`#/docs/${nextDoc.id}`}>
+                  <a href={docsPath(nextDoc.id)}>
                     <span>
                       下一篇
                       <strong>{nextDoc.title}</strong>
@@ -293,7 +304,7 @@ function DocsIndex() {
             </div>
             <div className="docs-card-list">
               {category.docs.map((doc) => (
-                <a className="docs-card" href={`#/docs/${doc.id}`} key={doc.id}>
+                <a className="docs-card" href={docsPath(doc.id)} key={doc.id}>
                   <h3>{doc.title}</h3>
                   <p>{doc.description}</p>
                   <span>

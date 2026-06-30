@@ -10,15 +10,15 @@ import {
   Sparkles,
   Star,
 } from "lucide-react";
-import { lazy, Suspense, useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import appIcon from "./assets/app-icon.png";
 import { formatStarCount, useGithubStars } from "./hooks/useGithubStars";
 import { usePageMeta } from "./hooks/usePageMeta";
+import DocsPage from "./DocsPage";
+import { docsPath, isSitePath, parseRoute, sitePath } from "./routing";
 import chapterExecutionImage from "./assets/chapter-execution.png";
 import creativeHubImage from "./assets/creative-hub.png";
 import directorChoiceImage from "./assets/director-choice.png";
-
-const DocsPage = lazy(() => import("./DocsPage"));
 
 const repoUrl = "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant";
 const releaseUrl = `${repoUrl}/releases/latest`;
@@ -81,30 +81,73 @@ const audience = [
   "正在研究 Agent Workflow、LangGraph 编排和 AI Native 产品落地的开发者。",
 ];
 
-function subscribeHash(callback: () => void) {
-  window.addEventListener("hashchange", callback);
-  return () => window.removeEventListener("hashchange", callback);
+const routeChangeEvent = "ai-novel-site:navigation";
+
+function subscribePath(callback: () => void) {
+  window.addEventListener("popstate", callback);
+  window.addEventListener(routeChangeEvent, callback);
+  return () => {
+    window.removeEventListener("popstate", callback);
+    window.removeEventListener(routeChangeEvent, callback);
+  };
 }
 
-function getHashSnapshot() {
-  return window.location.hash || "#/";
+function getPathSnapshot() {
+  return window.location.pathname;
 }
 
-function useHashRoute() {
-  return useSyncExternalStore(subscribeHash, getHashSnapshot, () => "#/");
+function usePathRoute(initialPath = "/") {
+  return useSyncExternalStore(subscribePath, getPathSnapshot, () => initialPath);
 }
 
-function App() {
-  const hash = useHashRoute();
-  const route = parseRoute(hash);
+function useHistoryNavigation() {
+  useEffect(() => {
+    function handleClick(event: MouseEvent) {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.altKey || event.ctrlKey || event.shiftKey) {
+        return;
+      }
+      const target = event.target as Element | null;
+      const link = target?.closest<HTMLAnchorElement>("a[href]");
+      if (!link || link.target || link.hasAttribute("download")) {
+        return;
+      }
+      const url = new URL(link.href);
+      if (url.origin !== window.location.origin || !isSitePath(url.pathname)) {
+        return;
+      }
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      const nextPath = `${url.pathname}${url.search}${url.hash}`;
+      if (nextPath === currentPath) {
+        return;
+      }
+      if (url.hash && url.pathname === window.location.pathname && url.search === window.location.search) {
+        return;
+      }
+      event.preventDefault();
+      window.history.pushState(null, "", nextPath);
+      window.dispatchEvent(new Event(routeChangeEvent));
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, []);
+}
+
+type AppProps = {
+  initialPath?: string;
+};
+
+function App({ initialPath }: AppProps) {
+  useHistoryNavigation();
+  const pathname = usePathRoute(initialPath);
+  const route = parseRoute(pathname);
 
   return (
     <main>
       <SiteNav page={route.page} />
       {route.page === "docs" ? (
-        <Suspense fallback={<div className="docs-loading">正在打开文档...</div>}>
-          <DocsPage docId={route.docId} />
-        </Suspense>
+        <DocsPage docId={route.docId} />
       ) : (
         <HomePage />
       )}
@@ -112,29 +155,18 @@ function App() {
   );
 }
 
-function parseRoute(hash: string): { page: "home" } | { page: "docs"; docId?: string } {
-  const cleanHash = hash.replace(/^#/, "");
-  if (cleanHash === "/docs" || cleanHash === "/docs/") {
-    return { page: "docs" };
-  }
-  if (cleanHash.startsWith("/docs/")) {
-    return { page: "docs", docId: decodeURIComponent(cleanHash.replace("/docs/", "")) };
-  }
-  return { page: "home" };
-}
-
 function SiteNav({ page }: { page: "home" | "docs" }) {
   const stars = useGithubStars("ExplosiveCoderflome", "AI-Novel-Writing-Assistant");
   return (
     <nav className="site-nav" aria-label="主导航">
-      <a className="brand" href="#/" aria-label="AI 小说创作工作台首页">
+      <a className="brand" href={sitePath("/")} aria-label="AI 小说创作工作台首页">
         <span className="brand-mark">
           <img src={appIcon} alt="" aria-hidden="true" />
         </span>
         <span>AI 小说创作工作台</span>
       </a>
       <div className="nav-links">
-        <a href="#/docs">文档</a>
+        <a href={docsPath()}>文档</a>
         {page === "home" ? (
           <>
             <a href="#flow">生产链</a>
@@ -186,7 +218,7 @@ function HomePage() {
               <Github size={18} />
               查看 GitHub
             </a>
-            <a className="button ghost" href="#/docs">
+            <a className="button ghost" href={docsPath()}>
               <FileText size={18} />
               阅读文档
             </a>
@@ -320,7 +352,7 @@ function HomePage() {
           <h2>查看公开文档与模块说明</h2>
           <p>文档站集中展示项目介绍、使用方法、侧栏功能模块、公开开发计划和更新日志。</p>
         </div>
-        <a className="button primary" href="#/docs">
+        <a className="button primary" href={docsPath()}>
           <FileText size={18} />
           打开文档
         </a>

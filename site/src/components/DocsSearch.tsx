@@ -2,6 +2,7 @@ import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getDocContent } from "../docsContent";
 import { flattenedDocs } from "../docsManifest";
+import { docsPath } from "../routing";
 
 type SearchResult = {
   id: string;
@@ -109,7 +110,7 @@ export function DocsSearch() {
         <div className="docs-search-results">
           {results.length > 0 ? (
             results.map((result) => (
-              <a href={`#/docs/${result.id}`} key={result.id}>
+              <a href={docsPath(result.id)} key={result.id}>
                 <span>{result.categoryTitle}</span>
                 <strong>{result.title}</strong>
                 <p>{result.excerpt || result.description}</p>

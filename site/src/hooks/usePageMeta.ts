@@ -37,13 +37,28 @@ export type PageMeta = {
   canonicalPath?: string;
 };
 
+export type ResolvedPageMeta = {
+  title: string;
+  description: string;
+  canonical: string;
+};
+
+export function resolvePageMeta(meta: PageMeta | null | undefined): ResolvedPageMeta {
+  const title = meta?.title ? `${meta.title} · AI 小说创作工作台` : DEFAULT_TITLE;
+  const description = meta?.description ?? DEFAULT_DESCRIPTION;
+  const canonical = meta?.canonicalPath
+    ? `${CANONICAL_BASE}${meta.canonicalPath.replace(/^\//, "")}`
+    : CANONICAL_BASE;
+
+  return { title, description, canonical };
+}
+
 export function usePageMeta(meta: PageMeta | null | undefined) {
   useEffect(() => {
-    const title = meta?.title ? `${meta.title} · AI 小说创作工作台` : DEFAULT_TITLE;
-    const description = meta?.description ?? DEFAULT_DESCRIPTION;
-    const canonical = meta?.canonicalPath
-      ? `${CANONICAL_BASE}${meta.canonicalPath.replace(/^\//, "")}`
-      : CANONICAL_BASE;
+    if (typeof document === "undefined") {
+      return undefined;
+    }
+    const { title, description, canonical } = resolvePageMeta(meta);
 
     const previousTitle = document.title;
     document.title = title;
