@@ -343,24 +343,16 @@ body {
     flex-direction: column;
   }
 
+  .mobile-route-home .home-next-action-panel {
+    order: 1;
+  }
+
   .mobile-route-home .home-status-summary-grid {
     order: 2;
   }
 
-  .mobile-route-home > :nth-child(2) {
+  .mobile-route-home .home-dashboard-grid {
     order: 3;
-  }
-
-  .mobile-route-home > :nth-child(3) {
-    order: 1;
-  }
-
-  .mobile-route-home > :nth-child(4) {
-    order: 4;
-  }
-
-  .mobile-route-home > :nth-child(5) {
-    order: 5;
   }
 
   .mobile-site-main.mobile-route-home .home-status-summary-grid.grid,
