@@ -3,6 +3,7 @@ import { canonicalCharacterResourceSummarySchema } from "./characterResource";
 
 export const canonicalStateRiskLevelSchema = z.enum(["low", "medium", "high"]);
 export const stateChangeProposalStatusSchema = z.enum(["validated", "pending_review", "committed", "rejected"]);
+export const contentProvenanceSchema = z.enum(["confirmed", "debt"]);
 export const stateChangeProposalTypeSchema = z.enum([
   "event_record",
   "character_state_update",
@@ -161,6 +162,7 @@ export const stateChangeProposalSchema = z.object({
   payload: z.record(z.string(), z.unknown()),
   evidence: z.array(z.string()).default([]),
   validationNotes: z.array(z.string()).default([]),
+  sourceQuality: contentProvenanceSchema.optional(),
 });
 
 export const stateChangeValidationResultSchema = z.object({
@@ -242,6 +244,7 @@ export type ChapterPayoffDirectiveOperation = z.infer<typeof chapterPayoffDirect
 export type ChapterPayoffDirective = z.infer<typeof chapterPayoffDirectiveSchema>;
 export type CanonicalTimelineEventState = z.infer<typeof canonicalTimelineEventStateSchema>;
 export type CanonicalNarrativeState = z.infer<typeof canonicalNarrativeStateSchema>;
+export type ContentProvenance = z.infer<typeof contentProvenanceSchema>;
 export type StateChangeProposal = z.infer<typeof stateChangeProposalSchema>;
 export type StateChangeValidationResult = z.infer<typeof stateChangeValidationResultSchema>;
 export type StateVersionRecord = z.infer<typeof stateVersionRecordSchema>;

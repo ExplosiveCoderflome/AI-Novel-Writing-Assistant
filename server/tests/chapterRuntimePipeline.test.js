@@ -240,6 +240,124 @@ test("runPipelineChapterWithRuntime does not approve when timeline check fails",
   assert.equal(result.runtimePackage.timelineCheck.status, "failed");
 });
 
+test("runPipelineChapterWithRuntime passes confirmed provenance for approved final artifact sync", async () => {
+  const finalSyncs = [];
+
+  const result = await runPipelineChapterWithRuntime(
+    {
+      validateRequest(input) {
+        return input;
+      },
+      async ensureNovelCharacters() {},
+      async assemble() {
+        return {
+          novel: { id: "novel-1", title: "测试小说" },
+          chapter: {
+            id: "chapter-1",
+            title: "第一章",
+            order: 1,
+            content: "已有正文",
+            expectation: null,
+          },
+          contextPackage: {},
+        };
+      },
+      async generateDraftFromWriter() {
+        throw new Error("existing content should not be regenerated");
+      },
+      async saveDraftAndArtifacts() {},
+      async syncFinalChapterArtifacts(_novelId, _chapterId, content, options) {
+        finalSyncs.push({ content, options });
+      },
+      async finalizeChapterContent({ content }) {
+        return {
+          finalContent: content,
+          runtimePackage: createRuntimePackage(90),
+        };
+      },
+      async markChapterGenerationState() {},
+      async markChapterNeedsRepair() {},
+    },
+    "novel-1",
+    "chapter-1",
+    {
+      autoReview: true,
+      autoRepair: true,
+    },
+  );
+
+  assert.equal(result.pass, true);
+  assert.deepEqual(finalSyncs, [{
+    content: "已有正文",
+    options: {
+      artifactSyncMode: "adaptive",
+      contentProvenance: "confirmed",
+    },
+  }]);
+});
+
+test("runPipelineChapterWithRuntime passes debt provenance for retained failed content", async () => {
+  const finalSyncs = [];
+
+  const result = await runPipelineChapterWithRuntime(
+    {
+      validateRequest(input) {
+        return input;
+      },
+      async ensureNovelCharacters() {},
+      async assemble() {
+        return {
+          novel: { id: "novel-1", title: "测试小说" },
+          chapter: {
+            id: "chapter-1",
+            title: "第一章",
+            order: 1,
+            content: null,
+            expectation: null,
+          },
+          contextPackage: {},
+        };
+      },
+      async generateDraftFromWriter() {
+        return { content: "生成后的正文" };
+      },
+      async saveDraftAndArtifacts() {},
+      async syncFinalChapterArtifacts(_novelId, _chapterId, content, options) {
+        finalSyncs.push({ content, options });
+      },
+      async finalizeChapterContent({ content }) {
+        return {
+          finalContent: `${content}，保留但待复核。`,
+          runtimePackage: createRuntimePackage(70),
+        };
+      },
+      async markChapterGenerationState() {},
+      async markChapterNeedsRepair() {},
+    },
+    "novel-1",
+    "chapter-1",
+    {
+      autoReview: true,
+      autoRepair: false,
+    },
+  );
+
+  assert.equal(result.pass, false);
+  assert.deepEqual(finalSyncs, [{
+    content: "生成后的正文，保留但待复核。",
+    options: {
+      artifactSyncMode: "adaptive",
+      contentProvenance: "debt",
+    },
+  }]);
+  assert.deepEqual(result.qualityDebtAttribution.degradedProposalRouting, {
+    contentProvenance: "debt",
+    routedToPendingReview: true,
+    proposalTypes: ["character_state_update", "character_resource_update"],
+    fields: ["currentState", "currentGoal", "characterResource"],
+  });
+});
+
 test("runPipelineChapterWithRuntime escalates patch failures to heavy repair and rechecks the chapter", async () => {
   const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
   const stages = [];

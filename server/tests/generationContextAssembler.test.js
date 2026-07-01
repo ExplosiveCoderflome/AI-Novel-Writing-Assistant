@@ -146,6 +146,7 @@ test("assembler refreshes chapter execution fields after chapter plan regenerati
     novelFindUnique: prisma.novel.findUnique,
     chapterFindFirst: prisma.chapter.findFirst,
     stateChangeProposalCount: prisma.stateChangeProposal.count,
+    stateChangeProposalFindMany: prisma.stateChangeProposal.findMany,
     auditIssueFindMany: prisma.auditIssue.findMany,
     novelBibleFindUnique: prisma.novelBible.findUnique,
     chapterSummaryFindMany: prisma.chapterSummary.findMany,
@@ -201,6 +202,7 @@ test("assembler refreshes chapter execution fields after chapter plan regenerati
       };
     };
     prisma.stateChangeProposal.count = async () => 0;
+    prisma.stateChangeProposal.findMany = async () => [];
     prisma.auditIssue.findMany = async () => [];
     prisma.novelBible.findUnique = async () => null;
     prisma.chapterSummary.findMany = async () => [];
@@ -291,6 +293,7 @@ test("assembler refreshes chapter execution fields after chapter plan regenerati
     prisma.novel.findUnique = originals.novelFindUnique;
     prisma.chapter.findFirst = originals.chapterFindFirst;
     prisma.stateChangeProposal.count = originals.stateChangeProposalCount;
+    prisma.stateChangeProposal.findMany = originals.stateChangeProposalFindMany;
     prisma.auditIssue.findMany = originals.auditIssueFindMany;
     prisma.novelBible.findUnique = originals.novelBibleFindUnique;
     prisma.chapterSummary.findMany = originals.chapterSummaryFindMany;

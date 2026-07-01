@@ -79,6 +79,38 @@ test("StateCommitService validate auto-commits low-risk runtime updates", () => 
   assert.equal(result.accepted[0].status, "committed");
 });
 
+test("StateCommitService validate routes debt runtime updates into pending review", () => {
+  const service = new StateCommitService();
+  const result = service.validate([
+    {
+      novelId: "novel-1",
+      chapterId: "chapter-5",
+      sourceSnapshotId: "snapshot-5",
+      sourceType: "chapter_background_sync",
+      sourceStage: "chapter_execution",
+      proposalType: "character_state_update",
+      riskLevel: "low",
+      status: "validated",
+      sourceQuality: "debt",
+      summary: "hero state advanced from degraded chapter content",
+      payload: {
+        characterId: "char-1",
+        currentState: "takes initiative",
+        currentGoal: "push the counterattack",
+      },
+      evidence: ["hero finally starts moving"],
+      validationNotes: [],
+    },
+  ]);
+
+  assert.equal(result.accepted.length, 0);
+  assert.equal(result.pendingReview.length, 1);
+  assert.equal(result.rejected.length, 0);
+  assert.equal(result.pendingReview[0].status, "pending_review");
+  assert.match(result.pendingReview[0].validationNotes.join(" "), /source_quality:debt/);
+  assert.match(result.pendingReview[0].validationNotes.join(" "), /quality debt source requires manual review/);
+});
+
 test("StateCommitService validate auto-commits low-risk character resource updates", () => {
   const service = new StateCommitService();
   const result = service.validate([makeResourceProposal()]);
@@ -105,6 +137,25 @@ test("StateCommitService validate auto-commits medium background character resou
   assert.equal(result.rejected.length, 0);
   assert.equal(result.accepted[0].status, "committed");
   assert.match(result.accepted[0].validationNotes.join(" "), /auto-committed background resource update/);
+});
+
+test("StateCommitService validate routes debt resource updates around background auto-commit", () => {
+  const service = new StateCommitService();
+  const result = service.validate([
+    makeResourceProposal({
+      riskLevel: "medium",
+      sourceQuality: "debt",
+      payload: {
+        narrativeImpact: "Hero can use the marked sword in the next escape beat.",
+      },
+    }),
+  ]);
+
+  assert.equal(result.accepted.length, 0);
+  assert.equal(result.pendingReview.length, 1);
+  assert.equal(result.rejected.length, 0);
+  assert.equal(result.pendingReview[0].status, "pending_review");
+  assert.match(result.pendingReview[0].validationNotes.join(" "), /source_quality:debt/);
 });
 
 test("StateCommitService validate routes manual medium character resource updates into pending review", () => {
