@@ -6,6 +6,7 @@ import { briefSummary, extractFacts } from "../novelP0Utils";
 import { chapterArtifactBackgroundSyncService } from "./ChapterArtifactBackgroundSyncService";
 import { assertChapterContentNotEmpty } from "./chapterEmptyContentError";
 import type { ArtifactSyncMode } from "../novelCoreShared";
+import type { ContentProvenance } from "@ai-novel/shared/types/canonicalState";
 
 export interface ChapterArtifactSyncOptions {
   scheduleBackgroundSync?: boolean;
@@ -16,6 +17,7 @@ export interface ChapterArtifactSyncOptions {
   provider?: string;
   model?: string;
   temperature?: number;
+  contentProvenance?: ContentProvenance;
 }
 
 export class ChapterArtifactSyncService {
@@ -102,6 +104,7 @@ export class ChapterArtifactSyncService {
           provider: options.provider,
           model: options.model,
           temperature: options.temperature,
+          contentProvenance: options.contentProvenance,
         });
       } else {
         chapterArtifactBackgroundSyncService.scheduleChapterSync(novelId, chapterId, content, {
@@ -109,6 +112,7 @@ export class ChapterArtifactSyncService {
           provider: options.provider,
           model: options.model,
           temperature: options.temperature,
+          contentProvenance: options.contentProvenance,
         });
       }
     }

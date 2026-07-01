@@ -2,6 +2,7 @@ import "dotenv/config";
 import { ensureRuntimeDatabaseReady } from "../db/runtimeMigrations";
 import { loadProviderApiKeys } from "../llm/factory";
 import { initializeRagSettingsCompatibility } from "../services/settings/RagCompatibilityBootstrapService";
+import { qualityDebtSettingsService } from "../services/settings/QualityDebtSettingsService";
 import { DirectorCommandExecutor } from "../services/novel/director/commands/DirectorCommandExecutor";
 import { DirectorTaskQueue, type DirectorTaskQueueOptions } from "./DirectorTaskQueue";
 import { taskDispatcher } from "./TaskDispatcher";
@@ -112,6 +113,9 @@ async function bootstrap(): Promise<void> {
   await ensureRuntimeDatabaseReady();
   await initializeRagSettingsCompatibility().catch((error) => {
     console.warn("[director.worker] failed to initialize RAG compatibility settings.", error);
+  });
+  await qualityDebtSettingsService.warnIfAutoPromotionEnabled().catch((error) => {
+    console.warn("[director.worker] failed to inspect pending review auto-promotion settings.", error);
   });
   await loadProviderApiKeys().catch((error) => {
     console.warn("[director.worker] failed to load provider API keys from database.", error);

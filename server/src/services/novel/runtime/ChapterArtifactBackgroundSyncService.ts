@@ -10,6 +10,7 @@ import type {
   PipelineBackgroundSyncKind,
   PipelinePayload,
 } from "../novelCoreShared";
+import type { ContentProvenance } from "@ai-novel/shared/types/canonicalState";
 import { buildContentHash, ChapterArtifactDeltaService } from "./ChapterArtifactDeltaService";
 
 interface ChapterBackgroundSyncContext {
@@ -23,6 +24,7 @@ interface ChapterArtifactBackgroundSyncOptions {
   provider?: string;
   model?: string;
   temperature?: number;
+  contentProvenance?: ContentProvenance;
 }
 
 type ArtifactSyncClaimStatus = "claimed" | "already_done" | "running";
@@ -44,8 +46,12 @@ export class ChapterArtifactBackgroundSyncService {
   ): void {
     const artifactSyncMode = options.artifactSyncMode ?? DEFAULT_ARTIFACT_SYNC_MODE;
     const delayMs = artifactSyncMode === "deferred" ? DEFERRED_SYNC_DELAY_MS : 0;
+    const runOptions: ChapterArtifactBackgroundSyncOptions = {
+      ...options,
+      artifactSyncMode,
+    };
     const run = () => {
-      void this.runChapterSyncNow(novelId, chapterId, content, { artifactSyncMode });
+      void this.runChapterSyncNow(novelId, chapterId, content, runOptions);
     };
     if (delayMs > 0) {
       setTimeout(run, delayMs).unref?.();
@@ -118,7 +124,10 @@ export class ChapterArtifactBackgroundSyncService {
       syncMode: artifactSyncMode,
       sourceType: "chapter_background_sync",
       sourceStage: "chapter_execution",
-      metadata: { reason: "artifact_delta_started" },
+      metadata: {
+        reason: "artifact_delta_started",
+        contentProvenance: options.contentProvenance ?? "confirmed",
+      },
     });
     if (deltaClaim !== "claimed") {
       return;
@@ -142,6 +151,7 @@ export class ChapterArtifactBackgroundSyncService {
           provider: options.provider,
           model: options.model,
           temperature: options.temperature,
+          contentProvenance: options.contentProvenance,
         });
         requiresFullReconcileFromDelta = result.requiresFullReconcile;
         deltaMetadata = {
@@ -154,6 +164,7 @@ export class ChapterArtifactBackgroundSyncService {
           concreteFactCount: result.concreteFactCount,
           syncPlan: result.output.syncPlan,
           confidence: result.output.confidence,
+          contentProvenance: options.contentProvenance ?? "confirmed",
         };
       });
     } catch (error) {

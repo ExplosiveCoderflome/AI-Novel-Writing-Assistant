@@ -714,3 +714,28 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.ok(repairBlocks.some((block) => block.id === "repair_boundaries" && /read-only/.test(block.content)));
   assert.ok(repairBlocks.some((block) => block.id === "repair_boundaries" && /do not disclose/.test(block.content)));
 });
+
+test("chapter layered character hard facts soften pending review state and goal only", () => {
+  const contextPackage = createContextPackage();
+  contextPackage.characterHardFacts[0] = {
+    ...contextPackage.characterHardFacts[0],
+    currentState: "待确认：已经开始反压",
+    currentGoal: "待确认：追查黑市账户",
+    pendingReviewFields: ["currentState", "currentGoal"],
+  };
+  const writeContext = buildChapterWriteContext({
+    bookContract: contextPackage.bookContract,
+    macroConstraints: contextPackage.macroConstraints,
+    volumeWindow: contextPackage.volumeWindow,
+    contextPackage,
+  });
+  const writerBlocks = buildChapterWriterContextBlocks(writeContext);
+  const hardFactsBlock = writerBlocks.find((block) => block.id === "character_hard_facts");
+
+  assert.ok(hardFactsBlock);
+  assert.match(hardFactsBlock.content, /标记为待确认的当前状态\/当前目标只作参考/);
+  assert.match(hardFactsBlock.content, /当前状态\(待确认，如与最新剧情冲突可按合理逻辑调整\)=待确认：已经开始反压/);
+  assert.match(hardFactsBlock.content, /当前目标\(待确认，如与最新剧情冲突可按合理逻辑调整\)=待确认：追查黑市账户/);
+  assert.match(hardFactsBlock.content, /当前位置=外城维修区/);
+  assert.doesNotMatch(hardFactsBlock.content, /当前位置\(待确认/);
+});

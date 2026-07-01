@@ -549,11 +549,16 @@ function buildCharacterHardFactsText(writeContext: ChapterWriteContext): string 
       "如章节任务没有明确要求，不要新增不可逆角色状态。",
     ].join("\n");
   }
+  const hasPendingReviewFields = hardFacts.some((fact) => (fact.pendingReviewFields ?? []).length > 0);
 
   return [
     "【角色硬事实】",
     "以下内容是正文生成前的不可违背写作约束，优先级高于软性人物简介。",
+    hasPendingReviewFields
+      ? "标记为待确认的当前状态/当前目标只作参考；如与最新剧情冲突，可按合理逻辑调整。"
+      : "",
     ...hardFacts.slice(0, 8).map((fact) => {
+      const pendingReviewFields = new Set(fact.pendingReviewFields ?? []);
       const parts = takeUnique([
         fact.role ? `角色定位=${fact.role}` : "",
         fact.identityLabel ? `身份=${fact.identityLabel}` : "",
@@ -563,13 +568,21 @@ function buildCharacterHardFactsText(writeContext: ChapterWriteContext): string 
         fact.realm ? `境界=${fact.realm}` : "",
         fact.currentLocation ? `当前位置=${fact.currentLocation}` : "",
         fact.availability ? `可出场状态=${fact.availability}` : "",
-        fact.currentState ? `当前状态=${fact.currentState}` : "",
-        fact.currentGoal ? `当前目标=${fact.currentGoal}` : "",
+        fact.currentState
+          ? pendingReviewFields.has("currentState")
+            ? `当前状态(待确认，如与最新剧情冲突可按合理逻辑调整)=${fact.currentState}`
+            : `当前状态=${fact.currentState}`
+          : "",
+        fact.currentGoal
+          ? pendingReviewFields.has("currentGoal")
+            ? `当前目标(待确认，如与最新剧情冲突可按合理逻辑调整)=${fact.currentGoal}`
+            : `当前目标=${fact.currentGoal}`
+          : "",
         fact.prohibitions.length > 0 ? `禁止误写=${fact.prohibitions.join(" / ")}` : "",
       ], 12);
       return `- ${fact.name}: ${parts.join(" | ")}`;
     }),
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 function buildResourceItemLine(item: NonNullable<ChapterWriteContext["characterResourceContext"]>["availableItems"][number]): string {
