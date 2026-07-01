@@ -250,7 +250,7 @@ export default function Home() {
         </div>
 
         <div className="space-y-4">
-          <HomeAssetHealth items={assetHealthItems} />
+          <HomeAssetHealth items={assetHealthItems} showStarterActions={hasNovels} />
         </div>
       </div>
     </div>
