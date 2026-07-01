@@ -26,7 +26,7 @@ export default function TitleSuggestionList({
 }: TitleSuggestionListProps) {
   if (suggestions.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+      <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
         {emptyMessage}
       </div>
     );
@@ -39,7 +39,7 @@ export default function TitleSuggestionList({
         return (
           <div
             key={suggestion.title}
-            className={`rounded-xl border p-4 transition ${
+            className={`rounded-lg border p-4 transition ${
               isSelected ? "border-primary/50 bg-primary/5" : "border-border/70 bg-background"
             }`}
           >

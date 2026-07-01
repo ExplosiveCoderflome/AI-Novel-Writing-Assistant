@@ -65,8 +65,8 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
   const pagination = libraryQuery.data?.data;
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 rounded-xl border bg-muted/20 p-4 md:grid-cols-[minmax(0,1fr)_220px_180px]">
+    <div className="mx-auto w-full max-w-4xl space-y-4">
+      <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 md:grid-cols-[minmax(0,1fr)_220px_180px]">
         <label className="space-y-2 text-sm">
           <span className="font-medium text-foreground">搜索</span>
           <Input
@@ -105,13 +105,13 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
       </div>
 
       {libraryQuery.isLoading ? (
-        <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
           正在加载标题库...
         </div>
       ) : null}
 
       {!libraryQuery.isLoading && rows.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-6 text-center">
+        <div className="rounded-lg border border-dashed p-6 text-center">
           <div className="text-sm font-medium text-foreground">标题库还是空的</div>
           <div className="mt-1 text-sm text-muted-foreground">
             先去标题工坊生成一批候选，再把值得复用的标题沉淀进来。
@@ -121,7 +121,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
 
       <div className="grid gap-3">
         {rows.map((entry) => (
-          <div key={entry.id} className="rounded-xl border bg-background p-4">
+          <div key={entry.id} className="rounded-lg border bg-background p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -179,7 +179,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
       </div>
 
       {pagination && pagination.totalPages > 1 ? (
-        <div className="flex items-center justify-between rounded-xl border bg-muted/20 px-4 py-3 text-sm">
+        <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3 text-sm">
           <div className="text-muted-foreground">
             第 {pagination.page} / {pagination.totalPages} 页，共 {pagination.total} 条
           </div>
