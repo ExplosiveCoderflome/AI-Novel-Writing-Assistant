@@ -10,7 +10,7 @@ export function NovelListPagination(props: {
     return null;
   }
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2">
+    <nav className="flex flex-wrap items-center justify-end gap-2" aria-label="小说列表分页">
       <Button
         type="button"
         variant="outline"
@@ -19,6 +19,13 @@ export function NovelListPagination(props: {
       >
         上一页
       </Button>
+      <div
+        className="flex h-9 min-w-28 items-center justify-center rounded-md border bg-card px-3 text-sm text-muted-foreground"
+        aria-live="polite"
+      >
+        第 <span className="mx-1 font-medium tabular-nums text-foreground">{props.page}</span> /{" "}
+        <span className="mx-1 font-medium tabular-nums text-foreground">{props.totalPages}</span> 页
+      </div>
       <Button
         type="button"
         variant="outline"
@@ -27,6 +34,6 @@ export function NovelListPagination(props: {
       >
         下一页
       </Button>
-    </div>
+    </nav>
   );
 }
