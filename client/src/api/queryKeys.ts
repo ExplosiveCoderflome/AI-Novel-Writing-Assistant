@@ -145,6 +145,7 @@ export const queryKeys = {
     structuredFallback: ["settings", "structured-fallback"] as const,
     autoDirectorChannels: ["settings", "auto-director-channels"] as const,
     autoDirectorApprovalPreferences: ["settings", "auto-director-approval-preferences"] as const,
+    pendingReviewAutoPromotion: ["settings", "pending-review-auto-promotion"] as const,
   },
   novelsKnowledge: {
     bindings: (id: string) => ["novels", "knowledge-documents", id] as const,

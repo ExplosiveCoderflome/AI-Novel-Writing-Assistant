@@ -146,4 +146,9 @@ export interface NovelDirectorAutoExecutionRuntimeDeps {
   }) => Promise<DirectorStateProposalResolutionRunResult>;
   automationLedgerEventService?: AutomationLedgerEventPort;
   autoConfirmPendingCandidates?: (novelId: string) => Promise<void>;
+  isPendingReviewAutoPromotionEnabled?: () => Promise<boolean> | boolean;
+  autoPromotePendingReviewProposals?: (input: {
+    novelId: string;
+    taskId: string;
+  }) => Promise<void>;
 }

@@ -296,6 +296,7 @@ export type DirectorEventType =
   | "quality_loop_assessed"
   | "repair_ticket_created"
   | "replan_run_created"
+  | "pending_review_auto_promotion"
   | "circuit_breaker_opened"
   | "circuit_breaker_reset"
   | "continue_with_risk";

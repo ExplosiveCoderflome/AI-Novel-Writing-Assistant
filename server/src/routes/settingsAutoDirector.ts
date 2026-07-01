@@ -14,6 +14,7 @@ import {
   getAutoDirectorApprovalPreferenceSettings,
   saveAutoDirectorApprovalPreferenceSettings,
 } from "../services/settings/AutoDirectorApprovalPreferenceService";
+import { qualityDebtSettingsService } from "../services/settings/QualityDebtSettingsService";
 
 const router = Router();
 
@@ -34,6 +35,12 @@ const autoApprovalPointValues = DIRECTOR_AUTO_APPROVAL_POINTS.map((item) => item
 
 const autoDirectorApprovalPreferenceSchema = z.object({
   approvalPointCodes: z.array(z.enum(autoApprovalPointValues)),
+});
+
+const pendingReviewAutoPromotionSchema = z.object({
+  enabled: z.boolean(),
+  acknowledgedRisks: z.boolean().optional(),
+  confirmationText: z.string().trim().optional(),
 });
 
 router.use(authMiddleware);
@@ -93,6 +100,37 @@ router.put(
         success: true,
         data,
         message: "Auto director approval preferences saved.",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.get("/pending-review-auto-promotion", async (_req, res, next) => {
+  try {
+    const data = await qualityDebtSettingsService.getAutoPromotionSettings();
+    res.status(200).json({
+      success: true,
+      data,
+      message: "待确认状态自动放行设置已加载。",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put(
+  "/pending-review-auto-promotion",
+  validate({ body: pendingReviewAutoPromotionSchema }),
+  async (req, res, next) => {
+    try {
+      const body = req.body as z.infer<typeof pendingReviewAutoPromotionSchema>;
+      const data = await qualityDebtSettingsService.saveAutoPromotionSettings(body);
+      res.status(200).json({
+        success: true,
+        data,
+        message: data.enabled ? "待确认状态自动放行已开启。" : "待确认状态自动放行已关闭。",
       } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);
