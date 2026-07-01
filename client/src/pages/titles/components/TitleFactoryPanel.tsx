@@ -118,8 +118,8 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
   };
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border bg-muted/20 p-4">
+    <div className="mx-auto w-full max-w-4xl space-y-4">
+      <div className="rounded-lg border bg-muted/20 p-4">
         <div className="text-sm font-medium text-foreground">模型设置</div>
         <div className="mt-3">
           <LLMSelector showParameters />
@@ -152,7 +152,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
               ))}
             </select>
             <div className="text-xs text-muted-foreground">
-              直接复用当前系统已有的“项目上下文标题生成”能力，适合已经沉淀了简介和类型的作品。
+              适合已填写简介和类型的作品，系统会结合项目资料生成候选标题。
             </div>
           </div>
         </TabsContent>
@@ -235,7 +235,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
         </TabsContent>
       </Tabs>
 
-      <div className="flex flex-col gap-3 rounded-xl border bg-background p-4 md:flex-row md:items-end md:justify-between">
+      <div className="flex flex-col gap-3 rounded-lg border bg-background p-4 md:flex-row md:items-end md:justify-between">
         <label className="space-y-2 text-sm">
           <span className="font-medium text-foreground">生成数量</span>
           <Input
