@@ -1,5 +1,5 @@
 import type { KeyboardEvent, MouseEvent } from "react";
-import { ArrowRight, BookOpenText } from "lucide-react";
+import { ArrowRight, BookOpenText, PlusCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWorkflowBadge } from "@/lib/novelWorkflowTaskUi";
 import { cn } from "@/lib/utils";
 import {
+  DIRECTOR_CREATE_LINK,
   formatHomeDate,
   getNovelLeadSummary,
   type HomeNovelItem,
@@ -30,9 +31,17 @@ export function HomeRecentNovels(props: {
             <BookOpenText className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
             最近小说
           </CardTitle>
-          <Button asChild size="sm" variant="outline">
-            <Link to="/novels">查看全部</Link>
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link to={DIRECTOR_CREATE_LINK}>
+                <PlusCircle className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                AI 开书
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/novels">查看全部</Link>
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>

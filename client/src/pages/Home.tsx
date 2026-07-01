@@ -30,7 +30,6 @@ import { HomeAssetHealth } from "./home/components/HomeAssetHealth";
 import { HomeAttentionQueue } from "./home/components/HomeAttentionQueue";
 import { HomeNextActionPanel } from "./home/components/HomeNextActionPanel";
 import { HomeRecentNovels } from "./home/components/HomeRecentNovels";
-import { HomeStarterPanel } from "./home/components/HomeStarterPanel";
 import { HomeStatusStrip } from "./home/components/HomeStatusStrip";
 
 export default function Home() {
@@ -252,7 +251,6 @@ export default function Home() {
 
         <div className="space-y-4">
           <HomeAssetHealth items={assetHealthItems} />
-          {hasNovels ? <HomeStarterPanel /> : null}
         </div>
       </div>
     </div>
