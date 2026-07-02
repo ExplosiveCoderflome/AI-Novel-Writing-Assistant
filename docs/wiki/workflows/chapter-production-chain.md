@@ -51,6 +51,9 @@
 - 下一章生成前必须检查上一章当前正文 content hash 是否已有 `timeline_finalization` checkpoint。没有 checkpoint 时应先补跑 finalization；补跑无法 stable 时提交 degraded checkpoint，不能在没有任何 finalization 记录的情况下继续组装下一章上下文。
 - hook 关闭以 extractor 输出的 `addressedHookIds / resolvedHookIds` 为主。字符串包含匹配只能作为兼容旧数据的安全辅助，不得作为新的主判断方式；Prompt 必须把 open hook id 提供给 extractor。
 - writer prompt 必须包含原始 `chapter.taskSheet` 和上一章实际正文尾段。任务单负责保留导演拆章的精细执行约束，上一章尾段负责约束本章开头的时间、地点、人物状态和未兑现动作，二者不能被 timeline_context 或旧摘要挤掉。
+- 续写模式下，writer prompt 必须包含 `continuation_constraints` required context。该块只提炼前作承接约束，例如来源、角色当前状态、终局摘要、关键事实和未完线索；它不能携带大段原文，也不能替代结构规划阶段的参考注入。
+- 续写小说绑定已成功的拆书分析时，章节续写上下文优先消费结构化小节，尤其是 `character_system`、`timeline` 和 `plot_structure`。只有没有可用拆书分析或分析读取失败时，才退回站内小说 / 知识库原文的有限摘要切片。
+- 规划期参考注入必须内部兜底。`buildReferenceForStage` 读取小说绑定、拆书分析或知识库内容失败时，只记录 warning 并返回空参考文本，不能让开书、规划、卷章拆分或角色规划调用方因为参考资料异常而中断主链路。
 - heavy repair 不能传空 RAG/连续性上下文。修复上下文至少要压缩注入最近章节摘要、上一章尾段、关键 open conflicts、角色硬事实和资源事实，避免修复后引入新的连续性矛盾。
 - 角色硬事实属于生成前必需约束。writer 必须收到 `character_hard_facts` required context，用于约束角色身份、阵营、立场、境界/战力、当前位置、可出场状态和禁止误写项。
 - `participant_subset` 只提供参与角色的软性简介和当前行为提示，不能替代 `character_hard_facts`。在 token 压力下可以压缩软信息，但不能裁掉角色硬事实。
@@ -135,6 +138,8 @@
 - 跳过后后续章节脱节：检查跳过动作是否先提交 degraded timeline。若没有 degraded checkpoint，后续章节会只能读取旧 hook 或空时间锚点。
 - 章节反复重复相同后置检测：检查同章同内容 hash 是否已经命中过 acceptance / timeline 门禁缓存。
 - 章节出现阵营、身份、境界或当前状态错误：优先检查角色库是否已有硬事实，再检查 `GenerationContextPackage.characterHardFacts` 和 writer prompt 中的 `character_hard_facts` 是否存在。如果硬事实缺失，先修角色准备链路；如果硬事实已存在但未进入 writer，修上下文组装；如果已进入仍被违背，再查审计和修复链路。
+- 续写没有承接前作状态：优先检查小说是否为 continuation 模式、`NovelContinuationService.buildChapterContextPack` 是否返回 enabled pack、writer blocks 中是否存在 required `continuation_constraints`。若已绑定拆书分析，还要检查分析是否为 succeeded、结构化小节是否包含人物 / 时间线 / 剧情结构内容。
+- 规划期开书因为参考资料异常失败：这属于参考注入兜底缺口。参考资料读取失败应降级为空参考文本，不得冒泡为规划阶段失败；先检查 `buildReferenceForStage` 的 warning 日志和返回值。
 
 ## 相关模块
 
@@ -152,5 +157,6 @@
 ## 来源文档
 
 - [正文产出链路瘦身与资产回灌优化计划](../../plans/chapter-output-pipeline-optimization-plan.md)
+- [仿写能力与生成链路加固方案](../../plans/imitation-writing-and-chain-hardening-plan.md)
 - [README 最新更新](../../../README.md)
 - [版本更新说明](../../releases/release-notes.md)

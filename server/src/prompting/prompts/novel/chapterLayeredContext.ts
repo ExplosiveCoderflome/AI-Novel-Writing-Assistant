@@ -942,7 +942,9 @@ export function buildChapterWriterContextBlocks(
       ? createContextBlock({
         id: "continuation_constraints",
         group: "continuation_constraints",
-        priority: 72,
+        priority: 74,
+        required: mode === "full",
+        allowSummary: false,
         content: toListBlock("Continuation constraints", writeContext.continuationConstraints),
       })
       : null,

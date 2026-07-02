@@ -186,10 +186,69 @@ export function summarizeContinuationConstraints(contextPackage: GenerationConte
   if (!contextPackage.continuation.enabled) {
     return [];
   }
+  const humanBlock = contextPackage.continuation.humanBlock ?? "";
+  const sourceLine = takeUnique([
+    findInlineValue(humanBlock, "续写来源"),
+    findInlineValue(humanBlock, "前作标题"),
+    findInlineValue(humanBlock, "知识库文档标题"),
+    findInlineValue(humanBlock, "拆书分析"),
+  ], 4);
+  const sectionLines = [
+    ...extractContinuationSectionLines(humanBlock, "前作核心角色状态", 3),
+    ...extractContinuationSectionLines(humanBlock, "前作终局章节摘要", 3),
+    ...extractContinuationSectionLines(humanBlock, "前作关键事实", 3),
+    ...extractContinuationSectionLines(humanBlock, "前作未完线索", 3),
+    ...extractContinuationSectionLines(humanBlock, "可承接信息摘要", 4),
+  ];
   return takeUnique([
     compactText(contextPackage.continuation.systemRule),
-    ...splitLines(contextPackage.continuation.humanBlock, 3),
-  ], 4);
+    sourceLine.length > 0 ? `续写来源约束：${sourceLine.join(" / ")}` : "",
+    ...sectionLines,
+  ], 12);
+}
+
+function findInlineValue(source: string, label: string): string {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = source.match(new RegExp(`^${escaped}[：:]\\s*(.+)$`, "m"));
+  return compactText(match?.[1]);
+}
+
+function extractContinuationSectionLines(source: string, sectionLabel: string, limit: number): string[] {
+  const normalizedLabel = sectionLabel.replace(/[（(].*$/, "");
+  const lines = source.replace(/\r\n?/g, "\n").split("\n");
+  const results: string[] = [];
+  let collecting = false;
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      if (collecting && results.length > 0) {
+        break;
+      }
+      continue;
+    }
+    if (line.startsWith(sectionLabel) || line.startsWith(normalizedLabel)) {
+      collecting = true;
+      const inlineValue = line.replace(/^.*?[：:]\s*/, "").trim();
+      if (inlineValue && inlineValue !== line) {
+        results.push(`${normalizedLabel}：${inlineValue}`);
+      }
+      continue;
+    }
+    if (collecting && /^[^：:\n]{2,32}[：:]$/.test(line)) {
+      break;
+    }
+    if (!collecting) {
+      continue;
+    }
+    const cleaned = compactText(line.replace(/^[-*•\d.、\s]+/, ""));
+    if (cleaned) {
+      results.push(`${normalizedLabel}：${cleaned}`);
+    }
+    if (results.length >= limit) {
+      break;
+    }
+  }
+  return takeUnique(results, limit);
 }
 
 function formatLedgerWindow(start?: number | null, end?: number | null): string {
