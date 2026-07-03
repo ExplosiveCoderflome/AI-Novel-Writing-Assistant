@@ -2,6 +2,7 @@ import type {
   StorylineDiff,
   StorylineVersion,
   VolumeImpactResult,
+  VolumeChapterPlan,
   VolumePlan,
   VolumePlanDiff,
   VolumePlanDocument,
@@ -124,6 +125,7 @@ export class NovelVolumeService {
         if (!row) {
           return chapter;
         }
+        const conflictLevelSource: VolumeChapterPlan["conflictLevelSource"] = chapter.conflictLevelSource === "user" ? "user" : "ai";
         const nextChapter = {
           ...chapter,
           chapterId: row.id,
@@ -131,7 +133,10 @@ export class NovelVolumeService {
           title: row.title,
           summary: row.expectation?.trim() || chapter.summary,
           targetWordCount: row.targetWordCount ?? null,
-          conflictLevel: row.conflictLevel ?? null,
+          conflictLevel: chapter.conflictLevelSource === "user"
+            ? chapter.conflictLevel ?? null
+            : row.conflictLevel ?? null,
+          conflictLevelSource,
           revealLevel: row.revealLevel ?? null,
           mustAvoid: row.mustAvoid ?? null,
           taskSheet: row.taskSheet ?? null,
@@ -174,6 +179,7 @@ export class NovelVolumeService {
           return item;
         }
         changed = true;
+        const conflictLevelSource: VolumeChapterPlan["conflictLevelSource"] = item.conflictLevelSource === "user" ? "user" : "ai";
         return {
           ...item,
           chapterId: chapter.id ?? item.chapterId ?? null,
@@ -181,7 +187,10 @@ export class NovelVolumeService {
           title: chapter.title,
           summary: chapter.expectation?.trim() || item.summary,
           targetWordCount: chapter.targetWordCount ?? null,
-          conflictLevel: chapter.conflictLevel ?? null,
+          conflictLevel: item.conflictLevelSource === "user"
+            ? item.conflictLevel ?? null
+            : chapter.conflictLevel ?? null,
+          conflictLevelSource,
           revealLevel: chapter.revealLevel ?? null,
           mustAvoid: chapter.mustAvoid ?? null,
           taskSheet: chapter.taskSheet ?? null,

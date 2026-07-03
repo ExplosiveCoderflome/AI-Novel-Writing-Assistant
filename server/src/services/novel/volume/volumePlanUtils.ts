@@ -51,6 +51,7 @@ const volumeChapterInputSchema = z.object({
   endingState: z.string().trim().nullable().optional(),
   nextChapterEntryState: z.string().trim().nullable().optional(),
   conflictLevel: z.number().int().min(0).max(100).nullable().optional(),
+  conflictLevelSource: z.enum(["ai", "user"]).nullable().optional(),
   revealLevel: z.number().int().min(0).max(100).nullable().optional(),
   targetWordCount: z.number().int().min(200).max(20000).nullable().optional(),
   mustAvoid: z.string().trim().nullable().optional(),
@@ -152,6 +153,10 @@ function normalizeNullableNumber(value: number | null | undefined): number | nul
   return typeof value === "number" && Number.isFinite(value) ? Math.round(value) : null;
 }
 
+function hasOwn(record: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, key);
+}
+
 function pickFirstString(record: JsonRecord, keys: string[]): string | null {
   for (const key of keys) {
     const value = record[key];
@@ -212,6 +217,8 @@ function sanitizeVolumeChapter(
   chapter: z.infer<typeof volumeChapterInputSchema>,
   index: number,
 ): VolumeChapterPlan {
+  const hasConflictLevel = hasOwn(chapter, "conflictLevel");
+  const hasConflictLevelSource = hasOwn(chapter, "conflictLevelSource");
   return {
     id: chapter.id?.trim() || createLocalId(`${novelId}-chapter`),
     volumeId,
@@ -224,7 +231,8 @@ function sanitizeVolumeChapter(
     exclusiveEvent: normalizeText(chapter.exclusiveEvent),
     endingState: normalizeText(chapter.endingState),
     nextChapterEntryState: normalizeText(chapter.nextChapterEntryState),
-    conflictLevel: normalizeNullableNumber(chapter.conflictLevel),
+    ...(hasConflictLevel ? { conflictLevel: normalizeNullableNumber(chapter.conflictLevel) } : {}),
+    ...(hasConflictLevelSource ? { conflictLevelSource: chapter.conflictLevelSource ?? null } : {}),
     revealLevel: normalizeNullableNumber(chapter.revealLevel),
     targetWordCount: normalizeNullableNumber(chapter.targetWordCount),
     mustAvoid: normalizeText(chapter.mustAvoid),
@@ -318,6 +326,7 @@ function normalizeLegacyChapter(raw: unknown, index: number): VolumeChapterPlan 
     endingState,
     nextChapterEntryState,
     conflictLevel: parseScore(raw.conflictLevel ?? raw.conflict_level),
+    conflictLevelSource: "ai",
     revealLevel: parseScore(raw.revealLevel ?? raw.reveal_level),
     targetWordCount: parsePositiveInteger(raw.targetWordCount ?? raw.target_word_count ?? raw.wordCount),
     mustAvoid,
