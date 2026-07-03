@@ -83,7 +83,7 @@ export class AuditService {
       },
     });
     if (!chapter) {
-      throw new Error("绔犺妭涓嶅瓨鍦ㄣ€?");
+      throw new Error("章节不存在。");
     }
     const content = options.content ?? chapter.content ?? "";
     const requestedTypes: AuditType[] = ["continuity", "character", "plot", "mode_fit"];
@@ -96,10 +96,10 @@ export class AuditService {
         issues: [{
           severity: "critical",
           category: "coherence",
-          evidence: "绔犺妭鍐呭涓虹┖",
-          fixSuggestion: "鍏堢敓鎴愭垨琛ュ叏姝ｆ枃锛屽啀杩涜瀹℃牎",
+          evidence: "章节内容为空",
+          fixSuggestion: "先生成或补全正文，再进行审校",
         }],
-        summary: "绔犺妭鍐呭涓虹┖锛屽繀椤诲崌绾у畬鏁村鏍℃垨鍏堟敹鍥炴湰绔犳鏂囥€?",
+        summary: "章节内容为空，必须先补全本章正文，再进行完整审校。",
         continueRecommendation: "full_audit",
         shouldRunFullAudit: true,
         triggerReasons: ["empty_content"],
@@ -123,10 +123,10 @@ export class AuditService {
       || issues.some((issue) => issue.severity === "high" || issue.severity === "critical");
     const summary = structured.summary?.trim()
       || (shouldRunFullAudit
-        ? "绔犺妭瀛樺湪楂橀闄╅棶棰橈紝寤鸿鍗囩骇瀹屾暣瀹℃牎銆?"
+        ? "章节存在高风险问题，建议升级完整审校。"
         : issues.length > 0
-          ? "绔犺妭鍙互缁х画鎺ㄨ繘锛屼絾鏈夊彲閫夌殑淇寤鸿銆?"
-          : "绔犺妭鍙互缁х画鎺ㄨ繘锛屾湭鍙戠幇蹇呴』鍗囩骇鐨勯珮椋庨櫓闂銆?");
+          ? "章节可以继续推进，但有可选的修复建议。"
+          : "章节可以继续推进，未发现必须升级的高风险问题。");
     const auditReports = await this.persistLightAuditReports(novelId, chapterId, score, summary, issues);
     return {
       score,
