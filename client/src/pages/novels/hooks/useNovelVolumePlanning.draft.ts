@@ -74,6 +74,9 @@ export function updateChapterNumberFieldDraft(
   chapterId: string,
   field: keyof Pick<VolumePlan["chapters"][number], "conflictLevel" | "revealLevel" | "targetWordCount">,
   value: number | null,
+  options: {
+    conflictLevelSource?: VolumePlan["chapters"][number]["conflictLevelSource"];
+  } = {},
 ): VolumePlan[] {
   return volumes.map((volume) => (
     volume.id !== volumeId
@@ -81,7 +84,15 @@ export function updateChapterNumberFieldDraft(
       : {
         ...volume,
         chapters: volume.chapters.map((chapter) => (
-          chapter.id === chapterId ? { ...chapter, [field]: value } : chapter
+          chapter.id === chapterId
+            ? {
+              ...chapter,
+              [field]: value,
+              ...(field === "conflictLevel" && options.conflictLevelSource
+                ? { conflictLevelSource: options.conflictLevelSource }
+                : {}),
+            }
+            : chapter
         )),
       }
   ));

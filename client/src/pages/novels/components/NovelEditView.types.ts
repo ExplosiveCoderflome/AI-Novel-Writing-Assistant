@@ -289,6 +289,9 @@ export interface StructuredTabViewProps extends Omit<
     chapterId: string,
     field: keyof Pick<VolumePlan["chapters"][number], "conflictLevel" | "revealLevel" | "targetWordCount">,
     value: number | null,
+    options?: {
+      conflictLevelSource?: VolumePlan["chapters"][number]["conflictLevelSource"];
+    },
   ) => void;
   onChapterPayoffRefsChange: (volumeId: string, chapterId: string, value: string) => void;
   onAddChapter: (volumeId: string) => void;

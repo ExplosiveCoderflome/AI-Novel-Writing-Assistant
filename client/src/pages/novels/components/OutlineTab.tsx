@@ -9,6 +9,7 @@ import WorldInjectionHint from "./WorldInjectionHint";
 import VolumePayoffOverviewCard from "./VolumePayoffOverviewCard";
 import type { OutlineTabViewProps } from "./NovelEditView.types";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
+import TensionCurvePanel, { type TensionCurveSeries } from "@/components/tensionCurve/TensionCurvePanel";
 
 type OutlineCharacterResource = NonNullable<OutlineTabViewProps["characterResources"]>[number];
 
@@ -221,6 +222,22 @@ export default function OutlineTab(props: OutlineTabViewProps) {
   const selectedStrategyVolume = selectedVolume
     ? strategyPlan?.volumes.find((item) => item.sortOrder === selectedVolume.sortOrder) ?? null
     : null;
+  const tensionCurveSeries: TensionCurveSeries[] = selectedVolume
+    ? [
+        {
+          id: "conflictLevel",
+          label: "冲突强度",
+          color: "#2563eb",
+          points: selectedVolume.chapters.map((chapter) => ({
+            id: chapter.id,
+            chapterOrder: chapter.chapterOrder,
+            title: chapter.title || `第${chapter.chapterOrder}章`,
+            value: typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : null,
+            source: chapter.conflictLevelSource ?? "ai",
+          })),
+        },
+      ]
+    : [];
 
   return (
     <div className="space-y-4">
@@ -656,6 +673,13 @@ export default function OutlineTab(props: OutlineTabViewProps) {
               <>
                 <VolumePayoffOverviewCard
                   selectedVolume={selectedVolume}
+                />
+                <TensionCurvePanel
+                  title="本卷紧张度"
+                  subtitle="查看章节冲突强度走向，红点表示你固定给后续 AI 保留的强度。"
+                  series={tensionCurveSeries}
+                  readonly
+                  compact
                 />
                 <Card key={selectedVolume.id}>
                   <CardHeader className="pb-3">
