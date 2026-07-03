@@ -379,6 +379,27 @@ test("persistActiveVolumeWorkspace does not let AI conflict levels overwrite use
   assert.equal(Object.prototype.hasOwnProperty.call(updateCall[1].data, "conflictLevelSource"), false);
 });
 
+test("persistActiveVolumeWorkspace releases a user anchor only with an explicit same-value AI handoff", async () => {
+  const {
+    persistActiveVolumeWorkspace,
+  } = require("../dist/services/novel/volume/volumeWorkspacePersistence.js");
+  const calls = [];
+  const tx = createVolumeWorkspaceTx(createExistingVolumeChapter({
+    conflictLevel: 72,
+    conflictLevelSource: "user",
+  }), calls);
+
+  await persistActiveVolumeWorkspace(tx, "novel-1", createVolumeWorkspaceDocument({
+    conflictLevel: 72,
+    conflictLevelSource: "ai",
+  }), "version-1");
+
+  const updateCall = calls.find(([name, args]) => name === "volumeChapterPlan.update" && args.where.id === "chapter-1");
+  assert.ok(updateCall);
+  assert.equal(updateCall[1].data.conflictLevel, 72);
+  assert.equal(updateCall[1].data.conflictLevelSource, "ai");
+});
+
 test("persistActiveVolumeWorkspace writes explicit user conflict anchors", async () => {
   const {
     persistActiveVolumeWorkspace,

@@ -1,4 +1,4 @@
-import type { TensionCurvePoint } from "./TensionCurvePanel";
+import type { TensionCurvePoint } from "./tensionCurveTypes";
 
 export interface TensionCurveShapeHint {
   key: string;

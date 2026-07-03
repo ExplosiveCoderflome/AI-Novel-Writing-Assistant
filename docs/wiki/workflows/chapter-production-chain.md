@@ -95,6 +95,7 @@
 - `autoReview=false` 时仍可保存正文并进入异步资产回灌。自动导演的 `chapter.quality.review` 事实检查应读取执行计划，把本轮不执行自动审校视为可解释的跳过事实；此时不能因为 `AuditReport` / `QualityReport` 数量为 0 而让已完成正文的批次失败。
 - 同一章正文 content hash 未变化时，不重复跑状态快照、角色资源、伏笔账本和角色动态同步。
 - 同一章规划已经有 `taskSheet` 和 `sceneCards`，且没有新的用户 guidance 时，章节执行合同细化应复用已有规划，不重复调用 `novel.volume.chapter_execution_contract`。带 guidance 的重生成仍允许覆盖旧结果。
+- 规划态冲突强度锚定只属于卷工作区合同：`VolumeChapterPlan.conflictLevelSource = "user"` 且 `conflictLevel` 为数值时，拆章、章节细化和重规划必须把它当作用户固定点；执行态 `Chapter` 仍只接收 `conflictLevel` 数值，不保存锚定来源。解除锚定必须是用户入口发出的明确交还语义：请求携带当前相同 `conflictLevel` 且 `conflictLevelSource = "ai"`，持久层才允许从 `user` 降回 `ai`。AI 生成或重规划传入不同数值时必须保留原用户锚定，不能静默覆盖。
 - 任何数据回填、同步、抽取或索引刷新，都必须等章节进入稳定终态后再执行；章节仍处于修复、重写或回退过程中时，只允许保留正文与必要审校结果，不能提前把这类动作挂回热路径。timeline finalization 是进入下一章前的状态闭合步骤，不属于可随意延后的后台资产回灌。
 - 资产同步模式：
   - `adaptive`：默认模式，关键资产异步同步，高风险或周期节点触发全量伏笔校准。

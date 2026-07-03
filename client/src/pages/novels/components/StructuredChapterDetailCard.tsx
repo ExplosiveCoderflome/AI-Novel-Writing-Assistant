@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { UnlockKeyhole } from "lucide-react";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -331,13 +332,41 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
                 <div className="text-sm font-medium">高级设置</div>
                 <div className="grid gap-3 md:grid-cols-3">
                   <label className="space-y-2 text-sm">
-                    <span className="text-xs text-muted-foreground">冲突等级</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground">冲突等级</span>
+                      {selectedChapter.conflictLevelSource === "user" && typeof selectedChapter.conflictLevel === "number" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          title="解除锚定，交还 AI 优化"
+                          onClick={() => {
+                            const conflictLevel = selectedChapter.conflictLevel;
+                            if (typeof conflictLevel !== "number") {
+                              return;
+                            }
+                            onChapterNumberChange(selectedVolume.id, selectedChapter.id, "conflictLevel", conflictLevel, {
+                              conflictLevelSource: "ai",
+                            });
+                          }}
+                        >
+                          <UnlockKeyhole className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+                          交还 AI
+                        </Button>
+                      ) : null}
+                    </div>
                     <Input
                       type="number"
                       min={0}
                       max={100}
                       value={selectedChapter.conflictLevel ?? ""}
-                      onChange={(event) => onChapterNumberChange(selectedVolume.id, selectedChapter.id, "conflictLevel", event.target.value ? Number(event.target.value) : null)}
+                      onChange={(event) => {
+                        const nextValue = event.target.value ? Number(event.target.value) : null;
+                        onChapterNumberChange(selectedVolume.id, selectedChapter.id, "conflictLevel", nextValue, nextValue == null ? {} : {
+                          conflictLevelSource: "user",
+                        });
+                      }}
                     />
                   </label>
                   <label className="space-y-2 text-sm">

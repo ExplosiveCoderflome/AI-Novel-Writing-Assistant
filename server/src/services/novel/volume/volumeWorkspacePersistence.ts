@@ -184,6 +184,34 @@ function toVolumeChapterPlanData(volumeId: string, chapter: VolumeChapterPlan): 
   };
 }
 
+function isExplicitConflictLevelRelease(params: {
+  existingSource?: string | null;
+  existingValue?: number | null;
+  incomingSource?: VolumeChapterPlan["conflictLevelSource"];
+  incomingValue?: number | null;
+  hasConflictLevel: boolean;
+}): boolean {
+  return params.existingSource === "user"
+    && params.incomingSource === "ai"
+    && params.hasConflictLevel
+    && (params.existingValue ?? null) === (params.incomingValue ?? null);
+}
+
+function shouldPreserveUserConflictLevel(params: {
+  existingSource?: string | null;
+  existingValue?: number | null;
+  incomingSource?: VolumeChapterPlan["conflictLevelSource"];
+  incomingValue?: number | null;
+  hasConflictLevel: boolean;
+  hasConflictLevelSource: boolean;
+}): boolean {
+  const hasConflictPatch = params.hasConflictLevel || params.hasConflictLevelSource;
+  return params.existingSource === "user"
+    && params.incomingSource !== "user"
+    && hasConflictPatch
+    && !isExplicitConflictLevelRelease(params);
+}
+
 function toVolumeChapterPlanUpdateData(
   volumeId: string,
   chapter: VolumeChapterPlan,
@@ -194,15 +222,21 @@ function toVolumeChapterPlanUpdateData(
   const hasConflictLevel = Object.prototype.hasOwnProperty.call(chapter, "conflictLevel");
   const hasConflictLevelSource = Object.prototype.hasOwnProperty.call(chapter, "conflictLevelSource");
   const incomingSource = hasConflictLevel ? chapter.conflictLevelSource ?? "ai" : chapter.conflictLevelSource ?? null;
-  const shouldPreserveUserConflictLevel = existingChapter?.conflictLevelSource === "user"
-    && incomingSource !== "user";
+  const preserveUserConflictLevel = shouldPreserveUserConflictLevel({
+    existingSource: existingChapter?.conflictLevelSource,
+    existingValue: existingChapter?.conflictLevel,
+    incomingSource,
+    incomingValue: chapter.conflictLevel ?? null,
+    hasConflictLevel,
+    hasConflictLevelSource,
+  });
   if (hasConflictLevel) {
-    if (!shouldPreserveUserConflictLevel) {
+    if (!preserveUserConflictLevel) {
       data.conflictLevel = conflictLevel;
       data.conflictLevelSource = incomingSource;
     }
   } else if (hasConflictLevelSource) {
-    if (!shouldPreserveUserConflictLevel) {
+    if (!preserveUserConflictLevel) {
       data.conflictLevelSource = conflictLevelSource;
     }
   }
@@ -277,9 +311,14 @@ function isChapterRowCurrent(
   const hasConflictLevel = Object.prototype.hasOwnProperty.call(chapter, "conflictLevel");
   const hasConflictLevelSource = Object.prototype.hasOwnProperty.call(chapter, "conflictLevelSource");
   const incomingSource = hasConflictLevel ? chapter.conflictLevelSource ?? "ai" : chapter.conflictLevelSource ?? null;
-  const shouldPreserveUserConflictLevel = row.conflictLevelSource === "user"
-    && incomingSource !== "user"
-    && (hasConflictLevel || hasConflictLevelSource);
+  const preserveUserConflictLevel = shouldPreserveUserConflictLevel({
+    existingSource: row.conflictLevelSource,
+    existingValue: row.conflictLevel,
+    incomingSource,
+    incomingValue: chapter.conflictLevel ?? null,
+    hasConflictLevel,
+    hasConflictLevelSource,
+  });
   return row.volumeId === volumeId
     && sameNullableText(row.chapterId, chapter.chapterId)
     && row.chapterOrder === chapter.chapterOrder
@@ -287,12 +326,12 @@ function isChapterRowCurrent(
     && row.summary === chapter.summary
     && sameNullableText(row.purpose, chapter.purpose)
     && (
-      shouldPreserveUserConflictLevel
+      preserveUserConflictLevel
       || !hasConflictLevel
       || (row.conflictLevel ?? null) === (chapter.conflictLevel ?? null)
     )
     && (
-      shouldPreserveUserConflictLevel
+      preserveUserConflictLevel
       || (!hasConflictLevel && !hasConflictLevelSource)
       || sameNullableText(row.conflictLevelSource, incomingSource)
     )

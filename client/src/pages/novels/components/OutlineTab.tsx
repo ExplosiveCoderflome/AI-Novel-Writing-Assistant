@@ -167,6 +167,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
     isGeneratingSkeleton,
     onGenerateSkeleton,
     onGoToCharacterTab,
+    onGoToStructuredTab,
     latestStateSnapshot,
     payoffLedger,
     characterResources = [],
@@ -681,6 +682,11 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                   readonly
                   compact
                 />
+                <div className="flex justify-end">
+                  <Button type="button" size="sm" variant="outline" onClick={onGoToStructuredTab}>
+                    去节奏 / 拆章编辑曲线
+                  </Button>
+                </div>
                 <Card key={selectedVolume.id}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between gap-2">

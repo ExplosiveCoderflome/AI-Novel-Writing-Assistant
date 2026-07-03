@@ -190,6 +190,7 @@ export interface OutlineTabViewProps {
   isGeneratingSkeleton: boolean;
   onGenerateSkeleton: () => void;
   onGoToCharacterTab: () => void;
+  onGoToStructuredTab: () => void;
   latestStateSnapshot?: StoryStateSnapshot | null;
   payoffLedger?: PayoffLedgerResponse | null;
   characterResources?: CharacterResourceLedgerItem[];
