@@ -7,10 +7,11 @@ import {
   buildBeatContextWindow,
   buildBeatSheetContext,
   buildChapterDetailDraft,
-  buildRecentChapterExecutionContext,
   buildChapterNeighborContext,
   buildCommonNovelContext,
+  buildConflictLevelCurveContext,
   buildCompactVolumeCard,
+  buildRecentChapterExecutionContext,
   buildVolumeCountGuidanceContext,
   buildSoftFutureVolumeSummary,
   buildStoryMacroContext,
@@ -263,6 +264,13 @@ export function buildVolumeChapterListContextBlocks(input: VolumeChapterListProm
       priority: 84,
       content: `Locked existing beat summary:\n${buildBeatChapterSummary(input.preservedBeatChapterSummary)}`,
     }),
+    createContextBlock({
+      id: "conflict_level_curve",
+      group: "conflict_level_curve",
+      priority: 96,
+      required: true,
+      content: `Conflict level anchors and curve:\n${buildConflictLevelCurveContext(input.targetVolume)}`,
+    }),
     guidanceBlock(input.guidance),
   ].filter((block): block is PromptContextBlock => Boolean(block));
 }
@@ -301,6 +309,13 @@ export function buildVolumeChapterDetailContextBlocks(input: VolumeChapterDetail
       priority: 98,
       required: true,
       content: `Chapter neighbors:\n${buildChapterNeighborContext(input.targetVolume, input.targetChapter.id)}`,
+    }),
+    createContextBlock({
+      id: "conflict_level_curve",
+      group: "conflict_level_curve",
+      priority: 99,
+      required: true,
+      content: `Conflict level anchors and curve:\n${buildConflictLevelCurveContext(input.targetVolume, input.targetChapter.id)}`,
     }),
     createContextBlock({
       id: "recent_execution_contracts",

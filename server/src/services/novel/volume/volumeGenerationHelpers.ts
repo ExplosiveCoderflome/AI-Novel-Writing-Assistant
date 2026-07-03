@@ -439,6 +439,7 @@ export function mergeChapterList(
           endingState: existingChapter?.endingState ?? null,
           nextChapterEntryState: existingChapter?.nextChapterEntryState ?? null,
           conflictLevel: existingChapter?.conflictLevel ?? null,
+          conflictLevelSource: existingChapter?.conflictLevelSource ?? null,
           revealLevel: existingChapter?.revealLevel ?? null,
           targetWordCount: existingChapter?.targetWordCount ?? null,
           mustAvoid: existingChapter?.mustAvoid ?? null,
@@ -489,6 +490,28 @@ export function mergeChapterList(
   });
 }
 
+function resolveMergedConflictLevel(
+  chapter: VolumeChapterPlan,
+  generatedDetail: Record<string, unknown>,
+): Pick<VolumeChapterPlan, "conflictLevel" | "conflictLevelSource"> {
+  if (chapter.conflictLevelSource === "user") {
+    return {
+      conflictLevel: chapter.conflictLevel,
+      conflictLevelSource: "user",
+    };
+  }
+  if (typeof generatedDetail.conflictLevel === "number") {
+    return {
+      conflictLevel: generatedDetail.conflictLevel,
+      conflictLevelSource: "ai",
+    };
+  }
+  return {
+    conflictLevel: chapter.conflictLevel,
+    conflictLevelSource: chapter.conflictLevelSource ?? null,
+  };
+}
+
 export function mergeChapterDetail(params: {
   document: VolumePlanDocument;
   targetVolumeId: string;
@@ -514,6 +537,7 @@ export function mergeChapterDetail(params: {
           };
         }
         if (detailMode === "boundary") {
+          const conflictLevelPatch = resolveMergedConflictLevel(chapter, generatedDetail);
           return {
             ...chapter,
             exclusiveEvent: typeof generatedDetail.exclusiveEvent === "string" ? generatedDetail.exclusiveEvent : chapter.exclusiveEvent,
@@ -521,7 +545,7 @@ export function mergeChapterDetail(params: {
             nextChapterEntryState: typeof generatedDetail.nextChapterEntryState === "string"
               ? generatedDetail.nextChapterEntryState
               : chapter.nextChapterEntryState,
-            conflictLevel: typeof generatedDetail.conflictLevel === "number" ? generatedDetail.conflictLevel : chapter.conflictLevel,
+            ...conflictLevelPatch,
             revealLevel: typeof generatedDetail.revealLevel === "number" ? generatedDetail.revealLevel : chapter.revealLevel,
             targetWordCount: typeof generatedDetail.targetWordCount === "number" ? generatedDetail.targetWordCount : chapter.targetWordCount,
             mustAvoid: typeof generatedDetail.mustAvoid === "string" ? generatedDetail.mustAvoid : chapter.mustAvoid,
@@ -530,6 +554,7 @@ export function mergeChapterDetail(params: {
               : chapter.payoffRefs,
           };
         }
+        const conflictLevelPatch = resolveMergedConflictLevel(chapter, generatedDetail);
         return {
           ...chapter,
           purpose: typeof generatedDetail.purpose === "string" ? generatedDetail.purpose : chapter.purpose,
@@ -538,7 +563,7 @@ export function mergeChapterDetail(params: {
           nextChapterEntryState: typeof generatedDetail.nextChapterEntryState === "string"
             ? generatedDetail.nextChapterEntryState
             : chapter.nextChapterEntryState,
-          conflictLevel: typeof generatedDetail.conflictLevel === "number" ? generatedDetail.conflictLevel : chapter.conflictLevel,
+          ...conflictLevelPatch,
           revealLevel: typeof generatedDetail.revealLevel === "number" ? generatedDetail.revealLevel : chapter.revealLevel,
           targetWordCount: typeof generatedDetail.targetWordCount === "number" ? generatedDetail.targetWordCount : chapter.targetWordCount,
           mustAvoid: typeof generatedDetail.mustAvoid === "string" ? generatedDetail.mustAvoid : chapter.mustAvoid,

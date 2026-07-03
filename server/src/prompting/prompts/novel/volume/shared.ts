@@ -325,6 +325,53 @@ export function buildBeatChapterSummary(summary: string | null | undefined): str
   return normalized ? normalized : "none";
 }
 
+function formatConflictLevel(value: number | null | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) ? String(Math.round(value)) : "none";
+}
+
+function describeConflictStep(
+  previous: number | null | undefined,
+  current: number | null | undefined,
+): string {
+  if (typeof previous !== "number" || typeof current !== "number") {
+    return "unknown";
+  }
+  if (current > previous) {
+    return "rise";
+  }
+  if (current < previous) {
+    return "fall";
+  }
+  return "flat";
+}
+
+export function buildConflictLevelCurveContext(
+  volume: VolumePlan,
+  targetChapterId?: string,
+): string {
+  const sortedChapters = volume.chapters
+    .slice()
+    .sort((left, right) => left.chapterOrder - right.chapterOrder);
+  if (sortedChapters.length === 0) {
+    return "none";
+  }
+
+  return sortedChapters.map((chapter, index) => {
+    const previous = index > 0 ? sortedChapters[index - 1] : null;
+    const next = index < sortedChapters.length - 1 ? sortedChapters[index + 1] : null;
+    const isTarget = targetChapterId ? chapter.id === targetChapterId : false;
+    const isUserAnchored = chapter.conflictLevelSource === "user" && typeof chapter.conflictLevel === "number";
+    return [
+      `${isTarget ? "target " : ""}chapter ${chapter.chapterOrder}: ${chapter.title}`,
+      `conflictLevel=${formatConflictLevel(chapter.conflictLevel)}`,
+      `source=${chapter.conflictLevelSource ?? "ai"}`,
+      `fromPrevious=${describeConflictStep(previous?.conflictLevel, chapter.conflictLevel)}`,
+      `toNext=${describeConflictStep(chapter.conflictLevel, next?.conflictLevel)}`,
+      isUserAnchored ? "constraint=用户锚定，不可更改" : "",
+    ].filter(Boolean).join(" | ");
+  }).join("\n");
+}
+
 export function buildChapterNeighborContext(volume: VolumePlan, chapterId: string): string {
   const index = volume.chapters.findIndex((chapter) => chapter.id === chapterId);
   if (index < 0) {
