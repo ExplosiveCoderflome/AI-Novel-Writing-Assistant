@@ -14,8 +14,6 @@
 ![Vector DB](https://img.shields.io/badge/RAG-Qdrant-E63946)
 
 
-项目仓库：[GitHub / ExplosiveCoderflome/AI-Novel-Writing-Assistant](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant)
-
 ## ✨ 项目简介
 
 这是一个**面向长篇小说完成度的 AI 生产系统**，不是普通的"你写一句、AI 补一句"聊天壳子。
@@ -165,7 +163,7 @@
 - 自动导演恢复链接统一使用新页面，任务中心、候选确认、恢复入口和桌面重启后的链接会回到同一个候选或进度现场；旧的创建页导演链接会自动跳转。
 - 从源码运行时，`pnpm dev` 系列命令启动前会先检查依赖是否装全：拉取新代码后忘记执行 `pnpm install` 时，会用中文明确提示该怎么做，而不是抛出模块找不到的报错。
 - 本次为后续的曲线优化、世界地图、知识图谱和统计面板一次性引入了前端可视化依赖：从源码运行的用户拉取本次更新后需要执行一次 `pnpm install`（忘记执行时启动检查也会提示）。
-- README 顶部补充项目 GitHub 仓库入口，方便从文档直接回到源码、Issue 和发布页。
+- 产品侧栏的系统分组新增 GitHub 仓库入口，方便从应用内直接打开源码、Issue 和发布页。
 
 > 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
 

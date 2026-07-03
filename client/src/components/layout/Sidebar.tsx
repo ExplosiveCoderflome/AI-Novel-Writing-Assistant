@@ -7,6 +7,7 @@ import {
   ChevronRight,
   CircleHelp,
   Database,
+  Github,
   Globe2,
   House,
   LayoutDashboard,
@@ -34,7 +35,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
-  to: string;
+  to?: string;
+  href?: string;
   label: string;
   icon: LucideIcon;
   disabled?: boolean;
@@ -79,6 +81,11 @@ const navGroups: NavGroup[] = [
       { to: "/prompt-workbench", label: "提示词管理", icon: Braces },
       { to: "/settings/model-routes", label: "模型路由", icon: Route },
       { to: "/settings", label: "系统设置", icon: Settings2 },
+      {
+        href: "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant",
+        label: "GitHub 仓库",
+        icon: Github,
+      },
     ],
   },
 ];
@@ -238,11 +245,12 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             {group.items.map((item) => {
               const Icon = item.icon;
               const isNovelEntry = item.to === "/novels";
+              const itemKey = item.to ?? item.href ?? item.label;
 
               if (item.disabled) {
                 return (
                   <div
-                    key={item.to}
+                    key={itemKey}
                     title={collapsed ? item.label : "即将推出"}
                     className={cn(
                       "relative flex cursor-not-allowed items-center rounded-md text-sm opacity-40",
@@ -260,8 +268,30 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 );
               }
 
+              if (item.href) {
+                return (
+                  <a
+                    key={itemKey}
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={collapsed ? item.label : undefined}
+                  >
+                    <div
+                      className={cn(
+                        "relative flex items-center rounded-md text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+                        collapsed ? "justify-center px-2 py-2.5" : "py-2 pl-4 pr-2",
+                      )}
+                    >
+                      <Icon className={cn("h-[18px] w-[18px] shrink-0", collapsed ? "mx-auto" : "mr-3")} />
+                      {!collapsed ? <span className="truncate">{item.label}</span> : null}
+                    </div>
+                  </a>
+                );
+              }
+
               return (
-                <NavLink key={item.to} to={item.to} title={collapsed ? item.label : undefined}>
+                <NavLink key={itemKey} to={item.to ?? "/"} title={collapsed ? item.label : undefined}>
                   {({ isActive }) => (
                     <div
                       className={cn(
@@ -295,7 +325,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         </span>
                       ) : null}
 
-                      {renderBadge(item.to)}
+                      {item.to ? renderBadge(item.to) : null}
                     </div>
                   )}
                 </NavLink>
