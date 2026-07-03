@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   createChapterBoundarySchema,
+  createChapterExecutionContractSchema,
   createChapterTaskSheetSchema,
   createVolumeBeatSheetSchema,
   createVolumeChapterBeatBlockSchema,
@@ -578,4 +579,33 @@ test("chapter task sheet schema parses taskSheet plus aliased scene cards", () =
   assert.deepEqual(parsed.sceneCards[1].mustAdvance, ["明确收益", "敌方被迫应对"]);
   assert.deepEqual(parsed.sceneCards[1].forbiddenExpansion, ["不要洗白敌方", "不要直接大决战"]);
   assert.equal(parsed.sceneCards[2].targetWordCount, 800);
+});
+
+test("chapter execution contract schema accepts Chinese purpose alias", () => {
+  const schema = createChapterExecutionContractSchema();
+  const parsed = schema.parse({
+    章节目标: "推进本章目标",
+    exclusiveEvent: "完成一次明确反压",
+    endingState: "主角获得阶段性主动权",
+    nextChapterEntryState: "敌方准备升级压力",
+    conflictLevel: 60,
+    revealLevel: 30,
+    targetWordCount: 3000,
+    mustAvoid: "不要提前终局",
+    payoffRefs: [],
+    taskSheet: "执行本章目标",
+    sceneCards: [{
+      key: "s1",
+      title: "场景一",
+      purpose: "推进",
+      entryState: "开始",
+      exitState: "结束",
+      mustAdvance: ["推进"],
+      mustPreserve: ["保留"],
+      forbiddenExpansion: ["不要跑偏"],
+      targetWordCount: 1000,
+    }],
+  });
+
+  assert.equal(parsed.purpose, "推进本章目标");
 });

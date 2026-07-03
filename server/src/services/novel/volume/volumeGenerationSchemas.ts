@@ -673,7 +673,7 @@ export function createChapterExecutionContractSchema() {
   return z.preprocess(
     (raw) => {
       const normalized = normalizeScenePlanPayload(normalizeBoundaryPayload(normalizeObjectAlias(raw, {
-        purpose: ["绔犺妭鐩爣", "chapterGoal", "goal", "objective"],
+        purpose: ["章节目标", "chapterGoal", "goal", "objective"],
       })));
       return normalized;
     },
