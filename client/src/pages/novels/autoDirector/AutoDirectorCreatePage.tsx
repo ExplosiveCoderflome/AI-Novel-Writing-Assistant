@@ -305,7 +305,7 @@ export default function AutoDirectorCreatePage() {
       ) : null}
 
       {showSummaryBar ? (
-        <div className="grid gap-2 md:grid-cols-5">
+        <div className="flex min-w-0 flex-wrap gap-2">
           {AUTO_DIRECTOR_CREATE_STAGES.map((stage) => {
             const active = activeStage === stage.key;
             const completed = completedStages.has(stage.key) || stage.key === "candidates" && controller.batches.length > 0;

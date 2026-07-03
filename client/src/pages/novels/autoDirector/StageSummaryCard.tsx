@@ -28,30 +28,34 @@ export default function StageSummaryCard({
     <motion.button
       type="button"
       layout={!reducedMotion}
-      whileHover={disabled || reducedMotion ? undefined : { y: -2 }}
+      whileHover={disabled || reducedMotion ? undefined : { y: -1 }}
       transition={{ duration: reducedMotion ? 0 : 0.18 }}
       disabled={disabled}
       onClick={() => onClick(stageKey)}
-      className={`min-w-0 rounded-lg border px-3 py-2 text-left transition ${
+      title={summary}
+      className={`group inline-flex min-w-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-left transition ${
         active
-          ? "border-primary bg-primary/10 shadow-sm"
+          ? "bg-foreground text-background shadow-sm"
           : completed
-            ? "border-border bg-background hover:border-primary/40"
-            : "border-border/60 bg-muted/20 opacity-70"
+            ? "bg-muted/70 text-foreground hover:bg-muted"
+            : "text-muted-foreground/65"
       } ${disabled ? "cursor-not-allowed" : ""}`}
     >
-      <div className="flex items-center gap-2">
-        <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-          completed || active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-        }`}>
-          {order}
-        </span>
-        <span className="truncate text-sm font-medium text-foreground">{label}</span>
-      </div>
-      <div className="mt-1 line-clamp-2 break-words text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">
+      <span className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
+        active
+          ? "bg-background text-foreground"
+          : completed
+            ? "bg-background text-foreground"
+            : "bg-muted text-muted-foreground"
+      }`}>
+        {order}
+      </span>
+      <span className="shrink-0 text-sm font-medium">{label}</span>
+      <span className={`hidden min-w-0 max-w-[13rem] truncate text-xs lg:inline ${
+        active ? "text-background/70" : "text-muted-foreground"
+      }`}>
         {summary}
-      </div>
+      </span>
     </motion.button>
   );
 }
-
