@@ -71,7 +71,7 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
           </Link>
           <div className="flex items-center gap-2">
             <Button asChild size="sm" className="h-8 px-3">
-              <Link to="/novels/create?mode=director" onClick={() => setMoreOpen(false)}>
+              <Link to="/novels/auto-director" onClick={() => setMoreOpen(false)}>
                 <Plus className="h-3.5 w-3.5" />
                 开书
               </Link>

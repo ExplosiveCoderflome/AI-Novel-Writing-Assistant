@@ -12,7 +12,7 @@ import {
 
 export const HOME_NOVEL_FETCH_LIMIT = 12;
 export const HOME_RECENT_LIMIT = 6;
-export const DIRECTOR_CREATE_LINK = "/novels/create?mode=director";
+export const DIRECTOR_CREATE_LINK = "/novels/auto-director";
 export const MANUAL_CREATE_LINK = "/novels/create";
 
 export type HomeNovelItem = NovelListResponse["items"][number];

@@ -216,7 +216,6 @@ export function getTaskCenterLink(taskId: string): string {
 
 export function getCandidateSelectionLink(taskId: string): string {
   const searchParams = new URLSearchParams();
-  searchParams.set("workflowTaskId", taskId);
-  searchParams.set("mode", "director");
-  return `/novels/create?${searchParams.toString()}`;
+  searchParams.set("taskId", taskId);
+  return `/novels/auto-director?${searchParams.toString()}`;
 }
