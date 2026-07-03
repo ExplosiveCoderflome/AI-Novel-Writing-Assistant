@@ -290,17 +290,19 @@ export default function AutoDirectorCreatePage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-4 px-3 py-4 sm:px-4 lg:px-0">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="text-2xl font-semibold tracking-normal text-foreground">AI 自动导演创建</div>
-          <div className="mt-1 text-sm leading-6 text-muted-foreground">
-            从一个起始想法开始，逐步确认默认设置，再选择整本书方向。
+      {showSummaryBar ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="text-2xl font-semibold tracking-normal text-foreground">AI 自动导演创建</div>
+            <div className="mt-1 text-sm leading-6 text-muted-foreground">
+              从一个起始想法开始，逐步确认默认设置，再选择整本书方向。
+            </div>
           </div>
+          <Button type="button" variant="outline" asChild>
+            <Link to="/novels/create">手动创建</Link>
+          </Button>
         </div>
-        <Button type="button" variant="outline" asChild>
-          <Link to="/novels/create">手动创建</Link>
-        </Button>
-      </div>
+      ) : null}
 
       {showSummaryBar ? (
         <div className="grid gap-2 md:grid-cols-5">
