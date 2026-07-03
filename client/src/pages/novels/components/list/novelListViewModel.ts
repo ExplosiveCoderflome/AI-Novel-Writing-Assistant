@@ -17,7 +17,7 @@ export type StatusFilter = "all" | "draft" | "published";
 export type WritingModeFilter = "all" | "original" | "continuation";
 export type NovelListTone = "neutral" | "info" | "success" | "warning" | "danger";
 
-export const DIRECTOR_CREATE_LINK = "/novels/create?mode=director";
+export const DIRECTOR_CREATE_LINK = "/novels/auto-director";
 export const MANUAL_CREATE_LINK = "/novels/create";
 export const NOVEL_LIST_PAGE_SIZE = 24;
 

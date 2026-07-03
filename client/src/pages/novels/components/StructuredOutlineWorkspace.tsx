@@ -1,5 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import AiButton from "@/components/common/AiButton";
+import TensionCurvePanel, { type TensionCurveSeries, type TensionCurveViewportOption } from "@/components/tensionCurve/TensionCurvePanel";
+import { TensionCurveEditDialog } from "@/components/tensionCurve/TensionCurveEditDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,6 +133,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   const showJsonPreview = useStructuredOutlineWorkspaceStore(
     (state) => state.workspaces[workspaceId]?.showJsonPreview ?? false,
   );
+  const [tensionCurveDialogOpen, setTensionCurveDialogOpen] = useState(false);
 
   useEffect(() => {
     ensureWorkspace(
@@ -150,6 +153,9 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   }, [defaultChapterId, defaultVolumeId, patchWorkspace, selectedVolumeId, volumes, workspaceId]);
 
   const selectedVolume = volumes.find((volume) => volume.id === selectedVolumeId) ?? volumes[0];
+  const selectedStrategyVolume = selectedVolume
+    ? strategyPlan?.volumes.find((item) => item.sortOrder === selectedVolume.sortOrder) ?? null
+    : null;
   const selectedBeatSheet = selectedVolume ? findBeatSheet(beatSheets, selectedVolume.id) : null;
   const selectedBeat = selectedBeatKey === "all"
     ? null
@@ -186,6 +192,26 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     visibleChapterCount: visibleChapters.length,
     totalChapterCount: selectedVolumeChapters.length,
   });
+  const tensionCurveViewportOptions: TensionCurveViewportOption[] = [
+    { key: "all", label: "整卷" },
+    ...(selectedBeatSheet?.beats.map((beat) => ({ key: beat.key, label: beat.label })) ?? []),
+  ];
+  const tensionCurveSeries: TensionCurveSeries[] = selectedVolume
+    ? [{
+      id: "conflictLevel",
+      label: "冲突强度",
+      color: "#2563eb",
+      editable: true,
+      points: selectedVolumeChapters.map((chapter) => ({
+        id: chapter.id,
+        chapterOrder: chapter.chapterOrder,
+        title: chapter.title || `第${chapter.chapterOrder}章`,
+        value: typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : null,
+        source: chapter.conflictLevelSource ?? "ai",
+        beatKey: findChapterBeat(chapter, selectedBeatSheet, selectedVolumeChapters)?.key ?? null,
+      })),
+    }]
+    : [];
 
   useEffect(() => {
     const beatKeys = new Set(selectedBeatSheet?.beats.map((beat) => beat.key) ?? []);
@@ -267,6 +293,73 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
         <div className="rounded-xl border border-primary/15 bg-primary/5 p-3 text-sm text-foreground">
           {workspaceGuidance}
         </div>
+
+        <TensionCurvePanel
+          title="紧张度曲线"
+          subtitle="查看当前卷冲突强度走向；手动固定点会作为后续拆章、细化和重规划的约束。"
+          series={tensionCurveSeries}
+          viewportOptions={tensionCurveViewportOptions}
+          selectedViewportKey={selectedBeatKey}
+          onViewportChange={(key) => patchWorkspace(workspaceId, { selectedBeatKey: key })}
+          onRequestEdit={() => setTensionCurveDialogOpen(true)}
+        />
+
+        <TensionCurveEditDialog
+          open={tensionCurveDialogOpen}
+          onOpenChange={setTensionCurveDialogOpen}
+          title="编辑紧张度曲线"
+          description="先对照卷级定位和当前节奏段交付，再拖动章节节点调整冲突强度。"
+          series={tensionCurveSeries}
+          viewportOptions={tensionCurveViewportOptions}
+          selectedViewportKey={selectedBeatKey}
+          onViewportChange={(key) => patchWorkspace(workspaceId, { selectedBeatKey: key })}
+          strategyVolume={selectedStrategyVolume}
+          beats={selectedBeatSheet?.beats ?? []}
+          chapters={selectedVolumeChapters.map((chapter) => ({
+            id: chapter.id,
+            chapterId: chapter.chapterId,
+            chapterOrder: chapter.chapterOrder,
+            beatKey: findChapterBeat(chapter, selectedBeatSheet, selectedVolumeChapters)?.key ?? null,
+            title: chapter.title || `第${chapter.chapterOrder}章`,
+            summary: chapter.summary,
+            purpose: chapter.purpose,
+            exclusiveEvent: chapter.exclusiveEvent,
+            conflictLevel: chapter.conflictLevel,
+            conflictLevelSource: chapter.conflictLevelSource ?? "ai",
+          }))}
+          selectedChapterId={selectedChapter?.id ?? selectedChapterId}
+          onSelectChapter={(chapterId) => patchWorkspace(workspaceId, { selectedChapterId: chapterId })}
+          onOpenChapterDetail={(chapterId) => {
+            patchWorkspace(workspaceId, { selectedChapterId: chapterId });
+            setTensionCurveDialogOpen(false);
+          }}
+          onPointChange={(seriesId, chapterId, value) => {
+            if (!selectedVolume || seriesId !== "conflictLevel") {
+              return;
+            }
+            onChapterNumberChange(selectedVolume.id, chapterId, "conflictLevel", value, {
+              conflictLevelSource: "user",
+            });
+          }}
+          onPointRelease={(seriesId, chapterId, value) => {
+            if (!selectedVolume || seriesId !== "conflictLevel") {
+              return;
+            }
+            onChapterNumberChange(selectedVolume.id, chapterId, "conflictLevel", value, {
+              conflictLevelSource: "ai",
+            });
+          }}
+          onPointReleaseMany={(seriesId, points) => {
+            if (!selectedVolume || seriesId !== "conflictLevel") {
+              return;
+            }
+            points.forEach((point) => {
+              onChapterNumberChange(selectedVolume.id, point.pointId, "conflictLevel", point.value, {
+                conflictLevelSource: "ai",
+              });
+            });
+          }}
+        />
 
         {!strategyPlan ? <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">请先在上一阶段生成卷战略建议，再继续当前卷节奏板和拆章。</div> : null}
         {syncMessage ? <div className="text-xs text-muted-foreground">{syncMessage}</div> : null}

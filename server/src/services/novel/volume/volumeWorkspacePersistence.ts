@@ -161,6 +161,10 @@ function toVolumePlanUpdateData(
 }
 
 function toVolumeChapterPlanData(volumeId: string, chapter: VolumeChapterPlan): Prisma.VolumeChapterPlanUncheckedCreateInput {
+  const hasConflictLevel = Object.prototype.hasOwnProperty.call(chapter, "conflictLevel");
+  const conflictLevelSource = hasConflictLevel
+    ? chapter.conflictLevelSource ?? "ai"
+    : chapter.conflictLevelSource ?? null;
   return {
     id: chapter.id,
     volumeId,
@@ -170,6 +174,7 @@ function toVolumeChapterPlanData(volumeId: string, chapter: VolumeChapterPlan): 
     summary: chapter.summary,
     purpose: chapter.purpose ?? null,
     conflictLevel: chapter.conflictLevel ?? null,
+    conflictLevelSource,
     revealLevel: chapter.revealLevel ?? null,
     targetWordCount: chapter.targetWordCount ?? null,
     mustAvoid: chapter.mustAvoid ?? null,
@@ -179,11 +184,62 @@ function toVolumeChapterPlanData(volumeId: string, chapter: VolumeChapterPlan): 
   };
 }
 
+function isExplicitConflictLevelRelease(params: {
+  existingSource?: string | null;
+  existingValue?: number | null;
+  incomingSource?: VolumeChapterPlan["conflictLevelSource"];
+  incomingValue?: number | null;
+  hasConflictLevel: boolean;
+}): boolean {
+  return params.existingSource === "user"
+    && params.incomingSource === "ai"
+    && params.hasConflictLevel
+    && (params.existingValue ?? null) === (params.incomingValue ?? null);
+}
+
+function shouldPreserveUserConflictLevel(params: {
+  existingSource?: string | null;
+  existingValue?: number | null;
+  incomingSource?: VolumeChapterPlan["conflictLevelSource"];
+  incomingValue?: number | null;
+  hasConflictLevel: boolean;
+  hasConflictLevelSource: boolean;
+}): boolean {
+  const hasConflictPatch = params.hasConflictLevel || params.hasConflictLevelSource;
+  return params.existingSource === "user"
+    && params.incomingSource !== "user"
+    && hasConflictPatch
+    && !isExplicitConflictLevelRelease(params);
+}
+
 function toVolumeChapterPlanUpdateData(
   volumeId: string,
   chapter: VolumeChapterPlan,
+  existingChapter?: ExistingVolumeWorkspaceRow["chapters"][number],
 ): Prisma.VolumeChapterPlanUncheckedUpdateInput {
-  const { id: _id, ...data } = toVolumeChapterPlanData(volumeId, chapter);
+  const { id: _id, conflictLevel, conflictLevelSource, ...baseData } = toVolumeChapterPlanData(volumeId, chapter);
+  const data: Prisma.VolumeChapterPlanUncheckedUpdateInput = baseData;
+  const hasConflictLevel = Object.prototype.hasOwnProperty.call(chapter, "conflictLevel");
+  const hasConflictLevelSource = Object.prototype.hasOwnProperty.call(chapter, "conflictLevelSource");
+  const incomingSource = hasConflictLevel ? chapter.conflictLevelSource ?? "ai" : chapter.conflictLevelSource ?? null;
+  const preserveUserConflictLevel = shouldPreserveUserConflictLevel({
+    existingSource: existingChapter?.conflictLevelSource,
+    existingValue: existingChapter?.conflictLevel,
+    incomingSource,
+    incomingValue: chapter.conflictLevel ?? null,
+    hasConflictLevel,
+    hasConflictLevelSource,
+  });
+  if (hasConflictLevel) {
+    if (!preserveUserConflictLevel) {
+      data.conflictLevel = conflictLevel;
+      data.conflictLevelSource = incomingSource;
+    }
+  } else if (hasConflictLevelSource) {
+    if (!preserveUserConflictLevel) {
+      data.conflictLevelSource = conflictLevelSource;
+    }
+  }
   return data;
 }
 
@@ -212,6 +268,7 @@ type ExistingVolumeWorkspaceRow = Prisma.VolumePlanGetPayload<{
         summary: true;
         purpose: true;
         conflictLevel: true;
+        conflictLevelSource: true;
         revealLevel: true;
         targetWordCount: true;
         mustAvoid: true;
@@ -251,13 +308,33 @@ function isChapterRowCurrent(
   volumeId: string,
   chapter: VolumeChapterPlan,
 ): boolean {
+  const hasConflictLevel = Object.prototype.hasOwnProperty.call(chapter, "conflictLevel");
+  const hasConflictLevelSource = Object.prototype.hasOwnProperty.call(chapter, "conflictLevelSource");
+  const incomingSource = hasConflictLevel ? chapter.conflictLevelSource ?? "ai" : chapter.conflictLevelSource ?? null;
+  const preserveUserConflictLevel = shouldPreserveUserConflictLevel({
+    existingSource: row.conflictLevelSource,
+    existingValue: row.conflictLevel,
+    incomingSource,
+    incomingValue: chapter.conflictLevel ?? null,
+    hasConflictLevel,
+    hasConflictLevelSource,
+  });
   return row.volumeId === volumeId
     && sameNullableText(row.chapterId, chapter.chapterId)
     && row.chapterOrder === chapter.chapterOrder
     && row.title === chapter.title
     && row.summary === chapter.summary
     && sameNullableText(row.purpose, chapter.purpose)
-    && (row.conflictLevel ?? null) === (chapter.conflictLevel ?? null)
+    && (
+      preserveUserConflictLevel
+      || !hasConflictLevel
+      || (row.conflictLevel ?? null) === (chapter.conflictLevel ?? null)
+    )
+    && (
+      preserveUserConflictLevel
+      || (!hasConflictLevel && !hasConflictLevelSource)
+      || sameNullableText(row.conflictLevelSource, incomingSource)
+    )
     && (row.revealLevel ?? null) === (chapter.revealLevel ?? null)
     && (row.targetWordCount ?? null) === (chapter.targetWordCount ?? null)
     && sameNullableText(row.mustAvoid, chapter.mustAvoid)
@@ -349,6 +426,7 @@ export async function persistActiveVolumeWorkspace(
           summary: true,
           purpose: true,
           conflictLevel: true,
+          conflictLevelSource: true,
           revealLevel: true,
           targetWordCount: true,
           mustAvoid: true,
@@ -394,7 +472,7 @@ export async function persistActiveVolumeWorkspace(
       } else if (shouldParkOrders || !isChapterRowCurrent(existingChapter, volume.id, chapter)) {
         await tx.volumeChapterPlan.update({
           where: { id: chapter.id },
-          data: toVolumeChapterPlanUpdateData(volume.id, chapter),
+          data: toVolumeChapterPlanUpdateData(volume.id, chapter, existingChapter),
         });
       }
     }

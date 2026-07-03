@@ -1,4 +1,5 @@
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   DIRECTOR_CORRECTION_PRESETS,
   type DirectorCandidate,
@@ -82,6 +83,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
     onConfirmCandidate,
     onGenerateNext,
   } = props;
+  const reducedMotion = useReducedMotion();
 
   if (batches.length === 0) {
     return (
@@ -93,8 +95,14 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
 
   return (
     <div className="space-y-4">
-      {batches.map((batch) => (
-        <section key={batch.id} className="min-w-0 overflow-hidden rounded-xl border p-3 sm:p-4">
+      {batches.map((batch, batchIndex) => (
+        <motion.section
+          key={batch.id}
+          initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reducedMotion ? 0 : 0.18, delay: reducedMotion ? 0 : batchIndex * 0.04 }}
+          className="min-w-0 overflow-hidden rounded-xl border p-3 sm:p-4"
+        >
           <div className="flex flex-col gap-2 border-b pb-3 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0">
               <div className="break-words text-base font-semibold text-foreground [overflow-wrap:anywhere]">{batch.roundLabel}</div>
@@ -111,10 +119,19 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
           </div>
 
           <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-2">
-            {batch.candidates.map((candidate) => {
+            {batch.candidates.map((candidate, candidateIndex) => {
               const titleOptions = resolveCandidateTitleOptions(candidate);
               return (
-                <article key={candidate.id} className="min-w-0 overflow-hidden rounded-xl border bg-background p-3 shadow-sm sm:p-4">
+                <motion.article
+                  key={candidate.id}
+                  initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: reducedMotion ? 0 : 0.18,
+                    delay: reducedMotion ? 0 : candidateIndex * 0.06,
+                  }}
+                  className="min-w-0 overflow-hidden rounded-xl border bg-background p-3 shadow-sm sm:p-4"
+                >
                   <div className="space-y-2">
                     <div className="break-words text-lg font-semibold text-foreground [overflow-wrap:anywhere]">{candidate.workingTitle}</div>
                     <div className="break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">{candidate.logline}</div>
@@ -221,11 +238,11 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                       {isConfirming ? "正在进入导演流程..." : "选用这套并创建项目"}
                     </Button>
                   </div>
-                </article>
+                </motion.article>
               );
             })}
           </div>
-        </section>
+        </motion.section>
       ))}
 
       <section className="min-w-0 rounded-xl border border-dashed p-3 sm:p-4">

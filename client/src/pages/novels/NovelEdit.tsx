@@ -2270,6 +2270,7 @@ export default function NovelEdit() {
   });
 
   const goToCharacterTab = () => setActiveTab("character");
+  const goToStructuredTab = () => setActiveTab("structured");
   const {
     generateChapterPlanMutation,
     replanChapterMutation,
@@ -2384,6 +2385,7 @@ export default function NovelEdit() {
     isGeneratingSkeleton,
     onGenerateSkeleton: startSkeletonGeneration,
     onGoToCharacterTab: goToCharacterTab,
+    onGoToStructuredTab: goToStructuredTab,
     latestStateSnapshot,
     payoffLedger,
     characterResources,

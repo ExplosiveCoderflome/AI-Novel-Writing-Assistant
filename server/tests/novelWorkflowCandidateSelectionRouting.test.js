@@ -16,7 +16,7 @@ const {
   normalizeWorkflowResumeTargetForCandidateSelection,
 } = require("../dist/services/task/adapters/NovelWorkflowTaskAdapter.js");
 
-test("candidate-selection tasks always resolve back to the director create page", () => {
+test("candidate-selection tasks always resolve back to the auto-director create page", () => {
   const resumeTarget = normalizeWorkflowResumeTargetForCandidateSelection({
     id: "task_candidate_selection",
     checkpointType: "candidate_selection_required",
@@ -36,7 +36,7 @@ test("candidate-selection tasks always resolve back to the director create page"
 
   assert.equal(
     resumeTargetToRoute(resumeTarget),
-    "/novels/create?workflowTaskId=task_candidate_selection&mode=director",
+    "/novels/auto-director?taskId=task_candidate_selection",
   );
 });
 
@@ -185,7 +185,7 @@ test("bootstrapTask rejects workflowTaskId reuse across workflow lanes", async (
   }
 });
 
-test("recordCandidateSelectionRequired rewrites stale resume targets back to create flow", async () => {
+test("recordCandidateSelectionRequired rewrites stale resume targets back to auto-director flow", async () => {
   const service = new NovelWorkflowService();
   const originalGetVisibleRowById = service.getVisibleRowById;
   const originalUpdate = prisma.novelWorkflowTask.update;
@@ -214,7 +214,7 @@ test("recordCandidateSelectionRequired rewrites stale resume targets back to cre
 
     assert.equal(
       resumeTargetToRoute(JSON.parse(capturedResumeTargetJson)),
-      "/novels/create?workflowTaskId=task_candidate_checkpoint&mode=director",
+      "/novels/auto-director?taskId=task_candidate_checkpoint",
     );
   } finally {
     service.getVisibleRowById = originalGetVisibleRowById;

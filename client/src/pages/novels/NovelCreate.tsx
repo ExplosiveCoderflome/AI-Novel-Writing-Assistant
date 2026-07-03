@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
@@ -10,7 +9,7 @@ import { queryKeys } from "@/api/queryKeys";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { getWorldList } from "@/api/world";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import NovelAutoDirectorDialog from "./components/NovelAutoDirectorDialog";
+import { Button } from "@/components/ui/button";
 import NovelBasicInfoForm from "./components/NovelBasicInfoForm";
 import NovelCreateResourceRecommendationCard from "./components/NovelCreateResourceRecommendationCard";
 import { BookFramingQuickFillButton } from "./components/basicInfoForm/BookFramingQuickFillButton";
@@ -27,8 +26,6 @@ export default function NovelCreate() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
-  const [restoredWorkflowTask, setRestoredWorkflowTask] = useState<UnifiedTaskDetail | null>(null);
-  const [directorWorkflowTaskId, setDirectorWorkflowTaskId] = useState("");
 
   const workflowTaskIdFromQuery = searchParams.get("workflowTaskId") ?? "";
   const workflowMode = searchParams.get("mode");
@@ -83,14 +80,24 @@ export default function NovelCreate() {
     sourceNovelBookAnalysisOptions,
   ]);
 
+  useEffect(() => {
+    if (workflowMode !== "director") {
+      return;
+    }
+    const params = new URLSearchParams();
+    if (workflowTaskIdFromQuery) {
+      params.set("taskId", workflowTaskIdFromQuery);
+    }
+    navigate(`/novels/auto-director${params.toString() ? `?${params.toString()}` : ""}`, { replace: true });
+  }, [navigate, workflowMode, workflowTaskIdFromQuery]);
+
   const restoreWorkflowMutation = useMutation({
     mutationFn: () => bootstrapNovelWorkflow({
       workflowTaskId: workflowTaskIdFromQuery || undefined,
-      lane: workflowMode === "director" ? "auto_director" : "manual_create",
+      lane: "manual_create",
     }),
     onSuccess: (response) => {
       const task = response.data;
-      setRestoredWorkflowTask(task ?? null);
       if (!task) {
         return;
       }
@@ -98,16 +105,10 @@ export default function NovelCreate() {
       if (seedPayload?.basicForm) {
         setBasicForm((prev) => patchNovelBasicForm(prev, seedPayload.basicForm ?? {}));
       }
-      if (workflowMode === "director") {
-        setDirectorWorkflowTaskId(task.id);
-      }
       if (task.id !== workflowTaskIdFromQuery) {
         setSearchParams((prev) => {
           const next = new URLSearchParams(prev);
           next.set("workflowTaskId", task.id);
-          if (workflowMode === "director") {
-            next.set("mode", "director");
-          }
           return next;
         }, { replace: true });
       }
@@ -115,11 +116,7 @@ export default function NovelCreate() {
   });
 
   useEffect(() => {
-    if (!workflowTaskIdFromQuery) {
-      setRestoredWorkflowTask(null);
-      if (workflowMode !== "director") {
-        setDirectorWorkflowTaskId("");
-      }
+    if (!workflowTaskIdFromQuery || workflowMode === "director") {
       return;
     }
     restoreWorkflowMutation.mutate();
@@ -208,38 +205,9 @@ export default function NovelCreate() {
               />
             )}
             projectQuickStart={(
-              <NovelAutoDirectorDialog
-                basicForm={basicForm}
-                genreOptions={genreOptions}
-                worldOptions={worldListQuery.data?.data ?? []}
-                workflowTaskId={directorWorkflowTaskId}
-                restoredTask={restoredWorkflowTask}
-                initialOpen={workflowMode === "director"}
-                onBasicFormChange={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
-                onWorkflowTaskChange={(taskId) => {
-                  setDirectorWorkflowTaskId(taskId);
-                  setSearchParams((prev) => {
-                    const next = new URLSearchParams(prev);
-                    next.set("workflowTaskId", taskId);
-                    next.set("mode", "director");
-                    return next;
-                  }, { replace: true });
-                }}
-                onConfirmed={({ novelId, workflowTaskId, resumeTarget }) => {
-                  const search = new URLSearchParams();
-                  search.set("stage", resumeTarget?.stage ?? "story_macro");
-                  if (workflowTaskId) {
-                    search.set("directorTaskId", workflowTaskId);
-                  }
-                  if (resumeTarget?.chapterId) {
-                    search.set("chapterId", resumeTarget.chapterId);
-                  }
-                  if (resumeTarget?.volumeId) {
-                    search.set("volumeId", resumeTarget.volumeId);
-                  }
-                  navigate(`/novels/${novelId}/edit?${search.toString()}`);
-                }}
-              />
+              <Button type="button" variant="outline" size="sm" asChild>
+                <Link to="/novels/auto-director">AI 自动导演创建</Link>
+              </Button>
             )}
             titleQuickFill={(
               <NovelCreateTitleQuickFill

@@ -91,6 +91,7 @@ interface BuildNovelEditPlanningTabsInput {
   isGeneratingSkeleton: boolean;
   onGenerateSkeleton: () => void;
   onGoToCharacterTab: () => void;
+  onGoToStructuredTab: () => void;
   latestStateSnapshot?: OutlineTabViewProps["latestStateSnapshot"];
   payoffLedger?: OutlineTabViewProps["payoffLedger"];
   characterResources?: OutlineTabViewProps["characterResources"];
@@ -221,6 +222,7 @@ export function buildNovelEditPlanningTabs(input: BuildNovelEditPlanningTabsInpu
     isGeneratingSkeleton: input.isGeneratingSkeleton,
     onGenerateSkeleton: input.onGenerateSkeleton,
     onGoToCharacterTab: input.onGoToCharacterTab,
+    onGoToStructuredTab: input.onGoToStructuredTab,
     latestStateSnapshot: input.latestStateSnapshot,
     payoffLedger: input.payoffLedger,
     characterResources: input.characterResources,

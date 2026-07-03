@@ -149,11 +149,11 @@ test("auto director follow-up service lists recent auto-approved records in auto
       updatedAt: new Date("2026-04-21T09:00:00.000Z"),
     }),
   ]);
-  prisma.autoDirectorAutoApprovalRecord.findMany = async ({ where, take }) => {
+  prisma.autoDirectorAutoApprovalRecord.findMany = async ({ where, orderBy }) => {
     assert.deepEqual(where, {
-      novelId: "novel_a",
+      novelId: { in: ["novel_a"] },
     });
-    assert.equal(take, 10);
+    assert.deepEqual(orderBy, [{ createdAt: "desc" }, { id: "desc" }]);
     return [
       {
         id: "auto_approval_1",
@@ -559,7 +559,7 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
       heartbeatAt: "2026-04-21T08:30:00.000Z",
       ownerId: "novel_detail",
       ownerLabel: "《雾港巡夜人》",
-      sourceRoute: "/novels/create?workflowTaskId=task_detail&mode=director",
+      sourceRoute: "/novels/auto-director?taskId=task_detail",
       checkpointType: "candidate_selection_required",
       checkpointSummary: "请先确认书级方向。",
       resumeTarget: {
@@ -615,7 +615,7 @@ test("auto director follow-up service detail reuses workflow detail and adds fol
     assert.equal(detail.followUpSummary, "请先确认书级方向。");
     assert.equal(detail.currentModel, "anthropic/claude-sonnet-4-6");
     assert.equal(detail.originDetailUrl, "/tasks?kind=novel_workflow&id=task_detail");
-    assert.equal(detail.candidateSelectionUrl, "/novels/create?workflowTaskId=task_detail&mode=director");
+    assert.equal(detail.candidateSelectionUrl, "/novels/auto-director?taskId=task_detail");
     assert.equal(detail.replanUrl, null);
     assert.deepEqual(detail.channelDeliveries, [{
       channelType: "dingtalk",

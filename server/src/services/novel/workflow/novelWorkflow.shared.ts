@@ -72,6 +72,14 @@ export function resumeTargetToRoute(target: NovelWorkflowResumeTarget | null | u
     return "/tasks";
   }
   if (target.route === "/novels/create") {
+    if (target.mode === "director") {
+      const searchParams = new URLSearchParams();
+      if (target.taskId) {
+        searchParams.set("taskId", target.taskId);
+      }
+      const query = searchParams.toString();
+      return query ? `/novels/auto-director?${query}` : "/novels/auto-director";
+    }
     const searchParams = new URLSearchParams();
     if (target.taskId) {
       searchParams.set("workflowTaskId", target.taskId);

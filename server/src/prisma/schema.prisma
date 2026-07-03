@@ -1725,6 +1725,7 @@ model VolumeChapterPlan {
   summary         String
   purpose         String?
   conflictLevel   Int?
+  conflictLevelSource String?
   revealLevel     Int?
   targetWordCount Int?
   mustAvoid       String?
