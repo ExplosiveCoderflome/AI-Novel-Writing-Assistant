@@ -57,35 +57,74 @@
 - 不在本方案内改动重规划的窗口决策算法本身，只是把锚定值作为约束输入。
 - 不做跨卷的整本级曲线（第一期视窗最大到单卷）。
 
-## 分步执行计划（文件层级）
+## 执行前已核实的数据链路事实
+
+以下事实已在代码中确认，方案基于它们展开：
+
+- Prisma 模型：`server/src/prisma/schema.prisma` 中 `VolumeChapterPlan`（约 1719 行起）与 `Chapter`（约 491 行附近）**两张表都持有 `conflictLevel Int?`**，量纲为 **0–100**（HTTP schema 约束 `min(0).max(100)`）。规划态真源是 `VolumeChapterPlan`，`Chapter` 上的值经同步链（`server/src/services/novel/volume/VolumeChapterSyncService.ts` / `ChapterExecutionContractService.ts`）流向执行态。
+- HTTP 入参：`server/src/modules/novel/http/novelHttpSchemas.ts` 的 `volumeChapterSchema`（卷工作区保存，72 行附近）与 `updateChapterSchema`（章节更新，225 行附近）均已接受 `conflictLevel`。
+- 规划落库：`server/src/services/novel/volume/volumeWorkspacePersistence.ts` 是 `volumeChapterPlan.update` 的写入点。
+- 重规划：`server/src/services/planner/PlannerService.ts` + `server/src/services/planner/ReplanWindowDecisionService.ts`；即时章节规划走 `server/src/services/novel/planning/ChapterPlanJITService.ts`。
+- Prompt 消费：`server/src/prompting/prompts/novel/volume/shared.ts`（421–440 行附近）已把 `conflict level` 注入章节细化与任务单上下文。
+- 前端：节奏拆章工作台在 `client/src/pages/novels/components/StructuredOutlineTab.tsx` / `StructuredOutlineWorkspace.tsx` / `StructuredChapterListCard.tsx`，编辑草稿态在 `client/src/pages/novels/hooks/useNovelVolumePlanning.draft.ts`，客户端 API 在 `client/src/api/novel/chapters.ts`（已含 `conflictLevel` 字段）。
+
+## 分步执行方案（文件层级）
 
 ### Part A：锚定语义与数据层
 
-- `shared/types/novel.ts`：为章节规划补充冲突强度来源标记（用户锚定 / AI 生成）的类型表达。
-- `server/prisma/schema.prisma` + migration：`VolumeChapterPlan` 对应表补充来源标记字段（或等价的锚定记录方式，以最小迁移成本为准）。
-- `server/src/modules/novel/http/novelHttpSchemas.ts` 与对应章节规划更新路由：更新接口接受 `conflictLevel` 与锚定标记的写入。
+1. `shared/types/novel.ts`
+   - `VolumeChapterPlan` 接口新增可选字段 `conflictLevelSource?: "ai" | "user" | null`（命名以实现时统一为准，下同）。
+2. `server/src/prisma/schema.prisma` + `prisma migrate`
+   - 仅 `VolumeChapterPlan` 表新增来源标记列（String? 或等价枚举），默认 null 视作 "ai"。**不动 `Chapter` 表**——执行态只消费值，不需要锚定语义。
+3. `server/src/modules/novel/http/novelHttpSchemas.ts`
+   - `volumeChapterSchema` 新增可选的来源标记入参；`updateChapterSchema` 不动。
+4. `server/src/services/novel/volume/volumeWorkspacePersistence.ts`
+   - 写入链透传来源标记；**关键规则**：请求显式携带 `conflictLevel` 且标记为 user 时落 "user"；AI 生成路径落 "ai"；未携带则保留 DB 现值（对齐 PR #78 的 hasOwnProperty 判断模式，避免静默覆盖）。
+5. 映射层（`legacyVolumeSource.ts` / `volumeDraftContext.ts` 等 row→DTO 处）
+   - 读取链带出来源标记，前端可见。
+
+Part A 验证：`server` 与 `shared` typecheck；migration 可前滚；新增单测覆盖"显式 user 值不被 AI 路径覆盖 / 未携带字段不改变现值"。
 
 ### Part B：生成与重规划链路尊重锚定
 
-- `server/src/prompting/prompts/novel/volume/chapterDetail.prompts.ts`、`server/src/prompting/prompts/novel/volume/shared.ts`：章节细化 prompt 注入锚定值硬约束与前后章走势描述。
-- 重规划链路（replan window 相关服务）：重规划时携带窗口内锚定值清单，作为不可更改约束传入；重规划落库时保留锚定标记不被覆盖。
-- 拆章生成（`server/src/services/novel/volume/volumeChapterListGeneration.ts`）：重新拆章场景下对已锚定章节的处理策略（保留值或显式提示用户）。
+1. `server/src/services/novel/volume/volumeChapterListGeneration.ts`
+   - 重新拆章时：对已存在且 `conflictLevelSource = "user"` 的章节，生成后回写阶段保留用户值与标记；prompt 侧把锚定章节的值作为已知约束注入（含章节序号与目标值清单）。
+2. `server/src/prompting/prompts/novel/volume/chapterDetail.prompts.ts` + `shared.ts`
+   - 章节细化上下文中锚定章节的 conflict level 标注为"用户指定，不可更改"；同时补充相对前后章的走势描述（升/降/持平），无论锚定与否都注入。
+3. 重规划链路（`server/src/services/planner/PlannerService.ts` 消费侧 + 重规划落库处）
+   - 重规划窗口内的锚定值清单作为硬约束进入重规划 prompt；落库时对 user 标记章节保留原值原标记。**不改 `ReplanWindowDecisionService` 的窗口决策算法**。
+4. `server/src/services/novel/volume/VolumeChapterSyncService.ts`
+   - 确认规划→执行同步仍单向传值，锚定标记不进入 `Chapter` 表。
+
+Part B 验证：新增专项测试文件（`server/tests/` 下，如 `tensionCurveAnchoring.test.js`）——覆盖"重新拆章不覆盖 user 锚定 / 重规划落库保留锚定 / prompt 文本含锚定约束与走势描述"三类断言；回归跑 `novelDirectorRecovery` / `directorWorkflowStepCatalog` 等既有守卫测试确认零影响。
 
 ### Part C：曲线组件与工作台集成
 
-- `client/src/components/`（新增曲线组件目录）：多序列曲线组件，支持拖点编辑、锚定点视觉区分、beat 分段背景着色、参考形状虚线。
-- `client/src/pages/novels/`（节奏 / 拆章工作台相关页面与 hooks）：接入曲线，视窗切换（整卷 / 单 beat），拖动保存走既有章节规划更新 hook。
-- 卷战略页：只读缩略曲线视图。
+1. `client/src/components/tensionCurve/`（新目录）
+   - 多序列曲线组件：X 轴章节序号、Y 轴 0–100；拖点编辑、锚定点与 AI 点视觉区分、beat 分段背景着色、参考形状虚线。props 按序列数组设计（第一期只传 conflictLevel 一条）。
+2. `client/src/pages/novels/components/StructuredOutlineTab.tsx`（或 `StructuredOutlineWorkspace.tsx`，以现有布局为准）
+   - 接入曲线区块；视窗切换（整卷 / 单 beat，beat 归属取自章节 `beatKey`）。
+3. `client/src/pages/novels/hooks/useNovelVolumePlanning.draft.ts` + `client/src/api/novel/chapters.ts`
+   - 拖动落点写入草稿态并标记 user 来源，保存走既有卷工作区保存链路；不新增独立保存接口。
+4. 卷战略页（`client/src/pages/novels/` 对应组件）
+   - 只读缩略曲线（复用同一组件的 readonly 模式）。
 
-### Part D：形状体检与参考模板
+Part C 验证：client typecheck + build；UI 交互验收按项目规范留给用户执行。
 
-- 前端启发式形状体检（平坝 / 峰值位置 / beat 内起伏）与提示呈现。
-- 题材参考形状模板常量与选择入口。
+### Part D：形状体检与参考模板（第一期可顺延）
+
+1. `client/src/components/tensionCurve/`（同目录内独立文件）
+   - 纯前端启发式：连续 N 章持平提示"节奏平坝"、卷末峰值缺失提示、beat 内零起伏提示。
+2. 题材参考形状模板常量（升级流 / 悬疑流等）与叠加显示入口。
+
+### 执行顺序与门禁
+
+A → B → C → D 严格顺序；**B 未通过专项测试前不开始 C**（防止"曲线能拖但 AI 不理"的半成品状态）。每个 Part 完成后独立提交，B 完成时更新 release notes（用户可见行为自 B 起变化：锚定值开始约束生成）。
 
 ## 验收维度
 
 按方案协作规范从三个维度验收：
 
-- **符合度**:曲线数据是否完全来自既有 `conflictLevel` 链路，锚定语义是否贯穿"编辑—细化—重规划—正文生成"全链。
+- **符合度**:曲线数据是否完全来自既有 `conflictLevel` 链路（0–100 量纲不变、不新增平行数据源）；锚定语义是否贯穿"编辑—拆章—细化—重规划—正文生成"全链；`Chapter` 表是否保持无锚定语义。
 - **完成度**：Part A–C 为第一期必须项，Part D 可作为第一期收尾或顺延。
-- **风险性**：重点回归重规划链路（锚定约束不得破坏既有窗口决策）、章节规划更新接口兼容性、以及"用户锚定被自动链路覆盖"的专项测试。
+- **风险性**：重点回归重规划链路（锚定约束不得改变窗口决策行为）、卷工作区保存接口兼容性（未携带字段不得改变现值）、以及"用户锚定被自动链路覆盖"的专项测试是否真实覆盖拆章与重规划两条覆盖路径。
