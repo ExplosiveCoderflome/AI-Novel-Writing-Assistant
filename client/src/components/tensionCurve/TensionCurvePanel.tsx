@@ -3,7 +3,14 @@ import { LockKeyhole, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import {
+  analyzeTensionCurveShape,
+  buildReferenceCurveValues,
+  tensionCurveReferenceTemplates,
+} from "./tensionCurveAnalysis";
 
 export interface TensionCurvePoint {
   id: string;
@@ -105,6 +112,8 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
     onPointChange,
   } = props;
   const [activePoint, setActivePoint] = useState<{ seriesId: string; pointId: string } | null>(null);
+  const [showReferenceCurve, setShowReferenceCurve] = useState(false);
+  const [referenceTemplateKey, setReferenceTemplateKey] = useState(tensionCurveReferenceTemplates[0]?.key ?? "escalation");
 
   const filteredSeries = useMemo(() => series.map((item) => ({
     ...item,
@@ -115,6 +124,13 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
   const primaryPoints = filteredSeries[0]?.points ?? [];
   const editable = !readonly && Boolean(onPointChange);
   const userAnchorCount = primaryPoints.filter((point) => point.source === "user").length;
+  const shapeHints = useMemo(() => analyzeTensionCurveShape(primaryPoints), [primaryPoints]);
+  const referenceTemplate = tensionCurveReferenceTemplates.find((template) => template.key === referenceTemplateKey)
+    ?? tensionCurveReferenceTemplates[0];
+  const referenceValues = useMemo(
+    () => referenceTemplate ? buildReferenceCurveValues(referenceTemplate, primaryPoints.length) : [],
+    [primaryPoints.length, referenceTemplate],
+  );
 
   function updateActivePoint(event: PointerEvent<SVGSVGElement>) {
     if (!activePoint || !onPointChange) {
@@ -149,6 +165,31 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
                 {option.label}
               </Button>
             ))}
+            {primaryPoints.length > 1 ? (
+              <div className="flex items-center gap-2 rounded-md border border-border/70 px-2 py-1">
+                <span className="text-xs text-muted-foreground">参考线</span>
+                <Switch
+                  checked={showReferenceCurve}
+                  onCheckedChange={setShowReferenceCurve}
+                  aria-label="显示紧张度参考线"
+                  className="h-5 w-9"
+                />
+                {showReferenceCurve ? (
+                  <Select value={referenceTemplateKey} onValueChange={setReferenceTemplateKey}>
+                    <SelectTrigger className="h-8 w-[92px] rounded-md px-2 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tensionCurveReferenceTemplates.map((template) => (
+                        <SelectItem key={template.key} value={template.key}>
+                          {template.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
       </CardHeader>
@@ -180,6 +221,19 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
                 </text>
               </g>
             ))}
+
+            {showReferenceCurve && referenceValues.length > 1 ? (
+              <polyline
+                points={referenceValues.map((value, index) => `${pointX(index, referenceValues.length)},${pointY(value)}`).join(" ")}
+                fill="none"
+                stroke="#64748b"
+                strokeDasharray="8 7"
+                strokeWidth="2"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                opacity="0.8"
+              />
+            ) : null}
 
             {filteredSeries.map((item) => (
               <g key={item.id}>
@@ -248,6 +302,17 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
           </svg>
         </div>
 
+        {shapeHints.length > 0 ? (
+          <div className="grid gap-2 md:grid-cols-3">
+            {shapeHints.map((hint) => (
+              <div key={hint.key} className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <div className="font-medium">{hint.label}</div>
+                <div className="mt-1 leading-5">{hint.detail}</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           {filteredSeries.map((item) => (
             <span key={item.id} className="inline-flex items-center gap-1.5">
@@ -263,6 +328,12 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
             <span className="inline-flex items-center gap-1.5">
               <LockKeyhole className="h-3.5 w-3.5" aria-hidden="true" />
               当前视图不会改动草稿
+            </span>
+          ) : null}
+          {showReferenceCurve && referenceTemplate ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-px w-5 border-t border-dashed border-slate-500" />
+              {referenceTemplate.label}参考
             </span>
           ) : null}
         </div>
