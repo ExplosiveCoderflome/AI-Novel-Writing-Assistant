@@ -29,7 +29,7 @@ export default function Navbar(props: NavbarProps) {
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="min-w-0 truncate text-sm font-semibold">AI 小说创作工作台</span>
             <AppVersionBadge />
-            <ProjectGithubLink className="h-5 w-5" />
+            <ProjectGithubLink />
           </div>
           <span className="hidden truncate text-[11px] text-muted-foreground sm:block">AI Novel Production Engine</span>
         </div>

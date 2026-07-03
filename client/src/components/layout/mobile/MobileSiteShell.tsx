@@ -71,7 +71,7 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
                 <div className="truncate text-[11px] text-muted-foreground">{pageTitle}</div>
               </div>
             </Link>
-            <ProjectGithubLink className="h-5 w-5" />
+            <ProjectGithubLink />
           </div>
           <div className="flex items-center gap-2">
             <Button asChild size="sm" className="h-8 px-3">
