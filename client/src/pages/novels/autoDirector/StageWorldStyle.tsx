@@ -74,14 +74,14 @@ export default function StageWorldStyle({
           </div>
         </div>
 
-        <div className="rounded-lg bg-muted/20 px-4 py-5 sm:px-5">
+        <div className="space-y-3 pt-2">
           <div className="text-sm font-medium text-foreground">本书世界处理</div>
           {selectedWorld ? (
-            <div className={`mt-2 text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+            <div className={`text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               自动导演会参考「{selectedWorld.name}」这个世界样本，并在角色准备前整理可用于本书的世界约束。
             </div>
           ) : (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 className={`rounded-lg px-4 py-4 text-left transition ring-1 ${
@@ -133,7 +133,7 @@ export default function StageWorldStyle({
             {selectedStyleSummary?.stageSummaryLines[0] ?? "有沉淀好的写法资产时，建议直接选一套，帮助你更清楚地预期导演会怎样写。"}
           </div>
           {selectedStyleSummary?.stageSummaryLines.length ? (
-            <div className={`rounded-lg bg-muted/20 px-4 py-3 text-xs leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+            <div className={`pt-1 text-xs leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               这套写法会影响后续章节的语气和节奏：{selectedStyleSummary.stageSummaryLines.join("；")}
             </div>
           ) : null}

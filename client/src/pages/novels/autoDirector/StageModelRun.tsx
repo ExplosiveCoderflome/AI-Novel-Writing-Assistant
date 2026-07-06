@@ -115,7 +115,7 @@ export default function StageModelRun({
           </div>
 
           {runMode === "auto_to_execution" ? (
-            <div className="space-y-4 rounded-lg bg-muted/20 px-4 py-5 sm:px-5">
+            <div className="space-y-4 pt-2">
               <div>
                 <div className="text-sm font-medium text-foreground">执行范围与自动确认</div>
                 <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
@@ -139,32 +139,30 @@ export default function StageModelRun({
             </div>
           ) : null}
           {runMode === "full_book_autopilot" ? (
-            <div className={`rounded-lg bg-muted/20 px-4 py-4 text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+            <div className={`space-y-1 pt-2 text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               <div className="font-medium text-foreground">全书自动成书</div>
-              <div className="mt-1">
+              <div>
                 系统会以整本书为目标完成规划、拆章、正文生成、审校和修复。只有模型不可用、服务异常、正文保护或不可恢复风险会停下。
               </div>
             </div>
           ) : null}
         </div>
 
-        <div className="rounded-lg bg-muted/20 px-4 py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-1">
-              <div className="text-sm font-medium text-foreground">正文后去 AI 检测与修正</div>
-              <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
-              </div>
+        <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <div className="text-sm font-medium text-foreground">正文后去 AI 检测与修正</div>
+            <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+              开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
             </div>
-            <Switch
-              aria-label="正文后去 AI 检测与修正"
-              checked={basicForm.postGenerationStyleReviewEnabled}
-              onCheckedChange={(checked) => onBasicFormChange({ postGenerationStyleReviewEnabled: checked })}
-            />
           </div>
+          <Switch
+            aria-label="正文后去 AI 检测与修正"
+            checked={basicForm.postGenerationStyleReviewEnabled}
+            onCheckedChange={(checked) => onBasicFormChange({ postGenerationStyleReviewEnabled: checked })}
+          />
         </div>
 
-        <details className="group rounded-lg bg-muted/20 px-4 py-4 sm:px-5">
+        <details className="group pt-1">
           <summary className="cursor-pointer list-none">
             <div className="text-sm font-medium text-foreground">模型设置</div>
             <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>

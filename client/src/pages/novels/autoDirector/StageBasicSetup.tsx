@@ -154,7 +154,7 @@ export default function StageBasicSetup({
         </div>
       </div>
 
-      <details className="group rounded-lg bg-muted/20 px-4 py-4 sm:px-5">
+      <details className="group pt-2">
         <summary className="cursor-pointer list-none">
           <div>
             <div className="text-base font-semibold text-foreground">补充读者与卖点</div>
