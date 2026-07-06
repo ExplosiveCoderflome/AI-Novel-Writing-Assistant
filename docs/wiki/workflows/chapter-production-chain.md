@@ -32,6 +32,9 @@
 - 章节合同和 sceneCards 可作为规划、审校、诊断和局部修复辅助资产，不驱动默认正文生成。
 - 正文生成前只做最低可写性检查：章节存在、人物可用、上下文包可组装、任务目标可解释。
 - 生成后用一次结构化接收闸门判断是否可继续、是否需要局部修文、是否需要人工确认。
+- 接收闸门通过后、构建运行包前，会对最终正文执行一次确定性正文自然度/退化检测。该检测只做本地文本规则检查，覆盖 AI 自述、占位符、工程词泄漏、截断、复读、破折号/省略号、否定翻转句、碎句和长段落等风险；它不调用 LLM，也不改变正文。
+- 正文自然度/退化检测输出统一进入 `mode_fit` 审计报告，issue code 使用 `prose_*` 前缀。`high/critical` 视为本章阻塞审计问题并复用现有 patch repair / heavy repair 链路；`medium/low` 只作为提示和后续局部优化依据，不触发全章重写。
+- `prose_*` 问题默认属于本章局部质量问题。自动修复耗尽后，如果正文仍可读，应登记 `defer_and_continue` 质量债并继续剩余章节；不得仅因为单章正文自然度问题写入 `replanAlertDetails`、`PIPELINE_REPLAN_REQUIRED` 或全局自动导演重规划。
 - 接收闸门热路径只等待 `acceptance`。timeline extractor 不再阻塞正文接收；章节接收后由 `ChapterTimelineFinalizationService` 执行 stable/degraded 时间线定稿。
 - `acceptance` 门禁必须按同章、同正文 content hash、同模型请求写入持久化幂等缓存；timeline 定稿必须按同章、同正文 content hash 写入 `timeline_finalization` checkpoint。任务取消、失败或 worker 重启后，如果正文未变化，应优先复用成功结果，不能重新触发相同的接收评估或 timeline extractor。
 - 门禁缓存只能保存可复用的成功结果。`acceptance_gate_unavailable`、timeline extractor 失败、缺少 timeline context 等临时系统失败不得写成长期成功缓存；这类结果应保留为当前运行风险，允许后续重试。
@@ -126,6 +129,7 @@
 - 一章生成耗时异常：检查是否又把多个 LLM 后处理塞回热路径。
 - 同一章重复同步账本或重复 timeline / artifact delta 抽取：检查 content hash checkpoint 是否在 LLM 调用前完成 `running` 抢占，而不是只在调用成功后写 `succeeded`。
 - 修复循环：检查自动修文次数是否被限制，失败是否落到可继续生产的终态，并确认自动导演质量预算是否已经从局部修复升级到整章修复或重规划。
+- 正文出现 AI 自述、占位符、工程词或明显截断：优先检查 runtime package 的 `audit.openIssues` 是否包含 `prose_*` code。若只有 `prose_*` 且没有 `replan_required`、邻章计划失配或不可用正文，应走本章修复或质量债，不应暂停整本自动导演。
 - `chapter.draft.write 未满足其完成标准` 高频出现：先查 runtime package 的 `failureClassification` 和 `obligationCoverage`。如果 root cause 是 `draft_obligation_unmet`，应优先检查接收闸门输出的缺失义务和 patch repair；如果是 `replan_required`，检查是否存在单章职责过载或邻章分工失配。
 - 章节反复要求重规划：检查 `rolling_window_review` 的原因是否只来自生成前的紧急 payoff 或 `advance_payoff`。如果审计分数可通过、正文和 artifact delta 已经体现推进，但 runtime package 仍推荐重规划，说明重规划推荐读取了写前状态而不是写后失败证据。
 - 自动导演在高章节数被早期 payoff 卡住：检查是否存在同义重复账本项被 AI 全量对账新建为无目标窗口的 `overdue`。正确行为是同步后处理复用未完成的同名 canonical ledgerKey，并把无明确窗口的 overdue 降级为待推进风险，避免把旧 `lastTouchedChapterOrder` 锚成跨几十章的重规划窗口。

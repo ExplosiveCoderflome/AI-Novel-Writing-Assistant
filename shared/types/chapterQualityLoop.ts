@@ -9,6 +9,7 @@ export const CHAPTER_QUALITY_LOOP_ARTIFACT_TYPES = [
   "chapter_retention_contract",
   "continuity_state",
   "rolling_window_review",
+  "prose_quality",
 ] as const;
 
 export type ChapterQualityLoopArtifactType = typeof CHAPTER_QUALITY_LOOP_ARTIFACT_TYPES[number];
@@ -320,6 +321,37 @@ function buildContinuitySignal(input: ChapterQualityLoopAssessmentInput): Chapte
   };
 }
 
+function buildProseQualitySignal(input: ChapterQualityLoopAssessmentInput): ChapterQualityLoopSignal {
+  const proseIssues = input.runtimePackage?.audit.openIssues.filter((issue) => (
+    typeof issue.code === "string" && issue.code.startsWith("prose_")
+  )) ?? [];
+  if (proseIssues.length === 0) {
+    return {
+      artifactType: "prose_quality",
+      status: "valid",
+      reason: "正文自然度/退化检测未发现需要处理的问题。",
+      issueCodes: [],
+    };
+  }
+
+  const worstSeverity = proseIssues.reduce((max, issue) => {
+    const rank = SEVERITY_RANK[issue.severity] ?? 0;
+    return Math.max(max, rank);
+  }, 0);
+  const status: ChapterQualityLoopSignalStatus = worstSeverity >= SEVERITY_RANK.high
+    ? "risk"
+    : "valid";
+
+  return {
+    artifactType: "prose_quality",
+    status,
+    reason: status === "valid"
+      ? "正文存在自然度或节奏提示，可作为后续局部优化参考。"
+      : "正文存在明显 AI 句式、退化或工程词泄漏，需要优先做本章局部修复。",
+    issueCodes: proseIssues.map((issue) => issue.code).slice(0, 8),
+  };
+}
+
 function buildRollingWindowSignal(input: ChapterQualityLoopAssessmentInput): ChapterQualityLoopSignal {
   const replanRecommendation = input.runtimePackage?.replanRecommendation ?? null;
   if (replanRecommendation?.recommended && replanRecommendation.action === "stop_for_replan") {
@@ -364,6 +396,7 @@ export function buildChapterQualityLoopAssessment(
   const signals = [
     buildRetentionSignal(input),
     buildContinuitySignal(input),
+    buildProseQualitySignal(input),
     buildRollingWindowSignal(input),
   ];
   const overallStatus = signals.reduce<ChapterQualityLoopSignalStatus>(
