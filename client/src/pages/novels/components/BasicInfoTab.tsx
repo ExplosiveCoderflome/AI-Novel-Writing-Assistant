@@ -1,7 +1,6 @@
 import type { BasicTabProps } from "./NovelEditView.types";
 import NovelBasicInfoForm from "./NovelBasicInfoForm";
 import NovelStyleRecommendationCard from "./NovelStyleRecommendationCard";
-import NovelWorldUsageCard from "./NovelWorldUsageCard";
 import NovelWorldManagerCard from "./NovelWorldManagerCard";
 import { BookFramingQuickFillButton } from "./basicInfoForm/BookFramingQuickFillButton";
 import NovelCreateTitleQuickFill from "./titleWorkshop/NovelCreateTitleQuickFill";
@@ -29,22 +28,18 @@ export default function BasicInfoTab(props: BasicTabProps) {
         isSavingToLibrary={props.isSavingNovelWorldToLibrary}
         isLoadingSyncDiff={props.isLoadingNovelWorldSyncDiff}
         isSyncing={props.isSyncingNovelWorld}
+        usageView={props.worldSliceView}
+        usageMessage={props.worldSliceMessage}
+        isRefreshingWorldSlice={props.isRefreshingWorldSlice}
+        isSavingWorldSliceOverrides={props.isSavingWorldSliceOverrides}
         onImport={props.onImportNovelWorld}
         onCreateManual={props.onCreateManualNovelWorld}
         onGenerate={props.onGenerateNovelWorld}
         onSaveToLibrary={props.onSaveNovelWorldToLibrary}
         onSync={props.onSyncNovelWorld}
+        onRefreshWorldSlice={props.onRefreshWorldSlice}
+        onSaveWorldSliceOverrides={props.onSaveWorldSliceOverrides}
       />
-      <div id="novel-world-usage">
-        <NovelWorldUsageCard
-          view={props.worldSliceView}
-          message={props.worldSliceMessage}
-          isRefreshing={props.isRefreshingWorldSlice}
-          isSaving={props.isSavingWorldSliceOverrides}
-          onRefresh={props.onRefreshWorldSlice}
-          onSave={props.onSaveWorldSliceOverrides}
-        />
-      </div>
       <SectionBlock
         title="书级定位与基本信息"
         description="继续完善标题、概述、读者与卖点，让后续自动导演和章节生成能稳定继承当前方向。"
