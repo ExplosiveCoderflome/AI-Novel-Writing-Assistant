@@ -27,27 +27,27 @@ export function PromptPreviewPanel({ preview }: { preview: PromptPreviewResult |
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-4">
-        <div className="rounded-md border bg-background p-3">
+      <div className="grid overflow-hidden rounded-md border border-border/80 bg-background md:grid-cols-4 md:divide-x">
+        <div className="p-3">
           <div className="text-xs text-muted-foreground">入口</div>
           <div className="mt-1 truncate text-sm font-semibold">{preview.diagnostics.entrypoint}</div>
         </div>
-        <div className="rounded-md border bg-background p-3">
+        <div className="p-3">
           <div className="text-xs text-muted-foreground">估算 Token</div>
           <div className="mt-1 text-sm font-semibold">{preview.context.estimatedInputTokens}</div>
         </div>
-        <div className="rounded-md border bg-background p-3">
+        <div className="p-3">
           <div className="text-xs text-muted-foreground">已注入</div>
           <div className="mt-1 text-sm font-semibold">{preview.context.selectedBlockIds.length}</div>
         </div>
-        <div className="rounded-md border bg-background p-3">
+        <div className="p-3">
           <div className="text-xs text-muted-foreground">缺失项</div>
           <div className="mt-1 text-sm font-semibold">{preview.diagnostics.missingRequiredGroups.length}</div>
         </div>
       </div>
 
       {preview.diagnostics.notes.length > 0 ? (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <div className="rounded-md border border-amber-200/80 bg-amber-50/70 px-3 py-2 text-sm text-amber-900">
           {preview.diagnostics.notes.join(" ")}
         </div>
       ) : null}
@@ -64,8 +64,8 @@ export function PromptPreviewPanel({ preview }: { preview: PromptPreviewResult |
 
         {preview.messages.map((message, index) => (
           <TabsContent key={`${message.role}-${index}`} value={`${message.role}-${index}`}>
-            <div className="rounded-md border bg-background">
-              <div className="flex items-center justify-between gap-3 border-b bg-muted/40 px-3 py-2">
+            <div className="rounded-md border border-border/80 bg-background">
+              <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-muted/[0.25] px-3 py-2">
                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                   <LockKeyhole className="h-3.5 w-3.5" />
                   {MESSAGE_ROLE_LABELS[message.role] ?? message.role}

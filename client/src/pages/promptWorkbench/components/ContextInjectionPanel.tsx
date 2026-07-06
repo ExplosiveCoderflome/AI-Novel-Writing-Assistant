@@ -43,10 +43,10 @@ function statusRank(status: ContextBlockStatus): number {
 
 function statusClassName(status: ContextBlockStatus): string {
   return {
-    selected: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    dropped: "border-slate-200 bg-slate-100 text-slate-700",
-    summarized: "border-blue-200 bg-blue-50 text-blue-800",
-    available: "border-border bg-background text-foreground",
+    selected: "border-primary/20 bg-primary/[0.08] text-primary",
+    dropped: "border-border/70 bg-muted/[0.55] text-muted-foreground",
+    summarized: "border-border/70 bg-muted/[0.45] text-foreground",
+    available: "border-transparent bg-muted/[0.35] text-muted-foreground",
   }[status];
 }
 
@@ -134,7 +134,9 @@ export function ContextInjectionPanel(props: {
               查看本次预览使用的资料块、裁剪和摘要状态
             </p>
           </div>
-          <Badge variant="outline">{visibleBlocks.length} 块</Badge>
+          <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+            {visibleBlocks.length} 块
+          </span>
         </div>
 
         <div className="mt-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_136px]">
@@ -144,7 +146,7 @@ export function ContextInjectionPanel(props: {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="搜索 group、来源或内容"
-              className="h-10 pl-9"
+              className="h-9 bg-background pl-9"
             />
           </div>
           <div className="relative">
@@ -152,7 +154,7 @@ export function ContextInjectionPanel(props: {
             <SelectControl
               value={sortMode}
               onChange={(event) => setSortMode(event.target.value as SortMode)}
-              className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm"
+              className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm"
             >
               <option value="status">按状态</option>
               <option value="priority">按优先级</option>
@@ -169,7 +171,7 @@ export function ContextInjectionPanel(props: {
         </div>
       ) : (
         <>
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
             {visibleBlocks.length === 0 ? (
               <div className="rounded-md border border-dashed bg-background p-4 text-sm text-muted-foreground">
                 没有匹配的上下文块。
@@ -181,8 +183,8 @@ export function ContextInjectionPanel(props: {
                   type="button"
                   onClick={() => onSelectBlock(block.id)}
                   className={cn(
-                    "w-full rounded-md border bg-background px-3 py-3 text-left transition-colors",
-                    selectedBlockId === block.id ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50",
+                    "w-full rounded-md border border-transparent px-3 py-3 text-left transition-colors",
+                    selectedBlockId === block.id ? "border-primary/30 bg-background" : "hover:bg-muted/[0.45]",
                     block.status === "dropped" && "opacity-70",
                   )}
                 >
@@ -204,18 +206,22 @@ export function ContextInjectionPanel(props: {
                       ) : null}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <Badge variant="outline" className={statusClassName(block.status)}>
+                      <Badge variant="outline" className={cn("px-1.5 py-0 text-[11px]", statusClassName(block.status))}>
                         {CONTEXT_STATUS_LABELS[block.status]}
                       </Badge>
                       <span className="text-[11px] text-muted-foreground">{block.estimatedTokens} tokens</span>
                     </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <Badge variant={block.required ? "default" : "secondary"}>
-                      {block.required ? "必需" : "可选"}
-                    </Badge>
-                    <Badge variant="outline">P{block.priority}</Badge>
-                    {block.locked ? <Badge variant="outline">锁定</Badge> : null}
+                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                    <span>{block.required ? "必需" : "可选"}</span>
+                    <span>·</span>
+                    <span>P{block.priority}</span>
+                    {block.locked ? (
+                      <>
+                        <span>·</span>
+                        <span>锁定</span>
+                      </>
+                    ) : null}
                   </div>
                 </button>
               ))
@@ -224,13 +230,13 @@ export function ContextInjectionPanel(props: {
 
           <div className="shrink-0 border-t bg-background p-3">
             {activeBlock ? (
-              <div className="rounded-md border">
-                <div className="flex items-center justify-between gap-3 border-b bg-muted/40 px-3 py-2">
+              <div className="rounded-md border border-border/80 bg-background">
+                <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-muted/[0.25] px-3 py-2">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold">{activeBlock.groupLabel}</div>
                     <div className="truncate font-mono text-[11px] text-muted-foreground">{activeBlock.id}</div>
                   </div>
-                  <Badge variant="outline" className={statusClassName(activeBlock.status)}>
+                  <Badge variant="outline" className={cn("px-1.5 py-0 text-[11px]", statusClassName(activeBlock.status))}>
                     {CONTEXT_STATUS_LABELS[activeBlock.status]}
                   </Badge>
                 </div>

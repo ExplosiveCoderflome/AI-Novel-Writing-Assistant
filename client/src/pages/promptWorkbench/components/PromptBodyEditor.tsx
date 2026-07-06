@@ -117,9 +117,9 @@ function PromptSlotTextEditor(props: {
   const remaining = typeof maxLength === "number" ? maxLength - internalText.length : null;
 
   return (
-    <div className="rounded-md border bg-background">
+    <div className="rounded-md border border-input bg-background">
       <div className="flex min-h-0">
-        <div className="w-12 shrink-0 select-none border-r bg-muted/30 py-3 pr-2 text-right font-mono text-[11px] leading-6 text-muted-foreground">
+        <div className="w-12 shrink-0 select-none border-r bg-muted/[0.18] py-3 pr-2 text-right font-mono text-[11px] leading-6 text-muted-foreground">
           {Array.from({ length: lineCount }).map((_, index) => (
             <div key={index}>{index + 1}</div>
           ))}
@@ -142,7 +142,7 @@ function PromptSlotTextEditor(props: {
         </div>
       </div>
       {remaining !== null ? (
-        <div className="border-t px-3 py-1.5 text-right text-xs text-muted-foreground">
+        <div className="border-t border-border/70 px-3 py-1.5 text-right text-xs text-muted-foreground">
           {remaining < 0 ? <span className="text-destructive">{remaining}</span> : remaining} 字剩余
         </div>
       ) : null}
@@ -155,7 +155,7 @@ function SlotBadges({ section }: { section: PromptEditorSection }) {
     <div className="flex flex-wrap gap-2">
       <Badge variant="outline">{SLOT_KIND_LABELS[section.kind] ?? section.kind}</Badge>
       {section.isDirty ? (
-        <Badge variant="secondary" className="border-blue-200 bg-blue-100 text-blue-700">未保存</Badge>
+        <Badge variant="secondary" className="border-primary/20 bg-primary/[0.08] text-primary">未保存</Badge>
       ) : null}
       {section.isSavedOverride ? <Badge variant="secondary">已覆盖</Badge> : null}
       {section.isInheritedFromGlobal ? <Badge variant="outline">继承全局</Badge> : null}
@@ -173,7 +173,7 @@ function ReconcileMiniBadge({ item }: { item?: PromptSlotReconcileItem }) {
       ? "新增槽位"
       : "槽位已移除";
   return (
-    <Badge variant="secondary" className="border-amber-200 bg-amber-100 text-amber-800">
+    <Badge variant="secondary" className="border-amber-200 bg-amber-50 text-amber-800">
       {label}
     </Badge>
   );
@@ -192,11 +192,11 @@ function PromptSlotSection(props: {
 
   return (
     <section className={cn(
-      "rounded-md border bg-card",
-      reconcileItem?.state === "drifted" && "border-amber-300 bg-amber-50/35",
+      "rounded-md border border-border/80 bg-background",
+      reconcileItem?.state === "drifted" && "border-amber-300 bg-amber-50/[0.25]",
       reconcileItem?.state === "orphaned" && "border-red-200 bg-red-50/30 opacity-80",
     )}>
-      <div className="flex flex-col gap-3 border-b px-4 py-3 md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h4 className="text-sm font-semibold text-foreground">{section.label}</h4>
@@ -287,8 +287,8 @@ function ChoiceSlotControl(props: {
           className={cn(
             "rounded-md border px-3 py-2.5 text-left text-sm transition-colors",
             section.value === option.value
-              ? "border-primary bg-primary/8 text-foreground ring-1 ring-primary"
-              : "border-border bg-background hover:bg-muted/50",
+              ? "border-primary/[0.45] bg-primary/[0.06] text-foreground"
+              : "border-border/75 bg-background hover:bg-muted/50",
             disabled && "cursor-not-allowed opacity-50",
           )}
         >
@@ -315,7 +315,7 @@ function ToggleSlotControl(props: {
         <span className="text-sm font-medium text-foreground">{checked ? "已启用" : "已关闭"}</span>
       </div>
       {checked ? (
-        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+        <div className="rounded-md bg-muted/[0.35] px-3 py-2 text-xs leading-relaxed text-muted-foreground">
           启用后追加：{slot.copy}
         </div>
       ) : null}
@@ -367,12 +367,12 @@ function ContextReferenceChips(props: {
   }
 
   return (
-    <section className="rounded-md border bg-muted/20 px-4 py-3">
+    <section className="border-b border-border/70 pb-4">
       <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-        <MapPin className="h-4 w-4 text-primary" />
+        <MapPin className="h-4 w-4 text-muted-foreground" />
         上下文引用
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         {prompt.contextRequirements.map((requirement) => {
           const blockId = firstBlockByGroup.get(requirement.group);
           const locked = LOCKED_CONTEXT_GROUPS.has(requirement.group) || requirement.required;
@@ -383,8 +383,10 @@ function ContextReferenceChips(props: {
               disabled={!blockId}
               onClick={() => blockId && onContextSelect(blockId)}
               className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors",
-                blockId ? "bg-background hover:border-primary/60" : "cursor-not-allowed bg-muted/40 text-muted-foreground",
+                "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors",
+                blockId
+                  ? "border-border/70 bg-muted/[0.35] text-muted-foreground hover:border-primary/40 hover:bg-primary/[0.04] hover:text-foreground"
+                  : "cursor-not-allowed border-transparent bg-muted/30 text-muted-foreground/70",
               )}
               title={requirement.group}
             >
@@ -424,7 +426,7 @@ export function PromptBodyEditor(props: {
   const hasEditableSlots = sections.length > 0;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <ContextReferenceChips
         prompt={prompt}
         preview={preview}
@@ -432,7 +434,7 @@ export function PromptBodyEditor(props: {
       />
 
       {!hasEditableSlots ? (
-        <div className="rounded-md border border-dashed bg-background p-5 text-sm text-muted-foreground">
+        <div className="rounded-md border border-dashed bg-background/80 p-5 text-sm text-muted-foreground">
           <div className="mb-2 flex items-center gap-2 font-semibold text-foreground">
             <LockKeyhole className="h-4 w-4 text-primary" />
             提示词只读
@@ -444,7 +446,7 @@ export function PromptBodyEditor(props: {
           {controlSections.length > 0 ? (
             <section className="space-y-3">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-primary" />
+                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-sm font-semibold text-foreground">运行控制</h3>
               </div>
               <div className="grid gap-3 xl:grid-cols-2">

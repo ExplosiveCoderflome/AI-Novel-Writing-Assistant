@@ -76,7 +76,7 @@ export default function PromptWorkbenchPage() {
             bodyPanel={
               <div className="space-y-4">
                 {slotState.isNovelScopeDisabled ? (
-                  <div className="rounded-md border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+                  <div className="rounded-md bg-muted/[0.35] px-4 py-3 text-sm text-muted-foreground">
                     选择小说后可设置本书独立的槽位覆盖；未选择小说时仅能查看继承值和生成通用预览。
                   </div>
                 ) : null}
@@ -123,7 +123,7 @@ export default function PromptWorkbenchPage() {
           />
         ) : (
           <div className="flex h-full items-center justify-center p-8">
-            <div className="rounded-md border border-dashed bg-background p-6 text-sm text-muted-foreground">
+            <div className="rounded-md border border-dashed bg-background/80 p-6 text-sm text-muted-foreground">
               请选择一个提示词。
             </div>
           </div>

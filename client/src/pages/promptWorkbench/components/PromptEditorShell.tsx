@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { LockKeyhole, ShieldCheck } from "lucide-react";
 import type { PromptCatalogItem, PromptSlotOverrideScope } from "@/api/promptWorkbench";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import SelectControl from "@/components/common/SelectControl";
@@ -14,7 +13,6 @@ import {
   SLOT_KIND_LABELS,
   TASK_TYPE_LABELS,
   capabilityLabels,
-  statusBadgeVariant,
 } from "../promptWorkbenchLabels";
 
 interface PromptEditorShellProps {
@@ -52,27 +50,41 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
       <header className="shrink-0 border-b bg-background px-5 py-4">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <h2 className="min-w-0 truncate text-xl font-semibold tracking-normal text-foreground">
                 {prompt.description || prompt.id}
               </h2>
-              <Badge>{prompt.version}</Badge>
-              <Badge variant="secondary">{TASK_TYPE_LABELS[prompt.taskType] ?? prompt.taskType}</Badge>
-              <Badge variant="secondary">{OUTPUT_TYPE_LABELS[prompt.outputType] ?? prompt.outputType}</Badge>
-              <Badge variant={statusBadgeVariant(prompt.managementStatus)}>
-                {MANAGEMENT_STATUS_LABELS[prompt.managementStatus]}
-              </Badge>
+              <span className="rounded-md bg-foreground px-2 py-0.5 text-xs font-semibold text-background">
+                {prompt.version}
+              </span>
             </div>
-            <div className="mt-1 font-mono text-xs text-muted-foreground">{prompt.key}</div>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs">
-              <Badge variant="outline">{prompt.language === "zh" ? "中文" : prompt.language}</Badge>
-              <Badge variant="outline">{prompt.family}</Badge>
-              <Badge variant="outline">{prompt.contextPolicy.maxTokensBudget} tokens</Badge>
-              <Badge variant={prompt.slotSupported ? "default" : "secondary"}>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span className="font-mono">{prompt.key}</span>
+              <span>·</span>
+              <span>{TASK_TYPE_LABELS[prompt.taskType] ?? prompt.taskType}</span>
+              <span>·</span>
+              <span>{OUTPUT_TYPE_LABELS[prompt.outputType] ?? prompt.outputType}</span>
+              <span>·</span>
+              <span>{MANAGEMENT_STATUS_LABELS[prompt.managementStatus]}</span>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+              <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">
+                {prompt.language === "zh" ? "中文" : prompt.language}
+              </span>
+              <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">{prompt.family}</span>
+              <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">
+                {prompt.contextPolicy.maxTokensBudget} tokens
+              </span>
+              <span className={cn(
+                "rounded-md px-2 py-1",
+                prompt.slotSupported ? "bg-primary/[0.08] text-primary" : "bg-muted text-muted-foreground",
+              )}>
                 {prompt.slotSupported ? `${prompt.slots.length} 个槽位` : "只读提示词"}
-              </Badge>
+              </span>
               {capabilities.map((label) => (
-                <Badge key={label} variant="secondary">{label}</Badge>
+                <span key={label} className="rounded-md bg-muted/70 px-2 py-1 text-muted-foreground">
+                  {label}
+                </span>
               ))}
             </div>
           </div>
@@ -117,33 +129,41 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          <div className="rounded-md border bg-muted/20 px-3 py-2">
+        <div className="mt-4 grid gap-4 border-t pt-3 lg:grid-cols-2">
+          <div className="min-w-0">
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-              <ShieldCheck className="h-4 w-4 text-primary" />
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
               可编辑槽位
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {prompt.slots.length > 0 ? prompt.slots.map((slot) => (
-                <Badge key={slot.key} variant="secondary" title={slot.key}>
+                <span
+                  key={slot.key}
+                  title={slot.key}
+                  className="inline-flex max-w-full items-center rounded-md bg-muted/70 px-2 py-1 text-xs text-foreground"
+                >
                   {slot.label}
                   <span className="ml-1 opacity-60">·{SLOT_KIND_LABELS[slot.kind] ?? slot.kind}</span>
-                </Badge>
+                </span>
               )) : (
                 <span className="text-xs text-muted-foreground">该提示词未开放表达槽位。</span>
               )}
             </div>
           </div>
-          <div className="rounded-md border bg-muted/20 px-3 py-2">
+          <div className="min-w-0 lg:border-l lg:pl-4">
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-foreground">
-              <LockKeyhole className="h-4 w-4 text-primary" />
+              <LockKeyhole className="h-4 w-4 text-muted-foreground" />
               锁定边界
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {prompt.lockedFields.map((field) => (
-                <Badge key={field} variant="outline" title={field}>
+                <span
+                  key={field}
+                  title={field}
+                  className="inline-flex rounded-md border border-border/70 bg-background px-2 py-1 text-xs text-muted-foreground"
+                >
                   {LOCKED_FIELD_LABELS[field] ?? field}
-                </Badge>
+                </span>
               ))}
             </div>
           </div>
@@ -159,7 +179,7 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
           </Panel>
           <Separator className={cn("w-1 bg-border transition-colors hover:bg-muted-foreground/30")} />
           <Panel defaultSize={34} minSize={24}>
-            <div className="h-full min-h-0 border-l bg-muted/10">
+            <div className="h-full min-h-0 border-l bg-muted/[0.08]">
               {contextPanel}
             </div>
           </Panel>

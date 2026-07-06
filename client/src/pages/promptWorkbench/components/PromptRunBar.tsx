@@ -38,25 +38,25 @@ export function PromptRunBar(props: PromptRunBarProps) {
   const maxBudget = prompt?.contextPolicy.maxTokensBudget ?? null;
 
   return (
-    <div className="shrink-0 border-t bg-background/95 px-5 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur">
+    <div className="shrink-0 border-t bg-background px-5 py-3 backdrop-blur">
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-wrap items-center gap-4 text-sm">
-          <div>
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+          <div className="border-r border-border/70 pr-5 last:border-r-0">
             <span className="text-xs text-muted-foreground">上下文估算</span>
             <div className="font-semibold">
               {estimatedTokens ?? "--"}
               {maxBudget ? <span className="ml-1 text-xs font-normal text-muted-foreground">/ {maxBudget}</span> : null}
             </div>
           </div>
-          <div>
+          <div className="border-r border-border/70 pr-5 last:border-r-0">
             <span className="text-xs text-muted-foreground">模型配置</span>
             <div className="font-semibold">按提示词路由</div>
           </div>
-          <div>
+          <div className="border-r border-border/70 pr-5 last:border-r-0">
             <span className="text-xs text-muted-foreground">保存状态</span>
             <div className={cn(
               "font-semibold",
-              saveError ? "text-destructive" : isSaveSuccess ? "text-emerald-700" : "text-foreground",
+              saveError ? "text-destructive" : isSaveSuccess ? "text-primary" : "text-foreground",
             )}>
               {saveError ? "保存失败" : isSaveSuccess ? "已保存" : dirtyCount > 0 ? `${dirtyCount} 个未保存` : "无未保存修改"}
             </div>
