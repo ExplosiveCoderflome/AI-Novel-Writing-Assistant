@@ -78,7 +78,7 @@ export default function StageWorldStyle({
           <div className="text-sm font-medium text-foreground">本书世界处理</div>
           {selectedWorld ? (
             <div className={`mt-2 text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              自动导演会使用「{selectedWorld.name}」作为本书世界样本，并在角色准备前整理可用于本书的世界约束。
+              自动导演会参考「{selectedWorld.name}」这个世界样本，并在角色准备前整理可用于本书的世界约束。
             </div>
           ) : (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">

@@ -13,10 +13,10 @@ export function BookFramingSection(props: BookFramingSectionProps) {
   const { basicForm, onFormChange, quickFill } = props;
 
   return (
-    <div className="rounded-lg bg-background/60 px-4 py-4">
+    <div className="space-y-4 pt-2">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="text-sm font-semibold text-foreground">书级 framing</div>
+          <div className="text-sm font-semibold text-foreground">读者与卖点</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">
             用最直白的话说清楚：这本书写给谁、卖点是什么、读者前 30 章会得到什么。不会写专业策划词也没关系，按你的直觉描述即可。
           </div>
@@ -24,7 +24,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
         {quickFill ? <div className="shrink-0">{quickFill}</div> : null}
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-2">
           <FieldLabel htmlFor="basic-target-audience" hint={BASIC_INFO_FIELD_HINTS.targetAudience}>
             目标读者
@@ -76,7 +76,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
         </div>
       </div>
 
-      <div className="mt-3 space-y-2">
+      <div className="space-y-2">
         <FieldLabel htmlFor="basic-first30-promise" hint={BASIC_INFO_FIELD_HINTS.first30ChapterPromise}>
           前 30 章承诺
         </FieldLabel>

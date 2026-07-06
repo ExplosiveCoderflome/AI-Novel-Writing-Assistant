@@ -117,18 +117,12 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg bg-muted/15 px-4 py-4">
-        <div className="text-sm font-semibold text-foreground">填写建议</div>
-        <div className="mt-1 text-sm leading-6 text-muted-foreground">
-          建议先想清楚这本书写给谁、靠什么吸引人、前 30 章要兑现什么，再补创作模式、世界边界和写法确认。这里的设置会直接影响后续主线规划、卷章推进和正文生成。
-        </div>
-        {projectQuickStart ? <div className="mt-3 flex justify-end">{projectQuickStart}</div> : null}
-      </div>
-
       <SectionBlock
         title="作品定位"
-        description="先定义这是什么作品，以及它是从零开始还是基于既有内容继续创作。"
+        description="先写清楚标题、一句话概述、目标读者、核心卖点和前 30 章承诺，再补创作模式、题材和推进方式；这些会直接影响后续主线规划、卷章推进和正文生成。"
       >
+        {projectQuickStart ? <div className="flex justify-end">{projectQuickStart}</div> : null}
+
         <div className="space-y-2">
           <FieldLabel htmlFor="basic-title">小说标题</FieldLabel>
           <Input
@@ -174,9 +168,9 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           </div>
         </div>
 
-        <div className="rounded-lg bg-background/60 p-3 text-sm leading-6 text-muted-foreground">
+        <div className="space-y-1 pt-1 text-sm leading-6 text-muted-foreground">
           <div className="font-medium text-foreground">题材基底与推进模式的区别</div>
-          <div className="mt-1">
+          <div>
             题材基底回答“这是什么书”，例如修仙、都市、历史架空；推进模式回答“这本书靠什么持续推进和兑现”，例如系统流、无敌流、种田流。
           </div>
         </div>
@@ -316,12 +310,12 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         </summary>
 
         <div className="mt-4 space-y-4">
-          <div className="rounded-lg bg-background/60 p-3">
+          <div className="space-y-3 pt-1">
             <div className="text-sm font-semibold text-foreground">参考世界样本</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              这里只用于记录初始化参考。小说实际使用的世界，请在页面上方“本书世界”设置中导入、生成或自定义。
+              这里只用于记录初始化参考。完整导入、生成和同步请在创建后到小说工作台的“本书世界”中完成。
             </div>
-            <div className="mt-3 space-y-2">
+            <div className="space-y-2">
               <FieldLabel htmlFor="basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>参考世界样本</FieldLabel>
               <select
                 id="basic-world"
@@ -453,23 +447,21 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               </div>
             </div>
 
-            <div className="rounded-lg bg-background/60 p-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <FieldLabel htmlFor="basic-post-generation-style-review" hint={BASIC_INFO_FIELD_HINTS.postGenerationStyleReviewEnabled}>
-                    正文后去 AI 检测与修正
-                  </FieldLabel>
-                  <div className="text-xs leading-5 text-muted-foreground">
-                    开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
-                  </div>
+            <div className="flex flex-col gap-3 py-1 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <FieldLabel htmlFor="basic-post-generation-style-review" hint={BASIC_INFO_FIELD_HINTS.postGenerationStyleReviewEnabled}>
+                  正文后去 AI 检测与修正
+                </FieldLabel>
+                <div className="text-xs leading-5 text-muted-foreground">
+                  开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
                 </div>
-                <Switch
-                  id="basic-post-generation-style-review"
-                  aria-label="正文后去 AI 检测与修正"
-                  checked={basicForm.postGenerationStyleReviewEnabled}
-                  onCheckedChange={(checked) => onFormChange({ postGenerationStyleReviewEnabled: checked })}
-                />
               </div>
+              <Switch
+                id="basic-post-generation-style-review"
+                aria-label="正文后去 AI 检测与修正"
+                checked={basicForm.postGenerationStyleReviewEnabled}
+                onCheckedChange={(checked) => onFormChange({ postGenerationStyleReviewEnabled: checked })}
+              />
             </div>
           </SectionBlock>
         </div>

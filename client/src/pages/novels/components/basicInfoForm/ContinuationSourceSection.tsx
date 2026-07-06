@@ -101,7 +101,7 @@ export function ContinuationSourceSection(props: ContinuationSourceSectionProps)
       )}
 
       {hasSelectedContinuationSource ? (
-        <div className="space-y-3 rounded-lg bg-background/60 p-3">
+        <div className="space-y-3 pt-1">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               拆书引用
