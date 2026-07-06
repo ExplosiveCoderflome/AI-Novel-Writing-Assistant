@@ -128,7 +128,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
             </div>
           </div>
 
-          <div className="mt-4 space-y-4">
+          <div className="mt-5 divide-y divide-border/45">
             {batch.candidates.map((candidate, candidateIndex) => {
               const titleOptions = resolveCandidateTitleOptions(candidate);
               const toneSummary = formatToneKeywords(candidate);
@@ -141,16 +141,16 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                     duration: reducedMotion ? 0 : 0.18,
                     delay: reducedMotion ? 0 : candidateIndex * 0.06,
                   }}
-                  className="group min-w-0 overflow-hidden rounded-lg bg-muted/20 px-5 py-5 transition hover:bg-muted/30 sm:px-6"
+                  className="group min-w-0 py-7 first:pt-2 last:pb-2"
                 >
-                  <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
+                  <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_240px]">
                     <div className="min-w-0">
                       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
                         <span>方案 {candidateIndex + 1}</span>
                         {candidateIndex === 0 ? (
                           <>
                             <span>·</span>
-                            <span>先看这套</span>
+                            <span>推荐先看</span>
                           </>
                         ) : null}
                         <span>·</span>
@@ -195,7 +195,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                       <div className="space-y-4 text-sm">
                         <div className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
                           <div className="text-xs font-medium text-muted-foreground">为什么值得选</div>
-                          <div className="mt-1 line-clamp-5 break-words leading-6 text-foreground [overflow-wrap:anywhere]">{candidate.whyItFits}</div>
+                          <div className="mt-1 line-clamp-5 break-words leading-6 text-foreground/90 [overflow-wrap:anywhere]">{candidate.whyItFits}</div>
                         </div>
                         {toneSummary ? (
                           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
