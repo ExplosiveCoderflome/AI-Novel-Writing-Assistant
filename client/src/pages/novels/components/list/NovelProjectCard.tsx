@@ -65,11 +65,11 @@ export function NovelProjectCard(props: {
     <Card
       role="link"
       tabIndex={0}
-      className="group cursor-pointer overflow-hidden rounded-xl border-border/70 bg-background/90 transition hover:border-primary/35 hover:bg-muted/[0.08] hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+      className="group h-full cursor-pointer overflow-hidden rounded-xl border-border/70 bg-background/90 transition hover:border-primary/35 hover:bg-muted/[0.08] hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
       onClick={() => props.onOpenNovel(props.novel.id)}
       onKeyDown={handleKeyDown}
     >
-      <CardContent className="space-y-4 p-4 sm:p-5">
+      <CardContent className="flex h-full flex-col gap-4 p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
             <div className="line-clamp-1 text-xl font-semibold tracking-normal transition group-hover:text-primary">
@@ -106,8 +106,15 @@ export function NovelProjectCard(props: {
               progress={task?.progress ?? 0}
               label={workflow.currentAction || "AI 正在后台持续推进"}
             />
-          ) : null}
-          {workflow.lastHealthyStage ? (
+          ) : (
+            <div className="mt-3 flex items-center justify-between rounded-lg bg-background/45 px-3 py-2 text-xs text-muted-foreground">
+              <span className="line-clamp-1">
+                {workflow.lastHealthyStage ? `最近健康阶段：${workflow.lastHealthyStage}` : "等待下一步操作"}
+              </span>
+              <span className="font-medium tabular-nums text-foreground">{workflow.progress}%</span>
+            </div>
+          )}
+          {workflow.running && workflow.lastHealthyStage ? (
             <div className="mt-2 text-xs text-muted-foreground">最近健康阶段：{workflow.lastHealthyStage}</div>
           ) : null}
         </div>
@@ -130,7 +137,7 @@ export function NovelProjectCard(props: {
           <span>Token：{formatTokenCount(props.novel.tokenUsage?.totalTokens)}</span>
         </div>
 
-        <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-auto flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
             {renderPrimaryAction({
               novel: props.novel,
