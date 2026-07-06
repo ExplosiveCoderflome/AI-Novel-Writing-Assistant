@@ -43,7 +43,7 @@ export function SectionBlock({
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+    <section className="space-y-3 rounded-lg bg-muted/15 px-4 py-5">
       <div className="space-y-1">
         <div className="text-sm font-semibold text-foreground">{title}</div>
         <div className="text-xs leading-5 text-muted-foreground">{description}</div>
@@ -66,10 +66,10 @@ export function SelectionCard<T extends string>({
     <button
       type="button"
       onClick={() => onSelect(option.value)}
-      className={`rounded-xl border p-3 text-left transition ${
+      className={`rounded-lg p-3 text-left transition ring-1 ${
         selected
-          ? "border-primary bg-primary/8 shadow-sm"
-          : "border-border/70 bg-background hover:border-primary/40 hover:bg-primary/5"
+          ? "bg-primary/8 ring-primary/35"
+          : "bg-background/70 ring-border/20 hover:bg-background hover:ring-primary/25"
       }`}
     >
       <div className="flex items-center justify-between gap-2">

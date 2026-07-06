@@ -116,7 +116,7 @@ export default function NovelCreateResourceRecommendationCard(
   });
 
   return (
-    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+    <div className="rounded-lg bg-emerald-500/5 px-4 py-5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <div className="text-sm font-semibold text-foreground">先让 AI 推荐一套开书底座</div>
@@ -139,37 +139,37 @@ export default function NovelCreateResourceRecommendationCard(
       </div>
 
       {!canRecommend ? (
-        <div className="mt-3 rounded-md border border-dashed bg-background/70 p-3 text-sm text-muted-foreground">
+        <div className="mt-3 rounded-md bg-background/60 p-3 text-sm text-muted-foreground">
           先补一句灵感、概述、目标读者、卖点或前 30 章承诺中的任意一项，AI 才能更稳地判断你该从哪种题材和推进模式起步。
         </div>
       ) : null}
 
       {recommendation ? (
         <div className="mt-4 space-y-3">
-          <div className="rounded-md border bg-background/80 p-3 text-sm leading-6 text-muted-foreground">
+          <div className="rounded-md bg-background/70 p-3 text-sm leading-6 text-muted-foreground">
             {recommendation.summary}
           </div>
 
           {recommendationIsStale ? (
-            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
+            <div className="rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-800">
               你刚刚改过开书信息，建议重新推荐一次，让题材和推进模式跟上最新方向。
             </div>
           ) : null}
 
           <div className="grid gap-3 lg:grid-cols-3">
-            <div className="rounded-lg border bg-background/80 p-3">
+            <div className="rounded-lg bg-background/70 p-3">
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">推荐题材基底</div>
               <div className="mt-1 text-sm font-semibold text-foreground">{recommendation.genre.path}</div>
               <div className="mt-2 text-xs leading-5 text-muted-foreground">{recommendation.genre.reason}</div>
             </div>
 
-            <div className="rounded-lg border bg-background/80 p-3">
+            <div className="rounded-lg bg-background/70 p-3">
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">推荐主推进模式</div>
               <div className="mt-1 text-sm font-semibold text-foreground">{recommendation.primaryStoryMode.path}</div>
               <div className="mt-2 text-xs leading-5 text-muted-foreground">{recommendation.primaryStoryMode.reason}</div>
             </div>
 
-            <div className="rounded-lg border bg-background/80 p-3">
+            <div className="rounded-lg bg-background/70 p-3">
               <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">推荐副推进模式</div>
               {recommendation.secondaryStoryMode ? (
                 <>
@@ -185,7 +185,7 @@ export default function NovelCreateResourceRecommendationCard(
           </div>
 
           {recommendation.caution ? (
-            <div className="rounded-md border bg-background/80 px-3 py-2 text-sm text-muted-foreground">
+            <div className="rounded-md bg-background/70 px-3 py-2 text-sm text-muted-foreground">
               注意：{recommendation.caution}
             </div>
           ) : null}
@@ -210,7 +210,7 @@ export default function NovelCreateResourceRecommendationCard(
       ) : null}
 
       {message ? (
-        <div className="mt-3 rounded-md border bg-background/80 px-3 py-2 text-sm">
+        <div className="mt-3 rounded-md bg-background/70 px-3 py-2 text-sm">
           {message}
         </div>
       ) : null}

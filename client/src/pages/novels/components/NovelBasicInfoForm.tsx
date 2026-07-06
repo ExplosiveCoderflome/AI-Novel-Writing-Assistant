@@ -117,7 +117,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+      <div className="rounded-lg bg-muted/15 px-4 py-4">
         <div className="text-sm font-semibold text-foreground">填写建议</div>
         <div className="mt-1 text-sm leading-6 text-muted-foreground">
           建议先想清楚这本书写给谁、靠什么吸引人、前 30 章要兑现什么，再补创作模式、世界边界和写法确认。这里的设置会直接影响后续主线规划、卷章推进和正文生成。
@@ -174,7 +174,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-muted/20 p-3 text-sm leading-6 text-muted-foreground">
+        <div className="rounded-lg bg-background/60 p-3 text-sm leading-6 text-muted-foreground">
           <div className="font-medium text-foreground">题材基底与推进模式的区别</div>
           <div className="mt-1">
             题材基底回答“这是什么书”，例如修仙、都市、历史架空；推进模式回答“这本书靠什么持续推进和兑现”，例如系统流、无敌流、种田流。

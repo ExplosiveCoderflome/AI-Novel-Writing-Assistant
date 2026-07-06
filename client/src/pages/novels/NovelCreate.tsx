@@ -8,7 +8,6 @@ import { createNovel } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { getWorldList } from "@/api/world";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import NovelBasicInfoForm from "./components/NovelBasicInfoForm";
 import NovelCreateResourceRecommendationCard from "./components/NovelCreateResourceRecommendationCard";
@@ -167,57 +166,62 @@ export default function NovelCreate() {
   });
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>创建小说项目</CardTitle>
-          <CardDescription>
-            先把这本书写给谁、靠什么吸引追读、前 30 章要兑现什么定义清楚。这里的设置会直接影响后续主线规划、世界边界、写法建议和 AI 生成行为，创建后仍可继续调整。
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <NovelBasicInfoForm
-            basicForm={basicForm}
-            genreOptions={genreOptions}
-            storyModeOptions={storyModeOptions}
-            worldOptions={worldListQuery.data?.data ?? []}
-            sourceNovelOptions={sourceNovelOptions}
-            sourceKnowledgeOptions={sourceKnowledgeOptions}
-            sourceNovelBookAnalysisOptions={sourceNovelBookAnalysisOptions}
-            isLoadingSourceNovelBookAnalyses={sourceBookAnalysesQuery.isLoading}
-            availableBookAnalysisSections={[...BOOK_ANALYSIS_SECTIONS]}
-            onFormChange={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
-            onSubmit={() => createNovelMutation.mutate()}
-            isSubmitting={createNovelMutation.isPending}
-            submitLabel="创建并进入项目"
-            showPublicationStatus={false}
-            framingQuickFill={(
-              <BookFramingQuickFillButton
-                basicForm={basicForm}
-                genreOptions={genreOptions}
-                onApplySuggestion={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
-              />
-            )}
-            resourceRecommendation={(
-              <NovelCreateResourceRecommendationCard
-                basicForm={basicForm}
-                onApplySuggestion={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
-              />
-            )}
-            projectQuickStart={(
-              <Button type="button" variant="outline" size="sm" asChild>
-                <Link to="/novels/auto-director">AI 自动导演创建</Link>
-              </Button>
-            )}
-            titleQuickFill={(
-              <NovelCreateTitleQuickFill
-                basicForm={basicForm}
-                onApplyTitle={(title) => setBasicForm((prev) => patchNovelBasicForm(prev, { title }))}
-              />
-            )}
-          />
-        </CardContent>
-      </Card>
+    <div className="mx-auto max-w-5xl space-y-7 px-3 py-4 sm:px-4 lg:px-0">
+      <section className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-3xl">
+          <h1 className="text-3xl font-semibold tracking-normal text-foreground">创建小说项目</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            推荐先让 AI 自动导演从一句灵感整理方向、世界、角色和章节准备。需要完全手动填写时，也可以继续使用下方表单。
+          </p>
+        </div>
+        <Button type="button" asChild className="shrink-0">
+          <Link to="/novels/auto-director">AI 自动导演开书</Link>
+        </Button>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <div className="text-lg font-semibold leading-7 text-foreground">手动创建</div>
+          <div className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+            手动路径适合你已经清楚题材、卖点和前期承诺的项目；创建后仍可在工作台继续调整。
+          </div>
+        </div>
+        <NovelBasicInfoForm
+          basicForm={basicForm}
+          genreOptions={genreOptions}
+          storyModeOptions={storyModeOptions}
+          worldOptions={worldListQuery.data?.data ?? []}
+          sourceNovelOptions={sourceNovelOptions}
+          sourceKnowledgeOptions={sourceKnowledgeOptions}
+          sourceNovelBookAnalysisOptions={sourceNovelBookAnalysisOptions}
+          isLoadingSourceNovelBookAnalyses={sourceBookAnalysesQuery.isLoading}
+          availableBookAnalysisSections={[...BOOK_ANALYSIS_SECTIONS]}
+          onFormChange={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
+          onSubmit={() => createNovelMutation.mutate()}
+          isSubmitting={createNovelMutation.isPending}
+          submitLabel="创建并进入项目"
+          showPublicationStatus={false}
+          framingQuickFill={(
+            <BookFramingQuickFillButton
+              basicForm={basicForm}
+              genreOptions={genreOptions}
+              onApplySuggestion={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
+            />
+          )}
+          resourceRecommendation={(
+            <NovelCreateResourceRecommendationCard
+              basicForm={basicForm}
+              onApplySuggestion={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
+            />
+          )}
+          titleQuickFill={(
+            <NovelCreateTitleQuickFill
+              basicForm={basicForm}
+              onApplyTitle={(title) => setBasicForm((prev) => patchNovelBasicForm(prev, { title }))}
+            />
+          )}
+        />
+      </section>
     </div>
   );
 }
