@@ -48,8 +48,8 @@ export default function PromptWorkbenchPage() {
     || slotState.saveMutation.isPending;
 
   return (
-    <div className="flex h-full min-h-0 bg-background">
-      <div className="w-[360px] min-w-[300px] max-w-[420px] shrink-0">
+    <div className="flex h-full min-h-0 overflow-hidden bg-background">
+      <div className="flex h-full min-h-0 w-[360px] min-w-[300px] max-w-[420px] shrink-0 overflow-hidden">
         <PromptCatalogSidebar
           keyword={keyword}
           onKeywordChange={setKeyword}
@@ -62,7 +62,7 @@ export default function PromptWorkbenchPage() {
         />
       </div>
 
-      <main className="min-w-0 flex-1">
+      <main className="h-full min-h-0 min-w-0 flex-1 overflow-hidden">
         {selectedPrompt ? (
           <PromptEditorShell
             prompt={selectedPrompt}
