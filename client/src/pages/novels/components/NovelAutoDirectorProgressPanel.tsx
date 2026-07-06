@@ -241,15 +241,15 @@ function resolveDirectorStepStatuses(
 
 function stepClasses(status: DirectorStepVisualStatus): string {
   if (status === "completed") {
-    return "border-emerald-500/40 bg-emerald-500/10";
+    return "bg-emerald-500/10";
   }
   if (status === "running") {
-    return "border-sky-400/60 bg-sky-50";
+    return "bg-sky-50";
   }
   if (status === "failed") {
-    return "border-destructive/40 bg-destructive/5";
+    return "bg-destructive/5";
   }
-  return "border-border/70 bg-background";
+  return "bg-muted/20";
 }
 
 function stepBadgeClasses(status: DirectorStepVisualStatus): string {
@@ -491,7 +491,7 @@ export default function NovelAutoDirectorProgressPanel({
           {(candidateSetupFlow
             ? stepDefinitions
             : displaySteps.map((step) => ({ key: step.key, label: step.label }))).map((step, index) => (
-            <div key={step.key} className={`rounded-xl border p-3 ${stepClasses(steps[index] ?? "pending")}`}>
+            <div key={step.key} className={`rounded-lg p-3 ${stepClasses(steps[index] ?? "pending")}`}>
               <div className="flex items-center justify-between gap-2">
                 <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${stepBadgeClasses(steps[index] ?? "pending")}`}>
                   {index + 1}
@@ -504,7 +504,7 @@ export default function NovelAutoDirectorProgressPanel({
         </div>
 
         {activityTags.length > 0 ? (
-          <div className="mt-4 rounded-xl border bg-background/80 p-3">
+          <div className="mt-4">
             <div className="text-xs font-medium text-muted-foreground">{"\u540e\u53f0\u9644\u5c5e\u5206\u6790"}</div>
             <div className="mt-2 flex flex-wrap gap-2">
               {activityTags.map((tag) => (
@@ -519,7 +519,7 @@ export default function NovelAutoDirectorProgressPanel({
           className="mt-4"
         />
 
-        <div className="mt-4 rounded-xl border bg-background/80 p-4">
+        <div className="mt-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-sm font-medium text-foreground">{"\u5168\u90e8\u8fdb\u5c55"}</div>
@@ -530,13 +530,13 @@ export default function NovelAutoDirectorProgressPanel({
           </div>
 
           {snapshotQuery.isLoading ? (
-            <div className="mt-3 rounded-lg border bg-muted/15 px-3 py-2 text-sm text-muted-foreground">
+            <div className="mt-3 text-sm text-muted-foreground">
               {"\u6b63\u5728\u8bfb\u53d6\u8fdb\u5c55\u8bb0\u5f55\u3002"}
             </div>
           ) : historyEvents.length > 0 ? (
-            <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+            <div className="mt-3 max-h-80 space-y-3 overflow-y-auto border-l border-border/60 pl-3 pr-1">
               {historyEvents.map((event) => (
-                <div key={event.eventId} className="rounded-lg border bg-muted/15 p-3 text-sm">
+                <div key={event.eventId} className="text-sm">
                   <div className="font-medium text-foreground">{event.summary}</div>
                   <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span>{"\u8bb0\u5f55\u65f6\u95f4\uff1a"}{formatDate(event.occurredAt)}</span>
@@ -547,21 +547,21 @@ export default function NovelAutoDirectorProgressPanel({
               ))}
             </div>
           ) : (
-            <div className="mt-3 rounded-lg border bg-muted/15 px-3 py-2 text-sm text-muted-foreground">
+            <div className="mt-3 text-sm text-muted-foreground">
               {"\u4efb\u52a1\u8fd0\u884c\u540e\u4f1a\u5728\u8fd9\u91cc\u5199\u5165\u8fdb\u5c55\u8bb0\u5f55\u3002"}
             </div>
           )}
         </div>
 
         {styleSeed ? (
-          <div className="mt-4 rounded-xl border bg-background/80 p-4">
+          <div className="mt-5">
             <div className="text-sm font-medium text-foreground">当前命中写法</div>
             <div className="mt-2 text-sm text-foreground">{styleSeed.title}</div>
             {styleSeed.summaryLines.length > 0 ? (
               <div className="mt-3 space-y-2">
                 <div className="text-xs font-medium text-muted-foreground">本阶段仅生效的写法摘要</div>
                 {styleSeed.summaryLines.map((line) => (
-                  <div key={line} className="rounded-lg border bg-muted/20 px-3 py-2 text-xs leading-6 text-muted-foreground">
+                  <div key={line} className="text-xs leading-6 text-muted-foreground">
                     {line}
                   </div>
                 ))}
@@ -572,19 +572,19 @@ export default function NovelAutoDirectorProgressPanel({
 
         {tokenUsage ? (
           <div className="mt-4 grid gap-3 md:grid-cols-4">
-            <div className="rounded-xl border bg-background/80 p-3">
+            <div className="rounded-lg bg-muted/15 p-3">
               <div className="text-xs text-muted-foreground">累计调用</div>
               <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.llmCallCount)}</div>
             </div>
-            <div className="rounded-xl border bg-background/80 p-3">
+            <div className="rounded-lg bg-muted/15 p-3">
               <div className="text-xs text-muted-foreground">输入 Tokens</div>
               <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.promptTokens)}</div>
             </div>
-            <div className="rounded-xl border bg-background/80 p-3">
+            <div className="rounded-lg bg-muted/15 p-3">
               <div className="text-xs text-muted-foreground">输出 Tokens</div>
               <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.completionTokens)}</div>
             </div>
-            <div className="rounded-xl border bg-background/80 p-3">
+            <div className="rounded-lg bg-muted/15 p-3">
               <div className="text-xs text-muted-foreground">累计总 Tokens</div>
               <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.totalTokens)}</div>
               <div className="mt-1 text-[11px] text-muted-foreground">最近记录：{formatDate(tokenUsage.lastRecordedAt)}</div>
@@ -631,15 +631,15 @@ export default function NovelAutoDirectorProgressPanel({
         ) : null}
       </AITakeoverContainer>
 
-      <div className="rounded-xl border bg-background/70 p-4">
+      <div className="pt-1">
         <div className="text-sm font-medium text-foreground">里程碑历史</div>
         {milestones.length > 0 ? (
-          <div className="mt-3 space-y-3">
+          <div className="mt-3 space-y-3 border-l border-border/60 pl-3">
             {milestones
               .slice()
               .reverse()
               .map((item) => (
-                <div key={`${item.checkpointType}:${item.createdAt}`} className="rounded-lg border bg-muted/15 p-3">
+                <div key={`${item.checkpointType}:${item.createdAt}`} className="text-sm">
                   <div className="font-medium text-foreground">{formatCheckpoint(item.checkpointType, task)}</div>
                   <div className="mt-1 text-sm text-muted-foreground">{item.summary}</div>
                   <div className="mt-1 text-xs text-muted-foreground">记录时间：{formatDate(item.createdAt)}</div>
