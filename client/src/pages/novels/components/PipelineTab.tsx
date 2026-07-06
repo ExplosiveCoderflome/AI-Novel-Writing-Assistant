@@ -11,6 +11,7 @@ import CollapsibleSummary from "./CollapsibleSummary";
 import WorldInjectionHint from "./WorldInjectionHint";
 import { getLowScoreChapterRange, getPipelineStageState, PIPELINE_STAGE_ITEMS } from "./pipelineTab.utils";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
+import SelectControl from "@/components/common/SelectControl";
 
 interface PipelineTabProps {
   novelId: string;
@@ -208,7 +209,7 @@ export default function PipelineTab(props: PipelineTabProps) {
           <CardTitle>质量风险队列</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <select
+          <SelectControl
             className="w-full rounded-md border bg-background p-2 text-sm"
             value={selectedChapterId}
             onChange={(event) => onSelectedChapterChange(event.target.value)}
@@ -216,7 +217,7 @@ export default function PipelineTab(props: PipelineTabProps) {
             {chapters.map((chapter) => (
               <option key={chapter.id} value={chapter.id}>第{chapter.order}章 - {chapter.title}</option>
             ))}
-          </select>
+          </SelectControl>
           <div className="flex flex-wrap gap-2">
             <AiButton onClick={onReviewChapter} disabled={isReviewing || !selectedChapterId}>执行审校</AiButton>
             <AiButton variant="secondary" onClick={onRepairChapter} disabled={isRepairing || !selectedChapterId}>执行修复</AiButton>
@@ -306,14 +307,14 @@ export default function PipelineTab(props: PipelineTabProps) {
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="space-y-1">
                   <div className="text-xs font-medium text-muted-foreground">运行模式</div>
-                  <select
+                  <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={pipelineForm.runMode}
                     onChange={(event) => onPipelineFormChange("runMode", event.target.value)}
                   >
                     <option value="fast">快速</option>
                     <option value="polish">精修</option>
-                  </select>
+                  </SelectControl>
                 </div>
                 <div className="space-y-1">
                   <div className="text-xs font-medium text-muted-foreground">质量阈值</div>
@@ -327,7 +328,7 @@ export default function PipelineTab(props: PipelineTabProps) {
                 </div>
                 <div className="space-y-1">
                   <div className="text-xs font-medium text-muted-foreground">修复模式</div>
-                  <select
+                  <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={pipelineForm.repairMode}
                     onChange={(event) => onPipelineFormChange("repairMode", event.target.value)}
@@ -338,7 +339,7 @@ export default function PipelineTab(props: PipelineTabProps) {
                     <option value="continuity_only">只修连续性</option>
                     <option value="character_only">只修人设</option>
                     <option value="ending_only">只修结尾力度</option>
-                  </select>
+                  </SelectControl>
                 </div>
               </div>
               <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">

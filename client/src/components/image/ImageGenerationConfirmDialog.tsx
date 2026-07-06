@@ -15,6 +15,7 @@ import { getAPIKeySettings } from "@/api/settings";
 import type { ImageGenerationOverrides, ImageGenerationPreview } from "@/api/comic";
 import { assistImageGenerationPrompt, resolveImageAssetUrl, type ImagePromptAssistResult } from "@/api/images";
 import { toast } from "@/components/ui/toast";
+import SelectControl from "@/components/common/SelectControl";
 
 const SIZE_OPTIONS = [
   { value: "1024x1024", label: "1024×1024（方形 1:1）" },
@@ -466,7 +467,7 @@ export function ImageGenerationConfirmDialog({
                   图片模型
                   {providerDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">已修改</span>}
                 </p>
-                <select
+                <SelectControl
                   className="w-full rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
                   value={provider}
                   onChange={(e) => {
@@ -482,14 +483,14 @@ export function ImageGenerationConfirmDialog({
                       <option key={p.value} value={p.value}>{p.label}</option>
                     ))
                   )}
-                </select>
+                </SelectControl>
               </div>
               <div>
                 <p className="mb-1 text-xs font-semibold text-muted-foreground">
                   图片尺寸
                   {sizeDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">已修改</span>}
                 </p>
-                <select
+                <SelectControl
                   className="w-full rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
                   value={size}
                   onChange={(e) => {
@@ -501,7 +502,7 @@ export function ImageGenerationConfirmDialog({
                   {sizeChoices.map((s) => (
                     <option key={s.value} value={s.value}>{s.label}</option>
                   ))}
-                </select>
+                </SelectControl>
               </div>
             </div>
 

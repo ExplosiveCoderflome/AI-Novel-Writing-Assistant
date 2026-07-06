@@ -41,6 +41,7 @@ import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import SelectControl from "@/components/common/SelectControl";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -718,7 +719,7 @@ export function PromptSlotPanel({ prompt }: { prompt: PromptCatalogItem }) {
         </div>
 
         {scope === "novel" && (
-          <select
+          <SelectControl
             value={selectedNovelId}
             onChange={(e) => { setSelectedNovelId(e.target.value); setDrafts({}); setSaveError(null); }}
             className="h-9 min-w-52 rounded-md border bg-background px-3 text-sm"
@@ -729,7 +730,7 @@ export function PromptSlotPanel({ prompt }: { prompt: PromptCatalogItem }) {
                 {novel.title || novel.id}
               </option>
             ))}
-          </select>
+          </SelectControl>
         )}
       </div>
 

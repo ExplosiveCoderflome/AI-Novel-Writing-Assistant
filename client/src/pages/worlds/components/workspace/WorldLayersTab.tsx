@@ -11,6 +11,7 @@ import {
   type RefineAttribute,
   REFINE_ATTRIBUTE_OPTIONS,
 } from "./worldWorkspaceShared";
+import SelectControl from "@/components/common/SelectControl";
 
 interface WorldLayersTabProps {
   world?: World;
@@ -195,7 +196,7 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
         <div className="rounded-md border p-3">
           <div className="mb-2 text-sm font-medium">AI 精修</div>
           <div className="grid gap-2 md:grid-cols-4">
-            <select
+            <SelectControl
               className="rounded-md border bg-background p-2 text-sm"
               value={refineAttribute}
               onChange={(event) => setRefineAttribute(event.target.value as RefineAttribute)}
@@ -205,23 +206,23 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
                   {item.label}
                 </option>
               ))}
-            </select>
-            <select
+            </SelectControl>
+            <SelectControl
               className="rounded-md border bg-background p-2 text-sm"
               value={refineMode}
               onChange={(event) => setRefineMode(event.target.value as "replace" | "alternatives")}
             >
               <option value="replace">替换优化</option>
               <option value="alternatives">提供备选方案</option>
-            </select>
-            <select
+            </SelectControl>
+            <SelectControl
               className="rounded-md border bg-background p-2 text-sm"
               value={refineLevel}
               onChange={(event) => setRefineLevel(event.target.value as "light" | "deep")}
             >
               <option value="light">轻度</option>
               <option value="deep">深度</option>
-            </select>
+            </SelectControl>
             <Button onClick={onStartRefine} disabled={refineStreaming}>
               {refineStreaming ? "精修中..." : selectedLayer === "foundation" ? "精修世界基底" : "精修本层"}
             </Button>

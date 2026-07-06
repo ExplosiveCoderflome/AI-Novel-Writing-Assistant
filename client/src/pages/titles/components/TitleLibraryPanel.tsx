@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { queryKeys } from "@/api/queryKeys";
 import { toast } from "@/components/ui/toast";
 import { truncateText } from "../titleStudio.shared";
+import SelectControl from "@/components/common/SelectControl";
 
 interface TitleLibraryPanelProps {
   genreOptions: Array<{ id: string; label: string; path: string }>;
@@ -81,7 +82,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
         </label>
         <label className="space-y-2 text-sm">
           <span className="font-medium text-foreground">类型</span>
-          <select
+          <SelectControl
             className={selectClassName}
             value={genreId}
             onChange={(event) => setGenreId(event.target.value)}
@@ -92,11 +93,11 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
                 {option.path}
               </option>
             ))}
-          </select>
+          </SelectControl>
         </label>
         <label className="space-y-2 text-sm">
           <span className="font-medium text-foreground">排序</span>
-          <select
+          <SelectControl
             className={selectClassName}
             value={sort}
             onChange={(event) => setSort(event.target.value as "newest" | "hot" | "clickRate")}
@@ -104,7 +105,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
             <option value="newest">最新加入</option>
             <option value="hot">使用次数</option>
             <option value="clickRate">点击潜力</option>
-          </select>
+          </SelectControl>
         </label>
       </div>
 

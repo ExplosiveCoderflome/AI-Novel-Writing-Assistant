@@ -25,6 +25,7 @@ import {
 import { BookFramingSection } from "./basicInfoForm/BookFramingSection";
 import CollapsibleSummary from "./CollapsibleSummary";
 import { ContinuationSourceSection } from "./basicInfoForm/ContinuationSourceSection";
+import SelectControl from "@/components/common/SelectControl";
 
 interface WorldOption {
   id: string;
@@ -182,7 +183,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div className="space-y-2">
             <FieldLabel htmlFor="basic-genre" hint={BASIC_INFO_FIELD_HINTS.genreId}>题材基底</FieldLabel>
-            <select
+            <SelectControl
               id="basic-genre"
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={basicForm.genreId}
@@ -194,7 +195,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {genre.path}
                 </option>
               ))}
-            </select>
+            </SelectControl>
           </div>
 
           <div className="space-y-2">
@@ -238,7 +239,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             <FieldLabel htmlFor="basic-primary-story-mode" hint={BASIC_INFO_FIELD_HINTS.primaryStoryModeId}>
               主推进模式
             </FieldLabel>
-            <select
+            <SelectControl
               id="basic-primary-story-mode"
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={basicForm.primaryStoryModeId}
@@ -250,14 +251,14 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {storyMode.path}
                 </option>
               ))}
-            </select>
+            </SelectControl>
           </div>
 
           <div className="space-y-2">
             <FieldLabel htmlFor="basic-secondary-story-mode" hint={BASIC_INFO_FIELD_HINTS.secondaryStoryModeId}>
               副推进模式
             </FieldLabel>
-            <select
+            <SelectControl
               id="basic-secondary-story-mode"
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={basicForm.secondaryStoryModeId}
@@ -273,7 +274,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {storyMode.path}
                 </option>
               ))}
-            </select>
+            </SelectControl>
           </div>
         </div>
 
@@ -319,7 +320,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             </div>
             <div className="space-y-2">
               <FieldLabel htmlFor="basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>参考世界样本</FieldLabel>
-              <select
+              <SelectControl
                 id="basic-world"
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={basicForm.worldId}
@@ -331,7 +332,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                     {world.name}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             </div>
           </div>
 
@@ -343,7 +344,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-pov" hint={BASIC_INFO_FIELD_HINTS.narrativePov}>叙事视角</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-pov"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.narrativePov}
@@ -352,13 +353,13 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {POV_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
                 <div className="text-xs text-muted-foreground">{findOptionSummary(POV_OPTIONS, basicForm.narrativePov)}</div>
               </div>
 
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-pace" hint={BASIC_INFO_FIELD_HINTS.pacePreference}>节奏偏好</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-pace"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.pacePreference}
@@ -367,13 +368,13 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {PACE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
                 <div className="text-xs text-muted-foreground">{findOptionSummary(PACE_OPTIONS, basicForm.pacePreference)}</div>
               </div>
 
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-emotion" hint={BASIC_INFO_FIELD_HINTS.emotionIntensity}>情绪浓度</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-emotion"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.emotionIntensity}
@@ -382,7 +383,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {EMOTION_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
                 <div className="text-xs text-muted-foreground">{findOptionSummary(EMOTION_OPTIONS, basicForm.emotionIntensity)}</div>
               </div>
 
@@ -420,7 +421,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-ai-freedom" hint={BASIC_INFO_FIELD_HINTS.aiFreedom}>AI 自由度</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-ai-freedom"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.aiFreedom}
@@ -429,7 +430,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {AI_FREEDOM_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
                 <div className="text-xs text-muted-foreground">{findOptionSummary(AI_FREEDOM_OPTIONS, basicForm.aiFreedom)}</div>
               </div>
 
@@ -514,7 +515,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-project-status">项目状态</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-project-status"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.projectStatus}
@@ -523,12 +524,12 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {PROJECT_STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
               </div>
 
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-storyline-status">主线状态</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-storyline-status"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.storylineStatus}
@@ -537,12 +538,12 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {PROJECT_STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
               </div>
 
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-outline-status">大纲状态</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-outline-status"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.outlineStatus}
@@ -551,7 +552,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {PROJECT_STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
               </div>
 
               {showPublicationStatus ? (

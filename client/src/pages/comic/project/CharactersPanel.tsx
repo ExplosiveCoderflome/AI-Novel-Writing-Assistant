@@ -50,6 +50,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { GeneratedImageCard } from "@/components/comic/GeneratedImageCard";
+import SelectControl from "@/components/common/SelectControl";
 
 function parseSheetData(character: ComicCharacter): CharacterSheetData {
   try {
@@ -227,7 +228,7 @@ function GenderSelector({ character }: { character: ComicCharacter }) {
 
   return (
     <div className="flex items-center gap-1">
-      <select
+      <SelectControl
         className={`rounded border px-1.5 py-0.5 text-[11px] leading-tight ${GENDER_BADGE_STYLE[current]} disabled:opacity-50`}
         value={current}
         disabled={mut.isPending}
@@ -237,7 +238,7 @@ function GenderSelector({ character }: { character: ComicCharacter }) {
         {(Object.keys(GENDER_LABELS) as ComicCharacterGender[]).map((g) => (
           <option key={g} value={g}>{GENDER_LABELS[g]}</option>
         ))}
-      </select>
+      </SelectControl>
     </div>
   );
 }

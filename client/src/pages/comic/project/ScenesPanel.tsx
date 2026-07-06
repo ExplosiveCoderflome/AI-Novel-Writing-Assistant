@@ -27,6 +27,7 @@ import { ImageGenerationConfirmDialog } from "@/components/image/ImageGeneration
 import { useImageGenerationFlow } from "@/components/image/useImageGenerationFlow";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import SelectControl from "@/components/common/SelectControl";
 
 const SCENE_TYPE_LABELS: Record<SceneType, string> = {
   interior: "室内",
@@ -176,7 +177,7 @@ function SceneDetail({
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <select
+          <SelectControl
             className="rounded-md border bg-background px-2 py-1 text-xs"
             value={sceneType}
             onChange={(e) => setSceneType(e.target.value as SceneType)}
@@ -184,7 +185,7 @@ function SceneDetail({
             {Object.entries(SCENE_TYPE_LABELS).map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
             ))}
-          </select>
+          </SelectControl>
         </div>
         <button
           type="button"

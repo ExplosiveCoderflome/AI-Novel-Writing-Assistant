@@ -23,6 +23,7 @@ import { useImageGenerationFlow } from "@/components/image/useImageGenerationFlo
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import SelectControl from "@/components/common/SelectControl";
 
 export function DramaVisualPanel(props: {
   project: DramaProjectDetail;
@@ -169,7 +170,7 @@ export function DramaVisualPanel(props: {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
-          <select
+          <SelectControl
             className="h-10 rounded-md border bg-background px-3 text-sm"
             value={selectedEpisode.order}
             onChange={(event) => props.onSelectOrder(Number(event.target.value))}
@@ -177,8 +178,8 @@ export function DramaVisualPanel(props: {
             {episodes.map((episode) => (
               <option key={episode.id} value={episode.order}>第 {episode.order} 集 {episode.title}</option>
             ))}
-          </select>
-          <select
+          </SelectControl>
+          <SelectControl
             className="h-10 rounded-md border bg-background px-3 text-sm"
             value={props.selectedProvider}
             onChange={(event) => props.onSelectProvider(event.target.value)}
@@ -189,8 +190,8 @@ export function DramaVisualPanel(props: {
             )) : (
               <option value={props.selectedProvider}>{props.selectedProvider}</option>
             )}
-          </select>
-          <select
+          </SelectControl>
+          <SelectControl
             className="h-10 rounded-md border bg-background px-3 text-sm"
             value={activeImageProvider}
             disabled={imageProviders.length === 0}
@@ -204,7 +205,7 @@ export function DramaVisualPanel(props: {
             )) : (
               <option value="">未配置图片 Provider</option>
             )}
-          </select>
+          </SelectControl>
           <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
             <input
               type="checkbox"

@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import TitleSuggestionList from "./TitleSuggestionList";
+import SelectControl from "@/components/common/SelectControl";
 
 interface TitleFactoryPanelProps {
   genreTree: GenreTreeNode[];
@@ -163,7 +164,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                 <label htmlFor="title-factory-novel" className="text-sm font-medium text-foreground">
                   选择小说项目
                 </label>
-                <select
+                <SelectControl
                   id="title-factory-novel"
                   className={controlClassName}
                   value={selectedNovelId}
@@ -175,7 +176,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                       {novel.title}
                     </option>
                   ))}
-                </select>
+                </SelectControl>
               </div>
               <div className="pl-0 text-xs leading-5 text-muted-foreground md:pl-[132px]">
                 适合已填写简介和类型的作品，系统会结合项目资料生成候选标题。
@@ -199,7 +200,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                 <label htmlFor="title-factory-genre" className="text-sm font-medium text-foreground">
                   类型过滤
                 </label>
-                <select
+                <SelectControl
                   id="title-factory-genre"
                   className={controlClassName}
                   value={genreId}
@@ -211,7 +212,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                       {option.path}
                     </option>
                   ))}
-                </select>
+                </SelectControl>
                 <p className="text-xs leading-5 text-muted-foreground">
                   不确定类型时可以留空，让模型先按简报自行判断标题方向。
                 </p>
@@ -236,7 +237,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                   <label htmlFor="title-factory-adapt-genre" className="text-sm font-medium text-foreground">
                     类型过滤
                   </label>
-                  <select
+                  <SelectControl
                     id="title-factory-adapt-genre"
                     className={controlClassName}
                     value={genreId}
@@ -248,7 +249,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                         {option.path}
                       </option>
                     ))}
-                  </select>
+                  </SelectControl>
                 </div>
               </div>
               <div className="space-y-3">

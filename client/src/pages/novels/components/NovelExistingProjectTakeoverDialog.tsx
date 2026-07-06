@@ -48,6 +48,7 @@ import TakeoverContextSummaryPanel from "./takeover/TakeoverContextSummaryPanel"
 import TakeoverDiagnosisPanel from "./takeover/TakeoverDiagnosisPanel";
 import { useDirectorAutoApprovalDraft } from "./useDirectorAutoApprovalDraft";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
+import SelectControl from "@/components/common/SelectControl";
 
 interface NovelExistingProjectTakeoverDialogProps {
   novelId: string;
@@ -496,7 +497,7 @@ export default function NovelExistingProjectTakeoverDialog({
                   绑定书级默认写法后，接管时建议沿用它。前半段导演只读取轻量摘要，避免干扰结构规划。
                 </div>
                 <div className="mt-3 space-y-3">
-                  <select
+                  <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={selectedStyleProfileId}
                     onChange={(event) => setSelectedStyleProfileId(event.target.value)}
@@ -505,7 +506,7 @@ export default function NovelExistingProjectTakeoverDialog({
                     {styleProfiles.map((profile) => (
                       <option key={profile.id} value={profile.id}>{profile.name}</option>
                     ))}
-                  </select>
+                  </SelectControl>
                   {currentNovelStyleBindings.length > 0 ? (
                     <div className={`rounded-lg border bg-muted/15 p-3 text-xs leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                       当前书级默认写法：{currentNovelStyleBindings

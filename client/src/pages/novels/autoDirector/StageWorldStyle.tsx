@@ -5,6 +5,7 @@ import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
 import { BASIC_INFO_FIELD_HINTS } from "../novelBasicInfo.shared";
 import { FieldLabel } from "../components/basicInfoForm/BasicInfoFormPrimitives";
+import SelectControl from "@/components/common/SelectControl";
 
 interface StageWorldStyleProps {
   basicForm: NovelBasicFormState;
@@ -53,7 +54,7 @@ export default function StageWorldStyle({
       <div className="space-y-5">
         <div className="space-y-2">
           <FieldLabel htmlFor="director-basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>规划参考世界样本</FieldLabel>
-          <select
+          <SelectControl
             id="director-basic-world"
             className={controlClassName}
             value={basicForm.worldId}
@@ -66,7 +67,7 @@ export default function StageWorldStyle({
             {worldOptions.map((world) => (
               <option key={world.id} value={world.id}>{world.name}</option>
             ))}
-          </select>
+          </SelectControl>
           <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             {worldOptions.length > 0
               ? "这里只给自动导演提供快速参考。完整导入、生成和同步请在小说页的“本书世界”中完成。"
@@ -118,7 +119,7 @@ export default function StageWorldStyle({
           <FieldLabel htmlFor="director-basic-style-profile" hint="可选。选定后，导演前半段会只读取轻量写法摘要，正文阶段再继续使用完整写法规则。">
             书级默认写法
           </FieldLabel>
-          <select
+          <SelectControl
             id="director-basic-style-profile"
             className={controlClassName}
             value={selectedStyleProfileId}
@@ -128,7 +129,7 @@ export default function StageWorldStyle({
             {styleProfileOptions.map((option) => (
               <option key={option.id} value={option.id}>{option.name}</option>
             ))}
-          </select>
+          </SelectControl>
           <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             {selectedStyleSummary?.stageSummaryLines[0] ?? "有沉淀好的写法资产时，建议直接选一套，帮助你更清楚地预期导演会怎样写。"}
           </div>

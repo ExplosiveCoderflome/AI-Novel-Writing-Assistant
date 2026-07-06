@@ -11,6 +11,7 @@ import {
   type ChapterDetailBatchSelection,
 } from "../chapterDetailPlanning.shared";
 import type { StructuredTabViewProps } from "./NovelEditView.types";
+import SelectControl from "@/components/common/SelectControl";
 
 const textareaClassName =
   "w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -236,7 +237,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
               <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_160px]">
                 <label className="space-y-2 text-sm">
                   <span className="text-xs text-muted-foreground">范围</span>
-                  <select
+                  <SelectControl
                     className="w-full rounded-xl border bg-background px-3 py-2 text-sm text-foreground"
                     value={batchMode}
                     onChange={(event) => setBatchMode(event.target.value as BatchMode)}
@@ -244,7 +245,7 @@ export default function StructuredChapterDetailCard(props: StructuredChapterDeta
                     <option value="count" disabled={!hasCountBatch}>从当前章起连续细化</option>
                     {hasVisibleBatch ? <option value="visible_all">当前可见章节</option> : null}
                     {hasVolumeBatch ? <option value="volume_all">本卷全部章节</option> : null}
-                  </select>
+                  </SelectControl>
                 </label>
                 <label className="space-y-2 text-sm">
                   <span className="text-xs text-muted-foreground">{batchMode === "count" ? "章节数" : "本次范围"}</span>

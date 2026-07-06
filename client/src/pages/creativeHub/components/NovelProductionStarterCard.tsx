@@ -3,6 +3,7 @@ import type { CreativeHubProductionStatus } from "@ai-novel/shared/types/creativ
 import { getNovelDetail, updateNovel } from "@/api/novel";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import SelectControl from "@/components/common/SelectControl";
 
 interface NovelProductionStarterCardProps {
   currentNovelTitle?: string | null;
@@ -268,7 +269,7 @@ export default function NovelProductionStarterCard({
           />
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
-          <select
+          <SelectControl
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
             value={narrativePov}
             onChange={(event) => setNarrativePov(event.target.value)}
@@ -277,8 +278,8 @@ export default function NovelProductionStarterCard({
             <option value="第一人称">第一人称</option>
             <option value="第三人称">第三人称</option>
             <option value="混合视角">混合视角</option>
-          </select>
-          <select
+          </SelectControl>
+          <SelectControl
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
             value={pacePreference}
             onChange={(event) => setPacePreference(event.target.value)}
@@ -287,10 +288,10 @@ export default function NovelProductionStarterCard({
             <option value="慢节奏">慢节奏</option>
             <option value="均衡节奏">均衡节奏</option>
             <option value="快节奏">快节奏</option>
-          </select>
+          </SelectControl>
         </div>
         <div className="grid gap-2 sm:grid-cols-3">
-          <select
+          <SelectControl
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
             value={projectMode}
             onChange={(event) => setProjectMode(event.target.value)}
@@ -300,8 +301,8 @@ export default function NovelProductionStarterCard({
             <option value="人机协作">人机协作</option>
             <option value="草稿优先">草稿优先</option>
             <option value="自动流水线">自动流水线</option>
-          </select>
-          <select
+          </SelectControl>
+          <SelectControl
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
             value={emotionIntensity}
             onChange={(event) => setEmotionIntensity(event.target.value)}
@@ -310,8 +311,8 @@ export default function NovelProductionStarterCard({
             <option value="低">低</option>
             <option value="中">中</option>
             <option value="高">高</option>
-          </select>
-          <select
+          </SelectControl>
+          <SelectControl
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
             value={aiFreedom}
             onChange={(event) => setAiFreedom(event.target.value)}
@@ -320,7 +321,7 @@ export default function NovelProductionStarterCard({
             <option value="低">低</option>
             <option value="中">中</option>
             <option value="高">高</option>
-          </select>
+          </SelectControl>
         </div>
         <div className="grid gap-2 sm:grid-cols-3">
           <input

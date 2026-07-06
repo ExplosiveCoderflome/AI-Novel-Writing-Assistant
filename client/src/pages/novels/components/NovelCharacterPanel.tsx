@@ -32,6 +32,7 @@ import CharacterDiagnosticsSection from "./CharacterDiagnosticsSection";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 import { StatusRail, StepActionBar, StepHero } from "./workspaceShell";
+import SelectControl from "@/components/common/SelectControl";
 
 interface QuickCharacterFormState {
   name: string;
@@ -397,7 +398,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                 value={quickCharacterForm.name}
                 onChange={(event) => onQuickCharacterFormChange("name", event.target.value)}
               />
-              <select
+              <SelectControl
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={quickCharacterForm.role}
                 onChange={(event) => onQuickCharacterFormChange("role", event.target.value)}
@@ -408,7 +409,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                 <option value="导师">导师</option>
                 <option value="情感线">情感线</option>
                 <option value="功能角色">功能角色</option>
-              </select>
+              </SelectControl>
               <Input
                 placeholder="与主角关系（如：试探合作）"
                 value={relationToProtagonist}
@@ -446,7 +447,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
               </div>
               {baseCharacters.length > 0 ? (
                 <>
-                  <select
+                  <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={selectedBaseCharacterId}
                     onChange={(event) => onSelectedBaseCharacterChange(event.target.value)}
@@ -456,7 +457,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                         {character.name}（{character.role}）
                       </option>
                     ))}
-                  </select>
+                  </SelectControl>
                   {selectedBaseCharacter ? (
                     <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
                       <div className="flex items-center justify-between gap-2">
@@ -512,7 +513,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                   默认推荐“AI 判断”，只有你很确定要补哪类人时再手动指定。
                 </div>
               </div>
-              <select
+              <SelectControl
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={supplementalMode}
                 onChange={(event) => setSupplementalMode(event.target.value as SupplementalCharacterGenerationMode)}
@@ -520,7 +521,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                 <option value="auto">AI 判断当前更需要哪种补位</option>
                 <option value="linked">基于现有角色衍生关系角色</option>
                 <option value="independent">生成相对独立角色</option>
-              </select>
+              </SelectControl>
 
               {characters.length > 0 && supplementalMode !== "independent" ? (
                 <div className="space-y-2">
@@ -549,7 +550,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-2">
                   <div className="font-medium">期望角色功能</div>
-                  <select
+                  <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={supplementalTargetRole}
                     onChange={(event) => setSupplementalTargetRole(event.target.value as CharacterCastRole | "auto")}
@@ -563,11 +564,11 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                     <option value="love_interest">情感牵引</option>
                     <option value="pressure_source">压力源</option>
                     <option value="catalyst">催化者</option>
-                  </select>
+                  </SelectControl>
                 </div>
                 <div className="space-y-2">
                   <div className="font-medium">生成数量</div>
-                  <select
+                  <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={supplementalCount}
                     onChange={(event) => setSupplementalCount(event.target.value as "auto" | "1" | "2" | "3")}
@@ -576,7 +577,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                     <option value="1">1 个</option>
                     <option value="2">2 个</option>
                     <option value="3">3 个</option>
-                  </select>
+                  </SelectControl>
                 </div>
               </div>
 

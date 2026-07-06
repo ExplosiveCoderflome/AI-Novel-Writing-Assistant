@@ -10,6 +10,7 @@ import VolumePayoffOverviewCard from "./VolumePayoffOverviewCard";
 import type { OutlineTabViewProps } from "./NovelEditView.types";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 import TensionCurvePanel, { type TensionCurveSeries } from "@/components/tensionCurve/TensionCurvePanel";
+import SelectControl from "@/components/common/SelectControl";
 
 type OutlineCharacterResource = NonNullable<OutlineTabViewProps["characterResources"]>[number];
 
@@ -480,13 +481,13 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                 <CardContent className="space-y-2 text-sm">
                   {volumeVersions.length > 0 ? (
                     <>
-                      <select className="w-full rounded-md border bg-background p-2 text-sm" value={selectedVersionId} onChange={(event) => onSelectedVersionChange(event.target.value)}>
+                      <SelectControl className="w-full rounded-md border bg-background p-2 text-sm" value={selectedVersionId} onChange={(event) => onSelectedVersionChange(event.target.value)}>
                         {volumeVersions.map((version) => (
                           <option key={version.id} value={version.id}>
                             V{version.version} · {versionStatusLabel(version.status)}
                           </option>
                         ))}
-                      </select>
+                      </SelectControl>
                       {selectedVersion ? (
                         <div className="rounded-md border p-2">
                           <div className="flex items-center gap-2">

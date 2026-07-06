@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { BookAnalysisSourceRangeDraft } from "../hooks/bookAnalysisWorkspace.types";
+import SelectControl from "@/components/common/SelectControl";
 
 type RangeMode = "full" | "chapter" | "chars";
 
@@ -280,7 +281,7 @@ export default function BookAnalysisSourceRangePicker({
         <div className="grid gap-2 lg:grid-cols-[1fr_1fr]">
           {canUseChapterRange ? (
             <>
-              <select
+              <SelectControl
                 className="h-9 w-full rounded-md border bg-background px-2 text-xs"
                 value={selectedRange?.startChapterIndex ?? sortedChapters[0]?.chapterIndex ?? 0}
                 onChange={(event) => {
@@ -294,8 +295,8 @@ export default function BookAnalysisSourceRangePicker({
                     起：第 {chapter.chapterIndex + 1} 章 · {shortTitle(chapter.title)}
                   </option>
                 ))}
-              </select>
-              <select
+              </SelectControl>
+              <SelectControl
                 className="h-9 w-full rounded-md border bg-background px-2 text-xs"
                 value={selectedRange?.endChapterIndex ?? sortedChapters[sortedChapters.length - 1]?.chapterIndex ?? 0}
                 onChange={(event) => {
@@ -311,7 +312,7 @@ export default function BookAnalysisSourceRangePicker({
                       止：第 {chapter.chapterIndex + 1} 章 · {shortTitle(chapter.title)}
                     </option>
                   ))}
-              </select>
+              </SelectControl>
             </>
           ) : (
             <RangeLoadHint

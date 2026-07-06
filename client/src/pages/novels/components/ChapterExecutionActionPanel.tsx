@@ -17,6 +17,7 @@ import {
   resolveDisplayedChapterStatus,
   resolveChapterExecutionFlow,
 } from "./chapterExecution.shared";
+import SelectControl from "@/components/common/SelectControl";
 
 interface ChapterExecutionActionPanelProps {
   novelId: string;
@@ -398,7 +399,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
           <div className="mt-3 grid gap-3">
             <label htmlFor="chapter-strategy-run-mode" className="space-y-1 text-xs text-muted-foreground">
               <span>运行模式</span>
-              <select
+              <SelectControl
                 id="chapter-strategy-run-mode"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
                 value={strategy.runMode}
@@ -406,11 +407,11 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
               >
                 <option value="fast">快速</option>
                 <option value="polish">精修</option>
-              </select>
+              </SelectControl>
             </label>
             <label htmlFor="chapter-strategy-word-size" className="space-y-1 text-xs text-muted-foreground">
               <span>篇幅</span>
-              <select
+              <SelectControl
                 id="chapter-strategy-word-size"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
                 value={strategy.wordSize}
@@ -419,7 +420,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
                 <option value="short">短</option>
                 <option value="medium">中</option>
                 <option value="long">长</option>
-              </select>
+              </SelectControl>
             </label>
             <label htmlFor="chapter-strategy-conflict" className="space-y-1 text-xs text-muted-foreground">
               <span>冲突强度</span>
@@ -435,7 +436,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
             </label>
             <label htmlFor="chapter-strategy-pace" className="space-y-1 text-xs text-muted-foreground">
               <span>节奏</span>
-              <select
+              <SelectControl
                 id="chapter-strategy-pace"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
                 value={strategy.pace}
@@ -444,11 +445,11 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
                 <option value="slow">慢</option>
                 <option value="balanced">均衡</option>
                 <option value="fast">快</option>
-              </select>
+              </SelectControl>
             </label>
             <label htmlFor="chapter-strategy-ai-freedom" className="space-y-1 text-xs text-muted-foreground">
               <span>AI 自由度</span>
-              <select
+              <SelectControl
                 id="chapter-strategy-ai-freedom"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
                 value={strategy.aiFreedom}
@@ -457,7 +458,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
                 <option value="low">低</option>
                 <option value="medium">中</option>
                 <option value="high">高</option>
-              </select>
+              </SelectControl>
             </label>
             <Button className="w-full" size="sm" onClick={onApplyStrategy} disabled={isApplyingStrategy || !selectedChapter}>
               {isApplyingStrategy ? "正在应用策略..." : "应用策略到当前章"}

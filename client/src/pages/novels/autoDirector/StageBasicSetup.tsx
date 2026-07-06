@@ -15,6 +15,7 @@ import {
   FieldLabel,
   findOptionSummary,
 } from "../components/basicInfoForm/BasicInfoFormPrimitives";
+import SelectControl from "@/components/common/SelectControl";
 
 interface StageBasicSetupProps {
   basicForm: NovelBasicFormState;
@@ -53,7 +54,7 @@ export default function StageBasicSetup({
       <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
         <div className="space-y-2">
           <FieldLabel htmlFor="director-basic-reader-channel" hint={BASIC_INFO_FIELD_HINTS.readerChannelPreference}>读者频道倾向</FieldLabel>
-          <select
+          <SelectControl
             id="director-basic-reader-channel"
             className={controlClassName}
             value={basicForm.readerChannelPreference}
@@ -64,7 +65,7 @@ export default function StageBasicSetup({
             {READER_CHANNEL_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
-          </select>
+          </SelectControl>
           <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             {findOptionSummary(READER_CHANNEL_OPTIONS, basicForm.readerChannelPreference)}
           </div>
@@ -72,7 +73,7 @@ export default function StageBasicSetup({
 
         <div className="space-y-2">
           <FieldLabel htmlFor="director-basic-pov" hint={BASIC_INFO_FIELD_HINTS.narrativePov}>叙事视角</FieldLabel>
-          <select
+          <SelectControl
             id="director-basic-pov"
             className={controlClassName}
             value={basicForm.narrativePov}
@@ -83,7 +84,7 @@ export default function StageBasicSetup({
             {POV_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
-          </select>
+          </SelectControl>
           <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             {findOptionSummary(POV_OPTIONS, basicForm.narrativePov)}
           </div>
@@ -91,7 +92,7 @@ export default function StageBasicSetup({
 
         <div className="space-y-2">
           <FieldLabel htmlFor="director-basic-pace" hint={BASIC_INFO_FIELD_HINTS.pacePreference}>节奏偏好</FieldLabel>
-          <select
+          <SelectControl
             id="director-basic-pace"
             className={controlClassName}
             value={basicForm.pacePreference}
@@ -102,7 +103,7 @@ export default function StageBasicSetup({
             {PACE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
-          </select>
+          </SelectControl>
           <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             {findOptionSummary(PACE_OPTIONS, basicForm.pacePreference)}
           </div>
@@ -110,7 +111,7 @@ export default function StageBasicSetup({
 
         <div className="space-y-2">
           <FieldLabel htmlFor="director-basic-emotion" hint={BASIC_INFO_FIELD_HINTS.emotionIntensity}>情绪浓度</FieldLabel>
-          <select
+          <SelectControl
             id="director-basic-emotion"
             className={controlClassName}
             value={basicForm.emotionIntensity}
@@ -121,7 +122,7 @@ export default function StageBasicSetup({
             {EMOTION_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
-          </select>
+          </SelectControl>
           <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             {findOptionSummary(EMOTION_OPTIONS, basicForm.emotionIntensity)}
           </div>

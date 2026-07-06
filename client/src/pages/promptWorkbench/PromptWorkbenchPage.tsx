@@ -109,6 +109,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { PromptSlotPanel } from "./components/PromptSlotPanel";
+import SelectControl from "@/components/common/SelectControl";
 
 const ENTRYPOINT_OPTIONS = [
   { value: "creative_hub", label: "创作中枢" },
@@ -455,7 +456,7 @@ export default function PromptWorkbenchPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <select
+                      <SelectControl
                         value={entrypoint}
                         onChange={(event) => setEntrypoint(event.target.value)}
                         className="h-10 rounded-md border bg-background px-3 text-sm"
@@ -463,7 +464,7 @@ export default function PromptWorkbenchPage() {
                         {ENTRYPOINT_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>{option.label}</option>
                         ))}
-                      </select>
+                      </SelectControl>
                     </div>
                   </div>
                 </CardHeader>
