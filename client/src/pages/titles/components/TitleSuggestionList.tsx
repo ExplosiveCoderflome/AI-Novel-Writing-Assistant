@@ -1,7 +1,6 @@
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getClickRateBadgeClass, getTitleStyleLabel } from "../titleStudio.shared";
+import { getTitleStyleLabel } from "../titleStudio.shared";
 
 interface TitleSuggestionListProps {
   suggestions: TitleFactorySuggestion[];
@@ -26,7 +25,7 @@ export default function TitleSuggestionList({
 }: TitleSuggestionListProps) {
   if (suggestions.length === 0) {
     return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
+      <div className="py-10 text-center text-sm text-muted-foreground">
         {emptyMessage}
       </div>
     );
@@ -36,22 +35,30 @@ export default function TitleSuggestionList({
     <div className="divide-y divide-border/60">
       {suggestions.map((suggestion) => {
         const isSelected = selectedTitle === suggestion.title;
+        const metadata = [
+          `预估 ${suggestion.clickRate}`,
+          getTitleStyleLabel(suggestion.style),
+          suggestion.angle,
+          isSelected ? "当前选中" : null,
+        ].filter((item): item is string => Boolean(item));
         return (
           <div
             key={suggestion.title}
-            className={`px-3 py-4 transition ${
-              isSelected ? "rounded-lg bg-primary/5" : ""
+            className={`group py-4 transition ${
+              isSelected ? "rounded-lg bg-primary/5 px-3" : "px-1"
             }`}
           >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className={getClickRateBadgeClass(suggestion.clickRate)}>
-                    预估 {suggestion.clickRate}
-                  </Badge>
-                  <Badge variant="secondary">{getTitleStyleLabel(suggestion.style)}</Badge>
-                  {suggestion.angle ? <Badge variant="outline">{suggestion.angle}</Badge> : null}
-                  {isSelected ? <Badge variant="outline">当前选中</Badge> : null}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  {metadata.map((item, index) => (
+                    <span
+                      key={`${suggestion.title}-${item}`}
+                      className={index === 0 ? "font-medium text-foreground" : undefined}
+                    >
+                      {item}
+                    </span>
+                  ))}
                 </div>
                 <div className="text-lg font-semibold text-foreground">{suggestion.title}</div>
                 {suggestion.reason ? (

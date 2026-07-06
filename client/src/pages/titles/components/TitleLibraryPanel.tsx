@@ -3,14 +3,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { buildTitleLibraryListKey, deleteTitleLibraryEntry, listTitleLibrary, markTitleLibraryUsed } from "@/api/title";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { queryKeys } from "@/api/queryKeys";
 import { toast } from "@/components/ui/toast";
-import { getClickRateBadgeClass, truncateText } from "../titleStudio.shared";
+import { truncateText } from "../titleStudio.shared";
 
 interface TitleLibraryPanelProps {
   genreOptions: Array<{ id: string; label: string; path: string }>;
 }
+
+const controlClassName = "h-11 rounded-lg border-0 bg-muted/35 ring-1 ring-transparent transition hover:bg-muted/50 focus-visible:ring-primary/25";
+const selectClassName = "w-full rounded-lg border-0 bg-muted/35 px-3 py-2.5 text-sm outline-none ring-1 ring-transparent transition hover:bg-muted/50 focus:bg-background focus:ring-2 focus:ring-primary/25";
 
 export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelProps) {
   const queryClient = useQueryClient();
@@ -65,20 +67,21 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
   const pagination = libraryQuery.data?.data;
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-4">
-      <div className="grid gap-3 rounded-lg border bg-muted/20 p-4 md:grid-cols-[minmax(0,1fr)_220px_180px]">
+    <div className="space-y-5">
+      <div className="grid gap-3 border-b border-border/60 pb-5 md:grid-cols-[minmax(0,1fr)_220px_180px]">
         <label className="space-y-2 text-sm">
           <span className="font-medium text-foreground">搜索</span>
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="匹配标题、说明或关键词"
+            className={controlClassName}
           />
         </label>
         <label className="space-y-2 text-sm">
           <span className="font-medium text-foreground">类型</span>
           <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
+            className={selectClassName}
             value={genreId}
             onChange={(event) => setGenreId(event.target.value)}
           >
@@ -93,7 +96,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
         <label className="space-y-2 text-sm">
           <span className="font-medium text-foreground">排序</span>
           <select
-            className="w-full rounded-md border bg-background p-2 text-sm"
+            className={selectClassName}
             value={sort}
             onChange={(event) => setSort(event.target.value as "newest" | "hot" | "clickRate")}
           >
@@ -105,13 +108,13 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
       </div>
 
       {libraryQuery.isLoading ? (
-        <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+        <div className="py-10 text-center text-sm text-muted-foreground">
           正在加载标题库...
         </div>
       ) : null}
 
       {!libraryQuery.isLoading && rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-6 text-center">
+        <div className="py-10 text-center">
           <div className="text-sm font-medium text-foreground">标题库还是空的</div>
           <div className="mt-1 text-sm text-muted-foreground">
             先去标题工坊生成一批候选，再把值得复用的标题沉淀进来。
@@ -119,17 +122,18 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
         </div>
       ) : null}
 
-      <div className="grid gap-3">
+      <div className="divide-y divide-border/60">
         {rows.map((entry) => (
-          <div key={entry.id} className="rounded-lg border bg-background p-4">
+          <div key={entry.id} className="py-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   {typeof entry.clickRate === "number" ? (
-                    <Badge className={getClickRateBadgeClass(entry.clickRate)}>预估 {entry.clickRate}</Badge>
+                    <span className="font-medium text-foreground">预估 {entry.clickRate}</span>
                   ) : null}
-                  {entry.genre?.name ? <Badge variant="secondary">{entry.genre.name}</Badge> : null}
-                  <Badge variant="outline">使用 {entry.usedCount}</Badge>
+                  {entry.genre?.name ? <span>{entry.genre.name}</span> : null}
+                  <span>使用 {entry.usedCount}</span>
+                  <span>加入时间 {new Date(entry.createdAt).toLocaleDateString("zh-CN")}</span>
                 </div>
                 <div className="text-lg font-semibold text-foreground">{entry.title}</div>
                 {entry.description ? (
@@ -140,9 +144,6 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
                 {entry.keywords ? (
                   <div className="text-xs text-muted-foreground">关键词：{truncateText(entry.keywords, 140)}</div>
                 ) : null}
-                <div className="text-xs text-muted-foreground">
-                  加入时间：{new Date(entry.createdAt).toLocaleDateString("zh-CN")}
-                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -179,7 +180,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
       </div>
 
       {pagination && pagination.totalPages > 1 ? (
-        <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-4 py-3 text-sm">
+        <div className="flex items-center justify-between border-t border-border/60 pt-4 text-sm">
           <div className="text-muted-foreground">
             第 {pagination.page} / {pagination.totalPages} 页，共 {pagination.total} 条
           </div>
