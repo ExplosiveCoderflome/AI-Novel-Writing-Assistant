@@ -1,4 +1,4 @@
-import { Braces, RefreshCw, Search } from "lucide-react";
+import { Braces, PenLine, RefreshCw, Search } from "lucide-react";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,17 +28,34 @@ function PromptListItem(props: {
   onSelect: () => void;
 }) {
   const { active, onSelect, prompt } = props;
+  const isChapterWriterPrompt = prompt.id === "novel.chapter.writer";
+
   return (
     <button
       type="button"
       onClick={onSelect}
       className={cn(
-        "group w-full rounded-md border px-3 py-2.5 text-left transition-colors",
-        active ? "border-primary bg-primary/5 shadow-sm" : "border-border bg-background hover:bg-muted/60",
+        "group relative w-full shrink-0 overflow-hidden rounded-md border px-3 py-2.5 text-left transition-colors",
+        isChapterWriterPrompt && active
+          ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-400/60 shadow-sm"
+          : isChapterWriterPrompt
+            ? "border-emerald-300 bg-emerald-50/80 shadow-sm hover:bg-emerald-50"
+            : active
+              ? "border-primary bg-primary/5 shadow-sm"
+              : "border-border bg-background hover:bg-muted/60",
       )}
     >
+      {isChapterWriterPrompt ? (
+        <span className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-emerald-500" />
+      ) : null}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
+          {isChapterWriterPrompt ? (
+            <div className="mb-1 inline-flex max-w-full items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold leading-4 text-emerald-800">
+              <PenLine className="h-3 w-3 shrink-0" />
+              <span className="truncate">正文生成主提示词</span>
+            </div>
+          ) : null}
           <div className="truncate text-[13px] font-semibold leading-5 text-foreground" title={prompt.description || prompt.id}>
             {prompt.description || prompt.id}
           </div>
