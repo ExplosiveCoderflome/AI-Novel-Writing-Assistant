@@ -4,14 +4,14 @@ import NovelStyleRecommendationCard from "./NovelStyleRecommendationCard";
 import NovelWorldUsageCard from "./NovelWorldUsageCard";
 import NovelWorldManagerCard from "./NovelWorldManagerCard";
 import { BookFramingQuickFillButton } from "./basicInfoForm/BookFramingQuickFillButton";
-import CollapsibleSummary from "./CollapsibleSummary";
 import NovelCreateTitleQuickFill from "./titleWorkshop/NovelCreateTitleQuickFill";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 import { NovelCoverCard } from "./cover/NovelCoverCard";
+import { DetailDisclosure, SectionBlock } from "./workspaceShell";
 
 export default function BasicInfoTab(props: BasicTabProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <DirectorTakeoverEntryPanel
         title="让 AI 从当前项目继续接管"
         description="如果基础信息较完整，可以直接从选定步骤开始自动接管，并选择继续已有进度或重跑当前步。"
@@ -45,13 +45,10 @@ export default function BasicInfoTab(props: BasicTabProps) {
           onSave={props.onSaveWorldSliceOverrides}
         />
       </div>
-      <section className="space-y-4">
-        <div>
-          <div className="text-lg font-semibold leading-7 text-foreground">书级定位与基本信息</div>
-          <div className="mt-1 text-sm leading-6 text-muted-foreground">
-            继续完善标题、概述、读者与卖点，让后续自动导演和章节生成能稳定继承当前方向。
-          </div>
-        </div>
+      <SectionBlock
+        title="书级定位与基本信息"
+        description="继续完善标题、概述、读者与卖点，让后续自动导演和章节生成能稳定继承当前方向。"
+      >
         <NovelBasicInfoForm
           basicForm={props.basicForm}
           genreOptions={props.genreOptions}
@@ -91,21 +88,15 @@ export default function BasicInfoTab(props: BasicTabProps) {
           )}
           projectQuickStart={props.projectQuickStart}
         />
-      </section>
+      </SectionBlock>
 
-      <details className="group border-t border-border/60 pt-4">
-        <summary className="cursor-pointer list-none">
-          <CollapsibleSummary
-            title="写法建议"
-            description="确认本书的叙述口味、表达密度和风格参考，帮助后续章节保持统一。"
-            meta="写法参考"
-          />
-        </summary>
-
-        <div className="mt-4 space-y-4">
-          <NovelStyleRecommendationCard novelId={props.novelId} />
-        </div>
-      </details>
+      <DetailDisclosure
+        title="写法建议"
+        description="确认本书的叙述口味、表达密度和风格参考，帮助后续章节保持统一。"
+        meta="写法参考"
+      >
+        <NovelStyleRecommendationCard novelId={props.novelId} />
+      </DetailDisclosure>
     </div>
   );
 }

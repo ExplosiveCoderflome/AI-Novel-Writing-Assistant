@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, GitCompareArrows, GitFork, Library, Map, Network, Route, Workflow } from "lucide-react";
+import { BookOpen, GitCompareArrows, GitFork, Library, Map, Network, Workflow } from "lucide-react";
 import type {
   NovelWorldAssetSummary,
   NovelWorldSyncDiff,
@@ -10,6 +10,7 @@ import type {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import NovelWorldSourcePanel, { type WorldOption } from "./novelWorld/NovelWorldSourcePanel";
+import { DetailDisclosure, SectionBlock, StatusRail, StepActionBar, StepHero } from "./workspaceShell";
 
 interface NovelWorldManagerCardProps {
   view?: NovelWorldView | null;
@@ -73,29 +74,6 @@ function sectionLabel(section: string): string {
     default:
       return section;
   }
-}
-
-function StatusPanel({
-  icon: Icon,
-  title,
-  value,
-  description,
-}: {
-  icon: typeof BookOpen;
-  title: string;
-  value: string;
-  description: string;
-}) {
-  return (
-    <div className="min-w-0 border-l border-border/60 pl-3">
-      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
-        {title}
-      </div>
-      <div className="mt-2 break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">{value}</div>
-      <div className="mt-1 text-xs leading-5 text-muted-foreground">{description}</div>
-    </div>
-  );
 }
 
 const ASSET_ICON_BY_TYPE: Record<NovelWorldAssetSummary["assetType"], typeof BookOpen> = {
@@ -194,55 +172,51 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
 
   return (
     <section className="space-y-5">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <div className="text-2xl font-semibold tracking-normal text-foreground">本书世界</div>
-          <div className="mt-1 text-sm leading-6 text-muted-foreground">
-            这里管理这本小说真正使用的世界。世界库提供可复用样本，导入或生成后，这里保存本书自己的世界版本。
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {props.isLoading ? <Badge variant="secondary">读取中</Badge> : null}
-          {novelWorld ? <Badge variant="outline">{labelSourceType(novelWorld.sourceType)}</Badge> : null}
-          {novelWorld?.hasStorySlice ? <Badge variant="secondary">写作可用</Badge> : <Badge variant="outline">等待整理</Badge>}
-          {novelWorld?.syncEnabled ? <Badge variant="secondary">{labelSyncDirection(novelWorld.syncDirection)}</Badge> : <Badge variant="outline">手动同步</Badge>}
-        </div>
-      </div>
+      <StepHero
+        title="本书世界"
+        description="这里管理这本小说真正使用的世界。世界库提供可复用样本，导入或生成后，这里保存本书自己的世界版本。"
+        meta={(
+          <>
+            {props.isLoading ? <span>读取中</span> : null}
+            <span>{novelWorld ? labelSourceType(novelWorld.sourceType) : "未设置来源"}</span>
+            <span>{novelWorld?.hasStorySlice ? "写作可用" : "等待整理"}</span>
+            <span>{novelWorld?.syncEnabled ? labelSyncDirection(novelWorld.syncDirection) : "手动同步"}</span>
+          </>
+        )}
+      >
+        <StatusRail
+          items={[
+            {
+              label: "来源",
+              value: activeWorldName,
+              description: novelWorld ? labelSourceType(novelWorld.sourceType) : "可从世界库导入，也可根据本书主题生成。",
+              tone: novelWorld ? "success" : "warning",
+            },
+            {
+              label: "本书使用范围",
+              value: writingStatus,
+              description: "裁出本书会重点使用的规则、势力和地点；外部世界库样本不会被直接当成本书内容。",
+              tone: novelWorld?.hasStorySlice ? "success" : "warning",
+            },
+            {
+              label: "同步",
+              value: syncStatus,
+              description: [
+                lastSyncedAtText ? `上次同步：${lastSyncedAtText}。` : "",
+                pendingSectionText ? `待处理：${pendingSectionText}。` : "",
+                "推送或拉取都由你手动确认。",
+              ].filter(Boolean).join(""),
+              tone: hasSyncDiff ? "warning" : "neutral",
+            },
+          ]}
+        />
+      </StepHero>
       <div className="space-y-5">
-        <div className="grid gap-4 md:grid-cols-3">
-          <StatusPanel
-            icon={Library}
-            title="来源"
-            value={activeWorldName}
-            description={novelWorld ? labelSourceType(novelWorld.sourceType) : "可从世界库导入，也可根据本书主题生成。"}
-          />
-          <StatusPanel
-            icon={Route}
-            title="本书使用范围"
-            value={writingStatus}
-            description="这里裁出本书会重点使用的规则、势力和地点；外部世界库样本不会被直接当成本书内容。"
-          />
-          <StatusPanel
-            icon={GitCompareArrows}
-            title="同步"
-            value={syncStatus}
-            description={[
-              lastSyncedAtText ? `上次同步：${lastSyncedAtText}。` : "",
-              pendingSectionText ? `待处理：${pendingSectionText}。` : "",
-              "推送或拉取都由你手动确认。",
-            ].filter(Boolean).join("")}
-          />
-        </div>
-
-        <div className="border-t border-border/60 pt-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <div className="text-sm font-medium text-foreground">下一步</div>
-              <div className="mt-1 text-sm leading-6 text-muted-foreground">
-                优先把本书会用到的世界范围整理清楚；来源样本、同步和保存都由你手动处理。
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
+        <StepActionBar
+          label="下一步"
+          description="优先把本书会用到的世界范围整理清楚；来源样本、同步和保存都由你手动处理。"
+          actions={(
+            <>
               {!novelWorld ? (
                 <Button asChild size="sm">
                   <a href="#novel-world-source">选择世界来源</a>
@@ -274,24 +248,21 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
                   {props.isSavingToLibrary ? "保存中..." : "保存为世界样本"}
                 </Button>
               ) : null}
-            </div>
-          </div>
-        </div>
+            </>
+          )}
+        />
 
         {handbook ? (
-          <div className="border-t border-border/60 pt-5">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <div className="text-sm font-medium text-foreground">世界手册</div>
-                <div className="mt-1 text-sm leading-6 text-muted-foreground">
-                  {handbook.summary ?? "这本书的世界正在整理中。"}
-                </div>
-              </div>
+          <SectionBlock
+            title="世界手册"
+            description={handbook.summary ?? "这本书的世界正在整理中。"}
+            actions={(
               <div className="flex flex-wrap gap-2">
                 {handbook.identity ? <Badge variant="outline">{handbook.identity}</Badge> : null}
                 {handbook.tone ? <Badge variant="secondary">{handbook.tone}</Badge> : null}
               </div>
-            </div>
+            )}
+          >
             {handbook.themes.length > 0 ? (
               <div className="mt-3 flex flex-wrap gap-2">
                 {handbook.themes.map((theme) => (
@@ -300,7 +271,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
               </div>
             ) : null}
             <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              <div className="rounded-lg bg-muted/15 p-3">
+              <div className="rounded-xl bg-muted/15 p-3">
                 <div className="text-sm font-medium text-foreground">核心设定</div>
                 <div className="mt-2 space-y-2">
                   {handbook.coreRules.length > 0 ? handbook.coreRules.map((rule) => (
@@ -313,7 +284,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
                   )) : <div className="text-sm text-muted-foreground">还没有明确的核心规则。</div>}
                 </div>
               </div>
-              <div className="rounded-lg bg-muted/15 p-3">
+              <div className="rounded-xl bg-muted/15 p-3">
                 <div className="text-sm font-medium text-foreground">主要势力</div>
                 <div className="mt-2 space-y-2">
                   {(handbook.forces.length > 0 ? handbook.forces : handbook.factions).slice(0, 5).map((item) => (
@@ -329,7 +300,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
                   ) : null}
                 </div>
               </div>
-              <div className="rounded-lg bg-muted/15 p-3">
+              <div className="rounded-xl bg-muted/15 p-3">
                 <div className="text-sm font-medium text-foreground">本书舞台</div>
                 <div className="mt-2 space-y-2">
                   {handbook.locations.length > 0 ? handbook.locations.map((location) => (
@@ -341,7 +312,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
                   )) : <div className="text-sm text-muted-foreground">还没有明确的故事舞台。</div>}
                 </div>
               </div>
-              <div className="rounded-lg bg-muted/15 p-3">
+              <div className="rounded-xl bg-muted/15 p-3">
                 <div className="text-sm font-medium text-foreground">关键张力</div>
                 <div className="mt-2 space-y-2">
                   {handbook.tensions.length > 0 ? handbook.tensions.map((tension) => (
@@ -351,8 +322,11 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
               </div>
             </div>
             {handbook.generationGuidance ? (
-              <div className="mt-4 rounded-md border border-border/70 p-3">
-                <div className="text-sm font-medium text-foreground">可提供的世界约束</div>
+              <DetailDisclosure
+                title="可提供的世界约束"
+                description="角色身份边界、故事范围线索、场景规则约束和需要避开的越界。"
+                className="mt-4"
+              >
                 <div className="mt-2 grid gap-3 md:grid-cols-2">
                   {[
                     { title: "角色身份边界", items: handbook.generationGuidance.characterUses },
@@ -372,22 +346,17 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
                     </div>
                   ))}
                 </div>
-              </div>
+              </DetailDisclosure>
             ) : null}
-          </div>
+          </SectionBlock>
         ) : null}
 
         {novelWorld ? (
-          <div className="rounded-lg border border-border/70 bg-background p-4">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <div className="text-sm font-medium text-foreground">世界资产</div>
-                <div className="mt-1 text-sm leading-6 text-muted-foreground">
-                  地图、势力图谱、时间线和力量体系图都从世界手册延伸出来，先服务理解世界，再服务后续写作。
-                </div>
-              </div>
-              <Badge variant="outline">预留入口</Badge>
-            </div>
+          <DetailDisclosure
+            title="世界资产"
+            description="地图、势力图谱、时间线和力量体系图都从世界手册延伸出来，先服务理解世界，再服务后续写作。"
+            meta="预留入口"
+          >
             {worldAssets.length > 0 ? (
               <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {worldAssets.map((asset) => {
@@ -414,29 +383,23 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
                 世界资产入口会随本书世界手册一起整理。
               </div>
             )}
-          </div>
+          </DetailDisclosure>
         ) : null}
 
         {novelWorld?.sourceWorldId ? (
-          <div id="novel-world-sync" className="rounded-lg border border-border/70 bg-background p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <div className="text-sm font-medium text-foreground">同步管理</div>
-                <div className="mt-1 text-sm leading-6 text-muted-foreground">
-                  先看本书世界和世界库样本差在哪里，再选择要同步的分区。系统不会自动覆盖两边内容。
-                </div>
-              </div>
-              <Badge variant={syncDiff?.differenceCount ? "secondary" : "outline"}>
-                {props.isLoadingSyncDiff
-                  ? "检查中"
-                  : syncDiff?.differenceCount
-                    ? `${syncDiff.differenceCount} 处差异`
-                    : novelWorld.syncPendingChangeCount > 0
-                      ? `${novelWorld.syncPendingChangeCount} 处待处理`
-                      : "无差异"}
-              </Badge>
-            </div>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
+          <DetailDisclosure
+            title="同步管理"
+            description="先看本书世界和世界库样本差在哪里，再选择要同步的分区。系统不会自动覆盖两边内容。"
+            meta={props.isLoadingSyncDiff
+              ? "检查中"
+              : syncDiff?.differenceCount
+                ? `${syncDiff.differenceCount} 处差异`
+                : novelWorld.syncPendingChangeCount > 0
+                  ? `${novelWorld.syncPendingChangeCount} 处待处理`
+                  : "无差异"}
+          >
+          <div id="novel-world-sync">
+            <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-md border border-border/70 p-3">
                 <div className="text-xs font-medium text-muted-foreground">1. 差异检查</div>
                 <div className="mt-1 text-sm text-foreground">
@@ -582,10 +545,11 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
               </div>
             ) : null}
           </div>
+          </DetailDisclosure>
         ) : null}
 
         {novelWorld && !novelWorld.sourceWorldId ? (
-          <div className="rounded-lg border border-border/70 bg-background p-4">
+          <SectionBlock surface>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <div className="text-sm font-medium text-foreground">保存到世界库</div>
@@ -603,19 +567,28 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
                 {props.isSavingToLibrary ? "保存中..." : "保存到世界库"}
               </Button>
             </div>
-          </div>
+          </SectionBlock>
         ) : null}
 
-        <NovelWorldSourcePanel
-          worldOptions={props.worldOptions}
-          selectedWorldId={props.selectedWorldId}
-          isImporting={props.isImporting}
-          isGenerating={props.isGenerating}
-          isCreatingManual={props.isCreatingManual}
-          onImport={props.onImport}
-          onCreateManual={props.onCreateManual}
-          onGenerate={props.onGenerate}
-        />
+        <DetailDisclosure
+          title="选择或更换本书世界来源"
+          description="从世界库导入、根据本书生成，或先创建一个自定义世界骨架。"
+          meta={novelWorld ? "按需更换" : "待选择"}
+          defaultOpen={!novelWorld}
+        >
+          <div id="novel-world-source">
+            <NovelWorldSourcePanel
+              worldOptions={props.worldOptions}
+              selectedWorldId={props.selectedWorldId}
+              isImporting={props.isImporting}
+              isGenerating={props.isGenerating}
+              isCreatingManual={props.isCreatingManual}
+              onImport={props.onImport}
+              onCreateManual={props.onCreateManual}
+              onGenerate={props.onGenerate}
+            />
+          </div>
+        </DetailDisclosure>
       </div>
     </section>
   );

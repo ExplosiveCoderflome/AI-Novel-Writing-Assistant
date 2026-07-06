@@ -171,30 +171,30 @@ export default function PipelineTab(props: PipelineTabProps) {
         description="AI 会优先判断当前是否有活动中的章节批次或待修检查点，再决定恢复当前修复还是新开批次。"
         entry={directorTakeoverEntry}
       />
-      <Card>
-        <CardHeader>
+      <Card className="border-0 bg-transparent shadow-none">
+        <CardHeader className="rounded-2xl bg-muted/20 px-5 py-4">
           <CardTitle>批量生成与质检</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3 px-0 pt-5">
           <WorldInjectionHint worldInjectionSummary={worldInjectionSummary} />
           {!hasCharacters ? (
-            <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+            <div className="flex items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
               <span>请先添加至少 1 个角色，再执行流水线。</span>
               <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>去角色管理</Button>
             </div>
           ) : null}
           <div className="grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+            <div className="rounded-xl bg-muted/15 p-3">
               <div className="text-xs text-muted-foreground">当前重点</div>
               <div className="mt-1 text-sm font-semibold text-foreground">
                 {pendingRepairCount > 0 ? `先处理 ${pendingRepairCount} 个低分章节` : "当前没有明显低分章节"}
               </div>
             </div>
-            <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+            <div className="rounded-xl bg-muted/15 p-3">
               <div className="text-xs text-muted-foreground">质量阈值</div>
               <div className="mt-1 text-sm font-semibold text-foreground">{pipelineForm.qualityThreshold}</div>
             </div>
-            <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+            <div className="rounded-xl bg-muted/15 p-3">
               <div className="text-xs text-muted-foreground">当前运行模式</div>
               <div className="mt-1 text-sm font-semibold text-foreground">{pipelineForm.runMode === "polish" ? "精修" : "快速"}</div>
             </div>
@@ -203,9 +203,9 @@ export default function PipelineTab(props: PipelineTabProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-0 bg-muted/15 shadow-none">
         <CardHeader>
-          <CardTitle>质量修复中心</CardTitle>
+          <CardTitle>质量风险队列</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <select
@@ -223,7 +223,7 @@ export default function PipelineTab(props: PipelineTabProps) {
             <AiButton variant="outline" onClick={onGenerateHook} disabled={isGeneratingHook || !selectedChapterId}>生成钩子</AiButton>
           </div>
           {reviewResult ? (
-            <div className="rounded-md border p-3 text-sm">
+            <div className="rounded-xl bg-background/70 p-3 text-sm">
               <div className="mb-2 font-medium">审校评分</div>
               <div className="grid gap-1 md:grid-cols-2">
                 <div>连贯性：{reviewResult.score.coherence}</div>
@@ -238,12 +238,12 @@ export default function PipelineTab(props: PipelineTabProps) {
           <StreamOutput content={repairStreamContent} isStreaming={isRepairStreaming} onAbort={onAbortRepair} />
           {(repairBeforeContent || repairAfterContent) ? (
             <div className="grid gap-3 md:grid-cols-2">
-              <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-md border bg-muted/30 p-2 text-xs">{repairBeforeContent || "暂无"}</pre>
-              <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-md border bg-muted/30 p-2 text-xs">{repairAfterContent || "修复执行后显示"}</pre>
+              <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl bg-background/70 p-3 text-xs">{repairBeforeContent || "暂无"}</pre>
+              <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl bg-background/70 p-3 text-xs">{repairAfterContent || "修复执行后显示"}</pre>
             </div>
           ) : null}
           {lowScoreReports.length > 0 ? (
-            <div className="space-y-2 rounded-md border p-2 text-xs">
+            <div className="space-y-2 rounded-xl bg-background/70 p-3 text-xs">
               <div className="font-medium">低分章节筛选（阈值 {pipelineForm.qualityThreshold}）</div>
               {lowScoreReports.map((item, index) => (
                 <div key={`${item.chapterId}-${index}`} className="flex items-center justify-between">
@@ -256,7 +256,7 @@ export default function PipelineTab(props: PipelineTabProps) {
         </CardContent>
       </Card>
 
-      <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
+      <details className="group border-t border-border/60 pt-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
             title="流水线配置、运行与模型设置"

@@ -143,8 +143,8 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
         description="AI 会先判断当前是否有活动批次、检查点或可执行章节范围，再决定恢复当前批次还是按你的选择新开批次。"
         entry={directorTakeoverEntry}
       />
-      <Card className="overflow-hidden">
-      <CardHeader className="gap-3 border-b bg-gradient-to-b from-muted/25 via-background to-background">
+      <Card className="overflow-visible border-0 bg-transparent shadow-none">
+      <CardHeader className="gap-3 rounded-2xl bg-muted/20 px-5 py-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="space-y-1">
             <CardTitle>章节执行</CardTitle>
@@ -158,17 +158,17 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4 pt-5">
+      <CardContent className="space-y-4 px-0 pt-5">
         <WorldInjectionHint worldInjectionSummary={worldInjectionSummary} />
 
         {chapterOperationMessage ? (
-          <div className="rounded-xl border border-border/70 bg-muted/20 p-3 text-xs leading-6 text-muted-foreground">
+          <div className="rounded-2xl bg-muted/20 px-4 py-3 text-xs leading-6 text-muted-foreground">
             {chapterOperationMessage}
           </div>
         ) : null}
 
         {!hasCharacters ? (
-          <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 md:flex-row md:items-center md:justify-between">
             <span>请先添加至少 1 个角色，再生成章节内容。这样 AI 更容易识别出场者、关系变化和情节承接。</span>
             <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>去角色管理</Button>
           </div>

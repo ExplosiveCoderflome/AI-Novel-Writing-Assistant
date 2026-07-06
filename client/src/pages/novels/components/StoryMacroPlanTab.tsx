@@ -3,7 +3,6 @@ import AiButton from "@/components/common/AiButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import CollapsibleSummary from "./CollapsibleSummary";
 import type { StoryMacroTabProps } from "./NovelEditView.types";
 import {
   ENGINE_TEXT_FIELDS,
@@ -13,6 +12,7 @@ import {
   textareaClassName,
 } from "./StoryMacroPlanTab.shared";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
+import { DetailDisclosure, SectionBlock, StepHero } from "./workspaceShell";
 
 const EMPTY_CONFLICT_LAYERS: StoryConflictLayers = {
   external: "",
@@ -39,24 +39,11 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
         description="AI 会先判断 Story Macro / Book Contract 是否已经具备，再决定继续补缺失内容还是按你的选择重跑当前步。"
         entry={props.directorTakeoverEntry}
       />
-      <Card>
-        <CardHeader>
-          <CardTitle>故事宏观规划</CardTitle>
-          <CardDescription>
-            这一步先于角色创建。这里不生成具体角色阵容，而是先把故事重构成能持续推进的故事引擎原型。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="text-sm font-medium text-foreground">故事想法输入</div>
-            <textarea
-              value={props.storyInput}
-              onChange={(event) => props.onStoryInputChange(event.target.value)}
-              placeholder="用自然语言描述故事想法、想要的压迫感、想避免的风格和结局倾向。"
-              className={textareaClassName("min-h-36")}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <StepHero
+        title="故事宏观规划"
+        description="这一步先于角色创建。这里不生成具体角色阵容，而是先把故事重构成能持续推进的故事引擎原型。"
+        actions={(
+          <>
             <AiButton onClick={props.onDecompose} disabled={props.isDecomposing || !props.storyInput.trim()}>
               {props.isDecomposing ? "生成中..." : props.hasPlan ? "重新生成故事引擎" : "生成故事引擎"}
             </AiButton>
@@ -70,27 +57,36 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
             <Button variant="outline" onClick={props.onSaveEdits} disabled={props.isSaving}>
               {props.isSaving ? "保存中..." : "保存修改"}
             </Button>
+          </>
+        )}
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-foreground">故事想法输入</div>
+            <textarea
+              value={props.storyInput}
+              onChange={(event) => props.onStoryInputChange(event.target.value)}
+              placeholder="用自然语言描述故事想法、想要的压迫感、想避免的风格和结局倾向。"
+              className={textareaClassName("min-h-36")}
+            />
           </div>
           {props.message ? (
-            <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+            <div className="rounded-xl bg-background/70 px-3 py-2 text-sm text-muted-foreground">
               {props.message}
             </div>
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      </StepHero>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>推进与兑现摘要</CardTitle>
-          <CardDescription>
-            这是对故事引擎的压缩摘要，供后续大纲、节拍和写作流程直接消费。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 xl:grid-cols-2">
+      <SectionBlock
+        title="推进与兑现摘要"
+        description="这是对故事引擎的压缩摘要，供后续大纲、节拍和写作流程直接消费。"
+        contentClassName="grid gap-4 xl:grid-cols-2"
+      >
           {SUMMARY_FIELDS.map((item) => {
             const value = props.decomposition[item.field as keyof typeof props.decomposition];
             return (
-              <div key={item.field} className="space-y-2 rounded-xl border border-border/70 p-4">
+              <div key={item.field} className="space-y-2 rounded-xl bg-muted/15 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-sm font-medium text-foreground">{item.label}</div>
                   <FieldActions
@@ -120,7 +116,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
             );
           })}
 
-          <div className="space-y-2 rounded-xl border border-border/70 p-4 xl:col-span-2">
+          <div className="space-y-2 rounded-xl bg-muted/15 p-4 xl:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-sm font-medium text-foreground">关键兑现点</div>
               <FieldActions
@@ -142,18 +138,13 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
               className={textareaClassName("min-h-32")}
             />
           </div>
-        </CardContent>
-      </Card>
+      </SectionBlock>
 
-      <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
-        <summary className="cursor-pointer list-none">
-          <CollapsibleSummary
-            title="故事引擎与高级约束"
-            description="这些属于更细的故事引擎编辑和诊断内容。默认收起，避免新手在还没定方向时被大量字段淹没。"
-          />
-        </summary>
-
-        <div className="mt-4 space-y-4">
+      <DetailDisclosure
+        title="故事引擎与高级约束"
+        description="这些属于更细的故事引擎编辑和诊断内容。默认收起，避免新手在还没定方向时被大量字段淹没。"
+      >
+        <div className="space-y-4">
           {props.expansion ? (
             <Card>
               <CardHeader>
@@ -463,7 +454,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
             </CardContent>
           </Card>
         </div>
-      </details>
+      </DetailDisclosure>
     </div>
   );
 }
