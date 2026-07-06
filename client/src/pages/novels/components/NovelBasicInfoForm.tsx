@@ -120,6 +120,8 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
       <SectionBlock
         title="作品定位"
         description="先写清楚标题、一句话概述、目标读者、核心卖点和前 30 章承诺，再补创作模式、题材和推进方式；这些会直接影响后续主线规划、卷章推进和正文生成。"
+        surface="none"
+        className="space-y-5"
       >
         {projectQuickStart ? <div className="flex justify-end">{projectQuickStart}</div> : null}
 
@@ -278,7 +280,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         {primaryStoryMode || secondaryStoryMode ? (
           <div className="grid gap-3 md:grid-cols-2">
             {primaryStoryMode ? (
-              <div className="rounded-lg bg-background/60 p-3">
+              <div className="rounded-lg bg-muted/15 p-3">
                 <div className="text-sm font-semibold text-foreground">主推进模式摘要</div>
                 <div className="mt-1 text-sm text-foreground">{primaryStoryMode.name}</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -288,7 +290,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               </div>
             ) : null}
             {secondaryStoryMode ? (
-              <div className="rounded-lg bg-background/60 p-3">
+              <div className="rounded-lg bg-muted/15 p-3">
                 <div className="text-sm font-semibold text-foreground">副推进模式摘要</div>
                 <div className="mt-1 text-sm text-foreground">{secondaryStoryMode.name}</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -301,7 +303,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         ) : null}
       </SectionBlock>
 
-      <details className="group rounded-lg bg-muted/15 px-4 py-4">
+      <details className="group border-t border-border/60 pt-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
             title="叙事体验与 AI 协作高级设置"
@@ -336,6 +338,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           <SectionBlock
             title="叙事体验"
             description="这些字段定义读者会如何感知这部作品，也会直接影响章节规划的语气、密度和推进方式。"
+            surface="none"
           >
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
@@ -398,6 +401,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           <SectionBlock
             title="AI 协作方式"
             description="这部分定义你和 AI 如何分工，以及系统后续可以自动推进到什么程度。"
+            surface="none"
           >
             <div className="space-y-2">
               <FieldLabel hint={BASIC_INFO_FIELD_HINTS.projectMode}>项目模式</FieldLabel>
@@ -468,7 +472,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
       </details>
 
       {basicForm.writingMode === "continuation" ? (
-        <details className="group rounded-lg bg-muted/15 px-4 py-4" open>
+        <details className="group border-t border-border/60 pt-4" open>
           <summary className="cursor-pointer list-none">
             <CollapsibleSummary
               title="续写来源设置"
@@ -492,7 +496,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         </details>
       ) : null}
 
-      <details className="group rounded-lg bg-muted/15 px-4 py-4">
+      <details className="group border-t border-border/60 pt-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
             title="项目状态与进度字段"
@@ -505,6 +509,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           <SectionBlock
             title="生产进度与状态"
             description="这些状态主要服务于项目管理和后续流程判断，不是一次性填死，后续可以按阶段调整。"
+            surface="none"
           >
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">

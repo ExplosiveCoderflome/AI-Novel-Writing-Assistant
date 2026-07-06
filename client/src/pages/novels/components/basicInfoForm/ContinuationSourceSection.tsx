@@ -43,6 +43,7 @@ export function ContinuationSourceSection(props: ContinuationSourceSectionProps)
     <SectionBlock
       title="续写来源"
       description="续写模式下，需要明确引用的上游小说或知识文档，并决定是否注入拆书结果。"
+      surface="none"
     >
       <div className="space-y-2">
         <FieldLabel hint={BASIC_INFO_FIELD_HINTS.continuationSourceType}>续写来源类型</FieldLabel>
