@@ -197,7 +197,7 @@ export default function NovelList() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <NovelListHeader
         page={page}
         totalPages={totalPages}
@@ -230,7 +230,7 @@ export default function NovelList() {
         <NovelListEmptyState hasAnyNovel={allNovels.length > 0} />
       ) : (
         <>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             {novels.map((novel) => (
               <NovelProjectCard
                 key={novel.id}

@@ -20,7 +20,7 @@ export function NovelListPagination(props: {
         上一页
       </Button>
       <div
-        className="flex h-9 min-w-28 items-center justify-center rounded-md border bg-card px-3 text-sm text-muted-foreground"
+        className="flex h-9 min-w-28 items-center justify-center px-3 text-sm text-muted-foreground"
         aria-live="polite"
       >
         第 <span className="mx-1 font-medium tabular-nums text-foreground">{props.page}</span> /{" "}

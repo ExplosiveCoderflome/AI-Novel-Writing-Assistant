@@ -8,20 +8,30 @@ export function NovelListFilterBar(props: {
   onWritingModeChange: (mode: WritingModeFilter) => void;
 }) {
   return (
-    <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="px-2 text-sm text-muted-foreground">状态</span>
+    <section className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4">
+      <FilterGroup label="状态">
         <SegmentButton active={props.status === "all"} onClick={() => props.onStatusChange("all")}>全部</SegmentButton>
         <SegmentButton active={props.status === "draft"} onClick={() => props.onStatusChange("draft")}>草稿</SegmentButton>
         <SegmentButton active={props.status === "published"} onClick={() => props.onStatusChange("published")}>已发布</SegmentButton>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="px-2 text-sm text-muted-foreground">类型</span>
+      </FilterGroup>
+      <FilterGroup label="类型">
         <SegmentButton active={props.writingMode === "all"} onClick={() => props.onWritingModeChange("all")}>全部</SegmentButton>
         <SegmentButton active={props.writingMode === "original"} onClick={() => props.onWritingModeChange("original")}>原创</SegmentButton>
         <SegmentButton active={props.writingMode === "continuation"} onClick={() => props.onWritingModeChange("continuation")}>续写</SegmentButton>
-      </div>
+      </FilterGroup>
     </section>
+  );
+}
+
+function FilterGroup(props: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-sm text-muted-foreground">{props.label}</span>
+      <div className="inline-flex rounded-lg bg-muted/35 p-1">{props.children}</div>
+    </div>
   );
 }
 

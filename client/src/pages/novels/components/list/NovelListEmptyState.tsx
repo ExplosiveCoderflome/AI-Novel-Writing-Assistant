@@ -9,7 +9,7 @@ export function NovelListEmptyState(props: {
   hasAnyNovel: boolean;
 }) {
   return (
-    <section className="rounded-lg border border-dashed bg-card p-8 text-center">
+    <section className="py-12 text-center">
       <h2 className="text-xl font-semibold tracking-normal">
         {props.hasAnyNovel ? "没有符合筛选条件的小说" : "还没有小说项目"}
       </h2>
