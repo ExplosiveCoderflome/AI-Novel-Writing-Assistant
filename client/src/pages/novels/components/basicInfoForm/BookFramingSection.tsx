@@ -13,7 +13,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
   const { basicForm, onFormChange, quickFill } = props;
 
   return (
-    <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
+    <div className="rounded-lg bg-background/60 px-4 py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-sm font-semibold text-foreground">书级 framing</div>

@@ -284,7 +284,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         {primaryStoryMode || secondaryStoryMode ? (
           <div className="grid gap-3 md:grid-cols-2">
             {primaryStoryMode ? (
-              <div className="rounded-lg border bg-muted/20 p-3">
+              <div className="rounded-lg bg-background/60 p-3">
                 <div className="text-sm font-semibold text-foreground">主推进模式摘要</div>
                 <div className="mt-1 text-sm text-foreground">{primaryStoryMode.name}</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -294,7 +294,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               </div>
             ) : null}
             {secondaryStoryMode ? (
-              <div className="rounded-lg border bg-muted/20 p-3">
+              <div className="rounded-lg bg-background/60 p-3">
                 <div className="text-sm font-semibold text-foreground">副推进模式摘要</div>
                 <div className="mt-1 text-sm text-foreground">{secondaryStoryMode.name}</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -307,7 +307,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         ) : null}
       </SectionBlock>
 
-      <details className="group rounded-xl border border-border/70 bg-background/95 p-4">
+      <details className="group rounded-lg bg-muted/15 px-4 py-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
             title="叙事体验与 AI 协作高级设置"
@@ -316,10 +316,10 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         </summary>
 
         <div className="mt-4 space-y-4">
-          <div className="rounded-lg border bg-muted/20 p-3">
+          <div className="rounded-lg bg-background/60 p-3">
             <div className="text-sm font-semibold text-foreground">参考世界样本</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              这里只用于记录初始化参考。小说实际使用的世界，请在页面上方“本书世界”卡片中导入、生成或自定义。
+              这里只用于记录初始化参考。小说实际使用的世界，请在页面上方“本书世界”设置中导入、生成或自定义。
             </div>
             <div className="mt-3 space-y-2">
               <FieldLabel htmlFor="basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>参考世界样本</FieldLabel>
@@ -453,7 +453,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               </div>
             </div>
 
-            <div className="rounded-lg border bg-muted/15 p-3">
+            <div className="rounded-lg bg-background/60 p-3">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-1">
                   <FieldLabel htmlFor="basic-post-generation-style-review" hint={BASIC_INFO_FIELD_HINTS.postGenerationStyleReviewEnabled}>
@@ -476,7 +476,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
       </details>
 
       {basicForm.writingMode === "continuation" ? (
-        <details className="group rounded-xl border border-border/70 bg-background/95 p-4" open>
+        <details className="group rounded-lg bg-muted/15 px-4 py-4" open>
           <summary className="cursor-pointer list-none">
             <CollapsibleSummary
               title="续写来源设置"
@@ -500,7 +500,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         </details>
       ) : null}
 
-      <details className="group rounded-xl border border-border/70 bg-background/95 p-4">
+      <details className="group rounded-lg bg-muted/15 px-4 py-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
             title="项目状态与进度字段"

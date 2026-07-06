@@ -98,7 +98,7 @@ export default function StageIdea({
         initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0 : 0.22, delay: reducedMotion ? 0 : 0.08 }}
-        className="mt-8 w-full rounded-2xl bg-background/95 p-3 shadow-[0_18px_60px_rgba(15,23,42,0.08)] ring-1 ring-border/40 transition focus-within:ring-2 focus-within:ring-primary/35 sm:p-4"
+        className="mt-8 w-full rounded-lg bg-muted/20 p-3 shadow-[0_14px_44px_rgba(15,23,42,0.06)] transition focus-within:bg-background focus-within:ring-2 focus-within:ring-primary/30 sm:p-4"
       >
         <textarea
           ref={textareaRef}

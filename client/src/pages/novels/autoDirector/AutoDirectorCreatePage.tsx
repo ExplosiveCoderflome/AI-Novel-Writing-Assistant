@@ -328,7 +328,7 @@ export default function AutoDirectorCreatePage() {
       ) : null}
 
       {restoreWorkflowMutation.isPending && normalizedTaskId ? (
-        <div className="rounded-xl border bg-muted/20 p-4 text-sm text-muted-foreground">
+        <div className="rounded-lg bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
           正在恢复自动导演现场。
         </div>
       ) : null}
