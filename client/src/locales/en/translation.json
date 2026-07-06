@@ -148,5 +148,33 @@
     "continuationSourceMissingError": "Continuation mode requires a selected upstream source before saving.",
     "continuationAnalysisSectionMissingError": "Book analysis sections require at least one target chapter selected.",
     "submitting": "Saving..."
+  },
+  "sidebar": {
+    "comingSoon": "Coming Soon",
+    "expandNavigation": "Expand sidebar",
+    "collapseNavigation": "Collapse sidebar",
+    "groupCreative": "Writing",
+    "groupAssets": "Assets",
+    "groupSystem": "System",
+    "home": "Home",
+    "help": "Get Started",
+    "novels": "Novels",
+    "drama": "Drama Workbench",
+    "comic": "Comic Workbench",
+    "creativeHub": "Creative Hub",
+    "bookAnalysis": "Analyze Book",
+    "tasks": "Task Center",
+    "autoDirector": "AI Director",
+    "genres": "Genre Bases",
+    "storyModes": "Story Modes",
+    "titles": "Title Studio",
+    "knowledge": "Knowledge Base",
+    "worlds": "World Samples",
+    "styleEngine": "Style Engine",
+    "antiAiRules": "Anti-AI Rules",
+    "baseCharacters": "Base Characters",
+    "prompts": "Prompts",
+    "modelRoutes": "Model Routes",
+    "settings": "Settings"
   }
 }

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   BookOpenText,
   Braces,
@@ -35,50 +36,50 @@ import { cn } from "@/lib/utils";
 
 interface NavItem {
   to: string;
-  label: string;
+  labelKey: string;
   icon: LucideIcon;
   disabled?: boolean;
 }
 
 interface NavGroup {
-  title: string;
+  titleKey: string;
   items: NavItem[];
 }
 
 const navGroups: NavGroup[] = [
   {
-    title: "创作",
+    titleKey: "sidebar.groupCreative",
     items: [
-      { to: "/", label: "首页", icon: House },
-      { to: "/help", label: "新手上路", icon: CircleHelp },
-      { to: "/novels", label: "小说列表", icon: BookOpenText },
-      { to: "/drama", label: "短剧工作台", icon: MonitorPlay, disabled: true },
-      { to: "/comic", label: "漫画工作台", icon: SquareStack },
-      { to: "/creative-hub", label: "创作中枢", icon: LayoutDashboard },
-      { to: "/book-analysis", label: "拆书", icon: ScanSearch },
-      { to: "/tasks", label: "任务中心", icon: ListTodo },
-      { to: "/auto-director/follow-ups", label: "导演跟进", icon: Workflow },
+      { to: "/", labelKey: "sidebar.home", icon: House },
+      { to: "/help", labelKey: "sidebar.help", icon: CircleHelp },
+      { to: "/novels", labelKey: "sidebar.novels", icon: BookOpenText },
+      { to: "/drama", labelKey: "sidebar.drama", icon: MonitorPlay, disabled: true },
+      { to: "/comic", labelKey: "sidebar.comic", icon: SquareStack },
+      { to: "/creative-hub", labelKey: "sidebar.creativeHub", icon: LayoutDashboard },
+      { to: "/book-analysis", labelKey: "sidebar.bookAnalysis", icon: ScanSearch },
+      { to: "/tasks", labelKey: "sidebar.tasks", icon: ListTodo },
+      { to: "/auto-director/follow-ups", labelKey: "sidebar.autoDirector", icon: Workflow },
     ],
   },
   {
-    title: "资产",
+    titleKey: "sidebar.groupAssets",
     items: [
-      { to: "/genres", label: "题材基底库", icon: Tags },
-      { to: "/story-modes", label: "推进模式库", icon: Workflow },
-      { to: "/titles", label: "标题工坊", icon: SquarePen },
-      { to: "/knowledge", label: "知识库", icon: Database },
-      { to: "/worlds", label: "世界样本库", icon: Globe2 },
-      { to: "/style-engine", label: "写法引擎", icon: WandSparkles },
-      { to: "/anti-ai-rules", label: "反 AI 规则", icon: ShieldCheck },
-      { to: "/base-characters", label: "基础角色库", icon: UsersRound },
+      { to: "/genres", labelKey: "sidebar.genres", icon: Tags },
+      { to: "/story-modes", labelKey: "sidebar.storyModes", icon: Workflow },
+      { to: "/titles", labelKey: "sidebar.titles", icon: SquarePen },
+      { to: "/knowledge", labelKey: "sidebar.knowledge", icon: Database },
+      { to: "/worlds", labelKey: "sidebar.worlds", icon: Globe2 },
+      { to: "/style-engine", labelKey: "sidebar.styleEngine", icon: WandSparkles },
+      { to: "/anti-ai-rules", labelKey: "sidebar.antiAiRules", icon: ShieldCheck },
+      { to: "/base-characters", labelKey: "sidebar.baseCharacters", icon: UsersRound },
     ],
   },
   {
-    title: "系统",
+    titleKey: "sidebar.groupSystem",
     items: [
-      { to: "/prompt-workbench", label: "提示词管理", icon: Braces },
-      { to: "/settings/model-routes", label: "模型路由", icon: Route },
-      { to: "/settings", label: "系统设置", icon: Settings2 },
+      { to: "/prompt-workbench", labelKey: "sidebar.prompts", icon: Braces },
+      { to: "/settings/model-routes", labelKey: "sidebar.modelRoutes", icon: Route },
+      { to: "/settings", labelKey: "sidebar.settings", icon: Settings2 },
     ],
   },
 ];
@@ -89,6 +90,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const { t } = useTranslation();
   const [badgeQueriesEnabled, setBadgeQueriesEnabled] = useState(false);
 
   useEffect(() => {
@@ -217,92 +219,96 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           size="icon"
           className="h-8 w-8 text-muted-foreground"
           onClick={onToggle}
-          aria-label={collapsed ? "展开导航栏" : "收起导航栏"}
-          title={collapsed ? "展开导航栏" : "收起导航栏"}
+          aria-label={collapsed ? t("sidebar.expandNavigation") : t("sidebar.collapseNavigation")}
+          title={collapsed ? t("sidebar.expandNavigation") : t("sidebar.collapseNavigation")}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
       </div>
 
       <nav className="space-y-4">
-        {navGroups.map((group) => (
-          <div key={group.title} className="space-y-1">
-            {!collapsed ? (
-              <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
-                {group.title}
-              </div>
-            ) : (
-              <div className="mx-auto h-px w-8 bg-border/70" />
-            )}
+        {navGroups.map((group) => {
+          const groupTitle = t(group.titleKey);
+          return (
+            <div key={group.titleKey} className="space-y-1">
+              {!collapsed ? (
+                <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+                  {groupTitle}
+                </div>
+              ) : (
+                <div className="mx-auto h-px w-8 bg-border/70" />
+              )}
 
-            {group.items.map((item) => {
-              const Icon = item.icon;
-              const isNovelEntry = item.to === "/novels";
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const isNovelEntry = item.to === "/novels";
+                const itemLabel = t(item.labelKey);
 
-              if (item.disabled) {
-                return (
-                  <div
-                    key={item.to}
-                    title={collapsed ? item.label : "即将推出"}
-                    className={cn(
-                      "relative flex cursor-not-allowed items-center rounded-md text-sm opacity-40",
-                      collapsed ? "justify-center px-2 py-2.5" : "py-2 pl-4 pr-2",
-                    )}
-                  >
-                    <Icon className={cn("h-[18px] w-[18px] shrink-0", collapsed ? "mx-auto" : "mr-3")} />
-                    {!collapsed ? (
-                      <span className="truncate">{item.label}</span>
-                    ) : null}
-                    {!collapsed ? (
-                      <span className="ml-auto text-[10px] text-muted-foreground/60">即将推出</span>
-                    ) : null}
-                  </div>
-                );
-              }
-
-              return (
-                <NavLink key={item.to} to={item.to} title={collapsed ? item.label : undefined}>
-                  {({ isActive }) => (
+                if (item.disabled) {
+                  return (
                     <div
+                      key={item.to}
+                      title={collapsed ? itemLabel : t("sidebar.comingSoon")}
                       className={cn(
-                        "relative flex items-center rounded-md text-sm transition-colors",
+                        "relative flex cursor-not-allowed items-center rounded-md text-sm opacity-40",
                         collapsed ? "justify-center px-2 py-2.5" : "py-2 pl-4 pr-2",
-                        isActive
-                          ? "bg-accent/90 font-semibold text-accent-foreground"
-                          : "text-foreground hover:bg-accent hover:text-accent-foreground",
-                        isNovelEntry && !collapsed && (isActive ? "ring-1 ring-primary/20" : "bg-primary/5 hover:bg-primary/10"),
                       )}
                     >
-                      <span
-                        className={cn(
-                          "absolute left-1 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-transparent",
-                          isActive && "bg-primary",
-                          collapsed && "left-0.5 h-6",
-                        )}
-                      />
-
-                      <Icon
-                        className={cn(
-                          "h-[18px] w-[18px] shrink-0",
-                          collapsed ? "mx-auto" : "mr-3",
-                          isNovelEntry && "text-primary",
-                        )}
-                      />
-
+                      <Icon className={cn("h-[18px] w-[18px] shrink-0", collapsed ? "mx-auto" : "mr-3")} />
                       {!collapsed ? (
-                        <span className={cn("truncate", isNovelEntry && "font-semibold")}>
-                          {item.label}
-                        </span>
+                        <span className="truncate">{itemLabel}</span>
                       ) : null}
-
-                      {renderBadge(item.to)}
+                      {!collapsed ? (
+                        <span className="ml-auto text-[10px] text-muted-foreground/60">{t("sidebar.comingSoon")}</span>
+                      ) : null}
                     </div>
-                  )}
-                </NavLink>
-              );
-            })}
-          </div>
-        ))}
+                  );
+                }
+
+                return (
+                  <NavLink key={item.to} to={item.to} title={collapsed ? itemLabel : undefined}>
+                    {({ isActive }) => (
+                      <div
+                        className={cn(
+                          "relative flex items-center rounded-md text-sm transition-colors",
+                          collapsed ? "justify-center px-2 py-2.5" : "py-2 pl-4 pr-2",
+                          isActive
+                            ? "bg-accent/90 font-semibold text-accent-foreground"
+                            : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                          isNovelEntry && !collapsed && (isActive ? "ring-1 ring-primary/20" : "bg-primary/5 hover:bg-primary/10"),
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "absolute left-1 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-transparent",
+                            isActive && "bg-primary",
+                            collapsed && "left-0.5 h-6",
+                          )}
+                        />
+
+                        <Icon
+                          className={cn(
+                            "h-[18px] w-[18px] shrink-0",
+                            collapsed ? "mx-auto" : "mr-3",
+                            isNovelEntry && "text-primary",
+                          )}
+                        />
+
+                        {!collapsed ? (
+                          <span className={cn("truncate", isNovelEntry && "font-semibold")}>
+                            {itemLabel}
+                          </span>
+                        ) : null}
+
+                        {renderBadge(item.to)}
+                      </div>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          );
+        })}
       </nav>
     </aside>
   );

@@ -148,5 +148,33 @@
     "continuationSourceMissingError": "续写模式下需要先选择明确的上游来源，才能保存基本信息。",
     "continuationAnalysisSectionMissingError": "拆书结果需要搭配要注入的拆书章节。",
     "submitting": "提交中..."
+  },
+  "sidebar": {
+    "comingSoon": "即将推出",
+    "expandNavigation": "展开导航栏",
+    "collapseNavigation": "收起导航栏",
+    "groupCreative": "创作",
+    "groupAssets": "资产",
+    "groupSystem": "系统",
+    "home": "首页",
+    "help": "新手上路",
+    "novels": "小说列表",
+    "drama": "短剧工作台",
+    "comic": "漫画工作台",
+    "creativeHub": "创作中枢",
+    "bookAnalysis": "拆书",
+    "tasks": "任务中心",
+    "autoDirector": "导演跟进",
+    "genres": "题材基底库",
+    "storyModes": "推进模式库",
+    "titles": "标题工坊",
+    "knowledge": "知识库",
+    "worlds": "世界样本库",
+    "styleEngine": "写法引擎",
+    "antiAiRules": "反 AI 规则",
+    "baseCharacters": "基础角色库",
+    "prompts": "提示词管理",
+    "modelRoutes": "模型路由",
+    "settings": "系统设置"
   }
 }
