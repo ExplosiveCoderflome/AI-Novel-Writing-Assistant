@@ -207,15 +207,15 @@ export default function NovelCreateTitleQuickFill({
             </TabsList>
 
             <TabsContent value="generate" className="space-y-4">
-              <div className="rounded-lg border bg-background/80 p-3">
+              <div className="space-y-4">
                 <div className="text-xs leading-6 text-muted-foreground">
                   会优先读取当前创建页里已经填写的简介、题材、文风、节奏和叙事视角。你也可以在下面临时补充一句简报，不用先回到表单里填写。
                 </div>
-                <div className="mt-3">
+                <div>
                   <LLMSelector />
                 </div>
 
-                <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
                   <div className="space-y-2">
                     <label
                       htmlFor="novel-create-title-quick-brief"
@@ -250,7 +250,7 @@ export default function NovelCreateTitleQuickFill({
                         placeholder="可选，填了会按参考改编式生成"
                       />
                     </div>
-                    <div className="rounded-md border bg-muted/20 p-3 text-xs leading-6 text-muted-foreground">
+                    <div className="text-xs leading-6 text-muted-foreground">
                       {referenceTitle.trim()
                         ? "当前会参考你输入的标题节奏和命名结构，再结合这本小说的信息重新产出候选。"
                         : "留空时会按简报直接生成。如果你心里已经有一个风格方向，可以在这里填参考标题。"}
@@ -258,14 +258,14 @@ export default function NovelCreateTitleQuickFill({
                   </div>
                 </div>
 
-                <div className="mt-3 rounded-md border bg-muted/20 p-3">
+                <div className="border-l border-border/60 pl-3">
                   <div className="text-xs font-medium text-foreground">当前已自动读取的创建页信息</div>
                   <div className="mt-2 whitespace-pre-wrap text-xs leading-6 text-muted-foreground">
                     {autoBrief || "创建页里暂时还没有足够的信息。你可以直接在上面的“补充标题简报”里写一句题材、卖点或冲突再生成。"}
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                   <label className="space-y-2 text-sm">
                     <span className="font-medium text-foreground">生成数量</span>
                     <Input
@@ -307,7 +307,7 @@ export default function NovelCreateTitleQuickFill({
             </TabsContent>
 
             <TabsContent value="library" className="space-y-4">
-              <div className="flex flex-col gap-3 rounded-lg border bg-background/80 p-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-1">
                   <div className="text-sm font-medium text-foreground">从标题库快速选用</div>
                   <div className="text-xs leading-6 text-muted-foreground">
@@ -325,22 +325,22 @@ export default function NovelCreateTitleQuickFill({
               </div>
 
               {libraryQuery.isLoading ? (
-                <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                <div className="py-8 text-center text-sm text-muted-foreground">
                   标题库加载中...
                 </div>
               ) : (libraryQuery.data?.data?.items ?? []).length === 0 ? (
-                <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                <div className="py-8 text-center text-sm text-muted-foreground">
                   当前条件下还没有可用标题。可以切到“快速生成”先产出一批候选。
                 </div>
               ) : (
-                <div className="grid gap-3">
+                <div className="divide-y divide-border/60">
                   {(libraryQuery.data?.data?.items ?? []).map((entry) => {
                     const isSelected = basicForm.title.trim() === entry.title.trim();
                     return (
                       <div
                         key={entry.id}
-                        className={`rounded-xl border p-4 transition ${
-                          isSelected ? "border-primary/50 bg-primary/5" : "border-border/70 bg-background"
+                        className={`py-4 transition ${
+                          isSelected ? "rounded-lg bg-primary/5 px-3" : ""
                         }`}
                       >
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
