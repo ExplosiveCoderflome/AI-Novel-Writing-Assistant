@@ -54,7 +54,7 @@ export function NovelCoverCard(props: NovelCoverCardProps) {
 
   return (
     <>
-      <section className="space-y-4 rounded-xl border border-border/70 bg-background/95 p-4">
+      <section className="space-y-4 border-t border-border/60 pt-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <div className="text-sm font-semibold text-foreground">小说封面主画面</div>
@@ -68,20 +68,20 @@ export function NovelCoverCard(props: NovelCoverCardProps) {
         </div>
 
         {assetsQuery.isLoading ? (
-          <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-sm text-muted-foreground">
+          <div className="py-5 text-sm text-muted-foreground">
             正在读取当前封面图库...
           </div>
         ) : null}
 
         {!assetsQuery.isLoading && !primaryAsset ? (
-          <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-sm text-muted-foreground">
+          <div className="py-5 text-sm leading-6 text-muted-foreground">
             还没有封面主画面。点击上方按钮，系统会先根据当前小说信息整理一版封面输入草稿。
           </div>
         ) : null}
 
         {primaryAsset ? (
           <div className="grid gap-4 lg:grid-cols-[220px,1fr]">
-            <div className="overflow-hidden rounded-2xl border border-border/70 bg-muted/20 shadow-sm">
+            <div className="overflow-hidden rounded-lg bg-muted/20">
               <div className="aspect-[2/3] w-full">
                 <img
                   src={resolveImageAssetUrl(primaryAsset.url)}
@@ -110,7 +110,7 @@ export function NovelCoverCard(props: NovelCoverCardProps) {
                     <button
                       key={asset.id}
                       type="button"
-                      className="overflow-hidden rounded-xl border border-border/70 bg-muted/10 transition hover:border-primary/40"
+                      className="overflow-hidden rounded-lg bg-muted/15 opacity-80 transition hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                       onClick={() => setOpen(true)}
                       title="打开封面图库"
                     >
