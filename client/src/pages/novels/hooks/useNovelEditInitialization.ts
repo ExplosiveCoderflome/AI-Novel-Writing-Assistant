@@ -117,6 +117,7 @@ export function useNovelEditInitialization({
       worldId: detail.worldId ?? "",
       status: detail.status,
       writingMode: detail.writingMode ?? "original",
+      language: detail.language ?? "zh",
       projectMode: detail.projectMode ?? "co_pilot",
       readerChannelPreference: "ai_judge",
       narrativePov: detail.narrativePov ?? "third_person",

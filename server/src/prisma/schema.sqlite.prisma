@@ -321,6 +321,7 @@ model Novel {
   commercialTagsJson String?
   status            String      @default("draft")
   writingMode       String      @default("original")
+  language          String      @default("zh")
   projectMode       ProjectMode?
   narrativePov      NarrativePov?
   pacePreference    PacePreference?

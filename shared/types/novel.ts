@@ -153,6 +153,7 @@ export interface Novel {
   commercialTags: string[];
   status: NovelStatus;
   writingMode: NovelWritingMode;
+  language: string;
   projectMode?: ProjectMode | null;
   narrativePov?: NarrativePov | null;
   pacePreference?: PacePreference | null;

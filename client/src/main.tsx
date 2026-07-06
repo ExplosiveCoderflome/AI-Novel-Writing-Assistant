@@ -8,6 +8,7 @@ import ServerStartupGate from "./components/layout/ServerStartupGate";
 import { APP_RUNTIME } from "./lib/constants";
 import AppRouter from "./router";
 import { Toaster } from "./components/ui/toast";
+import "./i18n";
 import "./index.css";
 
 const queryClient = new QueryClient({

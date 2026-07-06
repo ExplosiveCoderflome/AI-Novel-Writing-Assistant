@@ -51,6 +51,7 @@ export class NovelCoreCrudService {
           commercialTagsJson: true,
           status: true,
           writingMode: true,
+          language: true,
           projectMode: true,
           narrativePov: true,
           pacePreference: true,
@@ -239,6 +240,7 @@ export class NovelCoreCrudService {
         secondaryStoryModeId: input.secondaryStoryModeId ?? null,
         worldId: input.worldId,
         writingMode,
+        language: input.language,
         projectMode: input.projectMode,
         narrativePov: input.narrativePov,
         pacePreference: input.pacePreference,
@@ -349,6 +351,7 @@ export class NovelCoreCrudService {
       competingFeel: _ignoreCompetingFeel,
       first30ChapterPromise: _ignoreFirst30ChapterPromise,
       commercialTags: _ignoreCommercialTags,
+      language: inputLanguage,
       ...restInput
     } = input;
 
@@ -363,6 +366,7 @@ export class NovelCoreCrudService {
       where: { id },
       data: {
         ...restInput,
+        language: inputLanguage || undefined,
         sourceNovelId: nextWritingMode === "continuation" ? nextSourceNovelId : null,
         sourceKnowledgeDocumentId: nextWritingMode === "continuation" ? nextSourceKnowledgeDocumentId : null,
         continuationBookAnalysisId: normalizedNextContinuationBookAnalysisId,

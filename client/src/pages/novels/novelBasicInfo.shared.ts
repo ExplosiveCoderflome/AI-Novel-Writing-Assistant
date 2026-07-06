@@ -15,6 +15,7 @@ export interface NovelBasicFormState {
   worldId: string;
   status: "draft" | "published";
   writingMode: "original" | "continuation";
+  language: string;
   projectMode: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
   readerChannelPreference: "ai_judge" | "male_oriented" | "female_oriented" | "general";
   narrativePov: "first_person" | "third_person" | "mixed";
@@ -247,6 +248,7 @@ export function createDefaultNovelBasicFormState(): NovelBasicFormState {
     worldId: "",
     status: "draft",
     writingMode: "original",
+    language: "zh",
     projectMode: "co_pilot",
     readerChannelPreference: "ai_judge",
     narrativePov: "third_person",
@@ -335,6 +337,7 @@ export function buildNovelCreatePayload(basicForm: NovelBasicFormState) {
     secondaryStoryModeId: basicForm.secondaryStoryModeId || undefined,
     worldId: basicForm.worldId || undefined,
     writingMode: basicForm.writingMode,
+    language: basicForm.language,
     projectMode: basicForm.projectMode,
     narrativePov: basicForm.narrativePov,
     pacePreference: basicForm.pacePreference,
@@ -389,6 +392,7 @@ export function buildNovelUpdatePayload(basicForm: NovelBasicFormState) {
     worldId: basicForm.worldId || null,
     status: basicForm.status,
     writingMode: basicForm.writingMode,
+    language: basicForm.language,
     projectMode: basicForm.projectMode,
     narrativePov: basicForm.narrativePov,
     pacePreference: basicForm.pacePreference,
