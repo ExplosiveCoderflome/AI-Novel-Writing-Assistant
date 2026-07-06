@@ -43,10 +43,10 @@ function statusRank(status: ContextBlockStatus): number {
 
 function statusClassName(status: ContextBlockStatus): string {
   return {
-    selected: "border-primary/20 bg-primary/[0.08] text-primary",
-    dropped: "border-border/70 bg-muted/[0.55] text-muted-foreground",
-    summarized: "border-border/70 bg-muted/[0.45] text-foreground",
-    available: "border-transparent bg-muted/[0.35] text-muted-foreground",
+    selected: "border-[#b8d9d0] bg-[#eaf7f2] text-[#0f766e]",
+    dropped: "border-[#d7dee7] bg-[#eef2f6] text-[#64748b]",
+    summarized: "border-[#c8d8f0] bg-[#eef4ff] text-[#3b5f95]",
+    available: "border-[#ead8b8] bg-[#fff7e8] text-[#7a5620]",
   }[status];
 }
 
@@ -125,16 +125,16 @@ export function ContextInjectionPanel(props: {
     ?? null;
 
   return (
-    <aside className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b bg-background px-4 py-4">
+    <aside className="flex h-full min-h-0 flex-col bg-[#f6faf8]">
+      <div className="shrink-0 border-b border-[#d8e2de] bg-[#fbfdfb] px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">上下文注入</h3>
+            <h3 className="text-sm font-semibold text-[#25443f]">上下文注入</h3>
             <p className="mt-1 text-xs text-muted-foreground">
               查看本次预览使用的资料块、裁剪和摘要状态
             </p>
           </div>
-          <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+          <span className="rounded-md bg-[#eaf7f2] px-2 py-1 text-xs font-medium text-[#0f766e]">
             {visibleBlocks.length} 块
           </span>
         </div>
@@ -146,7 +146,7 @@ export function ContextInjectionPanel(props: {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="搜索 group、来源或内容"
-              className="h-9 bg-background pl-9"
+              className="h-9 border-[#cbdad6] bg-white pl-9 shadow-sm"
             />
           </div>
           <div className="relative">
@@ -154,7 +154,7 @@ export function ContextInjectionPanel(props: {
             <SelectControl
               value={sortMode}
               onChange={(event) => setSortMode(event.target.value as SortMode)}
-              className="h-9 w-full rounded-md border bg-background pl-9 pr-3 text-sm"
+              className="h-9 w-full rounded-md border border-[#cbdad6] bg-white pl-9 pr-3 text-sm shadow-sm"
             >
               <option value="status">按状态</option>
               <option value="priority">按优先级</option>
@@ -166,14 +166,14 @@ export function ContextInjectionPanel(props: {
       </div>
 
       {!preview ? (
-        <div className="m-4 rounded-md border border-dashed bg-background p-4 text-sm text-muted-foreground">
+        <div className="m-4 rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-4 text-sm text-muted-foreground">
           生成预览后，这里会显示已注入、被裁剪和被摘要的上下文块。
         </div>
       ) : (
         <>
-          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
+          <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
             {visibleBlocks.length === 0 ? (
-              <div className="rounded-md border border-dashed bg-background p-4 text-sm text-muted-foreground">
+              <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-4 text-sm text-muted-foreground">
                 没有匹配的上下文块。
               </div>
             ) : (
@@ -183,15 +183,17 @@ export function ContextInjectionPanel(props: {
                   type="button"
                   onClick={() => onSelectBlock(block.id)}
                   className={cn(
-                    "w-full rounded-md border border-transparent px-3 py-3 text-left transition-colors",
-                    selectedBlockId === block.id ? "border-primary/30 bg-background" : "hover:bg-muted/[0.45]",
+                    "w-full rounded-md border px-3 py-3 text-left transition-colors",
+                    selectedBlockId === block.id
+                      ? "border-[#0f766e]/50 bg-white shadow-[0_8px_22px_rgba(15,118,110,0.10)]"
+                      : "border-transparent hover:border-[#d8e2de] hover:bg-white/80",
                     block.status === "dropped" && "opacity-70",
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        {block.locked ? <LockKeyhole className="h-3.5 w-3.5 text-primary" /> : null}
+                        {block.locked ? <LockKeyhole className="h-3.5 w-3.5 text-[#0f766e]" /> : null}
                         <div className="truncate text-sm font-semibold text-foreground" title={block.group}>
                           {block.groupLabel}
                         </div>
@@ -228,10 +230,10 @@ export function ContextInjectionPanel(props: {
             )}
           </div>
 
-          <div className="shrink-0 border-t bg-background p-3">
+          <div className="shrink-0 border-t border-[#d8e2de] bg-[#fbfdfb] p-3">
             {activeBlock ? (
-              <div className="rounded-md border border-border/80 bg-background">
-                <div className="flex items-center justify-between gap-3 border-b border-border/70 bg-muted/[0.25] px-3 py-2">
+              <div className="overflow-hidden rounded-md border border-[#cbdad6] bg-white shadow-[0_8px_20px_rgba(20,54,48,0.06)]">
+                <div className="flex items-center justify-between gap-3 border-b border-[#dce8e4] bg-[#f6faf8] px-3 py-2">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold">{activeBlock.groupLabel}</div>
                     <div className="truncate font-mono text-[11px] text-muted-foreground">{activeBlock.id}</div>
@@ -240,7 +242,7 @@ export function ContextInjectionPanel(props: {
                     {CONTEXT_STATUS_LABELS[activeBlock.status]}
                   </Badge>
                 </div>
-                <pre className="max-h-64 overflow-auto whitespace-pre-wrap p-3 text-xs leading-relaxed">
+                <pre className="max-h-64 overflow-auto whitespace-pre-wrap p-3 text-xs leading-relaxed text-[#1f2937]">
                   {activeBlock.content}
                 </pre>
               </div>

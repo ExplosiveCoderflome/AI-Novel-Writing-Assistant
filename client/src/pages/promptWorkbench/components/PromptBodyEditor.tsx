@@ -70,11 +70,13 @@ function PromptSlotTextEditor(props: {
   maxLength?: number;
   placeholder?: string;
   minHeightClassName?: string;
+  immersive?: boolean;
   disabled?: boolean;
   onChange: (next: string) => void;
 }) {
   const {
     disabled,
+    immersive,
     maxLength,
     minHeightClassName = "min-h-[150px]",
     onChange,
@@ -117,9 +119,14 @@ function PromptSlotTextEditor(props: {
   const remaining = typeof maxLength === "number" ? maxLength - internalText.length : null;
 
   return (
-    <div className="rounded-md border border-input bg-background">
+    <div
+      className={cn(
+        "overflow-hidden rounded-md border bg-white shadow-[0_10px_28px_rgba(15,55,48,0.08)]",
+        immersive ? "border-[#a9cfc4]" : "border-[#cbdad6]",
+      )}
+    >
       <div className="flex min-h-0">
-        <div className="w-12 shrink-0 select-none border-r bg-muted/[0.18] py-3 pr-2 text-right font-mono text-[11px] leading-6 text-muted-foreground">
+        <div className="w-12 shrink-0 select-none border-r border-[#dce8e4] bg-[#eef7f3] py-3 pr-2 text-right font-mono text-[11px] leading-6 text-[#6f8d86]">
           {Array.from({ length: lineCount }).map((_, index) => (
             <div key={index}>{index + 1}</div>
           ))}
@@ -131,7 +138,7 @@ function PromptSlotTextEditor(props: {
                 readOnly={disabled}
                 placeholder={placeholder}
                 className={cn(
-                  "prose prose-sm max-w-none rounded-r-md px-3 py-3 text-sm leading-6 outline-none dark:prose-invert",
+                  "prose prose-sm max-w-none rounded-r-md px-4 py-4 text-sm leading-7 outline-none dark:prose-invert",
                   "break-words [&_p]:m-0 [&_p]:min-h-6 [&_p]:text-foreground",
                   disabled && "cursor-not-allowed opacity-70",
                   minHeightClassName,
@@ -142,7 +149,7 @@ function PromptSlotTextEditor(props: {
         </div>
       </div>
       {remaining !== null ? (
-        <div className="border-t border-border/70 px-3 py-1.5 text-right text-xs text-muted-foreground">
+        <div className="border-t border-[#dce8e4] bg-[#fbfdfb] px-3 py-1.5 text-right text-xs text-[#6f7f78]">
           {remaining < 0 ? <span className="text-destructive">{remaining}</span> : remaining} 字剩余
         </div>
       ) : null}
@@ -153,9 +160,11 @@ function PromptSlotTextEditor(props: {
 function SlotBadges({ section }: { section: PromptEditorSection }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Badge variant="outline">{SLOT_KIND_LABELS[section.kind] ?? section.kind}</Badge>
+      <Badge variant="outline" className="border-[#cbdad6] bg-[#f7fbf9] text-[#315f58]">
+        {SLOT_KIND_LABELS[section.kind] ?? section.kind}
+      </Badge>
       {section.isDirty ? (
-        <Badge variant="secondary" className="border-primary/20 bg-primary/[0.08] text-primary">未保存</Badge>
+        <Badge variant="secondary" className="border-[#b8d9d0] bg-[#eaf7f2] text-[#0f766e]">未保存</Badge>
       ) : null}
       {section.isSavedOverride ? <Badge variant="secondary">已覆盖</Badge> : null}
       {section.isInheritedFromGlobal ? <Badge variant="outline">继承全局</Badge> : null}
@@ -182,21 +191,23 @@ function ReconcileMiniBadge({ item }: { item?: PromptSlotReconcileItem }) {
 function PromptSlotSection(props: {
   section: PromptEditorSection;
   reconcileItem?: PromptSlotReconcileItem;
+  immersive?: boolean;
   disabled?: boolean;
   onChange: (key: string, value: PromptSlotValue) => void;
   onReset: (key: string) => void;
 }) {
-  const { disabled, onChange, onReset, reconcileItem, section } = props;
+  const { disabled, immersive, onChange, onReset, reconcileItem, section } = props;
   const canReset = section.isDirty || section.isSavedOverride;
   const maxLength = getMaxLength(section);
 
   return (
     <section className={cn(
-      "rounded-md border border-border/80 bg-background",
+      "overflow-hidden rounded-md border border-[#d8e2de] bg-white shadow-[0_8px_24px_rgba(20,54,48,0.06)]",
+      immersive && "border-[#b8d9d0] shadow-[0_14px_36px_rgba(15,55,48,0.10)]",
       reconcileItem?.state === "drifted" && "border-amber-300 bg-amber-50/[0.25]",
       reconcileItem?.state === "orphaned" && "border-red-200 bg-red-50/30 opacity-80",
     )}>
-      <div className="flex flex-col gap-3 border-b border-border/70 px-4 py-3 md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col gap-3 border-b border-[#dce8e4] bg-[#fbfdfb] px-4 py-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h4 className="text-sm font-semibold text-foreground">{section.label}</h4>
@@ -250,11 +261,14 @@ function PromptSlotSection(props: {
           <PromptSlotTextEditor
             value={String(section.value)}
             maxLength={maxLength}
+            immersive={immersive}
             disabled={disabled}
             placeholder={section.kind === "append" && "placeholderHint" in section.slot
               ? section.slot.placeholderHint
               : undefined}
-            minHeightClassName={section.kind === "append" ? "min-h-[180px]" : "min-h-[138px]"}
+            minHeightClassName={immersive
+              ? section.kind === "append" ? "min-h-[340px]" : "min-h-[280px]"
+              : section.kind === "append" ? "min-h-[180px]" : "min-h-[138px]"}
             onChange={(value) => onChange(section.slotKey, value)}
           />
         )}
@@ -287,8 +301,8 @@ function ChoiceSlotControl(props: {
           className={cn(
             "rounded-md border px-3 py-2.5 text-left text-sm transition-colors",
             section.value === option.value
-              ? "border-primary/[0.45] bg-primary/[0.06] text-foreground"
-              : "border-border/75 bg-background hover:bg-muted/50",
+              ? "border-[#0f766e] bg-[#eaf7f2] text-foreground"
+              : "border-[#d7e2df] bg-white hover:bg-[#f4faf7]",
             disabled && "cursor-not-allowed opacity-50",
           )}
         >
@@ -315,7 +329,7 @@ function ToggleSlotControl(props: {
         <span className="text-sm font-medium text-foreground">{checked ? "已启用" : "已关闭"}</span>
       </div>
       {checked ? (
-        <div className="rounded-md bg-muted/[0.35] px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+        <div className="rounded-md bg-[#eef7f3] px-3 py-2 text-xs leading-relaxed text-[#52746d]">
           启用后追加：{slot.copy}
         </div>
       ) : null}
@@ -367,9 +381,9 @@ function ContextReferenceChips(props: {
   }
 
   return (
-    <section className="border-b border-border/70 pb-4">
-      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-        <MapPin className="h-4 w-4 text-muted-foreground" />
+    <section className="rounded-md border border-[#d8e2de] bg-[#f8fbfa] px-4 py-3">
+      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#25443f]">
+        <MapPin className="h-4 w-4 text-[#0f766e]" />
         上下文引用
       </div>
       <div className="flex flex-wrap gap-1.5">
@@ -385,7 +399,7 @@ function ContextReferenceChips(props: {
               className={cn(
                 "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors",
                 blockId
-                  ? "border-border/70 bg-muted/[0.35] text-muted-foreground hover:border-primary/40 hover:bg-primary/[0.04] hover:text-foreground"
+                  ? "border-[#cbdad6] bg-white text-[#52606d] hover:border-[#0f766e] hover:bg-[#eaf7f2] hover:text-[#0f5f59]"
                   : "cursor-not-allowed border-transparent bg-muted/30 text-muted-foreground/70",
               )}
               title={requirement.group}
@@ -402,6 +416,7 @@ function ContextReferenceChips(props: {
 
 export function PromptBodyEditor(props: {
   prompt: PromptCatalogItem;
+  immersive?: boolean;
   preview: PromptPreviewResult | null;
   sections: PromptEditorSection[];
   reconcileMap: Record<string, PromptSlotReconcileItem>;
@@ -412,6 +427,7 @@ export function PromptBodyEditor(props: {
 }) {
   const {
     disabled,
+    immersive,
     onContextSelect,
     onSlotChange,
     onSlotReset,
@@ -426,7 +442,7 @@ export function PromptBodyEditor(props: {
   const hasEditableSlots = sections.length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6", immersive && "mx-auto max-w-[1320px]")}>
       <ContextReferenceChips
         prompt={prompt}
         preview={preview}
@@ -454,6 +470,7 @@ export function PromptBodyEditor(props: {
                   <PromptSlotSection
                     key={section.slotKey}
                     section={section}
+                    immersive={immersive}
                     reconcileItem={reconcileMap[section.slotKey]}
                     disabled={disabled}
                     onChange={onSlotChange}
@@ -472,6 +489,7 @@ export function PromptBodyEditor(props: {
                   <PromptSlotSection
                     key={section.slotKey}
                     section={section}
+                    immersive={immersive}
                     reconcileItem={reconcileMap[section.slotKey]}
                     disabled={disabled}
                     onChange={onSlotChange}
@@ -490,6 +508,7 @@ export function PromptBodyEditor(props: {
                   <PromptSlotSection
                     key={section.slotKey}
                     section={section}
+                    immersive={immersive}
                     reconcileItem={reconcileMap[section.slotKey]}
                     disabled={disabled}
                     onChange={onSlotChange}

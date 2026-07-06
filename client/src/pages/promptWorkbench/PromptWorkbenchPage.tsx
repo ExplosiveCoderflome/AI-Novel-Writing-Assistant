@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
+import { cn } from "@/lib/utils";
 import { PromptBodyEditor } from "./components/PromptBodyEditor";
 import { PromptCatalogSidebar } from "./components/PromptCatalogSidebar";
 import { ContextInjectionPanel } from "./components/ContextInjectionPanel";
@@ -14,6 +15,7 @@ export default function PromptWorkbenchPage() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [entrypoint, setEntrypoint] = useState("manual_test");
   const [selectedContextBlockId, setSelectedContextBlockId] = useState<string | null>(null);
+  const [immersiveMode, setImmersiveMode] = useState(false);
 
   const catalog = usePromptCatalog(keyword);
   const prompts = catalog.prompts;
@@ -37,6 +39,19 @@ export default function PromptWorkbenchPage() {
     setSelectedContextBlockId(null);
   }, [preview?.prompt.key, selectedPrompt?.key]);
 
+  useEffect(() => {
+    if (!immersiveMode) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setImmersiveMode(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [immersiveMode]);
+
   function handleSelectPrompt(prompt: PromptCatalogItem) {
     setSelectedKey(prompt.key);
     setSelectedContextBlockId(null);
@@ -48,24 +63,33 @@ export default function PromptWorkbenchPage() {
     || slotState.saveMutation.isPending;
 
   return (
-    <div className="flex h-full min-h-0 overflow-hidden bg-background">
-      <div className="flex h-full min-h-0 w-[360px] min-w-[300px] max-w-[420px] shrink-0 overflow-hidden">
-        <PromptCatalogSidebar
-          keyword={keyword}
-          onKeywordChange={setKeyword}
-          prompts={prompts}
-          selectedKey={selectedPrompt?.key ?? null}
-          isLoading={catalog.query.isLoading}
-          isFetching={catalog.query.isFetching}
-          onSelect={handleSelectPrompt}
-          onRefresh={() => void catalog.refetch()}
-        />
-      </div>
+    <div
+      className={cn(
+        "flex h-full min-h-0 overflow-hidden bg-[#f5f7fb]",
+        immersiveMode && "fixed inset-0 z-50 h-screen bg-[#f3f7f5]",
+      )}
+    >
+      {!immersiveMode ? (
+        <div className="flex h-full min-h-0 w-[360px] min-w-[300px] max-w-[420px] shrink-0 overflow-hidden">
+          <PromptCatalogSidebar
+            keyword={keyword}
+            onKeywordChange={setKeyword}
+            prompts={prompts}
+            selectedKey={selectedPrompt?.key ?? null}
+            isLoading={catalog.query.isLoading}
+            isFetching={catalog.query.isFetching}
+            onSelect={handleSelectPrompt}
+            onRefresh={() => void catalog.refetch()}
+          />
+        </div>
+      ) : null}
 
       <main className="h-full min-h-0 min-w-0 flex-1 overflow-hidden">
         {selectedPrompt ? (
           <PromptEditorShell
             prompt={selectedPrompt}
+            immersive={immersiveMode}
+            onImmersiveChange={setImmersiveMode}
             entrypoint={entrypoint}
             onEntrypointChange={setEntrypoint}
             scope={slotState.scope}
@@ -82,6 +106,7 @@ export default function PromptWorkbenchPage() {
                 ) : null}
                 <PromptBodyEditor
                   prompt={selectedPrompt}
+                  immersive={immersiveMode}
                   preview={preview}
                   sections={slotState.sections}
                   reconcileMap={slotState.reconcileMap}
