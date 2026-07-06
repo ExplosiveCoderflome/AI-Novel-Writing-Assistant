@@ -34,10 +34,10 @@ export default function StageBasicSetup({
   onConfirm,
 }: StageBasicSetupProps) {
   const hasLargeChapterPlan = basicForm.estimatedChapterCount > 200;
-  const controlClassName = "w-full rounded-xl border-0 bg-muted/45 px-3 py-2.5 text-sm outline-none ring-1 ring-border/35 transition focus:bg-background focus:ring-2 focus:ring-primary/25";
+  const controlClassName = "w-full rounded-lg border-0 bg-muted/40 px-3 py-2.5 text-sm outline-none ring-1 ring-transparent transition hover:bg-muted/55 focus:bg-background focus:ring-2 focus:ring-primary/25";
 
   return (
-    <section className="mx-auto w-full max-w-5xl space-y-8 py-4">
+    <section className="mx-auto w-full max-w-5xl space-y-7 py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-2xl font-semibold tracking-normal text-foreground">先定这本书的手感</div>
@@ -147,21 +147,24 @@ export default function StageBasicSetup({
             会作为整书结构密度和后续卷章规划的参考，不是硬性上限。
           </div>
           {hasLargeChapterPlan ? (
-            <div className={`rounded-xl bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+            <div className={`rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               建议先小范围尝试：先查看规划和前期章节方向，确认符合想法后再扩大产出范围。
             </div>
           ) : null}
         </div>
       </div>
 
-      <div className="space-y-4 rounded-2xl bg-muted/25 p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <details className="group rounded-lg bg-muted/20 px-4 py-4 sm:px-5">
+        <summary className="cursor-pointer list-none">
           <div>
-            <div className="text-base font-semibold text-foreground">书级 framing</div>
+            <div className="text-base font-semibold text-foreground">补充读者与卖点</div>
             <div className={`mt-1 max-w-3xl text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              用最直白的话说清楚这本书写给谁、卖点是什么、读者前 30 章会得到什么。不会写专业策划词也没关系，按你的直觉描述即可。
+              不确定可以先跳过。补充后，AI 会更清楚这本书写给谁、前 30 章要给读者什么。
             </div>
           </div>
+        </summary>
+
+        <div className="mt-5 flex justify-start">
           <BookFramingQuickFillButton
             basicForm={basicForm}
             genreOptions={genreOptions}
@@ -170,7 +173,7 @@ export default function StageBasicSetup({
           />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <FieldLabel htmlFor="director-basic-target-audience" hint={BASIC_INFO_FIELD_HINTS.targetAudience}>
               目标读者
@@ -238,9 +241,9 @@ export default function StageBasicSetup({
             onChange={(event) => onBasicFormChange({ first30ChapterPromise: event.target.value })}
           />
         </div>
-      </div>
+      </details>
 
-      <div className="flex flex-col gap-2 border-t border-border/40 pt-4 sm:flex-row sm:justify-between">
+      <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-between">
         <Button type="button" variant="ghost" onClick={onBack}>返回想法</Button>
         <Button type="button" onClick={onConfirm}>确认起始设置</Button>
       </div>

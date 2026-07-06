@@ -34,10 +34,10 @@ export default function StageWorldStyle({
   onConfirm,
 }: StageWorldStyleProps) {
   const selectedWorld = worldOptions.find((world) => world.id === basicForm.worldId) ?? null;
-  const controlClassName = "w-full rounded-xl border-0 bg-muted/45 px-3 py-2.5 text-sm outline-none ring-1 ring-border/35 transition focus:bg-background focus:ring-2 focus:ring-primary/25";
+  const controlClassName = "w-full rounded-lg border-0 bg-muted/40 px-3 py-2.5 text-sm outline-none ring-1 ring-transparent transition hover:bg-muted/55 focus:bg-background focus:ring-2 focus:ring-primary/25";
 
   return (
-    <section className="mx-auto w-full max-w-5xl space-y-8 py-4">
+    <section className="mx-auto w-full max-w-5xl space-y-7 py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-2xl font-semibold tracking-normal text-foreground">给故事一个世界底色</div>
@@ -74,7 +74,7 @@ export default function StageWorldStyle({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-muted/25 p-4 sm:p-5">
+        <div className="rounded-lg bg-muted/20 px-4 py-5 sm:px-5">
           <div className="text-sm font-medium text-foreground">本书世界处理</div>
           {selectedWorld ? (
             <div className={`mt-2 text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
@@ -84,10 +84,10 @@ export default function StageWorldStyle({
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
-                className={`rounded-2xl px-4 py-4 text-left transition ring-1 ${
+                className={`rounded-lg px-4 py-4 text-left transition ring-1 ${
                   worldSetupMode === "auto_generate"
                     ? "bg-foreground text-background ring-foreground shadow-sm"
-                    : "bg-background/70 text-foreground ring-border/35 hover:bg-background"
+                    : "bg-background/60 text-foreground ring-border/25 hover:bg-background"
                 }`}
                 onClick={() => onWorldSetupModeChange("auto_generate")}
               >
@@ -98,10 +98,10 @@ export default function StageWorldStyle({
               </button>
               <button
                 type="button"
-                className={`rounded-2xl px-4 py-4 text-left transition ring-1 ${
+                className={`rounded-lg px-4 py-4 text-left transition ring-1 ${
                   worldSetupMode === "skip"
                     ? "bg-foreground text-background ring-foreground shadow-sm"
-                    : "bg-background/70 text-foreground ring-border/35 hover:bg-background"
+                    : "bg-background/60 text-foreground ring-border/25 hover:bg-background"
                 }`}
                 onClick={() => onWorldSetupModeChange("skip")}
               >
@@ -133,14 +133,14 @@ export default function StageWorldStyle({
             {selectedStyleSummary?.stageSummaryLines[0] ?? "有沉淀好的写法资产时，建议直接选一套，帮助你更清楚地预期导演会怎样写。"}
           </div>
           {selectedStyleSummary?.stageSummaryLines.length ? (
-            <div className={`rounded-2xl bg-muted/25 px-4 py-3 text-xs leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              当前会传给导演的写法摘要：{selectedStyleSummary.stageSummaryLines.join("；")}
+            <div className={`rounded-lg bg-muted/20 px-4 py-3 text-xs leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+              这套写法会影响后续章节的语气和节奏：{selectedStyleSummary.stageSummaryLines.join("；")}
             </div>
           ) : null}
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-border/40 pt-4 sm:flex-row sm:justify-between">
+      <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-between">
         <Button type="button" variant="ghost" onClick={onBack}>返回起始设置</Button>
         <Button type="button" onClick={onConfirm}>确认世界与写法</Button>
       </div>

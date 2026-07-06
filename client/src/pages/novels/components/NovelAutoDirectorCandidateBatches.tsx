@@ -55,7 +55,6 @@ function renderPrimaryCandidateDetails(candidate: DirectorCandidate) {
     { label: "核心卖点", value: candidate.sellingPoint },
     { label: "主线冲突", value: candidate.coreConflict },
     { label: "主角路径", value: candidate.protagonistPath },
-    { label: "推进循环", value: candidate.progressionLoop },
   ];
 }
 
@@ -63,6 +62,7 @@ function renderSecondaryCandidateDetails(candidate: DirectorCandidate) {
   return [
     { label: "作品定位", value: candidate.positioning },
     { label: "主钩子", value: candidate.hookStrategy },
+    { label: "推进循环", value: candidate.progressionLoop },
     { label: "结局方向", value: candidate.endingDirection },
     { label: "章节规模", value: `约 ${candidate.targetChapterCount} 章` },
   ];
@@ -141,12 +141,18 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                     duration: reducedMotion ? 0 : 0.18,
                     delay: reducedMotion ? 0 : candidateIndex * 0.06,
                   }}
-                  className="group min-w-0 overflow-hidden rounded-lg border border-border/70 bg-background px-5 py-5 shadow-sm transition hover:border-foreground/20 hover:shadow-md sm:px-6"
+                  className="group min-w-0 overflow-hidden rounded-lg bg-muted/20 px-5 py-5 transition hover:bg-muted/30 sm:px-6"
                 >
                   <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
                     <div className="min-w-0">
                       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
                         <span>方案 {candidateIndex + 1}</span>
+                        {candidateIndex === 0 ? (
+                          <>
+                            <span>·</span>
+                            <span>先看这套</span>
+                          </>
+                        ) : null}
                         <span>·</span>
                         <span>约 {candidate.targetChapterCount} 章</span>
                         {toneSummary ? (
@@ -165,7 +171,66 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                         {candidate.logline}
                       </p>
 
-                      <div className="mt-5">
+                      <dl className="mt-6 grid gap-x-8 gap-y-4 text-sm md:grid-cols-3">
+                        {renderPrimaryCandidateDetails(candidate).map((item) => (
+                          <div key={item.label} className={`min-w-0 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                            <dt className="text-xs font-medium text-muted-foreground">{item.label}</dt>
+                            <dd className="mt-1 break-words leading-6 text-foreground [overflow-wrap:anywhere]">{item.value}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+
+                    <aside className="flex min-w-0 flex-col gap-4 lg:pl-2">
+                      <Button
+                        type="button"
+                        className={cn("h-11 justify-between", AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction)}
+                        onClick={() => void onConfirmCandidate(candidate)}
+                        disabled={isConfirming}
+                      >
+                        {isConfirming ? "创建中..." : "选用这套"}
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+
+                      <div className="space-y-4 text-sm">
+                        <div className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
+                          <div className="text-xs font-medium text-muted-foreground">为什么值得选</div>
+                          <div className="mt-1 line-clamp-5 break-words leading-6 text-foreground [overflow-wrap:anywhere]">{candidate.whyItFits}</div>
+                        </div>
+                        {toneSummary ? (
+                          <div className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
+                            <div className="text-xs font-medium text-muted-foreground">读感关键词</div>
+                            <div className="mt-1 break-words leading-6 text-foreground [overflow-wrap:anywhere]">
+                              {candidate.toneKeywords.join(" · ")}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </aside>
+                  </div>
+
+                  <details className="group mt-6">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">
+                      展开完整设定
+                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+                    </summary>
+                    <dl className="mt-4 grid gap-x-8 gap-y-4 text-sm md:grid-cols-2">
+                      {renderSecondaryCandidateDetails(candidate).map((item) => (
+                        <div key={item.label} className={`min-w-0 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                          <dt className="text-xs font-medium text-muted-foreground">{item.label}</dt>
+                          <dd className="mt-1 break-words leading-6 text-foreground [overflow-wrap:anywhere]">{item.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </details>
+
+                  <details className="group mt-4">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">
+                      调整书名与方向
+                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+                    </summary>
+                    <div className="mt-4 space-y-5">
+                      <div>
                         <div className="text-xs font-medium text-muted-foreground">可选书名</div>
                         <div className="mt-2 flex min-w-0 flex-wrap gap-2">
                           {titleOptions.map((option) => {
@@ -177,8 +242,8 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                                 className={cn(
                                   "inline-flex max-w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left text-xs transition",
                                   active
-                                    ? "bg-primary/10 text-primary ring-1 ring-primary/20"
-                                    : "bg-muted/55 text-foreground hover:bg-muted",
+                                    ? "bg-primary/10 text-primary"
+                                    : "bg-background/70 text-foreground hover:bg-background",
                                 )}
                                 onClick={() => onApplyCandidateTitleOption(batch.id, candidate.id, option)}
                               >
@@ -194,114 +259,57 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                         </div>
                       </div>
 
-                      <dl className="mt-6 grid gap-x-8 gap-y-4 text-sm md:grid-cols-2">
-                        {renderPrimaryCandidateDetails(candidate).map((item) => (
-                          <div key={item.label} className={`min-w-0 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                            <dt className="text-xs font-medium text-muted-foreground">{item.label}</dt>
-                            <dd className="mt-1 break-words leading-6 text-foreground [overflow-wrap:anywhere]">{item.value}</dd>
+                      <div className="grid gap-4 lg:grid-cols-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                            <RefreshCw className="h-4 w-4 text-muted-foreground" />
+                            重做标题组
                           </div>
-                        ))}
-                      </dl>
-                    </div>
-
-                    <aside className="flex min-w-0 flex-col gap-4 lg:border-l lg:border-border/60 lg:pl-5">
-                      <Button
-                        type="button"
-                        className={cn("h-11 justify-between", AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction)}
-                        onClick={() => void onConfirmCandidate(candidate)}
-                        disabled={isConfirming}
-                      >
-                        {isConfirming ? "创建中..." : "选用这套"}
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-
-                      <div className="space-y-4 text-sm">
-                        <div className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-                          <div className="text-xs font-medium text-muted-foreground">适配理由</div>
-                          <div className="mt-1 break-words leading-6 text-foreground [overflow-wrap:anywhere]">{candidate.whyItFits}</div>
-                        </div>
-                        {toneSummary ? (
-                          <div className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-                            <div className="text-xs font-medium text-muted-foreground">读感关键词</div>
-                            <div className="mt-1 break-words leading-6 text-foreground [overflow-wrap:anywhere]">
-                              {candidate.toneKeywords.join(" · ")}
-                            </div>
+                          <Input
+                            className="mt-2 bg-background"
+                            value={titlePatchFeedbacks[candidate.id] ?? ""}
+                            onChange={(event) => onTitlePatchFeedbackChange(candidate.id, event.target.value)}
+                            placeholder="例如：更偏都市冷感，不要像旧式升级文。"
+                          />
+                          <div className="mt-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
+                              disabled={isRefiningTitle || !titlePatchFeedbacks[candidate.id]?.trim()}
+                              onClick={() => onRefineTitle(batch.id, candidate, titlePatchFeedbacks[candidate.id] ?? "")}
+                            >
+                              <Wand2 className="h-4 w-4" />
+                              {isRefiningTitle ? "重做中..." : "AI 重做标题组"}
+                            </Button>
                           </div>
-                        ) : null}
-                      </div>
-                    </aside>
-                  </div>
+                        </div>
 
-                  <details className="group mt-5 border-t border-border/60 pt-4">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">
-                      展开完整设定
-                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
-                    </summary>
-                    <dl className="mt-4 grid gap-x-8 gap-y-4 text-sm md:grid-cols-2">
-                      {renderSecondaryCandidateDetails(candidate).map((item) => (
-                        <div key={item.label} className={`min-w-0 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                          <dt className="text-xs font-medium text-muted-foreground">{item.label}</dt>
-                          <dd className="mt-1 break-words leading-6 text-foreground [overflow-wrap:anywhere]">{item.value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </details>
-
-                  <details className="group mt-4 border-t border-border/60 pt-4">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-foreground">
-                      微调这套方案
-                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
-                    </summary>
-                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                          <RefreshCw className="h-4 w-4 text-muted-foreground" />
-                          重做标题组
-                        </div>
-                        <Input
-                          className="mt-2 bg-background"
-                          value={titlePatchFeedbacks[candidate.id] ?? ""}
-                          onChange={(event) => onTitlePatchFeedbackChange(candidate.id, event.target.value)}
-                          placeholder="例如：更偏都市冷感，不要像旧式升级文。"
-                        />
-                        <div className="mt-2">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
-                            disabled={isRefiningTitle || !titlePatchFeedbacks[candidate.id]?.trim()}
-                            onClick={() => onRefineTitle(batch.id, candidate, titlePatchFeedbacks[candidate.id] ?? "")}
-                          >
-                            <Wand2 className="h-4 w-4" />
-                            {isRefiningTitle ? "重做中..." : "AI 重做标题组"}
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                          <Wand2 className="h-4 w-4 text-muted-foreground" />
-                          调整方向
-                        </div>
-                        <Input
-                          className="mt-2 bg-background"
-                          value={candidatePatchFeedbacks[candidate.id] ?? ""}
-                          onChange={(event) => onCandidatePatchFeedbackChange(candidate.id, event.target.value)}
-                          placeholder="例如：保留这套，但主角更主动一点。"
-                        />
-                        <div className="mt-2">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
-                            disabled={isPatchingCandidate || !candidatePatchFeedbacks[candidate.id]?.trim()}
-                            onClick={() => onPatchCandidate(batch.id, candidate, candidatePatchFeedbacks[candidate.id] ?? "")}
-                          >
-                            <Wand2 className="h-4 w-4" />
-                            {isPatchingCandidate ? "修正中..." : "AI 调整方向"}
-                          </Button>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                            <Wand2 className="h-4 w-4 text-muted-foreground" />
+                            调整方向
+                          </div>
+                          <Input
+                            className="mt-2 bg-background"
+                            value={candidatePatchFeedbacks[candidate.id] ?? ""}
+                            onChange={(event) => onCandidatePatchFeedbackChange(candidate.id, event.target.value)}
+                            placeholder="例如：保留这套，但主角更主动一点。"
+                          />
+                          <div className="mt-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
+                              disabled={isPatchingCandidate || !candidatePatchFeedbacks[candidate.id]?.trim()}
+                              onClick={() => onPatchCandidate(batch.id, candidate, candidatePatchFeedbacks[candidate.id] ?? "")}
+                            >
+                              <Wand2 className="h-4 w-4" />
+                              {isPatchingCandidate ? "修正中..." : "AI 调整方向"}
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -313,7 +321,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
         </motion.section>
       ))}
 
-      <section className="min-w-0 border-t border-border/70 pt-6">
+      <section className="min-w-0 pt-4">
         <div className="break-words text-base font-semibold text-foreground [overflow-wrap:anywhere]">没有合适的方向</div>
         <div className="mt-1 max-w-3xl break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
           点几个修正方向，再补一句你想要的感觉。系统会保留上一轮，再生成一批新的方案。
@@ -328,8 +336,8 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                 type="button"
                 className={`rounded-full px-3 py-1.5 text-sm transition ${
                   active
-                    ? "bg-foreground text-background shadow-sm"
-                    : "bg-background text-foreground hover:bg-muted"
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted/45 text-foreground hover:bg-muted"
                 }`}
                 onClick={() => onTogglePreset(preset.value)}
               >

@@ -34,18 +34,18 @@ export default function StageCandidates({
 
   return (
     <section className="space-y-5">
-      <div className="flex flex-col gap-4 border-b border-border/70 pb-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 pb-1 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="break-words text-2xl font-semibold leading-9 text-foreground [overflow-wrap:anywhere]">方向候选</div>
           <div className="mt-1 max-w-3xl break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
-            选择一套方向创建项目，也可以继续生成新批次、微调某套方案或重做标题组。
+            先选最贴近你想法的一套方向；不满意时再展开调整或生成新一轮。
           </div>
         </div>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
-          className="shrink-0"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
           onClick={onRegenerateSettings}
         >
           回改设定
