@@ -26,21 +26,21 @@ export default function TitleSuggestionList({
 }: TitleSuggestionListProps) {
   if (suggestions.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+      <div className="py-8 text-center text-sm text-muted-foreground">
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="divide-y divide-border/60">
       {suggestions.map((suggestion) => {
         const isSelected = selectedTitle === suggestion.title;
         return (
           <div
             key={suggestion.title}
-            className={`rounded-lg border p-4 transition ${
-              isSelected ? "border-primary/50 bg-primary/5" : "border-border/70 bg-background"
+            className={`px-3 py-4 transition ${
+              isSelected ? "rounded-lg bg-primary/5" : ""
             }`}
           >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">

@@ -1,4 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { BasicTabProps } from "./NovelEditView.types";
 import NovelBasicInfoForm from "./NovelBasicInfoForm";
 import NovelStyleRecommendationCard from "./NovelStyleRecommendationCard";
@@ -46,54 +45,55 @@ export default function BasicInfoTab(props: BasicTabProps) {
           onSave={props.onSaveWorldSliceOverrides}
         />
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>书级定位与基本信息</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <NovelBasicInfoForm
-            basicForm={props.basicForm}
-            genreOptions={props.genreOptions}
-            storyModeOptions={props.storyModeOptions}
-            worldOptions={props.worldOptions}
-            sourceNovelOptions={props.sourceNovelOptions}
-            sourceKnowledgeOptions={props.sourceKnowledgeOptions}
-            sourceNovelBookAnalysisOptions={props.sourceNovelBookAnalysisOptions}
-            isLoadingSourceNovelBookAnalyses={props.isLoadingSourceNovelBookAnalyses}
-            availableBookAnalysisSections={props.availableBookAnalysisSections}
-            onFormChange={props.onFormChange}
-            onSubmit={props.onSave}
-            isSubmitting={props.isSaving}
-            submitLabel="保存基本信息"
-            titleQuickFill={(
-              <NovelCreateTitleQuickFill
-                basicForm={props.basicForm}
-                onApplyTitle={(title) => props.onFormChange({ title })}
-              />
-            )}
-            framingQuickFill={(
-              <BookFramingQuickFillButton
-                basicForm={props.basicForm}
-                genreOptions={props.genreOptions}
-                onApplySuggestion={props.onFormChange}
-              />
-            )}
-            coverSection={(
-              <NovelCoverCard
-                novelId={props.novelId}
-                basicForm={props.basicForm}
-                genreOptions={props.genreOptions}
-                storyModeOptions={props.storyModeOptions}
-                worldOptions={props.worldOptions}
-                worldSliceView={props.worldSliceView}
-              />
-            )}
-            projectQuickStart={props.projectQuickStart}
-          />
-        </CardContent>
-      </Card>
+      <section className="space-y-4">
+        <div>
+          <div className="text-lg font-semibold leading-7 text-foreground">书级定位与基本信息</div>
+          <div className="mt-1 text-sm leading-6 text-muted-foreground">
+            继续完善标题、概述、读者与卖点，让后续自动导演和章节生成能稳定继承当前方向。
+          </div>
+        </div>
+        <NovelBasicInfoForm
+          basicForm={props.basicForm}
+          genreOptions={props.genreOptions}
+          storyModeOptions={props.storyModeOptions}
+          worldOptions={props.worldOptions}
+          sourceNovelOptions={props.sourceNovelOptions}
+          sourceKnowledgeOptions={props.sourceKnowledgeOptions}
+          sourceNovelBookAnalysisOptions={props.sourceNovelBookAnalysisOptions}
+          isLoadingSourceNovelBookAnalyses={props.isLoadingSourceNovelBookAnalyses}
+          availableBookAnalysisSections={props.availableBookAnalysisSections}
+          onFormChange={props.onFormChange}
+          onSubmit={props.onSave}
+          isSubmitting={props.isSaving}
+          submitLabel="保存基本信息"
+          titleQuickFill={(
+            <NovelCreateTitleQuickFill
+              basicForm={props.basicForm}
+              onApplyTitle={(title) => props.onFormChange({ title })}
+            />
+          )}
+          framingQuickFill={(
+            <BookFramingQuickFillButton
+              basicForm={props.basicForm}
+              genreOptions={props.genreOptions}
+              onApplySuggestion={props.onFormChange}
+            />
+          )}
+          coverSection={(
+            <NovelCoverCard
+              novelId={props.novelId}
+              basicForm={props.basicForm}
+              genreOptions={props.genreOptions}
+              storyModeOptions={props.storyModeOptions}
+              worldOptions={props.worldOptions}
+              worldSliceView={props.worldSliceView}
+            />
+          )}
+          projectQuickStart={props.projectQuickStart}
+        />
+      </section>
 
-      <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
+      <details className="group border-t border-border/60 pt-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
             title="写法建议"

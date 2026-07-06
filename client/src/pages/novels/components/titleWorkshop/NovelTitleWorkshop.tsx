@@ -89,7 +89,7 @@ export default function NovelTitleWorkshop({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border bg-muted/20 p-4">
+      <div className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
             <div className="text-sm font-semibold text-foreground">项目内标题工坊</div>
@@ -101,14 +101,14 @@ export default function NovelTitleWorkshop({
             {saveCurrentMutation.isPending ? "保存中..." : "保存当前标题"}
           </Button>
         </div>
-          <div className="mt-4 space-y-3">
-            <LLMSelector />
-            <div className="flex justify-end">
-              <AiButton type="button" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
-                {generateMutation.isPending ? "生成中..." : "生成标题候选"}
-              </AiButton>
-            </div>
+        <div className="space-y-3">
+          <LLMSelector />
+          <div className="flex justify-end">
+            <AiButton type="button" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
+              {generateMutation.isPending ? "生成中..." : "生成标题候选"}
+            </AiButton>
           </div>
+        </div>
       </div>
 
       <TitleSuggestionList
