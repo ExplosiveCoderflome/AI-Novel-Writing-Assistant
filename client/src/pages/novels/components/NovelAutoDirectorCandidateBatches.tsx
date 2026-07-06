@@ -143,17 +143,21 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                   }}
                   className="group min-w-0 py-7 first:pt-2 last:pb-2"
                 >
-                  <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_240px]">
+                  <div className="grid min-w-0 gap-5 lg:grid-cols-[3.25rem_minmax(0,1fr)_220px]">
+                    <div className="hidden lg:block">
+                      <div className="text-3xl font-semibold leading-none text-muted-foreground/45">
+                        {String(candidateIndex + 1).padStart(2, "0")}
+                      </div>
+                      {candidateIndex === 0 ? (
+                        <div className="mt-2 text-xs font-medium text-primary">推荐先看</div>
+                      ) : null}
+                    </div>
+
                     <div className="min-w-0">
                       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
-                        <span>方案 {candidateIndex + 1}</span>
-                        {candidateIndex === 0 ? (
-                          <>
-                            <span>·</span>
-                            <span>推荐先看</span>
-                          </>
-                        ) : null}
-                        <span>·</span>
+                        <span className="lg:hidden">方案 {candidateIndex + 1}</span>
+                        {candidateIndex === 0 ? <span className="lg:hidden">· 推荐先看</span> : null}
+                        <span className="lg:hidden">·</span>
                         <span>约 {candidate.targetChapterCount} 章</span>
                         {toneSummary ? (
                           <>
@@ -232,7 +236,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                     <div className="mt-4 space-y-5">
                       <div>
                         <div className="text-xs font-medium text-muted-foreground">可选书名</div>
-                        <div className="mt-2 flex min-w-0 flex-wrap gap-2">
+                        <div className="mt-2 divide-y divide-border/45">
                           {titleOptions.map((option) => {
                             const active = option.title === candidate.workingTitle;
                             return (
@@ -240,22 +244,28 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                                 key={`${candidate.id}-${option.title}`}
                                 type="button"
                                 className={cn(
-                                  "inline-flex max-w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left text-xs transition",
-                                  active
-                                    ? "bg-primary/10 text-primary"
-                                    : "bg-background/70 text-foreground hover:bg-background",
+                                  "flex w-full min-w-0 items-start justify-between gap-3 py-2 text-left text-sm transition",
+                                  active ? "text-primary" : "text-foreground hover:text-primary",
                                 )}
                                 onClick={() => onApplyCandidateTitleOption(batch.id, candidate.id, option)}
                               >
-                                {active ? <Check className="h-3.5 w-3.5 shrink-0" /> : null}
-                                <span className={`font-medium ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{option.title}</span>
-                                <span className={active ? "text-primary/70" : "text-muted-foreground"}>预估 {option.clickRate}</span>
+                                <span className="block min-w-0">
+                                  <span className="flex min-w-0 items-center gap-2">
+                                    {active ? <Check className="h-3.5 w-3.5 shrink-0" /> : null}
+                                    <span className={`break-words font-medium [overflow-wrap:anywhere] ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                                      {option.title}
+                                    </span>
+                                  </span>
+                                  <span className={`mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                                    {option.reason?.trim() || option.angle || "可直接作为这套方向的书名。"}
+                                  </span>
+                                </span>
+                                <span className={cn("shrink-0 text-xs tabular-nums", active ? "text-primary" : "text-muted-foreground")}>
+                                  {option.clickRate}
+                                </span>
                               </button>
                             );
                           })}
-                        </div>
-                        <div className={`mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                          {titleOptions[0]?.reason?.trim() || "你可以直接切换当前方案的书名。"}
                         </div>
                       </div>
 
