@@ -9,7 +9,6 @@ import type {
 } from "@ai-novel/shared/types/novelWorld";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import NovelWorldSourcePanel, { type WorldOption } from "./novelWorld/NovelWorldSourcePanel";
 
 interface NovelWorldManagerCardProps {
@@ -88,12 +87,12 @@ function StatusPanel({
   description: string;
 }) {
   return (
-    <div className="rounded-md border border-border/70 bg-background px-4 py-3">
-      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+    <div className="min-w-0 border-l border-border/60 pl-3">
+      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
         <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
         {title}
       </div>
-      <div className="mt-2 text-sm font-medium text-foreground">{value}</div>
+      <div className="mt-2 break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">{value}</div>
       <div className="mt-1 text-xs leading-5 text-muted-foreground">{description}</div>
     </div>
   );
@@ -194,25 +193,23 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
   const selectedSectionCount = effectiveSyncSections?.length ?? 0;
 
   return (
-    <Card>
-      <CardHeader className="space-y-2">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <CardTitle>本书世界</CardTitle>
-            <div className="mt-1 text-sm leading-6 text-muted-foreground">
-              这里管理这本小说真正使用的世界。世界库提供可复用样本，导入或生成后，这里保存本书自己的世界版本。
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {props.isLoading ? <Badge variant="secondary">读取中</Badge> : null}
-            {novelWorld ? <Badge variant="outline">{labelSourceType(novelWorld.sourceType)}</Badge> : null}
-            {novelWorld?.hasStorySlice ? <Badge variant="secondary">写作可用</Badge> : <Badge variant="outline">等待整理</Badge>}
-            {novelWorld?.syncEnabled ? <Badge variant="secondary">{labelSyncDirection(novelWorld.syncDirection)}</Badge> : <Badge variant="outline">手动同步</Badge>}
+    <section className="space-y-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="text-2xl font-semibold tracking-normal text-foreground">本书世界</div>
+          <div className="mt-1 text-sm leading-6 text-muted-foreground">
+            这里管理这本小说真正使用的世界。世界库提供可复用样本，导入或生成后，这里保存本书自己的世界版本。
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="flex flex-wrap gap-2">
+          {props.isLoading ? <Badge variant="secondary">读取中</Badge> : null}
+          {novelWorld ? <Badge variant="outline">{labelSourceType(novelWorld.sourceType)}</Badge> : null}
+          {novelWorld?.hasStorySlice ? <Badge variant="secondary">写作可用</Badge> : <Badge variant="outline">等待整理</Badge>}
+          {novelWorld?.syncEnabled ? <Badge variant="secondary">{labelSyncDirection(novelWorld.syncDirection)}</Badge> : <Badge variant="outline">手动同步</Badge>}
+        </div>
+      </div>
+      <div className="space-y-5">
+        <div className="grid gap-4 md:grid-cols-3">
           <StatusPanel
             icon={Library}
             title="来源"
@@ -237,7 +234,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
           />
         </div>
 
-        <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+        <div className="border-t border-border/60 pt-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <div className="text-sm font-medium text-foreground">下一步</div>
@@ -282,7 +279,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
         </div>
 
         {handbook ? (
-          <div className="rounded-lg border border-border/70 bg-background p-4">
+          <div className="border-t border-border/60 pt-5">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="text-sm font-medium text-foreground">世界手册</div>
@@ -303,7 +300,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
               </div>
             ) : null}
             <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              <div className="rounded-md border border-border/70 p-3">
+              <div className="rounded-lg bg-muted/15 p-3">
                 <div className="text-sm font-medium text-foreground">核心设定</div>
                 <div className="mt-2 space-y-2">
                   {handbook.coreRules.length > 0 ? handbook.coreRules.map((rule) => (
@@ -316,7 +313,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
                   )) : <div className="text-sm text-muted-foreground">还没有明确的核心规则。</div>}
                 </div>
               </div>
-              <div className="rounded-md border border-border/70 p-3">
+              <div className="rounded-lg bg-muted/15 p-3">
                 <div className="text-sm font-medium text-foreground">主要势力</div>
                 <div className="mt-2 space-y-2">
                   {(handbook.forces.length > 0 ? handbook.forces : handbook.factions).slice(0, 5).map((item) => (
@@ -332,7 +329,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
                   ) : null}
                 </div>
               </div>
-              <div className="rounded-md border border-border/70 p-3">
+              <div className="rounded-lg bg-muted/15 p-3">
                 <div className="text-sm font-medium text-foreground">本书舞台</div>
                 <div className="mt-2 space-y-2">
                   {handbook.locations.length > 0 ? handbook.locations.map((location) => (
@@ -344,7 +341,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
                   )) : <div className="text-sm text-muted-foreground">还没有明确的故事舞台。</div>}
                 </div>
               </div>
-              <div className="rounded-md border border-border/70 p-3">
+              <div className="rounded-lg bg-muted/15 p-3">
                 <div className="text-sm font-medium text-foreground">关键张力</div>
                 <div className="mt-2 space-y-2">
                   {handbook.tensions.length > 0 ? handbook.tensions.map((tension) => (
@@ -619,7 +616,7 @@ export default function NovelWorldManagerCard(props: NovelWorldManagerCardProps)
           onCreateManual={props.onCreateManual}
           onGenerate={props.onGenerate}
         />
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
