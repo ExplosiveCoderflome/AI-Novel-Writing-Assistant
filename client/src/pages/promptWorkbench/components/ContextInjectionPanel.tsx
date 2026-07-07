@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { ArrowDownUp, LockKeyhole, Search } from "lucide-react";
-import type { PromptPreviewResult } from "@/api/promptWorkbench";
+import { ArrowDownUp, LockKeyhole, Plus, Search } from "lucide-react";
+import type { PromptPreviewResult, PromptTemplateReferenceCatalog } from "@/api/promptWorkbench";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import SelectControl from "@/components/common/SelectControl";
@@ -110,8 +111,10 @@ export function ContextInjectionPanel(props: {
   preview: PromptPreviewResult | null;
   selectedBlockId: string | null;
   onSelectBlock: (blockId: string) => void;
+  referenceCatalog?: PromptTemplateReferenceCatalog | null;
+  onInsertToken?: (token: string) => void;
 }) {
-  const { onSelectBlock, preview, selectedBlockId } = props;
+  const { onInsertToken, onSelectBlock, preview, referenceCatalog, selectedBlockId } = props;
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("status");
   const blocks = useMemo(() => buildContextBlockViewModels(preview, query), [preview, query]);
@@ -123,6 +126,11 @@ export function ContextInjectionPanel(props: {
     ?? visibleBlocks.find((block) => block.status === "selected")
     ?? visibleBlocks[0]
     ?? null;
+  const activeContextToken = activeBlock
+    ? referenceCatalog?.items.find((item) => item.group === "required_context" || item.group === "optional_context"
+      ? item.key === activeBlock.group
+      : false)?.token
+    : null;
 
   return (
     <aside className="flex h-full min-h-0 flex-col bg-[#f6faf8]">
@@ -242,6 +250,20 @@ export function ContextInjectionPanel(props: {
                     {CONTEXT_STATUS_LABELS[activeBlock.status]}
                   </Badge>
                 </div>
+                {onInsertToken && activeContextToken ? (
+                  <div className="border-b border-[#dce8e4] bg-white px-3 py-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onInsertToken(activeContextToken)}
+                      className="w-full border-[#b8d9d0] text-[#0f5f59]"
+                    >
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      插入到模板
+                    </Button>
+                  </div>
+                ) : null}
                 <pre className="max-h-64 overflow-auto whitespace-pre-wrap p-3 text-xs leading-relaxed text-[#1f2937]">
                   {activeBlock.content}
                 </pre>

@@ -4,6 +4,7 @@ import {
   previewPrompt,
   type PromptCatalogItem,
   type PromptPreviewPayload,
+  type PromptTemplateJson,
 } from "@/api/promptWorkbench";
 import type { PromptSlotDrafts } from "../promptWorkbenchTypes";
 
@@ -292,6 +293,7 @@ interface UsePromptPreviewInput {
   previewNovel?: PreviewNovel | null;
   previewChapter?: PreviewChapter | null;
   slotOverrides: PromptSlotDrafts;
+  templateDraft?: PromptTemplateJson;
 }
 
 export function usePromptPreview(input: UsePromptPreviewInput) {
@@ -303,6 +305,7 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
     previewNovel,
     prompt,
     slotOverrides,
+    templateDraft,
   } = input;
 
   const previewMutation = useMutation({
@@ -329,6 +332,7 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
         },
         maxContextTokens: prompt.contextPolicy.maxTokensBudget,
         slotOverrides,
+        templateDraft,
       };
       return previewPrompt(payload);
     },

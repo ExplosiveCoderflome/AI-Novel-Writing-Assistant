@@ -15,6 +15,9 @@ interface PromptRunBarProps {
   previewDisabled: boolean;
   resetDisabled: boolean;
   officialVersionDisabled?: boolean;
+  officialVersionLabel?: string;
+  saveLabel?: string;
+  savePendingLabel?: string;
   onGeneratePreview: () => void;
   onOpenOfficialVersion: () => void;
   onSave: () => void;
@@ -33,11 +36,14 @@ export function PromptRunBar(props: PromptRunBarProps) {
     onReset,
     onSave,
     officialVersionDisabled,
+    officialVersionLabel = "官方版本",
     previewDisabled,
     prompt,
     resetDisabled,
     saveDisabled,
     saveError,
+    saveLabel = "保存覆盖",
+    savePendingLabel = "保存中...",
   } = props;
   const maxBudget = prompt?.contextPolicy.maxTokensBudget ?? null;
 
@@ -77,7 +83,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
             className="border-[#b8d9d0] bg-white text-[#0f5f59] hover:bg-[#eaf7f2] hover:text-[#0f5f59]"
           >
             <ShieldCheck className="mr-2 h-4 w-4" />
-            官方版本
+            {officialVersionLabel}
           </Button>
           <Button
             type="button"
@@ -96,7 +102,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
             className="bg-[#0f766e] text-white hover:bg-[#0b5f59]"
           >
             <Save className="mr-2 h-4 w-4" />
-            {isSavePending ? "保存中..." : "保存覆盖"}
+            {isSavePending ? savePendingLabel : saveLabel}
           </Button>
           <Button
             type="button"

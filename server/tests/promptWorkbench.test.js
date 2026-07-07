@@ -4,6 +4,9 @@ const assert = require("node:assert/strict");
 const { PromptWorkbenchService } = require("../dist/prompting/PromptWorkbenchService.js");
 const { ContextBroker } = require("../dist/prompting/context/ContextBroker.js");
 const { createDefaultContextResolverRegistry } = require("../dist/prompting/context/defaultContextRegistry.js");
+const {
+  promptTemplateOverrideService,
+} = require("../dist/prompting/templates/PromptTemplateOverrideService.js");
 
 function buildPlannerPromptInput() {
   return {
@@ -417,4 +420,111 @@ test("prompt preview assembles selected novel chapter write context for chapter 
     && block.content.includes("确认代码提交与命案有关")
   )));
   assert.ok(preview.diagnostics.notes.some((note) => note.includes("正文写作预览上下文")));
+});
+
+test("prompt preview renders unsaved advanced template draft without reading active template", async () => {
+  const originalGetActiveCustomTemplate = promptTemplateOverrideService.getActiveCustomTemplate;
+  promptTemplateOverrideService.getActiveCustomTemplate = async () => {
+    throw new Error("active template should not be read for draft preview");
+  };
+  const service = new PromptWorkbenchService({
+    novel: {
+      findUnique: async () => ({
+        id: "novel-draft",
+        title: "模板测试书",
+        description: "测试高级模板预览。",
+        targetAudience: "测试读者",
+        bookSellingPoint: "模板可控。",
+        first30ChapterPromise: "完成正文写作链路。",
+        narrativePov: "第三人称有限视角",
+        pacePreference: "中快节奏",
+        emotionIntensity: "高压克制",
+        styleTone: "自然、紧凑",
+        estimatedChapterCount: 60,
+        characters: [{
+          id: "char-1",
+          name: "林序",
+          role: "主角",
+          personality: "谨慎",
+          background: "工程师",
+          development: "主动追查",
+          identityLabel: "程序员",
+          factionLabel: "调查方",
+          stanceLabel: "追查真相",
+          powerLevel: "普通人",
+          realm: null,
+          currentLocation: "机房外",
+          availability: "可出场",
+          prohibitionsJson: JSON.stringify(["不得知道幕后真凶"]),
+          currentState: "发现异常日志",
+          currentGoal: "确认风险来源",
+          appearance: "",
+          physique: null,
+          attireStyle: "",
+          signatureDetail: "",
+          voiceTexture: "",
+          presenceImpression: "",
+        }],
+      }),
+    },
+    chapter: {
+      findFirst: async () => ({
+        id: "chapter-draft",
+        title: "异常日志",
+        order: 2,
+        content: "",
+        expectation: "让主角确认日志和现实风险有关。",
+        targetWordCount: 3000,
+        conflictLevel: 4,
+        revealLevel: 2,
+        mustAvoid: "不得直接揭露幕后真凶。",
+        taskSheet: "发现异常日志，并在结尾形成追查压力。",
+        sceneCards: JSON.stringify({
+          scenes: [{
+            title: "机房外",
+            purpose: "确认异常日志。",
+            mustAdvance: ["确认日志与现实风险有关"],
+            mustPreserve: ["主角不知道幕后真凶"],
+          }],
+        }),
+        hook: "下一章从监控被篡改开始。",
+      }),
+    },
+  });
+
+  try {
+    const preview = await service.preview({
+      promptKey: "novel.chapter.writer@v5",
+      promptInput: {
+        novelTitle: "模板测试书",
+        chapterOrder: 2,
+        chapterTitle: "异常日志",
+        mode: "draft",
+        targetWordCount: 3000,
+        minWordCount: 2600,
+        maxWordCount: 3400,
+      },
+      executionContext: {
+        entrypoint: "manual_test",
+        novelId: "novel-draft",
+        chapterId: "chapter-draft",
+      },
+      maxContextTokens: 8000,
+      templateDraft: {
+        kind: "chat",
+        messages: [
+          { role: "system", content: "DRAFT SYSTEM {{slot.writer.tonePreference}}" },
+          { role: "human", content: "DRAFT HUMAN {{input.chapterTitle}}\n{{context.chapter_mission}}" },
+        ],
+      },
+    });
+
+    assert.ok(preview.messages.some((message) => message.content.includes("DRAFT SYSTEM")));
+    assert.ok(preview.messages.some((message) => message.content.includes("DRAFT HUMAN 异常日志")));
+    assert.ok(preview.diagnostics.template);
+    assert.equal(preview.diagnostics.template.mode, "draft");
+    assert.ok(preview.diagnostics.template.diagnostics.fallbackRequiredGroups.includes("book_contract"));
+  } finally {
+    promptTemplateOverrideService.getActiveCustomTemplate = originalGetActiveCustomTemplate;
+  }
 });

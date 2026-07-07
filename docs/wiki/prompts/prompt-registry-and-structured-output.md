@@ -36,6 +36,10 @@
 - `novel.chapter.writer` 的 Workbench 预览必须注入只读 `chapterWriteContext`，并通过默认 Context Broker 解析出 `book_contract`、`chapter_mission`、`previous_chapter_hook`、`character_hard_facts`、`obligation_contract`、`volume_window`、`participant_subset`、`local_state` 和 `style_contract`。预览按钮不得调用会补写章节计划、推进自动导演或修改小说数据的生成装配器；如果只能使用降级上下文，诊断信息必须说明来源边界。
 - `PromptAsset.contextRequirements` 中声明的每个 required group 都必须能被默认 Context Broker 解析，或在真实调用路径中通过 fallback blocks 明确补齐。像 `chapter_boundary`、`structure_obligations` 这类审校必需上下文，不能只写在 prompt 文案或前端示例里，必须有后端 resolver / context block 产出路径。
 - Prompt Workbench 的官方版本库以代码注册的 `PromptAsset.slots` 为可信来源。官方当前版只能读取槽位默认值、hash、版本号和 changelog；不得把数据库里的自由编辑文本当作“官方 prompt”，也不得开放 schema、contextPolicy、required context、postValidate 或审批边界给用户覆盖。
+- 正文写作高级模板是受控专家例外，只允许 `novel.chapter.writer` 在本书范围覆盖 `system` / `human` 模板。它服务成熟用户对正文写作表达和上下文摆放的精细控制，不改变 `PromptAsset.id/version/taskType/mode`、schema、postValidate、contextPolicy 或正文输出形态。
+- 高级模板只能通过稳定 token 引用上下文、运行变量和槽位，例如 `{{context.chapter_mission}}`、`{{input.chapterTitle}}`、`{{slot.writer.tonePreference}}`。未知 token、未注册 context group 或非法 slot key 必须在预览或保存前被拦截，不能进入可启用版本。
+- `novel.chapter.writer` 的 required context 在高级模板中仍是最低安全边界。用户可以决定 `book_contract`、`chapter_mission`、`previous_chapter_hook`、`character_hard_facts`、`obligation_contract`、`volume_window`、`participant_subset`、`local_state`、`style_contract` 的摆放位置；如果模板没有显式引用某个 required group，运行时必须在 human message 末尾追加必需上下文保底区块。optional group 只有被模板显式引用时才注入。
+- 高级模板版本历史属于本书覆盖数据，不是官方版本库。每次保存创建不可变版本并设为 active；回滚只切换 activeVersionId；恢复官方模板只把 mode 切回 `official` 并保留历史版本，真实生成随即回到 `PromptAsset.render()`。
 - Slot override 的解析优先级固定为：本书覆盖或本书 `official_default` 标记 > 全局覆盖 > `PromptAsset.slots` 官方默认。旧数据中只有 `{ value, baseHash }` 的槽位视为 `custom`，保持兼容。
 - `official_default` 只表示“当前作用域明确采用官方默认值”。全局层保存官方默认值应删除该槽位覆盖；本书层保存官方默认值时，如果全局层存在自定义覆盖，必须写入 `official_default` 标记来遮蔽全局值；如果没有全局覆盖，则删除本书覆盖即可。
 - “恢复官方当前版”必须通过官方恢复动作处理，而不是简单删除本书覆盖。删除本书覆盖的含义是回到继承链；在有全局覆盖时，这会重新继承全局值，不等于恢复官方默认。
@@ -60,12 +64,16 @@
 - Prompt Workbench 预览只读返回 messages、上下文块、缺失 required groups 和 trace preview，不保存运行时 override。
 - 某本书需要摆脱被改坏的全局“章末钩子”时，应在本书层写入 `mode: "official_default"`。这样预览、运行时渲染和后续生成都会使用 `PromptAsset.slots` 的官方默认章末钩子，而不是全局覆盖。
 - 用户只想撤销本书自己的改动、继续继承团队/全局设置时，应清除本书覆盖；如果全局设置本身被改坏，则应使用“恢复官方当前版”。
+- 成熟用户要把“角色硬事实”提前放到 human message 开头时，应在正文写作高级模板中插入 `{{context.character_hard_facts}}`；如果同时没有插入 `{{context.style_contract}}`，系统会在 human message 末尾追加风格合约保底块。
+- 某本书试验过激写法后想回到官方正文 prompt，应使用“恢复官方模板”。这不会删除历史版本，后续仍可回滚查看，但真实生成会重新使用 `PromptAsset.render()`。
 
 禁止做法：
 
 - 在 service 内直接拼 `systemPrompt/userPrompt` 后调用裸 LLM。
 - 在业务文件里新增一套本地 JSON 修复和 schema 分支。
 - 让 Prompt Override 直接替换整段系统提示词或结构化输出 schema。
+- 把高级模板扩展到审校、规划、修复或全局范围，或让高级模板编辑 contextPolicy、schema、postValidate、模型参数和返回结构。
+- 在高级模板中通过空模板、未知 token 或删除 required context 的方式绕开正文写作安全上下文。
 - 在角色准备、章节规划、意图识别、质量检查、RAG 选择或自动导演路由中，用固定词表、正则、字符比例或特殊字符串分支替代 AI 结构化理解。
 - 用删除本书覆盖来实现“恢复官方默认”，因为这会在存在全局覆盖时错误继承全局值。
 - 把“官方版本库”做成用户可编辑的数据库 prompt 后台，绕开 `PromptAsset.slots` 的代码注册边界。
@@ -80,6 +88,8 @@
 - `novel.chapter.writer` 预览缺少 `book_contract`、`chapter_mission`、`previous_chapter_hook`、`character_hard_facts`、`obligation_contract`、`volume_window`、`participant_subset`、`local_state` 或 `style_contract`：优先检查 Workbench 是否为所选小说章节装配了 `metadata.chapterWriteContext`，而不是删 required group、改前端标签或用示例 `promptInput` 冒充运行时上下文。
 - Prompt Workbench 恢复官方默认后仍使用全局坏值：检查本书层是否写入了 `official_default`，以及运行时解析是否仍按“本书 > 全局 > 官方默认”的顺序合并。
 - Reconcile 面板一直提示同一个槽位漂移：检查用户是否选择了“保留我的设置”并更新 `baseHash`，或选择了“恢复官方当前版”并清除了旧覆盖 / 写入了 `official_default`。
+- 正文写作高级模板预览失败并提示未知 token：检查模板中是否存在未通过 `@` 菜单插入的 `{{...}}`，尤其是拼错的 context group、运行变量或 slot key。修复模板 token，而不是在后端新增别名绕过校验。
+- 启用高级模板后真实生成缺少关键上下文：先看预览 diagnostics 中“显式上下文”和“保底追加”列表；如果 required group 没有出现，检查 Context Broker / Workbench `chapterWriteContext` 装配，而不是让用户手写上下文正文。
 - 意图识别漏判：修 PromptAsset、输入上下文、schema 或工具目录，不加关键词路由。
 - 角色阵容看起来没有承接身份、题材或隐藏真相：先查角色准备 PromptAsset、上下文块和结构化输出，不加本地正则抽取身份，不用关键词判断候选能否自动应用。
 - 单个 PromptAsset 的 repair 或 semantic retry 频率异常升高：先查看 prompt quality telemetry 中的 promptId/version、上下文块、输出空率和失败分类，再判断是 schema 合同、上下文污染、模型路由还是 prompt 文案问题。

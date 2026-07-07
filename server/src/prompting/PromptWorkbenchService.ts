@@ -12,11 +12,20 @@ import { ContextBroker } from "./context/ContextBroker";
 import { createDefaultContextResolverRegistry } from "./context/defaultContextRegistry";
 import { derivePromptContextRequirements } from "./context/promptContextResolution";
 import type { PromptExecutionContext } from "./context/types";
-import { getRegisteredPromptAsset, listRegisteredPromptAssets } from "./registry";
+import { findRegisteredPromptAssetById, getRegisteredPromptAsset, listRegisteredPromptAssets } from "./registry";
 import { getPromptCatalogDescription } from "./addendums/PromptAddendumService";
 import { CUSTOM_SLOT_CONTEXT_GROUP, resolvePromptOverlays } from "./slots/slotResolution";
 import { promptSlotOverrideService } from "./slots/PromptSlotOverrideService";
 import type { PromptSlotDef } from "./slots/slotTypes";
+import { compilePromptTemplate, hasBlockingPromptTemplateDiagnostics } from "./templates/templateCompiler";
+import { promptTemplateOverrideService } from "./templates/PromptTemplateOverrideService";
+import type {
+  PromptTemplateDiagnostics,
+  PromptTemplateJson,
+  PromptTemplateReferenceCatalog,
+  PromptTemplateReferenceItem,
+} from "./templates/templateTypes";
+import { ADVANCED_TEMPLATE_PROMPT_ID, WRITER_REQUIRED_CONTEXT_GROUPS } from "./templates/templateTypes";
 import {
   prepareWorkbenchPreviewExecutionContext,
   type PromptWorkbenchPreviewDb,
@@ -66,6 +75,7 @@ export interface PromptPreviewInput {
   maxContextTokens?: number;
   contextMode?: "snapshot" | "fresh" | "hybrid";
   slotOverrides?: Record<string, unknown>;
+  templateDraft?: PromptTemplateJson;
 }
 
 export interface PromptPreviewMessage {
@@ -84,7 +94,19 @@ export interface PromptPreviewResult {
     resolverErrors: Awaited<ReturnType<ContextBroker["resolve"]>>["resolverErrors"];
     tracePreview: PromptRunTrace;
     notes: string[];
+    template?: {
+      mode: "official" | "draft" | "custom";
+      activeVersionNo?: number;
+      diagnostics: PromptTemplateDiagnostics;
+    };
   };
+}
+
+export interface PromptContextReferencesInput {
+  promptId: string;
+  novelId?: string;
+  chapterId?: string;
+  entrypoint?: string;
 }
 
 const LOCKED_PROMPT_FIELDS = [
@@ -291,6 +313,88 @@ function formatPreviewRenderError(error: unknown, asset: UnknownPromptAsset): Er
   return new Error(`提示词预览渲染失败（${asset.id}@${asset.version}）：${message}`);
 }
 
+function buildPromptInputReferenceItems(): PromptTemplateReferenceItem[] {
+  return [
+    { key: "novelTitle", label: "小说标题", token: "{{input.novelTitle}}", group: "input" },
+    { key: "chapterOrder", label: "章节序号", token: "{{input.chapterOrder}}", group: "input" },
+    { key: "chapterTitle", label: "章节标题", token: "{{input.chapterTitle}}", group: "input" },
+    { key: "mode", label: "写作模式", token: "{{input.mode}}", group: "input" },
+    { key: "targetWordCount", label: "目标字数", token: "{{input.targetWordCount}}", group: "input" },
+    { key: "minWordCount", label: "最小字数", token: "{{input.minWordCount}}", group: "input" },
+    { key: "maxWordCount", label: "最大字数", token: "{{input.maxWordCount}}", group: "input" },
+    { key: "missingWordGap", label: "补写缺口", token: "{{input.missingWordGap}}", group: "input" },
+  ];
+}
+
+function buildSlotReferenceItems(slotDefs: PromptSlotDef[]): PromptTemplateReferenceItem[] {
+  return slotDefs.map((slot) => ({
+    key: slot.key,
+    label: slot.label,
+    description: slot.description,
+    token: `{{slot.${slot.key}}}`,
+    group: "slot",
+  }));
+}
+
+function buildContextReferenceItems(input: {
+  requirements: PromptContextRequirement[];
+  blocks: Array<{ group: string }>;
+}): PromptTemplateReferenceItem[] {
+  const previewGroups = new Set(input.blocks.map((block) => block.group));
+  const requiredGroups = new Set([
+    ...input.requirements.filter((requirement) => requirement.required).map((requirement) => requirement.group),
+    ...WRITER_REQUIRED_CONTEXT_GROUPS,
+  ]);
+  return input.requirements
+    .map((requirement) => ({
+      key: requirement.group,
+      label: requirement.group,
+      description: requirement.sourceHint,
+      token: `{{context.${requirement.group}}}`,
+      required: requiredGroups.has(requirement.group),
+      hasPreviewBlock: previewGroups.has(requirement.group),
+      group: requiredGroups.has(requirement.group) ? "required_context" as const : "optional_context" as const,
+    }))
+    .sort((left, right) => {
+      if (left.group !== right.group) {
+        return left.group === "required_context" ? -1 : 1;
+      }
+      return left.key.localeCompare(right.key);
+    });
+}
+
+async function resolvePreviewTemplate(input: {
+  asset: UnknownPromptAsset;
+  novelId?: string;
+  templateDraft?: PromptTemplateJson;
+}): Promise<{
+  mode: "draft" | "custom";
+  template: PromptTemplateJson;
+  activeVersionNo?: number;
+} | null> {
+  if (input.asset.id !== ADVANCED_TEMPLATE_PROMPT_ID || !input.novelId) {
+    return null;
+  }
+  if (input.templateDraft) {
+    return {
+      mode: "draft",
+      template: input.templateDraft,
+    };
+  }
+  const active = await promptTemplateOverrideService.getActiveCustomTemplate({
+    promptId: input.asset.id,
+    novelId: input.novelId,
+  });
+  if (!active) {
+    return null;
+  }
+  return {
+    mode: "custom",
+    template: active.template,
+    activeVersionNo: active.versionNo,
+  };
+}
+
 export class PromptWorkbenchService {
   private readonly contextBroker = new ContextBroker(createDefaultContextResolverRegistry());
 
@@ -369,6 +473,8 @@ export class PromptWorkbenchService {
       : brokerResolution.blocks;
 
     let prepared: ReturnType<typeof preparePromptExecution>;
+    let previewMessages: BaseMessage[];
+    let templateDiagnosticPayload: PromptPreviewResult["diagnostics"]["template"] | undefined;
     try {
       prepared = preparePromptExecution({
         asset,
@@ -382,18 +488,61 @@ export class PromptWorkbenchService {
           taskId: previewContext.executionContext.taskId,
         },
       });
+      previewMessages = prepared.messages;
+
+      const templateSource = await resolvePreviewTemplate({
+        asset,
+        novelId: previewContext.executionContext.novelId,
+        templateDraft: input.templateDraft,
+      });
+      if (templateSource) {
+        const compiled = compilePromptTemplate({
+          template: templateSource.template,
+          promptInput: input.promptInput,
+          context: prepared.context,
+          slotDefs,
+          slots: resolvedSlots,
+          allowedContextGroups: prompt.contextRequirements.map((requirement) => requirement.group),
+          requiredContextGroups: [...WRITER_REQUIRED_CONTEXT_GROUPS],
+        });
+        if (hasBlockingPromptTemplateDiagnostics(compiled.diagnostics)) {
+          const details = [
+            compiled.diagnostics.invalidMessages.join("；"),
+            compiled.diagnostics.unknownTokens.length > 0
+              ? `未知 token：${compiled.diagnostics.unknownTokens.join("、")}`
+              : "",
+            compiled.diagnostics.missingRequiredGroups.length > 0
+              ? `缺少必需上下文组：${compiled.diagnostics.missingRequiredGroups.join("、")}`
+              : "",
+          ].filter(Boolean).join("；");
+          throw new Error(`高级模板预览失败：${details}`);
+        }
+        previewMessages = compiled.messages;
+        templateDiagnosticPayload = {
+          mode: templateSource.mode,
+          activeVersionNo: templateSource.activeVersionNo,
+          diagnostics: compiled.diagnostics,
+        };
+      }
     } catch (error) {
       throw formatPreviewRenderError(error, asset);
     }
 
+    const missingRequiredGroups = [
+      ...new Set([
+        ...brokerResolution.missingRequiredGroups,
+        ...(templateDiagnosticPayload?.diagnostics.missingRequiredGroups ?? []),
+      ]),
+    ];
+
     return {
       prompt,
-      messages: serializeMessages(prepared.messages),
+      messages: serializeMessages(previewMessages),
       context: serializePromptContext(prepared.context),
       brokerResolution,
       diagnostics: {
         entrypoint: previewContext.executionContext.entrypoint,
-        missingRequiredGroups: brokerResolution.missingRequiredGroups,
+        missingRequiredGroups,
         resolverErrors: brokerResolution.resolverErrors,
         tracePreview: buildPromptTracePreview({
           asset,
@@ -406,9 +555,53 @@ export class PromptWorkbenchService {
         notes: buildPreviewNotes({
           prompt,
           brokerResolution,
-          extraNotes: previewContext.notes,
+          extraNotes: [
+            ...previewContext.notes,
+            ...(templateDiagnosticPayload?.diagnostics.fallbackRequiredGroups.length
+              ? [`高级模板已自动追加必需上下文：${templateDiagnosticPayload.diagnostics.fallbackRequiredGroups.join("、")}。`]
+              : []),
+          ],
         }),
+        template: templateDiagnosticPayload,
       },
+    };
+  }
+
+  async contextReferences(input: PromptContextReferencesInput): Promise<PromptTemplateReferenceCatalog> {
+    const asset = findRegisteredPromptAssetById(input.promptId);
+    if (!asset) {
+      throw new Error(`提示词未注册：${input.promptId}`);
+    }
+    if (asset.id !== ADVANCED_TEMPLATE_PROMPT_ID) {
+      throw new Error("第一阶段仅支持正文写作提示词的上下文引用菜单。");
+    }
+    const prompt = toCatalogItem(asset);
+    const previewContext = await this.preparePreviewExecutionContext({
+      asset,
+      executionContext: {
+        entrypoint: input.entrypoint ?? "manual_test",
+        novelId: input.novelId,
+        chapterId: input.chapterId,
+      },
+    });
+    const brokerResolution = await this.contextBroker.resolve({
+      executionContext: previewContext.executionContext,
+      requirements: prompt.contextRequirements,
+      maxTokensBudget: asset.contextPolicy.maxTokensBudget,
+    });
+    return {
+      promptId: asset.id,
+      novelId: previewContext.executionContext.novelId,
+      chapterId: previewContext.executionContext.chapterId,
+      items: [
+        ...buildContextReferenceItems({
+          requirements: prompt.contextRequirements,
+          blocks: brokerResolution.blocks,
+        }),
+        ...buildPromptInputReferenceItems(),
+        ...buildSlotReferenceItems(asset.slots ?? []),
+      ],
+      missingRequiredGroups: brokerResolution.missingRequiredGroups,
     };
   }
 }

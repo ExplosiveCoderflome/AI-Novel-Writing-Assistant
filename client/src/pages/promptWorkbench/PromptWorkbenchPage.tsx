@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { getNovelChapters } from "@/api/novel/chapters";
 import { queryKeys } from "@/api/queryKeys";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { AdvancedPromptTemplateEditor } from "./components/AdvancedPromptTemplateEditor";
 import { PromptBodyEditor } from "./components/PromptBodyEditor";
 import { PromptCatalogSidebar } from "./components/PromptCatalogSidebar";
 import { ContextInjectionPanel } from "./components/ContextInjectionPanel";
@@ -12,6 +14,9 @@ import { PromptRunBar } from "./components/PromptRunBar";
 import { usePromptCatalog } from "./hooks/usePromptCatalog";
 import { usePromptDraftSlots } from "./hooks/usePromptDraftSlots";
 import { usePromptPreview } from "./hooks/usePromptPreview";
+import { usePromptTemplateEditor } from "./hooks/usePromptTemplateEditor";
+
+type PromptEditMode = "slots" | "advanced";
 
 export default function PromptWorkbenchPage() {
   const [keyword, setKeyword] = useState("");
@@ -20,6 +25,7 @@ export default function PromptWorkbenchPage() {
   const [selectedContextBlockId, setSelectedContextBlockId] = useState<string | null>(null);
   const [immersiveMode, setImmersiveMode] = useState(false);
   const [selectedChapterId, setSelectedChapterId] = useState("");
+  const [editMode, setEditMode] = useState<PromptEditMode>("slots");
 
   const catalog = usePromptCatalog(keyword);
   const prompts = catalog.prompts;
@@ -46,6 +52,20 @@ export default function PromptWorkbenchPage() {
     () => chapters.find((chapter) => chapter.id === selectedChapterId) ?? null,
     [chapters, selectedChapterId],
   );
+  const advancedTemplateSupported = selectedPrompt?.id === "novel.chapter.writer";
+  const advancedTemplateEnabled = Boolean(
+    advancedTemplateSupported
+    && slotState.scope === "novel"
+    && slotState.activeNovelId,
+  );
+  const templateState = usePromptTemplateEditor({
+    prompt: selectedPrompt,
+    novelId: slotState.scope === "novel" ? slotState.activeNovelId : "",
+    chapterId: selectedChapterId,
+    entrypoint,
+    enabled: advancedTemplateEnabled,
+  });
+  const activeEditMode: PromptEditMode = editMode === "advanced" && advancedTemplateSupported ? "advanced" : "slots";
   const previewState = usePromptPreview({
     prompt: selectedPrompt,
     entrypoint,
@@ -54,6 +74,7 @@ export default function PromptWorkbenchPage() {
     previewNovel: activeNovel,
     previewChapter: selectedChapter,
     slotOverrides: slotState.drafts,
+    templateDraft: activeEditMode === "advanced" && advancedTemplateEnabled ? templateState.draftTemplate : undefined,
   });
   const preview = previewState.preview;
 
@@ -89,6 +110,12 @@ export default function PromptWorkbenchPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [immersiveMode]);
 
+  useEffect(() => {
+    if (!advancedTemplateSupported && editMode === "advanced") {
+      setEditMode("slots");
+    }
+  }, [advancedTemplateSupported, editMode]);
+
   function handleSelectPrompt(prompt: PromptCatalogItem) {
     setSelectedKey(prompt.key);
     setSelectedContextBlockId(null);
@@ -98,6 +125,25 @@ export default function PromptWorkbenchPage() {
     || slotState.isNovelScopeDisabled
     || !slotState.hasDirtyDrafts
     || slotState.saveMutation.isPending;
+  const templateSaveError = templateState.saveMutation.error instanceof Error
+    ? templateState.saveMutation.error.message
+    : templateState.restoreMutation.error instanceof Error
+      ? templateState.restoreMutation.error.message
+      : templateState.activateMutation.error instanceof Error
+        ? templateState.activateMutation.error.message
+        : null;
+  const isAdvancedMode = activeEditMode === "advanced";
+  const effectiveDirtyCount = isAdvancedMode ? (templateState.isDirty ? 1 : 0) : slotState.dirtySlotKeys.length;
+  const effectiveSavePending = isAdvancedMode ? templateState.saveMutation.isPending : slotState.saveMutation.isPending;
+  const effectiveSaveSuccess = isAdvancedMode ? templateState.saveMutation.isSuccess : slotState.saveMutation.isSuccess;
+  const effectiveSaveError = isAdvancedMode ? templateSaveError : slotState.saveError;
+  const effectiveSaveDisabled = isAdvancedMode
+    ? !advancedTemplateEnabled || !templateState.isDirty || templateState.saveMutation.isPending
+    : saveDisabled;
+  const effectiveResetDisabled = isAdvancedMode ? !templateState.isDirty : !slotState.hasDirtyDrafts;
+  const effectiveOfficialDisabled = isAdvancedMode
+    ? !advancedTemplateEnabled || templateState.view?.mode !== "custom" || templateState.restoreMutation.isPending
+    : !selectedPrompt?.slotSupported || slotState.isNovelScopeDisabled;
 
   return (
     <div
@@ -144,32 +190,60 @@ export default function PromptWorkbenchPage() {
             }))}
             bodyPanel={
               <div className="space-y-4">
+                <div className="flex flex-col gap-3 rounded-md border border-[#d7e4e0] bg-white/80 p-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-[#25443f]">编辑模式</div>
+                    <div className="text-xs text-muted-foreground">
+                      安全槽位适合稳定调整，高级模板适合本书正文写作自定义。
+                    </div>
+                  </div>
+                  <Tabs value={activeEditMode} onValueChange={(value) => setEditMode(value as PromptEditMode)}>
+                    <TabsList className="h-10">
+                      <TabsTrigger value="slots" className="px-4">安全槽位</TabsTrigger>
+                      <TabsTrigger
+                        value="advanced"
+                        className="px-4"
+                        disabled={!advancedTemplateSupported}
+                      >
+                        高级模板
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
                 {slotState.isNovelScopeDisabled ? (
                   <div className="rounded-md bg-muted/[0.35] px-4 py-3 text-sm text-muted-foreground">
                     选择小说后可设置本书独立的槽位覆盖；未选择小说时仅能查看继承值和生成通用预览。
                   </div>
                 ) : null}
-                <PromptBodyEditor
-                  prompt={selectedPrompt}
-                  immersive={immersiveMode}
-                  preview={preview}
-                  sections={slotState.sections}
-                  reconcile={slotState.reconcile}
-                  reconcileMap={slotState.reconcileMap}
-                  showReconcile={slotState.showReconcile}
-                  reconcileLoading={slotState.reconcileQuery.isFetching}
-                  reconcilePending={slotState.reconcilePending}
-                  disabled={
-                    slotState.isNovelScopeDisabled
-                    || slotState.saveMutation.isPending
-                    || slotState.resetMutation.isPending
-                  }
-                  onSlotChange={slotState.changeSlotDraft}
-                  onSlotReset={slotState.resetSlot}
-                  onApplyOfficialSlots={slotState.adoptSlotsByKey}
-                  onKeepSlots={slotState.keepSlotsByKey}
-                  onContextSelect={setSelectedContextBlockId}
-                />
+                {isAdvancedMode ? (
+                  <AdvancedPromptTemplateEditor
+                    templateState={templateState}
+                    preview={preview}
+                    disabled={!advancedTemplateEnabled}
+                  />
+                ) : (
+                  <PromptBodyEditor
+                    prompt={selectedPrompt}
+                    immersive={immersiveMode}
+                    preview={preview}
+                    sections={slotState.sections}
+                    reconcile={slotState.reconcile}
+                    reconcileMap={slotState.reconcileMap}
+                    showReconcile={slotState.showReconcile}
+                    reconcileLoading={slotState.reconcileQuery.isFetching}
+                    reconcilePending={slotState.reconcilePending}
+                    disabled={
+                      slotState.isNovelScopeDisabled
+                      || slotState.saveMutation.isPending
+                      || slotState.resetMutation.isPending
+                    }
+                    onSlotChange={slotState.changeSlotDraft}
+                    onSlotReset={slotState.resetSlot}
+                    onApplyOfficialSlots={slotState.adoptSlotsByKey}
+                    onKeepSlots={slotState.keepSlotsByKey}
+                    onContextSelect={setSelectedContextBlockId}
+                  />
+                )}
               </div>
             }
             contextPanel={
@@ -177,25 +251,37 @@ export default function PromptWorkbenchPage() {
                 preview={preview}
                 selectedBlockId={selectedContextBlockId}
                 onSelectBlock={setSelectedContextBlockId}
+                referenceCatalog={isAdvancedMode ? templateState.references : null}
+                onInsertToken={isAdvancedMode ? templateState.insertToken : undefined}
               />
             }
             runBar={
               <PromptRunBar
                 prompt={selectedPrompt}
                 estimatedTokens={preview?.context.estimatedInputTokens ?? null}
-                dirtyCount={slotState.dirtySlotKeys.length}
+                dirtyCount={effectiveDirtyCount}
                 isPreviewPending={previewState.previewMutation.isPending}
-                isSavePending={slotState.saveMutation.isPending}
-                isSaveSuccess={slotState.saveMutation.isSuccess}
-                saveError={slotState.saveError}
-                saveDisabled={saveDisabled}
+                isSavePending={effectiveSavePending}
+                isSaveSuccess={effectiveSaveSuccess}
+                saveError={effectiveSaveError}
+                saveDisabled={effectiveSaveDisabled}
                 previewDisabled={!selectedPrompt || previewState.previewMutation.isPending}
-                resetDisabled={!slotState.hasDirtyDrafts}
-                officialVersionDisabled={!selectedPrompt?.slotSupported || slotState.isNovelScopeDisabled}
+                resetDisabled={effectiveResetDisabled}
+                officialVersionDisabled={effectiveOfficialDisabled}
+                officialVersionLabel={isAdvancedMode ? "恢复官方模板" : "官方版本"}
+                saveLabel={isAdvancedMode ? "保存为新版本" : "保存覆盖"}
                 onGeneratePreview={previewState.generatePreview}
-                onOpenOfficialVersion={slotState.openOfficialVersionPanel}
-                onSave={slotState.saveDrafts}
-                onReset={slotState.resetDrafts}
+                onOpenOfficialVersion={
+                  isAdvancedMode
+                    ? () => templateState.restoreMutation.mutate()
+                    : slotState.openOfficialVersionPanel
+                }
+                onSave={
+                  isAdvancedMode
+                    ? () => templateState.saveMutation.mutate()
+                    : slotState.saveDrafts
+                }
+                onReset={isAdvancedMode ? templateState.resetDraft : slotState.resetDrafts}
               />
             }
           />

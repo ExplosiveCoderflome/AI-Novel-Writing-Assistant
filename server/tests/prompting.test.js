@@ -6,8 +6,8 @@ const {
   createContextBlock,
 } = require("../dist/prompting/core/contextBudget.js");
 const {
-  promptAddendumService,
-} = require("../dist/prompting/addendums/PromptAddendumService.js");
+  promptSlotOverrideService,
+} = require("../dist/prompting/slots/PromptSlotOverrideService.js");
 const {
   NOVEL_PROMPT_BUDGETS,
 } = require("../dist/prompting/prompts/novel/promptBudgetProfiles.js");
@@ -52,6 +52,12 @@ const {
   chapterWriterPrompt,
 } = require("../dist/prompting/prompts/novel/chapterWriter.prompts.js");
 const {
+  compilePromptTemplate,
+} = require("../dist/prompting/templates/templateCompiler.js");
+const {
+  promptTemplateOverrideService,
+} = require("../dist/prompting/templates/PromptTemplateOverrideService.js");
+const {
   chapterArtifactDeltaPrompt,
   chapterArtifactDeltaOutputSchema,
 } = require("../dist/prompting/prompts/novel/chapterArtifactDelta.prompts.js");
@@ -78,6 +84,26 @@ const {
 } = require("../dist/services/novel/director/runtime/novelDirectorSchemas.js");
 
 const promptKey = (asset) => `${asset.id}@${asset.version}`;
+
+function buildWriterRequiredContextBlocks() {
+  return [
+    "book_contract",
+    "chapter_mission",
+    "previous_chapter_hook",
+    "character_hard_facts",
+    "obligation_contract",
+    "volume_window",
+    "participant_subset",
+    "local_state",
+    "style_contract",
+  ].map((group, index) => createContextBlock({
+    id: `${group}-test`,
+    group,
+    priority: 100 - index,
+    required: true,
+    content: `${group} 测试内容`,
+  }));
+}
 
 function getSinglePromptQualityEntry() {
   const snapshot = getPromptQualitySnapshot();
@@ -1358,28 +1384,38 @@ test("prompt runner records failed executions without swallowing the original er
   }
 });
 
-test("prompt runner injects enabled custom addendum blocks for supported prompts", async () => {
-  const originalResolveContextBlocks = promptAddendumService.resolveContextBlocks;
+test("prompt runner injects enabled custom slot blocks for supported prompts", async () => {
+  const originalResolveForRuntime = promptSlotOverrideService.resolveForRuntime;
   let capturedMessages = [];
-  promptAddendumService.resolveContextBlocks = async ({ promptId, novelId }) => {
+  promptSlotOverrideService.resolveForRuntime = async ({ promptId, novelId }) => {
     assert.equal(promptId, "novel.chapter.writer");
     assert.equal(novelId, "novel-1");
-    return [
-      createContextBlock({
-        id: "custom_addendum:global:test",
-        group: "custom_addendum",
-        priority: 999,
-        required: true,
-        content: "【全局补充要求】\n禁止模板化表达。",
-      }),
-      createContextBlock({
-        id: "custom_addendum:novel:test",
-        group: "custom_addendum",
-        priority: 899,
-        required: true,
-        content: "【本书补充要求】\n保留主角冷静克制的表达。",
-      }),
-    ];
+    return {
+      inlineSlots: {
+        text: () => "",
+        choiceCopy: () => "",
+        enabled: () => false,
+        token: () => "",
+        append: () => "",
+      },
+      appendBlocks: [
+        createContextBlock({
+          id: "custom_slot:global:test",
+          group: "custom_slot",
+          priority: 999,
+          required: true,
+          content: "【全局补充要求】\n禁止模板化表达。",
+        }),
+        createContextBlock({
+          id: "custom_slot:novel:test",
+          group: "custom_slot",
+          priority: 899,
+          required: true,
+          content: "【本书补充要求】\n保留主角冷静克制的表达。",
+        }),
+      ],
+      drift: [],
+    };
   };
   setPromptRunnerLLMFactoryForTests(async () => ({
     invoke: async (messages) => {
@@ -1402,32 +1438,42 @@ test("prompt runner injects enabled custom addendum blocks for supported prompts
 
     assert.equal(result.output, "正文");
     assert.deepEqual(result.meta.invocation.customAddendumBlockIds, [
-      "custom_addendum:global:test",
-      "custom_addendum:novel:test",
+      "custom_slot:global:test",
+      "custom_slot:novel:test",
     ]);
     const rendered = capturedMessages.map((message) => String(message.content)).join("\n");
     assert.match(rendered, /禁止模板化表达/);
     assert.match(rendered, /保留主角冷静克制的表达/);
   } finally {
-    promptAddendumService.resolveContextBlocks = originalResolveContextBlocks;
+    promptSlotOverrideService.resolveForRuntime = originalResolveForRuntime;
     setPromptRunnerLLMFactoryForTests();
   }
 });
 
-test("prompt runner skips custom addendums for prompts outside the allowlist", async () => {
-  const originalResolveContextBlocks = promptAddendumService.resolveContextBlocks;
+test("prompt runner skips custom slot overlays for prompts without editable slots", async () => {
+  const originalResolveForRuntime = promptSlotOverrideService.resolveForRuntime;
   let called = false;
-  promptAddendumService.resolveContextBlocks = async () => {
+  promptSlotOverrideService.resolveForRuntime = async () => {
     called = true;
-    return [
-      createContextBlock({
-        id: "custom_addendum:global:unexpected",
-        group: "custom_addendum",
-        priority: 999,
-        required: true,
-        content: "不应注入。",
-      }),
-    ];
+    return {
+      inlineSlots: {
+        text: () => "",
+        choiceCopy: () => "",
+        enabled: () => false,
+        token: () => "",
+        append: () => "",
+      },
+      appendBlocks: [
+        createContextBlock({
+          id: "custom_slot:global:unexpected",
+          group: "custom_slot",
+          priority: 999,
+          required: true,
+          content: "不应注入。",
+        }),
+      ],
+      drift: [],
+    };
   };
   setPromptRunnerLLMFactoryForTests(async () => ({
     stream: async () => ({
@@ -1458,7 +1504,130 @@ test("prompt runner skips custom addendums for prompts outside the allowlist", a
     assert.equal(completed.meta.invocation.customAddendumBlockIds.length, 0);
     assert.equal(called, false);
   } finally {
-    promptAddendumService.resolveContextBlocks = originalResolveContextBlocks;
+    promptSlotOverrideService.resolveForRuntime = originalResolveForRuntime;
+    setPromptRunnerLLMFactoryForTests();
+  }
+});
+
+test("advanced prompt template expands referenced context and appends required fallback groups", () => {
+  const prepared = {
+    context: {
+      blocks: buildWriterRequiredContextBlocks(),
+      selectedBlockIds: [],
+      droppedBlockIds: [],
+      summarizedBlockIds: [],
+      estimatedInputTokens: 100,
+      slots: undefined,
+    },
+  };
+  const compiled = compilePromptTemplate({
+    template: {
+      kind: "chat",
+      messages: [
+        { role: "system", content: "系统：{{slot.writer.tonePreference}}" },
+        { role: "human", content: "章节：{{input.chapterTitle}}\n{{context.chapter_mission}}" },
+      ],
+    },
+    promptInput: { chapterTitle: "异常提交" },
+    context: prepared.context,
+    slotDefs: chapterWriterPrompt.slots,
+    allowedContextGroups: chapterWriterPrompt.contextRequirements.map((item) => item.group),
+    requiredContextGroups: [
+      "book_contract",
+      "chapter_mission",
+      "previous_chapter_hook",
+      "character_hard_facts",
+      "obligation_contract",
+      "volume_window",
+      "participant_subset",
+      "local_state",
+      "style_contract",
+    ],
+  });
+
+  const rendered = compiled.messages.map((message) => String(message.content)).join("\n");
+  assert.match(rendered, /异常提交/);
+  assert.match(rendered, /chapter_mission 测试内容/);
+  assert.match(rendered, /【必需上下文保底】/);
+  assert.match(rendered, /book_contract 测试内容/);
+  assert.deepEqual(compiled.diagnostics.missingRequiredGroups, []);
+  assert.ok(compiled.diagnostics.fallbackRequiredGroups.includes("book_contract"));
+});
+
+test("advanced prompt template reports unknown tokens", () => {
+  const compiled = compilePromptTemplate({
+    template: {
+      kind: "chat",
+      messages: [
+        { role: "system", content: "系统 {{unknown.value}}" },
+        { role: "human", content: "正文 {{context.not_registered}}" },
+      ],
+    },
+    promptInput: {},
+    context: {
+      blocks: buildWriterRequiredContextBlocks(),
+      selectedBlockIds: [],
+      droppedBlockIds: [],
+      summarizedBlockIds: [],
+      estimatedInputTokens: 100,
+      slots: undefined,
+    },
+    slotDefs: chapterWriterPrompt.slots,
+    allowedContextGroups: chapterWriterPrompt.contextRequirements.map((item) => item.group),
+    requiredContextGroups: ["book_contract"],
+  });
+
+  assert.ok(compiled.diagnostics.unknownTokens.includes("unknown.value"));
+  assert.ok(compiled.diagnostics.unknownTokens.includes("context.not_registered"));
+});
+
+test("runTextPrompt uses active book-scoped advanced template for chapter writer", async () => {
+  const originalGetActiveCustomTemplate = promptTemplateOverrideService.getActiveCustomTemplate;
+  let capturedMessages = [];
+  promptTemplateOverrideService.getActiveCustomTemplate = async ({ promptId, novelId }) => {
+    assert.equal(promptId, "novel.chapter.writer");
+    assert.equal(novelId, "novel-advanced");
+    return {
+      versionId: "version-1",
+      versionNo: 1,
+      basePromptVersion: "v5",
+      template: {
+        kind: "chat",
+        messages: [
+          { role: "system", content: "CUSTOM SYSTEM {{slot.writer.tonePreference}}" },
+          { role: "human", content: "CUSTOM HUMAN {{input.chapterTitle}}\n{{context.chapter_mission}}" },
+        ],
+      },
+    };
+  };
+  setPromptRunnerLLMFactoryForTests(async () => ({
+    invoke: async (messages) => {
+      capturedMessages = messages;
+      return { content: "正文" };
+    },
+  }));
+
+  try {
+    const result = await runTextPrompt({
+      asset: chapterWriterPrompt,
+      promptInput: {
+        novelTitle: "测试小说",
+        chapterOrder: 1,
+        chapterTitle: "高级模板章节",
+      },
+      contextBlocks: buildWriterRequiredContextBlocks(),
+      options: { novelId: "novel-advanced" },
+    });
+
+    assert.equal(result.output, "正文");
+    const rendered = capturedMessages.map((message) => String(message.content)).join("\n");
+    assert.match(rendered, /CUSTOM SYSTEM/);
+    assert.match(rendered, /CUSTOM HUMAN 高级模板章节/);
+    assert.match(rendered, /chapter_mission 测试内容/);
+    assert.match(rendered, /【必需上下文保底】/);
+    assert.doesNotMatch(rendered, /你是中文长篇网络小说写作助手。/);
+  } finally {
+    promptTemplateOverrideService.getActiveCustomTemplate = originalGetActiveCustomTemplate;
     setPromptRunnerLLMFactoryForTests();
   }
 });
