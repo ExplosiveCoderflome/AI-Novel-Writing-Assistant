@@ -31,7 +31,7 @@
 - editable slots 只能开放低风险表达层内容，不能覆盖 schema、postValidate、taskType、mode、contextPolicy、工具目录、审批边界或 required context。
 - Prompt Workbench 的可视化编辑器只能把 `PromptAsset.slots` 呈现为可编辑项。`replace`、`token`、`append`、`choice` 和 `toggle` 可以映射成不同控件，但保存仍必须走 slot override；不得把整段 system prompt、contextPolicy 或 schema 暴露为自由编辑文本。
 - Prompt Workbench 的上下文注入面板只读消费 `preview.context.blocks`、`selectedBlockIds`、`droppedBlockIds` 和 `summarizedBlockIds`。`chapter_mission`、`character_hard_facts`、`obligation_contract`、`style_contract` 等 required 或关键生成上下文必须显示锁定状态，不能在前端提供关闭 required context 的入口。
-- Prompt Workbench 预览样本可以通过 `executionContext.metadata.extraContextBlocks` 提供只读示例资料块，用来让审校、写作、修文等 prompt 在没有真实运行时包的手动预览中仍能展示 required context。示例块只服务预览，不保存为用户覆盖，也不能替代正式运行时的 Context Broker / resolver。
+- Prompt Workbench 在“本书”范围下如果同时选择了小说和章节，预览必须优先使用该小说章节的只读上下文；只有没有真实章节或无法装配真实上下文时，才允许通过 `executionContext.metadata.extraContextBlocks` 提供示例资料块。示例块只服务预览，不保存为用户覆盖，也不能替代正式运行时的 Context Broker / resolver。
 - `PromptAsset.contextRequirements` 中声明的每个 required group 都必须能被默认 Context Broker 解析，或在真实调用路径中通过 fallback blocks 明确补齐。像 `chapter_boundary`、`structure_obligations` 这类审校必需上下文，不能只写在 prompt 文案或前端示例里，必须有后端 resolver / context block 产出路径。
 - Prompt Workbench 的官方版本库以代码注册的 `PromptAsset.slots` 为可信来源。官方当前版只能读取槽位默认值、hash、版本号和 changelog；不得把数据库里的自由编辑文本当作“官方 prompt”，也不得开放 schema、contextPolicy、required context、postValidate 或审批边界给用户覆盖。
 - Slot override 的解析优先级固定为：本书覆盖或本书 `official_default` 标记 > 全局覆盖 > `PromptAsset.slots` 官方默认。旧数据中只有 `{ value, baseHash }` 的槽位视为 `custom`，保持兼容。

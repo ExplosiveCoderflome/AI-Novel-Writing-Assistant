@@ -7,6 +7,20 @@ import {
 } from "@/api/promptWorkbench";
 import type { PromptSlotDrafts } from "../promptWorkbenchTypes";
 
+interface PreviewNovel {
+  id: string;
+  title?: string | null;
+}
+
+interface PreviewChapter {
+  id: string;
+  title?: string | null;
+  order?: number | null;
+  content?: string | null;
+  expectation?: string | null;
+  taskSheet?: string | null;
+}
+
 function buildPreviewExtraContextBlocks(prompt: PromptCatalogItem) {
   if (prompt.id !== "audit.chapter.light" && prompt.id !== "audit.chapter.full") {
     return [];
@@ -72,7 +86,13 @@ function buildPreviewExtraContextBlocks(prompt: PromptCatalogItem) {
   ];
 }
 
-function buildPreviewExecutionMetadata(prompt: PromptCatalogItem): Record<string, unknown> | undefined {
+function buildPreviewExecutionMetadata(
+  prompt: PromptCatalogItem,
+  hasRealChapterContext: boolean,
+): Record<string, unknown> | undefined {
+  if (hasRealChapterContext) {
+    return undefined;
+  }
   const extraContextBlocks = buildPreviewExtraContextBlocks(prompt);
   if (extraContextBlocks.length === 0) {
     return undefined;
@@ -80,14 +100,28 @@ function buildPreviewExecutionMetadata(prompt: PromptCatalogItem): Record<string
   return { extraContextBlocks };
 }
 
-function buildPreviewPromptInput(prompt: PromptCatalogItem): Record<string, unknown> {
+function buildPreviewPromptInput(
+  prompt: PromptCatalogItem,
+  previewNovel?: PreviewNovel | null,
+  previewChapter?: PreviewChapter | null,
+): Record<string, unknown> {
   if (prompt.id === "audit.chapter.light" || prompt.id === "audit.chapter.full") {
+    const chapterContent = previewChapter
+      ? previewChapter.content?.trim()
+        || previewChapter.taskSheet?.trim()
+        || previewChapter.expectation?.trim()
+        || "当前章节暂无正文。"
+      : "主角走进旧仓库，发现墙上残留着上一任调查员留下的暗号。门外脚步声逼近，他必须在暴露前判断暗号指向哪里。";
     return {
-      novelTitle: "示例小说",
-      chapterTitle: "示例章节",
+      novelTitle: previewNovel?.title || "示例小说",
+      chapterTitle: previewChapter
+        ? `第 ${previewChapter.order ?? "?"} 章 ${previewChapter.title || "未命名章节"}`
+        : "示例章节",
       requestedTypes: ["plot", "character", "continuity"],
-      storyModeContext: "本书偏连载网文节奏，章节需要持续推进冲突并保留章末钩子。",
-      content: "主角走进旧仓库，发现墙上残留着上一任调查员留下的暗号。门外脚步声逼近，他必须在暴露前判断暗号指向哪里。",
+      storyModeContext: previewNovel
+        ? "使用所选小说的章节任务、章节边界和结构义务进行本书预览。"
+        : "本书偏连载网文节奏，章节需要持续推进冲突并保留章末钩子。",
+      content: chapterContent,
       ragContext: "无额外检索补充。",
     };
   }
@@ -251,11 +285,21 @@ interface UsePromptPreviewInput {
   entrypoint: string;
   novelId?: string;
   chapterId?: string;
+  previewNovel?: PreviewNovel | null;
+  previewChapter?: PreviewChapter | null;
   slotOverrides: PromptSlotDrafts;
 }
 
 export function usePromptPreview(input: UsePromptPreviewInput) {
-  const { chapterId = "chapter-1", entrypoint, novelId, prompt, slotOverrides } = input;
+  const {
+    chapterId,
+    entrypoint,
+    novelId,
+    previewChapter,
+    previewNovel,
+    prompt,
+    slotOverrides,
+  } = input;
 
   const previewMutation = useMutation({
     mutationFn: () => {
@@ -263,19 +307,21 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
         throw new Error("请选择提示词后再生成预览。");
       }
       const executionNovelId = novelId || "novel-1";
+      const executionChapterId = chapterId || previewChapter?.id || (novelId ? undefined : "chapter-1");
+      const hasRealChapterContext = Boolean(novelId && executionChapterId && previewChapter);
       const payload: PromptPreviewPayload = {
         promptKey: prompt.key,
-        promptInput: buildPreviewPromptInput(prompt),
+        promptInput: buildPreviewPromptInput(prompt, previewNovel, previewChapter),
         executionContext: {
           entrypoint,
           novelId: executionNovelId,
-          chapterId,
+          chapterId: executionChapterId,
           userGoal: "查看提示词预览",
           resourceBindings: {
             novelId: executionNovelId,
-            chapterId,
+            ...(executionChapterId ? { chapterId: executionChapterId } : {}),
           },
-          metadata: buildPreviewExecutionMetadata(prompt),
+          metadata: buildPreviewExecutionMetadata(prompt, hasRealChapterContext),
         },
         maxContextTokens: prompt.contextPolicy.maxTokensBudget,
         slotOverrides,

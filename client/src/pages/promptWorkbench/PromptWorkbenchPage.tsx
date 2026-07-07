@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getNovelChapters } from "@/api/novel/chapters";
+import { queryKeys } from "@/api/queryKeys";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
 import { cn } from "@/lib/utils";
 import { PromptBodyEditor } from "./components/PromptBodyEditor";
@@ -16,6 +19,7 @@ export default function PromptWorkbenchPage() {
   const [entrypoint, setEntrypoint] = useState("manual_test");
   const [selectedContextBlockId, setSelectedContextBlockId] = useState<string | null>(null);
   const [immersiveMode, setImmersiveMode] = useState(false);
+  const [selectedChapterId, setSelectedChapterId] = useState("");
 
   const catalog = usePromptCatalog(keyword);
   const prompts = catalog.prompts;
@@ -27,10 +31,28 @@ export default function PromptWorkbenchPage() {
   }, [prompts, selectedKey]);
 
   const slotState = usePromptDraftSlots(selectedPrompt);
+  const activeNovel = useMemo(
+    () => slotState.novels.find((novel) => novel.id === slotState.activeNovelId) ?? null,
+    [slotState.activeNovelId, slotState.novels],
+  );
+  const chaptersQuery = useQuery({
+    queryKey: queryKeys.novels.chapters(slotState.activeNovelId || "none"),
+    queryFn: () => getNovelChapters(slotState.activeNovelId),
+    enabled: Boolean(slotState.scope === "novel" && slotState.activeNovelId),
+    staleTime: 30_000,
+  });
+  const chapters = chaptersQuery.data?.data ?? [];
+  const selectedChapter = useMemo(
+    () => chapters.find((chapter) => chapter.id === selectedChapterId) ?? null,
+    [chapters, selectedChapterId],
+  );
   const previewState = usePromptPreview({
     prompt: selectedPrompt,
     entrypoint,
     novelId: slotState.scope === "novel" && slotState.activeNovelId ? slotState.activeNovelId : undefined,
+    chapterId: slotState.scope === "novel" && selectedChapterId ? selectedChapterId : undefined,
+    previewNovel: activeNovel,
+    previewChapter: selectedChapter,
     slotOverrides: slotState.drafts,
   });
   const preview = previewState.preview;
@@ -38,6 +60,21 @@ export default function PromptWorkbenchPage() {
   useEffect(() => {
     setSelectedContextBlockId(null);
   }, [preview?.prompt.key, selectedPrompt?.key]);
+
+  useEffect(() => {
+    setSelectedChapterId("");
+  }, [slotState.activeNovelId]);
+
+  useEffect(() => {
+    if (slotState.scope !== "novel" || !slotState.activeNovelId || chapters.length === 0) {
+      return;
+    }
+    if (selectedChapterId && chapters.some((chapter) => chapter.id === selectedChapterId)) {
+      return;
+    }
+    const defaultChapter = chapters.find((chapter) => chapter.content?.trim()) ?? chapters[0];
+    setSelectedChapterId(defaultChapter?.id ?? "");
+  }, [chapters, selectedChapterId, slotState.activeNovelId, slotState.scope]);
 
   useEffect(() => {
     if (!immersiveMode) {
@@ -97,6 +134,14 @@ export default function PromptWorkbenchPage() {
             selectedNovelId={slotState.selectedNovelId}
             onNovelChange={slotState.setSelectedNovelId}
             novels={slotState.novels}
+            selectedChapterId={selectedChapterId}
+            onChapterChange={setSelectedChapterId}
+            chapters={chapters.map((chapter) => ({
+              id: chapter.id,
+              title: chapter.title,
+              order: chapter.order,
+              hasContent: Boolean(chapter.content?.trim()),
+            }))}
             bodyPanel={
               <div className="space-y-4">
                 {slotState.isNovelScopeDisabled ? (

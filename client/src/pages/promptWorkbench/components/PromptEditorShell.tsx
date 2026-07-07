@@ -27,6 +27,9 @@ interface PromptEditorShellProps {
   selectedNovelId: string;
   onNovelChange: (novelId: string) => void;
   novels: Array<{ id: string; title?: string | null }>;
+  selectedChapterId: string;
+  onChapterChange: (chapterId: string) => void;
+  chapters: Array<{ id: string; title?: string | null; order?: number | null; hasContent?: boolean }>;
   bodyPanel: ReactNode;
   contextPanel: ReactNode;
   runBar: ReactNode;
@@ -39,13 +42,16 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
     entrypoint,
     immersive = false,
     novels,
+    chapters,
     onEntrypointChange,
+    onChapterChange,
     onImmersiveChange,
     onNovelChange,
     onScopeChange,
     prompt,
     runBar,
     scope,
+    selectedChapterId,
     selectedNovelId,
   } = props;
   const capabilities = capabilityLabels(prompt);
@@ -142,6 +148,21 @@ export function PromptEditorShell(props: PromptEditorShellProps) {
                 {novels.map((novel) => (
                   <option key={novel.id} value={novel.id}>
                     {novel.title || novel.id}
+                  </option>
+                ))}
+              </SelectControl>
+            ) : null}
+
+            {scope === "novel" && selectedNovelId ? (
+              <SelectControl
+                value={selectedChapterId}
+                onChange={(event) => onChapterChange(event.target.value)}
+                className="h-10 min-w-52 rounded-md border border-[#cfdad7] bg-white px-3 text-sm shadow-sm"
+              >
+                <option value="">选择预览章节</option>
+                {chapters.map((chapter) => (
+                  <option key={chapter.id} value={chapter.id}>
+                    第 {chapter.order ?? "?"} 章 {chapter.title || "未命名章节"}{chapter.hasContent ? "" : "（无正文）"}
                   </option>
                 ))}
               </SelectControl>

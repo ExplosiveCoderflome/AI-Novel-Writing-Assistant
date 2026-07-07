@@ -220,3 +220,75 @@ test("prompt preview renders audit prompts with complete workbench sample input"
   assert.ok(preview.context.selectedBlockIds.includes("chapter_boundary"));
   assert.ok(preview.context.selectedBlockIds.includes("structure_obligations"));
 });
+
+test("prompt preview prefers selected novel chapter context over audit sample context", async () => {
+  const service = new PromptWorkbenchService({
+    novel: {
+      findUnique: async () => ({
+        id: "novel-real",
+        title: "当代码开始杀人",
+        description: "程序员发现提交记录会影响现实命案。",
+        targetAudience: "喜欢技术悬疑的读者",
+        bookSellingPoint: "代码提交与现实犯罪互相映照。",
+        first30ChapterPromise: "查清第一起由代码触发的命案。",
+      }),
+    },
+    chapter: {
+      findFirst: async () => ({
+        id: "chapter-real",
+        title: "异常提交",
+        order: 3,
+        content: "林序看见测试分支上的提交信息变成了死亡预告，而监控里的受害者正走向同一间机房。",
+        expectation: "让主角确认提交记录与现实命案存在因果联系。",
+        targetWordCount: 3000,
+        mustAvoid: "不得直接揭露幕后真凶。",
+        taskSheet: "本章需要让主角发现异常提交，并在结尾形成新的追查压力。",
+        sceneCards: JSON.stringify({
+          scenes: [
+            {
+              entryState: "主角正在审查测试书籍的异常日志。",
+              exitState: "主角确认提交记录会同步现实风险。",
+              mustAdvance: ["确认代码提交与命案有关"],
+              mustPreserve: ["主角仍不知道幕后真凶"],
+              forbiddenExpansion: ["不得让系统直接解释全部规则"],
+            },
+          ],
+        }),
+        hook: "下一章从机房监控被篡改开始。",
+      }),
+    },
+  });
+
+  const preview = await service.preview({
+    promptKey: "audit.chapter.full@v2",
+    promptInput: {
+      novelTitle: "当代码开始杀人",
+      chapterTitle: "第 3 章 异常提交",
+      requestedTypes: ["plot", "character", "continuity"],
+      storyModeContext: "使用所选小说的章节任务、章节边界和结构义务进行本书预览。",
+      content: "林序看见测试分支上的提交信息变成了死亡预告，而监控里的受害者正走向同一间机房。",
+      ragContext: "无额外检索补充。",
+    },
+    executionContext: {
+      entrypoint: "manual_test",
+      novelId: "novel-real",
+      chapterId: "chapter-real",
+      userGoal: "preview selected novel audit prompt",
+    },
+    maxContextTokens: 4000,
+  });
+
+  assert.deepEqual(preview.diagnostics.missingRequiredGroups, []);
+  assert.ok(preview.context.selectedBlockIds.includes("chapter_boundary"));
+  assert.ok(preview.context.selectedBlockIds.includes("structure_obligations"));
+  assert.ok(preview.context.blocks.some((block) => (
+    block.id === "chapter_boundary"
+    && block.content.includes("主角正在审查测试书籍的异常日志")
+  )));
+  assert.ok(preview.context.blocks.some((block) => (
+    block.id === "world_rules"
+    && block.content.includes("代码提交与现实犯罪互相映照")
+  )));
+  assert.ok(preview.messages.some((message) => message.content.includes("当代码开始杀人")));
+  assert.ok(preview.diagnostics.notes.some((note) => note.includes("已使用《当代码开始杀人》第 3 章")));
+});
