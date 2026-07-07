@@ -279,6 +279,11 @@ function serializePromptContext(context: ReturnType<typeof preparePromptExecutio
   };
 }
 
+function formatPreviewRenderError(error: unknown, asset: UnknownPromptAsset): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  return new Error(`提示词预览渲染失败（${asset.id}@${asset.version}）：${message}`);
+}
+
 export class PromptWorkbenchService {
   private readonly contextBroker = new ContextBroker(createDefaultContextResolverRegistry());
 
@@ -336,18 +341,23 @@ export class PromptWorkbenchService {
       ? [...brokerResolution.blocks, ...appendBlocks]
       : brokerResolution.blocks;
 
-    const prepared = preparePromptExecution({
-      asset,
-      promptInput: input.promptInput,
-      contextBlocks: allBlocks,
-      resolvedSlots,
-      options: {
-        entrypoint: input.executionContext.entrypoint,
-        novelId: input.executionContext.novelId,
-        chapterId: input.executionContext.chapterId,
-        taskId: input.executionContext.taskId,
-      },
-    });
+    let prepared: ReturnType<typeof preparePromptExecution>;
+    try {
+      prepared = preparePromptExecution({
+        asset,
+        promptInput: input.promptInput,
+        contextBlocks: allBlocks,
+        resolvedSlots,
+        options: {
+          entrypoint: input.executionContext.entrypoint,
+          novelId: input.executionContext.novelId,
+          chapterId: input.executionContext.chapterId,
+          taskId: input.executionContext.taskId,
+        },
+      });
+    } catch (error) {
+      throw formatPreviewRenderError(error, asset);
+    }
 
     return {
       prompt,

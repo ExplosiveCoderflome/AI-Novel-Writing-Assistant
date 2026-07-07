@@ -149,3 +149,28 @@ test("prompt preview reports missing required context for manager diagnosis", as
   assert.ok(preview.brokerResolution.missingRequiredGroups.includes("chapter_mission"));
   assert.equal(preview.diagnostics.tracePreview.entrypoint, "manual_test");
 });
+
+test("prompt preview renders audit prompts with complete workbench sample input", async () => {
+  const service = new PromptWorkbenchService();
+  const preview = await service.preview({
+    promptKey: "audit.chapter.full@v2",
+    promptInput: {
+      novelTitle: "示例小说",
+      chapterTitle: "示例章节",
+      requestedTypes: ["plot", "character", "continuity"],
+      storyModeContext: "本书偏连载网文节奏，章节需要持续推进冲突并保留章末钩子。",
+      content: "主角走进旧仓库，发现墙上残留着上一任调查员留下的暗号。",
+      ragContext: "无额外检索补充。",
+    },
+    executionContext: {
+      entrypoint: "manual_test",
+      novelId: "novel-1",
+      chapterId: "chapter-1",
+      userGoal: "preview audit prompt",
+    },
+    maxContextTokens: 2000,
+  });
+
+  assert.equal(preview.prompt.key, "audit.chapter.full@v2");
+  assert.ok(preview.messages.some((message) => message.content.includes("审校范围：plot, character, continuity")));
+});
