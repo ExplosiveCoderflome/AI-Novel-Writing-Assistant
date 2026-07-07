@@ -290,5 +290,131 @@ test("prompt preview prefers selected novel chapter context over audit sample co
     && block.content.includes("代码提交与现实犯罪互相映照")
   )));
   assert.ok(preview.messages.some((message) => message.content.includes("当代码开始杀人")));
-  assert.ok(preview.diagnostics.notes.some((note) => note.includes("已使用《当代码开始杀人》第 3 章")));
+  assert.ok(preview.diagnostics.notes.some((note) => note.includes("使用《当代码开始杀人》第 3 章")));
+});
+
+test("prompt preview assembles selected novel chapter write context for chapter writer", async () => {
+  const service = new PromptWorkbenchService({
+    novel: {
+      findUnique: async () => ({
+        id: "novel-real",
+        title: "当代码开始杀人",
+        description: "程序员发现提交记录会影响现实命案。",
+        targetAudience: "喜欢技术悬疑的读者",
+        bookSellingPoint: "代码提交与现实犯罪互相映照。",
+        first30ChapterPromise: "查清第一起由代码触发的命案。",
+        narrativePov: "第三人称有限视角",
+        pacePreference: "中快节奏",
+        emotionIntensity: "高压克制",
+        styleTone: "冷峻、紧凑、画面感强",
+        estimatedChapterCount: 80,
+        characters: [
+          {
+            id: "char-linxu",
+            name: "林序",
+            role: "主角",
+            personality: "谨慎但愿意冒险",
+            background: "安全工程师",
+            development: "从旁观者转为主动追查者",
+            identityLabel: "程序员",
+            factionLabel: "调查方",
+            stanceLabel: "追查真相",
+            powerLevel: "普通人",
+            realm: null,
+            currentLocation: "机房外",
+            availability: "可出场",
+            prohibitionsJson: JSON.stringify(["不得突然掌握幕后真凶身份"]),
+            currentState: "刚确认提交记录与现实风险有关",
+            currentGoal: "阻止下一次命案",
+            appearance: "熬夜后的疲惫神情",
+            physique: null,
+            attireStyle: "深色连帽衫",
+            signatureDetail: "随身带着旧键盘钥匙扣",
+            voiceTexture: "短句、克制",
+            presenceImpression: "紧张但清醒",
+          },
+        ],
+      }),
+    },
+    chapter: {
+      findFirst: async () => ({
+        id: "chapter-real",
+        title: "异常提交",
+        order: 3,
+        content: "",
+        expectation: "让主角确认提交记录与现实命案存在因果联系。",
+        targetWordCount: 3000,
+        conflictLevel: 4,
+        revealLevel: 2,
+        mustAvoid: "不得直接揭露幕后真凶。",
+        taskSheet: "本章需要让主角发现异常提交，并在结尾形成新的追查压力。",
+        sceneCards: JSON.stringify({
+          scenes: [
+            {
+              title: "机房外的异常日志",
+              purpose: "让主角把提交记录和现实监控对上。",
+              entryState: "主角正在审查测试书籍的异常日志。",
+              exitState: "主角确认提交记录会同步现实风险。",
+              mustAdvance: ["确认代码提交与命案有关"],
+              mustPreserve: ["主角仍不知道幕后真凶"],
+              forbiddenExpansion: ["不得让系统直接解释全部规则"],
+            },
+          ],
+        }),
+        hook: "下一章从机房监控被篡改开始。",
+      }),
+    },
+  });
+
+  const preview = await service.preview({
+    promptKey: "novel.chapter.writer@v5",
+    promptInput: {
+      novelTitle: "当代码开始杀人",
+      chapterOrder: 3,
+      chapterTitle: "异常提交",
+      mode: "draft",
+      targetWordCount: 3000,
+      minWordCount: 2600,
+      maxWordCount: 3400,
+    },
+    executionContext: {
+      entrypoint: "manual_test",
+      novelId: "novel-real",
+      chapterId: "chapter-real",
+      userGoal: "preview selected novel writer prompt",
+    },
+    maxContextTokens: 8000,
+  });
+
+  assert.deepEqual(preview.diagnostics.missingRequiredGroups, []);
+  for (const group of [
+    "book_contract",
+    "chapter_mission",
+    "previous_chapter_hook",
+    "character_hard_facts",
+    "obligation_contract",
+    "volume_window",
+    "participant_subset",
+    "local_state",
+    "style_contract",
+  ]) {
+    assert.ok(
+      preview.context.blocks.some((block) => block.group === group),
+      `expected preview context group ${group}`,
+    );
+  }
+  assert.ok(preview.context.blocks.some((block) => (
+    block.group === "book_contract"
+    && block.content.includes("当代码开始杀人")
+  )));
+  assert.ok(preview.context.blocks.some((block) => (
+    block.group === "character_hard_facts"
+    && block.content.includes("林序")
+    && block.content.includes("不得突然掌握幕后真凶身份")
+  )));
+  assert.ok(preview.context.blocks.some((block) => (
+    block.group === "chapter_mission"
+    && block.content.includes("确认代码提交与命案有关")
+  )));
+  assert.ok(preview.diagnostics.notes.some((note) => note.includes("正文写作预览上下文")));
 });

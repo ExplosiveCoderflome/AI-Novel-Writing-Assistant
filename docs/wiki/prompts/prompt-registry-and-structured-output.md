@@ -14,6 +14,7 @@
 
 - 新增产品级 prompt 必须放在 `server/src/prompting/prompts/<family>/`。
 - 新增产品级 prompt 必须在 `server/src/prompting/registry.ts` 注册。
+- Prompt 工程完善的最高优先级是正文写作提示词，尤其是 `novel.chapter.writer` 及其直接依赖的章节写作上下文。规划、审校、修复、Workbench 和可视化工具的改动都应服务“能稳定产出可用正文”这一主目标；如果资源有限，优先保证正文写作 prompt 的上下文完整、角色硬事实准确、章节任务清晰、风格约束可控、章末钩子可执行。
 - `PromptAsset` 必须提供 `id`、`version`、`taskType`、`mode`、`language`、`contextPolicy`、`render()`，结构化 prompt 还必须有 `outputSchema` 或等价校验。
 - 创作语义判断必须 AI-first。角色身份承接、隐藏身份、题材理解、故事职责、质量风险、下一步动作、修复建议等产品语义，不得用正则、关键词表、固定字符串片段、字符比例或手写分支来判断或阻断流程；这类能力应进入 PromptAsset、结构化输出 schema、semantic retry 或 AI 评估链路。
 - 确定性代码只允许处理结构契约和安全边界，例如必填字段、枚举归一、ID 是否存在、数组长度、权限和数据保护。确定性质量闸门可以指出“缺少 protagonist / gender / 必填字段”这类结构问题，但不能判断“是否承接了某个题材身份”“名字是否像功能位”“语言是否像英文残留”等创作语义。
@@ -32,6 +33,7 @@
 - Prompt Workbench 的可视化编辑器只能把 `PromptAsset.slots` 呈现为可编辑项。`replace`、`token`、`append`、`choice` 和 `toggle` 可以映射成不同控件，但保存仍必须走 slot override；不得把整段 system prompt、contextPolicy 或 schema 暴露为自由编辑文本。
 - Prompt Workbench 的上下文注入面板只读消费 `preview.context.blocks`、`selectedBlockIds`、`droppedBlockIds` 和 `summarizedBlockIds`。`chapter_mission`、`character_hard_facts`、`obligation_contract`、`style_contract` 等 required 或关键生成上下文必须显示锁定状态，不能在前端提供关闭 required context 的入口。
 - Prompt Workbench 在“本书”范围下如果同时选择了小说和章节，预览必须优先使用该小说章节的只读上下文；只有没有真实章节或无法装配真实上下文时，才允许通过 `executionContext.metadata.extraContextBlocks` 提供示例资料块。示例块只服务预览，不保存为用户覆盖，也不能替代正式运行时的 Context Broker / resolver。
+- `novel.chapter.writer` 的 Workbench 预览必须注入只读 `chapterWriteContext`，并通过默认 Context Broker 解析出 `book_contract`、`chapter_mission`、`previous_chapter_hook`、`character_hard_facts`、`obligation_contract`、`volume_window`、`participant_subset`、`local_state` 和 `style_contract`。预览按钮不得调用会补写章节计划、推进自动导演或修改小说数据的生成装配器；如果只能使用降级上下文，诊断信息必须说明来源边界。
 - `PromptAsset.contextRequirements` 中声明的每个 required group 都必须能被默认 Context Broker 解析，或在真实调用路径中通过 fallback blocks 明确补齐。像 `chapter_boundary`、`structure_obligations` 这类审校必需上下文，不能只写在 prompt 文案或前端示例里，必须有后端 resolver / context block 产出路径。
 - Prompt Workbench 的官方版本库以代码注册的 `PromptAsset.slots` 为可信来源。官方当前版只能读取槽位默认值、hash、版本号和 changelog；不得把数据库里的自由编辑文本当作“官方 prompt”，也不得开放 schema、contextPolicy、required context、postValidate 或审批边界给用户覆盖。
 - Slot override 的解析优先级固定为：本书覆盖或本书 `official_default` 标记 > 全局覆盖 > `PromptAsset.slots` 官方默认。旧数据中只有 `{ value, baseHash }` 的槽位视为 `custom`，保持兼容。
@@ -75,6 +77,7 @@
 - `expected string, received number` 如果集中出现在状态抽取字段，通常不是模型理解偏差，而是 schema 将“可读状态文本”和“可计算数值”混在同一个字段里。处理顺序应是：明确 prompt 输出合同，给结构化示例，在 schema preprocess 中保留语义并转成字符串；不要要求 LLM 为每一个数值字段单独 repair。
 - Prompt Catalog 缺上下文预览：补 `contextRequirements`，不要让预览临时查数据库。
 - Prompt Workbench 预览提示缺少 required context：先检查该 group 是否注册在默认 Context Broker，以及 Workbench 样本是否通过 `extraContextBlocks` 提供了手动预览所需的示例块；不要通过放宽 required context 或让用户手动关闭缺失项来掩盖契约缺口。
+- `novel.chapter.writer` 预览缺少 `book_contract`、`chapter_mission`、`previous_chapter_hook`、`character_hard_facts`、`obligation_contract`、`volume_window`、`participant_subset`、`local_state` 或 `style_contract`：优先检查 Workbench 是否为所选小说章节装配了 `metadata.chapterWriteContext`，而不是删 required group、改前端标签或用示例 `promptInput` 冒充运行时上下文。
 - Prompt Workbench 恢复官方默认后仍使用全局坏值：检查本书层是否写入了 `official_default`，以及运行时解析是否仍按“本书 > 全局 > 官方默认”的顺序合并。
 - Reconcile 面板一直提示同一个槽位漂移：检查用户是否选择了“保留我的设置”并更新 `baseHash`，或选择了“恢复官方当前版”并清除了旧覆盖 / 写入了 `official_default`。
 - 意图识别漏判：修 PromptAsset、输入上下文、schema 或工具目录，不加关键词路由。

@@ -18,6 +18,7 @@ interface PreviewChapter {
   order?: number | null;
   content?: string | null;
   expectation?: string | null;
+  targetWordCount?: number | null;
   taskSheet?: string | null;
 }
 
@@ -127,14 +128,17 @@ function buildPreviewPromptInput(
   }
 
   if (prompt.id === "novel.chapter.writer") {
+    const targetWordCount = previewChapter?.targetWordCount ?? 3000;
+    const softMinWordCount = Math.max(800, Math.round(targetWordCount * 0.86));
+    const softMaxWordCount = Math.max(softMinWordCount + 200, Math.round(targetWordCount * 1.14));
     return {
-      novelTitle: "示例小说",
-      chapterOrder: 1,
-      chapterTitle: "示例章节",
+      novelTitle: previewNovel?.title || "示例小说",
+      chapterOrder: previewChapter?.order ?? 1,
+      chapterTitle: previewChapter?.title || "示例章节",
       mode: "draft",
-      targetWordCount: 3000,
-      minWordCount: 2600,
-      maxWordCount: 3400,
+      targetWordCount,
+      minWordCount: softMinWordCount,
+      maxWordCount: softMaxWordCount,
     };
   }
 

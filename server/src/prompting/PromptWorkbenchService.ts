@@ -4,11 +4,9 @@ import type { TaskType } from "../llm/modelRouter";
 import {
   buildPromptAssetKey,
   type PromptAsset,
-  type PromptContextBlock,
   type PromptContextRequirement,
   type PromptRunTrace,
 } from "./core/promptTypes";
-import { createContextBlock } from "./core/contextBudget";
 import { preparePromptExecution } from "./core/promptRunner";
 import { ContextBroker } from "./context/ContextBroker";
 import { createDefaultContextResolverRegistry } from "./context/defaultContextRegistry";
@@ -19,9 +17,13 @@ import { getPromptCatalogDescription } from "./addendums/PromptAddendumService";
 import { CUSTOM_SLOT_CONTEXT_GROUP, resolvePromptOverlays } from "./slots/slotResolution";
 import { promptSlotOverrideService } from "./slots/PromptSlotOverrideService";
 import type { PromptSlotDef } from "./slots/slotTypes";
+import {
+  prepareWorkbenchPreviewExecutionContext,
+  type PromptWorkbenchPreviewDb,
+} from "./workbench/previewContextBuilder";
 
 type UnknownPromptAsset = PromptAsset<unknown, unknown, unknown>;
-type PromptWorkbenchDb = Pick<typeof prisma, "novel" | "chapter">;
+type PromptWorkbenchDb = PromptWorkbenchPreviewDb;
 
 export interface PromptCatalogItem {
   key: string;
@@ -178,175 +180,6 @@ function buildPreviewNotes(input: {
   return notes;
 }
 
-function isAuditPreviewPrompt(asset: UnknownPromptAsset): boolean {
-  return asset.id === "audit.chapter.full" || asset.id === "audit.chapter.light";
-}
-
-function compactPreviewText(value: string | null | undefined): string {
-  return value?.replace(/\s+/g, " ").trim() ?? "";
-}
-
-function truncatePreviewText(value: string | null | undefined, maxChars: number): string {
-  const text = value?.trim() ?? "";
-  if (text.length <= maxChars) {
-    return text;
-  }
-  return `${text.slice(0, Math.max(0, maxChars - 16)).trimEnd()}\n...[已裁剪]`;
-}
-
-function previewListBlock(title: string, values: Array<string | null | undefined>, emptyLabel = "none"): string {
-  const items = [...new Set(values.map((item) => compactPreviewText(item)).filter(Boolean))];
-  if (items.length === 0) {
-    return `${title}: ${emptyLabel}`;
-  }
-  return [title, ...items.map((item) => `- ${item}`)].join("\n");
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
-}
-
-function parseSceneCards(value: string | null | undefined): Record<string, unknown>[] {
-  if (!value?.trim()) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(value);
-    const scenes = asRecord(parsed)?.scenes;
-    return Array.isArray(scenes)
-      ? scenes.map(asRecord).filter((scene): scene is Record<string, unknown> => Boolean(scene))
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function readString(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function readStringList(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.map((item) => readString(item)).filter(Boolean)
-    : [];
-}
-
-function buildChapterPreviewBlocks(input: {
-  novel: {
-    id: string;
-    title: string;
-    description: string | null;
-    targetAudience: string | null;
-    bookSellingPoint: string | null;
-    first30ChapterPromise: string | null;
-  };
-  chapter: {
-    id: string;
-    title: string;
-    order: number;
-    content: string | null;
-    expectation: string | null;
-    targetWordCount: number | null;
-    mustAvoid: string | null;
-    taskSheet: string | null;
-    sceneCards: string | null;
-    hook: string | null;
-  };
-}): PromptContextBlock[] {
-  const { chapter, novel } = input;
-  const scenes = parseSceneCards(chapter.sceneCards);
-  const firstScene = scenes[0] ?? null;
-  const lastScene = scenes[scenes.length - 1] ?? null;
-  const mustAdvance = scenes.flatMap((scene) => readStringList(scene.mustAdvance)).slice(0, 8);
-  const mustPreserve = scenes.flatMap((scene) => readStringList(scene.mustPreserve)).slice(0, 8);
-  const forbiddenExpansion = scenes.flatMap((scene) => readStringList(scene.forbiddenExpansion)).slice(0, 8);
-  const chapterLabel = `第 ${chapter.order} 章《${chapter.title || "未命名章节"}》`;
-
-  return [
-    createContextBlock({
-      id: "chapter_mission",
-      group: "chapter_mission",
-      priority: 100,
-      content: [
-        `Chapter mission: ${chapterLabel}`,
-        chapter.expectation ? `Objective: ${chapter.expectation}` : "",
-        chapter.targetWordCount ? `Target length: around ${chapter.targetWordCount} Chinese characters.` : "",
-        previewListBlock("Must advance", mustAdvance.length > 0 ? mustAdvance : [chapter.expectation]),
-        previewListBlock("Must preserve", mustPreserve),
-        chapter.taskSheet ? `Original task sheet:\n${truncatePreviewText(chapter.taskSheet, 2200)}` : "",
-        chapter.hook ? `Ending hook: ${chapter.hook}` : "",
-      ].filter(Boolean).join("\n"),
-    }),
-    createContextBlock({
-      id: "chapter_boundary",
-      group: "chapter_boundary",
-      priority: 99,
-      required: true,
-      allowSummary: false,
-      content: [
-        "Chapter boundary:",
-        chapter.expectation ? `Exclusive event: ${chapter.expectation}` : `Exclusive event: ${chapterLabel}`,
-        firstScene ? `Entry state: ${readString(firstScene.entryState) || "未提供场景入口状态"}` : "",
-        lastScene ? `Ending state: ${readString(lastScene.exitState) || compactPreviewText(chapter.hook) || "未提供场景结束状态"}` : "",
-        chapter.hook ? `Next chapter entry state: ${chapter.hook}` : "",
-        previewListBlock("Do not cross", [
-          chapter.mustAvoid,
-          ...forbiddenExpansion,
-          chapter.hook ? `不得直接展开钩子之后的后续事件：${chapter.hook}` : "",
-        ]),
-        previewListBlock("Protected reveals", []),
-      ].filter(Boolean).join("\n"),
-    }),
-    createContextBlock({
-      id: "structure_obligations",
-      group: "structure_obligations",
-      priority: 94,
-      required: true,
-      content: [
-        "Structure obligations",
-        ...[
-          chapter.expectation ? `- chapter objective: ${chapter.expectation}` : "",
-          ...mustAdvance.map((item) => `- must advance: ${item}`),
-          ...mustPreserve.map((item) => `- must preserve: ${item}`),
-          chapter.hook ? `- hook target: ${chapter.hook}` : "",
-          chapter.mustAvoid ? `- boundary do-not-cross: ${chapter.mustAvoid}` : "",
-        ].filter(Boolean),
-      ].join("\n"),
-    }),
-    createContextBlock({
-      id: "local_state",
-      group: "local_state",
-      priority: 89,
-      content: [
-        "Local state before review:",
-        `Novel: ${novel.title}`,
-        `Chapter: ${chapterLabel}`,
-        chapter.content?.trim()
-          ? `Current draft excerpt:\n${truncatePreviewText(chapter.content, 1800)}`
-          : "Current draft excerpt: 当前章节暂无正文，预览只能使用章节任务和任务单进行上下文展示。",
-      ].join("\n"),
-    }),
-    createContextBlock({
-      id: "world_rules",
-      group: "world_rules",
-      priority: 84,
-      content: [
-        "Relevant book rules:",
-        novel.description ? `简介：${truncatePreviewText(novel.description, 600)}` : "",
-        novel.targetAudience ? `目标读者：${novel.targetAudience}` : "",
-        novel.bookSellingPoint ? `核心卖点：${novel.bookSellingPoint}` : "",
-        novel.first30ChapterPromise ? `前 30 章承诺：${novel.first30ChapterPromise}` : "",
-      ].filter(Boolean).join("\n"),
-    }),
-  ].filter((block) => block.content.trim().length > 0);
-}
-
-function hasExtraContextBlocks(context: PromptExecutionContext): boolean {
-  return Array.isArray(asRecord(context.metadata)?.extraContextBlocks);
-}
-
 function matchesCatalogFilter(item: PromptCatalogItem, filter?: PromptCatalogFilter): boolean {
   if (filter?.taskType && item.taskType !== filter.taskType) {
     return false;
@@ -477,67 +310,11 @@ export class PromptWorkbenchService {
     executionContext: PromptExecutionContext;
     notes: string[];
   }> {
-    const { asset, executionContext } = input;
-    if (!isAuditPreviewPrompt(asset) || hasExtraContextBlocks(executionContext)) {
-      return { executionContext, notes: [] };
-    }
-
-    const novelId = executionContext.novelId?.trim();
-    const chapterId = executionContext.chapterId?.trim();
-    if (!novelId || !chapterId) {
-      return { executionContext, notes: [] };
-    }
-
-    const [novel, chapter] = await Promise.all([
-      this.db.novel.findUnique({
-        where: { id: novelId },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          targetAudience: true,
-          bookSellingPoint: true,
-          first30ChapterPromise: true,
-        },
-      }),
-      this.db.chapter.findFirst({
-        where: { id: chapterId, novelId },
-        select: {
-          id: true,
-          title: true,
-          order: true,
-          content: true,
-          expectation: true,
-          targetWordCount: true,
-          mustAvoid: true,
-          taskSheet: true,
-          sceneCards: true,
-          hook: true,
-        },
-      }),
-    ]);
-
-    if (!novel || !chapter) {
-      return {
-        executionContext,
-        notes: ["未找到所选小说或章节，已按普通手动预览处理。"],
-      };
-    }
-
-    const extraContextBlocks = buildChapterPreviewBlocks({ novel, chapter });
-    return {
-      executionContext: {
-        ...executionContext,
-        metadata: {
-          ...(executionContext.metadata ?? {}),
-          extraContextBlocks,
-        },
-      },
-      notes: [
-        `已使用《${novel.title}》第 ${chapter.order} 章《${chapter.title || "未命名章节"}》组装本书预览上下文。`,
-        chapter.content?.trim() ? "" : "所选章节暂无正文，审校预览会使用章节任务和任务单展示上下文。",
-      ].filter(Boolean),
-    };
+    return prepareWorkbenchPreviewExecutionContext({
+      db: this.db,
+      asset: input.asset,
+      executionContext: input.executionContext,
+    });
   }
 
   async preview(input: PromptPreviewInput): Promise<PromptPreviewResult> {
