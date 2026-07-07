@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  adoptSlots,
+  applyOfficialSlots,
   deleteSlotOverride,
   keepMySlots,
   saveSlotOverride,
@@ -99,7 +99,7 @@ export function usePromptSlotPersistence(input: UsePromptSlotPersistenceInput) {
       if (!prompt) {
         throw new Error("请选择提示词后再处理更新。");
       }
-      return adoptSlots({
+      return applyOfficialSlots({
         promptId: prompt.id,
         scope,
         novelId: scope === "novel" ? activeNovelId : null,
@@ -125,6 +125,7 @@ export function usePromptSlotPersistence(input: UsePromptSlotPersistenceInput) {
       });
     },
     onSuccess: () => {
+      invalidateOverride();
       invalidateReconcile();
     },
   });

@@ -20,6 +20,7 @@ export interface PromptEditorDraftState {
 }
 
 export type PromptEditorSectionPlacement = "body" | "control" | "append";
+export type PromptEditorSectionSource = "official" | "global" | "novel" | "novel_official_default";
 
 export interface PromptEditorSection {
   id: string;
@@ -39,6 +40,9 @@ export interface PromptEditorSection {
   isDirty: boolean;
   isSavedOverride: boolean;
   isInheritedFromGlobal: boolean;
+  isOfficialDefaultOverride: boolean;
+  source: PromptEditorSectionSource;
+  sourceLabel: string;
 }
 
 export type ContextBlockStatus = "selected" | "dropped" | "summarized" | "available";

@@ -13,7 +13,8 @@ import {
   type NovelMaterialExportInput,
 } from "../prompting/materials";
 import { promptSlotOverrideService } from "../prompting/slots/PromptSlotOverrideService";
-import { reconcileSlots, adoptSlots, keepMineSlots } from "../prompting/slots/slotReconcile";
+import { getOfficialPromptSlotLibrary } from "../prompting/slots/officialSlotLibrary";
+import { reconcileSlots, adoptSlots, applyOfficialSlots, keepMineSlots } from "../prompting/slots/slotReconcile";
 
 const router = Router();
 
@@ -86,6 +87,10 @@ const materialExportBodySchema = z.object({
 const slotOverrideQuerySchema = z.object({
   promptId: z.string().trim().min(1),
   novelId: z.string().trim().min(1).optional(),
+});
+
+const officialSlotsQuerySchema = z.object({
+  promptId: z.string().trim().min(1),
 });
 
 const slotOverrideSaveBodySchema = z.object({
@@ -175,6 +180,20 @@ router.get("/slot-overrides", validate({ query: slotOverrideQuerySchema }), asyn
   }
 });
 
+router.get("/official-slots", validate({ query: officialSlotsQuerySchema }), (req, res, next) => {
+  try {
+    const query = req.query as z.infer<typeof officialSlotsQuerySchema>;
+    const data = getOfficialPromptSlotLibrary(query.promptId);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Official prompt slots loaded.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.put("/slot-overrides", validate({ body: slotOverrideSaveBodySchema }), async (req, res, next) => {
   try {
     const body = req.body as z.infer<typeof slotOverrideSaveBodySchema>;
@@ -244,6 +263,25 @@ router.post("/slot-overrides/adopt", validate({ body: adoptKeepBodySchema }), as
       success: true,
       data: null,
       message: "Slots adopted.",
+    } satisfies ApiResponse<null>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/slot-overrides/apply-official", validate({ body: adoptKeepBodySchema }), async (req, res, next) => {
+  try {
+    const body = req.body as z.infer<typeof adoptKeepBodySchema>;
+    await applyOfficialSlots({
+      promptId: body.promptId,
+      scope: body.scope,
+      novelId: body.novelId,
+      slotKeys: body.slotKeys,
+    });
+    res.status(200).json({
+      success: true,
+      data: null,
+      message: "Official slots applied.",
     } satisfies ApiResponse<null>);
   } catch (error) {
     next(error);

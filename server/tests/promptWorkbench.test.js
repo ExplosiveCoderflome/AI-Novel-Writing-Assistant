@@ -22,11 +22,11 @@ test("prompt workbench catalog exposes registered prompts without override execu
   const planner = catalog.find((item) => item.key === "planner.intent.parse@v1");
 
   assert.ok(planner);
-  assert.equal(planner.overrideSupported, false);
-  assert.equal(planner.addendumSupported, false);
+  assert.equal(planner.slotSupported, false);
+  assert.equal(planner.managementStatus, "missing_slots");
+  assert.deepEqual(planner.slots, []);
   assert.ok(planner.description.includes("意图"));
   assert.equal(planner.outputType, "structured");
-  assert.equal(planner.overrideLifecycle.runtimeOverrideEnabled, false);
   assert.ok(planner.contextRequirements.some((requirement) => requirement.group === "creative_hub.bindings"));
   assert.equal(planner.mode, "structured");
   assert.equal(planner.capabilities.hasOutputSchema, true);
@@ -37,23 +37,23 @@ test("prompt workbench catalog exposes registered prompts without override execu
   const chapterWriter = service.listCatalog({ keyword: "novel.chapter.writer" })
     .find((item) => item.key === "novel.chapter.writer@v5");
   assert.ok(chapterWriter);
-  assert.equal(chapterWriter.addendumSupported, true);
-  assert.deepEqual(chapterWriter.addendumScopeLabels, ["全局", "单本小说"]);
+  assert.equal(chapterWriter.slotSupported, true);
+  assert.equal(chapterWriter.managementStatus, "complete");
   assert.ok(chapterWriter.description.includes("章节正文"));
-  assert.ok(chapterWriter.editableSlots.some((slot) => slot.key === "writer.antiAiRules"));
+  assert.ok(chapterWriter.slots.some((slot) => slot.key === "writer.antiAiRules"));
   assert.ok(chapterWriter.lockedFields.includes("contextPolicy"));
 });
 
-test("prompt workbench catalog lists addendum-supported prompts first", () => {
+test("prompt workbench catalog lists slot-supported prompts first", () => {
   const service = new PromptWorkbenchService();
   const catalog = service.listCatalog();
-  const firstUnsupportedIndex = catalog.findIndex((item) => !item.addendumSupported);
-  const lastSupportedIndex = catalog.findLastIndex((item) => item.addendumSupported);
+  const firstUnsupportedIndex = catalog.findIndex((item) => !item.slotSupported);
+  const lastSupportedIndex = catalog.findLastIndex((item) => item.slotSupported);
 
   assert.ok(firstUnsupportedIndex > 0);
   assert.ok(lastSupportedIndex >= 0);
   assert.ok(lastSupportedIndex < firstUnsupportedIndex);
-  assert.ok(catalog.slice(0, lastSupportedIndex + 1).every((item) => item.addendumSupported));
+  assert.ok(catalog.slice(0, lastSupportedIndex + 1).every((item) => item.slotSupported));
 });
 
 test("context broker resolves creative hub bindings and supplied recent messages", async () => {
@@ -106,7 +106,7 @@ test("prompt preview renders base prompt messages with resolved context but does
   });
 
   assert.equal(preview.prompt.key, "planner.intent.parse@v1");
-  assert.equal(preview.prompt.overrideSupported, false);
+  assert.equal(preview.prompt.slotSupported, false);
   assert.ok(preview.messages.length >= 2);
   assert.ok(preview.messages.some((message) => message.role === "system"));
   assert.ok(preview.messages.some((message) => message.role === "human"));
@@ -116,7 +116,7 @@ test("prompt preview renders base prompt messages with resolved context but does
   assert.equal(preview.diagnostics.tracePreview.promptId, "planner.intent.parse");
   assert.ok(preview.diagnostics.tracePreview.contextBlockIds.includes("creative_hub.bindings"));
   assert.deepEqual(preview.diagnostics.tracePreview.customAddendumBlockIds, []);
-  assert.ok(preview.diagnostics.notes.some((note) => note.includes("read-only preview")));
+  assert.ok(preview.diagnostics.notes.some((note) => note.includes("no declared slot definitions")));
 });
 
 test("prompt preview reports missing required context for manager diagnosis", async () => {

@@ -161,10 +161,12 @@ export interface PromptPreviewResult {
 // ─── Slot overrides ───────────────────────────────────────────────────────────
 
 export type PromptSlotOverrideScope = "global" | "novel";
+export type PromptSlotOverrideMode = "custom" | "official_default";
 
 export interface PromptSlotOverrideEntry {
   value: string | boolean;
   baseHash: string;
+  mode?: PromptSlotOverrideMode;
 }
 
 export interface PromptSlotOverrideView {
@@ -208,6 +210,7 @@ export interface PromptSlotReconcileItem {
   defaultCurrentHash: string;
   overrideValue?: string | boolean;
   overrideBaseHash?: string;
+  overrideMode?: PromptSlotOverrideMode;
   changelog?: string;
 }
 
@@ -215,8 +218,11 @@ export interface PromptSlotReconcileResult {
   promptId: string;
   scope: PromptSlotOverrideScope;
   novelId?: string | null;
+  promptVersion?: string;
+  overrideBaseVersion?: string;
   items: PromptSlotReconcileItem[];
-  hasDrift: boolean;
+  hasUpdates?: boolean;
+  hasDrift?: boolean;
   driftedCount: number;
   newCount: number;
   orphanedCount: number;
@@ -233,6 +239,28 @@ export interface PromptSlotAdoptKeepPayload {
   scope: PromptSlotOverrideScope;
   novelId?: string | null;
   slotKeys: string[];
+}
+
+export interface OfficialPromptSlotProfile {
+  id: "current";
+  label: string;
+  description: string;
+}
+
+export interface OfficialPromptSlotItem {
+  key: string;
+  label: string;
+  kind: PromptSlotKind;
+  defaultValue: string | boolean;
+  defaultHash: string;
+  changelog?: string;
+}
+
+export interface OfficialPromptSlotLibrary {
+  promptId: string;
+  promptVersion: string;
+  slots: OfficialPromptSlotItem[];
+  officialProfiles: OfficialPromptSlotProfile[];
 }
 
 // ─── Materials ────────────────────────────────────────────────────────────────
@@ -328,6 +356,14 @@ export async function getSlotOverrides(params: PromptSlotOverrideParams) {
   return data;
 }
 
+export async function getOfficialPromptSlots(params: { promptId: string }) {
+  const { data } = await apiClient.get<ApiResponse<OfficialPromptSlotLibrary>>(
+    "/prompt-workbench/official-slots",
+    { params },
+  );
+  return data;
+}
+
 export async function saveSlotOverride(payload: PromptSlotOverrideSavePayload) {
   const { data } = await apiClient.put<ApiResponse<PromptSlotOverrideView>>(
     "/prompt-workbench/slot-overrides",
@@ -356,6 +392,14 @@ export async function getSlotReconcile(params: PromptSlotReconcileParams) {
 export async function adoptSlots(payload: PromptSlotAdoptKeepPayload) {
   const { data } = await apiClient.post<ApiResponse<null>>(
     "/prompt-workbench/slot-overrides/adopt",
+    payload,
+  );
+  return data;
+}
+
+export async function applyOfficialSlots(payload: PromptSlotAdoptKeepPayload) {
+  const { data } = await apiClient.post<ApiResponse<null>>(
+    "/prompt-workbench/slot-overrides/apply-official",
     payload,
   );
   return data;

@@ -109,7 +109,11 @@ export default function PromptWorkbenchPage() {
                   immersive={immersiveMode}
                   preview={preview}
                   sections={slotState.sections}
+                  reconcile={slotState.reconcile}
                   reconcileMap={slotState.reconcileMap}
+                  showReconcile={slotState.showReconcile}
+                  reconcileLoading={slotState.reconcileQuery.isFetching}
+                  reconcilePending={slotState.reconcilePending}
                   disabled={
                     slotState.isNovelScopeDisabled
                     || slotState.saveMutation.isPending
@@ -117,6 +121,8 @@ export default function PromptWorkbenchPage() {
                   }
                   onSlotChange={slotState.changeSlotDraft}
                   onSlotReset={slotState.resetSlot}
+                  onApplyOfficialSlots={slotState.adoptSlotsByKey}
+                  onKeepSlots={slotState.keepSlotsByKey}
                   onContextSelect={setSelectedContextBlockId}
                 />
               </div>
@@ -140,7 +146,9 @@ export default function PromptWorkbenchPage() {
                 saveDisabled={saveDisabled}
                 previewDisabled={!selectedPrompt || previewState.previewMutation.isPending}
                 resetDisabled={!slotState.hasDirtyDrafts}
+                officialVersionDisabled={!selectedPrompt?.slotSupported || slotState.isNovelScopeDisabled}
                 onGeneratePreview={previewState.generatePreview}
+                onOpenOfficialVersion={slotState.openOfficialVersionPanel}
                 onSave={slotState.saveDrafts}
                 onReset={slotState.resetDrafts}
               />

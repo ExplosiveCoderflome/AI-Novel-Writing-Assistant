@@ -31,6 +31,11 @@
 - editable slots 只能开放低风险表达层内容，不能覆盖 schema、postValidate、taskType、mode、contextPolicy、工具目录、审批边界或 required context。
 - Prompt Workbench 的可视化编辑器只能把 `PromptAsset.slots` 呈现为可编辑项。`replace`、`token`、`append`、`choice` 和 `toggle` 可以映射成不同控件，但保存仍必须走 slot override；不得把整段 system prompt、contextPolicy 或 schema 暴露为自由编辑文本。
 - Prompt Workbench 的上下文注入面板只读消费 `preview.context.blocks`、`selectedBlockIds`、`droppedBlockIds` 和 `summarizedBlockIds`。`chapter_mission`、`character_hard_facts`、`obligation_contract`、`style_contract` 等 required 或关键生成上下文必须显示锁定状态，不能在前端提供关闭 required context 的入口。
+- Prompt Workbench 的官方版本库以代码注册的 `PromptAsset.slots` 为可信来源。官方当前版只能读取槽位默认值、hash、版本号和 changelog；不得把数据库里的自由编辑文本当作“官方 prompt”，也不得开放 schema、contextPolicy、required context、postValidate 或审批边界给用户覆盖。
+- Slot override 的解析优先级固定为：本书覆盖或本书 `official_default` 标记 > 全局覆盖 > `PromptAsset.slots` 官方默认。旧数据中只有 `{ value, baseHash }` 的槽位视为 `custom`，保持兼容。
+- `official_default` 只表示“当前作用域明确采用官方默认值”。全局层保存官方默认值应删除该槽位覆盖；本书层保存官方默认值时，如果全局层存在自定义覆盖，必须写入 `official_default` 标记来遮蔽全局值；如果没有全局覆盖，则删除本书覆盖即可。
+- “恢复官方当前版”必须通过官方恢复动作处理，而不是简单删除本书覆盖。删除本书覆盖的含义是回到继承链；在有全局覆盖时，这会重新继承全局值，不等于恢复官方默认。
+- “保留我的设置”只能更新当前槽位的 `baseHash/baseVersion`，用于确认用户接受自己的覆盖与当前官方版本的差异；不能顺手改写官方默认值、schema 或上下文策略。
 - 旧未纳管 prompt 路径被触碰时，默认先迁入 registry，再扩展能力。
 
 批准例外：
@@ -49,6 +54,8 @@
 - 新增意图识别能力时，扩展 AI schema 和工具合同，不加关键词 fallback。
 - 角色阵容质量不足时，修角色准备 PromptAsset、结构化 schema、postValidate / semantic retry 或上下文块，不在 service 中新增关键词、正则或字符比例判断。
 - Prompt Workbench 预览只读返回 messages、上下文块、缺失 required groups 和 trace preview，不保存运行时 override。
+- 某本书需要摆脱被改坏的全局“章末钩子”时，应在本书层写入 `mode: "official_default"`。这样预览、运行时渲染和后续生成都会使用 `PromptAsset.slots` 的官方默认章末钩子，而不是全局覆盖。
+- 用户只想撤销本书自己的改动、继续继承团队/全局设置时，应清除本书覆盖；如果全局设置本身被改坏，则应使用“恢复官方当前版”。
 
 禁止做法：
 
@@ -56,6 +63,8 @@
 - 在业务文件里新增一套本地 JSON 修复和 schema 分支。
 - 让 Prompt Override 直接替换整段系统提示词或结构化输出 schema。
 - 在角色准备、章节规划、意图识别、质量检查、RAG 选择或自动导演路由中，用固定词表、正则、字符比例或特殊字符串分支替代 AI 结构化理解。
+- 用删除本书覆盖来实现“恢复官方默认”，因为这会在存在全局覆盖时错误继承全局值。
+- 把“官方版本库”做成用户可编辑的数据库 prompt 后台，绕开 `PromptAsset.slots` 的代码注册边界。
 
 ## 失败模式
 
@@ -63,6 +72,8 @@
 - 同一 prompt 频繁进入 JSON repair：检查日志里的原始字段值是否来自上下文或示例中的非 schema 值。如果模型只是复用了 prompt 中出现的别名，应先修 prompt/schema 合同；如果输出语义完整但字段名是常见别名，应在 PromptAsset schema 层归一，而不是让后台任务无限重试。
 - `expected string, received number` 如果集中出现在状态抽取字段，通常不是模型理解偏差，而是 schema 将“可读状态文本”和“可计算数值”混在同一个字段里。处理顺序应是：明确 prompt 输出合同，给结构化示例，在 schema preprocess 中保留语义并转成字符串；不要要求 LLM 为每一个数值字段单独 repair。
 - Prompt Catalog 缺上下文预览：补 `contextRequirements`，不要让预览临时查数据库。
+- Prompt Workbench 恢复官方默认后仍使用全局坏值：检查本书层是否写入了 `official_default`，以及运行时解析是否仍按“本书 > 全局 > 官方默认”的顺序合并。
+- Reconcile 面板一直提示同一个槽位漂移：检查用户是否选择了“保留我的设置”并更新 `baseHash`，或选择了“恢复官方当前版”并清除了旧覆盖 / 写入了 `official_default`。
 - 意图识别漏判：修 PromptAsset、输入上下文、schema 或工具目录，不加关键词路由。
 - 角色阵容看起来没有承接身份、题材或隐藏真相：先查角色准备 PromptAsset、上下文块和结构化输出，不加本地正则抽取身份，不用关键词判断候选能否自动应用。
 - 单个 PromptAsset 的 repair 或 semantic retry 频率异常升高：先查看 prompt quality telemetry 中的 promptId/version、上下文块、输出空率和失败分类，再判断是 schema 合同、上下文污染、模型路由还是 prompt 文案问题。

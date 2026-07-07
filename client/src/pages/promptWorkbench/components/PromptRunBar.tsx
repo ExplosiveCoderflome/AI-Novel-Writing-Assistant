@@ -1,4 +1,4 @@
-import { Eye, RotateCcw, Save } from "lucide-react";
+import { Eye, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,9 @@ interface PromptRunBarProps {
   saveDisabled: boolean;
   previewDisabled: boolean;
   resetDisabled: boolean;
+  officialVersionDisabled?: boolean;
   onGeneratePreview: () => void;
+  onOpenOfficialVersion: () => void;
   onSave: () => void;
   onReset: () => void;
 }
@@ -27,8 +29,10 @@ export function PromptRunBar(props: PromptRunBarProps) {
     isSavePending,
     isSaveSuccess,
     onGeneratePreview,
+    onOpenOfficialVersion,
     onReset,
     onSave,
+    officialVersionDisabled,
     previewDisabled,
     prompt,
     resetDisabled,
@@ -65,6 +69,16 @@ export function PromptRunBar(props: PromptRunBarProps) {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onOpenOfficialVersion}
+            disabled={officialVersionDisabled}
+            className="border-[#b8d9d0] bg-white text-[#0f5f59] hover:bg-[#eaf7f2] hover:text-[#0f5f59]"
+          >
+            <ShieldCheck className="mr-2 h-4 w-4" />
+            官方版本
+          </Button>
           <Button
             type="button"
             variant="outline"

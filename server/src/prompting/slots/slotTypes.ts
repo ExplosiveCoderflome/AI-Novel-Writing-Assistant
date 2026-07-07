@@ -58,9 +58,12 @@ export type PromptSlotDef =
 
 export type PromptSlotScope = "global" | "novel";
 
+export type PromptSlotOverrideMode = "custom" | "official_default";
+
 export interface PromptSlotOverrideEntry {
   value: string | boolean;
   baseHash: string;
+  mode?: PromptSlotOverrideMode;
 }
 
 export type PromptSlotOverrideMap = Record<string, PromptSlotOverrideEntry>;

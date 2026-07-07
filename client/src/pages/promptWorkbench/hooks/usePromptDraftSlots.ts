@@ -24,12 +24,19 @@ function getSlotDefault(def: PromptSlotDef): PromptSlotValue {
   return def.default;
 }
 
+function isOfficialDefaultEntry(entry: PromptSlotOverrideEntry | undefined): boolean {
+  return entry?.mode === "official_default";
+}
+
 function sameSlotValue(left: PromptSlotValue, right: PromptSlotValue): boolean {
   return left === right;
 }
 
 function getEntryValue(def: PromptSlotDef, entry: PromptSlotOverrideEntry | undefined): PromptSlotValue {
-  return entry?.value ?? getSlotDefault(def);
+  if (!entry || isOfficialDefaultEntry(entry)) {
+    return getSlotDefault(def);
+  }
+  return entry.value;
 }
 
 function getPersistedEffectiveValue(input: {
@@ -66,6 +73,30 @@ function mapSlotsByScope(overrides: PromptSlotOverrideView[], activeNovelId: str
   };
 }
 
+function getSectionSource(input: {
+  scope: PromptSlotOverrideScope;
+  globalOverride?: PromptSlotOverrideEntry;
+  novelOverride?: PromptSlotOverrideEntry;
+}): Pick<PromptEditorSection, "source" | "sourceLabel"> {
+  const { globalOverride, novelOverride, scope } = input;
+  if (scope === "novel") {
+    if (isOfficialDefaultEntry(novelOverride)) {
+      return { source: "novel_official_default", sourceLabel: "本书使用官方默认" };
+    }
+    if (novelOverride) {
+      return { source: "novel", sourceLabel: "本书覆盖" };
+    }
+    if (globalOverride && !isOfficialDefaultEntry(globalOverride)) {
+      return { source: "global", sourceLabel: "全局覆盖" };
+    }
+    return { source: "official", sourceLabel: "官方默认" };
+  }
+  if (globalOverride && !isOfficialDefaultEntry(globalOverride)) {
+    return { source: "global", sourceLabel: "全局覆盖" };
+  }
+  return { source: "official", sourceLabel: "官方默认" };
+}
+
 export function buildPromptEditorSections(input: {
   prompt: PromptCatalogItem | null;
   scope: PromptSlotOverrideScope;
@@ -90,6 +121,11 @@ export function buildPromptEditorSections(input: {
     });
     const draftValue = drafts[slot.key];
     const value = draftValue !== undefined ? draftValue : persistedValue;
+    const source = getSectionSource({
+      scope,
+      globalOverride,
+      novelOverride,
+    });
     return {
       id: slot.key,
       slotKey: slot.key,
@@ -107,7 +143,9 @@ export function buildPromptEditorSections(input: {
       novelOverride,
       isDirty: draftValue !== undefined && !sameSlotValue(draftValue, persistedValue),
       isSavedOverride: currentScopeOverride !== undefined,
-      isInheritedFromGlobal: scope === "novel" && novelOverride === undefined && globalOverride !== undefined,
+      isInheritedFromGlobal: source.source === "global",
+      isOfficialDefaultOverride: isOfficialDefaultEntry(currentScopeOverride),
+      ...source,
     } satisfies PromptEditorSection;
   });
 }
@@ -221,12 +259,14 @@ export function usePromptDraftSlots(prompt: PromptCatalogItem | null) {
     setScopeState(nextScope);
     setDrafts({});
     setSaveError(null);
+    setShowReconcile(false);
   }, []);
 
   const setSelectedNovelId = useCallback((nextNovelId: string) => {
     setSelectedNovelIdState(nextNovelId);
     setDrafts({});
     setSaveError(null);
+    setShowReconcile(false);
   }, []);
 
   const changeSlotDraft = useCallback((key: string, value: PromptSlotValue) => {
@@ -277,6 +317,13 @@ export function usePromptDraftSlots(prompt: PromptCatalogItem | null) {
     if (slotKeys.length === 0) {
       return;
     }
+    setDrafts((current) => {
+      const next = { ...current };
+      for (const key of slotKeys) {
+        delete next[key];
+      }
+      return next;
+    });
     adoptMutation.mutate(slotKeys);
   }, [adoptMutation]);
 
@@ -309,6 +356,10 @@ export function usePromptDraftSlots(prompt: PromptCatalogItem | null) {
     );
   }, [keepSlotsByKey, reconcile]);
 
+  const openOfficialVersionPanel = useCallback(() => {
+    setShowReconcile(true);
+  }, []);
+
   return {
     activeNovelId,
     adoptAllDrifted,
@@ -335,6 +386,7 @@ export function usePromptDraftSlots(prompt: PromptCatalogItem | null) {
     novelSlotMap,
     novels: novelsQuery.data?.data?.items ?? [],
     novelsQuery,
+    openOfficialVersionPanel,
     overrideQuery,
     reconcile,
     reconcileMap,
