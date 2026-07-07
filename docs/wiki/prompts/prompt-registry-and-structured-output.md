@@ -31,6 +31,8 @@
 - editable slots 只能开放低风险表达层内容，不能覆盖 schema、postValidate、taskType、mode、contextPolicy、工具目录、审批边界或 required context。
 - Prompt Workbench 的可视化编辑器只能把 `PromptAsset.slots` 呈现为可编辑项。`replace`、`token`、`append`、`choice` 和 `toggle` 可以映射成不同控件，但保存仍必须走 slot override；不得把整段 system prompt、contextPolicy 或 schema 暴露为自由编辑文本。
 - Prompt Workbench 的上下文注入面板只读消费 `preview.context.blocks`、`selectedBlockIds`、`droppedBlockIds` 和 `summarizedBlockIds`。`chapter_mission`、`character_hard_facts`、`obligation_contract`、`style_contract` 等 required 或关键生成上下文必须显示锁定状态，不能在前端提供关闭 required context 的入口。
+- Prompt Workbench 预览样本可以通过 `executionContext.metadata.extraContextBlocks` 提供只读示例资料块，用来让审校、写作、修文等 prompt 在没有真实运行时包的手动预览中仍能展示 required context。示例块只服务预览，不保存为用户覆盖，也不能替代正式运行时的 Context Broker / resolver。
+- `PromptAsset.contextRequirements` 中声明的每个 required group 都必须能被默认 Context Broker 解析，或在真实调用路径中通过 fallback blocks 明确补齐。像 `chapter_boundary`、`structure_obligations` 这类审校必需上下文，不能只写在 prompt 文案或前端示例里，必须有后端 resolver / context block 产出路径。
 - Prompt Workbench 的官方版本库以代码注册的 `PromptAsset.slots` 为可信来源。官方当前版只能读取槽位默认值、hash、版本号和 changelog；不得把数据库里的自由编辑文本当作“官方 prompt”，也不得开放 schema、contextPolicy、required context、postValidate 或审批边界给用户覆盖。
 - Slot override 的解析优先级固定为：本书覆盖或本书 `official_default` 标记 > 全局覆盖 > `PromptAsset.slots` 官方默认。旧数据中只有 `{ value, baseHash }` 的槽位视为 `custom`，保持兼容。
 - `official_default` 只表示“当前作用域明确采用官方默认值”。全局层保存官方默认值应删除该槽位覆盖；本书层保存官方默认值时，如果全局层存在自定义覆盖，必须写入 `official_default` 标记来遮蔽全局值；如果没有全局覆盖，则删除本书覆盖即可。
@@ -72,6 +74,7 @@
 - 同一 prompt 频繁进入 JSON repair：检查日志里的原始字段值是否来自上下文或示例中的非 schema 值。如果模型只是复用了 prompt 中出现的别名，应先修 prompt/schema 合同；如果输出语义完整但字段名是常见别名，应在 PromptAsset schema 层归一，而不是让后台任务无限重试。
 - `expected string, received number` 如果集中出现在状态抽取字段，通常不是模型理解偏差，而是 schema 将“可读状态文本”和“可计算数值”混在同一个字段里。处理顺序应是：明确 prompt 输出合同，给结构化示例，在 schema preprocess 中保留语义并转成字符串；不要要求 LLM 为每一个数值字段单独 repair。
 - Prompt Catalog 缺上下文预览：补 `contextRequirements`，不要让预览临时查数据库。
+- Prompt Workbench 预览提示缺少 required context：先检查该 group 是否注册在默认 Context Broker，以及 Workbench 样本是否通过 `extraContextBlocks` 提供了手动预览所需的示例块；不要通过放宽 required context 或让用户手动关闭缺失项来掩盖契约缺口。
 - Prompt Workbench 恢复官方默认后仍使用全局坏值：检查本书层是否写入了 `official_default`，以及运行时解析是否仍按“本书 > 全局 > 官方默认”的顺序合并。
 - Reconcile 面板一直提示同一个槽位漂移：检查用户是否选择了“保留我的设置”并更新 `baseHash`，或选择了“恢复官方当前版”并清除了旧覆盖 / 写入了 `official_default`。
 - 意图识别漏判：修 PromptAsset、输入上下文、schema 或工具目录，不加关键词路由。

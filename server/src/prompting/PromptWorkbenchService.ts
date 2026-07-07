@@ -159,16 +159,16 @@ function buildPreviewNotes(input: {
 }): string[] {
   const notes: string[] = [];
   if (!input.prompt.slotSupported) {
-    notes.push("This prompt has no declared slot definitions — slot overrides are unavailable.");
+    notes.push("该提示词没有声明可编辑槽位，不能保存槽位覆盖。");
   }
   if (input.brokerResolution.missingRequiredGroups.length > 0) {
-    notes.push(`Missing required context groups: ${input.brokerResolution.missingRequiredGroups.join(", ")}.`);
+    notes.push(`缺少必需上下文组：${input.brokerResolution.missingRequiredGroups.join("、")}。`);
   }
   if (input.brokerResolution.resolverErrors.length > 0) {
-    notes.push("One or more context resolvers returned errors.");
+    notes.push("部分上下文解析器返回错误。");
   }
   if (input.prompt.contextRequirements.length === 0) {
-    notes.push("This prompt has no declared context requirements.");
+    notes.push("该提示词没有声明上下文需求。");
   }
   return notes;
 }

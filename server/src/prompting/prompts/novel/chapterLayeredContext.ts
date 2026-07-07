@@ -660,6 +660,30 @@ function buildIncrementalRoundContextBlock(
   });
 }
 
+function buildChapterBoundaryContextBlock(writeContext: ChapterWriteContext): PromptContextBlock | null {
+  const boundary = writeContext.chapterBoundary;
+  if (!boundary) {
+    return null;
+  }
+  return createContextBlock({
+    id: "chapter_boundary",
+    group: "chapter_boundary",
+    priority: 99,
+    required: true,
+    allowSummary: false,
+    content: [
+      "Chapter boundary:",
+      boundary.exclusiveEvent ? `Exclusive event: ${compactText(boundary.exclusiveEvent)}` : "",
+      boundary.entryState ? `Entry state: ${compactText(boundary.entryState)}` : "",
+      boundary.endingState ? `Ending state: ${compactText(boundary.endingState)}` : "",
+      boundary.nextChapterEntryState ? `Next chapter entry state: ${compactText(boundary.nextChapterEntryState)}` : "",
+      typeof boundary.allowedRevealLevel === "number" ? `Allowed reveal level: ${boundary.allowedRevealLevel}` : "",
+      toListBlock("Do not cross", boundary.doNotCross ?? []),
+      toListBlock("Protected reveals", boundary.protectedReveals ?? []),
+    ].filter(Boolean).join("\n"),
+  });
+}
+
 export function buildChapterWriterContextBlocks(
   writeContext: ChapterWriteContext,
   options: ChapterWriterBlockOptions = {},
@@ -955,6 +979,7 @@ export function buildChapterWriterContextBlocks(
 export function buildChapterReviewContextBlocks(reviewContext: ChapterReviewContext): PromptContextBlock[] {
   return [
     ...buildChapterWriterContextBlocks(reviewContext, { mode: "review" }),
+    buildChapterBoundaryContextBlock(reviewContext),
     createContextBlock({
       id: "structure_obligations",
       group: "structure_obligations",
@@ -974,7 +999,7 @@ export function buildChapterReviewContextBlocks(reviewContext: ChapterReviewCont
       priority: 82,
       content: toListBlock("Historical unresolved issues", reviewContext.historicalIssues),
     }),
-  ].filter((block) => block.content.trim().length > 0);
+  ].filter((block): block is PromptContextBlock => block !== null && block.content.trim().length > 0);
 }
 
 export function buildChapterRepairContextBlocks(repairContext: ChapterRepairContext): PromptContextBlock[] {
@@ -994,6 +1019,7 @@ export function buildChapterRepairContextBlocks(repairContext: ChapterRepairCont
           ].join("\n")
         : "Repair issues: none",
     }),
+    buildChapterBoundaryContextBlock(repairContext.writeContext),
     createContextBlock({
       id: "structure_obligations",
       group: "structure_obligations",
@@ -1020,7 +1046,7 @@ export function buildChapterRepairContextBlocks(repairContext: ChapterRepairCont
       priority: 82,
       content: toListBlock("Historical unresolved issues", repairContext.historicalIssues),
     }),
-  ].filter((block) => block.content.trim().length > 0);
+  ].filter((block): block is PromptContextBlock => block !== null && block.content.trim().length > 0);
 }
 
 export function getRuntimePromptBudgetProfiles(): PromptBudgetProfile[] {

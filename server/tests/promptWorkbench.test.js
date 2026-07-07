@@ -16,6 +16,46 @@ function buildPlannerPromptInput() {
   };
 }
 
+function buildAuditWorkbenchSampleContextBlocks() {
+  return [
+    {
+      id: "chapter_mission",
+      group: "chapter_mission",
+      priority: 100,
+      content: [
+        "Chapter mission: 示例章节",
+        "Objective: 让主角发现旧仓库暗号，并确认有人正在逼近。",
+        "Must advance",
+        "- 主角发现墙上暗号并判断它指向旧城档案站。",
+      ].join("\n"),
+    },
+    {
+      id: "chapter_boundary",
+      group: "chapter_boundary",
+      priority: 99,
+      required: true,
+      content: [
+        "Chapter boundary:",
+        "Entry state: 主角独自进入旧仓库，尚未确认暗号含义。",
+        "Ending state: 主角确认暗号指向旧城档案站，同时意识到追踪者已经到门外。",
+        "Do not cross",
+        "- 不得在本章直接揭开旧城组织的真实首领。",
+      ].join("\n"),
+    },
+    {
+      id: "structure_obligations",
+      group: "structure_obligations",
+      priority: 94,
+      required: true,
+      content: [
+        "Structure obligations",
+        "- 必须检查本章是否完成线索发现、压力逼近和章末选择点。",
+        "- 必须检查结尾是否形成新的悬念或追踪压力。",
+      ].join("\n"),
+    },
+  ];
+}
+
 test("prompt workbench catalog exposes registered prompts without override execution", () => {
   const service = new PromptWorkbenchService();
   const catalog = service.listCatalog({ keyword: "planner.intent.parse" });
@@ -116,7 +156,7 @@ test("prompt preview renders base prompt messages with resolved context but does
   assert.equal(preview.diagnostics.tracePreview.promptId, "planner.intent.parse");
   assert.ok(preview.diagnostics.tracePreview.contextBlockIds.includes("creative_hub.bindings"));
   assert.deepEqual(preview.diagnostics.tracePreview.customAddendumBlockIds, []);
-  assert.ok(preview.diagnostics.notes.some((note) => note.includes("no declared slot definitions")));
+  assert.ok(preview.diagnostics.notes.some((note) => note.includes("没有声明可编辑槽位")));
 });
 
 test("prompt preview reports missing required context for manager diagnosis", async () => {
@@ -167,10 +207,16 @@ test("prompt preview renders audit prompts with complete workbench sample input"
       novelId: "novel-1",
       chapterId: "chapter-1",
       userGoal: "preview audit prompt",
+      metadata: {
+        extraContextBlocks: buildAuditWorkbenchSampleContextBlocks(),
+      },
     },
     maxContextTokens: 2000,
   });
 
   assert.equal(preview.prompt.key, "audit.chapter.full@v2");
   assert.ok(preview.messages.some((message) => message.content.includes("审校范围：plot, character, continuity")));
+  assert.deepEqual(preview.diagnostics.missingRequiredGroups, []);
+  assert.ok(preview.context.selectedBlockIds.includes("chapter_boundary"));
+  assert.ok(preview.context.selectedBlockIds.includes("structure_obligations"));
 });

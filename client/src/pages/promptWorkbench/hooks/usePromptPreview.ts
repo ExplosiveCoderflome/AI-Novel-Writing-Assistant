@@ -7,6 +7,79 @@ import {
 } from "@/api/promptWorkbench";
 import type { PromptSlotDrafts } from "../promptWorkbenchTypes";
 
+function buildPreviewExtraContextBlocks(prompt: PromptCatalogItem) {
+  if (prompt.id !== "audit.chapter.light" && prompt.id !== "audit.chapter.full") {
+    return [];
+  }
+  return [
+    {
+      id: "chapter_mission",
+      group: "chapter_mission",
+      priority: 100,
+      content: [
+        "Chapter mission: 示例章节",
+        "Objective: 让主角发现旧仓库暗号，并确认有人正在逼近。",
+        "Expectation: 本章需要推进线索发现、制造外部压力，并在结尾留下追踪钩子。",
+        "Must advance",
+        "- 主角发现墙上暗号并判断它指向旧城档案站。",
+        "- 门外脚步声逼近，迫使主角做出即时选择。",
+        "Must preserve",
+        "- 暗号是真实线索，不是幻觉或普通涂鸦。",
+      ].join("\n"),
+    },
+    {
+      id: "chapter_boundary",
+      group: "chapter_boundary",
+      priority: 99,
+      required: true,
+      content: [
+        "Chapter boundary:",
+        "Exclusive event: 主角第一次在旧仓库发现上一任调查员留下的暗号。",
+        "Entry state: 主角独自进入旧仓库，尚未确认暗号含义。",
+        "Ending state: 主角确认暗号指向旧城档案站，同时意识到追踪者已经到门外。",
+        "Next chapter entry state: 主角必须在暴露前决定带走证据还是设伏反查。",
+        "Do not cross",
+        "- 不得在本章直接揭开旧城组织的真实首领。",
+        "- 不得让追踪者当场完整解释暗号系统。",
+        "Protected reveals",
+        "- 上一任调查员的真实身份。",
+      ].join("\n"),
+    },
+    {
+      id: "structure_obligations",
+      group: "structure_obligations",
+      priority: 94,
+      required: true,
+      content: [
+        "Structure obligations",
+        "- 必须检查本章是否完成线索发现、压力逼近和章末选择点。",
+        "- 必须检查主角行动动机是否连续，不能凭空知道暗号答案。",
+        "- 必须检查结尾是否形成新的悬念或追踪压力。",
+      ].join("\n"),
+    },
+    {
+      id: "local_state",
+      group: "local_state",
+      priority: 89,
+      content: "Local state before review:\n主角身处旧仓库内部，外部追踪者正在靠近，暗号含义尚未完全确认。",
+    },
+    {
+      id: "world_rules",
+      group: "world_rules",
+      priority: 84,
+      content: "Relevant world rules\n- 旧城暗号系统只由少数调查员和地下组织成员掌握。",
+    },
+  ];
+}
+
+function buildPreviewExecutionMetadata(prompt: PromptCatalogItem): Record<string, unknown> | undefined {
+  const extraContextBlocks = buildPreviewExtraContextBlocks(prompt);
+  if (extraContextBlocks.length === 0) {
+    return undefined;
+  }
+  return { extraContextBlocks };
+}
+
 function buildPreviewPromptInput(prompt: PromptCatalogItem): Record<string, unknown> {
   if (prompt.id === "audit.chapter.light" || prompt.id === "audit.chapter.full") {
     return {
@@ -202,6 +275,7 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
             novelId: executionNovelId,
             chapterId,
           },
+          metadata: buildPreviewExecutionMetadata(prompt),
         },
         maxContextTokens: prompt.contextPolicy.maxTokensBudget,
         slotOverrides,
