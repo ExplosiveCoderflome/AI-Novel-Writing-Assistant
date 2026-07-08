@@ -1,6 +1,7 @@
-import { Eye, RotateCcw, Save, ShieldCheck } from "lucide-react";
+import { Eye, FlaskConical, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
 import { Button } from "@/components/ui/button";
+import LLMSelector, { type LLMSelectorValue } from "@/components/common/LLMSelector";
 import { cn } from "@/lib/utils";
 
 interface PromptRunBarProps {
@@ -8,17 +9,22 @@ interface PromptRunBarProps {
   estimatedTokens: number | null;
   dirtyCount: number;
   isPreviewPending: boolean;
+  isTestRunPending?: boolean;
   isSavePending: boolean;
   isSaveSuccess: boolean;
   saveError?: string | null;
   saveDisabled: boolean;
   previewDisabled: boolean;
+  testRunDisabled?: boolean;
+  testLlm: LLMSelectorValue;
+  onTestLlmChange: (value: LLMSelectorValue) => void;
   resetDisabled: boolean;
   officialVersionDisabled?: boolean;
   officialVersionLabel?: string;
   saveLabel?: string;
   savePendingLabel?: string;
   onGeneratePreview: () => void;
+  onRunTest: () => void;
   onOpenOfficialVersion: () => void;
   onSave: () => void;
   onReset: () => void;
@@ -29,11 +35,13 @@ export function PromptRunBar(props: PromptRunBarProps) {
     dirtyCount,
     estimatedTokens,
     isPreviewPending,
+    isTestRunPending,
     isSavePending,
     isSaveSuccess,
     onGeneratePreview,
     onOpenOfficialVersion,
     onReset,
+    onRunTest,
     onSave,
     officialVersionDisabled,
     officialVersionLabel = "官方版本",
@@ -44,6 +52,9 @@ export function PromptRunBar(props: PromptRunBarProps) {
     saveError,
     saveLabel = "保存覆盖",
     savePendingLabel = "保存中...",
+    testLlm,
+    onTestLlmChange,
+    testRunDisabled,
   } = props;
   const maxBudget = prompt?.contextPolicy.maxTokensBudget ?? null;
 
@@ -59,8 +70,8 @@ export function PromptRunBar(props: PromptRunBarProps) {
             </div>
           </div>
           <div className="rounded-md bg-[#f4f7ff] px-3 py-2">
-            <span className="text-xs text-muted-foreground">模型配置</span>
-            <div className="font-semibold text-[#344d7a]">按提示词路由</div>
+            <span className="text-xs text-muted-foreground">测试模型</span>
+            <div className="font-semibold text-[#344d7a]">可选覆盖</div>
           </div>
           <div className="rounded-md bg-[#fff7e8] px-3 py-2">
             <span className="text-xs text-muted-foreground">保存状态</span>
@@ -74,7 +85,17 @@ export function PromptRunBar(props: PromptRunBarProps) {
           {saveError ? <div className="text-xs text-destructive">{saveError}</div> : null}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-2 xl:items-end">
+          <LLMSelector
+            value={testLlm}
+            onChange={onTestLlmChange}
+            compact
+            showBadge={false}
+            showHelperText={false}
+            showParameters
+            className="rounded-md border border-[#d8e2de] bg-white/75 p-2"
+          />
+          <div className="flex flex-wrap justify-start gap-2 xl:justify-end">
           <Button
             type="button"
             variant="outline"
@@ -97,6 +118,16 @@ export function PromptRunBar(props: PromptRunBarProps) {
           </Button>
           <Button
             type="button"
+            variant="outline"
+            onClick={onRunTest}
+            disabled={testRunDisabled || isTestRunPending}
+            className="border-[#c9b46a] bg-white text-[#7a5620] hover:bg-[#fff7e8] hover:text-[#7a5620]"
+          >
+            <FlaskConical className="mr-2 h-4 w-4" />
+            {isTestRunPending ? "测试中..." : "测试产出"}
+          </Button>
+          <Button
+            type="button"
             onClick={onSave}
             disabled={saveDisabled || isSavePending}
             className="bg-[#0f766e] text-white hover:bg-[#0b5f59]"
@@ -114,6 +145,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
             <RotateCcw className="mr-2 h-4 w-4" />
             重置修改
           </Button>
+          </div>
         </div>
       </div>
     </div>
