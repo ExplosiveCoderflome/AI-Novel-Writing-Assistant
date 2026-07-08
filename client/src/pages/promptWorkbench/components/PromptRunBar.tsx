@@ -1,6 +1,9 @@
-import { Eye, RotateCcw, Save, ShieldCheck } from "lucide-react";
+import { useState } from "react";
+import { Eye, FlaskConical, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
 import { Button } from "@/components/ui/button";
+import { AppDialogContent, Dialog } from "@/components/ui/dialog";
+import LLMSelector, { type LLMSelectorValue } from "@/components/common/LLMSelector";
 import { cn } from "@/lib/utils";
 
 interface PromptRunBarProps {
@@ -8,17 +11,22 @@ interface PromptRunBarProps {
   estimatedTokens: number | null;
   dirtyCount: number;
   isPreviewPending: boolean;
+  isTestRunPending?: boolean;
   isSavePending: boolean;
   isSaveSuccess: boolean;
   saveError?: string | null;
   saveDisabled: boolean;
   previewDisabled: boolean;
+  testRunDisabled?: boolean;
+  testLlm: LLMSelectorValue;
+  onTestLlmChange: (value: LLMSelectorValue) => void;
   resetDisabled: boolean;
   officialVersionDisabled?: boolean;
   officialVersionLabel?: string;
   saveLabel?: string;
   savePendingLabel?: string;
   onGeneratePreview: () => void;
+  onRunTest: () => void;
   onOpenOfficialVersion: () => void;
   onSave: () => void;
   onReset: () => void;
@@ -29,11 +37,13 @@ export function PromptRunBar(props: PromptRunBarProps) {
     dirtyCount,
     estimatedTokens,
     isPreviewPending,
+    isTestRunPending,
     isSavePending,
     isSaveSuccess,
     onGeneratePreview,
     onOpenOfficialVersion,
     onReset,
+    onRunTest,
     onSave,
     officialVersionDisabled,
     officialVersionLabel = "官方版本",
@@ -44,8 +54,17 @@ export function PromptRunBar(props: PromptRunBarProps) {
     saveError,
     saveLabel = "保存覆盖",
     savePendingLabel = "保存中...",
+    testLlm,
+    onTestLlmChange,
+    testRunDisabled,
   } = props;
   const maxBudget = prompt?.contextPolicy.maxTokensBudget ?? null;
+  const [testDialogOpen, setTestDialogOpen] = useState(false);
+
+  function handleStartTestRun() {
+    onRunTest();
+    setTestDialogOpen(false);
+  }
 
   return (
     <div className="shrink-0 border-t border-[#d8e2de] bg-[#fbfdfb]/95 px-5 py-3 backdrop-blur">
@@ -59,8 +78,8 @@ export function PromptRunBar(props: PromptRunBarProps) {
             </div>
           </div>
           <div className="rounded-md bg-[#f4f7ff] px-3 py-2">
-            <span className="text-xs text-muted-foreground">模型配置</span>
-            <div className="font-semibold text-[#344d7a]">按提示词路由</div>
+            <span className="text-xs text-muted-foreground">测试模型</span>
+            <div className="font-semibold text-[#344d7a]">可选覆盖</div>
           </div>
           <div className="rounded-md bg-[#fff7e8] px-3 py-2">
             <span className="text-xs text-muted-foreground">保存状态</span>
@@ -74,7 +93,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
           {saveError ? <div className="text-xs text-destructive">{saveError}</div> : null}
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-start gap-2 xl:justify-end">
           <Button
             type="button"
             variant="outline"
@@ -97,6 +116,16 @@ export function PromptRunBar(props: PromptRunBarProps) {
           </Button>
           <Button
             type="button"
+            variant="outline"
+            onClick={() => setTestDialogOpen(true)}
+            disabled={testRunDisabled || isTestRunPending}
+            className="border-[#c9b46a] bg-white text-[#7a5620] hover:bg-[#fff7e8] hover:text-[#7a5620]"
+          >
+            <FlaskConical className="mr-2 h-4 w-4" />
+            {isTestRunPending ? "测试中..." : "测试产出"}
+          </Button>
+          <Button
+            type="button"
             onClick={onSave}
             disabled={saveDisabled || isSavePending}
             className="bg-[#0f766e] text-white hover:bg-[#0b5f59]"
@@ -116,6 +145,44 @@ export function PromptRunBar(props: PromptRunBarProps) {
           </Button>
         </div>
       </div>
+      <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
+        <AppDialogContent
+          title="测试产出"
+          description="选择本次测试使用的模型参数，系统会用当前未保存草稿生成一次结果。"
+          className="max-w-2xl"
+          bodyClassName="bg-[#fbfdfb]"
+          footer={(
+            <>
+              <Button type="button" variant="ghost" onClick={() => setTestDialogOpen(false)}>
+                取消
+              </Button>
+              <Button
+                type="button"
+                onClick={handleStartTestRun}
+                disabled={testRunDisabled || isTestRunPending}
+                className="bg-[#0f766e] text-white hover:bg-[#0b5f59]"
+              >
+                <FlaskConical className="mr-2 h-4 w-4" />
+                {isTestRunPending ? "测试中..." : "开始测试"}
+              </Button>
+            </>
+          )}
+        >
+          <div className="space-y-4">
+            <div className="rounded-md border border-[#d8e2de] bg-white p-4">
+              <LLMSelector
+                value={testLlm}
+                onChange={onTestLlmChange}
+                showBadge={false}
+                showParameters
+              />
+            </div>
+            <div className="rounded-md bg-[#fff7e8] px-3 py-2 text-xs leading-relaxed text-[#7a5620]">
+              测试产出会调用真实模型并消耗额度；结果只用于调试，不会保存为章节正文。
+            </div>
+          </div>
+        </AppDialogContent>
+      </Dialog>
     </div>
   );
 }

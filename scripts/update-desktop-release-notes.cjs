@@ -65,8 +65,21 @@ function resolveReleaseTag(version) {
   return `v${version}`;
 }
 
+function extractVersionReleaseNoteBlock(markdown, version) {
+  const headingPattern = /^## v(\d+\.\d+\.\d+)(?:[^\n]*)$/gm;
+  const headings = [...markdown.matchAll(headingPattern)];
+  const heading = headings.find((candidate) => candidate[1] === version);
+  if (!heading) {
+    return null;
+  }
+  const headingIndex = headings.indexOf(heading);
+  const nextHeading = headings[headingIndex + 1];
+  const blockEnd = nextHeading ? nextHeading.index : markdown.length;
+  return markdown.slice(heading.index, blockEnd).trim();
+}
+
 function extractDatedReleaseNoteBlocks(markdown) {
-  const headingPattern = /^### \d{4}-\d{2}-\d{2}\s*$/gm;
+  const headingPattern = /^### \d{4}-\d{2}-\d{2}(?:[^\n]*)?$/gm;
   const headings = [...markdown.matchAll(headingPattern)];
   if (headings.length === 0) {
     throw new Error("No date heading like '### 2026-05-08' was found in docs/releases/release-notes.md.");
@@ -81,10 +94,15 @@ function extractDatedReleaseNoteBlocks(markdown) {
 }
 
 function extractReleaseNotesForVersion(markdown, version) {
+  const versionBlock = extractVersionReleaseNoteBlock(markdown, version);
+  if (versionBlock) {
+    return versionBlock;
+  }
+
   const blocks = extractDatedReleaseNoteBlocks(markdown);
   const versionPattern = new RegExp(`(^|[^\\d])v?${version.replace(/\./g, "\\.")}([^\\d]|$)`);
-  const versionBlock = blocks.find((block) => versionPattern.test(block));
-  const block = versionBlock || blocks[0];
+  const datedVersionBlock = blocks.find((block) => versionPattern.test(block));
+  const block = datedVersionBlock || blocks[0];
   if (!block) {
     throw new Error("Latest release notes block is empty.");
   }
