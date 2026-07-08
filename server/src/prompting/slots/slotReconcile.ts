@@ -1,10 +1,20 @@
 import { prisma } from "../../db/prisma";
 import { findRegisteredPromptAssetById } from "../registry";
-import { hashSlotDefault } from "./slotResolution";
+import {
+  getSlotDefaultHash,
+  getSlotDefaultValue,
+  getSlotOverrideMode,
+} from "./slotResolution";
 import { promptSlotOverrideService } from "./PromptSlotOverrideService";
-import type { PromptSlotDef, PromptSlotOverrideMap, PromptSlotScope } from "./slotTypes";
+import type {
+  PromptSlotDef,
+  PromptSlotOverrideMap,
+  PromptSlotOverrideMode,
+  PromptSlotScope,
+} from "./slotTypes";
 
 export type SlotReconcileState = "unchanged" | "drifted" | "new" | "orphaned";
+const KEPT_ORPHANED_SLOT_HASH = "orphaned:kept";
 
 export interface SlotReconcileItem {
   key: string;
@@ -15,6 +25,7 @@ export interface SlotReconcileItem {
   defaultCurrentHash: string;
   overrideValue?: string | boolean;
   overrideBaseHash?: string;
+  overrideMode?: PromptSlotOverrideMode;
   changelog?: string;
 }
 
@@ -26,6 +37,7 @@ export interface SlotReconcileResult {
   overrideBaseVersion?: string;
   items: SlotReconcileItem[];
   hasUpdates: boolean;
+  hasDrift: boolean;
   driftedCount: number;
   newCount: number;
   orphanedCount: number;
@@ -55,13 +67,13 @@ export async function reconcileSlots(input: {
 
   for (const def of slotDefs) {
     handledKeys.add(def.key);
-    const currentDefault: string | boolean = def.kind === "toggle" ? def.default : def.default;
-    const currentDefaultHash = hashSlotDefault(currentDefault);
+    const currentDefault = getSlotDefaultValue(def);
+    const currentDefaultHash = getSlotDefaultHash(def);
     const override = overrideSlots[def.key];
 
     let state: SlotReconcileState;
     if (!override) {
-      state = "new";
+      state = "unchanged";
     } else if (override.baseHash !== currentDefaultHash) {
       state = "drifted";
     } else {
@@ -77,12 +89,16 @@ export async function reconcileSlots(input: {
       defaultCurrentHash: currentDefaultHash,
       overrideValue: override?.value,
       overrideBaseHash: override?.baseHash,
+      overrideMode: override ? getSlotOverrideMode(override) : undefined,
       changelog: def.changelog,
     });
   }
 
   for (const [key, override] of Object.entries(overrideSlots)) {
     if (!handledKeys.has(key)) {
+      if (override.baseHash === KEPT_ORPHANED_SLOT_HASH) {
+        continue;
+      }
       items.push({
         key,
         label: key,
@@ -92,6 +108,7 @@ export async function reconcileSlots(input: {
         defaultCurrentHash: "",
         overrideValue: override.value,
         overrideBaseHash: override.baseHash,
+        overrideMode: getSlotOverrideMode(override),
       });
     }
   }
@@ -100,6 +117,8 @@ export async function reconcileSlots(input: {
   const newCount = items.filter((i) => i.state === "new").length;
   const orphanedCount = items.filter((i) => i.state === "orphaned").length;
 
+  const hasUpdates = driftedCount > 0 || newCount > 0 || orphanedCount > 0;
+
   return {
     promptId,
     scope,
@@ -107,7 +126,8 @@ export async function reconcileSlots(input: {
     promptVersion,
     overrideBaseVersion: row?.baseVersion,
     items,
-    hasUpdates: driftedCount > 0 || orphanedCount > 0,
+    hasUpdates,
+    hasDrift: hasUpdates,
     driftedCount,
     newCount,
     orphanedCount,
@@ -120,7 +140,16 @@ export async function adoptSlots(input: {
   novelId?: string | null;
   slotKeys: string[];
 }): Promise<void> {
-  await promptSlotOverrideService.deleteSlots({
+  await applyOfficialSlots(input);
+}
+
+export async function applyOfficialSlots(input: {
+  promptId: string;
+  scope: PromptSlotScope;
+  novelId?: string | null;
+  slotKeys: string[];
+}): Promise<void> {
+  await promptSlotOverrideService.applyOfficialSlots({
     scope: input.scope,
     novelId: input.novelId,
     promptId: input.promptId,
@@ -153,14 +182,25 @@ export async function keepMineSlots(input: {
     const existing = newSlots[key];
     if (!existing) continue;
     const def = slotDefs.find((d) => d.key === key);
-    if (!def) continue;
-    const currentHash = hashSlotDefault(def.kind === "toggle" ? def.default : def.default);
+    if (!def) {
+      newSlots[key] = { ...existing, baseHash: KEPT_ORPHANED_SLOT_HASH };
+      continue;
+    }
+    const currentHash = getSlotDefaultHash(def);
     newSlots[key] = { ...existing, baseHash: currentHash };
   }
 
   try {
+    const existingRecord = await prisma.promptSlotOverride.findFirst({
+      where: {
+        scope,
+        novelId: scope === "novel" ? (novelId ?? null) : null,
+        promptId,
+      },
+    });
+    if (!existingRecord) return;
     await prisma.promptSlotOverride.update({
-      where: { id: row.id },
+      where: { id: existingRecord.id },
       data: { slots: JSON.stringify(newSlots), baseVersion: asset.version },
     });
   } catch {

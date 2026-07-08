@@ -127,6 +127,8 @@ export const queryKeys = {
     materials: (params: string) => ["prompt-workbench", "materials", params] as const,
     slotOverrides: (params: string) => ["prompt-workbench", "slot-overrides", params] as const,
     slotReconcile: (params: string) => ["prompt-workbench", "slot-reconcile", params] as const,
+    templateOverride: (params: string) => ["prompt-workbench", "template-overrides", params] as const,
+    contextReferences: (params: string) => ["prompt-workbench", "context-references", params] as const,
   },
   creativeHub: {
     threads: ["creative-hub", "threads"] as const,

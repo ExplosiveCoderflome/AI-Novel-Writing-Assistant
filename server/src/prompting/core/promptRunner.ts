@@ -21,6 +21,7 @@ import { toText } from "../../services/novel/novelP0Utils";
 import { hasRegisteredPromptAsset } from "../registry";
 import { CUSTOM_SLOT_CONTEXT_GROUP } from "../slots/slotResolution";
 import { promptSlotOverrideService } from "../slots/PromptSlotOverrideService";
+import { resolveAdvancedTextPromptMessages } from "../templates/templateRuntime";
 import { selectContextBlocks } from "./contextSelection";
 import {
   recordPromptQualityEvent,
@@ -836,7 +837,14 @@ export async function runTextPrompt<I>(input: {
     resolvedSlots: overlays.resolvedSlots,
   });
   const startedAt = Date.now();
-  const renderedPromptChars = estimateRenderedPromptChars(prepared.messages);
+  const messages = await resolveAdvancedTextPromptMessages({
+    asset: input.asset,
+    promptInput: input.promptInput,
+    context: prepared.context,
+    officialMessages: prepared.messages,
+    novelId: input.options?.novelId,
+  });
+  const renderedPromptChars = estimateRenderedPromptChars(messages);
   try {
     const llm = await promptRunnerLLMFactory(input.options?.provider, {
       fallbackProvider: "deepseek",
@@ -847,7 +855,7 @@ export async function runTextPrompt<I>(input: {
       taskType: input.asset.taskType,
       promptMeta: prepared.invocation,
     });
-    const result = await llm.invoke(prepared.messages, buildPromptCallOptions(input.options));
+    const result = await llm.invoke(messages, buildPromptCallOptions(input.options));
     const output = applyPromptPostValidate({
       asset: input.asset,
       promptInput: input.promptInput,
@@ -909,7 +917,14 @@ export async function streamTextPrompt<I>(input: {
     resolvedSlots: overlays.resolvedSlots,
   });
   const startedAt = Date.now();
-  const renderedPromptChars = estimateRenderedPromptChars(prepared.messages);
+  const messages = await resolveAdvancedTextPromptMessages({
+    asset: input.asset,
+    promptInput: input.promptInput,
+    context: prepared.context,
+    officialMessages: prepared.messages,
+    novelId: input.options?.novelId,
+  });
+  const renderedPromptChars = estimateRenderedPromptChars(messages);
   let captured: ReturnType<typeof captureStreamOutput>;
   try {
     const llm = await promptRunnerLLMFactory(input.options?.provider, {
@@ -921,7 +936,7 @@ export async function streamTextPrompt<I>(input: {
       taskType: input.asset.taskType,
       promptMeta: prepared.invocation,
     });
-    const rawStream = await llm.stream(prepared.messages, buildPromptCallOptions(input.options));
+    const rawStream = await llm.stream(messages, buildPromptCallOptions(input.options));
     captured = captureStreamOutput(rawStream as AsyncIterable<BaseMessageChunk>);
   } catch (error) {
     recordPromptFailure({

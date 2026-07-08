@@ -761,6 +761,13 @@ test("chapter layered contexts carry volume mission, character duties and repair
     && /Pending candidate guardrails/.test(block.content)
   )));
   assert.ok(reviewBlocks.some((block) => (
+    block.id === "chapter_boundary"
+    && block.required
+    && block.allowSummary === false
+    && /Chapter boundary/.test(block.content)
+    && /Do not cross/.test(block.content)
+  )));
+  assert.ok(reviewBlocks.some((block) => (
     block.id === "structure_obligations"
     && /urgent payoff: 黑市账户异常/.test(block.content)
     && /overdue payoff: 第一次反压收益/.test(block.content)

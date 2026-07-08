@@ -79,6 +79,7 @@
 - 章节执行步骤的就绪性、完成度和断点续跑位置必须优先读取真实产物事实：`Chapter.content`、`AuditReport / QualityReport`、阻塞 issue、`StoryStateSnapshot / CanonicalStateVersion` 和权威审批状态。`task.status`、`chapterStatus`、`state.chapterProgress` 只能作为投影或诊断提示，不能决定章节是否已生成、是否需要修复、是否可以进入下一章。
 - 如果任务状态和章节事实冲突，以章节事实为准：有正文但旧任务失败时允许从真实进度继续；旧 `chapterStatus=needs_repair` 但阻塞 issue 已关闭时不能反复进入修复；旧 `chapterStatus=completed` 但正文缺失时不能视为完成。
 - 章节义务上下文的结构化提醒不能挤掉高风险资源和逾期伏笔。审阅与修复上下文应保留资源不可用、资源需确认、urgent/overdue payoff 等关键信号，防止 AI 修文在缺少约束的情况下继续使用失效道具或忽略必须兑现的压力。
+- 章节审校和修文上下文必须同时保留 `chapter_boundary` 与 `structure_obligations`。`chapter_boundary` 负责本章进入状态、结束状态、下一章入口、禁止越界和受保护揭露；`structure_obligations` 负责本章必须推进、必须保留、角色出场、目标变化、伏笔兑现和资源风险。审校 prompt 如果缺少这两类上下文，会无法判断“正文是否越界”或“任务是否兑现”，应修 Context Broker / fallback blocks，而不是降低审校标准。
 - 接收闸门必须把未兑现义务输出为结构化 `missingObligations`，并给出 `repairability`：局部漏写用 `patchable_obligation_gap`，需要整章调整用 `rewrite_needed`，章节职责与邻章安排失配才用 `plan_misalignment`。
 - `missingObligations` 需要区分硬阻断与质量债务。`must_hit_now` 和 `forbidden_crossing` 缺口会阻断当前章并进入修复；只影响后续跟进的 payoff、角色露面或目标变化缺口，应优先记录为 `continue_with_risk`，让章节链继续推进，避免把可跟进问题放大成重复 patch。
 - 自动修文默认最多一次；失败后记录待修状态或 repair ticket，不进入无限重试。

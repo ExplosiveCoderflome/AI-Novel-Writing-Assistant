@@ -155,16 +155,98 @@ export interface PromptPreviewResult {
       taskId?: string;
     };
     notes: string[];
+    template?: {
+      mode: "official" | "draft" | "custom";
+      activeVersionNo?: number;
+      diagnostics: PromptTemplateDiagnostics;
+    };
   };
+}
+
+// ─── Advanced templates ─────────────────────────────────────────────────────
+
+export type PromptTemplateOverrideMode = "official" | "custom";
+export type PromptTemplateMessageRole = "system" | "human";
+
+export interface PromptTemplateMessage {
+  role: PromptTemplateMessageRole;
+  content: string;
+}
+
+export interface PromptTemplateJson {
+  kind: "chat";
+  messages: PromptTemplateMessage[];
+}
+
+export interface PromptTemplateContextRefs {
+  context: string[];
+  input: string[];
+  slot: string[];
+}
+
+export interface PromptTemplateDiagnostics {
+  referencedContextGroups: string[];
+  referencedInputFields: string[];
+  referencedSlotKeys: string[];
+  fallbackRequiredGroups: string[];
+  missingRequiredGroups: string[];
+  missingReferencedContextGroups: string[];
+  missingInputFields: string[];
+  unknownTokens: string[];
+  invalidMessages: string[];
+}
+
+export interface PromptTemplateVersionView {
+  id: string;
+  versionNo: number;
+  template: PromptTemplateJson;
+  contextRefs: PromptTemplateContextRefs;
+  compiledHash: string;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export interface PromptTemplateOverrideView {
+  promptId: string;
+  novelId: string;
+  scope: "novel";
+  basePromptVersion: string;
+  mode: PromptTemplateOverrideMode;
+  activeVersionId?: string | null;
+  activeVersion?: PromptTemplateVersionView | null;
+  versions: PromptTemplateVersionView[];
+  officialTemplate: PromptTemplateJson;
+  officialContextRefs: PromptTemplateContextRefs;
+  officialCompiledHash: string;
+}
+
+export interface PromptTemplateReferenceItem {
+  token: string;
+  key: string;
+  label: string;
+  description?: string;
+  required?: boolean;
+  hasPreviewBlock?: boolean;
+  group: "required_context" | "optional_context" | "input" | "slot";
+}
+
+export interface PromptTemplateReferenceCatalog {
+  promptId: string;
+  novelId?: string;
+  chapterId?: string;
+  items: PromptTemplateReferenceItem[];
+  missingRequiredGroups: string[];
 }
 
 // ─── Slot overrides ───────────────────────────────────────────────────────────
 
 export type PromptSlotOverrideScope = "global" | "novel";
+export type PromptSlotOverrideMode = "custom" | "official_default";
 
 export interface PromptSlotOverrideEntry {
   value: string | boolean;
   baseHash: string;
+  mode?: PromptSlotOverrideMode;
 }
 
 export interface PromptSlotOverrideView {
@@ -208,6 +290,7 @@ export interface PromptSlotReconcileItem {
   defaultCurrentHash: string;
   overrideValue?: string | boolean;
   overrideBaseHash?: string;
+  overrideMode?: PromptSlotOverrideMode;
   changelog?: string;
 }
 
@@ -215,8 +298,11 @@ export interface PromptSlotReconcileResult {
   promptId: string;
   scope: PromptSlotOverrideScope;
   novelId?: string | null;
+  promptVersion?: string;
+  overrideBaseVersion?: string;
   items: PromptSlotReconcileItem[];
-  hasDrift: boolean;
+  hasUpdates?: boolean;
+  hasDrift?: boolean;
   driftedCount: number;
   newCount: number;
   orphanedCount: number;
@@ -233,6 +319,28 @@ export interface PromptSlotAdoptKeepPayload {
   scope: PromptSlotOverrideScope;
   novelId?: string | null;
   slotKeys: string[];
+}
+
+export interface OfficialPromptSlotProfile {
+  id: "current";
+  label: string;
+  description: string;
+}
+
+export interface OfficialPromptSlotItem {
+  key: string;
+  label: string;
+  kind: PromptSlotKind;
+  defaultValue: string | boolean;
+  defaultHash: string;
+  changelog?: string;
+}
+
+export interface OfficialPromptSlotLibrary {
+  promptId: string;
+  promptVersion: string;
+  slots: OfficialPromptSlotItem[];
+  officialProfiles: OfficialPromptSlotProfile[];
 }
 
 // ─── Materials ────────────────────────────────────────────────────────────────
@@ -294,6 +402,7 @@ export interface PromptPreviewPayload {
   maxContextTokens?: number;
   contextMode?: "snapshot" | "fresh" | "hybrid";
   slotOverrides?: Record<string, unknown>;
+  templateDraft?: PromptTemplateJson;
 }
 
 // ─── API functions ─────────────────────────────────────────────────────────────
@@ -323,6 +432,14 @@ export async function exportNovelPromptMaterials(payload: NovelMaterialExportPay
 export async function getSlotOverrides(params: PromptSlotOverrideParams) {
   const { data } = await apiClient.get<ApiResponse<PromptSlotOverrideView[]>>(
     "/prompt-workbench/slot-overrides",
+    { params },
+  );
+  return data;
+}
+
+export async function getOfficialPromptSlots(params: { promptId: string }) {
+  const { data } = await apiClient.get<ApiResponse<OfficialPromptSlotLibrary>>(
+    "/prompt-workbench/official-slots",
     { params },
   );
   return data;
@@ -361,10 +478,75 @@ export async function adoptSlots(payload: PromptSlotAdoptKeepPayload) {
   return data;
 }
 
+export async function applyOfficialSlots(payload: PromptSlotAdoptKeepPayload) {
+  const { data } = await apiClient.post<ApiResponse<null>>(
+    "/prompt-workbench/slot-overrides/apply-official",
+    payload,
+  );
+  return data;
+}
+
 export async function keepMySlots(payload: PromptSlotAdoptKeepPayload) {
   const { data } = await apiClient.post<ApiResponse<null>>(
     "/prompt-workbench/slot-overrides/keep",
     payload,
+  );
+  return data;
+}
+
+export async function getPromptTemplateOverride(params: { promptId: string; novelId: string }) {
+  const { data } = await apiClient.get<ApiResponse<PromptTemplateOverrideView>>(
+    "/prompt-workbench/template-overrides",
+    { params },
+  );
+  return data;
+}
+
+export async function savePromptTemplateOverride(payload: {
+  promptId: string;
+  novelId: string;
+  template: PromptTemplateJson;
+  notes?: string | null;
+}) {
+  const { data } = await apiClient.put<ApiResponse<PromptTemplateOverrideView>>(
+    "/prompt-workbench/template-overrides",
+    payload,
+  );
+  return data;
+}
+
+export async function activatePromptTemplateVersion(payload: {
+  promptId: string;
+  novelId: string;
+  versionId: string;
+}) {
+  const { data } = await apiClient.post<ApiResponse<PromptTemplateOverrideView>>(
+    "/prompt-workbench/template-overrides/activate-version",
+    payload,
+  );
+  return data;
+}
+
+export async function restoreOfficialPromptTemplate(payload: {
+  promptId: string;
+  novelId: string;
+}) {
+  const { data } = await apiClient.post<ApiResponse<PromptTemplateOverrideView>>(
+    "/prompt-workbench/template-overrides/restore-official",
+    payload,
+  );
+  return data;
+}
+
+export async function getPromptContextReferences(params: {
+  promptId: string;
+  novelId?: string;
+  chapterId?: string;
+  entrypoint?: string;
+}) {
+  const { data } = await apiClient.get<ApiResponse<PromptTemplateReferenceCatalog>>(
+    "/prompt-workbench/context-references",
+    { params },
   );
   return data;
 }
