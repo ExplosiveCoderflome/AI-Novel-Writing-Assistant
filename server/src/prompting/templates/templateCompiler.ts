@@ -1,5 +1,6 @@
 import { HumanMessage, SystemMessage, type BaseMessage } from "@langchain/core/messages";
 import type { PromptRenderContext } from "../core/promptTypes";
+import { formatContextGroupLabel } from "../context/contextGroupLabels";
 import type { PromptSlotDef, ResolvedSlots } from "../slots/slotTypes";
 import type {
   PromptTemplateContextRefs,
@@ -212,7 +213,7 @@ function renderFallbackRequiredContext(input: {
       appendDiagnostic(input.diagnostics, "missingRequiredGroups", group);
       continue;
     }
-    sections.push(`【${group}】\n${content}`);
+    sections.push(`【${formatContextGroupLabel(group)}】\n${content}`);
   }
   if (sections.length === 0) {
     return "";

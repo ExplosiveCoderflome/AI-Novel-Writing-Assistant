@@ -1,8 +1,7 @@
-import { useMemo, useState, type KeyboardEvent, type RefObject } from "react";
-import { GitBranch, History, RotateCcw, Save, ShieldCheck, Sparkles } from "lucide-react";
+import { useMemo, useState } from "react";
+import { GitBranch, History, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import type {
   PromptPreviewResult,
-  PromptTemplateReferenceItem,
   PromptTemplateVersionView,
 } from "@/api/promptWorkbench";
 import { Badge } from "@/components/ui/badge";
@@ -10,16 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { usePromptTemplateEditor } from "../hooks/usePromptTemplateEditor";
+import { labelTemplateToken, type PromptTemplateTokenKind } from "../templateTokenEditor";
+import { VisualTemplateEditor, type TemplateRole } from "./VisualTemplateEditor";
 
 type TemplateState = ReturnType<typeof usePromptTemplateEditor>;
-type TemplateRole = "system" | "human";
-
-const REFERENCE_GROUP_LABELS: Record<PromptTemplateReferenceItem["group"], string> = {
-  required_context: "必需上下文",
-  optional_context: "可选上下文",
-  input: "运行变量",
-  slot: "槽位",
-};
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -29,152 +22,11 @@ function formatDate(value: string) {
   return date.toLocaleString();
 }
 
-function groupReferences(items: PromptTemplateReferenceItem[], query: string) {
-  const normalized = query.trim().toLowerCase();
-  const filtered = items.filter((item) => {
-    if (!normalized) return true;
-    return [item.key, item.label, item.token, item.description ?? ""]
-      .join("\n")
-      .toLowerCase()
-      .includes(normalized);
-  });
-  return (["required_context", "optional_context", "input", "slot"] as const).map((group) => ({
-    group,
-    items: filtered.filter((item) => item.group === group),
-  })).filter((section) => section.items.length > 0);
-}
-
-function TokenMenu(props: {
-  items: PromptTemplateReferenceItem[];
-  query: string;
-  onQueryChange: (value: string) => void;
-  onInsert: (token: string) => void;
-  onClose: () => void;
-}) {
-  const grouped = groupReferences(props.items, props.query);
-  return (
-    <div className="rounded-md border border-[#cbdad6] bg-white shadow-[0_18px_40px_rgba(20,54,48,0.16)]">
-      <div className="border-b border-[#dce8e4] p-2">
-        <Input
-          autoFocus
-          value={props.query}
-          onChange={(event) => props.onQueryChange(event.target.value)}
-          placeholder="搜索上下文、变量或槽位"
-          className="h-8 border-[#cbdad6]"
-        />
-      </div>
-      <div className="max-h-80 overflow-auto p-2">
-        {grouped.length === 0 ? (
-          <div className="px-2 py-3 text-sm text-muted-foreground">没有可插入的引用。</div>
-        ) : grouped.map((section) => (
-          <div key={section.group} className="mb-2 last:mb-0">
-            <div className="px-2 pb-1 text-[11px] font-semibold text-[#52606d]">
-              {REFERENCE_GROUP_LABELS[section.group]}
-            </div>
-            <div className="space-y-1">
-              {section.items.map((item) => (
-                <button
-                  key={`${section.group}:${item.key}`}
-                  type="button"
-                  onClick={() => props.onInsert(item.token)}
-                  className="w-full rounded-md px-2 py-2 text-left hover:bg-[#eef7f4]"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-[#25443f]">{item.label}</span>
-                    {item.required ? (
-                      <span className="rounded-md bg-[#eaf7f2] px-1.5 py-0.5 text-[11px] text-[#0f766e]">
-                        必需
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="mt-1 font-mono text-[11px] text-muted-foreground">{item.token}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="border-t border-[#dce8e4] p-2 text-right">
-        <Button type="button" variant="ghost" size="sm" onClick={props.onClose}>
-          关闭
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function TemplateTextarea(props: {
-  role: TemplateRole;
-  label: string;
-  value: string;
-  disabled?: boolean;
-  textareaRef: RefObject<HTMLTextAreaElement | null>;
-  tokenItems: PromptTemplateReferenceItem[];
-  tokenMenuRole: TemplateRole | null;
-  tokenQuery: string;
-  onTokenQueryChange: (value: string) => void;
-  onOpenTokenMenu: (role: TemplateRole) => void;
-  onCloseTokenMenu: () => void;
-  onFocusRole: (role: TemplateRole) => void;
-  onInsertToken: (token: string) => void;
-  onChange: (value: string) => void;
-}) {
-  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "@") {
-      event.preventDefault();
-      props.onFocusRole(props.role);
-      props.onOpenTokenMenu(props.role);
-    }
-  }
-
-  return (
-    <div className="relative rounded-md border border-[#d7e4e0] bg-white">
-      <div className="flex items-center justify-between gap-3 border-b border-[#e1ebe8] px-3 py-2">
-        <div>
-          <div className="text-sm font-semibold text-[#25443f]">{props.label}</div>
-          <div className="text-[11px] text-muted-foreground">输入 @ 可插入上下文、变量或槽位引用</div>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="border-[#b8d9d0] text-[#0f5f59]"
-          onClick={() => props.onOpenTokenMenu(props.role)}
-          disabled={props.disabled}
-        >
-          <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-          插入引用
-        </Button>
-      </div>
-      <textarea
-        ref={props.textareaRef}
-        value={props.value}
-        onChange={(event) => props.onChange(event.target.value)}
-        onFocus={() => props.onFocusRole(props.role)}
-        onKeyDown={handleKeyDown}
-        disabled={props.disabled}
-        spellCheck={false}
-        className={cn(
-          "min-h-[280px] w-full resize-y bg-white px-3 py-3 font-mono text-sm leading-6 outline-none",
-          props.disabled && "cursor-not-allowed opacity-60",
-        )}
-      />
-      {props.tokenMenuRole === props.role ? (
-        <div className="absolute right-3 top-14 z-20 w-[360px] max-w-[calc(100%-24px)]">
-          <TokenMenu
-            items={props.tokenItems}
-            query={props.tokenQuery}
-            onQueryChange={props.onTokenQueryChange}
-            onInsert={(token) => {
-              props.onInsertToken(token);
-              props.onCloseTokenMenu();
-            }}
-            onClose={props.onCloseTokenMenu}
-          />
-        </div>
-      ) : null}
-    </div>
-  );
+function formatDiagnosticKeys(
+  keys: string[],
+  kind: Extract<PromptTemplateTokenKind, "context" | "input" | "slot">,
+) {
+  return keys.map((key) => labelTemplateToken({ kind, key })).join("、") || "无";
 }
 
 function VersionRow(props: {
@@ -298,7 +150,7 @@ export function AdvancedPromptTemplateEditor(props: {
         </div>
       </div>
 
-      <TemplateTextarea
+      <VisualTemplateEditor
         role="system"
         label="System 模板"
         value={templateState.systemContent}
@@ -307,6 +159,7 @@ export function AdvancedPromptTemplateEditor(props: {
         tokenItems={tokenItems}
         tokenMenuRole={tokenMenuRole}
         tokenQuery={tokenQuery}
+        references={templateState.references}
         onTokenQueryChange={setTokenQuery}
         onOpenTokenMenu={openTokenMenu}
         onCloseTokenMenu={() => setTokenMenuRole(null)}
@@ -315,7 +168,7 @@ export function AdvancedPromptTemplateEditor(props: {
         onChange={templateState.setSystemContent}
       />
 
-      <TemplateTextarea
+      <VisualTemplateEditor
         role="human"
         label="Human 模板"
         value={templateState.humanContent}
@@ -324,6 +177,7 @@ export function AdvancedPromptTemplateEditor(props: {
         tokenItems={tokenItems}
         tokenMenuRole={tokenMenuRole}
         tokenQuery={tokenQuery}
+        references={templateState.references}
         onTokenQueryChange={setTokenQuery}
         onOpenTokenMenu={openTokenMenu}
         onCloseTokenMenu={() => setTokenMenuRole(null)}
@@ -353,10 +207,10 @@ export function AdvancedPromptTemplateEditor(props: {
             预览注入结果
           </div>
           <div className="grid gap-2 text-sm text-[#52606d] md:grid-cols-2">
-            <div>显式上下文：{templateDiagnostics.referencedContextGroups.join("、") || "无"}</div>
-            <div>保底追加：{templateDiagnostics.fallbackRequiredGroups.join("、") || "无"}</div>
-            <div>运行变量：{templateDiagnostics.referencedInputFields.join("、") || "无"}</div>
-            <div>槽位引用：{templateDiagnostics.referencedSlotKeys.join("、") || "无"}</div>
+            <div>显式上下文：{formatDiagnosticKeys(templateDiagnostics.referencedContextGroups, "context")}</div>
+            <div>保底追加：{formatDiagnosticKeys(templateDiagnostics.fallbackRequiredGroups, "context")}</div>
+            <div>运行变量：{formatDiagnosticKeys(templateDiagnostics.referencedInputFields, "input")}</div>
+            <div>槽位引用：{formatDiagnosticKeys(templateDiagnostics.referencedSlotKeys, "slot")}</div>
           </div>
         </div>
       ) : null}

@@ -124,6 +124,7 @@ export const LOCKED_CONTEXT_GROUPS = new Set([
   "obligation_contract",
   "style_contract",
   "local_state",
+  "timeline_context",
   "previous_chapter_hook",
   "volume_window",
   "participant_subset",

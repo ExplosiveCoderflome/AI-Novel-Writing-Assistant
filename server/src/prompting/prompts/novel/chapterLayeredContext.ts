@@ -28,6 +28,8 @@ import {
   buildPendingCandidateGuardText,
   buildRelationStageText,
   compactText,
+  renderBookContractText,
+  renderStoryMacroText,
   resolveTargetWordRange,
   splitLines,
   summarizeContinuationConstraints,
@@ -710,24 +712,24 @@ export function buildChapterWriterContextBlocks(
       priority: 100,
       required: true,
       content: [
-        `Chapter mission: ${writeContext.chapterMission.title}`,
-        `Objective: ${writeContext.chapterMission.objective}`,
-        `Expectation: ${writeContext.chapterMission.expectation}`,
-        `State-driven next action: ${writeContext.nextAction}`,
-        writeContext.chapterMission.planRole ? `Plan role: ${writeContext.chapterMission.planRole}` : "",
+        `章节任务：${writeContext.chapterMission.title}`,
+        `目标：${writeContext.chapterMission.objective}`,
+        `预期效果：${writeContext.chapterMission.expectation}`,
+        `状态驱动的下一步动作：${writeContext.nextAction}`,
+        writeContext.chapterMission.planRole ? `计划角色：${writeContext.chapterMission.planRole}` : "",
         wordRange.targetWordCount != null
-          ? `Target length: around ${wordRange.targetWordCount} Chinese characters (acceptable range ${wordRange.minWordCount}-${wordRange.maxWordCount}; do not end clearly below the minimum).`
+          ? `目标篇幅：约 ${wordRange.targetWordCount} 个中文字符（可接受范围 ${wordRange.minWordCount}-${wordRange.maxWordCount}；不要明显低于最低值）。`
           : "",
         writeContext.completedMilestones.length > 0
-          ? toListBlock("Already completed — do NOT re-pursue or re-trigger", writeContext.completedMilestones)
+          ? toListBlock("已完成事项（不得重复追求或重新触发）", writeContext.completedMilestones, "无")
           : "",
-        toListBlock("Must advance", writeContext.chapterMission.mustAdvance),
-        toListBlock("Must preserve", writeContext.chapterMission.mustPreserve),
-        toListBlock("Risk notes", writeContext.chapterMission.riskNotes),
+        toListBlock("必须推进", writeContext.chapterMission.mustAdvance, "无"),
+        toListBlock("必须保留", writeContext.chapterMission.mustPreserve, "无"),
+        toListBlock("风险提示", writeContext.chapterMission.riskNotes, "无"),
         writeContext.chapterMission.taskSheet
-          ? `Original task sheet:\n${writeContext.chapterMission.taskSheet}`
+          ? `原始任务单：\n${writeContext.chapterMission.taskSheet}`
           : "",
-        writeContext.chapterMission.hookTarget ? `Ending hook: ${writeContext.chapterMission.hookTarget}` : "",
+        writeContext.chapterMission.hookTarget ? `章末钩子：${writeContext.chapterMission.hookTarget}` : "",
       ].filter(Boolean).join("\n"),
     }),
     writeContext.previousChapterTail
@@ -751,14 +753,14 @@ export function buildChapterWriterContextBlocks(
         required: true,
         allowSummary: false,
         content: [
-          "Chapter execution obligations:",
-          toListBlock("Must hit now", writeContext.obligationContract.mustHitNow),
-          toListBlock("Must preserve", writeContext.obligationContract.mustPreserve),
-          toListBlock("Required payoff touches", writeContext.obligationContract.requiredPayoffTouches),
-          toListBlock("Required character appearances", writeContext.obligationContract.requiredCharacterAppearances),
-          toListBlock("Required goal changes", writeContext.obligationContract.requiredGoalChanges),
-          toListBlock("Can defer", writeContext.obligationContract.canDefer),
-          toListBlock("Forbidden crossings", writeContext.obligationContract.forbiddenCrossings),
+          "章节执行义务：",
+          toListBlock("本章必须命中", writeContext.obligationContract.mustHitNow, "无"),
+          toListBlock("必须保留", writeContext.obligationContract.mustPreserve, "无"),
+          toListBlock("必须触碰的伏笔", writeContext.obligationContract.requiredPayoffTouches, "无"),
+          toListBlock("必须出场的角色", writeContext.obligationContract.requiredCharacterAppearances, "无"),
+          toListBlock("必须变化的目标", writeContext.obligationContract.requiredGoalChanges, "无"),
+          toListBlock("可延后处理", writeContext.obligationContract.canDefer, "无"),
+          toListBlock("禁止越界", writeContext.obligationContract.forbiddenCrossings, "无"),
         ].filter(Boolean).join("\n"),
       })
       : null,
@@ -919,7 +921,7 @@ export function buildChapterWriterContextBlocks(
       group: "local_state",
       priority: 89,
       required: true,
-      content: `Local state before writing:\n${writeContext.localStateSummary}`,
+      content: `写作前当前局面：\n${writeContext.localStateSummary}`,
     }),
     includeOpenConflicts
       ? createContextBlock({
@@ -1065,18 +1067,7 @@ export function getAllContextBlocks(contextPackage: GenerationContextPackage): P
       group: "book_contract",
       priority: 100,
       required: true,
-      content: [
-        `Title: ${writeContext.bookContract.title}`,
-        `Genre: ${writeContext.bookContract.genre}`,
-        `Target audience: ${writeContext.bookContract.targetAudience}`,
-        `Selling point: ${writeContext.bookContract.sellingPoint}`,
-        `First 30 chapter promise: ${writeContext.bookContract.first30ChapterPromise}`,
-        `Narrative POV: ${writeContext.bookContract.narrativePov}`,
-        `Pace preference: ${writeContext.bookContract.pacePreference}`,
-        `Emotion intensity: ${writeContext.bookContract.emotionIntensity}`,
-        writeContext.bookContract.toneGuardrails.length > 0 ? `Tone guardrails: ${writeContext.bookContract.toneGuardrails.join(" | ")}` : "",
-        writeContext.bookContract.hardConstraints.length > 0 ? `Hard constraints: ${writeContext.bookContract.hardConstraints.join(" | ")}` : "",
-      ].filter(Boolean).join("\n"),
+      content: renderBookContractText(writeContext.bookContract),
     }),
     ...buildChapterWriterContextBlocks(writeContext),
   ];
@@ -1085,15 +1076,7 @@ export function getAllContextBlocks(contextPackage: GenerationContextPackage): P
       id: "story_macro",
       group: "story_macro",
       priority: 98,
-      content: [
-        `Selling point: ${writeContext.macroConstraints.sellingPoint}`,
-        `Core conflict: ${writeContext.macroConstraints.coreConflict}`,
-        `Main hook: ${writeContext.macroConstraints.mainHook}`,
-        `Progression loop: ${writeContext.macroConstraints.progressionLoop}`,
-        `Growth path: ${writeContext.macroConstraints.growthPath}`,
-        `Ending flavor: ${writeContext.macroConstraints.endingFlavor}`,
-        writeContext.macroConstraints.hardConstraints.length > 0 ? `Hard constraints: ${writeContext.macroConstraints.hardConstraints.join(" | ")}` : "",
-      ].filter(Boolean).join("\n"),
+      content: renderStoryMacroText(writeContext.macroConstraints),
     }));
   }
   if (contextPackage.ragContext.trim()) {

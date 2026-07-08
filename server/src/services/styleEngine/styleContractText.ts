@@ -105,10 +105,7 @@ export function buildWriterStyleContractText(contract: StyleContract | null | un
   if (!contract) {
     return "";
   }
-  return [
-    buildStyleContractMetaText(contract),
-    buildFullStyleContractText(contract),
-  ].filter(Boolean).join("\n\n");
+  return buildFullStyleContractText(contract);
 }
 
 export function inferStyleViolationSource(

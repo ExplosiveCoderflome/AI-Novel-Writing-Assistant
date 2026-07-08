@@ -1,6 +1,8 @@
 import type {
+  BookContractContext,
   ChapterWriteContext,
   GenerationContextPackage,
+  MacroConstraintContext,
 } from "@ai-novel/shared/types/chapterRuntime";
 import { resolveLengthBudgetContract } from "@ai-novel/shared/types/chapterLengthControl";
 import { buildPlannerStyleContractSummaryText } from "../../../services/styleEngine/styleContractText";
@@ -42,6 +44,52 @@ export function toListBlock(title: string, values: string[], emptyLabel = "none"
   return [title, ...values.map((value) => `- ${value}`)].join("\n");
 }
 
+function displayPromptValue(value: string | null | undefined, fallback = "未指定"): string {
+  const normalized = compactText(value);
+  const labels: Record<string, string> = {
+    unknown: fallback,
+    "not specified": fallback,
+    none: "无",
+    first_person: "第一人称",
+    third_person: "第三人称",
+    omniscient: "全知视角",
+    fast: "快节奏",
+    balanced: "均衡节奏",
+    slow: "慢节奏",
+    low: "低",
+    medium: "中",
+    high: "高",
+  };
+  return labels[normalized] ?? (normalized || fallback);
+}
+
+export function renderBookContractText(contract: BookContractContext): string {
+  return [
+    `标题：${displayPromptValue(contract.title)}`,
+    `题材：${displayPromptValue(contract.genre)}`,
+    `目标读者：${displayPromptValue(contract.targetAudience)}`,
+    `核心卖点：${displayPromptValue(contract.sellingPoint)}`,
+    `前 30 章承诺：${displayPromptValue(contract.first30ChapterPromise)}`,
+    `叙事视角：${displayPromptValue(contract.narrativePov)}`,
+    `节奏偏好：${displayPromptValue(contract.pacePreference)}`,
+    `情绪强度：${displayPromptValue(contract.emotionIntensity)}`,
+    contract.toneGuardrails.length > 0 ? `语气护栏：${contract.toneGuardrails.join(" | ")}` : "",
+    contract.hardConstraints.length > 0 ? `硬性约束：${contract.hardConstraints.join(" | ")}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+export function renderStoryMacroText(macro: MacroConstraintContext): string {
+  return [
+    `核心卖点：${displayPromptValue(macro.sellingPoint)}`,
+    `核心冲突：${displayPromptValue(macro.coreConflict)}`,
+    `主钩子：${displayPromptValue(macro.mainHook)}`,
+    `推进循环：${displayPromptValue(macro.progressionLoop)}`,
+    `成长路径：${displayPromptValue(macro.growthPath)}`,
+    `结局味道：${displayPromptValue(macro.endingFlavor)}`,
+    macro.hardConstraints.length > 0 ? `硬性约束：${macro.hardConstraints.join(" | ")}` : "",
+  ].filter(Boolean).join("\n");
+}
+
 export function resolveTargetWordRange(targetWordCount: number | null | undefined): {
   targetWordCount: number | null;
   minWordCount: number | null;
@@ -71,9 +119,9 @@ export function summarizeStateSnapshot(contextPackage: GenerationContextPackage)
         .slice(0, 3)
         .map((state) => {
           const parts = takeUnique([
-            state.currentGoal ? `goal=${state.currentGoal}` : "",
-            state.currentState ? `state=${state.currentState}` : "",
-            state.emotion ? `emotion=${state.emotion}` : "",
+            state.currentGoal ? `目标：${state.currentGoal}` : "",
+            state.currentState ? `状态：${state.currentState}` : "",
+            state.emotion ? `情绪：${state.emotion}` : "",
             state.summary,
           ]);
           if (parts.length === 0) {
@@ -83,31 +131,35 @@ export function summarizeStateSnapshot(contextPackage: GenerationContextPackage)
         }),
       ...snapshot.narrative.publicKnowledge
         .slice(0, 2)
-        .map((fact) => `${fact} (reader)`),
+        .map((fact) => `${fact}（读者已知）`),
     ], 6);
-    return fragments.join("\n") || "No prior canonical state snapshot.";
+    return fragments.join("\n") || "暂无上一轮权威状态快照。";
   }
 
+  const characterNameById = new Map(
+    contextPackage.characterRoster.map((character) => [character.id, character.name.trim() || "未命名角色"]),
+  );
   const fragments = takeUnique([
     contextPackage.stateSnapshot?.summary,
     ...contextPackage.stateSnapshot?.characterStates
       .slice(0, 3)
       .map((state) => {
         const parts = takeUnique([
-          state.currentGoal ? `goal=${state.currentGoal}` : "",
-          state.emotion ? `emotion=${state.emotion}` : "",
-          state.summary,
+          state.currentGoal ? `目标：${state.currentGoal}` : "",
+          state.emotion ? `情绪：${state.emotion}` : "",
+          state.summary ? `状态：${state.summary}` : "",
         ]);
         if (parts.length === 0) {
           return "";
         }
-        return `${state.characterId}: ${parts.join(" | ")}`;
+        const characterName = characterNameById.get(state.characterId) ?? "未命名角色";
+        return `${characterName}：${parts.join(" | ")}`;
       }) ?? [],
     ...contextPackage.stateSnapshot?.informationStates
       .slice(0, 2)
-      .map((info) => `${info.fact} (${info.status})`) ?? [],
+      .map((info) => `${info.fact}（状态：${info.status}）`) ?? [],
   ], 6);
-  return fragments.join("\n") || "No prior state snapshot.";
+  return fragments.join("\n") || "暂无上一轮状态快照。";
 }
 
 export function summarizeOpenConflicts(contextPackage: GenerationContextPackage): string[] {
@@ -278,91 +330,91 @@ export function buildLedgerItemLine(
 
 export function buildParticipantText(writeContext: ChapterWriteContext): string {
   if (writeContext.participants.length === 0) {
-    return "Participants: none";
+    return "出场角色：无";
   }
   const guideByCharacterId = new Map(
     writeContext.characterBehaviorGuides.map((guide) => [guide.characterId, guide]),
   );
   return [
-    "Participants:",
+    "出场角色：",
     ...writeContext.participants.map((character) => {
       const guide = guideByCharacterId.get(character.id);
       const visibleProfile = takeUnique([
         character.appearance || character.physique
-          ? `look=${compactText([character.appearance, character.physique].filter(Boolean).join("；"))}`
+          ? `外观：${compactText([character.appearance, character.physique].filter(Boolean).join("；"))}`
           : "",
-        character.signatureDetail ? `signature=${compactText(character.signatureDetail)}` : "",
-        character.voiceTexture ? `voice=${compactText(character.voiceTexture)}` : "",
+        character.signatureDetail ? `标志细节：${compactText(character.signatureDetail)}` : "",
+        character.voiceTexture ? `声音：${compactText(character.voiceTexture)}` : "",
       ], 3).join(" | ");
       const parts = takeUnique([
         character.role,
         visibleProfile,
-        guide?.volumeRoleLabel ? `volume role=${guide.volumeRoleLabel}` : "",
-        guide?.volumeResponsibility ? `volume duty=${guide.volumeResponsibility}` : "",
+        guide?.volumeRoleLabel ? `卷内定位：${guide.volumeRoleLabel}` : "",
+        guide?.volumeResponsibility ? `卷内职责：${guide.volumeResponsibility}` : "",
         character.personality,
-        character.currentState ? `state=${character.currentState}` : "",
-        character.currentGoal ? `goal=${character.currentGoal}` : "",
-        guide?.relationStageLabels.length ? `relation=${guide.relationStageLabels.join(" / ")}` : "",
+        character.currentState ? `状态：${character.currentState}` : "",
+        character.currentGoal ? `目标：${character.currentGoal}` : "",
+        guide?.relationStageLabels.length ? `关系阶段：${guide.relationStageLabels.join(" / ")}` : "",
         guide?.absenceRisk && guide.absenceRisk !== "none"
-          ? `absence risk=${guide.absenceRisk}(span=${guide.absenceSpan})`
+          ? `缺席风险：${guide.absenceRisk}（跨度 ${guide.absenceSpan}）`
           : "",
       ], 4);
-      return `- ${character.name}: ${parts.join(" | ")}`;
+      return `- ${character.name}：${parts.join(" | ")}`;
     }),
   ].join("\n");
 }
 
 export function buildCharacterGuidanceText(writeContext: ChapterWriteContext): string {
   if (writeContext.characterBehaviorGuides.length === 0) {
-    return "Character behavior guidance: none";
+    return "角色行为指导：无";
   }
   return [
-    "Character behavior guidance:",
+    "角色行为指导：",
     ...writeContext.characterBehaviorGuides.map((guide) => {
       const parts = takeUnique([
-        guide.isCoreInVolume ? "core in current volume" : "supporting in current volume",
-        guide.visibleProfileSummary ? `visible=${guide.visibleProfileSummary}` : "",
-        guide.volumeRoleLabel ? `volume role=${guide.volumeRoleLabel}` : "",
-        guide.volumeResponsibility ? `duty=${guide.volumeResponsibility}` : "",
-        guide.currentGoal ? `goal=${guide.currentGoal}` : "",
-        guide.currentState ? `state=${guide.currentState}` : "",
-        guide.relationStageLabels.length ? `relation=${guide.relationStageLabels.join(" / ")}` : "",
-        guide.absenceRisk !== "none" ? `absence=${guide.absenceRisk}(span=${guide.absenceSpan})` : "",
-        guide.factionLabel ? `faction=${guide.factionLabel}` : "",
-        guide.stanceLabel ? `stance=${guide.stanceLabel}` : "",
-        guide.shouldPreferAppearance ? "prefer appearance in this chapter" : "",
+        guide.isCoreInVolume ? "本卷核心角色" : "本卷辅助角色",
+        guide.visibleProfileSummary ? `可见表现：${guide.visibleProfileSummary}` : "",
+        guide.volumeRoleLabel ? `卷内定位：${guide.volumeRoleLabel}` : "",
+        guide.volumeResponsibility ? `职责：${guide.volumeResponsibility}` : "",
+        guide.currentGoal ? `目标：${guide.currentGoal}` : "",
+        guide.currentState ? `状态：${guide.currentState}` : "",
+        guide.relationStageLabels.length ? `关系阶段：${guide.relationStageLabels.join(" / ")}` : "",
+        guide.absenceRisk !== "none" ? `缺席风险：${guide.absenceRisk}（跨度 ${guide.absenceSpan}）` : "",
+        guide.factionLabel ? `阵营：${guide.factionLabel}` : "",
+        guide.stanceLabel ? `立场：${guide.stanceLabel}` : "",
+        guide.shouldPreferAppearance ? "本章优先使用外观细节" : "",
       ], 6);
-      return `- ${guide.name}: ${parts.join(" | ")}`;
+      return `- ${guide.name}：${parts.join(" | ")}`;
     }),
   ].join("\n");
 }
 
 export function buildRelationStageText(writeContext: ChapterWriteContext): string {
   if (writeContext.activeRelationStages.length === 0) {
-    return "Active relationship stages: none";
+    return "活跃关系阶段：无";
   }
   return [
-    "Active relationship stages:",
+    "活跃关系阶段：",
     ...writeContext.activeRelationStages.map((relation) => (
-      `- ${relation.sourceCharacterName} -> ${relation.targetCharacterName}: ${relation.stageLabel} | ${relation.stageSummary}${relation.nextTurnPoint ? ` | next=${relation.nextTurnPoint}` : ""}`
+      `- ${relation.sourceCharacterName} -> ${relation.targetCharacterName}：${relation.stageLabel} | ${relation.stageSummary}${relation.nextTurnPoint ? ` | 下一转折：${relation.nextTurnPoint}` : ""}`
     )),
   ].join("\n");
 }
 
 export function buildPendingCandidateGuardText(writeContext: ChapterWriteContext): string {
   if (writeContext.pendingCandidateGuards.length === 0) {
-    return "Pending candidate guardrails: none";
+    return "候选角色护栏：无";
   }
   return [
-    "Pending candidate guardrails (read-only, do not inject into generation):",
+    "候选角色护栏（只读，不要直接写入正文）：",
     ...writeContext.pendingCandidateGuards.map((candidate) => {
       const parts = takeUnique([
-        candidate.proposedRole ? `role=${candidate.proposedRole}` : "",
+        candidate.proposedRole ? `定位：${candidate.proposedRole}` : "",
         candidate.summary ?? "",
-        candidate.sourceChapterOrder != null ? `source chapter=${candidate.sourceChapterOrder}` : "",
+        candidate.sourceChapterOrder != null ? `来源章节：第 ${candidate.sourceChapterOrder} 章` : "",
         ...candidate.evidence.slice(0, 2),
       ], 4);
-      return `- ${candidate.proposedName}: ${parts.join(" | ")}`;
+      return `- ${candidate.proposedName}：${parts.join(" | ")}`;
     }),
   ].join("\n");
 }

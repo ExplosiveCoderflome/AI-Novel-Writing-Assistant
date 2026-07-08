@@ -93,6 +93,7 @@ test("prompt workbench catalog lists slot-supported prompts first", () => {
   const firstUnsupportedIndex = catalog.findIndex((item) => !item.slotSupported);
   const lastSupportedIndex = catalog.findLastIndex((item) => item.slotSupported);
 
+  assert.equal(catalog[0]?.id, "novel.chapter.writer");
   assert.ok(firstUnsupportedIndex > 0);
   assert.ok(lastSupportedIndex >= 0);
   assert.ok(lastSupportedIndex < firstUnsupportedIndex);

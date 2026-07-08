@@ -80,6 +80,13 @@ const {
   sanitizeWriterContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
 const {
+  renderBookContractText,
+  summarizeStateSnapshot,
+} = require("../dist/prompting/prompts/novel/chapterLayeredContextShared.js");
+const {
+  buildWriterStyleContractText,
+} = require("../dist/services/styleEngine/styleContractText.js");
+const {
   directorPlanBlueprintSchema,
 } = require("../dist/services/novel/director/runtime/novelDirectorSchemas.js");
 
@@ -89,6 +96,7 @@ function buildWriterRequiredContextBlocks() {
   return [
     "book_contract",
     "chapter_mission",
+    "timeline_context",
     "previous_chapter_hook",
     "character_hard_facts",
     "obligation_contract",
@@ -1535,6 +1543,7 @@ test("advanced prompt template expands referenced context and appends required f
     requiredContextGroups: [
       "book_contract",
       "chapter_mission",
+      "timeline_context",
       "previous_chapter_hook",
       "character_hard_facts",
       "obligation_contract",
@@ -1549,9 +1558,126 @@ test("advanced prompt template expands referenced context and appends required f
   assert.match(rendered, /异常提交/);
   assert.match(rendered, /chapter_mission 测试内容/);
   assert.match(rendered, /【必需上下文保底】/);
-  assert.match(rendered, /book_contract 测试内容/);
+  assert.match(rendered, /【书级合约】\nbook_contract 测试内容/);
+  assert.match(rendered, /【时间线】\ntimeline_context 测试内容/);
+  assert.doesNotMatch(rendered, /【timeline_context】/);
   assert.deepEqual(compiled.diagnostics.missingRequiredGroups, []);
   assert.ok(compiled.diagnostics.fallbackRequiredGroups.includes("book_contract"));
+  assert.ok(compiled.diagnostics.fallbackRequiredGroups.includes("timeline_context"));
+});
+
+test("chapter writer context text uses reader-facing labels instead of raw machine fields", () => {
+  const bookContract = renderBookContractText({
+    title: "数字猎杀",
+    genre: "末世异能",
+    targetAudience: "喜欢丧尸升级爽感的读者",
+    sellingPoint: "丧尸数字代表异能库",
+    first30ChapterPromise: "建立安全据点并完成首次反杀",
+    narrativePov: "third_person",
+    pacePreference: "balanced",
+    emotionIntensity: "medium",
+    toneGuardrails: [],
+    hardConstraints: ["不能提前解释数字来源"],
+  });
+
+  assert.match(bookContract, /标题：数字猎杀/);
+  assert.match(bookContract, /题材：末世异能/);
+  assert.match(bookContract, /叙事视角：第三人称/);
+  assert.doesNotMatch(bookContract, /Title:/);
+  assert.doesNotMatch(bookContract, /Genre:/);
+
+  const stateSummary = summarizeStateSnapshot({
+    characterRoster: [
+      { id: "cmqyvxq0w0044q8v1xsifezci", name: "陈默" },
+    ],
+    stateSnapshot: {
+      summary: "小说：数字猎杀",
+      characterStates: [
+        {
+          characterId: "cmqyvxq0w0044q8v1xsifezci",
+          currentGoal: "寻找下一个数字",
+          emotion: "震惊",
+          summary: "刚恢复部分意识",
+        },
+      ],
+      informationStates: [],
+    },
+  });
+
+  assert.match(stateSummary, /陈默：目标：寻找下一个数字/);
+  assert.match(stateSummary, /状态：刚恢复部分意识/);
+  assert.doesNotMatch(stateSummary, /cmqyvxq0w0044q8v1xsifezci/);
+  assert.doesNotMatch(stateSummary, /goal=/);
+});
+
+test("writer style contract text omits debug metadata", () => {
+  const rendered = buildWriterStyleContractText({
+    narrative: {
+      key: "narrative",
+      title: "叙事约束",
+      summary: "",
+      lines: ["- 保持正在发生的场景推进。"],
+      text: "叙事约束:\n- 保持正在发生的场景推进。",
+      hasContent: true,
+    },
+    character: {
+      key: "character",
+      title: "角色表达",
+      summary: "",
+      lines: [],
+      text: "",
+      hasContent: false,
+    },
+    language: {
+      key: "language",
+      title: "语言",
+      summary: "",
+      lines: [],
+      text: "",
+      hasContent: false,
+    },
+    rhythm: {
+      key: "rhythm",
+      title: "节奏",
+      summary: "",
+      lines: [],
+      text: "",
+      hasContent: false,
+    },
+    antiAi: {
+      key: "antiAi",
+      title: "反 AI 味",
+      summary: "",
+      lines: [],
+      text: "",
+      hasContent: false,
+    },
+    selfCheck: {
+      key: "selfCheck",
+      title: "自检",
+      summary: "",
+      lines: [],
+      text: "",
+      hasContent: false,
+    },
+    meta: {
+      effectiveStyleProfileId: "profile-1",
+      taskStyleProfileId: "task-profile-1",
+      activeSourceTargets: ["novel"],
+      activeSourceLabels: ["Novel"],
+      writerIncludedSections: ["narrative"],
+      plannerIncludedSections: ["narrative"],
+      droppedSections: [],
+      maturity: "structured",
+      usesGlobalAntiAiBaseline: true,
+      globalAntiAiRuleIds: ["rule-global"],
+      styleAntiAiRuleIds: ["rule-style"],
+    },
+  });
+
+  assert.match(rendered, /叙事约束/);
+  assert.doesNotMatch(rendered, /effective_style_profile_id=/);
+  assert.doesNotMatch(rendered, /global_anti_ai_rule_ids=/);
 });
 
 test("advanced prompt template reports unknown tokens", () => {

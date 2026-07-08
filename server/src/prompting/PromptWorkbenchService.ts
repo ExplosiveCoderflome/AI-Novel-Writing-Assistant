@@ -9,6 +9,7 @@ import {
 } from "./core/promptTypes";
 import { preparePromptExecution } from "./core/promptRunner";
 import { ContextBroker } from "./context/ContextBroker";
+import { formatContextGroupLabel } from "./context/contextGroupLabels";
 import { createDefaultContextResolverRegistry } from "./context/defaultContextRegistry";
 import { derivePromptContextRequirements } from "./context/promptContextResolution";
 import type { PromptExecutionContext } from "./context/types";
@@ -227,6 +228,12 @@ function matchesCatalogFilter(item: PromptCatalogItem, filter?: PromptCatalogFil
 }
 
 function sortCatalogItems(left: PromptCatalogItem, right: PromptCatalogItem): number {
+  const writerPromptId = ADVANCED_TEMPLATE_PROMPT_ID;
+  const leftIsWriterPrompt = left.id === writerPromptId;
+  const rightIsWriterPrompt = right.id === writerPromptId;
+  if (leftIsWriterPrompt !== rightIsWriterPrompt) {
+    return leftIsWriterPrompt ? -1 : 1;
+  }
   if (left.slotSupported !== right.slotSupported) {
     return left.slotSupported ? -1 : 1;
   }
@@ -348,7 +355,7 @@ function buildContextReferenceItems(input: {
   return input.requirements
     .map((requirement) => ({
       key: requirement.group,
-      label: requirement.group,
+      label: formatContextGroupLabel(requirement.group),
       description: requirement.sourceHint,
       token: `{{context.${requirement.group}}}`,
       required: requiredGroups.has(requirement.group),

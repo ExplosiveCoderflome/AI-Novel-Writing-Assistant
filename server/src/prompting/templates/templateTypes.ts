@@ -7,6 +7,7 @@ export const ADVANCED_TEMPLATE_MAX_CHARS = 60000;
 export const WRITER_REQUIRED_CONTEXT_GROUPS = [
   "book_contract",
   "chapter_mission",
+  "timeline_context",
   "previous_chapter_hook",
   "character_hard_facts",
   "obligation_contract",
