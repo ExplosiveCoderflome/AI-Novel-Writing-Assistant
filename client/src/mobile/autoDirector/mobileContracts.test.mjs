@@ -40,6 +40,7 @@ test("auto-director mobile support is centralized under the mobile directory", (
     "/auto-director/follow-ups",
     "/settings",
     "/novels/create",
+    "/novels/auto-director",
     "/novels/:id/edit",
   ].forEach((routePattern) => {
     assertContains(
@@ -165,28 +166,36 @@ test("auto-director follow-up center uses mobile contracts for single-column non
   );
 });
 
-test("auto-director dialogs expose mobile-safe scroll containers and reachable action areas through mobile contracts", () => {
-  const newBookDialog = readSource("pages/novels/components/NovelAutoDirectorDialog.tsx");
-  const setupPanel = readSource("pages/novels/components/NovelAutoDirectorSetupPanel.tsx");
+test("auto-director creation page exposes mobile-safe stages and reachable action areas through mobile contracts", () => {
+  const createPage = readSource("pages/novels/autoDirector/AutoDirectorCreatePage.tsx");
+  const basicStage = readSource("pages/novels/autoDirector/StageBasicSetup.tsx");
+  const worldStage = readSource("pages/novels/autoDirector/StageWorldStyle.tsx");
+  const modelStage = readSource("pages/novels/autoDirector/StageModelRun.tsx");
   const candidateBatches = readSource("pages/novels/components/NovelAutoDirectorCandidateBatches.tsx");
   const takeoverDialog = readSource("pages/novels/components/NovelExistingProjectTakeoverDialog.tsx");
 
-  assertImportsMobileContracts(newBookDialog, "new-book dialog should import mobile dialog contracts");
   assertContains(
-    newBookDialog,
-    "AUTO_DIRECTOR_MOBILE_CLASSES.dialogContent",
-    "new-book auto-director dialog should fit the mobile viewport height",
+    createPage,
+    "StageIdea",
+    "new-book auto-director route should own stage components outside the old dialog flow",
   );
+  assertImportsMobileContracts(basicStage, "new-book basic stage should import mobile text wrapping contracts");
   assertContains(
-    newBookDialog,
-    "AUTO_DIRECTOR_MOBILE_CLASSES.dialogBody",
-    "new-book auto-director dialog body should use tighter mobile padding and scroll",
+    basicStage,
+    "AUTO_DIRECTOR_MOBILE_CLASSES.wrapText",
+    "new-book basic stage helper text should wrap on phones",
   );
-  assertImportsMobileContracts(setupPanel, "new-book setup panel should import mobile action contracts");
+  assertImportsMobileContracts(worldStage, "new-book world/style stage should import mobile text wrapping contracts");
   assertContains(
-    setupPanel,
-    "AUTO_DIRECTOR_MOBILE_CLASSES.actionRow",
-    "new-book setup primary action should stay full-width and reachable on phones",
+    worldStage,
+    "AUTO_DIRECTOR_MOBILE_CLASSES.wrapText",
+    "new-book world/style stage helper text should wrap on phones",
+  );
+  assertImportsMobileContracts(modelStage, "new-book model/run stage should import mobile action contracts");
+  assertContains(
+    modelStage,
+    "AUTO_DIRECTOR_MOBILE_CLASSES.wrapText",
+    "new-book model/run stage copy should wrap on phones",
   );
   assertImportsMobileContracts(candidateBatches, "candidate batches should import mobile action contracts");
   assertContains(

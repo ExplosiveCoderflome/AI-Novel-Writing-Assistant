@@ -189,6 +189,12 @@ export interface AutoDirectorChannelSettings {
   wecom: AutoDirectorChannelConfig;
 }
 
+export interface PendingReviewAutoPromotionSettings {
+  enabled: boolean;
+  baselineAt: string | null;
+  acknowledgementText: string;
+}
+
 export async function getAPIKeySettings() {
   const { data } = await apiClient.get<ApiResponse<APIKeyStatus[]>>("/settings/api-keys");
   return data;
@@ -453,6 +459,25 @@ export async function saveAutoDirectorApprovalPreferenceSettings(payload: {
 }) {
   const { data } = await apiClient.put<ApiResponse<DirectorAutoApprovalPreferenceSettings>>(
     "/settings/auto-director/approval-preferences",
+    payload,
+  );
+  return data;
+}
+
+export async function getPendingReviewAutoPromotionSettings() {
+  const { data } = await apiClient.get<ApiResponse<PendingReviewAutoPromotionSettings>>(
+    "/settings/auto-director/pending-review-auto-promotion",
+  );
+  return data;
+}
+
+export async function savePendingReviewAutoPromotionSettings(payload: {
+  enabled: boolean;
+  acknowledgedRisks?: boolean;
+  confirmationText?: string;
+}) {
+  const { data } = await apiClient.put<ApiResponse<PendingReviewAutoPromotionSettings>>(
+    "/settings/auto-director/pending-review-auto-promotion",
     payload,
   );
   return data;

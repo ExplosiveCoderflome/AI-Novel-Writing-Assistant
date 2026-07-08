@@ -400,6 +400,7 @@ model Novel {
   directorLlmUsageRecords DirectorLlmUsageRecord[]
   promptAddendums    PromptAddendum[]
   promptSlotOverrides PromptSlotOverride[]
+  promptTemplateOverrides PromptTemplateOverride[]
   imageTasks         ImageGenerationTask[]
   imageAssets        ImageAsset[]
   sideEffectJobs     NovelSideEffectJob[]
@@ -449,6 +450,40 @@ model PromptSlotOverride {
   @@unique([scope, novelId, promptId])
   @@index([promptId])
   @@index([novelId, promptId])
+}
+
+model PromptTemplateOverride {
+  id                String                  @id @default(cuid())
+  scope             String                  @default("novel")
+  novelId           String
+  promptId          String
+  basePromptVersion String
+  mode              String                  @default("official")
+  activeVersionId   String?
+  versions          PromptTemplateVersion[]
+  novel             Novel                   @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@unique([scope, novelId, promptId])
+  @@index([promptId])
+  @@index([novelId, promptId])
+  @@index([activeVersionId])
+}
+
+model PromptTemplateVersion {
+  id              String                 @id @default(cuid())
+  overrideId      String
+  versionNo       Int
+  templateJson    String
+  contextRefsJson String                 @default("{}")
+  compiledHash    String
+  notes           String?
+  override        PromptTemplateOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
+  createdAt       DateTime               @default(now())
+
+  @@unique([overrideId, versionNo])
+  @@index([overrideId, createdAt])
 }
 
 model CreativeDecision {
@@ -1725,6 +1760,7 @@ model VolumeChapterPlan {
   summary         String
   purpose         String?
   conflictLevel   Int?
+  conflictLevelSource String?
   revealLevel     Int?
   targetWordCount Int?
   mustAvoid       String?

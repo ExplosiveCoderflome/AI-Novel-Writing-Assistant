@@ -127,6 +127,8 @@ export const queryKeys = {
     materials: (params: string) => ["prompt-workbench", "materials", params] as const,
     slotOverrides: (params: string) => ["prompt-workbench", "slot-overrides", params] as const,
     slotReconcile: (params: string) => ["prompt-workbench", "slot-reconcile", params] as const,
+    templateOverride: (params: string) => ["prompt-workbench", "template-overrides", params] as const,
+    contextReferences: (params: string) => ["prompt-workbench", "context-references", params] as const,
   },
   creativeHub: {
     threads: ["creative-hub", "threads"] as const,
@@ -145,6 +147,7 @@ export const queryKeys = {
     structuredFallback: ["settings", "structured-fallback"] as const,
     autoDirectorChannels: ["settings", "auto-director-channels"] as const,
     autoDirectorApprovalPreferences: ["settings", "auto-director-approval-preferences"] as const,
+    pendingReviewAutoPromotion: ["settings", "pending-review-auto-promotion"] as const,
   },
   novelsKnowledge: {
     bindings: (id: string) => ["novels", "knowledge-documents", id] as const,

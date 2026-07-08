@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import BookAnalysisCharacterAppearancePanel from "./BookAnalysisCharacterAppearancePanel";
 import BookAnalysisCharacterCandidateCard from "./BookAnalysisCharacterCandidateCard";
 import BookAnalysisCharacterImagePanel from "./BookAnalysisCharacterImagePanel";
+import SelectControl from "@/components/common/SelectControl";
 
 const DEFAULT_DIMENSIONS: BookAnalysisCharacterDimension[] = [
   "basic",
@@ -233,7 +234,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                   {pending.generateAll ? "生成中..." : `全部生成 (${pendingCandidateCount})`}
                 </Button>
               ) : null}
-              <select
+              <SelectControl
                 className="h-9 rounded-md border bg-background px-2 text-sm"
                 value={generationDepth}
                 onChange={(event) => setGenerationDepth(event.target.value as BookAnalysisCharacterGenerationDepth)}
@@ -243,7 +244,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                 <option value="standard">标准</option>
                 <option value="deep">深入</option>
                 <option value="exhaustive">完整</option>
-              </select>
+              </SelectControl>
             </div>
             <div className="flex flex-wrap gap-2">
               {DEFAULT_DIMENSIONS.map((dimension) => (

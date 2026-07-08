@@ -242,6 +242,140 @@ test("AntiAiRuleService defaults new custom rules outside global baseline", asyn
   }
 });
 
+test("StyleProfileService updateProfile preserves explicit manual rule JSON over extracted feature compilation", async () => {
+  const originalEnsure = styleEngineSeedService.ensureStyleEngineSeedData;
+  const originalUpdate = prisma.styleProfile.update;
+  styleEngineSeedService.ensureStyleEngineSeedData = async () => ({});
+
+  let capturedData = null;
+  prisma.styleProfile.update = async (args) => {
+    capturedData = args.data;
+    return {};
+  };
+
+  const service = new StyleProfileService();
+  service.getProfileById = async () => ({
+    ...buildStyleProfileRow("profile-manual-rules"),
+    id: "profile-manual-rules",
+    extractedFeatures: [],
+    antiAiRules: [],
+    tags: [],
+    applicableGenres: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    narrativeRules: JSON.parse(capturedData.narrativeRulesJson),
+    characterRules: JSON.parse(capturedData.characterRulesJson),
+    languageRules: JSON.parse(capturedData.languageRulesJson),
+    rhythmRules: JSON.parse(capturedData.rhythmRulesJson),
+  });
+
+  const explicitNarrativeRules = {
+    summary: "Escalate tension through each new discovery.",
+    progressionMode: "mystery_escalation",
+    sceneUnitPattern: ["detail", "anomaly", "misread", "aftermath", "risk"],
+    multiPov: false,
+    looping: false,
+    endingStyle: "escalating_threat",
+  };
+  const extractedFeatures = [{
+    id: "feature-1",
+    group: "narrative",
+    label: "Escalation chain",
+    description: "Move the scene by chaining discoveries into stronger threats.",
+    evidence: "Each reveal should create a bigger consequence.",
+    importance: 0.8,
+    imitationValue: 0.8,
+    transferability: 0.7,
+    fingerprintRisk: 0.2,
+    enabled: true,
+    selectedDecision: "keep",
+    keepRulePatch: {
+      narrativeRules: {
+        progressionMode: "goal_driven",
+        endingStyle: "hook",
+      },
+    },
+  }];
+
+  try {
+    const updated = await service.updateProfile("profile-manual-rules", {
+      name: "Manual rules win",
+      extractedFeatures,
+      narrativeRules: explicitNarrativeRules,
+      characterRules: {},
+      languageRules: {},
+      rhythmRules: {},
+    });
+
+    assert.deepEqual(JSON.parse(capturedData.narrativeRulesJson), explicitNarrativeRules);
+    assert.deepEqual(updated.narrativeRules, explicitNarrativeRules);
+  } finally {
+    styleEngineSeedService.ensureStyleEngineSeedData = originalEnsure;
+    prisma.styleProfile.update = originalUpdate;
+  }
+});
+
+test("StyleProfileService updateProfile falls back to compiled rules when explicit rule JSON is omitted", async () => {
+  const originalEnsure = styleEngineSeedService.ensureStyleEngineSeedData;
+  const originalUpdate = prisma.styleProfile.update;
+  styleEngineSeedService.ensureStyleEngineSeedData = async () => ({});
+
+  let capturedData = null;
+  prisma.styleProfile.update = async (args) => {
+    capturedData = args.data;
+    return {};
+  };
+
+  const service = new StyleProfileService();
+  service.getProfileById = async () => ({
+    ...buildStyleProfileRow("profile-compiled-rules"),
+    id: "profile-compiled-rules",
+    extractedFeatures: [],
+    antiAiRules: [],
+    tags: [],
+    applicableGenres: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    narrativeRules: JSON.parse(capturedData.narrativeRulesJson),
+    characterRules: JSON.parse(capturedData.characterRulesJson),
+    languageRules: JSON.parse(capturedData.languageRulesJson),
+    rhythmRules: JSON.parse(capturedData.rhythmRulesJson),
+  });
+
+  const extractedFeatures = [{
+    id: "feature-compiled-1",
+    group: "narrative",
+    label: "Goal-driven progression",
+    description: "Keep each scene centered on a clear goal.",
+    evidence: "Characters keep moving toward one explicit target.",
+    importance: 0.8,
+    imitationValue: 0.7,
+    transferability: 0.9,
+    fingerprintRisk: 0.1,
+    enabled: true,
+    selectedDecision: "keep",
+    keepRulePatch: {
+      narrativeRules: {
+        progressionMode: "goal_driven",
+        endingStyle: "hook",
+      },
+    },
+  }];
+
+  try {
+    const updated = await service.updateProfile("profile-compiled-rules", {
+      name: "Compiled rules fallback",
+      extractedFeatures,
+    });
+
+    assert.equal(JSON.parse(capturedData.narrativeRulesJson).progressionMode, "goal_driven");
+    assert.equal(updated.narrativeRules.progressionMode, "goal_driven");
+  } finally {
+    styleEngineSeedService.ensureStyleEngineSeedData = originalEnsure;
+    prisma.styleProfile.update = originalUpdate;
+  }
+});
+
 test("AntiAiPolicyResolver separates global baseline and style-specific sources", async () => {
   const originalEnsure = styleEngineSeedService.ensureStyleEngineSeedData;
   const originalFindAntiAiRules = prisma.antiAiRule.findMany;

@@ -1,0 +1,38 @@
+const CONTEXT_GROUP_LABELS: Record<string, string> = {
+  book_contract: "书级合约",
+  chapter_boundary: "章节边界",
+  chapter_mission: "章节任务",
+  character_dynamics: "角色关系动态",
+  character_hard_facts: "角色硬事实",
+  character_resource_context: "角色资源状态",
+  continuation_constraints: "续写约束",
+  custom_slot: "自定义约束",
+  historical_issues: "历史审校问题",
+  incremental_round_context: "增量生成轮次",
+  local_state: "当前局面",
+  narrative_progress_hint: "叙事进度提示",
+  obligation_contract: "本章义务合约",
+  open_conflicts: "开放冲突",
+  opening_constraints: "开篇约束",
+  participant_subset: "出场角色子集",
+  payoff_directives: "伏笔操作指令",
+  payoff_ledger: "伏笔台账",
+  previous_chapter_hook: "上一章钩子",
+  previous_chapter_tail: "上一章结尾",
+  rag_context: "检索补充",
+  recent_chapters: "近期章节摘要",
+  repair_boundaries: "修文范围约束",
+  repair_issues: "修文问题清单",
+  state_goal: "状态与目标",
+  story_macro: "宏观故事架构",
+  structure_obligations: "结构义务",
+  style_contract: "风格合约",
+  timeline_context: "时间线",
+  volume_window: "卷级窗口",
+  world_rules: "世界规则",
+  world_slice: "世界片段",
+};
+
+export function formatContextGroupLabel(group: string): string {
+  return CONTEXT_GROUP_LABELS[group] ?? group;
+}

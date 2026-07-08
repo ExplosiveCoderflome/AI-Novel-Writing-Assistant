@@ -9,6 +9,8 @@ import WorldInjectionHint from "./WorldInjectionHint";
 import VolumePayoffOverviewCard from "./VolumePayoffOverviewCard";
 import type { OutlineTabViewProps } from "./NovelEditView.types";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
+import TensionCurvePanel, { type TensionCurveSeries } from "@/components/tensionCurve/TensionCurvePanel";
+import SelectControl from "@/components/common/SelectControl";
 
 type OutlineCharacterResource = NonNullable<OutlineTabViewProps["characterResources"]>[number];
 
@@ -166,6 +168,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
     isGeneratingSkeleton,
     onGenerateSkeleton,
     onGoToCharacterTab,
+    onGoToStructuredTab,
     latestStateSnapshot,
     payoffLedger,
     characterResources = [],
@@ -221,6 +224,22 @@ export default function OutlineTab(props: OutlineTabViewProps) {
   const selectedStrategyVolume = selectedVolume
     ? strategyPlan?.volumes.find((item) => item.sortOrder === selectedVolume.sortOrder) ?? null
     : null;
+  const tensionCurveSeries: TensionCurveSeries[] = selectedVolume
+    ? [
+        {
+          id: "conflictLevel",
+          label: "冲突强度",
+          color: "#2563eb",
+          points: selectedVolume.chapters.map((chapter) => ({
+            id: chapter.id,
+            chapterOrder: chapter.chapterOrder,
+            title: chapter.title || `第${chapter.chapterOrder}章`,
+            value: typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : null,
+            source: chapter.conflictLevelSource ?? "ai",
+          })),
+        },
+      ]
+    : [];
 
   return (
     <div className="space-y-4">
@@ -229,8 +248,8 @@ export default function OutlineTab(props: OutlineTabViewProps) {
         description="AI 会先判断卷战略和卷骨架是否已齐，再决定继续补缺失部分还是重跑当前步骤。"
         entry={props.directorTakeoverEntry}
       />
-      <Card>
-      <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <Card className="border-0 bg-transparent shadow-none">
+      <CardHeader className="flex flex-col gap-4 rounded-2xl bg-muted/20 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
           <CardTitle>卷战略 / 卷骨架</CardTitle>
           <div className="text-sm text-muted-foreground">先让系统帮你决定卷数和硬/软规划，再确认可继续拆节奏板的卷骨架。</div>
@@ -250,21 +269,21 @@ export default function OutlineTab(props: OutlineTabViewProps) {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5 px-0 pt-5">
         <WorldInjectionHint worldInjectionSummary={worldInjectionSummary} />
         {!hasCharacters ? (
-          <div className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+          <div className="flex items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
             <span>建议先补齐角色，再生成卷战略和卷骨架。</span>
             <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>去角色管理</Button>
           </div>
         ) : null}
-        <div className="flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-muted/20 p-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
           <span>{generationNotice}</span>
           {hasUnsavedVolumeDraft ? <Badge variant="secondary">含未保存草稿</Badge> : null}
         </div>
         <div className="grid items-start gap-3 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-3">
-            <Card className="self-start">
+            <Card className="self-start border-0 bg-muted/15 shadow-none">
               <CardHeader className="pb-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <CardTitle className="text-base">阶段就绪度</CardTitle>
@@ -274,7 +293,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                <div className="rounded-xl bg-background/70 p-3">
                   <div className="text-xs text-muted-foreground">推荐下一步</div>
                   <div className="mt-1 font-medium text-foreground">{nextOutlineAction}</div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
@@ -294,7 +313,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
 
                 <div className="grid gap-2 sm:grid-cols-2">
                   {readinessSteps.map((item) => (
-                    <div key={item.key} className="rounded-xl border border-border/70 p-3">
+                    <div key={item.key} className="rounded-xl bg-background/70 p-3">
                       <div className="flex items-center justify-between gap-2">
                         <div className="font-medium text-foreground">{item.label}</div>
                         <Badge variant={readiness[item.key] ? "default" : "outline"}>
@@ -307,11 +326,11 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                 </div>
 
                 {readiness.blockingReasons.length > 0 ? (
-                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                  <div className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
                     {readiness.blockingReasons.map((reason) => <div key={reason}>{reason}</div>)}
                   </div>
                 ) : (
-                  <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+                  <div className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800">
                     当前工作区已经具备继续推进的基础条件。
                   </div>
                 )}
@@ -319,7 +338,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
               </CardContent>
             </Card>
 
-            <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
+            <details className="group border-t border-border/60 pt-4">
               <summary className="cursor-pointer list-none">
                 <CollapsibleSummary
                   title="卷数建议与策略审查"
@@ -329,7 +348,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
               </summary>
 
               <div className="mt-4 space-y-3">
-                <Card className="self-start">
+                <Card className="self-start border-0 bg-muted/15 shadow-none">
                   <CardHeader className="pb-3">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <CardTitle className="text-base">卷数建议</CardTitle>
@@ -338,21 +357,21 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                      <div className="rounded-xl bg-background/70 p-3">
                         <div className="text-xs text-muted-foreground">总章节预算</div>
                         <div className="mt-1 text-lg font-semibold text-foreground">{volumeCountGuidance.chapterBudget} 章</div>
                       </div>
-                      <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                      <div className="rounded-xl bg-background/70 p-3">
                         <div className="text-xs text-muted-foreground">推荐卷数区间</div>
                         <div className="mt-1 text-lg font-semibold text-foreground">
                           {volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
                         </div>
                       </div>
-                      <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                      <div className="rounded-xl bg-background/70 p-3">
                         <div className="text-xs text-muted-foreground">系统建议卷数</div>
                         <div className="mt-1 text-lg font-semibold text-foreground">{volumeCountGuidance.systemRecommendedVolumeCount} 卷</div>
                       </div>
-                      <div className="rounded-xl border border-border/70 bg-muted/20 p-3">
+                      <div className="rounded-xl bg-background/70 p-3">
                         <div className="text-xs text-muted-foreground">默认硬规划范围</div>
                         <div className="mt-1 text-lg font-semibold text-foreground">
                           {volumeCountGuidance.hardPlannedVolumeRange.min}-{volumeCountGuidance.hardPlannedVolumeRange.max} 卷
@@ -360,7 +379,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-border/70 bg-muted/20 p-3 text-xs leading-6 text-muted-foreground">
+                    <div className="rounded-xl bg-background/70 p-3 text-xs leading-6 text-muted-foreground">
                       标准卷尺度按 {volumeCountGuidance.targetChapterRange.min}-{volumeCountGuidance.targetChapterRange.max} 章 / 卷设计，
                       理想值约 {volumeCountGuidance.targetChapterRange.ideal} 章 / 卷。超长篇默认通过增加卷数来保持每卷的阶段感、升级节点和卷级回报，不再压成少数巨卷。
                     </div>
@@ -379,7 +398,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                     </div>
 
                     {customVolumeCountEnabled ? (
-                      <div className="rounded-xl border border-border/70 p-3">
+                      <div className="rounded-xl bg-background/70 p-3">
                         <div className="grid gap-3 sm:grid-cols-[minmax(0,180px)_auto_auto] sm:items-end">
                           <label className="space-y-1 text-sm">
                             <span className="text-xs text-muted-foreground">固定卷数</span>
@@ -403,7 +422,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                 </Card>
 
                 {critiqueReport ? (
-                  <Card className="self-start">
+                  <Card className="self-start border-0 bg-muted/15 shadow-none">
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between gap-2">
                         <CardTitle className="text-base">卷战略审稿</CardTitle>
@@ -437,7 +456,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
             </details>
           </div>
 
-          <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
+          <details className="group border-t border-border/60 pt-4">
             <summary className="cursor-pointer list-none">
               <CollapsibleSummary
                 title="派生文本、版本控制与影响分析"
@@ -446,7 +465,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
             </summary>
 
             <div className="mt-4 space-y-3">
-              <Card className="self-start">
+              <Card className="self-start border-0 bg-muted/15 shadow-none">
                 <CardHeader>
                   <CardTitle className="text-base">派生文本预览</CardTitle>
                 </CardHeader>
@@ -455,20 +474,20 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                 </CardContent>
               </Card>
 
-              <Card className="self-start">
+              <Card className="self-start border-0 bg-muted/15 shadow-none">
                 <CardHeader>
                   <CardTitle className="text-base">版本控制</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm">
                   {volumeVersions.length > 0 ? (
                     <>
-                      <select className="w-full rounded-md border bg-background p-2 text-sm" value={selectedVersionId} onChange={(event) => onSelectedVersionChange(event.target.value)}>
+                      <SelectControl className="w-full rounded-md border bg-background p-2 text-sm" value={selectedVersionId} onChange={(event) => onSelectedVersionChange(event.target.value)}>
                         {volumeVersions.map((version) => (
                           <option key={version.id} value={version.id}>
                             V{version.version} · {versionStatusLabel(version.status)}
                           </option>
                         ))}
-                      </select>
+                      </SelectControl>
                       {selectedVersion ? (
                         <div className="rounded-md border p-2">
                           <div className="flex items-center gap-2">
@@ -509,7 +528,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                 </CardContent>
               </Card>
 
-              <Card className="self-start">
+              <Card className="self-start border-0 bg-muted/15 shadow-none">
                 <CardHeader>
                   <CardTitle className="text-base">影响分析</CardTitle>
                 </CardHeader>
@@ -536,7 +555,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
           </details>
         </div>
 
-        <Card>
+        <Card className="border-0 bg-muted/15 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
               <div>
@@ -657,6 +676,18 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                 <VolumePayoffOverviewCard
                   selectedVolume={selectedVolume}
                 />
+                <TensionCurvePanel
+                  title="本卷紧张度"
+                  subtitle="查看章节冲突强度走向，红点表示你固定给后续 AI 保留的强度。"
+                  series={tensionCurveSeries}
+                  readonly
+                  compact
+                />
+                <div className="flex justify-end">
+                  <Button type="button" size="sm" variant="outline" onClick={onGoToStructuredTab}>
+                    去节奏 / 拆章编辑曲线
+                  </Button>
+                </div>
                 <Card key={selectedVolume.id}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between gap-2">

@@ -3,7 +3,9 @@ import { createContextBlock } from "../core/contextBudget";
 import type {
   PromptSlotDef,
   PromptSlotDefChoiceOption,
+  PromptSlotOverrideEntry,
   PromptSlotOverrideMap,
+  PromptSlotOverrideMode,
   ResolvedSlotOverlays,
   ResolvedSlots,
 } from "./slotTypes";
@@ -14,8 +16,64 @@ export function hashSlotDefault(value: string | boolean): string {
   return createHash("sha1").update(String(value)).digest("hex").slice(0, 12);
 }
 
-function getDefaultHash(def: PromptSlotDef): string {
-  return hashSlotDefault(def.kind === "toggle" ? def.default : def.default);
+export function getSlotDefaultValue(def: PromptSlotDef): string | boolean {
+  return def.default;
+}
+
+export function getSlotDefaultHash(def: PromptSlotDef): string {
+  return hashSlotDefault(getSlotDefaultValue(def));
+}
+
+export function getSlotOverrideMode(entry: PromptSlotOverrideEntry | undefined): PromptSlotOverrideMode {
+  return entry?.mode === "official_default" ? "official_default" : "custom";
+}
+
+export function isOfficialDefaultEntry(entry: PromptSlotOverrideEntry | undefined): boolean {
+  return getSlotOverrideMode(entry) === "official_default";
+}
+
+export function createOfficialDefaultEntry(def: PromptSlotDef): PromptSlotOverrideEntry {
+  return {
+    mode: "official_default",
+    value: getSlotDefaultValue(def),
+    baseHash: getSlotDefaultHash(def),
+  };
+}
+
+export function createCustomSlotEntry(def: PromptSlotDef, value: string | boolean): PromptSlotOverrideEntry {
+  return {
+    mode: "custom",
+    value,
+    baseHash: getSlotDefaultHash(def),
+  };
+}
+
+function resolveEffectiveOverride(input: {
+  key: string;
+  globalOverrides: PromptSlotOverrideMap;
+  novelOverrides: PromptSlotOverrideMap;
+}) {
+  const novelEntry = input.novelOverrides[input.key];
+  if (novelEntry) {
+    return {
+      entry: novelEntry,
+      scope: "novel" as const,
+      mode: getSlotOverrideMode(novelEntry),
+    };
+  }
+  const globalEntry = input.globalOverrides[input.key];
+  if (globalEntry) {
+    return {
+      entry: globalEntry,
+      scope: "global" as const,
+      mode: getSlotOverrideMode(globalEntry),
+    };
+  }
+  return {
+    entry: undefined,
+    scope: "official" as const,
+    mode: undefined,
+  };
 }
 
 export function resolvePromptOverlays(input: {
@@ -25,36 +83,35 @@ export function resolvePromptOverlays(input: {
 }): ResolvedSlotOverlays {
   const { slotDefs, globalOverrides, novelOverrides } = input;
 
-  const mergedOverrides: PromptSlotOverrideMap = { ...globalOverrides };
-  for (const [key, entry] of Object.entries(novelOverrides)) {
-    mergedOverrides[key] = entry;
-  }
-
   const drift: string[] = [];
   const resolvedValues: Record<string, string | boolean> = {};
   const appendBlocks = [];
   let appendIdx = 0;
 
   for (const def of slotDefs) {
-    const override = mergedOverrides[def.key];
-    const currentDefaultHash = getDefaultHash(def);
+    const effective = resolveEffectiveOverride({
+      key: def.key,
+      globalOverrides,
+      novelOverrides,
+    });
+    const override = effective.entry;
+    const currentDefaultHash = getSlotDefaultHash(def);
 
     if (override && override.baseHash !== currentDefaultHash) {
       drift.push(def.key);
     }
 
-    const raw: string | boolean = override
+    const raw: string | boolean = override && effective.mode !== "official_default"
       ? override.value
-      : def.kind === "toggle"
-        ? def.default
-        : def.default;
+      : getSlotDefaultValue(def);
     resolvedValues[def.key] = raw;
 
     if (def.kind === "append") {
       const text = typeof raw === "string" ? raw.trim() : "";
       if (text) {
-        const isNovel = Boolean(novelOverrides[def.key]);
-        const isGlobal = Boolean(globalOverrides[def.key]) && !isNovel;
+        const isCustom = effective.mode === "custom";
+        const isNovel = isCustom && effective.scope === "novel";
+        const isGlobal = isCustom && effective.scope === "global";
         const scopeTag = isNovel
           ? "【本书文案调整】"
           : isGlobal

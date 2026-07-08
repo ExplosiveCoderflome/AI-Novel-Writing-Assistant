@@ -5,6 +5,7 @@ import type {
 } from "@ai-novel/shared/types/world";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import SelectControl from "@/components/common/SelectControl";
 
 interface WorldVisualizationBoardProps {
   payload?: WorldVisualizationPayload;
@@ -732,7 +733,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
           placeholder="按名称或关键词筛选"
         />
         {mode === "faction" ? (
-          <select
+          <SelectControl
             className="rounded-md border bg-background px-2 py-1 text-sm"
             value={factionType}
             onChange={(event) => setFactionType(event.target.value)}
@@ -742,7 +743,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
                 {FACTION_TYPE_LABELS[type] ?? type}
               </option>
             ))}
-          </select>
+          </SelectControl>
         ) : (
           <div />
         )}

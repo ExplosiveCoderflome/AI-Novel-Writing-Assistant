@@ -30,6 +30,7 @@ import { buildReplanDecision } from "./replanDecision";
 import { replanWindowDecisionService } from "./ReplanWindowDecisionService";
 import {
   buildCurrentVolumeWindowSummary,
+  buildPlannerConflictLevelAnchorContext,
   buildPlannerCharacterDynamicsContext,
   buildPlannerPayoffLedgerContext,
   buildPlannerStoryModeBlock,
@@ -519,6 +520,11 @@ export class PlannerService {
         summary: item.summary,
         purpose: item.purpose,
         conflictLevel: item.conflictLevel,
+        conflictLevelSource: item.conflictLevelSource === "user"
+          ? "user" as const
+          : item.conflictLevelSource === "ai"
+            ? "ai" as const
+            : null,
         revealLevel: item.revealLevel,
         targetWordCount: item.targetWordCount,
         mustAvoid: item.mustAvoid,
@@ -542,8 +548,13 @@ export class PlannerService {
         chapterOrder: item.chapterOrder,
         title: item.title,
         summary: item.summary,
+        conflictLevel: item.conflictLevel,
+        conflictLevelSource: item.conflictLevelSource,
       })),
     }));
+    const anchoredVolumeChapter = mappedVolumes
+      .flatMap((volume) => volume.chapters)
+      .find((item) => item.chapterOrder === chapter.order && item.conflictLevelSource === "user");
     const defaultMetadata = buildDefaultPlanMetadata("chapter", {
       chapterOrder: chapter.order,
       totalChapters: novel.estimatedChapterCount ?? null,
@@ -655,6 +666,9 @@ export class PlannerService {
         `mustPreserve=${defaultMetadata.mustPreserve.join("；") || "无"}`,
       ].join("\n"),
       replanContext: replanContextBlock,
+      replanConflictLevelAnchors: options.replanContext
+        ? buildPlannerConflictLevelAnchorContext(plannerVolumes, options.replanContext.affectedChapterOrders)
+        : "无",
       storyMacroSummary: buildStoryMacroSummary(storyMacroPlan),
       currentVolumeWindow: buildCurrentVolumeWindowSummary(plannerVolumes, chapter.order),
       payoffLedgerSummary: buildPlannerPayoffLedgerContext(payoffLedger, chapter.order),
@@ -700,7 +714,7 @@ export class PlannerService {
       baseExecutionContract: {
         expectation: chapter.expectation,
         targetWordCount: chapter.targetWordCount,
-        conflictLevel: chapter.conflictLevel,
+        conflictLevel: anchoredVolumeChapter?.conflictLevel ?? chapter.conflictLevel,
         revealLevel: chapter.revealLevel,
         mustAvoid: chapter.mustAvoid,
         taskSheet: chapter.taskSheet,

@@ -31,6 +31,7 @@ import {
   buildNovelCoverDraftSourcePrompt,
   type BuildNovelCoverDraftInput,
 } from "./novelCoverDraft";
+import SelectControl from "@/components/common/SelectControl";
 
 const IMAGE_STATUS_TEXT: Record<string, string> = {
   queued: "排队中",
@@ -452,7 +453,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
 
             <label className="space-y-1 text-sm">
               <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">模型厂商</div>
-              <select
+              <SelectControl
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                 value={imageForm.provider}
                 disabled={imageProviderOptions.length === 0}
@@ -470,12 +471,12 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                     {item.name} · {item.imageModel}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             </label>
 
             <label className="space-y-1 text-sm">
               <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">尺寸</div>
-              <select
+              <SelectControl
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                 value={imageForm.size}
                 onChange={(event) =>
@@ -487,12 +488,12 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                 <option value="1024x1536">1024x1536（推荐竖版）</option>
                 <option value="1024x1024">1024x1024</option>
                 <option value="1536x1024">1536x1024</option>
-              </select>
+              </SelectControl>
             </label>
 
             <label className="space-y-1 text-sm">
               <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">生成张数</div>
-              <select
+              <SelectControl
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                 value={String(imageForm.count)}
                 onChange={(event) =>
@@ -505,7 +506,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                 <option value="2">2 张</option>
                 <option value="3">3 张</option>
                 <option value="4">4 张</option>
-              </select>
+              </SelectControl>
             </label>
 
             <div className="flex items-end">

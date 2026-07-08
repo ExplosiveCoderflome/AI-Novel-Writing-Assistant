@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
+import SelectControl from "@/components/common/SelectControl";
 
 interface WorldLibraryItem {
   id: string;
@@ -252,7 +253,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                 value={libraryKeyword}
                 onChange={(event) => setLibraryKeyword(event.target.value)}
               />
-              <select
+              <SelectControl
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={libraryCategory}
                 onChange={(event) => setLibraryCategory(event.target.value)}
@@ -266,7 +267,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                 <option value="event">事件</option>
                 <option value="artifact">道具奇物</option>
                 <option value="custom">自定义</option>
-              </select>
+              </SelectControl>
               <Button variant="outline" onClick={onRefreshLibrary}>
                 刷新
               </Button>
@@ -281,7 +282,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                   value={publishName}
                   onChange={(event) => setPublishName(event.target.value)}
                 />
-                <select
+                <SelectControl
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={publishCategory}
                   onChange={(event) => setPublishCategory(event.target.value)}
@@ -294,7 +295,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                   <option value="resource">资源</option>
                   <option value="event">事件</option>
                   <option value="artifact">道具奇物</option>
-                </select>
+                </SelectControl>
                 <Button onClick={onPublishLibrary} disabled={publishPending}>
                   {publishPending ? "保存中..." : "保存素材"}
                 </Button>
@@ -356,7 +357,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
             </div>
           ))}
           <div className="grid gap-2 md:grid-cols-3">
-            <select
+            <SelectControl
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={diffFrom}
               onChange={(event) => setDiffFrom(event.target.value)}
@@ -367,8 +368,8 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                   {snapshot.label ?? snapshot.id.slice(0, 8)}
                 </option>
               ))}
-            </select>
-            <select
+            </SelectControl>
+            <SelectControl
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={diffTo}
               onChange={(event) => setDiffTo(event.target.value)}
@@ -379,7 +380,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                   {snapshot.label ?? snapshot.id.slice(0, 8)}
                 </option>
               ))}
-            </select>
+            </SelectControl>
             <Button onClick={onDiffSnapshots} disabled={!diffFrom || !diffTo}>
               对比差异
             </Button>
@@ -409,7 +410,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
         {activeTool === "import" ? (
           <div className="rounded-md border p-3 space-y-2">
           <div className="font-medium">导入文本</div>
-          <select
+          <SelectControl
             className="w-full rounded-md border bg-background p-2 text-sm"
             value={importFormat}
             onChange={(event) => setImportFormat(event.target.value as "json" | "markdown" | "text")}
@@ -417,7 +418,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
             <option value="text">纯文本</option>
             <option value="markdown">Markdown</option>
             <option value="json">JSON</option>
-          </select>
+          </SelectControl>
           <textarea
             className="min-h-[160px] w-full rounded-md border bg-background p-2 text-sm"
             value={importContent}

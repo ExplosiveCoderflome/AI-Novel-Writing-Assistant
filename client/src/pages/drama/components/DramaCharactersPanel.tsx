@@ -17,6 +17,7 @@ import { useImageGenerationFlow } from "@/components/image/useImageGenerationFlo
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import SelectControl from "@/components/common/SelectControl";
 
 export interface DramaCharacterAssetInput {
   name: string;
@@ -174,7 +175,7 @@ function CharacterImagesBlock(props: {
           <p className="text-xs text-muted-foreground">面部特写 + 全身正/侧/背三视图 — 生成后锁定跨集视觉一致性</p>
         </div>
         {imageProviders.length > 0 ? (
-          <select
+          <SelectControl
             className="h-7 rounded-md border bg-background px-2 text-xs"
             value={selectedProvider}
             disabled={isGenerating}
@@ -185,7 +186,7 @@ function CharacterImagesBlock(props: {
                 {item.name} · {item.currentImageModel}
               </option>
             ))}
-          </select>
+          </SelectControl>
         ) : (
           <span className="text-xs text-destructive">请先在设置中配置图片生成 Provider</span>
         )}
@@ -454,7 +455,7 @@ export function DramaCharactersPanel(props: {
           <CardDescription>角色资产会进入台本、分镜和视频提示词，优先保证观众识别、造型一致和台词可拍。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <select
+          <SelectControl
             className="h-10 min-w-[260px] rounded-md border bg-background px-3 text-sm"
             value={selectedLibraryId}
             disabled={props.busy || props.library.length === 0}
@@ -466,7 +467,7 @@ export function DramaCharactersPanel(props: {
                 {item.name}{item.archetype ? ` · ${item.archetype}` : ""}
               </option>
             ))}
-          </select>
+          </SelectControl>
           <Button
             type="button"
             variant="outline"

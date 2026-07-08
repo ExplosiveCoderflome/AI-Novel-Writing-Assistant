@@ -430,7 +430,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     <>
       <aside
         className={cn(
-          "border-r bg-background/95 backdrop-blur transition-[width] duration-200",
+          "border-r border-border/60 bg-muted/10 backdrop-blur transition-[width] duration-200",
           collapsed ? "w-[84px]" : "w-[248px]",
         )}
       >
@@ -438,7 +438,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
           <div className={cn("flex items-center gap-2", collapsed ? "justify-center" : "justify-between")}>
             {!collapsed ? (
               <div className="flex min-w-0 items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/8 text-primary">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-background text-primary shadow-sm">
                   <BookOpenText className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
@@ -466,7 +466,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
           <Button
             type="button"
             variant="outline"
-            className="justify-start"
+            className="justify-start bg-background"
             onClick={() => navigate("/novels")}
           >
             返回小说列表
@@ -486,7 +486,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         )}
 
         {!collapsed ? (
-          <div className="rounded-2xl border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+          <div className="rounded-2xl bg-background/75 px-3 py-2 text-xs text-muted-foreground">
             <div className="flex items-center justify-between gap-2">
               <span>流程：{getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}</span>
               <span>{workflowProgressCount}/{NOVEL_WORKSPACE_FLOW_STEPS.length}</span>
@@ -503,17 +503,17 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
               aria-current={step.isSelected ? "step" : undefined}
               onClick={() => goToTab(step.key)}
               className={cn(
-                "relative flex w-full items-center rounded-2xl border text-left transition-colors",
+                "relative flex w-full items-center rounded-xl text-left transition-colors",
                 collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-3",
                 step.isWorkflowCurrent && step.isSelected
-                  ? "border-sky-400 bg-sky-100 text-sky-950 shadow-sm ring-1 ring-sky-200"
+                  ? "bg-sky-50 text-sky-950 shadow-sm ring-1 ring-sky-100"
                   : step.isWorkflowCurrent
-                  ? "border-sky-200 bg-sky-50 text-sky-900"
+                  ? "bg-sky-50 text-sky-900"
                   : step.isSelected
-                    ? "border-slate-900 bg-slate-900 text-white"
+                    ? "bg-slate-950 text-white shadow-sm"
                     : step.isDone
-                      ? "border-emerald-200 bg-emerald-50/60 text-foreground"
-                      : "border-border/70 bg-background hover:bg-muted/40",
+                      ? "bg-emerald-50/35 text-foreground"
+                      : "text-muted-foreground hover:bg-background/75 hover:text-foreground",
               )}
             >
               {step.isWorkflowCurrent && !step.isSelected ? (
@@ -527,8 +527,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                     : step.isSelected
                     ? "bg-white/15 text-white"
                     : step.isDone
-                      ? "bg-emerald-600 text-white"
-                      : "bg-muted text-muted-foreground",
+                      ? "bg-emerald-500/15 text-emerald-700"
+                      : "bg-background text-muted-foreground",
                 )}
               >
                 {index + 1}
@@ -538,14 +538,14 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{step.label}</span>
                   <span
                     className={cn(
-                      "shrink-0 rounded-full px-2 py-1 text-[11px] font-medium",
+                      "shrink-0 text-[11px] font-medium",
                       step.isWorkflowCurrent
-                        ? "bg-sky-600 text-white"
+                        ? "text-sky-700"
                         : step.isSelected
-                        ? "bg-white/15 text-white"
+                        ? "text-white/80"
                         : step.isDone
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-muted text-muted-foreground",
+                          ? "text-emerald-700"
+                          : "text-muted-foreground",
                     )}
                   >
                     {step.statusLabel}
@@ -562,9 +562,9 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
             onClick={() => goToTab("history")}
             title="版本历史"
             className={cn(
-              "flex w-full items-center rounded-2xl border border-border/70 transition-colors hover:bg-muted/40",
+              "flex w-full items-center rounded-xl transition-colors hover:bg-background/75",
               collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-3 text-left",
-              activeTab === "history" && "border-slate-900 bg-slate-900 text-white",
+              activeTab === "history" && "bg-slate-950 text-white shadow-sm",
             )}
           >
             <History className="h-4 w-4 shrink-0" />

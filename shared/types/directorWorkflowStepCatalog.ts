@@ -57,6 +57,23 @@ export function getWorkflowStepCatalogEntry(stepId: string): WorkflowStepCatalog
   return entry;
 }
 
+export function getOrderedWorkflowStepCatalogEntriesByStage(
+  stage: string,
+): WorkflowStepCatalogEntry[] {
+  return WORKFLOW_STEP_CATALOG
+    .filter((entry) => entry.stage === stage)
+    .slice()
+    .sort((a, b) => {
+      const orderDiff = (a.orchestrationOrder ?? Number.MAX_SAFE_INTEGER)
+        - (b.orchestrationOrder ?? Number.MAX_SAFE_INTEGER);
+      return orderDiff !== 0 ? orderDiff : a.id.localeCompare(b.id);
+    });
+}
+
+export function getWorkflowStepPrerequisiteIds(stepId: string): string[] {
+  return [...(getWorkflowStepCatalogEntry(stepId).prerequisiteStepIds ?? [])];
+}
+
 export function findWorkflowStepCatalogEntryByNodeKey(
   nodeKey: string | null | undefined,
 ): WorkflowStepCatalogEntry | null {

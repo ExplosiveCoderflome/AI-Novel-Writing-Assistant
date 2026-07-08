@@ -95,6 +95,7 @@ export function createEmptyChapter(chapterOrder: number): VolumeChapterPlan {
     summary: "",
     purpose: "",
     conflictLevel: null,
+    conflictLevelSource: null,
     revealLevel: null,
     targetWordCount: null,
     mustAvoid: "",

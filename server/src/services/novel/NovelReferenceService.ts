@@ -16,7 +16,6 @@ export type NovelReferenceStage =
   | "structured_outline"
   | "bible"
   | "beats"
-  | "chapter"
   | "character";
 
 const MAX_REFERENCE_CHARS_PER_STAGE = 5_000;
@@ -217,7 +216,6 @@ const STAGE_SECTION_MAP: Record<NovelReferenceStage, BookAnalysisSectionKey[]> =
   structured_outline: ["plot_structure", "timeline", "character_system"],
   bible: ["character_system", "worldbuilding", "themes"],
   beats: ["plot_structure", "timeline", "market_highlights"],
-  chapter: ["timeline", "style_technique"],
   character: ["character_system"],
 };
 
@@ -346,63 +344,72 @@ export class NovelReferenceService {
   }
 
   async buildReferenceForStage(novelId: string, stage: NovelReferenceStage): Promise<string> {
-    const [continuationConfig, analyses, knowledgeContents] = await Promise.all([
-      this.resolveContinuationAnalysisConfig(novelId),
-      this.resolveAnalysesForNovel(novelId),
-      this.resolveKnowledgeContentsForNovel(novelId),
-    ]);
+    try {
+      const [continuationConfig, analyses, knowledgeContents] = await Promise.all([
+        this.resolveContinuationAnalysisConfig(novelId),
+        this.resolveAnalysesForNovel(novelId),
+        this.resolveKnowledgeContentsForNovel(novelId),
+      ]);
 
-    const parts: string[] = [];
-    const stageSectionKeySet = new Set(STAGE_SECTION_MAP[stage]);
+      const parts: string[] = [];
+      const stageSectionKeySet = new Set(STAGE_SECTION_MAP[stage]);
 
-    let preferredAnalysisId: string | null = null;
-    if (continuationConfig.enabled && continuationConfig.analysisId) {
-      const preferred = await this.resolveAnalysisById(continuationConfig.analysisId);
-      if (preferred) {
-        preferredAnalysisId = preferred.id;
-        const preferredKeySet = continuationConfig.sectionKeys
-          ? new Set(continuationConfig.sectionKeys)
-          : new Set(stageSectionKeySet);
-        preferredKeySet.add("timeline");
+      let preferredAnalysisId: string | null = null;
+      if (continuationConfig.enabled && continuationConfig.analysisId) {
+        const preferred = await this.resolveAnalysisById(continuationConfig.analysisId);
+        if (preferred) {
+          preferredAnalysisId = preferred.id;
+          const preferredKeySet = continuationConfig.sectionKeys
+            ? new Set(continuationConfig.sectionKeys)
+            : new Set(stageSectionKeySet);
+          preferredKeySet.add("timeline");
 
-        const timelineOnly = this.buildAnalysisBlock(
-          preferred,
-          new Set<BookAnalysisSectionKey>(["timeline"]),
-          "continuation.timeline.priority",
-        );
-        if (timelineOnly) {
-          parts.push(timelineOnly);
+          const timelineOnly = this.buildAnalysisBlock(
+            preferred,
+            new Set<BookAnalysisSectionKey>(["timeline"]),
+            "continuation.timeline.priority",
+          );
+          if (timelineOnly) {
+            parts.push(timelineOnly);
+          }
+
+          const preferredBlock = this.buildAnalysisBlock(preferred, preferredKeySet, "continuation.analysis.primary");
+          if (preferredBlock) {
+            parts.push(preferredBlock);
+          }
         }
+      }
 
-        const preferredBlock = this.buildAnalysisBlock(preferred, preferredKeySet, "continuation.analysis.primary");
-        if (preferredBlock) {
-          parts.push(preferredBlock);
+      for (const analysis of analyses) {
+        if (preferredAnalysisId && analysis.id === preferredAnalysisId) {
+          continue;
+        }
+        const block = this.buildAnalysisBlock(analysis, stageSectionKeySet, "analysis.reference");
+        if (block) {
+          parts.push(block);
         }
       }
-    }
 
-    for (const analysis of analyses) {
-      if (preferredAnalysisId && analysis.id === preferredAnalysisId) {
-        continue;
+      if (knowledgeContents.length > 0) {
+        const knowledgeExcerpts = knowledgeContents
+          .map((item) => `[knowledge] ${item.title}\n${clipText(item.content, MAX_KNOWLEDGE_EXCERPT_CHARS)}`)
+          .join("\n\n");
+        parts.push(knowledgeExcerpts);
       }
-      const block = this.buildAnalysisBlock(analysis, stageSectionKeySet, "analysis.reference");
-      if (block) {
-        parts.push(block);
+
+      const combined = parts.join("\n\n");
+      if (!combined.trim()) {
+        return "";
       }
-    }
-
-    if (knowledgeContents.length > 0 && stage !== "chapter") {
-      const knowledgeExcerpts = knowledgeContents
-        .map((item) => `[knowledge] ${item.title}\n${clipText(item.content, MAX_KNOWLEDGE_EXCERPT_CHARS)}`)
-        .join("\n\n");
-      parts.push(knowledgeExcerpts);
-    }
-
-    const combined = parts.join("\n\n");
-    if (!combined.trim()) {
+      return clipText(combined, MAX_REFERENCE_CHARS_PER_STAGE);
+    } catch (error) {
+      console.warn("[novel-reference] reference context skipped.", {
+        novelId,
+        stage,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return "";
     }
-    return clipText(combined, MAX_REFERENCE_CHARS_PER_STAGE);
   }
 }
 

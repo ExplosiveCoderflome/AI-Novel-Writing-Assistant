@@ -298,6 +298,12 @@ test("volume chapter list prompt degrades title diversity failure after semantic
     assert.equal(result.output.chapters[0].title, "签下合同，甜蜜同居");
     assert.equal(result.meta.invocation.semanticRetryUsed, true);
     assert.equal(result.meta.invocation.semanticRetryAttempts, 2);
+
+    const retryMessage = String(calls[1].messages[calls[1].messages.length - 1].content);
+    assert.match(retryMessage, /失败原因：章节标题结构过于集中/);
+    assert.match(retryMessage, /失败类型：标题结构/);
+    assert.match(retryMessage, /不要只局部替换触发校验的一章/);
+    assert.match(retryMessage, /重排整组标题骨架/);
   } finally {
     setPromptRunnerStructuredInvokerForTests();
   }

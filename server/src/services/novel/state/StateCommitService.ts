@@ -1,4 +1,5 @@
 import type {
+  ContentProvenance,
   StateChangeProposal,
   StateCommitResult,
   StateVersionRecord,
@@ -12,6 +13,13 @@ import { characterResourceValidationService } from "../characterResource/Charact
 import { canonicalStateService } from "./CanonicalStateService";
 import { chapterFactExtractor, type ChapterFactExtractorInput } from "./ChapterFactExtractor";
 import { stateVersionLog } from "./StateVersionLog";
+import {
+  attachProposalSourceQuality,
+  isDebtSourceProposal,
+  markDebtSourcePendingReview,
+  normalizeContentProvenance,
+  resolveProposalSourceQuality,
+} from "./stateProposalSourceQuality";
 
 const AUTO_COMMIT_TYPES = new Set<StateChangeProposal["proposalType"]>([
   "event_record",
@@ -60,6 +68,7 @@ function buildVersionSummary(
 export interface StateCommitServiceInput extends ChapterFactExtractorInput {
   proposals?: StateChangeProposal[];
   skipFactExtraction?: boolean;
+  contentProvenance?: ContentProvenance;
 }
 
 export interface CommitExistingProposalsInput {
@@ -94,9 +103,14 @@ export class StateCommitService {
     const rawProposals = input.proposals
       ? extractedProposals.concat(input.proposals)
       : extractedProposals;
+    const inputSourceQuality = normalizeContentProvenance(input.contentProvenance);
+    const proposals = rawProposals.map((proposal) => attachProposalSourceQuality(
+      proposal,
+      inputSourceQuality === "debt" ? "debt" : resolveProposalSourceQuality(proposal),
+    ));
     const validation = await this.applyCharacterResourceConflictChecks(
       input.novelId,
-      this.validate(rawProposals),
+      this.validate(proposals),
     );
     const persisted = await this.persistValidated(validation);
 
@@ -237,18 +251,22 @@ export class StateCommitService {
         evidence: proposal.evidence.map((item) => compactText(item)).filter(Boolean),
         validationNotes: proposal.validationNotes.map((item) => compactText(item)).filter(Boolean),
       } satisfies StateChangeProposal;
+      const sourceNormalized = attachProposalSourceQuality(
+        normalized,
+        resolveProposalSourceQuality(normalized),
+      );
 
-      if (!normalized.summary) {
+      if (!sourceNormalized.summary) {
         rejected.push({
-          ...normalized,
+          ...sourceNormalized,
           status: "rejected",
-          validationNotes: normalized.validationNotes.concat("missing summary"),
+          validationNotes: sourceNormalized.validationNotes.concat("missing summary"),
         });
         continue;
       }
 
-      if (normalized.proposalType === "character_resource_update") {
-        const resourceValidation = characterResourceValidationService.validateProposal(normalized);
+      if (sourceNormalized.proposalType === "character_resource_update") {
+        const resourceValidation = characterResourceValidationService.validateProposal(sourceNormalized);
         if (resourceValidation.status === "committed") {
           accepted.push(resourceValidation);
         } else if (resourceValidation.status === "pending_review") {
@@ -259,38 +277,45 @@ export class StateCommitService {
         continue;
       }
 
-      if (ALWAYS_REVIEW_TYPES.has(normalized.proposalType) || normalized.riskLevel === "high") {
-        pendingReview.push({
-          ...normalized,
-          status: "pending_review",
-          validationNotes: normalized.validationNotes.concat("requires manual review"),
-        });
-        continue;
-      }
-
-      if (!AUTO_COMMIT_TYPES.has(normalized.proposalType)) {
-        rejected.push({
-          ...normalized,
-          status: "rejected",
-          validationNotes: normalized.validationNotes.concat("unsupported proposal type"),
-        });
-        continue;
-      }
-
-      if (normalized.proposalType === "character_state_update") {
-        const payload = parseJsonRecord(normalized.payload);
+      if (sourceNormalized.proposalType === "character_state_update") {
+        const payload = parseJsonRecord(sourceNormalized.payload);
         if (typeof payload.characterId !== "string" || !compactText(payload.characterId)) {
           rejected.push({
-            ...normalized,
+            ...sourceNormalized,
             status: "rejected",
-            validationNotes: normalized.validationNotes.concat("missing characterId"),
+            validationNotes: sourceNormalized.validationNotes.concat("missing characterId"),
           });
           continue;
         }
       }
 
+      const supportedProposalType = AUTO_COMMIT_TYPES.has(sourceNormalized.proposalType)
+        || ALWAYS_REVIEW_TYPES.has(sourceNormalized.proposalType);
+      if (!supportedProposalType) {
+        rejected.push({
+          ...sourceNormalized,
+          status: "rejected",
+          validationNotes: sourceNormalized.validationNotes.concat("unsupported proposal type"),
+        });
+        continue;
+      }
+
+      if (isDebtSourceProposal(sourceNormalized)) {
+        pendingReview.push(markDebtSourcePendingReview(sourceNormalized));
+        continue;
+      }
+
+      if (ALWAYS_REVIEW_TYPES.has(sourceNormalized.proposalType) || sourceNormalized.riskLevel === "high") {
+        pendingReview.push({
+          ...sourceNormalized,
+          status: "pending_review",
+          validationNotes: sourceNormalized.validationNotes.concat("requires manual review"),
+        });
+        continue;
+      }
+
       accepted.push({
-        ...normalized,
+        ...sourceNormalized,
         status: "committed",
       });
     }
@@ -532,7 +557,8 @@ export class StateCommitService {
   }
 
   private toProposal(row: PersistedProposalRow): StateChangeProposal {
-    return {
+    const validationNotes = this.parseStringArray(row.validationNotesJson);
+    const proposal: StateChangeProposal = {
       id: row.id,
       novelId: row.novelId,
       chapterId: row.chapterId ?? null,
@@ -545,8 +571,9 @@ export class StateCommitService {
       summary: row.summary,
       payload: JSON.parse(row.payloadJson) as Record<string, unknown>,
       evidence: this.parseStringArray(row.evidenceJson),
-      validationNotes: this.parseStringArray(row.validationNotesJson),
+      validationNotes,
     };
+    return attachProposalSourceQuality(proposal, resolveProposalSourceQuality(proposal));
   }
 
   private parseStringArray(value: string | null | undefined): string[] {

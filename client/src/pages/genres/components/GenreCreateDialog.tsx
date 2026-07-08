@@ -16,6 +16,7 @@ import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import GenreTreeEditor from "./GenreTreeEditor";
 import { cloneGenreDraft, createEmptyGenreDraft } from "../genreManagement.shared";
+import SelectControl from "@/components/common/SelectControl";
 
 interface GenreCreateDialogProps {
   open: boolean;
@@ -139,7 +140,7 @@ export default function GenreCreateDialog({
             <label htmlFor="genre-parent" className="text-sm font-medium text-foreground">
               父级题材基底
             </label>
-            <select
+            <SelectControl
               id="genre-parent"
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={parentId}
@@ -151,7 +152,7 @@ export default function GenreCreateDialog({
                   {option.path}
                 </option>
               ))}
-            </select>
+            </SelectControl>
           </div>
 
           <GenreTreeEditor value={draft} onChange={setDraft} />

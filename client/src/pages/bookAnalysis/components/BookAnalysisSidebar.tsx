@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatStatus } from "../bookAnalysis.utils";
+import SelectControl from "@/components/common/SelectControl";
 
 interface BookAnalysisSidebarProps {
   keyword: string;
@@ -46,7 +47,7 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         <Input value={keyword} onChange={(event) => onKeywordChange(event.target.value)} placeholder="搜索标题或关键词" />
-        <select
+        <SelectControl
           className="h-10 w-full rounded-md border bg-background px-3 text-sm"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as BookAnalysisStatus | "")}
@@ -58,7 +59,7 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
           <option value="succeeded">成功</option>
           <option value="failed">失败</option>
           <option value="archived">已归档</option>
-        </select>
+        </SelectControl>
 
         <div className="space-y-2">
           {analyses.map((item) => (

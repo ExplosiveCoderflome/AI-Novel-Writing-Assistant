@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "@/components/ui/toast";
 import { getNovelList } from "@/api/novel/core";
 import { DRAMA_SOURCE_LABELS, DRAMA_TRACK_OPTIONS, dramaTrackLabel } from "./dramaDisplay";
+import SelectControl from "@/components/common/SelectControl";
 
 const WIZARD_STEPS = [
   { key: "source", label: "来源" },
@@ -360,7 +361,7 @@ export default function DramaWorkspacePage() {
                   <>
                     <label className="block space-y-1.5 text-sm">
                       <span className="font-medium">选择小说</span>
-                      <select
+                      <SelectControl
                         className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                         value={form.sourceRef}
                         disabled={novelsQuery.isLoading || novels.length === 0}
@@ -381,7 +382,7 @@ export default function DramaWorkspacePage() {
                             {novel.title || "未命名小说"}（{novel._count.chapters} 章）
                           </option>
                         ))}
-                      </select>
+                      </SelectControl>
                     </label>
                     {selectedNovel ? (
                       <div className="rounded-md border p-3 text-sm text-muted-foreground">
@@ -430,7 +431,7 @@ export default function DramaWorkspacePage() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block space-y-1.5 text-sm">
                     <span className="font-medium">赛道</span>
-                    <select
+                    <SelectControl
                       className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                       value={form.track}
                       onChange={(event) => setForm((current) => ({ ...current, track: event.target.value }))}
@@ -438,7 +439,7 @@ export default function DramaWorkspacePage() {
                       {DRAMA_TRACK_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
-                    </select>
+                    </SelectControl>
                   </label>
                   <label className="block space-y-1.5 text-sm">
                     <span className="font-medium">目标集数</span>

@@ -39,6 +39,7 @@
 
 用于放系统设计、模块接口、产品机制和领域建模说明。
 
+- [产品 UI 总体设计系统](./design/product-ui-design-system.md)
 - [Style Engine v1](./design/style-engine-v1.md)
 - [Style Engine Prompt Compiler v1](./design/style-engine-prompt-compiler-v1.md)
 - [Style Engine Boundary and PRD v2](./design/style-engine-boundary-prd-v2.md)

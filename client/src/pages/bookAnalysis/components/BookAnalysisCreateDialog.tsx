@@ -12,6 +12,7 @@ import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { LLMConfigState } from "../bookAnalysis.types";
 import type { BookAnalysisMode, BookAnalysisSourceRangeDraft, NovelOption } from "../hooks/bookAnalysisWorkspace.types";
+import SelectControl from "@/components/common/SelectControl";
 
 interface BookAnalysisCreateDialogProps {
   open: boolean;
@@ -188,7 +189,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
             {isDiagnosisMode ? (
               <div className="space-y-2">
                 <div className="text-sm font-medium">要诊断的小说</div>
-                <select
+                <SelectControl
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                   value={selectedDiagnosisNovelId}
                   onChange={(event) => onSelectDiagnosisNovel(event.target.value)}
@@ -199,7 +200,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                       {novel.title}
                     </option>
                   ))}
-                </select>
+                </SelectControl>
                 <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
                   系统会导出这本小说的当前章节正文，作为新的知识文档创建诊断拆书。
                 </div>
@@ -209,7 +210,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                 <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <div className="text-sm font-medium">知识文档</div>
-                  <select
+                  <SelectControl
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                     value={selectedDocumentId}
                     onChange={(event) => onSelectDocument(event.target.value)}
@@ -220,11 +221,11 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                         {document.title}
                       </option>
                     ))}
-                  </select>
+                  </SelectControl>
                 </div>
                 <div className="space-y-2">
                   <div className="text-sm font-medium">文档版本</div>
-                  <select
+                  <SelectControl
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                     value={selectedVersionId}
                     onChange={(event) => onSelectVersion(event.target.value)}
@@ -236,7 +237,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                         v{version.versionNumber} {version.isActive ? "（当前）" : ""}
                       </option>
                     ))}
-                  </select>
+                  </SelectControl>
                 </div>
               </div>
                 <BookAnalysisSourceRangePicker

@@ -5,6 +5,10 @@ import type {
 import type { StateChangeProposal } from "@ai-novel/shared/types/canonicalState";
 import { characterResourceUpdatePayloadSchema } from "@ai-novel/shared/types/characterResource";
 import { compactText } from "./characterResourceShared";
+import {
+  isDebtSourceProposal,
+  markDebtSourcePendingReview,
+} from "../state/stateProposalSourceQuality";
 
 const HIGH_RISK_EVENTS = new Set<CharacterResourceEventType>(["lost", "consumed", "destroyed", "damaged"]);
 const AUTO_DIRECTOR_RESOURCE_SOURCE_TYPES = new Set(["chapter_background_sync"]);
@@ -39,6 +43,10 @@ export class CharacterResourceValidationService {
         status: "rejected",
         validationNotes: proposal.validationNotes.concat("missing evidence"),
       };
+    }
+
+    if (isDebtSourceProposal(proposal)) {
+      return markDebtSourcePendingReview(proposal);
     }
 
     const lowConfidence = typeof payload.confidence === "number" && payload.confidence < 0.55;

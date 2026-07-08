@@ -35,7 +35,7 @@ test("buildChapterQualityLoopAssessment continues when quality signals are valid
   assert.equal(assessment.recommendedAction, "continue");
   assert.equal(assessment.patchFirstRequired, false);
   assert.equal(assessment.recheckRequired, false);
-  assert.equal(assessment.signals.length, 3);
+  assert.equal(assessment.signals.length, 4);
 });
 
 test("buildChapterQualityLoopAssessment requires patch-first repair for local quality risk", () => {
@@ -162,6 +162,80 @@ test("buildChapterQualityLoopAssessment treats low repetition control as a repai
   assert.equal(assessment.budget.nextAction, "patch_repair");
 });
 
+test("buildChapterQualityLoopAssessment includes prose quality risk as local patch repair input", () => {
+  const assessment = buildChapterQualityLoopAssessment({
+    chapterId: "chapter-prose-risk",
+    chapterOrder: 6,
+    score: score(),
+    issues: [],
+    runtimePackage: {
+      context: {
+        chapter: { order: 6 },
+      },
+      audit: {
+        reports: [],
+        openIssues: [{
+          auditType: "mode_fit",
+          severity: "high",
+          code: "prose_negative_flip",
+          evidence: "第 3 行：不是害怕，而是清醒。",
+          fixSuggestion: "改成具体动作和感官细节。",
+        }],
+      },
+      failureClassification: {
+        code: "none",
+        summary: "未触发全局重规划。",
+        decisionReason: null,
+        blockingObligations: [],
+      },
+    },
+    evaluatedAt: "2026-04-30T00:00:00.000Z",
+  });
+
+  const proseSignal = assessment.signals.find((signal) => signal.artifactType === "prose_quality");
+  assert.equal(proseSignal.status, "risk");
+  assert.deepEqual(proseSignal.issueCodes, ["prose_negative_flip"]);
+  assert.equal(assessment.overallStatus, "risk");
+  assert.equal(assessment.recommendedAction, "patch_repair");
+  assert.equal(assessment.rootCauseCode, "none");
+});
+
+test("buildChapterQualityLoopAssessment keeps advisory prose findings non-blocking", () => {
+  const assessment = buildChapterQualityLoopAssessment({
+    chapterId: "chapter-prose-advisory",
+    chapterOrder: 7,
+    score: score(),
+    issues: [],
+    runtimePackage: {
+      context: {
+        chapter: { order: 7 },
+      },
+      audit: {
+        reports: [],
+        openIssues: [{
+          auditType: "mode_fit",
+          severity: "medium",
+          code: "prose_long_paragraph",
+          evidence: "第 8 行：段落过长。",
+          fixSuggestion: "拆成更短段落。",
+        }],
+      },
+      failureClassification: {
+        code: "none",
+        summary: "未触发全局重规划。",
+        decisionReason: null,
+        blockingObligations: [],
+      },
+    },
+    evaluatedAt: "2026-04-30T00:00:00.000Z",
+  });
+
+  const proseSignal = assessment.signals.find((signal) => signal.artifactType === "prose_quality");
+  assert.equal(proseSignal.status, "valid");
+  assert.deepEqual(proseSignal.issueCodes, ["prose_long_paragraph"]);
+  assert.equal(assessment.recommendedAction, "continue");
+});
+
 test("buildChapterQualityLoopAssessment escalates repeated quality signatures by budget", () => {
   const first = buildChapterQualityLoopAssessment({
     chapterId: "chapter-budget",
@@ -250,6 +324,25 @@ test("quality loop projection classifies deferred patch repair as non-blocking d
       recommendedAction: "patch_repair",
       rootCauseCode: "draft_repair_exhausted",
       terminalAction: "defer_and_continue",
+    },
+  });
+
+  assert.equal(classifyChapterQualityLoopRiskFlags(riskFlags), "non_blocking_quality_debt");
+  assert.equal(hasContinuableChapterQualityLoopRiskFlags(riskFlags), true);
+});
+
+test("quality loop projection classifies deferred prose risk as non-blocking debt", () => {
+  const riskFlags = JSON.stringify({
+    qualityLoop: {
+      overallStatus: "risk",
+      recommendedAction: "patch_repair",
+      rootCauseCode: "draft_repair_exhausted",
+      terminalAction: "defer_and_continue",
+      signals: [{
+        artifactType: "prose_quality",
+        status: "risk",
+        issueCodes: ["prose_ai_self_reference"],
+      }],
     },
   });
 

@@ -253,6 +253,10 @@ export class StyleProfileService {
     const compiledRuleSet = normalizedExtractedFeatures
       ? buildRuleSetFromProfileFeatures(normalizedExtractedFeatures)
       : null;
+    const hasExplicitNarrativeRules = Object.prototype.hasOwnProperty.call(input, "narrativeRules");
+    const hasExplicitCharacterRules = Object.prototype.hasOwnProperty.call(input, "characterRules");
+    const hasExplicitLanguageRules = Object.prototype.hasOwnProperty.call(input, "languageRules");
+    const hasExplicitRhythmRules = Object.prototype.hasOwnProperty.call(input, "rhythmRules");
     await prisma.styleProfile.update({
       where: { id },
       data: {
@@ -265,18 +269,18 @@ export class StyleProfileService {
         sourceContent: input.sourceContent,
         extractedFeaturesJson: normalizedExtractedFeatures ? serializeJson(normalizedExtractedFeatures) : undefined,
         analysisMarkdown: input.analysisMarkdown,
-        narrativeRulesJson: compiledRuleSet
-          ? serializeJson(compiledRuleSet.narrativeRules)
-          : (input.narrativeRules ? serializeJson(input.narrativeRules) : undefined),
-        characterRulesJson: compiledRuleSet
-          ? serializeJson(compiledRuleSet.characterRules)
-          : (input.characterRules ? serializeJson(input.characterRules) : undefined),
-        languageRulesJson: compiledRuleSet
-          ? serializeJson(compiledRuleSet.languageRules)
-          : (input.languageRules ? serializeJson(input.languageRules) : undefined),
-        rhythmRulesJson: compiledRuleSet
-          ? serializeJson(compiledRuleSet.rhythmRules)
-          : (input.rhythmRules ? serializeJson(input.rhythmRules) : undefined),
+        narrativeRulesJson: hasExplicitNarrativeRules
+          ? serializeJson(input.narrativeRules ?? {})
+          : (compiledRuleSet ? serializeJson(compiledRuleSet.narrativeRules) : undefined),
+        characterRulesJson: hasExplicitCharacterRules
+          ? serializeJson(input.characterRules ?? {})
+          : (compiledRuleSet ? serializeJson(compiledRuleSet.characterRules) : undefined),
+        languageRulesJson: hasExplicitLanguageRules
+          ? serializeJson(input.languageRules ?? {})
+          : (compiledRuleSet ? serializeJson(compiledRuleSet.languageRules) : undefined),
+        rhythmRulesJson: hasExplicitRhythmRules
+          ? serializeJson(input.rhythmRules ?? {})
+          : (compiledRuleSet ? serializeJson(compiledRuleSet.rhythmRules) : undefined),
         status: input.status,
       },
     });

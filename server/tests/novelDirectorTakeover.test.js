@@ -1,13 +1,21 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
+  buildSkipSteps,
+  entryStepToLegacyStartPhase,
+  entryStepToWorkflowStage,
   isTakeoverStructuredOutlineReadyForValidation,
+  phaseToEntryStep,
   resolveDirectorTakeoverPlan,
 } = require("../dist/services/novel/director/runtime/novelDirectorTakeover.js");
 const {
   loadDirectorTakeoverState,
 } = require("../dist/services/novel/director/runtime/novelDirectorTakeoverRuntime.js");
 const { prisma } = require("../dist/db/prisma.js");
+const {
+  DIRECTOR_TAKEOVER_ENTRY_STEPS,
+  DIRECTOR_TAKEOVER_START_PHASES,
+} = require("../../shared/dist/types/novelDirector.js");
 
 function buildSnapshot(overrides = {}) {
   return {
@@ -74,6 +82,60 @@ function buildSceneCards(chapterId, targetWordCount = 2800) {
     ],
   });
 }
+
+test("takeover phase and entry-step mappings cover every declared enum value", () => {
+  const phaseMapping = {
+    story_macro: "story_macro",
+    character_setup: "character",
+    volume_strategy: "outline",
+    structured_outline: "structured",
+  };
+  assert.deepEqual(
+    Object.fromEntries(DIRECTOR_TAKEOVER_START_PHASES.map((phase) => [phase, phaseToEntryStep(phase)])),
+    phaseMapping,
+  );
+
+  const legacyStartPhaseMapping = {
+    basic: "story_macro",
+    story_macro: "story_macro",
+    character: "character_setup",
+    outline: "volume_strategy",
+    structured: "structured_outline",
+    chapter: "structured_outline",
+    pipeline: "structured_outline",
+  };
+  const workflowStageMapping = {
+    basic: "story_macro",
+    story_macro: "story_macro",
+    character: "character_setup",
+    outline: "volume_strategy",
+    structured: "structured_outline",
+    chapter: "chapter_execution",
+    pipeline: "quality_repair",
+  };
+
+  assert.deepEqual(
+    Object.fromEntries(DIRECTOR_TAKEOVER_ENTRY_STEPS.map((step) => [step, entryStepToLegacyStartPhase(step)])),
+    legacyStartPhaseMapping,
+  );
+  assert.deepEqual(
+    Object.fromEntries(DIRECTOR_TAKEOVER_ENTRY_STEPS.map((step) => [step, entryStepToWorkflowStage(step)])),
+    workflowStageMapping,
+  );
+});
+
+test("takeover skip steps are derived from the declared entry-step order", () => {
+  for (const from of DIRECTOR_TAKEOVER_ENTRY_STEPS) {
+    for (const to of DIRECTOR_TAKEOVER_ENTRY_STEPS) {
+      const fromIndex = DIRECTOR_TAKEOVER_ENTRY_STEPS.indexOf(from);
+      const toIndex = DIRECTOR_TAKEOVER_ENTRY_STEPS.indexOf(to);
+      const expected = toIndex > fromIndex
+        ? DIRECTOR_TAKEOVER_ENTRY_STEPS.slice(fromIndex, toIndex)
+        : [];
+      assert.deepEqual(buildSkipSteps(from, to), expected, `${from} -> ${to}`);
+    }
+  }
+});
 
 test("continue_existing from basic prefers repair continuation when pending fixes already exist", () => {
   const plan = resolveDirectorTakeoverPlan({

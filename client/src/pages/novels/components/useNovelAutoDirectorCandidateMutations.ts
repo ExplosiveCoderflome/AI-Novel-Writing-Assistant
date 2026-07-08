@@ -15,7 +15,7 @@ import {
 } from "@/api/novelDirector";
 import { toast } from "@/components/ui/toast";
 import type { buildAutoDirectorRequestPayload } from "./NovelAutoDirectorDialog.shared";
-import type { DirectorDialogMode } from "./NovelAutoDirectorDialogHeader";
+import type { DirectorExecutionViewMode } from "./NovelAutoDirector.types";
 
 type DirectorRequestPayload = ReturnType<typeof buildAutoDirectorRequestPayload>;
 
@@ -34,7 +34,7 @@ interface UseNovelAutoDirectorCandidateMutationsInput {
   setSelectedPresets: Dispatch<SetStateAction<DirectorCorrectionPreset[]>>;
   setCandidatePatchFeedbacks: Dispatch<SetStateAction<Record<string, string>>>;
   setTitlePatchFeedbacks: Dispatch<SetStateAction<Record<string, string>>>;
-  setDialogMode: Dispatch<SetStateAction<DirectorDialogMode>>;
+  setDialogMode: Dispatch<SetStateAction<DirectorExecutionViewMode>>;
   setCandidateDialogOpen: Dispatch<SetStateAction<boolean>>;
   setExecutionRequested: Dispatch<SetStateAction<boolean>>;
   setExecutionError: Dispatch<SetStateAction<string>>;

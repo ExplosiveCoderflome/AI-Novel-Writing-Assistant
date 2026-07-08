@@ -585,6 +585,71 @@ function createContextPackage() {
   };
 }
 
+function createStyleContext() {
+  const makeSection = (key, title, text) => ({
+    key,
+    title,
+    summary: text,
+    lines: [text],
+    text: `${title}: ${text}`,
+    hasContent: true,
+  });
+  return {
+    matchedBindings: [],
+    effectiveStyleProfileId: "style-1",
+    taskStyleProfileId: null,
+    activeSourceTargets: ["novel"],
+    activeSourceLabels: ["拆书写法"],
+    maturity: "structured",
+    usesGlobalAntiAiBaseline: false,
+    globalAntiAiRuleIds: [],
+    styleAntiAiRuleIds: [],
+    compiledBlocks: {
+      context: "",
+      style: "",
+      character: "",
+      antiAi: "",
+      output: "",
+      selfCheck: "",
+      mergedRules: {
+        narrativeRules: {},
+        characterRules: {},
+        languageRules: {},
+        rhythmRules: {},
+      },
+      appliedRuleIds: [],
+      contract: {
+        narrative: makeSection("narrative", "叙事", "保持高压反压的叙事手感。"),
+        character: makeSection("character", "角色", "角色动作必须贴合当前状态。"),
+        language: makeSection("language", "语言", "句式短促，避免空泛抒情。"),
+        rhythm: makeSection("rhythm", "节奏", "每个场景都要有推进。"),
+        antiAi: makeSection("antiAi", "反AI味", "避免模板化总结句。"),
+        selfCheck: makeSection("selfCheck", "自检", "检查承接、节奏和角色动机。"),
+        meta: {
+          effectiveStyleProfileId: "style-1",
+          taskStyleProfileId: null,
+          activeSourceTargets: ["novel"],
+          activeSourceLabels: ["拆书写法"],
+          writerIncludedSections: ["narrative", "character", "language", "rhythm", "antiAi", "selfCheck"],
+          plannerIncludedSections: ["narrative", "character", "language", "antiAi"],
+          droppedSections: [],
+          maturity: "structured",
+          usesGlobalAntiAiBaseline: false,
+          globalAntiAiRuleIds: [],
+          styleAntiAiRuleIds: [],
+        },
+      },
+    },
+  };
+}
+
+function assertNonEmptyBlock(blocks, id) {
+  const block = blocks.find((item) => item.id === id);
+  assert.ok(block, `${id} block should exist`);
+  assert.ok(block.content.trim().length > 0, `${id} block should have content`);
+  return block;
+}
+
 test("chapter layered contexts carry volume mission, character duties and repair guardrails", () => {
   const contextPackage = createContextPackage();
   const writeContext = buildChapterWriteContext({
@@ -696,6 +761,13 @@ test("chapter layered contexts carry volume mission, character duties and repair
     && /Pending candidate guardrails/.test(block.content)
   )));
   assert.ok(reviewBlocks.some((block) => (
+    block.id === "chapter_boundary"
+    && block.required
+    && block.allowSummary === false
+    && /Chapter boundary/.test(block.content)
+    && /Do not cross/.test(block.content)
+  )));
+  assert.ok(reviewBlocks.some((block) => (
     block.id === "structure_obligations"
     && /urgent payoff: 黑市账户异常/.test(block.content)
     && /overdue payoff: 第一次反压收益/.test(block.content)
@@ -713,4 +785,86 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.ok(repairBlocks.some((block) => block.id === "structure_obligations" && /volume mission/.test(block.content)));
   assert.ok(repairBlocks.some((block) => block.id === "repair_boundaries" && /read-only/.test(block.content)));
   assert.ok(repairBlocks.some((block) => block.id === "repair_boundaries" && /do not disclose/.test(block.content)));
+});
+
+test("chapter layered character hard facts soften pending review state and goal only", () => {
+  const contextPackage = createContextPackage();
+  contextPackage.characterHardFacts[0] = {
+    ...contextPackage.characterHardFacts[0],
+    currentState: "待确认：已经开始反压",
+    currentGoal: "待确认：追查黑市账户",
+    pendingReviewFields: ["currentState", "currentGoal"],
+  };
+  const writeContext = buildChapterWriteContext({
+    bookContract: contextPackage.bookContract,
+    macroConstraints: contextPackage.macroConstraints,
+    volumeWindow: contextPackage.volumeWindow,
+    contextPackage,
+  });
+  const writerBlocks = buildChapterWriterContextBlocks(writeContext);
+  const hardFactsBlock = writerBlocks.find((block) => block.id === "character_hard_facts");
+
+  assert.ok(hardFactsBlock);
+  assert.match(hardFactsBlock.content, /标记为待确认的当前状态\/当前目标只作参考/);
+  assert.match(hardFactsBlock.content, /当前状态\(待确认，如与最新剧情冲突可按合理逻辑调整\)=待确认：已经开始反压/);
+  assert.match(hardFactsBlock.content, /当前目标\(待确认，如与最新剧情冲突可按合理逻辑调整\)=待确认：追查黑市账户/);
+  assert.match(hardFactsBlock.content, /当前位置=外城维修区/);
+  assert.doesNotMatch(hardFactsBlock.content, /当前位置\(待确认/);
+});
+
+test("chapter writer blocks enforce enabled critical context contracts", () => {
+  const contextPackage = createContextPackage();
+  contextPackage.styleContext = createStyleContext();
+  contextPackage.continuation = {
+    enabled: true,
+    sourceType: "knowledge_document",
+    sourceId: "doc-1",
+    sourceTitle: "参考作品",
+    systemRule: "必须承接前作因果与角色弧线，但禁止复刻关键桥段。",
+    humanBlock: `续写模式已开启，请承接前作并避免复刻。
+续写来源：知识库小说
+知识库文档标题：参考作品
+拆书分析：参考作品完整拆书
+前作核心角色状态：
+- 主角：终局时保留创伤和未兑现目标
+- 女二：掌握关键证据但没有直接交付
+
+前作终局章节摘要：
+- 终局停在主角拿到入口但还没有反击成功
+
+前作关键事实（用于承接因果）：
+- 维修通道钥匙仍然有效
+
+前作未完线索（可推进，不可照抄桥段）：
+- 黑市账户异常还没有解释`,
+    antiCopyCorpus: [],
+  };
+
+  const writeContext = buildChapterWriteContext({
+    bookContract: contextPackage.bookContract,
+    macroConstraints: contextPackage.macroConstraints,
+    volumeWindow: contextPackage.volumeWindow,
+    contextPackage,
+  });
+  const writerBlocks = buildChapterWriterContextBlocks(writeContext);
+
+  const styleBlock = assertNonEmptyBlock(writerBlocks, "style_contract");
+  assert.equal(styleBlock.required, true);
+  assert.match(styleBlock.content, /保持高压反压的叙事手感/);
+
+  const continuationBlock = assertNonEmptyBlock(writerBlocks, "continuation_constraints");
+  assert.equal(continuationBlock.required, true);
+  assert.equal(continuationBlock.allowSummary, false);
+  assert.equal(continuationBlock.priority, 74);
+  assert.match(continuationBlock.content, /续写来源约束：知识库小说/);
+  assert.match(continuationBlock.content, /前作核心角色状态：主角：终局时保留创伤和未兑现目标/);
+  assert.match(continuationBlock.content, /前作未完线索：黑市账户异常还没有解释/);
+
+  const hardFactsBlock = assertNonEmptyBlock(writerBlocks, "character_hard_facts");
+  assert.equal(hardFactsBlock.required, true);
+  assert.equal(hardFactsBlock.allowSummary, false);
+
+  const resourceBlock = assertNonEmptyBlock(writerBlocks, "character_resource_context");
+  assert.match(resourceBlock.content, /维修通道钥匙/);
+  assert.match(resourceBlock.content, /旧通行证/);
 });

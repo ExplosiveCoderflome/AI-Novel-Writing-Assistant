@@ -12,6 +12,7 @@ import {
 } from "@/api/drama";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import SelectControl from "@/components/common/SelectControl";
 
 function safeJson<T>(input: string | null | undefined, fallback: T): T {
   if (!input) {
@@ -106,7 +107,7 @@ export function DramaEpisodeAudioPanel(props: {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-medium">配音</h3>
         <div className="flex flex-wrap gap-2">
-          <select
+          <SelectControl
             className="h-9 rounded-md border bg-background px-2 text-xs"
             value={activeProvider}
             onChange={(event) => setSelectedProvider(event.target.value)}
@@ -117,7 +118,7 @@ export function DramaEpisodeAudioPanel(props: {
             )) : (
               <option value="mock">模拟配音通道</option>
             )}
-          </select>
+          </SelectControl>
           <Button
             size="sm"
             type="button"

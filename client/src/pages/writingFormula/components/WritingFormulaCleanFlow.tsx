@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { WritingFormulaDiffRow } from "../writingFormulaV2.shared";
+import SelectControl from "@/components/common/SelectControl";
 
 interface WritingFormulaCleanFlowProps {
   profiles: StyleProfile[];
@@ -52,7 +53,7 @@ export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowPr
           <div className="space-y-3 rounded-2xl border bg-slate-50/70 p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="text-sm font-medium text-slate-900">原稿输入</div>
-              <select
+              <SelectControl
                 className="rounded-md border bg-white px-3 py-2 text-sm"
                 value={selectedProfileId}
                 onChange={(event) => onProfileChange(event.target.value)}
@@ -60,7 +61,7 @@ export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowPr
                 {profiles.map((profile) => (
                   <option key={profile.id} value={profile.id}>{profile.name}</option>
                 ))}
-              </select>
+              </SelectControl>
             </div>
             <textarea
               className="min-h-[280px] w-full rounded-xl border bg-white p-3 text-sm leading-7"

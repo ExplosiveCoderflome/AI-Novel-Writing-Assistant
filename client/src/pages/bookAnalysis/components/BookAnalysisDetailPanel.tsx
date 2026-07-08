@@ -21,6 +21,7 @@ import type {
 } from "../hooks/useBookAnalysisChapterReader";
 import BookAnalysisDualPaneLayout from "./BookAnalysisDualPaneLayout";
 import BookAnalysisSectionCard from "./BookAnalysisSectionCard";
+import SelectControl from "@/components/common/SelectControl";
 
 type ExportFormat = "markdown" | "json";
 
@@ -246,7 +247,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
               <div className="rounded-md border p-3 text-sm">
                 <div className="mb-2 font-medium">发布到小说知识库</div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <select
+                  <SelectControl
                     className="h-9 min-w-[220px] rounded-md border bg-background px-2 text-sm"
                     value={selectedNovelId}
                     onChange={(event) => onSelectedNovelChange(event.target.value)}
@@ -257,7 +258,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                         {novel.title}
                       </option>
                     ))}
-                  </select>
+                  </SelectControl>
                   <Button
                     size="sm"
                     onClick={onPublish}
