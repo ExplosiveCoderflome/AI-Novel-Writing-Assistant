@@ -260,6 +260,7 @@ These areas have the highest priority for wiki accumulation:
 - If multiple user-visible updates are recorded on the same date, merge them under the same date heading in `docs/releases/release-notes.md`; `README.md` should keep only that date's latest merged summary.
 - If the current diff is purely internal and has no clear user-facing impact, state that explicitly and skip both release-note updates instead of forcing a noisy entry.
 - Write both release-note surfaces from the user's perspective: describe capabilities, workflow improvements, and visible product behavior instead of file names, route names, service names, tests, or refactor details.
+- Release notes and README latest updates must read like normal user-facing product notes, not developer acceptance notes. Avoid raw implementation vocabulary such as internal prompt ids, schema names, JSON repair terms, enum aliases, database/API details, test names, or "we changed this" process narration unless the user must see that exact UI label to use the product. Translate technical work into the user outcome, for example "章节规划失败后会给 AI 更明确的重试方向" instead of "补齐 JSON skeleton 和 schema preprocess".
 
 ## Release Identification Rules
 
