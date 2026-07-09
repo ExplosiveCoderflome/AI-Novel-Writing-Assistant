@@ -5,6 +5,10 @@ import {
   BaseEdge,
   Controls,
   EdgeLabelRenderer,
+  Handle,
+  MarkerType,
+  Panel,
+  Position,
   ReactFlow,
   getBezierPath,
   type Edge,
@@ -120,9 +124,15 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
       target: item.target,
       data: { graphEdge: item },
       animated: item.isDynamic,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: getEdgeTone(item).stroke,
+        width: 18,
+        height: 18,
+      },
       selectable: true,
       focusable: true,
-      zIndex: item.isDynamic ? 8 : 4,
+      zIndex: item.isDynamic ? 16 : 12,
     })),
     [model.edges],
   );
@@ -209,6 +219,13 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
               proOptions={{ hideAttribution: true }}
             >
               <Background color="hsl(var(--border))" gap={28} size={1} />
+              <Panel position="top-left" className="rounded-xl border border-border/70 bg-background/90 px-3 py-2 text-xs text-muted-foreground shadow-sm">
+                <div className="flex flex-wrap gap-3">
+                  <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-6 bg-slate-500" />普通关系</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-6 bg-orange-500" />高张力</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-6 border-t-2 border-dashed border-sky-600" />动态阶段</span>
+                </div>
+              </Panel>
               <Controls showInteractive={false} position="bottom-right" />
             </ReactFlow>
           ) : (
@@ -240,6 +257,18 @@ function CharacterRelationshipNode(props: NodeProps) {
         graphNode.isSelected ? "border-primary shadow-md ring-2 ring-primary/15" : "border-border/70",
       )}
     >
+      <Handle
+        type="target"
+        position={Position.Left}
+        isConnectable={false}
+        className="!h-2 !w-2 !border-0 !bg-transparent"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        isConnectable={false}
+        className="!h-2 !w-2 !border-0 !bg-transparent"
+      />
       <div className="flex items-start gap-2">
         <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-sm font-semibold", tone.avatar)}>
           {shortName}
@@ -273,11 +302,7 @@ function CharacterRelationshipEdge(props: EdgeProps) {
   const data = props.data as RelationshipEdgeData | undefined;
   const graphEdge = data?.graphEdge;
   const [edgePath, labelX, labelY] = getBezierPath(props);
-  const tone = graphEdge?.isHighTension
-    ? { stroke: "#f97316", label: "border-orange-200 bg-orange-50 text-orange-800" }
-    : graphEdge?.isDynamic
-      ? { stroke: "#0284c7", label: "border-sky-200 bg-sky-50 text-sky-800" }
-      : { stroke: "#64748b", label: "border-slate-200 bg-white text-slate-700" };
+  const tone = getEdgeTone(graphEdge);
 
   return (
     <>
@@ -286,9 +311,9 @@ function CharacterRelationshipEdge(props: EdgeProps) {
         markerEnd={props.markerEnd}
         style={{
           stroke: tone.stroke,
-          strokeWidth: graphEdge?.isDynamic ? 2.8 : 2,
+          strokeWidth: graphEdge?.isDynamic ? 3.2 : 2.6,
           strokeDasharray: graphEdge?.isDynamic ? "7 5" : undefined,
-          opacity: graphEdge?.isHighTension ? 0.94 : 0.72,
+          opacity: graphEdge?.isHighTension ? 0.96 : 0.84,
         }}
       />
       {graphEdge ? (
@@ -460,6 +485,16 @@ function getNodeTone(character: Character) {
     avatar: "border-slate-200 bg-slate-50 text-slate-800",
     badge: "bg-slate-100 text-slate-700",
   };
+}
+
+function getEdgeTone(edge?: RelationshipGraphEdge) {
+  if (edge?.isHighTension) {
+    return { stroke: "#f97316", label: "border-orange-200 bg-orange-50 text-orange-800" };
+  }
+  if (edge?.isDynamic) {
+    return { stroke: "#0284c7", label: "border-sky-200 bg-sky-50 text-sky-800" };
+  }
+  return { stroke: "#64748b", label: "border-slate-200 bg-white text-slate-700" };
 }
 
 function getRelationNames(edge: RelationshipGraphEdge): string {
