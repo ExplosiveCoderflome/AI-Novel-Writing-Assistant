@@ -17,6 +17,7 @@ export interface FullscreenViewProps {
   fullscreenClassName?: string;
   headerClassName?: string;
   bodyClassName?: string;
+  fullscreenBodyClassName?: string;
   toggleLabel?: string;
   exitLabel?: string;
 }
@@ -35,6 +36,7 @@ export default function FullscreenView(props: FullscreenViewProps) {
     fullscreenClassName,
     headerClassName,
     bodyClassName,
+    fullscreenBodyClassName,
     toggleLabel = "全屏查看",
     exitLabel = "退出全屏",
   } = props;
@@ -117,7 +119,12 @@ export default function FullscreenView(props: FullscreenViewProps) {
           </div>
         </div>
       </div>
-      <div className={cn("min-h-0", isFullscreen && "flex-1 overflow-hidden", bodyClassName)}>
+      <div className={cn(
+        "min-h-0",
+        bodyClassName,
+        isFullscreen && "flex-1 overflow-hidden",
+        isFullscreen && fullscreenBodyClassName,
+      )}>
         {children}
       </div>
     </section>

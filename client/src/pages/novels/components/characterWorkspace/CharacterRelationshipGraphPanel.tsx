@@ -209,8 +209,9 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
       toggleLabel="全屏查看"
       exitLabel="退出全屏"
       bodyClassName="grid min-h-[560px] gap-0 xl:grid-cols-[minmax(0,1fr)_340px]"
+      fullscreenBodyClassName="h-full min-h-0 grid-cols-[minmax(0,1fr)_360px]"
     >
-        <div className="min-h-[520px] border-b border-border/60 bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,0.08),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.24)_100%)] xl:border-b-0 xl:border-r">
+      <div className="h-full min-h-[520px] min-w-0 border-b border-border/60 bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,0.08),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.24)_100%)] xl:border-b-0 xl:border-r">
           {isLoading ? (
             <div className="flex h-full min-h-[520px] items-center justify-center text-sm text-muted-foreground">
               正在读取角色关系网...
@@ -257,12 +258,12 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
           ) : (
             <EmptyGraphState />
           )}
-        </div>
-        <RelationshipDetailPanel
-          selectedNode={selectedNode}
-          selectedEdge={selectedEdge}
-          selectedCharacterId={selectedCharacterId}
-        />
+      </div>
+      <RelationshipDetailPanel
+        selectedNode={selectedNode}
+        selectedEdge={selectedEdge}
+        selectedCharacterId={selectedCharacterId}
+      />
     </FullscreenView>
   );
 }
@@ -369,7 +370,7 @@ function RelationshipDetailPanel(props: {
   const { selectedNode, selectedEdge } = props;
 
   return (
-    <aside className="bg-background p-4">
+    <aside className="h-full min-h-0 overflow-y-auto bg-background p-4">
       {selectedEdge ? (
         <EdgeDetail edge={selectedEdge} />
       ) : selectedNode ? (
