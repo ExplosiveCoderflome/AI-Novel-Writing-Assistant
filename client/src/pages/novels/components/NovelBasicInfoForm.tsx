@@ -22,7 +22,7 @@ import {
   SelectionCard,
   findOptionSummary,
 } from "./basicInfoForm/BasicInfoFormPrimitives";
-import { BookFramingSection } from "./basicInfoForm/BookFramingSection";
+import BookPositioningStudio from "./basicInfoForm/BookPositioningStudio";
 import CollapsibleSummary from "./CollapsibleSummary";
 import { ContinuationSourceSection } from "./basicInfoForm/ContinuationSourceSection";
 import SelectControl from "@/components/common/SelectControl";
@@ -120,42 +120,18 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
     <div className="space-y-4">
       <SectionBlock
         title="作品定位"
-        description="先写清楚标题、一句话概述、目标读者、核心卖点和前 30 章承诺，再补创作模式、题材和推进方式；这些会直接影响后续主线规划、卷章推进和正文生成。"
+        description="先写清楚这本书要兑现的读者承诺，再补创作模式、题材和推进方式；这些会直接影响后续主线规划、卷章推进和正文生成。"
         surface="none"
         className="space-y-5"
       >
-        {projectQuickStart ? <div className="flex justify-end">{projectQuickStart}</div> : null}
-
-        <div className="space-y-2">
-          <FieldLabel htmlFor="basic-title">小说标题</FieldLabel>
-          <Input
-            id="basic-title"
-            value={basicForm.title}
-            placeholder="例如：雾港审判局"
-            onChange={(event) => onFormChange({ title: event.target.value })}
-          />
-          {titleQuickFill ? <div className="pt-1">{titleQuickFill}</div> : null}
-        </div>
-
-        <div className="space-y-2">
-          <FieldLabel htmlFor="basic-description">一句话概述</FieldLabel>
-          <textarea
-            id="basic-description"
-            rows={4}
-            className="min-h-[112px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            value={basicForm.description}
-            placeholder="用 2-4 句话说明主角、核心冲突和故事看点。"
-            onChange={(event) => onFormChange({ description: event.target.value })}
-          />
-        </div>
-
-        <BookFramingSection
+        <BookPositioningStudio
           basicForm={basicForm}
           onFormChange={onFormChange}
-          quickFill={framingQuickFill}
+          titleQuickFill={titleQuickFill}
+          framingQuickFill={framingQuickFill}
+          projectQuickStart={projectQuickStart}
+          coverSection={coverSection}
         />
-
-        {coverSection}
 
         <div className="space-y-2">
           <FieldLabel hint={BASIC_INFO_FIELD_HINTS.writingMode}>创作模式</FieldLabel>
