@@ -279,10 +279,20 @@ function CharacterRelationshipNode(props: NodeProps) {
   return (
     <div
       className={cn(
-        "h-[128px] w-[164px] rounded-2xl border bg-background/95 p-3 shadow-sm transition",
-        graphNode.isSelected ? "border-primary shadow-md ring-2 ring-primary/15" : "border-border/70",
+        "relative h-[128px] w-[164px] overflow-hidden rounded-2xl border p-3 shadow-sm transition",
+        isProtagonist
+          ? "border-emerald-300 bg-[linear-gradient(135deg,#f0fdf4_0%,#ffffff_58%,#ecfeff_100%)] shadow-[0_18px_42px_rgba(16,185,129,0.18)]"
+          : "bg-background/95",
+        graphNode.isSelected
+          ? isProtagonist
+            ? "ring-2 ring-emerald-300/70"
+            : "border-primary shadow-md ring-2 ring-primary/15"
+          : !isProtagonist && "border-border/70",
       )}
     >
+      {isProtagonist ? (
+        <div aria-hidden className="absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#10b981,#0ea5e9)]" />
+      ) : null}
       <Handle
         type="target"
         position={Position.Left}
@@ -296,20 +306,30 @@ function CharacterRelationshipNode(props: NodeProps) {
         className="!h-2 !w-2 !border-0 !bg-transparent"
       />
       <div className="flex items-start gap-2">
-        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-sm font-semibold", tone.avatar)}>
+        <div className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-sm font-semibold",
+          isProtagonist && "h-11 w-11 rounded-2xl",
+          tone.avatar,
+        )}>
           {shortName}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold">{character.name}</div>
+          <div className={cn("truncate text-sm font-semibold", isProtagonist && "text-emerald-950")}>{character.name}</div>
           <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{character.role || getCastRoleLabel(character.castRole)}</div>
         </div>
+        {isProtagonist ? (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-800">
+            <Sparkles className="h-2.5 w-2.5" />
+            核心
+          </span>
+        ) : null}
       </div>
       <div className="mt-3 line-clamp-2 min-h-[34px] text-xs leading-4 text-muted-foreground">
         {character.currentGoal || character.storyFunction || character.relationToProtagonist || "待补全角色目标"}
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", tone.badge)}>
-          {isProtagonist ? "主角" : getCastRoleLabel(character.castRole)}
+          {isProtagonist ? "主角核心" : getCastRoleLabel(character.castRole)}
         </span>
         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
           {graphNode.relationCount} 关系
@@ -386,14 +406,18 @@ function RelationshipDetailPanel(props: {
 
 function NodeDetail(props: { node: RelationshipGraphNode }) {
   const { character } = props.node;
+  const isProtagonist = isProtagonistCharacter(character);
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
+      <div className={cn(
+        "rounded-2xl border border-border/70 bg-muted/10 p-4",
+        isProtagonist && "border-emerald-200 bg-[linear-gradient(135deg,#f0fdf4_0%,#ffffff_70%)]",
+      )}>
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-base font-semibold">{character.name}</div>
           <Badge variant="secondary">{getCastRoleLabel(character.castRole)}</Badge>
-          {isProtagonistCharacter(character) ? <Badge variant="outline">主角</Badge> : null}
+          {isProtagonist ? <Badge className="border-emerald-200 bg-emerald-50 text-emerald-800" variant="outline">叙事核心</Badge> : null}
         </div>
         <div className="mt-2 text-sm leading-6 text-muted-foreground">{character.role || "未定义身份"}</div>
       </div>
