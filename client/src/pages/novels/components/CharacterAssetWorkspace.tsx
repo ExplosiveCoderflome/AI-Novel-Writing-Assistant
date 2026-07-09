@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import type { LucideIcon } from "lucide-react";
+import { Brain, Clock3, Eye, Network, Package, ScrollText, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,6 +16,16 @@ import CharacterResourceTab from "./characterWorkspace/CharacterResourceTab";
 import CharacterTimelineTab from "./characterWorkspace/CharacterTimelineTab";
 import CharacterVisibleProfileTab from "./characterWorkspace/CharacterVisibleProfileTab";
 import type { CharacterAssetWorkspaceProps } from "./characterWorkspace/characterWorkspace.types";
+
+const WORKSPACE_TABS: Array<{ value: string; label: string; icon: LucideIcon }> = [
+  { value: "overview", label: "总览", icon: ScrollText },
+  { value: "profile", label: "档案", icon: UserRound },
+  { value: "visible", label: "外显", icon: Eye },
+  { value: "resources", label: "资源", icon: Package },
+  { value: "timeline", label: "时间线", icon: Clock3 },
+  { value: "relations", label: "关系", icon: Network },
+  { value: "intelligence", label: "智能层", icon: Brain },
+];
 
 export default function CharacterAssetWorkspace(props: CharacterAssetWorkspaceProps) {
   const {
@@ -69,8 +81,8 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
   const isSelectedProtagonist = isProtagonistCharacter(selectedCharacter);
 
   return (
-    <Card className="overflow-hidden border-border/70 shadow-sm">
-      <CardHeader className="border-b border-border/60 bg-muted/10">
+    <Card className="overflow-hidden rounded-2xl border-border/70 bg-background shadow-sm">
+      <CardHeader className="border-b border-border/60 bg-[linear-gradient(180deg,hsl(var(--muted)/0.35)_0%,hsl(var(--background))_100%)]">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-1">
             <CardTitle>角色资产控制台</CardTitle>
@@ -85,7 +97,7 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
           </div>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-4 p-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+      <CardContent className="grid gap-4 bg-[linear-gradient(90deg,hsl(var(--muted)/0.18)_0%,hsl(var(--background))_38%)] p-4 xl:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="xl:max-h-[calc(100vh-220px)] xl:overflow-y-auto xl:pr-1">
           <CharacterAssetSidebar
             characters={characters}
@@ -110,21 +122,25 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
 
             <Tabs defaultValue="overview" className="min-w-0">
               <div className="overflow-x-auto pb-1">
-                <TabsList className="h-auto min-w-max justify-start gap-1 bg-muted/60 p-1">
-                  <TabsTrigger value="overview">总览</TabsTrigger>
-                  <TabsTrigger value="profile">档案</TabsTrigger>
-                  <TabsTrigger value="visible">外显</TabsTrigger>
-                  <TabsTrigger value="resources">
-                    资源
-                    {pendingCharacterResourceCount > 0 ? (
-                      <span className="ml-1 rounded-full bg-primary/10 px-1.5 text-[10px] text-primary">
-                        {pendingCharacterResourceCount}
-                      </span>
-                    ) : null}
-                  </TabsTrigger>
-                  <TabsTrigger value="timeline">时间线</TabsTrigger>
-                  <TabsTrigger value="relations">关系</TabsTrigger>
-                  <TabsTrigger value="intelligence">智能层</TabsTrigger>
+                <TabsList className="h-auto min-w-max justify-start gap-1 rounded-2xl border border-border/70 bg-background/85 p-1.5 shadow-sm">
+                  {WORKSPACE_TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                      <TabsTrigger
+                        key={tab.value}
+                        value={tab.value}
+                        className="gap-1.5 rounded-xl px-3 py-2 text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none"
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                        {tab.label}
+                        {tab.value === "resources" && pendingCharacterResourceCount > 0 ? (
+                          <span className="ml-0.5 rounded-full bg-primary/10 px-1.5 text-[10px] text-primary">
+                            {pendingCharacterResourceCount}
+                          </span>
+                        ) : null}
+                      </TabsTrigger>
+                    );
+                  })}
                 </TabsList>
               </div>
 
