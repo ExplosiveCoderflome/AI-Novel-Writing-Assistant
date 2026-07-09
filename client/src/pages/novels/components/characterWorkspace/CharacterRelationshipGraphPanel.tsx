@@ -24,6 +24,7 @@ import "@xyflow/react/dist/style.css";
 import { AlertTriangle, GitBranch, Network, RadioTower, Sparkles, UsersRound } from "lucide-react";
 import type { Character, CharacterRelation } from "@ai-novel/shared/types/novel";
 import type { CharacterRelationStage } from "@ai-novel/shared/types/characterDynamics";
+import FullscreenView from "@/components/common/FullscreenView";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -179,42 +180,36 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
   };
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm">
-      <div className="border-b border-border/60 bg-[linear-gradient(135deg,hsl(var(--background))_0%,hsl(var(--muted)/0.45)_100%)] p-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="text-base font-semibold">角色关系网</div>
-              <Badge variant="outline">{model.nodes.length} 个角色</Badge>
-              <Badge variant="outline">{model.totalEdgeCount} 条关系</Badge>
-              {model.dynamicEdgeCount > 0 ? <Badge variant="secondary">{model.dynamicEdgeCount} 条动态阶段</Badge> : null}
-            </div>
-            <div className="text-sm leading-6 text-muted-foreground">
-              以图谱方式观察角色之间的压力、合作、秘密和下一转折点。
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {MODE_OPTIONS.map((option) => {
-              const Icon = option.icon;
-              return (
-                <Button
-                  key={option.value}
-                  type="button"
-                  size="sm"
-                  variant={mode === option.value ? "default" : "outline"}
-                  onClick={() => onModeChange(option.value)}
-                  className="gap-1.5"
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {option.label}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="grid min-h-[560px] gap-0 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <FullscreenView
+      title="角色关系网"
+      description="以图谱方式观察角色之间的压力、合作、秘密和下一转折点。"
+      meta={(
+        <>
+          <Badge variant="outline">{model.nodes.length} 个角色</Badge>
+          <Badge variant="outline">{model.totalEdgeCount} 条关系</Badge>
+          {model.dynamicEdgeCount > 0 ? <Badge variant="secondary">{model.dynamicEdgeCount} 条动态阶段</Badge> : null}
+        </>
+      )}
+      actions={MODE_OPTIONS.map((option) => {
+        const Icon = option.icon;
+        return (
+          <Button
+            key={option.value}
+            type="button"
+            size="sm"
+            variant={mode === option.value ? "default" : "outline"}
+            onClick={() => onModeChange(option.value)}
+            className="gap-1.5"
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {option.label}
+          </Button>
+        );
+      })}
+      toggleLabel="全屏查看"
+      exitLabel="退出全屏"
+      bodyClassName="grid min-h-[560px] gap-0 xl:grid-cols-[minmax(0,1fr)_340px]"
+    >
         <div className="min-h-[520px] border-b border-border/60 bg-[radial-gradient(circle_at_20%_20%,rgba(14,165,233,0.08),transparent_28%),linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--muted)/0.24)_100%)] xl:border-b-0 xl:border-r">
           {isLoading ? (
             <div className="flex h-full min-h-[520px] items-center justify-center text-sm text-muted-foreground">
@@ -268,8 +263,7 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
           selectedEdge={selectedEdge}
           selectedCharacterId={selectedCharacterId}
         />
-      </div>
-    </section>
+    </FullscreenView>
   );
 }
 
