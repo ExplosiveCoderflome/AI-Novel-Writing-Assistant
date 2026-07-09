@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Background,
@@ -84,6 +84,7 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
   const { model, mode, onModeChange, selectedCharacterId, onSelectedCharacterChange, isLoading = false } = props;
   const [selection, setSelection] = useState<Selection | null>(null);
   const [interactiveNodes, setInteractiveNodes] = useState<RelationshipFlowNode[]>([]);
+  const previousModeRef = useRef<RelationshipGraphMode>(mode);
 
   useEffect(() => {
     if (selectedCharacterId && model.nodes.some((node) => node.id === selectedCharacterId)) {
@@ -120,8 +121,21 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
   );
 
   useEffect(() => {
-    setInteractiveNodes(flowNodes);
-  }, [flowNodes]);
+    setInteractiveNodes((currentNodes) => {
+      const shouldResetLayout = previousModeRef.current !== mode || currentNodes.length === 0;
+      previousModeRef.current = mode;
+      if (shouldResetLayout) {
+        return flowNodes;
+      }
+      const currentNodeById = new Map(currentNodes.map((node) => [node.id, node]));
+      return flowNodes.map((node) => {
+        const currentNode = currentNodeById.get(node.id);
+        return currentNode
+          ? { ...node, position: currentNode.position }
+          : node;
+      });
+    });
+  }, [flowNodes, mode]);
 
   const flowEdges = useMemo<RelationshipFlowEdge[]>(
     () => model.edges.map((item) => ({
