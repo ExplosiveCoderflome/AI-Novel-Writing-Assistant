@@ -60,6 +60,9 @@ const edgeTypes = {
   relationshipEdge: CharacterRelationshipEdge,
 };
 
+const GRAPH_NODE_WIDTH = 164;
+const GRAPH_NODE_HEIGHT = 128;
+
 const MODE_OPTIONS: Array<{
   value: RelationshipGraphMode;
   label: string;
@@ -101,6 +104,10 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
       selectable: true,
       focusable: true,
       zIndex: item.isSelected ? 20 : 10,
+      style: {
+        width: GRAPH_NODE_WIDTH,
+        height: GRAPH_NODE_HEIGHT,
+      },
     })),
     [model.nodes],
   );
@@ -190,9 +197,10 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
               nodesConnectable={false}
               elementsSelectable
               fitView
-              fitViewOptions={{ padding: 0.18, duration: 240 }}
-              minZoom={0.45}
-              maxZoom={1.45}
+              fitViewOptions={{ padding: 0.28, duration: 240 }}
+              nodeOrigin={[0.5, 0.5]}
+              minZoom={0.35}
+              maxZoom={1.25}
               panOnDrag
               panOnScroll
               zoomOnScroll
@@ -228,7 +236,7 @@ function CharacterRelationshipNode(props: NodeProps) {
   return (
     <div
       className={cn(
-        "w-[164px] rounded-2xl border bg-background/95 p-3 shadow-sm transition",
+        "h-[128px] w-[164px] rounded-2xl border bg-background/95 p-3 shadow-sm transition",
         graphNode.isSelected ? "border-primary shadow-md ring-2 ring-primary/15" : "border-border/70",
       )}
     >
