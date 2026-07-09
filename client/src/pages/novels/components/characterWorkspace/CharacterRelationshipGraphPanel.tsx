@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
   Background,
@@ -10,9 +10,11 @@ import {
   Panel,
   Position,
   ReactFlow,
+  applyNodeChanges,
   getBezierPath,
   type Edge,
   type EdgeMouseHandler,
+  type NodeChange,
   type EdgeProps,
   type Node,
   type NodeMouseHandler,
@@ -81,6 +83,7 @@ const MODE_OPTIONS: Array<{
 export default function CharacterRelationshipGraphPanel(props: CharacterRelationshipGraphPanelProps) {
   const { model, mode, onModeChange, selectedCharacterId, onSelectedCharacterChange, isLoading = false } = props;
   const [selection, setSelection] = useState<Selection | null>(null);
+  const [interactiveNodes, setInteractiveNodes] = useState<RelationshipFlowNode[]>([]);
 
   useEffect(() => {
     if (selectedCharacterId && model.nodes.some((node) => node.id === selectedCharacterId)) {
@@ -104,7 +107,7 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
       type: "characterNode",
       position: { x: item.x, y: item.y },
       data: { graphNode: item },
-      draggable: false,
+      draggable: true,
       selectable: true,
       focusable: true,
       zIndex: item.isSelected ? 20 : 10,
@@ -115,6 +118,10 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
     })),
     [model.nodes],
   );
+
+  useEffect(() => {
+    setInteractiveNodes(flowNodes);
+  }, [flowNodes]);
 
   const flowEdges = useMemo<RelationshipFlowEdge[]>(
     () => model.edges.map((item) => ({
@@ -148,6 +155,10 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
     setSelection({ type: "node", id: node.id });
     onSelectedCharacterChange(node.id);
   };
+
+  const handleNodesChange = useCallback((changes: NodeChange<RelationshipFlowNode>[]) => {
+    setInteractiveNodes((nodes) => applyNodeChanges(changes, nodes));
+  }, []);
 
   const handleEdgeClick: EdgeMouseHandler<RelationshipFlowEdge> = (_, edge) => {
     setSelection({ type: "edge", id: edge.id });
@@ -197,13 +208,14 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
             </div>
           ) : flowNodes.length > 0 ? (
             <ReactFlow<RelationshipFlowNode, RelationshipFlowEdge>
-              nodes={flowNodes}
+              nodes={interactiveNodes}
               edges={flowEdges}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}
               onNodeClick={handleNodeClick}
+              onNodesChange={handleNodesChange}
               onEdgeClick={handleEdgeClick}
-              nodesDraggable={false}
+              nodesDraggable
               nodesConnectable={false}
               elementsSelectable
               fitView
