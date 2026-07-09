@@ -6,6 +6,10 @@ const {
   normalizeVolumeWorkspaceDocument,
   serializeVolumeWorkspaceDocument,
 } = require("../dist/services/novel/volume/volumeWorkspaceDocument.js");
+const {
+  assertScopeReadiness,
+  mergeStrategyPlan,
+} = require("../dist/services/novel/volume/volumeGenerationHelpers.js");
 
 function createBaseVolume() {
   return {
@@ -46,6 +50,26 @@ function createBaseVolume() {
     }],
     createdAt: new Date(0).toISOString(),
     updatedAt: new Date(0).toISOString(),
+  };
+}
+
+function createBaseStrategyPlan(volumeCount = 1) {
+  return {
+    recommendedVolumeCount: volumeCount,
+    hardPlannedVolumeCount: Math.min(volumeCount, 3),
+    readerRewardLadder: "先立主承诺，再逐步兑现。",
+    escalationLadder: "压力随卷递增。",
+    midpointShift: "中段暴露更大威胁。",
+    notes: "保持阶段职责清晰。",
+    volumes: Array.from({ length: volumeCount }, (_, index) => ({
+      sortOrder: index + 1,
+      planningMode: index < Math.min(volumeCount, 3) ? "hard" : "soft",
+      roleLabel: `第${index + 1}卷职责`,
+      coreReward: `第${index + 1}卷回报`,
+      escalationFocus: `第${index + 1}卷压力升级`,
+      uncertaintyLevel: index < Math.min(volumeCount, 3) ? "low" : "medium",
+    })),
+    uncertainties: [],
   };
 }
 
@@ -148,6 +172,63 @@ test("volume workspace document supports an empty cleared outline state", () => 
   assert.deepEqual(document.beatSheets, []);
   assert.equal(document.readiness.canGenerateSkeleton, false);
   assert.equal(document.readiness.canGenerateChapterList, false);
+});
+
+test("mergeStrategyPlan clears stale skeleton volumes after strategy regeneration", () => {
+  const current = buildVolumeWorkspaceDocument({
+    novelId: "novel-1",
+    volumes: [createBaseVolume()],
+    strategyPlan: createBaseStrategyPlan(1),
+    critiqueReport: {
+      overallRisk: "medium",
+      summary: "旧审查。",
+      issues: [],
+      recommendedActions: [],
+    },
+    beatSheets: [{
+      volumeId: "volume-1",
+      volumeSortOrder: 1,
+      status: "generated",
+      beats: [{
+        key: "opening_hook",
+        label: "开卷抓手",
+        summary: "旧节奏。",
+        chapterSpanHint: "1-2章",
+        mustDeliver: ["旧兑现"],
+      }],
+    }],
+  });
+
+  const merged = mergeStrategyPlan(current, createBaseStrategyPlan(3));
+
+  assert.deepEqual(merged.volumes, []);
+  assert.equal(merged.strategyPlan?.recommendedVolumeCount, 3);
+  assert.equal(merged.critiqueReport, null);
+  assert.deepEqual(merged.beatSheets, []);
+  assert.equal(merged.readiness.canGenerateSkeleton, true);
+  assert.equal(merged.readiness.canGenerateBeatSheet, false);
+});
+
+test("high-risk strategy critique blocks skeleton generation readiness", () => {
+  const document = buildVolumeWorkspaceDocument({
+    novelId: "novel-1",
+    volumes: [createBaseVolume()],
+    strategyPlan: createBaseStrategyPlan(1),
+    critiqueReport: {
+      overallRisk: "high",
+      summary: "卷战略存在明显结构风险。",
+      issues: [],
+      recommendedActions: ["重新生成卷战略。"],
+    },
+    beatSheets: [],
+  });
+
+  assert.equal(document.readiness.canGenerateSkeleton, false);
+  assert.ok(document.readiness.blockingReasons.some((reason) => reason.includes("高风险")));
+  assert.throws(
+    () => assertScopeReadiness(document, "skeleton"),
+    /高风险/,
+  );
 });
 
 test("mergeVolumeWorkspaceInput keeps strategy data but clears downstream assets after volume-level edits", () => {

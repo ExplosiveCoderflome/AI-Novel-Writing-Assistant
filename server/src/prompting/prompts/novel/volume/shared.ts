@@ -242,7 +242,11 @@ export function buildStrategyContext(strategyPlan: VolumeStrategyPlan | null): s
 
 export function buildStoryMacroContext(storyMacroPlan: StoryMacroPlan | null): string {
   if (!storyMacroPlan) {
-    return "none";
+    return [
+      "none",
+      "degradation rule: story macro is missing, so volume strategy must stay conservative.",
+      "uncertainty rule: add uncertainty markers for macro-level selling point, conflict escalation, progression loop, and payoff mapping.",
+    ].join("\n");
   }
   return [
     storyMacroPlan.decomposition?.selling_point ? `selling point: ${storyMacroPlan.decomposition.selling_point}` : "",

@@ -354,6 +354,20 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
   assert.match(String(messages[1].content), /user preferred volume count: 10/);
 });
 
+test("registered volume strategy prompt uses the shared 24-volume ceiling", () => {
+  const asset = getRegisteredPromptAsset("novel.volume.strategy", "v2");
+  assert.ok(asset);
+  const messages = asset.render({}, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+
+  assert.match(String(messages[0].content), /recommendedVolumeCount 必须落在结构建议区间 1-24 之间/);
+});
+
 test("volume skeleton prompt protects compact and long-form volume structures", () => {
   const compactMessages = createVolumeSkeletonPrompt(3).render({}, {
     blocks: [],

@@ -2029,6 +2029,7 @@ export default function NovelEdit() {
     readiness: buildVolumePlanningReadiness({
       volumes: normalizedVolumeDraft,
       strategyPlan: volumeStrategyPlan,
+      critiqueReport: volumeCritiqueReport,
       beatSheets: volumeBeatSheets,
     }),
     derivedOutline: outlineText,

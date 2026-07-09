@@ -267,7 +267,7 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   },
   {
     key: "novel.volume.strategy@v2",
-    load: () => require("./prompts/novel/volume/strategy.prompts").createVolumeStrategyPrompt({ maxVolumeCount: 16 }) as UnknownPromptAsset,
+    load: () => require("./prompts/novel/volume/strategy.prompts").createVolumeStrategyPrompt() as UnknownPromptAsset,
   },
   {
     key: "novel.volume.strategy.critique@v1",
