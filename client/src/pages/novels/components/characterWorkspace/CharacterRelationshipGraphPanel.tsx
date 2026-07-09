@@ -226,6 +226,11 @@ export default function CharacterRelationshipGraphPanel(props: CharacterRelation
                   <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-6 border-t-2 border-dashed border-sky-600" />动态阶段</span>
                 </div>
               </Panel>
+              {mode === "current" ? (
+                <Panel position="bottom-left" className="rounded-xl border border-border/70 bg-background/90 px-3 py-2 text-xs text-muted-foreground shadow-sm">
+                  当前角色在左侧，直接关系向右展开；点击连线查看关系细节。
+                </Panel>
+              ) : null}
               <Controls showInteractive={false} position="bottom-right" />
             </ReactFlow>
           ) : (
@@ -498,6 +503,9 @@ function getEdgeTone(edge?: RelationshipGraphEdge) {
 }
 
 function getRelationNames(edge: RelationshipGraphEdge): string {
+  if (edge.sourceName || edge.targetName) {
+    return `${edge.sourceName || "未知角色"} -> ${edge.targetName || "未知角色"}`;
+  }
   const staticRelation = edge.staticRelation;
   if (staticRelation?.sourceCharacterName || staticRelation?.targetCharacterName) {
     return `${staticRelation.sourceCharacterName ?? "未知角色"} -> ${staticRelation.targetCharacterName ?? "未知角色"}`;
