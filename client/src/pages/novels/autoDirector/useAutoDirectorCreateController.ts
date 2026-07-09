@@ -70,6 +70,19 @@ interface UseAutoDirectorCreateControllerInput {
   }) => void;
 }
 
+function resolveIdeaFromCandidateBatches(batches: DirectorCandidateBatch[] | null | undefined): string {
+  if (!Array.isArray(batches)) {
+    return "";
+  }
+  for (let index = batches.length - 1; index >= 0; index -= 1) {
+    const batchIdea = batches[index]?.idea?.trim();
+    if (batchIdea) {
+      return batchIdea;
+    }
+  }
+  return "";
+}
+
 export function useAutoDirectorCreateController(input: UseAutoDirectorCreateControllerInput) {
   const {
     basicForm,
@@ -121,8 +134,9 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     if (restoredTask.id && restoredTask.id !== workflowTaskId) {
       setWorkflowTaskId(restoredTask.id);
     }
-    if (seedPayload?.idea?.trim()) {
-      setIdea(seedPayload.idea);
+    const restoredIdea = seedPayload?.idea?.trim() || resolveIdeaFromCandidateBatches(seedPayload?.batches);
+    if (restoredIdea) {
+      setIdea(restoredIdea);
     }
     if (Array.isArray(seedPayload?.batches) && seedPayload.batches.length > 0) {
       setBatches(seedPayload.batches);
@@ -225,6 +239,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   });
 
   const latestBatch = batches.at(-1) ?? null;
+  const requestIdea = idea.trim() || resolveIdeaFromCandidateBatches(batches);
   const directorTask = useMemo(() => {
     const loadedTask = directorTaskQuery.data?.data ?? null;
     if (loadedTask) {
@@ -234,12 +249,17 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   }, [directorTaskQuery.data?.data, restoredTask, workflowTaskId]);
 
   useEffect(() => {
-    const seededBatches = extractDirectorTaskSeedPayloadFromMeta(directorTask?.meta)?.batches;
+    const seedPayload = extractDirectorTaskSeedPayloadFromMeta(directorTask?.meta);
+    const seededBatches = seedPayload?.batches;
+    const seededIdea = seedPayload?.idea?.trim() || resolveIdeaFromCandidateBatches(seededBatches);
+    if (!idea.trim() && seededIdea) {
+      setIdea(seededIdea);
+    }
     if (!Array.isArray(seededBatches) || seededBatches.length === 0) {
       return;
     }
     setBatches((prev) => mergeDirectorCandidateBatches(prev, seededBatches));
-  }, [directorTask]);
+  }, [directorTask, idea]);
 
   const candidateSetupInProgress = Boolean(
     directorTask
@@ -279,6 +299,10 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   }, [directorTask, executionRequested]);
 
   const ensureWorkflowTask = async () => {
+    const nextIdea = requestIdea;
+    if (!nextIdea) {
+      throw new Error("请先补充起始想法，再继续生成或确认书级方向。");
+    }
     if (workflowTaskId) {
       return workflowTaskId;
     }
@@ -289,7 +313,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       title: directorBasicForm.title.trim() || undefined,
       seedPayload: {
         basicForm: directorBasicForm,
-        idea,
+        idea: nextIdea,
         batches,
         runMode,
         worldSetupMode: directorBasicForm.worldId ? undefined : worldSetupMode,
@@ -321,14 +345,19 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     }
   };
 
-  const buildCandidateRequestPayload = (currentWorkflowTaskId: string) => buildAutoDirectorRequestPayload(
-    directorBasicForm,
-    idea,
-    llm,
-    runMode,
-    currentWorkflowTaskId,
-    { styleProfileId: selectedStyleProfileId, worldSetupMode },
-  );
+  const buildCandidateRequestPayload = (currentWorkflowTaskId: string) => {
+    if (!requestIdea) {
+      throw new Error("请先补充起始想法，再继续生成或确认书级方向。");
+    }
+    return buildAutoDirectorRequestPayload(
+      directorBasicForm,
+      requestIdea,
+      llm,
+      runMode,
+      currentWorkflowTaskId,
+      { styleProfileId: selectedStyleProfileId, worldSetupMode },
+    );
+  };
 
   const {
     generateMutation,
@@ -358,9 +387,12 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const confirmMutation = useMutation({
     mutationFn: async (payload: { candidate: DirectorCandidate; workflowTaskId?: string }) => {
       const currentWorkflowTaskId = payload.workflowTaskId || await ensureWorkflowTask();
+      if (!requestIdea) {
+        throw new Error("请先补充起始想法，再继续生成或确认书级方向。");
+      }
       const autoExecutionPlan = buildAutoExecutionPlanForRunMode();
       const response = await confirmDirectorCandidate({
-        ...buildAutoDirectorRequestPayload(directorBasicForm, idea, llm, runMode, currentWorkflowTaskId, {
+        ...buildAutoDirectorRequestPayload(directorBasicForm, requestIdea, llm, runMode, currentWorkflowTaskId, {
           styleProfileId: selectedStyleProfileId,
           worldSetupMode,
         }),
