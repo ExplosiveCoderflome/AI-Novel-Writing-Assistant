@@ -31,6 +31,7 @@ export function startStrategyGenerationAction(params: {
   volumeCountGuidance: {
     systemRecommendedVolumeCount: number;
     allowedVolumeCountRange: { min: number; max: number };
+    decisionVolumeCountRange: { min: number; max: number };
     respectedExistingVolumeCount?: number | null;
   };
   hasUnsavedVolumeDraft: boolean;
@@ -48,7 +49,7 @@ export function startStrategyGenerationAction(params: {
         ? `本次将按系统建议卷数生成（当前建议 ${params.volumeCountGuidance.systemRecommendedVolumeCount} 卷），不沿用现有草稿卷数。`
         : params.volumeCountGuidance.respectedExistingVolumeCount != null
           ? `本次会优先沿用当前草稿的 ${params.volumeCountGuidance.respectedExistingVolumeCount} 卷结构，同时保持在允许区间 ${params.volumeCountGuidance.allowedVolumeCountRange.min}-${params.volumeCountGuidance.allowedVolumeCountRange.max} 内。`
-          : `当前系统建议 ${params.volumeCountGuidance.systemRecommendedVolumeCount} 卷，允许区间 ${params.volumeCountGuidance.allowedVolumeCountRange.min}-${params.volumeCountGuidance.allowedVolumeCountRange.max} 卷。`,
+          : `当前系统建议 ${params.volumeCountGuidance.systemRecommendedVolumeCount} 卷，结构建议区间 ${params.volumeCountGuidance.decisionVolumeCountRange.min}-${params.volumeCountGuidance.decisionVolumeCountRange.max} 卷。`,
     params.hasUnsavedVolumeDraft ? "本次会直接使用当前页面未保存草稿作为参考。" : "本次会基于当前工作区状态生成建议。",
   ].join("\n\n"));
   if (!confirmed) {

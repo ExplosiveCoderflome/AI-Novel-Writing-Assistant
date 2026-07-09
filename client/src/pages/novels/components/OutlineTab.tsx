@@ -58,6 +58,18 @@ function getNextOutlineAction(readiness: OutlineTabViewProps["readiness"]): stri
   return "卷战略阶段已齐备，可以继续进入节奏 / 拆章";
 }
 
+function getVolumeScaleProfileLabel(profile: OutlineTabViewProps["volumeCountGuidance"]["volumeScaleProfile"]): string {
+  const labels: Record<OutlineTabViewProps["volumeCountGuidance"]["volumeScaleProfile"], string> = {
+    short: "短篇结构",
+    compact: "紧凑中篇",
+    standard: "标准长篇",
+    long: "长篇展开",
+    epic: "大长篇",
+    mega: "超长篇",
+  };
+  return labels[profile] ?? "结构建议";
+}
+
 export default function OutlineTab(props: OutlineTabViewProps) {
   const {
     worldInjectionSummary,
@@ -127,6 +139,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
     : volumeCountGuidance.respectedExistingVolumeCount != null
       ? `当前沿用草稿 ${volumeCountGuidance.respectedExistingVolumeCount} 卷`
       : `当前按系统建议 ${volumeCountGuidance.systemRecommendedVolumeCount} 卷`;
+  const volumeScaleProfileLabel = getVolumeScaleProfileLabel(volumeCountGuidance.volumeScaleProfile);
 
   useEffect(() => {
     if (!volumes.some((volume) => volume.id === selectedVolumeId)) {
@@ -267,9 +280,9 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                         <div className="mt-1 text-lg font-semibold text-foreground">{volumeCountGuidance.chapterBudget} 章</div>
                       </div>
                       <div className="rounded-xl bg-background/70 p-3">
-                        <div className="text-xs text-muted-foreground">推荐卷数区间</div>
+                        <div className="text-xs text-muted-foreground">结构建议区间</div>
                         <div className="mt-1 text-lg font-semibold text-foreground">
-                          {volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
+                          {volumeCountGuidance.decisionVolumeCountRange.min}-{volumeCountGuidance.decisionVolumeCountRange.max} 卷
                         </div>
                       </div>
                       <div className="rounded-xl bg-background/70 p-3">
@@ -285,8 +298,9 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                     </div>
 
                     <div className="rounded-xl bg-background/70 p-3 text-xs leading-6 text-muted-foreground">
-                      标准卷尺度按 {volumeCountGuidance.targetChapterRange.min}-{volumeCountGuidance.targetChapterRange.max} 章 / 卷设计，
-                      理想值约 {volumeCountGuidance.targetChapterRange.ideal} 章 / 卷。超长篇默认通过增加卷数来保持每卷的阶段感、升级节点和卷级回报，不再压成少数巨卷。
+                      当前结构档位：{volumeScaleProfileLabel}。{volumeCountGuidance.volumeCountRationale}
+                      章节预算仍会参考 {volumeCountGuidance.targetChapterRange.min}-{volumeCountGuidance.targetChapterRange.max} 章 / 卷，
+                      但系统会优先按阶段承诺、卖点切换、局面升级和阶段兑现来建议卷数。
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -318,7 +332,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                           </label>
                           <Button size="sm" onClick={onApplyCustomVolumeCount}>应用固定卷数</Button>
                           <div className="text-xs text-muted-foreground">
-                            允许范围：{volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
+                            允许范围：{volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷。固定卷数会覆盖结构建议。
                           </div>
                         </div>
                       </div>

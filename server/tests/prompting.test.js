@@ -69,6 +69,9 @@ const {
   createVolumeStrategyPrompt,
 } = require("../dist/prompting/prompts/novel/volume/strategy.prompts.js");
 const {
+  createVolumeSkeletonPrompt,
+} = require("../dist/prompting/prompts/novel/volume/skeleton.prompts.js");
+const {
   storyModeChildPrompt,
   storyModeTreePrompt,
 } = require("../dist/prompting/prompts/storyMode/storyMode.prompts.js");
@@ -288,8 +291,9 @@ test("character cast prompt hardens real-name constraints and required gender ou
 
 test("volume strategy prompt renders volume count guidance and fixed-count constraints", () => {
   const asset = createVolumeStrategyPrompt({
-    maxVolumeCount: 16,
-    allowedVolumeCountRange: { min: 8, max: 13 },
+    maxVolumeCount: 24,
+    allowedVolumeCountRange: { min: 1, max: 24 },
+    decisionVolumeCountRange: { min: 8, max: 13 },
     fixedRecommendedVolumeCount: 10,
     hardPlannedVolumeRange: { min: 2, max: 4 },
   });
@@ -298,7 +302,10 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
     volumeCountGuidance: {
       chapterBudget: 500,
       targetChapterRange: { min: 40, ideal: 55, max: 70 },
-      allowedVolumeCountRange: { min: 8, max: 13 },
+      allowedVolumeCountRange: { min: 1, max: 24 },
+      decisionVolumeCountRange: { min: 8, max: 13 },
+      volumeScaleProfile: "epic",
+      volumeCountRationale: "大长篇需要更多卷级回报节点。",
       recommendedVolumeCount: 10,
       systemRecommendedVolumeCount: 9,
       hardPlannedVolumeRange: { min: 2, max: 4 },
@@ -321,7 +328,10 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
         required: true,
         content: [
           "chapter budget: 500",
-          "allowed volume count range: 8-13",
+          "allowed volume count range: 1-24",
+          "decision volume count range: 8-13",
+          "volume scale profile: epic",
+          "volume count rationale: 大长篇需要更多卷级回报节点。",
           "system recommended volume count: 9",
           "active recommended volume count: 10",
           "hard planned volume range: 2-4",
@@ -338,9 +348,32 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
   assert.equal(messages.length, 2);
   assert.match(String(messages[0].content), /recommendedVolumeCount 必须严格等于 10/);
   assert.match(String(messages[0].content), /hardPlannedVolumeCount 必须落在 2-4 之间/);
+  assert.match(String(messages[0].content), /60 章以上默认至少保留三段结构/);
   assert.match(String(messages[0].content), /超长篇必须避免把大量章节压成少数巨卷/);
-  assert.match(String(messages[1].content), /allowed volume count range: 8-13/);
+  assert.match(String(messages[1].content), /decision volume count range: 8-13/);
   assert.match(String(messages[1].content), /user preferred volume count: 10/);
+});
+
+test("volume skeleton prompt protects compact and long-form volume structures", () => {
+  const compactMessages = createVolumeSkeletonPrompt(3).render({}, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+  assert.match(String(compactMessages[0].content), /3-4 卷/);
+  assert.match(String(compactMessages[0].content), /三幕式或四段式结构/);
+
+  const longMessages = createVolumeSkeletonPrompt(12).render({}, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+  assert.match(String(longMessages[0].content), /12 卷以上/);
+  assert.match(String(longMessages[0].content), /卖点轮换、压力源轮换和阶段兑现密度/);
 });
 
 test("workspace diagnosis prompt requires english recommendedAction enum values", () => {

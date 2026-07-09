@@ -761,10 +761,15 @@ export interface VolumeChapterTargetRange {
   max: number;
 }
 
+export type VolumeScaleProfile = "short" | "compact" | "standard" | "long" | "epic" | "mega";
+
 export interface VolumeCountGuidance {
   chapterBudget: number;
   targetChapterRange: VolumeChapterTargetRange;
   allowedVolumeCountRange: VolumeCountRange;
+  decisionVolumeCountRange: VolumeCountRange;
+  volumeScaleProfile: VolumeScaleProfile;
+  volumeCountRationale: string;
   recommendedVolumeCount: number;
   systemRecommendedVolumeCount: number;
   hardPlannedVolumeRange: VolumeCountRange;

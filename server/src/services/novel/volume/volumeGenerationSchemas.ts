@@ -545,6 +545,7 @@ export function createVolumeChapterBeatBlockSchema(config: {
 export function createVolumeStrategySchema(config: {
   maxVolumeCount?: number;
   allowedVolumeCountRange?: VolumeCountRange | null;
+  decisionVolumeCountRange?: VolumeCountRange | null;
   fixedRecommendedVolumeCount?: number | null;
   hardPlannedVolumeRange?: VolumeCountRange | null;
 } = {}) {
@@ -553,6 +554,7 @@ export function createVolumeStrategySchema(config: {
     min: 1,
     max: maxVolumeCount,
   };
+  const decisionVolumeCountRange = config.decisionVolumeCountRange ?? allowedVolumeCountRange;
   const fixedRecommendedVolumeCount = typeof config.fixedRecommendedVolumeCount === "number"
     ? config.fixedRecommendedVolumeCount
     : null;
@@ -560,9 +562,12 @@ export function createVolumeStrategySchema(config: {
     min: 1,
     max: maxVolumeCount,
   };
+  const recommendedVolumeCountRange = fixedRecommendedVolumeCount === null
+    ? decisionVolumeCountRange
+    : allowedVolumeCountRange;
 
   return z.object({
-    recommendedVolumeCount: z.number().int().min(allowedVolumeCountRange.min).max(allowedVolumeCountRange.max),
+    recommendedVolumeCount: z.number().int().min(recommendedVolumeCountRange.min).max(recommendedVolumeCountRange.max),
     hardPlannedVolumeCount: z.number().int().min(hardPlannedVolumeRange.min).max(hardPlannedVolumeRange.max),
     readerRewardLadder: z.string().trim().min(1),
     escalationLadder: z.string().trim().min(1),

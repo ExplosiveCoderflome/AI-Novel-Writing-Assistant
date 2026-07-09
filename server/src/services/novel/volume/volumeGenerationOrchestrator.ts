@@ -190,6 +190,7 @@ async function generateStrategy(params: {
     asset: createVolumeStrategyPrompt({
       maxVolumeCount: MAX_VOLUME_COUNT,
       allowedVolumeCountRange: volumeCountGuidance.allowedVolumeCountRange,
+      decisionVolumeCountRange: volumeCountGuidance.decisionVolumeCountRange,
       fixedRecommendedVolumeCount: volumeCountGuidance.userPreferredVolumeCount,
       hardPlannedVolumeRange: volumeCountGuidance.hardPlannedVolumeRange,
     }),

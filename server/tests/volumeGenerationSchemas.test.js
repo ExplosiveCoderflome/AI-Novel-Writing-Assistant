@@ -149,6 +149,54 @@ test("volume strategy schema rejects fixed recommended count mismatches", () => 
   assert.ok(messages.some((message) => message.includes("recommendedVolumeCount 必须严格等于 10")));
 });
 
+test("volume strategy schema rejects automatic counts outside decision range", () => {
+  const schema = createVolumeStrategySchema({
+    maxVolumeCount: 24,
+    allowedVolumeCountRange: { min: 1, max: 24 },
+    decisionVolumeCountRange: { min: 3, max: 4 },
+    hardPlannedVolumeRange: { min: 3, max: 3 },
+  });
+  const payload = {
+    ...createValidStrategyPayload(),
+    recommendedVolumeCount: 2,
+    hardPlannedVolumeCount: 2,
+    volumes: createValidStrategyPayload().volumes.slice(0, 2).map((volume, index) => ({
+      ...volume,
+      sortOrder: index + 1,
+      planningMode: "hard",
+    })),
+  };
+
+  const parsed = schema.safeParse(payload);
+  assert.equal(parsed.success, false);
+  const issues = parsed.success ? [] : parsed.error.issues;
+  assert.ok(issues.some((issue) => issue.path[0] === "recommendedVolumeCount"));
+});
+
+test("volume strategy schema keeps fixed count compatible outside decision range", () => {
+  const schema = createVolumeStrategySchema({
+    maxVolumeCount: 24,
+    allowedVolumeCountRange: { min: 1, max: 24 },
+    decisionVolumeCountRange: { min: 3, max: 4 },
+    fixedRecommendedVolumeCount: 2,
+    hardPlannedVolumeRange: { min: 2, max: 2 },
+  });
+  const payload = {
+    ...createValidStrategyPayload(),
+    recommendedVolumeCount: 2,
+    hardPlannedVolumeCount: 2,
+    volumes: createValidStrategyPayload().volumes.slice(0, 2).map((volume, index) => ({
+      ...volume,
+      sortOrder: index + 1,
+      planningMode: "hard",
+    })),
+    uncertainties: [],
+  };
+
+  const parsed = schema.safeParse(payload);
+  assert.equal(parsed.success, true);
+});
+
 test("volume strategy schema rejects hard planned counts outside configured range", () => {
   const schema = createVolumeStrategySchema({
     maxVolumeCount: 16,
