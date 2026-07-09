@@ -67,8 +67,8 @@ const edgeTypes = {
   relationshipEdge: CharacterRelationshipEdge,
 };
 
-const GRAPH_NODE_WIDTH = 164;
-const GRAPH_NODE_HEIGHT = 128;
+const GRAPH_NODE_WIDTH = 196;
+const GRAPH_NODE_HEIGHT = 148;
 
 const MODE_OPTIONS: Array<{
   value: RelationshipGraphMode;
@@ -279,7 +279,7 @@ function CharacterRelationshipNode(props: NodeProps) {
   return (
     <div
       className={cn(
-        "relative h-[128px] w-[164px] overflow-hidden rounded-2xl border px-3 pb-8 pt-3 shadow-sm transition",
+        "relative h-[148px] w-[196px] overflow-hidden rounded-2xl border px-3.5 pb-9 pt-3.5 shadow-sm transition",
         isProtagonist
           ? "border-emerald-300 bg-[linear-gradient(135deg,#f0fdf4_0%,#ffffff_58%,#ecfeff_100%)] shadow-[0_18px_42px_rgba(16,185,129,0.18)]"
           : "bg-background/95",
@@ -323,10 +323,10 @@ function CharacterRelationshipNode(props: NodeProps) {
           </span>
         ) : null}
       </div>
-      <div className="mt-2 line-clamp-2 min-h-[32px] text-xs leading-4 text-muted-foreground">
+      <div className="mt-3 line-clamp-2 min-h-[36px] text-xs leading-[18px] text-muted-foreground">
         {character.currentGoal || character.storyFunction || character.relationToProtagonist || "待补全角色目标"}
       </div>
-      <div className="absolute inset-x-3 bottom-2 flex flex-wrap gap-1.5">
+      <div className="absolute inset-x-3.5 bottom-2.5 flex flex-wrap gap-1.5">
         <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", tone.badge)}>
           {isProtagonist ? "主角核心" : getCastRoleLabel(character.castRole)}
         </span>

@@ -59,14 +59,14 @@ interface ForceLink {
 
 const CANVAS_WIDTH = 980;
 const CANVAS_HEIGHT = 560;
-const GRAPH_CARD_WIDTH = 164;
-const GRAPH_CARD_HEIGHT = 128;
-const GRAPH_CARD_GAP_X = 58;
-const GRAPH_CARD_GAP_Y = 40;
+const GRAPH_CARD_WIDTH = 196;
+const GRAPH_CARD_HEIGHT = 148;
+const GRAPH_CARD_GAP_X = 68;
+const GRAPH_CARD_GAP_Y = 48;
 const CURRENT_ROOT_X = 170;
 const CURRENT_BRANCH_X = 560;
 const CURRENT_BRANCH_Y_START = 140;
-const CURRENT_BRANCH_Y_GAP = 156;
+const CURRENT_BRANCH_Y_GAP = 182;
 
 export function buildRelationshipGraphModel(input: {
   characters: Character[];
