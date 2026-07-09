@@ -59,6 +59,10 @@ interface ForceLink {
 
 const CANVAS_WIDTH = 980;
 const CANVAS_HEIGHT = 560;
+const GRAPH_CARD_WIDTH = 164;
+const GRAPH_CARD_HEIGHT = 128;
+const GRAPH_CARD_GAP_X = 58;
+const GRAPH_CARD_GAP_Y = 40;
 const CURRENT_ROOT_X = 170;
 const CURRENT_BRANCH_X = 560;
 const CURRENT_BRANCH_Y_START = 140;
@@ -336,21 +340,22 @@ function computeGraphLayout(
   protagonistId: string,
 ) {
   const radius = Math.min(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.34;
+  const layoutHeight = Math.max(CANVAS_HEIGHT, 160 + Math.ceil(Math.max(characters.length, 1) / 2) * (GRAPH_CARD_HEIGHT + GRAPH_CARD_GAP_Y));
   const nodes: ForceNode[] = characters.map((character, index) => {
     if (character.id === protagonistId) {
       return {
         id: character.id,
         x: CANVAS_WIDTH / 2,
-        y: CANVAS_HEIGHT / 2,
+        y: layoutHeight / 2,
         fx: CANVAS_WIDTH / 2,
-        fy: CANVAS_HEIGHT / 2,
+        fy: layoutHeight / 2,
       };
     }
     const angle = (Math.PI * 2 * index) / Math.max(characters.length, 1);
     return {
       id: character.id,
       x: CANVAS_WIDTH / 2 + radius * Math.cos(angle),
-      y: CANVAS_HEIGHT / 2 + radius * Math.sin(angle),
+      y: layoutHeight / 2 + radius * Math.sin(angle),
     };
   });
   const links: ForceLink[] = edges.map((edge) => ({
@@ -362,18 +367,93 @@ function computeGraphLayout(
   forceSimulation<ForceNode>(nodes)
     .force("link", forceLink<ForceNode, ForceLink>(links).id((node) => node.id).distance((link) => Math.max(110, 220 - link.weight * 32)).strength(0.28))
     .force("charge", forceManyBody<ForceNode>().strength(-760))
-    .force("collide", forceCollide<ForceNode>().radius(82).strength(0.86))
-    .force("center", forceCenter(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2).strength(0.08))
+    .force("collide", forceCollide<ForceNode>().radius(118).strength(0.92))
+    .force("center", forceCenter(CANVAS_WIDTH / 2, layoutHeight / 2).strength(0.08))
     .stop()
     .tick(180);
 
+  const safeNodes = resolveRectangularNodeCollisions(nodes, protagonistId, layoutHeight);
   return new Map(nodes.map((node) => [
     node.id,
     {
-      x: clamp(node.x, 90, CANVAS_WIDTH - 90),
-      y: clamp(node.y, 70, CANVAS_HEIGHT - 70),
+      x: safeNodes.get(node.id)?.x ?? clamp(node.x, GRAPH_CARD_WIDTH / 2 + 28, CANVAS_WIDTH - GRAPH_CARD_WIDTH / 2 - 28),
+      y: safeNodes.get(node.id)?.y ?? clamp(node.y, GRAPH_CARD_HEIGHT / 2 + 28, layoutHeight - GRAPH_CARD_HEIGHT / 2 - 28),
     },
   ]));
+}
+
+function resolveRectangularNodeCollisions(
+  inputNodes: ForceNode[],
+  protagonistId: string,
+  initialLayoutHeight: number,
+) {
+  const nodes = inputNodes.map((node) => ({
+    ...node,
+    x: clamp(node.x, GRAPH_CARD_WIDTH / 2 + 28, CANVAS_WIDTH - GRAPH_CARD_WIDTH / 2 - 28),
+    y: clamp(node.y, GRAPH_CARD_HEIGHT / 2 + 28, initialLayoutHeight - GRAPH_CARD_HEIGHT / 2 - 28),
+  }));
+  let layoutHeight = initialLayoutHeight;
+  const minCenterX = GRAPH_CARD_WIDTH + GRAPH_CARD_GAP_X;
+  const minCenterY = GRAPH_CARD_HEIGHT + GRAPH_CARD_GAP_Y;
+  const minX = GRAPH_CARD_WIDTH / 2 + 28;
+  const maxX = CANVAS_WIDTH - GRAPH_CARD_WIDTH / 2 - 28;
+  const minY = GRAPH_CARD_HEIGHT / 2 + 28;
+
+  for (let iteration = 0; iteration < 160; iteration += 1) {
+    let moved = false;
+    for (let firstIndex = 0; firstIndex < nodes.length; firstIndex += 1) {
+      for (let secondIndex = firstIndex + 1; secondIndex < nodes.length; secondIndex += 1) {
+        const first = nodes[firstIndex];
+        const second = nodes[secondIndex];
+        const deltaX = second.x - first.x;
+        const deltaY = second.y - first.y;
+        const overlapX = minCenterX - Math.abs(deltaX);
+        const overlapY = minCenterY - Math.abs(deltaY);
+        if (overlapX <= 0 || overlapY <= 0) {
+          continue;
+        }
+
+        const firstPinned = first.id === protagonistId;
+        const secondPinned = second.id === protagonistId;
+        const pushOnX = overlapX < overlapY;
+        const direction = pushOnX
+          ? (deltaX >= 0 ? 1 : -1)
+          : (deltaY >= 0 ? 1 : -1);
+        const push = (pushOnX ? overlapX : overlapY) + 12;
+
+        if (firstPinned && secondPinned) {
+          continue;
+        }
+        if (firstPinned || secondPinned) {
+          const nodeToMove = firstPinned ? second : first;
+          const signedPush = firstPinned ? direction * push : -direction * push;
+          if (pushOnX) {
+            nodeToMove.x += signedPush;
+          } else {
+            nodeToMove.y += signedPush;
+          }
+        } else if (pushOnX) {
+          first.x -= direction * push * 0.5;
+          second.x += direction * push * 0.5;
+        } else {
+          first.y -= direction * push * 0.5;
+          second.y += direction * push * 0.5;
+        }
+        moved = true;
+      }
+    }
+
+    for (const node of nodes) {
+      layoutHeight = Math.max(layoutHeight, node.y + GRAPH_CARD_HEIGHT / 2 + 56);
+      node.x = clamp(node.x, minX, maxX);
+      node.y = clamp(node.y, minY, layoutHeight - GRAPH_CARD_HEIGHT / 2 - 28);
+    }
+    if (!moved) {
+      break;
+    }
+  }
+
+  return new Map(nodes.map((node) => [node.id, { x: node.x, y: node.y }]));
 }
 
 function getPairKey(first: string, second: string): string {
