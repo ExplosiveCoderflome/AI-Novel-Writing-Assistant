@@ -1,13 +1,16 @@
 # Fork Notice
 
-This repository is a personal fork / customized edition maintained by Gonghan-Princess.
+This repository is an independently maintained Gonghan-Princess personal edition.
 
-Upstream project:
+Original source attribution:
 
 - Repository: https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant
 - License: AGPL-3.0-only
 
 The original license, notice, and attribution are preserved in `LICENSE` and `NOTICE`.
+This notice is kept for license compliance and provenance. Day-to-day issues,
+pull requests, releases, and project decisions for this edition belong to the
+Gonghan-Princess repository.
 
 ## Customization Scope
 

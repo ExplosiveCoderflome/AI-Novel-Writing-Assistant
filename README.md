@@ -1,7 +1,7 @@
 # 宫寒小说自动化工作台 / Gonghan Novel Studio
 一个面向长篇小说创作的 AI Native 开源项目个人版。
 
-> 本仓库是 Gonghan-Princess 基于 [ExplosiveCoderflome/AI-Novel-Writing-Assistant](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant) 的个人 fork / 二次整理版本，继续遵循原项目 AGPL-3.0-only 许可证。原始项目信息、许可证和归属说明见 [LICENSE](./LICENSE)、[NOTICE](./NOTICE) 与 [FORK_NOTICE.md](./FORK_NOTICE.md)。
+> 本仓库由 Gonghan-Princess 独立维护，定位为宫寒个人版小说自动化工作台。项目保留 AGPL-3.0-only 许可证和必要的原始来源归属说明，详见 [LICENSE](./LICENSE)、[NOTICE](./NOTICE) 与 [FORK_NOTICE.md](./FORK_NOTICE.md)。
 
 当前开发主线：
 `Creative Hub + 自动导演开书 + 本书世界上下文 + 整本生产主链 + 写法引擎`
@@ -620,8 +620,8 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 - 强化写法引擎、知识库回灌和世界观一致性链路
 - 补充测试、错误回放和运行时可观察性
 
-欢迎直接提 Issue 或 Pull Request。
-提交 Pull Request 即表示你确认自己有权提交该内容，并已阅读且同意 [CLA.md](./CLA.md)；如果包含 AI 辅助生成内容、第三方代码、素材、数据、模型输出或其他受许可证约束的内容，请在 PR 中明确说明使用范围、来源、许可证和必要归属信息。详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+欢迎在 [Gonghan-Princess/AI-Novel-Writing-Assistant](https://github.com/Gonghan-Princess/AI-Novel-Writing-Assistant) 提交 Issue 或 Pull Request。
+提交 Pull Request 即表示你确认自己有权提交该内容，并同意该内容随本仓库按 AGPL-3.0-only 分发；如果包含 AI 辅助生成内容、第三方代码、素材、数据、模型输出或其他受许可证约束的内容，请在 PR 中明确说明使用范围、来源、许可证和必要归属信息。详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ## 致谢
 
@@ -642,4 +642,4 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 - 服务型商用：将本项目（或其修改版本）作为后端以 SaaS、托管或其他形式向第三方提供服务，须通过作者获取商业授权许可。
 - 请遵守开源协议条款，并在适用场景下取得相应授权。
 
-贡献说明：新贡献默认按 [CLA.md](./CLA.md) 提交，可随项目按 AGPL-3.0-only 分发，并可纳入项目维护者另行提供的商业授权；详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+贡献说明：新贡献只面向 Gonghan-Princess 维护的本仓库，默认可随项目按 AGPL-3.0-only 分发；详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。

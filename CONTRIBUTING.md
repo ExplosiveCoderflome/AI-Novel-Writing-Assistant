@@ -1,33 +1,31 @@
-# Contributing
+# Contributing to Gonghan Novel Studio
 
-Thanks for helping improve AI Novel Writing Assistant 2.
+This repository is maintained as Gonghan-Princess's personal edition of AI Novel
+Writing Assistant. Contributions, issues, and maintenance discussions for this
+repository should target:
 
-## Contribution License
+https://github.com/Gonghan-Princess/AI-Novel-Writing-Assistant
 
-By intentionally submitting code, prompts, tests, documentation, assets, or
-other material to this repository for inclusion in the project, you confirm
-that you have read and agree to [CLA.md](./CLA.md), including the following
-core terms:
+## License and Ownership
+
+This project preserves the original AGPL-3.0-only license and required
+attribution. By submitting code, prompts, tests, documentation, assets, or other
+material to this repository, you confirm:
 
 - you have the legal right to submit the contribution;
-- you agree that the contribution may be distributed as part of this project
-  under the GNU Affero General Public License v3.0 only (AGPL-3.0-only);
-- you agree that the project maintainer may include the contribution in
-  separately licensed commercial distributions or commercial authorizations for
-  this project;
+- your contribution may be distributed as part of this repository under
+  AGPL-3.0-only;
+- you will not remove required license, notice, or attribution files;
 - you will clearly identify any third-party material and its license
-  obligations in the pull request description or related discussion.
-- you will clearly identify AI-assisted or AI-generated material in the pull
-  request description when it is included in the contribution.
-
-If you need to contribute under different terms, discuss it with the project
-maintainer before submitting the change.
+  obligations in the pull request or related discussion;
+- you will clearly identify AI-assisted or AI-generated material when it is
+  included in the contribution.
 
 ## Third-Party Material
 
 If your contribution includes third-party code, prompts, assets, data, model
 weights, model output, generated media, or other license-restricted material,
-please also provide:
+please provide:
 
 - the original source;
 - the applicable license;
@@ -36,7 +34,7 @@ please also provide:
 
 ## AI-Assisted Contributions
 
-AI-assisted work is welcome, but it must be transparent and reviewable. If a
+AI-assisted work is allowed, but it must be transparent and reviewable. If a
 pull request includes AI-assisted or AI-generated code, documentation, prompts,
 images, data transformation, or model output, please disclose:
 
@@ -46,5 +44,4 @@ images, data transformation, or model output, please disclose:
   included;
 - any license, attribution, or usage limitation that applies.
 
-If no third-party material was introduced, say so in the pull request. This
-helps maintainers review provenance without guessing.
+If no third-party material was introduced, say so in the pull request.
