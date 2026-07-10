@@ -4,6 +4,7 @@ import { z } from "zod";
 import { llmProviderSchema } from "../../../../llm/providerSchema";
 import { validate } from "../../../../middleware/validate";
 import { StoryMacroPlanService } from "../../../../services/novel/storyMacro/StoryMacroPlanService";
+import { ArtifactWriter } from "../../../../services/novel/director/runtime/DirectorArtifactGateway";
 
 const llmGenerateSchema = z.object({
   provider: llmProviderSchema.optional(),
@@ -101,6 +102,7 @@ interface RegisterNovelStoryMacroRoutesInput {
 export function registerNovelStoryMacroRoutes(input: RegisterNovelStoryMacroRoutesInput): void {
   const { router, idParamsSchema } = input;
   const storyMacroService = new StoryMacroPlanService();
+  const artifactWriter = new ArtifactWriter();
 
   router.get("/:id/story-macro", validate({ params: idParamsSchema }), async (req, res, next) => {
     try {
@@ -160,6 +162,15 @@ export function registerNovelStoryMacroRoutes(input: RegisterNovelStoryMacroRout
       try {
         const { id } = req.params as z.infer<typeof idParamsSchema>;
         const data = await storyMacroService.updatePlan(id, req.body as z.infer<typeof storyMacroUpdateSchema>);
+        await artifactWriter.markUserEdited({
+          novelId: id,
+          artifactType: "story_macro",
+          targetType: "novel",
+          targetId: id,
+          contentTable: "StoryMacroPlan",
+          contentId: data.id,
+          contentText: JSON.stringify(data),
+        });
         res.status(200).json({
           success: true,
           data,

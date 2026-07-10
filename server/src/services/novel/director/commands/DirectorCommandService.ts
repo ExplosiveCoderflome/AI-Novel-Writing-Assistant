@@ -13,6 +13,7 @@ import type {
   DirectorLLMOptions,
   DirectorRefinementRequest,
   DirectorTakeoverRequest,
+  DirectorStepCalibrationRequest,
 } from "@ai-novel/shared/types/novelDirector";
 import { prisma } from "../../../../db/prisma";
 import { withSqliteRetry } from "../../../../db/sqliteRetry";
@@ -51,6 +52,8 @@ const EXECUTION_COMMAND_TYPES: DirectorRunCommandType[] = [
   "policy_update",
   "workspace_analysis",
   "manual_edit_impact",
+  "calibrate_step",
+  "accept_manual_changes_and_continue",
   "repair_chapter_titles",
 ];
 
@@ -286,6 +289,26 @@ export class DirectorCommandService {
           chapterId: input.chapterId ?? null,
           includeAiInterpretation: input.includeAiInterpretation,
         },
+      },
+    });
+  }
+
+  async enqueueCalibrateStepCommand(taskId: string, input: DirectorStepCalibrationRequest): Promise<DirectorCommandAcceptedResponse> {
+    return this.enqueueExecutionCommand({
+      taskId,
+      commandType: "calibrate_step",
+      payload: { stepCalibrationRequest: input },
+    });
+  }
+
+  async enqueueAcceptManualChangesAndContinueCommand(taskId: string): Promise<DirectorCommandAcceptedResponse> {
+    return this.enqueueExecutionCommand({
+      taskId,
+      commandType: "accept_manual_changes_and_continue",
+      payload: {
+        acceptManualChanges: true,
+        continuationMode: "resume",
+        forceResume: true,
       },
     });
   }

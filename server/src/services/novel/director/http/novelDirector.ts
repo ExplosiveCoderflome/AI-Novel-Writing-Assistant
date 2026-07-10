@@ -248,6 +248,13 @@ const appendCommandSchema = z.discriminatedUnion("commandType", [
   z.object({ commandType: z.literal("patch_candidate"), payload: patchCandidateSchema }),
   z.object({ commandType: z.literal("refine_titles"), payload: refineTitleSchema }),
   z.object({ commandType: z.literal("confirm_candidate"), payload: confirmSchema }),
+  z.object({ commandType: z.literal("calibrate_step"), payload: z.object({
+    stepId: z.string().trim().min(1),
+    action: z.enum(["validate", "improve", "regenerate"]),
+    instruction: z.string().trim().max(4000).optional().nullable(),
+    targetId: z.string().trim().optional().nullable(),
+  }) }),
+  z.object({ commandType: z.literal("accept_manual_changes_and_continue"), payload: z.object({}).optional() }),
   z.object({ commandType: z.literal("continue"), payload: z.object({
     continuationMode: z.enum(["resume", "auto_execute_range", "skip_quality_repair"]).optional(),
     batchAlreadyStartedCount: z.number().int().min(0).optional(),
@@ -344,6 +351,12 @@ router.post("/tasks/:taskId/commands", validate({ params: taskParamsSchema, body
           ...body.payload,
           workflowTaskId: taskId,
         } as DirectorConfirmRequest);
+        break;
+      case "calibrate_step":
+        data = await commandService.enqueueCalibrateStepCommand(taskId, body.payload);
+        break;
+      case "accept_manual_changes_and_continue":
+        data = await commandService.enqueueAcceptManualChangesAndContinueCommand(taskId);
         break;
       case "continue":
         data = await commandService.enqueueContinueCommand(taskId, body.payload ?? {});

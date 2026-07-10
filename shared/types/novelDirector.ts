@@ -242,6 +242,16 @@ export function buildFullBookAutopilotExecutionPlan(): DirectorAutoExecutionPlan
 
 export type DirectorContinuationMode = "resume" | "auto_execute_range" | "skip_quality_repair";
 
+export const DIRECTOR_STEP_CALIBRATION_ACTIONS = ["validate", "improve", "regenerate"] as const;
+export type DirectorStepCalibrationAction = typeof DIRECTOR_STEP_CALIBRATION_ACTIONS[number];
+
+export interface DirectorStepCalibrationRequest {
+  stepId: string;
+  action: DirectorStepCalibrationAction;
+  instruction?: string | null;
+  targetId?: string | null;
+}
+
 export function normalizeDirectorContinuationMode(
   value: unknown,
 ): DirectorContinuationMode | null {
@@ -417,6 +427,14 @@ export interface DirectorTaskSeedPayloadSnapshot {
   styleIntentSummary?: StyleIntentSummary | null;
   postGenerationStyleReviewEnabled?: boolean | null;
   taskNotice?: DirectorTaskNotice | null;
+  stepReview?: {
+    stepId: string;
+    nodeKey: string;
+    label: string;
+    targetType: string;
+    targetId?: string | null;
+    completedAt: string;
+  } | null;
 }
 
 export interface DirectorLLMOptions {
@@ -471,7 +489,7 @@ export interface DirectorTakeoverPipelineJobSnapshot {
 }
 
 export interface DirectorTakeoverCheckpointSnapshot {
-  checkpointType: "chapter_batch_ready" | "replan_required" | null;
+  checkpointType: "chapter_batch_ready" | "step_review_required" | "replan_required" | null;
   checkpointSummary?: string | null;
   chapterId?: string | null;
   chapterOrder?: number | null;
@@ -638,6 +656,7 @@ export interface DirectorConfirmRequest extends DirectorProjectContextInput, Dir
   workflowTaskId?: string;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
   autoApproval?: DirectorAutoApprovalConfig;
+  stepCalibrationInstruction?: string | null;
 }
 
 export interface DirectorPlanScene {

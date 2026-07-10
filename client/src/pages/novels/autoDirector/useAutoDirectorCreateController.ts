@@ -142,7 +142,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
       setBatches(seedPayload.batches);
     }
     if (typeof seedPayload?.runMode === "string" && (DIRECTOR_RUN_MODES as readonly string[]).includes(seedPayload.runMode)) {
-      setRunMode(seedPayload.runMode === "stage_review" ? DEFAULT_VISIBLE_RUN_MODE : seedPayload.runMode);
+      setRunMode(seedPayload.runMode);
     }
     if (seedPayload?.autoExecutionPlan) {
       setAutoExecutionDraft(normalizeDirectorAutoExecutionDraftState(seedPayload.autoExecutionPlan));

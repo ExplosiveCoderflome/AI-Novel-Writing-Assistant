@@ -235,6 +235,7 @@ export class NovelDirectorContinueRuntime {
     continuationMode?: DirectorContinuationMode;
     batchAlreadyStartedCount?: number;
     forceResume?: boolean;
+    acceptManualChanges?: boolean;
   }): Promise<void> {
     const continuationMode = normalizeDirectorContinuationMode(input?.continuationMode);
     const row = await this.deps.workflowService.getTaskById(taskId);
@@ -303,6 +304,7 @@ export class NovelDirectorContinueRuntime {
     const effectiveDirectorInput = applyDirectorRunModeContract({
       ...directorInput,
       runMode,
+      ...(input?.acceptManualChanges ? { stepCalibrationInstruction: null } : {}),
     });
     const assetFirstRecovery = await this.resolveAssetFirstRecovery({
       novelId,

@@ -90,6 +90,9 @@ function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefi
   if (checkpoint === "chapter_batch_ready") {
     return `${resolvedScopeLabel}自动执行已暂停`;
   }
+  if (checkpoint === "step_review_required") {
+    return "当前步骤待检查";
+  }
   if (checkpoint === "workflow_completed") {
     return "主流程完成";
   }

@@ -48,6 +48,7 @@ import {
 } from "./workflowStepRuntime/WorkflowStepModule";
 import type { DirectorPipelinePhase } from "./recovery/novelDirectorRecovery";
 import { WorldContextGateway } from "../worldContext/WorldContextGateway";
+import type { NovelWorkflowStage } from "@ai-novel/shared/types/novelWorkflow";
 
 export interface DirectorPipelineRunInput {
   taskId: string;
@@ -127,6 +128,10 @@ export class NovelDirectorPipelineRuntime {
             approveCurrentGate: approval.approveCurrentGate,
             approveAutoExecutionScope: approval.approveAutoExecutionScope,
           });
+          if (this.isStageReview(input)) {
+            await this.pauseForStepReview(input, storyMacroModule);
+            return;
+          }
         }
         continue;
       }
@@ -142,6 +147,10 @@ export class NovelDirectorPipelineRuntime {
             approveCurrentGate: bookContractApproval.approveCurrentGate,
             approveAutoExecutionScope: bookContractApproval.approveAutoExecutionScope,
           });
+          if (this.isStageReview(input)) {
+            await this.pauseForStepReview(input, bookContractModule);
+            return;
+          }
         }
         continue;
       }
@@ -160,6 +169,10 @@ export class NovelDirectorPipelineRuntime {
             approveCurrentGate: approval.approveCurrentGate,
             approveAutoExecutionScope: approval.approveAutoExecutionScope,
           });
+          if (this.isStageReview(input)) {
+            await this.pauseForStepReview(input, module);
+            return;
+          }
         }
         continue;
       }
@@ -178,6 +191,10 @@ export class NovelDirectorPipelineRuntime {
           approveAutoExecutionScope: approval.approveAutoExecutionScope,
         });
         if (isDirectorCharacterSetupPauseResult(result)) {
+          return;
+        }
+        if (this.isStageReview(input)) {
+          await this.pauseForStepReview(input, module);
           return;
         }
         continue;
@@ -200,6 +217,10 @@ export class NovelDirectorPipelineRuntime {
         if (paused === null) {
           return;
         }
+        if (this.isStageReview(input)) {
+          await this.pauseForStepReview(input, module);
+          return;
+        }
         continue;
       }
 
@@ -207,7 +228,9 @@ export class NovelDirectorPipelineRuntime {
       if (!currentWorkspace) {
         return;
       }
-      await this.runStructuredOutlineNode(input, currentWorkspace);
+      if (await this.runStructuredOutlineNode(input, currentWorkspace)) {
+        return;
+      }
       const executionContractSyncModule = getDirectorExecutionContractSyncStepModule();
       const structuredApproval = this.resolveRuntimeApproval(input, "structured_outline_ready");
       if (!(await this.isModuleFactCompleted(executionContractSyncModule, input))) {
@@ -219,6 +242,10 @@ export class NovelDirectorPipelineRuntime {
           approveCurrentGate: structuredApproval.approveCurrentGate,
           approveAutoExecutionScope: structuredApproval.approveAutoExecutionScope,
         });
+        if (this.isStageReview(input)) {
+          await this.pauseForStepReview(input, executionContractSyncModule);
+          return;
+        }
       }
       await this.maybeRunAutoApprovedChapters(input);
       return;
@@ -228,11 +255,14 @@ export class NovelDirectorPipelineRuntime {
   async runStructuredOutlineNode(
     input: DirectorPipelineRunInput,
     workspace: VolumePlanDocument,
-  ): Promise<void> {
+  ): Promise<boolean> {
     await this.assertOutlineStartAllowed(input, workspace);
     const approval = this.resolveRuntimeApproval(input, "structured_outline_ready");
     for (const module of getDirectorStructuredOutlineStepModules()) {
       if (module.id === "chapter.execution_contract.sync") {
+        continue;
+      }
+      if (this.isStageReview(input) && await this.isModuleFactCompleted(module, input)) {
         continue;
       }
       await this.deps.runtimeOrchestrator.runStepModule({
@@ -243,6 +273,70 @@ export class NovelDirectorPipelineRuntime {
         approveCurrentGate: approval.approveCurrentGate,
         approveAutoExecutionScope: approval.approveAutoExecutionScope,
       });
+      if (this.isStageReview(input)) {
+        await this.pauseForStepReview(input, module, workspace.volumes[0]?.id ?? null);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private isStageReview(input: Pick<DirectorPipelineRunInput, "input">): boolean {
+    return normalizeDirectorRunMode(input.input.runMode) === "stage_review";
+  }
+
+  private async pauseForStepReview(
+    input: DirectorPipelineRunInput,
+    module: WorkflowStepModuleDescriptor,
+    targetId: string | null = input.novelId,
+  ): Promise<void> {
+    const stage = this.resolveWorkflowStage(module);
+    const progress = module.defaultWaitingState?.progress ?? 0.5;
+    await this.deps.workflowService.markTaskWaitingApproval(input.taskId, {
+      stage,
+      itemKey: module.id,
+      itemLabel: `${module.label}已完成，请检查后继续`,
+      progress,
+      checkpointType: "step_review_required",
+      checkpointSummary: `${module.label}已生成。你可以检查、AI 完善或重新生成当前步骤，确认后再继续下一步。`,
+      seedPayload: this.deps.buildDirectorSeedPayload(input.input, input.novelId, {
+        directorSession: {
+          runMode: "stage_review",
+          phase: stage === "structured_outline"
+            ? "structured_outline"
+            : stage === "character_setup"
+              ? "character_setup"
+              : stage === "volume_strategy"
+                ? "volume_strategy"
+                : "story_macro",
+          isBackgroundRunning: false,
+        },
+        stepReview: {
+          stepId: module.id,
+          nodeKey: module.nodeKey,
+          label: module.label,
+          targetType: module.targetType,
+          targetId,
+          completedAt: new Date().toISOString(),
+        },
+      }),
+    });
+  }
+
+  private resolveWorkflowStage(module: WorkflowStepModuleDescriptor): NovelWorkflowStage {
+    const stage = module.defaultWaitingState?.stage ?? module.stage;
+    switch (stage) {
+      case "story_macro":
+      case "character_setup":
+      case "volume_strategy":
+      case "structured_outline":
+      case "chapter_execution":
+      case "quality_repair":
+      case "project_setup":
+      case "auto_director":
+        return stage;
+      default:
+        return "auto_director";
     }
   }
 

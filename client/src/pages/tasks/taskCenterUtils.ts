@@ -81,6 +81,9 @@ export function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null |
   if (checkpoint === "chapter_batch_ready") {
     return `${resolvedScopeLabel}自动执行已暂停`;
   }
+  if (checkpoint === "step_review_required") {
+    return "当前步骤待检查";
+  }
   if (checkpoint === "replan_required") {
     return "需要重规划";
   }

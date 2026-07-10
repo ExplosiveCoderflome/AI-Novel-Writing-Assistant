@@ -12,6 +12,7 @@ import type {
   DirectorCandidatesRequest,
   DirectorRefinementRequest,
   DirectorTakeoverRequest,
+  DirectorStepCalibrationRequest,
 } from "@ai-novel/shared/types/novelDirector";
 import type { DirectorRuntimePolicyUpdateRequest } from "@ai-novel/shared/types/directorRuntime";
 
@@ -37,6 +38,8 @@ export interface DirectorCommandPayload {
     chapterId?: string | null;
     includeAiInterpretation?: boolean;
   };
+  stepCalibrationRequest?: DirectorStepCalibrationRequest;
+  acceptManualChanges?: boolean;
   volumeId?: string | null;
 }
 
