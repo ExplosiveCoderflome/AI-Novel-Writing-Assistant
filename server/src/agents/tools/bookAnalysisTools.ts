@@ -11,9 +11,8 @@ import {
   getBookAnalysisFailureReasonOutputSchema,
   listBookAnalysesInputSchema,
   listBookAnalysesOutputSchema,
-  type qualityDebtChapterAttributionSchema,
+  type QualityDebtChapterAttribution,
 } from "./bookAnalysisToolSchemas";
-import { z } from "zod";
 
 export const bookAnalysisToolDefinitions: Partial<
   Record<AgentToolName, AgentToolDefinition<Record<string, unknown>, Record<string, unknown>>>
@@ -345,7 +344,7 @@ export const bookAnalysisToolDefinitions: Partial<
       });
 
       // 过滤出 terminalAction = defer_and_continue 的章节
-      type AttributionData = z.infer<typeof qualityDebtChapterAttributionSchema>;
+      type AttributionData = QualityDebtChapterAttribution;
       const deferredChapters: AttributionData[] = [];
 
       for (const chapter of chapters) {
