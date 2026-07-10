@@ -174,7 +174,16 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
   );
 
   assert.equal(finalizeCalled, false);
-  assert.equal(timelineFinalizationCalls.length, 0);
+  assert.equal(timelineFinalizationCalls.length, 1);
+  assert.deepEqual(timelineFinalizationCalls[0], {
+    novelId: "novel-1",
+    chapterId: "chapter-1",
+    request: {},
+    contextPackage: {},
+    content: "生成后的正文",
+    mode: "stable",
+    reason: "auto_review_disabled_final_content",
+  });
   assert.deepEqual(stages, ["generating_chapters"]);
   assert.deepEqual(savedDrafts, [{
     content: "生成后的正文",
@@ -603,7 +612,17 @@ test("runPipelineChapterWithRuntime sends critical prose findings to repair and 
     assert.match(patchIssues[0], /模板化否定翻转/);
     assert.deepEqual(savedDrafts.map((item) => item.generationState), ["drafted", "repaired"]);
     assert.equal(finalSyncs[0].options.contentProvenance, "debt");
-    assert.equal(finalizationCalls.length, 0);
+    assert.equal(finalizationCalls.length, 1);
+    assert.deepEqual(finalizationCalls[0], {
+      novelId: "novel-1",
+      chapterId: "chapter-1",
+      request: {},
+      contextPackage: {},
+      content: "他握紧刀柄，指节发白，仍一步踏进雨里。",
+      mode: "degraded",
+      reason: "max_repair_attempts_exhausted",
+      qualityDebt: true,
+    });
     assert.deepEqual(result.qualityDebtAttribution.firstFailureIssueCodes, ["prose_negative_flip"]);
     assert.deepEqual(result.qualityDebtAttribution.secondFailureIssueCodes, ["prose_negative_flip"]);
   } finally {
@@ -1242,7 +1261,17 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
       },
     ]);
     assert.equal(finalSyncs.length, 1);
-    assert.equal(finalizationCalls.length, 0);
+    assert.equal(finalizationCalls.length, 1);
+    assert.deepEqual(finalizationCalls[0], {
+      novelId: "novel-1",
+      chapterId: "chapter-1",
+      request: {},
+      contextPackage: {},
+      content: "修后复审正文",
+      mode: "degraded",
+      reason: "max_repair_attempts_exhausted",
+      qualityDebt: true,
+    });
   } finally {
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
