@@ -1,10 +1,11 @@
 import { useMemo } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Brain, Clock3, Eye, Network, Package, ScrollText, UserRound } from "lucide-react";
+import { Activity, Brain, Clock3, Eye, Network, Package, ScrollText, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CharacterAssetSidebar from "./CharacterAssetSidebar";
+import CharacterDynamicsSection from "./CharacterDynamicsSection";
 import CharacterFocusSummary from "./CharacterFocusSummary";
 import { isProtagonistCharacter } from "./characterAssetWorkspace.helpers";
 import { getLastAppearanceChapter } from "./characterPanel.utils";
@@ -24,6 +25,7 @@ const WORKSPACE_TABS: Array<{ value: string; label: string; icon: LucideIcon }> 
   { value: "resources", label: "资源", icon: Package },
   { value: "timeline", label: "时间线", icon: Clock3 },
   { value: "relations", label: "关系", icon: Network },
+  { value: "dynamics", label: "动态", icon: Activity },
   { value: "intelligence", label: "智能层", icon: Brain },
 ];
 
@@ -210,6 +212,14 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                   onSelectedCharacterChange={onSelectedCharacterChange}
                   llmProvider={llmProvider}
                   llmModel={llmModel}
+                />
+              </TabsContent>
+              <TabsContent value="dynamics" className="mt-4">
+                <CharacterDynamicsSection
+                  novelId={novelId}
+                  selectedCharacter={selectedCharacter}
+                  selectedCharacterId={selectedCharacterId}
+                  onSelectedCharacterChange={onSelectedCharacterChange}
                 />
               </TabsContent>
               <TabsContent value="intelligence" className="mt-4">

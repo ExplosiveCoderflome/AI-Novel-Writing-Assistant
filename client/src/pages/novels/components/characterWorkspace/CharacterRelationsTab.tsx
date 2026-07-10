@@ -72,7 +72,6 @@ export default function CharacterRelationsTab(props: CharacterRelationsTabProps)
         novelId={novelId}
         characters={characters}
         selectedCharacter={selectedCharacter}
-        selectedCharacterId={selectedCharacterId}
         onSelectedCharacterChange={onSelectedCharacterChange}
         llmProvider={llmProvider}
         llmModel={llmModel}
