@@ -165,7 +165,7 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
               bindings.map((binding) => (
                 <div key={binding.id} className="flex items-center justify-between gap-3 rounded-xl border p-3 text-sm">
                   <span>{binding.targetType} / {binding.targetId} / P{binding.priority} / W{binding.weight}</span>
-                  <Button size="sm" variant="ghost" onClick={() => onDeleteBinding(binding.id)}>删除</Button>
+                  <Button size="sm" variant="ghost" onClick={() => onDeleteBinding(binding.id)}>{t("gen.pages.writingFormula.components.WritingFormulaWorkbenchPanel.gen_2f4aaddd")}</Button>
                 </div>
               ))
             ) : (

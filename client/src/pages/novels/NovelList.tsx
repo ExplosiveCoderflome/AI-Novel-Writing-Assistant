@@ -225,7 +225,7 @@ export default function NovelList() {
             <CardDescription>{t("gen.pages.novels.NovelList.gen_6ad34b4c")}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => void novelListQuery.refetch()}>重新加载</Button>
+            <Button onClick={() => void novelListQuery.refetch()}>{t("gen.pages.novels.NovelList.gen_64ca9bab")}</Button>
           </CardContent>
         </Card>
       ) : novels.length === 0 ? (

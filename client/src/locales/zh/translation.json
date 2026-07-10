@@ -2648,7 +2648,8 @@
           "gen_45b8252a": "导出小说失败。",
           "gen_fc09ee9d": "小说已删除。",
           "gen_70576156": "导出已开始。",
-          "aiCockpit": "AI 驾驶舱"
+          "aiCockpit": "AI 驾驶舱",
+          "gen_64ca9bab": "重新加载"
         },
         "NovelPreview": {
           "chapterWordCount": "{formatCount(countWords(chapter.content))} 字",
@@ -4433,7 +4434,12 @@
               "gen_03c90caf": "props.onStatusChange(\"draft\")}>草稿",
               "gen_10122dc3": "props.onStatusChange(\"all\")}>全部",
               "gen_3fea7ca7": "状态",
-              "gen_226b0912": "类型"
+              "gen_226b0912": "类型",
+              "gen_dca0c13b": "已发布",
+              "gen_a8b0c204": "全部",
+              "gen_22b4334f": "草稿",
+              "gen_3f00cc1b": "原创",
+              "gen_d8b07d16": "续写"
             },
             "NovelListHeader": {
               "gen_e40b8718": "手动创建小说",
@@ -6727,7 +6733,8 @@
             "gen_82e75116": "整本书",
             "priorityLevel": "优先级",
             "gen_9290b644": "章节",
-            "gen_4aac5591": "权重"
+            "gen_4aac5591": "权重",
+            "gen_2f4aaddd": "删除"
           }
         },
         "useWritingFormulaCreateFlow": {
