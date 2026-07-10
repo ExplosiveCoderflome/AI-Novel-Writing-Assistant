@@ -13,7 +13,7 @@ The original license, notice, and attribution are preserved in `LICENSE` and `NO
 
 This fork changes public-facing project ownership and branding to:
 
-- Chinese name: 宫涵小说自动化工作台
+- Chinese name: 宫寒小说自动化工作台
 - English name: Gonghan Novel Studio
 - GitHub owner: Gonghan-Princess
 

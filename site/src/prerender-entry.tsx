@@ -7,7 +7,7 @@ import { parseRoute } from "./routing";
 
 const docsIndexMeta: PageMeta = {
   title: "项目文档",
-  description: "宫涵小说自动化工作台公开文档：安装、使用方法、自动导演阶段全景、章节执行链、按阶段恢复手册和模块说明。",
+  description: "宫寒小说自动化工作台公开文档：安装、使用方法、自动导演阶段全景、章节执行链、按阶段恢复手册和模块说明。",
   canonicalPath: "/docs",
 };
 

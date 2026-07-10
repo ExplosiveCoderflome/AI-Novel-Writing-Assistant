@@ -138,7 +138,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       return (
         <Badge
           variant="outline"
-          className="ml-auto h-5 border-amber-300 bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700"
+          className="ml-auto h-5 border-amber-300/70 bg-amber-100/90 px-1.5 text-[10px] font-medium text-amber-800"
           title="漫画工作台仍在 Beta 阶段"
         >
           Beta
@@ -206,7 +206,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "border-r bg-muted/20 p-3 transition-[width] duration-200",
+        "novel-console-sidebar border-r border-primary-foreground/10 p-3 transition-[width] duration-200",
         collapsed ? "w-[72px]" : "w-64",
       )}
     >
@@ -215,7 +215,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           type="button"
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-muted-foreground"
+          className="h-8 w-8 border border-primary-foreground/10 bg-primary-foreground/5 text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground"
           onClick={onToggle}
           aria-label={collapsed ? "展开导航栏" : "收起导航栏"}
           title={collapsed ? "展开导航栏" : "收起导航栏"}
@@ -224,15 +224,15 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </Button>
       </div>
 
-      <nav className="space-y-4">
+      <nav className="novel-console-scroll max-h-[calc(100vh-7rem)] space-y-4 overflow-y-auto pr-0.5">
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1">
             {!collapsed ? (
-              <div className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground/80">
+              <div className="px-1 text-xs font-semibold uppercase text-primary-foreground/50">
                 {group.title}
               </div>
             ) : (
-              <div className="mx-auto h-px w-8 bg-border/70" />
+              <div className="mx-auto h-px w-8 bg-primary-foreground/20" />
             )}
 
             {group.items.map((item) => {
@@ -245,7 +245,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                     key={item.to}
                     title={collapsed ? item.label : "即将推出"}
                     className={cn(
-                      "relative flex cursor-not-allowed items-center rounded-md text-sm opacity-40",
+                      "relative flex cursor-not-allowed items-center rounded-md text-sm text-primary-foreground/40",
                       collapsed ? "justify-center px-2 py-2.5" : "py-2 pl-4 pr-2",
                     )}
                   >
@@ -254,7 +254,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       <span className="truncate">{item.label}</span>
                     ) : null}
                     {!collapsed ? (
-                      <span className="ml-auto text-[10px] text-muted-foreground/60">即将推出</span>
+                      <span className="ml-auto text-[10px] text-primary-foreground/35">即将推出</span>
                     ) : null}
                   </div>
                 );
@@ -265,18 +265,22 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   {({ isActive }) => (
                     <div
                       className={cn(
-                        "relative flex items-center rounded-md text-sm transition-colors",
+                        "relative flex min-w-0 items-center rounded-md text-sm transition-colors",
                         collapsed ? "justify-center px-2 py-2.5" : "py-2 pl-4 pr-2",
                         isActive
-                          ? "bg-accent/90 font-semibold text-accent-foreground"
-                          : "text-foreground hover:bg-accent hover:text-accent-foreground",
-                        isNovelEntry && !collapsed && (isActive ? "ring-1 ring-primary/20" : "bg-primary/5 hover:bg-primary/10"),
+                          ? "bg-primary-foreground/15 font-semibold text-primary-foreground shadow-[inset_0_0_0_1px_hsl(var(--primary-foreground)/0.08)]"
+                          : "text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground",
+                        isNovelEntry &&
+                          !collapsed &&
+                          (isActive
+                            ? "ring-1 ring-amber-200/30"
+                            : "bg-amber-200/10 text-amber-50 hover:bg-amber-200/15"),
                       )}
                     >
                       <span
                         className={cn(
                           "absolute left-1 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-transparent",
-                          isActive && "bg-primary",
+                          isActive && "bg-amber-300",
                           collapsed && "left-0.5 h-6",
                         )}
                       />
@@ -285,7 +289,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                         className={cn(
                           "h-[18px] w-[18px] shrink-0",
                           collapsed ? "mx-auto" : "mr-3",
-                          isNovelEntry && "text-primary",
+                          isNovelEntry && "text-amber-200",
                         )}
                       />
 

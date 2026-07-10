@@ -3,26 +3,31 @@
 @tailwind utilities;
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 222.2 47.4% 11.2%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 222.2 84% 4.9%;
-  --radius: 0.75rem;
+  --background: 42 31% 96%;
+  --foreground: 205 34% 14%;
+  --card: 43 36% 98%;
+  --card-foreground: 205 34% 14%;
+  --popover: 43 36% 98%;
+  --popover-foreground: 205 34% 14%;
+  --primary: 193 44% 22%;
+  --primary-foreground: 43 45% 96%;
+  --secondary: 38 28% 89%;
+  --secondary-foreground: 204 29% 18%;
+  --muted: 39 26% 91%;
+  --muted-foreground: 206 13% 42%;
+  --accent: 32 62% 84%;
+  --accent-foreground: 202 34% 16%;
+  --destructive: 6 64% 44%;
+  --destructive-foreground: 43 45% 96%;
+  --border: 39 22% 79%;
+  --input: 39 22% 79%;
+  --ring: 188 54% 34%;
+  --radius: 0.5rem;
+  --console-ink: 205 38% 12%;
+  --console-surface: 43 38% 97%;
+  --console-paper: 42 34% 94%;
+  --console-line: 193 33% 31%;
+  --console-amber: 38 74% 52%;
 }
 
 * {
@@ -31,10 +36,63 @@
 
 body {
   @apply bg-background text-foreground antialiased;
-  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at 12% 8%, hsl(38 74% 52% / 0.08), transparent 28rem),
+    radial-gradient(circle at 88% 12%, hsl(188 54% 34% / 0.1), transparent 30rem),
+    linear-gradient(135deg, hsl(var(--background)), hsl(41 28% 92%));
+  font-family: "IBM Plex Sans", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  letter-spacing: 0;
 }
 
 @layer utilities {
+  .novel-console-shell {
+    background:
+      linear-gradient(hsl(var(--console-line) / 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--console-line) / 0.045) 1px, transparent 1px),
+      radial-gradient(circle at 0 0, hsl(var(--console-amber) / 0.1), transparent 18rem),
+      hsl(var(--background));
+    background-size: 32px 32px, 32px 32px, auto, auto;
+  }
+
+  .novel-console-panel {
+    border-color: hsl(var(--border) / 0.78);
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.96), hsl(var(--console-paper) / 0.88)),
+      repeating-linear-gradient(135deg, hsl(var(--foreground) / 0.028) 0 1px, transparent 1px 7px);
+    box-shadow: 0 18px 44px hsl(var(--console-ink) / 0.08);
+  }
+
+  .novel-console-topbar {
+    background:
+      linear-gradient(90deg, hsl(var(--card) / 0.96), hsl(41 35% 94% / 0.94)),
+      repeating-linear-gradient(90deg, hsl(var(--foreground) / 0.035) 0 1px, transparent 1px 9px);
+    box-shadow: 0 1px 0 hsl(var(--primary) / 0.08), 0 12px 34px hsl(var(--console-ink) / 0.07);
+  }
+
+  .novel-console-sidebar {
+    background:
+      linear-gradient(180deg, hsl(var(--console-ink) / 0.975), hsl(194 36% 17% / 0.975)),
+      repeating-linear-gradient(135deg, hsl(var(--primary-foreground) / 0.04) 0 1px, transparent 1px 8px);
+    color: hsl(var(--primary-foreground));
+    box-shadow: inset -1px 0 0 hsl(var(--primary-foreground) / 0.08);
+  }
+
+  .novel-console-scroll {
+    scrollbar-color: hsl(var(--primary) / 0.35) transparent;
+  }
+
+  .novel-console-scroll::-webkit-scrollbar {
+    height: 10px;
+    width: 10px;
+  }
+
+  .novel-console-scroll::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+    background-color: hsl(var(--primary) / 0.32);
+  }
+
   .mobile-novel-workspace-panel {
     overflow-wrap: anywhere;
   }
@@ -48,6 +106,10 @@ body {
     padding: 0.875rem;
     padding-bottom: max(6.25rem, calc(5rem + env(safe-area-inset-bottom)));
     overflow-wrap: anywhere;
+    background:
+      linear-gradient(hsl(var(--console-line) / 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--console-line) / 0.035) 1px, transparent 1px);
+    background-size: 28px 28px;
   }
 
   .mobile-site-main * {
@@ -55,17 +117,17 @@ body {
   }
 
   .mobile-site-section {
-    border-radius: 1.25rem;
+    border-radius: 0.75rem;
     border: 1px solid hsl(var(--border));
-    background: hsl(var(--background));
+    background: hsl(var(--card) / 0.94);
     padding: 1rem;
-    box-shadow: 0 10px 30px rgb(15 23 42 / 0.06);
+    box-shadow: 0 12px 30px hsl(var(--console-ink) / 0.07);
   }
 
   .mobile-site-soft-section {
-    border-radius: 1rem;
+    border-radius: 0.625rem;
     border: 1px solid hsl(var(--border) / 0.72);
-    background: hsl(var(--muted) / 0.24);
+    background: hsl(var(--muted) / 0.42);
     padding: 0.875rem;
   }
 

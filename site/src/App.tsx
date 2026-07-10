@@ -159,11 +159,11 @@ function SiteNav({ page }: { page: "home" | "docs" }) {
   const stars = useGithubStars("Gonghan-Princess", "AI-Novel-Writing-Assistant");
   return (
     <nav className="site-nav" aria-label="主导航">
-      <a className="brand" href={sitePath("/")} aria-label="宫涵小说自动化工作台首页">
+      <a className="brand" href={sitePath("/")} aria-label="宫寒小说自动化工作台首页">
         <span className="brand-mark">
           <img src={appIcon} alt="" aria-hidden="true" />
         </span>
-        <span>宫涵小说自动化工作台</span>
+        <span>宫寒小说自动化工作台</span>
       </a>
       <div className="nav-links">
         <a href={docsPath()}>文档</a>

@@ -1,4 +1,4 @@
-# 宫涵小说自动化工作台 / Gonghan Novel Studio
+# 宫寒小说自动化工作台 / Gonghan Novel Studio
 一个面向长篇小说创作的 AI Native 开源项目个人版。
 
 > 本仓库是 Gonghan-Princess 基于 [ExplosiveCoderflome/AI-Novel-Writing-Assistant](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant) 的个人 fork / 二次整理版本，继续遵循原项目 AGPL-3.0-only 许可证。原始项目信息、许可证和归属说明见 [LICENSE](./LICENSE)、[NOTICE](./NOTICE) 与 [FORK_NOTICE.md](./FORK_NOTICE.md)。
@@ -142,14 +142,15 @@
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
-### 2026-07-03（章节审校提示与源码构建稳定性修复）
+### 2026-07-10（宫寒个人版品牌与创作驾驶舱视觉刷新）
 
-这次修复聚焦在章节生产链的可读性和开发者本地构建稳定性：章节轻量审校在异常或空正文场景下不再返回乱码提示，源码构建也会自动准备 Prisma Client。
+这次更新把个人 fork 的公开品牌统一为「宫寒小说自动化工作台」，并把主应用首页与壳层调整成更适合持续写长篇的创作驾驶舱。
 
-- 章节轻量审校的空正文、高风险和可继续推进提示恢复为可读中文，任务记录和审校结果更容易判断下一步。
-- 章节执行合同兼容中文字段「章节目标」，AI 返回中文键名时也能正确识别为本章目标。
-- 后端构建会先生成 Prisma Client，干净环境下直接构建不再依赖手动预生成步骤。
-- 清理未使用的乱码 prompt 备份，避免后续维护时误接入章节执行合同提示词。
+- 公开 README、文档站、桌面启动提示和站点元信息统一为「宫寒小说自动化工作台 / Gonghan Novel Studio」，同时保留上游项目来源、AGPL 许可证和 AI 辅助修改说明。
+- 主应用顶部栏、侧边导航、移动端外壳和品牌图标换成更沉稳的导演控制台风格，减少默认后台模板感。
+- 首页升级为「宫寒创作驾驶舱」，集中展示下一步行动、主推进项目、后台任务信号和最近创作队列。
+- 新手入口更清晰：可以直接从一句灵感开书、手动创建小说或查看指南开始，不需要先理解复杂流程。
+- 本次只调整前端展示层和公开品牌信息，接口、路由、自动导演状态判断和后端数据契约保持不变。
 
 > 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
 

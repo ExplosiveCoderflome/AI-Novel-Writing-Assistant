@@ -56,23 +56,23 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
   };
 
   return (
-    <div className={cn("min-h-dvh bg-muted/20 text-foreground", moreOpen && "overflow-hidden")}>
-      <header className="sticky top-0 z-40 border-b bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/82">
+    <div className={cn("novel-console-shell min-h-dvh text-foreground", moreOpen && "overflow-hidden")}>
+      <header className="novel-console-topbar sticky top-0 z-40 border-b border-border/80 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-card/88">
         <div className="flex items-center justify-between gap-3">
           <Link to="/" className="flex min-w-0 items-center gap-2" onClick={() => setMoreOpen(false)}>
             <DesktopBrandMark className="h-8 w-8 shrink-0 drop-shadow-none" />
             <div className="min-w-0 leading-tight">
               <div className="flex min-w-0 items-center gap-1.5">
-                <span className="min-w-0 truncate text-sm font-semibold">AI 小说创作工作台</span>
+                <span className="min-w-0 truncate text-sm font-semibold">宫寒导演控制台</span>
                 <AppVersionBadge />
               </div>
               <div className="truncate text-[11px] text-muted-foreground">{pageTitle}</div>
             </div>
           </Link>
           <div className="flex items-center gap-2">
-            <Button asChild size="sm" className="h-8 px-3">
+            <Button asChild size="sm" className="h-8 px-3 shadow-sm">
               <Link to="/novels/create?mode=director" onClick={() => setMoreOpen(false)}>
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                 开书
               </Link>
             </Button>
@@ -80,11 +80,11 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
               type="button"
               variant="outline"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 border-primary/20 bg-card/80 shadow-sm"
               onClick={() => setMoreOpen((current) => !current)}
               aria-label={moreOpen ? "关闭更多入口" : "打开更多入口"}
             >
-              {moreOpen ? <X className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+              {moreOpen ? <X className="h-4 w-4" aria-hidden="true" /> : <LayoutGrid className="h-4 w-4" aria-hidden="true" />}
             </Button>
           </div>
         </div>
@@ -95,21 +95,21 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
       </main>
 
       {moreOpen ? (
-        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] top-14 z-50 bg-black/20 px-3 pb-3 backdrop-blur-sm">
-          <div className="max-h-full overflow-y-auto rounded-3xl border bg-background p-4 shadow-2xl">
+        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] top-14 z-50 bg-[hsl(var(--console-ink)/0.32)] px-3 pb-3 backdrop-blur-sm">
+          <div className="novel-console-panel max-h-full overflow-y-auto rounded-xl border p-4 shadow-2xl">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <div>
+              <div className="min-w-0">
                 <div className="text-base font-semibold">更多入口</div>
-                <div className="text-xs text-muted-foreground">选择要继续处理的工作区。</div>
+                <div className="truncate text-xs text-muted-foreground">选择要继续处理的工作区。</div>
               </div>
-              <Button type="button" variant="ghost" size="icon" onClick={() => setMoreOpen(false)}>
-                <X className="h-4 w-4" />
+              <Button type="button" variant="ghost" size="icon" className="shrink-0" onClick={() => setMoreOpen(false)}>
+                <X className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
             <div className="space-y-4">
               {moreNavGroups.map((group) => (
                 <section key={group.title} className="space-y-2">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <div className="text-xs font-semibold uppercase text-muted-foreground">
                     {group.title}
                   </div>
                   <div className="grid gap-2">
@@ -118,13 +118,13 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
                         key={item.key}
                         to={item.to}
                         className={cn(
-                          "flex items-center justify-between rounded-2xl border bg-muted/20 px-3 py-3 text-sm transition hover:border-primary/40 hover:bg-primary/5",
-                          location.pathname === item.to && "border-primary/50 bg-primary/10 font-semibold",
+                          "flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-card/75 px-3 py-3 text-sm transition hover:border-primary/40 hover:bg-accent/35",
+                          location.pathname === item.to && "border-primary/45 bg-primary/10 font-semibold text-primary",
                         )}
                         onClick={() => setMoreOpen(false)}
                       >
-                        <span>{item.label}</span>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        <span className="min-w-0 truncate">{item.label}</span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                       </Link>
                     ))}
                   </div>
@@ -135,7 +135,7 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
         </div>
       ) : null}
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur supports-[backdrop-filter]:bg-background/82">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/80 bg-card/96 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-14px_34px_hsl(var(--console-ink)/0.08)] backdrop-blur supports-[backdrop-filter]:bg-card/86">
         <div className="grid grid-cols-5 gap-1">
           {primaryNavItems.map((item) => {
             const Icon = primaryIcons[item.key as MobilePrimaryNavKey];
@@ -145,12 +145,12 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
                 key={item.key}
                 type="button"
                 className={cn(
-                  "flex min-w-0 flex-col items-center gap-1 rounded-2xl px-1 py-1.5 text-[11px] text-muted-foreground transition",
-                  isActive && "bg-primary/10 font-semibold text-primary",
+                  "flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[11px] text-muted-foreground transition",
+                  isActive && "bg-primary/10 font-semibold text-primary shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.08)]",
                 )}
                 onClick={() => openPrimaryItem(item.key as MobilePrimaryNavKey, item.to)}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4" aria-hidden="true" />
                 <span className="truncate">{item.label}</span>
               </button>
             );

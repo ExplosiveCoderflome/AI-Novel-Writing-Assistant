@@ -1,6 +1,24 @@
 ﻿import type { KeyboardEvent, MouseEvent } from "react";
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  BookOpen,
+  CheckCircle2,
+  CircleDot,
+  ClipboardList,
+  Gauge,
+  HelpCircle,
+  Layers3,
+  PenLine,
+  PlayCircle,
+  RadioTower,
+  Rocket,
+  Sparkles,
+  Timer,
+} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
 import { getNovelList } from "@/api/novel";
@@ -83,15 +101,32 @@ function MetricCard(props: {
   title: string;
   value: string | number;
   hint: string;
+  icon: typeof Activity;
+  tone: string;
   pending?: boolean;
 }) {
-  const { title, value, hint, pending = false } = props;
+  const { title, value, hint, icon: Icon, tone, pending = false } = props;
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardDescription>{title}</CardDescription>
-        <CardTitle className="text-2xl">{pending ? "--" : value}</CardTitle>
-        <div className="text-xs text-muted-foreground">{hint}</div>
+    <Card className="overflow-hidden border-border/70 bg-card/80 shadow-sm">
+      <CardHeader className="relative space-y-4 pb-5">
+        <div className={`absolute right-0 top-0 h-20 w-20 rounded-bl-full ${tone}`} />
+        <div className="flex items-start justify-between gap-3">
+          <div className="rounded-lg border bg-background p-2 shadow-sm">
+            <Icon className="h-4 w-4 text-foreground" aria-hidden="true" />
+          </div>
+          <Gauge className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        </div>
+        <div>
+          <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{title}</div>
+          <div className="mt-2 flex items-end gap-2">
+            <CardTitle className="text-3xl tabular-nums">{pending ? "--" : value}</CardTitle>
+            <div className="pb-1 text-xs text-muted-foreground">项</div>
+          </div>
+        </div>
+        <div className="min-h-8 text-xs leading-relaxed text-muted-foreground">{hint}</div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+          <div className={`h-full w-2/3 rounded-full ${tone}`} />
+        </div>
       </CardHeader>
     </Card>
   );
@@ -303,72 +338,128 @@ export default function Home() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="home-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="space-y-6">
+      <section className="novel-console-panel overflow-hidden rounded-xl border">
+        <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)] lg:p-6">
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="gap-1.5">
+                <RadioTower className="h-3.5 w-3.5" aria-hidden="true" />
+                创作总控台
+              </Badge>
+              <Badge variant="outline" className="gap-1.5 bg-background/70">
+                <Timer className="h-3.5 w-3.5" aria-hidden="true" />
+                最近 {HOME_NOVEL_FETCH_LIMIT} 个项目
+              </Badge>
+            </div>
+            <div className="max-w-4xl space-y-3">
+              <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                宫寒创作驾驶舱
+              </h1>
+              <p className="text-sm leading-7 text-muted-foreground sm:text-base">
+                把自动导演、章节执行、待确认节点和后台任务收束到一个起飞面板。打开首页就知道：哪本书最该继续，哪些队列正在推进，下一步按钮在哪里。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="lg" className="gap-2">
+                <Link to={DIRECTOR_CREATE_LINK}>
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                  一句灵感开书
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="gap-2 bg-background/70">
+                <Link to={MANUAL_CREATE_LINK}>
+                  <PenLine className="h-4 w-4" aria-hidden="true" />
+                  手动创建
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="gap-2 bg-background/70">
+                <Link to="/help">
+                  <HelpCircle className="h-4 w-4" aria-hidden="true" />
+                  查看指南
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-background/85 p-4 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium">新手起飞入口</div>
+                <div className="text-xs text-muted-foreground">
+                  {hasNovels ? "给下一本书快速搭建方向。" : "从一个想法开始生成可推进项目。"}
+                </div>
+              </div>
+              <Rocket className="h-5 w-5 text-primary" aria-hidden="true" />
+            </div>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <div className="flex gap-3">
+                <CircleDot className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <span>提供模糊想法，自动生成方向方案、标题包和开书准备。</span>
+              </div>
+              <div className="flex gap-3">
+                <CircleDot className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <span>关键阶段会停下来等你确认，适合先搭骨架再精修。</span>
+              </div>
+              <div className="flex gap-3">
+                <CircleDot className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                <span>也可以手动创建，直接进入传统编辑流程。</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="home-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
-          title="最近自动推进中"
+          title="推进雷达"
           value={liveWorkflowCount}
           hint="最近项目中仍在后台推进的自动导演或自动执行项目。"
+          icon={RadioTower}
+          tone="bg-emerald-500/20"
           pending={novelQuery.isPending}
         />
         <MetricCard
-          title="最近待你处理"
+          title="待决信号"
           value={actionRequiredCount}
           hint="最近项目里等待审核、失败或已取消后需要你决定下一步的项目。"
+          icon={AlertTriangle}
+          tone="bg-amber-500/20"
           pending={novelQuery.isPending}
         />
         <MetricCard
-          title="最近可进入章节执行"
+          title="开写就绪"
           value={readyForExecutionCount}
           hint="最近项目里准备到可开写阶段，可以直接进入章节写作。"
+          icon={CheckCircle2}
+          tone="bg-sky-500/20"
           pending={novelQuery.isPending}
         />
         <MetricCard
-          title="后台失败任务"
+          title="故障记录"
           value={failedTaskCount}
           hint="来自任务中心的失败任务总数，可后续集中处理。"
+          icon={Activity}
+          tone="bg-rose-500/20"
           pending={taskQuery.isPending}
         />
-      </div>
+      </section>
 
-      <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-background to-primary/5 shadow-sm">
-        <CardHeader>
+      <Card className="overflow-hidden border-primary/30 bg-card shadow-sm">
+        <CardHeader className="border-b bg-muted/40">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge>新手推荐</Badge>
-            <Badge variant="outline">低门槛开书</Badge>
+            <Badge className="gap-1.5">
+              <PlayCircle className="h-3.5 w-3.5" aria-hidden="true" />
+              下一步行动
+            </Badge>
+            <Badge variant="outline" className="bg-background">
+              系统按当前工作流状态推荐
+            </Badge>
           </div>
-          <CardTitle>
-            {hasNovels ? "想快速开启下一本书？先交给 AI 自动导演。" : "第一次使用？先让 AI 自动导演带你开一本书。"}
-          </CardTitle>
-          <CardDescription>
-            你只需要提供一个模糊想法，AI 会先帮你生成方向方案、标题包和开书准备，并在关键阶段停下来等你确认，不需要你一开始就把结构全部想清楚。
-          </CardDescription>
+          <CardTitle className="text-2xl">主推进项目</CardTitle>
+          <CardDescription>首页优先把你送回当前最值得继续的一本书。</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-            <span>适合还没想清楚题材、卖点和前 30 章承诺时使用</span>
-            <span>也适合先快速搭起一本可继续推进的新项目</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild size="lg">
-              <Link to={DIRECTOR_CREATE_LINK}>AI 自动导演开书</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link to="/help">新手上路</Link>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>继续最近项目</CardTitle>
-          <CardDescription>首页应该直接把你送回当前最值得继续的一本书。</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-5">
           {novelQuery.isPending ? (
             <div className="space-y-4">
               <div className="h-6 w-48 animate-pulse rounded bg-muted" />
@@ -387,11 +478,15 @@ export default function Home() {
               <Button onClick={() => void novelQuery.refetch()}>重新加载项目</Button>
             </div>
           ) : primaryNovel ? (
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+              <div className="space-y-4">
                 <div className="space-y-3">
                   <div>
-                    <div className="text-2xl font-semibold">{primaryNovel.title}</div>
+                    <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                      <BookOpen className="h-4 w-4" aria-hidden="true" />
+                      当前锁定
+                    </div>
+                    <div className="mt-2 text-3xl font-semibold tracking-tight">{primaryNovel.title}</div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {primaryNovel.latestAutoDirectorTask ? (
                         <>
@@ -416,22 +511,33 @@ export default function Home() {
                       </Badge>
                     </div>
                   </div>
-                  <div className="max-w-3xl text-sm text-muted-foreground">
+                  <div className="max-w-3xl rounded-lg border bg-muted/30 p-3 text-sm leading-6 text-muted-foreground">
                     {getNovelLeadSummary(primaryNovel)}
                   </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    <span>更新时间：{formatDate(primaryNovel.updatedAt)}</span>
-                    <span>章节数：{primaryNovel._count.chapters}</span>
-                    <span>角色数：{primaryNovel._count.characters}</span>
+                  <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 xl:grid-cols-3">
+                    <span className="rounded-md bg-muted/50 px-2.5 py-2">更新时间：{formatDate(primaryNovel.updatedAt)}</span>
+                    <span className="rounded-md bg-muted/50 px-2.5 py-2">章节数：{primaryNovel._count.chapters}</span>
+                    <span className="rounded-md bg-muted/50 px-2.5 py-2">角色数：{primaryNovel._count.characters}</span>
                     {primaryNovel.latestAutoDirectorTask?.currentStage ? (
-                      <span>当前阶段：{primaryNovel.latestAutoDirectorTask.currentStage}</span>
+                      <span className="rounded-md bg-muted/50 px-2.5 py-2">当前阶段：{primaryNovel.latestAutoDirectorTask.currentStage}</span>
                     ) : null}
                     {primaryNovel.latestAutoDirectorTask?.lastHealthyStage ? (
-                      <span>最近健康阶段：{primaryNovel.latestAutoDirectorTask.lastHealthyStage}</span>
+                      <span className="rounded-md bg-muted/50 px-2.5 py-2">最近健康阶段：{primaryNovel.latestAutoDirectorTask.lastHealthyStage}</span>
                     ) : null}
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+              </div>
+              <div className="flex flex-col justify-between gap-4 rounded-xl border bg-muted/30 p-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <ArrowRight className="h-4 w-4 text-primary" aria-hidden="true" />
+                    推荐操作
+                  </div>
+                  <div className="text-xs leading-5 text-muted-foreground">
+                    根据导演任务、候选确认、章节执行和失败状态自动判定，不改变原有优先级规则。
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
                   {renderNovelPrimaryAction(primaryNovel, { size: "lg" })}
                   {primaryNovel.latestAutoDirectorTask ? (
                     <Button asChild size="lg" variant="outline">
@@ -466,69 +572,85 @@ export default function Home() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>快捷操作</CardTitle>
-          <CardDescription>把常用入口和新手最容易上手的开书方式放在一起。</CardDescription>
+      <Card className="overflow-hidden">
+        <CardHeader className="border-b bg-muted/30">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <ClipboardList className="h-5 w-5 text-primary" aria-hidden="true" />
+                创作队列
+              </CardTitle>
+              <CardDescription className="mt-1">
+                按最近项目展示阶段、健康状态和恢复入口，像队列一样快速扫读。
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" className="gap-2">
+                <Link to="/book-analysis">
+                  <Layers3 className="h-4 w-4" aria-hidden="true" />
+                  新建拆书
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="gap-2">
+                <Link to="/tasks">
+                  <Activity className="h-4 w-4" aria-hidden="true" />
+                  后台任务
+                </Link>
+              </Button>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <Button asChild>
-            <Link to={DIRECTOR_CREATE_LINK}>AI 自动导演开书</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/book-analysis">新建拆书</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/tasks">后台任务</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to="/help">新手上路</Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>最近项目</CardTitle>
-          <CardDescription>这里不只显示标题，也直接显示当前所处阶段和恢复入口。</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {novelQuery.isPending ? (
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-0 divide-y">
               {Array.from({ length: 4 }).map((_, index) => (
-                <div key={`home-loading-${index}`} className="space-y-3 rounded-xl border p-4">
+                <div key={`home-loading-${index}`} className="space-y-3 p-4">
                   <div className="h-6 w-2/3 animate-pulse rounded bg-muted" />
                   <div className="h-4 w-full animate-pulse rounded bg-muted" />
-                  <div className="h-20 animate-pulse rounded bg-muted" />
+                  <div className="h-12 animate-pulse rounded bg-muted" />
                 </div>
               ))}
             </div>
           ) : novelQuery.isError ? (
-            <div className="space-y-3">
+            <div className="space-y-3 p-5">
               <div className="text-sm text-muted-foreground">
                 当前无法加载最近项目，稍后可以重试。
               </div>
               <Button variant="outline" onClick={() => void novelQuery.refetch()}>重新加载</Button>
             </div>
           ) : recentNovels.length === 0 ? (
-            <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-              暂无小说项目，先从“新建小说”开始。
+            <div className="m-5 rounded-xl border border-dashed bg-muted/20 p-5">
+              <div className="mb-3 flex items-center gap-2 font-medium">
+                <Rocket className="h-4 w-4 text-primary" aria-hidden="true" />
+                还没有创作队列
+              </div>
+              <div className="mb-4 text-sm text-muted-foreground">
+                从一句灵感开书、手动创建，或先查看指南，都可以把第一本书送上队列。
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild>
+                  <Link to={DIRECTOR_CREATE_LINK}>一句灵感开书</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to={MANUAL_CREATE_LINK}>手动创建</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to="/help">查看指南</Link>
+                </Button>
+              </div>
             </div>
           ) : (
-            <div className="grid gap-3 md:grid-cols-2">
-              {recentNovels.map((novel) => {
+            <div className="divide-y">
+              {recentNovels.map((novel, index) => {
                 const workflowTask = novel.latestAutoDirectorTask ?? null;
                 const workflowBadge = getWorkflowBadge(workflowTask);
 
                 return (
-                  <Card
+                  <div
                     key={novel.id}
                     role="link"
                     tabIndex={0}
-                    className="cursor-pointer transition hover:border-primary/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="grid cursor-pointer gap-4 p-4 transition hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring lg:grid-cols-[56px_minmax(0,1fr)_280px]"
                     onClick={() => openNovelEditor(novel.id)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
@@ -537,35 +659,37 @@ export default function Home() {
                       }
                     }}
                   >
-                    <CardHeader className="space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="space-y-2">
-                          <CardTitle className="line-clamp-1 text-lg">{novel.title}</CardTitle>
-                          <div className="flex flex-wrap items-center gap-2">
-                            {workflowBadge ? (
-                              <Badge variant={workflowBadge.variant}>{workflowBadge.label}</Badge>
-                            ) : (
-                              <Badge variant="outline">无自动导演任务</Badge>
-                            )}
-                            {workflowTask ? (
-                              <Badge variant="outline">进度 {Math.round(workflowTask.progress * 100)}%</Badge>
-                            ) : null}
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          <Badge variant={novel.status === "published" ? "default" : "secondary"}>
-                            {novel.status === "published" ? "已发布" : "草稿"}
-                          </Badge>
-                          <Badge variant="outline">
-                            {novel.writingMode === "continuation" ? "续写" : "原创"}
-                          </Badge>
-                        </div>
+                    <div className="flex items-start gap-3 lg:block">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-lg border bg-background text-sm font-semibold tabular-nums shadow-sm">
+                        {String(index + 1).padStart(2, "0")}
                       </div>
-                      <CardDescription className="line-clamp-3">
+                      <div className="mt-1 text-xs text-muted-foreground lg:mt-2">QUEUE</div>
+                    </div>
+                    <div className="min-w-0 space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="min-w-0 flex-1 text-lg font-semibold">
+                          <span className="line-clamp-1">{novel.title}</span>
+                        </div>
+                        <Badge variant={novel.status === "published" ? "default" : "secondary"}>
+                          {novel.status === "published" ? "已发布" : "草稿"}
+                        </Badge>
+                        <Badge variant="outline">
+                          {novel.writingMode === "continuation" ? "续写" : "原创"}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {workflowBadge ? (
+                          <Badge variant={workflowBadge.variant}>{workflowBadge.label}</Badge>
+                        ) : (
+                          <Badge variant="outline">无自动导演任务</Badge>
+                        )}
+                        {workflowTask ? (
+                          <Badge variant="outline">进度 {Math.round(workflowTask.progress * 100)}%</Badge>
+                        ) : null}
+                      </div>
+                      <div className="line-clamp-2 text-sm leading-6 text-muted-foreground">
                         {getNovelLeadSummary(novel)}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                      </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                         <span>更新时间：{formatDate(novel.updatedAt)}</span>
                         <span>章节数：{novel._count.chapters}</span>
@@ -577,8 +701,9 @@ export default function Home() {
                           <span>最近健康阶段：{workflowTask.lastHealthyStage}</span>
                         ) : null}
                       </div>
-
-                      <div className="flex flex-wrap gap-2">
+                    </div>
+                    <div className="flex flex-col justify-center gap-2 lg:items-stretch">
+                      <div className="flex flex-wrap gap-2 lg:justify-end">
                         {renderNovelPrimaryAction(novel, { stopPropagation: true })}
                         {workflowTask ? (
                           <Button asChild size="sm" variant="outline">
@@ -590,8 +715,8 @@ export default function Home() {
                           </Button>
                         )}
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 );
               })}
             </div>
