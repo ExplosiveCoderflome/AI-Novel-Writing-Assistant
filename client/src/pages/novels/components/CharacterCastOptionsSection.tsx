@@ -16,6 +16,7 @@ import {
 } from "@/api/novel";
 import { getNovelWorldSlice } from "@/api/novelWorldSlice";
 import { queryKeys } from "@/api/queryKeys";
+import SelectControl from "@/components/common/SelectControl";
 
 interface CharacterCastOptionsSectionProps {
   novelId: string;
@@ -380,7 +381,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                       ) : null}
                       <label className="space-y-1">
                         <span className="font-medium text-foreground">势力倾向</span>
-                        <select
+                        <SelectControl
                           className="w-full rounded-md border bg-background p-2 text-sm"
                           value={preferredWorldFaction}
                           onChange={(event) => setPreferredWorldFaction(event.target.value)}
@@ -390,7 +391,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                           {activeWorldForces.map((force) => (
                             <option key={force.id} value={force.name}>{force.name}</option>
                           ))}
-                        </select>
+                        </SelectControl>
                       </label>
                       <div>
                         {hasWorldSlice

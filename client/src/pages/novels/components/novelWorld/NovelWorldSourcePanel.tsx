@@ -7,6 +7,7 @@ import type {
 } from "@ai-novel/shared/types/novelWorld";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import SelectControl from "@/components/common/SelectControl";
 
 export interface WorldOption {
   id: string;
@@ -109,7 +110,7 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
             导入会复制外部世界手册。本书生成时使用这份副本，外部世界库不会被自动改动。
           </div>
           <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
-            <select
+            <SelectControl
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={selectedImportWorldId}
               onChange={(event) => setSelectedImportWorldId(event.target.value)}
@@ -118,7 +119,7 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
               {props.worldOptions.map((world) => (
                 <option key={world.id} value={world.id}>{world.name}</option>
               ))}
-            </select>
+            </SelectControl>
             <Button
               type="button"
               onClick={() => props.onImport({

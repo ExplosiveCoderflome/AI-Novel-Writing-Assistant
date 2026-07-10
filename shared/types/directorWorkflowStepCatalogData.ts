@@ -59,6 +59,8 @@ export interface WorkflowStepCatalogEntry {
   mayModifyUserContent: boolean;
   requiresApprovalByDefault: boolean;
   supportsAutoRetry: boolean;
+  orchestrationOrder?: number;
+  prerequisiteStepIds?: readonly string[];
   policyAction?: WorkflowStepCatalogPolicyAction;
   aliases?: WorkflowStepCatalogAliases;
 }
@@ -141,6 +143,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: false,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 10,
+    prerequisiteStepIds: [],
     aliases: {
       currentItemKeys: ["candidate_generation", "candidate_direction_batch", "candidate_seed_alignment"],
       currentStages: ["auto_director", "candidate_selection", "project_setup"],
@@ -163,6 +167,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: false,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 20,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.candidate.candidate_generation],
     aliases: {
       currentItemKeys: ["candidate_refine", "candidate_project_framing"],
       currentStages: ["auto_director", "candidate_selection", "project_setup"],
@@ -185,6 +191,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: false,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 30,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.candidate.candidate_generation],
     aliases: {
       currentItemKeys: ["candidate_patch", "candidate_direction_batch"],
       currentStages: ["auto_director", "candidate_selection", "project_setup"],
@@ -207,6 +215,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: false,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 40,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.candidate.candidate_generation],
     aliases: {
       currentItemKeys: ["candidate_title_refine", "candidate_title_pack"],
       currentStages: ["auto_director", "candidate_selection", "project_setup"],
@@ -229,6 +239,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: false,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 50,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.candidate.candidate_generation],
     aliases: {
       currentItemKeys: ["novel_create", "project_setup"],
       currentStages: ["auto_director", "project_setup"],
@@ -251,6 +263,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: false,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 60,
+    prerequisiteStepIds: [],
     aliases: {
       currentItemKeys: ["takeover_execution", "auto_director"],
       currentStages: ["auto_director", "project_setup"],
@@ -273,6 +287,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 100,
+    prerequisiteStepIds: [],
     aliases: {
       nodeKeys: ["story_macro"],
       currentItemKeys: ["story_macro", "constraint_engine"],
@@ -296,6 +312,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 200,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.planning.story_macro],
     aliases: {
       nodeKeys: ["book_contract"],
       currentItemKeys: ["book_contract"],
@@ -319,6 +337,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 300,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.planning.book_contract],
     aliases: {
       nodeKeys: ["world_setup"],
       currentItemKeys: ["world_setup"],
@@ -342,6 +362,11 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 400,
+    prerequisiteStepIds: [
+      DIRECTOR_WORKFLOW_STEP_IDS.planning.book_contract,
+      DIRECTOR_WORKFLOW_STEP_IDS.planning.world_setup,
+    ],
     aliases: {
       nodeKeys: ["character_setup"],
       currentItemKeys: ["character_setup", "character_cast_apply"],
@@ -365,6 +390,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 500,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.planning.character_setup],
     aliases: {
       nodeKeys: ["volume_strategy", "volume_strategy.volume_generation"],
       currentItemKeys: ["volume_strategy", "volume_skeleton"],
@@ -388,6 +415,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: true,
+    orchestrationOrder: 600,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.planning.volume_strategy],
     aliases: {
       nodeKeys: ["structured_outline", "structured_outline_phase", "beat_sheet", "structured_outline.beat_sheet"],
       currentItemKeys: ["structured_outline", "beat_sheet"],
@@ -411,6 +440,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: true,
+    orchestrationOrder: 700,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.structuredOutline.beat_sheet],
     aliases: {
       nodeKeys: ["chapter_list", "structured_outline.chapter_list"],
       currentItemKeys: ["chapter_list"],
@@ -434,6 +465,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: true,
+    orchestrationOrder: 800,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.structuredOutline.chapter_list],
     aliases: {
       nodeKeys: ["chapter_detail_bundle", "structured_outline.chapter_detail_bundle"],
       currentItemKeys: ["chapter_detail_bundle"],
@@ -457,6 +490,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: false,
     requiresApprovalByDefault: false,
     supportsAutoRetry: true,
+    orchestrationOrder: 900,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.structuredOutline.chapter_detail_bundle],
     aliases: {
       nodeKeys: ["chapter_sync", "structured_outline.chapter_sync"],
       currentItemKeys: ["chapter_sync"],
@@ -480,6 +515,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 1000,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.executionContractSync],
     aliases: {
       nodeKeys: ["chapter_execution", "chapter.write"],
       currentItemKeys: ["chapter_execution"],
@@ -503,6 +540,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: false,
     requiresApprovalByDefault: false,
     supportsAutoRetry: true,
+    orchestrationOrder: 1100,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_execution],
     aliases: {
       nodeKeys: ["chapter_quality_review", "audit.chapter.full"],
       currentItemKeys: ["quality_repair"],
@@ -527,6 +566,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: true,
+    orchestrationOrder: 1000,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_quality_review],
     aliases: {
       nodeKeys: ["chapter_repair", "novel.review.patch"],
       currentItemKeys: ["quality_repair"],
@@ -550,6 +591,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: false,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 1200,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_quality_review],
     aliases: {
       nodeKeys: ["chapter_state_commit", "state.snapshot.extract"],
       currentItemKeys: ["quality_repair"],
@@ -573,6 +616,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: false,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 1300,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_state_commit],
     aliases: {
       nodeKeys: ["payoff_ledger_sync", "novel.payoff_ledger.sync"],
       currentItemKeys: ["quality_repair"],
@@ -596,6 +641,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: false,
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
+    orchestrationOrder: 1400,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.execution.payoff_ledger_sync],
     aliases: {
       nodeKeys: ["character_resource_sync", "novel.characterDynamics.chapterExtract", "novel.character_resource.extract_updates"],
       currentItemKeys: ["quality_repair"],
@@ -620,6 +667,8 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     mayModifyUserContent: true,
     requiresApprovalByDefault: false,
     supportsAutoRetry: true,
+    orchestrationOrder: 1000,
+    prerequisiteStepIds: [DIRECTOR_WORKFLOW_STEP_IDS.execution.chapter_quality_review],
     aliases: {
       nodeKeys: ["quality_repair", "chapter_quality_repair_node"],
       currentItemKeys: ["quality_repair"],

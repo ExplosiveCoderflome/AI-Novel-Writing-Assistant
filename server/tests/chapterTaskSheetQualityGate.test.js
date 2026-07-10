@@ -3,11 +3,15 @@ const assert = require("node:assert/strict");
 
 const {
   assessChapterExecutionContractShape,
+  aiChapterTaskSheetQualityAssessmentSchema,
   formatChapterTaskSheetQualityFailure,
 } = require("../../shared/dist/types/chapterTaskSheetQuality.js");
 const {
   ChapterTaskSheetQualityGateService,
 } = require("../dist/services/novel/volume/ChapterTaskSheetQualityGateService.js");
+const {
+  chapterTaskSheetQualityPrompt,
+} = require("../dist/prompting/prompts/novel/volume/chapterTaskSheetQuality.prompts.js");
 
 function buildSceneCards() {
   return JSON.stringify({
@@ -117,6 +121,42 @@ test("chapter task sheet quality service lets full book mode auto-repair semanti
   assert.equal(result.canEnterExecution, false);
   assert.equal(result.status, "repairable");
   assert.equal(result.issues[0].id, "semantic_boundary_leak");
+});
+
+test("chapter task sheet quality schema normalizes common assessment enum drift", () => {
+  const parsed = aiChapterTaskSheetQualityAssessmentSchema.parse({
+    verdict: "pass",
+    safeToSync: true,
+    loadRisk: "normal",
+    recommendedHandling: "use_as_is",
+    summary: "任务单可进入正文生成。",
+    issues: [{
+      id: "pacing_issue",
+      severity: "medium",
+      target: "pacing",
+      summary: "节奏段缺少阶段性转向。",
+      repairHint: "把一章改成主动反击或阶段兑现。",
+    }],
+    repairGuidance: [],
+    confidence: 85,
+  });
+
+  assert.equal(parsed.verdict, "usable");
+  assert.equal(parsed.issues[0].target, "semantic");
+  assert.equal(parsed.confidence, 0.85);
+});
+
+test("chapter task sheet quality prompt declares strict JSON contract", () => {
+  const messages = chapterTaskSheetQualityPrompt.render({
+    candidate: buildCandidate(),
+    mode: "full_book_autopilot",
+  });
+  const systemText = String(messages[0].content);
+
+  assert.match(systemText, /verdict 只能使用 usable、repairable、unusable/);
+  assert.match(systemText, /issues\.target 只能使用 purpose、boundary、task_sheet、scene_cards、semantic/);
+  assert.match(systemText, /confidence 必须是 0 到 1 之间的小数/);
+  assert.match(systemText, /"verdict": "repairable"/);
 });
 
 test("chapter task sheet quality service marks overloaded contracts for window replan", async () => {

@@ -1,7 +1,7 @@
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
-import { Badge } from "@/components/ui/badge";
+import { BookmarkPlus, Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getClickRateBadgeClass, getTitleStyleLabel } from "../titleStudio.shared";
+import { getTitleStyleLabel } from "../titleStudio.shared";
 
 interface TitleSuggestionListProps {
   suggestions: TitleFactorySuggestion[];
@@ -26,47 +26,57 @@ export default function TitleSuggestionList({
 }: TitleSuggestionListProps) {
   if (suggestions.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+      <div className="py-10 text-center text-sm text-muted-foreground">
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="divide-y divide-border/55">
       {suggestions.map((suggestion) => {
         const isSelected = selectedTitle === suggestion.title;
+        const showSecondaryCopy = Boolean(onCopy && primaryActionLabel !== "复制标题");
+        const metadata = [
+          getTitleStyleLabel(suggestion.style),
+          suggestion.angle,
+          isSelected ? "当前选中" : null,
+        ].filter((item): item is string => Boolean(item));
         return (
           <div
             key={suggestion.title}
-            className={`rounded-xl border p-4 transition ${
-              isSelected ? "border-primary/50 bg-primary/5" : "border-border/70 bg-background"
+            className={`group py-4 transition ${
+              isSelected ? "rounded-xl bg-primary/[0.045] px-4" : "px-2 hover:bg-muted/[0.18]"
             }`}
           >
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className={getClickRateBadgeClass(suggestion.clickRate)}>
-                    预估 {suggestion.clickRate}
-                  </Badge>
-                  <Badge variant="secondary">{getTitleStyleLabel(suggestion.style)}</Badge>
-                  {suggestion.angle ? <Badge variant="outline">{suggestion.angle}</Badge> : null}
-                  {isSelected ? <Badge variant="outline">当前选中</Badge> : null}
+            <div className="grid gap-3 lg:grid-cols-[64px_minmax(0,1fr)_auto] lg:items-start">
+              <div className="text-xs leading-5 text-muted-foreground">
+                <div className="font-medium text-foreground">预估</div>
+                <div className="text-lg font-semibold tabular-nums text-foreground">{suggestion.clickRate}</div>
+              </div>
+
+              <div className="min-w-0 space-y-2">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                  {metadata.map((item) => (
+                    <span key={`${suggestion.title}-${item}`}>{item}</span>
+                  ))}
                 </div>
-                <div className="text-lg font-semibold text-foreground">{suggestion.title}</div>
+                <div className="text-xl font-semibold tracking-normal text-foreground">{suggestion.title}</div>
                 {suggestion.reason ? (
-                  <div className="text-sm leading-6 text-muted-foreground">{suggestion.reason}</div>
+                  <div className="max-w-3xl text-sm leading-6 text-muted-foreground">{suggestion.reason}</div>
                 ) : null}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                 {onPrimaryAction ? (
-                  <Button type="button" size="sm" onClick={() => onPrimaryAction(suggestion)}>
+                  <Button type="button" size="sm" className="gap-1.5" onClick={() => onPrimaryAction(suggestion)}>
+                    {primaryActionLabel === "复制标题" ? <Copy className="h-3.5 w-3.5" /> : null}
                     {primaryActionLabel}
                   </Button>
                 ) : null}
-                {onCopy ? (
-                  <Button type="button" variant="outline" size="sm" onClick={() => onCopy(suggestion)}>
+                {showSecondaryCopy ? (
+                  <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => onCopy?.(suggestion)}>
+                    <Copy className="h-3.5 w-3.5" />
                     复制
                   </Button>
                 ) : null}
@@ -75,10 +85,21 @@ export default function TitleSuggestionList({
                     type="button"
                     variant="secondary"
                     size="sm"
+                    className="gap-1.5"
                     disabled={savingTitle === suggestion.title}
                     onClick={() => onSave(suggestion)}
                   >
-                    {savingTitle === suggestion.title ? "保存中..." : "加入标题库"}
+                    {savingTitle === suggestion.title ? (
+                      <>
+                        <Check className="h-3.5 w-3.5" />
+                        保存中
+                      </>
+                    ) : (
+                      <>
+                        <BookmarkPlus className="h-3.5 w-3.5" />
+                        入库
+                      </>
+                    )}
                   </Button>
                 ) : null}
               </div>

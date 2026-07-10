@@ -70,6 +70,48 @@ function createAcceptanceGateUnavailableRuntimePackage(overallScore) {
   };
 }
 
+function createProseRiskRuntimePackage(overallScore, options = {}) {
+  const base = createRuntimePackage(overallScore, options);
+  const severity = options.severity ?? "high";
+  const issue = {
+    auditType: "mode_fit",
+    severity,
+    evidence: "第 1 行：他不是害怕，而是终于明白自己不能回头。",
+    fixSuggestion: "改成具体动作和感官细节，删除模板化否定翻转。",
+    code: options.code ?? "prose_negative_flip",
+  };
+  return {
+    ...base,
+    audit: {
+      ...base.audit,
+      openIssues: [issue],
+      reports: [{
+        auditType: "mode_fit",
+        issues: [issue],
+      }],
+      hasBlockingIssues: severity === "high" || severity === "critical",
+    },
+    meta: {
+      acceptanceStatus: "accepted",
+      continuePolicy: "continue",
+    },
+    replanRecommendation: {
+      recommended: severity === "high" || severity === "critical",
+      action: severity === "high" || severity === "critical" ? "local_patch_plan" : "continue_with_warning",
+      reason: "Prose quality issue should stay local to the chapter.",
+      blockingIssueIds: severity === "high" || severity === "critical" ? ["prose-negative-flip"] : [],
+      blockingLedgerKeys: [],
+      affectedChapterOrders: [],
+    },
+    failureClassification: {
+      code: "draft_repair_exhausted",
+      summary: "正文自然度问题仍未修复。",
+      decisionReason: "prose quality issue stays local",
+      blockingObligations: [],
+    },
+  };
+}
+
 test("runPipelineChapterWithRuntime skips review and repair when autoReview is disabled", async () => {
   const stages = [];
   const generationStates = [];
@@ -132,9 +174,7 @@ test("runPipelineChapterWithRuntime skips review and repair when autoReview is d
   );
 
   assert.equal(finalizeCalled, false);
-  assert.equal(timelineFinalizationCalls.length, 1);
-  assert.equal(timelineFinalizationCalls[0].mode, "stable");
-  assert.equal(timelineFinalizationCalls[0].reason, "auto_review_disabled_final_content");
+  assert.equal(timelineFinalizationCalls.length, 0);
   assert.deepEqual(stages, ["generating_chapters"]);
   assert.deepEqual(savedDrafts, [{
     content: "生成后的正文",
@@ -238,6 +278,124 @@ test("runPipelineChapterWithRuntime does not approve when timeline check fails",
   assert.deepEqual(generationStates, ["reviewed"]);
   assert.equal(result.pass, false);
   assert.equal(result.runtimePackage.timelineCheck.status, "failed");
+});
+
+test("runPipelineChapterWithRuntime passes confirmed provenance for approved final artifact sync", async () => {
+  const finalSyncs = [];
+
+  const result = await runPipelineChapterWithRuntime(
+    {
+      validateRequest(input) {
+        return input;
+      },
+      async ensureNovelCharacters() {},
+      async assemble() {
+        return {
+          novel: { id: "novel-1", title: "测试小说" },
+          chapter: {
+            id: "chapter-1",
+            title: "第一章",
+            order: 1,
+            content: "已有正文",
+            expectation: null,
+          },
+          contextPackage: {},
+        };
+      },
+      async generateDraftFromWriter() {
+        throw new Error("existing content should not be regenerated");
+      },
+      async saveDraftAndArtifacts() {},
+      async syncFinalChapterArtifacts(_novelId, _chapterId, content, options) {
+        finalSyncs.push({ content, options });
+      },
+      async finalizeChapterContent({ content }) {
+        return {
+          finalContent: content,
+          runtimePackage: createRuntimePackage(90),
+        };
+      },
+      async markChapterGenerationState() {},
+      async markChapterNeedsRepair() {},
+    },
+    "novel-1",
+    "chapter-1",
+    {
+      autoReview: true,
+      autoRepair: true,
+    },
+  );
+
+  assert.equal(result.pass, true);
+  assert.deepEqual(finalSyncs, [{
+    content: "已有正文",
+    options: {
+      artifactSyncMode: "adaptive",
+      contentProvenance: "confirmed",
+    },
+  }]);
+});
+
+test("runPipelineChapterWithRuntime passes debt provenance for retained failed content", async () => {
+  const finalSyncs = [];
+
+  const result = await runPipelineChapterWithRuntime(
+    {
+      validateRequest(input) {
+        return input;
+      },
+      async ensureNovelCharacters() {},
+      async assemble() {
+        return {
+          novel: { id: "novel-1", title: "测试小说" },
+          chapter: {
+            id: "chapter-1",
+            title: "第一章",
+            order: 1,
+            content: null,
+            expectation: null,
+          },
+          contextPackage: {},
+        };
+      },
+      async generateDraftFromWriter() {
+        return { content: "生成后的正文" };
+      },
+      async saveDraftAndArtifacts() {},
+      async syncFinalChapterArtifacts(_novelId, _chapterId, content, options) {
+        finalSyncs.push({ content, options });
+      },
+      async finalizeChapterContent({ content }) {
+        return {
+          finalContent: `${content}，保留但待复核。`,
+          runtimePackage: createRuntimePackage(70),
+        };
+      },
+      async markChapterGenerationState() {},
+      async markChapterNeedsRepair() {},
+    },
+    "novel-1",
+    "chapter-1",
+    {
+      autoReview: true,
+      autoRepair: false,
+    },
+  );
+
+  assert.equal(result.pass, false);
+  assert.deepEqual(finalSyncs, [{
+    content: "生成后的正文，保留但待复核。",
+    options: {
+      artifactSyncMode: "adaptive",
+      contentProvenance: "debt",
+    },
+  }]);
+  assert.deepEqual(result.qualityDebtAttribution.degradedProposalRouting, {
+    contentProvenance: "debt",
+    routedToPendingReview: true,
+    proposalTypes: ["character_state_update", "character_resource_update"],
+    fields: ["currentState", "currentGoal", "characterResource"],
+  });
 });
 
 test("runPipelineChapterWithRuntime escalates patch failures to heavy repair and rechecks the chapter", async () => {
@@ -350,6 +508,106 @@ test("runPipelineChapterWithRuntime escalates patch failures to heavy repair and
   } finally {
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
     promptRunner.setPromptRunnerLLMFactoryForTests();
+  }
+});
+
+test("runPipelineChapterWithRuntime sends critical prose findings to repair and retains exhausted prose debt", async () => {
+  const originalRunStructuredPrompt = promptRunner.runStructuredPrompt;
+  const stages = [];
+  const savedDrafts = [];
+  const finalSyncs = [];
+  const finalizationCalls = [];
+  const patchIssues = [];
+  let reviewCount = 0;
+
+  promptRunner.runStructuredPrompt = async (request) => {
+    patchIssues.push(request.promptInput.issuesJson);
+    return {
+      output: {
+        strategy: "patch_first",
+        summary: "去掉模板化否定翻转。",
+        patches: [{
+          id: "patch-prose-negative-flip",
+          targetExcerpt: "他不是害怕，而是终于明白自己不能回头。",
+          replacement: "他握紧刀柄，指节发白，仍一步踏进雨里。",
+          reason: "把抽象解释改成动作。",
+          issueIds: [],
+        }],
+        requiresFullRewrite: false,
+        escalationReason: null,
+      },
+    };
+  };
+
+  try {
+    const result = await runPipelineChapterWithRuntime(
+      {
+        validateRequest(input) {
+          return input;
+        },
+        async ensureNovelCharacters() {},
+        async assemble() {
+          return {
+            novel: { id: "novel-1", title: "测试小说" },
+            chapter: {
+              id: "chapter-1",
+              title: "第一章",
+              order: 1,
+              content: null,
+              expectation: null,
+            },
+            contextPackage: {},
+          };
+        },
+        async generateDraftFromWriter() {
+          return { content: "他不是害怕，而是终于明白自己不能回头。" };
+        },
+        async saveDraftAndArtifacts(_novelId, _chapterId, content, generationState, options) {
+          savedDrafts.push({ content, generationState, options });
+        },
+        async syncFinalChapterArtifacts(_novelId, _chapterId, content, options) {
+          finalSyncs.push({ content, options });
+        },
+        async finalizeChapterContent({ content }) {
+          reviewCount += 1;
+          return {
+            finalContent: content,
+            runtimePackage: createProseRiskRuntimePackage(92),
+          };
+        },
+        async finalizeChapterTimeline(input) {
+          finalizationCalls.push(input);
+        },
+        async markChapterGenerationState() {},
+        async markChapterNeedsRepair() {},
+      },
+      "novel-1",
+      "chapter-1",
+      {
+        autoReview: true,
+        autoRepair: true,
+      },
+      {
+        async onStageChange(stage) {
+          stages.push(stage);
+        },
+      },
+    );
+
+    assert.deepEqual(stages, ["generating_chapters", "reviewing", "repairing", "reviewing"]);
+    assert.equal(reviewCount, 2);
+    assert.equal(result.retryCountUsed, 1);
+    assert.equal(result.pass, false);
+    assert.equal(result.runtimePackage.audit.openIssues[0].code, "prose_negative_flip");
+    assert.match(patchIssues[0], /第 1 行/);
+    assert.match(patchIssues[0], /模板化否定翻转/);
+    assert.deepEqual(savedDrafts.map((item) => item.generationState), ["drafted", "repaired"]);
+    assert.equal(finalSyncs[0].options.contentProvenance, "debt");
+    assert.equal(finalizationCalls.length, 0);
+    assert.deepEqual(result.qualityDebtAttribution.firstFailureIssueCodes, ["prose_negative_flip"]);
+    assert.deepEqual(result.qualityDebtAttribution.secondFailureIssueCodes, ["prose_negative_flip"]);
+  } finally {
+    promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }
 });
 
@@ -984,11 +1242,7 @@ test("runPipelineChapterWithRuntime defaults to a single repair pass before stop
       },
     ]);
     assert.equal(finalSyncs.length, 1);
-    assert.equal(finalizationCalls.length, 1);
-    assert.equal(finalizationCalls[0].mode, "degraded");
-    assert.equal(finalizationCalls[0].reason, "max_repair_attempts_exhausted");
-    assert.equal(finalizationCalls[0].qualityDebt, true);
-    assert.equal(finalizationCalls[0].content, "修后复审正文");
+    assert.equal(finalizationCalls.length, 0);
   } finally {
     promptRunner.runStructuredPrompt = originalRunStructuredPrompt;
   }

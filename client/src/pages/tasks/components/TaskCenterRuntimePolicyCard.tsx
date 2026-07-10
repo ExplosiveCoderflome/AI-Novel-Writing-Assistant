@@ -9,6 +9,7 @@ import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import SelectControl from "@/components/common/SelectControl";
 
 interface TaskCenterRuntimePolicyCardProps {
   taskId: string;
@@ -92,7 +93,7 @@ export default function TaskCenterRuntimePolicyCard({
         <Badge variant="outline">{formatPolicyMode(snapshot.policy.mode)}</Badge>
       </div>
       <div className="mt-3 space-y-2">
-        <select
+        <SelectControl
           className="w-full rounded-md border bg-background px-3 py-2 text-sm"
           value={selectedMode}
           onChange={(event) => setSelectedMode(event.target.value as DirectorPolicyMode)}
@@ -100,7 +101,7 @@ export default function TaskCenterRuntimePolicyCard({
           {POLICY_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
-        </select>
+        </SelectControl>
         <div className="text-xs leading-5 text-muted-foreground">{selectedOption.description}</div>
       </div>
       <div className="mt-3 space-y-2 rounded-md border bg-background/70 p-3">

@@ -122,6 +122,8 @@ export interface BaseCharacter {
   keyEvents?: string | null;
   tags: string;
   category: string;
+  sourceType?: string | null;
+  sourceRefId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

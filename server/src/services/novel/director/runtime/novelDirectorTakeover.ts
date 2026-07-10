@@ -348,36 +348,52 @@ function hasPendingRepairContext(input: {
   );
 }
 
-function phaseToEntryStep(phase: DirectorTakeoverStartPhase): DirectorTakeoverEntryStep {
-  if (phase === "story_macro") return "story_macro";
-  if (phase === "character_setup") return "character";
-  if (phase === "volume_strategy") return "outline";
-  return "structured";
+const TAKEOVER_PHASE_TO_ENTRY_STEP: Record<DirectorTakeoverStartPhase, DirectorTakeoverEntryStep> = {
+  story_macro: "story_macro",
+  character_setup: "character",
+  volume_strategy: "outline",
+  structured_outline: "structured",
+};
+
+const TAKEOVER_ENTRY_STEP_TO_LEGACY_START_PHASE: Record<DirectorTakeoverEntryStep, DirectorTakeoverStartPhase> = {
+  basic: "story_macro",
+  story_macro: "story_macro",
+  character: "character_setup",
+  outline: "volume_strategy",
+  structured: "structured_outline",
+  chapter: "structured_outline",
+  pipeline: "structured_outline",
+};
+
+const TAKEOVER_ENTRY_STEP_TO_WORKFLOW_STAGE: Record<DirectorTakeoverEntryStep, NovelWorkflowStage> = {
+  basic: "story_macro",
+  story_macro: "story_macro",
+  character: "character_setup",
+  outline: "volume_strategy",
+  structured: "structured_outline",
+  chapter: "chapter_execution",
+  pipeline: "quality_repair",
+};
+
+export function phaseToEntryStep(phase: DirectorTakeoverStartPhase): DirectorTakeoverEntryStep {
+  return TAKEOVER_PHASE_TO_ENTRY_STEP[phase];
 }
 
-function entryStepToLegacyStartPhase(step: DirectorTakeoverEntryStep): DirectorTakeoverStartPhase {
-  if (step === "story_macro" || step === "basic") return "story_macro";
-  if (step === "character") return "character_setup";
-  if (step === "outline") return "volume_strategy";
-  return "structured_outline";
+export function entryStepToLegacyStartPhase(step: DirectorTakeoverEntryStep): DirectorTakeoverStartPhase {
+  return TAKEOVER_ENTRY_STEP_TO_LEGACY_START_PHASE[step];
 }
 
-function entryStepToWorkflowStage(step: DirectorTakeoverEntryStep): NovelWorkflowStage {
-  if (step === "story_macro" || step === "basic") return "story_macro";
-  if (step === "character") return "character_setup";
-  if (step === "outline") return "volume_strategy";
-  if (step === "structured") return "structured_outline";
-  if (step === "chapter") return "chapter_execution";
-  return "quality_repair";
+export function entryStepToWorkflowStage(step: DirectorTakeoverEntryStep): NovelWorkflowStage {
+  return TAKEOVER_ENTRY_STEP_TO_WORKFLOW_STAGE[step];
 }
 
-function buildSkipSteps(from: DirectorTakeoverEntryStep, to: DirectorTakeoverEntryStep): DirectorTakeoverEntryStep[] {
+export function buildSkipSteps(from: DirectorTakeoverEntryStep, to: DirectorTakeoverEntryStep): DirectorTakeoverEntryStep[] {
   const fromIndex = DIRECTOR_TAKEOVER_ENTRY_STEPS.indexOf(from);
   const toIndex = DIRECTOR_TAKEOVER_ENTRY_STEPS.indexOf(to);
   if (fromIndex < 0 || toIndex < 0 || toIndex <= fromIndex) {
     return [];
   }
-  return DIRECTOR_TAKEOVER_ENTRY_STEPS.slice(fromIndex, toIndex).filter((step) => step !== to);
+  return DIRECTOR_TAKEOVER_ENTRY_STEPS.slice(fromIndex, toIndex);
 }
 
 function resolveExecutionContinuationStep(input: {

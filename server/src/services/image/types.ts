@@ -27,11 +27,18 @@ interface BaseImageGenerationRequest {
   count?: number;
   seed?: number;
   maxRetries?: number;
+  referenceImageAssetIds?: string[];
 }
 
 export interface CharacterImageGenerationRequest extends BaseImageGenerationRequest {
   sceneType: Extract<ImageSceneType, "character">;
   baseCharacterId: string;
+  promptMode?: Extract<ImagePromptMode, "character_chain" | "direct">;
+}
+
+export interface BookAnalysisCharacterImageGenerationRequest extends BaseImageGenerationRequest {
+  sceneType: Extract<ImageSceneType, "book_analysis_character">;
+  bookAnalysisCharacterId: string;
   promptMode?: Extract<ImagePromptMode, "character_chain" | "direct">;
 }
 
@@ -43,11 +50,20 @@ export interface NovelCoverImageGenerationRequest extends BaseImageGenerationReq
 
 export type ImageGenerationRequest =
   | CharacterImageGenerationRequest
+  | BookAnalysisCharacterImageGenerationRequest
   | NovelCoverImageGenerationRequest;
 
 export interface OptimizeCharacterImagePromptRequest {
   sceneType: Extract<ImageSceneType, "character">;
   baseCharacterId: string;
+  sourcePrompt: string;
+  stylePreset?: string;
+  outputLanguage: ImagePromptOutputLanguage;
+}
+
+export interface OptimizeBookAnalysisCharacterImagePromptRequest {
+  sceneType: Extract<ImageSceneType, "book_analysis_character">;
+  bookAnalysisCharacterId: string;
   sourcePrompt: string;
   stylePreset?: string;
   outputLanguage: ImagePromptOutputLanguage;
@@ -63,10 +79,11 @@ export interface OptimizeNovelCoverImagePromptRequest {
 
 export type OptimizeImagePromptRequest =
   | OptimizeCharacterImagePromptRequest
+  | OptimizeBookAnalysisCharacterImagePromptRequest
   | OptimizeNovelCoverImagePromptRequest;
 
 export interface ImageProviderGenerateInput {
-  sceneType: Extract<ImageSceneType, "character" | "novel_cover" | "chapter_illustration">;
+  sceneType: Extract<ImageSceneType, "character" | "novel_cover" | "chapter_illustration" | "book_analysis_character">;
   provider: LLMProvider;
   model: string;
   prompt: string;

@@ -89,6 +89,8 @@ import { NovelDirectorChapterTitleRepairRuntime } from "./phases/novelDirectorCh
 import { NovelDirectorContinueRuntime } from "./runtime/novelDirectorContinueRuntime";
 import { prisma } from "../../../db/prisma";
 import { loadPersistentDirectorRuntimeProjection } from "./projections/novelDirectorRuntimeProjection";
+import { qualityDebtSettingsService } from "../../settings/QualityDebtSettingsService";
+import { pendingReviewAutoPromotionService } from "../state/PendingReviewAutoPromotionService";
 
 function isWorkflowTaskCancelledError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -138,6 +140,9 @@ export class NovelDirectorService {
     },
     replanNovel: (novelId, input) => this.novelService.replanNovel(novelId, input),
     resolveStateProposals: (input) => directorStateProposalResolutionService.resolvePendingProposals(input),
+    autoConfirmPendingCandidates: (novelId) => this.characterDynamicsService.autoConfirmPendingCandidates(novelId),
+    isPendingReviewAutoPromotionEnabled: () => qualityDebtSettingsService.isAutoPromotionEnabled(),
+    autoPromotePendingReviewProposals: (input) => this.autoPromotePendingReviewProposals(input),
   });
   private readonly directorRuntimeOrchestrator = new NovelDirectorRuntimeOrchestrator({
     directorRuntime: this.directorRuntime,
@@ -203,6 +208,21 @@ export class NovelDirectorService {
   });
 
   constructor(_options?: Record<string, never>) {}
+
+  private async autoPromotePendingReviewProposals(input: {
+    novelId: string;
+    taskId: string;
+  }): Promise<void> {
+    const settings = await qualityDebtSettingsService.getAutoPromotionSettings();
+    if (!settings.enabled || !settings.baselineAt) {
+      return;
+    }
+    await pendingReviewAutoPromotionService.apply(input.novelId, {
+      since: settings.baselineAt,
+      dryRun: false,
+      taskId: input.taskId,
+    });
+  }
 
   private async assertHighMemoryDirectorStartAllowed(input: {
     taskId: string;

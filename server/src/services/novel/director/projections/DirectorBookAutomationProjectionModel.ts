@@ -289,9 +289,8 @@ function buildNovelHref(
 
 function buildCandidateSelectionHref(taskId: string): string {
   const params = new URLSearchParams();
-  params.set("workflowTaskId", taskId);
-  params.set("mode", "director");
-  return `/novels/create?${params.toString()}`;
+  params.set("taskId", taskId);
+  return `/novels/auto-director?${params.toString()}`;
 }
 
 export function buildFocusNovel(input: { id: string; title?: string | null }): DirectorBookAutomationFocusNovel {

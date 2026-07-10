@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="520" viewBox="0 0 1100 520" role="img" aria-labelledby="title desc">
+  <title id="title">章节执行环路</title>
+  <desc id="desc">章节任务进入正文生成、审核、修复、状态回灌，再影响下一章。</desc>
+  <defs>
+    <style>
+      .bg{fill:#f7f9f8}.node{fill:#fbfdfc;stroke:#147f91;stroke-width:2}.warn{fill:#fff2df;stroke:#d76457;stroke-width:2}.text{font:700 18px 'Microsoft YaHei',sans-serif;fill:#101417}.small{font:500 14px 'Microsoft YaHei',sans-serif;fill:#5d6872}.arrow{stroke:#147f91;stroke-width:3;fill:none;marker-end:url(#arrow)}
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#147f91"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1100" height="520"/>
+  <rect class="node" x="80" y="210" width="160" height="80" rx="8"/><text class="text" x="118" y="245">章节任务</text><text class="small" x="105" y="270">任务单 / 场景卡</text>
+  <rect class="node" x="300" y="90" width="170" height="80" rx="8"/><text class="text" x="340" y="125">上下文包</text><text class="small" x="323" y="150">RAG / 角色 / 世界</text>
+  <rect class="node" x="540" y="90" width="160" height="80" rx="8"/><text class="text" x="580" y="125">写正文</text><text class="small" x="575" y="150">writer</text>
+  <rect class="node" x="780" y="210" width="160" height="80" rx="8"/><text class="text" x="823" y="245">审核</text><text class="small" x="807" y="270">audit / acceptance</text>
+  <rect class="warn" x="540" y="340" width="160" height="80" rx="8"/><text class="text" x="580" y="375">修复</text><text class="small" x="570" y="400">repair / debt</text>
+  <rect class="node" x="300" y="340" width="170" height="80" rx="8"/><text class="text" x="338" y="375">状态回灌</text><text class="small" x="320" y="400">角色 / 伏笔 / 事实</text>
+  <path class="arrow" d="M240 250 C275 250 270 130 300 130"/>
+  <path class="arrow" d="M470 130 H540"/>
+  <path class="arrow" d="M700 130 C755 130 745 250 780 250"/>
+  <path class="arrow" d="M860 290 C860 380 720 380 700 380"/>
+  <path class="arrow" d="M540 380 H470"/>
+  <path class="arrow" d="M300 380 C205 380 185 310 160 290"/>
+  <text class="small" x="785" y="325">通过：提交状态</text>
+  <text class="small" x="610" y="322">未通过：修复或记录债务</text>
+</svg>

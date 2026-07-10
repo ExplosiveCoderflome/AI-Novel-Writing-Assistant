@@ -121,7 +121,8 @@ function hasRuntimeResourceData(runtimePackage: ChapterRuntimePackage | null | u
       context.availableItems.length > 0
       || context.setupNeededItems.length > 0
       || context.blockedItems.length > 0
-      || context.pendingReviewItems.length > 0
+      || context.highRiskCommittedItems.length > 0
+      || context.pendingProposalItems.length > 0
       || context.riskSignals.length > 0
     ),
   );
@@ -425,6 +426,8 @@ function qualityLoopArtifactLabel(value: unknown): string | null {
       return "连贯性风险";
     case "rolling_window_review":
       return "章节衔接风险";
+    case "prose_quality":
+      return "正文自然度/退化检测";
     default:
       return null;
   }

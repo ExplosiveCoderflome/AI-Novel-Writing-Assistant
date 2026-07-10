@@ -53,7 +53,7 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
     onSuccess: (response) => {
       const suggestion = response.data;
       if (!suggestion) {
-        toast.error("AI 没有返回可用的书级 framing 建议。");
+        toast.error("AI 没有返回可用的读者与卖点建议。");
         return;
       }
       onApplySuggestion({
@@ -63,10 +63,10 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
         bookSellingPoint: suggestion.bookSellingPoint,
         first30ChapterPromise: suggestion.first30ChapterPromise,
       });
-      toast.success("已根据当前书名和概述填入书级 framing 建议。");
+      toast.success("已根据当前书名和概述填入读者与卖点建议。");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "书级 framing 自动填写失败，请稍后再试。");
+      toast.error(error instanceof Error ? error.message : "读者与卖点自动填写失败，请稍后再试。");
     },
   });
 
@@ -76,7 +76,7 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
       return;
     }
     if (hasExistingFramingContent(basicForm)) {
-      const confirmed = window.confirm("将用 AI 建议覆盖当前书级 framing 填写，是否继续？");
+      const confirmed = window.confirm("将用 AI 建议覆盖当前读者与卖点填写，是否继续？");
       if (!confirmed) {
         return;
       }

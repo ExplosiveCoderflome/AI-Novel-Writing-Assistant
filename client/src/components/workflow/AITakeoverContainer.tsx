@@ -47,32 +47,32 @@ function modeLabel(mode: AITakeoverMode): string {
 function shellClass(mode: AITakeoverMode): string {
   switch (mode) {
     case "loading":
-      return "border-slate-300/60 bg-slate-50/80";
+      return "bg-slate-50/80";
     case "failed":
-      return "border-destructive/35 bg-destructive/5";
+      return "bg-destructive/5";
     case "action_required":
-      return "border-orange-500/35 bg-orange-50/80";
+      return "bg-orange-50/80";
     case "waiting":
-      return "border-amber-500/35 bg-amber-50/80";
+      return "bg-amber-50/80";
     case "running":
     default:
-      return "border-sky-400/45 bg-sky-50/80";
+      return "bg-sky-50/80";
   }
 }
 
 function progressShellClass(mode: AITakeoverMode): string {
   switch (mode) {
     case "loading":
-      return "border-slate-300/60 bg-background/75";
+      return "bg-background/70";
     case "failed":
-      return "border-destructive/20 bg-destructive/[0.03]";
+      return "bg-background/65";
     case "action_required":
-      return "border-orange-500/20 bg-orange-500/[0.04]";
+      return "bg-background/65";
     case "waiting":
-      return "border-amber-500/20 bg-amber-500/[0.04]";
+      return "bg-background/65";
     case "running":
     default:
-      return "border-primary/20 bg-primary/[0.05] shadow-sm";
+      return "bg-background/70";
   }
 }
 
@@ -130,11 +130,12 @@ export default function AITakeoverContainer({
   const resolvedProgress = typeof progress === "number" ? normalizeProgressPercent(progress) : null;
 
   return (
-    <div className={cn("space-y-4 rounded-2xl border p-4", shellClass(mode))}>
+    <div className="space-y-4">
+      <div className={cn("rounded-2xl px-4 py-3", shellClass(mode))}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="text-base font-semibold text-foreground">{title}</div>
+            <div className="text-sm font-semibold text-foreground">{title}</div>
             <Badge variant={badgeVariant(mode)}>{modeLabel(mode)}</Badge>
             {taskId ? <Badge variant="outline">任务 #{taskId.slice(0, 8)}</Badge> : null}
           </div>
@@ -158,7 +159,7 @@ export default function AITakeoverContainer({
       </div>
 
       {resolvedProgress !== null ? (
-        <div className={cn("rounded-xl border p-3", progressShellClass(mode))}>
+        <div className={cn("mt-3 rounded-xl px-3 py-2", progressShellClass(mode))}>
           <div className="flex items-center justify-between gap-3 text-sm">
             <div className="flex min-w-0 items-center gap-2">
               {mode === "running" ? (
@@ -182,9 +183,9 @@ export default function AITakeoverContainer({
           {currentAction ? (
             <div
               className={cn(
-                "mt-3 text-sm",
+                "mt-2 text-sm",
                 mode === "running"
-                  ? "rounded-lg border border-primary/10 bg-background/80 px-3 py-2 text-foreground"
+                  ? "text-foreground"
                   : "text-foreground",
               )}
             >
@@ -196,6 +197,7 @@ export default function AITakeoverContainer({
           ) : null}
         </div>
       ) : null}
+      </div>
 
       {children ? <div>{children}</div> : null}
     </div>

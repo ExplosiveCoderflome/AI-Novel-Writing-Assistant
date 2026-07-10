@@ -1,5 +1,6 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { ImageGenerationOverrides, ImageGenerationPreview } from "@/api/comic";
 import { apiClient } from "./client";
 
 export type DramaSourceType = "novel_import" | "original" | "text_import";
@@ -486,9 +487,23 @@ export async function generateDramaShotKeyframe(
   shotId: string,
   provider?: string,
   useCharacterRefImages?: boolean,
+  overrides?: ImageGenerationOverrides,
 ) {
   const { data } = await apiClient.post<ApiResponse<DramaShotKeyframeData>>(
     `/drama/projects/${id}/shots/${shotId}/keyframe`,
+    { ...(provider ? { provider } : {}), ...(useCharacterRefImages ? { useCharacterRefImages } : {}), ...(overrides ?? {}) },
+  );
+  return data;
+}
+
+export async function prepareDramaShotKeyframe(
+  id: string,
+  shotId: string,
+  provider?: string,
+  useCharacterRefImages?: boolean,
+): Promise<ApiResponse<ImageGenerationPreview>> {
+  const { data } = await apiClient.post<ApiResponse<ImageGenerationPreview>>(
+    `/drama/projects/${id}/shots/${shotId}/keyframe/prepare`,
     { ...(provider ? { provider } : {}), ...(useCharacterRefImages ? { useCharacterRefImages } : {}) },
   );
   return data;
@@ -562,17 +577,39 @@ export async function getDramaCharacterImageStatus(id: string, characterId: stri
 }
 
 /** 生成角色设计稿（面部特写 + 三视图合图，推荐使用） */
-export async function generateDramaCharacterSheet(id: string, characterId: string, provider?: string) {
-  const { data } = await apiClient.post<ApiResponse<DramaCharacterPortraitData>>(
-    `/drama/projects/${id}/characters/${characterId}/generate-character-sheet`,
+export async function prepareDramaCharacterSheet(
+  id: string,
+  characterId: string,
+  provider?: string,
+): Promise<ApiResponse<ImageGenerationPreview>> {
+  const { data } = await apiClient.post<ApiResponse<ImageGenerationPreview>>(
+    `/drama/projects/${id}/characters/${characterId}/prepare-character-sheet`,
     provider ? { provider } : {},
   );
   return data;
 }
 
+export async function generateDramaCharacterSheet(
+  id: string,
+  characterId: string,
+  provider?: string,
+  overrides?: ImageGenerationOverrides,
+) {
+  const { data } = await apiClient.post<ApiResponse<DramaCharacterPortraitData>>(
+    `/drama/projects/${id}/characters/${characterId}/generate-character-sheet`,
+    { ...(provider ? { provider } : {}), ...(overrides ?? {}) },
+  );
+  return data;
+}
+
 /** @deprecated 使用 generateDramaCharacterSheet 替代 */
-export async function generateDramaCharacterPortrait(id: string, characterId: string, provider?: string) {
-  return generateDramaCharacterSheet(id, characterId, provider);
+export async function generateDramaCharacterPortrait(
+  id: string,
+  characterId: string,
+  provider?: string,
+  overrides?: ImageGenerationOverrides,
+) {
+  return generateDramaCharacterSheet(id, characterId, provider, overrides);
 }
 
 export async function generateDramaCharacterThreeView(id: string, characterId: string, provider?: string) {

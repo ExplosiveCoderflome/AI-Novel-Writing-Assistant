@@ -37,6 +37,7 @@ import {
   normalizeNovelWorkspaceTab,
   tabFromDirectorDisplayStage,
 } from "../novelWorkspaceNavigation";
+import { StepHero } from "./workspaceShell";
 
 export default function NovelEditView(props: NovelEditViewProps) {
   const isMobileViewport = useIsMobileViewport();
@@ -150,6 +151,13 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
   );
   const isTakeoverLoading = takeover?.mode === "loading";
   const hideTakeoverEntry = takeover?.mode === "running" || takeover?.mode === "waiting";
+  const workspaceTone = taskDrawer?.task?.status === "failed"
+    ? "danger"
+    : taskDrawer?.task?.status === "waiting_approval"
+      ? "warning"
+      : taskDrawer?.task?.status === "running" || taskDrawer?.task?.status === "queued"
+        ? "info"
+        : "neutral";
 
   const renderActivePanel = () => {
     switch (activeTab) {
@@ -175,29 +183,23 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
   };
 
   return (
-    <div className="space-y-6 lg:space-y-7">
+    <div className="space-y-5 lg:space-y-6">
       {id ? (
-        <div className="space-y-3 pb-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-3 text-sm">
-            <span className="truncate font-semibold text-foreground">{novelTitle}</span>
-            <span className="h-1 w-1 shrink-0 rounded-full bg-border" />
-            <span className="shrink-0 text-muted-foreground">{"\u5f53\u524d\u6b65\u9aa4\uff1a"}{currentStepLabel}</span>
-            {progressLabel ? (
-              <>
-                <span className="h-1 w-1 shrink-0 rounded-full bg-border" />
-                <span className="shrink-0 text-muted-foreground">{progressLabel}</span>
-              </>
-            ) : null}
-            <span className="h-1 w-1 shrink-0 rounded-full bg-border" />
-            <span className="shrink-0 text-muted-foreground">{"\u5f53\u524d\u9875\u9762\uff1a"}{currentPageLabel}</span>
-            {showWorkflowRecommendation && workflowStepLabel ? (
-              <>
-                <span className="h-1 w-1 shrink-0 rounded-full bg-border" />
-                <span className="shrink-0 text-sky-700">{"\u6d41\u7a0b\u63a8\u8350\uff1a\u5efa\u8bae\u5207\u6362\u5230 "}{workflowStepLabel}</span>
-              </>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
+        <StepHero
+          tone={workspaceTone}
+          eyebrow={(
+            <>
+              <span className="truncate font-semibold text-foreground">{novelTitle}</span>
+              {progressLabel ? <span>{progressLabel}</span> : null}
+              <span>当前页面：{currentPageLabel}</span>
+            </>
+          )}
+          title={currentStepLabel}
+          description={showWorkflowRecommendation && workflowStepLabel
+            ? `流程推荐：建议切换到「${workflowStepLabel}」继续推进。`
+            : "按当前步骤整理这本书的生产资产，需要时可以交给 AI 自动导演接管。"}
+          actions={(
+            <>
             {!hideTakeoverEntry ? (
               isTakeoverLoading ? (
                 <Button type="button" size="sm" disabled>
@@ -346,14 +348,15 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
             </Dialog>
 
             <Button
-              variant={taskDrawer?.task?.status === "failed" ? "destructive" : "outline"}
+              variant={taskDrawer?.task?.status === "failed" ? "destructive" : "secondary"}
               onClick={() => taskDrawer?.onOpenChange(true)}
             >
               执行详情
               {taskAttentionLabel ? <Badge variant="secondary">{taskAttentionLabel}</Badge> : null}
             </Button>
-          </div>
-        </div>
+            </>
+          )}
+        />
       ) : null}
 
       <div className="space-y-4 pt-1">

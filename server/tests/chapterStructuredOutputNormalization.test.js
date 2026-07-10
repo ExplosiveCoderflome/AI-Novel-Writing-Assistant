@@ -3,13 +3,76 @@ const assert = require("node:assert/strict");
 
 const {
   chapterAcceptanceAssessmentSchema,
+  chapterAcceptanceAssessmentPrompt,
 } = require("../dist/prompting/prompts/novel/chapterAcceptance.prompts.js");
 const {
   chapterArtifactDeltaOutputSchema,
 } = require("../dist/prompting/prompts/novel/chapterArtifactDelta.prompts.js");
 const {
+  characterResourceExtractionOutputSchema,
+} = require("../dist/prompting/prompts/novel/characterResource.promptSchemas.js");
+const {
   timelineExtractorOutputSchema,
 } = require("../dist/prompting/prompts/novel/timelineExtractor.prompts.js");
+
+function makeResourceDelta(index = 1) {
+  return {
+    resourceName: `关键资源${index}`,
+    resourceType: "credential",
+    updateType: "introduced",
+    holderCharacterName: "主角",
+    ownerType: "character",
+    ownerName: "主角",
+    statusAfter: "available",
+    readerKnows: true,
+    holderKnows: true,
+    knownByCharacterNames: ["主角"],
+    narrativeFunction: "key",
+    summary: `主角获得关键资源${index}。`,
+    narrativeImpact: "影响后续行动边界。",
+    evidence: [`主角收起关键资源${index}。`],
+    confidence: 0.9,
+    riskLevel: "low",
+  };
+}
+
+test("character resource extraction schemas cap resource deltas at eight items", () => {
+  const nineDeltas = Array.from({ length: 9 }, (_, index) => makeResourceDelta(index + 1));
+
+  assert.throws(() => {
+    characterResourceExtractionOutputSchema.parse({
+      updates: nineDeltas,
+      continuityRisks: [],
+    });
+  });
+
+  assert.throws(() => {
+    chapterArtifactDeltaOutputSchema.parse({
+      summary: "本章产生过多资源变化。",
+      stateDeltas: {
+        summary: "状态无变化。",
+        characterStates: [],
+        relationStates: [],
+        informationStates: [],
+        foreshadowStates: [],
+      },
+      characterResourceDeltas: nineDeltas,
+      payoffDeltas: [],
+      relationDynamics: [],
+      factionUpdates: [],
+      characterCandidates: [],
+      syncPlan: {
+        stateSnapshot: "skip",
+        characterResources: "write",
+        payoffLedger: "skip",
+        characterDynamics: "skip",
+        reason: "只测试资源上限。",
+      },
+      confidence: 0.9,
+      requiresFullReconcile: false,
+    });
+  });
+});
 
 test("chapter acceptance schema normalizes common review category and repair target aliases", () => {
   const parsed = chapterAcceptanceAssessmentSchema.parse({
@@ -53,6 +116,67 @@ test("chapter acceptance schema normalizes common review category and repair tar
   assert.equal(parsed.repairDirectives[1].target, "voice");
   assert.deepEqual(parsed.missingObligations, []);
   assert.equal(parsed.repairability, "none");
+});
+
+test("chapter acceptance schema normalizes common status aliases", () => {
+  const base = {
+    score: {
+      coherence: 85,
+      pacing: 80,
+      repetition: 88,
+      engagement: 82,
+      voice: 83,
+      overall: 84,
+    },
+    summary: "本章可以继续。",
+    blockingIssues: [],
+    repairDirectives: [],
+    missingObligations: [],
+    riskTags: [],
+    assetSyncRecommendation: {
+      priority: "normal",
+      reason: "普通同步即可。",
+      requiresFullPayoffReconcile: false,
+    },
+    continuePolicy: "continue",
+  };
+
+  assert.equal(chapterAcceptanceAssessmentSchema.parse({
+    ...base,
+    status: "acceptable",
+  }).status, "accepted");
+  assert.equal(chapterAcceptanceAssessmentSchema.parse({
+    ...base,
+    status: "repair",
+  }).status, "repairable");
+  assert.equal(chapterAcceptanceAssessmentSchema.parse({
+    ...base,
+    status: "manual",
+  }).status, "needs_manual_review");
+  assert.equal(chapterAcceptanceAssessmentSchema.parse({
+    ...base,
+    status: "proceed",
+  }).status, "continue_with_risk");
+});
+
+test("chapter acceptance prompt forbids status alias values", () => {
+  const messages = chapterAcceptanceAssessmentPrompt.render({
+    novelTitle: "测试小说",
+    chapterOrder: 1,
+    chapterTitle: "测试章节",
+    targetWordCount: 3000,
+    content: "主角完成本章任务。",
+  }, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+  const systemText = String(messages[0].content);
+
+  assert.match(systemText, /status 只能使用 accepted、repairable、needs_manual_review、continue_with_risk/);
+  assert.match(systemText, /不得输出 acceptable、pass、passed、ok、approved/);
 });
 
 test("chapter acceptance schema accepts obligation diagnostics", () => {

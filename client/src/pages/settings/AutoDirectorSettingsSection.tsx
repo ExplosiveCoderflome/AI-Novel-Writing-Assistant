@@ -3,12 +3,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getAutoDirectorApprovalPreferenceSettings,
   getAutoDirectorChannelSettings,
+  getPendingReviewAutoPromotionSettings,
   saveAutoDirectorApprovalPreferenceSettings,
   saveAutoDirectorChannelSettings,
+  savePendingReviewAutoPromotionSettings,
 } from "@/api/settings";
 import { queryKeys } from "@/api/queryKeys";
 import { AutoDirectorApprovalPreferenceCard } from "./AutoDirectorApprovalPreferenceCard";
+import { AutoDirectorBrowserNotificationSettingsCard } from "./AutoDirectorBrowserNotificationSettingsCard";
 import { AutoDirectorChannelSettingsCard } from "./AutoDirectorChannelSettingsCard";
+import { AutoDirectorPendingReviewAutoPromotionCard } from "./AutoDirectorPendingReviewAutoPromotionCard";
 import {
   buildAutoDirectorChannelDraft,
   type AutoDirectorChannelDraft,
@@ -30,9 +34,14 @@ export default function AutoDirectorSettingsSection(props: {
     queryKey: queryKeys.settings.autoDirectorApprovalPreferences,
     queryFn: getAutoDirectorApprovalPreferenceSettings,
   });
+  const pendingReviewAutoPromotionQuery = useQuery({
+    queryKey: queryKeys.settings.pendingReviewAutoPromotion,
+    queryFn: getPendingReviewAutoPromotionSettings,
+  });
 
   const autoDirectorChannels = autoDirectorChannelsQuery.data?.data;
   const approvalPreference = approvalPreferenceQuery.data?.data;
+  const pendingReviewAutoPromotion = pendingReviewAutoPromotionQuery.data?.data;
   const channelDraft = autoDirectorChannelDraft ?? buildAutoDirectorChannelDraft(autoDirectorChannels);
   const approvalCodes = approvalPreferenceDraft ?? approvalPreference?.approvalPointCodes ?? [];
 
@@ -64,6 +73,17 @@ export default function AutoDirectorSettingsSection(props: {
     },
   });
 
+  const savePendingReviewAutoPromotionMutation = useMutation({
+    mutationFn: savePendingReviewAutoPromotionSettings,
+    onSuccess: async (response) => {
+      onActionResult(response.message ?? "待确认状态自动放行设置已保存。");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.settings.pendingReviewAutoPromotion });
+    },
+    onError: (error) => {
+      onActionResult(error instanceof Error ? error.message : "保存待确认状态自动放行设置失败。");
+    },
+  });
+
   const patchChannelDraft = (
     channelType: "dingtalk" | "wecom",
     patch: Partial<(typeof channelDraft)["dingtalk"]>,
@@ -82,6 +102,8 @@ export default function AutoDirectorSettingsSection(props: {
 
   return (
     <>
+      <AutoDirectorBrowserNotificationSettingsCard onActionResult={onActionResult} />
+
       <AutoDirectorApprovalPreferenceCard
         settings={approvalPreference}
         draftCodes={approvalCodes}
@@ -90,6 +112,20 @@ export default function AutoDirectorSettingsSection(props: {
           approvalPointCodes: approvalCodes,
         })}
         isSaving={saveApprovalPreferenceMutation.isPending}
+      />
+
+      <AutoDirectorPendingReviewAutoPromotionCard
+        settings={pendingReviewAutoPromotion}
+        isLoading={pendingReviewAutoPromotionQuery.isLoading}
+        isSaving={savePendingReviewAutoPromotionMutation.isPending}
+        onEnable={(payload) => savePendingReviewAutoPromotionMutation.mutate({
+          enabled: true,
+          acknowledgedRisks: payload.acknowledgedRisks,
+          confirmationText: payload.confirmationText,
+        })}
+        onDisable={() => savePendingReviewAutoPromotionMutation.mutate({
+          enabled: false,
+        })}
       />
 
       <AutoDirectorChannelSettingsCard

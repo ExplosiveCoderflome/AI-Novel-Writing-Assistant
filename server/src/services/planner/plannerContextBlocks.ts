@@ -259,6 +259,7 @@ export function buildChapterPlanContextBlocks(input: {
   stateDrivenDirective: string;
   stateDrivenGoal: string;
   replanContext: string;
+  replanConflictLevelAnchors?: string;
   storyMacroSummary: string;
   currentVolumeWindow: string;
   payoffLedgerSummary: string;
@@ -450,7 +451,10 @@ export function buildChapterPlanContextBlocks(input: {
       id: "replan_context",
       group: "replan_context",
       priority: 84,
-      content: buildBlockContent("重规划输入", input.replanContext),
+      content: [
+        buildBlockContent("重规划输入", input.replanContext),
+        buildBlockContent("重规划紧张度锚定", input.replanConflictLevelAnchors ?? "无"),
+      ].join("\n"),
     }),
   ];
 }

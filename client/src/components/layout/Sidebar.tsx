@@ -133,6 +133,21 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const failedIndexCount = knowledgeDocuments.filter((item) => item.latestIndexStatus === "failed").length;
 
   const renderBadge = (to: string) => {
+    if (to === "/comic") {
+      if (collapsed) {
+        return null;
+      }
+      return (
+        <Badge
+          variant="outline"
+          className="ml-auto h-5 border-amber-300 bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700"
+          title="漫画工作台仍在 Beta 阶段"
+        >
+          Beta
+        </Badge>
+      );
+    }
+
     if (to === "/tasks") {
       if (runningTaskCount <= 0 && failedTaskCount <= 0) {
         return null;

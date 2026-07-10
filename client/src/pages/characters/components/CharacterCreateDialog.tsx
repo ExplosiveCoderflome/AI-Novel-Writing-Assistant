@@ -8,6 +8,7 @@ import { queryKeys } from "@/api/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import SelectControl from "@/components/common/SelectControl";
 
 function createDefaultConstraints(): CharacterGenerateConstraints {
   return {
@@ -170,7 +171,7 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                 <div className="grid gap-2 md:grid-cols-2">
                   <label className="space-y-1 text-sm">
                     <div className="text-xs text-muted-foreground">角色功能位</div>
-                    <select
+                    <SelectControl
                       className="h-10 w-full rounded-md border bg-background px-2 text-sm"
                       value={constraints.storyFunction ?? ""}
                       onChange={(event) =>
@@ -185,12 +186,12 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                       <option value="导师">导师</option>
                       <option value="对照组">对照组</option>
                       <option value="配角">配角</option>
-                    </select>
+                    </SelectControl>
                   </label>
 
                   <label className="space-y-1 text-sm">
                     <div className="text-xs text-muted-foreground">成长阶段</div>
-                    <select
+                    <SelectControl
                       className="h-10 w-full rounded-md border bg-background px-2 text-sm"
                       value={constraints.growthStage ?? ""}
                       onChange={(event) =>
@@ -205,7 +206,7 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                       <option value="转折">转折</option>
                       <option value="觉醒">觉醒</option>
                       <option value="收束">收束</option>
-                    </select>
+                    </SelectControl>
                   </label>
 
                   <input

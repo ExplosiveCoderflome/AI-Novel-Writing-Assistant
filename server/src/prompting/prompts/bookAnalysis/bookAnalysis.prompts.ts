@@ -10,7 +10,11 @@ import {
   bookAnalysisOptimizeDraftOutputSchema,
   bookAnalysisSectionOutputSchema,
   bookAnalysisSourceNoteOutputSchema,
-} from "../../../services/bookAnalysis/bookAnalysisSchemas";
+} from "../../../services/bookAnalysis/shared/bookAnalysisSchemas";
+import {
+  BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT,
+  BOOK_ANALYSIS_TIMELINE_NODE_LIMIT,
+} from "../../../services/bookAnalysis/shared/bookAnalysis.utils";
 
 export interface BookAnalysisSourceNotePromptInput {
   segmentLabel: string;
@@ -21,6 +25,9 @@ export interface BookAnalysisSectionPromptInput {
   sectionKey: BookAnalysisSectionKey;
   sectionTitle: string;
   promptFocus: string;
+  overviewContextText?: string;
+  userFocusInstructionText?: string;
+  sectionFocusInstructionText?: string;
   notesText: string;
 }
 
@@ -50,16 +57,31 @@ function buildSectionStructuredDataContract(sectionKey: BookAnalysisSectionKey):
     ].join("\n\n");
   }
 
-  const structureExample = specs.reduce<Record<string, string | string[]>>((acc, field) => {
+  const structureExample = specs.reduce<Record<string, unknown>>((acc, field) => {
     const label = BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[field.key] ?? field.key;
-    acc[field.key] = field.type === "string" ? label : [label];
+    if (field.type === "string") {
+      acc[field.key] = label;
+    } else if (field.type === "timelineNodeArray") {
+      acc[field.key] = [{
+        label,
+        timeHint: "时间提示，可省略",
+        phase: "阶段标签，可省略",
+        sourceRefs: ["片段标签，可省略"],
+      }];
+    } else {
+      acc[field.key] = [label];
+    }
     return acc;
   }, {});
   const stringFields = specs.filter((field) => field.type === "string").map((field) => field.key);
   const arrayFields = specs.filter((field) => field.type === "stringArray").map((field) => field.key);
+  const timelineNodeFields = specs.filter((field) => field.type === "timelineNodeArray").map((field) => field.key);
   const typeRules = [
     stringFields.length > 0 ? `${stringFields.join("、")} 为字符串。` : "",
     arrayFields.length > 0 ? `${arrayFields.join("、")} 为字符串数组。` : "",
+    timelineNodeFields.length > 0
+      ? `${timelineNodeFields.join("、")} 为时间线节点数组；每项必须有 label，可选 timeHint、phase、sourceRefs。`
+      : "",
   ].filter(Boolean).join(" ");
   const extraRules: Partial<Record<BookAnalysisSectionKey, string[]>> = {
     overview: [
@@ -67,6 +89,10 @@ function buildSectionStructuredDataContract(sectionKey: BookAnalysisSectionKey):
     ],
     market_highlights: [
       "targetReaderMatches 允许基于题材、卖点与读者信号做低风险匹配判断，但不要伪装成精确人群画像。",
+    ],
+    timeline: [
+      "timeNodes 与 eventOrder 使用节点对象数组，不要退回字符串数组；label 写事件或节点本身，timeHint 写相对或绝对时间提示，phase 写所属阶段。",
+      "sourceRefs 只能填写 notes 中已经出现的 sourceLabel；如果无法确定来源片段，可省略 sourceRefs，不要虚构片段名。",
     ],
   };
 
@@ -221,7 +247,7 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "{",
       '  "markdown": "给用户展示的 Markdown 分析稿",',
       '  "structuredData": {},',
-      '  "evidence": [{ "label": "...", "excerpt": "...", "sourceLabel": "..." }]',
+      '  "evidence": [{ "label": "...", "excerpt": "...", "sourceLabel": "...", "fieldKey": "...", "fieldIndex": 0, "chapterIndex": 0, "excerptOffsetRange": { "start": 0, "end": 10 } }]',
       "}",
       "",
       "全局硬规则：",
@@ -232,6 +258,8 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "5. 只有在 notes 的支撑明显不够时，才写“材料不足”或“现有笔记无法支持更强判断”；不要一遇到需要归纳就机械回避。",
       "6. 分析应优先抓最关键、最能支撑结论的信息，不要平均铺开，不要把同一观点换说法重复表达。",
       "7. markdown、structuredData、evidence 三部分必须相互一致，不得互相矛盾。",
+      "8. 如果用户消息提供“整本定位（来自总览小节）”，应把它作为当前小节的口径锚点，用于保持作品定位、题材、卖点和短板判断一致；但具体结论仍必须由当前小节 notes 支撑。",
+      "9. 如果用户消息提供拆书关注点，应把它作为筛选和表达优先级；但关注点不能覆盖证据约束、固定结构和当前小节职责。",
       "",
       buildSectionMarkdownRequirements(input.sectionKey, input.sectionTitle, input.promptFocus),
       "",
@@ -241,8 +269,9 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "补充约束：",
       "1. structuredData 必须更适合作为程序读取、筛选、展示和复用的数据层，不要把 markdown 大段分析原样搬进去。",
       "2. 若某项信息依据不足，字符串字段返回空字符串，数组字段返回空数组；不要省略字段，不要返回 null，不要自造近义键名。",
-      "3. 数组项使用简洁中文短语，避免长解释；数组内避免同义重复。",
-      "4. 输出时尽量保持字段顺序与约定结构一致。",
+      `3. 普通字符串数组字段最多保留 ${BOOK_ANALYSIS_STRUCTURED_ARRAY_LIMIT} 项；时间线节点数组最多保留 ${BOOK_ANALYSIS_TIMELINE_NODE_LIMIT} 项；如可用信息更多，请按重要度和叙事顺序筛选保留。`,
+      "4. 数组项使用简洁中文短语，避免长解释；数组内避免同义重复。",
+      "5. 输出时尽量保持字段顺序与约定结构一致。",
       "",
       "evidence 规则：",
       "1. evidence 只保留最能支撑结论的 3-8 条证据。",
@@ -251,6 +280,10 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "4. sourceLabel 必须尽量对应具体片段标签。",
       "5. 如果某条结论无法找到足够依据，就降低结论强度，而不是硬补证据。",
       "6. 不要让多条 evidence 反复证明同一件事，优先保留覆盖面更广、信息量更高的证据。",
+      "7. 每条 evidence 必须设置 fieldKey，指向本节 structuredData 的具体字段；fieldKey 必须来自本节固定结构，不得自创键名。",
+      "8. 字符串字段省略 fieldIndex；数组字段必须设置 fieldIndex，使用 0-based 下标指向对应数组项。",
+      "9. 如果能从 notes 的片段标签或摘录位置判断章节，可设置 chapterIndex；如果不能可靠判断，可省略，后端会做补充匹配。",
+      "10. excerptOffsetRange 表示摘录在源文档中的 0-based 字符区间；只有非常确定时才填写，不确定就省略。",
     ].join("\n")),
     new HumanMessage([
       `请基于以下结构化笔记生成《${input.sectionTitle}》分析稿。`,
@@ -258,6 +291,26 @@ export const bookAnalysisSectionPrompt: PromptAsset<
       "分析重点：",
       input.promptFocus,
       "",
+      ...(input.overviewContextText?.trim()
+        ? [
+            input.overviewContextText.trim(),
+            "",
+          ]
+        : []),
+      ...(input.userFocusInstructionText?.trim()
+        ? [
+            "本次拆书重点关注：",
+            input.userFocusInstructionText.trim(),
+            "",
+          ]
+        : []),
+      ...(input.sectionFocusInstructionText?.trim()
+        ? [
+            "本节特别关注：",
+            input.sectionFocusInstructionText.trim(),
+            "",
+          ]
+        : []),
       "可用 notes：",
       input.notesText,
     ].join("\n")),

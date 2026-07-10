@@ -1,15 +1,17 @@
 import type { ReactNode } from "react";
+import { CircleHelp } from "lucide-react";
 import type { BasicInfoOption } from "../../novelBasicInfo.shared";
+import { cn } from "@/lib/utils";
 
 export function HelpHint({ text }: { text: string }) {
   return (
     <button
       type="button"
-      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-muted-foreground/30 text-[11px] font-semibold text-muted-foreground transition hover:border-primary hover:text-primary"
+      className="inline-flex h-4 w-4 items-center justify-center text-muted-foreground/70 transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       title={text}
       aria-label={text}
     >
-      ?
+      <CircleHelp className="h-3.5 w-3.5" />
     </button>
   );
 }
@@ -37,13 +39,21 @@ export function SectionBlock({
   title,
   description,
   children,
+  surface = "muted",
+  className,
 }: {
   title: string;
   description: string;
   children: ReactNode;
+  surface?: "muted" | "none";
+  className?: string;
 }) {
   return (
-    <section className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+    <section className={cn(
+      "space-y-4",
+      surface === "muted" ? "rounded-lg bg-muted/15 px-4 py-5" : null,
+      className,
+    )}>
       <div className="space-y-1">
         <div className="text-sm font-semibold text-foreground">{title}</div>
         <div className="text-xs leading-5 text-muted-foreground">{description}</div>
@@ -66,10 +76,10 @@ export function SelectionCard<T extends string>({
     <button
       type="button"
       onClick={() => onSelect(option.value)}
-      className={`rounded-xl border p-3 text-left transition ${
+      className={`rounded-lg p-3 text-left transition ring-1 ${
         selected
-          ? "border-primary bg-primary/8 shadow-sm"
-          : "border-border/70 bg-background hover:border-primary/40 hover:bg-primary/5"
+          ? "bg-primary/8 ring-primary/35"
+          : "bg-background/70 ring-border/20 hover:bg-background hover:ring-primary/25"
       }`}
     >
       <div className="flex items-center justify-between gap-2">

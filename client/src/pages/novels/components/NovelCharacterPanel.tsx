@@ -19,7 +19,6 @@ import type { CharacterResourceLedgerItem } from "@ai-novel/shared/types/charact
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +31,8 @@ import CharacterAssetWorkspace from "./CharacterAssetWorkspace";
 import CharacterDiagnosticsSection from "./CharacterDiagnosticsSection";
 import type { QuickCharacterCreatePayload } from "./characterPanel.utils";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
+import { StatusRail, StepActionBar, StepHero } from "./workspaceShell";
+import SelectControl from "@/components/common/SelectControl";
 
 interface QuickCharacterFormState {
   name: string;
@@ -335,42 +336,24 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
       />
       {characterMessage ? <div className="text-sm text-muted-foreground">{characterMessage}</div> : null}
 
-      <Card className="overflow-hidden border-border/70 bg-gradient-to-br from-background via-background to-muted/30">
-        <CardContent className="space-y-5 p-5">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
-            <div className="space-y-2">
-              <div className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
-                Character Prep
-              </div>
-              <div className="text-2xl font-semibold tracking-tight text-foreground">
-                日常主区只保留角色资产
-              </div>
-              <div className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                新增角色和阵容重建都属于阶段性动作，不应该长期挤占角色页主区。这里把它们降成按需入口，把主要空间还给角色资产编辑。
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">已建角色</div>
-                <div className="mt-2 text-2xl font-semibold">{characters.length}</div>
-                <div className="mt-1 text-xs text-muted-foreground">先把推动主线的人物占位补齐。</div>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">核心角色</div>
-                <div className="mt-2 text-2xl font-semibold">{coreCharacterCount}</div>
-                <div className="mt-1 text-xs text-muted-foreground">至少明确主角与主要对手。</div>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">当前焦点</div>
-                <div className="mt-2 text-base font-semibold">{selectedCharacter?.name ?? "尚未选择角色"}</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {selectedCharacter?.role || `${baseCharacters.length} 个基础角色可导入`}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/70 bg-background/70 p-3">
+      <StepHero
+        eyebrow="角色阵容"
+        title="角色准备"
+        description="先看角色阵容是否能支撑主线，再维护当前角色资产；新增、导入和补位作为阶段性动作按需使用。"
+      >
+        <StatusRail
+          items={[
+            { label: "已建角色", value: characters.length, description: "先把推动主线的人物占位补齐。", tone: characters.length > 0 ? "success" : "warning" },
+            { label: "核心角色", value: coreCharacterCount, description: "至少明确主角与主要对手。", tone: coreCharacterCount > 0 ? "success" : "warning" },
+            { label: "当前焦点", value: selectedCharacter?.name ?? "尚未选择角色", description: selectedCharacter?.role || `${baseCharacters.length} 个基础角色可导入`, tone: selectedCharacter ? "info" : "neutral" },
+          ]}
+        />
+        <StepActionBar
+          className="mt-4 bg-background/70"
+          label="角色动作"
+          description="日常编辑建议直接在下方角色资产工作台里处理。"
+          actions={(
+            <>
             <Button onClick={() => setIsCharacterEntryOpen(true)}>新增角色</Button>
             <AiButton variant="outline" onClick={handleOpenSupplementalDialog}>
               补充角色
@@ -389,13 +372,10 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
             >
               {isGeneratingVisibleProfile ? "生成中..." : "AI 补全外显资料"}
             </AiButton>
-            <Badge variant="outline">低频入口：新增角色 / 导入角色 / 补充角色</Badge>
-            <div className="text-xs text-muted-foreground">
-              日常编辑建议直接在下方“角色资产工作台”里处理。
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </>
+          )}
+        />
+      </StepHero>
 
       <Dialog open={isCharacterEntryOpen} onOpenChange={setIsCharacterEntryOpen}>
         <DialogContent className="max-w-2xl">
@@ -418,7 +398,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                 value={quickCharacterForm.name}
                 onChange={(event) => onQuickCharacterFormChange("name", event.target.value)}
               />
-              <select
+              <SelectControl
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={quickCharacterForm.role}
                 onChange={(event) => onQuickCharacterFormChange("role", event.target.value)}
@@ -429,7 +409,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                 <option value="导师">导师</option>
                 <option value="情感线">情感线</option>
                 <option value="功能角色">功能角色</option>
-              </select>
+              </SelectControl>
               <Input
                 placeholder="与主角关系（如：试探合作）"
                 value={relationToProtagonist}
@@ -467,7 +447,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
               </div>
               {baseCharacters.length > 0 ? (
                 <>
-                  <select
+                  <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={selectedBaseCharacterId}
                     onChange={(event) => onSelectedBaseCharacterChange(event.target.value)}
@@ -477,7 +457,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                         {character.name}（{character.role}）
                       </option>
                     ))}
-                  </select>
+                  </SelectControl>
                   {selectedBaseCharacter ? (
                     <div className="space-y-2 rounded-xl border bg-muted/20 p-3">
                       <div className="flex items-center justify-between gap-2">
@@ -533,7 +513,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                   默认推荐“AI 判断”，只有你很确定要补哪类人时再手动指定。
                 </div>
               </div>
-              <select
+              <SelectControl
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={supplementalMode}
                 onChange={(event) => setSupplementalMode(event.target.value as SupplementalCharacterGenerationMode)}
@@ -541,7 +521,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                 <option value="auto">AI 判断当前更需要哪种补位</option>
                 <option value="linked">基于现有角色衍生关系角色</option>
                 <option value="independent">生成相对独立角色</option>
-              </select>
+              </SelectControl>
 
               {characters.length > 0 && supplementalMode !== "independent" ? (
                 <div className="space-y-2">
@@ -570,7 +550,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-2">
                   <div className="font-medium">期望角色功能</div>
-                  <select
+                  <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={supplementalTargetRole}
                     onChange={(event) => setSupplementalTargetRole(event.target.value as CharacterCastRole | "auto")}
@@ -584,11 +564,11 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                     <option value="love_interest">情感牵引</option>
                     <option value="pressure_source">压力源</option>
                     <option value="catalyst">催化者</option>
-                  </select>
+                  </SelectControl>
                 </div>
                 <div className="space-y-2">
                   <div className="font-medium">生成数量</div>
-                  <select
+                  <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={supplementalCount}
                     onChange={(event) => setSupplementalCount(event.target.value as "auto" | "1" | "2" | "3")}
@@ -597,7 +577,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                     <option value="1">1 个</option>
                     <option value="2">2 个</option>
                     <option value="3">3 个</option>
-                  </select>
+                  </SelectControl>
                 </div>
               </div>
 

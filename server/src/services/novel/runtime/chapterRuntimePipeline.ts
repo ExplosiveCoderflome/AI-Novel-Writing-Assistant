@@ -1,4 +1,5 @@
 import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
+import type { ContentProvenance } from "@ai-novel/shared/types/canonicalState";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { QualityScore, ReviewIssue } from "@ai-novel/shared/types/novel";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
@@ -57,6 +58,13 @@ export interface QualityDebtAttribution {
   missingObligationKinds: string[];
   /** 已消耗的 Director 预算操作（由外层 Director 写入） */
   budgetActionsConsumed?: Array<"patch_repair" | "chapter_rewrite" | "window_replan">;
+  /** 章节质量债务导致的提案降级路由，用于后续复核入口聚合。 */
+  degradedProposalRouting?: {
+    contentProvenance: "debt";
+    routedToPendingReview: true;
+    proposalTypes: Array<"character_state_update" | "character_resource_update">;
+    fields: Array<"currentState" | "currentGoal" | "characterResource">;
+  };
 }
 
 export interface PipelineRuntimeResult {
@@ -115,7 +123,10 @@ interface RunPipelineChapterDeps {
     novelId: string,
     chapterId: string,
     content: string,
-    options?: { artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"] },
+    options?: {
+      artifactSyncMode?: PipelineRuntimeInput["artifactSyncMode"];
+      contentProvenance?: ContentProvenance;
+    },
   ) => Promise<void>;
   finalizeChapterContent: (input: {
     novelId: string;
@@ -214,7 +225,7 @@ export async function runPipelineChapterWithRuntime(
     }
 
     if (!autoReview) {
-      await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, content, artifactSyncMode);
+      await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, content, artifactSyncMode, "confirmed");
       if (deps.finalizeChapterTimeline) {
         await deps.finalizeChapterTimeline({
           novelId,
@@ -332,7 +343,15 @@ export async function runPipelineChapterWithRuntime(
     throw new Error("Pipeline chapter runtime did not produce a result.");
   }
 
-  await syncFinalRetainedChapterArtifacts(deps, novelId, chapterId, latestResult.finalContent, artifactSyncMode);
+  const contentProvenance: ContentProvenance = pass ? "confirmed" : "debt";
+  await syncFinalRetainedChapterArtifacts(
+    deps,
+    novelId,
+    chapterId,
+    latestResult.finalContent,
+    artifactSyncMode,
+    contentProvenance,
+  );
   
   if (!pass && shouldFinalizeDegradedForDeferredQualityDebt(latestResult.runtimePackage)) {
     if (deps.finalizeChapterTimeline) {
@@ -443,11 +462,15 @@ async function syncFinalRetainedChapterArtifacts(
   chapterId: string,
   content: string,
   artifactSyncMode: PipelineRuntimeInput["artifactSyncMode"],
+  contentProvenance: ContentProvenance,
 ): Promise<void> {
   if (!content.trim()) {
     return;
   }
-  await deps.syncFinalChapterArtifacts(novelId, chapterId, content, { artifactSyncMode });
+  await deps.syncFinalChapterArtifacts(novelId, chapterId, content, {
+    artifactSyncMode,
+    contentProvenance,
+  });
 }
 
 function isQualityPass(score: QualityScore, qualityThreshold: number): boolean {
@@ -642,6 +665,12 @@ function buildQualityDebtAttribution(input: {
     planMisaligned,
     lengthVsContentDrift,
     missingObligationKinds: firstMissingObligationKinds,
+    degradedProposalRouting: {
+      contentProvenance: "debt",
+      routedToPendingReview: true,
+      proposalTypes: ["character_state_update", "character_resource_update"],
+      fields: ["currentState", "currentGoal", "characterResource"],
+    },
   };
 }
 

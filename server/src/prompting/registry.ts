@@ -58,6 +58,34 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/bookAnalysis/bookAnalysis.prompts").bookAnalysisOptimizedDraftPrompt as UnknownPromptAsset,
   },
   {
+    key: "bookAnalysis.chapter.split@v1",
+    load: () => require("./prompts/bookAnalysis/bookAnalysisChapter.prompts").bookAnalysisChapterSplitPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "bookAnalysis.character.identify@v1",
+    load: () => require("./prompts/bookAnalysis/bookAnalysisCharacter.prompts").bookAnalysisCharacterIdentifyPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "bookAnalysis.character.profile@v1",
+    load: () => require("./prompts/bookAnalysis/bookAnalysisCharacter.prompts").bookAnalysisCharacterProfilePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "bookAnalysis.character.generate@v1",
+    load: () => require("./prompts/bookAnalysis/bookAnalysisCharacter.prompts").bookAnalysisCharacterGeneratePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "bookAnalysis.character.appearance.snapshot@v1",
+    load: () => require("./prompts/bookAnalysis/bookAnalysisCharacter.prompts").bookAnalysisCharacterAppearanceSnapshotPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "bookAnalysis.character.appearance.consolidate@v1",
+    load: () => require("./prompts/bookAnalysis/bookAnalysisCharacter.prompts").bookAnalysisCharacterAppearanceConsolidatePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "bookAnalysis.character.appearance.merge@v1",
+    load: () => require("./prompts/bookAnalysis/bookAnalysisCharacter.prompts").bookAnalysisCharacterAppearanceMergePrompt as UnknownPromptAsset,
+  },
+  {
     key: "character.base.skeleton@v1",
     load: () => require("./prompts/character/character.prompts").baseCharacterSkeletonPrompt as UnknownPromptAsset,
   },
@@ -72,6 +100,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   {
     key: "image.character.prompt_optimize@v1",
     load: () => require("./prompts/image/image.prompts").imageCharacterPromptOptimizePrompt as UnknownPromptAsset,
+  },
+  {
+    key: "image.generation_prompt.assist@v1",
+    load: () => require("./prompts/image/image.prompts").imageGenerationPromptAssistPrompt as UnknownPromptAsset,
   },
   {
     key: "image.novel_cover.brief@v1",
@@ -156,6 +188,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   {
     key: "planner.replan.window_decision@v1",
     load: () => require("./prompts/planner/replanWindowDecision.prompts").replanWindowDecisionPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "rag.contextual_chunk.prefix@v1",
+    load: () => require("./prompts/rag/contextualChunk.prompts").ragContextualChunkPrompt as UnknownPromptAsset,
   },
   {
     key: "novel.director.candidates@v1",

@@ -55,6 +55,7 @@ export class NovelSourceAdapter implements SourceContentPort {
         select: {
           id: true,
           name: true,
+          gender: true,
           role: true,
           personality: true,
           background: true,
@@ -84,6 +85,7 @@ export class NovelSourceAdapter implements SourceContentPort {
 
     const bundleCharacters: SourceCharacter[] = characters.map((character) => ({
       name: character.name,
+      gender: character.gender as "male" | "female" | "other" | "unknown" | undefined,
       persona: [character.role, character.personality].filter(Boolean).join("｜") || undefined,
       relations: character.background ?? undefined,
       visualHint: [

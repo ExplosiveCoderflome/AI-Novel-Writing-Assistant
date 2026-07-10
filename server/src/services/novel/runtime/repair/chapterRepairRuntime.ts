@@ -184,7 +184,8 @@ function buildRepairRagContext(input: {
           "资源事实：",
           ...writeContext.characterResourceContext.availableItems.slice(0, 4).map((item) => `- 可用：${item.name} / ${item.summary}`),
           ...writeContext.characterResourceContext.blockedItems.slice(0, 4).map((item) => `- 不可直接使用：${item.name} / ${item.status} / ${item.summary}`),
-          ...writeContext.characterResourceContext.pendingReviewItems.slice(0, 3).map((item) => `- 待确认：${item.name} / ${item.summary}`),
+          ...writeContext.characterResourceContext.highRiskCommittedItems.slice(0, 3).map((item) => `- 高风险已入账：${item.name} / ${item.summary}`),
+          ...writeContext.characterResourceContext.pendingProposalItems.slice(0, 3).map((item) => `- 未确认变更：${item.summary}；确认前不要写成已发生事实`),
         ].join("\n")
       : "",
   ].filter((item) => item.trim().length > 0);

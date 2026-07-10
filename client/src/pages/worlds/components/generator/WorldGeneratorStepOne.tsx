@@ -8,6 +8,7 @@ import type {
   WorldGeneratorConceptCard,
 } from "./worldGeneratorShared";
 import { REFERENCE_MODE_OPTIONS } from "./worldGeneratorShared";
+import SelectControl from "@/components/common/SelectControl";
 
 const INSPIRATION_MODE_CARDS: Array<{
   value: InspirationMode;
@@ -139,7 +140,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
             题材基底决定世界的读者预期、力量规则和常见冲突。
           </div>
         </div>
-        <select
+        <SelectControl
           className="w-full rounded-md border bg-background p-2 text-sm"
           value={selectedGenreId}
           disabled={genreLoading || genreOptions.length === 0}
@@ -151,7 +152,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
               {genre.path}
             </option>
           ))}
-        </select>
+        </SelectControl>
         {selectedGenre ? (
           <div className="rounded-md border p-3 text-xs text-muted-foreground space-y-1">
             <div>当前题材基底路径：{selectedGenre.path}</div>
@@ -207,7 +208,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
 
           <div className="rounded-md border p-3 text-sm space-y-2">
             <div className="font-medium">参考方式</div>
-            <select
+            <SelectControl
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={referenceMode}
               onChange={(event) => onReferenceModeChange(event.target.value as WorldReferenceMode)}
@@ -217,7 +218,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
                   {option.label}
                 </option>
               ))}
-            </select>
+            </SelectControl>
             <div className="text-xs text-muted-foreground">
               {REFERENCE_MODE_OPTIONS.find((item) => item.value === referenceMode)?.description}
             </div>
@@ -286,7 +287,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-2">
               <div className="font-medium">属性细化程度</div>
-              <select
+              <SelectControl
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={optionRefinementLevel}
                 onChange={(event) => onOptionRefinementLevelChange(event.target.value as WorldOptionRefinementLevel)}
@@ -294,7 +295,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
                 <option value="basic">基础</option>
                 <option value="standard">标准</option>
                 <option value="detailed">详细</option>
-              </select>
+              </SelectControl>
             </div>
             <div className="space-y-2">
               <div className="font-medium">世界属性数量</div>

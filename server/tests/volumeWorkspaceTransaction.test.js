@@ -78,6 +78,7 @@ test("persistActiveVolumeWorkspace updates existing planning rows instead of rec
             summary: "旧章节摘要",
             purpose: null,
             conflictLevel: null,
+            conflictLevelSource: null,
             revealLevel: null,
             targetWordCount: null,
             mustAvoid: null,
@@ -92,6 +93,7 @@ test("persistActiveVolumeWorkspace updates existing planning rows instead of rec
             summary: "旧章摘要",
             purpose: null,
             conflictLevel: null,
+            conflictLevelSource: null,
             revealLevel: null,
             targetWordCount: null,
             mustAvoid: null,
@@ -214,4 +216,207 @@ test("persistActiveVolumeWorkspace updates existing planning rows instead of rec
   assert.ok(calls.some(([name, args]) => name === "volumeChapterPlan.update" && args.where.id === "chapter-1"));
   assert.ok(calls.some(([name, args]) => name === "volumeChapterPlan.deleteMany" && args.where.id.in.includes("chapter-stale")));
   assert.ok(!calls.some(([name, args]) => name === "volumePlan.deleteMany" && args.where?.novelId === "novel-1"));
+});
+
+function createVolumeWorkspaceTx(existingChapter, calls) {
+  return {
+    volumePlan: {
+      findMany: async () => ([{
+        id: "volume-1",
+        sortOrder: 1,
+        title: "第一卷",
+        summary: "卷摘要",
+        mainPromise: null,
+        escalationMode: null,
+        protagonistChange: null,
+        climax: null,
+        nextVolumeHook: null,
+        resetPoint: null,
+        openPayoffsJson: "[]",
+        status: "active",
+        sourceVersionId: "version-1",
+        chapters: [existingChapter],
+      }]),
+      update: async (args) => calls.push(["volumePlan.update", args]),
+      deleteMany: async (args) => calls.push(["volumePlan.deleteMany", args]),
+    },
+    volumeChapterPlan: {
+      create: async (args) => calls.push(["volumeChapterPlan.create", args]),
+      update: async (args) => calls.push(["volumeChapterPlan.update", args]),
+      deleteMany: async (args) => calls.push(["volumeChapterPlan.deleteMany", args]),
+    },
+    novel: {
+      update: async (args) => calls.push(["novel.update", args]),
+    },
+    storyPlan: {
+      deleteMany: async (args) => calls.push(["storyPlan.deleteMany", args]),
+      findFirst: async () => null,
+      create: async (args) => calls.push(["storyPlan.create", args]),
+      update: async (args) => calls.push(["storyPlan.update", args]),
+    },
+  };
+}
+
+function createVolumeWorkspaceDocument(chapterOverrides = {}) {
+  return {
+    novelId: "novel-1",
+    workspaceVersion: "v2",
+    volumes: [{
+      id: "volume-1",
+      novelId: "novel-1",
+      sortOrder: 1,
+      title: "第一卷",
+      summary: "卷摘要",
+      openingHook: null,
+      mainPromise: null,
+      primaryPressureSource: null,
+      coreSellingPoint: null,
+      escalationMode: null,
+      protagonistChange: null,
+      midVolumeRisk: null,
+      climax: null,
+      payoffType: null,
+      nextVolumeHook: null,
+      resetPoint: null,
+      openPayoffs: [],
+      status: "active",
+      sourceVersionId: null,
+      chapters: [{
+        id: "chapter-1",
+        volumeId: "volume-1",
+        chapterId: null,
+        chapterOrder: 1,
+        beatKey: null,
+        title: "第一章",
+        summary: "更新后的章节摘要",
+        purpose: null,
+        exclusiveEvent: null,
+        endingState: null,
+        nextChapterEntryState: null,
+        revealLevel: null,
+        targetWordCount: null,
+        mustAvoid: null,
+        taskSheet: null,
+        sceneCards: null,
+        styleContract: null,
+        payoffRefs: [],
+        createdAt: new Date(0).toISOString(),
+        updatedAt: new Date(0).toISOString(),
+        ...chapterOverrides,
+      }],
+      createdAt: new Date(0).toISOString(),
+      updatedAt: new Date(0).toISOString(),
+    }],
+    strategyPlan: null,
+    critiqueReport: null,
+    beatSheets: [],
+    rebalanceDecisions: [],
+    readiness: {
+      canGenerateStrategy: true,
+      canGenerateSkeleton: false,
+      canGenerateBeatSheet: false,
+      canGenerateChapterList: false,
+      blockingReasons: [],
+    },
+    derivedOutline: "outline",
+    derivedStructuredOutline: "structured",
+    source: "volume",
+    activeVersionId: "version-1",
+  };
+}
+
+function createExistingVolumeChapter(overrides = {}) {
+  return {
+    id: "chapter-1",
+    volumeId: "volume-1",
+    chapterId: null,
+    chapterOrder: 1,
+    title: "第一章",
+    summary: "旧章节摘要",
+    purpose: null,
+    conflictLevel: 72,
+    conflictLevelSource: "user",
+    revealLevel: null,
+    targetWordCount: null,
+    mustAvoid: null,
+    taskSheet: null,
+    sceneCards: null,
+    payoffRefsJson: "[]",
+    ...overrides,
+  };
+}
+
+test("persistActiveVolumeWorkspace keeps existing conflict level when the draft omits the field", async () => {
+  const {
+    persistActiveVolumeWorkspace,
+  } = require("../dist/services/novel/volume/volumeWorkspacePersistence.js");
+  const calls = [];
+  const tx = createVolumeWorkspaceTx(createExistingVolumeChapter(), calls);
+
+  await persistActiveVolumeWorkspace(tx, "novel-1", createVolumeWorkspaceDocument(), "version-1");
+
+  const updateCall = calls.find(([name, args]) => name === "volumeChapterPlan.update" && args.where.id === "chapter-1");
+  assert.ok(updateCall, "chapter should still update non-conflict fields");
+  assert.equal(Object.prototype.hasOwnProperty.call(updateCall[1].data, "conflictLevel"), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(updateCall[1].data, "conflictLevelSource"), false);
+});
+
+test("persistActiveVolumeWorkspace does not let AI conflict levels overwrite user anchors", async () => {
+  const {
+    persistActiveVolumeWorkspace,
+  } = require("../dist/services/novel/volume/volumeWorkspacePersistence.js");
+  const calls = [];
+  const tx = createVolumeWorkspaceTx(createExistingVolumeChapter(), calls);
+
+  await persistActiveVolumeWorkspace(tx, "novel-1", createVolumeWorkspaceDocument({
+    conflictLevel: 35,
+    conflictLevelSource: "ai",
+  }), "version-1");
+
+  const updateCall = calls.find(([name, args]) => name === "volumeChapterPlan.update" && args.where.id === "chapter-1");
+  assert.ok(updateCall, "chapter should still update non-conflict fields");
+  assert.equal(Object.prototype.hasOwnProperty.call(updateCall[1].data, "conflictLevel"), false);
+  assert.equal(Object.prototype.hasOwnProperty.call(updateCall[1].data, "conflictLevelSource"), false);
+});
+
+test("persistActiveVolumeWorkspace releases a user anchor only with an explicit same-value AI handoff", async () => {
+  const {
+    persistActiveVolumeWorkspace,
+  } = require("../dist/services/novel/volume/volumeWorkspacePersistence.js");
+  const calls = [];
+  const tx = createVolumeWorkspaceTx(createExistingVolumeChapter({
+    conflictLevel: 72,
+    conflictLevelSource: "user",
+  }), calls);
+
+  await persistActiveVolumeWorkspace(tx, "novel-1", createVolumeWorkspaceDocument({
+    conflictLevel: 72,
+    conflictLevelSource: "ai",
+  }), "version-1");
+
+  const updateCall = calls.find(([name, args]) => name === "volumeChapterPlan.update" && args.where.id === "chapter-1");
+  assert.ok(updateCall);
+  assert.equal(updateCall[1].data.conflictLevel, 72);
+  assert.equal(updateCall[1].data.conflictLevelSource, "ai");
+});
+
+test("persistActiveVolumeWorkspace writes explicit user conflict anchors", async () => {
+  const {
+    persistActiveVolumeWorkspace,
+  } = require("../dist/services/novel/volume/volumeWorkspacePersistence.js");
+  const calls = [];
+  const tx = createVolumeWorkspaceTx(createExistingVolumeChapter({
+    conflictLevel: 40,
+    conflictLevelSource: "ai",
+  }), calls);
+
+  await persistActiveVolumeWorkspace(tx, "novel-1", createVolumeWorkspaceDocument({
+    conflictLevel: 88,
+    conflictLevelSource: "user",
+  }), "version-1");
+
+  const updateCall = calls.find(([name, args]) => name === "volumeChapterPlan.update" && args.where.id === "chapter-1");
+  assert.ok(updateCall);
+  assert.equal(updateCall[1].data.conflictLevel, 88);
+  assert.equal(updateCall[1].data.conflictLevelSource, "user");
 });

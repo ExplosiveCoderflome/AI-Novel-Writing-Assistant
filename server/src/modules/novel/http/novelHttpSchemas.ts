@@ -70,6 +70,7 @@ const volumeChapterSchema = z.object({
   summary: z.string().trim().min(1),
   purpose: z.string().trim().nullable().optional(),
   conflictLevel: z.number().int().min(0).max(100).nullable().optional(),
+  conflictLevelSource: z.enum(["ai", "user"]).nullable().optional(),
   revealLevel: z.number().int().min(0).max(100).nullable().optional(),
   targetWordCount: z.number().int().min(200).max(20000).nullable().optional(),
   mustAvoid: z.string().trim().nullable().optional(),

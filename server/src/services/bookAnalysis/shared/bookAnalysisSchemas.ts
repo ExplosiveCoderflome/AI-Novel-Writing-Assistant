@@ -1,0 +1,139 @@
+import { z } from "zod";
+
+const evidenceItemSchema = z.object({
+  label: z.string().trim().min(1).optional(),
+  excerpt: z.string().trim().min(1).optional(),
+  sourceLabel: z.string().trim().min(1).optional(),
+  sourceType: z.enum(["notes", "chapter_chunk"]).optional(),
+  quote: z.string().trim().min(1).optional(),
+  chunkId: z.string().trim().min(1).optional(),
+  noteSegmentId: z.string().trim().min(1).optional(),
+  dimension: z.string().trim().min(1).optional(),
+  fieldKey: z.string().trim().min(1).optional(),
+  fieldIndex: z.number().int().min(0).optional(),
+  chapterIndex: z.number().int().min(0).optional(),
+  excerptOffsetRange: z.object({
+    start: z.number().int().min(0),
+    end: z.number().int().min(0),
+  }).optional(),
+}).passthrough();
+
+export const bookAnalysisTimelineNodeSchema = z.object({
+  label: z.string().trim().min(1),
+  timeHint: z.string().trim().min(1).optional(),
+  phase: z.string().trim().min(1).optional(),
+  sourceRefs: z.array(z.string().trim().min(1)).optional(),
+}).passthrough();
+
+export const bookAnalysisSourceNoteOutputSchema = z.object({
+  summary: z.string().trim().min(1),
+  plotPoints: z.array(z.string().trim().min(1)).max(5).default([]),
+  timelineEvents: z.array(z.string().trim().min(1)).max(5).default([]),
+  characters: z.array(z.string().trim().min(1)).max(5).default([]),
+  worldbuilding: z.array(z.string().trim().min(1)).max(5).default([]),
+  themes: z.array(z.string().trim().min(1)).max(5).default([]),
+  styleTechniques: z.array(z.string().trim().min(1)).max(5).default([]),
+  marketHighlights: z.array(z.string().trim().min(1)).max(5).default([]),
+  readerSignals: z.array(z.string().trim().min(1)).max(5).default([]),
+  weaknessSignals: z.array(z.string().trim().min(1)).max(5).default([]),
+  evidence: z.array(evidenceItemSchema).max(3).default([]),
+}).passthrough();
+
+export const bookAnalysisSectionOutputSchema = z.object({
+  markdown: z.string().trim().min(1),
+  structuredData: z.record(z.string(), z.unknown()).default({}),
+  evidence: z.array(evidenceItemSchema).default([]),
+}).passthrough();
+
+export const bookAnalysisOptimizeDraftOutputSchema = z.object({
+  optimizedDraft: z.string().trim().min(1),
+}).passthrough();
+
+export const bookAnalysisChapterSplitOutputSchema = z.object({
+  chapters: z.array(z.object({
+    title: z.string().trim().min(1),
+    startOffset: z.number().int().min(0),
+    endOffset: z.number().int().min(0),
+  }).passthrough()).default([]),
+}).passthrough();
+
+const bookAnalysisCharacterEvidenceSchema = evidenceItemSchema;
+const bookAnalysisCharacterAppearanceEvidenceSchema = z.object({
+  label: z.string().trim().min(1).optional(),
+  excerpt: z.string().trim().min(1).optional(),
+  sourceLabel: z.string().trim().min(1).optional(),
+  chapterIndex: z.number().int().min(0).optional(),
+}).passthrough();
+
+const bookAnalysisCharacterAppearanceCandidateTermSchema = z.object({
+  text: z.string().trim().min(1).max(80),
+  category: z.string().trim().min(1).max(40).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  stability: z.string().trim().min(1).max(40).optional(),
+  evidence: z.array(bookAnalysisCharacterAppearanceEvidenceSchema).default([]),
+}).passthrough();
+
+export const bookAnalysisCharacterIdentifyOutputSchema = z.object({
+  candidates: z.array(z.object({
+    name: z.string().trim().min(1),
+    roleHint: z.string().trim().min(1),
+    importance: z.string().trim().optional(),
+    briefDescription: z.string().trim().optional(),
+    occurringChapters: z.array(z.string().trim().min(1)).default([]),
+  }).passthrough()).default([]),
+}).passthrough();
+
+const bookAnalysisCharacterProfileSchema = z.object({
+  name: z.string().trim().min(1),
+  role: z.string().trim().min(1),
+  profile: z.record(z.string(), z.unknown()).default({}),
+  evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+  profileSections: z.array(z.object({
+    dimension: z.string().trim().min(1),
+    title: z.string().trim().min(1),
+    depth: z.string().trim().optional(),
+    content: z.string().trim().min(1),
+    evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+  }).passthrough()).default([]),
+  arcs: z.array(z.object({
+    chapterIndex: z.number().int().min(0).optional(),
+    stageLabel: z.string().trim().min(1),
+    stateSnapshot: z.record(z.string(), z.unknown()).optional(),
+    evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+  }).passthrough()).default([]),
+  scenes: z.array(z.object({
+    sceneLabel: z.string().trim().min(1),
+    sceneType: z.string().trim().optional(),
+    performance: z.record(z.string(), z.unknown()).optional(),
+    evidence: z.array(bookAnalysisCharacterEvidenceSchema).default([]),
+  }).passthrough()).default([]),
+}).passthrough();
+
+export const bookAnalysisCharacterProfileOutputSchema = z.object({
+  character: bookAnalysisCharacterProfileSchema,
+}).passthrough();
+
+export const bookAnalysisCharacterGenerateOutputSchema = z.object({
+  characters: z.array(bookAnalysisCharacterProfileSchema).default([]),
+}).passthrough();
+
+export const bookAnalysisCharacterAppearanceSnapshotOutputSchema = z.object({
+  appearance: z.record(z.string(), z.unknown()).default({}),
+  evidence: z.array(bookAnalysisCharacterAppearanceEvidenceSchema).default([]),
+  candidateTerms: z.array(bookAnalysisCharacterAppearanceCandidateTermSchema).max(12).default([]),
+  summaryCaption: z.string().trim().optional(),
+  contextSceneRefs: z.array(z.string().trim().min(1)).default([]),
+}).passthrough();
+
+export const bookAnalysisCharacterAppearanceConsolidateOutputSchema = z.object({
+  consolidatedAppearance: z.record(z.string(), z.unknown()).default({}),
+  variantPolicy: z.record(z.string(), z.unknown()).default({}),
+}).passthrough();
+
+export const bookAnalysisCharacterAppearanceMergeOutputSchema = z.object({
+  mergedAppearance: z.string().trim().min(1),
+  consolidatedAppearancePatch: z.record(z.string(), z.unknown()).default({}),
+  acceptedTermIds: z.array(z.string().trim().min(1)).default([]),
+  ignoredTermIds: z.array(z.string().trim().min(1)).default([]),
+  mergeNotes: z.array(z.string().trim().min(1)).default([]),
+}).passthrough();

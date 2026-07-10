@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="robots" content="noindex" />
+    <title>正在打开文档...</title>
+    <script>
+      (function () {
+        var base = "/AI-Novel-Writing-Assistant";
+        var location = window.location;
+        var path = location.pathname;
+        if (path.indexOf(base) === 0) {
+          path = path.slice(base.length) || "/";
+        }
+        var target = path + location.search + location.hash;
+        location.replace(base + "/?p=" + encodeURIComponent(target));
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

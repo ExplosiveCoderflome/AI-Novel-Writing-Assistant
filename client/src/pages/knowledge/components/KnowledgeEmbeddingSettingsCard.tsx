@@ -21,6 +21,7 @@ export interface KnowledgeEmbeddingSettingsFormState {
   embeddingTimeoutMs: number;
   embeddingMaxRetries: number;
   embeddingRetryBaseMs: number;
+  embeddingConcurrency: number;
   enabled: boolean;
   qdrantUrl: string;
   qdrantApiKey: string;
@@ -28,6 +29,7 @@ export interface KnowledgeEmbeddingSettingsFormState {
   clearQdrantApiKey: boolean;
   qdrantTimeoutMs: number;
   qdrantUpsertMaxBytes: number;
+  qdrantUpsertConcurrency: number;
   chunkSize: number;
   chunkOverlap: number;
   vectorCandidates: number;
@@ -380,6 +382,24 @@ export default function KnowledgeEmbeddingSettingsCard({
                       }))}
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">向量库写入并发数</div>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={16}
+                    value={form.qdrantUpsertConcurrency}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        qdrantUpsertConcurrency: parseNumberInput(event.target.value, prev.qdrantUpsertConcurrency),
+                      }))}
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    向 Qdrant 并发提交分块批次的最大并发数。默认 3，大文档可调至 4-6 提速。
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -491,6 +511,24 @@ export default function KnowledgeEmbeddingSettingsCard({
                         embeddingBatchSize: parseNumberInput(event.target.value, prev.embeddingBatchSize),
                       }))}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">Embedding 并发数</div>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={16}
+                    value={form.embeddingConcurrency}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        embeddingConcurrency: parseNumberInput(event.target.value, prev.embeddingConcurrency),
+                      }))}
+                  />
+                  <div className="text-xs text-muted-foreground">
+                    同时发起的 embedding API 请求数。默认 4；调高可大幅缩短大文档索引时间，但要看服务商配额。
+                  </div>
                 </div>
 
                 <div className="space-y-2">

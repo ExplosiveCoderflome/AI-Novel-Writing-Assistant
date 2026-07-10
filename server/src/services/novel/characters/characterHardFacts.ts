@@ -1,5 +1,16 @@
 import type { CharacterHardFacts } from "@ai-novel/shared/types/novel";
-import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
+import type {
+  ChapterCharacterPendingReviewField,
+  GenerationContextPackage,
+} from "@ai-novel/shared/types/chapterRuntime";
+
+export interface PendingCharacterHardFactReview {
+  currentState?: string | null;
+  currentGoal?: string | null;
+  pendingReviewFields: ChapterCharacterPendingReviewField[];
+}
+
+export type PendingCharacterHardFactReviewMap = Map<string, PendingCharacterHardFactReview>;
 
 export function normalizeCharacterProhibitions(value: unknown): string[] {
   if (!Array.isArray(value)) {
@@ -64,7 +75,9 @@ export function hasCharacterHardFacts(value: CharacterHardFacts | null | undefin
 
 export function buildRuntimeCharacterHardFacts(
   character: GenerationContextPackage["characterRoster"][number],
+  pendingReview?: PendingCharacterHardFactReview | null,
 ): GenerationContextPackage["characterHardFacts"][number] {
+  const pendingFields = new Set(pendingReview?.pendingReviewFields ?? []);
   return {
     characterId: character.id,
     name: character.name,
@@ -76,17 +89,26 @@ export function buildRuntimeCharacterHardFacts(
     realm: compactText(character.realm),
     currentLocation: compactText(character.currentLocation),
     availability: compactText(character.availability),
-    currentState: compactText(character.currentState),
-    currentGoal: compactText(character.currentGoal),
+    currentState: pendingFields.has("currentState")
+      ? compactText(pendingReview?.currentState) ?? compactText(character.currentState)
+      : compactText(character.currentState),
+    currentGoal: pendingFields.has("currentGoal")
+      ? compactText(pendingReview?.currentGoal) ?? compactText(character.currentGoal)
+      : compactText(character.currentGoal),
     prohibitions: normalizeCharacterProhibitions(character.prohibitions),
+    pendingReviewFields: pendingReview?.pendingReviewFields ?? [],
   };
 }
 
 export function buildRuntimeCharacterHardFactsList(
   characters: GenerationContextPackage["characterRoster"],
+  pendingReviewByCharacterId: PendingCharacterHardFactReviewMap = new Map(),
 ): GenerationContextPackage["characterHardFacts"] {
   return characters
-    .map(buildRuntimeCharacterHardFacts)
+    .map((character) => buildRuntimeCharacterHardFacts(
+      character,
+      pendingReviewByCharacterId.get(character.id),
+    ))
     .filter((item) => (
       Boolean(item.identityLabel)
       || Boolean(item.factionLabel)

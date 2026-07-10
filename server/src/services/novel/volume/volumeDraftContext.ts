@@ -29,6 +29,14 @@ function normalizeNullableNumber(value: unknown): number | null {
   return Math.round(value);
 }
 
+function hasOwn(record: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, key);
+}
+
+function normalizeConflictLevelSource(value: unknown): VolumeChapterPlan["conflictLevelSource"] {
+  return value === "user" || value === "ai" ? value : null;
+}
+
 function normalizeStringArray(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
@@ -52,6 +60,8 @@ function normalizeChapterInput(raw: unknown, fallbackOrder: number): Omit<Volume
       ? Math.max(1, Math.round(record.order))
       : fallbackOrder;
 
+  const hasConflictLevel = hasOwn(record, "conflictLevel");
+  const hasConflictLevelSource = hasOwn(record, "conflictLevelSource");
   return {
     id: normalizeText(record.id) ?? createLocalId("generation-chapter"),
     inputOrder,
@@ -62,7 +72,8 @@ function normalizeChapterInput(raw: unknown, fallbackOrder: number): Omit<Volume
     exclusiveEvent: normalizeText(record.exclusiveEvent),
     endingState: normalizeText(record.endingState),
     nextChapterEntryState: normalizeText(record.nextChapterEntryState),
-    conflictLevel: normalizeNullableNumber(record.conflictLevel),
+    ...(hasConflictLevel ? { conflictLevel: normalizeNullableNumber(record.conflictLevel) } : {}),
+    ...(hasConflictLevelSource ? { conflictLevelSource: normalizeConflictLevelSource(record.conflictLevelSource) } : {}),
     revealLevel: normalizeNullableNumber(record.revealLevel),
     targetWordCount: normalizeNullableNumber(record.targetWordCount),
     mustAvoid: normalizeText(record.mustAvoid),

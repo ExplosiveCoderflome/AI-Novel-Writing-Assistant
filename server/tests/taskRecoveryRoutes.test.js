@@ -81,7 +81,7 @@ test("task recovery routes expose overview, recovery candidates, and resume acti
       currentStage: "故事宏观规划",
       currentItemLabel: "等待恢复候选方向",
       resumeAction: "继续导演",
-      sourceRoute: "/novels/create?workflowTaskId=workflow-1&mode=director",
+      sourceRoute: "/novels/auto-director?taskId=workflow-1",
       recoveryHint: "建议先确认当前候选方向，再继续后续自动推进。",
     }],
   });
