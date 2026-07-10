@@ -9,13 +9,16 @@ import {
   CheckCircle2,
   CircleDot,
   ClipboardList,
+  Compass,
   Gauge,
   HelpCircle,
   Layers3,
+  MapPinned,
   PenLine,
   PlayCircle,
   RadioTower,
   Rocket,
+  Route,
   Sparkles,
   Timer,
 } from "lucide-react";
@@ -107,11 +110,11 @@ function MetricCard(props: {
 }) {
   const { title, value, hint, icon: Icon, tone, pending = false } = props;
   return (
-    <Card className="overflow-hidden border-border/70 bg-card/80 shadow-sm">
+    <Card className="home-metric-card overflow-hidden border-border/70 bg-card/80 shadow-sm">
       <CardHeader className="relative space-y-4 pb-5">
-        <div className={`absolute right-0 top-0 h-20 w-20 rounded-bl-full ${tone}`} />
+        <div className={`absolute right-0 top-0 h-20 w-20 rounded-bl-full ${tone}`} aria-hidden="true" />
         <div className="flex items-start justify-between gap-3">
-          <div className="rounded-lg border bg-background p-2 shadow-sm">
+          <div className="rounded-lg border bg-background p-2 shadow-sm ring-1 ring-primary/5">
             <Icon className="h-4 w-4 text-foreground" aria-hidden="true" />
           </div>
           <Gauge className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
@@ -340,7 +343,7 @@ export default function Home() {
   return (
     <div className="space-y-6">
       <section className="novel-console-panel overflow-hidden rounded-xl border">
-        <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.8fr)] lg:p-6">
+        <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.9fr)] lg:p-6">
           <div className="space-y-5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="gap-1.5">
@@ -353,10 +356,10 @@ export default function Home() {
               </Badge>
             </div>
             <div className="max-w-4xl space-y-3">
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+              <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-5xl">
                 宫寒创作驾驶舱
               </h1>
-              <p className="text-sm leading-7 text-muted-foreground sm:text-base">
+              <p className="max-w-3xl text-sm leading-7 text-muted-foreground sm:text-base">
                 把自动导演、章节执行、待确认节点和后台任务收束到一个起飞面板。打开首页就知道：哪本书最该继续，哪些队列正在推进，下一步按钮在哪里。
               </p>
             </div>
@@ -382,28 +385,35 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="rounded-xl border bg-background/85 p-4 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="home-flight-map rounded-xl border bg-background/85 p-4 shadow-sm">
+            <div className="mb-5 flex items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-medium">新手起飞入口</div>
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Compass className="h-4 w-4 text-primary" aria-hidden="true" />
+                  新手起飞入口
+                </div>
                 <div className="text-xs text-muted-foreground">
                   {hasNovels ? "给下一本书快速搭建方向。" : "从一个想法开始生成可推进项目。"}
                 </div>
               </div>
               <Rocket className="h-5 w-5 text-primary" aria-hidden="true" />
             </div>
-            <div className="space-y-3 text-sm text-muted-foreground">
-              <div className="flex gap-3">
-                <CircleDot className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                <span>提供模糊想法，自动生成方向方案、标题包和开书准备。</span>
-              </div>
-              <div className="flex gap-3">
-                <CircleDot className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                <span>关键阶段会停下来等你确认，适合先搭骨架再精修。</span>
-              </div>
-              <div className="flex gap-3">
-                <CircleDot className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                <span>也可以手动创建，直接进入传统编辑流程。</span>
+            <div className="space-y-3">
+              {[
+                ["01", "灵感", "一句模糊想法"],
+                ["02", "定盘", "方向、标题和卖点"],
+                ["03", "开写", "章节任务与执行链"],
+              ].map(([marker, title, text]) => (
+                <div className="home-flight-step" key={marker}>
+                  <div className="home-flight-marker">{marker}</div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold">{title}</div>
+                    <div className="truncate text-xs text-muted-foreground">{text}</div>
+                  </div>
+                </div>
+              ))}
+              <div className="mt-4 rounded-lg border border-dashed bg-muted/30 p-3 text-xs leading-5 text-muted-foreground">
+                关键阶段会停下来等你确认，适合先搭骨架再精修；也可以手动创建，直接进入传统编辑流程。
               </div>
             </div>
           </div>
@@ -585,13 +595,13 @@ export default function Home() {
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button asChild variant="outline" className="gap-2">
+              <Button asChild variant="outline" className="gap-2 bg-background/70">
                 <Link to="/book-analysis">
                   <Layers3 className="h-4 w-4" aria-hidden="true" />
                   新建拆书
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="gap-2">
+              <Button asChild variant="outline" className="gap-2 bg-background/70">
                 <Link to="/tasks">
                   <Activity className="h-4 w-4" aria-hidden="true" />
                   后台任务
@@ -650,7 +660,7 @@ export default function Home() {
                     key={novel.id}
                     role="link"
                     tabIndex={0}
-                    className="grid cursor-pointer gap-4 p-4 transition hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring lg:grid-cols-[56px_minmax(0,1fr)_280px]"
+                    className="home-queue-row grid cursor-pointer gap-4 p-4 transition focus:outline-none focus:ring-2 focus:ring-inset focus:ring-ring lg:grid-cols-[64px_minmax(0,1fr)_280px]"
                     onClick={() => openNovelEditor(novel.id)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
@@ -663,7 +673,10 @@ export default function Home() {
                       <div className="flex h-11 w-11 items-center justify-center rounded-lg border bg-background text-sm font-semibold tabular-nums shadow-sm">
                         {String(index + 1).padStart(2, "0")}
                       </div>
-                      <div className="mt-1 text-xs text-muted-foreground lg:mt-2">QUEUE</div>
+                      <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground lg:mt-2">
+                        <Route className="h-3 w-3" aria-hidden="true" />
+                        QUEUE
+                      </div>
                     </div>
                     <div className="min-w-0 space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
@@ -703,6 +716,10 @@ export default function Home() {
                       </div>
                     </div>
                     <div className="flex flex-col justify-center gap-2 lg:items-stretch">
+                      <div className="hidden items-center justify-end gap-2 text-xs text-muted-foreground lg:flex">
+                        <MapPinned className="h-3.5 w-3.5" aria-hidden="true" />
+                        继续入口
+                      </div>
                       <div className="flex flex-wrap gap-2 lg:justify-end">
                         {renderNovelPrimaryAction(novel, { stopPropagation: true })}
                         {workflowTask ? (
