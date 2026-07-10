@@ -1,5 +1,7 @@
-﻿# AI 小说创作工作台 / AI Novel Production Engine
-一个面向长篇小说创作的 AI Native 开源项目。
+# 宫涵小说自动化工作台 / Gonghan Novel Studio
+一个面向长篇小说创作的 AI Native 开源项目个人版。
+
+> 本仓库是 Gonghan-Princess 基于 [ExplosiveCoderflome/AI-Novel-Writing-Assistant](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant) 的个人 fork / 二次整理版本，继续遵循原项目 AGPL-3.0-only 许可证。原始项目信息、许可证和归属说明见 [LICENSE](./LICENSE)、[NOTICE](./NOTICE) 与 [FORK_NOTICE.md](./FORK_NOTICE.md)。
 
 当前开发主线：
 `Creative Hub + 自动导演开书 + 本书世界上下文 + 整本生产主链 + 写法引擎`
@@ -32,10 +34,10 @@
 
 如果你只是想直接下载安装并开始使用，优先从桌面版入口进入：
 
-- 下载入口：[GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases)
-- 最新版本页：[Latest Release](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
+- 下载入口：[GitHub Releases](https://github.com/Gonghan-Princess/AI-Novel-Writing-Assistant/releases)
+- 最新版本页：[Latest Release](https://github.com/Gonghan-Princess/AI-Novel-Writing-Assistant/releases/latest)
 - 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
-- 公开介绍站：[GitHub Pages 介绍站](https://explosivecoderflome.github.io/AI-Novel-Writing-Assistant/) 提供功能预览、模块文档和使用指南
+- 公开介绍站：[GitHub Pages 介绍站](https://gonghan-princess.github.io/AI-Novel-Writing-Assistant/) 提供功能预览、模块文档和使用指南
 
 ## 项目定位
 

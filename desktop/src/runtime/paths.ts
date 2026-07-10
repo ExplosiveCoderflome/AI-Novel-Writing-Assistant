@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const APP_NAME = "AI-Novel-Writing-Assistant-v2";
+const APP_NAME = "Gonghan-Novel-Studio";
 const PORTABLE_DATA_SUFFIX = "-data";
 
 export interface DesktopRuntimeConfig {

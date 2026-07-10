@@ -27,7 +27,7 @@ import {
 } from "./runtime/state";
 import { initializeDesktopUpdater, type DesktopUpdaterController } from "./runtime/updater";
 
-const APP_USER_MODEL_ID = "com.ai-novel.desktop";
+const APP_USER_MODEL_ID = "com.gonghan.novelstudio";
 const MAIN_WINDOW_BACKGROUND = "#08101f";
 const BOOTSTRAP_CHANNEL = "desktop:bootstrap-state-changed";
 const UPDATER_CHANNEL = "desktop:updater-state-changed";
@@ -228,7 +228,7 @@ function createSplashHtml(): string {
         http-equiv="Content-Security-Policy"
         content="default-src 'none'; style-src 'unsafe-inline'; img-src data:"
       />
-      <title>AI 小说创作工作台</title>
+      <title>宫涵小说自动化工作台</title>
       <style>
         :root {
           color-scheme: dark;
@@ -301,7 +301,7 @@ function createSplashHtml(): string {
     <body>
       <main class="panel">
         ${brandMark}
-        <div class="title">AI 小说创作工作台</div>
+        <div class="title">宫涵小说自动化工作台</div>
         <p class="subtitle">正在准备桌面启动壳和打包后的本地写作引擎。</p>
         <div class="meter"><span></span></div>
       </main>
@@ -321,7 +321,7 @@ function createSplashWindow(): BrowserWindow {
     fullscreenable: false,
     frame: false,
     alwaysOnTop: true,
-    title: "AI Novel Writing Assistant v2",
+    title: "Gonghan Novel Studio",
     backgroundColor: MAIN_WINDOW_BACKGROUND,
     icon: windowIcon,
   });
@@ -403,7 +403,7 @@ async function showBootstrapFailureDialog(error: unknown): Promise<void> {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const result = await dialog.showMessageBox({
     type: "error",
-    title: "AI 小说创作工作台启动失败",
+    title: "宫涵小说自动化工作台启动失败",
     message: "桌面应用未能完成初始化。",
     detail: `${errorMessage}\n\n日志目录:\n${logDir}\n\n日志文件:\n${logFilePath}`,
     buttons: ["打开日志目录", "复制日志路径", "退出"],

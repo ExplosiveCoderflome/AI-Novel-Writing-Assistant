@@ -8,7 +8,7 @@ const smokeRoot = path.join(repoRoot, "desktop", "build", "installer-smoke");
 const installDir = path.join(smokeRoot, "install");
 const dataDir = path.join(smokeRoot, "data");
 const markerFile = path.join(dataDir, "retained-marker.txt");
-const expectedExeName = "AI Novel Writing Assistant v2.exe";
+const expectedExeName = "Gonghan Novel Studio.exe";
 const desktopShortcutDir = path.join(process.env.USERPROFILE || "", "Desktop");
 const startMenuProgramsDir = path.join(
   process.env.APPDATA || "",

@@ -1,7 +1,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const SITE_ORIGIN = "https://explosivecoderflome.github.io";
+const SITE_ORIGIN = "https://gonghan-princess.github.io";
 const SITE_PATH = "/AI-Novel-Writing-Assistant";
 const SITE_BASE = `${SITE_ORIGIN}${SITE_PATH}/`;
 

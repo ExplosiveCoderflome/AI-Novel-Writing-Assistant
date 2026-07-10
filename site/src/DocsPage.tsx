@@ -13,7 +13,7 @@ import { docsManifest, flattenedDocs } from "./docsManifest";
 import { usePageMeta } from "./hooks/usePageMeta";
 import { docsPath, sitePath } from "./routing";
 
-const repoUrl = "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant";
+const repoUrl = "https://github.com/Gonghan-Princess/AI-Novel-Writing-Assistant";
 
 type DocsPageProps = {
   docId?: string;
@@ -187,7 +187,7 @@ export default function DocsPage({ docId }: DocsPageProps) {
           description: activeDoc.description,
           canonicalPath: `/docs/${activeDoc.id}`,
         }
-      : { title: "项目文档", description: "AI 小说创作工作台公开文档：安装、使用方法、自动导演阶段全景、章节执行链、按阶段恢复手册和模块说明。", canonicalPath: "/docs" },
+      : { title: "项目文档", description: "宫涵小说自动化工作台公开文档：安装、使用方法、自动导演阶段全景、章节执行链、按阶段恢复手册和模块说明。", canonicalPath: "/docs" },
   );
   const headings = useMemo(() => (markdown ? parseMarkdownHeadings(markdown) : []), [markdown]);
   const markdownComponents = useMemo(

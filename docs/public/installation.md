@@ -1,12 +1,12 @@
 # 安装与准备
 
-这篇文档帮助你在 Windows 上准备 AI 小说创作工作台，并确认模型、存储和知识库能力是否可用。
+这篇文档帮助你在 Windows 上准备宫涵小说自动化工作台，并确认模型、存储和知识库能力是否可用。
 
 ## 推荐安装方式
 
 普通用户优先使用 GitHub Releases 页面提供的桌面版：
 
-1. 打开 [GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)。
+1. 打开 [GitHub Releases](https://github.com/Gonghan-Princess/AI-Novel-Writing-Assistant/releases/latest)。
 2. 下载 Windows 安装包或 portable 包。
 3. 运行应用，进入系统设置。
 4. 配置至少一个可用模型供应商。

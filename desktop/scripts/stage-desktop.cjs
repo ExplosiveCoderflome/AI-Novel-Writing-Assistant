@@ -59,7 +59,7 @@ function replaceFileContents(targetPath, contents) {
 function writeDesktopUpdaterConfig() {
   const releaseChannel = (process.env.AI_NOVEL_RELEASE_CHANNEL || "beta").trim().toLowerCase();
   const releaseType = releaseChannel === "beta" ? "prerelease" : "release";
-  const owner = (process.env.AI_NOVEL_GITHUB_OWNER || "ExplosiveCoderflome").trim();
+  const owner = (process.env.AI_NOVEL_GITHUB_OWNER || "Gonghan-Princess").trim();
   const repo = (process.env.AI_NOVEL_GITHUB_REPO || "AI-Novel-Writing-Assistant").trim();
   const config = [
     "provider: github",
@@ -67,7 +67,7 @@ function writeDesktopUpdaterConfig() {
     `repo: ${repo}`,
     `channel: ${releaseChannel}`,
     `releaseType: ${releaseType}`,
-    "updaterCacheDirName: ai-novel-writing-assistant-v2-updater",
+    "updaterCacheDirName: gonghan-novel-studio-updater",
     "",
   ].join("\n");
   fs.writeFileSync(appUpdateConfigPath, config, "utf8");

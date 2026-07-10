@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 
-const DEFAULT_TITLE = "AI 小说创作工作台 · 从一句灵感到一整本小说";
+const DEFAULT_TITLE = "宫涵小说自动化工作台 · 从一句灵感到一整本小说";
 const DEFAULT_DESCRIPTION =
-  "AI 小说创作工作台是面向长篇小说的 AI Native 开源生产系统：自动导演、世界观、角色、拆章、章节执行和质量修复串成一条可暂停可恢复的长篇生产链，帮助新手把想法推进到完整成书。";
-const CANONICAL_BASE = "https://explosivecoderflome.github.io/AI-Novel-Writing-Assistant/";
+  "宫涵小说自动化工作台是面向长篇小说的 AI Native 开源生产系统个人版：自动导演、世界观、角色、拆章、章节执行和质量修复串成一条可暂停可恢复的长篇生产链，帮助新手把想法推进到完整成书。";
+const CANONICAL_BASE = "https://gonghan-princess.github.io/AI-Novel-Writing-Assistant/";
 
 function ensureMeta(selector: string, attribute: "name" | "property", key: string) {
   let element = document.head.querySelector<HTMLMetaElement>(selector);
@@ -44,7 +44,7 @@ export type ResolvedPageMeta = {
 };
 
 export function resolvePageMeta(meta: PageMeta | null | undefined): ResolvedPageMeta {
-  const title = meta?.title ? `${meta.title} · AI 小说创作工作台` : DEFAULT_TITLE;
+  const title = meta?.title ? `${meta.title} · 宫涵小说自动化工作台` : DEFAULT_TITLE;
   const description = meta?.description ?? DEFAULT_DESCRIPTION;
   const canonical = meta?.canonicalPath
     ? `${CANONICAL_BASE}${meta.canonicalPath.replace(/^\//, "")}`

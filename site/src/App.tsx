@@ -20,7 +20,7 @@ import chapterExecutionImage from "./assets/chapter-execution.png";
 import creativeHubImage from "./assets/creative-hub.png";
 import directorChoiceImage from "./assets/director-choice.png";
 
-const repoUrl = "https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant";
+const repoUrl = "https://github.com/Gonghan-Princess/AI-Novel-Writing-Assistant";
 const releaseUrl = `${repoUrl}/releases/latest`;
 const docsIntroBannerImage = `${import.meta.env.BASE_URL}assets/docs-intro-banner.png`;
 
@@ -156,14 +156,14 @@ function App({ initialPath }: AppProps) {
 }
 
 function SiteNav({ page }: { page: "home" | "docs" }) {
-  const stars = useGithubStars("ExplosiveCoderflome", "AI-Novel-Writing-Assistant");
+  const stars = useGithubStars("Gonghan-Princess", "AI-Novel-Writing-Assistant");
   return (
     <nav className="site-nav" aria-label="主导航">
-      <a className="brand" href={sitePath("/")} aria-label="AI 小说创作工作台首页">
+      <a className="brand" href={sitePath("/")} aria-label="宫涵小说自动化工作台首页">
         <span className="brand-mark">
           <img src={appIcon} alt="" aria-hidden="true" />
         </span>
-        <span>AI 小说创作工作台</span>
+        <span>宫涵小说自动化工作台</span>
       </a>
       <div className="nav-links">
         <a href={docsPath()}>文档</a>
@@ -192,7 +192,7 @@ function SiteNav({ page }: { page: "home" | "docs" }) {
 }
 
 function HomePage() {
-  const stars = useGithubStars("ExplosiveCoderflome", "AI-Novel-Writing-Assistant");
+  const stars = useGithubStars("Gonghan-Princess", "AI-Novel-Writing-Assistant");
   usePageMeta(null);
   return (
     <>
