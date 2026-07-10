@@ -59,13 +59,6 @@ export default function CharacterRelationsTab(props: CharacterRelationsTabProps)
 
   return (
     <div className="space-y-4">
-      <section className="rounded-2xl border border-border/70 bg-muted/10 p-4">
-        <div className="text-sm font-medium">关系导演台</div>
-        <div className="mt-1 text-xs leading-5 text-muted-foreground">
-          先用关系网观察角色之间的合作、压力、秘密和阶段变化；需要补位或重建动态系统时，再展开下方诊断区。
-        </div>
-      </section>
-
       <CharacterRelationshipGraphPanel
         model={graphModel}
         mode={graphMode}
