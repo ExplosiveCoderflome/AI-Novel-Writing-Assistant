@@ -214,6 +214,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
   const initialRecoveryCursor = resolveStructuredOutlineRecoveryCursor({
     workspace: baseWorkspace,
     plan: detailPlan,
+    allowPartialChapterListReady: isDirectorAutoExecutionRunMode(normalizeDirectorRunMode(request.runMode)),
   });
   const runningResumeTarget = buildNovelEditResumeTarget({
     novelId,
@@ -239,6 +240,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
     const recoveryCursor = resolveStructuredOutlineRecoveryCursor({
       workspace,
       plan: detailPlan,
+      allowPartialChapterListReady: isDirectorAutoExecutionRunMode(normalizeDirectorRunMode(request.runMode)),
     });
     const cursorKey = buildStructuredOutlineCursorKey(recoveryCursor);
     if (cursorKey === previousCursorKey) {
@@ -295,6 +297,10 @@ export async function runDirectorStructuredOutlinePhase(input: {
       if (!targetVolume) {
         throw new Error("自动导演恢复时缺少待拆章的目标卷。");
       }
+      if (!recoveryCursor.beatKey) {
+        throw new Error("自动导演恢复时缺少待生成章节的目标节奏段。");
+      }
+      const targetBeatKey = recoveryCursor.beatKey;
       workspace = await runDirectorTrackedStep({
         taskId,
         stage: "structured_outline",
@@ -309,6 +315,8 @@ export async function runDirectorStructuredOutlinePhase(input: {
           temperature: request.temperature,
           scope: "chapter_list",
           targetVolumeId: targetVolume.id,
+          generationMode: "single_beat",
+          targetBeatKey,
           draftWorkspace: workspace,
           taskId,
           entrypoint: "auto_director",
@@ -442,13 +450,15 @@ export async function runDirectorStructuredOutlinePhase(input: {
   const preparedVolumeIds = resolveStructuredOutlineRecoveryCursor({
     workspace,
     plan: detailPlan,
+    allowPartialChapterListReady: isDirectorAutoExecutionRunMode(normalizeDirectorRunMode(request.runMode)),
   }).preparedVolumeIds;
   const maxPreparedChapterOrder = Math.max(
     0,
     ...flattenPreparedOutlineChapters(workspace).map((chapter) => chapter.chapterOrder),
   );
   const targetChapterRange = resolveDirectorAutoExecutionPlanChapterRange(detailPlan);
-  if (targetChapterRange && maxPreparedChapterOrder < targetChapterRange.endOrder) {
+  const allowIncrementalExecutionWindow = isDirectorAutoExecutionRunMode(normalizeDirectorRunMode(request.runMode));
+  if (targetChapterRange && maxPreparedChapterOrder < targetChapterRange.endOrder && !allowIncrementalExecutionWindow) {
     throw new Error(
       `当前已生成的章节规划最多只覆盖到第 ${maxPreparedChapterOrder} 章，不能直接自动执行${buildChapterOrderRangeLabel(targetChapterRange.startOrder, targetChapterRange.endOrder)}。`,
     );
@@ -506,13 +516,14 @@ export async function runDirectorStructuredOutlinePhase(input: {
   const syncCursor = resolveStructuredOutlineRecoveryCursor({
     workspace: persistedOutlineWorkspace,
     plan: detailPlan,
+    allowPartialChapterListReady: allowIncrementalExecutionWindow,
   });
   const selectedChapters = syncCursor.selectedChapters;
   if (selectedChapters.length === 0) {
     throw new Error("自动导演未能准备出可执行的章节范围。");
   }
   const selectedChapterOrders = selectedChapters.map((chapter) => chapter.chapterOrder).sort((left, right) => left - right);
-  if (targetChapterRange) {
+  if (targetChapterRange && !allowIncrementalExecutionWindow) {
     const missingOrders = findMissingSelectedChapterOrders(selectedChapterOrders, targetChapterRange);
     if (missingOrders.length > 0) {
       throw new Error(
@@ -589,6 +600,8 @@ export async function runDirectorStructuredOutlinePhase(input: {
     scopeLabel: autoExecutionScopeLabel,
     volumeTitle: detailPlan.mode === "volume" ? selectedChapters[0]?.volumeTitle ?? null : null,
     preparedVolumeIds,
+    beatChapterListReady: syncCursor.beatChapterListReady,
+    volumeChapterListComplete: syncCursor.volumeChapterListComplete,
   });
 
   const pausedSession = buildDirectorSessionState({

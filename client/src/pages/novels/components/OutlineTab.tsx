@@ -12,6 +12,7 @@ import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
 import SelectControl from "@/components/common/SelectControl";
 import OutlineCurrentVolumeWorkspace from "./outline/OutlineCurrentVolumeWorkspace";
 import OutlineResourceCommitments from "./outline/OutlineResourceCommitments";
+import type { VolumeBeatImpactItem } from "@ai-novel/shared/types/novel";
 
 type OutlineWorkspaceTab = "current" | "strategy" | "assets";
 
@@ -68,6 +69,28 @@ function getVolumeScaleProfileLabel(profile: OutlineTabViewProps["volumeCountGui
     mega: "超长篇",
   };
   return labels[profile] ?? "结构建议";
+}
+
+function getBeatImpactStatusLabel(status: VolumeBeatImpactItem["status"]): string {
+  if (status === "locked_with_draft") return "已有正文锁定";
+  if (status === "pending") return "待生成";
+  return "可接入未写段";
+}
+
+function getBeatImpactStatusVariant(status: VolumeBeatImpactItem["status"]): "secondary" | "outline" | "default" {
+  if (status === "locked_with_draft") return "secondary";
+  if (status === "pending") return "outline";
+  return "default";
+}
+
+function formatBeatChapterOrders(chapterOrders: number[]): string {
+  if (chapterOrders.length === 0) {
+    return "待生成章节";
+  }
+  const sorted = chapterOrders.slice().sort((left, right) => left - right);
+  return sorted[0] === sorted[sorted.length - 1]
+    ? `第 ${sorted[0]} 章`
+    : `第 ${sorted[0]}-${sorted[sorted.length - 1]} 章`;
 }
 
 export default function OutlineTab(props: OutlineTabViewProps) {
@@ -461,9 +484,38 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                     </AiButton>
                   </div>
                   {impactResult ? (
-                    <div className="rounded-md border p-2 text-xs">
+                    <div className="space-y-3 rounded-md border p-3 text-xs">
                       <div className="font-medium">卷级影响预览</div>
                       <div className="text-muted-foreground">影响卷 {impactResult.affectedVolumeCount} | 波及章节 {impactResult.affectedChapterCount} | 变更行数 {impactResult.changedLines}</div>
+                      {impactResult.affectedBeats && impactResult.affectedBeats.length > 0 ? (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {impactResult.defaultImpactAction ? <Badge variant="default">{impactResult.defaultImpactAction}</Badge> : null}
+                            {typeof impactResult.staleBeatCount === "number" ? <Badge variant="outline">未写段 {impactResult.staleBeatCount}</Badge> : null}
+                            {typeof impactResult.lockedBeatCount === "number" && impactResult.lockedBeatCount > 0 ? (
+                              <Badge variant="secondary">锁定段 {impactResult.lockedBeatCount}</Badge>
+                            ) : null}
+                          </div>
+                          <div className="space-y-2">
+                            {impactResult.affectedBeats.slice(0, 8).map((beat) => (
+                              <div key={`${beat.volumeId}-${beat.beatKey}`} className="rounded-md bg-background/70 p-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-medium">第{beat.volumeOrder}卷 · {beat.beatLabel}{beat.beatTitle ? ` · ${beat.beatTitle}` : ""}</span>
+                                  <Badge variant={getBeatImpactStatusVariant(beat.status)}>
+                                    {getBeatImpactStatusLabel(beat.status)}
+                                  </Badge>
+                                </div>
+                                <div className="mt-1 text-muted-foreground">{formatBeatChapterOrders(beat.chapterOrders)}</div>
+                              </div>
+                            ))}
+                          </div>
+                          {impactResult.advancedImpactActions && impactResult.advancedImpactActions.length > 0 ? (
+                            <div className="text-muted-foreground">
+                              高级动作：{impactResult.advancedImpactActions.join(" / ")}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
                   ) : (
                     <div className="text-xs text-muted-foreground">建议在生效前先做卷级影响分析。</div>

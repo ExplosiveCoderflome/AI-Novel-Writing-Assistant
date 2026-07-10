@@ -806,7 +806,10 @@ export interface VolumeStrategyPlan {
 
 export interface VolumeBeat {
   key: string;
+  /** 稳定职能名，例如「开卷抓手」。 */
   label: string;
+  /** 本卷定制短标题，例如「夜市夺印」。 */
+  title?: string | null;
   summary: string;
   chapterSpanHint: string;
   mustDeliver: string[];
@@ -924,6 +927,24 @@ export interface VolumePlanDiff {
   affectedChapterOrders: number[];
 }
 
+export type VolumeBeatImpactStatus =
+  | "pending"
+  | "stale"
+  | "locked_with_draft";
+
+export interface VolumeBeatImpactItem {
+  volumeId: string;
+  volumeOrder: number;
+  volumeTitle: string;
+  beatKey: string;
+  beatLabel: string;
+  beatTitle?: string | null;
+  chapterOrders: number[];
+  status: VolumeBeatImpactStatus;
+  reason: "ungenerated" | "generated_without_draft" | "locked_with_draft";
+  hasDraftContent: boolean;
+}
+
 export interface VolumeImpactResult {
   novelId: string;
   sourceVersion: number | null;
@@ -931,6 +952,11 @@ export interface VolumeImpactResult {
   affectedVolumeCount: number;
   affectedChapterCount: number;
   affectedVolumes: VolumePlanDiffVolume[];
+  affectedBeats?: VolumeBeatImpactItem[];
+  staleBeatCount?: number;
+  lockedBeatCount?: number;
+  defaultImpactAction?: string;
+  advancedImpactActions?: string[];
   requiresChapterSync: boolean;
   requiresCharacterReview: boolean;
   recommendedActions: string[];

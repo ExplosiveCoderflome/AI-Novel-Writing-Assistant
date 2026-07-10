@@ -28,6 +28,8 @@ interface DirectorAutoExecutionResolvedScope {
   scopeLabel?: string | null;
   volumeTitle?: string | null;
   preparedVolumeIds?: string[];
+  beatChapterListReady?: boolean;
+  volumeChapterListComplete?: boolean;
 }
 
 export interface AutoExecutionScopeRuntimeDeps {
@@ -199,6 +201,7 @@ async function resolveVolumeScopedRange(input: {
   plan: DirectorAutoExecutionState;
   chapters: DirectorAutoExecutionChapterRef[];
   getVolumes?: (novelId: string) => Promise<VolumePlanDocument>;
+  allowPartialChapterListReady?: boolean;
 }): Promise<DirectorAutoExecutionResolvedScope> {
   if (!input.getVolumes) {
     throw new Error("当前环境缺少卷工作区服务，无法解析按卷自动执行范围。");
@@ -208,6 +211,7 @@ async function resolveVolumeScopedRange(input: {
   const recoveryCursor = resolveStructuredOutlineRecoveryCursor({
     workspace,
     plan: normalizedPlan,
+    allowPartialChapterListReady: input.allowPartialChapterListReady,
   });
   if (recoveryCursor.step !== "chapter_sync" && recoveryCursor.step !== "completed") {
     throw new Error(`${recoveryCursor.scopeLabel}还没有完成节奏 / 拆章同步，不能直接进入自动执行。`);
@@ -241,6 +245,8 @@ async function resolveVolumeScopedRange(input: {
     scopeLabel: recoveryCursor.scopeLabel,
     volumeTitle: recoveryCursor.volumeTitle ?? recoveryCursor.selectedChapters[0]?.volumeTitle ?? null,
     preparedVolumeIds: recoveryCursor.preparedVolumeIds,
+    beatChapterListReady: recoveryCursor.beatChapterListReady,
+    volumeChapterListComplete: recoveryCursor.volumeChapterListComplete,
   };
 }
 
@@ -261,8 +267,23 @@ export async function resolveAutoExecutionRangeAndState(input: {
   let scopeLabel = input.existingState?.scopeLabel ?? null;
   let volumeTitle = input.existingState?.volumeTitle ?? null;
   let preparedVolumeIds = input.existingState?.preparedVolumeIds ?? [];
+  let beatChapterListReady = input.existingState?.beatChapterListReady;
+  let volumeChapterListComplete = input.existingState?.volumeChapterListComplete;
   if (normalizedPlan.mode === "book" && input.existingState?.enabled) {
     range = resolveDirectorAutoExecutionBookRange(chapters);
+    if (input.deps.getVolumes) {
+      const workspace = await input.deps.getVolumes(input.novelId).catch(() => null);
+      if (workspace) {
+        const recoveryCursor = resolveStructuredOutlineRecoveryCursor({
+          workspace,
+          plan: normalizedPlan,
+          allowPartialChapterListReady: true,
+        });
+        beatChapterListReady = recoveryCursor.beatChapterListReady;
+        volumeChapterListComplete = recoveryCursor.volumeChapterListComplete;
+        preparedVolumeIds = recoveryCursor.preparedVolumeIds;
+      }
+    }
     scopeLabel = scopeLabel ?? buildDirectorAutoExecutionScopeLabelFromState(input.existingState, range?.totalChapterCount ?? null);
   } else if (normalizedPlan.mode === "volume" && input.existingState?.enabled) {
     const resolvedVolumeScope = await resolveVolumeScopedRange({
@@ -270,11 +291,15 @@ export async function resolveAutoExecutionRangeAndState(input: {
       plan: input.existingState,
       chapters,
       getVolumes: input.deps.getVolumes,
+      allowPartialChapterListReady: input.existingState.beatChapterListReady === true
+        || input.allowLazyChapterPlanning === true,
     });
     range = resolvedVolumeScope.range;
     scopeLabel = resolvedVolumeScope.scopeLabel ?? scopeLabel;
     volumeTitle = resolvedVolumeScope.volumeTitle ?? volumeTitle;
     preparedVolumeIds = resolvedVolumeScope.preparedVolumeIds ?? preparedVolumeIds;
+    beatChapterListReady = resolvedVolumeScope.beatChapterListReady ?? beatChapterListReady;
+    volumeChapterListComplete = resolvedVolumeScope.volumeChapterListComplete ?? volumeChapterListComplete;
   }
   range = range ?? resolveDirectorAutoExecutionRangeFromState(input.existingState);
   range = range ?? resolveDirectorAutoExecutionRange(chapters);
@@ -306,6 +331,8 @@ export async function resolveAutoExecutionRangeAndState(input: {
       scopeLabel,
       volumeTitle,
       preparedVolumeIds,
+      beatChapterListReady,
+      volumeChapterListComplete,
       pipelineJobId: input.pipelineJobId ?? input.existingState?.pipelineJobId ?? null,
       pipelineStatus: input.pipelineStatus ?? input.existingState?.pipelineStatus ?? null,
     }),

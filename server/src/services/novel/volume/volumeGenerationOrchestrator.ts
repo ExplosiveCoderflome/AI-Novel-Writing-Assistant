@@ -440,6 +440,17 @@ async function generateChapterList(params: {
       }
       : undefined,
   });
+  if ((options.generationMode ?? "full_volume") === "single_beat") {
+    await options.onIntermediateDocument?.({
+      scope: "chapter_list",
+      document: mergedDocument,
+      isFinal: true,
+      targetVolumeId: targetVolume.id,
+      targetBeatKey: options.targetBeatKey,
+      generationMode: options.generationMode,
+    });
+    return mergedDocument;
+  }
   const rebalancedDocument = await generateRebalance({
     document: mergedDocument,
     novel,

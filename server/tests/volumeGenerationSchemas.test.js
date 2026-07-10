@@ -278,8 +278,74 @@ test("volume beat sheet schema normalizes alias fields and wrapped payloads", ()
   assert.equal(parsed.beats[0].summary, "先把世界危险和主角当前困境钉死。");
   assert.equal(parsed.beats[0].chapterSpanHint, "1-2章");
   assert.deepEqual(parsed.beats[0].mustDeliver, ["压迫感", "主角处境", "首个异常信号"]);
+  assert.equal(parsed.beats[0].label, "开卷抓手");
   assert.equal(parsed.beats[1].key, "first_escalation");
+  assert.equal(parsed.beats[1].label, "首次升级");
   assert.equal(parsed.beats[2].label, "中段转向");
+});
+
+test("volume beat sheet schema requires fixed slots and accepts custom titles", () => {
+  const schema = createVolumeBeatSheetSchema();
+  const parsed = schema.parse({
+    beats: [
+      {
+        key: "open_hook",
+        label: "开卷抓手",
+        title: "夜市夺印",
+        summary: "开卷立下本卷主承诺。",
+        chapterSpanHint: "1-2章",
+        mustDeliver: ["开卷压迫"],
+      },
+      {
+        key: "first_escalation",
+        label: "首次升级",
+        title: "借刀反制",
+        summary: "第一次拿到反制抓手。",
+        chapterSpanHint: "3章",
+        mustDeliver: ["阶段优势"],
+      },
+      {
+        key: "midpoint_turn",
+        label: "中段转向",
+        title: "旧盟破裂",
+        summary: "中段换挡。",
+        chapterSpanHint: "4-5章",
+        mustDeliver: ["新情报"],
+      },
+      {
+        key: "pressure_lock",
+        label: "高潮前挤压",
+        title: "围城代价",
+        summary: "代价抬升。",
+        chapterSpanHint: "6章",
+        mustDeliver: ["压力堆高"],
+      },
+      {
+        key: "climax",
+        label: "卷高潮",
+        title: "夺回令牌",
+        summary: "兑现主承诺。",
+        chapterSpanHint: "7章",
+        mustDeliver: ["正面对决"],
+      },
+      {
+        key: "end_hook",
+        label: "卷尾钩子",
+        title: "北境来信",
+        summary: "打开下一卷。",
+        chapterSpanHint: "8章",
+        mustDeliver: ["下卷钩子"],
+      },
+    ],
+  });
+
+  assert.equal(parsed.beats[0].title, "夜市夺印");
+  assert.equal(parsed.beats[5].key, "end_hook");
+
+  const missingClimax = schema.safeParse({
+    beats: parsed.beats.filter((beat) => beat.key !== "climax"),
+  });
+  assert.equal(missingClimax.success, false);
 });
 
 test("volume chapter beat block schema normalizes beat aliases and enforces beat ownership", () => {
@@ -444,10 +510,12 @@ test("volume beat sheet prompt render includes explicit JSON field contract", ()
 
   const systemPrompt = String(messages[0].content);
   assert.match(systemPrompt, /"beats"/);
+  assert.match(systemPrompt, /"title"/);
   assert.match(systemPrompt, /"summary"/);
   assert.match(systemPrompt, /"chapterSpanHint"/);
   assert.match(systemPrompt, /"mustDeliver"/);
-  assert.match(systemPrompt, /5-8/);
+  assert.match(systemPrompt, /6-8/);
+  assert.match(systemPrompt, /固定职能槽位/);
   assert.match(systemPrompt, /Current volume target chapter count: 18/);
   assert.match(systemPrompt, /volume-local numbering only/);
 });

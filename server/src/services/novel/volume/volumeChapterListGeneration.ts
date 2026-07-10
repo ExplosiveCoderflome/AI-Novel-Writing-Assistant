@@ -161,12 +161,17 @@ function buildPreservedBeatSummary(params: {
 function assertMergedVolumeChapterList(params: {
   volume: VolumePlan;
   beatSheet: VolumeBeatSheet;
+  generationMode: "full_volume" | "single_beat";
+  targetBeatKey?: string | null;
 }): void {
   const sortedChapters = params.volume.chapters
     .slice()
     .sort((left, right) => left.chapterOrder - right.chapterOrder);
 
   for (const beat of params.beatSheet.beats) {
+    if (params.generationMode === "single_beat" && beat.key !== params.targetBeatKey) {
+      continue;
+    }
     const expectedChapterCount = Math.max(1, getBeatExpectedChapterCount(beat));
     const matchedChapters = sortedChapters.filter((chapter) => resolveVolumeChapterBeatKey({
       chapter,
@@ -177,6 +182,25 @@ function assertMergedVolumeChapterList(params: {
       throw new Error(`当前卷节奏段「${beat.label}」应有 ${expectedChapterCount} 章，实际只有 ${matchedChapters.length} 章。`);
     }
   }
+}
+
+function isMergedVolumeChapterListComplete(params: {
+  volume: VolumePlan;
+  beatSheet: VolumeBeatSheet;
+}): boolean {
+  const sortedChapters = params.volume.chapters
+    .slice()
+    .sort((left, right) => left.chapterOrder - right.chapterOrder);
+
+  return params.beatSheet.beats.every((beat) => {
+    const expectedChapterCount = Math.max(1, getBeatExpectedChapterCount(beat));
+    const matchedChapterCount = sortedChapters.filter((chapter) => resolveVolumeChapterBeatKey({
+      chapter,
+      volume: params.volume,
+      beatSheet: params.beatSheet,
+    }) === beat.key).length;
+    return matchedChapterCount === expectedChapterCount;
+  });
 }
 
 async function generateBeatChapterBlock(params: {
@@ -413,7 +437,7 @@ export async function generateBeatChunkedChapterList(params: {
     volumeId: targetVolume.id,
     chapterCount: generatedBlocks.reduce((sum, block) => sum + block.chapters.length, 0),
   });
-  const mergedDocument = generatedBlocks.length > 0
+  const rawMergedDocument = generatedBlocks.length > 0
     ? mergeChapterList(
       document,
       targetVolume.id,
@@ -427,14 +451,26 @@ export async function generateBeatChunkedChapterList(params: {
       },
     )
     : setVolumeChapterListPartialStatus(document, targetVolume.id, false);
+  const rawMergedVolume = rawMergedDocument.volumes.find((volume) => volume.id === targetVolume.id);
+  if (!rawMergedVolume) {
+    throw new Error("当前卷章节列表已生成，但合并结果丢失了目标卷。");
+  }
+  assertMergedVolumeChapterList({
+    volume: rawMergedVolume,
+    beatSheet: targetBeatSheet,
+    generationMode,
+    targetBeatKey: options.targetBeatKey,
+  });
+  const mergedDocument = isMergedVolumeChapterListComplete({
+    volume: rawMergedVolume,
+    beatSheet: targetBeatSheet,
+  })
+    ? setVolumeChapterListPartialStatus(rawMergedDocument, targetVolume.id, false)
+    : setVolumeChapterListPartialStatus(rawMergedDocument, targetVolume.id, true);
   const mergedVolume = mergedDocument.volumes.find((volume) => volume.id === targetVolume.id);
   if (!mergedVolume) {
     throw new Error("当前卷章节列表已生成，但合并结果丢失了目标卷。");
   }
-  assertMergedVolumeChapterList({
-    volume: mergedVolume,
-    beatSheet: targetBeatSheet,
-  });
   logMemoryUsage({
     event: "after_merge",
     component: "mergeChapterList",

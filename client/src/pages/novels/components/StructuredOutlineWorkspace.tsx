@@ -19,6 +19,7 @@ import WorldInjectionHint from "./WorldInjectionHint";
 import {
   chapterMatchesBeat,
   findChapterBeat,
+  formatBeatDisplayLabel,
   getBeatSheetRequiredChapterCount,
 } from "./structuredOutlineWorkspace.shared";
 import type { StructuredTabViewProps } from "./NovelEditView.types";
@@ -48,9 +49,10 @@ function getWorkspaceGuidance(params: {
     return "先为当前卷生成节奏板，系统才能把卷内推进节奏和章节拆分对齐起来。";
   }
   if (selectedBeat) {
+    const beatLabel = formatBeatDisplayLabel(selectedBeat);
     return selectedChapter
-      ? `已聚焦到「${selectedBeat.label}」，当前显示 ${visibleChapterCount} 章，右侧正在细化第 ${selectedChapter.chapterOrder} 章。`
-      : `已聚焦到「${selectedBeat.label}」，当前显示 ${visibleChapterCount} 章，接下来在左侧选择要细化的章节。`;
+      ? `已聚焦到「${beatLabel}」，当前显示 ${visibleChapterCount} 章，右侧正在细化第 ${selectedChapter.chapterOrder} 章。`
+      : `已聚焦到「${beatLabel}」，当前显示 ${visibleChapterCount} 章，接下来在左侧选择要细化的章节。`;
   }
   return `当前展示本卷全部 ${totalChapterCount} 章。建议先点一个节奏段，让系统把对应章节收束出来，再开始细化。`;
 }
@@ -181,6 +183,11 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   const locked = !selectedBeatSheet;
   const refinedChapterCount = selectedVolumeChapters.filter((chapter) => hasChapterExecutionDetail(chapter)).length;
   const visibleRefinedChapterCount = visibleChapters.filter((chapter) => hasChapterExecutionDetail(chapter)).length;
+  const draftedChapterIds = new Set(
+    executionChapters
+      .filter((chapter) => Boolean(chapter.content?.trim()))
+      .map((chapter) => chapter.id),
+  );
   const allPlannedChapters = volumes.flatMap((volume) => volume.chapters);
   const linkedChapterCount = allPlannedChapters.filter((chapter) => Boolean(chapter.chapterId)).length;
   const hasMissingChapterLinks = allPlannedChapters.length > 0 && linkedChapterCount < allPlannedChapters.length;
@@ -194,7 +201,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   });
   const tensionCurveViewportOptions: TensionCurveViewportOption[] = [
     { key: "all", label: "整卷" },
-    ...(selectedBeatSheet?.beats.map((beat) => ({ key: beat.key, label: beat.label })) ?? []),
+    ...(selectedBeatSheet?.beats.map((beat) => ({ key: beat.key, label: formatBeatDisplayLabel(beat) })) ?? []),
   ];
   const tensionCurveSeries: TensionCurveSeries[] = selectedVolume
     ? [{
@@ -474,6 +481,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                 selectedVolumeChapters={selectedVolumeChapters}
                 visibleChapters={visibleChapters}
                 selectedChapter={selectedChapter}
+                draftedChapterIds={draftedChapterIds}
                 visibleRefinedChapterCount={visibleRefinedChapterCount}
                 selectedVolumeRequiredChapterCount={selectedVolumeRequiredChapterCount}
                 selectedVolumeNeedsChapterExpansion={selectedVolumeNeedsChapterExpansion}

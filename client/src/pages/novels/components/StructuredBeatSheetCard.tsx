@@ -3,6 +3,7 @@ import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StructuredTabViewProps } from "./NovelEditView.types";
+import { formatBeatDisplayLabel } from "./structuredOutlineWorkspace.shared";
 
 type StructuredVolume = StructuredTabViewProps["volumes"][number];
 type StructuredChapter = StructuredVolume["chapters"][number];
@@ -87,7 +88,7 @@ export default function StructuredBeatSheetCard(props: StructuredBeatSheetCardPr
                     <div className="space-y-2">
                       <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">当前聚焦区间</div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge>{selectedBeat.label}</Badge>
+                        <Badge>{formatBeatDisplayLabel(selectedBeat)}</Badge>
                         <Badge variant="secondary">{selectedBeat.chapterSpanHint}</Badge>
                         <Badge variant="outline">{visibleChapters.length}章</Badge>
                         <Badge variant="outline">{visibleRefinedChapterCount}/{Math.max(visibleChapters.length, 1)} 已细化</Badge>

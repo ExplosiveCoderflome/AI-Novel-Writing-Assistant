@@ -256,6 +256,8 @@ export interface DirectorAutoExecutionState extends DirectorAutoExecutionPlan {
   scopeLabel?: string | null;
   volumeTitle?: string | null;
   preparedVolumeIds?: string[];
+  beatChapterListReady?: boolean;
+  volumeChapterListComplete?: boolean;
   skippedChapterIds?: string[];
   skippedChapterOrders?: number[];
   qualityDebtChapterIds?: string[];

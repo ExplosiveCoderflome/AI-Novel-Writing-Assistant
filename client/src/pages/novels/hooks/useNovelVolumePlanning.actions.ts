@@ -176,8 +176,8 @@ export function buildChapterListSuccessMessage(params: {
     const targetBeat = findBeatSheet(params.document.beatSheets, params.targetVolumeId)?.beats
       .find((beat) => beat.key === params.targetBeatKey);
     return updatedChapterCount > 0
-      ? `当前卷节奏段「${targetBeat?.label ?? params.targetBeatKey}」已重生并自动保存${syncSuffix}，本卷现有 ${updatedChapterCount} 章，相邻卷再平衡建议也已同步更新。`
-      : `当前卷节奏段「${targetBeat?.label ?? params.targetBeatKey}」已重生并自动保存${syncSuffix}，相邻卷再平衡建议也已同步更新。`;
+      ? `当前卷节奏段「${targetBeat ? `${targetBeat.label}${targetBeat.title ? ` · ${targetBeat.title}` : ""}` : params.targetBeatKey}」已生成并自动保存${syncSuffix}，本卷现有 ${updatedChapterCount} 章。`
+      : `当前卷节奏段「${targetBeat ? `${targetBeat.label}${targetBeat.title ? ` · ${targetBeat.title}` : ""}` : params.targetBeatKey}」已生成并自动保存${syncSuffix}。`;
   }
   return updatedChapterCount > 0
     ? `当前卷章节列表已生成并自动保存${syncSuffix}，现已更新为 ${updatedChapterCount} 章，相邻卷再平衡建议也已同步更新。`

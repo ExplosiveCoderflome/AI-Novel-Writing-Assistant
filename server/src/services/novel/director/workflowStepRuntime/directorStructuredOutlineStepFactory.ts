@@ -45,7 +45,8 @@ async function inspectStructuredOutlineFactState(
   const summary = await loadFactBaseSummary(context);
   const hasStrategy = summary.outline.hasVolumeStrategy;
   const beatsReady = summary.outline.beatSheetReady;
-  const chapterListReady = summary.outline.chapterListReady;
+  const chapterListReady = summary.outline.beatChapterListReady ?? summary.outline.chapterListReady;
+  const volumeChapterListComplete = summary.outline.volumeChapterListComplete ?? summary.outline.chapterListReady;
   const detailReady = summary.outline.chapterDetailReady;
   const selectedChapterCount = summary.outline.selectedChapterCount;
   const completedDetailSteps = summary.outline.completedDetailSteps;
@@ -57,6 +58,8 @@ async function inspectStructuredOutlineFactState(
     hasVolumeStrategy: hasStrategy,
     characterCount: summary.book.characterCount,
     cursorStep: summary.outline.cursorStep,
+    beatChapterListReady: chapterListReady,
+    volumeChapterListComplete,
     preparedVolumeIds: [],
     selectedChapterCount,
     completedDetailSteps,
@@ -120,7 +123,9 @@ async function inspectStructuredOutlineFactState(
       progress: buildSimpleProgress({
         status: chapterListReady ? "completed" : beatsReady ? "partially_done" : "blocked",
         ratio: chapterListReady ? 1 : beatsReady ? 0.5 : 0,
-        label: chapterListReady ? "卷拆章列表已就绪" : beatsReady ? "正在生成章节列表" : "等待卷节奏板完成",
+        label: chapterListReady
+          ? volumeChapterListComplete ? "整卷拆章列表已就绪" : "当前节奏段章节列表已就绪"
+          : beatsReady ? "正在生成章节列表" : "等待卷节奏板完成",
         evidence,
         nextAction: chapterListReady ? "run_chapter_detail_generation" : beatsReady ? "run_chapter_list_generation" : "run_beat_sheet_generation",
       }),

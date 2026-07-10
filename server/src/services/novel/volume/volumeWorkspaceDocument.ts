@@ -12,6 +12,10 @@ import type {
   VolumeUncertaintyMarker,
 } from "@ai-novel/shared/types/novel";
 import {
+  getVolumeBeatRoleLabel,
+  resolveVolumeBeatSlotKey,
+} from "@ai-novel/shared/types/volumeBeatSlots";
+import {
   buildDerivedOutlineFromVolumes,
   buildDerivedStructuredOutlineFromVolumes,
   normalizeVolumeDraftInput,
@@ -191,11 +195,21 @@ function normalizeBeat(raw: unknown): VolumeBeat | null {
   if (!isRecord(raw)) {
     return null;
   }
-  const key = normalizeText(raw.key);
-  const label = normalizeText(raw.label);
+  const rawKey = normalizeText(raw.key);
+  const rawLabel = normalizeText(raw.label);
+  const resolvedKey = resolveVolumeBeatSlotKey(rawKey) ?? resolveVolumeBeatSlotKey(rawLabel) ?? rawKey;
+  const roleLabel = getVolumeBeatRoleLabel(resolvedKey, rawLabel || "节奏段");
+  let title = normalizeText(raw.title);
+  if (!title && rawLabel && rawLabel !== roleLabel) {
+    const prefix = `${roleLabel} · `;
+    title = rawLabel.startsWith(prefix) ? rawLabel.slice(prefix.length).trim() : rawLabel;
+  }
+  if (title === roleLabel) {
+    title = "";
+  }
   const summary = normalizeText(raw.summary);
   const chapterSpanHint = normalizeText(raw.chapterSpanHint);
-  if (!key || !label || !summary || !chapterSpanHint) {
+  if (!resolvedKey || !roleLabel || !summary || !chapterSpanHint) {
     return null;
   }
   const mustDeliver = normalizeStringArray(raw.mustDeliver);
@@ -203,8 +217,9 @@ function normalizeBeat(raw: unknown): VolumeBeat | null {
     return null;
   }
   return {
-    key,
-    label,
+    key: resolvedKey,
+    label: roleLabel,
+    title: title || null,
     summary,
     chapterSpanHint,
     mustDeliver,

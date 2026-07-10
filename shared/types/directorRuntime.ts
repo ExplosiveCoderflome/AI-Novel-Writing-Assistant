@@ -442,6 +442,8 @@ export interface DirectorRuntimeQualityBudgetSummary {
 export interface DirectorOutlineFactSummary {
   beatSheetReady: boolean;
   chapterListReady: boolean;
+  beatChapterListReady?: boolean;
+  volumeChapterListComplete?: boolean;
   chapterDetailReady: boolean;
   plannedChapterCount: number;
   selectedChapterCount: number;
