@@ -52,6 +52,7 @@ import {
   hasSystemResourceBootstrapChanges,
 } from "./services/bootstrap/SystemResourceBootstrapService";
 import { initializeRagSettingsCompatibility } from "./services/settings/RagCompatibilityBootstrapService";
+import { qualityDebtSettingsService } from "./services/settings/QualityDebtSettingsService";
 import { DirectorWorker } from "./workers/directorWorker";
 import { cleanupLogDirectory, resolveLogRetentionConfig } from "./platform/logging/logRetention";
 import { resolveLogsRoot } from "./runtime/appPaths";
@@ -246,6 +247,7 @@ function scheduleLogRetentionCleanup(): void {
 
 function initializeBackgroundServices(): BackgroundServicesHandle {
   ragServices.ragWorker.start();
+  ragServices.ragRetrievalTraceRetention.start();
   novelSideEffectWorker.start();
   const directorWorker = new DirectorWorker();
   void directorWorker.start().catch((error) => {
@@ -283,6 +285,7 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
       directorWorker.stop();
       novelSideEffectWorker.stop();
       ragServices.ragWorker.stop();
+      ragServices.ragRetrievalTraceRetention.stop();
       bookAnalysisService.stopWatchdog();
       novelPipelineRuntimeService.stopWatchdog();
     },
@@ -300,6 +303,9 @@ export async function startServer(options?: ServerStartOptions): Promise<Started
   ) {
     console.log("[server] imported legacy RAG env settings.", ragCompatibilityReport);
   }
+  await qualityDebtSettingsService.warnIfAutoPromotionEnabled().catch((error) => {
+    console.warn("[server] failed to inspect pending review auto-promotion settings.", error);
+  });
 
   const app = createApp();
   const { host, port, allowLan } = resolveServerStartOptions(options);

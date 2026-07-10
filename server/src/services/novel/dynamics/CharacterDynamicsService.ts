@@ -44,6 +44,10 @@ export class CharacterDynamicsService {
   syncChapterDraftDynamics(...args: Parameters<CharacterDynamicsMutationService["syncChapterDraftDynamics"]>) {
     return this.mutationService.syncChapterDraftDynamics(...args);
   }
+
+  autoConfirmPendingCandidates(...args: Parameters<CharacterDynamicsMutationService["autoConfirmPendingCandidates"]>) {
+    return this.mutationService.autoConfirmPendingCandidates(...args);
+  }
 }
 
 export const characterDynamicsService = new CharacterDynamicsService();

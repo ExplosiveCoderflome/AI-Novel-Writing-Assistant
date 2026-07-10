@@ -9,6 +9,7 @@ import {
   Dialog,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import SelectControl from "@/components/common/SelectControl";
 
 interface GenreEditDialogProps {
   open: boolean;
@@ -98,7 +99,7 @@ export default function GenreEditDialog({
 
           <label className="space-y-2 text-sm">
             <span className="font-medium text-foreground">父级题材基底</span>
-            <select
+            <SelectControl
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={parentId}
               onChange={(event) => setParentId(event.target.value)}
@@ -109,7 +110,7 @@ export default function GenreEditDialog({
                   {option.path}
                 </option>
               ))}
-            </select>
+            </SelectControl>
           </label>
         </div>
       </AppDialogContent>

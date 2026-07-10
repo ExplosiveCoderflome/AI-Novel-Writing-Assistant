@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Film, ImageIcon, RefreshCw, Sparkles, Video } from "lucide-react";
 import {
   estimateDramaEpisodeBatchJob,
+  prepareDramaShotKeyframe,
   type DramaBatchCostBreakdown,
   type DramaBatchJob,
   type DramaBatchJobType,
@@ -15,10 +16,14 @@ import {
   type DramaVideoPrompt,
   type DramaVideoProvider,
 } from "@/api/drama";
+import type { ImageGenerationOverrides } from "@/api/comic";
 import { getAPIKeySettings } from "@/api/settings";
+import { ImageGenerationConfirmDialog } from "@/components/image/ImageGenerationConfirmDialog";
+import { useImageGenerationFlow } from "@/components/image/useImageGenerationFlow";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import SelectControl from "@/components/common/SelectControl";
 
 export function DramaVisualPanel(props: {
   project: DramaProjectDetail;
@@ -26,7 +31,7 @@ export function DramaVisualPanel(props: {
   onSelectOrder: (order: number) => void;
   onStoryboard: (order: number) => void;
   onBatchJob: (order: number, input: { type: DramaBatchJobType; provider?: string; failedShotIds?: string[]; useCharacterRefImages?: boolean }) => void;
-  onKeyframe: (shot: DramaShot, provider?: string, useCharacterRefImages?: boolean) => void;
+  onKeyframe: (shot: DramaShot, provider?: string, useCharacterRefImages?: boolean, overrides?: ImageGenerationOverrides) => Promise<unknown>;
   onVideoPrompt: (shot: DramaShot) => void;
   videoProviders: DramaVideoProvider[];
   selectedProvider: string;
@@ -47,6 +52,7 @@ export function DramaVisualPanel(props: {
   const latestVideoBatch = selectedBatchJobs.find((job) => job.type === "videos");
   const [selectedImageProvider, setSelectedImageProvider] = useState("");
   const [useCharacterRefImages, setUseCharacterRefImages] = useState(false);
+  const keyframeFlow = useImageGenerationFlow();
   const apiKeyQuery = useQuery({
     queryKey: ["api-key-settings"],
     queryFn: getAPIKeySettings,
@@ -74,6 +80,21 @@ export function DramaVisualPanel(props: {
     succeeded: activeVideoPrompts.filter((prompt) => prompt.status === "succeeded").length,
     failed: activeVideoPrompts.filter((prompt) => prompt.status === "failed").length,
     history: videoPrompts.length - activeVideoPrompts.length,
+  };
+
+  const startKeyframeGeneration = (shot: DramaShot) => {
+    keyframeFlow.start({
+      prepare: async () => {
+        const result = await prepareDramaShotKeyframe(
+          props.project.id,
+          shot.id,
+          activeImageProvider || undefined,
+          useCharacterRefImages,
+        );
+        return result.data!;
+      },
+      generate: (overrides) => props.onKeyframe(shot, activeImageProvider || undefined, useCharacterRefImages, overrides),
+    });
   };
   const hasStoryboardShots = Boolean(storyboard?.shots?.length);
   const keyframeBatchActive = isActiveBatch(latestKeyframeBatch);
@@ -119,6 +140,7 @@ export function DramaVisualPanel(props: {
 
   return (
     <div className="space-y-4">
+      <ImageGenerationConfirmDialog {...keyframeFlow.dialogProps} />
       <div className="grid gap-3 md:grid-cols-6">
         <div className="rounded-md border p-3 text-sm">
           <div className="text-xs text-muted-foreground">当前提示词</div>
@@ -148,7 +170,7 @@ export function DramaVisualPanel(props: {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
-          <select
+          <SelectControl
             className="h-10 rounded-md border bg-background px-3 text-sm"
             value={selectedEpisode.order}
             onChange={(event) => props.onSelectOrder(Number(event.target.value))}
@@ -156,8 +178,8 @@ export function DramaVisualPanel(props: {
             {episodes.map((episode) => (
               <option key={episode.id} value={episode.order}>第 {episode.order} 集 {episode.title}</option>
             ))}
-          </select>
-          <select
+          </SelectControl>
+          <SelectControl
             className="h-10 rounded-md border bg-background px-3 text-sm"
             value={props.selectedProvider}
             onChange={(event) => props.onSelectProvider(event.target.value)}
@@ -168,8 +190,8 @@ export function DramaVisualPanel(props: {
             )) : (
               <option value={props.selectedProvider}>{props.selectedProvider}</option>
             )}
-          </select>
-          <select
+          </SelectControl>
+          <SelectControl
             className="h-10 rounded-md border bg-background px-3 text-sm"
             value={activeImageProvider}
             disabled={imageProviders.length === 0}
@@ -183,7 +205,7 @@ export function DramaVisualPanel(props: {
             )) : (
               <option value="">未配置图片 Provider</option>
             )}
-          </select>
+          </SelectControl>
           <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border bg-background px-3 text-sm">
             <input
               type="checkbox"
@@ -295,8 +317,8 @@ export function DramaVisualPanel(props: {
                         size="sm"
                         type="button"
                         variant={keyframe.status === "done" ? "outline" : "default"}
-                        disabled={props.busy || imageProviders.length === 0 || keyframe.status === "generating"}
-                        onClick={() => props.onKeyframe(shot, activeImageProvider || undefined, useCharacterRefImages)}
+                        disabled={props.busy || keyframeFlow.dialogProps.loading || keyframeFlow.dialogProps.submitting || imageProviders.length === 0 || keyframe.status === "generating"}
+                        onClick={() => startKeyframeGeneration(shot)}
                       >
                         <ImageIcon className="h-4 w-4" />
                         {keyframe.status === "done" ? "重生成首帧" : "生成首帧"}

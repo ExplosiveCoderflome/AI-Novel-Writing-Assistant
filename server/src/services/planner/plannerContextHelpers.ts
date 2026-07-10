@@ -28,6 +28,8 @@ export type PlannerMappedVolume = {
     chapterOrder: number;
     title: string;
     summary: string | null;
+    conflictLevel?: number | null;
+    conflictLevelSource?: "ai" | "user" | null;
   }>;
 };
 
@@ -124,6 +126,53 @@ export function buildCurrentVolumeWindowSummary(
       ? `下一卷预期：第${nextVolume.sortOrder}卷《${nextVolume.title}》 | ${nextVolume.mainPromise ?? nextVolume.summary ?? "无"}`
       : "下一卷预期：无",
   ].filter(Boolean).join("\n");
+}
+
+function describeConflictStep(
+  previous: number | null | undefined,
+  current: number | null | undefined,
+): string {
+  if (typeof previous !== "number" || typeof current !== "number") {
+    return "未知";
+  }
+  if (current > previous) {
+    return "上升";
+  }
+  if (current < previous) {
+    return "下降";
+  }
+  return "持平";
+}
+
+export function buildPlannerConflictLevelAnchorContext(
+  volumes: PlannerMappedVolume[],
+  affectedChapterOrders: number[] = [],
+): string {
+  const affectedOrderSet = new Set(affectedChapterOrders);
+  const lines: string[] = [];
+  for (const volume of volumes) {
+    const chapters = volume.chapters
+      .slice()
+      .sort((left, right) => left.chapterOrder - right.chapterOrder);
+    for (const [index, chapter] of chapters.entries()) {
+      if (chapter.conflictLevelSource !== "user" || typeof chapter.conflictLevel !== "number") {
+        continue;
+      }
+      if (affectedOrderSet.size > 0 && !affectedOrderSet.has(chapter.chapterOrder)) {
+        continue;
+      }
+      const previous = index > 0 ? chapters[index - 1] : null;
+      const next = index < chapters.length - 1 ? chapters[index + 1] : null;
+      lines.push([
+        `第${chapter.chapterOrder}章《${chapter.title}》`,
+        `conflictLevel=${chapter.conflictLevel}`,
+        "用户锚定，不可更改",
+        `相对上一章=${describeConflictStep(previous?.conflictLevel, chapter.conflictLevel)}`,
+        `相对下一章=${describeConflictStep(chapter.conflictLevel, next?.conflictLevel)}`,
+      ].join(" | "));
+    }
+  }
+  return lines.join("\n") || "无";
 }
 
 export function buildPlannerCharacterDynamicsContext(overview: PlannerCharacterDynamicsOverview | null): {

@@ -6,8 +6,8 @@ import type {
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
-import { BookAnalysisCommandService } from "./BookAnalysisCommandService";
-import { BookAnalysisQueryService } from "./BookAnalysisQueryService";
+import { BookAnalysisCommandService } from "./application/BookAnalysisCommandService";
+import { BookAnalysisQueryService } from "./application/BookAnalysisQueryService";
 
 class BookAnalysisServiceFacade {
   private readonly queryService = new BookAnalysisQueryService();
@@ -52,6 +52,9 @@ class BookAnalysisServiceFacade {
     model?: string;
     temperature?: number;
     maxTokens?: number;
+    budgetTokens?: number | null;
+    userFocusInstruction?: string | null;
+    sourceRange?: { startChapterIndex: number; endChapterIndex: number } | null;
     includeTimeline?: boolean;
     enabledSectionKeys?: BookAnalysisSectionKey[];
   }): Promise<BookAnalysisDetail> {
@@ -66,6 +69,14 @@ class BookAnalysisServiceFacade {
     return this.commandService.rebuildAnalysis(analysisId);
   }
 
+  updateBudget(analysisId: string, budgetTokens: number | null): Promise<BookAnalysisDetail> {
+    return this.commandService.updateBudget(analysisId, budgetTokens);
+  }
+
+  resumeWithBudget(analysisId: string, budgetTokens: number): Promise<BookAnalysisDetail> {
+    return this.commandService.resumeWithBudget(analysisId, budgetTokens);
+  }
+
   retryAnalysis(analysisId: string): Promise<BookAnalysisDetail> {
     return this.commandService.retryAnalysis(analysisId);
   }
@@ -74,8 +85,12 @@ class BookAnalysisServiceFacade {
     return this.commandService.cancelAnalysis(analysisId);
   }
 
-  regenerateSection(analysisId: string, sectionKey: BookAnalysisSectionKey): Promise<BookAnalysisDetail> {
-    return this.commandService.regenerateSection(analysisId, sectionKey);
+  regenerateSection(
+    analysisId: string,
+    sectionKey: BookAnalysisSectionKey,
+    input: { focusInstruction?: string | null } = {},
+  ): Promise<BookAnalysisDetail> {
+    return this.commandService.regenerateSection(analysisId, sectionKey, input);
   }
 
   optimizeSectionPreview(
@@ -92,6 +107,7 @@ class BookAnalysisServiceFacade {
     input: {
       editedContent?: string | null;
       notes?: string | null;
+      focusInstruction?: string | null;
       frozen?: boolean;
     },
   ): Promise<BookAnalysisDetail> {

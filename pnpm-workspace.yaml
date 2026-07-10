@@ -2,4 +2,13 @@ packages:
   - client
   - desktop
   - server
+  - site
   - shared
+injectWorkspacePackages: true
+allowBuilds:
+  '@prisma/engines': true
+  better-sqlite3: true
+  electron: false
+  electron-winstaller: false
+  esbuild: true
+  prisma: true

@@ -387,8 +387,11 @@ export function useNovelVolumePlanning({
     chapterId: string,
     field: keyof Pick<VolumePlan["chapters"][number], "conflictLevel" | "revealLevel" | "targetWordCount">,
     value: number | null,
+    options: {
+      conflictLevelSource?: VolumePlan["chapters"][number]["conflictLevelSource"];
+    } = {},
   ) => {
-    updateVolumeDraft((prev) => updateChapterNumberFieldDraft(prev, volumeId, chapterId, field, value), {
+    updateVolumeDraft((prev) => updateChapterNumberFieldDraft(prev, volumeId, chapterId, field, value, options), {
       clearRebalanceDecisions: true,
     });
   };

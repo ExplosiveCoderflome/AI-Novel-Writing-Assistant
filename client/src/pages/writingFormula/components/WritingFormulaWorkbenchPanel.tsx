@@ -1,6 +1,7 @@
 import type { StyleBinding } from "@ai-novel/shared/types/styleEngine";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import SelectControl from "@/components/common/SelectControl";
 
 interface BindingFormState {
   targetType: StyleBinding["targetType"];
@@ -75,7 +76,7 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
           <div className="grid gap-3 md:grid-cols-2">
             <label className="space-y-2">
               <div className="text-sm font-medium text-slate-900">绑定层级</div>
-              <select
+              <SelectControl
                 className="w-full rounded-md border p-2 text-sm"
                 value={bindingForm.targetType}
                 onChange={(event) => onBindingFormChange({ targetType: event.target.value as StyleBinding["targetType"] })}
@@ -83,24 +84,24 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
                 <option value="novel">整本书</option>
                 <option value="chapter">章节</option>
                 <option value="task">本次任务</option>
-              </select>
+              </SelectControl>
             </label>
 
             <label className="space-y-2">
               <div className="text-sm font-medium text-slate-900">所属小说</div>
-              <select
+              <SelectControl
                 className="w-full rounded-md border p-2 text-sm"
                 value={bindingForm.novelId}
                 onChange={(event) => onBindingFormChange({ novelId: event.target.value, chapterId: "" })}
               >
                 {novelOptions.map((novel) => <option key={novel.id} value={novel.id}>{novel.title}</option>)}
-              </select>
+              </SelectControl>
             </label>
 
             {bindingForm.targetType === "chapter" ? (
               <label className="space-y-2">
                 <div className="text-sm font-medium text-slate-900">选择章节</div>
-                <select
+                <SelectControl
                   className="w-full rounded-md border p-2 text-sm"
                   value={bindingForm.chapterId}
                   onChange={(event) => onBindingFormChange({ chapterId: event.target.value })}
@@ -111,7 +112,7 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
                       {chapter.order}. {chapter.title}
                     </option>
                   ))}
-                </select>
+                </SelectControl>
               </label>
             ) : null}
 
@@ -183,14 +184,14 @@ export default function WritingFormulaWorkbenchPanel(props: WritingFormulaWorkbe
 
           <label className="space-y-2">
             <div className="text-sm font-medium text-slate-900">试写方式</div>
-            <select
+            <SelectControl
               className="w-full rounded-md border p-2 text-sm"
               value={testWriteForm.mode}
               onChange={(event) => onTestWriteFormChange({ mode: event.target.value as "generate" | "rewrite" })}
             >
               <option value="generate">生成正文</option>
               <option value="rewrite">改写文本</option>
-            </select>
+            </SelectControl>
           </label>
 
           {testWriteForm.mode === "generate" ? (

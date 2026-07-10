@@ -20,6 +20,7 @@ import {
   RAG_EMBEDDING_COLLECTION_MODE_KEY,
   RAG_EMBEDDING_COLLECTION_NAME_KEY,
   RAG_EMBEDDING_COLLECTION_TAG_KEY,
+  RAG_EMBEDDING_CONCURRENCY_KEY,
   RAG_EMBEDDING_MAX_RETRIES_KEY,
   RAG_EMBEDDING_MODEL_KEY,
   RAG_EMBEDDING_PROVIDER_KEY,
@@ -42,6 +43,7 @@ export interface RagEmbeddingSettings {
   embeddingTimeoutMs: number;
   embeddingMaxRetries: number;
   embeddingRetryBaseMs: number;
+  embeddingConcurrency: number;
   suggestedCollectionName: string;
 }
 
@@ -56,6 +58,7 @@ export interface RagEmbeddingSettingsInput {
   embeddingTimeoutMs: number;
   embeddingMaxRetries: number;
   embeddingRetryBaseMs: number;
+  embeddingConcurrency: number;
 }
 
 export interface RagEmbeddingProviderStatus {
@@ -159,6 +162,7 @@ function applyRagRuntimeSettings(settings: RagEmbeddingSettings): RagEmbeddingSe
   ragConfig.embeddingTimeoutMs = settings.embeddingTimeoutMs;
   ragConfig.embeddingMaxRetries = settings.embeddingMaxRetries;
   ragConfig.embeddingRetryBaseMs = settings.embeddingRetryBaseMs;
+  ragConfig.embeddingConcurrency = settings.embeddingConcurrency;
   ragConfig.qdrantCollection = settings.collectionName;
   return settings;
 }
@@ -185,6 +189,7 @@ async function getDefaultSettings(): Promise<RagEmbeddingSettings> {
     embeddingTimeoutMs: clampInt(ragConfig.embeddingTimeoutMs, 30000, 5000, 300000),
     embeddingMaxRetries: clampInt(ragConfig.embeddingMaxRetries, 2, 0, 8),
     embeddingRetryBaseMs: clampInt(ragConfig.embeddingRetryBaseMs, 500, 100, 10000),
+    embeddingConcurrency: clampInt(ragConfig.embeddingConcurrency, 4, 1, 16),
     suggestedCollectionName,
   };
 }
@@ -248,6 +253,12 @@ export async function getRagEmbeddingSettings(): Promise<RagEmbeddingSettings> {
         100,
         10000,
       ),
+      embeddingConcurrency: clampInt(
+        Number(valueMap.get(RAG_EMBEDDING_CONCURRENCY_KEY)),
+        defaults.embeddingConcurrency,
+        1,
+        16,
+      ),
       suggestedCollectionName,
     });
   } catch (error) {
@@ -280,6 +291,7 @@ export async function saveRagEmbeddingSettings(input: RagEmbeddingSettingsInput)
     embeddingTimeoutMs: clampInt(input.embeddingTimeoutMs, previous.embeddingTimeoutMs, 5000, 300000),
     embeddingMaxRetries: clampInt(input.embeddingMaxRetries, previous.embeddingMaxRetries, 0, 8),
     embeddingRetryBaseMs: clampInt(input.embeddingRetryBaseMs, previous.embeddingRetryBaseMs, 100, 10000),
+    embeddingConcurrency: clampInt(input.embeddingConcurrency, previous.embeddingConcurrency, 1, 16),
     suggestedCollectionName,
   });
 
@@ -299,6 +311,7 @@ export async function saveRagEmbeddingSettings(input: RagEmbeddingSettingsInput)
     embeddingTimeoutMs: settings.embeddingTimeoutMs,
     embeddingMaxRetries: settings.embeddingMaxRetries,
     embeddingRetryBaseMs: settings.embeddingRetryBaseMs,
+    embeddingConcurrency: settings.embeddingConcurrency,
     suggestedCollectionName: settings.suggestedCollectionName,
   };
   try {
@@ -352,6 +365,11 @@ export async function saveRagEmbeddingSettings(input: RagEmbeddingSettingsInput)
         where: { key: RAG_EMBEDDING_RETRY_BASE_MS_KEY },
         update: { value: String(data.embeddingRetryBaseMs) },
         create: { key: RAG_EMBEDDING_RETRY_BASE_MS_KEY, value: String(data.embeddingRetryBaseMs) },
+      }),
+      prisma.appSetting.upsert({
+        where: { key: RAG_EMBEDDING_CONCURRENCY_KEY },
+        update: { value: String(data.embeddingConcurrency) },
+        create: { key: RAG_EMBEDDING_CONCURRENCY_KEY, value: String(data.embeddingConcurrency) },
       }),
     ]);
     return {

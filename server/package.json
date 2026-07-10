@@ -31,6 +31,7 @@
     "test:runtime": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/runtime.test.js",
     "test:routes": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/routes.test.js",
     "test:book-analysis": "pnpm --filter @ai-novel/shared build && pnpm run build && node --test tests/bookAnalysis.test.js",
+    "rag:eval": "node scripts/rag-retrieval-eval.cjs",
     "audit:director-recovery-samples": "node scripts/director-recovery-sample-audit.cjs",
     "backfill:director-draft-baselines": "node scripts/director-chapter-draft-baseline-backfill.cjs",
     "prisma": "prisma",

@@ -4,6 +4,7 @@ import {
   canCancelDirectorTask,
   canContinueChapterBatchAutoExecution,
   canContinueDirector,
+  getCandidateSelectionLink,
 } from "../src/lib/novelWorkflowTaskUi.ts";
 
 function buildTask(overrides = {}) {
@@ -54,4 +55,8 @@ test("completed tasks are not cancelable", () => {
   });
 
   assert.equal(canCancelDirectorTask(task), false);
+});
+
+test("candidate selection links use the auto-director route taskId parameter", () => {
+  assert.equal(getCandidateSelectionLink("task-1"), "/novels/auto-director?taskId=task-1");
 });

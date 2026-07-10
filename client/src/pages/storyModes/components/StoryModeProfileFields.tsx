@@ -1,4 +1,5 @@
 import type { StoryModeProfile } from "@ai-novel/shared/types/storyMode";
+import SelectControl from "@/components/common/SelectControl";
 
 function linesToList(value: string): string[] {
   return value
@@ -80,7 +81,7 @@ export default function StoryModeProfileFields({
         </label>
         <label className="space-y-2 text-sm">
           <span className="font-medium text-foreground">冲突上限</span>
-          <select
+          <SelectControl
             className="w-full rounded-md border bg-background p-2 text-sm"
             value={value.conflictCeiling}
             onChange={(event) => onChange({ ...value, conflictCeiling: event.target.value as StoryModeProfile["conflictCeiling"] })}
@@ -88,7 +89,7 @@ export default function StoryModeProfileFields({
             <option value="low">low</option>
             <option value="medium">medium</option>
             <option value="high">high</option>
-          </select>
+          </SelectControl>
         </label>
       </div>
       <div className="grid gap-3 md:grid-cols-2">

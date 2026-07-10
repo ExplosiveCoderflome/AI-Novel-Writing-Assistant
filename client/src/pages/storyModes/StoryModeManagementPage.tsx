@@ -30,6 +30,7 @@ import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import StoryModeProfileFields from "./components/StoryModeProfileFields";
 import StoryModeTreeCard from "./components/StoryModeTreeCard";
+import SelectControl from "@/components/common/SelectControl";
 
 type StoryModeProfileDraft = StoryModeProfile;
 
@@ -406,7 +407,7 @@ export default function StoryModeManagementPage() {
               {isCreatingChild ? (
                 <label className="space-y-2 text-sm">
                   <span className="font-medium text-foreground">衍生数量</span>
-                  <select
+                  <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={childDerivationCount}
                     onChange={(event) => setChildDerivationCount(Number(event.target.value))}
@@ -416,7 +417,7 @@ export default function StoryModeManagementPage() {
                     <option value={3}>3 个</option>
                     <option value={4}>4 个</option>
                     <option value={5}>5 个</option>
-                  </select>
+                  </SelectControl>
                 </label>
               ) : null}
               <textarea

@@ -7,10 +7,18 @@ import type {
   BookAnalysisSectionKey,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
-import type { KnowledgeDocumentDetail, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
+import type {
+  BookAnalysisCharacter,
+  BookAnalysisCharacterDimension,
+  BookAnalysisCharacterGenerationDepth,
+} from "@ai-novel/shared/types/bookAnalysisCharacter";
+import type { CharacterProfile } from "@ai-novel/shared/types/characterProfile";
+import type { DocumentChapter, KnowledgeDocumentDetail, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
 import type { AggregatedEvidenceItem, LLMConfigState, SectionDraft } from "../bookAnalysis.types";
 
 export type ExportFormat = "markdown" | "json";
+export type BookAnalysisMode = "reference" | "diagnosis";
+export type BookAnalysisSourceRangeDraft = { startChapterIndex: number; endChapterIndex: number } | null;
 
 export interface NovelOption {
   id: string;
@@ -27,15 +35,32 @@ export interface PendingState {
   saveSection: boolean;
   publish: boolean;
   createStyleProfile: boolean;
+  updateBudget: boolean;
+  resumeWithBudget: boolean;
+  loadCharacters: boolean;
+  generateCharacters: boolean;
+  identifyCharacters: boolean;
+  generateCharacterProfile: boolean;
+  generateAllCandidates: boolean;
+  generatingCharacterIds: Set<string>;
+  createCharacter: boolean;
+  updateCharacter: boolean;
+  deleteCharacter: boolean;
+  createDiagnosis: boolean;
 }
 
 export interface BookAnalysisWorkspace {
+  analysisMode: BookAnalysisMode;
   keyword: string;
   status: BookAnalysisStatus | "";
   selectedAnalysisId: string;
   selectedDocumentId: string;
   selectedVersionId: string;
   selectedNovelId: string;
+  selectedDiagnosisNovelId: string;
+  userFocusInstruction: string;
+  selectedSourceRange: BookAnalysisSourceRangeDraft;
+  budgetTokens: number | null;
   includeTimeline: boolean;
   analysisPreset: BookAnalysisPreset;
   llmConfig: LLMConfigState;
@@ -49,12 +74,25 @@ export interface BookAnalysisWorkspace {
   novelOptions: NovelOption[];
   versionOptions: KnowledgeDocumentDetail["versions"];
   sourceDocument?: KnowledgeDocumentDetail;
+  sourceVersionContent: string;
+  documentChapters: DocumentChapter[];
+  sourceChapters: DocumentChapter[];
+  sourceChaptersRequested: boolean;
+  sourceChaptersLoading: boolean;
+  sourceChaptersError: string;
+  characters: BookAnalysisCharacter[];
   aggregatedEvidence: AggregatedEvidenceItem[];
   optimizingSectionKey: BookAnalysisSectionKey | null;
   pending: PendingState;
   setKeyword: (keyword: string) => void;
   setStatus: (status: BookAnalysisStatus | "") => void;
+  setAnalysisMode: (mode: BookAnalysisMode) => void;
   setSelectedNovelId: (novelId: string) => void;
+  setSelectedDiagnosisNovelId: (novelId: string) => void;
+  setUserFocusInstruction: (instruction: string) => void;
+  setSelectedSourceRange: (range: BookAnalysisSourceRangeDraft) => void;
+  setBudgetTokens: (budgetTokens: number | null) => void;
+  requestSourceChapters: () => void;
   setIncludeTimeline: (include: boolean) => void;
   setAnalysisPreset: (preset: BookAnalysisPreset) => void;
   setLlmConfig: (config: LLMConfigState) => void;
@@ -62,6 +100,7 @@ export interface BookAnalysisWorkspace {
   selectVersion: (versionId: string) => void;
   openAnalysis: (analysisId: string, documentId: string) => void;
   createAnalysis: () => Promise<void>;
+  createDiagnosisAnalysis: () => Promise<void>;
   copySelectedAnalysis: () => Promise<void>;
   rebuildAnalysis: (analysisId: string) => void;
   archiveAnalysis: (analysisId: string) => void;
@@ -73,6 +112,49 @@ export interface BookAnalysisWorkspace {
   downloadSelectedAnalysis: (format: ExportFormat) => Promise<void>;
   publishSelectedAnalysis: () => Promise<void>;
   createStyleProfileFromAnalysis: () => Promise<void>;
+  updateBudget: (budgetTokens: number | null) => Promise<void>;
+  resumeWithBudget: (budgetTokens: number) => Promise<void>;
+  generateCharacters: (input: {
+    generationDepth: BookAnalysisCharacterGenerationDepth;
+    selectedDimensions: BookAnalysisCharacterDimension[];
+    characterNames?: string[];
+  }) => Promise<void>;
+  identifyCharacters: () => Promise<void>;
+  generateCharacterProfile: (
+    characterId: string,
+    input: {
+      generationDepth: BookAnalysisCharacterGenerationDepth;
+      selectedDimensions: BookAnalysisCharacterDimension[];
+    },
+  ) => Promise<void>;
+  generateAllCandidates: (input: {
+    generationDepth: BookAnalysisCharacterGenerationDepth;
+    selectedDimensions: BookAnalysisCharacterDimension[];
+  }) => Promise<void>;
+  characterBatchSummary: {
+    generated: number;
+    failed: number;
+    pending: number;
+    total: number;
+  } | null;
+  dismissCharacterBatchSummary: () => void;
+  createCharacter: (input: {
+    name: string;
+    role: string;
+    profile?: Partial<CharacterProfile>;
+    generationDepth?: BookAnalysisCharacterGenerationDepth;
+    selectedDimensions?: BookAnalysisCharacterDimension[];
+  }) => Promise<void>;
+  updateCharacter: (
+    characterId: string,
+    input: {
+      name?: string;
+      role?: string;
+      profile?: Partial<CharacterProfile>;
+      selectedDimensions?: BookAnalysisCharacterDimension[];
+    },
+  ) => Promise<void>;
+  deleteCharacter: (characterId: string) => Promise<void>;
   updateSectionDraft: (section: BookAnalysisSection, patch: Partial<SectionDraft>) => void;
   getSectionDraft: (section: BookAnalysisSection) => SectionDraft;
 }

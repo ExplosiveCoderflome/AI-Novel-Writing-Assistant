@@ -180,6 +180,11 @@ export function mapVolumeRow(row: VolumeRow): VolumePlan {
       endingState: null,
       nextChapterEntryState: null,
       conflictLevel: chapter.conflictLevel,
+      conflictLevelSource: chapter.conflictLevelSource === "user"
+        ? "user"
+        : chapter.conflictLevelSource === "ai"
+          ? "ai"
+          : null,
       revealLevel: chapter.revealLevel,
       targetWordCount: chapter.targetWordCount,
       mustAvoid: chapter.mustAvoid,

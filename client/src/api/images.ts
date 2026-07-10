@@ -1,5 +1,5 @@
 import type { ApiResponse } from "@ai-novel/shared/types/api";
-import type { ImageAsset, ImageGenerationTask } from "@ai-novel/shared/types/image";
+import type { ImageAsset, ImageGenerationTask, ImageSceneType } from "@ai-novel/shared/types/image";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { apiClient } from "./client";
 import { API_BASE_URL } from "@/lib/constants";
@@ -54,7 +54,50 @@ export interface OptimizeNovelCoverPromptPayload {
   outputLanguage?: ImagePromptOutputLanguage;
 }
 
+export interface GenerateBookAnalysisCharacterImagePayload {
+  sceneType: "book_analysis_character";
+  sceneId: string;
+  prompt: string;
+  promptMode?: CharacterImagePromptMode;
+  negativePrompt?: string;
+  stylePreset?: string;
+  provider?: LLMProvider;
+  model?: string;
+  size?: "512x512" | "768x768" | "1024x1024" | "1024x1536" | "1536x1024";
+  count?: number;
+  seed?: number;
+  maxRetries?: number;
+}
+
+export interface ImagePromptAssistPayload {
+  action: "explain" | "optimize";
+  title?: string;
+  kind?: string;
+  prompt: string;
+  negativePrompt?: string;
+  optimizationInstruction?: string;
+  provider?: string;
+  size?: string;
+  referenceImages: Array<{
+    kind: string;
+    label: string;
+  }>;
+}
+
+export interface ImagePromptAssistResult {
+  summary: string;
+  details: string[];
+  risks: string[];
+  optimizedPrompt?: string;
+  changes: string[];
+}
+
 export async function generateCharacterImages(payload: GenerateCharacterImagePayload) {
+  const { data } = await apiClient.post<ApiResponse<ImageGenerationTask>>("/images/generate", payload);
+  return data;
+}
+
+export async function generateBookAnalysisCharacterImages(payload: GenerateBookAnalysisCharacterImagePayload) {
   const { data } = await apiClient.post<ApiResponse<ImageGenerationTask>>("/images/generate", payload);
   return data;
 }
@@ -80,12 +123,17 @@ export async function optimizeNovelCoverPrompt(payload: OptimizeNovelCoverPrompt
   return data;
 }
 
+export async function assistImageGenerationPrompt(payload: ImagePromptAssistPayload) {
+  const { data } = await apiClient.post<ApiResponse<ImagePromptAssistResult>>("/images/prompt-assist", payload);
+  return data;
+}
+
 export async function getImageTask(taskId: string) {
   const { data } = await apiClient.get<ApiResponse<ImageGenerationTask>>(`/images/tasks/${taskId}`);
   return data;
 }
 
-export async function listImageAssets(params: { sceneType: "character" | "novel_cover"; sceneId: string }) {
+export async function listImageAssets(params: { sceneType: Extract<ImageSceneType, "character" | "novel_cover" | "book_analysis_character">; sceneId: string }) {
   const { data } = await apiClient.get<ApiResponse<ImageAsset[]>>("/images/assets", {
     params,
   });

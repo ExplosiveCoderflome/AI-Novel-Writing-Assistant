@@ -2,6 +2,7 @@ import type { BaseMessage, BaseMessageChunk } from "@langchain/core/messages";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ZodType } from "zod";
 import type { TaskType } from "../../llm/modelRouter";
+import type { LlmTokenUsageSnapshot } from "../../llm/usageTracking";
 import type { PromptSlotDef, ResolvedSlots } from "../slots/slotTypes";
 
 export type PromptMode = "structured" | "text";
@@ -144,6 +145,7 @@ export interface PromptExecutionMeta {
   model?: string;
   latencyMs: number;
   invocation: PromptInvocationMeta;
+  tokenUsage?: LlmTokenUsageSnapshot | null;
 }
 
 export interface PromptRunResult<T> {

@@ -3,6 +3,7 @@ import type { AgentStep } from "@ai-novel/shared/types/agent";
 import KnowledgeDocumentPicker from "@/components/knowledge/KnowledgeDocumentPicker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import SelectControl from "@/components/common/SelectControl";
 
 type ChatMode = "standard" | "agent";
 type ContextMode = "global" | "novel";
@@ -161,30 +162,30 @@ export default function RuntimeSidebar({
               <div className="grid gap-2">
                 <div className="grid gap-1">
                   <label className="text-[11px] text-slate-500">对话模式</label>
-                  <select
+                  <SelectControl
                     className="w-full rounded-lg border border-slate-300 bg-white p-2"
                     value={chatMode}
                     onChange={(event) => onChatModeChange(event.target.value as ChatMode)}
                   >
                     <option value="standard">标准模式</option>
                     <option value="agent">智能代理</option>
-                  </select>
+                  </SelectControl>
                 </div>
                 <div className="grid gap-1">
                   <label className="text-[11px] text-slate-500">上下文模式</label>
-                  <select
+                  <SelectControl
                     className="w-full rounded-lg border border-slate-300 bg-white p-2"
                     value={contextMode}
                     onChange={(event) => onContextModeChange(event.target.value as ContextMode)}
                   >
                     <option value="global">全局</option>
                     <option value="novel">小说</option>
-                  </select>
+                  </SelectControl>
                 </div>
                 {runHistoryIds.length > 0 ? (
                   <div className="grid gap-1">
                     <label className="text-[11px] text-slate-500">会话运行</label>
-                    <select
+                    <SelectControl
                       className="w-full rounded-lg border border-slate-300 bg-white p-2"
                       value={currentRunId}
                       onChange={(event) => onSelectRun(event.target.value)}
@@ -194,13 +195,13 @@ export default function RuntimeSidebar({
                           {id.slice(0, 16)}
                         </option>
                       ))}
-                    </select>
+                    </SelectControl>
                   </div>
                 ) : null}
                 {contextMode === "novel" ? (
                   <div className="grid gap-1">
                     <label className="text-[11px] text-slate-500">小说</label>
-                    <select
+                    <SelectControl
                       className="w-full rounded-lg border border-slate-300 bg-white p-2"
                       value={novelId}
                       onChange={(event) => onNovelChange(event.target.value)}
@@ -211,7 +212,7 @@ export default function RuntimeSidebar({
                           {novel.title}
                         </option>
                       ))}
-                    </select>
+                    </SelectControl>
                   </div>
                 ) : null}
               </div>
@@ -367,7 +368,7 @@ export default function RuntimeSidebar({
                   仅显示后续仍有工具调用的步骤。
                 </div>
                 <div className="mt-2 flex flex-col gap-2">
-                  <select
+                  <SelectControl
                     className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs"
                     value={effectiveReplayStepId}
                     onChange={(event) => onReplayStepChange(event.target.value)}
@@ -377,7 +378,7 @@ export default function RuntimeSidebar({
                         {step.seq}. {stepTitle(step)}
                       </option>
                     ))}
-                  </select>
+                  </SelectControl>
                   <div className="flex gap-2">
                     <Button size="sm" variant="secondary" className="flex-1" onClick={() => onReplay("continue")} disabled={isStreaming}>
                       从这里继续

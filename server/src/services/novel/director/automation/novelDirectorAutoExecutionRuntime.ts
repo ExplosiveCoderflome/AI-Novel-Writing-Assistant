@@ -383,6 +383,13 @@ export class NovelDirectorAutoExecutionRuntime {
           const completedPipelineJobId = pipelineJobId;
           pipelineJobId = "";
           if ((autoExecution.remainingChapterCount ?? 0) > 0) {
+            if (this.deps.autoConfirmPendingCandidates) {
+              await this.deps.autoConfirmPendingCandidates(input.novelId).catch(() => null);
+            }
+            schedulePendingReviewAutoPromotionIfEnabled(this.deps, {
+              novelId: input.novelId,
+              taskId: input.taskId,
+            });
             await syncAutoExecutionTaskState(this.deps, {
               taskId: input.taskId,
               novelId: input.novelId,
@@ -688,5 +695,28 @@ export class NovelDirectorAutoExecutionRuntime {
     const chapters = await this.deps.novelContextService.listChapters(novelId);
     return chapters.find((chapter) => chapter.order === startOrder) ?? null;
   }
+}
+
+export function schedulePendingReviewAutoPromotionIfEnabled(
+  deps: Pick<
+    NovelDirectorAutoExecutionRuntimeDeps,
+    "isPendingReviewAutoPromotionEnabled" | "autoPromotePendingReviewProposals"
+  >,
+  input: {
+    novelId: string;
+    taskId: string;
+  },
+): void {
+  if (!deps.isPendingReviewAutoPromotionEnabled || !deps.autoPromotePendingReviewProposals) {
+    return;
+  }
+  void Promise.resolve(deps.isPendingReviewAutoPromotionEnabled())
+    .then((enabled) => {
+      if (!enabled) {
+        return undefined;
+      }
+      return deps.autoPromotePendingReviewProposals?.(input);
+    })
+    .catch(() => null);
 }
 

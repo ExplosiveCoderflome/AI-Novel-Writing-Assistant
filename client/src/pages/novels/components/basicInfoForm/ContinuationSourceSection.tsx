@@ -10,6 +10,7 @@ import {
   SectionBlock,
   SelectionCard,
 } from "./BasicInfoFormPrimitives";
+import SelectControl from "@/components/common/SelectControl";
 
 interface ContinuationSourceSectionProps {
   basicForm: NovelBasicFormState;
@@ -43,6 +44,7 @@ export function ContinuationSourceSection(props: ContinuationSourceSectionProps)
     <SectionBlock
       title="续写来源"
       description="续写模式下，需要明确引用的上游小说或知识文档，并决定是否注入拆书结果。"
+      surface="none"
     >
       <div className="space-y-2">
         <FieldLabel hint={BASIC_INFO_FIELD_HINTS.continuationSourceType}>续写来源类型</FieldLabel>
@@ -71,7 +73,7 @@ export function ContinuationSourceSection(props: ContinuationSourceSectionProps)
       {basicForm.continuationSourceType === "novel" ? (
         <div className="space-y-2">
           <FieldLabel htmlFor="basic-source-novel">前作小说</FieldLabel>
-          <select
+          <SelectControl
             id="basic-source-novel"
             className="w-full rounded-md border bg-background p-2 text-sm"
             value={basicForm.sourceNovelId}
@@ -81,12 +83,12 @@ export function ContinuationSourceSection(props: ContinuationSourceSectionProps)
             {sourceNovelOptions.map((novel) => (
               <option key={novel.id} value={novel.id}>{novel.title}</option>
             ))}
-          </select>
+          </SelectControl>
         </div>
       ) : (
         <div className="space-y-2">
           <FieldLabel htmlFor="basic-source-knowledge">知识库文档</FieldLabel>
-          <select
+          <SelectControl
             id="basic-source-knowledge"
             className="w-full rounded-md border bg-background p-2 text-sm"
             value={basicForm.sourceKnowledgeDocumentId}
@@ -96,12 +98,12 @@ export function ContinuationSourceSection(props: ContinuationSourceSectionProps)
             {sourceKnowledgeOptions.map((doc) => (
               <option key={doc.id} value={doc.id}>{doc.title}</option>
             ))}
-          </select>
+          </SelectControl>
         </div>
       )}
 
       {hasSelectedContinuationSource ? (
-        <div className="space-y-3 rounded-lg border border-border/60 bg-background p-3">
+        <div className="space-y-3 pt-1">
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               拆书引用
@@ -112,7 +114,7 @@ export function ContinuationSourceSection(props: ContinuationSourceSectionProps)
 
           <div className="space-y-2">
             <FieldLabel htmlFor="basic-book-analysis">拆书结果</FieldLabel>
-            <select
+            <SelectControl
               id="basic-book-analysis"
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={basicForm.continuationBookAnalysisId}
@@ -136,7 +138,7 @@ export function ContinuationSourceSection(props: ContinuationSourceSectionProps)
                   {analysis.title} | {analysis.documentTitle} v{analysis.documentVersionNumber}
                 </option>
               ))}
-            </select>
+            </SelectControl>
           </div>
 
           {isLoadingSourceNovelBookAnalyses ? (

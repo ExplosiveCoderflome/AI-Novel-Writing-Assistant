@@ -69,13 +69,45 @@
 
 条带视图是审阅入口，不改变底层格子顺序、提示词记录和生图状态。重抽仍使用同一套 `ComicPanel.visualPrompt`、角色引用、对白气泡和 provider prompt 组装规则。
 
+## Dialogue Bubble Rules
+
+气泡内文字渲染是漫画体验的关键。本项目的强约束：**气泡里只能渲染台词正文，不允许出现说话人名、"说/道"等动词、冒号、引号或任何旁白前缀**——这些都属于剧本叙述层，不属于气泡层。
+
+三层防御保证这条规则：
+
+1. **分镜 prompt 源头预防**：`comicPanelScriptOutputSchema.panels[].dialogues[]` 拆分为 `{ speaker, text, bubbleType, anchorHint }`，render 中加规则 2b 明确告知 LLM「`text` 字段只能包含台词正文，不要加"XX说"、"XX道"、姓名、冒号、引号或叙述前缀」。
+2. **生图 prompt 重写**：`buildDialoguePrompt` 把 `speaker` 改为「气泡尾巴指向 XX」的方向信息，气泡内文字框死为「气泡内文字仅为「{text}」」；并在 prompt 顶部强制声明气泡渲染规则。
+3. **防御性剥离**：`stripSpeakerPrefix` helper 在生图前剥离 `text` 中已有的「XX说：」「XX：」、首尾引号等模式，兼容历史脏数据 + LLM 偶尔违规。
+
+`speaker` 在 schema 中保留，是因为它决定气泡尾巴方向（指向画面中哪个角色）；但绝对不进气泡内的渲染文字。
+
+## Style Keywords (Single Source)
+
+漫画相关图像生成统一从 `server/src/services/comic/comicStylePrompt.ts` 的 `resolveComicStyleKeywords(stylePresetRaw)` 取画风关键词，**禁止再在角色/资产/场景服务中硬编码"manga/webtoon"**。这点曾经长期是漏洞：项目选了"水墨国风"，但三视图/表情稿/资产图照样生成彩色韩漫，与最终格子图风格冲突。
+
+注意区分 `stylePreset.style`（画风：webtoon_color / ink_traditional / shounen_bw 等）与 `stylePreset.promptKeywords`（漫画形态：竖条漫 / 四格等）。**前者注入到角色/资产/场景；后者只注入到最终格子图**——因为角色/资产/场景 reference sheet 不是某种"漫画版式"，不该带"竖条漫"这类形态词。
+
+## Reference Image Metadata
+
+生格子图时，`finalRefImagePaths` 中实际用到的素材会同步收集为 `PanelReferenceImageMeta[]` 写入 `imageData.referenceImages`：
+
+```ts
+{ kind: "character_sheet" | "character_expression" | "character_face" | "asset" | "scene", label: string, url: string }
+```
+
+`url` 直接指向已有的 HTTP 端点（如 `/api/comic/character-images/{id}/sheet`、`/api/comic/character-assets/{id}/image`、`/api/comic/scenes/{id}/image`），前端格子图弹窗用缩略图网格展示，点击可在新标签打开大图。
+
+这个机制纯粹是溯源用的元数据，不影响生图行为本身。雪碧图（每角色现场合成的临时 PNG）不持久化，元数据记录的是它的**组成素材**（哪个角色三视图 + 哪几个资产），不是雪碧图本身——这样省盘、且素材本身已经在角色/资产 tab 可见，溯源体验更轻量。
+
 ## Failure Modes
 
 - 如果把最终 provider prompt 当成可编辑主字段，用户可能无意删除角色锚点和表情参考，导致角色崩坏。
 - 如果四格结构只靠高目标格数叠加，会造成成本、格数统计和阅读节奏偏离预期。
-- 如果修改单格画面脚本后不重新生图，当前图片仍是旧 prompt 的结果，界面必须用“上次发送”避免误导。
+- 如果修改单格画面脚本后不重新生图，当前图片仍是旧 prompt 的结果，界面必须用"上次发送"避免误导。
 - 如果已有格子脚本被重新生成，旧格子会被替换；前端需要在已有格子时提示覆盖风险。
 - 如果跨话事实没有来源话序或类别，后续分格提示词无法判断它是剧情事实、揭示信息还是状态变化，容易造成连续性误导。
+- 如果 LLM 把"XX说"塞进 `dialogues[].text`，气泡里会出现叙述前缀。stripSpeakerPrefix 是兜底，但根因应通过 prompt 工程改进，不要依赖 regex。
+- 如果新加生图入口未走 `comicStylePrompt`，画风会回退到 webtoon 模板，与项目画风冲突。新生图链路必须接入这个单一来源。
 
 ## Related Modules
 

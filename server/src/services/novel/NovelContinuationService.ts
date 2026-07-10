@@ -1,10 +1,39 @@
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
+import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import { BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS } from "@ai-novel/shared/types/bookAnalysis";
 import { prisma } from "../../db/prisma";
 import { runTextPrompt } from "../../prompting/core/promptRunner";
 import { novelContinuationRewritePrompt } from "../../prompting/prompts/novel/continuation.prompts";
 
 const CONTINUATION_SIMILARITY_THRESHOLD = 0.3;
 const CONTINUATION_NGRAM_SIZE = 5;
+const CONTINUATION_ANALYSIS_SECTION_KEYS: BookAnalysisSectionKey[] = [
+  "overview",
+  "plot_structure",
+  "timeline",
+  "character_system",
+  "worldbuilding",
+  "themes",
+  "style_technique",
+  "market_highlights",
+];
+const CONTINUATION_ANALYSIS_SECTION_KEY_SET = new Set<BookAnalysisSectionKey>(CONTINUATION_ANALYSIS_SECTION_KEYS);
+
+type ContinuationAnalysisSection = {
+  sectionKey: string;
+  title: string;
+  structuredDataJson: string | null;
+  aiContent: string | null;
+  editedContent: string | null;
+};
+
+type ContinuationAnalysisPack = {
+  id: string;
+  title: string;
+  documentTitle: string;
+  documentVersionNumber: number;
+  sections: ContinuationAnalysisSection[];
+};
 
 function normalizeForSimilarity(text: string): string {
   return text
@@ -79,6 +108,132 @@ function pickKnowledgeSegments(content: string, maxSegments = 18): string[] {
     .filter((line) => line.length >= 20)
     .map((line) => line.slice(0, 220));
   return dedupeNonEmpty([...fromLines, ...bySentences]).slice(0, maxSegments);
+}
+
+function parseContinuationSectionKeys(raw: string | null | undefined): Set<BookAnalysisSectionKey> | null {
+  if (!raw?.trim()) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+    const keys = parsed
+      .map((item) => (typeof item === "string" ? item : ""))
+      .filter((item): item is BookAnalysisSectionKey =>
+        CONTINUATION_ANALYSIS_SECTION_KEY_SET.has(item as BookAnalysisSectionKey));
+    return keys.length > 0 ? new Set(keys) : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseStructuredRecord(raw: string | null): Record<string, unknown> | null {
+  if (!raw?.trim()) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function compactStructuredValue(value: unknown): string[] {
+  if (value === null || value === undefined) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => compactStructuredValue(item));
+  }
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const nodeLabel = typeof record.label === "string" ? record.label.trim() : "";
+    if (nodeLabel) {
+      const meta = [
+        typeof record.phase === "string" && record.phase.trim() ? `阶段=${record.phase.trim()}` : "",
+        typeof record.timeHint === "string" && record.timeHint.trim() ? `时间=${record.timeHint.trim()}` : "",
+      ].filter(Boolean).join("；");
+      return [meta ? `${nodeLabel}（${meta}）` : nodeLabel];
+    }
+    return [];
+  }
+  const text = String(value).replace(/\s+/g, " ").trim();
+  return text ? [text] : [];
+}
+
+function extractAnalysisSectionLines(section: ContinuationAnalysisSection, limit = 6): string[] {
+  const structured = parseStructuredRecord(section.structuredDataJson);
+  const lines: string[] = [];
+  if (structured) {
+    for (const [key, value] of Object.entries(structured)) {
+      const values = compactStructuredValue(value);
+      if (values.length === 0) {
+        continue;
+      }
+      const label = BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[key] ?? key;
+      lines.push(`${section.title}/${label}: ${values.slice(0, 4).join("；")}`);
+      if (lines.length >= limit) {
+        break;
+      }
+    }
+  }
+  if (lines.length > 0) {
+    return lines;
+  }
+
+  const fallback = section.editedContent?.trim() || section.aiContent?.trim() || "";
+  return pickKnowledgeSegments(fallback, limit).map((item) => `${section.title}: ${item}`);
+}
+
+function selectAnalysisLines(
+  sections: ContinuationAnalysisSection[],
+  sectionKeys: BookAnalysisSectionKey[],
+  limit: number,
+): string[] {
+  const wantedKeys = new Set<BookAnalysisSectionKey>(sectionKeys);
+  return dedupeNonEmpty(
+    sections
+      .filter((section) => wantedKeys.has(section.sectionKey as BookAnalysisSectionKey))
+      .flatMap((section) => extractAnalysisSectionLines(section, limit)),
+  ).slice(0, limit);
+}
+
+function buildAnalysisHumanBlock(input: {
+  sourceType: "novel" | "knowledge_document";
+  sourceTitle: string;
+  analysis: ContinuationAnalysisPack;
+  selectedSectionKeys: Set<BookAnalysisSectionKey> | null;
+}): string {
+  const selectedSections = input.selectedSectionKeys
+    ? input.analysis.sections.filter((section) => input.selectedSectionKeys!.has(section.sectionKey as BookAnalysisSectionKey))
+    : input.analysis.sections;
+  const sections = selectedSections.length > 0 ? selectedSections : input.analysis.sections;
+  const characterLines = selectAnalysisLines(sections, ["character_system"], 5);
+  const endingLines = selectAnalysisLines(sections, ["timeline"], 5);
+  const factLines = selectAnalysisLines(sections, ["overview", "worldbuilding", "themes"], 6);
+  const unresolvedLines = selectAnalysisLines(sections, ["plot_structure", "timeline", "market_highlights"], 6);
+
+  return `续写模式已开启，请承接前作并避免复刻。
+续写来源：${input.sourceType === "novel" ? "站内小说" : "知识库小说"}
+前作标题：${input.sourceTitle || input.analysis.documentTitle}
+拆书分析：${input.analysis.title}
+前作核心角色状态：
+${characterLines.map((item) => `- ${item}`).join("\n") || "暂无"}
+
+前作终局章节摘要：
+${endingLines.map((item) => `- ${item}`).join("\n") || "暂无"}
+
+前作关键事实（用于承接因果）：
+${factLines.map((item) => `- ${item}`).join("\n") || "暂无"}
+
+前作未完线索（可推进，不可照抄桥段）：
+${unresolvedLines.map((item) => `- ${item}`).join("\n") || "暂无"}`;
 }
 
 interface ContinuationContextPack {
@@ -220,6 +375,66 @@ export class NovelContinuationService {
     }
   }
 
+  private async resolveContinuationAnalysisPack(
+    analysisId: string,
+  ): Promise<ContinuationAnalysisPack | null> {
+    const analysis = await prisma.bookAnalysis.findFirst({
+      where: {
+        id: analysisId,
+        status: "succeeded",
+      },
+      include: {
+        document: { select: { title: true } },
+        documentVersion: { select: { versionNumber: true } },
+        sections: {
+          orderBy: { sortOrder: "asc" },
+          select: {
+            sectionKey: true,
+            title: true,
+            structuredDataJson: true,
+            aiContent: true,
+            editedContent: true,
+          },
+        },
+      },
+    });
+    if (!analysis) {
+      return null;
+    }
+    return {
+      id: analysis.id,
+      title: analysis.title,
+      documentTitle: analysis.document.title,
+      documentVersionNumber: analysis.documentVersion.versionNumber,
+      sections: analysis.sections,
+    };
+  }
+
+  private buildAnalysisSourcePack(input: {
+    sourceType: "novel" | "knowledge_document";
+    sourceId: string;
+    sourceTitle: string;
+    analysis: ContinuationAnalysisPack;
+    selectedSectionKeys: Set<BookAnalysisSectionKey> | null;
+  }): ContinuationContextPack {
+    const humanBlock = buildAnalysisHumanBlock(input);
+    const antiCopyCorpus = dedupeNonEmpty([
+      input.analysis.title,
+      input.analysis.documentTitle,
+      ...input.analysis.sections.flatMap((section) => extractAnalysisSectionLines(section, 8)),
+      humanBlock,
+    ]);
+    return {
+      enabled: true,
+      sourceType: input.sourceType,
+      sourceId: input.sourceId,
+      sourceTitle: input.sourceTitle || input.analysis.documentTitle,
+      systemRule: "若为续写模式：必须承接前作因果与角色弧线，但禁止复刻前作关键桥段顺序、标志性台词和句式。",
+      humanBlock,
+      antiCopyCorpus,
+    };
+  }
+
   private async buildNovelSourcePack(sourceNovelId: string): Promise<ContinuationContextPack> {
     const sourceNovel = await prisma.novel.findUnique({
       where: { id: sourceNovelId },
@@ -350,10 +565,34 @@ ${summaryBlock || "暂无"}`;
         writingMode: true,
         sourceNovelId: true,
         sourceKnowledgeDocumentId: true,
+        continuationBookAnalysisId: true,
+        continuationBookAnalysisSections: true,
       },
     });
     if (!novel || toWritingMode(novel.writingMode) !== "continuation") {
       return disabledPack();
+    }
+
+    const selectedSectionKeys = parseContinuationSectionKeys(novel.continuationBookAnalysisSections);
+    if (novel.continuationBookAnalysisId && (novel.sourceNovelId || novel.sourceKnowledgeDocumentId)) {
+      try {
+        const analysis = await this.resolveContinuationAnalysisPack(novel.continuationBookAnalysisId);
+        if (analysis) {
+          return this.buildAnalysisSourcePack({
+            sourceType: novel.sourceNovelId ? "novel" : "knowledge_document",
+            sourceId: novel.sourceNovelId ?? novel.sourceKnowledgeDocumentId!,
+            sourceTitle: analysis.documentTitle,
+            analysis,
+            selectedSectionKeys,
+          });
+        }
+      } catch (error) {
+        console.warn("[novel-continuation] structured analysis pack skipped.", {
+          novelId,
+          analysisId: novel.continuationBookAnalysisId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     if (novel.sourceNovelId) {

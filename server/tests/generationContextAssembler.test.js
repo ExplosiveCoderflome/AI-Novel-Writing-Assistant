@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const {
   GenerationContextAssembler,
   buildBlockingPendingReviewProposalWhere,
+  resolveChapterResourceCharacterIds,
 } = require("../dist/services/novel/runtime/GenerationContextAssembler.js");
 const { prisma } = require("../dist/db/prisma.js");
 const { plannerService } = require("../dist/services/planner/PlannerService.js");
@@ -25,6 +26,25 @@ test("blocking pending-review proposals are scoped to the current chapter plus g
       { chapterId: null },
     ],
   });
+});
+
+test("chapter resource character ids are resolved from plan participant names", () => {
+  const now = new Date();
+  const ids = resolveChapterResourceCharacterIds({
+    plan: {
+      participantsJson: JSON.stringify(["女二", "主角"]),
+      scenes: [],
+      createdAt: now,
+      updatedAt: now,
+    },
+    characters: [
+      { id: "char-1", name: "主角" },
+      { id: "char-2", name: "女二" },
+      { id: "char-3", name: "路人" },
+    ],
+  });
+
+  assert.deepEqual(ids, ["char-1", "char-2"]);
 });
 
 function createSceneCards(prefix) {
@@ -126,6 +146,7 @@ test("assembler refreshes chapter execution fields after chapter plan regenerati
     novelFindUnique: prisma.novel.findUnique,
     chapterFindFirst: prisma.chapter.findFirst,
     stateChangeProposalCount: prisma.stateChangeProposal.count,
+    stateChangeProposalFindMany: prisma.stateChangeProposal.findMany,
     auditIssueFindMany: prisma.auditIssue.findMany,
     novelBibleFindUnique: prisma.novelBible.findUnique,
     chapterSummaryFindMany: prisma.chapterSummary.findMany,
@@ -183,6 +204,7 @@ test("assembler refreshes chapter execution fields after chapter plan regenerati
       };
     };
     prisma.stateChangeProposal.count = async () => 0;
+    prisma.stateChangeProposal.findMany = async () => [];
     prisma.auditIssue.findMany = async () => [];
     prisma.novelBible.findUnique = async () => null;
     prisma.chapterSummary.findMany = async () => [];
@@ -277,6 +299,7 @@ test("assembler refreshes chapter execution fields after chapter plan regenerati
     prisma.novel.findUnique = originals.novelFindUnique;
     prisma.chapter.findFirst = originals.chapterFindFirst;
     prisma.stateChangeProposal.count = originals.stateChangeProposalCount;
+    prisma.stateChangeProposal.findMany = originals.stateChangeProposalFindMany;
     prisma.auditIssue.findMany = originals.auditIssueFindMany;
     prisma.novelBible.findUnique = originals.novelBibleFindUnique;
     prisma.chapterSummary.findMany = originals.chapterSummaryFindMany;

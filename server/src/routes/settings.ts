@@ -3,6 +3,7 @@ import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { BuiltinLLMProvider, LLMProvider } from "@ai-novel/shared/types/llm";
 import { z } from "zod";
 import { setProviderSecretCache } from "../llm/factory";
+import { evictSharedLimiters } from "../llm/requestLimiter";
 import { refreshProviderModels } from "../llm/modelCatalog";
 import { llmProviderSchema } from "../llm/providerSchema";
 import {
@@ -80,12 +81,14 @@ const ragSettingsSchema = z.object({
   embeddingTimeoutMs: z.coerce.number().int().min(5000).max(300000),
   embeddingMaxRetries: z.coerce.number().int().min(0).max(8),
   embeddingRetryBaseMs: z.coerce.number().int().min(100).max(10000),
+  embeddingConcurrency: z.coerce.number().int().min(1).max(16),
   enabled: z.boolean(),
   qdrantUrl: z.string().trim().min(1),
   qdrantApiKey: z.string().optional(),
   clearQdrantApiKey: z.boolean().optional(),
   qdrantTimeoutMs: z.coerce.number().int().min(1000).max(300000),
   qdrantUpsertMaxBytes: z.coerce.number().int().min(1024 * 1024).max(64 * 1024 * 1024),
+  qdrantUpsertConcurrency: z.coerce.number().int().min(1).max(16),
   chunkSize: z.coerce.number().int().min(200).max(4000),
   chunkOverlap: z.coerce.number().int().min(0).max(1000),
   vectorCandidates: z.coerce.number().int().min(1).max(200),
@@ -343,6 +346,7 @@ router.put(
           embeddingTimeoutMs: body.embeddingTimeoutMs,
           embeddingMaxRetries: body.embeddingMaxRetries,
           embeddingRetryBaseMs: body.embeddingRetryBaseMs,
+          embeddingConcurrency: body.embeddingConcurrency,
         }),
         saveRagRuntimeSettings({
           enabled: body.enabled,
@@ -351,6 +355,7 @@ router.put(
           clearQdrantApiKey: body.clearQdrantApiKey,
           qdrantTimeoutMs: body.qdrantTimeoutMs,
           qdrantUpsertMaxBytes: body.qdrantUpsertMaxBytes,
+          qdrantUpsertConcurrency: body.qdrantUpsertConcurrency,
           chunkSize: body.chunkSize,
           chunkOverlap: body.chunkOverlap,
           vectorCandidates: body.vectorCandidates,
@@ -541,6 +546,7 @@ router.put(
         concurrencyLimit: data.concurrencyLimit ?? 0,
         requestIntervalMs: data.requestIntervalMs ?? 0,
       } : null);
+      evictSharedLimiters(provider);
 
       let models = getFallbackModels(provider, data.model ?? undefined);
       let message = "厂商配置已保存。";

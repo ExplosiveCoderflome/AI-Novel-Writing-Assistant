@@ -13,6 +13,25 @@ export type DirectorPipelinePhase =
   | "volume_strategy"
   | "structured_outline";
 
+export const DIRECTOR_PIPELINE_PHASE_ORDER = [
+  "story_macro",
+  "book_contract",
+  "world_setup",
+  "character_setup",
+  "volume_strategy",
+  "structured_outline",
+] as const satisfies readonly DirectorPipelinePhase[];
+
+const DIRECTOR_PIPELINE_PHASE_ORDER_EXHAUSTIVE_CHECK: Record<
+  Exclude<DirectorPipelinePhase, typeof DIRECTOR_PIPELINE_PHASE_ORDER[number]>,
+  never
+> = {};
+void DIRECTOR_PIPELINE_PHASE_ORDER_EXHAUSTIVE_CHECK;
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled director pipeline phase: ${String(value)}`);
+}
+
 export function resolveObservedResumePhaseFromWorkspace(input: {
   hasVolumeWorkspace: boolean;
   hasVolumeStrategyPlan: boolean;
@@ -83,7 +102,17 @@ export function resolveSafeDirectorPipelineStartPhase(input: {
   ) {
     safePhase = "volume_strategy";
   }
-  return safePhase;
+  switch (safePhase) {
+    case "story_macro":
+    case "book_contract":
+    case "world_setup":
+    case "character_setup":
+    case "volume_strategy":
+    case "structured_outline":
+      return safePhase;
+    default:
+      return assertNever(safePhase);
+  }
 }
 
 export function resolveAssetFirstRecoveryFromSnapshot(input: {

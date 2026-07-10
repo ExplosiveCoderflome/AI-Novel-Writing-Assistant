@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import CreativeHubNovelSetupCard from "./CreativeHubNovelSetupCard";
 import NovelProductionStarterCard from "./NovelProductionStarterCard";
+import SelectControl from "@/components/common/SelectControl";
 
 interface CreativeHubSidebarProps {
   thread?: CreativeHubThread;
@@ -277,7 +278,7 @@ export default function CreativeHubSidebar({
           <div className="space-y-3 text-xs text-slate-700">
             <div className="space-y-1">
               <div className="text-[11px] font-medium text-slate-500">当前小说</div>
-              <select
+              <SelectControl
                 className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-700"
                 value={bindings.novelId ?? ""}
                 onChange={(event) => onNovelChange(event.target.value)}
@@ -288,7 +289,7 @@ export default function CreativeHubSidebar({
                     {novel.title}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
               {!bindings.novelId ? (
                 <div className="mt-2 space-y-2 rounded-lg border border-dashed border-slate-200 bg-white p-2">
                   <input

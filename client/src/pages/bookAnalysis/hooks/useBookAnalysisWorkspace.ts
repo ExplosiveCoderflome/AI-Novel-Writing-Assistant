@@ -2,13 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   BookAnalysisPreset,
-  BookAnalysisPublishResult,
-  BookAnalysisSection,
   BookAnalysisSectionKey,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
 import { BOOK_ANALYSIS_PRESETS } from "@ai-novel/shared/types/bookAnalysis";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   archiveBookAnalysis,
   copyBookAnalysis,
@@ -16,21 +14,23 @@ import {
   downloadBookAnalysisExport,
   getBookAnalysis,
   listBookAnalyses,
-  optimizeBookAnalysisSectionPreview,
-  publishBookAnalysis,
   rebuildBookAnalysis,
   regenerateBookAnalysisSection,
-  updateBookAnalysisSection,
 } from "@/api/bookAnalysis";
-import { getKnowledgeDocument, listKnowledgeDocuments } from "@/api/knowledge";
-import { getNovelList } from "@/api/novel";
-import { createStyleProfileFromBookAnalysis } from "@/api/styleEngine";
+import { getKnowledgeDocument, getKnowledgeDocumentVersionChapters, listKnowledgeDocuments } from "@/api/knowledge";
+import { exportNovelAsKnowledgeDocument, getNovelList } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
-import type { LLMConfigState, SectionDraft } from "../bookAnalysis.types";
-import { buildSectionDraft, createDownload, syncDrafts } from "../bookAnalysis.utils";
-import type { BookAnalysisWorkspace, ExportFormat, NovelOption } from "./bookAnalysisWorkspace.types";
+import type { LLMConfigState } from "../bookAnalysis.types";
+import { createDownload } from "../bookAnalysis.utils";
+import type { BookAnalysisMode, BookAnalysisSourceRangeDraft, BookAnalysisWorkspace, ExportFormat, NovelOption } from "./bookAnalysisWorkspace.types";
+import { useAnalysisBudget } from "./actions/useAnalysisBudget";
+import { useAnalysisPublishing } from "./actions/useAnalysisPublishing";
+import { useAnalysisCharacters } from "./character/useAnalysisCharacters";
+import { useSectionDrafts } from "./drafts/useSectionDrafts";
+
+const DIAGNOSIS_FOCUS_INSTRUCTION = "请从作者自检角度诊断当前稿子，优先指出节奏断点、人物模糊点、主题表达不清、伏笔回收风险和后续改稿优先级。";
 
 function buildNovelOptions(items: Array<{ id: string; title: string }>): NovelOption[] {
   return items.map((item) => ({ id: item.id, title: item.title }));
@@ -38,16 +38,23 @@ function buildNovelOptions(items: Array<{ id: string; title: string }>): NovelOp
 
 export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const llmStore = useLLMStore();
 
   const [keyword, setKeyword] = useState("");
+  const [analysisMode, setAnalysisModeState] = useState<BookAnalysisMode>(
+    searchParams.get("mode") === "diagnosis" ? "diagnosis" : "reference",
+  );
   const [status, setStatus] = useState<BookAnalysisStatus | "">("");
   const [selectedAnalysisId, setSelectedAnalysisId] = useState(searchParams.get("analysisId") ?? "");
   const [selectedDocumentId, setSelectedDocumentId] = useState(searchParams.get("documentId") ?? "");
   const [selectedVersionId, setSelectedVersionId] = useState("");
   const [selectedNovelId, setSelectedNovelId] = useState("");
+  const [selectedDiagnosisNovelId, setSelectedDiagnosisNovelId] = useState("");
+  const [userFocusInstruction, setUserFocusInstruction] = useState("");
+  const [selectedSourceRange, setSelectedSourceRange] = useState<BookAnalysisSourceRangeDraft>(null);
+  const [budgetTokens, setBudgetTokens] = useState<number | null>(null);
+  const [sourceChaptersRequested, setSourceChaptersRequested] = useState(false);
   const [analysisPreset, setAnalysisPreset] = useState<BookAnalysisPreset>("standard");
   const [llmConfig, setLlmConfig] = useState<LLMConfigState>({
     provider: llmStore.provider,
@@ -55,16 +62,10 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     temperature: llmStore.temperature,
     maxTokens: llmStore.maxTokens,
   });
-  const [sectionDrafts, setSectionDrafts] = useState<Record<string, SectionDraft>>({});
-  const [draftAnalysisId, setDraftAnalysisId] = useState("");
-  const [optimizingSectionKey, setOptimizingSectionKey] = useState<BookAnalysisSectionKey | null>(null);
-  const [publishFeedback, setPublishFeedback] = useState("");
-  const [styleProfileFeedback, setStyleProfileFeedback] = useState("");
-  const [lastPublishResult, setLastPublishResult] = useState<BookAnalysisPublishResult | null>(null);
 
   const listKey = useMemo(
-    () => `${keyword.trim()}-${status || "all"}-${selectedDocumentId || "any"}`,
-    [keyword, selectedDocumentId, status],
+    () => `${keyword.trim()}-${status || "all"}`,
+    [keyword, status],
   );
 
   const analysesQuery = useQuery({
@@ -73,7 +74,6 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       listBookAnalyses({
         keyword: keyword.trim() || undefined,
         status: status || undefined,
-        documentId: selectedDocumentId || undefined,
       }),
     refetchInterval: (query) => {
       const rows = query.state.data?.data ?? [];
@@ -123,9 +123,38 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
 
   const analyses = analysesQuery.data?.data ?? [];
   const selectedAnalysis = detailQuery.data?.data;
+  const sourceDocument = sourceDocumentQuery.data?.data;
+  const selectedSourceVersionId = selectedVersionId || sourceDocument?.activeVersionId || sourceDocument?.versions[0]?.id || "";
+
+  const documentChaptersQuery = useQuery({
+    queryKey: queryKeys.knowledge.chapters(
+      selectedAnalysis?.documentId || "none",
+      selectedAnalysis?.documentVersionId || "none",
+    ),
+    queryFn: () => getKnowledgeDocumentVersionChapters(selectedAnalysis!.documentId, selectedAnalysis!.documentVersionId),
+    enabled: Boolean(selectedAnalysis?.documentId && selectedAnalysis?.documentVersionId),
+  });
+
+  const sourceChaptersQuery = useQuery({
+    queryKey: queryKeys.knowledge.chapters(selectedDocumentId || "none", selectedSourceVersionId || "none"),
+    queryFn: () => getKnowledgeDocumentVersionChapters(selectedDocumentId, selectedSourceVersionId),
+    enabled: analysisMode === "reference" && sourceChaptersRequested && Boolean(selectedDocumentId && selectedSourceVersionId),
+  });
   const documentOptions = documentsQuery.data?.data ?? [];
   const novelOptions = useMemo(() => buildNovelOptions(novelsQuery.data?.data?.items ?? []), [novelsQuery.data?.data?.items]);
-  const sourceDocument = sourceDocumentQuery.data?.data;
+  const sourceVersionContent = useMemo(() => {
+    if (!selectedAnalysis || !sourceDocument) {
+      return "";
+    }
+    return sourceDocument.versions.find((version) => version.id === selectedAnalysis.documentVersionId)?.content ?? "";
+  }, [selectedAnalysis, sourceDocument]);
+  const documentChapters = documentChaptersQuery.data?.data?.chapters ?? [];
+  const sourceChapters = sourceChaptersQuery.data?.data?.chapters ?? [];
+  const sourceChaptersError = sourceChaptersQuery.error instanceof Error
+    ? sourceChaptersQuery.error.message
+    : sourceChaptersQuery.error
+      ? "章节范围加载失败。"
+      : "";
   const versionOptions = sourceDocumentQuery.data?.data?.versions ?? [];
   const selectedPreset = useMemo(
     () => BOOK_ANALYSIS_PRESETS.find((preset) => preset.key === analysisPreset) ?? BOOK_ANALYSIS_PRESETS[1],
@@ -156,13 +185,60 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.detail(analysisId) });
   };
 
-  const openAnalysis = (analysisId: string, documentId: string) => {
+  const sectionDraftsState = useSectionDrafts({
+    selectedAnalysis,
+    refreshAnalysisData,
+  });
+  const charactersState = useAnalysisCharacters({
+    selectedAnalysis,
+    selectedAnalysisId,
+  });
+  const budgetState = useAnalysisBudget({
+    selectedAnalysisId,
+    refreshAnalysisData,
+    onAnalysisUpdated: sectionDraftsState.setDraftsFromAnalysis,
+  });
+  const publishingState = useAnalysisPublishing({
+    selectedAnalysis,
+    selectedAnalysisId,
+    selectedNovelId,
+    selectedDocumentId,
+    llmConfig,
+    refreshAnalysisData,
+  });
+
+  const setAnalysisMode = (mode: BookAnalysisMode) => {
+    setAnalysisModeState(mode);
+    setSelectedSourceRange(null);
+    setSourceChaptersRequested(false);
+    if (mode === "diagnosis") {
+      setSelectedDocumentId("");
+      setSelectedVersionId("");
+    }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (mode === "diagnosis") {
+        next.set("mode", "diagnosis");
+        next.delete("documentId");
+      } else {
+        next.delete("mode");
+      }
+      return next;
+    });
+  };
+
+  const openAnalysis = (analysisId: string, documentId: string, mode: BookAnalysisMode = analysisMode) => {
     setSelectedAnalysisId(analysisId);
     setSelectedDocumentId(documentId);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("analysisId", analysisId);
       next.set("documentId", documentId);
+      if (mode === "diagnosis") {
+        next.set("mode", "diagnosis");
+      } else {
+        next.delete("mode");
+      }
       return next;
     });
   };
@@ -174,10 +250,52 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       if (!created) {
         return;
       }
-      setDraftAnalysisId(created.id);
-      setSectionDrafts(syncDrafts(created));
-      openAnalysis(created.id, created.documentId);
+      sectionDraftsState.setDraftsFromAnalysis(created);
+      openAnalysis(created.id, created.documentId, "reference");
       await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.list(listKey) });
+    },
+  });
+
+  const createDiagnosisMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedDiagnosisNovelId) {
+        return null;
+      }
+      const documentResponse = await exportNovelAsKnowledgeDocument(selectedDiagnosisNovelId);
+      const document = documentResponse.data;
+      if (!document) {
+        throw new Error("小说正文导出失败。");
+      }
+      const analysisResponse = await createBookAnalysis({
+        documentId: document.id,
+        versionId: document.activeVersionId || undefined,
+        provider: llmConfig.provider,
+        model: llmConfig.model || undefined,
+        temperature: llmConfig.temperature,
+        maxTokens: llmConfig.maxTokens,
+        budgetTokens: budgetTokens ?? undefined,
+        userFocusInstruction: userFocusInstruction.trim() || DIAGNOSIS_FOCUS_INSTRUCTION,
+        includeTimeline,
+        enabledSectionKeys: selectedPreset.sectionKeys,
+      });
+      return {
+        document,
+        analysis: analysisResponse.data,
+      };
+    },
+    onSuccess: async (result) => {
+      if (!result?.analysis) {
+        return;
+      }
+      setAnalysisModeState("diagnosis");
+      setSelectedDocumentId(result.document.id);
+      setSelectedVersionId(result.document.activeVersionId ?? "");
+      sectionDraftsState.setDraftsFromAnalysis(result.analysis);
+      openAnalysis(result.analysis.id, result.document.id, "diagnosis");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.documents("book-analysis-source") });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(result.document.id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.list(listKey) });
+      toast.success("已导出小说正文并创建诊断拆书。");
     },
   });
 
@@ -188,8 +306,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       if (!copied) {
         return;
       }
-      setDraftAnalysisId(copied.id);
-      setSectionDrafts(syncDrafts(copied));
+      sectionDraftsState.setDraftsFromAnalysis(copied);
       openAnalysis(copied.id, copied.documentId);
       await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.list(listKey) });
     },
@@ -201,7 +318,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       if (!response.data) {
         return;
       }
-      setSectionDrafts(syncDrafts(response.data));
+      sectionDraftsState.setDraftsFromAnalysis(response.data);
       await refreshAnalysisData(response.data.id);
     },
   });
@@ -217,122 +334,30 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   });
 
   const regenerateMutation = useMutation({
-    mutationFn: (payload: { id: string; sectionKey: BookAnalysisSectionKey }) =>
-      regenerateBookAnalysisSection(payload.id, payload.sectionKey),
+    mutationFn: (payload: { id: string; sectionKey: BookAnalysisSectionKey; focusInstruction?: string | null }) =>
+      regenerateBookAnalysisSection(payload.id, payload.sectionKey, { focusInstruction: payload.focusInstruction }),
     onSuccess: async (response) => {
       if (!response.data) {
         return;
       }
       await refreshAnalysisData(response.data.id);
-    },
-  });
-
-  const updateSectionMutation = useMutation({
-    mutationFn: (payload: {
-      id: string;
-      sectionKey: BookAnalysisSectionKey;
-      editedContent?: string | null;
-      notes?: string | null;
-      frozen?: boolean;
-    }) => updateBookAnalysisSection(payload.id, payload.sectionKey, payload),
-    onSuccess: async (response) => {
-      if (!response.data) {
-        return;
-      }
-      setDraftAnalysisId(response.data.id);
-      setSectionDrafts(syncDrafts(response.data));
-      await refreshAnalysisData(response.data.id);
-    },
-  });
-
-  const optimizePreviewMutation = useMutation({
-    mutationFn: (payload: {
-      id: string;
-      sectionKey: BookAnalysisSectionKey;
-      currentDraft: string;
-      instruction: string;
-    }) => optimizeBookAnalysisSectionPreview(payload.id, payload.sectionKey, payload),
-    onSuccess: (response, payload) => {
-      const optimizedDraft = response.data?.optimizedDraft;
-      if (!optimizedDraft || !selectedAnalysis) {
-        return;
-      }
-      const section = selectedAnalysis.sections.find((item) => item.sectionKey === payload.sectionKey);
-      if (!section) {
-        return;
-      }
-      setSectionDrafts((prev) => ({
-        ...prev,
-        [section.id]: {
-          ...(prev[section.id] ?? buildSectionDraft(section)),
-          optimizePreview: optimizedDraft,
-        },
-      }));
-    },
-    onSettled: () => {
-      setOptimizingSectionKey(null);
-    },
-  });
-
-  const publishMutation = useMutation({
-    mutationFn: (payload: { id: string; novelId: string }) =>
-      publishBookAnalysis(payload.id, { novelId: payload.novelId }),
-    onSuccess: async (response, payload) => {
-      const published = response.data;
-      if (!published) {
-        return;
-      }
-      setLastPublishResult(published);
-      setPublishFeedback(
-        `发布完成：文档 ${published.knowledgeDocumentId}，版本 v${published.knowledgeDocumentVersionNumber}，绑定 ${published.bindingCount} 项`,
-      );
-      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.documents("book-analysis-source") });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.novelsKnowledge.bindings(payload.novelId) });
-      await refreshAnalysisData(payload.id);
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "发布失败。";
-      setLastPublishResult(null);
-      setPublishFeedback(message);
-    },
-  });
-
-  const createStyleProfileMutation = useMutation({
-    mutationFn: (payload: { bookAnalysisId: string; name: string }) => createStyleProfileFromBookAnalysis({
-      ...payload,
-      provider: llmConfig.provider,
-      model: llmConfig.model || undefined,
-      temperature: llmConfig.temperature,
-    }),
-    onMutate: () => {
-      setStyleProfileFeedback("正在根据拆书里的“文风与技法”生成写法资产，完成后会自动跳转到写法引擎。");
-    },
-    onSuccess: async (response) => {
-      const createdProfile = response.data;
-      if (!createdProfile) {
-        return;
-      }
-      setStyleProfileFeedback("");
-      toast.success("已从拆书生成写法，正在打开写法引擎。");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.profiles });
-      navigate(`/style-engine?profileId=${createdProfile.id}&source=book-analysis`);
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : "从拆书生成写法失败。";
-      setStyleProfileFeedback(message);
     },
   });
 
   useEffect(() => {
     const nextAnalysisId = searchParams.get("analysisId");
     const nextDocumentId = searchParams.get("documentId");
+    const nextMode = searchParams.get("mode") === "diagnosis" ? "diagnosis" : "reference";
+    if (nextMode !== analysisMode) {
+      setAnalysisModeState(nextMode);
+    }
     if (nextAnalysisId && nextAnalysisId !== selectedAnalysisId) {
       setSelectedAnalysisId(nextAnalysisId);
     }
     if (nextDocumentId && nextDocumentId !== selectedDocumentId) {
       setSelectedDocumentId(nextDocumentId);
     }
-  }, [searchParams, selectedAnalysisId, selectedDocumentId]);
+  }, [analysisMode, searchParams, selectedAnalysisId, selectedDocumentId]);
 
   useEffect(() => {
     if (!selectedDocumentId) {
@@ -385,6 +410,13 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   }, [novelOptions, selectedNovelId]);
 
   useEffect(() => {
+    if (selectedDiagnosisNovelId || novelOptions.length === 0) {
+      return;
+    }
+    setSelectedDiagnosisNovelId(novelOptions[0].id);
+  }, [novelOptions, selectedDiagnosisNovelId]);
+
+  useEffect(() => {
     if (selectedAnalysisId || analyses.length === 0) {
       return;
     }
@@ -398,25 +430,15 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     });
   }, [analyses, selectedAnalysisId, setSearchParams]);
 
-  useEffect(() => {
-    if (!selectedAnalysis || draftAnalysisId === selectedAnalysis.id) {
-      return;
-    }
-    setSectionDrafts(syncDrafts(selectedAnalysis));
-    setDraftAnalysisId(selectedAnalysis.id);
-  }, [selectedAnalysis, draftAnalysisId]);
-
-  useEffect(() => {
-    setPublishFeedback("");
-    setLastPublishResult(null);
-    setStyleProfileFeedback("");
-  }, [selectedAnalysisId]);
-
   const selectDocument = (documentId: string) => {
+    setAnalysisModeState("reference");
     setSelectedDocumentId(documentId);
     setSelectedVersionId("");
+    setSelectedSourceRange(null);
+    setSourceChaptersRequested(false);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
+      next.delete("mode");
       if (documentId) {
         next.set("documentId", documentId);
       } else {
@@ -428,7 +450,11 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
 
   const selectVersion = (versionId: string) => {
     setSelectedVersionId(versionId);
+    setSelectedSourceRange(null);
+    setSourceChaptersRequested(false);
   };
+
+  const requestSourceChapters = () => setSourceChaptersRequested(true);
 
   const createAnalysis = async () => {
     if (!selectedDocumentId) {
@@ -441,6 +467,9 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       model: llmConfig.model || undefined,
       temperature: llmConfig.temperature,
       maxTokens: llmConfig.maxTokens,
+      budgetTokens: budgetTokens ?? undefined,
+      userFocusInstruction: userFocusInstruction.trim() || undefined,
+      sourceRange: selectedSourceRange ?? undefined,
       includeTimeline,
       enabledSectionKeys: selectedPreset.sectionKeys,
     });
@@ -461,81 +490,21 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     archiveMutation.mutate(analysisId);
   };
 
-  const getSectionDraft = (section: BookAnalysisSection): SectionDraft => {
-    return sectionDrafts[section.id] ?? buildSectionDraft(section);
-  };
-
-  const updateSectionDraft = (section: BookAnalysisSection, patch: Partial<SectionDraft>) => {
-    setSectionDrafts((prev) => ({
-      ...prev,
-      [section.id]: {
-        ...(prev[section.id] ?? buildSectionDraft(section)),
-        ...patch,
-      },
-    }));
-  };
-
   const regenerateSection = (sectionKey: BookAnalysisSectionKey) => {
     if (!selectedAnalysis) {
       return;
     }
+    const section = selectedAnalysis.sections.find((item) => item.sectionKey === sectionKey);
+    const draft = section ? sectionDraftsState.getSectionDraft(section) : null;
     regenerateMutation.mutate({
       id: selectedAnalysis.id,
       sectionKey,
+      focusInstruction: draft?.focusInstruction.trim() ? draft.focusInstruction : null,
     });
   };
 
-  const optimizeSectionPreview = async (section: BookAnalysisSection) => {
-    if (!selectedAnalysis) {
-      return;
-    }
-    const draft = getSectionDraft(section);
-    const instruction = draft.optimizeInstruction.trim();
-    if (!instruction) {
-      return;
-    }
-    setOptimizingSectionKey(section.sectionKey);
-    await optimizePreviewMutation.mutateAsync({
-      id: selectedAnalysis.id,
-      sectionKey: section.sectionKey,
-      currentDraft: draft.editedContent,
-      instruction,
-    });
-  };
-
-  const applySectionOptimizePreview = (section: BookAnalysisSection) => {
-    const draft = getSectionDraft(section);
-    if (!draft.optimizePreview.trim()) {
-      return;
-    }
-    updateSectionDraft(section, {
-      editedContent: draft.optimizePreview,
-      optimizePreview: "",
-    });
-  };
-
-  const clearSectionOptimizePreview = (section: BookAnalysisSection) => {
-    updateSectionDraft(section, {
-      optimizePreview: "",
-    });
-  };
-
-  const saveSection = (section: BookAnalysisSection) => {
-    if (!selectedAnalysis) {
-      return;
-    }
-    const draft = getSectionDraft(section);
-    const normalize = (value: string | null | undefined) => value?.replace(/\r\n?/g, "\n").trim() ?? "";
-    const normalizedDraft = normalize(draft.editedContent);
-    const normalizedAi = normalize(section.aiContent ?? "");
-    const editedContent = normalizedDraft && normalizedDraft !== normalizedAi ? draft.editedContent : null;
-    updateSectionMutation.mutate({
-      id: selectedAnalysis.id,
-      sectionKey: section.sectionKey,
-      editedContent,
-      notes: draft.notes.trim() ? draft.notes : null,
-      frozen: draft.frozen,
-    });
+  const createDiagnosisAnalysis = async () => {
+    await createDiagnosisMutation.mutateAsync();
   };
 
   const downloadSelectedAnalysis = async (format: ExportFormat) => {
@@ -546,62 +515,72 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     createDownload(exported.blob, exported.fileName);
   };
 
-  const publishSelectedAnalysis = async () => {
-    if (!selectedAnalysisId || !selectedNovelId) {
-      return;
-    }
-    await publishMutation.mutateAsync({
-      id: selectedAnalysisId,
-      novelId: selectedNovelId,
-    });
-  };
-
-  const createStyleProfileFromAnalysis = async () => {
-    if (!selectedAnalysis) {
-      return;
-    }
-    await createStyleProfileMutation.mutateAsync({
-      bookAnalysisId: selectedAnalysis.id,
-      name: `${selectedAnalysis.title}-写法资产`,
-    });
-  };
-
   return {
+    analysisMode,
     keyword,
     status,
     selectedAnalysisId,
     selectedDocumentId,
     selectedVersionId,
     selectedNovelId,
+    selectedDiagnosisNovelId,
+    userFocusInstruction,
+    selectedSourceRange,
+    budgetTokens,
     includeTimeline,
     analysisPreset,
     llmConfig,
-    sectionDrafts,
-    publishFeedback,
-    styleProfileFeedback,
-    lastPublishResult,
+    sectionDrafts: sectionDraftsState.sectionDrafts,
+    publishFeedback: publishingState.publishFeedback,
+    styleProfileFeedback: publishingState.styleProfileFeedback,
+    lastPublishResult: publishingState.lastPublishResult,
     analyses,
     selectedAnalysis,
     documentOptions,
     novelOptions,
     versionOptions,
     sourceDocument,
+    sourceVersionContent,
+    documentChapters,
+    sourceChapters,
+    sourceChaptersRequested,
+    sourceChaptersLoading: sourceChaptersQuery.isFetching,
+    sourceChaptersError,
+    characters: charactersState.characters,
     aggregatedEvidence,
-    optimizingSectionKey,
+    optimizingSectionKey: sectionDraftsState.optimizingSectionKey,
     pending: {
       create: createMutation.isPending,
       copy: copyMutation.isPending,
       rebuild: rebuildMutation.isPending,
       archive: archiveMutation.isPending,
       regenerate: regenerateMutation.isPending,
-      optimizePreview: optimizePreviewMutation.isPending,
-      saveSection: updateSectionMutation.isPending,
-      publish: publishMutation.isPending,
-      createStyleProfile: createStyleProfileMutation.isPending,
+      optimizePreview: sectionDraftsState.pending.optimizePreview,
+      saveSection: sectionDraftsState.pending.saveSection,
+      publish: publishingState.pending.publish,
+      createStyleProfile: publishingState.pending.createStyleProfile,
+      updateBudget: budgetState.pending.updateBudget,
+      resumeWithBudget: budgetState.pending.resumeWithBudget,
+      loadCharacters: charactersState.pending.loadCharacters,
+      generateCharacters: charactersState.pending.generateCharacters,
+      identifyCharacters: charactersState.pending.identifyCharacters,
+      generateCharacterProfile: charactersState.pending.generateCharacterProfile,
+      generateAllCandidates: charactersState.pending.generateAllCandidates,
+      generatingCharacterIds: charactersState.pending.generatingCharacterIds,
+      createCharacter: charactersState.pending.createCharacter,
+      updateCharacter: charactersState.pending.updateCharacter,
+      deleteCharacter: charactersState.pending.deleteCharacter,
+      createDiagnosis: createDiagnosisMutation.isPending,
     },
     setKeyword,
     setStatus,
+    setAnalysisMode,
     setSelectedNovelId,
+    setSelectedDiagnosisNovelId,
+    setUserFocusInstruction,
+    setSelectedSourceRange,
+    setBudgetTokens,
+    requestSourceChapters,
     setIncludeTimeline,
     setAnalysisPreset,
     setLlmConfig,
@@ -609,18 +588,30 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     selectVersion,
     openAnalysis,
     createAnalysis,
+    createDiagnosisAnalysis,
     copySelectedAnalysis,
     rebuildAnalysis,
     archiveAnalysis,
     regenerateSection,
-    optimizeSectionPreview,
-    applySectionOptimizePreview,
-    clearSectionOptimizePreview,
-    saveSection,
+    optimizeSectionPreview: sectionDraftsState.optimizeSectionPreview,
+    applySectionOptimizePreview: sectionDraftsState.applySectionOptimizePreview,
+    clearSectionOptimizePreview: sectionDraftsState.clearSectionOptimizePreview,
+    saveSection: sectionDraftsState.saveSection,
     downloadSelectedAnalysis,
-    publishSelectedAnalysis,
-    createStyleProfileFromAnalysis,
-    updateSectionDraft,
-    getSectionDraft,
+    publishSelectedAnalysis: publishingState.publishSelectedAnalysis,
+    createStyleProfileFromAnalysis: publishingState.createStyleProfileFromAnalysis,
+    updateBudget: budgetState.updateBudget,
+    resumeWithBudget: budgetState.resumeWithBudget,
+    generateCharacters: charactersState.generateCharacters,
+    identifyCharacters: charactersState.identifyCharacters,
+    generateCharacterProfile: charactersState.generateCharacterProfile,
+    generateAllCandidates: charactersState.generateAllCandidates,
+    characterBatchSummary: charactersState.batchSummary,
+    dismissCharacterBatchSummary: charactersState.dismissBatchSummary,
+    createCharacter: charactersState.createCharacter,
+    updateCharacter: charactersState.updateCharacter,
+    deleteCharacter: charactersState.deleteCharacter,
+    updateSectionDraft: sectionDraftsState.updateSectionDraft,
+    getSectionDraft: sectionDraftsState.getSectionDraft,
   };
 }

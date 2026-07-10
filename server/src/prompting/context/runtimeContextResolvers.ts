@@ -16,6 +16,10 @@ import {
   buildChapterWriterContextBlocks,
   type ChapterWriterBlockMode,
 } from "../prompts/novel/chapterLayeredContext";
+import {
+  renderBookContractText,
+  renderStoryMacroText,
+} from "../prompts/novel/chapterLayeredContextShared";
 import { buildDirectorManualEditImpactContextBlocks } from "../prompts/novel/directorManualEditImpact.prompts";
 import { buildDirectorWorkspaceAnalysisContextBlocks } from "../prompts/novel/directorWorkspaceAnalysis.prompts";
 import type { PromptContextResolver, PromptExecutionContext } from "./types";
@@ -24,9 +28,12 @@ const CHAPTER_CONTEXT_GROUPS = [
   "book_contract",
   "story_macro",
   "chapter_mission",
+  "chapter_boundary",
   "timeline_context",
   "previous_chapter_hook",
   "character_hard_facts",
+  "obligation_contract",
+  "payoff_directives",
   "state_goal",
   "volume_window",
   "participant_subset",
@@ -95,24 +102,12 @@ function resolveWriteContext(metadata: Record<string, unknown>): ChapterWriteCon
 }
 
 function buildBookContractBlock(writeContext: ChapterWriteContext): PromptContextBlock {
-  const contract = writeContext.bookContract;
   return createContextBlock({
     id: "book_contract",
     group: "book_contract",
     priority: 100,
     required: true,
-    content: [
-      `Title: ${contract.title}`,
-      `Genre: ${contract.genre}`,
-      `Target audience: ${contract.targetAudience}`,
-      `Selling point: ${contract.sellingPoint}`,
-      `First 30 chapter promise: ${contract.first30ChapterPromise}`,
-      `Narrative POV: ${contract.narrativePov}`,
-      `Pace preference: ${contract.pacePreference}`,
-      `Emotion intensity: ${contract.emotionIntensity}`,
-      contract.toneGuardrails.length > 0 ? `Tone guardrails: ${contract.toneGuardrails.join(" | ")}` : "",
-      contract.hardConstraints.length > 0 ? `Hard constraints: ${contract.hardConstraints.join(" | ")}` : "",
-    ].filter(Boolean).join("\n"),
+    content: renderBookContractText(writeContext.bookContract),
   });
 }
 
@@ -124,15 +119,7 @@ function buildStoryMacroBlock(macro: MacroConstraintContext | null): PromptConte
     id: "story_macro",
     group: "story_macro",
     priority: 98,
-    content: [
-      `Selling point: ${macro.sellingPoint}`,
-      `Core conflict: ${macro.coreConflict}`,
-      `Main hook: ${macro.mainHook}`,
-      `Progression loop: ${macro.progressionLoop}`,
-      `Growth path: ${macro.growthPath}`,
-      `Ending flavor: ${macro.endingFlavor}`,
-      macro.hardConstraints.length > 0 ? `Hard constraints: ${macro.hardConstraints.join(" | ")}` : "",
-    ].filter(Boolean).join("\n"),
+    content: renderStoryMacroText(macro),
   });
 }
 

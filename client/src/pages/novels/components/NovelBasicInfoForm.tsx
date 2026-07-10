@@ -25,6 +25,7 @@ import {
 import { BookFramingSection } from "./basicInfoForm/BookFramingSection";
 import CollapsibleSummary from "./CollapsibleSummary";
 import { ContinuationSourceSection } from "./basicInfoForm/ContinuationSourceSection";
+import SelectControl from "@/components/common/SelectControl";
 
 interface WorldOption {
   id: string;
@@ -117,18 +118,14 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-        <div className="text-sm font-semibold text-foreground">填写建议</div>
-        <div className="mt-1 text-sm leading-6 text-muted-foreground">
-          建议先想清楚这本书写给谁、靠什么吸引人、前 30 章要兑现什么，再补创作模式、世界边界和写法确认。这里的设置会直接影响后续主线规划、卷章推进和正文生成。
-        </div>
-        {projectQuickStart ? <div className="mt-3 flex justify-end">{projectQuickStart}</div> : null}
-      </div>
-
       <SectionBlock
         title="作品定位"
-        description="先定义这是什么作品，以及它是从零开始还是基于既有内容继续创作。"
+        description="先写清楚标题、一句话概述、目标读者、核心卖点和前 30 章承诺，再补创作模式、题材和推进方式；这些会直接影响后续主线规划、卷章推进和正文生成。"
+        surface="none"
+        className="space-y-5"
       >
+        {projectQuickStart ? <div className="flex justify-end">{projectQuickStart}</div> : null}
+
         <div className="space-y-2">
           <FieldLabel htmlFor="basic-title">小说标题</FieldLabel>
           <Input
@@ -174,9 +171,9 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-muted/20 p-3 text-sm leading-6 text-muted-foreground">
+        <div className="space-y-1 pt-1 text-sm leading-6 text-muted-foreground">
           <div className="font-medium text-foreground">题材基底与推进模式的区别</div>
-          <div className="mt-1">
+          <div>
             题材基底回答“这是什么书”，例如修仙、都市、历史架空；推进模式回答“这本书靠什么持续推进和兑现”，例如系统流、无敌流、种田流。
           </div>
         </div>
@@ -186,7 +183,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div className="space-y-2">
             <FieldLabel htmlFor="basic-genre" hint={BASIC_INFO_FIELD_HINTS.genreId}>题材基底</FieldLabel>
-            <select
+            <SelectControl
               id="basic-genre"
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={basicForm.genreId}
@@ -198,7 +195,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {genre.path}
                 </option>
               ))}
-            </select>
+            </SelectControl>
           </div>
 
           <div className="space-y-2">
@@ -242,7 +239,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             <FieldLabel htmlFor="basic-primary-story-mode" hint={BASIC_INFO_FIELD_HINTS.primaryStoryModeId}>
               主推进模式
             </FieldLabel>
-            <select
+            <SelectControl
               id="basic-primary-story-mode"
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={basicForm.primaryStoryModeId}
@@ -254,14 +251,14 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {storyMode.path}
                 </option>
               ))}
-            </select>
+            </SelectControl>
           </div>
 
           <div className="space-y-2">
             <FieldLabel htmlFor="basic-secondary-story-mode" hint={BASIC_INFO_FIELD_HINTS.secondaryStoryModeId}>
               副推进模式
             </FieldLabel>
-            <select
+            <SelectControl
               id="basic-secondary-story-mode"
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={basicForm.secondaryStoryModeId}
@@ -277,14 +274,14 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {storyMode.path}
                 </option>
               ))}
-            </select>
+            </SelectControl>
           </div>
         </div>
 
         {primaryStoryMode || secondaryStoryMode ? (
           <div className="grid gap-3 md:grid-cols-2">
             {primaryStoryMode ? (
-              <div className="rounded-lg border bg-muted/20 p-3">
+              <div className="rounded-lg bg-muted/15 p-3">
                 <div className="text-sm font-semibold text-foreground">主推进模式摘要</div>
                 <div className="mt-1 text-sm text-foreground">{primaryStoryMode.name}</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -294,7 +291,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               </div>
             ) : null}
             {secondaryStoryMode ? (
-              <div className="rounded-lg border bg-muted/20 p-3">
+              <div className="rounded-lg bg-muted/15 p-3">
                 <div className="text-sm font-semibold text-foreground">副推进模式摘要</div>
                 <div className="mt-1 text-sm text-foreground">{secondaryStoryMode.name}</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
@@ -307,7 +304,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         ) : null}
       </SectionBlock>
 
-      <details className="group rounded-xl border border-border/70 bg-background/95 p-4">
+      <details className="group border-t border-border/60 pt-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
             title="叙事体验与 AI 协作高级设置"
@@ -316,14 +313,14 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         </summary>
 
         <div className="mt-4 space-y-4">
-          <div className="rounded-lg border bg-muted/20 p-3">
+          <div className="space-y-3 pt-1">
             <div className="text-sm font-semibold text-foreground">参考世界样本</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              这里只用于记录初始化参考。小说实际使用的世界，请在页面上方“本书世界”卡片中导入、生成或自定义。
+              这里只用于记录初始化参考。完整导入、生成和同步请在创建后到小说工作台的“本书世界”中完成。
             </div>
-            <div className="mt-3 space-y-2">
+            <div className="space-y-2">
               <FieldLabel htmlFor="basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>参考世界样本</FieldLabel>
-              <select
+              <SelectControl
                 id="basic-world"
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={basicForm.worldId}
@@ -335,18 +332,19 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                     {world.name}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             </div>
           </div>
 
           <SectionBlock
             title="叙事体验"
             description="这些字段定义读者会如何感知这部作品，也会直接影响章节规划的语气、密度和推进方式。"
+            surface="none"
           >
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-pov" hint={BASIC_INFO_FIELD_HINTS.narrativePov}>叙事视角</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-pov"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.narrativePov}
@@ -355,13 +353,13 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {POV_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
                 <div className="text-xs text-muted-foreground">{findOptionSummary(POV_OPTIONS, basicForm.narrativePov)}</div>
               </div>
 
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-pace" hint={BASIC_INFO_FIELD_HINTS.pacePreference}>节奏偏好</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-pace"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.pacePreference}
@@ -370,13 +368,13 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {PACE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
                 <div className="text-xs text-muted-foreground">{findOptionSummary(PACE_OPTIONS, basicForm.pacePreference)}</div>
               </div>
 
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-emotion" hint={BASIC_INFO_FIELD_HINTS.emotionIntensity}>情绪浓度</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-emotion"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.emotionIntensity}
@@ -385,7 +383,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {EMOTION_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
                 <div className="text-xs text-muted-foreground">{findOptionSummary(EMOTION_OPTIONS, basicForm.emotionIntensity)}</div>
               </div>
 
@@ -404,6 +402,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           <SectionBlock
             title="AI 协作方式"
             description="这部分定义你和 AI 如何分工，以及系统后续可以自动推进到什么程度。"
+            surface="none"
           >
             <div className="space-y-2">
               <FieldLabel hint={BASIC_INFO_FIELD_HINTS.projectMode}>项目模式</FieldLabel>
@@ -422,7 +421,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-ai-freedom" hint={BASIC_INFO_FIELD_HINTS.aiFreedom}>AI 自由度</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-ai-freedom"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.aiFreedom}
@@ -431,7 +430,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {AI_FREEDOM_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
                 <div className="text-xs text-muted-foreground">{findOptionSummary(AI_FREEDOM_OPTIONS, basicForm.aiFreedom)}</div>
               </div>
 
@@ -453,30 +452,28 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               </div>
             </div>
 
-            <div className="rounded-lg border bg-muted/15 p-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <FieldLabel htmlFor="basic-post-generation-style-review" hint={BASIC_INFO_FIELD_HINTS.postGenerationStyleReviewEnabled}>
-                    正文后去 AI 检测与修正
-                  </FieldLabel>
-                  <div className="text-xs leading-5 text-muted-foreground">
-                    开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
-                  </div>
+            <div className="flex flex-col gap-3 py-1 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <FieldLabel htmlFor="basic-post-generation-style-review" hint={BASIC_INFO_FIELD_HINTS.postGenerationStyleReviewEnabled}>
+                  正文后去 AI 检测与修正
+                </FieldLabel>
+                <div className="text-xs leading-5 text-muted-foreground">
+                  开启后，章节正文生成完成时会检测 AI 味风险，并在命中可修正问题时生成修订稿。
                 </div>
-                <Switch
-                  id="basic-post-generation-style-review"
-                  aria-label="正文后去 AI 检测与修正"
-                  checked={basicForm.postGenerationStyleReviewEnabled}
-                  onCheckedChange={(checked) => onFormChange({ postGenerationStyleReviewEnabled: checked })}
-                />
               </div>
+              <Switch
+                id="basic-post-generation-style-review"
+                aria-label="正文后去 AI 检测与修正"
+                checked={basicForm.postGenerationStyleReviewEnabled}
+                onCheckedChange={(checked) => onFormChange({ postGenerationStyleReviewEnabled: checked })}
+              />
             </div>
           </SectionBlock>
         </div>
       </details>
 
       {basicForm.writingMode === "continuation" ? (
-        <details className="group rounded-xl border border-border/70 bg-background/95 p-4" open>
+        <details className="group border-t border-border/60 pt-4" open>
           <summary className="cursor-pointer list-none">
             <CollapsibleSummary
               title="续写来源设置"
@@ -500,7 +497,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         </details>
       ) : null}
 
-      <details className="group rounded-xl border border-border/70 bg-background/95 p-4">
+      <details className="group border-t border-border/60 pt-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
             title="项目状态与进度字段"
@@ -513,11 +510,12 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           <SectionBlock
             title="生产进度与状态"
             description="这些状态主要服务于项目管理和后续流程判断，不是一次性填死，后续可以按阶段调整。"
+            surface="none"
           >
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-project-status">项目状态</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-project-status"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.projectStatus}
@@ -526,12 +524,12 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {PROJECT_STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
               </div>
 
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-storyline-status">主线状态</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-storyline-status"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.storylineStatus}
@@ -540,12 +538,12 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {PROJECT_STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
               </div>
 
               <div className="space-y-2">
                 <FieldLabel htmlFor="basic-outline-status">大纲状态</FieldLabel>
-                <select
+                <SelectControl
                   id="basic-outline-status"
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={basicForm.outlineStatus}
@@ -554,7 +552,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                   {PROJECT_STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </SelectControl>
               </div>
 
               {showPublicationStatus ? (

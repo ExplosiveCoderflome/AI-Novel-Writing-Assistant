@@ -1,6 +1,7 @@
 import type {
   CharacterResourceContext,
   CharacterResourceLedgerItem,
+  CharacterResourceProposalSummary,
   CharacterResourceRiskSignal,
   CharacterResourceUpdatePayload,
 } from "@ai-novel/shared/types/characterResource";
@@ -27,7 +28,119 @@ function riskLevelFromItem(item: CharacterResourceLedgerItem): "none" | "info" |
 }
 
 function isBlockedStatus(status: CharacterResourceLedgerItem["status"]): boolean {
-  return status === "lost" || status === "consumed" || status === "destroyed" || status === "damaged";
+  return status === "lost" || status === "consumed" || status === "destroyed" || status === "damaged" || status === "stale";
+}
+
+function parseJsonRecord(value: string | null | undefined): Record<string, unknown> {
+  if (!value?.trim()) {
+    return {};
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function parseStringArray(value: string | null | undefined): string[] {
+  if (!value?.trim()) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.map((item) => compactText(String(item ?? ""))).filter(Boolean)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function mapPendingProposalRow(row: {
+  id: string;
+  novelId: string;
+  chapterId: string | null;
+  sourceType: string;
+  sourceStage: string | null;
+  proposalType: string;
+  riskLevel: string;
+  status: string;
+  summary: string;
+  payloadJson: string;
+  evidenceJson: string | null;
+  validationNotesJson: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): CharacterResourceProposalSummary {
+  return {
+    id: row.id,
+    novelId: row.novelId,
+    chapterId: row.chapterId,
+    sourceType: row.sourceType,
+    sourceStage: row.sourceStage,
+    proposalType: "character_resource_update",
+    riskLevel: row.riskLevel === "high" ? "high" : row.riskLevel === "medium" ? "medium" : "low",
+    status: "pending_review",
+    summary: row.summary,
+    payload: parseJsonRecord(row.payloadJson),
+    evidence: parseStringArray(row.evidenceJson),
+    validationNotes: parseStringArray(row.validationNotesJson),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function matchesCharacterFilter(item: CharacterResourceLedgerItem, characterIds: Set<string>): boolean {
+  return Boolean(
+    (item.holderCharacterId && characterIds.has(item.holderCharacterId))
+    || (item.ownerCharacterId && characterIds.has(item.ownerCharacterId)),
+  );
+}
+
+function hasChapterWindowPressure(item: CharacterResourceLedgerItem, chapterOrder: number | undefined): boolean {
+  if (chapterOrder == null) {
+    return false;
+  }
+  const startsSoon = item.expectedUseStartChapterOrder != null
+    && item.expectedUseStartChapterOrder <= chapterOrder + 1;
+  const stillRelevant = item.expectedUseEndChapterOrder == null
+    || item.expectedUseEndChapterOrder >= chapterOrder - 2;
+  return startsSoon && stillRelevant;
+}
+
+function isChapterRelevant(item: CharacterResourceLedgerItem, chapterOrder: number | undefined): boolean {
+  if (chapterOrder == null) {
+    return true;
+  }
+  if (item.lastTouchedChapterOrder == null && item.expectedUseEndChapterOrder == null) {
+    return item.status !== "stale";
+  }
+  const nearLastTouch = item.lastTouchedChapterOrder == null || item.lastTouchedChapterOrder <= chapterOrder;
+  const nearWindow = item.expectedUseEndChapterOrder == null || item.expectedUseEndChapterOrder >= chapterOrder - 2;
+  return nearLastTouch && nearWindow;
+}
+
+function buildStructuredRiskSignals(input: {
+  resourceName: string;
+  riskLevel?: "low" | "medium" | "high";
+  riskSignals?: CharacterResourceRiskSignal[];
+  validationNotes?: string[];
+}): CharacterResourceRiskSignal[] {
+  if (input.riskSignals && input.riskSignals.length > 0) {
+    return input.riskSignals;
+  }
+  if (input.riskLevel !== "medium" && input.riskLevel !== "high") {
+    return [];
+  }
+  const note = input.validationNotes?.map((item) => compactText(item)).filter(Boolean)[0];
+  return [{
+    code: input.riskLevel === "high" ? "resource_high_risk_commit" : "resource_medium_risk_commit",
+    severity: input.riskLevel === "high" ? "high" : "medium",
+    summary: note || `${input.resourceName} 的资源变更需要后续写作谨慎处理。`,
+  }];
 }
 
 export class CharacterResourceLedgerService {
@@ -61,57 +174,66 @@ export class CharacterResourceLedgerService {
     if (!chapter) {
       return this.emptyContext();
     }
-    return this.buildContext(novelId, { chapterOrder: chapter.order });
+    return this.buildContext(novelId, { chapterId, chapterOrder: chapter.order });
   }
 
   async buildContext(
     novelId: string,
-    options: { chapterOrder?: number; characterIds?: string[] } = {},
+    options: { chapterId?: string; chapterOrder?: number; characterIds?: string[] } = {},
   ): Promise<CharacterResourceContext> {
-    const rows = await prisma.characterResourceLedgerItem.findMany({
-      where: {
-        novelId,
-        ...(options.characterIds && options.characterIds.length > 0
-          ? {
-              OR: [
-                { holderCharacterId: { in: options.characterIds } },
-                { ownerCharacterId: { in: options.characterIds } },
-              ],
-            }
-          : {}),
-      },
-      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
-      take: 60,
-    });
+    const [rows, pendingProposalRows] = await Promise.all([
+      prisma.characterResourceLedgerItem.findMany({
+        where: { novelId },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+        take: 80,
+      }),
+      prisma.stateChangeProposal.findMany({
+        where: {
+          novelId,
+          proposalType: "character_resource_update",
+          status: "pending_review",
+          ...(options.chapterId ? { OR: [{ chapterId: options.chapterId }, { chapterId: null }] } : {}),
+        },
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+        take: 8,
+      }),
+    ]);
     const chapterOrder = options.chapterOrder;
+    const characterIds = new Set((options.characterIds ?? []).map((item) => compactText(item)).filter(Boolean));
     const items = rows.map(mapCharacterResourceRow);
     const relevant = items.filter((item) => {
-      if (chapterOrder == null) {
+      if (!isChapterRelevant(item, chapterOrder)) {
+        return false;
+      }
+      if (characterIds.size === 0) {
         return true;
       }
-      if (item.lastTouchedChapterOrder == null && item.expectedUseEndChapterOrder == null) {
-        return item.status !== "stale";
-      }
-      const nearLastTouch = item.lastTouchedChapterOrder == null || item.lastTouchedChapterOrder <= chapterOrder;
-      const nearWindow = item.expectedUseEndChapterOrder == null || item.expectedUseEndChapterOrder >= chapterOrder - 2;
-      return nearLastTouch && nearWindow;
+      return matchesCharacterFilter(item, characterIds) || hasChapterWindowPressure(item, chapterOrder);
     }).slice(0, 20);
 
     const availableItems = relevant.filter((item) => item.status === "available" || item.status === "borrowed").slice(0, 12);
     const setupNeededItems = relevant.filter((item) => item.status === "hidden" || item.narrativeFunction === "promise").slice(0, 8);
     const blockedItems = relevant.filter((item) => isBlockedStatus(item.status)).slice(0, 8);
-    const pendingReviewItems = relevant.filter((item) => riskLevelFromItem(item) === "high").slice(0, 8);
+    const highRiskCommittedItems = relevant.filter((item) => riskLevelFromItem(item) === "high").slice(0, 8);
+    const pendingProposalItems = pendingProposalRows.map(mapPendingProposalRow);
     const riskSignals = relevant.flatMap((item) => item.riskSignals.map((signal) => ({
       ...signal,
       summary: `${item.name}：${signal.summary}`,
     }))).slice(0, 10);
 
     return {
-      summary: this.buildContextSummary({ availableItems, setupNeededItems, blockedItems, pendingReviewItems }),
+      summary: this.buildContextSummary({
+        availableItems,
+        setupNeededItems,
+        blockedItems,
+        highRiskCommittedItems,
+        pendingProposalItems,
+      }),
       availableItems,
       setupNeededItems,
       blockedItems,
-      pendingReviewItems,
+      highRiskCommittedItems,
+      pendingProposalItems,
       riskSignals,
     };
   }
@@ -137,6 +259,8 @@ export class CharacterResourceLedgerService {
       payload: CharacterResourceUpdatePayload;
       evidence: string[];
       validationNotes?: string[];
+      riskLevel?: "low" | "medium" | "high";
+      riskSignals?: CharacterResourceRiskSignal[];
     },
   ): Promise<void> {
     const payload = input.payload;
@@ -147,13 +271,12 @@ export class CharacterResourceLedgerService {
         ownerName: payload.ownerName,
       });
     const now = new Date();
-    const riskSignals: CharacterResourceRiskSignal[] = (input.validationNotes ?? [])
-      .filter((note) => /risk|风险|review|缺失|冲突/i.test(note))
-      .map((note) => ({
-        code: "resource_validation_note",
-        severity: "medium",
-        summary: note,
-      }));
+    const riskSignals = buildStructuredRiskSignals({
+      resourceName: payload.resourceName,
+      riskLevel: input.riskLevel,
+      riskSignals: input.riskSignals,
+      validationNotes: input.validationNotes,
+    });
 
     const existing = await tx.characterResourceLedgerItem.findUnique({
       where: {
@@ -239,13 +362,15 @@ export class CharacterResourceLedgerService {
     availableItems: CharacterResourceLedgerItem[];
     setupNeededItems: CharacterResourceLedgerItem[];
     blockedItems: CharacterResourceLedgerItem[];
-    pendingReviewItems: CharacterResourceLedgerItem[];
+    highRiskCommittedItems: CharacterResourceLedgerItem[];
+    pendingProposalItems: CharacterResourceProposalSummary[];
   }): string {
     const parts = [
       input.availableItems.length > 0 ? `可用关键资源 ${input.availableItems.length} 项` : "",
       input.setupNeededItems.length > 0 ? `需要留意铺垫 ${input.setupNeededItems.length} 项` : "",
       input.blockedItems.length > 0 ? `不可直接使用 ${input.blockedItems.length} 项` : "",
-      input.pendingReviewItems.length > 0 ? `高风险资源 ${input.pendingReviewItems.length} 项` : "",
+      input.highRiskCommittedItems.length > 0 ? `高风险已入账资源 ${input.highRiskCommittedItems.length} 项` : "",
+      input.pendingProposalItems.length > 0 ? `待确认资源变更 ${input.pendingProposalItems.length} 条` : "",
     ].filter(Boolean);
     return parts.join("；") || "当前章节没有需要特别提示的角色资源。";
   }
@@ -256,7 +381,8 @@ export class CharacterResourceLedgerService {
       availableItems: [],
       setupNeededItems: [],
       blockedItems: [],
-      pendingReviewItems: [],
+      highRiskCommittedItems: [],
+      pendingProposalItems: [],
       riskSignals: [],
     };
   }

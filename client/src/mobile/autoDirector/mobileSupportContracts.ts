@@ -4,6 +4,7 @@ export const AUTO_DIRECTOR_MOBILE_ROUTE_PATTERNS = [
   "/auto-director/follow-ups",
   "/settings",
   "/novels/create",
+  "/novels/auto-director",
   "/novels/:id/edit",
 ] as const;
 

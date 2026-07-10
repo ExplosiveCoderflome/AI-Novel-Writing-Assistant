@@ -25,7 +25,10 @@ export const knowledgeToolDefinitions: Partial<
     execute: async (_context, rawInput) => {
       const input = listKnowledgeDocumentsInputSchema.parse(rawInput);
       const rows = await prisma.knowledgeDocument.findMany({
-        where: input.status ? { status: input.status } : {},
+        where: {
+          ...(input.status ? { status: input.status } : {}),
+          ...(input.kind ? { kind: input.kind } : {}),
+        },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: input.limit ?? 20,
       });
@@ -47,6 +50,8 @@ export const knowledgeToolDefinitions: Partial<
           id: row.id,
           title: row.title,
           fileName: row.fileName,
+          kind: row.kind,
+          sourceAnalysisId: row.sourceAnalysisId,
           status: row.status,
           latestIndexStatus: row.latestIndexStatus,
           lastIndexedAt: row.lastIndexedAt?.toISOString() ?? null,
@@ -93,6 +98,8 @@ export const knowledgeToolDefinitions: Partial<
         id: row.id,
         title: row.title,
         fileName: row.fileName,
+        kind: row.kind,
+        sourceAnalysisId: row.sourceAnalysisId,
         status: row.status,
         activeVersionNumber: row.activeVersionNumber,
         latestIndexStatus: row.latestIndexStatus,

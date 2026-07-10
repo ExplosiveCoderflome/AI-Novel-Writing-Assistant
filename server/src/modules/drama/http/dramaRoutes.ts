@@ -38,6 +38,11 @@ const imageProviderBodySchema = z
   .object({
     provider: z.string().trim().optional(),
     useCharacterRefImages: z.boolean().optional(),
+    promptOverride: z.string().trim().max(4000).optional(),
+    providerOverride: z.string().trim().optional(),
+    sizeOverride: z.string().trim().max(20).optional(),
+    negativePromptOverride: z.string().trim().max(2000).optional(),
+    excludedReferenceImageUrls: z.array(z.string().trim().min(1).max(1000)).max(24).optional(),
   })
   .optional();
 
@@ -463,14 +468,44 @@ router.post("/projects/:id/shots/:shotId/video-prompt", validate({ params: shotP
   }
 });
 
-router.post("/projects/:id/shots/:shotId/keyframe", validate({ params: shotParamsSchema, body: imageProviderBodySchema }), async (req, res, next) => {
+router.post("/projects/:id/shots/:shotId/keyframe/prepare", validate({ params: shotParamsSchema, body: imageProviderBodySchema }), async (req, res, next) => {
   try {
     const { shotId } = req.params as z.infer<typeof shotParamsSchema>;
     const body = req.body as { provider?: string; useCharacterRefImages?: boolean } | undefined;
+    const data = await dramaShotKeyframeService.prepareKeyframe(
+      shotId,
+      body?.provider as Parameters<typeof dramaShotKeyframeService.prepareKeyframe>[1],
+      body?.useCharacterRefImages ?? false,
+    );
+    res.status(200).json({ success: true, data, message: "Drama shot keyframe preview prepared." });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/projects/:id/shots/:shotId/keyframe", validate({ params: shotParamsSchema, body: imageProviderBodySchema }), async (req, res, next) => {
+  try {
+    const { shotId } = req.params as z.infer<typeof shotParamsSchema>;
+    const body = req.body as {
+      provider?: string;
+      useCharacterRefImages?: boolean;
+      promptOverride?: string;
+      providerOverride?: string;
+      sizeOverride?: string;
+      negativePromptOverride?: string;
+      excludedReferenceImageUrls?: string[];
+    } | undefined;
     const data = await dramaShotKeyframeService.generateKeyframe(
       shotId,
       body?.provider as Parameters<typeof dramaShotKeyframeService.generateKeyframe>[1],
       body?.useCharacterRefImages ?? false,
+      {
+        promptOverride: body?.promptOverride,
+        providerOverride: body?.providerOverride,
+        sizeOverride: body?.sizeOverride as never,
+        negativePromptOverride: body?.negativePromptOverride,
+        excludedReferenceImageUrls: body?.excludedReferenceImageUrls,
+      },
     );
     res.status(200).json({ success: true, data, message: "Drama shot keyframe generated." });
   } catch (error) {
@@ -530,15 +565,47 @@ router.get(
  *  生成角色设计稿（面部特写 + 三视图合图，一次完成）。
  */
 router.post(
-  "/projects/:id/characters/:characterId/generate-character-sheet",
+  "/projects/:id/characters/:characterId/prepare-character-sheet",
   validate({ params: characterParamsSchema, body: imageProviderBodySchema }),
   async (req, res, next) => {
     try {
       const { characterId } = req.params as z.infer<typeof characterParamsSchema>;
       const provider = (req.body as { provider?: string } | undefined)?.provider;
+      const data = await dramaCharacterImageService.prepareCharacterSheet(
+        characterId,
+        provider as Parameters<typeof dramaCharacterImageService.prepareCharacterSheet>[1],
+      );
+      res.status(200).json({ success: true, data, message: "Character sheet preview prepared." });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/projects/:id/characters/:characterId/generate-character-sheet",
+  validate({ params: characterParamsSchema, body: imageProviderBodySchema }),
+  async (req, res, next) => {
+    try {
+      const { characterId } = req.params as z.infer<typeof characterParamsSchema>;
+      const body = req.body as {
+        provider?: string;
+        promptOverride?: string;
+        providerOverride?: string;
+        sizeOverride?: string;
+        negativePromptOverride?: string;
+        excludedReferenceImageUrls?: string[];
+      } | undefined;
       const data = await dramaCharacterImageService.generateCharacterSheet(
         characterId,
-        provider as Parameters<typeof dramaCharacterImageService.generateCharacterSheet>[1],
+        body?.provider as Parameters<typeof dramaCharacterImageService.generateCharacterSheet>[1],
+        {
+          promptOverride: body?.promptOverride,
+          providerOverride: body?.providerOverride,
+          sizeOverride: body?.sizeOverride as never,
+          negativePromptOverride: body?.negativePromptOverride,
+          excludedReferenceImageUrls: body?.excludedReferenceImageUrls,
+        },
       );
       res.status(200).json({ success: true, data, message: "Character sheet generation completed." });
     } catch (error) {
@@ -554,10 +621,24 @@ router.post(
   async (req, res, next) => {
     try {
       const { characterId } = req.params as z.infer<typeof characterParamsSchema>;
-      const provider = (req.body as { provider?: string } | undefined)?.provider;
+      const body = req.body as {
+        provider?: string;
+        promptOverride?: string;
+        providerOverride?: string;
+        sizeOverride?: string;
+        negativePromptOverride?: string;
+        excludedReferenceImageUrls?: string[];
+      } | undefined;
       const data = await dramaCharacterImageService.generateCharacterSheet(
         characterId,
-        provider as Parameters<typeof dramaCharacterImageService.generateCharacterSheet>[1],
+        body?.provider as Parameters<typeof dramaCharacterImageService.generateCharacterSheet>[1],
+        {
+          promptOverride: body?.promptOverride,
+          providerOverride: body?.providerOverride,
+          sizeOverride: body?.sizeOverride as never,
+          negativePromptOverride: body?.negativePromptOverride,
+          excludedReferenceImageUrls: body?.excludedReferenceImageUrls,
+        },
       );
       res.status(200).json({ success: true, data, message: "Portrait generation completed." });
     } catch (error) {

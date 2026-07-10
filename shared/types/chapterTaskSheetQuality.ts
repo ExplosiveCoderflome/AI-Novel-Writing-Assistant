@@ -63,23 +63,95 @@ export interface ChapterTaskSheetQualityGateResult {
   confidence: number;
 }
 
+function normalizeAssessmentVerdict(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (["pass", "passed", "accepted", "accept", "ok", "okay", "valid", "use_as_is"].includes(normalized)) {
+    return "usable";
+  }
+  if (["fixable", "needs_repair", "repair", "needs_fix", "repair_contract"].includes(normalized)) {
+    return "repairable";
+  }
+  if (["blocked", "block", "replan", "unusable", "invalid", "reject", "replan_window"].includes(normalized)) {
+    return "unusable";
+  }
+  return normalized;
+}
+
+function normalizeAssessmentIssueTarget(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (["goal", "objective", "chapter_goal", "mission"].includes(normalized)) {
+    return "purpose";
+  }
+  if (["scope", "cross_boundary", "boundary_crossing", "chapter_boundary", "range"].includes(normalized)) {
+    return "boundary";
+  }
+  if (["task", "task_sheet", "tasksheet", "task_list", "chapter_task_sheet"].includes(normalized)) {
+    return "task_sheet";
+  }
+  if (["scene", "scene_card", "scene_cards", "scenes", "scene_plan"].includes(normalized)) {
+    return "scene_cards";
+  }
+  if ([
+    "plot",
+    "pacing",
+    "pace",
+    "load",
+    "overload",
+    "overloaded",
+    "obligation",
+    "obligations",
+    "repetition",
+    "active_action",
+    "action",
+    "character_action",
+    "semantic",
+  ].includes(normalized)) {
+    return "semantic";
+  }
+  return normalized;
+}
+
+function normalizeAssessmentConfidence(value: unknown): unknown {
+  const numeric = typeof value === "string" && value.trim()
+    ? Number(value.trim())
+    : typeof value === "number"
+      ? value
+      : NaN;
+  if (!Number.isFinite(numeric)) {
+    return value;
+  }
+  if (numeric > 1 && numeric <= 100) {
+    return numeric / 100;
+  }
+  return numeric;
+}
+
 export const chapterTaskSheetQualityIssueSchema = z.object({
   id: z.string().trim().min(1),
   severity: z.enum(CHAPTER_TASK_SHEET_QUALITY_ISSUE_SEVERITIES),
-  target: z.enum(["purpose", "boundary", "task_sheet", "scene_cards", "semantic"]),
+  target: z.preprocess(
+    normalizeAssessmentIssueTarget,
+    z.enum(["purpose", "boundary", "task_sheet", "scene_cards", "semantic"]),
+  ),
   summary: z.string().trim().min(1),
   repairHint: z.string().trim().min(1),
 });
 
 export const aiChapterTaskSheetQualityAssessmentSchema = z.object({
-  verdict: z.enum(["usable", "repairable", "unusable"]),
+  verdict: z.preprocess(normalizeAssessmentVerdict, z.enum(["usable", "repairable", "unusable"])),
   safeToSync: z.boolean(),
   loadRisk: z.enum(["normal", "overloaded"]).default("normal"),
   recommendedHandling: z.enum(["use_as_is", "repair_contract", "replan_window"]).default("use_as_is"),
   summary: z.string().trim().min(1),
   issues: z.array(chapterTaskSheetQualityIssueSchema).max(8).default([]),
   repairGuidance: z.array(z.string().trim().min(1)).max(8).default([]),
-  confidence: z.number().min(0).max(1),
+  confidence: z.preprocess(normalizeAssessmentConfidence, z.number().min(0).max(1)),
 });
 
 export type AiChapterTaskSheetQualityAssessment = z.infer<typeof aiChapterTaskSheetQualityAssessmentSchema>;

@@ -28,7 +28,28 @@ function buildRetryDirective(reason?: string | null): string {
   return [
     "上一次输出没有通过业务校验，本次必须优先修正：",
     normalizedReason,
+    "先判断失败类型：标题结构、标题基础质量、章节功能、摘要推进、结尾牵引。",
+    "不要只替换被点名的一章；如果问题来自标题同构或章节功能重复，必须重排整组标题骨架和章节功能分配。",
   ].join("\n");
+}
+
+function classifyChapterListRetryIssue(reason: string): string {
+  if (isChapterTitleDiversityIssue(reason)) {
+    return "标题结构：重排整组标题骨架，混用动作推进型、冲突压迫型、异常发现型、结果兑现型、决断转向型和问题钩子型。";
+  }
+  if (isBlockingChapterTitleQualityIssue(reason)) {
+    return "标题基础质量：标题必须短促客观，不能第一人称、不能过长、不能写成完整剧情句。";
+  }
+  if (reason.includes("章节中主角或核心视角角色的主动行动不足") || reason.includes("连续多章呈现被动推进")) {
+    return "章节功能：重排每章职责，让核心视角角色主动选择、试探、反击、布局、交换、隐忍或承担代价。";
+  }
+  if (reason.includes("过多章节摘要偏空泛")) {
+    return "摘要推进：每章 summary 必须写出新增信息、局面变化、冲突推进、关系变化、资源得失或风险转向。";
+  }
+  if (reason.includes("当前节奏段缺少阶段性兑现") || reason.includes("结尾章缺少当前 beat")) {
+    return "结尾牵引：最后一章必须完成当前 beat 的阶段兑现、明确转向或进入下一 beat 的阅读压力。";
+  }
+  return "综合质量：按失败原因重排标题、章节功能和摘要推进，保证每章都有新增变化。";
 }
 
 function resolvePromptConfig(
@@ -282,33 +303,40 @@ export function createVolumeChapterListPrompt(
         baseMessages,
         parsedOutput,
         validationError,
-      }) => [
-        ...baseMessages,
-        new HumanMessage(
-          [
-            `上一次章节块通过了 JSON 结构校验，但没有通过业务校验。这是第 ${attempt} 次语义重试。`,
-            `失败原因：${validationError}`,
-            "",
-            "重写要求：",
-            "1. 只重写当前节奏段的章节列表，不得越界生成其他节奏段章节。",
-            "2. 必须保留原有章节位数，最终 chapters.length 仍然必须等于目标章数。",
-            "3. 若失败原因是标题重复，必须重写所有命中重复骨架的标题，而不是只局部修补几章。",
-            "4. 若失败原因是章节功能重复，必须重新分配章节功能，避免连续多章只做调查、发现、意识到或铺垫。",
-            "5. 每章 summary 必须体现新增推进，优先体现核心视角角色的选择、试探、反击、布局、交换、隐忍或承担代价。",
-            "6. 明确避免大量使用“X的Y / X中的Y / 在X中Y”骨架。",
-            "7. 明确避免整批标题继续塌成“A，B / 四字动作，四字结果”并列模板。",
-            "8. 标题必须是客观章名，不用第一人称，不写成完整剧情句，核心字数不超过 16 个。",
-            "9. 每章 beatKey 必须保持为当前目标 beatKey。",
-            "10. 摘要必须体现本章造成的局面变化，不得空泛复述标题。",
-            "11. 最后一章必须完成当前 beat 的 mustDeliver，同时留下阅读牵引，但不得提前兑现下一 beat 的核心事件。",
-            "",
-            "上一次的 JSON 输出：",
-            safeJsonStringify(parsedOutput),
-            "",
-            "请重新输出完整 JSON 对象。",
-          ].join("\n"),
-        ),
-      ],
+      }) => {
+        const normalizedValidationError = validationError?.trim() || "未通过章节列表业务校验。";
+        const retryIssueClass = classifyChapterListRetryIssue(normalizedValidationError);
+        return [
+          ...baseMessages,
+          new HumanMessage(
+            [
+              `上一次章节块通过了 JSON 结构校验，但没有通过业务校验。这是第 ${attempt} 次语义重试。`,
+              `失败原因：${normalizedValidationError}`,
+              `失败类型：${retryIssueClass}`,
+              "",
+              "重写要求：",
+              "1. 只重写当前节奏段的章节列表，不得越界生成其他节奏段章节。",
+              "2. 必须保留原有章节位数，最终 chapters.length 仍然必须等于目标章数。",
+              "3. 必须先按失败类型修复：标题结构问题重排整组标题骨架；标题基础质量问题重写所有不合格标题；章节功能问题重排每章职责；摘要推进问题重写所有空泛摘要；结尾牵引问题重写末章的兑现和转向。",
+              "4. 不要只局部替换触发校验的一章；需要保证整组章节的标题骨架、章节功能、摘要推进和结尾牵引同时通过。",
+              "5. 若失败原因是标题重复或标题骨架集中，必须重写所有命中重复骨架的标题，而不是只局部修补几章。",
+              "6. 若失败原因是章节功能重复，必须重新分配章节功能，避免连续多章只做调查、发现、意识到或铺垫。",
+              "7. 每章 summary 必须体现新增推进，优先体现核心视角角色的选择、试探、反击、布局、交换、隐忍或承担代价。",
+              "8. 明确避免大量使用“X的Y / X中的Y / 在X中Y”骨架。",
+              "9. 明确避免整批标题继续塌成“A，B / 四字动作，四字结果”并列模板。",
+              "10. 标题必须是客观章名，不用第一人称，不写成完整剧情句，核心字数不超过 16 个。",
+              "11. 每章 beatKey 必须保持为当前目标 beatKey。",
+              "12. 摘要必须体现本章造成的局面变化，不得空泛复述标题。",
+              "13. 最后一章必须完成当前 beat 的 mustDeliver，同时留下阅读牵引，但不得提前兑现下一 beat 的核心事件。",
+              "",
+              "上一次的 JSON 输出：",
+              safeJsonStringify(parsedOutput),
+              "",
+              "请重新输出完整 JSON 对象。",
+            ].join("\n"),
+          ),
+        ];
+      },
     },
 
     outputSchema: createVolumeChapterBeatBlockSchema({

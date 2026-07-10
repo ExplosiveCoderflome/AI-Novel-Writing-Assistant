@@ -1,4 +1,7 @@
-import type { StateChangeProposal } from "@ai-novel/shared/types/canonicalState";
+import type {
+  ContentProvenance,
+  StateChangeProposal,
+} from "@ai-novel/shared/types/canonicalState";
 import { prisma } from "../../../db/prisma";
 
 function compactText(value: string | null | undefined): string {
@@ -42,6 +45,7 @@ export interface ChapterFactExtractorInput {
   chapterOrder?: number;
   sourceType?: string;
   sourceStage?: string | null;
+  contentProvenance?: ContentProvenance;
 }
 
 export class ChapterFactExtractor {

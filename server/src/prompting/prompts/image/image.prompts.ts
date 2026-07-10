@@ -53,6 +53,28 @@ export interface NovelCoverPromptOptimizeInput {
   structuredBrief: z.infer<typeof novelCoverBriefSchema>;
 }
 
+export const imageGenerationPromptAssistOutputSchema = z.object({
+  summary: z.string().trim().min(1),
+  details: z.array(z.string().trim().min(1)).min(2).max(8),
+  risks: z.array(z.string().trim().min(1)).max(5).default([]),
+  optimizedPrompt: z.string().trim().min(1).optional(),
+  changes: z.array(z.string().trim().min(1)).max(6).default([]),
+});
+
+export type ImageGenerationPromptAssistOutput = z.infer<typeof imageGenerationPromptAssistOutputSchema>;
+
+export interface ImageGenerationPromptAssistInput {
+  action: "explain" | "optimize";
+  title?: string;
+  kind?: string;
+  prompt: string;
+  negativePrompt?: string;
+  optimizationInstruction?: string;
+  provider?: string;
+  size?: string;
+  referenceImages: Array<{ kind: string; label: string }>;
+}
+
 function normalizeOptimizedPrompt(output: string): string {
   let normalized = output.trim();
   normalized = normalized.replace(/^```[a-zA-Z]*\s*/u, "").replace(/\s*```$/u, "").trim();
@@ -62,6 +84,85 @@ function normalizeOptimizedPrompt(output: string): string {
   }
   return normalized;
 }
+
+export const imageGenerationPromptAssistPrompt: PromptAsset<
+  ImageGenerationPromptAssistInput,
+  z.infer<typeof imageGenerationPromptAssistOutputSchema>
+> = {
+  id: "image.generation_prompt.assist",
+  version: "v1",
+  taskType: "planner",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: {
+    maxTokensBudget: 0,
+  },
+  repairPolicy: {
+    maxAttempts: 1,
+  },
+  outputSchema: imageGenerationPromptAssistOutputSchema,
+  render: (input) => [
+    new SystemMessage([
+      "你是图片生成 prompt 助手，服务对象是不懂提示词工程的新手作者。",
+      "你要帮助用户在真正生图前理解或优化当前即将发送给图片模型的 prompt。",
+      "",
+      "只输出合法 JSON，不要输出 Markdown、代码块或额外解释。",
+      "",
+      "通用规则：",
+      "1. 必须尊重原 prompt 的角色身份、场景、构图、画风、参考图用途和硬性限制，不得擅自改变核心设定。",
+      "2. 解释时要把复杂 prompt 拆成用户能理解的画面目标、角色/场景约束、参考图作用和模型注意事项。",
+      "3. 优化时只让 prompt 更清晰、更可控、更适合图片模型；不得删除性别锁、身份锁、脸型强覆盖、对白气泡规则、无文字/无水印等关键约束。",
+      "4. 如果已有参考图，优化结果必须明确这些参考图用于保持一致性，不要让模型照搬参考图机位，除非原 prompt 已要求照搬。",
+      "5. negative prompt 只作为风险和约束参考；不要把 negative prompt 混进 optimizedPrompt，除非原 prompt 本身已经包含负面约束。",
+      "6. action=optimize 且用户提供了优化要求时，优先按用户自己的语言调整 prompt；如果用户要求会破坏核心设定或关键约束，保留关键约束，并在 risks 或 changes 中说明。",
+      "",
+      "输出字段：",
+      "- summary：一句中文概括。",
+      "- details：2-8 条中文要点。",
+      "- risks：最多 5 条中文风险或注意事项；没有则空数组。",
+      "- optimizedPrompt：仅 action=optimize 时提供，可直接回填到正向 prompt。",
+      "- changes：仅 action=optimize 时说明做了哪些改进。",
+    ].join("\n")),
+    new HumanMessage([
+      `动作：${input.action === "optimize" ? "优化当前正向 prompt" : "解释当前正向 prompt"}`,
+      `入口标题：${input.title?.trim() || "未提供"}`,
+      `入口 kind：${input.kind?.trim() || "未提供"}`,
+      `图片 provider：${input.provider?.trim() || "未提供"}`,
+      `图片尺寸：${input.size?.trim() || "未提供"}`,
+      "",
+      "参考素材：",
+      input.referenceImages.length
+        ? input.referenceImages.map((item, index) => `${index + 1}. ${item.kind}：${item.label}`).join("\n")
+        : "无参考素材",
+      "",
+      "当前正向 prompt：",
+      input.prompt,
+      "",
+      "当前负面 prompt：",
+      input.negativePrompt?.trim() || "无",
+      "",
+      "用户优化要求：",
+      input.action === "optimize" ? input.optimizationInstruction?.trim() || "未提供" : "不适用",
+    ].join("\n")),
+  ],
+  postValidate: (output, input) => {
+    const normalized = {
+      summary: output.summary.trim(),
+      details: output.details.map((item) => item.trim()).filter(Boolean),
+      risks: output.risks.map((item) => item.trim()).filter(Boolean),
+      optimizedPrompt: output.optimizedPrompt?.trim(),
+      changes: output.changes.map((item) => item.trim()).filter(Boolean),
+    };
+    if (input.action === "optimize" && !normalized.optimizedPrompt) {
+      throw new Error("优化结果缺少 optimizedPrompt。");
+    }
+    if (input.action === "explain") {
+      normalized.optimizedPrompt = undefined;
+      normalized.changes = [];
+    }
+    return normalized;
+  },
+};
 
 export const imageCharacterPromptOptimizePrompt: PromptAsset<
   CharacterImagePromptOptimizeInput,

@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-const DIRECTOR_CREATE_LINK = "/novels/create?mode=director";
+const DIRECTOR_CREATE_LINK = "/novels/auto-director";
 
 interface GuideStep {
   title: string;

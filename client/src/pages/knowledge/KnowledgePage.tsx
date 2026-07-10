@@ -62,6 +62,7 @@ export default function KnowledgePage() {
     embeddingTimeoutMs: 30000,
     embeddingMaxRetries: 2,
     embeddingRetryBaseMs: 500,
+    embeddingConcurrency: 4,
     enabled: true,
     qdrantUrl: "http://127.0.0.1:6333",
     qdrantApiKey: "",
@@ -69,6 +70,7 @@ export default function KnowledgePage() {
     clearQdrantApiKey: false,
     qdrantTimeoutMs: 30000,
     qdrantUpsertMaxBytes: 24 * 1024 * 1024,
+    qdrantUpsertConcurrency: 3,
     chunkSize: 800,
     chunkOverlap: 120,
     vectorCandidates: 40,
@@ -147,6 +149,7 @@ export default function KnowledgePage() {
       embeddingTimeoutMs: data.embeddingTimeoutMs,
       embeddingMaxRetries: data.embeddingMaxRetries,
       embeddingRetryBaseMs: data.embeddingRetryBaseMs,
+      embeddingConcurrency: data.embeddingConcurrency,
       enabled: data.enabled,
       qdrantUrl: data.qdrantUrl,
       qdrantApiKey: "",
@@ -154,6 +157,7 @@ export default function KnowledgePage() {
       clearQdrantApiKey: false,
       qdrantTimeoutMs: data.qdrantTimeoutMs,
       qdrantUpsertMaxBytes: data.qdrantUpsertMaxBytes,
+      qdrantUpsertConcurrency: data.qdrantUpsertConcurrency,
       chunkSize: data.chunkSize,
       chunkOverlap: data.chunkOverlap,
       vectorCandidates: data.vectorCandidates,
@@ -208,6 +212,7 @@ export default function KnowledgePage() {
           embeddingTimeoutMs: data.embeddingTimeoutMs,
           embeddingMaxRetries: data.embeddingMaxRetries,
           embeddingRetryBaseMs: data.embeddingRetryBaseMs,
+          embeddingConcurrency: data.embeddingConcurrency,
           enabled: data.enabled,
           qdrantUrl: data.qdrantUrl,
           qdrantApiKey: "",
@@ -215,6 +220,7 @@ export default function KnowledgePage() {
           clearQdrantApiKey: false,
           qdrantTimeoutMs: data.qdrantTimeoutMs,
           qdrantUpsertMaxBytes: data.qdrantUpsertMaxBytes,
+          qdrantUpsertConcurrency: data.qdrantUpsertConcurrency,
           chunkSize: data.chunkSize,
           chunkOverlap: data.chunkOverlap,
           vectorCandidates: data.vectorCandidates,
@@ -464,12 +470,14 @@ export default function KnowledgePage() {
       embeddingTimeoutMs: ragForm.embeddingTimeoutMs,
       embeddingMaxRetries: ragForm.embeddingMaxRetries,
       embeddingRetryBaseMs: ragForm.embeddingRetryBaseMs,
+      embeddingConcurrency: ragForm.embeddingConcurrency,
       enabled: ragForm.enabled,
       qdrantUrl: ragForm.qdrantUrl.trim(),
       qdrantApiKey: ragForm.qdrantApiKey.trim() || undefined,
       clearQdrantApiKey: ragForm.clearQdrantApiKey,
       qdrantTimeoutMs: ragForm.qdrantTimeoutMs,
       qdrantUpsertMaxBytes: ragForm.qdrantUpsertMaxBytes,
+      qdrantUpsertConcurrency: ragForm.qdrantUpsertConcurrency,
       chunkSize: ragForm.chunkSize,
       chunkOverlap: ragForm.chunkOverlap,
       vectorCandidates: ragForm.vectorCandidates,
@@ -548,6 +556,11 @@ export default function KnowledgePage() {
             documents={visibleDocuments}
             latestKnowledgeDocumentJobs={latestKnowledgeDocumentJobs}
             onSelectDocument={setSelectedDocumentId}
+            onOpenRecallTest={(id) => {
+              setRecallQuery("");
+              setRecallResult(null);
+              setSelectedDocumentId(id);
+            }}
             onReindexDocument={(id) => reindexMutation.mutate(id)}
             onUpdateStatus={(id, nextStatus) => updateStatusMutation.mutate({ id, status: nextStatus })}
           />

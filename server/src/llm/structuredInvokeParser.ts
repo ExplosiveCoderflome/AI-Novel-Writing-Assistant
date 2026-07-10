@@ -17,17 +17,20 @@ import {
 } from "./structuredOutput";
 import { extractJSONValue } from "../services/novel/novelP0Utils";
 import type { PromptInvocationMeta } from "../prompting/core/promptTypes";
+import type { LlmTokenUsageSnapshot } from "./usageTracking";
 
 export interface StructuredInvokeResult<T> {
   data: T;
   repairUsed: boolean;
   repairAttempts: number;
   diagnostics: StructuredOutputDiagnostics;
+  tokenUsage?: LlmTokenUsageSnapshot | null;
 }
 
 export interface StructuredInvokeRawParseInput<T> {
   rawContent: string;
   schema: ZodType<T>;
+  tokenUsage?: LlmTokenUsageSnapshot | null;
   provider?: LLMProvider;
   model?: string;
   apiKey?: string;
@@ -380,6 +383,7 @@ export async function parseStructuredLlmRawContentDetailed<T>(
           repairUsed: true,
           repairAttempts: attempt,
           diagnostics,
+          tokenUsage: input.tokenUsage ?? null,
         };
       } catch (repairError) {
         if (attempt >= maxRepairAttempts) {
@@ -407,6 +411,7 @@ export async function parseStructuredLlmRawContentDetailed<T>(
       repairUsed: false,
       repairAttempts: 0,
       diagnostics,
+      tokenUsage: input.tokenUsage ?? null,
     };
   }
 
@@ -427,6 +432,7 @@ export async function parseStructuredLlmRawContentDetailed<T>(
       repairUsed: false,
       repairAttempts: 0,
       diagnostics,
+      tokenUsage: input.tokenUsage ?? null,
     };
   }
 
@@ -447,6 +453,7 @@ export async function parseStructuredLlmRawContentDetailed<T>(
       repairUsed: false,
       repairAttempts: 0,
       diagnostics,
+      tokenUsage: input.tokenUsage ?? null,
     };
   }
 
@@ -461,6 +468,7 @@ export async function parseStructuredLlmRawContentDetailed<T>(
         repairUsed: true,
         repairAttempts: attempt,
         diagnostics,
+        tokenUsage: input.tokenUsage ?? null,
       };
     } catch (error) {
       if (attempt >= maxRepairAttempts) {

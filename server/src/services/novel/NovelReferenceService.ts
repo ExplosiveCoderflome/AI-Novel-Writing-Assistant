@@ -1,16 +1,21 @@
-import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
+import type { BookAnalysisSectionKey, BookAnalysisTimelineNode } from "@ai-novel/shared/types/bookAnalysis";
+import {
+  BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS,
+  BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS,
+} from "@ai-novel/shared/types/bookAnalysis";
+import { groupBookAnalysisTimelineNodesByPhase } from "@ai-novel/shared/utils/bookAnalysisTimeline";
 import { prisma } from "../../db/prisma";
 import {
   listActiveKnowledgeDocumentContents,
   resolveKnowledgeDocumentIds,
 } from "../knowledge/common";
+import { normalizeBookAnalysisStructuredData } from "../bookAnalysis/shared/bookAnalysis.utils";
 
 export type NovelReferenceStage =
   | "outline"
   | "structured_outline"
   | "bible"
   | "beats"
-  | "chapter"
   | "character";
 
 const MAX_REFERENCE_CHARS_PER_STAGE = 5_000;
@@ -80,6 +85,49 @@ function formatStructuredData(data: Record<string, unknown>): string {
   return lines.join("\n");
 }
 
+function formatTimelineNode(node: BookAnalysisTimelineNode): string {
+  const meta = [
+    node.timeHint ? `时间=${node.timeHint}` : "",
+    node.sourceRefs?.length ? `来源=${node.sourceRefs.join(", ")}` : "",
+  ].filter(Boolean).join("; ");
+  return meta ? `- ${node.label} (${meta})` : `- ${node.label}`;
+}
+
+function formatTimelineNodes(nodes: BookAnalysisTimelineNode[]): string {
+  if (nodes.length === 0) {
+    return "";
+  }
+  return groupBookAnalysisTimelineNodesByPhase(nodes)
+    .map((group) => `### ${group.phase}\n${group.nodes.map((node) => formatTimelineNode(node)).join("\n")}`)
+    .join("\n");
+}
+
+function formatTimelineStructuredData(data: Record<string, unknown>): string {
+  const normalized = normalizeBookAnalysisStructuredData("timeline", data);
+  const lines: string[] = [];
+
+  for (const field of BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS.timeline) {
+    const label = BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS[field.key] ?? field.key;
+    const value = normalized[field.key];
+    if (field.type === "timelineNodeArray") {
+      const nodes = Array.isArray(value) ? value as BookAnalysisTimelineNode[] : [];
+      const formatted = formatTimelineNodes(nodes);
+      if (formatted) {
+        lines.push(`## ${label}`, formatted);
+      }
+      continue;
+    }
+
+    const values = Array.isArray(value)
+      ? value.map((item) => String(item).trim()).filter(Boolean)
+      : [];
+    if (values.length > 0) {
+      lines.push(`## ${label}`, values.map((item) => `- ${item}`).join("\n"));
+    }
+  }
+  return lines.join("\n");
+}
+
 function parseStructuredData(json: string | null): Record<string, unknown> | null {
   if (!json?.trim()) {
     return null;
@@ -97,6 +145,7 @@ function parseStructuredData(json: string | null): Record<string, unknown> | nul
 
 function extractSectionText(
   section: {
+    sectionKey: string;
     title: string;
     structuredDataJson: string | null;
     aiContent: string | null;
@@ -105,7 +154,12 @@ function extractSectionText(
 ): string {
   const data = parseStructuredData(section.structuredDataJson);
   if (data && Object.keys(data).length > 0) {
-    return `## ${section.title}\n${formatStructuredData(data)}`;
+    const structuredText = section.sectionKey === "timeline"
+      ? formatTimelineStructuredData(data)
+      : formatStructuredData(data);
+    if (structuredText.trim()) {
+      return `## ${section.title}\n${structuredText}`;
+    }
   }
   const fallback = section.editedContent?.trim() || section.aiContent?.trim() || "";
   if (!fallback) {
@@ -162,7 +216,6 @@ const STAGE_SECTION_MAP: Record<NovelReferenceStage, BookAnalysisSectionKey[]> =
   structured_outline: ["plot_structure", "timeline", "character_system"],
   bible: ["character_system", "worldbuilding", "themes"],
   beats: ["plot_structure", "timeline", "market_highlights"],
-  chapter: ["timeline", "style_technique"],
   character: ["character_system"],
 };
 
@@ -291,63 +344,72 @@ export class NovelReferenceService {
   }
 
   async buildReferenceForStage(novelId: string, stage: NovelReferenceStage): Promise<string> {
-    const [continuationConfig, analyses, knowledgeContents] = await Promise.all([
-      this.resolveContinuationAnalysisConfig(novelId),
-      this.resolveAnalysesForNovel(novelId),
-      this.resolveKnowledgeContentsForNovel(novelId),
-    ]);
+    try {
+      const [continuationConfig, analyses, knowledgeContents] = await Promise.all([
+        this.resolveContinuationAnalysisConfig(novelId),
+        this.resolveAnalysesForNovel(novelId),
+        this.resolveKnowledgeContentsForNovel(novelId),
+      ]);
 
-    const parts: string[] = [];
-    const stageSectionKeySet = new Set(STAGE_SECTION_MAP[stage]);
+      const parts: string[] = [];
+      const stageSectionKeySet = new Set(STAGE_SECTION_MAP[stage]);
 
-    let preferredAnalysisId: string | null = null;
-    if (continuationConfig.enabled && continuationConfig.analysisId) {
-      const preferred = await this.resolveAnalysisById(continuationConfig.analysisId);
-      if (preferred) {
-        preferredAnalysisId = preferred.id;
-        const preferredKeySet = continuationConfig.sectionKeys
-          ? new Set(continuationConfig.sectionKeys)
-          : new Set(stageSectionKeySet);
-        preferredKeySet.add("timeline");
+      let preferredAnalysisId: string | null = null;
+      if (continuationConfig.enabled && continuationConfig.analysisId) {
+        const preferred = await this.resolveAnalysisById(continuationConfig.analysisId);
+        if (preferred) {
+          preferredAnalysisId = preferred.id;
+          const preferredKeySet = continuationConfig.sectionKeys
+            ? new Set(continuationConfig.sectionKeys)
+            : new Set(stageSectionKeySet);
+          preferredKeySet.add("timeline");
 
-        const timelineOnly = this.buildAnalysisBlock(
-          preferred,
-          new Set<BookAnalysisSectionKey>(["timeline"]),
-          "continuation.timeline.priority",
-        );
-        if (timelineOnly) {
-          parts.push(timelineOnly);
+          const timelineOnly = this.buildAnalysisBlock(
+            preferred,
+            new Set<BookAnalysisSectionKey>(["timeline"]),
+            "continuation.timeline.priority",
+          );
+          if (timelineOnly) {
+            parts.push(timelineOnly);
+          }
+
+          const preferredBlock = this.buildAnalysisBlock(preferred, preferredKeySet, "continuation.analysis.primary");
+          if (preferredBlock) {
+            parts.push(preferredBlock);
+          }
         }
+      }
 
-        const preferredBlock = this.buildAnalysisBlock(preferred, preferredKeySet, "continuation.analysis.primary");
-        if (preferredBlock) {
-          parts.push(preferredBlock);
+      for (const analysis of analyses) {
+        if (preferredAnalysisId && analysis.id === preferredAnalysisId) {
+          continue;
+        }
+        const block = this.buildAnalysisBlock(analysis, stageSectionKeySet, "analysis.reference");
+        if (block) {
+          parts.push(block);
         }
       }
-    }
 
-    for (const analysis of analyses) {
-      if (preferredAnalysisId && analysis.id === preferredAnalysisId) {
-        continue;
+      if (knowledgeContents.length > 0) {
+        const knowledgeExcerpts = knowledgeContents
+          .map((item) => `[knowledge] ${item.title}\n${clipText(item.content, MAX_KNOWLEDGE_EXCERPT_CHARS)}`)
+          .join("\n\n");
+        parts.push(knowledgeExcerpts);
       }
-      const block = this.buildAnalysisBlock(analysis, stageSectionKeySet, "analysis.reference");
-      if (block) {
-        parts.push(block);
+
+      const combined = parts.join("\n\n");
+      if (!combined.trim()) {
+        return "";
       }
-    }
-
-    if (knowledgeContents.length > 0 && stage !== "chapter") {
-      const knowledgeExcerpts = knowledgeContents
-        .map((item) => `[knowledge] ${item.title}\n${clipText(item.content, MAX_KNOWLEDGE_EXCERPT_CHARS)}`)
-        .join("\n\n");
-      parts.push(knowledgeExcerpts);
-    }
-
-    const combined = parts.join("\n\n");
-    if (!combined.trim()) {
+      return clipText(combined, MAX_REFERENCE_CHARS_PER_STAGE);
+    } catch (error) {
+      console.warn("[novel-reference] reference context skipped.", {
+        novelId,
+        stage,
+        error: error instanceof Error ? error.message : String(error),
+      });
       return "";
     }
-    return clipText(combined, MAX_REFERENCE_CHARS_PER_STAGE);
   }
 }
 

@@ -1,5 +1,7 @@
 import type { LLMProvider } from "./llm";
 
+export const DEFAULT_BOOK_ANALYSIS_BUDGET_TOKENS = 200_000;
+
 export type BookAnalysisStatus = "draft" | "queued" | "running" | "succeeded" | "failed" | "cancelled" | "archived";
 export type BookAnalysisSectionStatus = "idle" | "running" | "succeeded" | "failed";
 export type BookAnalysisSectionKey =
@@ -12,7 +14,14 @@ export type BookAnalysisSectionKey =
   | "style_technique"
   | "market_highlights";
 export type BookAnalysisPreset = "quick" | "standard" | "complete";
-export type BookAnalysisStructuredFieldType = "string" | "stringArray";
+export type BookAnalysisStructuredFieldType = "string" | "stringArray" | "timelineNodeArray";
+
+export interface BookAnalysisTimelineNode {
+  label: string;
+  timeHint?: string;
+  phase?: string;
+  sourceRefs?: string[];
+}
 
 export interface BookAnalysisStructuredFieldSpec {
   key: string;
@@ -129,8 +138,8 @@ export const BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS: Readonly<Record<BookAnalysisS
     { key: "reusablePatterns", type: "stringArray" },
   ],
   timeline: [
-    { key: "timeNodes", type: "stringArray" },
-    { key: "eventOrder", type: "stringArray" },
+    { key: "timeNodes", type: "timelineNodeArray" },
+    { key: "eventOrder", type: "timelineNodeArray" },
     { key: "phaseDivisions", type: "stringArray" },
     { key: "stateChangeNodes", type: "stringArray" },
     { key: "tempoRisks", type: "stringArray" },
@@ -181,6 +190,21 @@ export interface BookAnalysisEvidenceItem {
   label: string;
   excerpt: string;
   sourceLabel: string;
+  fieldKey?: string;
+  fieldIndex?: number;
+  chapterIndex?: number;
+  excerptOffsetRange?: {
+    start: number;
+    end: number;
+  };
+}
+
+export interface BookAnalysisSourceRange {
+  startChapterIndex: number;
+  endChapterIndex: number;
+  startOffset?: number | null;
+  endOffset?: number | null;
+  label?: string | null;
 }
 
 export interface BookAnalysisSection {
@@ -192,7 +216,9 @@ export interface BookAnalysisSection {
   aiContent?: string | null;
   editedContent?: string | null;
   notes?: string | null;
+  focusInstruction?: string | null;
   structuredData?: Record<string, unknown> | null;
+  normalizationWarnings?: string[];
   evidence: BookAnalysisEvidenceItem[];
   frozen: boolean;
   sortOrder: number;
@@ -216,6 +242,10 @@ export interface BookAnalysis {
   model?: string | null;
   temperature?: number | null;
   maxTokens?: number | null;
+  budgetTokens?: number | null;
+  usedTokens?: number | null;
+  userFocusInstruction?: string | null;
+  sourceRange?: BookAnalysisSourceRange | null;
   progress: number;
   heartbeatAt?: string | null;
   currentStage?: string | null;
@@ -242,6 +272,14 @@ export interface BookAnalysisPublishResult {
   knowledgeDocumentVersionNumber: number;
   bindingCount: number;
   publishedAt: string;
+}
+
+export interface BookAnalysisBudgetUpdateInput {
+  budgetTokens: number | null;
+}
+
+export interface BookAnalysisResumeWithBudgetInput {
+  budgetTokens: number;
 }
 
 export interface BookAnalysisSectionOptimizePreview {

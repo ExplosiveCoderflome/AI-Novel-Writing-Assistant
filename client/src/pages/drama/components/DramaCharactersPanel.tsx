@@ -9,11 +9,15 @@ import type {
 } from "@/api/drama";
 import {
   generateDramaCharacterPortrait,
+  prepareDramaCharacterSheet,
 } from "@/api/drama";
 import { getAPIKeySettings } from "@/api/settings";
+import { ImageGenerationConfirmDialog } from "@/components/image/ImageGenerationConfirmDialog";
+import { useImageGenerationFlow } from "@/components/image/useImageGenerationFlow";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import SelectControl from "@/components/common/SelectControl";
 
 export interface DramaCharacterAssetInput {
   name: string;
@@ -99,6 +103,7 @@ function CharacterImagesBlock(props: {
   );
   const [busy, setBusy] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState("");
+  const imageFlow = useImageGenerationFlow();
 
   const apiKeyQuery = useQuery({
     queryKey: ["api-key-settings"],
@@ -124,33 +129,45 @@ function CharacterImagesBlock(props: {
     setSheet(parsePortrait(props.character.portraitData));
   }, [props.character.portraitData]);
 
-  async function handleGenerate() {
-    setBusy(true);
-    setSheet((current) => ({
-      status: "generating",
-      provider: selectedProvider || current.provider,
-      version: current.status === "done" ? (current.version ?? 1) + 1 : current.version,
-      history: current.history,
-    }));
-    try {
-      const result = await generateDramaCharacterPortrait(
-        props.projectId,
-        props.character.id,
-        selectedProvider || undefined,
-      );
-      setSheet(result.data ?? { status: "error", error: "无结果" });
-      props.onRefresh();
-    } catch (error) {
-      setSheet({ status: "error", error: error instanceof Error ? error.message : "生成失败" });
-    } finally {
-      setBusy(false);
-    }
+  function handleGenerate() {
+    imageFlow.start({
+      prepare: async () => {
+        const result = await prepareDramaCharacterSheet(props.projectId, props.character.id, selectedProvider || undefined);
+        return result.data!;
+      },
+      generate: async (overrides) => {
+        setBusy(true);
+        setSheet((current) => ({
+          status: "generating",
+          provider: selectedProvider || current.provider,
+          version: current.status === "done" ? (current.version ?? 1) + 1 : current.version,
+          history: current.history,
+        }));
+        try {
+          const result = await generateDramaCharacterPortrait(
+            props.projectId,
+            props.character.id,
+            selectedProvider || undefined,
+            overrides,
+          );
+          setSheet(result.data ?? { status: "error", error: "无结果" });
+          return result;
+        } catch (error) {
+          setSheet({ status: "error", error: error instanceof Error ? error.message : "生成失败" });
+          throw error;
+        } finally {
+          setBusy(false);
+        }
+      },
+      onSuccess: () => props.onRefresh(),
+    });
   }
 
-  const isGenerating = busy || sheet.status === "generating";
+  const isGenerating = imageFlow.dialogProps.loading || imageFlow.dialogProps.submitting || busy || sheet.status === "generating";
 
   return (
     <div className="space-y-3 border-t pt-3">
+      <ImageGenerationConfirmDialog {...imageFlow.dialogProps} />
       {/* 标题行 + Provider 选择器 */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -158,7 +175,7 @@ function CharacterImagesBlock(props: {
           <p className="text-xs text-muted-foreground">面部特写 + 全身正/侧/背三视图 — 生成后锁定跨集视觉一致性</p>
         </div>
         {imageProviders.length > 0 ? (
-          <select
+          <SelectControl
             className="h-7 rounded-md border bg-background px-2 text-xs"
             value={selectedProvider}
             disabled={isGenerating}
@@ -169,7 +186,7 @@ function CharacterImagesBlock(props: {
                 {item.name} · {item.currentImageModel}
               </option>
             ))}
-          </select>
+          </SelectControl>
         ) : (
           <span className="text-xs text-destructive">请先在设置中配置图片生成 Provider</span>
         )}
@@ -438,7 +455,7 @@ export function DramaCharactersPanel(props: {
           <CardDescription>角色资产会进入台本、分镜和视频提示词，优先保证观众识别、造型一致和台词可拍。</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <select
+          <SelectControl
             className="h-10 min-w-[260px] rounded-md border bg-background px-3 text-sm"
             value={selectedLibraryId}
             disabled={props.busy || props.library.length === 0}
@@ -450,7 +467,7 @@ export function DramaCharactersPanel(props: {
                 {item.name}{item.archetype ? ` · ${item.archetype}` : ""}
               </option>
             ))}
-          </select>
+          </SelectControl>
           <Button
             type="button"
             variant="outline"

@@ -1,9 +1,15 @@
 import { prisma } from "../../db/prisma";
 import { findRegisteredPromptAssetById } from "../registry";
-import { hashSlotDefault, resolvePromptOverlays, validateSlotValue } from "./slotResolution";
+import {
+  createCustomSlotEntry,
+  createOfficialDefaultEntry,
+  getSlotDefaultValue,
+  getSlotOverrideMode,
+  resolvePromptOverlays,
+  validateSlotValue,
+} from "./slotResolution";
 import type {
   PromptSlotDef,
-  PromptSlotOverrideEntry,
   PromptSlotOverrideMap,
   PromptSlotScope,
   ResolvedSlotOverlays,
@@ -45,7 +51,7 @@ type PromptSlotOverrideRecord = {
   updatedAt: Date;
 };
 
-function parseSlots(raw: string): PromptSlotOverrideMap {
+export function parsePromptSlotOverrideMap(raw: string): PromptSlotOverrideMap {
   try {
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === "object") {
@@ -64,10 +70,23 @@ function toView(record: PromptSlotOverrideRecord): PromptSlotOverrideView {
     novelId: record.novelId,
     promptId: record.promptId,
     baseVersion: record.baseVersion,
-    slots: parseSlots(record.slots),
+    slots: parsePromptSlotOverrideMap(record.slots),
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };
+}
+
+function slotValueEqualsDefault(def: PromptSlotDef, value: string | boolean): boolean {
+  const defaultValue = getSlotDefaultValue(def);
+  if (typeof defaultValue === "boolean") {
+    return value === defaultValue;
+  }
+  return String(value).trim() === defaultValue.trim();
+}
+
+function hasCustomGlobalOverride(slots: PromptSlotOverrideMap, key: string): boolean {
+  const entry = slots[key];
+  return Boolean(entry && getSlotOverrideMode(entry) === "custom");
 }
 
 function isMissingTableError(error: unknown): boolean {
@@ -122,8 +141,8 @@ export class PromptSlotOverrideService {
       const global = rows.find((r) => r.scope === "global");
       const novel = input.novelId ? rows.find((r) => r.scope === "novel" && r.novelId === input.novelId) : undefined;
       return {
-        global: global ? parseSlots(global.slots) : {},
-        novel: novel ? parseSlots(novel.slots) : {},
+        global: global ? parsePromptSlotOverrideMap(global.slots) : {},
+        novel: novel ? parsePromptSlotOverrideMap(novel.slots) : {},
       };
     } catch (error) {
       if (isMissingTableError(error)) return { global: {}, novel: {} };
@@ -159,11 +178,18 @@ export class PromptSlotOverrideService {
 
     // Load existing override to merge (only update changed slots)
     let existingSlots: PromptSlotOverrideMap = {};
+    let globalSlots: PromptSlotOverrideMap = {};
     try {
       const existing = await prisma.promptSlotOverride.findFirst({
         where: { scope, novelId, promptId },
       });
-      if (existing) existingSlots = parseSlots(existing.slots);
+      if (existing) existingSlots = parsePromptSlotOverrideMap(existing.slots);
+      if (scope === "novel") {
+        const global = await prisma.promptSlotOverride.findFirst({
+          where: { scope: "global", novelId: null, promptId },
+        });
+        if (global) globalSlots = parsePromptSlotOverrideMap(global.slots);
+      }
     } catch (error) {
       if (!isMissingTableError(error)) throw error;
     }
@@ -177,18 +203,16 @@ export class PromptSlotOverrideService {
       const validationError = validateSlotValue(def, value);
       if (validationError) throw new Error(validationError);
 
-      const defaultHash = hashSlotDefault(def.kind === "toggle" ? def.default : def.default);
       const typedValue = def.kind === "toggle" ? Boolean(value) : String(value);
 
-      if (def.kind !== "toggle" && String(typedValue).trim() === def.default.trim()) {
-        delete newSlots[key];
-      } else if (def.kind === "toggle" && typedValue === def.default) {
-        delete newSlots[key];
+      if (slotValueEqualsDefault(def, typedValue)) {
+        if (scope === "novel" && hasCustomGlobalOverride(globalSlots, key)) {
+          newSlots[key] = createOfficialDefaultEntry(def);
+        } else {
+          delete newSlots[key];
+        }
       } else {
-        newSlots[key] = {
-          value: typedValue,
-          baseHash: defaultHash,
-        } satisfies PromptSlotOverrideEntry;
+        newSlots[key] = createCustomSlotEntry(def, typedValue);
       }
     }
 
@@ -241,7 +265,7 @@ export class PromptSlotOverrideService {
         return;
       }
 
-      const slots = parseSlots(existing.slots);
+      const slots = parsePromptSlotOverrideMap(existing.slots);
       for (const key of input.slotKeys) {
         delete slots[key];
       }
@@ -251,6 +275,88 @@ export class PromptSlotOverrideService {
       });
     } catch (error) {
       if (!isMissingTableError(error)) throw error;
+    }
+  }
+
+  async applyOfficialSlots(input: {
+    scope: PromptSlotScope;
+    novelId?: string | null;
+    promptId: string;
+    slotKeys: string[];
+  }): Promise<void> {
+    const { promptId, scope, slotKeys } = input;
+    const novelId = scope === "novel" ? (input.novelId ?? null) : null;
+    if (scope !== "global" && scope !== "novel") {
+      throw new Error("scope 只能是 global 或 novel。");
+    }
+    if (scope === "novel" && !novelId) {
+      throw new Error("scope=novel 时必须提供 novelId。");
+    }
+
+    const asset = findRegisteredPromptAssetById(promptId);
+    if (!asset) {
+      throw new Error(`提示词未注册：${promptId}`);
+    }
+    const slotDefs: PromptSlotDef[] = asset.slots ?? [];
+    const slotDefMap = new Map(slotDefs.map((def) => [def.key, def]));
+
+    if (scope === "novel" && novelId) {
+      const novel = await prisma.novel.findUnique({ where: { id: novelId }, select: { id: true } });
+      if (!novel) throw new Error(`小说不存在：${novelId}`);
+    }
+
+    try {
+      const existing = await prisma.promptSlotOverride.findFirst({
+        where: { scope, novelId, promptId },
+      });
+      const global = scope === "novel"
+        ? await prisma.promptSlotOverride.findFirst({
+            where: { scope: "global", novelId: null, promptId },
+          })
+        : null;
+
+      const newSlots = existing ? parsePromptSlotOverrideMap(existing.slots) : {};
+      const globalSlots = global ? parsePromptSlotOverrideMap(global.slots) : {};
+
+      for (const key of slotKeys) {
+        const def = slotDefMap.get(key);
+        if (!def) {
+          delete newSlots[key];
+          continue;
+        }
+        if (scope === "novel" && hasCustomGlobalOverride(globalSlots, key)) {
+          newSlots[key] = createOfficialDefaultEntry(def);
+        } else {
+          delete newSlots[key];
+        }
+      }
+
+      if (existing) {
+        await prisma.promptSlotOverride.update({
+          where: { id: existing.id },
+          data: { slots: JSON.stringify(newSlots), baseVersion: asset.version },
+        });
+        return;
+      }
+
+      if (Object.keys(newSlots).length === 0) {
+        return;
+      }
+
+      await prisma.promptSlotOverride.create({
+        data: {
+          scope,
+          novelId,
+          promptId,
+          baseVersion: asset.version,
+          slots: JSON.stringify(newSlots),
+        },
+      });
+    } catch (error) {
+      if (isMissingTableError(error)) {
+        throw new Error("数据库表尚未就绪，请先运行数据库迁移。");
+      }
+      throw error;
     }
   }
 

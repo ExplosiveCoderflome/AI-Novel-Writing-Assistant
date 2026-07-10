@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BOOK_ANALYSIS_SECTIONS } from "@ai-novel/shared/types/bookAnalysis";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
@@ -9,8 +8,7 @@ import { createNovel } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { getWorldList } from "@/api/world";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import NovelAutoDirectorDialog from "./components/NovelAutoDirectorDialog";
+import { Button } from "@/components/ui/button";
 import NovelBasicInfoForm from "./components/NovelBasicInfoForm";
 import NovelCreateResourceRecommendationCard from "./components/NovelCreateResourceRecommendationCard";
 import { BookFramingQuickFillButton } from "./components/basicInfoForm/BookFramingQuickFillButton";
@@ -27,8 +25,6 @@ export default function NovelCreate() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [basicForm, setBasicForm] = useState(() => createDefaultNovelBasicFormState());
-  const [restoredWorkflowTask, setRestoredWorkflowTask] = useState<UnifiedTaskDetail | null>(null);
-  const [directorWorkflowTaskId, setDirectorWorkflowTaskId] = useState("");
 
   const workflowTaskIdFromQuery = searchParams.get("workflowTaskId") ?? "";
   const workflowMode = searchParams.get("mode");
@@ -83,14 +79,24 @@ export default function NovelCreate() {
     sourceNovelBookAnalysisOptions,
   ]);
 
+  useEffect(() => {
+    if (workflowMode !== "director") {
+      return;
+    }
+    const params = new URLSearchParams();
+    if (workflowTaskIdFromQuery) {
+      params.set("taskId", workflowTaskIdFromQuery);
+    }
+    navigate(`/novels/auto-director${params.toString() ? `?${params.toString()}` : ""}`, { replace: true });
+  }, [navigate, workflowMode, workflowTaskIdFromQuery]);
+
   const restoreWorkflowMutation = useMutation({
     mutationFn: () => bootstrapNovelWorkflow({
       workflowTaskId: workflowTaskIdFromQuery || undefined,
-      lane: workflowMode === "director" ? "auto_director" : "manual_create",
+      lane: "manual_create",
     }),
     onSuccess: (response) => {
       const task = response.data;
-      setRestoredWorkflowTask(task ?? null);
       if (!task) {
         return;
       }
@@ -98,16 +104,10 @@ export default function NovelCreate() {
       if (seedPayload?.basicForm) {
         setBasicForm((prev) => patchNovelBasicForm(prev, seedPayload.basicForm ?? {}));
       }
-      if (workflowMode === "director") {
-        setDirectorWorkflowTaskId(task.id);
-      }
       if (task.id !== workflowTaskIdFromQuery) {
         setSearchParams((prev) => {
           const next = new URLSearchParams(prev);
           next.set("workflowTaskId", task.id);
-          if (workflowMode === "director") {
-            next.set("mode", "director");
-          }
           return next;
         }, { replace: true });
       }
@@ -115,11 +115,7 @@ export default function NovelCreate() {
   });
 
   useEffect(() => {
-    if (!workflowTaskIdFromQuery) {
-      setRestoredWorkflowTask(null);
-      if (workflowMode !== "director") {
-        setDirectorWorkflowTaskId("");
-      }
+    if (!workflowTaskIdFromQuery || workflowMode === "director") {
       return;
     }
     restoreWorkflowMutation.mutate();
@@ -170,86 +166,62 @@ export default function NovelCreate() {
   });
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>创建小说项目</CardTitle>
-          <CardDescription>
-            先把这本书写给谁、靠什么吸引追读、前 30 章要兑现什么定义清楚。这里的设置会直接影响后续主线规划、世界边界、写法建议和 AI 生成行为，创建后仍可继续调整。
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <NovelBasicInfoForm
-            basicForm={basicForm}
-            genreOptions={genreOptions}
-            storyModeOptions={storyModeOptions}
-            worldOptions={worldListQuery.data?.data ?? []}
-            sourceNovelOptions={sourceNovelOptions}
-            sourceKnowledgeOptions={sourceKnowledgeOptions}
-            sourceNovelBookAnalysisOptions={sourceNovelBookAnalysisOptions}
-            isLoadingSourceNovelBookAnalyses={sourceBookAnalysesQuery.isLoading}
-            availableBookAnalysisSections={[...BOOK_ANALYSIS_SECTIONS]}
-            onFormChange={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
-            onSubmit={() => createNovelMutation.mutate()}
-            isSubmitting={createNovelMutation.isPending}
-            submitLabel="创建并进入项目"
-            showPublicationStatus={false}
-            framingQuickFill={(
-              <BookFramingQuickFillButton
-                basicForm={basicForm}
-                genreOptions={genreOptions}
-                onApplySuggestion={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
-              />
-            )}
-            resourceRecommendation={(
-              <NovelCreateResourceRecommendationCard
-                basicForm={basicForm}
-                onApplySuggestion={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
-              />
-            )}
-            projectQuickStart={(
-              <NovelAutoDirectorDialog
-                basicForm={basicForm}
-                genreOptions={genreOptions}
-                worldOptions={worldListQuery.data?.data ?? []}
-                workflowTaskId={directorWorkflowTaskId}
-                restoredTask={restoredWorkflowTask}
-                initialOpen={workflowMode === "director"}
-                onBasicFormChange={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
-                onWorkflowTaskChange={(taskId) => {
-                  setDirectorWorkflowTaskId(taskId);
-                  setSearchParams((prev) => {
-                    const next = new URLSearchParams(prev);
-                    next.set("workflowTaskId", taskId);
-                    next.set("mode", "director");
-                    return next;
-                  }, { replace: true });
-                }}
-                onConfirmed={({ novelId, workflowTaskId, resumeTarget }) => {
-                  const search = new URLSearchParams();
-                  search.set("stage", resumeTarget?.stage ?? "story_macro");
-                  if (workflowTaskId) {
-                    search.set("directorTaskId", workflowTaskId);
-                  }
-                  if (resumeTarget?.chapterId) {
-                    search.set("chapterId", resumeTarget.chapterId);
-                  }
-                  if (resumeTarget?.volumeId) {
-                    search.set("volumeId", resumeTarget.volumeId);
-                  }
-                  navigate(`/novels/${novelId}/edit?${search.toString()}`);
-                }}
-              />
-            )}
-            titleQuickFill={(
-              <NovelCreateTitleQuickFill
-                basicForm={basicForm}
-                onApplyTitle={(title) => setBasicForm((prev) => patchNovelBasicForm(prev, { title }))}
-              />
-            )}
-          />
-        </CardContent>
-      </Card>
+    <div className="mx-auto max-w-5xl space-y-7 px-3 py-4 sm:px-4 lg:px-0">
+      <section className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-3xl">
+          <h1 className="text-3xl font-semibold tracking-normal text-foreground">创建小说项目</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            推荐先让 AI 自动导演从一句灵感整理方向、世界、角色和章节准备。需要完全手动填写时，也可以继续使用下方表单。
+          </p>
+        </div>
+        <Button type="button" asChild className="shrink-0">
+          <Link to="/novels/auto-director">AI 自动导演开书</Link>
+        </Button>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <div className="text-lg font-semibold leading-7 text-foreground">手动创建</div>
+          <div className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+            手动路径适合你已经清楚题材、卖点和前期承诺的项目；创建后仍可在工作台继续调整。
+          </div>
+        </div>
+        <NovelBasicInfoForm
+          basicForm={basicForm}
+          genreOptions={genreOptions}
+          storyModeOptions={storyModeOptions}
+          worldOptions={worldListQuery.data?.data ?? []}
+          sourceNovelOptions={sourceNovelOptions}
+          sourceKnowledgeOptions={sourceKnowledgeOptions}
+          sourceNovelBookAnalysisOptions={sourceNovelBookAnalysisOptions}
+          isLoadingSourceNovelBookAnalyses={sourceBookAnalysesQuery.isLoading}
+          availableBookAnalysisSections={[...BOOK_ANALYSIS_SECTIONS]}
+          onFormChange={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
+          onSubmit={() => createNovelMutation.mutate()}
+          isSubmitting={createNovelMutation.isPending}
+          submitLabel="创建并进入项目"
+          showPublicationStatus={false}
+          framingQuickFill={(
+            <BookFramingQuickFillButton
+              basicForm={basicForm}
+              genreOptions={genreOptions}
+              onApplySuggestion={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
+            />
+          )}
+          resourceRecommendation={(
+            <NovelCreateResourceRecommendationCard
+              basicForm={basicForm}
+              onApplySuggestion={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
+            />
+          )}
+          titleQuickFill={(
+            <NovelCreateTitleQuickFill
+              basicForm={basicForm}
+              onApplyTitle={(title) => setBasicForm((prev) => patchNovelBasicForm(prev, { title }))}
+            />
+          )}
+        />
+      </section>
     </div>
   );
 }

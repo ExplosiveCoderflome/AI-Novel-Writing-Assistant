@@ -1,4 +1,7 @@
-import type { StateChangeProposal } from "@ai-novel/shared/types/canonicalState";
+import type {
+  ContentProvenance,
+  StateChangeProposal,
+} from "@ai-novel/shared/types/canonicalState";
 import { createHash } from "node:crypto";
 import { prisma } from "../../../db/prisma";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
@@ -19,6 +22,7 @@ import {
   serializeLedgerJson,
 } from "../../payoff/payoffLedgerShared";
 import { characterResourceLedgerService } from "../characterResource/CharacterResourceLedgerService";
+import { characterResourceStaleScanService } from "../characterResource/CharacterResourceStaleScanService";
 import {
   compactText,
   normalizeResourceKey,
@@ -26,6 +30,10 @@ import {
 import { novelFactService, type NovelFactWriteItem } from "../fact/NovelFactService";
 import { extractFacts } from "../novelP0Utils";
 import { stateCommitService } from "../state/StateCommitService";
+import {
+  attachProposalSourceQuality,
+  normalizeContentProvenance,
+} from "../state/stateProposalSourceQuality";
 
 const ARTIFACT_DELTA_SOURCE_TYPE = "chapter_artifact_delta";
 const ARTIFACT_DELTA_SOURCE_STAGE = "chapter_execution";
@@ -58,6 +66,7 @@ export interface ChapterArtifactDeltaSyncInput {
   provider?: string;
   model?: string;
   temperature?: number;
+  contentProvenance?: ContentProvenance;
 }
 
 export interface ChapterArtifactDeltaSyncResult {
@@ -70,6 +79,7 @@ export interface ChapterArtifactDeltaSyncResult {
   payoffDeltaCount: number;
   canonicalCommittedCount: number;
   concreteFactCount: number;
+  staleMarkedCount: number;
   requiresFullReconcile: boolean;
 }
 
@@ -311,6 +321,7 @@ export class ChapterArtifactDeltaService {
     const output = result.output;
     const sourceType = input.sourceType?.trim() || ARTIFACT_DELTA_SOURCE_TYPE;
     const sourceStage = input.sourceStage ?? ARTIFACT_DELTA_SOURCE_STAGE;
+    const sourceQuality = normalizeContentProvenance(input.contentProvenance);
     const concreteFactCount = await this.persistChapterSummaryAndFacts({
       novelId: input.novelId,
       chapterId: input.chapterId,
@@ -335,6 +346,7 @@ export class ChapterArtifactDeltaService {
         sourceType,
         sourceStage,
         contentHash,
+        sourceQuality,
         characters,
         updates: output.characterResourceDeltas,
       });
@@ -345,8 +357,14 @@ export class ChapterArtifactDeltaService {
       chapterOrder: chapter.order,
       sourceType,
       sourceStage,
+      contentProvenance: sourceQuality,
       proposals: resourceProposals,
     });
+    const staleMarkedCount = await characterResourceStaleScanService.scanAfterChapter({
+      novelId: input.novelId,
+      chapterId: input.chapterId,
+      chapterOrder: chapter.order,
+    }).catch(() => 0);
 
     const [payoffDeltaCount, characterDynamicsCount, characterKnowledgeStateCount] = await Promise.all([
       output.syncPlan.payoffLedger === "skip"
@@ -387,6 +405,7 @@ export class ChapterArtifactDeltaService {
       payoffDeltaCount,
       canonicalCommittedCount: stateCommitResult.committed.length,
       concreteFactCount,
+      staleMarkedCount,
       requiresFullReconcile: output.requiresFullReconcile || output.syncPlan.payoffLedger === "full_reconcile",
     };
   }
@@ -520,6 +539,7 @@ export class ChapterArtifactDeltaService {
     sourceType: string;
     sourceStage: string | null;
     contentHash: string;
+    sourceQuality: ContentProvenance;
     characters: CharacterLookupItem[];
     updates: ChapterArtifactDeltaResourceUpdate[];
   }): StateChangeProposal[] {
@@ -537,7 +557,7 @@ export class ChapterArtifactDeltaService {
         holderCharacterId: holderCharacter?.id,
         ownerName: update.ownerName ?? null,
       });
-      return {
+      const proposal: StateChangeProposal = {
         novelId: input.novelId,
         chapterId: input.chapterId,
         sourceSnapshotId: null,
@@ -578,6 +598,7 @@ export class ChapterArtifactDeltaService {
         evidence: update.evidence,
         validationNotes: [update.riskReason ?? ""].filter(Boolean),
       };
+      return attachProposalSourceQuality(proposal, input.sourceQuality);
     });
   }
 

@@ -32,6 +32,26 @@ function normalizeAcceptanceCategory(value: unknown): unknown {
   return normalized;
 }
 
+function normalizeAcceptanceStatus(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (["acceptable", "accept", "pass", "passed", "approved", "ok", "okay"].includes(normalized)) {
+    return "accepted";
+  }
+  if (["needs_repair", "fixable", "repair", "patchable", "needs_fix"].includes(normalized)) {
+    return "repairable";
+  }
+  if (["manual", "stop", "review_required", "needs_review", "manual_review"].includes(normalized)) {
+    return "needs_manual_review";
+  }
+  if (["continue", "go_on", "proceed", "continue_risk"].includes(normalized)) {
+    return "continue_with_risk";
+  }
+  return normalized;
+}
+
 function normalizeRepairTarget(value: unknown): unknown {
   if (typeof value !== "string") {
     return value;
@@ -145,7 +165,10 @@ function normalizeMissingObligation(value: unknown): unknown {
 }
 
 export const chapterAcceptanceAssessmentSchema = z.object({
-  status: z.enum(["accepted", "repairable", "needs_manual_review", "continue_with_risk"]),
+  status: z.preprocess(
+    normalizeAcceptanceStatus,
+    z.enum(["accepted", "repairable", "needs_manual_review", "continue_with_risk"]),
+  ),
   score: z.object({
     coherence: z.number().min(0).max(100),
     pacing: z.number().min(0).max(100),
@@ -316,6 +339,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "12. repairDirectives.mode 只能使用 patch、rewrite、manual；continuePolicy 只能使用 continue、repair_once、pause。",
       "13. missingObligations 必须是对象数组，每项只能使用 kind、summary、evidence；不得输出字符串数组，也不得输出 obligationType、target、fixSuggestion、type 等别名字段。",
       "14. missingObligations.kind 只能使用 must_hit_now、must_preserve、payoff_touch、character_appearance、goal_change、forbidden_crossing。",
+      "15. status 只能使用 accepted、repairable、needs_manual_review、continue_with_risk；不得输出 acceptable、pass、passed、ok、approved 等别名。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

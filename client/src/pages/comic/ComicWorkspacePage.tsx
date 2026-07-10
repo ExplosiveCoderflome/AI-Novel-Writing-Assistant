@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
+import SelectControl from "@/components/common/SelectControl";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -375,7 +376,7 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
             {form.sourceType === "novel_import" && (
               <div className="space-y-1">
                 <label className="text-sm font-medium">选择小说</label>
-                <select
+                <SelectControl
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                   value={form.sourceRef}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm((f) => ({ ...f, sourceRef: e.target.value }))}
@@ -384,7 +385,7 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
                   {novels?.data?.items?.map((n) => (
                     <option key={n.id} value={n.id}>{n.title ?? "未命名"}</option>
                   ))}
-                </select>
+                </SelectControl>
               </div>
             )}
             {form.sourceType === "original" && (

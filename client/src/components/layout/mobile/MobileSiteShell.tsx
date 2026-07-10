@@ -14,6 +14,7 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import AppVersionBadge from "../AppVersionBadge";
 import DesktopBrandMark from "../DesktopBrandMark";
+import ProjectGithubLink from "../ProjectGithubLink";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -59,19 +60,22 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
     <div className={cn("min-h-dvh bg-muted/20 text-foreground", moreOpen && "overflow-hidden")}>
       <header className="sticky top-0 z-40 border-b bg-background/95 px-3 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/82">
         <div className="flex items-center justify-between gap-3">
-          <Link to="/" className="flex min-w-0 items-center gap-2" onClick={() => setMoreOpen(false)}>
-            <DesktopBrandMark className="h-8 w-8 shrink-0 drop-shadow-none" />
-            <div className="min-w-0 leading-tight">
-              <div className="flex min-w-0 items-center gap-1.5">
-                <span className="min-w-0 truncate text-sm font-semibold">AI 小说创作工作台</span>
-                <AppVersionBadge />
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Link to="/" className="flex min-w-0 items-center gap-2" onClick={() => setMoreOpen(false)}>
+              <DesktopBrandMark className="h-8 w-8 shrink-0 drop-shadow-none" />
+              <div className="min-w-0 leading-tight">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <span className="min-w-0 truncate text-sm font-semibold">AI 小说创作工作台</span>
+                  <AppVersionBadge />
+                </div>
+                <div className="truncate text-[11px] text-muted-foreground">{pageTitle}</div>
               </div>
-              <div className="truncate text-[11px] text-muted-foreground">{pageTitle}</div>
-            </div>
-          </Link>
+            </Link>
+            <ProjectGithubLink />
+          </div>
           <div className="flex items-center gap-2">
             <Button asChild size="sm" className="h-8 px-3">
-              <Link to="/novels/create?mode=director" onClick={() => setMoreOpen(false)}>
+              <Link to="/novels/auto-director" onClick={() => setMoreOpen(false)}>
                 <Plus className="h-3.5 w-3.5" />
                 开书
               </Link>
