@@ -235,6 +235,7 @@ export class NovelDirectorContinueRuntime {
     continuationMode?: DirectorContinuationMode;
     batchAlreadyStartedCount?: number;
     forceResume?: boolean;
+    acceptManualChanges?: boolean;
   }): Promise<void> {
     const continuationMode = normalizeDirectorContinuationMode(input?.continuationMode);
     const row = await this.deps.workflowService.getTaskById(taskId);
@@ -303,6 +304,7 @@ export class NovelDirectorContinueRuntime {
     const effectiveDirectorInput = applyDirectorRunModeContract({
       ...directorInput,
       runMode,
+      ...(input?.acceptManualChanges ? { stepCalibrationInstruction: null } : {}),
     });
     const assetFirstRecovery = await this.resolveAssetFirstRecovery({
       novelId,
@@ -513,6 +515,13 @@ export class NovelDirectorContinueRuntime {
     const structuredOutlineStep = takeoverState.snapshot.structuredOutlineRecoveryStep;
     const latestCheckpointType = takeoverState.latestCheckpoint?.checkpointType ?? null;
     const generatedChapterCount = takeoverState.snapshot.generatedChapterCount ?? 0;
+    const latestAutoExecutionState = takeoverState.latestAutoExecutionState;
+    if (
+      latestAutoExecutionState?.volumeChapterListComplete === false
+      && (latestAutoExecutionState.remainingChapterCount ?? 0) === 0
+    ) {
+      return { type: "phase", phase: "structured_outline" };
+    }
     const autoExecutionRecovery = resolveAssetFirstRecoveryFromSnapshot({
       runMode: input.directorInput.runMode,
       structuredOutlineRecoveryStep: structuredOutlineStep,

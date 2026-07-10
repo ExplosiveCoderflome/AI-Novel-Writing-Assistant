@@ -16,6 +16,8 @@ export const DIRECTOR_ARTIFACT_TYPES = [
   "story_macro",
   "character_cast",
   "volume_strategy",
+  "volume_beat_sheet",
+  "volume_chapter_list",
   "chapter_task_sheet",
   "chapter_draft",
   "audit_report",
@@ -442,6 +444,8 @@ export interface DirectorRuntimeQualityBudgetSummary {
 export interface DirectorOutlineFactSummary {
   beatSheetReady: boolean;
   chapterListReady: boolean;
+  beatChapterListReady?: boolean;
+  volumeChapterListComplete?: boolean;
   chapterDetailReady: boolean;
   plannedChapterCount: number;
   selectedChapterCount: number;
@@ -1057,6 +1061,8 @@ export const DIRECTOR_RUN_COMMAND_TYPES = [
   "policy_update",
   "workspace_analysis",
   "manual_edit_impact",
+  "calibrate_step",
+  "accept_manual_changes_and_continue",
   "repair_chapter_titles",
   "cancel",
 ] as const;

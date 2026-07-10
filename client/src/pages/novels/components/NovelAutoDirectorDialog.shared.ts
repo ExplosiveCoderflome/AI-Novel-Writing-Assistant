@@ -13,6 +13,13 @@ export interface DirectorRunModeOption {
 
 export const RUN_MODE_OPTIONS: DirectorRunModeOption[] = [
   {
+    value: "stage_review",
+    label: "逐步协作",
+    description: "每完成一个导演步骤就暂停，检查或完善后再继续下一步。",
+    recommended: true,
+    recommendation: "适合希望逐步确认故事方向和章节规划的写作方式。",
+  },
+  {
     value: "full_book_autopilot",
     label: "全书自动成书",
     description: "你只在开始选择方向，系统会按整本书目标完成规划、写作、审校和修复。",

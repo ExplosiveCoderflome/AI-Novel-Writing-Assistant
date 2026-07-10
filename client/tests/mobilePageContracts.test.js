@@ -11,7 +11,7 @@ const appLayout = readClientFile("src/components/layout/AppLayout.tsx");
 const css = readClientFile("src/index.css");
 const mobileSiteNavigation = readClientFile("src/components/layout/mobile/mobileSiteNavigation.ts");
 const novelEditView = readClientFile("src/pages/novels/components/NovelEditView.tsx");
-const homePage = readClientFile("src/pages/Home.tsx");
+const homeStatusStrip = readClientFile("src/pages/home/components/HomeStatusStrip.tsx");
 const taskCenterPage = readClientFile("src/pages/tasks/TaskCenterPage.tsx");
 const taskCenterFilterPanel = readClientFile("src/pages/tasks/components/TaskCenterFilterPanel.tsx");
 const taskCenterSummaryCards = readClientFile("src/pages/tasks/components/TaskCenterSummaryCards.tsx");
@@ -256,7 +256,7 @@ test("every routed page has a route-specific mobile CSS landing point", () => {
 });
 
 test("mobile home status metrics stay compact in a single four-column row", () => {
-  assert.match(homePage, /home-status-summary-grid/);
+  assert.match(homeStatusStrip, /home-status-summary-grid/);
   assert.match(
     css,
     /mobile-route-home \.home-status-summary-grid[\s\S]+grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/,
@@ -308,7 +308,7 @@ test("mobile status metrics keep four columns after generic grid collapse cascad
   const expectedColumns = "repeat(4, minmax(0, 1fr))";
   const homeWinner = getWinningGridTemplateColumns({
     routeClassName: "mobile-route-home",
-    elementClassName: "home-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4",
+    elementClassName: "home-status-summary-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4",
   });
   const taskWinner = getWinningGridTemplateColumns({
     routeClassName: "mobile-route-tasks",
@@ -515,6 +515,10 @@ test("mobile structured outline avoids nested scroll inside volume and sync card
 test("mobile structured chapter navigation leaves scrolling to the page", () => {
   assert.match(structuredChapterListCard, /structured-chapter-navigation-list/);
   assert.match(structuredChapterListCard, /xl:max-h-\[calc\(100vh-12rem\)\]/);
+  assert.match(structuredChapterListCard, /生成下一段章节/);
+  assert.match(structuredChapterListCard, /高级：生成本卷全部章节标题/);
+  assert.match(structuredChapterListCard, /已有正文锁定/);
+  assert.match(structuredChapterListCard, /generationMode: "single_beat"/);
   assert.doesNotMatch(
     structuredChapterListCard,
     /className="max-h-\[560px\][^"]*overflow-y-auto/,

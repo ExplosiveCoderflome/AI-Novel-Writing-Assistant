@@ -1,9 +1,20 @@
+import { formatVolumeBeatDisplayLabel } from "@ai-novel/shared/types/volumeBeatSlots";
 import type { StructuredTabViewProps } from "./NovelEditView.types";
 
 type StructuredVolume = StructuredTabViewProps["volumes"][number];
 type StructuredChapter = StructuredVolume["chapters"][number];
 type StructuredBeatSheet = StructuredTabViewProps["beatSheets"][number];
 type StructuredBeat = StructuredBeatSheet["beats"][number];
+
+export function formatBeatDisplayLabel(beat: Pick<StructuredBeat, "key" | "label"> & {
+  title?: string | null;
+}): string {
+  return formatVolumeBeatDisplayLabel({
+    key: beat.key,
+    label: beat.label,
+    title: beat.title,
+  });
+}
 
 export function parseBeatSpan(chapterSpanHint: string): { start: number; end: number } | null {
   const numbers = Array.from(chapterSpanHint.matchAll(/\d+/g), (match) => Number(match[0]));

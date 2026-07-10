@@ -84,7 +84,7 @@ export interface DirectorTakeoverResolvedPlan {
   restartStep?: DirectorTakeoverEntryStep | null;
   executionMode: "phase" | "auto_execution";
   phase?: DirectorTakeoverStartPhase;
-  resumeCheckpointType?: "chapter_batch_ready" | "replan_required" | null;
+  resumeCheckpointType?: "chapter_batch_ready" | "step_review_required" | "replan_required" | null;
 }
 
 const DIRECTOR_TAKEOVER_STAGE_META: Record<

@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 import type { Character } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import CharacterCastOptionsSection from "./CharacterCastOptionsSection";
-import CharacterDynamicsSection from "./CharacterDynamicsSection";
 import CollapsibleSummary from "./CollapsibleSummary";
 
 interface CharacterDiagnosticsSectionProps {
   novelId: string;
   characters: Character[];
   selectedCharacter?: Character;
-  selectedCharacterId: string;
   onSelectedCharacterChange: (id: string) => void;
   llmProvider?: LLMProvider;
   llmModel?: string;
@@ -21,7 +19,6 @@ export default function CharacterDiagnosticsSection(props: CharacterDiagnosticsS
     novelId,
     characters,
     selectedCharacter,
-    selectedCharacterId,
     onSelectedCharacterChange,
     llmProvider,
     llmModel,
@@ -43,7 +40,7 @@ export default function CharacterDiagnosticsSection(props: CharacterDiagnosticsS
       <summary className="cursor-pointer list-none">
         <CollapsibleSummary
           title="角色阵容与关系诊断"
-          description="这些内容更适合在需要补位、查缺口或梳理关系时再展开。日常编辑先看下方角色资产工作台。"
+          description="需要补位、查缺口或整理阵容方案时再展开；角色动态、候选和卷级职责集中在“动态”页。"
         />
       </summary>
 
@@ -55,13 +52,6 @@ export default function CharacterDiagnosticsSection(props: CharacterDiagnosticsS
           onSelectedCharacterChange={onSelectedCharacterChange}
           llmProvider={llmProvider}
           llmModel={llmModel}
-        />
-
-        <CharacterDynamicsSection
-          novelId={novelId}
-          selectedCharacter={selectedCharacter}
-          selectedCharacterId={selectedCharacterId}
-          onSelectedCharacterChange={onSelectedCharacterChange}
         />
       </div>
     </details>

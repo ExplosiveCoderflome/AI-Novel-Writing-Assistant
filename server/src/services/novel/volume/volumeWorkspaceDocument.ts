@@ -12,6 +12,10 @@ import type {
   VolumeUncertaintyMarker,
 } from "@ai-novel/shared/types/novel";
 import {
+  getVolumeBeatRoleLabel,
+  resolveVolumeBeatSlotKey,
+} from "@ai-novel/shared/types/volumeBeatSlots";
+import {
   buildDerivedOutlineFromVolumes,
   buildDerivedStructuredOutlineFromVolumes,
   normalizeVolumeDraftInput,
@@ -191,11 +195,21 @@ function normalizeBeat(raw: unknown): VolumeBeat | null {
   if (!isRecord(raw)) {
     return null;
   }
-  const key = normalizeText(raw.key);
-  const label = normalizeText(raw.label);
+  const rawKey = normalizeText(raw.key);
+  const rawLabel = normalizeText(raw.label);
+  const resolvedKey = resolveVolumeBeatSlotKey(rawKey) ?? resolveVolumeBeatSlotKey(rawLabel) ?? rawKey;
+  const roleLabel = getVolumeBeatRoleLabel(resolvedKey, rawLabel || "节奏段");
+  let title = normalizeText(raw.title);
+  if (!title && rawLabel && rawLabel !== roleLabel) {
+    const prefix = `${roleLabel} · `;
+    title = rawLabel.startsWith(prefix) ? rawLabel.slice(prefix.length).trim() : rawLabel;
+  }
+  if (title === roleLabel) {
+    title = "";
+  }
   const summary = normalizeText(raw.summary);
   const chapterSpanHint = normalizeText(raw.chapterSpanHint);
-  if (!key || !label || !summary || !chapterSpanHint) {
+  if (!resolvedKey || !roleLabel || !summary || !chapterSpanHint) {
     return null;
   }
   const mustDeliver = normalizeStringArray(raw.mustDeliver);
@@ -203,8 +217,9 @@ function normalizeBeat(raw: unknown): VolumeBeat | null {
     return null;
   }
   return {
-    key,
-    label,
+    key: resolvedKey,
+    label: roleLabel,
+    title: title || null,
     summary,
     chapterSpanHint,
     mustDeliver,
@@ -376,12 +391,17 @@ function hasChapterListChanged(currentVolumes: VolumePlan[], nextVolumes: Volume
 export function buildVolumePlanningReadiness(input: {
   volumes: VolumePlan[];
   strategyPlan: VolumeStrategyPlan | null;
+  critiqueReport?: VolumeCritiqueReport | null;
   beatSheets: VolumeBeatSheet[];
 }): VolumePlanningReadiness {
-  const { volumes, strategyPlan, beatSheets } = input;
+  const { volumes, strategyPlan, critiqueReport, beatSheets } = input;
   const blockingReasons: string[] = [];
   if (!strategyPlan) {
     blockingReasons.push("请先生成卷战略建议，再确认卷骨架。");
+  }
+  const hasHighRiskCritique = critiqueReport?.overallRisk === "high";
+  if (hasHighRiskCritique) {
+    blockingReasons.push("当前卷战略审查为高风险，请先重新生成或修订卷战略。");
   }
   if (volumes.length === 0) {
     blockingReasons.push("当前还没有卷骨架。");
@@ -391,7 +411,7 @@ export function buildVolumePlanningReadiness(input: {
   }
   return {
     canGenerateStrategy: true,
-    canGenerateSkeleton: Boolean(strategyPlan),
+    canGenerateSkeleton: Boolean(strategyPlan) && !hasHighRiskCritique,
     canGenerateBeatSheet: Boolean(strategyPlan) && volumes.length > 0,
     canGenerateChapterList: Boolean(strategyPlan) && beatSheets.some((sheet) => sheet.beats.length > 0),
     blockingReasons,
@@ -428,6 +448,7 @@ export function buildVolumeWorkspaceDocument(params: {
     readiness: buildVolumePlanningReadiness({
       volumes,
       strategyPlan,
+      critiqueReport,
       beatSheets,
     }),
     derivedOutline: buildDerivedOutlineFromVolumes(volumes),

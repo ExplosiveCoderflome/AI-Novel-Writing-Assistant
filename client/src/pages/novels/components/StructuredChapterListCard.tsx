@@ -10,6 +10,7 @@ import {
 } from "../chapterDetailPlanning.shared";
 import {
   chapterMatchesBeat,
+  formatBeatDisplayLabel,
   getBeatExpectedChapterCount,
 } from "./structuredOutlineWorkspace.shared";
 import type { StructuredTabViewProps } from "./NovelEditView.types";
@@ -27,6 +28,7 @@ interface StructuredChapterListCardProps {
   selectedVolumeChapters: StructuredChapter[];
   visibleChapters: StructuredChapter[];
   selectedChapter: StructuredChapter | null;
+  draftedChapterIds: Set<string>;
   visibleRefinedChapterCount: number;
   selectedVolumeRequiredChapterCount: number;
   selectedVolumeNeedsChapterExpansion: boolean;
@@ -52,6 +54,23 @@ function renderChapterDetailStatusBadge(chapter: StructuredChapter) {
   return <Badge variant="outline">待细化</Badge>;
 }
 
+function isBeatGroupComplete(group: {
+  expectedCount: number;
+  chapters: StructuredChapter[];
+}): boolean {
+  if (group.expectedCount <= 0) {
+    return group.chapters.length > 0;
+  }
+  return group.chapters.length === group.expectedCount;
+}
+
+function chapterHasDraftContent(chapter: StructuredChapter, draftedChapterIds: Set<string>): boolean {
+  return Boolean(
+    (chapter.chapterId && draftedChapterIds.has(chapter.chapterId))
+    || draftedChapterIds.has(chapter.id),
+  );
+}
+
 export default function StructuredChapterListCard(props: StructuredChapterListCardProps) {
   const {
     selectedVolume,
@@ -61,6 +80,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
     selectedVolumeChapters,
     visibleChapters,
     selectedChapter,
+    draftedChapterIds,
     visibleRefinedChapterCount,
     selectedVolumeRequiredChapterCount,
     selectedVolumeNeedsChapterExpansion,
@@ -87,14 +107,28 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
     });
     return {
       key: beat.key,
-      label: beat.label,
+      label: formatBeatDisplayLabel(beat),
       chapterSpanHint: beat.chapterSpanHint,
       expectedCount: getBeatExpectedChapterCount(beat),
       chapters,
+      hasDraftContent: chapters.some((chapter) => chapterHasDraftContent(chapter, draftedChapterIds)),
       refinedCount: chapters.filter((chapter) => hasChapterExecutionDetail(chapter)).length,
     };
   });
   const unmatchedChapters = selectedVolumeChapters.filter((chapter) => !matchedChapterIds.has(chapter.id));
+  const selectedBeatGroup = selectedBeatKey === "all"
+    ? null
+    : beatGroups.find((group) => group.key === selectedBeatKey) ?? null;
+  const nextChapterListGroup = selectedBeatGroup && !isBeatGroupComplete(selectedBeatGroup)
+    ? selectedBeatGroup
+    : beatGroups.find((group) => !isBeatGroupComplete(group)) ?? null;
+  const isGeneratingNextChapterListGroup = Boolean(
+    nextChapterListGroup
+    && isGeneratingCurrentVolume
+    && generatingChapterListMode === "single_beat"
+    && generatingChapterListBeatKey === nextChapterListGroup.key,
+  );
+  const isGeneratingFullVolume = isGeneratingCurrentVolume && generatingChapterListMode === "full_volume";
 
   function renderBeatStatusBadge(group: typeof beatGroups[number]) {
     const isGeneratingGroup = isGeneratingCurrentVolume
@@ -102,8 +136,11 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
     if (isGeneratingGroup) {
       return <Badge>生成中</Badge>;
     }
+    if (group.hasDraftContent) {
+      return <Badge variant="secondary">已有正文锁定</Badge>;
+    }
     if (group.chapters.length === 0) {
-      return <Badge variant="outline">{selectedVolumeChapters.length === 0 ? "待生成" : "需重试"}</Badge>;
+      return <Badge variant="outline">待生成</Badge>;
     }
     if (group.expectedCount > 0 && group.chapters.length !== group.expectedCount) {
       return <Badge variant="outline">需重试</Badge>;
@@ -120,16 +157,31 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
               <CardTitle className="text-base leading-none">节奏 / 章节导航</CardTitle>
               <div className="mt-1 text-sm text-muted-foreground">
                 {selectedBeat
-                  ? `当前聚焦「${selectedBeat.label}」。点击组头切换节奏，点击章节直接在右侧继续细化。`
+                  ? `当前聚焦「${formatBeatDisplayLabel(selectedBeat)}」。点击组头切换节奏，点击章节直接在右侧继续细化。`
                   : "按节奏分组显示章节。点击组头可聚焦该节奏，点击章节直接在右侧继续细化。"}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <AiButton
-                onClick={() => onGenerateChapterList(selectedVolume.id)}
+                onClick={() => {
+                  if (!nextChapterListGroup) {
+                    return;
+                  }
+                  onGenerateChapterList(selectedVolume.id, {
+                    generationMode: "single_beat",
+                    targetBeatKey: nextChapterListGroup.key,
+                  });
+                }}
+                disabled={isGeneratingChapterList || locked || !nextChapterListGroup}
+              >
+                {isGeneratingNextChapterListGroup ? "生成中..." : nextChapterListGroup ? "生成下一段章节" : "全部节奏段已生成"}
+              </AiButton>
+              <AiButton
+                variant="outline"
+                onClick={() => onGenerateChapterList(selectedVolume.id, { generationMode: "full_volume" })}
                 disabled={isGeneratingChapterList || locked}
               >
-                {isGeneratingCurrentVolume && generatingChapterListMode === "full_volume" ? "生成中..." : "生成当前卷章节列表"}
+                {isGeneratingFullVolume ? "整卷生成中..." : "高级：生成本卷全部章节标题"}
               </AiButton>
             </div>
           </div>
@@ -153,7 +205,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
       <CardContent className="space-y-3 pt-0">
         {selectedVolumeNeedsChapterExpansion ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
-            当前卷目前只有 {selectedVolumeChapters.length} 章，但节奏板覆盖到 {selectedVolumeRequiredChapterCount} 章。需要先重新生成当前卷章节列表，后半段节奏才会真正映射到章节。
+            当前卷已生成 {selectedVolumeChapters.length}/{selectedVolumeRequiredChapterCount} 章，仍有节奏段待生成。已生成章节可以先细化和开写，后续段按需继续生成。
           </div>
         ) : null}
 
@@ -194,7 +246,7 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
                         >
                           {isGeneratingCurrentVolume && generatingChapterListMode === "single_beat" && generatingChapterListBeatKey === group.key
                             ? "重生中..."
-                            : "重生当前节奏段"}
+                            : group.chapters.length > 0 ? "重生当前节奏段" : "生成当前节奏段"}
                         </AiButton>
                       ) : null}
                     </div>
@@ -296,10 +348,10 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
               <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
                 {selectedVolumeNeedsChapterExpansion ? (
                   <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-800">
-                    当前节奏段是 {selectedBeat.chapterSpanHint}，但本卷目前只生成到 {selectedVolumeChapters.length} 章。请先重新生成当前卷章节列表，把这一卷补到至少 {selectedVolumeRequiredChapterCount} 章。
+                    当前节奏段是 {selectedBeat.chapterSpanHint}，还没有生成章节。可以生成当前聚焦段，不需要先补齐整卷。
                   </div>
                 ) : null}
-                当前节奏段还没有映射到章节，先切回全部节奏或重新调整节奏板。
+                当前节奏段还没有映射到章节。生成这一段后，就可以继续细化和开写该段章节。
               </div>
             ) : null}
           </>
@@ -307,10 +359,10 @@ export default function StructuredChapterListCard(props: StructuredChapterListCa
           <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
             {selectedVolumeRequiredChapterCount > 0 ? (
               <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-800">
-                根据当前节奏板，这一卷至少需要 {selectedVolumeRequiredChapterCount} 章，才能把各个节奏段完整映射到章节。
+                根据当前节奏板，这一卷预计覆盖 {selectedVolumeRequiredChapterCount} 章。可以先生成下一段章节，后续段按需继续拆。
               </div>
             ) : null}
-            当前卷还没有章节列表。先生成当前卷章节列表。
+            当前卷还没有章节列表。先生成下一段章节。
           </div>
         )}
       </CardContent>

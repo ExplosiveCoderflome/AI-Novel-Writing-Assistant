@@ -9,6 +9,8 @@ import { NovelCoverCard } from "./cover/NovelCoverCard";
 import { DetailDisclosure, SectionBlock } from "./workspaceShell";
 
 export default function BasicInfoTab(props: BasicTabProps) {
+  const hasWorldAssets = Boolean(props.novelWorldView || props.worldSliceView);
+
   return (
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel
@@ -16,33 +18,9 @@ export default function BasicInfoTab(props: BasicTabProps) {
         description="如果基础信息较完整，可以直接从选定步骤开始自动接管，并选择继续已有进度或重跑当前步。"
         entry={props.directorTakeoverEntry}
       />
-      <NovelWorldManagerCard
-        view={props.novelWorldView}
-        syncDiff={props.novelWorldSyncDiff}
-        worldOptions={props.worldOptions}
-        selectedWorldId={props.basicForm.worldId}
-        isLoading={props.isLoadingNovelWorld}
-        isImporting={props.isImportingNovelWorld}
-        isGenerating={props.isGeneratingNovelWorld}
-        isCreatingManual={props.isCreatingManualNovelWorld}
-        isSavingToLibrary={props.isSavingNovelWorldToLibrary}
-        isLoadingSyncDiff={props.isLoadingNovelWorldSyncDiff}
-        isSyncing={props.isSyncingNovelWorld}
-        usageView={props.worldSliceView}
-        usageMessage={props.worldSliceMessage}
-        isRefreshingWorldSlice={props.isRefreshingWorldSlice}
-        isSavingWorldSliceOverrides={props.isSavingWorldSliceOverrides}
-        onImport={props.onImportNovelWorld}
-        onCreateManual={props.onCreateManualNovelWorld}
-        onGenerate={props.onGenerateNovelWorld}
-        onSaveToLibrary={props.onSaveNovelWorldToLibrary}
-        onSync={props.onSyncNovelWorld}
-        onRefreshWorldSlice={props.onRefreshWorldSlice}
-        onSaveWorldSliceOverrides={props.onSaveWorldSliceOverrides}
-      />
       <SectionBlock
-        title="书级定位与基本信息"
-        description="继续完善标题、概述、读者与卖点，让后续自动导演和章节生成能稳定继承当前方向。"
+        title="书级定位"
+        description="先确认这本书面向谁、靠什么吸引读者、前期必须兑现什么，再让后续世界、角色和章节围绕同一组承诺展开。"
       >
         <NovelBasicInfoForm
           basicForm={props.basicForm}
@@ -84,6 +62,38 @@ export default function BasicInfoTab(props: BasicTabProps) {
           projectQuickStart={props.projectQuickStart}
         />
       </SectionBlock>
+
+      <DetailDisclosure
+        title="本书世界"
+        description="维护当前小说会使用的世界规则、地点、势力和可注入片段。后续世界地图、势力关系和区域资产也应从这里延展。"
+        meta="世界资产"
+        defaultOpen={hasWorldAssets}
+      >
+        <NovelWorldManagerCard
+          view={props.novelWorldView}
+          syncDiff={props.novelWorldSyncDiff}
+          worldOptions={props.worldOptions}
+          selectedWorldId={props.basicForm.worldId}
+          isLoading={props.isLoadingNovelWorld}
+          isImporting={props.isImportingNovelWorld}
+          isGenerating={props.isGeneratingNovelWorld}
+          isCreatingManual={props.isCreatingManualNovelWorld}
+          isSavingToLibrary={props.isSavingNovelWorldToLibrary}
+          isLoadingSyncDiff={props.isLoadingNovelWorldSyncDiff}
+          isSyncing={props.isSyncingNovelWorld}
+          usageView={props.worldSliceView}
+          usageMessage={props.worldSliceMessage}
+          isRefreshingWorldSlice={props.isRefreshingWorldSlice}
+          isSavingWorldSliceOverrides={props.isSavingWorldSliceOverrides}
+          onImport={props.onImportNovelWorld}
+          onCreateManual={props.onCreateManualNovelWorld}
+          onGenerate={props.onGenerateNovelWorld}
+          onSaveToLibrary={props.onSaveNovelWorldToLibrary}
+          onSync={props.onSyncNovelWorld}
+          onRefreshWorldSlice={props.onRefreshWorldSlice}
+          onSaveWorldSliceOverrides={props.onSaveWorldSliceOverrides}
+        />
+      </DetailDisclosure>
 
       <DetailDisclosure
         title="写法建议"

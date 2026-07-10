@@ -1,5 +1,4 @@
-import type { StoryConflictLayers, StoryMacroField } from "@ai-novel/shared/types/storyMacro";
-import AiButton from "@/components/common/AiButton";
+import type { StoryConflictLayers } from "@ai-novel/shared/types/storyMacro";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,11 +7,11 @@ import {
   ENGINE_TEXT_FIELDS,
   FieldActions,
   listToText,
-  SUMMARY_FIELDS,
   textareaClassName,
 } from "./StoryMacroPlanTab.shared";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
-import { DetailDisclosure, SectionBlock, StepHero } from "./workspaceShell";
+import { DetailDisclosure } from "./workspaceShell";
+import StoryEngineStudio from "./storyMacroPlan/StoryEngineStudio";
 
 const EMPTY_CONFLICT_LAYERS: StoryConflictLayers = {
   external: "",
@@ -39,106 +38,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
         description="AI 会先判断 Story Macro / Book Contract 是否已经具备，再决定继续补缺失内容还是按你的选择重跑当前步。"
         entry={props.directorTakeoverEntry}
       />
-      <StepHero
-        title="故事宏观规划"
-        description="这一步先于角色创建。这里不生成具体角色阵容，而是先把故事重构成能持续推进的故事引擎原型。"
-        actions={(
-          <>
-            <AiButton onClick={props.onDecompose} disabled={props.isDecomposing || !props.storyInput.trim()}>
-              {props.isDecomposing ? "生成中..." : props.hasPlan ? "重新生成故事引擎" : "生成故事引擎"}
-            </AiButton>
-            <AiButton
-              variant="secondary"
-              onClick={props.onBuildConstraintEngine}
-              disabled={props.isBuilding || !props.decomposition.selling_point.trim()}
-            >
-              {props.isBuilding ? "构建中..." : "构建约束引擎"}
-            </AiButton>
-            <Button variant="outline" onClick={props.onSaveEdits} disabled={props.isSaving}>
-              {props.isSaving ? "保存中..." : "保存修改"}
-            </Button>
-          </>
-        )}
-      >
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="text-sm font-medium text-foreground">故事想法输入</div>
-            <textarea
-              value={props.storyInput}
-              onChange={(event) => props.onStoryInputChange(event.target.value)}
-              placeholder="用自然语言描述故事想法、想要的压迫感、想避免的风格和结局倾向。"
-              className={textareaClassName("min-h-36")}
-            />
-          </div>
-          {props.message ? (
-            <div className="rounded-xl bg-background/70 px-3 py-2 text-sm text-muted-foreground">
-              {props.message}
-            </div>
-          ) : null}
-        </div>
-      </StepHero>
-
-      <SectionBlock
-        title="推进与兑现摘要"
-        description="这是对故事引擎的压缩摘要，供后续大纲、节拍和写作流程直接消费。"
-        contentClassName="grid gap-4 xl:grid-cols-2"
-      >
-          {SUMMARY_FIELDS.map((item) => {
-            const value = props.decomposition[item.field as keyof typeof props.decomposition];
-            return (
-              <div key={item.field} className="space-y-2 rounded-xl bg-muted/15 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-sm font-medium text-foreground">{item.label}</div>
-                  <FieldActions
-                    field={item.field}
-                    lockedFields={props.lockedFields}
-                    regeneratingField={props.regeneratingField}
-                    storyInput={props.storyInput}
-                    onToggleLock={props.onToggleLock}
-                    onRegenerateField={props.onRegenerateField}
-                  />
-                </div>
-                {item.multiline ? (
-                  <textarea
-                    value={typeof value === "string" ? value : ""}
-                    onChange={(event) => props.onFieldChange(item.field, event.target.value)}
-                    placeholder={item.placeholder}
-                    className={textareaClassName()}
-                  />
-                ) : (
-                  <Input
-                    value={typeof value === "string" ? value : ""}
-                    onChange={(event) => props.onFieldChange(item.field, event.target.value)}
-                    placeholder={item.placeholder}
-                  />
-                )}
-              </div>
-            );
-          })}
-
-          <div className="space-y-2 rounded-xl bg-muted/15 p-4 xl:col-span-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm font-medium text-foreground">关键兑现点</div>
-              <FieldActions
-                field="major_payoffs"
-                lockedFields={props.lockedFields}
-                regeneratingField={props.regeneratingField}
-                storyInput={props.storyInput}
-                onToggleLock={props.onToggleLock}
-                onRegenerateField={props.onRegenerateField}
-              />
-            </div>
-            <textarea
-              value={listToText(props.decomposition.major_payoffs)}
-              onChange={(event) => props.onFieldChange(
-                "major_payoffs",
-                event.target.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
-              )}
-              placeholder="每行一个关键兑现点。"
-              className={textareaClassName("min-h-32")}
-            />
-          </div>
-      </SectionBlock>
+      <StoryEngineStudio tab={props} />
 
       <DetailDisclosure
         title="故事引擎与高级约束"

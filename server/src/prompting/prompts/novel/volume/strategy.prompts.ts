@@ -1,6 +1,7 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../../core/promptTypes";
 import type { VolumeCountRange } from "@ai-novel/shared/types/novel";
+import { MAX_VOLUME_COUNT } from "@ai-novel/shared/types/volumePlanning";
 import { renderSelectedContextBlocks } from "../../../core/renderContextBlocks";
 import {
   createVolumeStrategyCritiqueSchema,
@@ -19,6 +20,7 @@ import { NOVEL_PROMPT_BUDGETS } from "../promptBudgetProfiles";
 interface CreateVolumeStrategyPromptConfig {
   maxVolumeCount?: number;
   allowedVolumeCountRange?: VolumeCountRange | null;
+  decisionVolumeCountRange?: VolumeCountRange | null;
   fixedRecommendedVolumeCount?: number | null;
   hardPlannedVolumeRange?: VolumeCountRange | null;
 }
@@ -29,11 +31,12 @@ export function createVolumeStrategyPrompt(
   VolumeStrategyPromptInput,
   ReturnType<typeof createVolumeStrategySchema>["_output"]
 > {
-  const maxVolumeCount = config.maxVolumeCount ?? 16;
+  const maxVolumeCount = config.maxVolumeCount ?? MAX_VOLUME_COUNT;
   const allowedVolumeCountRange = config.allowedVolumeCountRange ?? {
     min: 1,
     max: maxVolumeCount,
   };
+  const decisionVolumeCountRange = config.decisionVolumeCountRange ?? allowedVolumeCountRange;
   const fixedRecommendedVolumeCount = typeof config.fixedRecommendedVolumeCount === "number"
     ? config.fixedRecommendedVolumeCount
     : null;
@@ -57,6 +60,7 @@ export function createVolumeStrategyPrompt(
     outputSchema: createVolumeStrategySchema({
       maxVolumeCount,
       allowedVolumeCountRange,
+      decisionVolumeCountRange,
       fixedRecommendedVolumeCount,
       hardPlannedVolumeRange,
     }),
@@ -72,14 +76,18 @@ export function createVolumeStrategyPrompt(
         "",
         "【硬性要求】",
         fixedRecommendedVolumeCount == null
-          ? `recommendedVolumeCount 必须落在 ${allowedVolumeCountRange.min}-${allowedVolumeCountRange.max} 之间，且等于 volumes.length。`
+          ? `recommendedVolumeCount 必须落在结构建议区间 ${decisionVolumeCountRange.min}-${decisionVolumeCountRange.max} 之间，且等于 volumes.length。`
           : `recommendedVolumeCount 必须严格等于 ${fixedRecommendedVolumeCount}，且等于 volumes.length。`,
         `hardPlannedVolumeCount 必须落在 ${hardPlannedVolumeRange.min}-${hardPlannedVolumeRange.max} 之间，且不能大于 recommendedVolumeCount。`,
         "前 hardPlannedVolumeCount 卷的 planningMode 必须是 hard，后续卷必须是 soft。",
         "如果 recommendedVolumeCount 较多，后半部分必须保留足够软规划空间，不能提前写死。",
         "如果上下文给出了 user preferred volume count，必须严格采用，不得擅自改卷数。",
-        "如果没有固定卷数，必须在允许区间内决策，并优先贴近上下文中的 system recommended volume count。",
+        "如果上下文给出了 respected existing volume count，也必须严格沿用，该卷数代表作者已确认的草稿结构。",
+        "如果没有固定卷数，必须在结构建议区间内结合故事结构决策，不要只按章节数平均除法切卷。",
+        "60 章以上默认至少保留三段结构，避免压成“开局卷 + 结局卷”导致中段失焦。",
         "超长篇必须避免把大量章节压成少数巨卷；不要让单卷粗到失去阶段感、回报节点和卷级工作台意义。",
+        "如果 Story macro 存在，每个 volume.roleLabel 都必须能映射到主线卖点、冲突升级、成长路径或结尾风味之一。",
+        "如果 Story macro 为 none，不要臆造精细主线阶段；应采用更保守的卷数与更高 uncertainty，说明缺少主线骨架带来的风险。",
         "",
         "【核心目标】",
         "1. strategy 必须优先服务连载追读动力，而不是一次性写死后半本。",
@@ -99,6 +107,8 @@ export function createVolumeStrategyPrompt(
         "2. 前几卷是否承担开书、立主卖点、第一阶段兑现、世界扩展、格局升级等关键任务，是否必须硬规划。",
         "3. 中后段是否存在较大弹性，适合保留软规划，以避免早期过度透支。",
         "4. 分卷数量是否与题材、主卖点密度、成长跨度、冲突层级和连载模式匹配。",
+        "5. 判断故事是否需要三幕式、阶段副本、地图/势力扩展、能力成长阶梯、关系阶段变化或长期反派层级。",
+        "6. 每卷 roleLabel 是否能回扣 Story macro 的卖点、长期冲突、推进回路、成长路径或结尾风味；缺少 Story macro 时，必须把该不确定性写入 uncertainties。",
         "",
         "【质量要求】",
         "1. 整体策略必须体现阶段递进，不能只是‘前面 hard，后面 soft’的空泛分配。",
@@ -114,7 +124,7 @@ export function createVolumeStrategyPrompt(
         "【输出要求】",
         "- 只输出严格 JSON",
         fixedRecommendedVolumeCount == null
-          ? `- recommendedVolumeCount 必须落在 ${allowedVolumeCountRange.min}-${allowedVolumeCountRange.max} 之间`
+          ? `- recommendedVolumeCount 必须落在结构建议区间 ${decisionVolumeCountRange.min}-${decisionVolumeCountRange.max} 之间`
           : `- recommendedVolumeCount 必须严格等于 ${fixedRecommendedVolumeCount}`,
         "- volumes.length 必须等于 recommendedVolumeCount",
         `- hardPlannedVolumeCount 必须落在 ${hardPlannedVolumeRange.min}-${hardPlannedVolumeRange.max} 之间`,

@@ -464,7 +464,10 @@ export async function startDirectorTakeoverExecution(
           request: directorInput,
           existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
           existingState: plan.usesCurrentBatch ? (input.takeoverState.latestAutoExecutionState ?? null) : null,
-          resumeCheckpointType: plan.usesCurrentBatch ? (plan.resumeCheckpointType ?? null) : null,
+          resumeCheckpointType: plan.usesCurrentBatch
+            && (plan.resumeCheckpointType === "chapter_batch_ready" || plan.resumeCheckpointType === "replan_required")
+            ? plan.resumeCheckpointType
+            : null,
           resumeStage: plan.resumeStage === "pipeline" ? "pipeline" : "chapter",
           approveCurrentGate: isFullBookAutopilot,
           approveAutoExecutionScope: isFullBookAutopilot,

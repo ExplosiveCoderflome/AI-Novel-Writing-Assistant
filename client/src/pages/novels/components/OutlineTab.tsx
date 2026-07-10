@@ -3,16 +3,18 @@ import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import BookPayoffLedgerCard from "./BookPayoffLedgerCard";
 import CollapsibleSummary from "./CollapsibleSummary";
 import WorldInjectionHint from "./WorldInjectionHint";
-import VolumePayoffOverviewCard from "./VolumePayoffOverviewCard";
 import type { OutlineTabViewProps } from "./NovelEditView.types";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
-import TensionCurvePanel, { type TensionCurveSeries } from "@/components/tensionCurve/TensionCurvePanel";
 import SelectControl from "@/components/common/SelectControl";
+import OutlineCurrentVolumeWorkspace from "./outline/OutlineCurrentVolumeWorkspace";
+import OutlineResourceCommitments from "./outline/OutlineResourceCommitments";
+import type { VolumeBeatImpactItem } from "@ai-novel/shared/types/novel";
 
-type OutlineCharacterResource = NonNullable<OutlineTabViewProps["characterResources"]>[number];
+type OutlineWorkspaceTab = "current" | "strategy" | "assets";
 
 function versionStatusLabel(status: "draft" | "active" | "frozen"): string {
   if (status === "active") return "已生效";
@@ -57,92 +59,38 @@ function getNextOutlineAction(readiness: OutlineTabViewProps["readiness"]): stri
   return "卷战略阶段已齐备，可以继续进入节奏 / 拆章";
 }
 
-function getResourceStatusLabel(status: OutlineCharacterResource["status"]): string {
-  const labels: Record<OutlineCharacterResource["status"], string> = {
-    available: "可用",
-    hidden: "隐藏",
-    borrowed: "借用",
-    transferred: "已转交",
-    lost: "已丢失",
-    consumed: "已消耗",
-    damaged: "受损",
-    destroyed: "毁坏",
-    stale: "淡出",
+function getVolumeScaleProfileLabel(profile: OutlineTabViewProps["volumeCountGuidance"]["volumeScaleProfile"]): string {
+  const labels: Record<OutlineTabViewProps["volumeCountGuidance"]["volumeScaleProfile"], string> = {
+    short: "短篇结构",
+    compact: "紧凑中篇",
+    standard: "标准长篇",
+    long: "长篇展开",
+    epic: "大长篇",
+    mega: "超长篇",
   };
-  return labels[status] ?? status;
+  return labels[profile] ?? "结构建议";
 }
 
-function getVolumeResourceWindow(resource: OutlineCharacterResource): string {
-  if (resource.expectedUseStartChapterOrder || resource.expectedUseEndChapterOrder) {
-    return `预计第${resource.expectedUseStartChapterOrder ?? "?"}章至第${resource.expectedUseEndChapterOrder ?? "?"}章使用`;
-  }
-  if (resource.lastTouchedChapterOrder) {
-    return `最近触达第${resource.lastTouchedChapterOrder}章`;
-  }
-  return "后续章节可参考";
+function getBeatImpactStatusLabel(status: VolumeBeatImpactItem["status"]): string {
+  if (status === "locked_with_draft") return "已有正文锁定";
+  if (status === "pending") return "待生成";
+  return "可接入未写段";
 }
 
-function isResourceRelevantToVolume(
-  resource: OutlineCharacterResource,
-  selectedVolume: OutlineTabViewProps["volumes"][number] | undefined,
-): boolean {
-  if (!selectedVolume || selectedVolume.chapters.length === 0) {
-    return resource.expectedUseEndChapterOrder != null
-      || resource.narrativeFunction === "promise"
-      || resource.narrativeFunction === "hidden_card";
-  }
-  const orders = selectedVolume.chapters.map((chapter) => chapter.chapterOrder);
-  const start = Math.min(...orders);
-  const end = Math.max(...orders);
-  const resourceStart = resource.expectedUseStartChapterOrder ?? resource.lastTouchedChapterOrder ?? start;
-  const resourceEnd = resource.expectedUseEndChapterOrder ?? resourceStart;
-  const overlapsVolume = resourceStart <= end && resourceEnd >= start;
-  return overlapsVolume
-    || resource.narrativeFunction === "promise"
-    || resource.narrativeFunction === "hidden_card";
+function getBeatImpactStatusVariant(status: VolumeBeatImpactItem["status"]): "secondary" | "outline" | "default" {
+  if (status === "locked_with_draft") return "secondary";
+  if (status === "pending") return "outline";
+  return "default";
 }
 
-function VolumeResourceCommitmentCard(props: {
-  selectedVolume: OutlineTabViewProps["volumes"][number] | undefined;
-  resources: OutlineCharacterResource[];
-}) {
-  const relevantResources = props.resources
-    .filter((resource) => isResourceRelevantToVolume(resource, props.selectedVolume))
-    .slice(0, 6);
-
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">本卷关键资源承诺</CardTitle>
-        <div className="text-sm text-muted-foreground">
-          只显示会影响本卷行动边界、铺垫或后续兑现的资源。
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {relevantResources.length > 0 ? (
-          relevantResources.map((resource) => (
-            <div key={resource.id} className="rounded-xl border border-border/70 bg-background p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="min-w-0 flex-1 text-sm font-medium text-foreground">{resource.name}</div>
-                <Badge variant={resource.status === "available" || resource.status === "borrowed" ? "outline" : "secondary"}>
-                  {getResourceStatusLabel(resource.status)}
-                </Badge>
-              </div>
-              <div className="mt-1 text-xs leading-5 text-muted-foreground">{resource.summary}</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {resource.holderCharacterName ? <Badge variant="outline">{resource.holderCharacterName}</Badge> : null}
-                <Badge variant="outline">{getVolumeResourceWindow(resource)}</Badge>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="rounded-xl border border-dashed px-4 py-5 text-sm text-muted-foreground">
-            当前卷没有需要特别盯住的角色资源承诺。
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+function formatBeatChapterOrders(chapterOrders: number[]): string {
+  if (chapterOrders.length === 0) {
+    return "待生成章节";
+  }
+  const sorted = chapterOrders.slice().sort((left, right) => left - right);
+  return sorted[0] === sorted[sorted.length - 1]
+    ? `第 ${sorted[0]} 章`
+    : `第 ${sorted[0]}-${sorted[sorted.length - 1]} 章`;
 }
 
 export default function OutlineTab(props: OutlineTabViewProps) {
@@ -208,11 +156,13 @@ export default function OutlineTab(props: OutlineTabViewProps) {
   const nextOutlineAction = getNextOutlineAction(readiness);
   const outlineStageReady = completedReadinessCount === readinessSteps.length;
   const [selectedVolumeId, setSelectedVolumeId] = useState(volumes[0]?.id ?? "");
+  const [workspaceTab, setWorkspaceTab] = useState<OutlineWorkspaceTab>("current");
   const volumeCountModeLabel = volumeCountGuidance.userPreferredVolumeCount != null
     ? `当前固定 ${volumeCountGuidance.userPreferredVolumeCount} 卷`
     : volumeCountGuidance.respectedExistingVolumeCount != null
       ? `当前沿用草稿 ${volumeCountGuidance.respectedExistingVolumeCount} 卷`
       : `当前按系统建议 ${volumeCountGuidance.systemRecommendedVolumeCount} 卷`;
+  const volumeScaleProfileLabel = getVolumeScaleProfileLabel(volumeCountGuidance.volumeScaleProfile);
 
   useEffect(() => {
     if (!volumes.some((volume) => volume.id === selectedVolumeId)) {
@@ -221,55 +171,46 @@ export default function OutlineTab(props: OutlineTabViewProps) {
   }, [selectedVolumeId, volumes]);
 
   const selectedVolume = volumes.find((volume) => volume.id === selectedVolumeId) ?? volumes[0];
-  const selectedStrategyVolume = selectedVolume
-    ? strategyPlan?.volumes.find((item) => item.sortOrder === selectedVolume.sortOrder) ?? null
-    : null;
-  const tensionCurveSeries: TensionCurveSeries[] = selectedVolume
-    ? [
-        {
-          id: "conflictLevel",
-          label: "冲突强度",
-          color: "#2563eb",
-          points: selectedVolume.chapters.map((chapter) => ({
-            id: chapter.id,
-            chapterOrder: chapter.chapterOrder,
-            title: chapter.title || `第${chapter.chapterOrder}章`,
-            value: typeof chapter.conflictLevel === "number" ? chapter.conflictLevel : null,
-            source: chapter.conflictLevelSource ?? "ai",
-          })),
-        },
-      ]
-    : [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <DirectorTakeoverEntryPanel
         title="从卷战略接管"
         description="AI 会先判断卷战略和卷骨架是否已齐，再决定继续补缺失部分还是重跑当前步骤。"
         entry={props.directorTakeoverEntry}
       />
-      <Card className="border-0 bg-transparent shadow-none">
-      <CardHeader className="flex flex-col gap-4 rounded-2xl bg-muted/20 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-1">
-          <CardTitle>卷战略 / 卷骨架</CardTitle>
-          <div className="text-sm text-muted-foreground">先让系统帮你决定卷数和硬/软规划，再确认可继续拆节奏板的卷骨架。</div>
+      <section className="overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm">
+      <div className="border-b border-border/60 bg-[linear-gradient(135deg,hsl(var(--background))_0%,hsl(var(--muted)/0.38)_100%)] px-5 py-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-lg font-semibold tracking-tight">卷战略控制台</h2>
+              <Badge variant={outlineStageReady ? "default" : "outline"}>
+                {completedReadinessCount}/{readinessSteps.length} 已就绪
+              </Badge>
+              {hasUnsavedVolumeDraft ? <Badge variant="secondary">含未保存草稿</Badge> : null}
+            </div>
+            <div className="max-w-3xl text-sm leading-6 text-muted-foreground">
+              先确定整本书的卷级推进方式，再审当前卷的承诺、压力、兑现和下卷牵引。
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <AiButton variant="outline" onClick={onGenerateStrategy} disabled={isGeneratingStrategy}>
+              {isGeneratingStrategy ? "生成中..." : "生成卷战略建议"}
+            </AiButton>
+            <AiButton variant="outline" onClick={onCritiqueStrategy} disabled={isCritiquingStrategy || !strategyPlan}>
+              {isCritiquingStrategy ? "审查中..." : "AI审查卷战略"}
+            </AiButton>
+            <AiButton onClick={onGenerateSkeleton} disabled={isGeneratingSkeleton || !readiness.canGenerateSkeleton}>
+              {isGeneratingSkeleton ? "生成中..." : volumes.length > 0 ? "重生成全书卷骨架" : "生成全书卷骨架"}
+            </AiButton>
+            <Button variant="secondary" onClick={onSave} disabled={isSaving}>
+              {isSaving ? "保存中..." : "保存卷工作区"}
+            </Button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <AiButton variant="outline" onClick={onGenerateStrategy} disabled={isGeneratingStrategy}>
-            {isGeneratingStrategy ? "生成中..." : "生成卷战略建议"}
-          </AiButton>
-          <AiButton variant="outline" onClick={onCritiqueStrategy} disabled={isCritiquingStrategy || !strategyPlan}>
-            {isCritiquingStrategy ? "审查中..." : "AI审查卷战略"}
-          </AiButton>
-          <AiButton onClick={onGenerateSkeleton} disabled={isGeneratingSkeleton || !readiness.canGenerateSkeleton}>
-            {isGeneratingSkeleton ? "生成中..." : volumes.length > 0 ? "重生成全书卷骨架" : "生成全书卷骨架"}
-          </AiButton>
-          <Button variant="secondary" onClick={onSave} disabled={isSaving}>
-            {isSaving ? "保存中..." : "保存卷工作区"}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5 px-0 pt-5">
+      </div>
+      <div className="space-y-5 p-5">
         <WorldInjectionHint worldInjectionSummary={worldInjectionSummary} />
         {!hasCharacters ? (
           <div className="flex items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
@@ -362,9 +303,9 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                         <div className="mt-1 text-lg font-semibold text-foreground">{volumeCountGuidance.chapterBudget} 章</div>
                       </div>
                       <div className="rounded-xl bg-background/70 p-3">
-                        <div className="text-xs text-muted-foreground">推荐卷数区间</div>
+                        <div className="text-xs text-muted-foreground">结构建议区间</div>
                         <div className="mt-1 text-lg font-semibold text-foreground">
-                          {volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
+                          {volumeCountGuidance.decisionVolumeCountRange.min}-{volumeCountGuidance.decisionVolumeCountRange.max} 卷
                         </div>
                       </div>
                       <div className="rounded-xl bg-background/70 p-3">
@@ -380,8 +321,9 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                     </div>
 
                     <div className="rounded-xl bg-background/70 p-3 text-xs leading-6 text-muted-foreground">
-                      标准卷尺度按 {volumeCountGuidance.targetChapterRange.min}-{volumeCountGuidance.targetChapterRange.max} 章 / 卷设计，
-                      理想值约 {volumeCountGuidance.targetChapterRange.ideal} 章 / 卷。超长篇默认通过增加卷数来保持每卷的阶段感、升级节点和卷级回报，不再压成少数巨卷。
+                      当前结构档位：{volumeScaleProfileLabel}。{volumeCountGuidance.volumeCountRationale}
+                      章节预算仍会参考 {volumeCountGuidance.targetChapterRange.min}-{volumeCountGuidance.targetChapterRange.max} 章 / 卷，
+                      但系统会优先按阶段承诺、卖点切换、局面升级和阶段兑现来建议卷数。
                     </div>
 
                     <div className="flex flex-wrap gap-2">
@@ -413,7 +355,7 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                           </label>
                           <Button size="sm" onClick={onApplyCustomVolumeCount}>应用固定卷数</Button>
                           <div className="text-xs text-muted-foreground">
-                            允许范围：{volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷
+                            允许范围：{volumeCountGuidance.allowedVolumeCountRange.min}-{volumeCountGuidance.allowedVolumeCountRange.max} 卷。固定卷数会覆盖结构建议。
                           </div>
                         </div>
                       </div>
@@ -542,9 +484,38 @@ export default function OutlineTab(props: OutlineTabViewProps) {
                     </AiButton>
                   </div>
                   {impactResult ? (
-                    <div className="rounded-md border p-2 text-xs">
+                    <div className="space-y-3 rounded-md border p-3 text-xs">
                       <div className="font-medium">卷级影响预览</div>
                       <div className="text-muted-foreground">影响卷 {impactResult.affectedVolumeCount} | 波及章节 {impactResult.affectedChapterCount} | 变更行数 {impactResult.changedLines}</div>
+                      {impactResult.affectedBeats && impactResult.affectedBeats.length > 0 ? (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {impactResult.defaultImpactAction ? <Badge variant="default">{impactResult.defaultImpactAction}</Badge> : null}
+                            {typeof impactResult.staleBeatCount === "number" ? <Badge variant="outline">未写段 {impactResult.staleBeatCount}</Badge> : null}
+                            {typeof impactResult.lockedBeatCount === "number" && impactResult.lockedBeatCount > 0 ? (
+                              <Badge variant="secondary">锁定段 {impactResult.lockedBeatCount}</Badge>
+                            ) : null}
+                          </div>
+                          <div className="space-y-2">
+                            {impactResult.affectedBeats.slice(0, 8).map((beat) => (
+                              <div key={`${beat.volumeId}-${beat.beatKey}`} className="rounded-md bg-background/70 p-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="font-medium">第{beat.volumeOrder}卷 · {beat.beatLabel}{beat.beatTitle ? ` · ${beat.beatTitle}` : ""}</span>
+                                  <Badge variant={getBeatImpactStatusVariant(beat.status)}>
+                                    {getBeatImpactStatusLabel(beat.status)}
+                                  </Badge>
+                                </div>
+                                <div className="mt-1 text-muted-foreground">{formatBeatChapterOrders(beat.chapterOrders)}</div>
+                              </div>
+                            ))}
+                          </div>
+                          {impactResult.advancedImpactActions && impactResult.advancedImpactActions.length > 0 ? (
+                            <div className="text-muted-foreground">
+                              高级动作：{impactResult.advancedImpactActions.join(" / ")}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
                   ) : (
                     <div className="text-xs text-muted-foreground">建议在生效前先做卷级影响分析。</div>
@@ -555,6 +526,14 @@ export default function OutlineTab(props: OutlineTabViewProps) {
           </details>
         </div>
 
+        <Tabs value={workspaceTab} onValueChange={(value) => setWorkspaceTab(value as OutlineWorkspaceTab)} className="space-y-4">
+          <TabsList className="h-auto flex-wrap justify-start bg-muted/60 p-1">
+            <TabsTrigger value="current">当前卷</TabsTrigger>
+            <TabsTrigger value="strategy">战略总览</TabsTrigger>
+            <TabsTrigger value="assets">资产约束</TabsTrigger>
+          </TabsList>
+
+        <TabsContent value="strategy" className="mt-0 space-y-4">
         <Card className="border-0 bg-muted/15 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
@@ -605,182 +584,37 @@ export default function OutlineTab(props: OutlineTabViewProps) {
             )}
           </CardContent>
         </Card>
+        </TabsContent>
 
+        <TabsContent value="assets" className="mt-0 space-y-4">
         <BookPayoffLedgerCard
           latestStateSnapshot={latestStateSnapshot}
           payoffLedger={payoffLedger}
         />
 
-        <VolumeResourceCommitmentCard
+        <OutlineResourceCommitments
           selectedVolume={selectedVolume}
           resources={characterResources}
         />
+        </TabsContent>
 
-        <div className="grid items-start gap-3 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <Card className="self-start xl:sticky xl:top-4">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <CardTitle className="text-base">卷导航</CardTitle>
-                  <div className="text-sm text-muted-foreground">左侧用卷标题和卷描述定位当前要编辑的卷。</div>
-                </div>
-                <Button size="sm" variant="outline" onClick={onAddVolume}>新增卷</Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {volumes.length > 0 ? (
-                <div className="max-h-[720px] space-y-2 overflow-y-auto pr-1">
-                  {volumes.map((volume) => {
-                    const strategyVolume = strategyPlan?.volumes.find((item) => item.sortOrder === volume.sortOrder) ?? null;
-                    const isSelected = selectedVolume?.id === volume.id;
-                    return (
-                      <button
-                        key={volume.id}
-                        type="button"
-                        onClick={() => setSelectedVolumeId(volume.id)}
-                        className={`w-full rounded-xl border p-3 text-left transition ${
-                          isSelected
-                            ? "border-sky-400/70 bg-sky-50 shadow-sm ring-1 ring-sky-200"
-                            : "border-border/70 bg-background hover:border-primary/30 hover:bg-muted/30"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <Badge variant={isSelected ? "default" : "outline"}>第{volume.sortOrder}卷</Badge>
-                          {strategyVolume ? (
-                            <Badge variant={strategyVolume.planningMode === "hard" ? "secondary" : "outline"}>
-                              {strategyVolume.planningMode === "hard" ? "硬规划" : "软规划"}
-                            </Badge>
-                          ) : null}
-                        </div>
-                        <div className="mt-2 text-sm font-medium">
-                          {volume.title || strategyVolume?.roleLabel || `第${volume.sortOrder}卷`}
-                        </div>
-                        <div className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">
-                          {volume.summary || volume.mainPromise || strategyVolume?.coreReward || "先补这卷的标题和描述，便于后续导航。"}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">
-                  当前还没有卷骨架。先生成卷战略建议，再点击“生成全书卷骨架”。
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="space-y-3">
-            {selectedVolume ? (
-              <>
-                <VolumePayoffOverviewCard
-                  selectedVolume={selectedVolume}
-                />
-                <TensionCurvePanel
-                  title="本卷紧张度"
-                  subtitle="查看章节冲突强度走向，红点表示你固定给后续 AI 保留的强度。"
-                  series={tensionCurveSeries}
-                  readonly
-                  compact
-                />
-                <div className="flex justify-end">
-                  <Button type="button" size="sm" variant="outline" onClick={onGoToStructuredTab}>
-                    去节奏 / 拆章编辑曲线
-                  </Button>
-                </div>
-                <Card key={selectedVolume.id}>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline">第{selectedVolume.sortOrder}卷</Badge>
-                        {selectedStrategyVolume ? (
-                          <Badge variant={selectedStrategyVolume.planningMode === "hard" ? "secondary" : "outline"}>
-                            {selectedStrategyVolume.planningMode === "hard" ? "硬规划" : "软规划"}
-                          </Badge>
-                        ) : null}
-                        {selectedStrategyVolume?.roleLabel ? <span className="text-sm text-muted-foreground">{selectedStrategyVolume.roleLabel}</span> : null}
-                        <span className="text-sm text-muted-foreground">
-                          {selectedVolume.chapters.length > 0
-                            ? `章节 ${selectedVolume.chapters[0]?.chapterOrder}-${selectedVolume.chapters[selectedVolume.chapters.length - 1]?.chapterOrder}`
-                            : "未拆章"}
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => onMoveVolume(selectedVolume.id, -1)} disabled={selectedVolume.sortOrder === 1}>上移</Button>
-                        <Button size="sm" variant="outline" onClick={() => onMoveVolume(selectedVolume.id, 1)} disabled={selectedVolume.sortOrder === volumes.length}>下移</Button>
-                        <Button size="sm" variant="outline" onClick={() => onRemoveVolume(selectedVolume.id)} disabled={volumes.length <= 1}>删除</Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="grid gap-3 md:grid-cols-2">
-                    <label className="space-y-1 text-sm md:col-span-2">
-                      <span className="text-xs text-muted-foreground">卷标题</span>
-                      <input className="w-full rounded-md border bg-background p-2" value={selectedVolume.title} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "title", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-xs text-muted-foreground">卷摘要</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.summary ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "summary", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-xs text-muted-foreground">开卷抓手</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.openingHook ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "openingHook", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-xs text-muted-foreground">主承诺</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.mainPromise ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "mainPromise", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-xs text-muted-foreground">主压迫源</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.primaryPressureSource ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "primaryPressureSource", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-xs text-muted-foreground">核心卖点</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.coreSellingPoint ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "coreSellingPoint", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-xs text-muted-foreground">升级方式</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.escalationMode ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "escalationMode", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-xs text-muted-foreground">主角变化</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.protagonistChange ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "protagonistChange", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-xs text-muted-foreground">中段风险</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.midVolumeRisk ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "midVolumeRisk", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-xs text-muted-foreground">卷末高潮</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.climax ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "climax", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-xs text-muted-foreground">兑现类型</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.payoffType ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "payoffType", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-xs text-muted-foreground">下卷钩子</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.nextVolumeHook ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "nextVolumeHook", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-xs text-muted-foreground">卷间重置点</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" value={selectedVolume.resetPoint ?? ""} onChange={(event) => onVolumeFieldChange(selectedVolume.id, "resetPoint", event.target.value)} />
-                    </label>
-                    <label className="space-y-1 text-sm md:col-span-2">
-                      <span className="text-xs text-muted-foreground">本卷未兑现事项</span>
-                      <textarea className="min-h-[84px] w-full rounded-md border bg-background p-2" placeholder="每行一个，或用中文逗号分隔。" value={selectedVolume.openPayoffs.join("\n")} onChange={(event) => onOpenPayoffsChange(selectedVolume.id, event.target.value)} />
-                    </label>
-                  </CardContent>
-                </Card>
-              </>
-            ) : (
-              <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-                左侧先选择一卷，或先生成全书卷骨架，再在这里编辑当前卷详情。
-              </div>
-            )}
-          </div>
-        </div>
-      </CardContent>
-      </Card>
+        <TabsContent value="current" className="mt-0">
+          <OutlineCurrentVolumeWorkspace
+            selectedVolume={selectedVolume}
+            strategyPlan={strategyPlan}
+            volumes={volumes}
+            onSelectedVolumeChange={setSelectedVolumeId}
+            onAddVolume={onAddVolume}
+            onRemoveVolume={onRemoveVolume}
+            onMoveVolume={onMoveVolume}
+            onVolumeFieldChange={onVolumeFieldChange}
+            onOpenPayoffsChange={onOpenPayoffsChange}
+            onGoToStructuredTab={onGoToStructuredTab}
+          />
+        </TabsContent>
+        </Tabs>
+      </div>
+      </section>
     </div>
   );
 }

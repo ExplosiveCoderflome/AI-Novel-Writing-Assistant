@@ -1,6 +1,16 @@
 import { z } from "zod";
 import { chapterSceneCardSchema } from "@ai-novel/shared/types/chapterLengthControl";
 import type { VolumeCountRange } from "@ai-novel/shared/types/novel";
+import {
+  getVolumeBeatSlot,
+  getVolumeBeatRoleLabel,
+  isVolumeBeatSlotKey,
+  listMissingRequiredVolumeBeatKeys,
+  resolveVolumeBeatSlotKey,
+  VOLUME_BEAT_OPTIONAL_SLOT_KEYS,
+  VOLUME_BEAT_REQUIRED_SLOT_KEYS,
+  VOLUME_BEAT_SLOT_DEFINITIONS,
+} from "@ai-novel/shared/types/volumeBeatSlots";
 import { MAX_VOLUME_COUNT } from "@ai-novel/shared/types/volumePlanning";
 
 function normalizeObjectAlias(raw: unknown, aliasMap: Record<string, string[]>): unknown {
@@ -137,8 +147,9 @@ function normalizeRebalanceDirection(value: unknown, actions?: unknown): unknown
 
 function normalizeBeatPayload(raw: unknown): unknown {
   const normalized = normalizeObjectAlias(raw, {
-    key: ["beatKey", "stageKey", "id"],
-    label: ["beatLabel", "stageLabel", "name", "title"],
+    key: ["beatKey", "stageKey", "id", "slot", "slotKey", "roleKey"],
+    label: ["beatLabel", "stageLabel", "roleLabel", "职能", "节奏职能"],
+    title: ["shortTitle", "customTitle", "displayTitle", "name", "短标题", "本卷标题"],
     summary: ["beatSummary", "description", "detail", "content", "摘要", "概要", "说明"],
     chapterSpanHint: [
       "chapterSpan",
@@ -169,8 +180,39 @@ function normalizeBeatPayload(raw: unknown): unknown {
   }
 
   const record = normalized as Record<string, unknown>;
+  const rawKey = typeof record.key === "string" ? record.key : "";
+  const rawLabel = typeof record.label === "string" ? record.label : "";
+  const rawTitle = typeof record.title === "string" ? record.title.trim() : "";
+  const resolvedKey = resolveVolumeBeatSlotKey(rawKey) ?? resolveVolumeBeatSlotKey(rawLabel);
+  const roleLabel = resolvedKey
+    ? getVolumeBeatRoleLabel(resolvedKey)
+    : (rawLabel.trim() || "节奏段");
+  const slot = resolvedKey ? getVolumeBeatSlot(resolvedKey) : null;
+  const aliasTokens = new Set(
+    [roleLabel, ...(slot?.aliases ?? [])]
+      .map((item) => item.trim().toLowerCase().replace(/[\s_\-·・]+/g, ""))
+      .filter(Boolean),
+  );
+  let title = rawTitle;
+  if (!title && rawLabel.trim() && rawLabel.trim() !== roleLabel) {
+    const prefix = `${roleLabel} · `;
+    const candidate = rawLabel.trim().startsWith(prefix)
+      ? rawLabel.trim().slice(prefix.length).trim()
+      : rawLabel.trim();
+    const candidateToken = candidate.toLowerCase().replace(/[\s_\-·・]+/g, "");
+    if (!aliasTokens.has(candidateToken)) {
+      title = candidate;
+    }
+  }
+  if (title === roleLabel || aliasTokens.has(title.toLowerCase().replace(/[\s_\-·・]+/g, ""))) {
+    title = "";
+  }
+
   return {
     ...record,
+    key: resolvedKey ?? rawKey.trim(),
+    label: roleLabel,
+    title: title || null,
     mustDeliver: normalizeStringArray(record.mustDeliver),
   };
 }
@@ -451,9 +493,15 @@ const generatedVolumeUncertaintySchema = z.object({
   reason: z.string().trim().min(1),
 });
 
+const volumeBeatSlotKeySchema = z.enum([
+  ...VOLUME_BEAT_REQUIRED_SLOT_KEYS,
+  ...VOLUME_BEAT_OPTIONAL_SLOT_KEYS,
+]);
+
 const generatedVolumeBeatSchema = z.preprocess(normalizeBeatPayload, z.object({
-  key: z.string().trim().min(1),
+  key: volumeBeatSlotKeySchema,
   label: z.string().trim().min(1),
+  title: z.string().trim().min(1).max(16).nullable().optional(),
   summary: z.string().trim().min(1),
   chapterSpanHint: z.string().trim().min(1),
   mustDeliver: z.array(z.string().trim().min(1)).min(1).max(6),
@@ -545,6 +593,7 @@ export function createVolumeChapterBeatBlockSchema(config: {
 export function createVolumeStrategySchema(config: {
   maxVolumeCount?: number;
   allowedVolumeCountRange?: VolumeCountRange | null;
+  decisionVolumeCountRange?: VolumeCountRange | null;
   fixedRecommendedVolumeCount?: number | null;
   hardPlannedVolumeRange?: VolumeCountRange | null;
 } = {}) {
@@ -553,6 +602,7 @@ export function createVolumeStrategySchema(config: {
     min: 1,
     max: maxVolumeCount,
   };
+  const decisionVolumeCountRange = config.decisionVolumeCountRange ?? allowedVolumeCountRange;
   const fixedRecommendedVolumeCount = typeof config.fixedRecommendedVolumeCount === "number"
     ? config.fixedRecommendedVolumeCount
     : null;
@@ -560,9 +610,12 @@ export function createVolumeStrategySchema(config: {
     min: 1,
     max: maxVolumeCount,
   };
+  const recommendedVolumeCountRange = fixedRecommendedVolumeCount === null
+    ? decisionVolumeCountRange
+    : allowedVolumeCountRange;
 
   return z.object({
-    recommendedVolumeCount: z.number().int().min(allowedVolumeCountRange.min).max(allowedVolumeCountRange.max),
+    recommendedVolumeCount: z.number().int().min(recommendedVolumeCountRange.min).max(recommendedVolumeCountRange.max),
     hardPlannedVolumeCount: z.number().int().min(hardPlannedVolumeRange.min).max(hardPlannedVolumeRange.max),
     readerRewardLadder: z.string().trim().min(1),
     escalationLadder: z.string().trim().min(1),
@@ -628,7 +681,60 @@ export function createVolumeStrategyCritiqueSchema() {
 
 export function createVolumeBeatSheetSchema() {
   return z.preprocess(normalizeBeatSheetPayload, z.object({
-    beats: z.array(generatedVolumeBeatSchema).min(5).max(8),
+    beats: z.array(generatedVolumeBeatSchema).min(6).max(8),
+  }).superRefine((value, ctx) => {
+    const keys = value.beats.map((beat) => beat.key);
+    const missingRequired = listMissingRequiredVolumeBeatKeys(keys);
+    if (missingRequired.length > 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["beats"],
+        message: `节奏板缺少必需职能：${missingRequired.map((key) => getVolumeBeatRoleLabel(key)).join("、")}。`,
+      });
+    }
+
+    const seen = new Set<string>();
+    value.beats.forEach((beat, index) => {
+      if (seen.has(beat.key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["beats", index, "key"],
+          message: `节奏职能 key 重复：${beat.key}。`,
+        });
+      }
+      seen.add(beat.key);
+
+      const expectedLabel = getVolumeBeatRoleLabel(beat.key);
+      if (beat.label !== expectedLabel) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["beats", index, "label"],
+          message: `beats[${index}].label 必须是稳定职能名「${expectedLabel}」。`,
+        });
+      }
+
+      if (!isVolumeBeatSlotKey(beat.key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["beats", index, "key"],
+          message: `beats[${index}].key 必须是受支持的节奏职能 key。`,
+        });
+      }
+    });
+
+    const orderByKey = new Map(VOLUME_BEAT_SLOT_DEFINITIONS.map((slot) => [slot.key, slot.order]));
+    for (let index = 1; index < value.beats.length; index += 1) {
+      const previousOrder = orderByKey.get(value.beats[index - 1].key) ?? 0;
+      const currentOrder = orderByKey.get(value.beats[index].key) ?? 0;
+      if (currentOrder < previousOrder) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["beats", index, "key"],
+          message: "节奏职能顺序必须按开卷到卷尾推进，不能前后颠倒。",
+        });
+        break;
+      }
+    }
   }));
 }
 

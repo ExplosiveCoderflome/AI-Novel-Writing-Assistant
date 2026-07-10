@@ -267,7 +267,7 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
   },
   {
     key: "novel.volume.strategy@v2",
-    load: () => require("./prompts/novel/volume/strategy.prompts").createVolumeStrategyPrompt({ maxVolumeCount: 16 }) as UnknownPromptAsset,
+    load: () => require("./prompts/novel/volume/strategy.prompts").createVolumeStrategyPrompt() as UnknownPromptAsset,
   },
   {
     key: "novel.volume.strategy.critique@v1",
@@ -278,7 +278,7 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/novel/volume/skeleton.prompts").createVolumeSkeletonPrompt(1) as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.beat_sheet@v1",
+    key: "novel.volume.beat_sheet@v2",
     load: () => require("./prompts/novel/volume/beatSheet.prompts").volumeBeatSheetPrompt as UnknownPromptAsset,
   },
   {

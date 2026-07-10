@@ -726,6 +726,17 @@ export const WORKFLOW_CHECKPOINT_CATALOG: readonly WorkflowCheckpointCatalogEntr
     defaultProgress: 0.9,
   },
   {
+    checkpoint: "step_review_required",
+    displayStage: "story_planning",
+    workflowStage: "auto_director",
+    tab: "pipeline",
+    label: "步骤已生成，等待检查",
+    waitingApprovalLabel: "当前步骤已完成，请检查后继续",
+    pausedLabel: "逐步协作已暂停",
+    approvalPoint: null,
+    defaultProgress: 0.5,
+  },
+  {
     checkpoint: "replan_required",
     displayStage: "quality_repair",
     workflowStage: "quality_repair",

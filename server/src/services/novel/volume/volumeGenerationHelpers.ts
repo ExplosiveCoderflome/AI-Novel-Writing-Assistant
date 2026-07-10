@@ -235,6 +235,9 @@ export function assertScopeReadiness(
     if (!document.strategyPlan) {
       throw new Error("请先生成卷战略建议，再继续当前步骤。");
     }
+    if (scope === "skeleton" && document.critiqueReport?.overallRisk === "high") {
+      throw new Error("当前卷战略审查为高风险，请先重新生成或修订卷战略，再生成卷骨架。");
+    }
     return;
   }
   if (scope === "beat_sheet") {
@@ -273,7 +276,7 @@ export function assertScopeReadiness(
 export function mergeStrategyPlan(document: VolumePlanDocument, strategyPlan: VolumeStrategyPlan): VolumePlanDocument {
   return buildVolumeWorkspaceDocument({
     novelId: document.novelId,
-    volumes: document.volumes,
+    volumes: [],
     strategyPlan,
     critiqueReport: null,
     beatSheets: [],

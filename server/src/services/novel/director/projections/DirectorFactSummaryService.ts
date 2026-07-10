@@ -35,6 +35,8 @@ export interface DirectorFactBaseSummary {
     plannedChapterCount: number;
     beatSheetReady: boolean;
     chapterListReady: boolean;
+    beatChapterListReady: boolean;
+    volumeChapterListComplete: boolean;
     chapterDetailReady: boolean;
     selectedChapterCount: number;
     completedDetailSteps: number;
@@ -134,6 +136,8 @@ function buildEmptySummary(state: DirectorCanonicalState): DirectorFactBaseSumma
       plannedChapterCount: 0,
       beatSheetReady: false,
       chapterListReady: false,
+      beatChapterListReady: false,
+      volumeChapterListComplete: false,
       chapterDetailReady: false,
       selectedChapterCount: 0,
       completedDetailSteps: 0,
@@ -247,6 +251,17 @@ export class DirectorFactSummaryService {
     const chapterProgress = await this.runtime.inspectChapterExecutionProgress(novelId);
     const artifacts = getArtifactsFromContext(context);
 
+    const beatChapterListReady = cursor
+      ? cursor.beatChapterListReady
+        || cursor.step === "chapter_detail_bundle"
+        || cursor.step === "chapter_sync"
+        || cursor.step === "completed"
+      : false;
+    const volumeChapterListComplete = cursor
+      ? cursor.volumeChapterListComplete
+        && (cursor.step === "chapter_detail_bundle" || cursor.step === "chapter_sync" || cursor.step === "completed")
+      : false;
+
     return {
       hasNovelProject: true,
       candidate: buildEmptySummary(state).candidate,
@@ -260,9 +275,9 @@ export class DirectorFactSummaryService {
         volumeCount: workspace?.volumes.length ?? 0,
         plannedChapterCount,
         beatSheetReady: cursor ? cursor.step !== "beat_sheet" : false,
-        chapterListReady: cursor
-          ? cursor.step === "chapter_detail_bundle" || cursor.step === "chapter_sync" || cursor.step === "completed"
-          : false,
+        chapterListReady: beatChapterListReady,
+        beatChapterListReady,
+        volumeChapterListComplete,
         chapterDetailReady: cursor
           ? cursor.step === "chapter_sync" || cursor.step === "completed"
           : false,
@@ -325,6 +340,8 @@ export class DirectorFactSummaryService {
       outlineFacts: {
         beatSheetReady: input.base.outline.beatSheetReady,
         chapterListReady: input.base.outline.chapterListReady,
+        beatChapterListReady: input.base.outline.beatChapterListReady,
+        volumeChapterListComplete: input.base.outline.volumeChapterListComplete,
         chapterDetailReady: input.base.outline.chapterDetailReady,
         plannedChapterCount: input.base.outline.plannedChapterCount,
         selectedChapterCount: input.base.outline.selectedChapterCount,

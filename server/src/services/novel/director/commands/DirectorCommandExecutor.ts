@@ -197,6 +197,16 @@ export class DirectorCommandExecutor {
         await this.recordCommandResult(pipelineCommand.taskId, pipelineCommand.id, { impact });
         return this.resolveCommandOutcome(pipelineCommand.taskId);
       }
+      case "calibrate_step": {
+        const request = pipelineCommand.payload.stepCalibrationRequest;
+        if (!request) {
+          throw new AppError("Director step calibration payload is missing.", 400);
+        }
+        const result = await this.directorService.calibrateStep(pipelineCommand.taskId, request);
+        await this.recordCommandResult(pipelineCommand.taskId, pipelineCommand.id, { calibration: result });
+        return this.resolveCommandOutcome(pipelineCommand.taskId);
+      }
+      case "accept_manual_changes_and_continue":
       case "continue":
       case "resume_from_checkpoint":
       case "retry":

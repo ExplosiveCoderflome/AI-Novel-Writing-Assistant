@@ -213,6 +213,79 @@ test("runFromReady completes immediately when repaired chapters leave no remaini
   assert.equal(calls[1][4], 0);
 });
 
+test("runFromReady keeps partial structured outline windows resumable after the current beat completes", async () => {
+  const calls = [];
+  const runtime = new NovelDirectorAutoExecutionRuntime({
+    novelContextService: {
+      async listChapters() {
+        return [
+          { id: "chapter-1", order: 1, generationState: "approved" },
+          { id: "chapter-2", order: 2, generationState: "published" },
+        ];
+      },
+    },
+    novelService: {
+      async startPipelineJob() {
+        throw new Error("should not start a new pipeline job");
+      },
+      async findActivePipelineJobForRange() {
+        return null;
+      },
+      async getPipelineJobById() {
+        return null;
+      },
+      async cancelPipelineJob() {},
+    },
+    workflowService: {
+      async bootstrapTask(input) {
+        calls.push(["bootstrapTask", input.seedPayload.autoExecution.volumeChapterListComplete]);
+      },
+      async getTaskById() {
+        return { status: "waiting_approval" };
+      },
+      async markTaskRunning() {
+        calls.push(["markTaskRunning"]);
+      },
+      async recordCheckpoint(taskId, input) {
+        calls.push([
+          "recordCheckpoint",
+          taskId,
+          input.checkpointType,
+          input.seedPayload.directorSession.phase,
+          input.seedPayload.autoExecution.remainingChapterCount,
+          input.seedPayload.autoExecution.volumeChapterListComplete,
+        ]);
+      },
+      async markTaskFailed() {
+        calls.push(["markTaskFailed"]);
+      },
+    },
+    buildDirectorSeedPayload(_request, _novelId, extra) {
+      return extra ?? {};
+    },
+  });
+
+  await runtime.runFromReady({
+    taskId: "task-partial-auto-exec",
+    novelId: "novel-1",
+    request: buildRequest({ runMode: "full_book_autopilot" }),
+    existingState: {
+      enabled: true,
+      mode: "book",
+      firstChapterId: "chapter-1",
+      startOrder: 1,
+      endOrder: 2,
+      totalChapterCount: 2,
+      volumeChapterListComplete: false,
+    },
+  });
+
+  assert.deepEqual(calls, [
+    ["bootstrapTask", false],
+    ["recordCheckpoint", "task-partial-auto-exec", "chapter_batch_ready", "structured_outline", 0, false],
+  ]);
+});
+
 test("runFromReady reuses an existing active range job before starting a new pipeline", async () => {
   const calls = [];
   let pipelineCompleted = false;

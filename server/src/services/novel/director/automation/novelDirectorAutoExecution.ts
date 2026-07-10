@@ -367,6 +367,8 @@ export function buildDirectorAutoExecutionState(input: {
   scopeLabel?: string | null;
   volumeTitle?: string | null;
   preparedVolumeIds?: string[];
+  beatChapterListReady?: boolean;
+  volumeChapterListComplete?: boolean;
   pipelineJobId?: string | null;
   pipelineStatus?: PipelineJobStatus | null;
 }): DirectorAutoExecutionState {
@@ -415,6 +417,10 @@ export function buildDirectorAutoExecutionState(input: {
     volumeOrder: plan.mode === "volume" ? plan.volumeOrder : undefined,
     volumeTitle: input.volumeTitle ?? null,
     preparedVolumeIds: input.preparedVolumeIds ?? [],
+    beatChapterListReady: input.beatChapterListReady
+      ?? (input.plan as DirectorAutoExecutionState | null | undefined)?.beatChapterListReady,
+    volumeChapterListComplete: input.volumeChapterListComplete
+      ?? (input.plan as DirectorAutoExecutionState | null | undefined)?.volumeChapterListComplete,
     skippedChapterIds: skipped.map((chapter) => chapter.id),
     skippedChapterOrders: skipped.map((chapter) => chapter.order),
     qualityDebtChapterIds: preservedQualityDebt.map((chapter) => chapter.id),
