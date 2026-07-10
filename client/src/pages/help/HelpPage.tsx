@@ -4,9 +4,11 @@ import {
   CircleHelp,
   ClipboardList,
   Compass,
+  FileCheck2,
   KeyRound,
   ListTodo,
   Route,
+  ShieldCheck,
   Sparkles,
   WandSparkles,
   Workflow,
@@ -241,6 +243,49 @@ export default function HelpPage() {
                 </div>
               );
             })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/20 bg-card/90">
+        <CardHeader>
+          <div className="flex flex-wrap items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-primary" aria-hidden="true" />
+            <CardTitle>宫寒个人版与 AI 标注</CardTitle>
+          </div>
+          <CardDescription>
+            这个 fork 会保留上游来源、AGPL 许可证和 AI 辅助修改说明，方便后续向主项目提交 PR 或继续维护个人版本。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-lg border bg-background p-4">
+              <div className="flex items-center gap-2 font-semibold">
+                <FileCheck2 className="h-4 w-4 text-primary" aria-hidden="true" />
+                项目来源
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                当前版本基于上游 AI Novel Writing Assistant 整理，公开说明中继续保留原项目、许可证和 fork 关系。
+              </p>
+            </div>
+            <div className="rounded-lg border bg-background p-4">
+              <div className="flex items-center gap-2 font-semibold">
+                <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+                AI 辅助
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                本轮品牌文案、说明文档和前端打磨包含 AI 辅助生成与人工筛选，提交 PR 时应主动说明。
+              </p>
+            </div>
+            <div className="rounded-lg border bg-background p-4">
+              <div className="flex items-center gap-2 font-semibold">
+                <Route className="h-4 w-4 text-primary" aria-hidden="true" />
+                接口边界
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                当前个人版优化保持 API、路由、query key、数据库和自动导演状态判断不变，主要改展示层和文档。
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

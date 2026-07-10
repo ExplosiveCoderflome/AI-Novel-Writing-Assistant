@@ -76,6 +76,12 @@ Wiki 不替代计划、检查点或发布说明：
 
 - [Release Notes](./releases/release-notes.md)
 
+### `docs/public`
+
+用于放面向用户和维护者的公开说明、安装文档、功能介绍和使用指南。
+
+- [宫寒个人版说明](./public/gonghan-personal-edition.md)
+
 ### `docs/archive`
 
 用于放历史初始化方案、已不再作为主执行依据但仍需要保留的资料。
