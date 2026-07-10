@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ImageAsset } from "@ai-novel/shared/types/image";
@@ -137,9 +139,9 @@ export default function CharacterLibrary() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-sm text-muted-foreground">已创建角色：{characters.length}</div>
+        <div className="text-sm text-muted-foreground">{t("gen.pages.characters.CharacterLibrary.gen_2d12edfa")}</div>
         <div className="flex flex-wrap gap-2">
-          <OpenInCreativeHubButton bindings={{}} label="角色库发往创作中枢" />
+          <OpenInCreativeHubButton bindings={{}} label={t("gen.pages.characters.CharacterLibrary.gen_7b89282f")} />
           <CharacterCreateDialog />
         </div>
       </div>
@@ -179,7 +181,7 @@ export default function CharacterLibrary() {
 
       <Card>
         <CardHeader>
-          <CardTitle>角色列表</CardTitle>
+          <CardTitle>{t("gen.pages.characters.CharacterLibrary.gen_f53b5122")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {characters.map((character, index) => (
@@ -199,12 +201,12 @@ export default function CharacterLibrary() {
               extraActions={(
                 <OpenInCreativeHubButton
                   bindings={{ baseCharacterId: character.id }}
-                  label="带着角色继续"
+                  label={t("gen.pages.characters.CharacterLibrary.gen_fd38c170")}
                 />
               )}
             />
           ))}
-          {characters.length === 0 ? <div className="text-sm text-muted-foreground">暂无角色。</div> : null}
+          {characters.length === 0 ? <div className="text-sm text-muted-foreground">{t("gen.pages.characters.CharacterLibrary.gen_95a8b408")}</div> : null}
         </CardContent>
       </Card>
     </div>

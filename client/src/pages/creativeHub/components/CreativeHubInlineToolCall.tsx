@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import CreativeHubToolResultCard from "./CreativeHubToolResultCard";
@@ -57,9 +59,9 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
     : {};
 
   if (props.toolName === "approval_gate") {
-    const title = typeof args.title === "string" ? args.title : "等待审批";
-    const summary = typeof args.summary === "string" ? args.summary : "当前高影响操作等待确认。";
-    const targetType = typeof args.targetType === "string" ? args.targetType : inlineControls.interrupt?.targetType ?? "未知目标";
+    const title = typeof args.title === "string" ? args.title : t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_3ced7e48");
+    const summary = typeof args.summary === "string" ? args.summary : t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_e2b18e89");
+    const targetType = typeof args.targetType === "string" ? args.targetType : inlineControls.interrupt?.targetType ?? t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_1b9b6c32");
     const targetId = typeof args.targetId === "string" ? args.targetId : inlineControls.interrupt?.targetId ?? "-";
     return (
       <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
@@ -77,7 +79,7 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
           className="mt-3 min-h-[88px] w-full rounded-xl border border-amber-200 bg-white p-3 text-sm text-slate-700 outline-none focus:border-amber-400"
           value={inlineControls.approvalNote}
           onChange={(event) => inlineControls.onApprovalNoteChange?.(event.target.value)}
-          placeholder="审批备注（可选）"
+          placeholder={t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_cd98d717")}
         />
         <div className="mt-3 flex gap-2">
           <button
@@ -125,7 +127,7 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
     <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="space-y-1">
-          <div className="text-sm font-medium text-slate-900">工具调用 · {props.toolName}</div>
+          <div className="text-sm font-medium text-slate-900">{t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_70c26ad3")}</div>
           {summaryText ? <div className="text-xs text-slate-500">{summaryText}</div> : null}
         </div>
         <div className="flex items-center gap-2">
@@ -135,7 +137,7 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
               className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] text-slate-600 transition hover:bg-slate-100"
               onClick={() => setShowArgs((value) => !value)}
             >
-              {showArgs ? "收起参数" : "查看参数"}
+              {showArgs ? t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_02e820e7") : t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_6fa6500b")}
             </button>
           ) : null}
           <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500">
@@ -148,13 +150,13 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
           {argsText}
         </pre>
       ) : argsText ? (
-        <div className="mt-2 text-xs text-slate-500">请求参数默认已收起，点击“查看参数”展开。</div>
+        <div className="mt-2 text-xs text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_1efa5ba8")}</div>
       ) : null}
       {(resultText || artifact.summary) ? (
         <div className="mt-3">
           <CreativeHubToolResultCard
             toolName={props.toolName}
-            summary={artifact.summary ?? resultText ?? "工具已返回结果。"}
+            summary={artifact.summary ?? resultText ?? t("gen.pages.creativeHub.components.CreativeHubInlineToolCall.gen_26374868")}
             success={success}
             output={artifact.output}
             errorCode={artifact.errorCode}

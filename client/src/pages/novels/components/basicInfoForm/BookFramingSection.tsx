@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { BASIC_INFO_FIELD_HINTS, type NovelBasicFormState } from "../../novelBasicInfo.shared";
@@ -16,7 +18,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
     <div className="space-y-4 pt-2">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="text-sm font-semibold text-foreground">读者与卖点</div>
+          <div className="text-sm font-semibold text-foreground">{t("gen.pages.novels.components.basicInfoForm.BookFramingSection.gen_822ab1f4")}</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">
             用最直白的话说清楚：这本书写给谁、卖点是什么、读者前 30 章会得到什么。不会写专业策划词也没关系，按你的直觉描述即可。
           </div>
@@ -32,7 +34,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
           <Input
             id="basic-target-audience"
             value={basicForm.targetAudience}
-            placeholder="例如：爱看都市高压逆袭、关系拉扯和持续追更钩子的读者"
+            placeholder={t("gen.pages.novels.components.basicInfoForm.BookFramingSection.exampleReadersWhoLoveUrbanPressureReverseRelationshipAndContinuedChasingNewHooks")}
             onChange={(event) => onFormChange({ targetAudience: event.target.value })}
           />
         </div>
@@ -44,7 +46,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
           <Input
             id="basic-commercial-tags"
             value={basicForm.commercialTagsText}
-            placeholder="例如：逆袭，强冲突，悬念拉满，职场博弈"
+            placeholder={t("gen.pages.novels.components.basicInfoForm.BookFramingSection.exampleRevengeStrongConflictTensionedNegotiationOfficeRivalry")}
             onChange={(event) => onFormChange({ commercialTagsText: event.target.value })}
           />
         </div>
@@ -56,7 +58,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
           <Input
             id="basic-competing-feel"
             value={basicForm.competingFeel}
-            placeholder="例如：现实职场压迫感里带一点冷幽默和高密度关系拉扯"
+            placeholder={t("gen.pages.novels.components.basicInfoForm.BookFramingSection.exampleRealityWorkplacePressureWithSlightColdHumorAndHighDensityRelationshipTug")}
             onChange={(event) => onFormChange({ competingFeel: event.target.value })}
           />
         </div>
@@ -70,7 +72,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
             rows={3}
             className="min-h-[96px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             value={basicForm.bookSellingPoint}
-            placeholder="例如：主角每次解决现实困局都会撬动更大的关系链和利益链，读者会一直期待下一次反压。"
+            placeholder={t("gen.pages.novels.components.basicInfoForm.BookFramingSection.exampleMainTriggerBiggerRelationshipAndInterestLadderReaderExpectPressure")}
             onChange={(event) => onFormChange({ bookSellingPoint: event.target.value })}
           />
         </div>
@@ -85,7 +87,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
           rows={5}
           className="min-h-[128px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           value={basicForm.first30ChapterPromise}
-          placeholder="例如：前 30 章必须让读者看到主角站稳第一阶段立场、核心对手浮出水面、关系线第一次强反转，并明确这本书后面会越写越狠。"
+          placeholder={t("gen.pages.novels.components.basicInfoForm.BookFramingSection.exampleFirst30ChaptersEstablishMainStanceCoreOpponentRelationshipReverseCliffHanger")}
           onChange={(event) => onFormChange({ first30ChapterPromise: event.target.value })}
         />
       </div>

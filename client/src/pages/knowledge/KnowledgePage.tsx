@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -289,22 +291,22 @@ export default function KnowledgePage() {
   const clearFinishedRagJobsMutation = useMutation({
     mutationFn: clearFinishedRagJobs,
     onSuccess: async (response) => {
-      setRagJobsActionMessage(response.message ?? "已清理已结束任务。");
+      setRagJobsActionMessage(response.message ?? t("gen.pages.knowledge.KnowledgePage.gen_901ed15c"));
       await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
     },
     onError: (error) => {
-      setRagJobsActionMessage(error instanceof Error ? error.message : "清理任务失败。");
+      setRagJobsActionMessage(error instanceof Error ? error.message : t("gen.pages.knowledge.KnowledgePage.gen_e1f338dd"));
     },
   });
 
   const deleteRagJobMutation = useMutation({
     mutationFn: (jobId: string) => deleteRagJob(jobId),
     onSuccess: async (response) => {
-      setRagJobsActionMessage(response.message ?? "任务记录已删除。");
+      setRagJobsActionMessage(response.message ?? t("gen.pages.knowledge.KnowledgePage.taskIdRecordDeleted"));
       await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
     },
     onError: (error) => {
-      setRagJobsActionMessage(error instanceof Error ? error.message : "删除任务失败。");
+      setRagJobsActionMessage(error instanceof Error ? error.message : t("gen.pages.knowledge.KnowledgePage.gen_0cd5921e"));
     },
   });
 
@@ -339,12 +341,12 @@ export default function KnowledgePage() {
   const failedJobs = (ragJobsQuery.data?.data ?? []).filter((item) => item.status === "failed").slice(0, 5);
   const selectedDocument = detailQuery.data?.data;
   const ragHealthNotice = ragHealthQuery.isError
-    ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : "加载 RAG 健康状态失败。")
+    ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : t("gen.pages.knowledge.KnowledgePage.gen_9a6a1f05"))
     : (ragHealthQuery.data?.message && ragHealthQuery.data.message !== "RAG health check passed."
       ? ragHealthQuery.data.message
       : undefined);
   const recallErrorMessage = recallTestMutation.isError
-    ? (recallTestMutation.error instanceof Error ? recallTestMutation.error.message : "召回测试失败。")
+    ? (recallTestMutation.error instanceof Error ? recallTestMutation.error.message : t("gen.pages.knowledge.KnowledgePage.gen_25978068"))
     : null;
 
   useEffect(() => {
@@ -441,11 +443,11 @@ export default function KnowledgePage() {
     try {
       setVersionBusy(true);
       if (!isTxtFile(file)) {
-        throw new Error("仅支持 .txt 文件。");
+        throw new Error(t("gen.pages.knowledge.KnowledgePage.onlySupportTxtFiles"));
       }
       const content = await readTextFile(file);
       if (!content) {
-        throw new Error("文件内容为空，或编码格式暂不支持。");
+        throw new Error(t("gen.pages.knowledge.KnowledgePage.gen_dd1d03b9"));
       }
       await createKnowledgeDocumentVersion(selectedDocumentId, {
         fileName: file.name,
@@ -502,14 +504,14 @@ export default function KnowledgePage() {
   };
 
   const handleClearFinishedRagJobs = () => {
-    if (!window.confirm("清理已结束任务记录？排队中和执行中的任务会保留。")) {
+    if (!window.confirm(t("gen.pages.knowledge.KnowledgePage.gen_2d775f38"))) {
       return;
     }
     clearFinishedRagJobsMutation.mutate();
   };
 
   const handleDeleteRagJob = (jobId: string) => {
-    if (!window.confirm("删除这条任务记录？排队中和执行中的任务不能删除。")) {
+    if (!window.confirm(t("gen.pages.knowledge.KnowledgePage.gen_35c42d6b"))) {
       return;
     }
     deleteRagJobMutation.mutate(jobId);
@@ -528,7 +530,7 @@ export default function KnowledgePage() {
       <div className="flex justify-end">
         <OpenInCreativeHubButton
           bindings={{ knowledgeDocumentIds: selectedDocumentId ? [selectedDocumentId] : [] }}
-          label="发送到创作中枢"
+          label={t("gen.pages.knowledge.KnowledgePage.gen_dbbdc047")}
         />
       </div>
 
@@ -538,9 +540,9 @@ export default function KnowledgePage() {
         className="space-y-4"
       >
         <TabsList>
-          <TabsTrigger value="documents">文档</TabsTrigger>
-          <TabsTrigger value="ops">运行状态</TabsTrigger>
-          <TabsTrigger value="settings">检索设置</TabsTrigger>
+          <TabsTrigger value="documents">{t("gen.pages.knowledge.KnowledgePage.gen_32536950")}</TabsTrigger>
+          <TabsTrigger value="ops">{t("gen.pages.knowledge.KnowledgePage.gen_e4b51d5c")}</TabsTrigger>
+          <TabsTrigger value="settings">{t("gen.pages.knowledge.KnowledgePage.gen_acb3166d")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents">

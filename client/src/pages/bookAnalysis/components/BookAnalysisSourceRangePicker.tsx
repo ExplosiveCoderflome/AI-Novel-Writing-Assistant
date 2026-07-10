@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
 import { Button } from "@/components/ui/button";
@@ -21,9 +23,9 @@ interface BookAnalysisSourceRangePickerProps {
 }
 
 const CHAR_PRESETS = [
-  { label: "前 5 万字", value: 50_000 },
-  { label: "前 10 万字", value: 100_000 },
-  { label: "前 20 万字", value: 200_000 },
+  { label: t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_9981494e"), value: 50_000 },
+  { label: t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_ac3f6db5"), value: 100_000 },
+  { label: t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_ca76f377"), value: 200_000 },
 ];
 
 const numberFormatter = new Intl.NumberFormat("zh-CN");
@@ -50,7 +52,7 @@ function parseCharInput(input: string): number | null {
     return null;
   }
   const unit = match[2];
-  if (unit === "万") {
+  if (unit === t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_9d032066")) {
     return Math.round(value * 10_000);
   }
   if (unit === "k") {
@@ -242,23 +244,23 @@ export default function BookAnalysisSourceRangePicker({
 
   const rangeTitle = selectedRange && selectedStartChapter && selectedEndChapter
     ? `第 ${selectedStartChapter.chapterIndex + 1} 章 ~ 第 ${selectedEndChapter.chapterIndex + 1} 章`
-    : "全文";
+    : t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_42d39e02");
   const rangeDetail = selectedRange && selectedStartChapter && selectedEndChapter
     ? `${selectedChapterCount} 章 · 约 ${formatCount(selectedCharCount)} 字 · 占全文 ${Math.round(percent)}%`
     : `${sortedChapters.length > 0 ? `${sortedChapters.length} 章 · ` : ""}约 ${formatCount(sourceCharCount)} 字`;
   const charModeHint = selectedRange && selectedStartChapter && selectedEndChapter
     ? `按章节边界覆盖第 ${selectedStartChapter.chapterIndex + 1} 章 ~ 第 ${selectedEndChapter.chapterIndex + 1} 章`
-    : "输入字数后会自动换算为章节范围";
+    : t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_035c0223");
 
   return (
     <div className="space-y-2 rounded-md border bg-background p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-medium">原文范围</div>
+        <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_d7957d21")}</div>
         <div className="inline-flex rounded-md bg-muted/40 p-1">
           {([
-            ["full", "全文"],
-            ["chapter", "按章节"],
-            ["chars", "按字数"],
+            ["full", t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_42d39e02")],
+            ["chapter", t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_c4bf99f5")],
+            ["chars", t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_0270c742")],
           ] as const).map(([key, label]) => (
             <button
               key={key}
@@ -334,7 +336,7 @@ export default function BookAnalysisSourceRangePicker({
               disabled={!canUseChapterRange}
               onChange={(event) => setCharStartInput(event.target.value)}
               onBlur={() => applyCharRange(charStartInput, charEndInput)}
-              placeholder="起始字数，如 5000"
+              placeholder={t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_0fba1a30")}
             />
             <Input
               className="h-9 text-xs"
@@ -342,7 +344,7 @@ export default function BookAnalysisSourceRangePicker({
               disabled={!canUseChapterRange}
               onChange={(event) => setCharEndInput(event.target.value)}
               onBlur={() => applyCharRange(charStartInput, charEndInput)}
-              placeholder="结束字数，如 5万"
+              placeholder={t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_bddbfb09")}
             />
           </div>
           <div className="text-xs text-muted-foreground">{charModeHint}</div>
@@ -415,15 +417,15 @@ function RangeLoadHint({
   error?: string;
   sourceSelected: boolean;
 }) {
-  let message = "选择文档后可按章节或字数限制本次分析输入。";
+  let message = t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_75736243");
   if (sourceSelected && loading) {
-    message = "正在加载章节范围...";
+    message = t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_cde484ed");
   } else if (sourceSelected && error) {
-    message = "章节范围加载失败，可先按全文创建拆书。";
+    message = t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_9f824aba");
   } else if (sourceSelected && requested) {
-    message = "当前文档章节不足，可按全文创建拆书。";
+    message = t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_585a6c1e");
   } else if (sourceSelected) {
-    message = "切换到范围模式后会加载章节范围。";
+    message = t("gen.pages.bookAnalysis.components.BookAnalysisSourceRangePicker.gen_636038db");
   }
   return (
     <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground">

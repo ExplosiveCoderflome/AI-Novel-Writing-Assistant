@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { KeyboardEvent, ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -118,7 +120,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
               </Badge>
             </div>
             <div className="text-sm leading-6 text-slate-600">
-              {truncateText(profile.summaryLine, 120) || "暂无写法摘要。"}
+              {truncateText(profile.summaryLine, 120) || t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_c7933614")}
             </div>
             <div className="flex flex-wrap gap-2">
               {profile.tags.slice(0, 4).map((tag) => (
@@ -178,7 +180,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 onDeleteProfile(profile.id);
               }}
             >
-              {deletePending ? "删除中..." : "删除"}
+              {deletePending ? t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_09f2fb82") : t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_2f4aaddd")}
             </Button>
           </div>
         </div>
@@ -187,8 +189,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
           <div className="mt-4 space-y-4 border-t border-slate-200/80 pt-4">
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_280px]">
               <DetailPanel
-                title="读感与定位"
-                description="这一列帮助你快速判断这套写法想写成什么感觉，适合先拿来做哪类项目。"
+                title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_c9d154f7")}
+                description={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_6a72ae84")}
               >
                 <div className="rounded-xl border bg-slate-50/80 p-4 text-sm leading-7 text-slate-700">
                   {profile.description}
@@ -204,7 +206,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 ) : null}
                 {profile.sourceContentPreview ? (
                   <div className="rounded-xl border bg-slate-950 px-4 py-4 text-sm leading-7 text-slate-100">
-                    <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-400">原文样本片段</div>
+                    <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-400">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_6388f0b7")}</div>
                     <div>{profile.sourceContentPreview}</div>
                   </div>
                 ) : null}
@@ -212,20 +214,20 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
 
               <div className="space-y-4">
                 <DetailPanel
-                  title="规则摘要"
-                  description="这里把这套写法真正控制读感的四层规则读出来，方便你在列表里先看懂。"
+                  title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_353310ad")}
+                  description={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f36606c3")}
                 >
                   <div className="grid gap-3 md:grid-cols-2">
-                    <SummaryCard title="剧情推进" summary={profile.narrativeSummary} />
-                    <SummaryCard title="人物表达" summary={profile.characterSummary} />
-                    <SummaryCard title="语言质感" summary={profile.languageSummary} />
-                    <SummaryCard title="节奏控制" summary={profile.rhythmSummary} />
+                    <SummaryCard title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_95553c6d")} summary={profile.narrativeSummary} />
+                    <SummaryCard title={t("gen.pages.writingFormula.components.WritingFormulaLanding.characterExpression")} summary={profile.characterSummary} />
+                    <SummaryCard title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_98416f13")} summary={profile.languageSummary} />
+                    <SummaryCard title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_b01be94f")} summary={profile.rhythmSummary} />
                   </div>
                 </DetailPanel>
 
                 <DetailPanel
-                  title="反 AI 约束"
-                  description="这部分决定系统在检测和修正文稿时会优先盯住哪些风险。"
+                  title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_fbe42516")}
+                  description={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f4c90180")}
                 >
                   {profile.antiAiFocus.length > 0 || profile.antiAiRuleNames.length > 0 || profile.extractionAntiAiRecommendationCount > 0 ? (
                     <div className="space-y-3">
@@ -263,42 +265,42 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
 
               <div className="space-y-4">
                 <DetailPanel
-                  title="资产概览"
-                  description="这一列主要帮你判断这套写法现在成熟到什么程度。"
+                  title={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_089761a5")}
+                  description={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_da7bd02d")}
                 >
                   <div className="space-y-2">
-                    <DetailStatRow label="来源" value={profile.sourceTypeLabel} />
-                    <DetailStatRow label="最近更新" value={profile.updatedAtLabel} />
-                    <DetailStatRow label="启用特征" value={`${profile.extractedFeatureCount} 项`} />
-                    <DetailStatRow label="高风险指纹" value={`${profile.highRiskFeatureCount} 项`} />
+                    <DetailStatRow label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_26ca20b1")} value={profile.sourceTypeLabel} />
+                    <DetailStatRow label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_06dc9b38")} value={profile.updatedAtLabel} />
+                    <DetailStatRow label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_a02411b4")} value={`${profile.extractedFeatureCount} 项`} />
+                    <DetailStatRow label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_3ea1f5f1")} value={`${profile.highRiskFeatureCount} 项`} />
                     <DetailStatRow
-                      label="当前预设"
-                      value={profile.selectedPresetLabel || "未锁定"}
+                      label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f2069f25")}
+                      value={profile.selectedPresetLabel || t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_9f62b763")}
                     />
                     <DetailStatRow
-                      label="可选预设"
-                      value={profile.presetLabels.length > 0 ? profile.presetLabels.join(" / ") : "暂无"}
+                      label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_711cbc03")}
+                      value={profile.presetLabels.length > 0 ? profile.presetLabels.join(" / ") : t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f61f4cf6")}
                     />
-                    <DetailStatRow label="已绑定目标" value={`${profile.bindingCount} 个`} />
+                    <DetailStatRow label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_34700230")} value={`${profile.bindingCount} 个`} />
                     <DetailStatRow
-                      label="最近小说"
-                      value={profile.recentNovelTitle || "还没有绑定到小说"}
+                      label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_365ed2d7")}
+                      value={profile.recentNovelTitle || t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_ec9880c7")}
                     />
                     <DetailStatRow
-                      label="适用题材"
-                      value={profile.applicableGenres.length > 0 ? profile.applicableGenres.join(" / ") : "未填写"}
+                      label={t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_2fdc5592")}
+                      value={profile.applicableGenres.length > 0 ? profile.applicableGenres.join(" / ") : t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_5c688139")}
                     />
                   </div>
                 </DetailPanel>
 
                 <DetailPanel
-                  title="下一步"
-                  description="三个按钮现在各自只负责一件事，不会再跳到同一块内容里。"
+                  title={t("gen.pages.writingFormula.components.WritingFormulaLanding.nextStep")}
+                  description={t("gen.pages.writingFormula.components.WritingFormulaLanding.buttonFunctionality")}
                 >
                   <div className="space-y-2 text-sm leading-6 text-slate-700">
-                    <div>编辑设定：维护这套写法本身的说明、规则和反 AI 约束。</div>
-                    <div>应用与测试：绑定到小说或章节，并做试写验证。</div>
-                    <div>去 AI 味：只处理正文检测和修正，不改写法字段。</div>
+                    <div>{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_8c45fe26")}</div>
+                    <div>{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_8999142e")}</div>
+                    <div>{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f240c133")}</div>
                   </div>
                 </DetailPanel>
               </div>
@@ -339,7 +341,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
 
           {profileItems.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50/80 p-6">
-              <div className="text-lg font-semibold text-slate-950">当前还没有写法资产</div>
+              <div className="text-lg font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_efab47b0")}</div>
               <div className="mt-2 text-sm leading-7 text-slate-600">
                 先创建第一套写法，后面再回来慢慢补规则、做试写和绑定目标。
               </div>
@@ -355,7 +357,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-slate-950">你自己创建的写法</div>
+                      <div className="text-sm font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaLanding.yourselfCreatedWritingStyle")}</div>
                       <div className="text-xs leading-6 text-slate-500">
                         这些是你沉淀下来的可复用资产，应该优先在这里挑。
                       </div>
@@ -374,7 +376,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-slate-950">可直接改的起步写法</div>
+                      <div className="text-sm font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaLanding.gen_f6e53247")}</div>
                       <div className="text-xs leading-6 text-slate-500">
                         这些预置资产适合先借一套骨架，再按当前项目改成自己的写法。
                       </div>

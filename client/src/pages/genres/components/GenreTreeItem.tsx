@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import type { GenreTreeNode } from "@/api/genre";
@@ -39,7 +41,7 @@ export default function GenreTreeItem({
                 setExpanded((value) => !value);
               }
             }}
-            aria-label={expanded ? "折叠" : "展开"}
+            aria-label={expanded ? t("gen.pages.genres.components.GenreTreeItem.gen_e082621c") : t("gen.pages.genres.components.GenreTreeItem.gen_e2edde5a")}
           >
             {hasChildren ? (
               expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />
@@ -59,7 +61,7 @@ export default function GenreTreeItem({
               </span>
             </div>
             <div className="text-sm leading-6 text-muted-foreground">
-              {node.description?.trim() || "暂无描述。"}
+              {node.description?.trim() || t("gen.pages.genres.components.GenreTreeItem.gen_76241c5b")}
             </div>
           </div>
 
@@ -78,11 +80,11 @@ export default function GenreTreeItem({
               size="sm"
               className="text-destructive hover:text-destructive"
               disabled={deleteDisabled || deletingId === node.id}
-              title={deleteDisabled ? "请先解绑当前分类或其子分类下的小说后再删除。" : undefined}
+              title={deleteDisabled ? t("gen.pages.genres.components.GenreTreeItem.gen_641898a3") : undefined}
               onClick={() => onDelete(node)}
             >
               <Trash2 className="mr-1 h-4 w-4" />
-              {deletingId === node.id ? "删除中..." : "删除"}
+              {deletingId === node.id ? t("gen.pages.genres.components.GenreTreeItem.gen_09f2fb82") : t("gen.pages.genres.components.GenreTreeItem.gen_2f4aaddd")}
             </Button>
           </div>
         </div>

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AntiAiRule } from "@ai-novel/shared/types/styleEngine";
@@ -111,20 +113,20 @@ export default function AntiAiRulesPage() {
     mutationFn: (payload: ReturnType<typeof buildPayload>) => createAntiAiRule(payload),
     onSuccess: async () => {
       await refreshRules();
-      toast.success("反 AI 规则已创建。");
+      toast.success(t("gen.pages.antiAiRules.AntiAiRulesPage.gen_f829c4e3"));
       setDialogOpen(false);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "创建规则失败。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : t("gen.pages.antiAiRules.AntiAiRulesPage.gen_5d41aa1f")),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Partial<ReturnType<typeof buildPayload>> }) => updateAntiAiRule(id, payload),
     onSuccess: async () => {
       await refreshRules();
-      toast.success("反 AI 规则已保存。");
+      toast.success(t("gen.pages.antiAiRules.AntiAiRulesPage.gen_e0dcdc7e"));
       setDialogOpen(false);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "保存规则失败。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : t("gen.pages.antiAiRules.AntiAiRulesPage.saveRulesFailedDot")),
   });
 
   const aiDraftMutation = useMutation({
@@ -148,7 +150,7 @@ export default function AntiAiRulesPage() {
     onSuccess: (response) => {
       const result = response.data;
       if (!result) {
-        toast.error("AI 没有返回可用草稿。");
+        toast.error(t("gen.pages.antiAiRules.AntiAiRulesPage.aiNoAvailableDraft"));
         return;
       }
       setForm({
@@ -164,9 +166,9 @@ export default function AntiAiRulesPage() {
         globalBaselineEnabled: result.draft.globalBaselineEnabled,
         autoRewrite: result.draft.autoRewrite,
       });
-      toast.success("草稿填入表单，请检查后保存。");
+      toast.success(t("gen.pages.antiAiRules.AntiAiRulesPage.gen_f7e519a6"));
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "AI 生成草稿失败。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : t("gen.pages.antiAiRules.AntiAiRulesPage.aiFailedToGenerateDraft")),
   });
 
   const detectionMutation = useMutation({
@@ -179,7 +181,7 @@ export default function AntiAiRulesPage() {
       temperature: 0.2,
     }),
     onSuccess: () => setRewritePreview(""),
-    onError: (error) => toast.error(error instanceof Error ? error.message : "检测失败。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : t("gen.pages.antiAiRules.AntiAiRulesPage.gen_fc0bacd6")),
   });
 
   const rewriteMutation = useMutation({
@@ -212,7 +214,7 @@ export default function AntiAiRulesPage() {
       });
     },
     onSuccess: (response) => setRewritePreview(response.data?.content ?? ""),
-    onError: (error) => toast.error(error instanceof Error ? error.message : "修正失败。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : t("gen.pages.antiAiRules.AntiAiRulesPage.gen_59f7c94a")),
   });
 
   useEffect(() => {
@@ -239,7 +241,7 @@ export default function AntiAiRulesPage() {
     event.preventDefault();
     const payload = buildPayload(form);
     if (!payload.key || !payload.name || !payload.description) {
-      toast.error("请填写规则标识、名称和说明。");
+      toast.error(t("gen.pages.antiAiRules.AntiAiRulesPage.gen_2d603f07"));
       return;
     }
     if (editingRule) {

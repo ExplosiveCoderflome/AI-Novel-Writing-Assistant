@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import {
   BookOpen,
   Castle,
@@ -120,25 +122,25 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
   const hasHandbook = Boolean(structure);
   const worldPromise = compactText(
     profile?.identity || profile?.summary,
-    summary ?? "补齐世界手册后，这里会形成一份可被小说复用的世界样本。",
+    summary ?? t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_9beae3c8"),
     120,
   );
   const coreRules = listText(
     structure?.rules?.axioms.map((rule) => [rule.name, rule.summary].filter(Boolean).join("：")) ?? [],
-    "进入手册编修补充本世界必须遵守的规则。",
+    t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_498734e3"),
   );
   const majorForces = listText(
     [
       ...(structure?.forces ?? []).map((force) => [force.name, force.summary || force.currentObjective].filter(Boolean).join("：")),
       ...(structure?.factions ?? []).map((faction) => [faction.name, faction.position || faction.doctrine].filter(Boolean).join("：")),
     ],
-    "进入手册编修补充会推动剧情的势力与阵营。",
+    t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_346ade5d"),
   );
   const storyLocations = listText(
     structure?.locations.map((location) =>
       [location.name, location.narrativeFunction || location.risk || location.summary].filter(Boolean).join("："),
     ) ?? [],
-    "进入手册编修补充适合开局、升级和转折的故事地点。",
+    t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_e4f27447"),
   );
   const tensions = listText(
     [
@@ -148,14 +150,14 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
       ),
       ...(structure?.rules.sharedConsequences ?? []),
     ],
-    "进入手册编修补充能持续制造剧情压力的世界矛盾。",
+    t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_fb44d287"),
   );
 
   return (
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle>{featureFlags.worldVisEnabled ? "世界手册与可视化" : "世界手册"}</CardTitle>
+          <CardTitle>{t("gen.pages.worlds.components.workspace.WorldOverviewTab.worldManual")}</CardTitle>
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" variant="secondary" onClick={onOpenStructure}>
               <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -174,7 +176,7 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
             <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
               <div className="rounded-md border-l-2 border-primary bg-muted/30 p-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">世界样本</Badge>
+                  <Badge variant="secondary">{t("gen.pages.worlds.components.workspace.WorldOverviewTab.worldSample")}</Badge>
                   {profile?.tone ? <Badge variant="outline">{profile.tone}</Badge> : null}
                   {profile?.themes?.slice(0, 4).map((theme) => (
                     <Badge key={theme} variant="outline">
@@ -186,19 +188,19 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
                   {worldPromise}
                 </div>
                 <div className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {compactText(profile?.summary, summary ?? "补充一句能让创作者快速理解的世界概要。", 180)}
+                  {compactText(profile?.summary, summary ?? t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_ec83e9c7"), 180)}
                 </div>
                 <div className="mt-3 text-sm leading-6">
-                  {compactText(profile?.coreConflict, "补充核心冲突后，系统会更容易把世界转化为持续推动剧情的压力。", 160)}
+                  {compactText(profile?.coreConflict, t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_84a4265a"), 160)}
                 </div>
               </div>
 
               <div className="rounded-md border bg-background p-4">
-                <div className="text-sm font-medium">作为世界样本可提供</div>
+                <div className="text-sm font-medium">{t("gen.pages.worlds.components.workspace.WorldOverviewTab.worldSampleProvidable")}</div>
                 <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-                  <div>角色身份边界、势力归属与禁忌组合。</div>
-                  <div>开局地点、升级路径与冲突来源。</div>
-                  <div>写作时需要持续遵守的规则。</div>
+                  <div>{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_65f41c26")}</div>
+                  <div>{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_58a218ff")}</div>
+                  <div>{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_205239e3")}</div>
                 </div>
               </div>
             </div>
@@ -206,37 +208,37 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
             <div className="grid gap-3 md:grid-cols-4">
               <div className="rounded-md border bg-muted/30 p-3 text-sm">
                 <div className="text-lg font-semibold">{structure?.rules.axioms.length ?? 0}</div>
-                <div className="text-muted-foreground">核心规则</div>
+                <div className="text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_0a431a82")}</div>
               </div>
               <div className="rounded-md border bg-muted/30 p-3 text-sm">
                 <div className="text-lg font-semibold">{(structure?.forces.length ?? 0) + (structure?.factions.length ?? 0)}</div>
-                <div className="text-muted-foreground">势力与阵营</div>
+                <div className="text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_f97816dc")}</div>
               </div>
               <div className="rounded-md border bg-muted/30 p-3 text-sm">
                 <div className="text-lg font-semibold">{structure?.locations.length ?? 0}</div>
-                <div className="text-muted-foreground">故事地点</div>
+                <div className="text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_3fd96627")}</div>
               </div>
               <div className="rounded-md border bg-muted/30 p-3 text-sm">
                 <div className="text-lg font-semibold">
                   {(structure?.relations.forceRelations.length ?? 0) + (structure?.relations.locationControls.length ?? 0)}
                 </div>
-                <div className="text-muted-foreground">关系线索</div>
+                <div className="text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_3e69a8fb")}</div>
               </div>
             </div>
 
             <div className="grid gap-3 lg:grid-cols-2">
-              <HandbookBlock icon={Sparkles} title="力量与规则" items={coreRules} accent="primary" />
-              <HandbookBlock icon={Castle} title="主要势力" items={majorForces} />
-              <HandbookBlock icon={MapPinned} title="故事舞台" items={storyLocations} />
-              <HandbookBlock icon={GitBranch} title="关键张力" items={tensions} />
+              <HandbookBlock icon={Sparkles} title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_3da452ba")} items={coreRules} accent="primary" />
+              <HandbookBlock icon={Castle} title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.majorForce")} items={majorForces} />
+              <HandbookBlock icon={MapPinned} title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_bf876a86")} items={storyLocations} />
+              <HandbookBlock icon={GitBranch} title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_b7cadb8f")} items={tensions} />
             </div>
 
             <HandbookBlock
               icon={ShieldAlert}
-              title="本书使用时应优先遵守"
+              title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_dd94b30a")}
               items={[
-                compactText(structure?.rules.summary, "核心规则会约束角色身份、冲突来源和世界一致性。", 150),
-                ...listText(structure?.rules.taboo ?? [], "没有记录禁忌组合。需要强约束时，在手册编修中补充。", 2),
+                compactText(structure?.rules.summary, t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_8cf4c303"), 150),
+                ...listText(structure?.rules.taboo ?? [], t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_05d4b3ae"), 2),
               ]}
             />
           </>
@@ -244,9 +246,9 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
           <div className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-[1.35fr_0.85fr]">
               <div className="rounded-md border-l-2 border-primary bg-muted/30 p-4">
-                <Badge variant="secondary">世界手册待成型</Badge>
+                <Badge variant="secondary">{t("gen.pages.worlds.components.workspace.WorldOverviewTab.worldManualPending")}</Badge>
                 <div className="mt-3 text-lg font-semibold leading-7">
-                  {compactText(summary, "先让 AI 或手册编修整理世界骨架，再把它作为可复用世界样本。", 160)}
+                  {compactText(summary, t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_73b0d57c"), 160)}
                 </div>
                 <div className="mt-2 text-sm leading-6 text-muted-foreground">
                   世界手册会把零散设定整理成规则、势力、地点和剧情压力，方便作者理解，也方便本书使用。
@@ -254,7 +256,7 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
               </div>
 
               <div className="rounded-md border bg-background p-4">
-                <div className="text-sm font-medium">建议下一步</div>
+                <div className="text-sm font-medium">{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_fdf768b1")}</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button type="button" size="sm" onClick={onOpenLayers}>
                     <WandSparkles className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -269,15 +271,15 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
             </div>
 
             <div className="grid gap-3 lg:grid-cols-2">
-              <EmptyHandbookBlock icon={Sparkles} title="力量与规则" description="记录世界不能随意打破的底层规则、代价和禁忌组合。" />
-              <EmptyHandbookBlock icon={Castle} title="主要势力" description="整理会推动剧情的组织、阵营、利益集团和压力来源。" />
-              <EmptyHandbookBlock icon={MapPinned} title="故事舞台" description="标出开局、升级、冲突爆发和转折发生的关键地点。" />
-              <EmptyHandbookBlock icon={GitBranch} title="关键张力" description="沉淀能反复制造冲突的资源矛盾、阵营冲突和规则代价。" />
+              <EmptyHandbookBlock icon={Sparkles} title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_3da452ba")} description={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_31fc6a72")} />
+              <EmptyHandbookBlock icon={Castle} title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.majorForce")} description={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_1d0fedb4")} />
+              <EmptyHandbookBlock icon={MapPinned} title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_bf876a86")} description={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_3add34f1")} />
+              <EmptyHandbookBlock icon={GitBranch} title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_b7cadb8f")} description={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_711803e2")} />
             </div>
 
             {sections.length > 0 ? (
               <div className="rounded-md border p-3">
-                <div className="mb-2 text-sm font-medium">已有设定片段</div>
+                <div className="mb-2 text-sm font-medium">{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_a3ee60d1")}</div>
                 <div className="grid gap-3 lg:grid-cols-2">
                   {sections.map((section) => (
                     <div key={section.key} className="rounded-md border bg-background p-3 text-sm">
@@ -304,32 +306,32 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
                   地图和图谱是世界手册的可视化资产，不参与自动同步覆盖，也不替代世界手册的规则来源。
                 </div>
               </div>
-              <Badge variant="outline">预留入口</Badge>
+              <Badge variant="outline">{t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_6a6b9478")}</Badge>
             </div>
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <WorldAssetPreviewBlock
                 icon={MapPinned}
-                title="世界地图"
-                description="承载区域、地点连通、故事发生地和冲突热度。"
-                status={(structure?.locations.length ?? 0) > 0 ? "可整理" : "待补地点"}
+                title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.worldMap")}
+                description={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_64bf02d8")}
+                status={(structure?.locations.length ?? 0) > 0 ? t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_f4b3b085") : t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_67114ac1")}
               />
               <WorldAssetPreviewBlock
                 icon={Network}
-                title="势力图谱"
-                description="承载势力节点、盟友敌对、控制关系和力量对比。"
-                status={(structure?.forces.length ?? 0) + (structure?.factions.length ?? 0) > 0 ? "可整理" : "待补势力"}
+                title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_de942453")}
+                description={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_8283f155")}
+                status={(structure?.forces.length ?? 0) + (structure?.factions.length ?? 0) > 0 ? t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_f4b3b085") : t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_9319c358")}
               />
               <WorldAssetPreviewBlock
                 icon={Clock3}
-                title="世界时间线"
-                description="承载历史事件、局势变化和小说推进中的世界进展。"
-                status={profile?.coreConflict ? "可整理" : "待补张力"}
+                title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.worldTimeline")}
+                description={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_7cbdcaee")}
+                status={profile?.coreConflict ? t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_f4b3b085") : t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_5e668eba")}
               />
               <WorldAssetPreviewBlock
                 icon={Workflow}
-                title="力量体系树"
-                description="承载等级、资源、代价、禁忌和突破边界。"
-                status={(structure?.rules.axioms.length ?? 0) > 0 ? "可整理" : "待补规则"}
+                title={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_3e265312")}
+                description={t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_1a6b348d")}
+                status={(structure?.rules.axioms.length ?? 0) > 0 ? t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_f4b3b085") : t("gen.pages.worlds.components.workspace.WorldOverviewTab.gen_483498d1")}
               />
             </div>
           </div>

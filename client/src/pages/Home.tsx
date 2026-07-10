@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { MouseEvent } from "react";
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -76,8 +78,8 @@ export default function Home() {
         error instanceof Error
           ? error.message
           : input.mode === "auto_execute_range"
-            ? "继续自动执行当前章节范围失败。"
-            : "继续自动导演失败。",
+            ? t("gen.pages.Home.gen_73ebdc25")
+            : t("gen.pages.Home.gen_bb8020bb"),
       );
     },
   });
@@ -143,7 +145,7 @@ export default function Home() {
           }}
           disabled={isWorkflowPending}
         >
-          {isWorkflowPending ? "继续执行中..." : (task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? "当前章节范围"}`)}
+          {isWorkflowPending ? t("gen.pages.Home.gen_eddf5894") : (task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? t("gen.pages.Home.gen_d7432bb5")}`)}
         </Button>
       );
     }
@@ -163,7 +165,7 @@ export default function Home() {
           }}
           disabled={isWorkflowPending}
         >
-          {isWorkflowPending ? "继续中..." : (task?.resumeAction ?? "继续导演")}
+          {isWorkflowPending ? t("gen.pages.Home.gen_95ee3e92") : (task?.resumeAction ?? t("gen.pages.Home.gen_1f32f18b"))}
         </Button>
       );
     }
@@ -175,7 +177,7 @@ export default function Home() {
             to={getCandidateSelectionLink(task!.id)}
             onClick={stopPropagation ? stopCardClick : undefined}
           >
-            {task!.resumeAction ?? "继续确认书级方向"}
+            {task!.resumeAction ?? t("gen.pages.Home.gen_4763a24b")}
           </Link>
         </Button>
       );

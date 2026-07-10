@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
 import AiButton from "@/components/common/AiButton";
 import TensionCurvePanel, { type TensionCurveSeries, type TensionCurveViewportOption } from "@/components/tensionCurve/TensionCurvePanel";
@@ -28,12 +30,12 @@ type StructuredChapter = StructuredVolume["chapters"][number];
 type StructuredBeat = StructuredTabViewProps["beatSheets"][number]["beats"][number];
 
 function actionLabel(action: StructuredTabViewProps["syncPreview"]["items"][number]["action"]) {
-  if (action === "create") return "新增";
-  if (action === "update") return "更新";
-  if (action === "move") return "移动";
-  if (action === "keep") return "保留";
-  if (action === "delete") return "删除";
-  return "待删候选";
+  if (action === "create") return t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_66ab5e9f");
+  if (action === "update") return t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_32ac152b");
+  if (action === "move") return t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_68d982a1");
+  if (action === "keep") return t("gen.pages.novels.components.StructuredOutlineWorkspace.preserve");
+  if (action === "delete") return t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_2f4aaddd");
+  return t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_47e11ee8");
 }
 
 function getWorkspaceGuidance(params: {
@@ -45,7 +47,7 @@ function getWorkspaceGuidance(params: {
 }): string {
   const { locked, selectedBeat, selectedChapter, visibleChapterCount, totalChapterCount } = params;
   if (locked) {
-    return "先为当前卷生成节奏板，系统才能把卷内推进节奏和章节拆分对齐起来。";
+    return t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_c5a0b619");
   }
   if (selectedBeat) {
     return selectedChapter
@@ -193,13 +195,13 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     totalChapterCount: selectedVolumeChapters.length,
   });
   const tensionCurveViewportOptions: TensionCurveViewportOption[] = [
-    { key: "all", label: "整卷" },
+    { key: "all", label: t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_ff3145ff") },
     ...(selectedBeatSheet?.beats.map((beat) => ({ key: beat.key, label: beat.label })) ?? []),
   ];
   const tensionCurveSeries: TensionCurveSeries[] = selectedVolume
     ? [{
       id: "conflictLevel",
-      label: "冲突强度",
+      label: t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_3e85c65a"),
       color: "#2563eb",
       editable: true,
       points: selectedVolumeChapters.map((chapter) => ({
@@ -239,16 +241,16 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
   if (volumes.length === 0) {
     return (
       <Card className="border-0 bg-transparent shadow-none">
-        <CardHeader><CardTitle>节奏 / 拆章</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_4bb0dcce")}</CardTitle></CardHeader>
         <CardContent className="space-y-4 px-0">
           <WorldInjectionHint worldInjectionSummary={worldInjectionSummary} />
           {!hasCharacters ? (
             <div className="flex items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
-              <span>请先补角色，再拆节奏和章节。</span>
-              <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>去角色管理</Button>
+              <span>{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_9f9804e8")}</span>
+              <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_ef2c69b9")}</Button>
             </div>
           ) : null}
-          <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">先在上一页生成卷战略和卷骨架。</div>
+          <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_6fc6f465")}</div>
         </CardContent>
       </Card>
     );
@@ -258,11 +260,11 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
     <Card className="border-0 bg-transparent shadow-none">
       <CardHeader className="flex flex-col gap-4 rounded-2xl bg-muted/20 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
-          <CardTitle>节奏 / 拆章</CardTitle>
-          <div className="text-sm text-muted-foreground">先选卷，再看节奏，再从对应章节里挑当前要细化的一章。</div>
+          <CardTitle>{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_4bb0dcce")}</CardTitle>
+          <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_471bc6a3")}</div>
         </div>
         <Button variant="secondary" onClick={onSave} disabled={isSaving}>
-          {isSaving ? "保存中..." : "保存卷工作区"}
+          {isSaving ? t("gen.pages.novels.components.StructuredOutlineWorkspace.savingInProgressDotDotDot") : t("gen.pages.novels.components.StructuredOutlineWorkspace.saveVolumeWorkspace")}
         </Button>
       </CardHeader>
       <CardContent className="space-y-5 px-0 pt-5">
@@ -271,7 +273,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
         {directorTakeoverEntry ? (
           <div className="flex flex-col gap-3 rounded-2xl bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="space-y-1">
-              <div className="text-sm font-medium text-foreground">想让 AI 继续接管当前项目？</div>
+              <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_7802ca88")}</div>
               <div className="text-sm text-muted-foreground">
                 不用回到项目设定，直接在这里重新进入自动导演，让 AI 继续推进节奏拆章或后续自动执行。
               </div>
@@ -284,10 +286,10 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
 
         <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-muted/20 px-4 py-3 text-xs text-muted-foreground">
           <span>{generationNotice}</span>
-          {hasUnsavedVolumeDraft ? <Badge variant="secondary">含未保存草稿</Badge> : null}
-          <Badge variant="outline">当前：第{selectedVolume.sortOrder}卷</Badge>
-          <Badge variant="outline">{selectedVolumeChapters.length}章</Badge>
-          <Badge variant="outline">{refinedChapterCount}/{Math.max(selectedVolumeChapters.length, 1)} 已细化</Badge>
+          {hasUnsavedVolumeDraft ? <Badge variant="secondary">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_7fa6741a")}</Badge> : null}
+          <Badge variant="outline">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_8505db47")}</Badge>
+          <Badge variant="outline">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_selectedVo_g47t")}</Badge>
+          <Badge variant="outline">{t("gen.pages.novels.components.StructuredOutlineWorkspace.refinementProgress")}</Badge>
         </div>
 
         <div className="rounded-2xl bg-primary/5 px-4 py-3 text-sm text-foreground">
@@ -295,8 +297,8 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
         </div>
 
         <TensionCurvePanel
-          title="紧张度曲线"
-          subtitle="查看当前卷冲突强度走向；手动固定点会作为后续拆章、细化和重规划的约束。"
+          title={t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_620e5a0e")}
+          subtitle={t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_b1ab6afa")}
           series={tensionCurveSeries}
           viewportOptions={tensionCurveViewportOptions}
           selectedViewportKey={selectedBeatKey}
@@ -307,8 +309,8 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
         <TensionCurveEditDialog
           open={tensionCurveDialogOpen}
           onOpenChange={setTensionCurveDialogOpen}
-          title="编辑紧张度曲线"
-          description="先对照卷级定位和当前节奏段交付，再拖动章节节点调整冲突强度。"
+          title={t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_15915af4")}
+          description={t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_3074c331")}
           series={tensionCurveSeries}
           viewportOptions={tensionCurveViewportOptions}
           selectedViewportKey={selectedBeatKey}
@@ -361,15 +363,15 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
           }}
         />
 
-        {!strategyPlan ? <div className="rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">请先在上一阶段生成卷战略建议，再继续当前卷节奏板和拆章。</div> : null}
+        {!strategyPlan ? <div className="rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_99777540")}</div> : null}
         {syncMessage ? <div className="text-xs text-muted-foreground">{syncMessage}</div> : null}
-        {locked ? <div className="rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">当前卷还没有节奏板，章节列表生成已锁定。</div> : null}
+        {locked ? <div className="rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_60fea0bb")}</div> : null}
 
         <Card className="border-0 bg-muted/15 shadow-none">
           <CardHeader className="pb-3">
             <div className="flex flex-col gap-1">
-              <CardTitle className="text-base">当前处理卷</CardTitle>
-              <div className="text-sm text-muted-foreground">先切到要处理的卷，主工作区会跟着切换当前卷节奏和章节。</div>
+              <CardTitle className="text-base">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_f2294d81")}</CardTitle>
+              <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_0d93d85a")}</div>
             </div>
           </CardHeader>
           <CardContent>
@@ -395,14 +397,14 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <Badge variant={isSelected ? "default" : "outline"}>第{volume.sortOrder}卷</Badge>
-                      {volumeBeatSheet ? <Badge variant="secondary">有节奏板</Badge> : <Badge variant="outline">未做节奏板</Badge>}
+                      <Badge variant={isSelected ? "default" : "outline"}>{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_560e043c")}</Badge>
+                      {volumeBeatSheet ? <Badge variant="secondary">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_39ecb71d")}</Badge> : <Badge variant="outline">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_fc79de31")}</Badge>}
                     </div>
                     <div className="mt-2 line-clamp-1 text-sm font-medium">{volume.title || `第${volume.sortOrder}卷`}</div>
                     <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {volume.mainPromise || volume.summary || "先补这卷的核心承诺。"}
+                      {volume.mainPromise || volume.summary || t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_35018c56")}
                     </div>
-                    <div className="mt-2 text-[11px] text-muted-foreground">{volume.chapters.length}章 · {doneCount}章已细化</div>
+                    <div className="mt-2 text-[11px] text-muted-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.chapterProgress")}</div>
                   </button>
                 );
               })}
@@ -421,7 +423,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                 variant="outline"
                 onClick={() => patchWorkspace(workspaceId, { showRebalancePanel: !showRebalancePanel })}
               >
-                {showRebalancePanel ? "收起建议" : "查看建议"}
+                {showRebalancePanel ? t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_5d08ebf5") : t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_73c8823d")}
               </Button>
             </div>
             {showRebalancePanel ? (
@@ -518,20 +520,20 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
               <CardHeader className="pb-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
-                    <CardTitle className="text-base">章节执行连接</CardTitle>
-                    <div className="text-sm text-muted-foreground">系统会把拆好的章节连接到执行队列。只有需要检查连接状态时再展开。</div>
+                    <CardTitle className="text-base">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_7297e792")}</CardTitle>
+                    <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_454bd656")}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant={hasMissingChapterLinks ? "outline" : "secondary"}>
                       {linkedChapterCount}/{Math.max(allPlannedChapters.length, 1)} 已连接
                     </Badge>
-                    <Badge variant="outline">执行区 {executionChapterCount} 章</Badge>
+                    <Badge variant="outline">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_37822ddb")}</Badge>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => patchWorkspace(workspaceId, { showSyncPanel: !showSyncPanel })}
                     >
-                      {showSyncPanel ? "收起诊断" : "查看连接"}
+                      {showSyncPanel ? t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_39256628") : t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_97b05c17")}
                     </Button>
                   </div>
                 </div>
@@ -555,7 +557,7 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                       <Button size="sm" variant="outline" onClick={() => onApplyBatch({ targetWordCount: 2500 })}>统一字数 2500</Button>
                       <AiButton size="sm" onClick={() => onApplyBatch({ generateTaskSheet: true })}>批量补任务单</AiButton>
                       <Button onClick={() => onApplySync(syncOptions)} disabled={isApplyingSync}>
-                        {isApplyingSync ? "修复中..." : "修复章节连接"}
+                        {isApplyingSync ? t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_70ae8ad6") : t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_0727d139")}
                       </Button>
                     </div>
 
@@ -564,13 +566,13 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                         variant="outline"
                         onClick={() => patchWorkspace(workspaceId, { showSyncPreview: !showSyncPreview })}
                       >
-                        {showSyncPreview ? "隐藏连接差异" : "查看连接差异"}
+                        {showSyncPreview ? t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_68a9544b") : t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_3387fad0")}
                       </Button>
                       <Button
                         variant="outline"
                         onClick={() => patchWorkspace(workspaceId, { showJsonPreview: !showJsonPreview })}
                       >
-                        {showJsonPreview ? "隐藏 JSON" : "查看 JSON"}
+                        {showJsonPreview ? t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_37bef097") : t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_20f216ee")}
                       </Button>
                     </div>
 
@@ -581,8 +583,8 @@ export default function StructuredOutlineWorkspace(props: StructuredTabViewProps
                             key={`${item.action}-${item.chapterOrder}-${item.nextTitle}`}
                             className="rounded-lg border border-border/70 bg-background/80 p-2.5"
                           >
-                            <div className="font-medium">第{item.chapterOrder}章：{item.nextTitle}</div>
-                            <div className="text-muted-foreground">字段：{item.changedFields.join("、") || "无"}</div>
+                            <div className="font-medium">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_d9dcae98")}</div>
+                            <div className="text-muted-foreground">{t("gen.pages.novels.components.StructuredOutlineWorkspace.gen_cb699a62")}</div>
                             <Badge
                               className="mt-2"
                               variant={

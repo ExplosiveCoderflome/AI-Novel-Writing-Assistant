@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BookAnalysisCharacter } from "@ai-novel/shared/types/bookAnalysisCharacter";
@@ -20,11 +22,11 @@ import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 
 const IMAGE_STATUS_TEXT: Record<string, string> = {
-  queued: "排队中",
-  running: "生成中",
-  succeeded: "生成成功",
-  failed: "生成失败",
-  cancelled: "已取消",
+  queued: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_e5ac1d20"),
+  running: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_1ae3a984"),
+  succeeded: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_b6c4a445"),
+  failed: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_7f7de8a2"),
+  cancelled: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_2111ccbb"),
 };
 
 interface BookAnalysisCharacterImagePanelProps {
@@ -92,7 +94,7 @@ export default function BookAnalysisCharacterImagePanel({
     onSuccess: async (response) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.baseCharacters.all });
       setPromoteOpen(false);
-      toast.success(response.data?.baseCharacter.name ? `已加入角色库：${response.data.baseCharacter.name}` : "已加入角色库。");
+      toast.success(response.data?.baseCharacter.name ? `已加入角色库：${response.data.baseCharacter.name}` : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_846f92e4"));
     },
   });
 
@@ -102,7 +104,7 @@ export default function BookAnalysisCharacterImagePanel({
       generate: async (overrides) => {
         const response = await generateBookAnalysisCharacterImage(analysisId, character.id, {
           count: 2,
-          stylePreset: "写实角色设定图",
+          stylePreset: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_13e2f7b7"),
           overrides,
         });
         if (response.data?.id) {
@@ -120,9 +122,9 @@ export default function BookAnalysisCharacterImagePanel({
       <ImageGenerationConfirmDialog {...flow.dialogProps} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">形象图</span>
-          <Badge variant="outline">{assets.length} 张</Badge>
-          {primaryAsset ? <Badge variant="secondary">已设主图</Badge> : null}
+          <span className="font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_6da70687")}</span>
+          <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_f10a01b8")}</Badge>
+          {primaryAsset ? <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_71c474b0")}</Badge> : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={startGenerate} disabled={disabled || Boolean(activeTaskId)}>
@@ -141,9 +143,9 @@ export default function BookAnalysisCharacterImagePanel({
         </div>
       ) : null}
 
-      {assetsQuery.isLoading ? <div className="text-xs text-muted-foreground">正在读取形象图。</div> : null}
+      {assetsQuery.isLoading ? <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_c5cd0e81")}</div> : null}
       {!assetsQuery.isLoading && assets.length === 0 ? (
-        <div className="text-xs text-muted-foreground">可生成一张角色形象图，再决定是否加入角色库。</div>
+        <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_6936f5f5")}</div>
       ) : null}
       {assets.length > 0 ? (
         <div className="grid gap-2 sm:grid-cols-2">
@@ -156,7 +158,7 @@ export default function BookAnalysisCharacterImagePanel({
                 loading="lazy"
               />
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">{asset.isPrimary ? "主图" : "候选图"}</span>
+                <span className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_5237e99c")}</span>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
@@ -170,7 +172,7 @@ export default function BookAnalysisCharacterImagePanel({
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      if (window.confirm("确认删除这张形象图？")) {
+                      if (window.confirm(t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_99345c1b"))) {
                         deleteMutation.mutate(asset);
                       }
                     }}
@@ -195,7 +197,7 @@ export default function BookAnalysisCharacterImagePanel({
                 取消
               </Button>
               <Button type="button" onClick={() => promoteMutation.mutate()} disabled={promoteMutation.isPending}>
-                {promoteMutation.isPending ? "加入中..." : "确认加入"}
+                {promoteMutation.isPending ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_49ac5fc6") : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_a7b4e2cf")}
               </Button>
             </>
           )}
@@ -209,11 +211,11 @@ export default function BookAnalysisCharacterImagePanel({
               checked={includePrimaryImage}
               onChange={(event) => setIncludePrimaryImage(event.target.checked)}
             />
-            <span>同时把主图加入角色库</span>
+            <span>{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_6014e7fe")}</span>
           </label>
           {promoteMutation.error ? (
             <div className="text-sm text-destructive">
-              {promoteMutation.error instanceof Error ? promoteMutation.error.message : "加入角色库失败。"}
+              {promoteMutation.error instanceof Error ? promoteMutation.error.message : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterImagePanel.gen_ebb6f767")}
             </div>
           ) : null}
         </AppDialogContent>

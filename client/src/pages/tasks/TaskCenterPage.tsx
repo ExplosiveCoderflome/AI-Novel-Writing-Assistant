@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
@@ -196,8 +198,8 @@ export default function TaskCenterPage() {
       }
       toast.success(
         variables.llmOverride
-          ? `已切换到 ${variables.llmOverride.provider ?? "当前提供商"} / ${variables.llmOverride.model ?? "当前模型"} 并重试任务`
-          : "任务已重新入队",
+          ? `已切换到 ${variables.llmOverride.provider ?? t("gen.pages.tasks.TaskCenterPage.gen_2b63b0a1")} / ${variables.llmOverride.model ?? t("gen.pages.tasks.TaskCenterPage.gen_e18ae875")} 并重试任务`
+          : t("gen.pages.tasks.TaskCenterPage.taskRequeued"),
       );
     },
   });
@@ -206,7 +208,7 @@ export default function TaskCenterPage() {
     mutationFn: (payload: { kind: TaskKind; id: string }) => cancelTask(payload.kind, payload.id),
     onSuccess: async () => {
       await invalidateTaskQueries();
-      toast.success("任务取消请求已提交");
+      toast.success(t("gen.pages.tasks.TaskCenterPage.cancelRequestSubmitted"));
     },
   });
 
@@ -256,7 +258,7 @@ export default function TaskCenterPage() {
         return next;
       });
       await invalidateTaskQueries();
-      toast.success("任务已归档并从任务中心隐藏");
+      toast.success(t("gen.pages.tasks.TaskCenterPage.taskArchivedAndHiddenFromTaskCenter"));
     },
   });
 
@@ -392,7 +394,7 @@ export default function TaskCenterPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">任务详情</CardTitle>
+            <CardTitle className="text-base">{t("gen.pages.tasks.TaskCenterPage.taskIdDetails")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             {selectedTask ? (
@@ -406,7 +408,7 @@ export default function TaskCenterPage() {
                 {selectedTask.noticeCode || selectedTask.noticeSummary ? (
                   <div className="rounded-md border border-amber-300/50 bg-amber-50/70 p-2 text-amber-900">
                     <div className="font-medium">
-                      {selectedTaskChapterTitleWarning ? "当前提醒" : (selectedTask.noticeCode ?? "结果提醒")}
+                      {selectedTaskChapterTitleWarning ? t("gen.pages.tasks.TaskCenterPage.gen_d7df9e41") : (selectedTask.noticeCode ?? t("gen.pages.tasks.TaskCenterPage.gen_5aad7da1"))}
                     </div>
                     {selectedTask.noticeSummary ? (
                       <div className="mt-1 text-sm">{selectedTask.noticeSummary}</div>
@@ -427,7 +429,7 @@ export default function TaskCenterPage() {
                           }}
                           disabled={chapterTitleRepairMutation.isPending}
                         >
-                          {selectedTaskChapterTitleWarning?.label ?? selectedTaskNotice?.action?.label ?? "打开当前卷拆章"}
+                          {selectedTaskChapterTitleWarning?.label ?? selectedTaskNotice?.action?.label ?? t("gen.pages.tasks.TaskCenterPage.gen_db866099")}
                         </Button>
                       </div>
                     ) : null}
@@ -436,7 +438,7 @@ export default function TaskCenterPage() {
                 {selectedTask.failureCode || selectedTask.failureSummary ? (
                   <div className="rounded-md border border-amber-300/50 bg-amber-50/70 p-2 text-amber-900">
                     <div className="font-medium">
-                      {selectedTaskHasChapterTitleFailure ? "当前提醒" : (selectedTask.failureCode ?? "任务异常")}
+                      {selectedTaskHasChapterTitleFailure ? t("gen.pages.tasks.TaskCenterPage.gen_d7df9e41") : (selectedTask.failureCode ?? t("gen.pages.tasks.TaskCenterPage.taskException"))}
                     </div>
                     {selectedTask.failureSummary ? (
                       <div className="mt-1 text-sm">{selectedTask.failureSummary}</div>
@@ -457,7 +459,7 @@ export default function TaskCenterPage() {
                           }}
                           disabled={chapterTitleRepairMutation.isPending}
                         >
-                          {selectedTaskChapterTitleWarning?.label ?? "快速修复章节标题"}
+                          {selectedTaskChapterTitleWarning?.label ?? t("gen.pages.tasks.TaskCenterPage.gen_62c615c2")}
                         </Button>
                       </div>
                     ) : null}
@@ -487,7 +489,7 @@ export default function TaskCenterPage() {
                       size="sm"
                       onClick={() => navigate(getCandidateSelectionLink(selectedTask.id))}
                     >
-                      {selectedTask.resumeAction ?? "继续确认书级方向"}
+                      {selectedTask.resumeAction ?? t("gen.pages.tasks.TaskCenterPage.gen_4763a24b")}
                     </Button>
                   ) : null}
                   {!isAutoDirectorTask && canResumeFront10AutoExecution ? (
@@ -509,7 +511,7 @@ export default function TaskCenterPage() {
                       }}
                       disabled={continueWorkflowMutation.isPending || retryMutation.isPending || runtimeHardBlocked}
                     >
-                      {selectedTask.resumeAction ?? `继续自动执行${selectedTask.executionScopeLabel ?? "当前章节范围"}`}
+                      {selectedTask.resumeAction ?? `继续自动执行${selectedTask.executionScopeLabel ?? t("gen.pages.tasks.TaskCenterPage.gen_d7432bb5")}`}
                     </Button>
                   ) : null}
                   {!isAutoDirectorTask
@@ -526,7 +528,7 @@ export default function TaskCenterPage() {
                         })}
                       disabled={continueWorkflowMutation.isPending || runtimeHardBlocked}
                     >
-                      {selectedTask.resumeAction ?? (isActiveAutoDirectorTask ? "查看进度" : "继续")}
+                      {selectedTask.resumeAction ?? (isActiveAutoDirectorTask ? t("gen.pages.tasks.TaskCenterPage.gen_9600c918") : t("gen.pages.tasks.TaskCenterPage.gen_27ca568b"))}
                     </Button>
                   ) : null}
                   {(selectedTask.status === "failed" || selectedTask.status === "cancelled") && !isAutoDirectorTask ? (
@@ -543,7 +545,7 @@ export default function TaskCenterPage() {
                         }
                         disabled={retryMutation.isPending}
                       >
-                        {isAutoDirectorTask ? "按任务原模型重试" : "重试"}
+                        {isAutoDirectorTask ? t("gen.pages.tasks.TaskCenterPage.gen_51405c41") : t("gen.pages.tasks.TaskCenterPage.gen_132c5cdc")}
                       </Button>
                     </>
                   ) : null}
@@ -582,13 +584,13 @@ export default function TaskCenterPage() {
                     </Button>
                   ) : null}
                   <Button asChild size="sm" variant="outline">
-                    <Link to={selectedTask!.sourceRoute}>打开来源页面</Link>
+                    <Link to={selectedTask!.sourceRoute}>{t("gen.pages.tasks.TaskCenterPage.gen_492476d9")}</Link>
                   </Button>
                 </div>
                 <div className="space-y-2">
-                  <div className="font-medium">步骤状态</div>
+                  <div className="font-medium">{t("gen.pages.tasks.TaskCenterPage.gen_d96a7b07")}</div>
                   {selectedTaskSteps.length === 0 ? (
-                    <div className="rounded-md border border-dashed p-2 text-muted-foreground">暂无步骤状态。</div>
+                    <div className="rounded-md border border-dashed p-2 text-muted-foreground">{t("gen.pages.tasks.TaskCenterPage.gen_fd13e45f")}</div>
                   ) : selectedTaskSteps.map((step) => (
                     <div key={step.key} className="flex items-center justify-between rounded-md border p-2">
                       <div>{step.label}</div>
@@ -601,7 +603,7 @@ export default function TaskCenterPage() {
                 ) : null}
               </>
             ) : (
-              <div className="text-muted-foreground">请选择任务查看详情。</div>
+              <div className="text-muted-foreground">{t("gen.pages.tasks.TaskCenterPage.gen_2823aeb0")}</div>
             )}
           </CardContent>
         </Card>

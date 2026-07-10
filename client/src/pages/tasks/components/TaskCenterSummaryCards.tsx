@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface TaskCenterSummaryCardsProps {
@@ -17,7 +19,7 @@ export default function TaskCenterSummaryCards({
     <div className="task-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">运行中</CardTitle>
+          <CardTitle className="text-base">{t("gen.pages.tasks.components.TaskCenterSummaryCards.gen_d679aea3")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-semibold">{runningCount}</div>
@@ -25,7 +27,7 @@ export default function TaskCenterSummaryCards({
       </Card>
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">排队中</CardTitle>
+          <CardTitle className="text-base">{t("gen.pages.tasks.components.TaskCenterSummaryCards.gen_e5ac1d20")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-semibold">{queuedCount}</div>
@@ -33,7 +35,7 @@ export default function TaskCenterSummaryCards({
       </Card>
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">失败</CardTitle>
+          <CardTitle className="text-base">{t("gen.pages.tasks.components.TaskCenterSummaryCards.gen_acd5cb84")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-semibold">{failedCount}</div>
@@ -41,7 +43,7 @@ export default function TaskCenterSummaryCards({
       </Card>
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">24h 完成</CardTitle>
+          <CardTitle className="text-base">{t("gen.pages.tasks.components.TaskCenterSummaryCards.completedIn24Hours")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-semibold">{completed24hCount}</div>

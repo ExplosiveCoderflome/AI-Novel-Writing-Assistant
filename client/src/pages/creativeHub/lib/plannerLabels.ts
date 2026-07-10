@@ -1,34 +1,35 @@
+import i18next from "i18next";
 const INTENT_LABELS: Record<string, string> = {
-  social_opening: "轻度开场",
-  list_novels: "列出小说",
-  list_worlds: "列出世界观",
-  query_task_status: "查询任务状态",
-  create_novel: "创建小说",
-  select_novel_workspace: "切换小说工作区",
-  bind_world_to_novel: "绑定世界观到小说",
-  unbind_world_from_novel: "解除小说世界观绑定",
-  produce_novel: "整本生产",
-  query_novel_production_status: "查询整本生产状态",
-  query_novel_title: "查询小说标题",
-  query_chapter_content: "查询章节内容",
-  query_progress: "查询创作进度",
-  inspect_failure_reason: "诊断失败原因",
-  write_chapter: "写作章节",
-  rewrite_chapter: "重写章节",
-  save_chapter_draft: "保存章节草稿",
-  start_pipeline: "启动流水线",
-  inspect_characters: "查看角色规划",
-  inspect_timeline: "查看时间线",
-  inspect_world: "查看世界观",
-  search_knowledge: "检索知识库",
-  ideate_novel_setup: "生成设定备选",
-  general_chat: "一般对话",
-  unknown: "未识别意图",
+  social_opening: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_464ae451"),
+  list_novels: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_40554844"),
+  list_worlds: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_342ac222"),
+  query_task_status: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_4a57d2e4"),
+  create_novel: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_14196ad0"),
+  select_novel_workspace: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_3f279677"),
+  bind_world_to_novel: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_d6db1d74"),
+  unbind_world_from_novel: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_940bd13c"),
+  produce_novel: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_080bb6bb"),
+  query_novel_production_status: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_04f704fb"),
+  query_novel_title: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_25b5b85f"),
+  query_chapter_content: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_734269f8"),
+  query_progress: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_870e26e3"),
+  inspect_failure_reason: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_9ec6279a"),
+  write_chapter: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_87039156"),
+  rewrite_chapter: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_86910639"),
+  save_chapter_draft: i18next.t("gen.pages.creativeHub.lib.plannerLabels.saveChapterDraft"),
+  start_pipeline: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_eaf7b261"),
+  inspect_characters: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_7d62c967"),
+  inspect_timeline: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_c0d75dab"),
+  inspect_world: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_b2ec72e0"),
+  search_knowledge: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_3498909f"),
+  ideate_novel_setup: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_e9a3af2e"),
+  general_chat: i18next.t("gen.pages.creativeHub.lib.plannerLabels.generalDialogue"),
+  unknown: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_cff22502"),
 };
 
 const PLANNER_SOURCE_LABELS: Record<string, string> = {
-  llm: "大模型识别",
-  unknown: "未知来源",
+  llm: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_1f419f23"),
+  unknown: i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_36cead0e"),
 };
 
 function formatBilingualLabel(label: string, rawValue: string) {
@@ -37,12 +38,12 @@ function formatBilingualLabel(label: string, rawValue: string) {
 
 export function getIntentDisplayLabel(intent: unknown): string {
   const rawValue = typeof intent === "string" && intent.trim() ? intent.trim() : "unknown";
-  const label = INTENT_LABELS[rawValue] ?? "未映射意图";
+  const label = INTENT_LABELS[rawValue] ?? i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_d8d3e7ee");
   return formatBilingualLabel(label, rawValue);
 }
 
 export function getPlannerSourceDisplayLabel(source: unknown): string {
   const rawValue = typeof source === "string" && source.trim() ? source.trim() : "unknown";
-  const label = PLANNER_SOURCE_LABELS[rawValue] ?? "未映射来源";
+  const label = PLANNER_SOURCE_LABELS[rawValue] ?? i18next.t("gen.pages.creativeHub.lib.plannerLabels.gen_0af14613");
   return formatBilingualLabel(label, rawValue);
 }

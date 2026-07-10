@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import type { FailureDiagnostic } from "@ai-novel/shared/types/agent";
 import type {
@@ -41,21 +43,21 @@ interface CreativeHubSidebarProps {
 }
 
 function bindingValue(value: string | null | undefined): string {
-  return value?.trim() || "未绑定";
+  return value?.trim() || t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_906ad18b");
 }
 
 function turnStatusLabel(status: CreativeHubTurnSummary["status"]): string {
   switch (status) {
     case "succeeded":
-      return "已完成";
+      return t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_fad5222c");
     case "interrupted":
-      return "待确认";
+      return t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_2a2772fa");
     case "failed":
-      return "失败";
+      return t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_acd5cb84");
     case "cancelled":
-      return "已取消";
+      return t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_2111ccbb");
     case "running":
-      return "进行中";
+      return t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_fb852fc6");
     default:
       return status;
   }
@@ -64,15 +66,15 @@ function turnStatusLabel(status: CreativeHubTurnSummary["status"]): string {
 function threadStatusLabel(status: CreativeHubThread["status"] | undefined): string {
   switch (status) {
     case "busy":
-      return "执行中";
+      return t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_46e38679");
     case "interrupted":
-      return "待处理";
+      return t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_047109de");
     case "error":
-      return "异常";
+      return t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_c195df63");
     case "idle":
-      return "空闲";
+      return t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_87bb5bbc");
     default:
-      return "未初始化";
+      return t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_aeade8e9");
   }
 }
 
@@ -115,7 +117,7 @@ function summarizeFocus(
   if (productionStatus?.summary?.trim()) {
     return productionStatus.summary.trim();
   }
-  return "绑定作品或直接发起一个创作目标后，中枢会围绕当前线程持续推进。";
+  return t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_b51b450d");
 }
 
 function buildBlockerCardData(input: {
@@ -126,7 +128,7 @@ function buildBlockerCardData(input: {
 }) {
   if (input.interrupt) {
     return {
-      title: "当前阻塞",
+      title: t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_b144df0f"),
       summary: input.interrupt.summary,
       details: [
         `等待确认: ${input.interrupt.title}`,
@@ -134,61 +136,61 @@ function buildBlockerCardData(input: {
         input.interrupt.targetId ? `目标对象: ${input.interrupt.targetId}` : "",
       ].filter(Boolean),
       tone: "border-amber-200 bg-amber-50 text-amber-900",
-      actionLabel: "查看待确认项",
-      actionPrompt: "总结当前待确认的创作决策，并说明推荐处理方式",
+      actionLabel: t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_d26a068c"),
+      actionPrompt: t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_5fa9adbb"),
     };
   }
 
   if (input.diagnostics?.failureSummary) {
     return {
-      title: "当前风险",
+      title: t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_72022eb6"),
       summary: input.diagnostics.failureSummary,
       details: [
         input.diagnostics.failureCode ? `错误码: ${input.diagnostics.failureCode}` : "",
         input.diagnostics.recoveryHint ? `恢复建议: ${input.diagnostics.recoveryHint}` : "",
       ].filter(Boolean),
       tone: "border-rose-200 bg-rose-50 text-rose-900",
-      actionLabel: "生成恢复方案",
-      actionPrompt: input.diagnostics.recoveryHint || "分析当前失败原因并给出恢复步骤",
+      actionLabel: t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_65921d4a"),
+      actionPrompt: input.diagnostics.recoveryHint || t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_4efc152f"),
     };
   }
 
   if (input.productionStatus?.failureSummary) {
     return {
-      title: "当前阻塞",
+      title: t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_b144df0f"),
       summary: input.productionStatus.failureSummary,
       details: [
         input.productionStatus.recoveryHint ? `恢复建议: ${input.productionStatus.recoveryHint}` : "",
         `当前阶段: ${input.productionStatus.currentStage}`,
       ].filter(Boolean),
       tone: "border-orange-200 bg-orange-50 text-orange-900",
-      actionLabel: "处理当前阻塞",
-      actionPrompt: input.productionStatus.recoveryHint || "分析当前生产阻塞并继续推进",
+      actionLabel: t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_24068591"),
+      actionPrompt: input.productionStatus.recoveryHint || t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_6fa50d9b"),
     };
   }
 
   if (input.latestTurnSummary?.status === "interrupted") {
     return {
-      title: "当前关注点",
+      title: t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_7c3be765"),
       summary: input.latestTurnSummary.nextSuggestion,
       details: [
         `阶段: ${input.latestTurnSummary.currentStage}`,
         `状态: ${turnStatusLabel(input.latestTurnSummary.status)}`,
       ],
       tone: "border-sky-200 bg-sky-50 text-sky-900",
-      actionLabel: "按建议继续",
+      actionLabel: t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_a4b6e9ea"),
       actionPrompt: input.latestTurnSummary.nextSuggestion,
     };
   }
 
   return {
-    title: "当前状态",
-    summary: "当前没有需要立即处理的阻塞项，可以继续推进创作。",
+    title: t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_6bf1f392"),
+    summary: t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_1d85a303"),
     details: input.latestTurnSummary?.nextSuggestion
       ? [`建议下一步: ${input.latestTurnSummary.nextSuggestion}`]
       : [],
     tone: "border-slate-200 bg-slate-50 text-slate-800",
-    actionLabel: input.latestTurnSummary?.nextSuggestion ? "按建议继续" : undefined,
+    actionLabel: input.latestTurnSummary?.nextSuggestion ? t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_a4b6e9ea") : undefined,
     actionPrompt: input.latestTurnSummary?.nextSuggestion,
   };
 }
@@ -235,27 +237,27 @@ export default function CreativeHubSidebar({
   const activeStage = latestTurnSummary?.currentStage
     ?? productionStatus?.currentStage
     ?? (novelSetup?.stage === "ready_for_production"
-      ? "初始化完成"
+      ? t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_741e41f5")
       : novelSetup?.stage === "ready_for_planning"
-        ? "初始化待规划"
+        ? t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_7a5a716d")
         : novelSetup?.stage === "setup_in_progress"
-          ? "初始化中"
-          : "未开始");
+          ? t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_06f8bd5d")
+          : t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_dd4e55c3"));
   const latestRunId = latestTurnSummary?.runId ?? thread?.latestRunId ?? null;
   const blockerActionPrompt = blocker.actionPrompt ?? "";
 
   return (
     <Card className="flex h-full min-h-0 flex-col">
       <CardHeader className="pb-4">
-        <CardTitle className="text-base">创作工作区</CardTitle>
+        <CardTitle className="text-base">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_544f95db")}</CardTitle>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 text-sm">
         <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-slate-100 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">当前焦点</div>
+              <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_49f9d850")}</div>
               <div className="mt-2 text-base font-semibold text-slate-900">
-                {thread?.title?.trim() || "未命名线程"}
+                {thread?.title?.trim() || t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_3f9cf1c7")}
               </div>
               <div className="mt-2 text-sm leading-6 text-slate-700">
                 {summarizeFocus(latestTurnSummary, productionStatus, novelSetup)}
@@ -274,16 +276,16 @@ export default function CreativeHubSidebar({
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-          <div className="mb-2 text-xs font-medium text-slate-500">资源绑定</div>
+          <div className="mb-2 text-xs font-medium text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_1b5c241d")}</div>
           <div className="space-y-3 text-xs text-slate-700">
             <div className="space-y-1">
-              <div className="text-[11px] font-medium text-slate-500">当前小说</div>
+              <div className="text-[11px] font-medium text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_ecb24d41")}</div>
               <SelectControl
                 className="w-full rounded-lg border border-slate-300 bg-white p-2 text-xs text-slate-700"
                 value={bindings.novelId ?? ""}
                 onChange={(event) => onNovelChange(event.target.value)}
               >
-                <option value="">未绑定小说</option>
+                <option value="">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_24353ccc")}</option>
                 {novels.map((novel) => (
                   <option key={novel.id} value={novel.id}>
                     {novel.title}
@@ -296,14 +298,14 @@ export default function CreativeHubSidebar({
                     className="w-full rounded-md border border-slate-300 bg-slate-50 px-2 py-2 text-xs text-slate-700 outline-none focus:border-slate-400 focus:bg-white"
                     value={novelTitleDraft}
                     onChange={(event) => setNovelTitleDraft(event.target.value)}
-                    placeholder="输入新小说标题"
+                    placeholder={t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_06199b0d")}
                   />
                   <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => onQuickAction?.("列出当前可用的小说工作区")}
+                      onClick={() => onQuickAction?.(t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_21ac4620"))}
                     >
                       查看小说
                     </Button>
@@ -326,14 +328,14 @@ export default function CreativeHubSidebar({
               ) : null}
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
-              <div>章节: {bindingValue(bindings.chapterId)}</div>
-              <div>世界观: {bindingValue(bindings.worldId)}</div>
-              <div>任务: {bindingValue(bindings.taskId)}</div>
-              <div>拆书分析: {bindingValue(bindings.bookAnalysisId)}</div>
-              <div>写作公式: {bindingValue(bindings.formulaId)}</div>
-              <div>基础角色: {bindingValue(bindings.baseCharacterId)}</div>
+              <div>{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_ca327234")}</div>
+              <div>{t("gen.pages.creativeHub.components.CreativeHubSidebar.worldViewBindingValue")}</div>
+              <div>{t("gen.pages.creativeHub.components.CreativeHubSidebar.taskBindingValue")}</div>
+              <div>{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_71f59f81")}</div>
+              <div>{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_263b7ef3")}</div>
+              <div>{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_10929f5d")}</div>
             </div>
-            <div>知识文档: {bindings.knowledgeDocumentIds?.length ?? 0} 份</div>
+            <div>{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_ce7c6588")}</div>
           </div>
         </div>
 
@@ -353,21 +355,21 @@ export default function CreativeHubSidebar({
 
         <div className="rounded-2xl border border-slate-200 bg-white p-3">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="text-xs font-medium text-slate-500">当前推进</div>
+            <div className="text-xs font-medium text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_465a1081")}</div>
             <Badge variant="outline">{activeStage}</Badge>
           </div>
           {latestTurnSummary ? (
             <div className="space-y-3 text-sm text-slate-700">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">已执行动作</div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_f0c1cdce")}</div>
                 <div className="mt-2 leading-6 text-slate-800">{latestTurnSummary.actionSummary}</div>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">影响与变化</div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_ef5d1a7d")}</div>
                 <div className="mt-2 leading-6 text-slate-800">{latestTurnSummary.impactSummary}</div>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">建议下一步</div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_fdf768b1")}</div>
                 <div className="mt-2 leading-6 text-slate-800">{latestTurnSummary.nextSuggestion}</div>
                 {latestTurnSummary.nextSuggestion.trim() ? (
                   <div className="mt-3">
@@ -393,7 +395,7 @@ export default function CreativeHubSidebar({
         <div className={cn("rounded-2xl border p-3", blocker.tone)}>
           <div className="mb-2 flex items-center justify-between gap-2">
             <div className="text-xs font-medium">{blocker.title}</div>
-            {interrupt ? <Badge variant="secondary">需要确认</Badge> : null}
+            {interrupt ? <Badge variant="secondary">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_ec4f36de")}</Badge> : null}
           </div>
           <div className="text-sm leading-6">{blocker.summary}</div>
           {blocker.details.length > 0 ? (
@@ -419,30 +421,30 @@ export default function CreativeHubSidebar({
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-3">
-          <div className="mb-3 text-xs font-medium text-slate-500">创作阶段</div>
+          <div className="mb-3 text-xs font-medium text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_9ae9c15f")}</div>
           {productionStatus ? (
             <div className="space-y-3">
               <div className="grid gap-2 sm:grid-cols-2">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">当前阶段</div>
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_ea328dc7")}</div>
                   <div className="mt-2 text-sm font-medium text-slate-900">{productionStatus.currentStage}</div>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">章节进度</div>
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_9c8e364e")}</div>
                   <div className="mt-2 text-sm font-medium text-slate-900">
                     {productionStatus.chapterCount}/{productionStatus.targetChapterCount}
                   </div>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">资产完成</div>
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_ef46403c")}</div>
                   <div className="mt-2 text-sm font-medium text-slate-900">
                     {completedAssets}/{productionStatus.assetStages.length}
                   </div>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">生产流水线</div>
+                  <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_fbe15c40")}</div>
                   <div className="mt-2 text-sm font-medium text-slate-900">
-                    {productionStatus.pipelineStatus ?? "未启动"}
+                    {productionStatus.pipelineStatus ?? t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_f4baf7c6")}
                   </div>
                 </div>
               </div>
@@ -476,37 +478,37 @@ export default function CreativeHubSidebar({
               <div className="flex items-center justify-between gap-3 text-xs text-slate-700">
                 <span>
                   当前默认
-                  {defaultRuntimeDetailsCollapsed ? "折叠" : "展开"}
+                  {defaultRuntimeDetailsCollapsed ? t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_e082621c") : t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_e2edde5a")}
                   消息内的运行细节
                 </span>
                 <Button type="button" size="sm" variant="outline" onClick={onToggleRuntimeDetailsDefault}>
-                  切换为{defaultRuntimeDetailsCollapsed ? "默认展开" : "默认折叠"}
+                  切换为{defaultRuntimeDetailsCollapsed ? t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_205cb6cc") : t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_2678ac32")}
                 </Button>
               </div>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
-              <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">线程状态</div>
-              <DebugRow label="线程 ID" value={thread?.id ?? "-"} />
-              <DebugRow label="线程状态" value={threadStatusLabel(thread?.status)} />
-              <DebugRow label="最新 Run" value={latestRunId ?? "-"} />
-              <DebugRow label="当前 Checkpoint" value={currentCheckpointId ?? "-"} />
+              <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_2db7d11c")}</div>
+              <DebugRow label={t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_208f3f9e")} value={thread?.id ?? "-"} />
+              <DebugRow label={t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_2db7d11c")} value={threadStatusLabel(thread?.status)} />
+              <DebugRow label={t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_a3b12d4f")} value={latestRunId ?? "-"} />
+              <DebugRow label={t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_cfd04e1e")} value={currentCheckpointId ?? "-"} />
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
-              <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">模型路由</div>
+              <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_0361f422")}</div>
               <DebugRow label="Provider" value={modelSummary.provider} />
               <DebugRow label="Model" value={modelSummary.model} />
               <DebugRow label="Temperature" value={String(modelSummary.temperature)} />
-              <DebugRow label="Max tokens" value={modelSummary.maxTokens != null ? String(modelSummary.maxTokens) : "默认"} />
+              <DebugRow label="Max tokens" value={modelSummary.maxTokens != null ? String(modelSummary.maxTokens) : t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_18c63459")} />
             </div>
 
             {latestTurnSummary ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
-                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">最近回合</div>
-                <DebugRow label="回合状态" value={turnStatusLabel(latestTurnSummary.status)} />
-                <DebugRow label="回合阶段" value={latestTurnSummary.currentStage} />
-                <DebugRow label="摘要 Checkpoint" value={latestTurnSummary.checkpointId ?? "-"} />
+                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_01110358")}</div>
+                <DebugRow label={t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_6a71551f")} value={turnStatusLabel(latestTurnSummary.status)} />
+                <DebugRow label={t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_73e797e6")} value={latestTurnSummary.currentStage} />
+                <DebugRow label={t("gen.pages.creativeHub.components.CreativeHubSidebar.gen_52952d2c")} value={latestTurnSummary.checkpointId ?? "-"} />
               </div>
             ) : null}
           </div>

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -387,18 +389,18 @@ export default function CreativeHubPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary">创作中枢</Badge>
+        <Badge variant="secondary">{t("gen.pages.creativeHub.CreativeHubPage.gen_d50f61ff")}</Badge>
         {currentThread ? <Badge variant="outline">{currentThread.title}</Badge> : null}
-        {currentBindings.novelId ? <Badge variant="outline">小说 {currentBindings.novelId}</Badge> : null}
-        {currentBindings.worldId ? <Badge variant="outline">世界观 {currentBindings.worldId}</Badge> : null}
-        {currentBindings.taskId ? <Badge variant="outline">任务 {currentBindings.taskId}</Badge> : null}
-        {currentBindings.bookAnalysisId ? <Badge variant="outline">拆书 {currentBindings.bookAnalysisId}</Badge> : null}
-        {currentBindings.formulaId ? <Badge variant="outline">公式 {currentBindings.formulaId}</Badge> : null}
-        {currentBindings.baseCharacterId ? <Badge variant="outline">角色 {currentBindings.baseCharacterId}</Badge> : null}
-        {currentBindings.styleProfileId ? <Badge variant="outline">鍐欐硶 {currentBindings.styleProfileId}</Badge> : null}
+        {currentBindings.novelId ? <Badge variant="outline">{t("gen.pages.creativeHub.CreativeHubPage.gen_ca56b908")}</Badge> : null}
+        {currentBindings.worldId ? <Badge variant="outline">{t("gen.pages.creativeHub.CreativeHubPage.worldViewCurrentBinding")}</Badge> : null}
+        {currentBindings.taskId ? <Badge variant="outline">{t("gen.pages.creativeHub.CreativeHubPage.taskCurrentBindingsId")}</Badge> : null}
+        {currentBindings.bookAnalysisId ? <Badge variant="outline">{t("gen.pages.creativeHub.CreativeHubPage.gen_cfe4d684")}</Badge> : null}
+        {currentBindings.formulaId ? <Badge variant="outline">{t("gen.pages.creativeHub.CreativeHubPage.gen_1f28f2a6")}</Badge> : null}
+        {currentBindings.baseCharacterId ? <Badge variant="outline">{t("gen.pages.creativeHub.CreativeHubPage.gen_6c277b20")}</Badge> : null}
+        {currentBindings.styleProfileId ? <Badge variant="outline">{t("gen.pages.creativeHub.CreativeHubPage.gen_3de36f67")}</Badge> : null}
         {latestTurnSummary?.currentStage ? <Badge variant="outline">{latestTurnSummary.currentStage}</Badge> : null}
         {currentBindings.knowledgeDocumentIds?.length ? (
-          <Badge variant="outline">知识文档 {currentBindings.knowledgeDocumentIds.length} 份</Badge>
+          <Badge variant="outline">{t("gen.pages.creativeHub.CreativeHubPage.gen_b2d37d02")}</Badge>
         ) : null}
         {currentCheckpointId ? (
           <Badge variant="outline">Checkpoint {currentCheckpointId.slice(0, 8)}</Badge>
@@ -408,8 +410,8 @@ export default function CreativeHubPage() {
       <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
         <div>
-          <div className="font-medium">待完善</div>
-          <div className="mt-0.5 leading-6">当前模块还在开发中，尚未完善；可先用于创作问题诊断、方案讨论和轻量推进。</div>
+          <div className="font-medium">{t("gen.pages.creativeHub.CreativeHubPage.gen_197be963")}</div>
+          <div className="mt-0.5 leading-6">{t("gen.pages.creativeHub.CreativeHubPage.gen_30ad1726")}</div>
         </div>
       </div>
 

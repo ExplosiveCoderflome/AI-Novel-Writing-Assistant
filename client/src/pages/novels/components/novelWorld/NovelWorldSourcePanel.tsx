@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
 import { BookOpen, Download, Sparkles } from "lucide-react";
 import type {
@@ -71,32 +73,32 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
       <div id="novel-world-source" className="rounded-lg border border-border/70 bg-muted/20 p-4">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <div className="text-sm font-medium text-foreground">选择本书世界来源</div>
+            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_756d536c")}</div>
             <div className="mt-1 text-sm leading-6 text-muted-foreground">
               先决定这本小说的世界从哪里来，再展开对应操作。每条路径都会生成本书自己的世界副本。
             </div>
           </div>
-          <Badge variant="outline">本书副本</Badge>
+          <Badge variant="outline">{t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_1dce4d42")}</Badge>
         </div>
         <div className="mt-3 grid gap-3 lg:grid-cols-3">
           <WorldSetupChoice
             icon={Sparkles}
-            title="根据本书生成"
-            description="适合还没有明确世界设定时，让系统根据标题、简介、卖点和类型生成本书世界。"
+            title={t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_b7ab0cfd")}
+            description={t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_e270c2d5")}
             selected={worldSetupMode === "generate"}
             onSelect={() => setWorldSetupMode("generate")}
           />
           <WorldSetupChoice
             icon={Download}
-            title="从样本库导入"
-            description="适合已有可复用世界样本时，复制一份作为本书世界，再决定是否手动同步。"
+            title={t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.importFromSampleLibrary")}
+            description={t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_6b92888c")}
             selected={worldSetupMode === "import"}
             onSelect={() => setWorldSetupMode("import")}
           />
           <WorldSetupChoice
             icon={BookOpen}
-            title="自定义空白手册"
-            description="适合你有明确想法时，先创建本书世界骨架，再逐步补齐规则、势力和地点。"
+            title={t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_f7f1f234")}
+            description={t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_cbf390be")}
             selected={worldSetupMode === "manual"}
             onSelect={() => setWorldSetupMode("manual")}
           />
@@ -105,7 +107,7 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
 
       {worldSetupMode === "import" ? (
         <div className="rounded-lg border border-border/70 bg-background p-4">
-          <div className="text-sm font-medium text-foreground">从样本库导入</div>
+          <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.importFromSampleLibrary")}</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">
             导入会复制外部世界手册。本书生成时使用这份副本，外部世界库不会被自动改动。
           </div>
@@ -115,7 +117,7 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
               value={selectedImportWorldId}
               onChange={(event) => setSelectedImportWorldId(event.target.value)}
             >
-              <option value="">选择一个世界样本</option>
+              <option value="">{t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_7e03b9ad")}</option>
               {props.worldOptions.map((world) => (
                 <option key={world.id} value={world.id}>{world.name}</option>
               ))}
@@ -130,7 +132,7 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
               disabled={!selectedImportWorldId || props.isImporting}
             >
               <Download className="size-4" />
-              {props.isImporting ? "导入中..." : "导入为本书世界"}
+              {props.isImporting ? t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_763476f8") : t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_af9f3ef4")}
             </Button>
           </div>
           <label className="mt-3 flex items-start gap-3 text-sm text-muted-foreground">
@@ -140,14 +142,14 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
               checked={syncEnabled}
               onChange={(event) => setSyncEnabled(event.target.checked)}
             />
-            <span>导入后保留同步入口。系统只提示差异，不会自动覆盖本书世界或世界库样本。</span>
+            <span>{t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_c3ffd652")}</span>
           </label>
         </div>
       ) : null}
 
       {worldSetupMode === "generate" ? (
         <div className="rounded-lg border border-border/70 bg-background p-4">
-          <div className="text-sm font-medium text-foreground">根据本书生成世界</div>
+          <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_1d261656")}</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">
             系统会根据标题、简介、卖点、读者承诺和类型信息生成一套本书世界。适合新书起步时快速形成可用舞台。
           </div>
@@ -159,7 +161,7 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
                 checked={saveGeneratedToLibrary}
                 onChange={(event) => setSaveGeneratedToLibrary(event.target.checked)}
               />
-              <span>生成后保存到世界库，方便其他小说复用。</span>
+              <span>{t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_8d6992ba")}</span>
             </label>
             <Button
               type="button"
@@ -168,7 +170,7 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
               disabled={props.isGenerating || props.isCreatingManual}
             >
               <Sparkles className="size-4" />
-              {props.isGenerating ? "生成中..." : "生成本书世界"}
+              {props.isGenerating ? t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_4d020ba3") : t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_0aee178e")}
             </Button>
           </div>
         </div>
@@ -176,28 +178,28 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
 
       {worldSetupMode === "manual" ? (
         <div className="rounded-lg border border-border/70 bg-background p-4">
-          <div className="text-sm font-medium text-foreground">自定义本书世界</div>
+          <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_e1010a5d")}</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">
             先创建一份空白世界手册，再到世界工作台补齐核心规则、主要势力、故事舞台和关键张力。
           </div>
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
             <label className="space-y-1 text-sm">
-              <span className="font-medium text-foreground">世界名称</span>
+              <span className="font-medium text-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.worldName")}</span>
               <input
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={manualWorldTitle}
                 maxLength={80}
-                placeholder="例如：紫霞界"
+                placeholder={t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.examplePurpleSkyRealm")}
                 onChange={(event) => setManualWorldTitle(event.target.value)}
               />
             </label>
             <label className="space-y-1 text-sm">
-              <span className="font-medium text-foreground">一句话概要</span>
+              <span className="font-medium text-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.oneLineSummary")}</span>
               <input
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={manualWorldSummary}
                 maxLength={300}
-                placeholder="例如：星核枯竭的边境帝国，魔法与权力都要付出代价。"
+                placeholder={t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.exampleStarcoreDepletedBorderEmpireMagicAndPowerHaveCost")}
                 onChange={(event) => setManualWorldSummary(event.target.value)}
               />
             </label>
@@ -213,7 +215,7 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
               disabled={props.isCreatingManual || props.isGenerating}
             >
               <BookOpen className="size-4" />
-              {props.isCreatingManual ? "创建中..." : "自定义本书世界"}
+              {props.isCreatingManual ? t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_b26107b6") : t("gen.pages.novels.components.novelWorld.NovelWorldSourcePanel.gen_e1010a5d")}
             </Button>
           </div>
         </div>

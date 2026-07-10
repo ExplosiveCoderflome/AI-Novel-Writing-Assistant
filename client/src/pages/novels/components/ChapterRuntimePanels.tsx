@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { AuditReport, ReplanRecommendation, ReplanResult, StoryPlan, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
 import { Badge } from "@/components/ui/badge";
@@ -119,11 +121,11 @@ function buildTriggerLabel(triggerType: string): string {
 function buildWordControlModeLabel(mode: "prompt_only" | "balanced" | "hybrid" | string): string {
   switch (mode) {
     case "prompt_only":
-      return "自然优先";
+      return t("gen.pages.novels.components.ChapterRuntimePanels.gen_e25414a2");
     case "balanced":
-      return "标准控字";
+      return t("gen.pages.novels.components.ChapterRuntimePanels.gen_332305cd");
     case "hybrid":
-      return "混合控字";
+      return t("gen.pages.novels.components.ChapterRuntimePanels.gen_d15aa8f4");
     default:
       return mode;
   }
@@ -147,32 +149,32 @@ export function ChapterRuntimeLengthCard(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">长度控制与执行回放</CardTitle>
+        <CardTitle className="text-base">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_7468e57c")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         {lengthControl ? (
           <>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-md border p-3">
-                <div className="text-xs text-muted-foreground">控制模式</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_07b417d5")}</div>
                 <div className="mt-1 font-medium">{buildWordControlModeLabel(lengthControl.wordControlMode)}</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  {lengthControl.closingPhaseTriggered ? "已进入收尾区" : "仍按常规推进"}
+                  {lengthControl.closingPhaseTriggered ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_24dbd07a") : t("gen.pages.novels.components.ChapterRuntimePanels.stillFollowRegularProcess")}
                 </div>
               </div>
               <div className="rounded-md border p-3">
-                <div className="text-xs text-muted-foreground">目标与结果</div>
-                <div className="mt-1 font-medium">{lengthControl.finalWordCount} / {lengthControl.targetWordCount} 字</div>
-                <div className="mt-1 text-xs text-muted-foreground">偏差 {formatVariance(lengthControl.variance)}</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_b8a39733")}</div>
+                <div className="mt-1 font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.lengthRatio")}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_c1228fc9")}</div>
               </div>
               <div className="rounded-md border p-3">
-                <div className="text-xs text-muted-foreground">预算区间</div>
-                <div className="mt-1 font-medium">{lengthControl.softMinWordCount} - {lengthControl.softMaxWordCount} 字</div>
-                <div className="mt-1 text-xs text-muted-foreground">硬上限 {lengthControl.hardMaxWordCount} 字</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_58e59c31")}</div>
+                <div className="mt-1 font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.lengthRange")}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_187d0794")}</div>
               </div>
               <div className="rounded-md border p-3">
-                <div className="text-xs text-muted-foreground">执行信号</div>
-                <div className="mt-1 font-medium">硬停 {lengthControl.hardStopsTriggered} 次</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_d02cc836")}</div>
+                <div className="mt-1 font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_ffca3f0a")}</div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   scene {lengthControl.generatedSceneCount}/{lengthControl.plannedSceneCount}
                 </div>
@@ -180,14 +182,14 @@ export function ChapterRuntimeLengthCard(props: {
             </div>
 
             <div className="rounded-md border p-3 text-xs text-muted-foreground">
-              <div className="font-medium text-foreground">长度修整路径</div>
+              <div className="font-medium text-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_9af82857")}</div>
               <div className="mt-1">
                 {lengthControl.lengthRepairPath.length > 0
                   ? lengthControl.lengthRepairPath.join(" -> ")
-                  : "本次未触发额外长度修整。"}
+                  : t("gen.pages.novels.components.ChapterRuntimePanels.gen_ac4b5851")}
               </div>
               <div className="mt-1">
-                {lengthControl.overlengthRepairApplied ? "本次触发过超长修整。" : "本次未触发超长修整。"}
+                {lengthControl.overlengthRepairApplied ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_f576035b") : t("gen.pages.novels.components.ChapterRuntimePanels.gen_a507510d")}
               </div>
             </div>
 
@@ -197,22 +199,22 @@ export function ChapterRuntimeLengthCard(props: {
                   <div key={`${scene.sceneIndex}-${index}`} className="rounded-md border p-3 text-xs">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">Scene {scene.sceneIndex}</Badge>
-                      <Badge variant="secondary">{scene.actualWordCount} 字</Badge>
+                      <Badge variant="secondary">{t("gen.pages.novels.components.ChapterRuntimePanels.actualWordCount")}</Badge>
                       <Badge variant="outline">{buildWordControlModeLabel(scene.wordControlMode)}</Badge>
                       <Badge variant={scene.sceneStatus === "compressed" ? "default" : "outline"}>{scene.sceneStatus}</Badge>
                     </div>
                     <div className="mt-2 text-muted-foreground">
                       轮次 {scene.roundCount}，硬停 {scene.hardStopCount} 次
-                      {scene.closingPhaseTriggered ? "，包含收尾区控制" : ""}
+                      {scene.closingPhaseTriggered ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_12efa642") : ""}
                     </div>
                     {scene.roundResults.length > 0 ? (
                       <div className="mt-2 space-y-1 rounded-md border bg-muted/15 p-2">
                         {scene.roundResults.map((round) => (
                           <div key={`${scene.sceneIndex}-${round.roundIndex}`} className="text-muted-foreground">
                             第 {round.roundIndex} 轮：建议 {round.suggestedWordCount ?? "-"} 字，实际 {round.actualWordCount} 字，
-                            {round.isFinalRound ? "最终轮" : "中间轮"}，
-                            {round.hardStopTriggered ? "触发硬停" : "自然结束"}
-                            {round.trimmedAtSentenceBoundary ? "，按句边界截断" : ""}
+                            {round.isFinalRound ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_f419afdf") : t("gen.pages.novels.components.ChapterRuntimePanels.middleRound")}，
+                            {round.hardStopTriggered ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_568b0ff2") : t("gen.pages.novels.components.ChapterRuntimePanels.gen_8f9fe9f8")}
+                            {round.trimmedAtSentenceBoundary ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_62c444be") : ""}
                           </div>
                         ))}
                       </div>
@@ -223,7 +225,7 @@ export function ChapterRuntimeLengthCard(props: {
             ) : null}
           </>
         ) : (
-          <div className="text-muted-foreground">当前还没有长度控制回放。生成本章后，这里会显示预算执行结果。</div>
+          <div className="text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_041fcfb2")}</div>
         )}
       </CardContent>
     </Card>
@@ -242,11 +244,11 @@ export function ChapterRuntimeContextCard(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">本章目标与上下文</CardTitle>
+        <CardTitle className="text-base">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_357cf59a")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="space-y-1">
-          <div className="font-medium">章节规划</div>
+          <div className="font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_5d10bfe1")}</div>
           {plan ? (
             <>
               <div className="text-muted-foreground">{plan.title}</div>
@@ -257,19 +259,19 @@ export function ChapterRuntimeContextCard(props: {
                 </div>
               ) : null}
               {plan.participants.length > 0 ? (
-                <div className="text-xs text-muted-foreground">参与角色：{plan.participants.join("、")}</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_c5d0f7ea")}</div>
               ) : null}
               {plan.mustAdvance.length > 0 ? (
-                <div className="text-xs text-muted-foreground">本章必须推进：{plan.mustAdvance.join("；")}</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_96aee986")}</div>
               ) : null}
               {plan.mustPreserve.length > 0 ? (
-                <div className="text-xs text-muted-foreground">本章必须保留：{plan.mustPreserve.join("；")}</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_444616f7")}</div>
               ) : null}
               {plan.replannedFromPlanId ? (
-                <div className="text-xs text-muted-foreground">本章来自一次重规划调整。</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_2125e71c")}</div>
               ) : null}
               {plan.sourceIssueIds.length > 0 ? (
-                <div className="text-xs text-muted-foreground">本章参考了 {plan.sourceIssueIds.length} 条待处理审计问题。</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_b3ab069c")}</div>
               ) : null}
               {plan.scenes.length > 0 ? (
                 <div className="space-y-1 rounded-md border p-2 text-xs">
@@ -277,7 +279,7 @@ export function ChapterRuntimeContextCard(props: {
                     <div key={scene.id}>
                       <div className="font-medium">{scene.sortOrder}. {scene.title}</div>
                       <div className="text-muted-foreground">
-                        {[scene.objective, scene.conflict, scene.reveal, scene.emotionBeat].filter(Boolean).join(" | ") || "无补充"}
+                        {[scene.objective, scene.conflict, scene.reveal, scene.emotionBeat].filter(Boolean).join(" | ") || t("gen.pages.novels.components.ChapterRuntimePanels.gen_870436bf")}
                       </div>
                     </div>
                   ))}
@@ -285,15 +287,15 @@ export function ChapterRuntimeContextCard(props: {
               ) : null}
             </>
           ) : (
-            <div className="text-muted-foreground">暂无章节规划。</div>
+            <div className="text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_37d95e40")}</div>
           )}
         </div>
 
         <div className="space-y-1">
-          <div className="font-medium">状态快照</div>
+          <div className="font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_0b933182")}</div>
           {stateSnapshot ? (
             <>
-              <div>{stateSnapshot.summary || "暂无摘要"}</div>
+              <div>{t("gen.pages.novels.components.ChapterRuntimePanels.gen_stateSnaps_tg8j")}</div>
               {stateSnapshot.characterStates.length > 0 ? (
                 <div className="rounded-md border p-2 text-xs">
                   {stateSnapshot.characterStates.slice(0, 4).map((item) => (
@@ -310,12 +312,12 @@ export function ChapterRuntimeContextCard(props: {
               ) : null}
             </>
           ) : (
-            <div className="text-muted-foreground">暂无状态快照。</div>
+            <div className="text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_18321c41")}</div>
           )}
         </div>
 
         <div className="space-y-1">
-          <div className="font-medium">活跃冲突</div>
+          <div className="font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_037ca2b4")}</div>
           {openConflicts.length > 0 ? (
             <div className="space-y-2">
               {openConflicts.slice(0, 4).map((item) => (
@@ -326,16 +328,16 @@ export function ChapterRuntimeContextCard(props: {
                   </div>
                   <div>{item.summary}</div>
                   {typeof item.lastSeenChapterOrder === "number" ? (
-                    <div className="mt-1 text-muted-foreground">最近出现：第 {item.lastSeenChapterOrder} 章</div>
+                    <div className="mt-1 text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_75b9531f")}</div>
                   ) : null}
                   {item.resolutionHint ? (
-                    <div className="mt-1 text-muted-foreground">建议：{item.resolutionHint}</div>
+                    <div className="mt-1 text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_956bb255")}</div>
                   ) : null}
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-muted-foreground">暂无活跃冲突。</div>
+            <div className="text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_ace557d6")}</div>
           )}
         </div>
       </CardContent>
@@ -361,13 +363,13 @@ export function ChapterRuntimeAuditCard(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">当前问题与修复建议</CardTitle>
+        <CardTitle className="text-base">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_8c425da0")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="flex items-center gap-2">
-          <div className="font-medium">总分 {audit.score.overall}</div>
+          <div className="font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_7e7f5f51")}</div>
           <Badge variant={audit.hasBlockingIssues ? "default" : "outline"}>
-            {audit.hasBlockingIssues ? "需处理" : "可继续"}
+            {audit.hasBlockingIssues ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_2d25e6f9") : t("gen.pages.novels.components.ChapterRuntimePanels.gen_4281b2b4")}
           </Badge>
         </div>
         <div className="text-xs text-muted-foreground">
@@ -377,7 +379,7 @@ export function ChapterRuntimeAuditCard(props: {
           <div className="rounded-md border p-2 text-xs">
             <div className="flex items-center justify-between gap-2">
               <div className="font-medium">
-                后续章节计划：{replanSummary.recommended ? "建议调整" : "暂不调整"}
+                后续章节计划：{replanSummary.recommended ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_52bb74da") : t("gen.pages.novels.components.ChapterRuntimePanels.gen_f222164c")}
               </div>
               {typeof props.onReplan === "function" ? (
                 <Button
@@ -386,7 +388,7 @@ export function ChapterRuntimeAuditCard(props: {
                   onClick={props.onReplan}
                   disabled={props.isReplanning}
                 >
-                  {props.isReplanning ? "调整中..." : replanSummary.recommended ? "执行重规划" : "查看重规划"}
+                  {props.isReplanning ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_3adeb767") : replanSummary.recommended ? t("gen.pages.novels.components.ChapterRuntimePanels.gen_f2148fff") : t("gen.pages.novels.components.ChapterRuntimePanels.gen_076ff1c0")}
                 </Button>
               ) : null}
             </div>
@@ -400,9 +402,9 @@ export function ChapterRuntimeAuditCard(props: {
         ) : null}
         {props.lastReplanResult ? (
           <div className="rounded-md border bg-muted/20 p-2 text-xs">
-            <div className="font-medium">最近一次规划调整</div>
+            <div className="font-medium">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_dbef2a29")}</div>
             <div className="mt-1 text-muted-foreground">
-              影响章节：{props.lastReplanResult.affectedChapterOrders.join(", ") || "暂无"}
+              影响章节：{props.lastReplanResult.affectedChapterOrders.join(", ") || t("gen.pages.novels.components.ChapterRuntimePanels.gen_f61f4cf6")}
             </div>
             <div className="text-muted-foreground">
               调整窗口：{props.lastReplanResult.windowSize} | 触发方式：{buildTriggerLabel(props.lastReplanResult.triggerType)}
@@ -423,13 +425,13 @@ export function ChapterRuntimeAuditCard(props: {
                   <span className="font-medium">{issue.code}</span>
                 </div>
                 <div>{issue.description}</div>
-                <div className="mt-1 text-muted-foreground">证据：{issue.evidence}</div>
-                <div className="mt-1 text-muted-foreground">建议：{issue.fixSuggestion}</div>
+                <div className="mt-1 text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_e6d69dda")}</div>
+                <div className="mt-1 text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_5568c429")}</div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-muted-foreground">当前没有待处理问题。</div>
+          <div className="text-muted-foreground">{t("gen.pages.novels.components.ChapterRuntimePanels.gen_5f718663")}</div>
         )}
       </CardContent>
     </Card>

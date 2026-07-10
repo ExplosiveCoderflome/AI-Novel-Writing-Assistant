@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Boxes, Globe2, PlusCircle, ScrollText, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -24,7 +26,7 @@ export function HomeAssetHealth(props: {
   return (
     <Card className="home-asset-health">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg tracking-normal">角色与世界观资产</CardTitle>
+        <CardTitle className="text-lg tracking-normal">{t("gen.pages.home.components.HomeAssetHealth.gen_0e0512ed")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -51,17 +53,17 @@ export function HomeAssetHealth(props: {
               <PlusCircle className="mt-0.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <div className="min-w-0 flex-1 space-y-3">
                 <div>
-                  <div className="text-sm font-medium">开始新项目</div>
+                  <div className="text-sm font-medium">{t("gen.pages.home.components.HomeAssetHealth.gen_9ca4fd2e")}</div>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
                     有新灵感时，可以直接交给自动导演整理方向、角色、世界观和章节准备。
                   </p>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
                   <Button asChild size="sm">
-                    <Link to={DIRECTOR_CREATE_LINK}>AI 自动导演开书</Link>
+                    <Link to={DIRECTOR_CREATE_LINK}>{t("gen.pages.home.components.HomeAssetHealth.aiAutoDirectorBookStart")}</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
-                    <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
+                    <Link to={MANUAL_CREATE_LINK}>{t("gen.pages.home.components.HomeAssetHealth.gen_e40b8718")}</Link>
                   </Button>
                 </div>
               </div>

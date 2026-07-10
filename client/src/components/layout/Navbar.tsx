@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import LLMSelector from "@/components/common/LLMSelector";
@@ -58,7 +60,7 @@ export default function Navbar(props: NavbarProps) {
           onChange={(e) => changeLanguage(e.target.value)}
           className="cursor-pointer rounded-md border bg-background px-2 py-1.5 text-xs font-medium shadow-sm outline-none hover:bg-accent hover:text-accent-foreground"
         >
-          <option value="zh">中文</option>
+          <option value="zh">{t("gen.components.layout.Navbar.zhLanguage")}</option>
           <option value="en">English</option>
         </select>
         <div className={useMobileAutoDirectorShell ? AUTO_DIRECTOR_MOBILE_CLASSES.navbarModelSelector : undefined}>

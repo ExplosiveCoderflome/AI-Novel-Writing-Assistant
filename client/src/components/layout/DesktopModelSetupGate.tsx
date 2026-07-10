@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "react-router-dom";
@@ -89,7 +91,7 @@ export default function DesktopModelSetupGate() {
               <Link to="/settings">Open model settings</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link to="/help">查看新手上路</Link>
+              <Link to="/help">{t("gen.components.layout.DesktopModelSetupGate.gen_07582133")}</Link>
             </Button>
           </div>
         </CardContent>

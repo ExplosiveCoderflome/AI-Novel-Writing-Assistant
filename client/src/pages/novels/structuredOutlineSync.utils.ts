@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { StructuredChapter, StructuredVolume } from "./structuredOutline.utils";
 
 export interface OutlineSyncChapter {
@@ -84,25 +85,25 @@ function compareNullableNumber(a: number | null | undefined, b: number | null | 
 function getChangedFields(existing: OutlineSyncChapter, chapter: StructuredChapter): string[] {
   const changed: string[] = [];
   if (!compareNullableString(existing.title, chapter.title)) {
-    changed.push("标题");
+    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_32c65d8d"));
   }
   if (!compareNullableString(existing.expectation, chapter.summary)) {
-    changed.push("摘要");
+    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_3ae14696"));
   }
   if (!compareNullableNumber(existing.targetWordCount, chapter.targetWordCount)) {
-    changed.push("目标字数");
+    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_b71c2e84"));
   }
   if (!compareNullableNumber(existing.conflictLevel, chapter.conflictLevel)) {
-    changed.push("冲突等级");
+    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_971cbaa4"));
   }
   if (!compareNullableNumber(existing.revealLevel, chapter.revealLevel)) {
-    changed.push("揭露等级");
+    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_53fe8284"));
   }
   if (!compareNullableString(existing.mustAvoid, chapter.mustAvoid)) {
-    changed.push("禁止事项");
+    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_e586f3e2"));
   }
   if (chapter.taskSheet?.trim() && !compareNullableString(existing.taskSheet, chapter.taskSheet)) {
-    changed.push("任务单");
+    changed.push(i18next.t("gen.pages.novels.structuredOutlineSync.utils.singleTask"));
   }
   return changed;
 }
@@ -133,7 +134,7 @@ export function buildStructuredOutlineSyncPreview(
         order: chapter.order,
         nextTitle: chapter.title,
         hasContent: false,
-        changedFields: ["新章节"],
+        changedFields: [i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_0aab985d")],
       });
       continue;
     }
@@ -180,7 +181,7 @@ export function buildStructuredOutlineSyncPreview(
         order: chapter.order,
         nextTitle: chapter.title,
         hasContent,
-        changedFields: ["从大纲移除"],
+        changedFields: [i18next.t("gen.pages.novels.structuredOutlineSync.utils.removeFromOutline")],
       });
     } else {
       deleteCandidateCount += 1;
@@ -189,7 +190,7 @@ export function buildStructuredOutlineSyncPreview(
         order: chapter.order,
         nextTitle: chapter.title,
         hasContent,
-        changedFields: ["待确认删除"],
+        changedFields: [i18next.t("gen.pages.novels.structuredOutlineSync.utils.gen_f85caee0")],
       });
     }
   }

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type {
@@ -90,10 +92,10 @@ export default function NovelList() {
     mutationFn: (id: string) => deleteNovel(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.all });
-      toast.success("小说已删除。");
+      toast.success(t("gen.pages.novels.NovelList.gen_fc09ee9d"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "删除小说失败。");
+      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.NovelList.gen_8ece8c38"));
     },
   });
 
@@ -106,10 +108,10 @@ export default function NovelList() {
     ),
     onSuccess: ({ blob, fileName }) => {
       createDownload(blob, fileName);
-      toast.success("导出已开始。");
+      toast.success(t("gen.pages.novels.NovelList.gen_70576156"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "导出小说失败。");
+      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.NovelList.gen_45b8252a"));
     },
   });
 
@@ -143,8 +145,8 @@ export default function NovelList() {
         error instanceof Error
           ? error.message
           : input.mode === "auto_execute_range"
-            ? "继续自动执行当前章节范围失败。"
-            : "继续自动导演失败。",
+            ? t("gen.pages.novels.NovelList.gen_73ebdc25")
+            : t("gen.pages.novels.NovelList.gen_bb8020bb"),
       );
     },
   });
@@ -219,8 +221,8 @@ export default function NovelList() {
       ) : novelListQuery.isError ? (
         <Card>
           <CardHeader>
-            <CardTitle>加载小说列表失败</CardTitle>
-            <CardDescription>当前无法读取项目列表，可以重试一次。</CardDescription>
+            <CardTitle>{t("gen.pages.novels.NovelList.gen_d7f76120")}</CardTitle>
+            <CardDescription>{t("gen.pages.novels.NovelList.gen_6ad34b4c")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => void novelListQuery.refetch()}>重新加载</Button>
@@ -269,11 +271,11 @@ export default function NovelList() {
       >
         <AppDialogContent
           className="max-w-2xl"
-          title="AI 驾驶舱"
+          title={t("gen.pages.novels.NovelList.aiCockpit")}
           description={
             selectedCockpitNovel?.title
               ? `查看《${selectedCockpitNovel.title}》的 AI 推进状态和下一步动作。`
-              : "查看这本书的 AI 推进状态和下一步动作。"
+              : t("gen.pages.novels.NovelList.gen_309ad2d0")
           }
         >
           {cockpitProjectionQuery.isPending ? (
@@ -282,7 +284,7 @@ export default function NovelList() {
             </div>
           ) : cockpitProjectionQuery.isError ? (
             <div className="rounded-lg border p-3">
-              <div className="text-sm text-muted-foreground">无法读取这本书的 AI 状态，请稍后重试。</div>
+              <div className="text-sm text-muted-foreground">{t("gen.pages.novels.NovelList.gen_59ae355e")}</div>
               <Button
                 type="button"
                 size="sm"
@@ -305,7 +307,7 @@ export default function NovelList() {
               }}
             />
           ) : (
-            <AICockpit fallbackSummary="这本书没有需要处理的 AI 自动推进任务。" />
+            <AICockpit fallbackSummary={t("gen.pages.novels.NovelList.gen_1f7096a6")} />
           )}
         </AppDialogContent>
       </Dialog>

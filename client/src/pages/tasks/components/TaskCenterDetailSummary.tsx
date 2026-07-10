@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { DirectorDashboardView } from "@ai-novel/shared/types/directorRuntime";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { Badge } from "@/components/ui/badge";
@@ -27,8 +29,8 @@ export default function TaskCenterDetailSummary({
   const progressPercent = typeof dashboardView?.progressPercent === "number"
     ? dashboardView.progressPercent
     : Math.round(task.progress * 100);
-  const currentStage = dashboardView?.stageLabel ?? task.currentStage ?? "暂无";
-  const currentItem = dashboardView?.currentAction ?? task.currentItemLabel ?? "暂无";
+  const currentStage = dashboardView?.stageLabel ?? task.currentStage ?? t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_f61f4cf6");
+  const currentItem = dashboardView?.currentAction ?? task.currentItemLabel ?? t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_f61f4cf6");
 
   return (
     <>
@@ -40,40 +42,40 @@ export default function TaskCenterDetailSummary({
       </div>
       <div className="flex flex-wrap gap-2">
         <Badge variant={toStatusVariant(task.status)}>{formatStatus(task.status)}</Badge>
-        <Badge variant="outline">进度 {progressPercent}%</Badge>
+        <Badge variant="outline">{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_43c5687e")}</Badge>
       </div>
       <div className="space-y-1 text-muted-foreground">
-        <div>展示状态：{dashboardView?.statusLabel ?? task.displayStatus ?? formatStatus(task.status)}</div>
-        <div>当前阶段：{currentStage}</div>
-        <div>当前项：{currentItem}</div>
+        <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_e13d1f0f")}</div>
+        <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_2451c11e")}</div>
+        <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_63e2be52")}</div>
         {task.kind === "novel_workflow" ? (
           <>
-            <div>最近检查点：{formatCheckpoint(task.checkpointType, task.executionScopeLabel)}</div>
-            <div>恢复目标页：{formatResumeTarget(task.resumeTarget)}</div>
-            <div>建议继续：{task.resumeAction ?? task.nextActionLabel ?? "继续小说主流程"}</div>
-            <div>最近健康阶段：{task.lastHealthyStage ?? "暂无"}</div>
+            <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_6004d2a0")}</div>
+            <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_f305a266")}</div>
+            <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_27949847")}</div>
+            <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_b168d8f2")}</div>
           </>
         ) : null}
         {task.blockingReason ? (
-          <div>阻塞原因：{task.blockingReason}</div>
+          <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_cae7c1b1")}</div>
         ) : null}
-        <div>最近心跳：{formatDate(task.heartbeatAt)}</div>
-        <div>开始时间：{formatDate(task.startedAt)}</div>
-        <div>结束时间：{formatDate(task.finishedAt)}</div>
-        <div>重试计数：{task.retryCountLabel}</div>
+        <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_e58aa324")}</div>
+        <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_6c90f8c5")}</div>
+        <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_f0ecbc3d")}</div>
+        <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_3ab98309")}</div>
         {(task.provider || task.model) ? (
-          <div>调用模型：{task.provider ?? "暂无"} / {task.model ?? "暂无"}</div>
+          <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_56831d5b")}</div>
         ) : null}
         {isAutoDirectorTask ? (
-          <div>当前界面模型：{currentModelLabel}</div>
+          <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_47fdc247")}</div>
         ) : null}
         {(task.tokenUsage || task.provider || task.model) ? (
           <>
-            <div>累计调用：{formatTokenCount(task.tokenUsage?.llmCallCount ?? 0)}</div>
-            <div>输入 Tokens：{formatTokenCount(task.tokenUsage?.promptTokens ?? 0)}</div>
-            <div>输出 Tokens：{formatTokenCount(task.tokenUsage?.completionTokens ?? 0)}</div>
-            <div>累计总 Tokens：{formatTokenCount(task.tokenUsage?.totalTokens ?? 0)}</div>
-            <div>最近记录：{formatDate(task.tokenUsage?.lastRecordedAt)}</div>
+            <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_bcf87177")}</div>
+            <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_dda56469")}</div>
+            <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_a46d77bf")}</div>
+            <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_e3ecc98e")}</div>
+            <div>{t("gen.pages.tasks.components.TaskCenterDetailSummary.gen_af4d758d")}</div>
           </>
         ) : null}
       </div>

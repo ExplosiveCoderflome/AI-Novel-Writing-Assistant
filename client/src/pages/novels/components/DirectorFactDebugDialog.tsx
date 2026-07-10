@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Bug, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
@@ -20,24 +22,24 @@ function formatPercent(ratio: number): string {
 }
 
 function formatStageLabel(stage: string): string {
-  if (stage === "candidate_selection") return "开书方向";
-  if (stage === "candidate_confirm") return "创建项目";
-  if (stage === "story_macro") return "故事宏观规划";
-  if (stage === "book_contract") return "书级创作约定";
-  if (stage === "character_setup") return "角色准备";
-  if (stage === "volume_strategy") return "卷规划";
-  if (stage === "structured_outline") return "节奏与拆章";
-  if (stage === "chapter_execution") return "正文生成";
-  if (stage === "quality_repair") return "质量闭环";
-  if (stage === "takeover") return "接手已有项目";
+  if (stage === "candidate_selection") return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_db34cba7");
+  if (stage === "candidate_confirm") return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_39da6755");
+  if (stage === "story_macro") return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_15183ae2");
+  if (stage === "book_contract") return t("gen.pages.novels.components.DirectorFactDebugDialog.chapterCreationConvention");
+  if (stage === "character_setup") return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_3ed577c6");
+  if (stage === "volume_strategy") return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_19ac37e4");
+  if (stage === "structured_outline") return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_07abcd19");
+  if (stage === "chapter_execution") return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_513aefd9");
+  if (stage === "quality_repair") return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_5c8a4a0e");
+  if (stage === "takeover") return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_c258cefe");
   return stage;
 }
 
 function formatNextAction(action?: string | null): string {
-  if (!action) return "当前没有额外动作建议";
-  if (action === "run_chapter_detail_generation") return "继续细化剩余章节任务单";
-  if (action === "run_chapter_list_generation") return "继续补齐卷拆章列表";
-  if (action === "sync_execution_contracts") return "同步章节执行合同";
+  if (!action) return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_085734d3");
+  if (action === "run_chapter_detail_generation") return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_47e55577");
+  if (action === "run_chapter_list_generation") return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_58de0846");
+  if (action === "sync_execution_contracts") return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_aef4a566");
   const text = action
     .replace(/_/g, " ")
     .replace(/\./g, " ")
@@ -46,10 +48,10 @@ function formatNextAction(action?: string | null): string {
 }
 
 function formatResumeFrom(resumeFrom?: string | null): string {
-  if (!resumeFrom) return "按当前现场重新判断";
-  if (resumeFrom === "chapter_detail_bundle") return "从剩余未细化章节继续";
-  if (resumeFrom === "chapter_list") return "从卷拆章列表继续";
-  if (resumeFrom === "beat_sheet") return "从卷节奏板继续";
+  if (!resumeFrom) return t("gen.pages.novels.components.DirectorFactDebugDialog.gen_5faa720d");
+  if (resumeFrom === "chapter_detail_bundle") return t("gen.pages.novels.components.DirectorFactDebugDialog.continueFromRemainingUnrefinedChapters");
+  if (resumeFrom === "chapter_list") return t("gen.pages.novels.components.DirectorFactDebugDialog.continueFromChapterListSplittingVolume");
+  if (resumeFrom === "beat_sheet") return t("gen.pages.novels.components.DirectorFactDebugDialog.continueFromRhythmBoardVolume");
   if (resumeFrom.startsWith("chapter:")) {
     const rawOrder = resumeFrom.slice("chapter:".length).trim();
     const order = Number(rawOrder);
@@ -68,35 +70,35 @@ function summarizeStep(step: DirectorTaskFactInspectionStep): {
   if (step.inspectError) {
     return {
       tone: "error",
-      title: "检查没有完成",
+      title: t("gen.pages.novels.components.DirectorFactDebugDialog.gen_b97d14c2"),
       detail: step.inspectError,
     };
   }
   if (step.completed) {
     return {
       tone: "done",
-      title: "已确认完成",
-      detail: "系统已经找到这一步对应的真实产出，可以直接复用。",
+      title: t("gen.pages.novels.components.DirectorFactDebugDialog.gen_b84241f1"),
+      detail: t("gen.pages.novels.components.DirectorFactDebugDialog.gen_5d2a16ba"),
     };
   }
   if (!step.ready) {
     return {
       tone: "blocked",
-      title: "还不能执行",
-      detail: step.blockers[0]?.reason || "上游事实还没补齐，所以这一步暂时不能开始。",
+      title: t("gen.pages.novels.components.DirectorFactDebugDialog.gen_7edf2c7f"),
+      detail: step.blockers[0]?.reason || t("gen.pages.novels.components.DirectorFactDebugDialog.upstreamIncomplete"),
     };
   }
   if (step.isCurrentFactStep) {
     return {
       tone: "current",
-      title: "当前优先补这一段",
-      detail: step.progress?.label || "这是系统根据现有事实判断出的下一段主处理步骤。",
+      title: t("gen.pages.novels.components.DirectorFactDebugDialog.gen_c9810fff"),
+      detail: step.progress?.label || t("gen.pages.novels.components.DirectorFactDebugDialog.gen_77a7e85b"),
     };
   }
   return {
     tone: "working",
-    title: "还没闭环",
-    detail: step.progress?.label || "这一步已经具备执行条件，但事实还没有完全闭环。",
+    title: t("gen.pages.novels.components.DirectorFactDebugDialog.gen_ffdc5d4f"),
+    detail: step.progress?.label || t("gen.pages.novels.components.DirectorFactDebugDialog.gen_2d97c3ca"),
   };
 }
 
@@ -119,8 +121,8 @@ function StepFactCard({ step }: { step: DirectorTaskFactInspectionStep }) {
             <div className="text-xs text-muted-foreground">{formatStageLabel(step.stage)}</div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {step.isCurrentFactStep ? <Badge>当前判断会先处理这里</Badge> : null}
-            {step.isActiveRuntimeStep ? <Badge variant="outline">后台此刻正在碰这一步</Badge> : null}
+            {step.isCurrentFactStep ? <Badge>{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_df0185d4")}</Badge> : null}
+            {step.isActiveRuntimeStep ? <Badge variant="outline">{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_b56fba98")}</Badge> : null}
             <Badge variant={toneBadgeVariant(summary.tone)}>{summary.title}</Badge>
           </div>
         </div>
@@ -129,7 +131,7 @@ function StepFactCard({ step }: { step: DirectorTaskFactInspectionStep }) {
       <CardContent className="space-y-4 p-4 pt-0">
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>这一段的完整度</span>
+            <span>{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_307c7085")}</span>
             <span>{formatPercent(step.completenessRatio)}</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -142,28 +144,28 @@ function StepFactCard({ step }: { step: DirectorTaskFactInspectionStep }) {
 
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-lg border border-border/70 bg-muted/10 p-3">
-            <div className="text-xs text-muted-foreground">现在能不能继续做</div>
+            <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_c817f93d")}</div>
             <div className="mt-1 text-sm font-medium text-foreground">
-              {step.ready ? "可以开始或继续" : "还要先补前置事实"}
+              {step.ready ? t("gen.pages.novels.components.DirectorFactDebugDialog.gen_02bb8d1e") : t("gen.pages.novels.components.DirectorFactDebugDialog.gen_bdb5226b")}
             </div>
           </div>
           <div className="rounded-lg border border-border/70 bg-muted/10 p-3">
-            <div className="text-xs text-muted-foreground">系统判断的下一步</div>
+            <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_e6a0c6f1")}</div>
             <div className="mt-1 text-sm font-medium text-foreground">{formatNextAction(step.nextAction)}</div>
           </div>
           <div className="rounded-lg border border-border/70 bg-muted/10 p-3">
-            <div className="text-xs text-muted-foreground">如果中断，建议从哪继续</div>
+            <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_7cf2439f")}</div>
             <div className="mt-1 text-sm font-medium text-foreground">{formatResumeFrom(step.resumeFrom)}</div>
           </div>
           <div className="rounded-lg border border-border/70 bg-muted/10 p-3">
-            <div className="text-xs text-muted-foreground">这一步最近的事实描述</div>
-            <div className="mt-1 text-sm font-medium text-foreground">{step.progress?.label || "暂时没有额外描述"}</div>
+            <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_59999bb7")}</div>
+            <div className="mt-1 text-sm font-medium text-foreground">{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_stepprogre_scdv")}</div>
           </div>
         </div>
 
         {step.blockers.length > 0 ? (
           <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-            <div className="text-sm font-medium text-destructive">现在卡住的原因</div>
+            <div className="text-sm font-medium text-destructive">{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_4ea05beb")}</div>
             <ul className="space-y-2 text-sm leading-6 text-destructive/90">
               {step.blockers.map((blocker) => (
                 <li key={`${step.stepId}:${blocker.code}`}>{blocker.reason}</li>
@@ -174,7 +176,7 @@ function StepFactCard({ step }: { step: DirectorTaskFactInspectionStep }) {
 
         {step.evidence ? (
           <div className="space-y-2">
-            <div className="text-sm font-medium text-foreground">判断依据</div>
+            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_398b9519")}</div>
             <pre className="overflow-x-auto rounded-lg border border-border/70 bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
               {JSON.stringify(step.evidence, null, 2)}
             </pre>
@@ -219,7 +221,7 @@ export default function DirectorFactDebugDialog(input: {
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-5xl overflow-hidden p-0">
         <DialogHeader className="border-b border-border/70 px-6 py-5">
-          <DialogTitle>导演步骤完整度检查</DialogTitle>
+          <DialogTitle>{t("gen.pages.novels.components.DirectorFactDebugDialog.gen_e04600ca")}</DialogTitle>
           <DialogDescription>
             这里展示的是每一步基于真实产出的检查结果。你可以直接看到哪一步已经有结果、哪一步缺前置条件、系统现在准备先补哪里。
           </DialogDescription>
@@ -261,7 +263,7 @@ export default function DirectorFactDebugDialog(input: {
             ) : query.isError ? (
               <div className="flex min-h-[240px] items-center justify-center">
                 <div className="max-w-md rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm text-destructive">
-                  无法完成这次检查。{query.error instanceof Error ? query.error.message : "请稍后重试。"}
+                  无法完成这次检查。{query.error instanceof Error ? query.error.message : t("gen.pages.novels.components.DirectorFactDebugDialog.gen_d6108225")}
                 </div>
               </div>
             ) : !inspection ? (
@@ -281,7 +283,7 @@ export default function DirectorFactDebugDialog(input: {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3 p-4 pt-0">
-                      <div className="text-sm text-foreground">{inspection.currentFactStepLabel || "系统正在重新判断下一步"}</div>
+                      <div className="text-sm text-foreground">{t("gen.pages.novels.components.DirectorFactDebugDialog.inspectionStatus")}</div>
                       <pre className="overflow-x-auto rounded-lg border border-border/70 bg-background/70 p-3 text-xs leading-5 text-muted-foreground">
                         {JSON.stringify(inspection.currentFactEvidence, null, 2)}
                       </pre>

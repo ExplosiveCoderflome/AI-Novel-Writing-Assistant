@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 ﻿import type {
   NovelWorkflowMilestone,
   NovelWorkflowMilestoneType,
@@ -49,12 +51,12 @@ type DirectorStepDefinition = {
 };
 
 const DIRECTOR_EXECUTION_STEPS: DirectorStepDefinition[] = [
-  { key: "novel_create", label: "创建项目" },
-  { key: "book_contract", label: "Book Contract + 故事宏观规划" },
-  { key: "character_setup", label: "角色准备" },
-  { key: "volume_strategy", label: "卷战略 + 卷骨架" },
-  { key: "beat_sheet", label: "第 1 卷节奏板 + 章节列表" },
-  { key: "chapter_detail_bundle", label: "章节批量细化" },
+  { key: "novel_create", label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_39da6755") },
+  { key: "book_contract", label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.bookContractStoryPlanning") },
+  { key: "character_setup", label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_3ed577c6") },
+  { key: "volume_strategy", label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_5bfd70f2") },
+  { key: "beat_sheet", label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_8d16cac8") },
+  { key: "chapter_detail_bundle", label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_1019a5ce") },
 ];
 
 const DIRECTOR_CANDIDATE_SETUP_STEP_KEYS = new Set<string>(
@@ -62,17 +64,17 @@ const DIRECTOR_CANDIDATE_SETUP_STEP_KEYS = new Set<string>(
 );
 
 const AUTO_DIRECTOR_PLACEHOLDER_TITLES = new Set([
-  "AI 自动导演小说",
-  "小说流程任务",
+  t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.aiAutoDirectorNovel"),
+  t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_56ce28ff"),
 ]);
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
-    return "暂无";
+    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_f61f4cf6");
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "暂无";
+    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_f61f4cf6");
   }
   return date.toLocaleString();
 }
@@ -125,30 +127,30 @@ function formatCheckpoint(
   task: UnifiedTaskDetail | null,
 ): string {
   if (checkpoint === "rewrite_snapshot_created") {
-    return "重写前备份已创建";
+    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_40c91bfe");
   }
   if (checkpoint === "candidate_selection_required") {
-    return "等待确认书级方向";
+    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_dbc67929");
   }
   if (checkpoint === "book_contract_ready") {
-    return "Book Contract 已就绪";
+    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_BookContra_ppep");
   }
   if (checkpoint === "character_setup_required") {
-    return "角色准备待审核";
+    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_67358797");
   }
   if (checkpoint === "volume_strategy_ready") {
-    return "卷战略已就绪";
+    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_c3eafe6f");
   }
   if (checkpoint === "chapter_batch_ready") {
     return `${resolveAutoExecutionScopeLabel(task)}自动执行已暂停`;
   }
   if (checkpoint === "replan_required") {
-    return "需要重规划";
+    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_73ce2a55");
   }
   if (checkpoint === "workflow_completed") {
-    return "主流程完成";
+    return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.mainProcessComplete");
   }
-  return "暂无";
+  return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_f61f4cf6");
 }
 
 function isCandidateSetupFlow(task: UnifiedTaskDetail | null): boolean {
@@ -352,7 +354,7 @@ export default function NovelAutoDirectorProgressPanel({
     ? {
       summary: fallbackError?.trim() ?? "",
       route: null,
-      label: "快速修复章节标题",
+      label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_62c615c2"),
     }
     : null;
   const rawChapterTitleWarning = taskChapterTitleWarning ?? fallbackChapterTitleWarning;
@@ -367,15 +369,15 @@ export default function NovelAutoDirectorProgressPanel({
     || runtimeProjectionForDisplay?.currentLabel?.trim()
     || task?.currentItemLabel?.trim()
     || (visualMode === "execution_failed"
-      ? "导演任务执行中断"
-      : (chapterTitleWarning ? "章节列表已生成，等待修复标题结构" : "正在准备导演任务"));
+      ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_cccc17f6")
+      : (chapterTitleWarning ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_af135789") : t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_35e91899")));
   const activityTags = extractWorkflowActivityTags(displayState?.currentFactStepLabel || task?.currentItemLabel);
   const workflowTitle = task?.title?.trim() || "";
   const hintedTitle = titleHint?.trim() || "";
   const taskTitle = (
     hintedTitle && (!workflowTitle || AUTO_DIRECTOR_PLACEHOLDER_TITLES.has(workflowTitle))
       ? hintedTitle
-      : workflowTitle || hintedTitle || "新小说项目"
+      : workflowTitle || hintedTitle || t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_be78e77b")
   );
   const milestones = Array.isArray(task?.meta.milestones)
     ? task.meta.milestones as NovelWorkflowMilestone[]
@@ -388,7 +390,7 @@ export default function NovelAutoDirectorProgressPanel({
   const steps = candidateSetupFlow
     ? resolveDirectorStepStatuses(task, visualMode, stepDefinitions)
     : displaySteps.map((step) => mapDisplayStepStatus(step.status));
-  const failureMessage = task?.lastError?.trim() || fallbackError?.trim() || "导演任务执行失败，但没有记录明确错误。";
+  const failureMessage = task?.lastError?.trim() || fallbackError?.trim() || t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_95f323c9");
   const tokenUsage = task?.tokenUsage ?? null;
   const styleSeed = resolveDirectorStyleSeed(task);
   const containerMode: AITakeoverMode = visualMode === "execution_failed"
@@ -401,24 +403,24 @@ export default function NovelAutoDirectorProgressPanel({
   const description = candidateSetupFlow
     ? (
       visualMode === "execution_failed"
-        ? "候选方向生成链已中断，可以先查看执行详情，再决定是否重试。"
-        : "系统会先整理项目设定、对齐书级 framing，再生成两套书级方案和对应标题组。"
+        ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_76a33707")
+        : t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_6d159c9d")
     )
     : (
       dashboardView?.description
       || displayState?.description
       || (visualMode === "execution_failed"
-        ? "任务已停在最近一步，可以先查看执行详情，再决定是否恢复。"
+        ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.taskPausedAtLastStepViewDetailsAndDecideRecovery")
         : chapterTitleWarning
-          ? "章节列表已经保留，这是一条可直接处理的结构提醒。你可以快速修复标题，再决定是否继续后续导演流程。"
+          ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_04183780")
           : task?.status === "waiting_approval"
-            ? "当前导演流程已经停在审核点，你可以先检查产物，再决定是否继续自动推进。"
-            : "可离开当前页面，任务会继续运行；回来后可在 AI 驾驶舱查看进度。")
+            ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_182aac00")
+            : t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_3f06f770"))
     );
   const resolveDashboardAction = (dashboardAction: DirectorDashboardAction) => {
     if (dashboardAction.type === "confirm_and_continue" && onConfirmAndContinue) {
       return {
-        label: isConfirmingAndContinuing ? "继续中..." : dashboardAction.label,
+        label: isConfirmingAndContinuing ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_95ee3e92") : dashboardAction.label,
         onClick: onConfirmAndContinue,
         variant: "default" as const,
         disabled: isConfirmingAndContinuing,
@@ -457,14 +459,14 @@ export default function NovelAutoDirectorProgressPanel({
     : [];
   const actions = chapterTitleWarning
     ? [{
-      label: "查看执行详情",
+      label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_39f2c47d"),
       onClick: onOpenTaskCenter,
       variant: "default" as const,
     }]
     : (dashboardActions.length > 0
       ? dashboardActions
       : [{
-        label: "查看执行详情",
+        label: t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_39f2c47d"),
         onClick: onOpenTaskCenter,
         variant: "default" as const,
       }]);
@@ -555,11 +557,11 @@ export default function NovelAutoDirectorProgressPanel({
 
         {styleSeed ? (
           <div className="mt-5">
-            <div className="text-sm font-medium text-foreground">当前命中写法</div>
+            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_ee74457f")}</div>
             <div className="mt-2 text-sm text-foreground">{styleSeed.title}</div>
             {styleSeed.summaryLines.length > 0 ? (
               <div className="mt-3 space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">本阶段仅生效的写法摘要</div>
+                <div className="text-xs font-medium text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_104e6747")}</div>
                 {styleSeed.summaryLines.map((line) => (
                   <div key={line} className="text-xs leading-6 text-muted-foreground">
                     {line}
@@ -573,28 +575,28 @@ export default function NovelAutoDirectorProgressPanel({
         {tokenUsage ? (
           <div className="mt-4 grid gap-3 md:grid-cols-4">
             <div className="rounded-lg bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">累计调用</div>
+              <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_9476dc8a")}</div>
               <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.llmCallCount)}</div>
             </div>
             <div className="rounded-lg bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">输入 Tokens</div>
+              <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_5986a637")}</div>
               <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.promptTokens)}</div>
             </div>
             <div className="rounded-lg bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">输出 Tokens</div>
+              <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_171cf50a")}</div>
               <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.completionTokens)}</div>
             </div>
             <div className="rounded-lg bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">累计总 Tokens</div>
+              <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_461f619e")}</div>
               <div className="mt-1 text-sm font-medium text-foreground">{formatTokenCount(tokenUsage.totalTokens)}</div>
-              <div className="mt-1 text-[11px] text-muted-foreground">最近记录：{formatDate(tokenUsage.lastRecordedAt)}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_e99dbe86")}</div>
             </div>
           </div>
         ) : null}
 
         {chapterTitleWarning ? (
           <div className="mt-4 rounded-xl border border-amber-300/60 bg-amber-50/80 p-4 text-sm text-amber-950">
-            <div className="font-medium">当前提醒</div>
+            <div className="font-medium">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_d7df9e41")}</div>
             <div className="mt-1">{chapterTitleWarning.summary}</div>
             <div className="mt-3 flex flex-wrap gap-2">
               {task && chapterTitleWarning ? (
@@ -607,7 +609,7 @@ export default function NovelAutoDirectorProgressPanel({
                   disabled={chapterTitleRepairMutation.isPending}
                 >
                   {chapterTitleRepairMutation.isPending && chapterTitleRepairMutation.pendingTaskId === task.id
-                    ? "AI 修复中..."
+                    ? t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.aiIsRepairing")
                     : chapterTitleWarning.label}
                 </Button>
               ) : null}
@@ -622,17 +624,17 @@ export default function NovelAutoDirectorProgressPanel({
           </div>
         ) : visualMode === "execution_failed" ? (
           <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-            <div className="font-medium">失败摘要</div>
+            <div className="font-medium">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_8b4429c4")}</div>
             <div className="mt-1">{failureMessage}</div>
             {task?.recoveryHint ? (
-              <div className="mt-2 text-xs text-destructive/80">恢复建议：{task.recoveryHint}</div>
+              <div className="mt-2 text-xs text-destructive/80">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_25766e25")}</div>
             ) : null}
           </div>
         ) : null}
       </AITakeoverContainer>
 
       <div className="pt-1">
-        <div className="text-sm font-medium text-foreground">里程碑历史</div>
+        <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_8e910f68")}</div>
         {milestones.length > 0 ? (
           <div className="mt-3 space-y-3 border-l border-border/60 pl-3">
             {milestones
@@ -642,7 +644,7 @@ export default function NovelAutoDirectorProgressPanel({
                 <div key={`${item.checkpointType}:${item.createdAt}`} className="text-sm">
                   <div className="font-medium text-foreground">{formatCheckpoint(item.checkpointType, task)}</div>
                   <div className="mt-1 text-sm text-muted-foreground">{item.summary}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">记录时间：{formatDate(item.createdAt)}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_b6387af6")}</div>
                 </div>
               ))}
           </div>

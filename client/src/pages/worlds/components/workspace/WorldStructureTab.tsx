@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import type {
   WorldBindingSupport,
@@ -18,11 +20,11 @@ import WorldFactionsSection from "./structure/WorldFactionsSection";
 import WorldRelationsSection from "./structure/WorldRelationsSection";
 
 const SECTION_OPTIONS: Array<{ value: WorldStructureSectionKey; label: string }> = [
-  { value: "profile", label: "世界概要" },
-  { value: "rules", label: "规则中心" },
-  { value: "factions", label: "阵营与势力" },
-  { value: "locations", label: "地点与地形" },
-  { value: "relations", label: "关系网络" },
+  { value: "profile", label: t("gen.pages.worlds.components.workspace.WorldStructureTab.worldOverview") },
+  { value: "rules", label: t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_c1af372a") },
+  { value: "factions", label: t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_e87fe613") },
+  { value: "locations", label: t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_d528ae4b") },
+  { value: "relations", label: t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_bb016fed") },
 ];
 
 function updateArrayItem<T>(items: T[], index: number, nextItem: T): T[] {
@@ -82,9 +84,9 @@ export default function WorldStructureTab(props: {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>高级字段维护</CardTitle>
+          <CardTitle>{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_6d58393f")}</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">正在加载高级结构数据...</CardContent>
+        <CardContent className="text-sm text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_e8be0b1f")}</CardContent>
       </Card>
     );
   }
@@ -92,7 +94,7 @@ export default function WorldStructureTab(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>高级字段维护</CardTitle>
+        <CardTitle>{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_6d58393f")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-md border p-3 space-y-3">
@@ -120,7 +122,7 @@ export default function WorldStructureTab(props: {
               }}
               disabled={backfillPending}
             >
-              {backfillPending ? "提取中..." : hasStructuredData ? "重新从现有设定提取" : "从现有设定提取结构"}
+              {backfillPending ? t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_19b549e6") : hasStructuredData ? t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_a6c139b5") : t("gen.pages.worlds.components.workspace.WorldStructureTab.extractStructureFromExistingSettings")}
             </Button>
             <Button
               variant="outline"
@@ -133,16 +135,16 @@ export default function WorldStructureTab(props: {
               }}
               disabled={generatePending}
             >
-              {generatePending ? "补全中..." : "AI 补全当前区块"}
+              {generatePending ? t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_b6c679e2") : t("gen.pages.worlds.components.workspace.WorldStructureTab.expandCurrentBlock")}
             </Button>
             <Button onClick={() => void onSave(draftStructure, draftBindingSupport)} disabled={savePending}>
-              {savePending ? "保存中..." : "保存结构"}
+              {savePending ? t("gen.pages.worlds.components.workspace.WorldStructureTab.savingInProgressDotDotDot") : t("gen.pages.worlds.components.workspace.WorldStructureTab.saveStructure")}
             </Button>
           </div>
         </div>
 
         <div className={activeSection === "profile" ? "rounded-md border p-3 space-y-3" : "hidden"}>
-          <div className="font-medium">世界概要</div>
+          <div className="font-medium">{t("gen.pages.worlds.components.workspace.WorldStructureTab.worldOverview")}</div>
           <Input
             value={draftStructure.profile.identity}
             onChange={(event) =>
@@ -152,7 +154,7 @@ export default function WorldStructureTab(props: {
                   : prev,
               )
             }
-            placeholder="世界身份 / 类型气质"
+            placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.worldIdentityTypeAttire")}
           />
           <Input
             value={draftStructure.profile.tone}
@@ -163,7 +165,7 @@ export default function WorldStructureTab(props: {
                   : prev,
               )
             }
-            placeholder="整体调性"
+            placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_a200ee45")}
           />
           <textarea
             className="min-h-[100px] w-full rounded-md border bg-background p-2 text-sm"
@@ -175,7 +177,7 @@ export default function WorldStructureTab(props: {
                   : prev,
               )
             }
-            placeholder="世界摘要"
+            placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.worldSummary")}
           />
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
@@ -187,7 +189,7 @@ export default function WorldStructureTab(props: {
                   : prev,
               )
             }
-            placeholder="核心冲突"
+            placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_ae5f3fde")}
           />
           <Input
             value={draftStructure.profile.themes.join("、")}
@@ -204,13 +206,13 @@ export default function WorldStructureTab(props: {
                   : prev,
               )
             }
-            placeholder="主题关键词，使用顿号或逗号分隔"
+            placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.topicKeywordSeparated")}
           />
         </div>
 
         <div className={activeSection === "rules" ? "rounded-md border p-3 space-y-3" : "hidden"}>
           <div className="flex items-center justify-between">
-            <div className="font-medium">规则中心</div>
+            <div className="font-medium">{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_c1af372a")}</div>
             <Button
               size="sm"
               variant="outline"
@@ -251,7 +253,7 @@ export default function WorldStructureTab(props: {
                   : prev,
               )
             }
-            placeholder="世界级规则总结"
+            placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.worldRuleSummary")}
           />
           {draftStructure.rules.axioms.map((rule, index) => (
             <div key={rule.id || index} className="rounded-md border p-3 space-y-2">
@@ -274,7 +276,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder="规则名称"
+                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_87080256")}
                 />
                 <Input
                   value={rule.cost}
@@ -294,7 +296,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder="代价"
+                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.cost")}
                 />
               </div>
               <textarea
@@ -316,7 +318,7 @@ export default function WorldStructureTab(props: {
                       : prev,
                   )
                 }
-                placeholder="规则说明"
+                placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_cc807bdb")}
               />
               <div className="grid gap-2 md:grid-cols-2">
                 <Input
@@ -337,7 +339,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder="边界条件"
+                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_870f8e99")}
                 />
                 <Input
                   value={rule.enforcement}
@@ -357,7 +359,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder="约束/执行后果"
+                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_b1a87e08")}
                 />
               </div>
             </div>
@@ -375,7 +377,7 @@ export default function WorldStructureTab(props: {
 
         <div className={activeSection === "locations" ? "rounded-md border p-3 space-y-3" : "hidden"}>
           <div className="flex items-center justify-between">
-            <div className="font-medium">地点与地形</div>
+            <div className="font-medium">{t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_d528ae4b")}</div>
             <Button
               size="sm"
               variant="outline"
@@ -424,7 +426,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder="地点名称"
+                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_6608b1e8")}
                 />
                 <Input
                   value={location.terrain}
@@ -441,7 +443,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder="地形 / 地貌"
+                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_e99df637")}
                 />
               </div>
               <textarea
@@ -460,7 +462,7 @@ export default function WorldStructureTab(props: {
                       : prev,
                   )
                 }
-                placeholder="地点概述"
+                placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_ed96b49c")}
               />
               <div className="grid gap-2 md:grid-cols-2">
                 <Input
@@ -478,7 +480,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder="叙事功能"
+                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_dfe66fd3")}
                 />
                 <Input
                   value={location.risk}
@@ -495,7 +497,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder="风险"
+                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_57846ffb")}
                 />
               </div>
               <div className="grid gap-2 md:grid-cols-2">
@@ -514,7 +516,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder="进入限制"
+                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_fbc2f117")}
                 />
                 <Input
                   value={location.exitCost}
@@ -531,7 +533,7 @@ export default function WorldStructureTab(props: {
                         : prev,
                     )
                   }
-                  placeholder="离开代价"
+                  placeholder={t("gen.pages.worlds.components.workspace.WorldStructureTab.gen_9eb03213")}
                 />
               </div>
             </div>

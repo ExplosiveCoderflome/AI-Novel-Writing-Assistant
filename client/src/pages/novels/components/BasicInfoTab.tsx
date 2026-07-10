@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { BasicTabProps } from "./NovelEditView.types";
 import NovelBasicInfoForm from "./NovelBasicInfoForm";
 import NovelStyleRecommendationCard from "./NovelStyleRecommendationCard";
@@ -12,8 +14,8 @@ export default function BasicInfoTab(props: BasicTabProps) {
   return (
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel
-        title="让 AI 从当前项目继续接管"
-        description="如果基础信息较完整，可以直接从选定步骤开始自动接管，并选择继续已有进度或重跑当前步。"
+        title={t("gen.pages.novels.components.BasicInfoTab.gen_1c2bfa8e")}
+        description={t("gen.pages.novels.components.BasicInfoTab.gen_48ee08a7")}
         entry={props.directorTakeoverEntry}
       />
       <NovelWorldManagerCard
@@ -41,8 +43,8 @@ export default function BasicInfoTab(props: BasicTabProps) {
         onSaveWorldSliceOverrides={props.onSaveWorldSliceOverrides}
       />
       <SectionBlock
-        title="书级定位与基本信息"
-        description="继续完善标题、概述、读者与卖点，让后续自动导演和章节生成能稳定继承当前方向。"
+        title={t("gen.pages.novels.components.BasicInfoTab.chapterLocationBasicInfo")}
+        description={t("gen.pages.novels.components.BasicInfoTab.gen_95e5f769")}
       >
         <NovelBasicInfoForm
           basicForm={props.basicForm}
@@ -57,7 +59,7 @@ export default function BasicInfoTab(props: BasicTabProps) {
           onFormChange={props.onFormChange}
           onSubmit={props.onSave}
           isSubmitting={props.isSaving}
-          submitLabel="保存基本信息"
+          submitLabel={t("gen.pages.novels.components.BasicInfoTab.saveBasicInfo")}
           titleQuickFill={(
             <NovelCreateTitleQuickFill
               basicForm={props.basicForm}
@@ -86,9 +88,9 @@ export default function BasicInfoTab(props: BasicTabProps) {
       </SectionBlock>
 
       <DetailDisclosure
-        title="写法建议"
-        description="确认本书的叙述口味、表达密度和风格参考，帮助后续章节保持统一。"
-        meta="写法参考"
+        title={t("gen.pages.novels.components.BasicInfoTab.gen_b59a7318")}
+        description={t("gen.pages.novels.components.BasicInfoTab.gen_734fe645")}
+        meta={t("gen.pages.novels.components.BasicInfoTab.gen_d1de791d")}
       >
         <NovelStyleRecommendationCard novelId={props.novelId} />
       </DetailDisclosure>

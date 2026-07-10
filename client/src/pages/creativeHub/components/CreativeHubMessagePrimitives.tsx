@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import {
   ActionBarPrimitive,
   BranchPickerPrimitive,
@@ -119,7 +121,7 @@ export function CreativeHubAssistantMessage() {
               ),
               Reasoning: ({ text }: { text: string }) => (
                 <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs">
-                  <div className="mb-1 text-[11px] text-amber-700">推理过程</div>
+                  <div className="mb-1 text-[11px] text-amber-700">{t("gen.pages.creativeHub.components.CreativeHubMessagePrimitives.gen_3d1dec1f")}</div>
                   <MarkdownViewer content={text} />
                 </div>
               ),
@@ -141,7 +143,7 @@ export function CreativeHubEditComposer() {
     <ComposerPrimitive.Root className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 shadow-sm">
       <ComposerPrimitive.Input
         className="min-h-[88px] w-full resize-none rounded-xl border border-amber-200 bg-white p-3 text-sm outline-none transition focus:border-amber-400"
-        placeholder="编辑这条消息后生成新的分支"
+        placeholder={t("gen.pages.creativeHub.components.CreativeHubMessagePrimitives.gen_6402b0c3")}
         submitMode="enter"
       />
       <div className="mt-3 flex gap-2">

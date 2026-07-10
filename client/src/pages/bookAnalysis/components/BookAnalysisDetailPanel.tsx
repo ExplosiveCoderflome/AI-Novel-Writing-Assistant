@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import type { RefObject } from "react";
 import type {
@@ -224,13 +226,13 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
             <summary className="cursor-pointer list-none">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-medium">分析信息与发布</div>
+                  <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_20e71449")}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     完成 {sectionStats.succeeded}/{sectionStats.total}，生成 {sectionStats.active} 项
                     {sectionStats.frozen > 0 ? `，冻结 ${sectionStats.frozen} 项` : ""}
                   </div>
                 </div>
-                <Badge variant="outline">展开</Badge>
+                <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_e2edde5a")}</Badge>
               </div>
             </summary>
             <div className="mt-3 space-y-3">
@@ -245,14 +247,14 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                 </div>
               ) : null}
               <div className="rounded-md border p-3 text-sm">
-                <div className="mb-2 font-medium">发布到小说知识库</div>
+                <div className="mb-2 font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_a3db6e46")}</div>
                 <div className="flex flex-wrap items-center gap-2">
                   <SelectControl
                     className="h-9 min-w-[220px] rounded-md border bg-background px-2 text-sm"
                     value={selectedNovelId}
                     onChange={(event) => onSelectedNovelChange(event.target.value)}
                   >
-                    <option value="">选择目标小说</option>
+                    <option value="">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_58d92a5f")}</option>
                     {novelOptions.map((novel) => (
                       <option key={novel.id} value={novel.id}>
                         {novel.title}
@@ -269,27 +271,27 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                 </div>
                 {publishFeedback ? <div className="mt-2 text-xs text-muted-foreground">{publishFeedback}</div> : null}
                 {lastPublishResult ? (
-                  <div className="mt-1 text-xs text-muted-foreground">发布时间：{formatDate(lastPublishResult.publishedAt)}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_26194bcd")}</div>
                 ) : null}
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-md border p-3 text-sm">
-                  <div className="font-medium">概要</div>
+                  <div className="font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_7f1b21a5")}</div>
                   <div className="mt-2 whitespace-pre-wrap text-muted-foreground">
-                    {selectedAnalysis.summary?.trim() || "生成总览后会在此显示概要内容。"}
+                    {selectedAnalysis.summary?.trim() || t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_aabbf28f")}
                   </div>
                 </div>
                 <div className="rounded-md border p-3 text-sm">
-                  <div className="font-medium">运行元信息</div>
+                  <div className="font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_5d37ac7d")}</div>
                   <div className="mt-2 space-y-1 text-muted-foreground">
-                    <div>提供商：{selectedAnalysis.provider ?? "deepseek"}</div>
-                    <div>模型：{selectedAnalysis.model || "默认"}</div>
-                    <div>温度：{selectedAnalysis.temperature ?? "默认"}</div>
-                    <div>最大 Tokens：{selectedAnalysis.maxTokens ?? "默认"}</div>
+                    <div>{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_122b8a20")}</div>
+                    <div>{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_8b0f2bb4")}</div>
+                    <div>{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_5577a467")}</div>
+                    <div>{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_b136db2b")}</div>
                     <div>
                       预算用量：{budgetTokens
                         ? `${formatTokenCount(usedTokens)} / ${formatTokenCount(budgetTokens)} tokens`
-                        : "不限"}
+                        : t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_8441b348")}
                     </div>
                     {budgetTokens ? (
                       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
@@ -299,12 +301,12 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                         />
                       </div>
                     ) : null}
-                    <div>原文范围：{selectedAnalysis.sourceRange?.label ?? "全文"}</div>
-                    <div>当前阶段：{formatStage(selectedAnalysis.currentStage)}</div>
-                    <div>当前 section：{selectedAnalysis.currentItemLabel ?? "暂无"}</div>
-                    <div>最近心跳：{formatDate(selectedAnalysis.heartbeatAt)}</div>
-                    <div>最近运行：{formatDate(selectedAnalysis.lastRunAt)}</div>
-                    <div>创建时间：{formatDate(selectedAnalysis.createdAt)}</div>
+                    <div>{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_cac042d7")}</div>
+                    <div>{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_ec01253a")}</div>
+                    <div>{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_868792f4")}</div>
+                    <div>{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_ed7c4a7b")}</div>
+                    <div>{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_e38d57b1")}</div>
+                    <div>{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_8ce8b15b")}</div>
                   </div>
                 </div>
               </div>
@@ -314,10 +316,10 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
           <section className="rounded-md border bg-background">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <div className="text-base font-semibold">拆书内容</div>
-                <Badge variant="outline">完成 {sectionStats.succeeded}/{sectionStats.total}</Badge>
-                <Badge variant="outline">生成 {sectionStats.active} 项</Badge>
-                {sectionStats.frozen > 0 ? <Badge variant="secondary">冻结 {sectionStats.frozen} 项</Badge> : null}
+                <div className="text-base font-semibold">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_ff3b883f")}</div>
+                <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_3eac0ee0")}</Badge>
+                <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_0ca8f321")}</Badge>
+                {sectionStats.frozen > 0 ? <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_41dbc47f")}</Badge> : null}
               </div>
               <div className="flex rounded-md border bg-background p-1">
                 <Button
@@ -347,7 +349,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                     <TabsTrigger key={section.sectionKey} value={section.sectionKey} className="gap-2">
                       <span>{section.title}</span>
                       <span className="text-xs text-muted-foreground">
-                        {section.frozen ? "冻结" : formatStatus(section.status)}
+                        {section.frozen ? t("gen.pages.bookAnalysis.components.BookAnalysisDetailPanel.gen_28a28695") : formatStatus(section.status)}
                       </span>
                     </TabsTrigger>
                   ))}

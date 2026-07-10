@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
@@ -38,12 +40,12 @@ function formatConnectionTestResult(response: Awaited<ReturnType<typeof testLLMC
     ? plain.ok
       ? `普通连通正常${plain.latency != null ? ` (${plain.latency}ms)` : ""}`
       : `普通连通失败${plain.error ? `：${plain.error}` : ""}`
-    : "普通连通未检测";
+    : t("gen.pages.settings.SettingsPage.gen_51f4fc6d");
   const structuredText = structured
     ? structured.ok
-      ? `结构化正常${structured.strategy ? `，策略 ${structured.strategy}` : ""}${structured.reasoningForcedOff ? "，已强制关闭 thinking" : ""}`
+      ? `结构化正常${structured.strategy ? `，策略 ${structured.strategy}` : ""}${structured.reasoningForcedOff ? t("gen.pages.settings.SettingsPage.gen_5171d6ff") : ""}`
       : `结构化失败${structured.errorCategory ? `，分类 ${structured.errorCategory}` : ""}${structured.error ? `：${structured.error}` : ""}`
-    : "结构化未检测";
+    : t("gen.pages.settings.SettingsPage.gen_333d0bf3");
   return `连接成功，总耗时 ${latency}ms · ${plainText} · ${structuredText}`;
 }
 
@@ -207,11 +209,11 @@ export default function SettingsPage() {
       }),
     onSuccess: async (response) => {
       resetDialogState();
-      setActionResult(response.message ?? "保存成功。");
+      setActionResult(response.message ?? t("gen.pages.settings.SettingsPage.savedSuccessfully"));
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "保存失败。");
+      setActionResult(error instanceof Error ? error.message : t("gen.pages.settings.SettingsPage.saveFailedDot"));
     },
   });
 
@@ -227,11 +229,11 @@ export default function SettingsPage() {
     }) => createCustomProvider(payload),
     onSuccess: async (response) => {
       resetDialogState();
-      setActionResult(response.message ?? "自定义厂商创建成功。");
+      setActionResult(response.message ?? t("gen.pages.settings.SettingsPage.gen_05a3234b"));
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "创建自定义厂商失败。");
+      setActionResult(error instanceof Error ? error.message : t("gen.pages.settings.SettingsPage.gen_3439e49e"));
     },
   });
 
@@ -248,7 +250,7 @@ export default function SettingsPage() {
     },
     onError: (error) => {
       setPreviewModels([]);
-      setPreviewModelsResult(error instanceof Error ? error.message : "获取模型列表失败。");
+      setPreviewModelsResult(error instanceof Error ? error.message : t("gen.pages.settings.SettingsPage.gen_e8d27ed9"));
     },
   });
 
@@ -256,11 +258,11 @@ export default function SettingsPage() {
     mutationFn: (provider: LLMProvider) => deleteCustomProvider(provider),
     onSuccess: async (response) => {
       resetDialogState();
-      setActionResult(response.message ?? "自定义厂商已删除。");
+      setActionResult(response.message ?? t("gen.pages.settings.SettingsPage.gen_219a1545"));
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "删除自定义厂商失败。");
+      setActionResult(error instanceof Error ? error.message : t("gen.pages.settings.SettingsPage.gen_b6324516"));
     },
   });
 
@@ -280,7 +282,7 @@ export default function SettingsPage() {
       await invalidateProviderAuxiliaryQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "刷新模型列表失败。");
+      setActionResult(error instanceof Error ? error.message : t("gen.pages.settings.SettingsPage.gen_bea8afd0"));
     },
   });
 
@@ -291,11 +293,11 @@ export default function SettingsPage() {
       }),
     onSuccess: async (_response, variables) => {
       const providerName = providerConfigs.find((item) => item.provider === variables.provider)?.name ?? variables.provider;
-      setActionResult(`${providerName} 思考功能已${variables.reasoningEnabled ? "开启" : "关闭"}。`);
+      setActionResult(`${providerName} 思考功能已${variables.reasoningEnabled ? t("gen.pages.settings.SettingsPage.gen_cc42dd31") : t("gen.pages.settings.SettingsPage.gen_b15d9127")}。`);
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "更新思考开关失败。");
+      setActionResult(error instanceof Error ? error.message : t("gen.pages.settings.SettingsPage.gen_62e3db16"));
     },
   });
 
@@ -307,7 +309,7 @@ export default function SettingsPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances });
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "刷新余额失败。");
+      setActionResult(error instanceof Error ? error.message : t("gen.pages.settings.SettingsPage.gen_5089f09b"));
     },
   });
 
@@ -413,7 +415,7 @@ export default function SettingsPage() {
         onError: (error) => {
           setProviderTestResults((prev) => ({
             ...prev,
-            [provider.provider]: error instanceof Error ? error.message : "连接测试失败。",
+            [provider.provider]: error instanceof Error ? error.message : t("gen.pages.settings.SettingsPage.gen_b32cc465"),
           }));
         },
       },
@@ -434,7 +436,7 @@ export default function SettingsPage() {
           setDialogTestResult(formatConnectionTestResult(response));
         },
         onError: (error) => {
-          setDialogTestResult(error instanceof Error ? error.message : "连接测试失败。");
+          setDialogTestResult(error instanceof Error ? error.message : t("gen.pages.settings.SettingsPage.gen_b32cc465"));
         },
       },
     );
@@ -457,13 +459,13 @@ export default function SettingsPage() {
     || (isCustomDialog && !form.displayName.trim())
     || (isCreatingCustomProvider && !form.baseURL.trim())
     || (!isCustomDialog && editingConfig?.requiresApiKey !== false && !form.key.trim() && !editingConfig?.isConfigured);
-  const providerSubmitLabel = isSavingProvider ? "保存中..." : isCreatingCustomProvider ? "创建厂商" : "保存";
+  const providerSubmitLabel = isSavingProvider ? t("gen.pages.settings.SettingsPage.savingInProgressDotDotDot") : isCreatingCustomProvider ? t("gen.pages.settings.SettingsPage.gen_46bd767f") : t("gen.pages.settings.SettingsPage.save");
 
   return (
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsPageRoot}>
       <SettingsSectionGroup
-        title="开始创作必需"
-        description="先让模型和任务路由可用，新手就能进入自动导演、开书和章节生产。"
+        title={t("gen.pages.settings.SettingsPage.gen_e7c25780")}
+        description={t("gen.pages.settings.SettingsPage.gen_12a5e0ea")}
         status="required"
       >
         <SettingsReadinessCard items={readinessItems} />
@@ -499,8 +501,8 @@ export default function SettingsPage() {
       </SettingsSectionGroup>
 
       <SettingsSectionGroup
-        title="写作质量增强"
-        description="这些设置会提高长篇连续性、资料召回和写法学习效果；不影响你先开始创作。"
+        title={t("gen.pages.settings.SettingsPage.gen_124a0559")}
+        description={t("gen.pages.settings.SettingsPage.gen_c1d19ef6")}
         status="enhancement"
       >
         <SettingsNavigationCards mode="knowledge" />
@@ -508,16 +510,16 @@ export default function SettingsPage() {
       </SettingsSectionGroup>
 
       <SettingsSectionGroup
-        title="自动导演高级"
-        description="需要自动确认审批点或接入钉钉、企业微信跟进时，再展开这里配置。"
+        title={t("gen.pages.settings.SettingsPage.gen_c72f1d50")}
+        description={t("gen.pages.settings.SettingsPage.gen_a645b343")}
         status="advanced"
       >
         <AutoDirectorSettingsSection onActionResult={setActionResult} />
       </SettingsSectionGroup>
 
       <SettingsSectionGroup
-        title="系统维护"
-        description="桌面更新和旧数据导入放在这里，避免打断日常创作配置。"
+        title={t("gen.pages.settings.SettingsPage.gen_e58e3369")}
+        description={t("gen.pages.settings.SettingsPage.gen_3b700660")}
         status="maintenance"
       >
         <SettingsMaintenanceSection />
@@ -550,7 +552,7 @@ export default function SettingsPage() {
         testResult={dialogTestResult}
         onDeleteCustomProvider={handleDeleteCustomProvider}
         deleteDisabled={deleteCustomProviderMutation.isPending}
-        deleteLabel={deleteCustomProviderMutation.isPending ? "删除中..." : "删除"}
+        deleteLabel={deleteCustomProviderMutation.isPending ? t("gen.pages.settings.SettingsPage.gen_09f2fb82") : t("gen.pages.settings.SettingsPage.gen_2f4aaddd")}
       />
     </div>
   );

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Descendant, Value } from "platejs";
 import { ParagraphPlugin, Plate, PlateContent, usePlateEditor } from "platejs/react";
@@ -175,7 +177,7 @@ function SlotBadges({ section }: { section: PromptEditorSection }) {
         {section.sourceLabel}
       </Badge>
       {section.isDirty ? (
-        <Badge variant="secondary" className="border-[#b8d9d0] bg-[#eaf7f2] text-[#0f766e]">未保存</Badge>
+        <Badge variant="secondary" className="border-[#b8d9d0] bg-[#eaf7f2] text-[#0f766e]">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_50b14199")}</Badge>
       ) : null}
     </div>
   );
@@ -186,10 +188,10 @@ function ReconcileMiniBadge({ item }: { item?: PromptSlotReconcileItem }) {
     return null;
   }
   const label = item.state === "drifted"
-    ? "官方已更新"
+    ? t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_8161f45a")
     : item.state === "new"
-      ? "新增槽位"
-      : "槽位已移除";
+      ? t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_646b54d4")
+      : t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_1310244c");
   return (
     <Badge variant="secondary" className="border-amber-200 bg-amber-50 text-amber-800">
       {label}
@@ -239,7 +241,7 @@ function PromptSlotSection(props: {
             variant="ghost"
             onClick={() => onReset(section.slotKey)}
             disabled={disabled}
-            title={section.isOfficialDefaultOverride ? "清除本书官方默认标记，重新继承全局覆盖" : "清除当前层覆盖"}
+            title={section.isOfficialDefaultOverride ? t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_b1c64078") : t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_4132bdbe")}
             className="h-8 w-8 shrink-0 p-0"
           >
             <RotateCcw className="h-4 w-4" />
@@ -293,16 +295,16 @@ function PromptSlotSection(props: {
 }
 
 function reconcileStateLabel(item: PromptSlotReconcileItem): string {
-  if (item.state === "drifted") return "官方文案已更新";
-  if (item.state === "new") return "官方新增槽位";
-  return "槽位已移除";
+  if (item.state === "drifted") return t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_fd658afa");
+  if (item.state === "new") return t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_56a10e06");
+  return t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_1310244c");
 }
 
 function displaySlotValue(value: string | boolean | undefined): string {
-  if (value === undefined) return "无";
-  if (typeof value === "boolean") return value ? "开启" : "关闭";
+  if (value === undefined) return t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_d81bb206");
+  if (typeof value === "boolean") return value ? t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_cc42dd31") : t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_b15d9127");
   const trimmed = value.trim();
-  if (!trimmed) return "空";
+  if (!trimmed) return t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_b7612b71");
   return trimmed.length > 160 ? `${trimmed.slice(0, 160)}...` : trimmed;
 }
 
@@ -386,11 +388,11 @@ function PromptOfficialVersionPanel(props: {
                   ) : null}
                   <div className="grid gap-2 text-xs text-[#52606d] md:grid-cols-2">
                     <div className="rounded-md bg-[#f7fbf9] px-2 py-2">
-                      <div className="mb-1 font-medium text-[#25443f]">官方当前版</div>
+                      <div className="mb-1 font-medium text-[#25443f]">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_7da9e03e")}</div>
                       <div className="whitespace-pre-wrap break-words">{displaySlotValue(item.defaultCurrent)}</div>
                     </div>
                     <div className="rounded-md bg-[#fffaf0] px-2 py-2">
-                      <div className="mb-1 font-medium text-[#7a5620]">我的设置</div>
+                      <div className="mb-1 font-medium text-[#7a5620]">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_38941cdf")}</div>
                       <div className="whitespace-pre-wrap break-words">{displaySlotValue(item.overrideValue)}</div>
                     </div>
                   </div>
@@ -469,7 +471,7 @@ function ToggleSlotControl(props: {
     <div className="space-y-3">
       <div className="flex items-center gap-3">
         <Switch checked={checked} disabled={disabled} onCheckedChange={onChange} />
-        <span className="text-sm font-medium text-foreground">{checked ? "已启用" : "已关闭"}</span>
+        <span className="text-sm font-medium text-foreground">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_3397a0be")}</span>
       </div>
       {checked ? (
         <div className="rounded-md bg-[#eef7f3] px-3 py-2 text-xs leading-relaxed text-[#52746d]">
@@ -497,7 +499,7 @@ function TokenSlotControl(props: {
         className="font-mono"
       />
       {"patternHint" in section.slot && section.slot.patternHint ? (
-        <div className="text-xs text-muted-foreground">期望格式：{section.slot.patternHint}</div>
+        <div className="text-xs text-muted-foreground">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_f9e4fc60")}</div>
       ) : null}
     </div>
   );
@@ -628,7 +630,7 @@ export function PromptBodyEditor(props: {
             <section className="space-y-3">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-semibold text-foreground">运行控制</h3>
+                <h3 className="text-sm font-semibold text-foreground">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_913674c0")}</h3>
               </div>
               <div className="grid gap-3 xl:grid-cols-2">
                 {controlSections.map((section) => (
@@ -648,7 +650,7 @@ export function PromptBodyEditor(props: {
 
           {bodySections.length > 0 ? (
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">Prompt 主体槽位</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_d3514354")}</h3>
               <div className="space-y-3">
                 {bodySections.map((section) => (
                   <PromptSlotSection
@@ -667,7 +669,7 @@ export function PromptBodyEditor(props: {
 
           {appendSections.length > 0 ? (
             <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">自定义补充规则</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_5d53b12c")}</h3>
               <div className="space-y-3">
                 {appendSections.map((section) => (
                   <PromptSlotSection
@@ -687,7 +689,7 @@ export function PromptBodyEditor(props: {
       )}
 
       <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">最终消息预览</h3>
+        <h3 className="text-sm font-semibold text-foreground">{t("gen.pages.promptWorkbench.components.PromptBodyEditor.gen_16526914")}</h3>
         <PromptPreviewPanel preview={preview} />
       </section>
     </div>

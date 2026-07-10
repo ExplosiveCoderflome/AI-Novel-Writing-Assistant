@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import {
   buildStyleIntentSummary,
   type StyleBinding,
@@ -66,17 +67,17 @@ function firstNonEmptyText(...values: unknown[]): string {
 function formatSourceTypeLabel(sourceType: StyleProfile["sourceType"]): string {
   switch (sourceType) {
     case "manual":
-      return "手动整理";
+      return i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_fb55585e");
     case "from_text":
-      return "从文本提取";
+      return i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.extractFromText");
     case "from_book_analysis":
-      return "拆书生成";
+      return i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_4fa1017a");
     case "from_knowledge_document":
-      return "知识库原文";
+      return i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_51a7e4d2");
     case "from_current_work":
-      return "当前工作提炼";
+      return i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_19fc8a04");
     default:
-      return "其他来源";
+      return i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_f334d1b1");
   }
 }
 
@@ -96,19 +97,19 @@ function formatUpdatedAtLabel(value: string): string {
 }
 
 function buildNarrativeSummary(profile: StyleProfile): string {
-  return buildReadableRuleSummary("narrativeRules", profile.narrativeRules, "还没有明确剧情推进摘要。");
+  return buildReadableRuleSummary("narrativeRules", profile.narrativeRules, i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_32cf1b3d"));
 }
 
 function buildCharacterSummary(profile: StyleProfile): string {
-  return buildReadableRuleSummary("characterRules", profile.characterRules, "还没有明确人物表达摘要。");
+  return buildReadableRuleSummary("characterRules", profile.characterRules, i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_b659b6f5"));
 }
 
 function buildLanguageSummary(profile: StyleProfile): string {
-  return buildReadableRuleSummary("languageRules", profile.languageRules, "还没有明确语言质感摘要。");
+  return buildReadableRuleSummary("languageRules", profile.languageRules, i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_3e81e119"));
 }
 
 function buildRhythmSummary(profile: StyleProfile): string {
-  return buildReadableRuleSummary("rhythmRules", profile.rhythmRules, "还没有明确节奏控制摘要。");
+  return buildReadableRuleSummary("rhythmRules", profile.rhythmRules, i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_8d3f695d"));
 }
 
 function buildSourceContentPreview(sourceContent?: string | null): string | null {
@@ -176,9 +177,9 @@ export function buildLandingProfileItems(params: BuildLandingProfileItemsParams)
         id: profile.id,
         name: profile.name,
         originLabel: getStyleProfileOriginLabel(profile),
-        summaryLine: detailLines[0] ?? profile.description ?? "暂无写法摘要。",
+        summaryLine: detailLines[0] ?? profile.description ?? i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_c7933614"),
         detailLines,
-        description: firstNonEmptyText(profile.description, profileSummary?.readingFeel, "这套写法还没有写清楚读感定位。"),
+        description: firstNonEmptyText(profile.description, profileSummary?.readingFeel, i18next.t("gen.pages.writingFormula.writingFormulaLandingItems.gen_09fd9eba")),
         recentNovelTitle: recentNovelBinding
           ? (novelTitleMap[recentNovelBinding.targetId] ?? recentNovelBinding.targetId)
           : null,

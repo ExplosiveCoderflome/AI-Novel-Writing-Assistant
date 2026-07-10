@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useRef, useState } from "react";
 import { Download, RefreshCw, RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -23,15 +25,15 @@ interface DesktopBootstrapShellProps {
 function resolveStateLabel(snapshot: DesktopBootstrapSnapshot): string {
   switch (snapshot.state) {
     case "launching":
-      return "准备中";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_f76540a9");
     case "starting-server":
-      return "启动本地引擎";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_0aeaea86");
     case "loading-ui":
-      return "加载工作区";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_3a961806");
     case "ready":
-      return "已就绪";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_c30ecc7a");
     case "error":
-      return "启动受阻";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_ddea5406");
     default:
       return snapshot.state;
   }
@@ -40,21 +42,21 @@ function resolveStateLabel(snapshot: DesktopBootstrapSnapshot): string {
 function resolveStageLabel(snapshot: DesktopBootstrapSnapshot): string {
   switch (snapshot.stage) {
     case "launching":
-      return "准备启动";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_86e1e425");
     case "app-ready":
-      return "应用已就绪";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_fd76a07b");
     case "splash-shown":
-      return "启动页已显示";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_cb016cfd");
     case "server-starting":
-      return "本地服务启动中";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_9e1f9b87");
     case "server-healthy":
-      return "本地服务已就绪";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_9abfe65c");
     case "renderer-ready":
-      return "界面已准备";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_ba8db5ff");
     case "main-window-shown":
-      return "主窗口已显示";
+      return t("gen.components.layout.DesktopBootstrapShell.mainWindowShown");
     case "error":
-      return "启动失败";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_efb08e91");
     default:
       return snapshot.stage;
   }
@@ -63,15 +65,15 @@ function resolveStageLabel(snapshot: DesktopBootstrapSnapshot): string {
 function resolveProgressHint(snapshot: DesktopBootstrapSnapshot): string {
   switch (snapshot.state) {
     case "launching":
-      return "正在准备桌面运行时和启动资源。";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_7232fb05");
     case "starting-server":
-      return "桌面版需要先拉起本地服务，随后才会进入主工作区。";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_7089b3c7");
     case "loading-ui":
-      return "本地服务已经可用，正在切入主工作台。";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_1ee6b8c8");
     case "ready":
-      return "启动链路已经完成。";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_ec85a3d4");
     case "error":
-      return "启动过程中遇到问题，建议先查看日志再重试。";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_87c2722f");
     default:
       return snapshot.detail;
   }
@@ -80,21 +82,21 @@ function resolveProgressHint(snapshot: DesktopBootstrapSnapshot): string {
 function resolveUpdaterStatusLabel(status: DesktopUpdaterSnapshot["status"]): string {
   switch (status) {
     case "disabled":
-      return "不可用";
+      return t("gen.components.layout.DesktopBootstrapShell.unavailable");
     case "idle":
-      return "待检查";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_e556fdff");
     case "checking":
-      return "检查中";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_69ac5a39");
     case "update-available":
-      return "发现更新";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_5351384d");
     case "downloading":
-      return "下载中";
+      return t("gen.components.layout.DesktopBootstrapShell.downloading");
     case "downloaded":
-      return "待安装";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_72482be2");
     case "not-available":
-      return "无需更新";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_6b498bfe");
     case "error":
-      return "检查失败";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_74bb5c74");
     default:
       return status;
   }
@@ -103,11 +105,11 @@ function resolveUpdaterStatusLabel(status: DesktopUpdaterSnapshot["status"]): st
 function resolveUpdaterHint(updater: DesktopUpdaterSnapshot, bootstrapState: DesktopBootstrapSnapshot["state"]): string {
   if (!updater.isSupported) {
     if (updater.isPortable) {
-      return "便携版需要下载新版安装包后手动替换。";
+      return t("gen.components.layout.DesktopBootstrapShell.portableVersionRequiresDownloadNewInstallPackageManualReplacement");
     }
 
     if (!updater.isPackaged) {
-      return "开发运行不会连接发布更新通道，打包安装版会自动检查桌面版本。";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_d025a051");
     }
 
     return updater.message;
@@ -116,20 +118,20 @@ function resolveUpdaterHint(updater: DesktopUpdaterSnapshot, bootstrapState: Des
   switch (updater.status) {
     case "idle":
       return bootstrapState === "error"
-        ? "启动受阻时会同步检查桌面版本，方便先安装可用修复。"
-        : "进入工作区前会检查桌面版本，有可用版本时会在这里提示。";
+        ? t("gen.components.layout.DesktopBootstrapShell.gen_f34eb924")
+        : t("gen.components.layout.DesktopBootstrapShell.gen_250275f3");
     case "checking":
-      return "版本检查中，有可用版本时会提示下载。";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_1f92214e");
     case "update-available":
-      return `桌面版 ${updater.availableVersion ?? "新版本"} 可用，建议先下载更新包。`;
+      return `桌面版 ${updater.availableVersion ?? t("gen.components.layout.DesktopBootstrapShell.gen_b6c4f3de")} 可用，建议先下载更新包。`;
     case "downloading":
-      return "更新包下载中，请保持应用打开。";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_4afc4dfb");
     case "downloaded":
-      return "更新包已下载，重启应用后完成安装。";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_faf996b1");
     case "not-available":
-      return "本机安装版本与发布通道保持同步。";
+      return t("gen.components.layout.DesktopBootstrapShell.gen_1f0f97e4");
     case "error":
-      return updater.message || "版本检查失败，可以稍后重试。";
+      return updater.message || t("gen.components.layout.DesktopBootstrapShell.gen_1979e92d");
     default:
       return updater.message;
   }
@@ -204,7 +206,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">版本检查</div>
+        <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{t("gen.components.layout.DesktopBootstrapShell.gen_beed7a8c")}</div>
         <Badge
           variant="outline"
           className={cn(
@@ -218,15 +220,15 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
 
       <div className="mt-3 grid gap-2 text-sm text-slate-300">
         <div className="flex items-center justify-between gap-3">
-          <span>本机版本</span>
+          <span>{t("gen.components.layout.DesktopBootstrapShell.gen_bfedfa19")}</span>
           <span className="font-medium text-slate-100">{updater.currentVersion}</span>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span>可用版本</span>
+          <span>{t("gen.components.layout.DesktopBootstrapShell.gen_29afa32e")}</span>
           <span className="font-medium text-slate-100">{updater.availableVersion ?? "-"}</span>
         </div>
         <div className="flex items-center justify-between gap-3 text-slate-400">
-          <span>检查时间</span>
+          <span>{t("gen.components.layout.DesktopBootstrapShell.gen_e2aaac6d")}</span>
           <span className="font-medium text-slate-200">{formatSnapshotTime(updater.lastCheckedAt ?? "")}</span>
         </div>
       </div>
@@ -247,7 +249,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
             onClick={() => void runUpdaterAction("check")}
           >
             <RefreshCw className={cn("h-4 w-4", updater.status === "checking" ? "animate-spin" : null)} aria-hidden="true" />
-            {updater.status === "checking" ? "检查中" : updater.status === "error" || updater.status === "not-available" ? "重新检查" : "检查更新"}
+            {updater.status === "checking" ? t("gen.components.layout.DesktopBootstrapShell.gen_69ac5a39") : updater.status === "error" || updater.status === "not-available" ? t("gen.components.layout.DesktopBootstrapShell.gen_a1ad5204") : t("gen.components.layout.DesktopBootstrapShell.gen_4ff13370")}
           </Button>
         ) : null}
         {showDownloadButton ? (
@@ -300,7 +302,7 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
                     {resolveStageLabel(snapshot)}
                   </Badge>
                 </div>
-                <h1 className="text-3xl font-semibold tracking-tight">AI 小说创作工作台</h1>
+                <h1 className="text-3xl font-semibold tracking-tight">{t("gen.components.layout.DesktopBootstrapShell.aiNovelStudioBoard")}</h1>
               </div>
             </div>
 
@@ -325,17 +327,17 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
 
           <section className="space-y-5 px-8 py-8">
             <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">当前进度</div>
+              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{t("gen.components.layout.DesktopBootstrapShell.gen_75ea7b29")}</div>
               <div className="mt-3 space-y-3 text-sm text-slate-200">
                 <div className="flex items-center justify-between gap-3">
-                  <span>状态</span>
+                  <span>{t("gen.components.layout.DesktopBootstrapShell.gen_3fea7ca7")}</span>
                   <span className="font-medium">{resolveStateLabel(snapshot)}</span>
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-slate-300">
                   {resolveProgressHint(snapshot)}
                 </div>
                 <div className="flex items-center justify-between gap-3 text-slate-400">
-                  <span>最近更新</span>
+                  <span>{t("gen.components.layout.DesktopBootstrapShell.gen_06dc9b38")}</span>
                   <span className="font-medium text-slate-200">{formatSnapshotTime(snapshot.updatedAt)}</span>
                 </div>
               </div>
@@ -344,7 +346,7 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
             <DesktopBootstrapUpdatePanel snapshot={snapshot} />
 
             <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">日志与排查</div>
+              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">{t("gen.components.layout.DesktopBootstrapShell.gen_3c3bac28")}</div>
               <div className="mt-3 text-sm leading-6 text-slate-300">
                 如果启动卡住、本地服务提前退出，或者你要定位启动耗时，可以直接查看桌面端日志。
               </div>

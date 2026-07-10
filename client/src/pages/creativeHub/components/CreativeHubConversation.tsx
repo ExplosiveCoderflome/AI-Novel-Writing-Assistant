@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import {
   AssistantRuntimeProvider,
   ComposerPrimitive,
@@ -48,27 +50,27 @@ export default function CreativeHubConversation({
       <AssistantRuntimeProvider runtime={runtime}>
         <Card className="flex h-full min-h-0 flex-col">
           <CardHeader>
-            <CardTitle className="text-base">创作中枢</CardTitle>
+            <CardTitle className="text-base">{t("gen.pages.creativeHub.components.CreativeHubConversation.gen_d50f61ff")}</CardTitle>
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1 flex-col">
             <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col space-y-4">
               <ThreadPrimitive.Viewport className="min-h-0 flex-1 space-y-4 overflow-y-auto rounded-2xl bg-gradient-to-b from-slate-50 to-slate-100/70 p-4 ring-1 ring-slate-200">
                 <ThreadPrimitive.Empty>
                   <div className="mx-auto mt-8 max-w-[680px] px-2 text-center">
-                    <h3 className="text-4xl font-semibold tracking-tight text-slate-900">创作中枢</h3>
-                    <p className="mt-2 text-lg text-slate-500">先把你卡住的创作问题抛进来，我会先帮你判断、拆解，再决定是否进入执行。</p>
+                    <h3 className="text-4xl font-semibold tracking-tight text-slate-900">{t("gen.pages.creativeHub.components.CreativeHubConversation.gen_d50f61ff")}</h3>
+                    <p className="mt-2 text-lg text-slate-500">{t("gen.pages.creativeHub.components.CreativeHubConversation.gen_28544395")}</p>
                     {onQuickAction ? (
                       <div className="mt-5 flex flex-wrap justify-center gap-2">
-                        <Button type="button" variant="outline" onClick={() => onQuickAction("基于当前信息，给我 3 套这本书的一句话设定方向。")}>
+                        <Button type="button" variant="outline" onClick={() => onQuickAction(t("gen.pages.creativeHub.components.CreativeHubConversation.gen_66409a09"))}>
                           给我设定方向
                         </Button>
-                        <Button type="button" variant="outline" onClick={() => onQuickAction("帮我判断当前设定最大的短板是什么，并告诉我先补哪一块。")}>
+                        <Button type="button" variant="outline" onClick={() => onQuickAction(t("gen.pages.creativeHub.components.CreativeHubConversation.gen_545b958c"))}>
                           先做诊断
                         </Button>
-                        <Button type="button" variant="outline" onClick={() => onQuickAction("给我 3 套更有吸引力的故事承诺，要求气质差异明显。")}>
+                        <Button type="button" variant="outline" onClick={() => onQuickAction(t("gen.pages.creativeHub.components.CreativeHubConversation.gen_bbdab651"))}>
                           要故事承诺
                         </Button>
-                        <Button type="button" variant="outline" onClick={() => onQuickAction("别急着执行，先根据当前信息帮我收敛成一个可生产的初始化方案。")}>
+                        <Button type="button" variant="outline" onClick={() => onQuickAction(t("gen.pages.creativeHub.components.CreativeHubConversation.gen_04f1f62b"))}>
                           收敛初始化
                         </Button>
                       </div>
@@ -86,7 +88,7 @@ export default function CreativeHubConversation({
               <ComposerPrimitive.Root className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                 <ComposerPrimitive.Input
                   className="min-h-[110px] w-full resize-none rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
-                  placeholder="描述你现在的作品问题、犹豫点或想推进的一轮创作；Enter 发送，Shift+Enter 换行。"
+                  placeholder={t("gen.pages.creativeHub.components.CreativeHubConversation.gen_afdcbe4a")}
                   submitMode="enter"
                 />
                 <div className="mt-3 flex gap-2">

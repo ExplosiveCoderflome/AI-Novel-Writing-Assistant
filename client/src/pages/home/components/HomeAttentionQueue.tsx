@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { AlertTriangle, CheckCircle2, ListChecks } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -25,12 +27,12 @@ export function HomeAttentionQueue(props: {
               <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-700" aria-hidden="true" />
               <div>
                 <div className="text-sm font-medium text-emerald-800">
-                  {props.hasNovels ? "没有阻塞首页推荐的事项" : "还没有需要处理的创作事项"}
+                  {props.hasNovels ? t("gen.pages.home.components.HomeAttentionQueue.gen_599afbac") : t("gen.pages.home.components.HomeAttentionQueue.gen_39595608")}
                 </div>
                 <p className="mt-1 text-sm leading-6 text-emerald-700/90">
                   {props.hasNovels
-                    ? "可以按照推荐动作继续推进项目。"
-                    : "创建小说后，这里会显示确认、失败、恢复和质量提醒。"}
+                    ? t("gen.pages.home.components.HomeAttentionQueue.gen_9d3d5b9e")
+                    : t("gen.pages.home.components.HomeAttentionQueue.gen_5a5e0eee")}
                 </p>
               </div>
             </div>

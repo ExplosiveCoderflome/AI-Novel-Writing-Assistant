@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import {
   BookOpenText,
   CheckCircle2,
@@ -40,103 +42,103 @@ interface FaqItem {
 
 const guideSteps: GuideStep[] = [
   {
-    title: "配置模型",
-    description: "先在系统设置里配置模型厂商、API Key 和默认模型，后续自动导演和章节执行才能顺利运行。",
+    title: t("gen.pages.help.HelpPage.gen_6fba737c"),
+    description: t("gen.pages.help.HelpPage.gen_4a0d6965"),
     icon: KeyRound,
   },
   {
-    title: "输入一句灵感",
-    description: "只写题材、主角、冲突或一个模糊想法都可以，AI 会先帮你整理成可开书方向。",
+    title: t("gen.pages.help.HelpPage.gen_3a580d54"),
+    description: t("gen.pages.help.HelpPage.gen_e452f839"),
     icon: Sparkles,
   },
   {
-    title: "让 AI 自动导演开书",
-    description: "系统会生成整本方向、标题组和开书准备，把复杂规划拆成可确认的步骤。",
+    title: t("gen.pages.help.HelpPage.gen_facd1956"),
+    description: t("gen.pages.help.HelpPage.gen_dc0db31b"),
     icon: Compass,
   },
   {
-    title: "确认方向",
-    description: "从候选方案里选择最想写的一套；不满意时，可以继续生成或只调整选中的方案。",
+    title: t("gen.pages.help.HelpPage.gen_b4685041"),
+    description: t("gen.pages.help.HelpPage.chooseBestFromOptions"),
     icon: CheckCircle2,
   },
   {
-    title: "推进到可开写",
-    description: "让 AI 继续准备故事主线、角色、卷策略和章节拆分，直到项目具备章节执行条件。",
+    title: t("gen.pages.help.HelpPage.gen_0736c320"),
+    description: t("gen.pages.help.HelpPage.gen_63f771a6"),
     icon: Workflow,
   },
   {
-    title: "进入章节执行",
-    description: "按章节写作、审核和修复；想加速时，可以让整本生产任务持续向后推进。",
+    title: t("gen.pages.help.HelpPage.gen_98b5f8b5"),
+    description: t("gen.pages.help.HelpPage.gen_83e7392a"),
     icon: BookOpenText,
   },
   {
-    title: "查看任务和跟进",
-    description: "任务中心处理失败、排队和运行状态；导演跟进页集中处理需要回收的质量事项。",
+    title: t("gen.pages.help.HelpPage.gen_82e583aa"),
+    description: t("gen.pages.help.HelpPage.taskCenterProcessingFailQueueRunStatusDirectorFollowupPage"),
     icon: ListTodo,
   },
 ];
 
 const goalEntries: GoalEntry[] = [
   {
-    title: "从零开书",
-    description: "适合只有一个灵感，还没想清楚题材、卖点、主角和前期剧情。",
+    title: t("gen.pages.help.HelpPage.openBookFromZero"),
+    description: t("gen.pages.help.HelpPage.gen_d2af9065"),
     href: DIRECTOR_CREATE_LINK,
-    action: "开始第一本小说",
+    action: t("gen.pages.help.HelpPage.gen_de6465aa"),
     icon: Sparkles,
   },
   {
-    title: "继续项目",
-    description: "回到小说列表，选择最值得继续的一本书，接着完成规划或章节写作。",
+    title: t("gen.pages.help.HelpPage.gen_155cbfb0"),
+    description: t("gen.pages.help.HelpPage.gen_e0052608"),
     href: "/novels",
-    action: "打开小说列表",
+    action: t("gen.pages.help.HelpPage.gen_26c6b1d1"),
     icon: BookOpenText,
   },
   {
-    title: "配置模型厂商",
-    description: "填写厂商接口、API Key 和默认模型，保证写作链路有可用模型。",
+    title: t("gen.pages.help.HelpPage.gen_1efc6243"),
+    description: t("gen.pages.help.HelpPage.gen_a0789d6d"),
     href: "/settings",
-    action: "打开系统设置",
+    action: t("gen.pages.help.HelpPage.gen_6dd1b030"),
     icon: Route,
   },
   {
-    title: "处理任务",
-    description: "查看后台运行、排队和失败任务，优先处理会影响继续写作的问题。",
+    title: t("gen.pages.help.HelpPage.gen_cc933199"),
+    description: t("gen.pages.help.HelpPage.gen_fd1dfe41"),
     href: "/tasks",
-    action: "打开任务中心",
+    action: t("gen.pages.help.HelpPage.gen_14b9b603"),
     icon: ClipboardList,
   },
   {
-    title: "导演跟进",
-    description: "集中处理自动导演留下的质量回收事项，让整本书继续向完成推进。",
+    title: t("gen.pages.help.HelpPage.gen_ad254401"),
+    description: t("gen.pages.help.HelpPage.gen_a22cab60"),
     href: "/auto-director/follow-ups",
-    action: "查看导演跟进",
+    action: t("gen.pages.help.HelpPage.gen_5bb4c08b"),
     icon: Workflow,
   },
   {
-    title: "调整写法",
-    description: "把喜欢的文本风格沉淀成写法资产，再绑定到小说里持续复用。",
+    title: t("gen.pages.help.HelpPage.gen_57a7c4aa"),
+    description: t("gen.pages.help.HelpPage.gen_32707bab"),
     href: "/style-engine",
-    action: "进入写法引擎",
+    action: t("gen.pages.help.HelpPage.gen_ea734007"),
     icon: WandSparkles,
   },
 ];
 
 const faqItems: FaqItem[] = [
   {
-    question: "我需要会写大纲吗？",
-    answer: "不需要。第一次使用时，直接输入一句灵感，让 AI 自动导演先给出整本方向，再按步骤确认。",
+    question: t("gen.pages.help.HelpPage.gen_db71b67f"),
+    answer: t("gen.pages.help.HelpPage.noNeed"),
   },
   {
-    question: "知识库是必需的吗？",
-    answer: "不是必需。先用自动导演把一本书推进到可开写；需要参考资料、拆书结果或长期设定时，再使用知识库。",
+    question: t("gen.pages.help.HelpPage.gen_55df6a8a"),
+    answer: t("gen.pages.help.HelpPage.notRequired"),
   },
   {
-    question: "任务失败怎么办？",
-    answer: "先到任务中心查看失败原因。常见的模型、网络或授权问题处理好后，可以回到原项目继续推进。",
+    question: t("gen.pages.help.HelpPage.howToDoOnErrorTask"),
+    answer: t("gen.pages.help.HelpPage.gen_109c8908"),
   },
   {
-    question: "质量待回收是什么意思？",
-    answer: "这表示系统先把普通质量问题记录下来，优先把整本书继续写完，后续再集中修复这些章节。",
+    question: t("gen.pages.help.HelpPage.gen_81a914a6"),
+    answer: t("gen.pages.help.HelpPage.gen_3f0e875f"),
   },
 ];
 
@@ -147,8 +149,8 @@ export default function HelpPage() {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-3xl space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge>新手上路</Badge>
-              <Badge variant="outline">推荐路线</Badge>
+              <Badge>{t("gen.pages.help.HelpPage.gen_c46d213c")}</Badge>
+              <Badge variant="outline">{t("gen.pages.help.HelpPage.gen_b97e1eec")}</Badge>
             </div>
             <h1 className="text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
               从一句灵感开始，让 AI 带你写第一本小说
@@ -159,10 +161,10 @@ export default function HelpPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild size="lg">
-              <Link to={DIRECTOR_CREATE_LINK}>开始第一本小说</Link>
+              <Link to={DIRECTOR_CREATE_LINK}>{t("gen.pages.help.HelpPage.gen_de6465aa")}</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link to="/settings">配置模型</Link>
+              <Link to="/settings">{t("gen.pages.help.HelpPage.gen_6fba737c")}</Link>
             </Button>
           </div>
         </div>
@@ -172,7 +174,7 @@ export default function HelpPage() {
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center gap-2">
             <KeyRound className="h-5 w-5 text-amber-700" />
-            <CardTitle className="text-lg text-amber-950">开始写作前先配置模型</CardTitle>
+            <CardTitle className="text-lg text-amber-950">{t("gen.pages.help.HelpPage.gen_37eabb8d")}</CardTitle>
           </div>
           <CardDescription className="text-amber-900/80">
             自动导演、正文写作和章节审阅都需要可用模型。先完成模型厂商、API Key 和默认模型配置，再启动开书流程会更顺畅。
@@ -180,15 +182,15 @@ export default function HelpPage() {
         </CardHeader>
         <CardContent>
           <Button asChild variant="outline">
-            <Link to="/settings">去配置模型</Link>
+            <Link to="/settings">{t("gen.pages.help.HelpPage.gen_fc27aba2")}</Link>
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>推荐路线</CardTitle>
-          <CardDescription>第一次使用时，照着这条路线推进，就能从想法进入可写章节。</CardDescription>
+          <CardTitle>{t("gen.pages.help.HelpPage.gen_b97e1eec")}</CardTitle>
+          <CardDescription>{t("gen.pages.help.HelpPage.gen_464bf605")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -217,8 +219,8 @@ export default function HelpPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>按目标选择入口</CardTitle>
-          <CardDescription>不用先理解全部功能，按你要完成的事选择入口。</CardDescription>
+          <CardTitle>{t("gen.pages.help.HelpPage.gen_51948d98")}</CardTitle>
+          <CardDescription>{t("gen.pages.help.HelpPage.noUnderstandAll")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -249,9 +251,9 @@ export default function HelpPage() {
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2">
             <CircleHelp className="h-5 w-5 text-primary" />
-            <CardTitle>常见问题</CardTitle>
+            <CardTitle>{t("gen.pages.help.HelpPage.gen_50d52dd9")}</CardTitle>
           </div>
-          <CardDescription>遇到不确定的地方，先看这些判断。</CardDescription>
+          <CardDescription>{t("gen.pages.help.HelpPage.gen_eed4c553")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2">

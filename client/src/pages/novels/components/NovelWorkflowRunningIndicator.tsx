@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import WorkflowProgressBar, { normalizeProgressPercent } from "@/components/workflow/WorkflowProgressBar";
 import { cn } from "@/lib/utils";
 
@@ -11,7 +13,7 @@ export default function NovelWorkflowRunningIndicator(props: NovelWorkflowRunnin
   const {
     progress,
     className,
-    label = "AI 正在后台持续推进",
+    label = t("gen.pages.novels.components.NovelWorkflowRunningIndicator.aiProgressingInBackground"),
   } = props;
   const percent = normalizeProgressPercent(progress);
 

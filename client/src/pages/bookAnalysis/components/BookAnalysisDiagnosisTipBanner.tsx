@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Badge } from "@/components/ui/badge";
 
 interface BookAnalysisDiagnosisTipBannerProps {
@@ -8,7 +10,7 @@ export default function BookAnalysisDiagnosisTipBanner({ documentTitle }: BookAn
   return (
     <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary">诊断模式</Badge>
+        <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisDiagnosisTipBanner.gen_03311a5e")}</Badge>
         <span className="font-medium">{documentTitle}</span>
       </div>
       <div className="mt-2 leading-6 text-muted-foreground">

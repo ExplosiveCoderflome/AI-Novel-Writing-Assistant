@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { BookOpen, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,11 +23,11 @@ export default function BookAnalysisWorkbenchViewTabs(props: BookAnalysisWorkben
       <TabsList>
         <TabsTrigger value="sections" className="gap-1.5">
           <BookOpen className="h-3.5 w-3.5" />
-          <span>小节分析</span>
+          <span>{t("gen.pages.bookAnalysis.components.BookAnalysisWorkbenchViewTabs.gen_98016d32")}</span>
         </TabsTrigger>
         <TabsTrigger value="characters" className="gap-1.5">
           <Users className="h-3.5 w-3.5" />
-          <span>角色档案</span>
+          <span>{t("gen.pages.bookAnalysis.components.BookAnalysisWorkbenchViewTabs.gen_90154762")}</span>
           {generatedCharacterCount > 0 ? (
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
               {generatedCharacterCount}

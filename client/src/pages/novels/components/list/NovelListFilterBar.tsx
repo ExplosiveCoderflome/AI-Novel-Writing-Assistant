@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Button } from "@/components/ui/button";
 import type { StatusFilter, WritingModeFilter } from "./novelListViewModel";
 
@@ -9,12 +11,12 @@ export function NovelListFilterBar(props: {
 }) {
   return (
     <section className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4">
-      <FilterGroup label="状态">
+      <FilterGroup label={t("gen.pages.novels.components.list.NovelListFilterBar.gen_3fea7ca7")}>
         <SegmentButton active={props.status === "all"} onClick={() => props.onStatusChange("all")}>全部</SegmentButton>
         <SegmentButton active={props.status === "draft"} onClick={() => props.onStatusChange("draft")}>草稿</SegmentButton>
         <SegmentButton active={props.status === "published"} onClick={() => props.onStatusChange("published")}>已发布</SegmentButton>
       </FilterGroup>
-      <FilterGroup label="类型">
+      <FilterGroup label={t("gen.pages.novels.components.list.NovelListFilterBar.gen_226b0912")}>
         <SegmentButton active={props.writingMode === "all"} onClick={() => props.onWritingModeChange("all")}>全部</SegmentButton>
         <SegmentButton active={props.writingMode === "original"} onClick={() => props.onWritingModeChange("original")}>原创</SegmentButton>
         <SegmentButton active={props.writingMode === "continuation"} onClick={() => props.onWritingModeChange("continuation")}>续写</SegmentButton>

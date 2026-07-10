@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { GitBranch } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import type { WorldStructuredData } from "@ai-novel/shared/types/world";
@@ -18,20 +20,20 @@ export default function WorldHandbookTensionSection(props: {
     <section className="rounded-md border p-4">
       <SectionHeader
         icon={GitBranch}
-        title="关键张力"
-        description="把世界设定压缩成能持续推动剧情的问题，避免世界只是背景资料。"
+        title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_b7cadb8f")}
+        description={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_341fa0a6")}
       />
       <div className="mt-4 grid gap-3 lg:grid-cols-2">
-        <HandbookField title="世界核心冲突" hint="资源、秩序、力量体系或阵营目标之间的长期矛盾。">
+        <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.worldCoreConflict")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_ef6e11f7")}>
           <HandbookTextarea
             value={draftStructure.profile.coreConflict}
             onChange={(value) =>
               setDraftStructure((prev) => (prev ? { ...prev, profile: { ...prev.profile, coreConflict: value } } : prev))
             }
-            placeholder="例如：资源枯竭、秩序崩塌、两套力量体系互相排斥。"
+            placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.exampleResourcesDepletedOrderCollapsedTwoForceSystemsCompete")}
           />
         </HandbookField>
-        <HandbookField title="共同后果" hint="一行一条，写出世界规则带来的长期代价。">
+        <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_8ef6f2f5")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.oneLinePolicy")}>
           <HandbookTextarea
             value={listToText(draftStructure.rules.sharedConsequences)}
             onChange={(value) =>
@@ -39,16 +41,16 @@ export default function WorldHandbookTensionSection(props: {
                 prev ? { ...prev, rules: { ...prev.rules, sharedConsequences: textToList(value) } } : prev,
               )
             }
-            placeholder="力量越强越接近异化&#10;城市越繁荣越依赖危险资源"
+            placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_c46e3820")}
           />
         </HandbookField>
-        <HandbookField title="禁忌组合" hint="一行一条，明确哪些角色背景、力量用法或剧情解法不能出现。">
+        <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_9d4a3def")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.oneLineRestrictions")}>
           <HandbookTextarea
             value={listToText(draftStructure.rules.taboo)}
             onChange={(value) =>
               setDraftStructure((prev) => (prev ? { ...prev, rules: { ...prev.rules, taboo: textToList(value) } } : prev))
             }
-            placeholder="凡人不能无代价操控星核&#10;朝廷密探不能公开加入异魔阵营"
+            placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookTensionSection.gen_b1303b9e")}
           />
         </HandbookField>
         <div className="rounded-md border border-dashed p-3 text-sm leading-6 text-muted-foreground">

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -123,7 +125,7 @@ export function TensionCurveEditDialog(props: TensionCurveEditDialogProps) {
                   {referenceTemplate.label}参考
                 </span>
               ) : null}
-              {userAnchorCount > 0 ? <span>{userAnchorCount} 个手动固定点</span> : <span>暂无手动固定点</span>}
+              {userAnchorCount > 0 ? <span>{t("gen.components.tensionCurve.TensionCurveEditDialog.gen_26e6c369")}</span> : <span>{t("gen.components.tensionCurve.TensionCurveEditDialog.gen_f193d3a1")}</span>}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {userAnchorCount > 0 ? (
@@ -159,11 +161,11 @@ export function TensionCurveEditDialog(props: TensionCurveEditDialogProps) {
               </div>
               {primaryPointCount > 1 ? (
                 <div className="flex items-center gap-2 rounded-md border border-border/70 px-2 py-1">
-                  <span className="text-xs text-muted-foreground">参考线</span>
+                  <span className="text-xs text-muted-foreground">{t("gen.components.tensionCurve.TensionCurveEditDialog.gen_78e6e8fc")}</span>
                   <Switch
                     checked={showReferenceCurve}
                     onCheckedChange={setShowReferenceCurve}
-                    aria-label="显示紧张度参考线"
+                    aria-label={t("gen.components.tensionCurve.TensionCurveEditDialog.gen_fbd9193d")}
                     className="h-5 w-9"
                   />
                   {showReferenceCurve ? (
@@ -199,7 +201,7 @@ export function TensionCurveEditDialog(props: TensionCurveEditDialogProps) {
             />
 
             {canvasWidth > 900 ? (
-              <div className="text-xs text-muted-foreground">拖动画布或滚轮可横向浏览更多章节；拖动点时按住 Shift 可按 1 点精度调整。</div>
+              <div className="text-xs text-muted-foreground">{t("gen.components.tensionCurve.TensionCurveEditDialog.gen_7848117c")}</div>
             ) : null}
 
             <CompactLegend />

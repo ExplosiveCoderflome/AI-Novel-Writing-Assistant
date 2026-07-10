@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import {
   STYLE_ENGINE_COMPATIBILITY_FIELDS,
   type AntiAiRule,
@@ -62,24 +64,24 @@ function FieldBlock(props: {
 
 const FEATURE_DECISION_META: Record<NonNullable<StyleProfileFeature["selectedDecision"]>, { label: string; className: string }> = {
   keep: {
-    label: "保留",
+    label: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.preserve"),
     className: "border-emerald-200 bg-emerald-50 text-emerald-700",
   },
   weaken: {
-    label: "弱化",
+    label: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_e235157f"),
     className: "border-amber-200 bg-amber-50 text-amber-700",
   },
   remove: {
-    label: "剥离",
+    label: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_9b012c13"),
     className: "border-rose-200 bg-rose-50 text-rose-700",
   },
 };
 
 const RULE_PATCH_SECTION_LABELS: Record<keyof StyleRulePatch, string> = {
-  narrativeRules: "剧情推进",
-  characterRules: "人物表达",
-  languageRules: "语言质感",
-  rhythmRules: "节奏密度",
+  narrativeRules: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_95553c6d"),
+  characterRules: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.characterExpression"),
+  languageRules: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_98416f13"),
+  rhythmRules: t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_3c7541b8"),
 };
 
 function formatScorePercent(value: number): string {
@@ -205,7 +207,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
     <Card data-writing-formula-editor-panel tabIndex={-1}>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
-          <CardTitle>编辑当前写法</CardTitle>
+          <CardTitle>{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_94a3c6e8")}</CardTitle>
           {selectedProfile ? (
             <Button size="sm" variant="destructive" onClick={onDelete} disabled={deletePending}>
               删除
@@ -215,7 +217,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
       </CardHeader>
       <CardContent className="space-y-5">
         {!selectedProfile ? (
-          <div className="text-sm text-muted-foreground">请先回到写法页列表，选中一套写法后再进入这里编辑。</div>
+          <div className="text-sm text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_f6fb452c")}</div>
         ) : (
           <>
             {isStarterStyleProfile(selectedProfile) ? (
@@ -231,14 +233,14 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
 
             <div className="space-y-4 rounded-2xl border p-4">
               <div className="space-y-1">
-                <div className="text-base font-semibold text-slate-950">基础定位</div>
+                <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_983dbea1")}</div>
                 <div className="text-sm leading-6 text-slate-500">
                   先把这套写法到底想写成什么感觉讲清楚，列表页展开时也会优先展示这里的内容。
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <FieldBlock label="写法名称" hint="这是你以后在列表里识别这套写法的主标题，尽量写出题材或读感。">
+                <FieldBlock label={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_a5d0edd4")} hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_ae722c6b")}>
                   <input
                     data-writing-formula-primary-input
                     className="w-full rounded-md border p-2 text-sm"
@@ -246,10 +248,10 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                     onChange={(event) => onEditorChange({ name: event.target.value })}
                   />
                 </FieldBlock>
-                <FieldBlock label="分类" hint="用于给自己归档，比如都市、玄幻、言情、热血快推流。">
+                <FieldBlock label={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_d0771a42")} hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_34a9dd9c")}>
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder="例如：都市热血"
+                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_例如都市热血_5rom")}
                     value={editor.category}
                     onChange={(event) => onEditorChange({ category: event.target.value })}
                   />
@@ -257,30 +259,30 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
               </div>
 
               <FieldBlock
-                label="一句话简介"
-                hint="用一句完整的话说明这套写法要产生什么读感、推进感或人物表达气质。"
+                label={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.oneLineIntro")}
+                hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_ca589769")}
               >
                 <textarea
                   className="min-h-[96px] w-full rounded-md border p-2 text-sm"
-                  placeholder="例如：冲突密集、推进快、对白直接、情绪外显，适合都市升级文。"
+                  placeholder={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.exampleConflictsIntenseProgressiveDirectDialogueEmotionUrbanUpgrade")}
                   value={editor.description}
                   onChange={(event) => onEditorChange({ description: event.target.value })}
                 />
               </FieldBlock>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <FieldBlock label="标签" hint="给自己做检索用，写几个短词即可，逗号分隔。">
+                <FieldBlock label={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_14d34236")} hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_e4fc65e3")}>
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder="例如：爽文, 快节奏, 强冲突"
+                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.exampleLightReadFastRhythmStrongConflict")}
                     value={editor.tags}
                     onChange={(event) => onEditorChange({ tags: event.target.value })}
                   />
                 </FieldBlock>
-                <FieldBlock label="适用题材" hint="告诉系统这套写法更适合什么题材或场景，逗号分隔。">
+                <FieldBlock label={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_2fdc5592")} hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_ce4e9b7d")}>
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder="例如：都市, 热血, 升级流"
+                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.exampleUrbanHeatUpgradeFlow")}
                     value={editor.applicableGenres}
                     onChange={(event) => onEditorChange({ applicableGenres: event.target.value })}
                   />
@@ -293,7 +295,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
             || editor.sourceContent.trim() ? (
               <div className="space-y-4 rounded-2xl border p-4">
                 <div className="space-y-1">
-                  <div className="text-base font-semibold text-slate-950">原文依据与提取特征</div>
+                  <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_7f63b649")}</div>
                   <div className="text-sm leading-6 text-slate-500">
                     这部分是这套写法的“证据层”。从文本或知识库原文提取出来的写法，后续回看和重提取都会依赖这里。
                     这里会把特征说明、证据、分数、预设建议和推荐规则一起展示出来。
@@ -301,12 +303,12 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                 </div>
 
                 <FieldBlock
-                  label="原文样本"
-                  hint="这里保存提取这套写法时参考过的文本。样本越完整，系统越容易提取到稳定特征。"
+                  label={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_0e7cba99")}
+                  hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_1c0b6190")}
                 >
                   <textarea
                     className="min-h-[160px] w-full rounded-md border p-2 text-sm"
-                    placeholder="这套写法资产提取时使用的原文样本"
+                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_fc48be6a")}
                     value={editor.sourceContent}
                     onChange={(event) => onEditorChange({ sourceContent: event.target.value })}
                   />
@@ -315,7 +317,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                 <div className="rounded-2xl border p-3">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-medium text-slate-900">提取特征启用</div>
+                      <div className="text-sm font-medium text-slate-900">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_b62a0800")}</div>
                       <div className="text-xs leading-6 text-slate-500">
                         这里会列出原文里抽出来的风格特征。勾选表示继续保留到这套写法里。
                         {editor.extractedFeatures.length > 0 ? ` 当前共 ${editor.extractedFeatures.length} 项。` : ""}
@@ -323,7 +325,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                     </div>
                     {editor.sourceContent.trim() ? (
                       <Button size="sm" variant="outline" onClick={onReextractFeatures} disabled={reextractPending}>
-                        {reextractPending ? "重提取中..." : "重新提取特征"}
+                        {reextractPending ? t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_e43aeb21") : t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_94aaf87a")}
                       </Button>
                     ) : null}
                   </div>
@@ -349,7 +351,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                               ) : null}
                             </span>
                             <span className="mt-1 block text-xs leading-6 text-muted-foreground">{feature.description}</span>
-                            <span className="mt-1 block text-xs leading-6 text-muted-foreground">证据：{feature.evidence}</span>
+                            <span className="mt-1 block text-xs leading-6 text-muted-foreground">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_c3d5aa3f")}</span>
                             <span className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                               <span className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">
                                 重要度 {formatScorePercent(feature.importance)}
@@ -385,7 +387,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                       {extractionPresets.length > 0 ? (
                         <div className="rounded-2xl border bg-slate-50/70 p-3">
                           <div className="space-y-1">
-                            <div className="text-sm font-medium text-slate-900">提取预设建议</div>
+                            <div className="text-sm font-medium text-slate-900">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_361c117b")}</div>
                             <div className="text-xs leading-6 text-slate-500">
                               这里展示模型给出的三套保留方案。当前保存到写法里的选择会单独标出来，方便你判断是不是要换一种保留力度。
                             </div>
@@ -429,7 +431,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                       {selectedProfile.extractionAntiAiRuleKeys.length > 0 ? (
                         <div className="rounded-2xl border bg-slate-50/70 p-3">
                           <div className="space-y-1">
-                            <div className="text-sm font-medium text-slate-900">模型建议的反 AI 规则</div>
+                            <div className="text-sm font-medium text-slate-900">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_280d121e")}</div>
                             <div className="text-xs leading-6 text-slate-500">
                               这些是提取阶段推荐一起绑定的规则。已绑定会直接标出来，未绑定的也会继续保留原始建议名。
                             </div>
@@ -448,7 +450,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
                                   }`}
                                 >
                                   {matchedRule?.name ?? ruleKey}
-                                  {isBound ? " · 已绑定" : matchedRule ? " · 推荐未绑定" : " · 原始建议"}
+                                  {isBound ? t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.isBound") : matchedRule ? t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.recommendedUnbound") : t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.originalSuggestion")}
                                 </span>
                               );
                             })}
@@ -467,14 +469,14 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
 
             <div className="space-y-4 rounded-2xl border p-4">
               <div className="space-y-1">
-                <div className="text-base font-semibold text-slate-950">给系统看的分析草稿</div>
+                <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_047fe1ff")}</div>
                 <div className="text-sm leading-6 text-slate-500">
                   这里不是给读者看的文案，而是给你自己和系统回看时用的补充说明。可以写为什么保留这套写法、它最重要的气质是什么。
                 </div>
               </div>
               <textarea
                 className="min-h-[110px] w-full rounded-md border p-2 text-sm"
-                placeholder="例如：这套写法重点保留强推进和直给对白，不追求细腻抒情。"
+                placeholder={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.exampleThisStyleFocusStrongProgressDirectDialogueNotSeekSubtleExpression")}
                 value={editor.analysisMarkdown}
                 onChange={(event) => onEditorChange({ analysisMarkdown: event.target.value })}
               />
@@ -482,7 +484,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
 
             <div className="space-y-4 rounded-2xl border p-4">
               <div className="space-y-1">
-                <div className="text-base font-semibold text-slate-950">高级规则块</div>
+                <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_6528dbe6")}</div>
                 <div className="text-sm leading-6 text-slate-500">
                   这四块是系统真正执行时会读取的机器规则层。不了解字段含义时，可以先看标题和说明，再决定是否要改。
                   如果当前主要显示“总述”字段，说明这次提取更多给出了摘要级规则，细颗粒兼容字段还不算多。
@@ -495,29 +497,29 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
 
               <div className="grid gap-4 md:grid-cols-2">
                 <RuleFieldCard
-                  title="剧情推进规则"
-                  hint="控制剧情怎么推进、场景怎么收束、是否多视角、是否允许回钩。"
+                  title={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_a9e43c4c")}
+                  hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_c47dc063")}
                   section="narrativeRules"
                   value={editor.narrativeRules}
                   onChange={(value) => onEditorChange({ narrativeRules: value })}
                 />
                 <RuleFieldCard
-                  title="人物表达规则"
-                  hint="控制人物怎么说话、情绪怎么外露、是否倾向自省、是否优先保住体面。"
+                  title={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.characterExpressionRules")}
+                  hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_f758d715")}
                   section="characterRules"
                   value={editor.characterRules}
                   onChange={(value) => onEditorChange({ characterRules: value })}
                 />
                 <RuleFieldCard
-                  title="语言质感规则"
-                  hint="控制句子粗粝度、口语程度、句式变化、是否允许不完整句。"
+                  title={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_1f9170eb")}
+                  hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_4fecc854")}
                   section="languageRules"
                   value={editor.languageRules}
                   onChange={(value) => onEditorChange({ languageRules: value })}
                 />
                 <RuleFieldCard
-                  title="节奏密度规则"
-                  hint="控制推进快慢、段落密度、动作和解释谁更优先。"
+                  title={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_16e6dc89")}
+                  hint={t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_9930819a")}
                   section="rhythmRules"
                   value={editor.rhythmRules}
                   onChange={(value) => onEditorChange({ rhythmRules: value })}
@@ -527,7 +529,7 @@ export default function WritingFormulaEditorPanel(props: WritingFormulaEditorPan
 
             <div className="space-y-4 rounded-2xl border p-4">
               <div className="space-y-1">
-                <div className="text-base font-semibold text-slate-950">绑定反 AI 规则</div>
+                <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaEditorPanel.gen_1c0d9b75")}</div>
                 <div className="text-sm leading-6 text-slate-500">
                   这里决定系统在检测和修正文稿时优先防什么问题。规则绑得越清楚，“去 AI 味”越有方向感。
                 </div>

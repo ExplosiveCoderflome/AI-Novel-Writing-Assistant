@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
 import type { BookAnalysisSectionKey } from "@ai-novel/shared/types/bookAnalysis";
 import { Button } from "@/components/ui/button";
@@ -119,32 +121,32 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
   return (
     <div className="space-y-4">
       <SectionBlock
-        title="作品定位"
-        description="先写清楚标题、一句话概述、目标读者、核心卖点和前 30 章承诺，再补创作模式、题材和推进方式；这些会直接影响后续主线规划、卷章推进和正文生成。"
+        title={t("gen.pages.novels.components.NovelBasicInfoForm.workPlacement")}
+        description={t("gen.pages.novels.components.NovelBasicInfoForm.gen_bd720a25")}
         surface="none"
         className="space-y-5"
       >
         {projectQuickStart ? <div className="flex justify-end">{projectQuickStart}</div> : null}
 
         <div className="space-y-2">
-          <FieldLabel htmlFor="basic-title">小说标题</FieldLabel>
+          <FieldLabel htmlFor="basic-title">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_88af8bf5")}</FieldLabel>
           <Input
             id="basic-title"
             value={basicForm.title}
-            placeholder="例如：雾港审判局"
+            placeholder={t("gen.pages.novels.components.NovelBasicInfoForm.gen_5f0c464b")}
             onChange={(event) => onFormChange({ title: event.target.value })}
           />
           {titleQuickFill ? <div className="pt-1">{titleQuickFill}</div> : null}
         </div>
 
         <div className="space-y-2">
-          <FieldLabel htmlFor="basic-description">一句话概述</FieldLabel>
+          <FieldLabel htmlFor="basic-description">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_d4ed84ef")}</FieldLabel>
           <textarea
             id="basic-description"
             rows={4}
             className="min-h-[112px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             value={basicForm.description}
-            placeholder="用 2-4 句话说明主角、核心冲突和故事看点。"
+            placeholder={t("gen.pages.novels.components.NovelBasicInfoForm.gen_db2128bf")}
             onChange={(event) => onFormChange({ description: event.target.value })}
           />
         </div>
@@ -158,7 +160,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         {coverSection}
 
         <div className="space-y-2">
-          <FieldLabel hint={BASIC_INFO_FIELD_HINTS.writingMode}>创作模式</FieldLabel>
+          <FieldLabel hint={BASIC_INFO_FIELD_HINTS.writingMode}>{t("gen.pages.novels.components.NovelBasicInfoForm.gen_a7535508")}</FieldLabel>
           <div className="grid gap-3 md:grid-cols-2">
             {WRITING_MODE_OPTIONS.map((option) => (
               <SelectionCard
@@ -172,7 +174,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         </div>
 
         <div className="space-y-1 pt-1 text-sm leading-6 text-muted-foreground">
-          <div className="font-medium text-foreground">题材基底与推进模式的区别</div>
+          <div className="font-medium text-foreground">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_ceddc4c2")}</div>
           <div>
             题材基底回答“这是什么书”，例如修仙、都市、历史架空；推进模式回答“这本书靠什么持续推进和兑现”，例如系统流、无敌流、种田流。
           </div>
@@ -182,14 +184,14 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div className="space-y-2">
-            <FieldLabel htmlFor="basic-genre" hint={BASIC_INFO_FIELD_HINTS.genreId}>题材基底</FieldLabel>
+            <FieldLabel htmlFor="basic-genre" hint={BASIC_INFO_FIELD_HINTS.genreId}>{t("gen.pages.novels.components.NovelBasicInfoForm.gen_daa08375")}</FieldLabel>
             <SelectControl
               id="basic-genre"
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={basicForm.genreId}
               onChange={(event) => onFormChange({ genreId: event.target.value })}
             >
-              <option value="">暂不设置题材基底</option>
+              <option value="">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_c7ad22ca")}</option>
               {genreOptions.map((genre) => (
                 <option key={genre.id} value={genre.id}>
                   {genre.path}
@@ -210,7 +212,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               value={basicForm.defaultChapterLength}
               onChange={(event) => onFormChange({ defaultChapterLength: Number(event.target.value || 0) || 2800 })}
             />
-            <div className="text-xs text-muted-foreground">推荐先设为 2500-3500，后续仍可按章节单独调整。</div>
+            <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_98effe73")}</div>
           </div>
 
           <div className="space-y-2">
@@ -230,7 +232,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                 ),
               })}
             />
-            <div className="text-xs text-muted-foreground">会作为大纲、拍点和流水线默认范围的参考，后续仍可调整。</div>
+            <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_a9577ac2")}</div>
           </div>
         </div>
 
@@ -245,7 +247,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               value={basicForm.primaryStoryModeId}
               onChange={(event) => onFormChange({ primaryStoryModeId: event.target.value })}
             >
-              <option value="">暂不设置主推进模式</option>
+              <option value="">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_f90d00ec")}</option>
               {storyModeOptions.map((storyMode) => (
                 <option key={storyMode.id} value={storyMode.id}>
                   {storyMode.path}
@@ -264,7 +266,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               value={basicForm.secondaryStoryModeId}
               onChange={(event) => onFormChange({ secondaryStoryModeId: event.target.value })}
             >
-              <option value="">不叠加副推进模式</option>
+              <option value="">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_8084c201")}</option>
               {storyModeOptions.map((storyMode) => (
                 <option
                   key={storyMode.id}
@@ -282,22 +284,22 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           <div className="grid gap-3 md:grid-cols-2">
             {primaryStoryMode ? (
               <div className="rounded-lg bg-muted/15 p-3">
-                <div className="text-sm font-semibold text-foreground">主推进模式摘要</div>
+                <div className="text-sm font-semibold text-foreground">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_9c14bd36")}</div>
                 <div className="mt-1 text-sm text-foreground">{primaryStoryMode.name}</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
                   {primaryStoryMode.description || primaryStoryMode.profile.coreDrive}
                 </div>
-                <div className="mt-2 text-xs text-muted-foreground">核心驱动：{primaryStoryMode.profile.coreDrive}</div>
+                <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_27ffb13b")}</div>
               </div>
             ) : null}
             {secondaryStoryMode ? (
               <div className="rounded-lg bg-muted/15 p-3">
-                <div className="text-sm font-semibold text-foreground">副推进模式摘要</div>
+                <div className="text-sm font-semibold text-foreground">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_3061ad0e")}</div>
                 <div className="mt-1 text-sm text-foreground">{secondaryStoryMode.name}</div>
                 <div className="mt-1 text-xs leading-5 text-muted-foreground">
                   {secondaryStoryMode.description || secondaryStoryMode.profile.coreDrive}
                 </div>
-                <div className="mt-2 text-xs text-muted-foreground">补充读者奖励：{secondaryStoryMode.profile.readerReward}</div>
+                <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_7ec255ea")}</div>
               </div>
             ) : null}
           </div>
@@ -307,26 +309,26 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
       <details className="group border-t border-border/60 pt-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
-            title="叙事体验与 AI 协作高级设置"
-            description="这部分会影响后续生成风格和 AI 自动化程度，但不是新手首屏必须立刻决定的内容。"
+            title={t("gen.pages.novels.components.NovelBasicInfoForm.gen_173d79b7")}
+            description={t("gen.pages.novels.components.NovelBasicInfoForm.gen_d9a946ba")}
           />
         </summary>
 
         <div className="mt-4 space-y-4">
           <div className="space-y-3 pt-1">
-            <div className="text-sm font-semibold text-foreground">参考世界样本</div>
+            <div className="text-sm font-semibold text-foreground">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_1ebb0e05")}</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
               这里只用于记录初始化参考。完整导入、生成和同步请在创建后到小说工作台的“本书世界”中完成。
             </div>
             <div className="space-y-2">
-              <FieldLabel htmlFor="basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>参考世界样本</FieldLabel>
+              <FieldLabel htmlFor="basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>{t("gen.pages.novels.components.NovelBasicInfoForm.gen_1ebb0e05")}</FieldLabel>
               <SelectControl
                 id="basic-world"
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={basicForm.worldId}
                 onChange={(event) => onFormChange({ worldId: event.target.value })}
               >
-                <option value="">不指定参考样本</option>
+                <option value="">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_8514a792")}</option>
                 {worldOptions.map((world) => (
                   <option key={world.id} value={world.id}>
                     {world.name}
@@ -337,13 +339,13 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           </div>
 
           <SectionBlock
-            title="叙事体验"
-            description="这些字段定义读者会如何感知这部作品，也会直接影响章节规划的语气、密度和推进方式。"
+            title={t("gen.pages.novels.components.NovelBasicInfoForm.gen_c178e56a")}
+            description={t("gen.pages.novels.components.NovelBasicInfoForm.gen_3e268a15")}
             surface="none"
           >
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
-                <FieldLabel htmlFor="basic-pov" hint={BASIC_INFO_FIELD_HINTS.narrativePov}>叙事视角</FieldLabel>
+                <FieldLabel htmlFor="basic-pov" hint={BASIC_INFO_FIELD_HINTS.narrativePov}>{t("gen.pages.novels.components.NovelBasicInfoForm.gen_15dd65d3")}</FieldLabel>
                 <SelectControl
                   id="basic-pov"
                   className="w-full rounded-md border bg-background p-2 text-sm"
@@ -358,7 +360,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               </div>
 
               <div className="space-y-2">
-                <FieldLabel htmlFor="basic-pace" hint={BASIC_INFO_FIELD_HINTS.pacePreference}>节奏偏好</FieldLabel>
+                <FieldLabel htmlFor="basic-pace" hint={BASIC_INFO_FIELD_HINTS.pacePreference}>{t("gen.pages.novels.components.NovelBasicInfoForm.gen_d9dab569")}</FieldLabel>
                 <SelectControl
                   id="basic-pace"
                   className="w-full rounded-md border bg-background p-2 text-sm"
@@ -373,7 +375,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               </div>
 
               <div className="space-y-2">
-                <FieldLabel htmlFor="basic-emotion" hint={BASIC_INFO_FIELD_HINTS.emotionIntensity}>情绪浓度</FieldLabel>
+                <FieldLabel htmlFor="basic-emotion" hint={BASIC_INFO_FIELD_HINTS.emotionIntensity}>{t("gen.pages.novels.components.NovelBasicInfoForm.gen_7c4d3215")}</FieldLabel>
                 <SelectControl
                   id="basic-emotion"
                   className="w-full rounded-md border bg-background p-2 text-sm"
@@ -388,11 +390,11 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               </div>
 
               <div className="space-y-2">
-                <FieldLabel htmlFor="basic-style-tone" hint={BASIC_INFO_FIELD_HINTS.styleTone}>文风关键词</FieldLabel>
+                <FieldLabel htmlFor="basic-style-tone" hint={BASIC_INFO_FIELD_HINTS.styleTone}>{t("gen.pages.novels.components.NovelBasicInfoForm.gen_f9f30515")}</FieldLabel>
                 <Input
                   id="basic-style-tone"
                   value={basicForm.styleTone}
-                  placeholder="例如：冷峻、克制、黑色幽默"
+                  placeholder={t("gen.pages.novels.components.NovelBasicInfoForm.gen_b5a3627b")}
                   onChange={(event) => onFormChange({ styleTone: event.target.value })}
                 />
               </div>
@@ -400,12 +402,12 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           </SectionBlock>
 
           <SectionBlock
-            title="AI 协作方式"
-            description="这部分定义你和 AI 如何分工，以及系统后续可以自动推进到什么程度。"
+            title={t("gen.pages.novels.components.NovelBasicInfoForm.gen_aba57d93")}
+            description={t("gen.pages.novels.components.NovelBasicInfoForm.gen_bc4ff15b")}
             surface="none"
           >
             <div className="space-y-2">
-              <FieldLabel hint={BASIC_INFO_FIELD_HINTS.projectMode}>项目模式</FieldLabel>
+              <FieldLabel hint={BASIC_INFO_FIELD_HINTS.projectMode}>{t("gen.pages.novels.components.NovelBasicInfoForm.gen_97da2dae")}</FieldLabel>
               <div className="grid gap-3 md:grid-cols-2">
                 {PROJECT_MODE_OPTIONS.map((option) => (
                   <SelectionCard
@@ -420,7 +422,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
-                <FieldLabel htmlFor="basic-ai-freedom" hint={BASIC_INFO_FIELD_HINTS.aiFreedom}>AI 自由度</FieldLabel>
+                <FieldLabel htmlFor="basic-ai-freedom" hint={BASIC_INFO_FIELD_HINTS.aiFreedom}>{t("gen.pages.novels.components.NovelBasicInfoForm.aiFreedomDegree")}</FieldLabel>
                 <SelectControl
                   id="basic-ai-freedom"
                   className="w-full rounded-md border bg-background p-2 text-sm"
@@ -448,7 +450,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
                     resourceReadyScore: Math.max(0, Math.min(100, Number(event.target.value || 0))),
                   })}
                 />
-                <div className="text-xs text-muted-foreground">0 表示刚起步，100 表示设定、角色和规划都比较完备。</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_b6983998")}</div>
               </div>
             </div>
 
@@ -463,7 +465,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               </div>
               <Switch
                 id="basic-post-generation-style-review"
-                aria-label="正文后去 AI 检测与修正"
+                aria-label={t("gen.pages.novels.components.NovelBasicInfoForm.gen_9c8d9efd")}
                 checked={basicForm.postGenerationStyleReviewEnabled}
                 onCheckedChange={(checked) => onFormChange({ postGenerationStyleReviewEnabled: checked })}
               />
@@ -476,10 +478,10 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
         <details className="group border-t border-border/60 pt-4" open>
           <summary className="cursor-pointer list-none">
             <CollapsibleSummary
-              title="续写来源设置"
-              description="续写模式需要先明确上游来源，所以默认展开。"
-              collapsedLabel="展开设置"
-              expandedLabel="收起设置"
+              title={t("gen.pages.novels.components.NovelBasicInfoForm.gen_ea40412e")}
+              description={t("gen.pages.novels.components.NovelBasicInfoForm.gen_1c50875d")}
+              collapsedLabel={t("gen.pages.novels.components.NovelBasicInfoForm.gen_4847d889")}
+              expandedLabel={t("gen.pages.novels.components.NovelBasicInfoForm.gen_4f5318f5")}
             />
           </summary>
           <div className="mt-4">
@@ -500,21 +502,21 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
       <details className="group border-t border-border/60 pt-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
-            title="项目状态与进度字段"
-            description="这些主要服务于项目管理和流程判断，不是首屏必须立即处理的内容。"
-            collapsedLabel="展开字段"
-            expandedLabel="收起字段"
+            title={t("gen.pages.novels.components.NovelBasicInfoForm.gen_ded02e99")}
+            description={t("gen.pages.novels.components.NovelBasicInfoForm.gen_57ba9dfa")}
+            collapsedLabel={t("gen.pages.novels.components.NovelBasicInfoForm.gen_e63bb203")}
+            expandedLabel={t("gen.pages.novels.components.NovelBasicInfoForm.gen_4c959ed3")}
           />
         </summary>
         <div className="mt-4">
           <SectionBlock
-            title="生产进度与状态"
-            description="这些状态主要服务于项目管理和后续流程判断，不是一次性填死，后续可以按阶段调整。"
+            title={t("gen.pages.novels.components.NovelBasicInfoForm.gen_24f47a19")}
+            description={t("gen.pages.novels.components.NovelBasicInfoForm.gen_a593d7f1")}
             surface="none"
           >
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
-                <FieldLabel htmlFor="basic-project-status">项目状态</FieldLabel>
+                <FieldLabel htmlFor="basic-project-status">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_3b94c707")}</FieldLabel>
                 <SelectControl
                   id="basic-project-status"
                   className="w-full rounded-md border bg-background p-2 text-sm"
@@ -528,7 +530,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               </div>
 
               <div className="space-y-2">
-                <FieldLabel htmlFor="basic-storyline-status">主线状态</FieldLabel>
+                <FieldLabel htmlFor="basic-storyline-status">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_39e440e6")}</FieldLabel>
                 <SelectControl
                   id="basic-storyline-status"
                   className="w-full rounded-md border bg-background p-2 text-sm"
@@ -542,7 +544,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
               </div>
 
               <div className="space-y-2">
-                <FieldLabel htmlFor="basic-outline-status">大纲状态</FieldLabel>
+                <FieldLabel htmlFor="basic-outline-status">{t("gen.pages.novels.components.NovelBasicInfoForm.gen_b2430dc7")}</FieldLabel>
                 <SelectControl
                   id="basic-outline-status"
                   className="w-full rounded-md border bg-background p-2 text-sm"
@@ -557,7 +559,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
 
               {showPublicationStatus ? (
                 <div className="space-y-2">
-                  <FieldLabel hint={BASIC_INFO_FIELD_HINTS.status}>发布状态</FieldLabel>
+                  <FieldLabel hint={BASIC_INFO_FIELD_HINTS.status}>{t("gen.pages.novels.components.NovelBasicInfoForm.gen_401cbdbf")}</FieldLabel>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {PUBLICATION_STATUS_OPTIONS.map((option) => (
                       <SelectionCard
@@ -592,7 +594,7 @@ export default function NovelBasicInfoForm(props: NovelBasicInfoFormProps) {
           onClick={onSubmit}
           disabled={isSubmitting || continuationSourceMissing || continuationAnalysisSectionMissing || !basicForm.title.trim()}
         >
-          {isSubmitting ? "提交中..." : submitLabel}
+          {isSubmitting ? t("gen.pages.novels.components.NovelBasicInfoForm.gen_abe2c5d2") : submitLabel}
         </Button>
       </div>
     </div>

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import type { WorldDeepeningQuestion } from "@ai-novel/shared/types/world";
 import { Button } from "@/components/ui/button";
@@ -43,18 +45,18 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>补齐世界手册</CardTitle>
+        <CardTitle>{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_5aca8bac")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col gap-3 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-sm font-medium">补齐世界手册的关键空白</div>
+            <div className="text-sm font-medium">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_c425f122")}</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
               系统会根据这份世界手册提出少量问题。回答后会整合进世界设定，帮助规则、势力、地点和冲突更清晰。
             </div>
           </div>
           <Button onClick={onGenerate} disabled={generatePending}>
-            {generatePending ? "生成中..." : "生成补齐问题"}
+            {generatePending ? t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_4d020ba3") : t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_b89f7c25")}
           </Button>
         </div>
 
@@ -62,7 +64,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
           <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)]">
             <div className="space-y-2 rounded-md border p-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-medium">待补问题</div>
+                <div className="text-sm font-medium">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_30d4af46")}</div>
                 <div className="text-xs text-muted-foreground">{answeredCount}/{questions.length}</div>
               </div>
               {questions.map((question, index) => {
@@ -79,9 +81,9 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                     onClick={() => setActiveQuestionId(question.id)}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-foreground">问题 {index + 1}</span>
+                      <span className="font-medium text-foreground">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_b23b540c")}</span>
                       <span className={answered ? "text-xs text-primary" : "text-xs text-muted-foreground"}>
-                        {answered ? "有回答" : "待回答"}
+                        {answered ? t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_8ce34e40") : t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_94f1ce1b")}
                       </span>
                     </div>
                     <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
@@ -102,7 +104,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                 </div>
                 {activeQuickOptions.length > 0 ? (
                   <div className="space-y-2">
-                    <div className="text-xs text-muted-foreground">可直接采用的回答方向</div>
+                    <div className="text-xs text-muted-foreground">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_ef7ab18a")}</div>
                     <div className="flex flex-wrap gap-2">
                       {activeQuickOptions.map((option) => (
                         <Button
@@ -130,7 +132,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                   onChange={(event) =>
                     setAnswerDrafts((prev) => ({ ...prev, [activeQuestion.id]: event.target.value }))
                   }
-                  placeholder="填写这条设定补充"
+                  placeholder={t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_a201e60c")}
                 />
               </div>
             ) : null}
@@ -145,7 +147,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
             onClick={onSubmit}
             disabled={submitPending || answeredCount === 0 || questions.length === 0}
           >
-            {submitPending ? "整合中..." : "提交并整合回答"}
+            {submitPending ? t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_2202334c") : t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_4dc912d6")}
           </Button>
         </div>
       </CardContent>

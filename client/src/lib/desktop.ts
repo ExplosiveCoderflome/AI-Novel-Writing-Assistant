@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useState } from "react";
 import { APP_RUNTIME } from "./constants";
 
@@ -56,8 +57,8 @@ export interface DesktopDataImportResult {
 const DEFAULT_BOOTSTRAP_SNAPSHOT: DesktopBootstrapSnapshot = {
   state: "launching",
   stage: "launching",
-  title: "正在启动桌面工作区",
-  detail: "正在准备桌面本地运行时。",
+  title: i18next.t("gen.lib.desktop.gen_a1c11778"),
+  detail: i18next.t("gen.lib.desktop.gen_7377ff62"),
   logDir: "",
   logFile: "",
   updatedAt: "",

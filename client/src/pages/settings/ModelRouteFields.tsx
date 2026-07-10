@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { APIKeyStatus } from "@/api/settings";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import { Input } from "@/components/ui/input";
@@ -43,7 +45,7 @@ export default function ModelRouteFields({
   return (
     <div className={`grid gap-3 ${showProtocolFields ? "md:grid-cols-6" : "md:grid-cols-4"}`}>
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">服务商</div>
+        <div className="text-xs text-muted-foreground">{t("gen.pages.settings.ModelRouteFields.gen_79f09f89")}</div>
         <Select
           value={draft.provider}
           onValueChange={(value) => {
@@ -55,7 +57,7 @@ export default function ModelRouteFields({
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder="选择服务商" />
+            <SelectValue placeholder={t("gen.pages.settings.ModelRouteFields.gen_73a3144f")} />
           </SelectTrigger>
           <SelectContent>
             {providerOptions.map((provider) => (
@@ -68,13 +70,13 @@ export default function ModelRouteFields({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">模型</div>
+        <div className="text-xs text-muted-foreground">{t("gen.pages.settings.ModelRouteFields.gen_8000f187")}</div>
         <SearchableSelect
           value={draft.model || undefined}
           onValueChange={(value) => onPatch({ model: value })}
           options={modelOptions.map((model) => ({ value: model }))}
-          placeholder="选择模型"
-          searchPlaceholder="搜索模型"
+          placeholder={t("gen.pages.settings.ModelRouteFields.gen_f2d3731b")}
+          searchPlaceholder={t("gen.pages.settings.ModelRouteFields.gen_8288a2e8")}
           emptyText={modelEmptyText}
         />
         <Input
@@ -85,7 +87,7 @@ export default function ModelRouteFields({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">温度</div>
+        <div className="text-xs text-muted-foreground">{t("gen.pages.settings.ModelRouteFields.gen_c9bf0b88")}</div>
         <Input
           value={draft.temperature}
           placeholder={temperaturePlaceholder}
@@ -94,7 +96,7 @@ export default function ModelRouteFields({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">最大输出长度</div>
+        <div className="text-xs text-muted-foreground">{t("gen.pages.settings.ModelRouteFields.gen_139c79e6")}</div>
         <Input
           value={draft.maxTokens}
           placeholder={maxTokensPlaceholder}
@@ -104,7 +106,7 @@ export default function ModelRouteFields({
 
       {showProtocolFields ? (
         <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">请求协议</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.settings.ModelRouteFields.gen_424c8dfa")}</div>
           <Select
             value={draft.requestProtocol}
             onValueChange={(value) => {
@@ -118,11 +120,11 @@ export default function ModelRouteFields({
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="自动选择" />
+              <SelectValue placeholder={t("gen.pages.settings.ModelRouteFields.gen_2e2c57b6")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="auto">自动选择</SelectItem>
-              <SelectItem value="openai_compatible">OpenAI 兼容</SelectItem>
+              <SelectItem value="auto">{t("gen.pages.settings.ModelRouteFields.gen_2e2c57b6")}</SelectItem>
+              <SelectItem value="openai_compatible">{t("gen.pages.settings.ModelRouteFields.openAiCompatible")}</SelectItem>
               <SelectItem value="anthropic">Anthropic</SelectItem>
             </SelectContent>
           </Select>
@@ -131,7 +133,7 @@ export default function ModelRouteFields({
 
       {showProtocolFields ? (
         <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">结构化格式</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.settings.ModelRouteFields.gen_47d4bbe5")}</div>
           <Select
             value={draft.structuredResponseFormat}
             onValueChange={(value) => onPatch({
@@ -139,12 +141,12 @@ export default function ModelRouteFields({
             })}
           >
             <SelectTrigger>
-              <SelectValue placeholder="自动选择" />
+              <SelectValue placeholder={t("gen.pages.settings.ModelRouteFields.gen_2e2c57b6")} />
             </SelectTrigger>
             <SelectContent>
               {getStructuredResponseFormatOptions(draft.requestProtocol).map((format) => (
                 <SelectItem key={format} value={format}>
-                  {format === "auto" ? "自动选择" : format}
+                  {format === "auto" ? t("gen.pages.settings.ModelRouteFields.gen_2e2c57b6") : format}
                 </SelectItem>
               ))}
             </SelectContent>

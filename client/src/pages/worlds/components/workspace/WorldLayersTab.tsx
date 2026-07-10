@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { Dispatch, SetStateAction } from "react";
 import type { World } from "@ai-novel/shared/types/world";
 import { Button } from "@/components/ui/button";
@@ -91,23 +93,23 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>分层整理世界</CardTitle>
+        <CardTitle>{t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_3fa44531")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 rounded-md border p-3">
           <Button onClick={onGenerateAll} disabled={generateAllPending || !world}>
-            {generateAllPending ? "整理中..." : isInitialLayerGeneration ? "AI 整理六层摘要" : "重新整理六层摘要"}
+            {generateAllPending ? t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_d92453f0") : isInitialLayerGeneration ? t("gen.pages.worlds.components.workspace.WorldLayersTab.aiOrganizeSixLevelSummary") : t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_def9350c")}
           </Button>
           <div className="text-xs text-muted-foreground">
             {isInitialLayerGeneration
-              ? "系统会把世界手册整理为基础、力量、社会、文化、历史和冲突六个写作摘要。"
-              : "有世界骨架时会按手册内容整理摘要；没有骨架的旧世界才会补写缺失层级。"}
+              ? t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_a89fc05a")
+              : t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_34d7319e")}
           </div>
         </div>
 
         <div className="grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)]">
           <div className="space-y-2 rounded-md border p-3">
-            <div className="text-sm font-medium">选择要整理的层级</div>
+            <div className="text-sm font-medium">{t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_12473ca6")}</div>
             <div className="space-y-2">
               {LAYERS.map((layer) => {
                 const layerStatus = layerStates[layer.key]?.status ?? "pending";
@@ -125,7 +127,7 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium text-foreground">{layer.label}</span>
-                      {hasDraft ? <span className="text-xs text-primary">草稿</span> : null}
+                      {hasDraft ? <span className="text-xs text-primary">{t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_22b4334f")}</span> : null}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       {LAYER_STATUS_LABELS[layerStatus] ?? layerStatus}
@@ -144,7 +146,7 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
                   状态：{LAYER_STATUS_LABELS[selectedLayerStatus] ?? selectedLayerStatus}
                 </div>
               </div>
-              {hasSelectedDraft ? <div className="text-xs text-primary">有未保存草稿</div> : null}
+              {hasSelectedDraft ? <div className="text-xs text-primary">{t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_5b8d2077")}</div> : null}
             </div>
             <textarea
               className="min-h-[260px] w-full rounded-md border bg-background p-2 text-sm"
@@ -169,32 +171,32 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
               >
                 {isInitialLayerGeneration
                   ? generateAllPending
-                    ? "六层生成中..."
-                    : "首次 AI 生成六层"
+                    ? t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_764b448d")
+                    : t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_11ba5ba1")
                   : isGeneratingSelectedLayer
-                    ? "重写中..."
-                    : "AI 整理本层"}
+                    ? t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_92f67f46")
+                    : t("gen.pages.worlds.components.workspace.WorldLayersTab.aiOrganizeCurrentLevel")}
               </Button>
               <Button
                 variant="secondary"
                 onClick={() => onSaveLayer({ layerKey: selectedLayerMeta.key, content: selectedLayerValue })}
                 disabled={saveLayerPending || generateAllPending || !selectedLayerValue.trim()}
               >
-                {isSavingSelectedLayer ? "保存中..." : "保存本层"}
+                {isSavingSelectedLayer ? t("gen.pages.worlds.components.workspace.WorldLayersTab.savingInProgressDotDotDot") : t("gen.pages.worlds.components.workspace.WorldLayersTab.saveThisLayer")}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => onConfirmLayer(selectedLayerMeta.key)}
                 disabled={confirmLayerPending || generateAllPending}
               >
-                {isConfirmingSelectedLayer ? "确认中..." : "确认本层"}
+                {isConfirmingSelectedLayer ? t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_1fb26ee2") : t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_5ff268b9")}
               </Button>
             </div>
           </div>
         </div>
 
         <div className="rounded-md border p-3">
-          <div className="mb-2 text-sm font-medium">AI 精修</div>
+          <div className="mb-2 text-sm font-medium">{t("gen.pages.worlds.components.workspace.WorldLayersTab.aiPolishing")}</div>
           <div className="grid gap-2 md:grid-cols-4">
             <SelectControl
               className="rounded-md border bg-background p-2 text-sm"
@@ -212,19 +214,19 @@ export default function WorldLayersTab(props: WorldLayersTabProps) {
               value={refineMode}
               onChange={(event) => setRefineMode(event.target.value as "replace" | "alternatives")}
             >
-              <option value="replace">替换优化</option>
-              <option value="alternatives">提供备选方案</option>
+              <option value="replace">{t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_f2bfdcd8")}</option>
+              <option value="alternatives">{t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_c87058b2")}</option>
             </SelectControl>
             <SelectControl
               className="rounded-md border bg-background p-2 text-sm"
               value={refineLevel}
               onChange={(event) => setRefineLevel(event.target.value as "light" | "deep")}
             >
-              <option value="light">轻度</option>
-              <option value="deep">深度</option>
+              <option value="light">{t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_271fda47")}</option>
+              <option value="deep">{t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_237fb19a")}</option>
             </SelectControl>
             <Button onClick={onStartRefine} disabled={refineStreaming}>
-              {refineStreaming ? "精修中..." : selectedLayer === "foundation" ? "精修世界基底" : "精修本层"}
+              {refineStreaming ? t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_d4ffc81b") : selectedLayer === "foundation" ? t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_a65da34b") : t("gen.pages.worlds.components.workspace.WorldLayersTab.gen_8d3d0618")}
             </Button>
           </div>
           <StreamOutput content={refineContent} isStreaming={refineStreaming} onAbort={onAbortRefine} />

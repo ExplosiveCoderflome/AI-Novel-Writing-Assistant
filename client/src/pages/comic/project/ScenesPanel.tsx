@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -30,19 +32,19 @@ import { toast } from "@/components/ui/toast";
 import SelectControl from "@/components/common/SelectControl";
 
 const SCENE_TYPE_LABELS: Record<SceneType, string> = {
-  interior: "室内",
-  exterior: "室外",
-  landscape: "风景",
-  abstract: "抽象",
-  other: "其他",
+  interior: t("gen.pages.comic.project.ScenesPanel.gen_4fd46565"),
+  exterior: t("gen.pages.comic.project.ScenesPanel.gen_bf8f50c7"),
+  landscape: t("gen.pages.comic.project.ScenesPanel.gen_fc30335a"),
+  abstract: t("gen.pages.comic.project.ScenesPanel.gen_d8f11435"),
+  other: t("gen.pages.comic.project.ScenesPanel.gen_0d98c747"),
 };
 
 const BIBLE_FIELDS: Array<{ key: keyof SceneBible; label: string; placeholder: string }> = [
-  { key: "palette", label: "主色板", placeholder: "如：暗金与朱红" },
-  { key: "keyElements", label: "标志元素", placeholder: "如：盘龙石柱、悬空匾额、青铜香炉" },
-  { key: "materials", label: "材质", placeholder: "如：石材、木雕、金属" },
-  { key: "ambiance", label: "氛围光照", placeholder: "如：幽暗烛光" },
-  { key: "layout", label: "空间结构", placeholder: "如：纵深对称，高台居中" },
+  { key: "palette", label: t("gen.pages.comic.project.ScenesPanel.gen_cd99c486"), placeholder: t("gen.pages.comic.project.ScenesPanel.gen_e797771e") },
+  { key: "keyElements", label: t("gen.pages.comic.project.ScenesPanel.gen_aa847230"), placeholder: t("gen.pages.comic.project.ScenesPanel.gen_872d6f35") },
+  { key: "materials", label: t("gen.pages.comic.project.ScenesPanel.gen_e3623348"), placeholder: t("gen.pages.comic.project.ScenesPanel.gen_1503e10b") },
+  { key: "ambiance", label: t("gen.pages.comic.project.ScenesPanel.gen_852d1479"), placeholder: t("gen.pages.comic.project.ScenesPanel.gen_9a1252d3") },
+  { key: "layout", label: t("gen.pages.comic.project.ScenesPanel.gen_1d86438b"), placeholder: t("gen.pages.comic.project.ScenesPanel.gen_dcf37314") },
 ];
 
 function parseBible(raw: string | null): SceneBible {
@@ -67,8 +69,8 @@ function SceneList({
   return (
     <aside className="overflow-hidden rounded-lg border bg-background">
       <div className="border-b px-3 py-3">
-        <p className="text-sm font-semibold">场景列表</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{scenes.length} 个场景</p>
+        <p className="text-sm font-semibold">{t("gen.pages.comic.project.ScenesPanel.gen_b30e5c25")}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{t("gen.pages.comic.project.ScenesPanel.gen_925537c0")}</p>
       </div>
       <div className="max-h-[640px] overflow-y-auto p-2">
         <div className="space-y-1">
@@ -103,7 +105,7 @@ function SceneList({
                     <p className="truncate text-sm font-medium">{scene.name}</p>
                     <p className="mt-0.5 text-[10px] text-muted-foreground">
                       {SCENE_TYPE_LABELS[scene.sceneType]}
-                      {hasSheet && <span className="ml-1.5 text-primary">已有设定图</span>}
+                      {hasSheet && <span className="ml-1.5 text-primary">{t("gen.pages.comic.project.ScenesPanel.gen_6bd9342d")}</span>}
                     </p>
                   </div>
                 </div>
@@ -139,7 +141,7 @@ function SceneDetail({
 
   const saveMut = useMutation({
     mutationFn: () => updateComicScene(scene.id, { name: name.trim(), sceneType, bible }),
-    onSuccess: () => { onChanged(); toast.success("场景已保存"); },
+    onSuccess: () => { onChanged(); toast.success(t("gen.pages.comic.project.ScenesPanel.gen_eaf9301f")); },
     onError: (e) => toast.error(String(e)),
   });
 
@@ -189,7 +191,7 @@ function SceneDetail({
         </div>
         <button
           type="button"
-          title="删除场景"
+          title={t("gen.pages.comic.project.ScenesPanel.gen_f141ac85")}
           disabled={deleteMut.isPending}
           className="shrink-0 rounded border p-1.5 text-muted-foreground/50 hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
           onClick={() => deleteMut.mutate()}
@@ -201,7 +203,7 @@ function SceneDetail({
       <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.7fr)]">
         {/* 场景圣经编辑 */}
         <div className="min-w-0 space-y-3 border-b p-4 lg:border-b-0 lg:border-r">
-          <p className="text-sm font-medium">场景圣经</p>
+          <p className="text-sm font-medium">{t("gen.pages.comic.project.ScenesPanel.gen_500f3bd6")}</p>
           <p className="text-xs text-muted-foreground">
             这些视觉约束会在生成该场景下每一格时注入提示词，锁定空间一致性。
           </p>
@@ -230,10 +232,10 @@ function SceneDetail({
         {/* 设定图 */}
         <aside className="min-w-0 p-4">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-medium">场景设定图</p>
+            <p className="text-sm font-medium">{t("gen.pages.comic.project.ScenesPanel.gen_e847f2b4")}</p>
             {sheet.origin && hasSheet && (
               <span className="text-[10px] text-muted-foreground">
-                {sheet.origin === "uploaded" ? "已上传" : "AI 生成"}
+                {sheet.origin === "uploaded" ? t("gen.pages.comic.project.ScenesPanel.gen_ba7f57c5") : t("gen.pages.comic.project.ScenesPanel.aiGenerated")}
               </span>
             )}
           </div>
@@ -248,12 +250,12 @@ function SceneDetail({
             ) : generatingBusy ? (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-7 w-7 animate-spin" />
-                <span className="text-xs">设定图生成中</span>
+                <span className="text-xs">{t("gen.pages.comic.project.ScenesPanel.gen_b0b83a3f")}</span>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
                 <ImageIcon className="h-8 w-8 opacity-30" />
-                <span className="text-xs">还没有设定图</span>
+                <span className="text-xs">{t("gen.pages.comic.project.ScenesPanel.gen_e6b2b290")}</span>
               </div>
             )}
           </div>
@@ -273,7 +275,7 @@ function SceneDetail({
               onClick={startGenerate}
             >
               {generatingBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {hasSheet ? "重新生成" : "AI 生成"}
+              {hasSheet ? t("gen.pages.comic.project.ScenesPanel.gen_a7c23201") : t("gen.pages.comic.project.ScenesPanel.aiGenerated")}
             </Button>
             <Button
               type="button"
@@ -353,7 +355,7 @@ export function ScenesPanel({
         <div className="flex gap-2 rounded-md border bg-muted/20 p-3">
           <input
             className="flex-1 rounded border bg-background px-2 py-1 text-sm"
-            placeholder="场景名称（如：宗门大殿）"
+            placeholder={t("gen.pages.comic.project.ScenesPanel.gen_0c1e726b")}
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && newName.trim()) createMut.mutate(); }}
@@ -368,12 +370,12 @@ export function ScenesPanel({
       )}
 
       {isLoading ? (
-        <div className="py-12 text-center text-sm text-muted-foreground">加载中...</div>
+        <div className="py-12 text-center text-sm text-muted-foreground">{t("gen.pages.comic.project.ScenesPanel.gen_26b5bd49")}</div>
       ) : scenes.length === 0 ? (
         <div className="space-y-2 py-12 text-center text-sm text-muted-foreground">
           <MapPin className="mx-auto h-10 w-10 opacity-30" />
-          <p>暂无场景。</p>
-          <p className="text-xs">生成分格脚本后会自动识别场景，也可手动添加。</p>
+          <p>{t("gen.pages.comic.project.ScenesPanel.gen_28618e83")}</p>
+          <p className="text-xs">{t("gen.pages.comic.project.ScenesPanel.gen_0138d439")}</p>
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">

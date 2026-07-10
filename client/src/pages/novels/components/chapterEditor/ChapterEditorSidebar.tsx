@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { Chapter, ChapterEditorDiagnosticCard, ChapterEditorWorkspaceResponse } from "@ai-novel/shared/types/novel";
 import { Button } from "@/components/ui/button";
 
@@ -68,13 +70,13 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
 
             <div className="space-y-3">
               <div className="text-lg font-semibold leading-7 text-foreground">
-                第 {chapter.order} 章 · {chapter.title?.trim() || "未命名章节"}
+                第 {chapter.order} 章 · {chapter.title?.trim() || t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_db55d102")}
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <MetaChip label={`${wordCount} 字`} />
                 <MetaChip label={saveStatusLabel} />
-                <MetaChip label={isWorkspaceLoading ? "LLM 分析中" : `问题 ${workspace?.chapterMeta.openIssueCount ?? 0}`} />
+                <MetaChip label={isWorkspaceLoading ? t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_LLM分析中_rwti") : `问题 ${workspace?.chapterMeta.openIssueCount ?? 0}`} />
               </div>
 
               {isWorkspaceLoading ? (
@@ -96,7 +98,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                 disabled={!isDirty || isSaving}
                 className="w-full"
               >
-                {isSaving ? "保存中..." : "保存"}
+                {isSaving ? t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.savingInProgressDotDotDot") : t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.save")}
               </Button>
               {onOpenVersionHistory ? (
                 <Button size="sm" variant="outline" onClick={onOpenVersionHistory} className="w-full">
@@ -109,15 +111,15 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
 
         <div className="shrink-0 rounded-3xl border border-border/70 bg-background p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-foreground">宏观定位</div>
+            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_ba318561")}</div>
             <span className="text-xs text-muted-foreground">
-              {isWorkspaceLoading ? "AI 分析中" : workspace?.refreshReason ?? "实时生成"}
+              {isWorkspaceLoading ? t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.aiAnalyzing") : workspace?.refreshReason ?? t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_777439b5")}
             </span>
           </div>
 
           {isWorkspaceLoading ? (
             <div className="space-y-4 text-sm leading-6 text-muted-foreground">
-              <div>AI 正在分析本章在卷内的位置、节奏建议和章节任务。</div>
+              <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.aiAnalyzingChapterPlacement")}</div>
               <div className="space-y-3">
                 <LoadingBar widthClassName="w-2/3" />
                 <LoadingBar widthClassName="w-full" />
@@ -128,24 +130,24 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
           ) : macroContext ? (
             <div className="space-y-4 text-sm leading-6">
               <div>
-                <div className="mb-1 font-medium text-foreground">本章在本卷中的位置</div>
+                <div className="mb-1 font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_f282ce0b")}</div>
                 <div className="text-muted-foreground">
                   {macroContext.volumeTitle} · {macroContext.volumePositionLabel} · {macroContext.volumePhaseLabel}
                 </div>
               </div>
               <div>
-                <div className="mb-1 font-medium text-foreground">当前节奏建议</div>
+                <div className="mb-1 font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_2fedd0cf")}</div>
                 <div className="text-muted-foreground">{macroContext.paceDirective}</div>
               </div>
               <div>
-                <div className="mb-1 font-medium text-foreground">本章主要任务</div>
+                <div className="mb-1 font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_d6a9f548")}</div>
                 <div className="text-muted-foreground">{macroContext.chapterMission}</div>
               </div>
               <div>
-                <div className="mb-1 font-medium text-foreground">前后章节衔接</div>
+                <div className="mb-1 font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_d572b319")}</div>
                 <div className="space-y-2 text-muted-foreground">
-                  <div>承接上一章：{macroContext.previousChapterBridge}</div>
-                  <div>铺向下一章：{macroContext.nextChapterBridge}</div>
+                  <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_b874224b")}</div>
+                  <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_04959dd5")}</div>
                 </div>
               </div>
             </div>
@@ -162,13 +164,13 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
 
         <div className="min-h-0 shrink-0 rounded-3xl border border-border/70 bg-background p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-foreground">待处理问题卡</div>
+            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_6599e592")}</div>
             <span className="text-xs text-muted-foreground">
               {isWorkspaceLoading
-                ? "AI 正在梳理"
+                ? t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.aiOrganizing")
                 : recommendedTask
                   ? `当前推荐：${recommendedTask.title}`
-                  : "等待问题卡"}
+                  : t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_f9c5b025")}
             </span>
           </div>
 
@@ -211,7 +213,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                     <div>
                       <div className="text-sm font-medium text-foreground">{card.title}</div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        {card.paragraphLabel || "整章"} · {card.severity}
+                        {card.paragraphLabel || t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_d8766580")} · {card.severity}
                       </div>
                     </div>
                     {isRecommended ? (
@@ -230,7 +232,7 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
                       variant={isSelected ? "default" : "outline"}
                       onClick={() => onFocusDiagnostic(card)}
                     >
-                      {isSelected ? "取消定位" : "定位到正文"}
+                      {isSelected ? t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_ed62f56e") : t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_a8a96e49")}
                     </Button>
                     <Button size="sm" onClick={() => onRunDiagnostic(card)}>
                       直接用 AI 处理
@@ -241,10 +243,10 @@ export default function ChapterEditorSidebar(props: ChapterEditorSidebarProps) {
             }) : (
               <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm leading-6 text-muted-foreground">
                 {isWorkspaceError
-                  ? "问题卡暂时加载失败，你可以先在右侧直接输入修改意见，或手动选中片段发起修正。"
+                  ? t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_d275646c")
                   : workspace
-                  ? "AI 暂时还没有整理出明确的问题卡，你可以先在右侧直接输入修改意见，或手动选中片段发起修正。"
-                  : "正在加载本章工作区。"}
+                  ? t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.aiNoClearIssuesYet")
+                  : t("gen.pages.novels.components.chapterEditor.ChapterEditorSidebar.gen_8cae5a0f")}
               </div>
             )}
           </div>

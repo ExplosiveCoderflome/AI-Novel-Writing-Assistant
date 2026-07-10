@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
@@ -47,8 +49,8 @@ export default function TakeoverDiagnosisPanel({
     <div className="min-w-0 rounded-xl border border-primary/20 bg-primary/5 p-3 sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
-          <div className="text-sm font-medium text-foreground">接续诊断</div>
-          {isLoadingReadiness ? <Badge variant="outline">读取项目进度</Badge> : null}
+          <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.takeover.TakeoverDiagnosisPanel.gen_e5efd363")}</div>
+          {isLoadingReadiness ? <Badge variant="outline">{t("gen.pages.novels.components.takeover.TakeoverDiagnosisPanel.gen_86f85aff")}</Badge> : null}
           {readinessErrorMessage ? (
             <div className={`rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               {readinessErrorMessage}
@@ -105,7 +107,7 @@ export default function TakeoverDiagnosisPanel({
                 disabled={startDisabled}
                 onClick={onStart}
               >
-                {isStarting ? "启动中..." : quickActionLabel}
+                {isStarting ? t("gen.pages.novels.components.takeover.TakeoverDiagnosisPanel.gen_684c9230") : quickActionLabel}
               </Button>
             </>
           )}

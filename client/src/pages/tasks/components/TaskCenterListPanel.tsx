@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { UnifiedTaskSummary } from "@ai-novel/shared/types/task";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +27,7 @@ export default function TaskCenterListPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">任务列表</CardTitle>
+        <CardTitle className="text-base">{t("gen.pages.tasks.components.TaskCenterListPanel.taskList")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {tasks.map((task) => {
@@ -47,16 +49,16 @@ export default function TaskCenterListPanel({
                 {formatKind(task.kind)} | 进度 {Math.round(task.progress * 100)}%
               </div>
               <div className="mt-1 text-xs text-muted-foreground">
-                阶段：{task.currentStage ?? "暂无"} | 当前项：{task.currentItemLabel ?? "暂无"}
+                阶段：{task.currentStage ?? t("gen.pages.tasks.components.TaskCenterListPanel.gen_f61f4cf6")} | 当前项：{task.currentItemLabel ?? t("gen.pages.tasks.components.TaskCenterListPanel.gen_f61f4cf6")}
               </div>
               {task.displayStatus || task.lastHealthyStage ? (
                 <div className="mt-1 text-xs text-muted-foreground">
-                  状态：{task.displayStatus ?? formatStatus(task.status)} | 最近健康阶段：{task.lastHealthyStage ?? "暂无"}
+                  状态：{task.displayStatus ?? formatStatus(task.status)} | 最近健康阶段：{task.lastHealthyStage ?? t("gen.pages.tasks.components.TaskCenterListPanel.gen_f61f4cf6")}
                 </div>
               ) : null}
               {task.kind === "novel_workflow" ? (
                 <div className="mt-1 text-xs text-muted-foreground">
-                  检查点：{formatCheckpoint(task.checkpointType, task.executionScopeLabel)} | 建议继续：{task.resumeAction ?? task.nextActionLabel ?? "继续主流程"}
+                  检查点：{formatCheckpoint(task.checkpointType, task.executionScopeLabel)} | 建议继续：{task.resumeAction ?? task.nextActionLabel ?? t("gen.pages.tasks.components.TaskCenterListPanel.gen_5c3a622e")}
                 </div>
               ) : null}
               {task.blockingReason ? (

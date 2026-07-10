@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   VolumeBeatSheet,
   VolumeChapterPlan,
@@ -33,13 +34,13 @@ export function buildVolumePlanningReadiness(params: {
   const { volumes, strategyPlan, beatSheets } = params;
   const blockingReasons: string[] = [];
   if (!strategyPlan) {
-    blockingReasons.push("请先生成卷战略建议，再确认卷骨架。");
+    blockingReasons.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_2bc57951"));
   }
   if (volumes.length === 0) {
-    blockingReasons.push("当前还没有卷骨架。");
+    blockingReasons.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_48867c36"));
   }
   if (!beatSheets.some((sheet) => sheet.beats.length > 0)) {
-    blockingReasons.push("当前卷还没有节奏板，默认不能直接拆章节列表。");
+    blockingReasons.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_e38161cf"));
   }
   return {
     canGenerateStrategy: true,
@@ -108,7 +109,7 @@ export function createEmptyChapter(chapterOrder: number): VolumeChapterPlan {
 
 export function buildTaskSheetFromVolumeChapter(chapter: VolumeChapterPlan): string {
   const lines = [
-    `章节目标：${chapter.purpose || chapter.summary || "推进主线"}`,
+    `章节目标：${chapter.purpose || chapter.summary || i18next.t("gen.pages.novels.volumePlan.utils.gen_e7168520")}`,
     typeof chapter.conflictLevel === "number" ? `冲突等级：${chapter.conflictLevel}` : "",
     typeof chapter.revealLevel === "number" ? `揭露等级：${chapter.revealLevel}` : "",
     typeof chapter.targetWordCount === "number" ? `目标字数：${chapter.targetWordCount}` : "",
@@ -158,7 +159,7 @@ export function buildOutlinePreviewFromVolumes(volumes: VolumePlan[]): string {
     .map((volume) => {
       const chapterSpan = volume.chapters.length > 0
         ? `${volume.chapters[0]?.chapterOrder ?? "-"}-${volume.chapters[volume.chapters.length - 1]?.chapterOrder ?? "-"}`
-        : "未拆章";
+        : i18next.t("gen.pages.novels.volumePlan.utils.gen_797359eb");
       return [
         `【第${volume.sortOrder}卷】${volume.title}`,
         volume.summary?.trim() ? `卷摘要：${volume.summary.trim()}` : "",
@@ -250,14 +251,14 @@ function compareNumber(a: number | null | undefined, b: number | null | undefine
 }
 
 function getChangedFields(existing: ExistingOutlineChapter, chapter: VolumeChapterPlan, action: "update" | "move"): string[] {
-  const changed: string[] = action === "move" ? ["章节顺序"] : [];
-  if (!compareText(existing.title, chapter.title)) changed.push("标题");
-  if (!compareText(existing.expectation, chapter.summary)) changed.push("摘要");
-  if (!compareNumber(existing.targetWordCount, chapter.targetWordCount)) changed.push("目标字数");
-  if (!compareNumber(existing.conflictLevel, chapter.conflictLevel)) changed.push("冲突等级");
-  if (!compareNumber(existing.revealLevel, chapter.revealLevel)) changed.push("揭露等级");
-  if (!compareText(existing.mustAvoid, chapter.mustAvoid)) changed.push("禁止事项");
-  if (!compareText(existing.taskSheet, chapter.taskSheet)) changed.push("任务单");
+  const changed: string[] = action === "move" ? [i18next.t("gen.pages.novels.volumePlan.utils.gen_d9a16668")] : [];
+  if (!compareText(existing.title, chapter.title)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_32c65d8d"));
+  if (!compareText(existing.expectation, chapter.summary)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_3ae14696"));
+  if (!compareNumber(existing.targetWordCount, chapter.targetWordCount)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_b71c2e84"));
+  if (!compareNumber(existing.conflictLevel, chapter.conflictLevel)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_971cbaa4"));
+  if (!compareNumber(existing.revealLevel, chapter.revealLevel)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_53fe8284"));
+  if (!compareText(existing.mustAvoid, chapter.mustAvoid)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.gen_e586f3e2"));
+  if (!compareText(existing.taskSheet, chapter.taskSheet)) changed.push(i18next.t("gen.pages.novels.volumePlan.utils.singleTask"));
   return changed;
 }
 
@@ -311,7 +312,7 @@ export function buildVolumeSyncPreview(
         chapterOrder: entry.chapter.chapterOrder,
         nextTitle: entry.chapter.title,
         hasContent: false,
-        changedFields: ["新章节"],
+        changedFields: [i18next.t("gen.pages.novels.volumePlan.utils.gen_0aab985d")],
       });
       continue;
     }
@@ -365,23 +366,23 @@ export function buildVolumeSyncPreview(
       deleteCount += 1;
       items.push({
         action: "delete",
-        volumeTitle: "未匹配",
+        volumeTitle: i18next.t("gen.pages.novels.volumePlan.utils.gen_61b81992"),
         chapterOrder: chapter.order,
         nextTitle: chapter.title,
         previousTitle: chapter.title,
         hasContent,
-        changedFields: ["从卷纲移除"],
+        changedFields: [i18next.t("gen.pages.novels.volumePlan.utils.removeFromVolumeOutline")],
       });
     } else {
       deleteCandidateCount += 1;
       items.push({
         action: "delete_candidate",
-        volumeTitle: "未匹配",
+        volumeTitle: i18next.t("gen.pages.novels.volumePlan.utils.gen_61b81992"),
         chapterOrder: chapter.order,
         nextTitle: chapter.title,
         previousTitle: chapter.title,
         hasContent,
-        changedFields: ["待确认删除"],
+        changedFields: [i18next.t("gen.pages.novels.volumePlan.utils.gen_f85caee0")],
       });
     }
   }

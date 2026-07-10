@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -57,37 +59,37 @@ interface CharacterFormState {
 }
 
 const CAST_ROLE_LABELS: Record<CharacterCastRole, string> = {
-  protagonist: "主角",
-  antagonist: "主对手",
-  ally: "同盟",
-  foil: "镜像角色",
-  mentor: "导师",
-  love_interest: "情感牵引",
-  pressure_source: "压力源",
-  catalyst: "催化者",
+  protagonist: t("gen.pages.novels.components.NovelCharacterPanel.mainCharacter"),
+  antagonist: t("gen.pages.novels.components.NovelCharacterPanel.mainEnemy"),
+  ally: t("gen.pages.novels.components.NovelCharacterPanel.gen_9669fc43"),
+  foil: t("gen.pages.novels.components.NovelCharacterPanel.gen_d7fc88ac"),
+  mentor: t("gen.pages.novels.components.NovelCharacterPanel.gen_d62518be"),
+  love_interest: t("gen.pages.novels.components.NovelCharacterPanel.gen_65c52a7e"),
+  pressure_source: t("gen.pages.novels.components.NovelCharacterPanel.gen_7aa91c6c"),
+  catalyst: t("gen.pages.novels.components.NovelCharacterPanel.gen_f57197c6"),
 };
 const CHARACTER_GENDER_LABELS: Record<CharacterGender, string> = {
-  male: "男",
-  female: "女",
-  other: "其他",
-  unknown: "未知",
+  male: t("gen.pages.novels.components.NovelCharacterPanel.gen_36a4908a"),
+  female: t("gen.pages.novels.components.NovelCharacterPanel.gen_87c835a6"),
+  other: t("gen.pages.novels.components.NovelCharacterPanel.gen_0d98c747"),
+  unknown: t("gen.pages.novels.components.NovelCharacterPanel.gen_1622dc9b"),
 };
 const SUPPLEMENTAL_MODE_LABELS: Record<SupplementalCharacterGenerationMode, string> = {
-  auto: "AI 判断",
-  linked: "关系补位",
-  independent: "独立补位",
+  auto: t("gen.pages.novels.components.NovelCharacterPanel.aiJudging"),
+  linked: t("gen.pages.novels.components.NovelCharacterPanel.gen_898bbf92"),
+  independent: t("gen.pages.novels.components.NovelCharacterPanel.gen_db9b906f"),
 };
 
 function getCastRoleLabel(castRole?: CharacterCastRole | "auto" | null): string {
   if (!castRole || castRole === "auto") {
-    return "AI 判断";
+    return t("gen.pages.novels.components.NovelCharacterPanel.aiJudging");
   }
   return CAST_ROLE_LABELS[castRole] ?? castRole;
 }
 
 function getCharacterGenderLabel(gender?: CharacterGender | null): string {
   if (!gender) {
-    return "未知";
+    return t("gen.pages.novels.components.NovelCharacterPanel.gen_1622dc9b");
   }
   return CHARACTER_GENDER_LABELS[gender] ?? gender;
 }
@@ -284,7 +286,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
 
   const handleGenerateSupplementalCharacters = async () => {
     if (supplementalMode === "linked" && characters.length === 0) {
-      setSupplementalStatusMessage("当前还没有已建角色，不能基于关系补充角色。可以先建一个核心角色，或改用“生成相对独立角色”。");
+      setSupplementalStatusMessage(t("gen.pages.novels.components.NovelCharacterPanel.gen_e0c589f6"));
       return;
     }
 
@@ -301,9 +303,9 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
           : undefined,
       });
       setSupplementalResult(response.data ?? null);
-      setSupplementalStatusMessage(response.message ?? "补充角色候选已生成。");
+      setSupplementalStatusMessage(response.message ?? t("gen.pages.novels.components.NovelCharacterPanel.gen_a2e06232"));
     } catch (error) {
-      setSupplementalStatusMessage(error instanceof Error ? error.message : "补充角色生成失败。");
+      setSupplementalStatusMessage(error instanceof Error ? error.message : t("gen.pages.novels.components.NovelCharacterPanel.gen_c7b0928b"));
     }
   };
 
@@ -323,38 +325,38 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
         ?? `${createdName} 已加入当前小说${relationCount > 0 ? `，并同步 ${relationCount} 条关系` : ""}。`,
       );
     } catch (error) {
-      setSupplementalStatusMessage(error instanceof Error ? error.message : "应用补充角色失败。");
+      setSupplementalStatusMessage(error instanceof Error ? error.message : t("gen.pages.novels.components.NovelCharacterPanel.gen_e113be50"));
     }
   };
 
   return (
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel
-        title="从角色准备接管"
-        description="AI 会先判断角色资产是否齐备，再决定继续补角色还是按你的选择重跑当前步骤。"
+        title={t("gen.pages.novels.components.NovelCharacterPanel.takeoverFromRolePreparation")}
+        description={t("gen.pages.novels.components.NovelCharacterPanel.aiCheckCharacterAssets")}
         entry={directorTakeoverEntry}
       />
       {characterMessage ? <div className="text-sm text-muted-foreground">{characterMessage}</div> : null}
 
       <StepHero
-        eyebrow="角色阵容"
-        title="角色准备"
-        description="先看角色阵容是否能支撑主线，再维护当前角色资产；新增、导入和补位作为阶段性动作按需使用。"
+        eyebrow={t("gen.pages.novels.components.NovelCharacterPanel.gen_ca1588b6")}
+        title={t("gen.pages.novels.components.NovelCharacterPanel.gen_3ed577c6")}
+        description={t("gen.pages.novels.components.NovelCharacterPanel.gen_05a5ce48")}
       >
         <StatusRail
           items={[
-            { label: "已建角色", value: characters.length, description: "先把推动主线的人物占位补齐。", tone: characters.length > 0 ? "success" : "warning" },
-            { label: "核心角色", value: coreCharacterCount, description: "至少明确主角与主要对手。", tone: coreCharacterCount > 0 ? "success" : "warning" },
-            { label: "当前焦点", value: selectedCharacter?.name ?? "尚未选择角色", description: selectedCharacter?.role || `${baseCharacters.length} 个基础角色可导入`, tone: selectedCharacter ? "info" : "neutral" },
+            { label: t("gen.pages.novels.components.NovelCharacterPanel.gen_4ffb3d3a"), value: characters.length, description: t("gen.pages.novels.components.NovelCharacterPanel.gen_db98804b"), tone: characters.length > 0 ? "success" : "warning" },
+            { label: t("gen.pages.novels.components.NovelCharacterPanel.gen_992862b2"), value: coreCharacterCount, description: t("gen.pages.novels.components.NovelCharacterPanel.gen_ac0fda50"), tone: coreCharacterCount > 0 ? "success" : "warning" },
+            { label: t("gen.pages.novels.components.NovelCharacterPanel.gen_49f9d850"), value: selectedCharacter?.name ?? t("gen.pages.novels.components.NovelCharacterPanel.gen_9624995c"), description: selectedCharacter?.role || `${baseCharacters.length} 个基础角色可导入`, tone: selectedCharacter ? "info" : "neutral" },
           ]}
         />
         <StepActionBar
           className="mt-4 bg-background/70"
-          label="角色动作"
-          description="日常编辑建议直接在下方角色资产工作台里处理。"
+          label={t("gen.pages.novels.components.NovelCharacterPanel.gen_838de0b1")}
+          description={t("gen.pages.novels.components.NovelCharacterPanel.gen_429e3e2a")}
           actions={(
             <>
-            <Button onClick={() => setIsCharacterEntryOpen(true)}>新增角色</Button>
+            <Button onClick={() => setIsCharacterEntryOpen(true)}>{t("gen.pages.novels.components.NovelCharacterPanel.gen_098d06b1")}</Button>
             <AiButton variant="outline" onClick={handleOpenSupplementalDialog}>
               补充角色
             </AiButton>
@@ -363,14 +365,14 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
               onClick={onEvolveCharacter}
               disabled={isEvolvingCharacter || !selectedCharacterId}
             >
-              {isEvolvingCharacter ? "演进中..." : "AI 演进当前状态"}
+              {isEvolvingCharacter ? t("gen.pages.novels.components.NovelCharacterPanel.gen_7e8da796") : t("gen.pages.novels.components.NovelCharacterPanel.aiEvolvingCurrentState")}
             </AiButton>
             <AiButton
               variant="outline"
               onClick={() => onGenerateVisibleProfile()}
               disabled={isGeneratingVisibleProfile || !selectedCharacterId}
             >
-              {isGeneratingVisibleProfile ? "生成中..." : "AI 补全外显资料"}
+              {isGeneratingVisibleProfile ? t("gen.pages.novels.components.NovelCharacterPanel.gen_4d020ba3") : t("gen.pages.novels.components.NovelCharacterPanel.expandExternalData")}
             </AiButton>
             </>
           )}
@@ -380,7 +382,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
       <Dialog open={isCharacterEntryOpen} onOpenChange={setIsCharacterEntryOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>新增角色</DialogTitle>
+            <DialogTitle>{t("gen.pages.novels.components.NovelCharacterPanel.gen_098d06b1")}</DialogTitle>
             <DialogDescription>
               只有在新建角色或从基础角色库导入时才需要打开这里。日常维护请直接使用角色资产工作台。
             </DialogDescription>
@@ -388,13 +390,13 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
             <div className="space-y-3 rounded-2xl border p-4">
               <div className="space-y-1">
-                <div className="font-medium">快速创建</div>
+                <div className="font-medium">{t("gen.pages.novels.components.NovelCharacterPanel.gen_433d87d0")}</div>
                 <div className="text-xs text-muted-foreground">
                   适合临时补一个新人物占位，再交给下方工作台慢慢打磨。
                 </div>
               </div>
               <Input
-                placeholder="角色名称（必填）"
+                placeholder={t("gen.pages.novels.components.NovelCharacterPanel.gen_85c3b8ab")}
                 value={quickCharacterForm.name}
                 onChange={(event) => onQuickCharacterFormChange("name", event.target.value)}
               />
@@ -403,25 +405,25 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                 value={quickCharacterForm.role}
                 onChange={(event) => onQuickCharacterFormChange("role", event.target.value)}
               >
-                <option value="主角">主角</option>
-                <option value="配角">配角</option>
-                <option value="反派">反派</option>
-                <option value="导师">导师</option>
-                <option value="情感线">情感线</option>
-                <option value="功能角色">功能角色</option>
+                <option value={t("gen.pages.novels.components.NovelCharacterPanel.mainCharacter")}>{t("gen.pages.novels.components.NovelCharacterPanel.mainCharacter")}</option>
+                <option value={t("gen.pages.novels.components.NovelCharacterPanel.gen_f14665fc")}>{t("gen.pages.novels.components.NovelCharacterPanel.gen_f14665fc")}</option>
+                <option value={t("gen.pages.novels.components.NovelCharacterPanel.gen_27dd76d8")}>{t("gen.pages.novels.components.NovelCharacterPanel.gen_27dd76d8")}</option>
+                <option value={t("gen.pages.novels.components.NovelCharacterPanel.gen_d62518be")}>{t("gen.pages.novels.components.NovelCharacterPanel.gen_d62518be")}</option>
+                <option value={t("gen.pages.novels.components.NovelCharacterPanel.gen_d56d71b4")}>{t("gen.pages.novels.components.NovelCharacterPanel.gen_d56d71b4")}</option>
+                <option value={t("gen.pages.novels.components.NovelCharacterPanel.gen_813bdd02")}>{t("gen.pages.novels.components.NovelCharacterPanel.gen_813bdd02")}</option>
               </SelectControl>
               <Input
-                placeholder="与主角关系（如：试探合作）"
+                placeholder={t("gen.pages.novels.components.NovelCharacterPanel.relationWithProtagonistDetail")}
                 value={relationToProtagonist}
                 onChange={(event) => setRelationToProtagonist(event.target.value)}
               />
               <Input
-                placeholder="在故事中的作用（如：推动真相线）"
+                placeholder={t("gen.pages.novels.components.NovelCharacterPanel.gen_80ee2781")}
                 value={storyFunction}
                 onChange={(event) => setStoryFunction(event.target.value)}
               />
               <Input
-                placeholder="角色关键词（逗号分隔）"
+                placeholder={t("gen.pages.novels.components.NovelCharacterPanel.gen_4c09eaa7")}
                 value={wizardKeywords}
                 onChange={(event) => setWizardKeywords(event.target.value)}
               />
@@ -434,13 +436,13 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                 自动补齐性格、背景、成长弧和当前状态
               </label>
               <AiButton onClick={handleQuickCreate} disabled={isQuickCreating || !quickCharacterForm.name.trim()}>
-                {isQuickCreating ? "生成中..." : "AI 生成角色卡"}
+                {isQuickCreating ? t("gen.pages.novels.components.NovelCharacterPanel.gen_4d020ba3") : t("gen.pages.novels.components.NovelCharacterPanel.aiGenerateCharacterSheet")}
               </AiButton>
             </div>
 
             <div className="space-y-3 rounded-2xl border p-4">
               <div className="space-y-1">
-                <div className="font-medium">从基础角色库导入</div>
+                <div className="font-medium">{t("gen.pages.novels.components.NovelCharacterPanel.importFromBaseCharacterLibrary")}</div>
                 <div className="text-xs text-muted-foreground">
                   适合快速引入成熟模板，再按当前小说需求继续微调。
                 </div>
@@ -463,11 +465,11 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium">{selectedBaseCharacter.name}</span>
                         <Badge variant={importedBaseCharacterIds.has(selectedBaseCharacter.id) ? "outline" : "secondary"}>
-                          {importedBaseCharacterIds.has(selectedBaseCharacter.id) ? "已关联" : "未关联"}
+                          {importedBaseCharacterIds.has(selectedBaseCharacter.id) ? t("gen.pages.novels.components.NovelCharacterPanel.gen_998d1568") : t("gen.pages.novels.components.NovelCharacterPanel.gen_92610e5f")}
                         </Badge>
                       </div>
                       <div className="line-clamp-3 text-xs text-muted-foreground">
-                        性格：{selectedBaseCharacter.personality || "暂无"}
+                        性格：{selectedBaseCharacter.personality || t("gen.pages.novels.components.NovelCharacterPanel.gen_f61f4cf6")}
                       </div>
                     </div>
                   ) : null}
@@ -480,10 +482,10 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                         || importedBaseCharacterIds.has(selectedBaseCharacter.id)
                       }
                     >
-                      {isImportingBaseCharacter ? "导入中..." : "导入为小说角色"}
+                      {isImportingBaseCharacter ? t("gen.pages.novels.components.NovelCharacterPanel.gen_763476f8") : t("gen.pages.novels.components.NovelCharacterPanel.gen_06a188ce")}
                     </Button>
                     <Button asChild variant="outline">
-                      <Link to="/base-characters">管理基础角色库</Link>
+                      <Link to="/base-characters">{t("gen.pages.novels.components.NovelCharacterPanel.gen_c8ac8a1b")}</Link>
                     </Button>
                   </div>
                 </>
@@ -500,7 +502,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
       <Dialog open={isSupplementalCharacterOpen} onOpenChange={setIsSupplementalCharacterOpen}>
         <DialogContent className="flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-5xl flex-col overflow-hidden p-0">
           <DialogHeader className="shrink-0 px-6 pb-0 pt-6">
-            <DialogTitle>补充角色</DialogTitle>
+            <DialogTitle>{t("gen.pages.novels.components.NovelCharacterPanel.gen_d8d10894")}</DialogTitle>
             <DialogDescription>
               适合在已有角色系统基础上补一个缺位人物。你可以指定“从现有关系衍生”或“生成相对独立角色”，也可以直接交给 AI 判断。
             </DialogDescription>
@@ -508,7 +510,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
           <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 pb-6 pt-4 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)] xl:overflow-hidden">
             <div className="space-y-4 rounded-2xl border p-4 xl:min-h-0 xl:overflow-y-auto">
               <div className="space-y-1">
-                <div className="font-medium">补位方式</div>
+                <div className="font-medium">{t("gen.pages.novels.components.NovelCharacterPanel.gen_620500d9")}</div>
                 <div className="text-xs text-muted-foreground">
                   默认推荐“AI 判断”，只有你很确定要补哪类人时再手动指定。
                 </div>
@@ -518,14 +520,14 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                 value={supplementalMode}
                 onChange={(event) => setSupplementalMode(event.target.value as SupplementalCharacterGenerationMode)}
               >
-                <option value="auto">AI 判断当前更需要哪种补位</option>
-                <option value="linked">基于现有角色衍生关系角色</option>
-                <option value="independent">生成相对独立角色</option>
+                <option value="auto">{t("gen.pages.novels.components.NovelCharacterPanel.aiDetermineNeededPlaceholder")}</option>
+                <option value="linked">{t("gen.pages.novels.components.NovelCharacterPanel.gen_2eb92b6f")}</option>
+                <option value="independent">{t("gen.pages.novels.components.NovelCharacterPanel.gen_9d6ec340")}</option>
               </SelectControl>
 
               {characters.length > 0 && supplementalMode !== "independent" ? (
                 <div className="space-y-2">
-                  <div className="font-medium">参考已有角色</div>
+                  <div className="font-medium">{t("gen.pages.novels.components.NovelCharacterPanel.gen_f82db5ca")}</div>
                   <div className="text-xs text-muted-foreground">
                     可不选；不选时 AI 会自己判断应该围绕谁补位。
                   </div>
@@ -549,43 +551,43 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-2">
-                  <div className="font-medium">期望角色功能</div>
+                  <div className="font-medium">{t("gen.pages.novels.components.NovelCharacterPanel.gen_92846493")}</div>
                   <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={supplementalTargetRole}
                     onChange={(event) => setSupplementalTargetRole(event.target.value as CharacterCastRole | "auto")}
                   >
-                    <option value="auto">AI 判断</option>
-                    <option value="protagonist">主角</option>
-                    <option value="antagonist">主对手</option>
-                    <option value="ally">同盟</option>
-                    <option value="foil">镜像角色</option>
-                    <option value="mentor">导师</option>
-                    <option value="love_interest">情感牵引</option>
-                    <option value="pressure_source">压力源</option>
-                    <option value="catalyst">催化者</option>
+                    <option value="auto">{t("gen.pages.novels.components.NovelCharacterPanel.aiJudging")}</option>
+                    <option value="protagonist">{t("gen.pages.novels.components.NovelCharacterPanel.mainCharacter")}</option>
+                    <option value="antagonist">{t("gen.pages.novels.components.NovelCharacterPanel.mainEnemy")}</option>
+                    <option value="ally">{t("gen.pages.novels.components.NovelCharacterPanel.gen_9669fc43")}</option>
+                    <option value="foil">{t("gen.pages.novels.components.NovelCharacterPanel.gen_d7fc88ac")}</option>
+                    <option value="mentor">{t("gen.pages.novels.components.NovelCharacterPanel.gen_d62518be")}</option>
+                    <option value="love_interest">{t("gen.pages.novels.components.NovelCharacterPanel.gen_65c52a7e")}</option>
+                    <option value="pressure_source">{t("gen.pages.novels.components.NovelCharacterPanel.gen_7aa91c6c")}</option>
+                    <option value="catalyst">{t("gen.pages.novels.components.NovelCharacterPanel.gen_f57197c6")}</option>
                   </SelectControl>
                 </div>
                 <div className="space-y-2">
-                  <div className="font-medium">生成数量</div>
+                  <div className="font-medium">{t("gen.pages.novels.components.NovelCharacterPanel.gen_e99dfdf4")}</div>
                   <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={supplementalCount}
                     onChange={(event) => setSupplementalCount(event.target.value as "auto" | "1" | "2" | "3")}
                   >
-                    <option value="auto">AI 判断</option>
-                    <option value="1">1 个</option>
-                    <option value="2">2 个</option>
-                    <option value="3">3 个</option>
+                    <option value="auto">{t("gen.pages.novels.components.NovelCharacterPanel.aiJudging")}</option>
+                    <option value="1">{t("gen.pages.novels.components.NovelCharacterPanel.oneItem")}</option>
+                    <option value="2">{t("gen.pages.novels.components.NovelCharacterPanel.twoItems")}</option>
+                    <option value="3">{t("gen.pages.novels.components.NovelCharacterPanel.threeItems")}</option>
                   </SelectControl>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <div className="font-medium">额外说明</div>
+                <div className="font-medium">{t("gen.pages.novels.components.NovelCharacterPanel.gen_a63d16b7")}</div>
                 <textarea
                   className="min-h-[140px] w-full rounded-xl border bg-background p-3 text-sm"
-                  placeholder="例如：我想补一个能持续给主角施压、但又不是纯反派的人；或补一个和母亲线相关的旧识。"
+                  placeholder={t("gen.pages.novels.components.NovelCharacterPanel.exampleAddSomeoneCanKeepApplyingPressureToMainCharacterNotPureAntiHeroOrOldRumorWithMotherLine")}
                   value={supplementalPrompt}
                   onChange={(event) => setSupplementalPrompt(event.target.value)}
                 />
@@ -605,10 +607,10 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                   onClick={handleGenerateSupplementalCharacters}
                   disabled={isGeneratingSupplementalCharacters || (supplementalMode === "linked" && characters.length === 0)}
                 >
-                  {isGeneratingSupplementalCharacters ? "生成中..." : "生成补充角色候选"}
+                  {isGeneratingSupplementalCharacters ? t("gen.pages.novels.components.NovelCharacterPanel.gen_4d020ba3") : t("gen.pages.novels.components.NovelCharacterPanel.gen_d7cc807f")}
                 </AiButton>
-                <Badge variant="outline">数量不选时由 AI 自行判断</Badge>
-                <Badge variant="outline">关系角色会优先围绕现有角色补位</Badge>
+                <Badge variant="outline">{t("gen.pages.novels.components.NovelCharacterPanel.gen_64273cfc")}</Badge>
+                <Badge variant="outline">{t("gen.pages.novels.components.NovelCharacterPanel.gen_d3053d0b")}</Badge>
               </div>
 
               {supplementalStatusMessage ? (
@@ -620,9 +622,9 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
 
             <div className="space-y-3 rounded-2xl border p-4 xl:min-h-0 xl:overflow-y-auto">
               <div className="flex flex-wrap items-center gap-2">
-                <div className="font-medium">候选结果</div>
-                {supplementalResult ? <Badge variant="outline">{supplementalResult.candidates.length} 个候选</Badge> : null}
-                {supplementalResult?.mode ? <Badge variant="outline">本轮模式：{SUPPLEMENTAL_MODE_LABELS[supplementalResult.mode]}</Badge> : null}
+                <div className="font-medium">{t("gen.pages.novels.components.NovelCharacterPanel.gen_e995da4f")}</div>
+                {supplementalResult ? <Badge variant="outline">{t("gen.pages.novels.components.NovelCharacterPanel.gen_supplement_9nxx")}</Badge> : null}
+                {supplementalResult?.mode ? <Badge variant="outline">{t("gen.pages.novels.components.NovelCharacterPanel.gen_f98b4efe")}</Badge> : null}
               </div>
               {supplementalResult?.planningSummary ? (
                 <div className="rounded-xl border border-amber-200/60 bg-amber-50/50 p-3 text-xs text-muted-foreground">
@@ -644,7 +646,7 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                             <div className="font-medium">{candidate.name}</div>
                             <Badge variant="outline">{candidate.role}</Badge>
                             <Badge variant="secondary">{getCastRoleLabel(candidate.castRole)}</Badge>
-                            <Badge variant="outline">性别：{getCharacterGenderLabel(candidate.gender)}</Badge>
+                            <Badge variant="outline">{t("gen.pages.novels.components.NovelCharacterPanel.gen_7085f7ff")}</Badge>
                           </div>
                           <div className="text-sm text-muted-foreground">{candidate.summary}</div>
                         </div>
@@ -653,36 +655,36 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
                           onClick={() => void handleApplySupplementalCharacter(candidate)}
                           disabled={isApplyingSupplementalCharacter}
                         >
-                          {isApplyingSupplementalCharacter ? "创建中..." : "创建这个角色"}
+                          {isApplyingSupplementalCharacter ? t("gen.pages.novels.components.NovelCharacterPanel.gen_b26107b6") : t("gen.pages.novels.components.NovelCharacterPanel.gen_d0d58dad")}
                         </Button>
                       </div>
 
                       <div className="mt-3 grid gap-2 sm:grid-cols-2">
                         <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-                          <div>故事作用：{candidate.storyFunction}</div>
-                          <div>与主角关系：{candidate.relationToProtagonist || "AI 未指定"}</div>
-                          <div>外在目标：{candidate.outerGoal || "待补全"}</div>
-                          <div>当前目标：{candidate.currentGoal || "待补全"}</div>
+                          <div>{t("gen.pages.novels.components.NovelCharacterPanel.gen_fdd2c033")}</div>
+                          <div>{t("gen.pages.novels.components.NovelCharacterPanel.relationWithProtagonistSpecified")}</div>
+                          <div>{t("gen.pages.novels.components.NovelCharacterPanel.gen_fd1f37a1")}</div>
+                          <div>{t("gen.pages.novels.components.NovelCharacterPanel.gen_806ff74a")}</div>
                         </div>
                         <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-                          <div>第一印象：{candidate.firstImpression || "待补全"}</div>
-                          <div>核心恐惧：{candidate.fear || "待补全"}</div>
-                          <div>错误信念：{candidate.misbelief || "待补全"}</div>
-                          <div>补位原因：{candidate.whyNow || "AI 未额外说明"}</div>
+                          <div>{t("gen.pages.novels.components.NovelCharacterPanel.gen_604697af")}</div>
+                          <div>{t("gen.pages.novels.components.NovelCharacterPanel.gen_57e02562")}</div>
+                          <div>{t("gen.pages.novels.components.NovelCharacterPanel.gen_6778c422")}</div>
+                          <div>{t("gen.pages.novels.components.NovelCharacterPanel.gen_a8658b2e")}</div>
                         </div>
                       </div>
 
                       {candidate.relations.length > 0 ? (
                         <div className="mt-3 space-y-2">
-                          <div className="text-xs font-medium text-muted-foreground">建议同步的关系</div>
+                          <div className="text-xs font-medium text-muted-foreground">{t("gen.pages.novels.components.NovelCharacterPanel.gen_a0237f0c")}</div>
                           <div className="grid gap-2 sm:grid-cols-2">
                             {candidate.relations.map((relation, index) => (
                               <div key={`${candidate.name}-${relation.sourceName}-${relation.targetName}-${index}`} className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
                                 <div className="font-medium text-foreground">{getSupplementalRelationLabel(candidate, relation)}</div>
-                                <div>表层关系：{relation.surfaceRelation}</div>
-                                {relation.hiddenTension ? <div>隐藏张力：{relation.hiddenTension}</div> : null}
-                                {relation.conflictSource ? <div>冲突来源：{relation.conflictSource}</div> : null}
-                                {relation.nextTurnPoint ? <div>下一反转点：{relation.nextTurnPoint}</div> : null}
+                                <div>{t("gen.pages.novels.components.NovelCharacterPanel.gen_510a8aa6")}</div>
+                                {relation.hiddenTension ? <div>{t("gen.pages.novels.components.NovelCharacterPanel.gen_517ccc87")}</div> : null}
+                                {relation.conflictSource ? <div>{t("gen.pages.novels.components.NovelCharacterPanel.gen_5e01ec63")}</div> : null}
+                                {relation.nextTurnPoint ? <div>{t("gen.pages.novels.components.NovelCharacterPanel.nextReversalPoint")}</div> : null}
                               </div>
                             ))}
                           </div>

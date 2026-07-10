@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { AntiAiRule } from "@ai-novel/shared/types/styleEngine";
 import { CheckCircle2, Edit3, FileText, FlaskConical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -27,15 +29,15 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
       <CardHeader className="gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <CardTitle className="text-xl">规则列表</CardTitle>
-            <CardDescription>快速启停规则、调整全局默认、维护生成指令和修正建议。</CardDescription>
+            <CardTitle className="text-xl">{t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_d325b572")}</CardTitle>
+            <CardDescription>{t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_cdeb9fba")}</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             {[
-              ["all", "全部"],
-              ["global", "全局默认"],
-              ["style", "写法专属可用"],
-              ["disabled", "已停用"],
+              ["all", t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_a8b0c204")],
+              ["global", t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_1c65ec9e")],
+              ["style", t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_42ab6bef")],
+              ["disabled", t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_69b0f684")],
             ].map(([value, label]) => (
               <Button
                 key={value}
@@ -52,7 +54,7 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         {props.loading ? (
-          <div className="text-sm text-muted-foreground">正在加载反 AI 规则...</div>
+          <div className="text-sm text-muted-foreground">{t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_dfc98d9c")}</div>
         ) : null}
         {!props.loading && props.rules.length === 0 ? (
           <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -67,9 +69,9 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="text-base font-semibold text-foreground">{rule.name}</div>
-                    <Badge variant={rule.enabled ? "secondary" : "outline"}>{rule.enabled ? "启用" : "停用"}</Badge>
-                    {rule.globalBaselineEnabled ? <Badge>全局默认</Badge> : <Badge variant="outline">可绑定</Badge>}
-                    {isTesting ? <Badge variant="secondary">测试中</Badge> : null}
+                    <Badge variant={rule.enabled ? "secondary" : "outline"}>{t("gen.pages.antiAiRules.components.AntiAiRuleList.ruleStatusText")}</Badge>
+                    {rule.globalBaselineEnabled ? <Badge>{t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_1c65ec9e")}</Badge> : <Badge variant="outline">{t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_fc0ad279")}</Badge>}
+                    {isTesting ? <Badge variant="secondary">{t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_f85549cd")}</Badge> : null}
                     <Badge variant="outline">{typeLabels[rule.type]} / {severityLabels[rule.severity]}</Badge>
                   </div>
                   <div className="mt-2 text-sm leading-6 text-muted-foreground">{rule.description}</div>
@@ -86,39 +88,39 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
                         <FileText className="h-3.5 w-3.5" />
                         生成指令
                       </div>
-                      <div className="leading-6 text-foreground">{rule.promptInstruction || "未填写"}</div>
+                      <div className="leading-6 text-foreground">{t("gen.pages.antiAiRules.components.AntiAiRuleList.promptMissing")}</div>
                     </div>
                     <div className="rounded-md border bg-muted/20 p-3">
                       <div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         修正建议
                       </div>
-                      <div className="leading-6 text-foreground">{rule.rewriteSuggestion || "未填写"}</div>
+                      <div className="leading-6 text-foreground">{t("gen.pages.antiAiRules.components.AntiAiRuleList.rewriteSuggestionEmpty")}</div>
                     </div>
                   </div>
                 </div>
                 <div className="grid min-w-[210px] gap-2">
                   <AntiAiToggleLine
-                    label="启用"
+                    label={t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_7854b52a")}
                     checked={rule.enabled}
                     disabled={props.isSaving}
                     onCheckedChange={(checked) => props.onQuickToggle(rule, "enabled", checked)}
                   />
                   <AntiAiToggleLine
-                    label="全局默认"
+                    label={t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_1c65ec9e")}
                     checked={rule.globalBaselineEnabled}
                     disabled={props.isSaving}
                     onCheckedChange={(checked) => props.onQuickToggle(rule, "globalBaselineEnabled", checked)}
                   />
                   <AntiAiToggleLine
-                    label="自动改写"
+                    label={t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_11519661")}
                     checked={rule.autoRewrite}
                     disabled={props.isSaving}
                     onCheckedChange={(checked) => props.onQuickToggle(rule, "autoRewrite", checked)}
                   />
                   <Button type="button" variant={isTesting ? "secondary" : "outline"} size="sm" onClick={() => props.onToggleTestingRule(rule.id)}>
                     <FlaskConical className="h-4 w-4" />
-                    {isTesting ? "移出测试" : "加入测试"}
+                    {isTesting ? t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_b9016d5f") : t("gen.pages.antiAiRules.components.AntiAiRuleList.gen_32dbefcf")}
                   </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => props.onEditRule(rule)}>
                     <Edit3 className="h-4 w-4" />

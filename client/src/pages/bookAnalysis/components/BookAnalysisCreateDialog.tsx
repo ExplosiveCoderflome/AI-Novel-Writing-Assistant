@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import {
   BOOK_ANALYSIS_PRESETS,
   BOOK_ANALYSIS_SECTIONS,
@@ -59,12 +61,12 @@ function formatCount(value: number): string {
 
 function getBookAnalysisScaleLabel(charCount: number): { label: string; tone: string } {
   if (charCount >= 300_000) {
-    return { label: "大型书籍", tone: "建议使用成本更可控的模型，或先拆分文档范围。" };
+    return { label: t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_ef9a46bf"), tone: t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_c2f7f484") };
   }
   if (charCount >= 100_000) {
-    return { label: "中等体量", tone: "适合标准拆书，生成时间和 token 用量会随章节规模增加。" };
+    return { label: t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.mediumVolume"), tone: t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_4c932ebc") };
   }
-  return { label: "轻量体量", tone: "适合快速检查结构、人物和写法特征。" };
+  return { label: t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_9510eff9"), tone: t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_684d2554") };
 }
 
 function getPresetSectionTitles(sectionKeys: readonly string[]): string {
@@ -141,14 +143,14 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
     : Boolean(selectedDocumentId) && sourceRangeValid && !createPending;
   const submitting = isDiagnosisMode ? createDiagnosisPending : createPending;
   const submitLabel = isDiagnosisMode
-    ? (createDiagnosisPending ? "正在创建诊断..." : "创建诊断拆书")
-    : (createPending ? "正在创建..." : "创建拆书");
+    ? (createDiagnosisPending ? t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_c8cb0226") : t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_50e2e2d4"))
+    : (createPending ? t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_890cac7b") : t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_b96a18d9"));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
-        title="新建拆书分析"
-        description="选择文档与拆书范围，提交后会在右侧分析列表中出现新任务。"
+        title={t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_08277d71")}
+        description={t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_26abfe76")}
         className="max-w-4xl"
         footer={
           <div className="flex w-full items-center justify-end gap-2">
@@ -188,13 +190,13 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
 
             {isDiagnosisMode ? (
               <div className="space-y-2">
-                <div className="text-sm font-medium">要诊断的小说</div>
+                <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_c9eedcd0")}</div>
                 <SelectControl
                   className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                   value={selectedDiagnosisNovelId}
                   onChange={(event) => onSelectDiagnosisNovel(event.target.value)}
                 >
-                  <option value="">选择小说</option>
+                  <option value="">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_44cddc3d")}</option>
                   {novelOptions.map((novel) => (
                     <option key={novel.id} value={novel.id}>
                       {novel.title}
@@ -209,13 +211,13 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
               <>
                 <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">知识文档</div>
+                  <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_a597ef78")}</div>
                   <SelectControl
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                     value={selectedDocumentId}
                     onChange={(event) => onSelectDocument(event.target.value)}
                   >
-                    <option value="">选择文档</option>
+                    <option value="">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_a70ee8be")}</option>
                     {documentOptions.map((document) => (
                       <option key={document.id} value={document.id}>
                         {document.title}
@@ -224,17 +226,17 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                   </SelectControl>
                 </div>
                 <div className="space-y-2">
-                  <div className="text-sm font-medium">文档版本</div>
+                  <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_f1cee000")}</div>
                   <SelectControl
                     className="h-10 w-full rounded-md border bg-background px-3 text-sm"
                     value={selectedVersionId}
                     onChange={(event) => onSelectVersion(event.target.value)}
                     disabled={!selectedDocumentId}
                   >
-                    <option value="">使用当前激活版本</option>
+                    <option value="">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_使用当前激活版本_01b6")}</option>
                     {versionOptions.map((version) => (
                       <option key={version.id} value={version.id}>
-                        v{version.versionNumber} {version.isActive ? "（当前）" : ""}
+                        v{version.versionNumber} {version.isActive ? t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_7588ab69") : ""}
                       </option>
                     ))}
                   </SelectControl>
@@ -255,7 +257,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
             )}
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">模型</div>
+              <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_8000f187")}</div>
               <LLMSelector
                 value={llmConfig}
                 onChange={(next) =>
@@ -270,7 +272,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
               />
               <div className="grid gap-2 rounded-md border bg-muted/20 p-3 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center">
                 <div>
-                  <div className="text-sm font-medium">预算上限</div>
+                  <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_b474d723")}</div>
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">
                     留空使用服务端默认值。累计用量达到上限后停止任务，已完成的小节会保留。
                   </div>
@@ -299,7 +301,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">分析维度</div>
+              <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_1a00cbf4")}</div>
               <div className="grid gap-2 sm:grid-cols-3">
                 {BOOK_ANALYSIS_PRESETS.map((preset) => {
                   const selected = preset.key === analysisPreset;
@@ -314,7 +316,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-sm font-medium">{preset.title}</div>
-                        <div className="text-xs text-muted-foreground">{preset.sectionKeys.length} 项</div>
+                        <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.presetCount")}</div>
                       </div>
                       <div className="mt-1 text-xs leading-5 text-muted-foreground">{preset.summary}</div>
                       <div className="mt-2 text-xs leading-5 text-muted-foreground">
@@ -327,14 +329,14 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
             </div>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">本次拆书重点</div>
+              <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_48b141e3")}</div>
               <textarea
                 className="min-h-[92px] w-full rounded-md border bg-background p-3 text-sm"
                 value={userFocusInstruction}
                 onChange={(event) => onUserFocusInstructionChange(event.target.value)}
                 placeholder={isDiagnosisMode
-                  ? "例如：重点检查前三章留存、主角动机清晰度或伏笔回收风险。"
-                  : "例如：重点观察群像戏轮转、主角语言风格或付费爽点设计。"}
+                  ? t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_06f379b4")
+                  : t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_9cc5c446")}
               />
             </div>
           </div>
@@ -342,13 +344,13 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
           <aside className="space-y-3">
             <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
               {isDiagnosisMode
-                ? "诊断会根据小说正文长度消耗模型 token。章节越多，分析时间和 token 用量通常越高；建议先选择适合本次检查的拆书范围。"
-                : "拆书会根据书籍内容长度消耗模型 token。书籍越长，分析时间和 token 用量通常越高；建议先确认文档范围，再开始分析。"}
+                ? t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_95778722")
+                : t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_f5f49733")}
             </div>
 
             {!isDiagnosisMode && selectedSourceVersion ? (
               <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
-                <div className="font-medium text-foreground">本次拆书体量：{scale.label}</div>
+                <div className="font-medium text-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_3011bbd9")}</div>
                 <div className="mt-1">
                   约 {formatCount(effectiveSourceCharCount)} 字，预计拆成 {estimatedSegmentCount} 个原文片段，
                   约 {estimatedLlmCalls} 次模型调用。

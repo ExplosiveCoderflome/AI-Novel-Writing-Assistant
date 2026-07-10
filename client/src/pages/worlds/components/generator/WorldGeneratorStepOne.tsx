@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
 import type { WorldOptionRefinementLevel, WorldReferenceAnchor, WorldReferenceMode } from "@ai-novel/shared/types/worldWizard";
 import { Button } from "@/components/ui/button";
@@ -17,18 +19,18 @@ const INSPIRATION_MODE_CARDS: Array<{
 }> = [
   {
     value: "free",
-    title: "从一句灵感开始",
-    description: "适合已有题材、气质或故事舞台想法的世界样本。",
+    title: t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.startFromInspiration"),
+    description: t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_80a88384"),
   },
   {
     value: "reference",
-    title: "参考作品改造",
-    description: "适合借鉴已有作品的质感，再生成独立的架空世界。",
+    title: t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_0dd7d8a2"),
+    description: t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_fd5e12ca"),
   },
   {
     value: "random",
-    title: "让 AI 给方向",
-    description: "适合还没有明确想法，只想先获得一个可用世界雏形。",
+    title: t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_3e7a5205"),
+    description: t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_1f434df6"),
   },
 ];
 
@@ -120,14 +122,14 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
     <div className="space-y-4">
       <div className="rounded-md border bg-background p-4 space-y-3">
         <div>
-          <div className="text-sm font-medium">这个世界先叫什么？</div>
+          <div className="text-sm font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_c250dfe1")}</div>
           <div className="mt-1 text-xs text-muted-foreground">
             名称可以留空，系统会先创建一份可继续整理的世界样本。
           </div>
         </div>
         <input
           className="w-full rounded-md border p-2 text-sm"
-          placeholder="例如：紫霞界、灰烬王朝、雨巷旧城"
+          placeholder={t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.examplePurpleSkyRealmAshKingdomRainAlleyOldCity")}
           value={worldName}
           onChange={(event) => onWorldNameChange(event.target.value)}
         />
@@ -135,7 +137,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
 
       <div className="space-y-2">
         <div>
-          <div className="text-sm font-medium">选择题材基底</div>
+          <div className="text-sm font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_f994b83c")}</div>
           <div className="mt-1 text-xs text-muted-foreground">
             题材基底决定世界的读者预期、力量规则和常见冲突。
           </div>
@@ -146,7 +148,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
           disabled={genreLoading || genreOptions.length === 0}
           onChange={(event) => onGenreChange(event.target.value)}
         >
-          <option value="">{genreLoading ? "正在加载题材基底..." : "请选择题材基底"}</option>
+          <option value="">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.genreLoadingText")}</option>
           {genreOptions.map((genre) => (
             <option key={genre.id} value={genre.id}>
               {genre.path}
@@ -155,17 +157,17 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
         </SelectControl>
         {selectedGenre ? (
           <div className="rounded-md border p-3 text-xs text-muted-foreground space-y-1">
-            <div>当前题材基底路径：{selectedGenre.path}</div>
-            {selectedGenre.description?.trim() ? <div>题材基底说明：{selectedGenre.description.trim()}</div> : null}
+            <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_5f4ffa69")}</div>
+            {selectedGenre.description?.trim() ? <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_dbbeaadd")}</div> : null}
             {selectedGenre.template?.trim() ? (
-              <div className="whitespace-pre-wrap">题材基底模板：{selectedGenre.template.trim()}</div>
+              <div className="whitespace-pre-wrap">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_b0221764")}</div>
             ) : null}
           </div>
         ) : null}
-        {genreLoading ? <div className="text-xs text-muted-foreground">正在加载题材基底树...</div> : null}
+        {genreLoading ? <div className="text-xs text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_8ca5aa71")}</div> : null}
           {!genreLoading && genreOptions.length === 0 ? (
             <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground space-y-2">
-            <div>题材基底库为空。创建世界样本需要先准备可选题材基底。</div>
+            <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_ce68b833")}</div>
             <Button type="button" variant="outline" onClick={onOpenGenreManager}>
               去题材基底库
             </Button>
@@ -177,7 +179,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
       </div>
 
       <div className="space-y-2">
-        <div className="text-sm font-medium">选择创建方式</div>
+        <div className="text-sm font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_54757591")}</div>
         <div className="grid gap-3 md:grid-cols-3">
           {INSPIRATION_MODE_CARDS.map((item) => (
             <button
@@ -201,13 +203,13 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
           <KnowledgeDocumentPicker
             selectedIds={selectedKnowledgeDocumentIds}
             onChange={(next) => onKnowledgeDocumentIdsChange(next ?? [])}
-            title="参考知识库文档"
-            description="这里选的是参考源，后续会先提取原作世界锚点，再生成架空改造方向。"
+            title={t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_d7b79c91")}
+            description={t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_5b93ccba")}
             queryStatus="enabled"
           />
 
           <div className="rounded-md border p-3 text-sm space-y-2">
-            <div className="font-medium">参考方式</div>
+            <div className="font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_56ba9d71")}</div>
             <SelectControl
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={referenceMode}
@@ -226,30 +228,30 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
 
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-md border p-3 text-sm space-y-2">
-              <div className="font-medium">必须保留</div>
+              <div className="font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_3443f3cf")}</div>
               <textarea
                 className="min-h-[120px] w-full rounded-md border p-2 text-sm"
-                placeholder="例如：现实都市基底、租房生活质感、成年人的情感拉扯"
+                placeholder={t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.exampleRealityUrbanBasisRentLivingQualityAdultEmotionalTug")}
                 value={preserveText}
                 onChange={(event) => onPreserveTextChange(event.target.value)}
               />
             </div>
 
             <div className="rounded-md border p-3 text-sm space-y-2">
-              <div className="font-medium">允许改造</div>
+              <div className="font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_2f99624a")}</div>
               <textarea
                 className="min-h-[120px] w-full rounded-md border p-2 text-sm"
-                placeholder="例如：城市层级、社会规则、势力网络、地点系统"
+                placeholder={t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.exampleCityLevelSocialRulesPowerNetworkLocationSystem")}
                 value={allowedChangesText}
                 onChange={(event) => onAllowedChangesTextChange(event.target.value)}
               />
             </div>
 
             <div className="rounded-md border p-3 text-sm space-y-2">
-              <div className="font-medium">禁止偏离</div>
+              <div className="font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_26180712")}</div>
               <textarea
                 className="min-h-[120px] w-full rounded-md border p-2 text-sm"
-                placeholder="例如：不要超凡化、不要热血升级流、不要脱离现实社会逻辑"
+                placeholder={t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.exampleAvoidSuperNaturalHeatUpgradeLogic")}
                 value={forbiddenText}
                 onChange={(event) => onForbiddenTextChange(event.target.value)}
               />
@@ -262,10 +264,10 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
         className="min-h-[180px] w-full rounded-md border p-2 text-sm"
         placeholder={
           isReferenceMode
-            ? "粘贴原作片段、世界总结或你对这部作品的理解；也可以只使用上方知识库文档"
+            ? t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_b153714d")
             : inspirationMode === "random"
-              ? "可选：写下你想避开的题材、喜欢的氛围或目标读者"
-              : "用几句话描述世界的气质、舞台、冲突或力量来源"
+              ? t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_b62670d3")
+              : t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_e7057777")
         }
         value={inspirationText}
         onChange={(event) => onInspirationTextChange(event.target.value)}
@@ -274,31 +276,31 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
       <div className="rounded-md border p-3 text-sm space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div className="font-medium">生成偏好</div>
+            <div className="font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_dd477c7b")}</div>
             <div className="mt-1 text-xs text-muted-foreground">
               默认会给出 6 个标准世界属性，通常不用调整。
             </div>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => setPreferencesOpen((value) => !value)}>
-            {preferencesOpen ? "收起偏好" : "调整偏好"}
+            {preferencesOpen ? t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_b91f3d0f") : t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_8af07582")}
           </Button>
         </div>
         {preferencesOpen ? (
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-2">
-              <div className="font-medium">属性细化程度</div>
+              <div className="font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_45b91e77")}</div>
               <SelectControl
                 className="w-full rounded-md border bg-background p-2 text-sm"
                 value={optionRefinementLevel}
                 onChange={(event) => onOptionRefinementLevelChange(event.target.value as WorldOptionRefinementLevel)}
               >
-                <option value="basic">基础</option>
-                <option value="standard">标准</option>
-                <option value="detailed">详细</option>
+                <option value="basic">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_0796ba76")}</option>
+                <option value="standard">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_544fac40")}</option>
+                <option value="detailed">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_1f0a3a1c")}</option>
               </SelectControl>
             </div>
             <div className="space-y-2">
-              <div className="font-medium">世界属性数量</div>
+              <div className="font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.worldAttributeCount")}</div>
               <input
                 className="w-full rounded-md border p-2 text-sm"
                 type="number"
@@ -318,12 +320,12 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
 
       {analyzeStreaming ? (
         <div className="rounded-md border p-3 text-sm space-y-1">
-          <div className="font-medium">当前进度</div>
-          <div>{analyzeProgressMessage ?? "正在启动分析..."}</div>
+          <div className="font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_75ea7b29")}</div>
+          <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_analyzePro_dsqa")}</div>
           <div className="text-xs text-muted-foreground">
             {isReferenceMode
-              ? "这一步会依次执行：整理参考材料、提取原作世界锚点、生成架空改造决策。"
-              : "这一步会依次执行：整理灵感输入、生成概念卡、生成前置属性选项。"}
+              ? t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_fbd39c55")
+              : t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_8f40e0b9")}
           </div>
         </div>
       ) : null}
@@ -336,14 +338,14 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
 
       {concept ? (
         <div className="rounded-md border p-3 text-sm space-y-2">
-          <div className="font-medium">{isReferenceMode ? "参考分析摘要" : "概念卡"}</div>
-          <div>类型：{concept.worldType}</div>
-          <div>基调：{concept.tone}</div>
-          <div>关键词：{concept.keywords.join(" / ") || "-"}</div>
-          <div>前置属性选项：{propertyOptionsCount}</div>
+          <div className="font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.referenceType")}</div>
+          <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_92f79e03")}</div>
+          <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_a379c3ce")}</div>
+          <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_f7f6cfee")}</div>
+          <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_b8f334d9")}</div>
           {isReferenceMode && referenceAnchors.length > 0 ? (
             <div className="space-y-1">
-              <div className="text-xs font-medium text-muted-foreground">原作世界锚点</div>
+              <div className="text-xs font-medium text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_81c19e9b")}</div>
               {referenceAnchors.map((anchor) => (
                 <div key={anchor.id} className="text-xs text-muted-foreground">
                   {anchor.label}：{anchor.content}

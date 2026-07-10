@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +24,7 @@ export function SectionHeader({
         </div>
         <div className="mt-1 text-sm leading-6 text-muted-foreground">{description}</div>
       </div>
-      {typeof count === "number" ? <Badge variant="secondary">{count} 条</Badge> : null}
+      {typeof count === "number" ? <Badge variant="secondary">{t("gen.pages.worlds.components.workspace.handbook.HandbookPrimitives.itemCount")}</Badge> : null}
     </div>
   );
 }

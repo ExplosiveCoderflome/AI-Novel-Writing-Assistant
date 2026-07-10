@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { APIKeyStatus, ProviderBalanceStatus } from "@/api/settings";
 import { Button } from "@/components/ui/button";
@@ -61,7 +63,7 @@ export default function ProviderSettingsSection(props: {
     <Card id="settings-provider-section" className="min-w-0 scroll-mt-20 overflow-hidden">
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-1">
-          <CardTitle>模型厂商</CardTitle>
+          <CardTitle>{t("gen.pages.settings.components.ProviderSettingsSection.gen_b51bd70b")}</CardTitle>
           <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
             先保证至少一个文本模型可用；余额明细、请求限制和模型列表可以在高级详情里检查。
           </CardDescription>

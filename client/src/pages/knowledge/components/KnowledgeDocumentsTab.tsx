@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Upload, FileText, X } from "lucide-react";
@@ -24,7 +26,7 @@ export interface BatchUploadResult {
 }
 
 function formatDocumentKind(kind: KnowledgeDocumentSummary["kind"]): string {
-  return kind === "analysis_published" ? "拆书发布" : "上传文档";
+  return kind === "analysis_published" ? t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_baf0c0bb") : t("gen.pages.knowledge.components.KnowledgeDocumentsTab.uploadDocument");
 }
 
 interface KnowledgeDocumentsTabProps {
@@ -105,10 +107,10 @@ export default function KnowledgeDocumentsTab({
   };
 
   const statusOptions = [
-    { value: "", label: "全部未归档" },
-    { value: "enabled", label: "仅启用" },
-    { value: "disabled", label: "仅停用" },
-    { value: "archived", label: "仅归档" },
+    { value: "", label: t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_7d80f755") },
+    { value: "enabled", label: t("gen.pages.knowledge.components.KnowledgeDocumentsTab.onlyEnable") },
+    { value: "disabled", label: t("gen.pages.knowledge.components.KnowledgeDocumentsTab.onlyDisable") },
+    { value: "archived", label: t("gen.pages.knowledge.components.KnowledgeDocumentsTab.onlyArchive") },
   ] as const;
 
   const confirmArchiveDocument = (document: KnowledgeDocumentSummary) => {
@@ -137,7 +139,7 @@ export default function KnowledgeDocumentsTab({
             <div className="text-xs text-muted-foreground">
               {document.fileName} | 版本数 {document.versionCount} | 当前 v{document.activeVersionNumber}
             </div>
-            <div className="text-xs text-muted-foreground">拆书项目 {document.bookAnalysisCount}</div>
+            <div className="text-xs text-muted-foreground">{t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_41c41032")}</div>
             {documentJob?.progress && (documentJob.status === "queued" || documentJob.status === "running") ? (
               <div className="mt-2 rounded-md border border-dashed p-2">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -157,7 +159,7 @@ export default function KnowledgeDocumentsTab({
               </div>
             ) : null}
             {document.latestIndexStatus === "failed" && document.latestIndexError ? (
-              <div className="text-xs text-destructive">失败原因：{document.latestIndexError}</div>
+              <div className="text-xs text-destructive">{t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_538af35f")}</div>
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
@@ -184,14 +186,14 @@ export default function KnowledgeDocumentsTab({
             <>
               <OpenInCreativeHubButton
                 bindings={{ knowledgeDocumentIds: [document.id] }}
-                label="在创作中枢中继续"
+                label={t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_d69e4819")}
               />
               <Button asChild size="sm" variant="outline">
-                <Link to={`/book-analysis?documentId=${document.id}`}>新建拆书</Link>
+                <Link to={`/book-analysis?documentId=${document.id}`}>{t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_989a71a3")}</Link>
               </Button>
               {document.kind === "analysis_published" && document.sourceAnalysisId ? (
                 <Button asChild size="sm" variant="outline">
-                  <Link to={`/book-analysis?analysisId=${document.sourceAnalysisId}`}>查看来源拆书</Link>
+                  <Link to={`/book-analysis?analysisId=${document.sourceAnalysisId}`}>{t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_31a84195")}</Link>
                 </Button>
               ) : null}
               {document.latestIndexStatus === "succeeded" ? (
@@ -237,7 +239,7 @@ export default function KnowledgeDocumentsTab({
     <>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <CardTitle>文档列表</CardTitle>
+          <CardTitle>{t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_e46eeab7")}</CardTitle>
           <Button type="button" size="sm" onClick={() => setUploadDialogOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
             上传文档
@@ -248,13 +250,13 @@ export default function KnowledgeDocumentsTab({
             <Input
               value={keyword}
               onChange={(event) => onKeywordChange(event.target.value)}
-              placeholder="按标题或文件名搜索"
+              placeholder={t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_87dbe672")}
             />
             <SelectField
               value={status}
               onValueChange={(value) => onStatusChange(value as KnowledgeDocumentStatus | "")}
               options={statusOptions.map((option) => ({ ...option }))}
-              placeholder="筛选状态"
+              placeholder={t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_91b44d6f")}
               className="space-y-0"
               triggerClassName="h-10"
             />
@@ -273,8 +275,8 @@ export default function KnowledgeDocumentsTab({
       <Dialog open={uploadDialogOpen} onOpenChange={handleDialogOpenChange}>
         <AppDialogContent
           className="max-w-lg"
-          title="上传文档"
-          description="支持一次选择多个 `.txt` 文件。已存在同名且内容相同的文档会自动跳过。"
+          title={t("gen.pages.knowledge.components.KnowledgeDocumentsTab.uploadDocument")}
+          description={t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_b4c7ab1f")}
         >
           <div className="space-y-4">
             {/* 拖拽上传区域 */}
@@ -308,9 +310,9 @@ export default function KnowledgeDocumentsTab({
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-medium">
-                  {dragOver ? "松开鼠标上传" : "拖拽文件到此处，或点击选择"}
+                  {dragOver ? t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_7edfea76") : t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_18d4923e")}
                 </p>
-                <p className="text-xs text-muted-foreground">支持选择或拖入多个 .txt 文本文件</p>
+                <p className="text-xs text-muted-foreground">{t("gen.pages.knowledge.components.KnowledgeDocumentsTab.gen_c928680b")}</p>
               </div>
             </div>
 
@@ -323,7 +325,7 @@ export default function KnowledgeDocumentsTab({
             {!uploadBusy && uploadResults.length > 0 ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium">上传结果</span>
+                  <span className="text-xs font-medium">{t("gen.pages.knowledge.components.KnowledgeDocumentsTab.uploadResult")}</span>
                   <Button size="sm" variant="ghost" onClick={onClearUploadResults} className="h-6 px-2 text-xs">
                     清除
                   </Button>

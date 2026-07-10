@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { DirectorRunMode, DirectorWorldSetupMode } from "@ai-novel/shared/types/novelDirector";
 import type { StyleIntentSummary } from "@ai-novel/shared/types/styleEngine";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
@@ -16,11 +17,11 @@ export const AUTO_DIRECTOR_CREATE_STAGES: Array<{
   order: number;
   label: string;
 }> = [
-  { key: "idea", order: 0, label: "起始想法" },
-  { key: "basic", order: 1, label: "导演起始设置" },
-  { key: "world_style", order: 2, label: "世界与写法" },
-  { key: "model_run", order: 3, label: "模型与运行方式" },
-  { key: "candidates", order: 4, label: "方向候选" },
+  { key: "idea", order: 0, label: i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_ed3a57cd") },
+  { key: "basic", order: 1, label: i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_06773c1e") },
+  { key: "world_style", order: 2, label: i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_0dffbb3f") },
+  { key: "model_run", order: 3, label: i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_061c5fc7") },
+  { key: "candidates", order: 4, label: i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_875c5ec8") },
 ];
 
 function findLabel(options: Array<{ value: string; label: string }>, value: string): string {
@@ -30,7 +31,7 @@ function findLabel(options: Array<{ value: string; label: string }>, value: stri
 export function summarizeIdea(idea: string): string {
   const normalized = idea.trim().replace(/\s+/g, " ");
   if (!normalized) {
-    return "等待填写起始想法";
+    return i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_ed870737");
   }
   return normalized.length > 42 ? `${normalized.slice(0, 42)}...` : normalized;
 }
@@ -57,12 +58,12 @@ export function summarizeWorldStyleStage(input: {
   const worldLabel = selectedWorld
     ? `参考世界：${selectedWorld.name}`
     : input.worldSetupMode === "skip"
-      ? "暂不使用世界观"
-      : "自动生成本书世界";
+      ? i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_5dcc48bb")
+      : i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_3684d509");
   const styleProfile = input.styleProfiles.find((profile) => profile.id === input.styleProfileId);
   const styleLabel = styleProfile?.name
     ?? input.selectedStyleSummary?.headline
-    ?? (input.basicForm.styleTone.trim() ? `文风：${input.basicForm.styleTone.trim()}` : "默认写法");
+    ?? (input.basicForm.styleTone.trim() ? `文风：${input.basicForm.styleTone.trim()}` : i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_c9449912"));
   return `${worldLabel} · ${styleLabel}`;
 }
 
@@ -72,5 +73,5 @@ export function summarizeModelRunStage(input: {
   postGenerationStyleReviewEnabled: boolean;
 }): string {
   const runModeLabel = input.runModeOptions.find((option) => option.value === input.runMode)?.label ?? input.runMode;
-  return `${runModeLabel} · ${input.postGenerationStyleReviewEnabled ? "正文后检测 AI 味" : "不做正文后 AI 味检测"}`;
+  return `${runModeLabel} · ${input.postGenerationStyleReviewEnabled ? i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_a28d5db1") : i18next.t("gen.pages.novels.autoDirector.directorCreateStages.gen_ae77d6e9")}`;
 }

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { NovelWorkspaceTab } from "../novelWorkspaceNavigation";
 import type { NovelEditViewProps } from "../components/NovelEditView.types";
 
@@ -28,40 +29,40 @@ export function getMobileNovelSaveState(
     case "basic":
       return {
         visible: true,
-        label: "保存基本信息",
-        savingLabel: "保存中...",
+        label: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.saveBasicInfo"),
+        savingLabel: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
         isSaving: props.basicTab.isSaving,
         onSave: props.basicTab.onSave,
       };
     case "story_macro":
       return {
         visible: true,
-        label: "保存故事规划",
-        savingLabel: "保存中...",
+        label: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.saveStoryPlanning"),
+        savingLabel: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
         isSaving: props.storyMacroTab.isSaving,
         onSave: props.storyMacroTab.onSaveEdits,
       };
     case "character":
       return {
         visible: true,
-        label: "保存角色",
-        savingLabel: "保存中...",
+        label: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.gen_保存角色_02kg"),
+        savingLabel: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
         isSaving: props.characterTab.isSavingCharacter,
         onSave: props.characterTab.onSaveCharacter,
       };
     case "outline":
       return {
         visible: true,
-        label: "保存卷工作区",
-        savingLabel: "保存中...",
+        label: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.saveVolumeWorkspace"),
+        savingLabel: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
         isSaving: props.outlineTab.isSaving,
         onSave: props.outlineTab.onSave,
       };
     case "structured":
       return {
         visible: true,
-        label: "保存拆章",
-        savingLabel: "保存中...",
+        label: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.saveSplitChapters"),
+        savingLabel: i18next.t("gen.pages.novels.mobile.mobileNovelWorkspaceUtils.savingInProgressDotDotDot"),
         isSaving: props.structuredTab.isSaving,
         onSave: props.structuredTab.onSave,
       };

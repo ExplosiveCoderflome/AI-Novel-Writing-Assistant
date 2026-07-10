@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { UsersRound } from "lucide-react";
 import type { StoryStateSnapshot } from "@ai-novel/shared/types/novel";
 import type {
@@ -33,7 +35,7 @@ function buildSnapshotCharacters(snapshot?: StoryStateSnapshot | null): Snapshot
     const parsedItem = parsed?.characterStates[index];
     return {
       label: parsedItem?.characterName?.trim() || item.characterId,
-      summary: parsedItem?.summary?.trim() || item.summary?.trim() || "暂无摘要",
+      summary: parsedItem?.summary?.trim() || item.summary?.trim() || t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_ab4b976c"),
       currentGoal: parsedItem?.currentGoal?.trim() || item.currentGoal?.trim() || undefined,
       emotion: parsedItem?.emotion?.trim() || item.emotion?.trim() || undefined,
     };
@@ -50,8 +52,8 @@ function buildSnapshotRelations(snapshot?: StoryStateSnapshot | null): SnapshotR
     const left = parsedItem?.sourceCharacterName?.trim() || item.sourceCharacterId;
     const right = parsedItem?.targetCharacterName?.trim() || item.targetCharacterId;
     return {
-      label: left && right ? `${left} → ${right}` : left || right || "关系",
-      summary: parsedItem?.summary?.trim() || item.summary?.trim() || "暂无关系摘要",
+      label: left && right ? `${left} → ${right}` : left || right || t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_eefd8316"),
+      summary: parsedItem?.summary?.trim() || item.summary?.trim() || t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_967e704e"),
     };
   });
 }
@@ -64,8 +66,8 @@ function buildSnapshotForeshadows(snapshot?: StoryStateSnapshot | null): Snapsho
   return snapshot.foreshadowStates.slice(0, 3).map((item, index) => {
     const parsedItem = parsed?.foreshadowStates[index];
     return {
-      label: parsedItem?.title?.trim() || item.title || "伏笔",
-      summary: parsedItem?.summary?.trim() || item.summary?.trim() || "暂无说明",
+      label: parsedItem?.title?.trim() || item.title || t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.foreshadowing"),
+      summary: parsedItem?.summary?.trim() || item.summary?.trim() || t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_67a21991"),
       status: parsedItem?.status?.trim() || item.status || "unknown",
     };
   });
@@ -85,14 +87,14 @@ function CharacterSnapshotCard(props: {
     <div className="rounded-xl border border-border/70 bg-background p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs font-medium text-muted-foreground">{title}</div>
-        {snapshot?.sourceChapterId ? <Badge variant="outline">来源章节</Badge> : null}
+        {snapshot?.sourceChapterId ? <Badge variant="outline">{t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_ca1e1b10")}</Badge> : null}
       </div>
       {snapshot ? (
         <div className="mt-2 space-y-3">
           <div className="text-xs leading-5 text-muted-foreground">{snapshot.summary || emptyText}</div>
           {characters.length > 0 ? (
             <div className="space-y-2">
-              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">角色动态</div>
+              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_bca8b138")}</div>
               {characters.map((item) => (
                 <div key={`${title}-${item.label}`} className="rounded-lg border border-border/60 bg-muted/10 p-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -107,7 +109,7 @@ function CharacterSnapshotCard(props: {
           ) : null}
           {relations.length > 0 ? (
             <div className="space-y-2">
-              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">关系变化</div>
+              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_9ed5f724")}</div>
               {relations.map((item) => (
                 <div key={`${title}-${item.label}`} className="rounded-lg border border-border/60 bg-background p-2">
                   <div className="text-sm font-medium text-foreground">{item.label}</div>
@@ -118,7 +120,7 @@ function CharacterSnapshotCard(props: {
           ) : null}
           {foreshadows.length > 0 ? (
             <div className="space-y-2">
-              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">伏笔</div>
+              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.foreshadowing")}</div>
               {foreshadows.map((item) => (
                 <div key={`${title}-${item.label}`} className="rounded-lg border border-border/60 bg-muted/10 p-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -150,16 +152,16 @@ export default function CharacterDynamicsPanel(props: {
       <div className="rounded-xl border border-border/70 bg-background p-3">
         <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
           <UsersRound className="h-4 w-4" />
-          <span>角色动态</span>
+          <span>{t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_bca8b138")}</span>
         </div>
-        <div className="mt-2 text-sm font-medium text-foreground">后续写作会受影响的角色状态、关系和伏笔</div>
-        <div className="mt-1 text-xs leading-5 text-muted-foreground">这里只看会影响下一步推进的信息，不在这里编辑。</div>
+        <div className="mt-2 text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_a6f95214")}</div>
+        <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_106bbc74")}</div>
       </div>
 
       {hasAnySnapshot ? (
         <div className="space-y-3">
-          <CharacterSnapshotCard title="本章后状态" snapshot={chapterStateSnapshot} emptyText="本章后状态暂无可展示内容。" />
-          <CharacterSnapshotCard title="最新状态" snapshot={latestStateSnapshot} emptyText="最新状态暂无可展示内容。" />
+          <CharacterSnapshotCard title={t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_8a526729")} snapshot={chapterStateSnapshot} emptyText={t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_e63dc2c4")} />
+          <CharacterSnapshotCard title={t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_076a259e")} snapshot={latestStateSnapshot} emptyText={t("gen.pages.novels.components.chapterInsights.CharacterDynamicsPanel.gen_b481d5d5")} />
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">

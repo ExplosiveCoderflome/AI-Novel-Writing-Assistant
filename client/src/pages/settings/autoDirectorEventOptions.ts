@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { AutoDirectorChannelSettings } from "@/api/settings";
 
 export interface AutoDirectorEventOption {
@@ -25,33 +26,33 @@ export interface AutoDirectorChannelDraft {
 export const AUTO_DIRECTOR_EVENT_OPTIONS: AutoDirectorEventOption[] = [
   {
     code: "auto_director.approval_required",
-    label: "自动继续待处理",
-    description: "自动导演卡在需要继续或确认的节点时通知你处理。",
+    label: i18next.t("gen.pages.settings.autoDirectorEventOptions.gen_6ddf67de"),
+    description: i18next.t("gen.pages.settings.autoDirectorEventOptions.gen_7ba285de"),
   },
   {
     code: "auto_director.auto_approved",
-    label: "AI 已自动通过",
-    description: "系统按审批授权通过检查点并继续执行时通知你。",
+    label: i18next.t("gen.pages.settings.autoDirectorEventOptions.aiAutoPassed"),
+    description: i18next.t("gen.pages.settings.autoDirectorEventOptions.gen_66e28e61"),
   },
   {
     code: "auto_director.exception",
-    label: "运行异常",
-    description: "自动导演执行报错、失败或进入异常状态时通知你。",
+    label: i18next.t("gen.pages.settings.autoDirectorEventOptions.gen_c227402e"),
+    description: i18next.t("gen.pages.settings.autoDirectorEventOptions.gen_4c018930"),
   },
   {
     code: "auto_director.recovered",
-    label: "异常恢复",
-    description: "之前异常的自动导演任务恢复执行时通知你。",
+    label: i18next.t("gen.pages.settings.autoDirectorEventOptions.gen_ad9788b1"),
+    description: i18next.t("gen.pages.settings.autoDirectorEventOptions.previouslyFailedAutoDirectorNotification"),
   },
   {
     code: "auto_director.completed",
-    label: "执行完成",
-    description: "自动导演任务顺利完成当前阶段或整体流程时通知你。",
+    label: i18next.t("gen.pages.settings.autoDirectorEventOptions.gen_c044a14e"),
+    description: i18next.t("gen.pages.settings.autoDirectorEventOptions.gen_55fc86a9"),
   },
   {
     code: "auto_director.progress_changed",
-    label: "进度变化",
-    description: "自动导演跨阶段或关键进度变化时通知你。",
+    label: i18next.t("gen.pages.settings.autoDirectorEventOptions.gen_9a392ae5"),
+    description: i18next.t("gen.pages.settings.autoDirectorEventOptions.gen_ae088ce2"),
   },
 ];
 
@@ -98,7 +99,7 @@ export function summarizeSelectedAutoDirectorEvents(codes: string[]): string {
     .map((code) => AUTO_DIRECTOR_EVENT_LABEL_MAP.get(code))
     .filter((label): label is string => Boolean(label));
   if (labels.length === 0) {
-    return "未订阅事件";
+    return i18next.t("gen.pages.settings.autoDirectorEventOptions.gen_7940b70c");
   }
   if (labels.length <= 2) {
     return labels.join("、");

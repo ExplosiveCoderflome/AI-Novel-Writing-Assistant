@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,19 +32,19 @@ import SelectControl from "@/components/common/SelectControl";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SOURCE_LABELS: Record<ComicSourceType, string> = {
-  novel_import: "导入小说",
-  original: "原创灵感",
-  text_import: "文本导入",
-  comic_import: "漫画改编",
+  novel_import: t("gen.pages.comic.ComicWorkspacePage.gen_d093e95b"),
+  original: t("gen.pages.comic.ComicWorkspacePage.gen_de6d7781"),
+  text_import: t("gen.pages.comic.ComicWorkspacePage.gen_8ffd512f"),
+  comic_import: t("gen.pages.comic.ComicWorkspacePage.gen_c12f11f5"),
 };
 
 const STYLE_PRESETS = [
-  { value: "webtoon_color", label: "彩色韩漫" },
-  { value: "bl_manga", label: "彩色少女漫" },
-  { value: "shounen_bw", label: "黑白少年漫" },
-  { value: "ink_traditional", label: "水墨国风" },
-  { value: "chibi", label: "Q 版萌漫" },
-  { value: "realistic", label: "写实风格" },
+  { value: "webtoon_color", label: t("gen.pages.comic.ComicWorkspacePage.gen_b8cc9e43") },
+  { value: "bl_manga", label: t("gen.pages.comic.ComicWorkspacePage.gen_3cd93268") },
+  { value: "shounen_bw", label: t("gen.pages.comic.ComicWorkspacePage.gen_4a12b411") },
+  { value: "ink_traditional", label: t("gen.pages.comic.ComicWorkspacePage.gen_452631b4") },
+  { value: "chibi", label: t("gen.pages.comic.ComicWorkspacePage.cuteComicStyle") },
+  { value: "realistic", label: t("gen.pages.comic.ComicWorkspacePage.gen_11eaab19") },
 ];
 
 export interface ComicFormatDef {
@@ -58,9 +60,9 @@ export interface ComicFormatDef {
 export const COMIC_FORMATS: ComicFormatDef[] = [
   {
     value: "webtoon",
-    label: "条漫",
-    desc: "竖向长格，逐格下滑阅读，韩漫/手机主流形态",
-    tag: "最流行",
+    label: t("gen.pages.comic.ComicWorkspacePage.gen_3467bf28"),
+    desc: t("gen.pages.comic.ComicWorkspacePage.gen_188a633d"),
+    tag: t("gen.pages.comic.ComicWorkspacePage.gen_c062d322"),
     imageSize: "1024x1536",
     promptKeywords: "webtoon vertical strip panel, tall single frame, mobile scroll comic",
     layoutSvg: (
@@ -75,9 +77,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "4koma",
-    label: "四格漫",
-    desc: "四格竖排一页，起承转合，适合日常喜剧",
-    tag: "经典",
+    label: t("gen.pages.comic.ComicWorkspacePage.gen_a1369c09"),
+    desc: t("gen.pages.comic.ComicWorkspacePage.gen_2c25aa15"),
+    tag: t("gen.pages.comic.ComicWorkspacePage.gen_e7c37575"),
     imageSize: "1024x1536",
     promptKeywords: "4-koma manga layout, four equal vertical panels in one image, sequential comic strip",
     layoutSvg: (
@@ -85,18 +87,18 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
         {[0, 1, 2, 3].map((i) => (
           <rect key={i} x="8" y={4 + i * 21} width="44" height="18" rx="1.5" fill="currentColor" opacity={0.18 - i * 0.02} stroke="currentColor" strokeWidth="1.5" />
         ))}
-        <text x="30" y="15" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">起</text>
-        <text x="30" y="36" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">承</text>
-        <text x="30" y="57" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">转</text>
-        <text x="30" y="78" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">合</text>
+        <text x="30" y="15" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{t("gen.pages.comic.ComicWorkspacePage.gen_308fdfa0")}</text>
+        <text x="30" y="36" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{t("gen.pages.comic.ComicWorkspacePage.gen_9407ae4d")}</text>
+        <text x="30" y="57" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{t("gen.pages.comic.ComicWorkspacePage.gen_1c421318")}</text>
+        <text x="30" y="78" textAnchor="middle" fontSize="5" fill="currentColor" opacity="0.4">{t("gen.pages.comic.ComicWorkspacePage.gen_c5ef4ac4")}</text>
       </svg>
     ),
   },
   {
     value: "single_page",
-    label: "单页漫",
-    desc: "一页多格，格子大小自由，传统日漫页面",
-    tag: "传统",
+    label: t("gen.pages.comic.ComicWorkspacePage.gen_852692e9"),
+    desc: t("gen.pages.comic.ComicWorkspacePage.pageLayout"),
+    tag: t("gen.pages.comic.ComicWorkspacePage.traditional"),
     imageSize: "1024x1536",
     promptKeywords: "single page manga layout, multiple panels varied sizes, dynamic panel composition, Japanese manga page",
     layoutSvg: (
@@ -111,9 +113,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "cinematic",
-    label: "电影分镜",
-    desc: "宽幅横画面，电影感构图，史诗动作场面",
-    tag: "大气",
+    label: t("gen.pages.comic.ComicWorkspacePage.gen_6073cdf8"),
+    desc: t("gen.pages.comic.ComicWorkspacePage.gen_2a36800c"),
+    tag: t("gen.pages.comic.ComicWorkspacePage.gen_62029e91"),
     imageSize: "1536x1024",
     promptKeywords: "cinematic widescreen panel, film storyboard style, letterbox 16:9 format, movie scene composition",
     layoutSvg: (
@@ -128,9 +130,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "chat_comic",
-    label: "聊天漫",
-    desc: "对话气泡主导，轻量日常，社交媒体友好",
-    tag: "轻快",
+    label: t("gen.pages.comic.ComicWorkspacePage.gen_9d020707"),
+    desc: t("gen.pages.comic.ComicWorkspacePage.gen_dc5a6d5f"),
+    tag: t("gen.pages.comic.ComicWorkspacePage.gen_2247d342"),
     imageSize: "1024x1536",
     promptKeywords: "chat comic style, messenger conversation bubbles, LINE webtoon chat format, casual slice of life",
     layoutSvg: (
@@ -149,9 +151,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "chibi_comic",
-    label: "Q版萌漫",
-    desc: "圆润可爱的 Q 版人物，萌系轻松风",
-    tag: "萌系",
+    label: t("gen.pages.comic.ComicWorkspacePage.gen_Q版萌漫_amz0"),
+    desc: t("gen.pages.comic.ComicWorkspacePage.gen_e3f26d8f"),
+    tag: t("gen.pages.comic.ComicWorkspacePage.gen_69097442"),
     imageSize: "1024x1024",
     promptKeywords: "chibi SD manga style, cute super-deformed proportions, kawaii comic panel, round adorable characters",
     layoutSvg: (
@@ -169,9 +171,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "ink_comic",
-    label: "水墨国风",
-    desc: "传统水墨笔触，古风意境，留白美学",
-    tag: "国风",
+    label: t("gen.pages.comic.ComicWorkspacePage.gen_452631b4"),
+    desc: t("gen.pages.comic.ComicWorkspacePage.traditionalBrushStrokeCalligraphyMoodWhitescopicAesthetic"),
+    tag: t("gen.pages.comic.ComicWorkspacePage.gen_8daead55"),
     imageSize: "1024x1536",
     promptKeywords: "Chinese ink wash painting comic, traditional brush style, xieyi brushwork, classical Chinese aesthetic, negative space",
     layoutSvg: (
@@ -187,9 +189,9 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
   },
   {
     value: "drama_screenshot",
-    label: "短剧截图漫",
-    desc: "竖版视频帧风格，字幕条 + 场景感",
-    tag: "新兴",
+    label: t("gen.pages.comic.ComicWorkspacePage.gen_5c88c5f2"),
+    desc: t("gen.pages.comic.ComicWorkspacePage.gen_1f8c7ce2"),
+    tag: t("gen.pages.comic.ComicWorkspacePage.gen_3a27b995"),
     imageSize: "1024x1536",
     promptKeywords: "vertical short drama screenshot style, subtitle bar at bottom, TV drama still frame, cinematic vertical video",
     layoutSvg: (
@@ -206,10 +208,10 @@ export const COMIC_FORMATS: ComicFormatDef[] = [
 ];
 
 const WIZARD_STEPS = [
-  { key: "source", label: "来源" },
-  { key: "content", label: "内容" },
-  { key: "format", label: "形态" },
-  { key: "style", label: "画风" },
+  { key: "source", label: t("gen.pages.comic.ComicWorkspacePage.gen_26ca20b1") },
+  { key: "content", label: t("gen.pages.comic.ComicWorkspacePage.gen_2d711b09") },
+  { key: "format", label: t("gen.pages.comic.ComicWorkspacePage.gen_9652b89c") },
+  { key: "style", label: t("gen.pages.comic.ComicWorkspacePage.gen_aa1262ed") },
 ] as const;
 
 function statusBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
@@ -219,7 +221,7 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "outline"
 }
 function statusLabel(s: string) {
   const m: Record<string, string> = {
-    draft: "草稿", outlined: "大纲已生成", scripted: "脚本已生成", completed: "已完成",
+    draft: t("gen.pages.comic.ComicWorkspacePage.gen_22b4334f"), outlined: t("gen.pages.comic.ComicWorkspacePage.gen_05dab7aa"), scripted: t("gen.pages.comic.ComicWorkspacePage.gen_1361ca2d"), completed: t("gen.pages.comic.ComicWorkspacePage.gen_fad5222c"),
   };
   return m[s] ?? s;
 }
@@ -247,7 +249,7 @@ function ProjectCard({
           </div>
           <CardDescription>
             {project._count?.episodes ?? 0} 话 · {project._count?.characters ?? 0} 角色
-            {project.sourceBundle ? " · 已导入内容源" : ""}
+            {project.sourceBundle ? t("gen.pages.comic.ComicWorkspacePage.importedContentSource") : ""}
           </CardDescription>
         </div>
       </CardHeader>
@@ -298,7 +300,7 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
   const createMut = useMutation({
     mutationFn: (payload: CreateComicProjectPayload) => createComicProject(payload),
     onSuccess: (proj) => {
-      toast.success("漫画项目已创建");
+      toast.success(t("gen.pages.comic.ComicWorkspacePage.gen_49fbf911"));
       onCreated(proj.id);
     },
   });
@@ -330,7 +332,7 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
   return (
     <Card className="max-w-xl">
       <CardHeader>
-        <CardTitle className="text-base">新建漫画项目</CardTitle>
+        <CardTitle className="text-base">{t("gen.pages.comic.ComicWorkspacePage.gen_3e21ebbc")}</CardTitle>
         <div className="flex gap-2 pt-1">
           {WIZARD_STEPS.map((s, i) => (
             <span
@@ -346,15 +348,15 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
         {step === 0 && (
           <>
             <div className="space-y-1">
-              <label className="text-sm font-medium">项目标题</label>
+              <label className="text-sm font-medium">{t("gen.pages.comic.ComicWorkspacePage.gen_cac8e6ef")}</label>
               <Input
-                placeholder="漫画标题"
+                placeholder={t("gen.pages.comic.ComicWorkspacePage.gen_82ea5545")}
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium">内容来源</label>
+              <label className="text-sm font-medium">{t("gen.pages.comic.ComicWorkspacePage.gen_e78b1d7a")}</label>
               <div className="flex flex-wrap gap-2">
                 {(Object.keys(SOURCE_LABELS) as ComicSourceType[]).filter(t => t !== "comic_import").map((t) => (
                   <button
@@ -375,25 +377,25 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
           <>
             {form.sourceType === "novel_import" && (
               <div className="space-y-1">
-                <label className="text-sm font-medium">选择小说</label>
+                <label className="text-sm font-medium">{t("gen.pages.comic.ComicWorkspacePage.gen_44cddc3d")}</label>
                 <SelectControl
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm"
                   value={form.sourceRef}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm((f) => ({ ...f, sourceRef: e.target.value }))}
                 >
-                  <option value="">—— 选择小说 ——</option>
+                  <option value="">{t("gen.pages.comic.ComicWorkspacePage.selectNovel")}</option>
                   {novels?.data?.items?.map((n) => (
-                    <option key={n.id} value={n.id}>{n.title ?? "未命名"}</option>
+                    <option key={n.id} value={n.id}>{t("gen.pages.comic.ComicWorkspacePage.titleMissing")}</option>
                   ))}
                 </SelectControl>
               </div>
             )}
             {form.sourceType === "original" && (
               <div className="space-y-1">
-                <label className="text-sm font-medium">故事灵感</label>
+                <label className="text-sm font-medium">{t("gen.pages.comic.ComicWorkspacePage.gen_12e65d03")}</label>
                 <textarea
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-y min-h-[120px]"
-                  placeholder="简短描述故事的核心设定、主角和大方向（200-800 字）…"
+                  placeholder={t("gen.pages.comic.ComicWorkspacePage.gen_89608257")}
                   rows={6}
                   value={form.inspiration}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm((f) => ({ ...f, inspiration: e.target.value }))}
@@ -402,10 +404,10 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
             )}
             {form.sourceType === "text_import" && (
               <div className="space-y-1">
-                <label className="text-sm font-medium">粘贴原文</label>
+                <label className="text-sm font-medium">{t("gen.pages.comic.ComicWorkspacePage.gen_f45ae383")}</label>
                 <textarea
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm resize-y min-h-[160px]"
-                  placeholder="粘贴完整小说原文（最多 20 万字）…"
+                  placeholder={t("gen.pages.comic.ComicWorkspacePage.gen_7ddca43b")}
                   rows={8}
                   value={form.rawText}
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm((f) => ({ ...f, rawText: e.target.value }))}
@@ -418,8 +420,8 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
         {step === 2 && (
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium">漫画形态</label>
-              <p className="text-xs text-muted-foreground mt-0.5">选择漫画的版式风格，影响构图和阅读方式</p>
+              <label className="text-sm font-medium">{t("gen.pages.comic.ComicWorkspacePage.gen_66c8471a")}</label>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("gen.pages.comic.ComicWorkspacePage.gen_01f6a08c")}</p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {COMIC_FORMATS.map((fmt) => {
@@ -450,7 +452,7 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
 
         {step === 3 && (
           <div className="space-y-2">
-            <label className="text-sm font-medium">画风预设</label>
+            <label className="text-sm font-medium">{t("gen.pages.comic.ComicWorkspacePage.gen_e9e7f721")}</label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {STYLE_PRESETS.map((p) => (
                 <button
@@ -492,7 +494,7 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
               disabled={createMut.isPending || !canNext()}
               onClick={handleSubmit}
             >
-              {createMut.isPending ? "创建中…" : "创建项目"}
+              {createMut.isPending ? t("gen.pages.comic.ComicWorkspacePage.gen_d156b373") : t("gen.pages.comic.ComicWorkspacePage.gen_39da6755")}
             </Button>
           )}
         </div>
@@ -519,7 +521,7 @@ export default function ComicWorkspacePage() {
     onMutate: (id) => setBusyId(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comic", "projects"] });
-      toast.success("内容源导入完成");
+      toast.success(t("gen.pages.comic.ComicWorkspacePage.gen_1358c5c5"));
     },
     onSettled: () => setBusyId(""),
   });
@@ -555,14 +557,14 @@ export default function ComicWorkspacePage() {
       )}
 
       {isLoading && (
-        <div className="py-12 text-center text-muted-foreground text-sm">加载中…</div>
+        <div className="py-12 text-center text-muted-foreground text-sm">{t("gen.pages.comic.ComicWorkspacePage.gen_fb4ca1cf")}</div>
       )}
 
       {!isLoading && projects.length === 0 && !showWizard && (
         <Card className="py-16 text-center">
           <CardContent className="flex flex-col items-center gap-4">
             <FilePen className="h-10 w-10 text-muted-foreground/40" />
-            <p className="text-muted-foreground">还没有漫画项目，点击「新建项目」开始</p>
+            <p className="text-muted-foreground">{t("gen.pages.comic.ComicWorkspacePage.gen_f38af214")}</p>
             <Button type="button" onClick={() => setShowWizard(true)}>
               <Plus className="h-4 w-4" />
               新建项目

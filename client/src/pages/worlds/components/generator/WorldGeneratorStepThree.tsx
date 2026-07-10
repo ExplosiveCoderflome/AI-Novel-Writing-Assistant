@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { WorldSkeletonGenerationPayload } from "@ai-novel/shared/types/worldWizard";
 import { Button } from "@/components/ui/button";
 
@@ -44,24 +46,24 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
         </div>
         <div className="mt-3 grid gap-2 md:grid-cols-3">
           <div className="rounded border p-2 text-xs">
-            <div className="text-muted-foreground">阅读感</div>
+            <div className="text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_184a8145")}</div>
             <div className="mt-1 font-medium">{skeleton.concept.readerImpression}</div>
           </div>
           <div className="rounded border p-2 text-xs">
-            <div className="text-muted-foreground">类型承诺</div>
+            <div className="text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_7436561f")}</div>
             <div className="mt-1 font-medium">{skeleton.concept.genrePromise}</div>
           </div>
           <div className="rounded border p-2 text-xs">
-            <div className="text-muted-foreground">可开书状态</div>
-            <div className="mt-1 font-medium">{skeleton.assessment.readyForNovelUse ? "可以进入世界手册" : "建议先补齐缺口"}</div>
+            <div className="text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_2d4c60c3")}</div>
+            <div className="mt-1 font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_skeletonas_fbxw")}</div>
           </div>
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionList
-          title="核心规则"
-          emptyText="暂无核心规则"
+          title={t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_0a431a82")}
+          emptyText={t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_9aaf310c")}
           items={structure.rules.axioms.map((item) =>
             [item.name, item.summary, item.cost && `代价：${item.cost}`, item.boundary && `边界：${item.boundary}`]
               .filter(Boolean)
@@ -69,8 +71,8 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           )}
         />
         <SectionList
-          title="主要势力"
-          emptyText="暂无势力"
+          title={t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.majorForce")}
+          emptyText={t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_d5c0212d")}
           items={structure.forces.map((item) =>
             [
               item.name,
@@ -82,8 +84,8 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           )}
         />
         <SectionList
-          title="关键地点"
-          emptyText="暂无地点"
+          title={t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_ce7830fa")}
+          emptyText={t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_dad6647b")}
           items={structure.locations.map((item) =>
             [
               item.name,
@@ -96,8 +98,8 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           )}
         />
         <SectionList
-          title="势力关系"
-          emptyText="暂无势力关系"
+          title={t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_ef535ae0")}
+          emptyText={t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_f2d92fdb")}
           items={structure.relations.forceRelations.map((item) =>
             [
               forceNameById.get(item.sourceForceId) ?? item.sourceForceId,
@@ -109,8 +111,8 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           )}
         />
         <SectionList
-          title="地理关系"
-          emptyText="暂无地理关系"
+          title={t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_b1440585")}
+          emptyText={t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_d85e9f81")}
           items={(structure.relations.locationConnections ?? []).map((item) =>
             [
               locationNameById.get(item.sourceLocationId) ?? item.sourceLocationId,
@@ -122,8 +124,8 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           )}
         />
         <SectionList
-          title="故事入口"
-          emptyText="暂无故事入口"
+          title={t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_2ff7e9ff")}
+          emptyText={t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_4fce3d2e")}
           items={skeleton.storyEntrySuggestions.map((item) =>
             [item.title, item.description, item.firstConflict].filter(Boolean).join(" | "),
           )}
@@ -132,7 +134,7 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
 
       {skeleton.assessment.missingParts.length > 0 ? (
         <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-          <div className="font-semibold">完整度诊断</div>
+          <div className="font-semibold">{t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_f799e087")}</div>
           <div className="mt-2 space-y-1">
             {skeleton.assessment.missingParts.map((item, index) => (
               <div key={`${item.area}-${index}`}>
@@ -148,7 +150,7 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           返回调整规模
         </Button>
         <Button onClick={onSave} disabled={savePending}>
-          {savePending ? "保存世界中..." : "保存并进入世界手册"}
+          {savePending ? t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.savingWorldInTheMiddle") : t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.saveAndEnterWorldManual")}
         </Button>
       </div>
     </div>

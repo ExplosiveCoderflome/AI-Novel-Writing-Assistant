@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { BookAnalysisDetail } from "@ai-novel/shared/types/bookAnalysis";
 import { Columns2, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -73,9 +75,9 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="truncate text-lg font-semibold tracking-normal">{selectedAnalysis.title}</h2>
             <Badge variant="outline">{formatStatus(selectedAnalysis.status)}</Badge>
-            {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary">已发布</Badge> : null}
-            {selectedAnalysis.sourceRange ? <Badge variant="secondary">{selectedAnalysis.sourceRange.label ?? "选定章节"}</Badge> : null}
-            <Badge variant="outline">进度 {Math.round(selectedAnalysis.progress * 100)}%</Badge>
+            {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_dca0c13b")}</Badge> : null}
+            {selectedAnalysis.sourceRange ? <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_8cd9cf52")}</Badge> : null}
+            <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_a4b085c4")}</Badge>
             <span className="inline-flex items-center gap-1">
               <Badge variant={budgetExceeded ? "destructive" : "outline"}>
                 预算 {budgetTokens
@@ -88,18 +90,18 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
                   size="icon"
                   variant="ghost"
                   className="h-6 w-6"
-                  title="调整拆书预算"
+                  title={t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_015d69aa")}
                   onClick={onOpenBudgetAdjust}
                   disabled={pending.updateBudget || pending.resumeWithBudget}
                 >
                   <Pencil className="h-3.5 w-3.5" />
-                  <span className="sr-only">调整拆书预算</span>
+                  <span className="sr-only">{t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_015d69aa")}</span>
                 </Button>
               ) : null}
             </span>
           </div>
           <div className="text-xs text-muted-foreground">
-            {selectedAnalysis.documentTitle} | 源版本 v{selectedAnalysis.documentVersionNumber}{selectedAnalysis.sourceRange ? ` | 范围：${selectedAnalysis.sourceRange.label ?? "选定章节"}` : ""}
+            {selectedAnalysis.documentTitle} | 源版本 v{selectedAnalysis.documentVersionNumber}{selectedAnalysis.sourceRange ? ` | 范围：${selectedAnalysis.sourceRange.label ?? t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_963e1a7f")}` : ""}
             {selectedAnalysis.isCurrentVersion ? "" : ` | 当前激活版本 v${selectedAnalysis.currentDocumentVersionNumber}`}
           </div>
         </div>
@@ -113,7 +115,7 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
               onClick={onOpenBudgetResume}
               disabled={pending.resumeWithBudget || selectedAnalysis.status === "archived"}
             >
-              {pending.resumeWithBudget ? "提交中..." : "扩容预算并续跑"}
+              {pending.resumeWithBudget ? t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_abe2c5d2") : t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_a69ce727")}
             </Button>
           ) : null}
           <Button
@@ -128,12 +130,12 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
             size="sm"
             onClick={onPublish}
             disabled={!selectedNovelId || pending.publish || selectedAnalysis.status === "archived"}
-            title={!selectedNovelId ? "请在下方「分析信息与发布」中选择目标小说" : "发布到小说知识库"}
+            title={!selectedNovelId ? t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_aac678e4") : t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_a3db6e46")}
           >
-            {pending.publish ? "发布中..." : "发布"}
+            {pending.publish ? t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_27d8a2fa") : t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_83611abd")}
           </Button>
           <Button asChild size="sm" variant="outline">
-            <Link to={`/tasks?kind=book_analysis&id=${selectedAnalysis.id}`}>任务中心</Link>
+            <Link to={`/tasks?kind=book_analysis&id=${selectedAnalysis.id}`}>{t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_2488f577")}</Link>
           </Button>
           <Button size="sm" variant="outline" onClick={() => onDownload("markdown")}>
             导出 MD
@@ -147,7 +149,7 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
             onClick={onCreateStyleProfile}
             disabled={pending.createStyleProfile || selectedAnalysis.status === "archived"}
           >
-            {pending.createStyleProfile ? "生成写法中..." : "生成写法"}
+            {pending.createStyleProfile ? t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_0245e8fb") : t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_ac303505")}
           </Button>
           <Button
             size="sm"
@@ -163,7 +165,7 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
               size="sm"
               variant={isDualPane ? "default" : "outline"}
               onClick={() => onDualPaneChange(!isDualPane)}
-              title={isDualPane ? "关闭双栏对照" : "打开双栏对照"}
+              title={isDualPane ? t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_e6f035fc") : t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_2ba77e44")}
             >
               <Columns2 className="mr-1.5 h-3.5 w-3.5" />
               双栏

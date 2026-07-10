@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -77,7 +79,7 @@ export default function ModelRoutesPage() {
   const saveModelRouteMutation = useMutation({
     mutationFn: (payload: RouteSavePayload) => saveModelRoute(payload),
     onSuccess: async () => {
-      setActionResult("保存完成，这个任务会使用新路由。");
+      setActionResult(t("gen.pages.settings.ModelRoutesPage.savedSuccessfullyTaskWillUseNewRoute"));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRoutes }),
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
@@ -102,7 +104,7 @@ export default function ModelRoutesPage() {
   const saveStructuredFallbackMutation = useMutation({
     mutationFn: (payload: Partial<StructuredFallbackSettings>) => saveStructuredFallbackConfig(payload),
     onSuccess: async () => {
-      setActionResult("结构化备用模型保存完成。");
+      setActionResult(t("gen.pages.settings.ModelRoutesPage.gen_55fad8cd"));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.structuredFallback }),
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.modelRouteConnectivity }),
@@ -210,7 +212,7 @@ export default function ModelRoutesPage() {
 
   function applyBulkDraftToRoutes(targetTaskTypes: ModelRouteTaskType[]) {
     if (targetTaskTypes.length === 0) {
-      setActionResult("没有需要套用的任务。");
+      setActionResult(t("gen.pages.settings.ModelRoutesPage.gen_ea553185"));
       return;
     }
     const draft = getBulkDraft();
@@ -254,14 +256,14 @@ export default function ModelRoutesPage() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>模型路由管理</CardTitle>
+          <CardTitle>{t("gen.pages.settings.ModelRoutesPage.gen_15ee8ec2")}</CardTitle>
           <CardDescription>
             为不同创作任务指定合适模型，并检查 JSON 输出是否稳定。
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-2 text-sm text-muted-foreground">
-            <div>检测会覆盖普通对话和结构化输出；表单修改需要保存后参与检测。</div>
+            <div>{t("gen.pages.settings.ModelRoutesPage.gen_de22e5ab")}</div>
             <div className="flex flex-wrap items-center gap-3 text-xs">
               <span className="inline-flex items-center gap-2">
                 <RouteStatusDot
@@ -274,13 +276,13 @@ export default function ModelRoutesPage() {
                         : "idle"}
                 />
                 {modelRouteConnectivityQuery.isPending || modelRouteConnectivityQuery.isFetching
-                  ? "正在检测生效路由..."
+                  ? t("gen.pages.settings.ModelRoutesPage.gen_2da2f9e0")
                   : connectivitySummary.total > 0
                     ? `检测结果：${connectivitySummary.total} 条路由，健康 ${connectivitySummary.healthy}，异常 ${connectivitySummary.failed}`
-                    : "尚未执行模型兼容性检测"}
+                    : t("gen.pages.settings.ModelRoutesPage.gen_5a8affb1")}
               </span>
               {connectivitySummary.testedAt ? (
-                <span>检测时间：{new Date(connectivitySummary.testedAt).toLocaleString()}</span>
+                <span>{t("gen.pages.settings.ModelRoutesPage.gen_6b499cdc")}</span>
               ) : null}
             </div>
           </div>
@@ -291,7 +293,7 @@ export default function ModelRoutesPage() {
               disabled={modelRouteConnectivityQuery.isFetching || !modelRoutesQuery.isSuccess}
             >
               <RefreshCw className={`h-4 w-4 ${modelRouteConnectivityQuery.isFetching ? "animate-spin" : ""}`} />
-              {modelRouteConnectivityQuery.isFetching ? "检测中..." : "重新检测"}
+              {modelRouteConnectivityQuery.isFetching ? t("gen.pages.settings.ModelRoutesPage.gen_84561cc4") : t("gen.pages.settings.ModelRoutesPage.gen_f515f8fb")}
             </Button>
             <Button asChild variant="outline">
               <Link to="/settings">
@@ -320,9 +322,9 @@ export default function ModelRoutesPage() {
             providerOptions={providerOptions}
             onPatch={patchBulkDraft}
             temperaturePlaceholder="0.7"
-            maxTokensPlaceholder="留空则使用系统默认"
-            modelEmptyText="这个服务商没有可选模型"
-            manualModelPlaceholder="也可以手动输入模型名"
+            maxTokensPlaceholder={t("gen.pages.settings.ModelRoutesPage.gen_042f9716")}
+            modelEmptyText={t("gen.pages.settings.ModelRoutesPage.gen_ea8f2c1b")}
+            manualModelPlaceholder={t("gen.pages.settings.ModelRoutesPage.canManualInputModelName")}
             showProtocolFields={false}
           />
 
@@ -370,7 +372,7 @@ export default function ModelRoutesPage() {
                 disabled={isSavingRoutes || dirtyTaskTypes.length === 0}
               >
                 <Save className="h-4 w-4" />
-                {saveAllModelRoutesMutation.isPending ? "保存中..." : `保存全部修改${dirtyTaskTypes.length > 0 ? ` (${dirtyTaskTypes.length})` : ""}`}
+                {saveAllModelRoutesMutation.isPending ? t("gen.pages.settings.ModelRoutesPage.savingInProgressDotDotDot") : `保存全部修改${dirtyTaskTypes.length > 0 ? ` (${dirtyTaskTypes.length})` : ""}`}
               </Button>
             </div>
           </div>
@@ -379,7 +381,7 @@ export default function ModelRoutesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>结构化备用模型</CardTitle>
+          <CardTitle>{t("gen.pages.settings.ModelRoutesPage.gen_ec6a737a")}</CardTitle>
           <CardDescription>
             主模型能对话但 JSON 不稳时，可在所有结构化任务上统一启用备用模型。
           </CardDescription>
@@ -387,7 +389,7 @@ export default function ModelRoutesPage() {
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
-              <div className="font-medium">启用全局结构化回退</div>
+              <div className="font-medium">{t("gen.pages.settings.ModelRoutesPage.gen_08b94dfa")}</div>
               <div className="text-sm text-muted-foreground">
                 主模型的结构化策略全部失败后，才会切到这套备用模型。
               </div>
@@ -404,9 +406,9 @@ export default function ModelRoutesPage() {
             providerOptions={providerOptions}
             onPatch={patchStructuredFallbackDraft}
             temperaturePlaceholder="0.2"
-            maxTokensPlaceholder="留空则使用系统默认"
-            modelEmptyText="这个服务商没有可选模型"
-            manualModelPlaceholder="也可以手动输入模型名"
+            maxTokensPlaceholder={t("gen.pages.settings.ModelRoutesPage.gen_042f9716")}
+            modelEmptyText={t("gen.pages.settings.ModelRoutesPage.gen_ea8f2c1b")}
+            manualModelPlaceholder={t("gen.pages.settings.ModelRoutesPage.canManualInputModelName")}
           />
 
           <div className="flex items-center justify-end gap-2">
@@ -421,7 +423,7 @@ export default function ModelRoutesPage() {
               })}
               disabled={saveStructuredFallbackMutation.isPending || !fallbackDraft.provider.trim() || !fallbackDraft.model.trim()}
             >
-              {saveStructuredFallbackMutation.isPending ? "保存中..." : "保存备用模型"}
+              {saveStructuredFallbackMutation.isPending ? t("gen.pages.settings.ModelRoutesPage.savingInProgressDotDotDot") : t("gen.pages.settings.ModelRoutesPage.saveBackupModel")}
             </Button>
           </div>
         </CardContent>
@@ -456,18 +458,18 @@ export default function ModelRoutesPage() {
                 <span className="inline-flex items-center gap-2 rounded-full border px-2 py-0.5 text-xs font-normal text-muted-foreground">
                   <RouteStatusDot state={connectivityState} />
                   {connectivityState === "healthy"
-                    ? "兼容性正常"
+                    ? t("gen.pages.settings.ModelRoutesPage.gen_2fbb4e75")
                     : connectivityState === "failed"
-                      ? "存在异常"
+                      ? t("gen.pages.settings.ModelRoutesPage.gen_fce7b9c6")
                       : connectivityState === "checking"
-                        ? "检测中"
-                        : "未检测"}
+                        ? t("gen.pages.settings.ModelRoutesPage.gen_d4c366cb")
+                        : t("gen.pages.settings.ModelRoutesPage.gen_5c6585e0")}
                 </span>
-                {isDirty ? <Badge variant="secondary">待保存</Badge> : null}
+                {isDirty ? <Badge variant="secondary">{t("gen.pages.settings.ModelRoutesPage.gen_29953c6f")}</Badge> : null}
               </CardTitle>
               <CardDescription>
                 {label.description}
-                <span className="ml-2 text-xs">标识：{taskType}</span>
+                <span className="ml-2 text-xs">{t("gen.pages.settings.ModelRoutesPage.gen_cc21931a")}</span>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -477,28 +479,28 @@ export default function ModelRoutesPage() {
                 providerOptions={providerOptions}
                 onPatch={(patch) => patchDraft(taskType, patch)}
                 temperaturePlaceholder="0.7"
-                maxTokensPlaceholder="留空则使用系统默认"
-                modelEmptyText="这个服务商没有可选模型"
-                manualModelPlaceholder="也可以手动输入模型名"
+                maxTokensPlaceholder={t("gen.pages.settings.ModelRoutesPage.gen_042f9716")}
+                modelEmptyText={t("gen.pages.settings.ModelRoutesPage.gen_ea8f2c1b")}
+                manualModelPlaceholder={t("gen.pages.settings.ModelRoutesPage.canManualInputModelName")}
               />
 
               <div className="flex items-center justify-between gap-3">
                 <div className="space-y-1 text-xs text-muted-foreground">
-                  <div>{isDirty ? "表单改动保存后生效。" : `任务使用：${providerName}。`}</div>
+                  <div>{isDirty ? t("gen.pages.settings.ModelRoutesPage.gen_a61d59f8") : `任务使用：${providerName}。`}</div>
                   <div className="flex flex-wrap items-center gap-2">
                     <RouteStatusDot state={connectivityState} />
                     <span>{formatConnectivityStatus(connectivity)}</span>
                   </div>
                   {connectivity?.structured ? (
                     <div>
-                      请求协议：{connectivity.structured.requestProtocol ?? connectivity.requestProtocol ?? "无"}，
-                      结构化策略：{connectivity.structured.strategy ?? "无"}，
-                      {connectivity.structured.reasoningForcedOff ? "会关闭 thinking" : "保留 thinking"}，
-                      {connectivity.structured.fallbackAvailable ? "备用模型可用" : "备用模型未启用"}
+                      请求协议：{connectivity.structured.requestProtocol ?? connectivity.requestProtocol ?? t("gen.pages.settings.ModelRoutesPage.gen_d81bb206")}，
+                      结构化策略：{connectivity.structured.strategy ?? t("gen.pages.settings.ModelRoutesPage.gen_d81bb206")}，
+                      {connectivity.structured.reasoningForcedOff ? t("gen.pages.settings.ModelRoutesPage.willCloseThinking") : t("gen.pages.settings.ModelRoutesPage.preserveThinking")}，
+                      {connectivity.structured.fallbackAvailable ? t("gen.pages.settings.ModelRoutesPage.gen_758d06ab") : t("gen.pages.settings.ModelRoutesPage.gen_88d8832f")}
                     </div>
                   ) : null}
                   {hasUnsavedRouteDiff ? (
-                    <div>检测结果来自生效路由；保存后会自动重新检测。</div>
+                    <div>{t("gen.pages.settings.ModelRoutesPage.gen_227039ae")}</div>
                   ) : null}
                 </div>
                 <Button

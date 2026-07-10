@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { LockKeyhole } from "lucide-react";
 import type { PromptPreviewResult } from "@/api/promptWorkbench";
 import { Badge } from "@/components/ui/badge";
@@ -29,19 +31,19 @@ export function PromptPreviewPanel({ preview }: { preview: PromptPreviewResult |
     <div className="space-y-4">
       <div className="grid overflow-hidden rounded-md border border-[#d8e2de] bg-white md:grid-cols-4 md:divide-x md:divide-[#d8e2de]">
         <div className="bg-[#f8fbfa] p-3">
-          <div className="text-xs text-muted-foreground">入口</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.promptWorkbench.components.PromptPreviewPanel.gen_5639f70c")}</div>
           <div className="mt-1 truncate text-sm font-semibold text-[#25443f]">{preview.diagnostics.entrypoint}</div>
         </div>
         <div className="bg-[#fbfdfb] p-3">
-          <div className="text-xs text-muted-foreground">估算 Token</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.promptWorkbench.components.PromptPreviewPanel.estimateToken")}</div>
           <div className="mt-1 text-sm font-semibold text-[#0f766e]">{preview.context.estimatedInputTokens}</div>
         </div>
         <div className="bg-[#f4f7ff] p-3">
-          <div className="text-xs text-muted-foreground">已注入</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.promptWorkbench.components.PromptPreviewPanel.gen_011ad262")}</div>
           <div className="mt-1 text-sm font-semibold text-[#344d7a]">{preview.context.selectedBlockIds.length}</div>
         </div>
         <div className="bg-[#fff7e8] p-3">
-          <div className="text-xs text-muted-foreground">缺失项</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.promptWorkbench.components.PromptPreviewPanel.gen_f6c73e62")}</div>
           <div className="mt-1 text-sm font-semibold text-[#7a5620]">{preview.diagnostics.missingRequiredGroups.length}</div>
         </div>
       </div>
@@ -59,7 +61,7 @@ export function PromptPreviewPanel({ preview }: { preview: PromptPreviewResult |
               {MESSAGE_ROLE_LABELS[message.role] ?? message.role}
             </TabsTrigger>
           ))}
-          <TabsTrigger value="diagnostics">诊断</TabsTrigger>
+          <TabsTrigger value="diagnostics">{t("gen.pages.promptWorkbench.components.PromptPreviewPanel.gen_fd4bef54")}</TabsTrigger>
         </TabsList>
 
         {preview.messages.map((message, index) => (
@@ -70,7 +72,7 @@ export function PromptPreviewPanel({ preview }: { preview: PromptPreviewResult |
                   <LockKeyhole className="h-3.5 w-3.5" />
                   {MESSAGE_ROLE_LABELS[message.role] ?? message.role}
                 </div>
-                <Badge variant="outline" className="border-[#cbdad6] bg-white text-[#52606d]">只读</Badge>
+                <Badge variant="outline" className="border-[#cbdad6] bg-white text-[#52606d]">{t("gen.pages.promptWorkbench.components.PromptPreviewPanel.gen_85541bd9")}</Badge>
               </div>
               <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap p-4 text-xs leading-relaxed text-[#1f2937]">
                 {message.content}

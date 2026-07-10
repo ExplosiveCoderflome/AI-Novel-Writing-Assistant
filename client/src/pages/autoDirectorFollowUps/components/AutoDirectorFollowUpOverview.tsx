@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { AutoDirectorFollowUpListResponse, AutoDirectorFollowUpOverview } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDirectorValidation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,38 +30,38 @@ export function AutoDirectorFollowUpOverviewCards({
   const cards: OverviewCardConfig[] = [
     {
       section: "",
-      label: "全部",
-      description: "查看所有需要跟进的导演任务",
+      label: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_a8b0c204"),
+      description: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_320a65ab"),
       count: overview?.totalCount ?? list?.pagination.total ?? 0,
     },
     {
       section: "needs_validation",
-      label: "需校验",
-      description: "先确认任务和资产是否一致",
+      label: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_f781ac23"),
+      description: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_25588213"),
       count: counters?.needs_validation ?? 0,
     },
     {
       section: "exception",
-      label: "异常",
-      description: "失败、恢复或取消的任务",
+      label: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_c195df63"),
+      description: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_b8c3c590"),
       count: counters?.exception ?? 0,
     },
     {
       section: "pending",
-      label: "待处理",
-      description: "需要确认或继续的节点",
+      label: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_047109de"),
+      description: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_1ca27a0f"),
       count: counters?.pending ?? 0,
     },
     {
       section: "auto_progress",
-      label: "自动推进",
-      description: "正在推进的任务和最近自动通过记录",
+      label: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_0eac0fc9"),
+      description: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_10ab0f5b"),
       count: counters?.auto_progress ?? 0,
     },
     {
       section: "replaced",
-      label: "已替代",
-      description: "被新任务接管的旧任务",
+      label: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_5d7c27b7"),
+      description: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_d21e0a39"),
       count: counters?.replaced ?? 0,
     },
   ];
@@ -70,7 +72,7 @@ export function AutoDirectorFollowUpOverviewCards({
         <CardHeader className="pb-3">
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewHeader}>
             <div className="min-w-0">
-              <CardTitle className="text-base">导演跟进中心</CardTitle>
+              <CardTitle className="text-base">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_b46bfba6")}</CardTitle>
               <div className={`mt-1 text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                 今日恢复 {list?.summaryCounters.recoveredToday ?? 0} 项，今日完成 {list?.summaryCounters.completedToday ?? 0} 项
               </div>

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { KnowledgeDocumentStatus } from "@ai-novel/shared/types/knowledge";
@@ -17,7 +19,7 @@ interface KnowledgeDocumentPickerProps {
 }
 
 function formatDocumentKind(kind: "user_upload" | "analysis_published"): string {
-  return kind === "analysis_published" ? "拆书发布" : "上传文档";
+  return kind === "analysis_published" ? t("gen.components.knowledge.KnowledgeDocumentPicker.gen_baf0c0bb") : t("gen.components.knowledge.KnowledgeDocumentPicker.uploadDocument");
 }
 
 export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerProps) {
@@ -74,14 +76,14 @@ export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerPr
           <Input
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
-            placeholder="搜索知识文档"
+            placeholder={t("gen.components.knowledge.KnowledgeDocumentPicker.gen_20c81d3d")}
           />
           <div className="max-h-64 space-y-2 overflow-auto rounded-md border p-2">
             {documentsQuery.isLoading ? (
-              <div className="text-sm text-muted-foreground">加载中...</div>
+              <div className="text-sm text-muted-foreground">{t("gen.components.knowledge.KnowledgeDocumentPicker.gen_26b5bd49")}</div>
             ) : null}
             {visibleDocuments.length === 0 && !documentsQuery.isLoading ? (
-              <div className="text-sm text-muted-foreground">没有可选文档。</div>
+              <div className="text-sm text-muted-foreground">{t("gen.components.knowledge.KnowledgeDocumentPicker.gen_286b4cb3")}</div>
             ) : null}
             {visibleDocuments.map((item) => {
               const checked = selectedIds.includes(item.id);

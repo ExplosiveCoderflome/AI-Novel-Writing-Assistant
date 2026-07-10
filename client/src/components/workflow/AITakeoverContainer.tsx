@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,16 +33,16 @@ export interface AITakeoverContainerProps {
 function modeLabel(mode: AITakeoverMode): string {
   switch (mode) {
     case "loading":
-      return "加载中";
+      return t("gen.components.workflow.AITakeoverContainer.gen_f013ea9d");
     case "running":
-      return "AI 接管中";
+      return t("gen.components.workflow.AITakeoverContainer.aiTakingOver");
     case "waiting":
-      return "等待确认";
+      return t("gen.components.workflow.AITakeoverContainer.gen_70f361ce");
     case "action_required":
-      return "待处理";
+      return t("gen.components.workflow.AITakeoverContainer.gen_047109de");
     case "failed":
     default:
-      return "执行异常";
+      return t("gen.components.workflow.AITakeoverContainer.gen_b0d5b6f8");
   }
 }
 
@@ -94,13 +96,13 @@ function progressTone(mode: AITakeoverMode): WorkflowProgressTone {
 function progressStatusLabel(mode: AITakeoverMode): string | null {
   switch (mode) {
     case "running":
-      return "实时推进中";
+      return t("gen.components.workflow.AITakeoverContainer.gen_19f6e835");
     case "waiting":
-      return "等待你确认";
+      return t("gen.components.workflow.AITakeoverContainer.gen_afa80d33");
     case "action_required":
-      return "需要你处理";
+      return t("gen.components.workflow.AITakeoverContainer.gen_a98cfacb");
     case "failed":
-      return "已中断";
+      return t("gen.components.workflow.AITakeoverContainer.gen_e13531d7");
     default:
       return null;
   }
@@ -137,7 +139,7 @@ export default function AITakeoverContainer({
           <div className="flex flex-wrap items-center gap-2">
             <div className="text-sm font-semibold text-foreground">{title}</div>
             <Badge variant={badgeVariant(mode)}>{modeLabel(mode)}</Badge>
-            {taskId ? <Badge variant="outline">任务 #{taskId.slice(0, 8)}</Badge> : null}
+            {taskId ? <Badge variant="outline">{t("gen.components.workflow.AITakeoverContainer.taskWithFirstEightDigitsOfId")}</Badge> : null}
           </div>
           <div className="text-sm text-muted-foreground">{description}</div>
         </div>
@@ -168,7 +170,7 @@ export default function AITakeoverContainer({
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
                 </span>
               ) : null}
-              <span className="font-medium text-foreground">流程进度</span>
+              <span className="font-medium text-foreground">{t("gen.components.workflow.AITakeoverContainer.gen_10e501cd")}</span>
               {progressStatusLabel(mode) ? (
                 <span className="rounded-full bg-background/80 px-2 py-0.5 text-[11px] text-muted-foreground">
                   {progressStatusLabel(mode)}
@@ -193,7 +195,7 @@ export default function AITakeoverContainer({
             </div>
           ) : null}
           {checkpointLabel ? (
-            <div className="mt-2 text-xs text-muted-foreground">最近检查点：{checkpointLabel}</div>
+            <div className="mt-2 text-xs text-muted-foreground">{t("gen.components.workflow.AITakeoverContainer.gen_281a5f3e")}</div>
           ) : null}
         </div>
       ) : null}

@@ -1,5 +1,6 @@
+import i18next from "i18next";
 const TEXT_FILE_ENCODING_CANDIDATES = ["utf-8", "gb18030", "gbk", "big5", "utf-16le", "utf-16be"] as const;
-const SUSPICIOUS_MOJIBAKE_TOKENS = ["銆€", "锛", "鏈功", "涓€", "鍥犱负"] as const;
+const SUSPICIOUS_MOJIBAKE_TOKENS = [i18next.t("gen.lib.textFile.gen_6e4b05d1"), i18next.t("gen.lib.textFile.gen_ba084620"), i18next.t("gen.lib.textFile.gen_a6be9aca"), i18next.t("gen.lib.textFile.gen_31e20f4f"), i18next.t("gen.lib.textFile.gen_01e28933")] as const;
 
 function detectTxtBomEncoding(bytes: Uint8Array): string | null {
   if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {

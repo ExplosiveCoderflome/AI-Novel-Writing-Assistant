@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getExternalStoreMessages,
@@ -138,7 +139,7 @@ async function requireCheckpointIdForBranch(
   if (checkpointId || parentMessages.length === 0) {
     return checkpointId;
   }
-  const message = "未能匹配到对应的历史检查点，当前消息无法生成新分支。";
+  const message = i18next.t("gen.pages.creativeHub.hooks.useCreativeHubRuntime.gen_004d7b1a");
   toast.error(message);
   throw new Error(message);
 }
@@ -189,7 +190,7 @@ export function useCreativeHubRuntime({
     () =>
       async function* streamCallback(messages, config) {
         if (!isThreadReady) {
-          throw new Error("创作中枢线程尚未初始化。");
+          throw new Error(i18next.t("gen.pages.creativeHub.hooks.useCreativeHubRuntime.gen_78424316"));
         }
         const streamSessionId = streamSessionRef.current;
         const streamThreadId = threadId;

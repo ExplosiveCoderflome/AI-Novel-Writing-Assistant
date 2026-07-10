@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,7 +113,7 @@ export default function BookAnalysisPage() {
             bookAnalysisId: workspace.selectedAnalysisId || null,
             knowledgeDocumentIds: workspace.selectedDocumentId ? [workspace.selectedDocumentId] : [],
           }}
-          label="拆书结果发往创作中枢"
+          label={t("gen.pages.bookAnalysis.BookAnalysisPage.gen_81021efb")}
         />
       </div>
       <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
@@ -206,7 +208,7 @@ export default function BookAnalysisPage() {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>拆书分析工作区</CardTitle>
+                <CardTitle>{t("gen.pages.bookAnalysis.BookAnalysisPage.gen_d150be05")}</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
                 请先在左侧选择一个分析，或从知识文档创建新分析。

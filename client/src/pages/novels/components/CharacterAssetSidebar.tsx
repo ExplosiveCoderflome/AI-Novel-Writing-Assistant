@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { Character } from "@ai-novel/shared/types/novel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,9 +55,9 @@ function CharacterCard(props: {
   const isSelected = selectedCharacterId === character.id;
   const isDeletingThis = isDeletingCharacter && deletingCharacterId === character.id;
   const supportingLine = isProtagonist
-    ? character.currentGoal || character.storyFunction || character.role || "待补全主角目标"
-    : character.relationToProtagonist || character.role || "待补全角色定位";
-  const supportingLabel = character.relationToProtagonist ? "与主角关系" : "定位";
+    ? character.currentGoal || character.storyFunction || character.role || t("gen.pages.novels.components.CharacterAssetSidebar.gen_9a0efb70")
+    : character.relationToProtagonist || character.role || t("gen.pages.novels.components.CharacterAssetSidebar.gen_587863f1");
+  const supportingLabel = character.relationToProtagonist ? t("gen.pages.novels.components.CharacterAssetSidebar.relationWithProtagonist") : t("gen.pages.novels.components.CharacterAssetSidebar.gen_a10fa763");
 
   return (
     <div className={getCharacterCardClass(isSelected, isProtagonist)}>
@@ -66,10 +68,10 @@ function CharacterCard(props: {
       >
         <div className="flex flex-wrap items-center gap-2">
           <div className="truncate font-medium">{character.name}</div>
-          {isProtagonist ? <Badge variant="secondary">主角</Badge> : null}
+          {isProtagonist ? <Badge variant="secondary">{t("gen.pages.novels.components.CharacterAssetSidebar.mainCharacter")}</Badge> : null}
         </div>
         <div className="mt-1 text-xs text-muted-foreground">
-          {isProtagonist ? `身份：${character.role || "待补全"}` : `${supportingLabel}：${supportingLine}`}
+          {isProtagonist ? `身份：${character.role || t("gen.pages.novels.components.CharacterAssetSidebar.gen_cdc447dc")}` : `${supportingLabel}：${supportingLine}`}
         </div>
         {isProtagonist ? (
           <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
@@ -84,7 +86,7 @@ function CharacterCard(props: {
         onClick={() => confirmDeleteCharacter(character, onDeleteCharacter)}
         className="shrink-0 self-center"
       >
-        {isDeletingThis ? "删除中..." : "删除"}
+        {isDeletingThis ? t("gen.pages.novels.components.CharacterAssetSidebar.gen_09f2fb82") : t("gen.pages.novels.components.CharacterAssetSidebar.gen_2f4aaddd")}
       </Button>
     </div>
   );
@@ -107,7 +109,7 @@ export default function CharacterAssetSidebar(props: CharacterAssetSidebarProps)
       <section className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Protagonist</div>
-          {protagonist ? <Badge variant="outline">主角</Badge> : null}
+          {protagonist ? <Badge variant="outline">{t("gen.pages.novels.components.CharacterAssetSidebar.mainCharacter")}</Badge> : null}
         </div>
         {protagonist ? (
           <CharacterCard

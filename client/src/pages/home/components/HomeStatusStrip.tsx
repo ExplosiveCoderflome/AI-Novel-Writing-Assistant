@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Activity, AlertTriangle, CheckCircle2, Clock3 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -17,7 +19,7 @@ export function HomeStatusStrip(props: {
   pending?: boolean;
 }) {
   return (
-    <section className="home-status-summary-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="创作状态摘要">
+    <section className="home-status-summary-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label={t("gen.pages.home.components.HomeStatusStrip.gen_a493e1cf")}>
       {props.metrics.map((metric) => {
         const Icon = metricIcons[metric.tone];
         return (

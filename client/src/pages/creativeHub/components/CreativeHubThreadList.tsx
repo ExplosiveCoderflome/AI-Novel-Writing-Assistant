@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,10 +14,10 @@ interface CreativeHubThreadListProps {
 }
 
 function toStatusLabel(status: CreativeHubThread["status"]): string {
-  if (status === "busy") return "运行中";
-  if (status === "interrupted") return "待处理";
-  if (status === "error") return "异常";
-  return "空闲";
+  if (status === "busy") return t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_d679aea3");
+  if (status === "interrupted") return t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_047109de");
+  if (status === "error") return t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_c195df63");
+  return t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_87bb5bbc");
 }
 
 export default function CreativeHubThreadList({
@@ -29,7 +31,7 @@ export default function CreativeHubThreadList({
   return (
     <Card className="flex h-full min-h-0 flex-col">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">线程列表</CardTitle>
+        <CardTitle className="text-base">{t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_119cfb79")}</CardTitle>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
         <Button className="h-9 w-full rounded-xl" onClick={onCreate}>
@@ -60,7 +62,7 @@ export default function CreativeHubThreadList({
                   className="rounded-md border border-slate-200 px-2 py-1 text-slate-600 transition hover:bg-slate-100"
                   onClick={() => onArchive(thread.id, !thread.archived)}
                 >
-                  {thread.archived ? "取消归档" : "归档"}
+                  {thread.archived ? t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_bc83e0c0") : t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_2f51c18f")}
                 </button>
                 <button
                   type="button"

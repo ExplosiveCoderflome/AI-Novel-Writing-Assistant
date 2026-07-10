@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type {
   WorldSkeletonGenerationCounts,
   WorldSkeletonPreset,
@@ -15,28 +17,28 @@ const PRESET_CARDS: Array<{
 }> = [
   {
     value: "light",
-    title: "轻量舞台",
-    description: "适合短篇、单主线、低复杂度，先得到一个清楚好写的故事舞台。",
+    title: t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_080bd757"),
+    description: t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_8f1b2dec"),
   },
   {
     value: "standard",
-    title: "标准长篇",
-    description: "适合多数网文长篇，默认生成足够的规则、势力、地点和开局入口。",
+    title: t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_77e7b5d2"),
+    description: t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_17cc0890"),
   },
   {
     value: "epic",
-    title: "复杂群像",
-    description: "适合多势力、多地点、多线冲突，需要更强的地图和关系承载。",
+    title: t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_7dfb0759"),
+    description: t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_04522d6d"),
   },
 ];
 
 const COUNT_LABELS: Record<keyof WorldSkeletonGenerationCounts, string> = {
-  rules: "核心规则",
-  factionGroups: "阵营方向",
-  forces: "具体势力",
-  locations: "关键地点",
-  conflicts: "关系/冲突",
-  storyEntrySuggestions: "故事入口",
+  rules: t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_0a431a82"),
+  factionGroups: t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_b3de18cc"),
+  forces: t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_6892df3b"),
+  locations: t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_ce7830fa"),
+  conflicts: t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_4360e03d"),
+  storyEntrySuggestions: t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_2ff7e9ff"),
 };
 
 interface WorldGeneratorStepTwoProps {
@@ -61,7 +63,7 @@ export default function WorldGeneratorStepTwo(props: WorldGeneratorStepTwoProps)
   return (
     <div className="space-y-4">
       <div className="rounded-md border bg-background p-4">
-        <div className="text-sm font-medium">选择世界规模</div>
+        <div className="text-sm font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_3d7f4575")}</div>
         <div className="mt-1 text-xs text-muted-foreground">
           规模会决定 AI 生成多少规则、阵营、具体势力、关键地点和可开书入口。默认推荐“标准长篇”。
         </div>
@@ -80,17 +82,17 @@ export default function WorldGeneratorStepTwo(props: WorldGeneratorStepTwoProps)
             <div className="text-sm font-semibold">{item.title}</div>
             <div className="mt-2 text-xs leading-5 text-muted-foreground">{item.description}</div>
             <div className="mt-3 grid grid-cols-2 gap-1 text-xs text-muted-foreground">
-              <span>势力 {WORLD_SKELETON_PRESET_COUNTS[item.value].forces}</span>
-              <span>地点 {WORLD_SKELETON_PRESET_COUNTS[item.value].locations}</span>
-              <span>冲突 {WORLD_SKELETON_PRESET_COUNTS[item.value].conflicts}</span>
-              <span>入口 {WORLD_SKELETON_PRESET_COUNTS[item.value].storyEntrySuggestions}</span>
+              <span>{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_e5cf4116")}</span>
+              <span>{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_8579bec0")}</span>
+              <span>{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_459399c1")}</span>
+              <span>{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_35f03500")}</span>
             </div>
           </button>
         ))}
       </div>
 
       <div className="rounded-md border p-4">
-        <div className="text-sm font-medium">调整数量</div>
+        <div className="text-sm font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_c0099a4f")}</div>
         <div className="mt-1 text-xs text-muted-foreground">
           新手建议保持默认；只有明确想要更小或更大的世界时再调整。
         </div>
@@ -119,7 +121,7 @@ export default function WorldGeneratorStepTwo(props: WorldGeneratorStepTwoProps)
       </div>
 
       <Button onClick={onGenerateSkeleton} disabled={generating}>
-        {generating ? "生成世界骨架中..." : "生成世界骨架"}
+        {generating ? t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_7ad924ca") : t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_a9e8681a")}
       </Button>
     </div>
   );

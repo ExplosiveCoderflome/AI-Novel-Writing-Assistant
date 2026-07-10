@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { formatCommercialTagsInput, type NovelBasicFormState } from "../../novelBasicInfo.shared";
@@ -53,7 +55,7 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
     onSuccess: (response) => {
       const suggestion = response.data;
       if (!suggestion) {
-        toast.error("AI 没有返回可用的读者与卖点建议。");
+        toast.error(t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_80c8ab11"));
         return;
       }
       onApplySuggestion({
@@ -63,20 +65,20 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
         bookSellingPoint: suggestion.bookSellingPoint,
         first30ChapterPromise: suggestion.first30ChapterPromise,
       });
-      toast.success("已根据当前书名和概述填入读者与卖点建议。");
+      toast.success(t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_763cfa0f"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "读者与卖点自动填写失败，请稍后再试。");
+      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_1524b265"));
     },
   });
 
   const handleGenerate = () => {
     if (!basicForm.title.trim() && !effectiveDescription) {
-      toast.error("请先填写书名或一句话概述，再让 AI 帮你填写。");
+      toast.error(t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_868e0f94"));
       return;
     }
     if (hasExistingFramingContent(basicForm)) {
-      const confirmed = window.confirm("将用 AI 建议覆盖当前读者与卖点填写，是否继续？");
+      const confirmed = window.confirm(t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_a9ef584a"));
       if (!confirmed) {
         return;
       }
@@ -92,7 +94,7 @@ export function BookFramingQuickFillButton(props: BookFramingQuickFillButtonProp
       onClick={handleGenerate}
       disabled={suggestionMutation.isPending}
     >
-      {suggestionMutation.isPending ? "填写中..." : "帮我填写"}
+      {suggestionMutation.isPending ? t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_275cd8ec") : t("gen.pages.novels.components.basicInfoForm.BookFramingQuickFillButton.gen_e5f5767d")}
     </AiButton>
   );
 }

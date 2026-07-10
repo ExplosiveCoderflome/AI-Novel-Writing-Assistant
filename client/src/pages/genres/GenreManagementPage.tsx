@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deleteGenre, flattenGenreTreeOptions, getGenreTree, type GenreTreeNode } from "@/api/genre";
@@ -37,7 +39,7 @@ export default function GenreManagementPage() {
     mutationFn: (genreId: string) => deleteGenre(genreId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.genres.all });
-      toast.success("题材基底已删除。");
+      toast.success(t("gen.pages.genres.GenreManagementPage.gen_b67dd646"));
     },
   });
 
@@ -87,13 +89,13 @@ export default function GenreManagementPage() {
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1">
-            <CardTitle>题材基底库</CardTitle>
+            <CardTitle>{t("gen.pages.genres.GenreManagementPage.gen_5f4916da")}</CardTitle>
             <CardDescription>
               按树结构维护作品的题材基底，例如修仙、玄幻、都市、历史架空。它回答的是“这是什么书”，会作为小说项目的正式题材资产，而不是临时输入字段。
             </CardDescription>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <div className="text-sm text-muted-foreground">当前题材基底数：{totalGenres}</div>
+            <div className="text-sm text-muted-foreground">{t("gen.pages.genres.GenreManagementPage.gen_f3646621")}</div>
             <Button type="button" onClick={handleCreateRoot}>
               新建题材基底树
             </Button>
@@ -101,12 +103,12 @@ export default function GenreManagementPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {genreTreeQuery.isLoading ? (
-            <div className="text-sm text-muted-foreground">正在加载题材基底树...</div>
+            <div className="text-sm text-muted-foreground">{t("gen.pages.genres.GenreManagementPage.gen_8ca5aa71")}</div>
           ) : null}
 
           {!genreTreeQuery.isLoading && genreTree.length === 0 ? (
             <div className="rounded-xl border border-dashed p-6 text-center">
-              <div className="text-sm font-medium text-foreground">还没有任何题材基底</div>
+              <div className="text-sm font-medium text-foreground">{t("gen.pages.genres.GenreManagementPage.gen_01e51f35")}</div>
               <div className="mt-1 text-sm text-muted-foreground">
                 可以先手动建一个根题材基底，也可以直接用 AI 生成一个完整层级。
               </div>

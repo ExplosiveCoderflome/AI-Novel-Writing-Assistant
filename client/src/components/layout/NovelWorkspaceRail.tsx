@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -81,12 +83,12 @@ function hasChapterPlanContent(chapter: VolumePlan["chapters"][number]): boolean
 }
 
 function formatTaskStatus(status: string | null | undefined): string {
-  if (status === "running") return "进行中";
-  if (status === "queued") return "排队中";
-  if (status === "waiting_approval") return "待审核";
-  if (status === "failed") return "异常";
-  if (status === "succeeded") return "已完成";
-  return "空闲";
+  if (status === "running") return t("gen.components.layout.NovelWorkspaceRail.gen_fb852fc6");
+  if (status === "queued") return t("gen.components.layout.NovelWorkspaceRail.gen_e5ac1d20");
+  if (status === "waiting_approval") return t("gen.components.layout.NovelWorkspaceRail.gen_5cb42476");
+  if (status === "failed") return t("gen.components.layout.NovelWorkspaceRail.gen_c195df63");
+  if (status === "succeeded") return t("gen.components.layout.NovelWorkspaceRail.gen_fad5222c");
+  return t("gen.components.layout.NovelWorkspaceRail.gen_87bb5bbc");
 }
 
 function shouldShowBookAutomationProjectionWithoutActiveTask(input: {
@@ -295,12 +297,12 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
           : stepReadiness[step.key]
       );
       const statusLabel = isWorkflowCurrent
-        ? isSelected ? "当前步骤" : "流程中"
+        ? isSelected ? t("gen.components.layout.NovelWorkspaceRail.gen_59cecbff") : t("gen.components.layout.NovelWorkspaceRail.gen_32c2b521")
         : isSelected
-          ? "查看中"
+          ? t("gen.components.layout.NovelWorkspaceRail.gen_082d10d0")
           : isDone
-            ? "已完成"
-            : "待推进";
+            ? t("gen.components.layout.NovelWorkspaceRail.gen_fad5222c")
+            : t("gen.components.layout.NovelWorkspaceRail.gen_c1d8599d");
 
       return {
         ...step,
@@ -314,13 +316,13 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
 
   const completedStepCount = stepStates.filter((item) => item.isDone).length;
   const workflowProgressCount = workflowIndex >= 0 ? workflowIndex + 1 : completedStepCount;
-  const novelTitle = novelDetail?.title?.trim() || "小说创作工作台";
+  const novelTitle = novelDetail?.title?.trim() || t("gen.components.layout.NovelWorkspaceRail.gen_d018fb48");
   const runtimeActionSummary = runtimeProjection?.nextActionLabel
     ? `下一步：${runtimeProjection.nextActionLabel}`
     : null;
   const runtimeSummary = dashboardView?.currentAction?.trim()
     || (dashboardView?.requiresUserAction
-      ? `需要处理：${dashboardView.userActionReason ?? "请先查看当前停留点"}`
+      ? `需要处理：${dashboardView.userActionReason ?? t("gen.components.layout.NovelWorkspaceRail.gen_719cf084")}`
       : null)
     || runtimeSnapshot?.displayState.currentAction?.trim()
       || runtimeProjection?.headline
@@ -332,11 +334,11 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const cockpitSummary = activeTask
     ? runtimeSummary
       || (activeTask.status === "failed"
-      ? activeTask.lastError || "后台任务已中断，可打开执行详情查看原因。"
+      ? activeTask.lastError || t("gen.components.layout.NovelWorkspaceRail.gen_3fff0abf")
       : activeTask.status === "waiting_approval"
         ? `等待处理：${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`
       : activeTask.currentItemLabel || `AI 正在推进 ${getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}`)
-    : "当前没有后台导演任务，可以直接继续手动创作。";
+    : t("gen.components.layout.NovelWorkspaceRail.gen_3461732b");
   const cockpitProjection = useMemo(() => {
     if (!visibleBookAutomationProjection || !runtimeSummary?.trim()) {
       return visibleBookAutomationProjection;
@@ -390,7 +392,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
   const continueDirectorMutation = useMutation({
     mutationFn: async () => {
       if (!activeTask?.id) {
-        throw new Error("当前没有可继续的自动导演任务。");
+        throw new Error(t("gen.components.layout.NovelWorkspaceRail.gen_8b4231ef"));
       }
       return continueNovelWorkflow(activeTask.id, {
         continuationMode: resolveDirectorContinueMode(activeTask),
@@ -422,7 +424,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       toast.success(feedback.message);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "继续自动导演失败。");
+      toast.error(error instanceof Error ? error.message : t("gen.components.layout.NovelWorkspaceRail.gen_bb8020bb"));
     },
   });
 
@@ -455,8 +457,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
               size="icon"
               className="h-8 w-8 shrink-0 text-muted-foreground"
               onClick={onToggle}
-              aria-label={collapsed ? "展开创作导航" : "收起创作导航"}
-              title={collapsed ? "展开创作导航" : "收起创作导航"}
+              aria-label={collapsed ? t("gen.components.layout.NovelWorkspaceRail.gen_74f8ea9b") : t("gen.components.layout.NovelWorkspaceRail.gen_b7ae016b")}
+              title={collapsed ? t("gen.components.layout.NovelWorkspaceRail.gen_74f8ea9b") : t("gen.components.layout.NovelWorkspaceRail.gen_b7ae016b")}
             >
               {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
             </Button>
@@ -478,8 +480,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
             size="icon"
             className="mx-auto h-9 w-9"
             onClick={() => navigate("/novels")}
-            title="返回小说列表"
-            aria-label="返回小说列表"
+            title={t("gen.components.layout.NovelWorkspaceRail.gen_9c469174")}
+            aria-label={t("gen.components.layout.NovelWorkspaceRail.gen_9c469174")}
           >
             <BookOpenText className="h-4 w-4" />
           </Button>
@@ -488,7 +490,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         {!collapsed ? (
           <div className="rounded-2xl bg-background/75 px-3 py-2 text-xs text-muted-foreground">
             <div className="flex items-center justify-between gap-2">
-              <span>流程：{getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}</span>
+              <span>{t("gen.components.layout.NovelWorkspaceRail.gen_2049dfab")}</span>
               <span>{workflowProgressCount}/{NOVEL_WORKSPACE_FLOW_STEPS.length}</span>
             </div>
           </div>
@@ -560,7 +562,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
           <button
             type="button"
             onClick={() => goToTab("history")}
-            title="版本历史"
+            title={t("gen.components.layout.NovelWorkspaceRail.gen_6fdd8590")}
             className={cn(
               "flex w-full items-center rounded-xl transition-colors hover:bg-background/75",
               collapsed ? "justify-center px-2 py-3" : "gap-3 px-3 py-3 text-left",
@@ -568,7 +570,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
             )}
           >
             <History className="h-4 w-4 shrink-0" />
-            {!collapsed ? <span className="text-sm font-medium">版本历史</span> : null}
+            {!collapsed ? <span className="text-sm font-medium">{t("gen.components.layout.NovelWorkspaceRail.gen_6fdd8590")}</span> : null}
           </button>
 
           {!collapsed ? (
@@ -590,7 +592,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                 className="h-9 w-9"
                 onClick={openProgressDialog}
                 title={`查看导演进度：${formatTaskStatus(activeTask?.status)}`}
-                aria-label="查看导演进度"
+                aria-label={t("gen.components.layout.NovelWorkspaceRail.gen_efbfb3ff")}
               >
                 <ListTodo className="h-4 w-4" />
               </Button>
@@ -601,8 +603,8 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
                   variant="outline"
                   className="h-9 w-9"
                   onClick={onSwitchToProjectNav}
-                  title="切换到项目导航"
-                  aria-label="切换到项目导航"
+                  title={t("gen.components.layout.NovelWorkspaceRail.gen_047a2c31")}
+                  aria-label={t("gen.components.layout.NovelWorkspaceRail.gen_047a2c31")}
                 >
                   <LayoutDashboard className="h-4 w-4" />
                 </Button>
@@ -616,7 +618,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
       <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
         <DialogContent className="max-h-[88vh] overflow-hidden p-0 sm:max-w-5xl">
           <DialogHeader className="border-b px-5 py-4 text-left">
-            <DialogTitle>AI 自动导演进度</DialogTitle>
+            <DialogTitle>{t("gen.components.layout.NovelWorkspaceRail.aiAutoDirectorProgress")}</DialogTitle>
             <DialogDescription>
               查看这本书的推进步骤、最近进展和 AI 用量。
             </DialogDescription>

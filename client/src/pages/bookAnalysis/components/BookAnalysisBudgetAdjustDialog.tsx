@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import type { BookAnalysisDetail } from "@ai-novel/shared/types/bookAnalysis";
 import { Button } from "@/components/ui/button";
@@ -106,10 +108,10 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
-        title={mode === "resume" ? "扩容预算并续跑" : "调整拆书预算"}
+        title={mode === "resume" ? t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_a69ce727") : t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_015d69aa")}
         description={mode === "resume"
-          ? "为这次拆书设置新的预算上限，并继续处理未完成的小节。"
-          : "修改预算上限后，累计用量保留，后续小节按新的上限检查。"}
+          ? t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_0ab17915")
+          : t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_b6e69614")}
         className="max-w-xl"
         footer={
           <div className="flex w-full justify-end gap-2">
@@ -117,7 +119,7 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
               取消
             </Button>
             <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
-              {pending ? "提交中..." : mode === "resume" ? "扩容并续跑" : "保存调整"}
+              {pending ? t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_abe2c5d2") : mode === "resume" ? t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_60a60c37") : t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_836cc341")}
             </Button>
           </div>
         }
@@ -132,20 +134,20 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
 
           <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm sm:grid-cols-3">
             <div>
-              <div className="text-xs text-muted-foreground">累计用量</div>
+              <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_a94ab700")}</div>
               <div className="mt-1 font-mono tabular-nums">{formatTokenCount(usedTokens)}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">预算上限</div>
+              <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_b474d723")}</div>
               <div className="mt-1 font-mono tabular-nums">
-                {currentBudget ? formatTokenCount(currentBudget) : "不限"}
+                {currentBudget ? formatTokenCount(currentBudget) : t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_8441b348")}
               </div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">调整后剩余</div>
+              <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_d5d007cb")}</div>
               <div className="mt-1 font-mono tabular-nums">
                 {parsedBudget === null
-                  ? "不限"
+                  ? t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_8441b348")
                   : remainingTokens === null
                     ? "-"
                     : formatTokenCount(remainingTokens)}
@@ -177,7 +179,7 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
                 step={1_000}
                 value={budgetInput}
                 onChange={(event) => setBudgetInput(event.target.value)}
-                placeholder={allowUnlimited ? "留空表示不限" : String(recommendedResumeBudget)}
+                placeholder={allowUnlimited ? t("gen.pages.bookAnalysis.components.BookAnalysisBudgetAdjustDialog.gen_dfb1401d") : String(recommendedResumeBudget)}
                 className="text-right font-mono tabular-nums"
               />
               <span className="shrink-0 text-xs text-muted-foreground">tokens</span>

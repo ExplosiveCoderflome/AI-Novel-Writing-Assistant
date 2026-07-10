@@ -1,13 +1,15 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function AstrologyPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>占星灵感</CardTitle>
-        <CardDescription>占星模块占位页。</CardDescription>
+        <CardTitle>{t("gen.pages.astrology.AstrologyPage.gen_79df51a9")}</CardTitle>
+        <CardDescription>{t("gen.pages.astrology.AstrologyPage.gen_473f55bf")}</CardDescription>
       </CardHeader>
-      <CardContent>后续将在此接入题材化灵感生成与设定扩展能力。</CardContent>
+      <CardContent>{t("gen.pages.astrology.AstrologyPage.gen_6f6dd5d7")}</CardContent>
     </Card>
   );
 }

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -31,9 +33,9 @@ export default function SearchableSelect({
   value,
   onValueChange,
   options,
-  placeholder = "请选择",
-  searchPlaceholder = "搜索",
-  emptyText = "没有可选项",
+  placeholder = t("gen.components.common.SearchableSelect.gen_708c9d6d"),
+  searchPlaceholder = t("gen.components.common.SearchableSelect.gen_e5f71fc3"),
+  emptyText = t("gen.components.common.SearchableSelect.gen_da6453cd"),
   disabled = false,
   className,
   triggerClassName,

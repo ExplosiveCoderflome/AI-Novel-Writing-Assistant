@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, Trash2 } from "lucide-react";
@@ -48,7 +50,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
     mutationFn: (id: string) => deleteTitleLibraryEntry(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success("标题已删除。");
+      toast.success(t("gen.pages.titles.components.TitleLibraryPanel.gen_15974d4f"));
     },
   });
 
@@ -56,13 +58,13 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
     mutationFn: (id: string) => markTitleLibraryUsed(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success("标题使用次数已更新。");
+      toast.success(t("gen.pages.titles.components.TitleLibraryPanel.gen_62f4dfd0"));
     },
   });
 
   const handleCopy = async (title: string) => {
     await navigator.clipboard.writeText(title);
-    toast.success("标题已复制到剪贴板。");
+    toast.success(t("gen.pages.titles.components.TitleLibraryPanel.gen_3257008e"));
   };
 
   const rows = libraryQuery.data?.data?.items ?? [];
@@ -72,22 +74,22 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
     <div className="space-y-5">
       <div className="grid gap-3 border-b border-border/60 pb-5 md:grid-cols-[minmax(0,1fr)_220px_180px]">
         <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">搜索</span>
+          <span className="font-medium text-foreground">{t("gen.pages.titles.components.TitleLibraryPanel.gen_e5f71fc3")}</span>
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="匹配标题、说明或关键词"
+            placeholder={t("gen.pages.titles.components.TitleLibraryPanel.gen_06661890")}
             className={controlClassName}
           />
         </label>
         <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">类型</span>
+          <span className="font-medium text-foreground">{t("gen.pages.titles.components.TitleLibraryPanel.gen_226b0912")}</span>
           <SelectControl
             className={selectClassName}
             value={genreId}
             onChange={(event) => setGenreId(event.target.value)}
           >
-            <option value="">全部类型</option>
+            <option value="">{t("gen.pages.titles.components.TitleLibraryPanel.gen_c079e7d5")}</option>
             {genreOptions.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.path}
@@ -96,15 +98,15 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
           </SelectControl>
         </label>
         <label className="space-y-2 text-sm">
-          <span className="font-medium text-foreground">排序</span>
+          <span className="font-medium text-foreground">{t("gen.pages.titles.components.TitleLibraryPanel.gen_c360e994")}</span>
           <SelectControl
             className={selectClassName}
             value={sort}
             onChange={(event) => setSort(event.target.value as "newest" | "hot" | "clickRate")}
           >
-            <option value="newest">最新加入</option>
-            <option value="hot">使用次数</option>
-            <option value="clickRate">点击潜力</option>
+            <option value="newest">{t("gen.pages.titles.components.TitleLibraryPanel.gen_8ea1927a")}</option>
+            <option value="hot">{t("gen.pages.titles.components.TitleLibraryPanel.usageCount")}</option>
+            <option value="clickRate">{t("gen.pages.titles.components.TitleLibraryPanel.gen_dc9bc95a")}</option>
           </SelectControl>
         </label>
       </div>
@@ -117,7 +119,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
 
       {!libraryQuery.isLoading && rows.length === 0 ? (
         <div className="py-10 text-center">
-          <div className="text-sm font-medium text-foreground">标题库还是空的</div>
+          <div className="text-sm font-medium text-foreground">{t("gen.pages.titles.components.TitleLibraryPanel.gen_0729604b")}</div>
           <div className="mt-1 text-sm text-muted-foreground">
             先去标题工坊生成一批候选，再把值得复用的标题沉淀进来。
           </div>
@@ -129,7 +131,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
           <div key={entry.id} className="group py-4 transition hover:bg-muted/[0.18]">
             <div className="grid gap-3 px-2 lg:grid-cols-[64px_minmax(0,1fr)_auto] lg:items-start">
               <div className="text-xs leading-5 text-muted-foreground">
-                <div className="font-medium text-foreground">预估</div>
+                <div className="font-medium text-foreground">{t("gen.pages.titles.components.TitleLibraryPanel.gen_4584c097")}</div>
                 <div className="text-lg font-semibold tabular-nums text-foreground">
                   {typeof entry.clickRate === "number" ? entry.clickRate : "-"}
                 </div>
@@ -138,7 +140,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
               <div className="min-w-0 space-y-2">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                   {entry.genre?.name ? <span>{entry.genre.name}</span> : null}
-                  <span>使用 {entry.usedCount}</span>
+                  <span>{t("gen.pages.titles.components.TitleLibraryPanel.gen_使用entryuse_721v")}</span>
                   <span>{new Date(entry.createdAt).toLocaleDateString("zh-CN")}</span>
                 </div>
                 <div className="text-xl font-semibold tracking-normal text-foreground">{entry.title}</div>
@@ -166,7 +168,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
                   onClick={() => markUsedMutation.mutate(entry.id)}
                 >
                   <Check className="h-3.5 w-3.5" />
-                  {markUsedMutation.isPending && markUsedMutation.variables === entry.id ? "更新中" : "采用"}
+                  {markUsedMutation.isPending && markUsedMutation.variables === entry.id ? t("gen.pages.titles.components.TitleLibraryPanel.gen_f339d471") : t("gen.pages.titles.components.TitleLibraryPanel.gen_7b4eb56b")}
                 </Button>
                 <Button
                   type="button"
@@ -182,7 +184,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
                   }}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  {deleteMutation.isPending && deleteMutation.variables === entry.id ? "删除中" : "删除"}
+                  {deleteMutation.isPending && deleteMutation.variables === entry.id ? t("gen.pages.titles.components.TitleLibraryPanel.gen_f8de3dbe") : t("gen.pages.titles.components.TitleLibraryPanel.gen_2f4aaddd")}
                 </Button>
               </div>
             </div>

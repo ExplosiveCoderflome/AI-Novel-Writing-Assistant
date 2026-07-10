@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { KeyboardEvent, MouseEvent } from "react";
 import { ArrowRight, BookOpenText } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -31,7 +33,7 @@ export function HomeRecentNovels(props: {
             最近小说
           </CardTitle>
           <Button asChild size="sm" variant="outline">
-            <Link to="/novels">查看全部</Link>
+            <Link to="/novels">{t("gen.pages.home.components.HomeRecentNovels.gen_0467cc92")}</Link>
           </Button>
         </div>
       </CardHeader>
@@ -48,8 +50,8 @@ export function HomeRecentNovels(props: {
           </div>
         ) : props.error ? (
           <div className="space-y-3">
-            <div className="text-sm text-muted-foreground">当前无法加载最近项目。</div>
-            <Button variant="outline" onClick={props.onRetry}>重新加载</Button>
+            <div className="text-sm text-muted-foreground">{t("gen.pages.home.components.HomeRecentNovels.gen_4800ba79")}</div>
+            <Button variant="outline" onClick={props.onRetry}>{t("gen.pages.home.components.HomeRecentNovels.gen_64ca9bab")}</Button>
           </div>
         ) : props.novels.length === 0 ? (
           <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
@@ -105,10 +107,10 @@ function RecentNovelCard(props: {
               {workflowBadge ? (
                 <Badge variant={workflowBadge.variant}>{workflowBadge.label}</Badge>
               ) : (
-                <Badge variant="outline">项目资料</Badge>
+                <Badge variant="outline">{t("gen.pages.home.components.HomeRecentNovels.gen_1bdfef94")}</Badge>
               )}
               {workflowTask ? (
-                <Badge variant="outline">进度 {Math.round(workflowTask.progress * 100)}%</Badge>
+                <Badge variant="outline">{t("gen.pages.home.components.HomeRecentNovels.gen_b505eac1")}</Badge>
               ) : null}
             </div>
           </div>
@@ -120,10 +122,10 @@ function RecentNovelCard(props: {
         </p>
 
         <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground sm:grid-cols-4">
-          <Fact label="章节" value={String(props.novel._count.chapters)} />
-          <Fact label="角色" value={String(props.novel._count.characters)} />
-          <Fact label="世界观" value={props.novel.world?.name ?? "未绑定"} />
-          <Fact label="更新" value={formatHomeDate(props.novel.updatedAt)} />
+          <Fact label={t("gen.pages.home.components.HomeRecentNovels.gen_9290b644")} value={String(props.novel._count.chapters)} />
+          <Fact label={t("gen.pages.home.components.HomeRecentNovels.gen_464f3d4e")} value={String(props.novel._count.characters)} />
+          <Fact label={t("gen.pages.home.components.HomeRecentNovels.gen_cfb83c02")} value={props.novel.world?.name ?? t("gen.pages.home.components.HomeRecentNovels.gen_906ad18b")} />
+          <Fact label={t("gen.pages.home.components.HomeRecentNovels.gen_32ac152b")} value={formatHomeDate(props.novel.updatedAt)} />
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -157,7 +159,7 @@ function Fact(props: {
   return (
     <div className="min-w-0 rounded-md border bg-muted/20 px-2 py-1.5">
       <div>{props.label}</div>
-      <div className={cn("mt-0.5 truncate font-medium text-foreground", props.value === "未绑定" ? "text-amber-700" : "")}>
+      <div className={cn("mt-0.5 truncate font-medium text-foreground", props.value === t("gen.pages.home.components.HomeRecentNovels.gen_906ad18b") ? "text-amber-700" : "")}>
         {props.value}
       </div>
     </div>

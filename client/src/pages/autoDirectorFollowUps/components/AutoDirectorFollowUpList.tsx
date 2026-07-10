@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type {
   AutoDirectorFollowUpAvailableFilters,
   AutoDirectorFollowUpItem,
@@ -41,39 +43,39 @@ function formatPriority(priority: AutoDirectorFollowUpItem["priority"]): string 
 }
 
 function formatStatus(status: TaskStatus): string {
-  if (status === "waiting_approval") return "等待审批";
-  if (status === "failed") return "失败";
-  if (status === "cancelled") return "已取消";
-  if (status === "running") return "运行中";
-  if (status === "queued") return "排队中";
-  return "已完成";
+  if (status === "waiting_approval") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_3ced7e48");
+  if (status === "failed") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_acd5cb84");
+  if (status === "cancelled") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_2111ccbb");
+  if (status === "running") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_d679aea3");
+  if (status === "queued") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_e5ac1d20");
+  return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_fad5222c");
 }
 
 function formatSection(section: AutoDirectorFollowUpSection): string {
-  if (section === "needs_validation") return "需校验";
-  if (section === "exception") return "异常";
-  if (section === "pending") return "待处理";
-  if (section === "auto_progress") return "自动推进";
-  return "已替代";
+  if (section === "needs_validation") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_f781ac23");
+  if (section === "exception") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_c195df63");
+  if (section === "pending") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_047109de");
+  if (section === "auto_progress") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_0eac0fc9");
+  return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_5d7c27b7");
 }
 
 function formatActiveSection(section: AutoDirectorFollowUpSection | ""): string {
-  return section ? formatSection(section) : "全部分区";
+  return section ? formatSection(section) : t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_fb291d9d");
 }
 
 function buildChannelBadges(item: AutoDirectorFollowUpItem): string[] {
   const labels: string[] = [];
   if (item.channelCapabilities.dingtalk) {
-    labels.push("钉钉可直达");
+    labels.push(t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_9595f74a"));
   }
   if (item.channelCapabilities.wecom) {
-    labels.push("企微可直达");
+    labels.push(t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.microDirectlyReachable"));
   }
   return labels;
 }
 
 function formatItemType(item: AutoDirectorFollowUpItem): string {
-  return item.itemType === "auto_approval_record" ? "最近自动通过" : "正在推进";
+  return item.itemType === "auto_approval_record" ? t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_c3a95b77") : t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_93792aa2");
 }
 
 export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPanelProps) {
@@ -88,10 +90,10 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
         <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterGrid}>
           <Select value={props.activeReason || "__all__"} onValueChange={(value) => props.onFilterChange("reason", value === "__all__" ? "" : value)}>
             <SelectTrigger className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
-              <SelectValue placeholder="全部原因" />
+              <SelectValue placeholder={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_2e51c1e9")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">全部原因</SelectItem>
+              <SelectItem value="__all__">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_2e51c1e9")}</SelectItem>
               {(props.filters?.reasons ?? []).map((reason) => (
                 <SelectItem key={reason} value={reason}>{reason}</SelectItem>
               ))}
@@ -100,10 +102,10 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
 
           <Select value={props.activeStatus || "__all__"} onValueChange={(value) => props.onFilterChange("status", value === "__all__" ? "" : value)}>
             <SelectTrigger className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
-              <SelectValue placeholder="全部状态" />
+              <SelectValue placeholder={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_443483c9")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">全部状态</SelectItem>
+              <SelectItem value="__all__">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_443483c9")}</SelectItem>
               {(props.filters?.statuses ?? []).map((status) => (
                 <SelectItem key={status} value={status}>{formatStatus(status)}</SelectItem>
               ))}
@@ -112,12 +114,12 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
 
           <Select value={props.activeSupportsBatch || "__all__"} onValueChange={(value) => props.onFilterChange("supportsBatch", value === "__all__" ? "" : value)}>
             <SelectTrigger className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
-              <SelectValue placeholder="批量能力" />
+              <SelectValue placeholder={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_4db4c06a")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">全部</SelectItem>
-              <SelectItem value="true">仅可批量</SelectItem>
-              <SelectItem value="false">仅不可批量</SelectItem>
+              <SelectItem value="__all__">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_a8b0c204")}</SelectItem>
+              <SelectItem value="true">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.onlyBulk")}</SelectItem>
+              <SelectItem value="false">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.onlyNonBulk")}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -125,16 +127,16 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
 
         <div className="space-y-3">
           {props.loading ? (
-            <div className={`rounded-md border border-dashed p-6 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>正在加载跟进项...</div>
+            <div className={`rounded-md border border-dashed p-6 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_06c7d9c9")}</div>
           ) : null}
 
           {!props.loading && props.items.length === 0 ? (
             <div className={`rounded-md border border-dashed p-6 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               {props.activeSection === "auto_progress"
-                ? "当前没有正在推进的任务或最近自动通过记录。"
+                ? t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_821503ca")
                 : props.activeSection === "replaced"
-                  ? "当前没有被新任务替代的旧任务。"
-                  : "当前没有符合条件的导演跟进项。"}
+                  ? t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_07c6d69e")
+                  : t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_358ef436")}
             </div>
           ) : null}
 
@@ -179,14 +181,14 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                   <Badge variant="outline">{item.reasonLabel}</Badge>
                   <Badge variant="outline">{formatPriority(item.priority)}</Badge>
                   {item.executionScope ? <Badge variant="outline" className={`max-w-full whitespace-normal text-left ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{item.executionScope}</Badge> : null}
-                  {item.supportsBatch ? <Badge variant="secondary">可批量</Badge> : null}
+                  {item.supportsBatch ? <Badge variant="secondary">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_07945f54")}</Badge> : null}
                   {buildChannelBadges(item).map((label) => (
                     <Badge key={`${item.directorTaskId}:${label}`} variant="secondary">{label}</Badge>
                   ))}
                 </div>
 
                 <div className={`mt-2 text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                  当前阶段：{item.currentStage ?? "暂无"} · 当前模型：{item.currentModel ?? "暂无"} · 更新时间：{new Date(item.updatedAt).toLocaleString()}
+                  当前阶段：{item.currentStage ?? t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_f61f4cf6")} · 当前模型：{item.currentModel ?? t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_f61f4cf6")} · 更新时间：{new Date(item.updatedAt).toLocaleString()}
                 </div>
               </button>
             );

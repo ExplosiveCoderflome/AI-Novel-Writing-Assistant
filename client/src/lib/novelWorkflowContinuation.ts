@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { DirectorCommandAcceptedResponse } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
@@ -14,7 +15,7 @@ export function resolveWorkflowContinuationFeedback(
 } {
   const requestedScopeLabel = options?.scopeLabel?.trim();
   const taskScopeLabel = task && "executionScopeLabel" in task ? task.executionScopeLabel?.trim() : undefined;
-  const scopeLabel = requestedScopeLabel || taskScopeLabel || "当前章节范围";
+  const scopeLabel = requestedScopeLabel || taskScopeLabel || i18next.t("gen.lib.novelWorkflowContinuation.gen_d7432bb5");
 
   if (task && "kind" in task && task.status === "failed") {
     return {
@@ -24,7 +25,7 @@ export function resolveWorkflowContinuationFeedback(
         || task.lastError?.trim()
         || (options?.mode === "auto_execute_range"
           ? `继续自动执行${scopeLabel}失败。`
-          : "继续自动导演失败。"),
+          : i18next.t("gen.lib.novelWorkflowContinuation.gen_bb8020bb")),
     };
   }
 
@@ -34,7 +35,7 @@ export function resolveWorkflowContinuationFeedback(
       ? `已跳过本次质量建议，自动导演会继续执行${scopeLabel}。`
       : options?.mode === "auto_execute_range"
         ? `已继续自动执行${scopeLabel}。`
-        : "自动导演已继续推进。",
+        : i18next.t("gen.lib.novelWorkflowContinuation.gen_8c4efb64"),
   };
 }
 
@@ -48,7 +49,7 @@ export function resolveDirectorContinueMode(task: Pick<
   if (
     task?.checkpointType === "replan_required"
     || task?.currentItemKey === "quality_repair"
-    || task?.currentStage?.includes("质量")
+    || task?.currentStage?.includes(i18next.t("gen.lib.novelWorkflowContinuation.gen_3a7170b9"))
   ) {
     return "skip_quality_repair";
   }

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
 import type { AuditReport, Chapter, StoryStateSnapshot } from "@ai-novel/shared/types/novel";
@@ -107,8 +109,8 @@ function resolvePrimaryAction(params: {
 
   if (!selectedChapter) {
     return {
-      label: "请先选择章节",
-      reason: "先从左侧选中当前要推进的一章，系统才知道下一步该帮你做什么。",
+      label: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_7f46c7f9"),
+      reason: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_fad1164a"),
       variant: "default",
       disabled: true,
     };
@@ -116,8 +118,8 @@ function resolvePrimaryAction(params: {
 
   if (selectedChapter.chapterStatus === "needs_repair") {
     return {
-      label: "打开章节编辑器",
-      reason: "这章已经有正文。即使审核发现问题，也不应阻塞继续编辑；你可以先进入编辑器，或在下方一键修复。",
+      label: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a90ec8b1"),
+      reason: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_87c7bd63"),
       variant: "default",
       href: `/novels/${novelId}/chapters/${selectedChapter.id}`,
     };
@@ -130,8 +132,8 @@ function resolvePrimaryAction(params: {
     || selectedChapter.generationState === "drafted"
   ) {
     return {
-      label: isRunningFullAudit ? "正在运行完整审校..." : "运行完整审校",
-      reason: "正文已经出来了，先做完整审校，再决定是修复还是继续改写。",
+      label: isRunningFullAudit ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1791183e") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b2b7d019"),
+      reason: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f322e9a6"),
       variant: "default",
       ai: true,
       onClick: onRunFullAudit,
@@ -141,8 +143,8 @@ function resolvePrimaryAction(params: {
 
   if (selectedChapter.chapterStatus === "unplanned" || !chapterHasPreparationAssets(selectedChapter)) {
     return {
-      label: isGeneratingChapterPlan ? "正在生成执行计划..." : "先生成执行计划",
-      reason: "这章还缺明确目标和任务单，先补执行计划更容易写顺。",
+      label: isGeneratingChapterPlan ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_3584a9d9") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_c6bdbb8e"),
+      reason: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_614aa02e"),
       variant: "default",
       ai: true,
       onClick: onGenerateChapterPlan,
@@ -152,8 +154,8 @@ function resolvePrimaryAction(params: {
 
   if (!selectedChapter.content?.trim() || selectedChapter.chapterStatus === "pending_generation") {
     return {
-      label: isSelectedChapterStreaming ? "正在写本章..." : "写本章",
-      reason: "准备信息已经够用了，现在最值得做的是直接生成这一章的正文。",
+      label: isSelectedChapterStreaming ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_c5a3c631") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_dc9c1e62"),
+      reason: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_da1d4960"),
       variant: "default",
       ai: true,
       onClick: onGenerateSelectedChapter,
@@ -162,8 +164,8 @@ function resolvePrimaryAction(params: {
   }
 
   return {
-    label: "打开章节编辑器",
-    reason: "这一章已经有正文，直接进入编辑器处理细修和恢复会更高效。",
+    label: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a90ec8b1"),
+    reason: t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_464b3f75"),
     variant: "default",
     href: `/novels/${novelId}/chapters/${selectedChapter.id}`,
   };
@@ -227,8 +229,8 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
   const displayedStatus = selectedChapter ? resolveDisplayedChapterStatus(selectedChapter) : undefined;
 
   const selectedChapterLabel = selectedChapter
-    ? `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}`
-    : "请选择一个章节";
+    ? `第${selectedChapter.order}章 ${selectedChapter.title || t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_db55d102")}`
+    : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_cde5cc98");
 
   const primaryAction = resolvePrimaryAction({
     novelId,
@@ -264,26 +266,26 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
     backgroundActivities: backgroundSyncActivities,
   });
 
-  const showQuickEditorAction = Boolean(selectedChapter && primaryAction.label !== "打开章节编辑器");
-  const showQuickAuditAction = Boolean(selectedChapter && primaryAction.label !== "运行完整审校" && primaryAction.label !== "正在运行完整审校...");
+  const showQuickEditorAction = Boolean(selectedChapter && primaryAction.label !== t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a90ec8b1"));
+  const showQuickAuditAction = Boolean(selectedChapter && primaryAction.label !== t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b2b7d019") && primaryAction.label !== t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1791183e"));
   const showQuickRepairAction = Boolean(
     selectedChapter
       && displayedStatus === "needs_repair"
-      && primaryAction.label !== "自动修复问题"
-      && primaryAction.label !== "正在自动修复...",
+      && primaryAction.label !== t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_09f7167f")
+      && primaryAction.label !== t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_87166347"),
   );
 
   return (
     <Card className="self-start overflow-hidden border-border/70 lg:sticky lg:top-4">
       <CardHeader className="gap-3 border-b bg-gradient-to-b from-muted/30 to-background pb-4">
         <div className="space-y-1">
-          <CardTitle className="text-base">AI 执行台</CardTitle>
+          <CardTitle className="text-base">{t("gen.pages.novels.components.ChapterExecutionActionPanel.aiExecutionDesk")}</CardTitle>
           <p className="text-sm leading-6 text-muted-foreground">
             默认只保留当前最推荐的一步。其他动作还在，但都退到下面的折叠区，避免右侧按钮堆满。
           </p>
         </div>
         <div className="rounded-2xl border border-border/70 bg-background/90 p-3">
-          <div className="text-xs text-muted-foreground">当前操作对象</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_e63fe9ef")}</div>
           <div className="mt-1 text-sm font-semibold text-foreground">{selectedChapterLabel}</div>
           {selectedChapter ? (
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -301,7 +303,7 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
 
       <CardContent className="space-y-4 pt-4">
         <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
-          <div className="text-xs text-muted-foreground">当前最推荐动作</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f2a2904e")}</div>
           <div className="mt-2 text-sm leading-6 text-foreground">{primaryAction.reason}</div>
           <div className="mt-3">
             <PrimaryActionButton action={primaryAction} className="w-full" />
@@ -309,17 +311,17 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
           <div className="mt-3 grid gap-2">
             {showQuickEditorAction ? (
               <Button asChild variant="outline" className="w-full">
-                <Link to={`/novels/${novelId}/chapters/${selectedChapter!.id}`}>打开章节编辑器</Link>
+                <Link to={`/novels/${novelId}/chapters/${selectedChapter!.id}`}>{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a90ec8b1")}</Link>
               </Button>
             ) : null}
             {showQuickAuditAction ? (
               <AiButton className="w-full" variant="outline" onClick={onRunFullAudit} disabled={!selectedChapter || isReviewingChapter}>
-                {isRunningFullAudit ? "正在运行完整审校..." : "运行完整审校"}
+                {isRunningFullAudit ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1791183e") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b2b7d019")}
               </AiButton>
             ) : null}
             {showQuickRepairAction ? (
               <AiButton className="w-full" variant="secondary" onClick={onAutoRepair} disabled={!selectedChapter || isSelectedChapterRepairing}>
-                {isSelectedChapterRepairing && repairActionKind === "autoRepair" ? "正在自动修复..." : "自动修复问题"}
+                {isSelectedChapterRepairing && repairActionKind === "autoRepair" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_87166347") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_09f7167f")}
               </AiButton>
             ) : null}
           </div>
@@ -334,25 +336,25 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
           </summary>
           <div className="mt-3 grid gap-2">
             <AiButton size="sm" variant="outline" onClick={onGenerateTaskSheet} disabled={!selectedChapter || isExecutionContractPending}>
-              {isGeneratingTaskSheet ? "正在生成任务单..." : "生成任务单"}
+              {isGeneratingTaskSheet ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_9d296c77") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1a742abd")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onGenerateSceneCards} disabled={!selectedChapter || isExecutionContractPending}>
-              {isGeneratingSceneCards ? "正在生成场景拆解..." : "生成场景拆解"}
+              {isGeneratingSceneCards ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_e3c96a66") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_6b1143e4")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onSummarizeChapter} disabled={!selectedChapter || isSummarizingChapter}>
-              {isSummarizingChapter ? "正在生成摘要..." : "生成摘要"}
+              {isSummarizingChapter ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f29a225b") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_674e018c")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onReplanChapter} disabled={!selectedChapter || isReplanningChapter}>
-              {isReplanningChapter ? "正在调整后续计划..." : "调整后续章节计划"}
+              {isReplanningChapter ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_19dd7256") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_ee7c109b")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onCheckContinuity} disabled={!selectedChapter || isReviewingChapter}>
-              {isReviewingChapter && reviewActionKind === "continuity" ? "正在检查连续性..." : "检查连续性"}
+              {isReviewingChapter && reviewActionKind === "continuity" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_9e6d0a42") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_d990f8d8")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onCheckCharacterConsistency} disabled={!selectedChapter || isReviewingChapter}>
-              {isReviewingChapter && reviewActionKind === "character_consistency" ? "正在检查人设一致性..." : "检查人设一致性"}
+              {isReviewingChapter && reviewActionKind === "character_consistency" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_1f619228") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_adf472e7")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onCheckPacing} disabled={!selectedChapter || isReviewingChapter}>
-              {isReviewingChapter && reviewActionKind === "pacing" ? "正在检查节奏..." : "检查节奏"}
+              {isReviewingChapter && reviewActionKind === "pacing" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_67164c5d") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_fc2ad421")}
             </AiButton>
           </div>
         </details>
@@ -363,28 +365,28 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
           </summary>
           <div className="mt-3 grid gap-2">
             <AiButton size="sm" variant="outline" onClick={onRewriteChapter} disabled={!hasCharacters || !selectedChapter || isSelectedChapterStreaming}>
-              {isSelectedChapterStreaming && generationActionKind === "rewrite" ? "正在重写本章..." : "重写本章"}
+              {isSelectedChapterStreaming && generationActionKind === "rewrite" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_d71ac76a") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_33feb7a6")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onExpandChapter} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "expand" ? "正在扩写本章..." : "扩写本章"}
+              {isSelectedChapterRepairing && repairActionKind === "expand" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_05c3a342") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_c07f09c1")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onCompressChapter} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "compress" ? "正在压缩本章..." : "压缩本章"}
+              {isSelectedChapterRepairing && repairActionKind === "compress" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_bd2062e5") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_264a9641")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onStrengthenConflict} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "strengthenConflict" ? "正在强化冲突..." : "强化冲突"}
+              {isSelectedChapterRepairing && repairActionKind === "strengthenConflict" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_a7d40af6") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_4f0071ff")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onEnhanceEmotion} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "enhanceEmotion" ? "正在增强情绪..." : "增强情绪"}
+              {isSelectedChapterRepairing && repairActionKind === "enhanceEmotion" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_9684e365") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_7b6547bb")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onUnifyStyle} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "unifyStyle" ? "正在统一文风..." : "统一文风"}
+              {isSelectedChapterRepairing && repairActionKind === "unifyStyle" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_2756f913") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_5a4291bb")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onAddDialogue} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "addDialogue" ? "正在增加对话..." : "增加对话"}
+              {isSelectedChapterRepairing && repairActionKind === "addDialogue" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_3c01c4f9") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_231d57a6")}
             </AiButton>
             <AiButton size="sm" variant="outline" onClick={onAddDescription} disabled={!selectedChapter || isSelectedChapterRepairing}>
-              {isSelectedChapterRepairing && repairActionKind === "addDescription" ? "正在增加描写..." : "增加描写"}
+              {isSelectedChapterRepairing && repairActionKind === "addDescription" ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_d86d4eb5") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_86e2289b")}
             </AiButton>
           </div>
         </details>
@@ -398,32 +400,32 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
           </div>
           <div className="mt-3 grid gap-3">
             <label htmlFor="chapter-strategy-run-mode" className="space-y-1 text-xs text-muted-foreground">
-              <span>运行模式</span>
+              <span>{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_44c4aaa1")}</span>
               <SelectControl
                 id="chapter-strategy-run-mode"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
                 value={strategy.runMode}
                 onChange={(event) => onStrategyChange("runMode", event.target.value)}
               >
-                <option value="fast">快速</option>
-                <option value="polish">精修</option>
+                <option value="fast">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f63762a0")}</option>
+                <option value="polish">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_41ed42e6")}</option>
               </SelectControl>
             </label>
             <label htmlFor="chapter-strategy-word-size" className="space-y-1 text-xs text-muted-foreground">
-              <span>篇幅</span>
+              <span>{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_cdbcaa9c")}</span>
               <SelectControl
                 id="chapter-strategy-word-size"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
                 value={strategy.wordSize}
                 onChange={(event) => onStrategyChange("wordSize", event.target.value)}
               >
-                <option value="short">短</option>
-                <option value="medium">中</option>
-                <option value="long">长</option>
+                <option value="short">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b58b94d8")}</option>
+                <option value="medium">{t("gen.pages.novels.components.ChapterExecutionActionPanel.mid")}</option>
+                <option value="long">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_092acb9c")}</option>
               </SelectControl>
             </label>
             <label htmlFor="chapter-strategy-conflict" className="space-y-1 text-xs text-muted-foreground">
-              <span>冲突强度</span>
+              <span>{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_3e85c65a")}</span>
               <input
                 id="chapter-strategy-conflict"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
@@ -435,33 +437,33 @@ export default function ChapterExecutionActionPanel(props: ChapterExecutionActio
               />
             </label>
             <label htmlFor="chapter-strategy-pace" className="space-y-1 text-xs text-muted-foreground">
-              <span>节奏</span>
+              <span>{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_dd608458")}</span>
               <SelectControl
                 id="chapter-strategy-pace"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
                 value={strategy.pace}
                 onChange={(event) => onStrategyChange("pace", event.target.value)}
               >
-                <option value="slow">慢</option>
-                <option value="balanced">均衡</option>
-                <option value="fast">快</option>
+                <option value="slow">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_e0b665f2")}</option>
+                <option value="balanced">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_f07d8f75")}</option>
+                <option value="fast">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_8fcedbfd")}</option>
               </SelectControl>
             </label>
             <label htmlFor="chapter-strategy-ai-freedom" className="space-y-1 text-xs text-muted-foreground">
-              <span>AI 自由度</span>
+              <span>{t("gen.pages.novels.components.ChapterExecutionActionPanel.aiFreedomDegree")}</span>
               <SelectControl
                 id="chapter-strategy-ai-freedom"
                 className="w-full rounded-xl border bg-background p-2 text-sm text-foreground"
                 value={strategy.aiFreedom}
                 onChange={(event) => onStrategyChange("aiFreedom", event.target.value)}
               >
-                <option value="low">低</option>
-                <option value="medium">中</option>
-                <option value="high">高</option>
+                <option value="low">{t("gen.pages.novels.components.ChapterExecutionActionPanel.low")}</option>
+                <option value="medium">{t("gen.pages.novels.components.ChapterExecutionActionPanel.mid")}</option>
+                <option value="high">{t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_4296d7d2")}</option>
               </SelectControl>
             </label>
             <Button className="w-full" size="sm" onClick={onApplyStrategy} disabled={isApplyingStrategy || !selectedChapter}>
-              {isApplyingStrategy ? "正在应用策略..." : "应用策略到当前章"}
+              {isApplyingStrategy ? t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_b55d59e2") : t("gen.pages.novels.components.ChapterExecutionActionPanel.gen_ed14b566")}
             </Button>
           </div>
         </details>

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { AutoDirectorFollowUpItem, AutoDirectorMutationActionCode } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDirectorValidation";
 import { Button } from "@/components/ui/button";
@@ -14,12 +16,12 @@ interface AutoDirectorFollowUpBatchBarProps {
 
 function formatBatchActionLabel(actionCode: AutoDirectorMutationActionCode | null): string {
   if (actionCode === "continue_auto_execution") {
-    return "批量低风险继续";
+    return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpBatchBar.gen_358353a3");
   }
   if (actionCode === "retry_with_task_model") {
-    return "批量重试异常任务";
+    return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpBatchBar.gen_0f957366");
   }
-  return "当前所选项没有共同批量动作";
+  return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpBatchBar.gen_c0cbe472");
 }
 
 function getSelectedSection(items: AutoDirectorFollowUpItem[]): AutoDirectorFollowUpSection | null {
@@ -47,7 +49,7 @@ export function AutoDirectorFollowUpBatchBar({
           <div className="text-xs text-muted-foreground">
             {selectedSection === "pending" || selectedSection === "exception"
               ? formatBatchActionLabel(batchActionCode)
-              : "该分区不提供批量动作"}
+              : t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpBatchBar.gen_71049067")}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 md:flex">

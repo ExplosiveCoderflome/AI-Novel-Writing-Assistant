@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createGenreTree, generateGenreTree, type GenreOption, type GenreTreeDraft } from "@/api/genre";
@@ -70,7 +72,7 @@ export default function GenreCreateDialog({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.genres.all });
-      toast.success("题材基底树已创建。");
+      toast.success(t("gen.pages.genres.components.GenreCreateDialog.gen_12a7afe4"));
       onOpenChange(false);
     },
   });
@@ -88,7 +90,7 @@ export default function GenreCreateDialog({
         return;
       }
       setDraft(cloneGenreDraft(response.data));
-      toast.success("AI 题材基底树已生成。");
+      toast.success(t("gen.pages.genres.components.GenreCreateDialog.gen_AI题材基底树已生成_m571"));
     },
   });
 
@@ -96,7 +98,7 @@ export default function GenreCreateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-auto">
         <DialogHeader>
-          <DialogTitle>新建题材基底树</DialogTitle>
+          <DialogTitle>{t("gen.pages.genres.components.GenreCreateDialog.gen_32f3aaf4")}</DialogTitle>
           <DialogDescription>
             先确定父级位置，再手动填写结构或让 AI 先生成一个草稿。这里维护的是作品的题材基底，也就是“这是什么书”。
           </DialogDescription>
@@ -105,7 +107,7 @@ export default function GenreCreateDialog({
         <div className="space-y-4">
           <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-foreground">AI 生成</div>
+              <div className="text-sm font-semibold text-foreground">{t("gen.pages.genres.components.GenreCreateDialog.aiGenerated")}</div>
               <div className="text-xs leading-5 text-muted-foreground">
                 适合先把大类、子类和下级题材基底一起打出来，再手动微调。
               </div>
@@ -115,7 +117,7 @@ export default function GenreCreateDialog({
               rows={4}
               className="min-h-[120px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
               value={generationPrompt}
-              placeholder="例如：我想做偏女性向的都市超凡成长线，核心卖点是身份反转、势力经营和高情绪关系拉扯。"
+              placeholder={t("gen.pages.genres.components.GenreCreateDialog.exampleWantFemaleDirectedUrbanSuperPowerGrowthCoreFeatureIdentityReversalForceHoldingNetworkHighEmotion")}
               onChange={(event) => setGenerationPrompt(event.target.value)}
             />
             <div className="flex flex-wrap gap-2">
@@ -124,7 +126,7 @@ export default function GenreCreateDialog({
                 onClick={() => generateMutation.mutate()}
                 disabled={generateMutation.isPending || !generationPrompt.trim()}
               >
-                {generateMutation.isPending ? "生成中..." : "生成题材基底树"}
+                {generateMutation.isPending ? t("gen.pages.genres.components.GenreCreateDialog.gen_4d020ba3") : t("gen.pages.genres.components.GenreCreateDialog.gen_ed3febb4")}
               </Button>
               <Button
                 type="button"
@@ -146,7 +148,7 @@ export default function GenreCreateDialog({
               value={parentId}
               onChange={(event) => setParentId(event.target.value)}
             >
-              <option value="">无父级，作为根题材基底创建</option>
+              <option value="">{t("gen.pages.genres.components.GenreCreateDialog.gen_15fcec34")}</option>
               {parentOptions.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.path}
@@ -163,7 +165,7 @@ export default function GenreCreateDialog({
             取消
           </Button>
           <Button type="button" onClick={() => createMutation.mutate()} disabled={!canSubmit || createMutation.isPending}>
-            {createMutation.isPending ? "保存中..." : "保存题材基底树"}
+            {createMutation.isPending ? t("gen.pages.genres.components.GenreCreateDialog.savingInProgressDotDotDot") : t("gen.pages.genres.components.GenreCreateDialog.gen_保存题材基底树_bv55")}
           </Button>
         </DialogFooter>
       </DialogContent>

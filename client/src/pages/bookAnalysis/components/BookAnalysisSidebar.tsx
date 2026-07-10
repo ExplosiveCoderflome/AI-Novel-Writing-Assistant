@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type {
   BookAnalysis,
   BookAnalysisStatus,
@@ -37,7 +39,7 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
     <Card>
       <CardHeader className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle>分析列表</CardTitle>
+          <CardTitle>{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_ff1eb893")}</CardTitle>
           <Badge variant="outline">{analyses.length}</Badge>
         </div>
         <Button type="button" size="sm" className="w-full" onClick={onOpenCreateDialog}>
@@ -46,19 +48,19 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Input value={keyword} onChange={(event) => onKeywordChange(event.target.value)} placeholder="搜索标题或关键词" />
+        <Input value={keyword} onChange={(event) => onKeywordChange(event.target.value)} placeholder={t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_b6228286")} />
         <SelectControl
           className="h-10 w-full rounded-md border bg-background px-3 text-sm"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as BookAnalysisStatus | "")}
         >
-          <option value="">全部状态</option>
-          <option value="draft">草稿</option>
-          <option value="queued">排队中</option>
-          <option value="running">运行中</option>
-          <option value="succeeded">成功</option>
-          <option value="failed">失败</option>
-          <option value="archived">已归档</option>
+          <option value="">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_443483c9")}</option>
+          <option value="draft">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_22b4334f")}</option>
+          <option value="queued">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_e5ac1d20")}</option>
+          <option value="running">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_d679aea3")}</option>
+          <option value="succeeded">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_330363df")}</option>
+          <option value="failed">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_acd5cb84")}</option>
+          <option value="archived">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_c3ba167c")}</option>
         </SelectControl>
 
         <div className="space-y-2">
@@ -78,12 +80,12 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
                     {item.documentTitle} | v{item.documentVersionNumber}
                   </div>
                   {item.sourceRange ? (
-                    <div className="mt-1 truncate text-[11px] text-muted-foreground">范围：{item.sourceRange.label ?? "选定章节"}</div>
+                    <div className="mt-1 truncate text-[11px] text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_4b5ebf8c")}</div>
                   ) : null}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   {item.publishedDocumentId && (
-                    <Badge variant="secondary" className="text-[10px]">已发布</Badge>
+                    <Badge variant="secondary" className="text-[10px]">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_dca0c13b")}</Badge>
                   )}
                   <Badge variant="outline" className="text-[10px]">{formatStatus(item.status)}</Badge>
                 </div>

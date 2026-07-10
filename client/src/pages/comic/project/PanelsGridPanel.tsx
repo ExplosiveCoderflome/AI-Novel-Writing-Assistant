@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -56,11 +58,11 @@ function parseImageData(
 }
 
 const REF_KIND_LABEL: Record<string, string> = {
-  character_sheet: "三视图",
-  character_expression: "表情稿",
-  character_face: "面部裁剪",
-  asset: "资产",
-  scene: "场景",
+  character_sheet: t("gen.pages.comic.project.PanelsGridPanel.threeViews"),
+  character_expression: t("gen.pages.comic.project.PanelsGridPanel.gen_1a07c5a4"),
+  character_face: t("gen.pages.comic.project.PanelsGridPanel.gen_0a071b57"),
+  asset: t("gen.pages.comic.project.PanelsGridPanel.gen_5110a0d1"),
+  scene: t("gen.pages.comic.project.PanelsGridPanel.gen_c931653c"),
 };
 
 const REF_KIND_COLOR: Record<string, string> = {
@@ -72,13 +74,13 @@ const REF_KIND_COLOR: Record<string, string> = {
 };
 
 const DENSITY_BADGE: Record<string, { label: string; className: string }> = {
-  low: { label: "低密度", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  medium: { label: "中密度", className: "border-sky-200 bg-sky-50 text-sky-700" },
-  high: { label: "高密度", className: "border-amber-200 bg-amber-50 text-amber-700" },
+  low: { label: t("gen.pages.comic.project.PanelsGridPanel.lowDensity"), className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  medium: { label: t("gen.pages.comic.project.PanelsGridPanel.mediumDensity"), className: "border-sky-200 bg-sky-50 text-sky-700" },
+  high: { label: t("gen.pages.comic.project.PanelsGridPanel.gen_f7dcc0ac"), className: "border-amber-200 bg-amber-50 text-amber-700" },
 };
 
 function densityBadge(value: string | null | undefined): { label: string; className: string } {
-  return DENSITY_BADGE[value ?? ""] ?? { label: "未标注", className: "border-border bg-muted text-muted-foreground" };
+  return DENSITY_BADGE[value ?? ""] ?? { label: t("gen.pages.comic.project.PanelsGridPanel.gen_cb456b11"), className: "border-border bg-muted text-muted-foreground" };
 }
 
 function parseLayoutData(raw: string | null | undefined): {
@@ -175,7 +177,7 @@ function BatchBar({
           onClick={() => startMut.mutate()}
         >
           {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-          {isRunning ? "批量生成中..." : `批量生成 ${pendingCount > 0 ? `(${pendingCount}格)` : ""}`}
+          {isRunning ? t("gen.pages.comic.project.PanelsGridPanel.gen_f68f4817") : `批量生成 ${pendingCount > 0 ? `(${pendingCount}格)` : ""}`}
         </Button>
 
         {hasFailures && (
@@ -199,10 +201,10 @@ function BatchBar({
         )}
 
         {job?.status === "completed" && (
-          <span className="text-xs font-medium text-green-600 dark:text-green-400">全部完成</span>
+          <span className="text-xs font-medium text-green-600 dark:text-green-400">{t("gen.pages.comic.project.PanelsGridPanel.gen_7eda596a")}</span>
         )}
         {job?.status === "partial" && !hasFailures && (
-          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">部分完成</span>
+          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{t("gen.pages.comic.project.PanelsGridPanel.gen_963e0afb")}</span>
         )}
       </div>
 
@@ -226,7 +228,7 @@ function BatchBar({
             <span>
               {progress.done} / {progress.total} 完成
               {progress.failed > 0 && (
-                <span className="ml-1.5 text-destructive">{progress.failed} 失败</span>
+                <span className="ml-1.5 text-destructive">{t("gen.pages.comic.project.PanelsGridPanel.progressFailed")}</span>
               )}
             </span>
             <span>
@@ -310,7 +312,7 @@ function StripView({
             </div>
 
             <div className="flex items-center gap-2 bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">第 {panel.order} 格</span>
+              <span className="font-medium text-foreground">{t("gen.pages.comic.project.PanelsGridPanel.gen_8e2e31c5")}</span>
               <span className="opacity-60">{panel.panelType}</span>
               {panel.focus && <span className="flex-1 truncate">{panel.focus}</span>}
               <div className="ml-auto flex shrink-0 items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
@@ -386,7 +388,7 @@ function PanelDetailDialog({
     onSuccess: (updatedPanel) => {
       onSaved(updatedPanel);
       setIsEditing(false);
-      toast.success("画面脚本已保存");
+      toast.success(t("gen.pages.comic.project.PanelsGridPanel.gen_c4a143ac"));
     },
     onError: (e) => toast.error(String(e)),
   });
@@ -407,7 +409,7 @@ function PanelDetailDialog({
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <AppDialogContent
         title={`第 ${panel.order} 格 · ${panel.panelType}`}
-        description="检查并调整这一格的画面描述；重新生图会使用保存后的内容。"
+        description={t("gen.pages.comic.project.PanelsGridPanel.gen_2a07f258")}
         className="max-w-4xl"
         bodyClassName="p-0"
       >
@@ -463,7 +465,7 @@ function PanelDetailDialog({
           <div className="min-w-0 flex-1 space-y-4 p-4">
             <div>
               <div className="mb-1 flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-muted-foreground">动作描述</span>
+                <span className="text-xs font-semibold text-muted-foreground">{t("gen.pages.comic.project.PanelsGridPanel.gen_bb47cf4a")}</span>
                 <span className={`rounded border px-2 py-0.5 text-[11px] ${density.className}`}>{density.label}</span>
               </div>
               <div className="rounded bg-muted px-2 py-1.5 text-sm">{panel.action}</div>
@@ -471,16 +473,16 @@ function PanelDetailDialog({
 
             {panel.focus && (
               <div>
-                <div className="mb-1 text-xs font-semibold text-muted-foreground">主视觉焦点</div>
+                <div className="mb-1 text-xs font-semibold text-muted-foreground">{t("gen.pages.comic.project.PanelsGridPanel.mainVisualFocus")}</div>
                 <div className="rounded bg-muted/60 px-2 py-1.5 text-sm">{panel.focus}</div>
               </div>
             )}
 
             {layoutData.layout && (
               <div>
-                <div className="mb-1 text-xs font-semibold text-muted-foreground">版式结构</div>
+                <div className="mb-1 text-xs font-semibold text-muted-foreground">{t("gen.pages.comic.project.PanelsGridPanel.gen_f573af34")}</div>
                 <div className="rounded border bg-muted/40 px-2 py-2 text-xs leading-relaxed text-muted-foreground">
-                  <div className="font-medium text-foreground">{layoutData.layout === "four_koma" ? "四格起承转合" : layoutData.layout}</div>
+                  <div className="font-medium text-foreground">{t("gen.pages.comic.project.PanelsGridPanel.layoutType")}</div>
                   {layoutData.subPanels?.length ? (
                     <div className="mt-1 space-y-1">
                       {layoutData.subPanels.map((subPanel) => (
@@ -496,7 +498,7 @@ function PanelDetailDialog({
 
             <div>
               <div className="mb-1 flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-muted-foreground">画面脚本</span>
+                <span className="text-xs font-semibold text-muted-foreground">{t("gen.pages.comic.project.PanelsGridPanel.gen_909b8275")}</span>
                 <Button
                   type="button"
                   size="sm"
@@ -509,7 +511,7 @@ function PanelDetailDialog({
                   }}
                 >
                   <Pencil className="h-3 w-3" />
-                  {isEditing ? "取消编辑" : "编辑"}
+                  {isEditing ? t("gen.pages.comic.project.PanelsGridPanel.gen_cbb46593") : t("gen.pages.comic.project.PanelsGridPanel.gen_95b351c8")}
                 </Button>
               </div>
               <textarea
@@ -524,7 +526,7 @@ function PanelDetailDialog({
                 ].join(" ")}
               />
               <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                <span>保存后，下一次生图会使用这段画面脚本。</span>
+                <span>{t("gen.pages.comic.project.PanelsGridPanel.savedThenNextImageGenerationWillUseThisSceneScript")}</span>
                 <span>{draftVisualPrompt.length}/400</span>
               </div>
               {isEditing && (
@@ -700,7 +702,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
           <div className="ml-auto flex rounded-md border bg-background p-0.5">
             <button
               type="button"
-              title="格子视图"
+              title={t("gen.pages.comic.project.PanelsGridPanel.gen_8fe0d275")}
               className={`rounded p-1.5 transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
               onClick={() => setViewMode("grid")}
             >
@@ -708,7 +710,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
             </button>
             <button
               type="button"
-              title="条带视图（阅读流）"
+              title={t("gen.pages.comic.project.PanelsGridPanel.gen_afd428f9")}
               className={`rounded p-1.5 transition-colors ${viewMode === "strip" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
               onClick={() => setViewMode("strip")}
             >
@@ -729,7 +731,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
         />
       )}
 
-      {panelsLoading && <div className="py-8 text-center text-sm text-muted-foreground">加载中...</div>}
+      {panelsLoading && <div className="py-8 text-center text-sm text-muted-foreground">{t("gen.pages.comic.project.PanelsGridPanel.gen_26b5bd49")}</div>}
       {!panelsLoading && panels.length === 0 && activeEpisode && (
         <div className="py-8 text-center text-sm text-muted-foreground">
           该话尚无格子脚本，请先在「分话大纲」中生成分格脚本。
@@ -799,7 +801,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                 )}
                 <div className="p-1.5 text-xs text-muted-foreground">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="font-medium">第 {panel.order} 格</span>
+                    <span className="font-medium">{t("gen.pages.comic.project.PanelsGridPanel.gen_8e2e31c5")}</span>
                     <span className={`rounded border px-1.5 py-0.5 text-[10px] ${density.className}`}>{density.label}</span>
                   </div>
                   <div className="mt-1 truncate">

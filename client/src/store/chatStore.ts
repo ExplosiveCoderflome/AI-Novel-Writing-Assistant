@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { create } from "zustand";
 import { del, get, set } from "idb-keyval";
 
@@ -69,7 +70,7 @@ export const useChatStore = create<ChatStoreState>((setState, getState) => ({
       hydrated: true,
     });
   },
-  createSession: async (title = "新对话") => {
+  createSession: async (title = i18next.t("gen.store.chatStore.gen_1ac07a4b")) => {
     const now = new Date().toISOString();
     const session: ChatSession = {
       id: generateId("session"),

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   CharacterRules,
   LanguageRules,
@@ -52,109 +53,109 @@ const FIELD_ORDER: Record<RuleSection, string[]> = {
 
 const FIELD_LABELS: Record<RuleSection, Record<string, string>> = {
   narrativeRules: {
-    summary: "整体推进感",
-    progressionMode: "推进方式",
-    sceneUnitPattern: "场景单位",
-    multiPov: "多视角",
-    looping: "循环回钩",
-    endingStyle: "收尾方式",
-    povSwitchStyle: "视角切换",
+    summary: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_a6038390"),
+    progressionMode: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_8cc5c30b"),
+    sceneUnitPattern: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_83852e0c"),
+    multiPov: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_2b549e51"),
+    looping: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_6ec71ea3"),
+    endingStyle: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_fdf19b38"),
+    povSwitchStyle: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_99a2c1fa"),
   },
   characterRules: {
-    summary: "人物表达总述",
-    dialogueStyle: "对白风格",
-    emotionExpression: "情绪外显",
-    defenseMechanisms: "防御机制",
-    allowSelfReflection: "自省表达",
-    facePriority: "体面优先",
+    summary: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.characterExpressionOverview"),
+    dialogueStyle: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_7a6aa444"),
+    emotionExpression: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_f3ddc827"),
+    defenseMechanisms: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_f05fdc83"),
+    allowSelfReflection: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_d0cd1588"),
+    facePriority: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.respectabilityPriority"),
   },
   languageRules: {
-    summary: "语言质感总述",
-    register: "语言基调",
-    roughness: "粗粝度",
-    sentenceVariation: "句式变化",
-    allowIncompleteSentences: "不完整句",
-    allowSwearing: "粗口口语",
-    allowUselessDetails: "生活杂音",
+    summary: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_d45babd2"),
+    register: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_56b7ce61"),
+    roughness: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_855bd8b6"),
+    sentenceVariation: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_160024cc"),
+    allowIncompleteSentences: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.incompleteSentence"),
+    allowSwearing: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_a2f388b0"),
+    allowUselessDetails: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_eca7fdbd"),
   },
   rhythmRules: {
-    summary: "节奏控制总述",
-    pace: "推进速度",
-    paragraphDensity: "段落密度",
-    allowFragmentedFlow: "碎片化推进",
-    actionOverExplanation: "动作优先",
+    summary: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_99149cad"),
+    pace: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_7efc0b30"),
+    paragraphDensity: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_7d907d5b"),
+    allowFragmentedFlow: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_240ddda2"),
+    actionOverExplanation: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_d568372b"),
   },
 };
 
 const FIELD_VALUE_MAPS: Record<string, Record<string, string>> = {
   progressionMode: {
-    time_sequence: "按时间顺推",
-    goal_driven: "目标驱动推进",
-    mystery_escalation: "悬疑逐层加压",
-    relationship_push_pull: "关系拉扯推进",
-    multi_thread: "多线交织推进",
-    scene_immersion: "场景沉浸推进",
-    fact_driven: "事实驱动推进",
-    contrast_driven: "反差驱动推进",
+    time_sequence: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_2ea326b2"),
+    goal_driven: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_e39b54d9"),
+    mystery_escalation: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_6e1adf8f"),
+    relationship_push_pull: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_4b591878"),
+    multi_thread: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_bd5c5c49"),
+    scene_immersion: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_ad222c66"),
+    fact_driven: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.factDrivenProgression"),
+    contrast_driven: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_b7cf6429"),
   },
   endingStyle: {
-    unresolved: "不收束核心困境",
-    hook: "结尾抛钩子",
-    suspense: "悬念式收尾",
-    emotional_hook: "情绪钩子收尾",
-    cross_hook: "交叉线钩子收尾",
-    soft_open: "柔开放收尾",
-    pressure_continue: "压力延续式收尾",
-    bitter_aftertaste: "苦涩余味收尾",
+    unresolved: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.notBoundCoreIssue"),
+    hook: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_ec11644c"),
+    suspense: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_2ef7e8d7"),
+    emotional_hook: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_ad7a207b"),
+    cross_hook: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.crossLineHookFinale"),
+    soft_open: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_76bb21eb"),
+    pressure_continue: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_604e53ce"),
+    bitter_aftertaste: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_52ab5978"),
   },
   povSwitchStyle: {
-    controlled: "受控切换",
+    controlled: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_7a2ca4f1"),
   },
   emotionExpression: {
-    behavior_only: "只通过动作外露",
-    dialogue_and_action: "对白和动作共同外露",
-    reaction_only: "主要通过反应外露",
-    subtext: "通过言外之意外露",
-    mixed: "对白、动作和反应混合外露",
-    light_behavior: "以轻动作轻反应外露",
-    suppressed: "压住不直说",
-    deadpan: "冷反应式外露",
+    behavior_only: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_1337da15"),
+    dialogue_and_action: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_fd7fda76"),
+    reaction_only: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.mainExposeReaction"),
+    subtext: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_d60eb314"),
+    mixed: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_5e2c41fc"),
+    light_behavior: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.lightActionLightReactionExposure"),
+    suppressed: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_43dc0241"),
+    deadpan: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_fe6fd891"),
   },
   dialogueStyle: {
-    short_colloquial: "短句口语式",
-    direct: "直接硬朗",
-    restrained: "克制收着说",
-    subtext_heavy: "言外之意重",
-    distinct_by_role: "按角色明显拉开口吻差异",
-    daily_natural: "日常自然口吻",
-    informational: "信息型克制对白",
-    deadpan_colloquial: "冷面口语式",
+    short_colloquial: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_4eebc7a2"),
+    direct: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_550b5da2"),
+    restrained: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_2a7085c7"),
+    subtext_heavy: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_adb7f8ea"),
+    distinct_by_role: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_9792a58e"),
+    daily_natural: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_f024386b"),
+    informational: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_352fdcd4"),
+    deadpan_colloquial: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_65c5038c"),
   },
   register: {
-    colloquial: "口语化",
-    direct: "直接明快",
-    restrained: "克制收束",
-    natural: "自然日常",
-    flexible: "随角色灵活变化",
-    professional: "专业克制",
+    colloquial: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_506aec91"),
+    direct: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_f7fbbcb1"),
+    restrained: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_71961ca1"),
+    natural: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_4173796b"),
+    flexible: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_266cc8e3"),
+    professional: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.professionalDiscipline"),
   },
   sentenceVariation: {
-    high: "变化大",
-    medium: "变化适中",
-    medium_high: "变化偏大",
+    high: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_7c46514f"),
+    medium: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_42d924bd"),
+    medium_high: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_928111c1"),
   },
   pace: {
-    medium_fast: "中快",
-    fast: "快",
-    medium: "中速",
-    medium_slow: "中慢",
-    balanced: "均衡",
-    slow: "慢",
+    medium_fast: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.mediumFast"),
+    fast: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_8fcedbfd"),
+    medium: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.midSpeed"),
+    medium_slow: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.mediumSlow"),
+    balanced: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_f07d8f75"),
+    slow: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_e0b665f2"),
   },
   paragraphDensity: {
-    high: "高密度",
-    medium: "中密度",
-    medium_high: "中高密度",
+    high: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_f7dcc0ac"),
+    medium: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.mediumDensity"),
+    medium_high: i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.highDensityMid"),
   },
 };
 
@@ -172,33 +173,33 @@ function humanizeUnknownToken(value: string): string {
 
 function formatBooleanValue(key: string, value: boolean): string {
   if (key === "multiPov") {
-    return value ? "允许多视角切换" : "尽量保持单视角";
+    return value ? i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_c5fdfd46") : i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_54942727");
   }
   if (key === "looping") {
-    return value ? "允许循环回钩" : "尽量直线推进";
+    return value ? i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_8d11cd0f") : i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_6a5b8a9b");
   }
   if (key === "allowSelfReflection") {
-    return value ? "允许明确自省" : "尽量少做直白自省";
+    return value ? i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_6703b195") : i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_ad410529");
   }
   if (key === "facePriority") {
-    return value ? "优先保住体面" : "不强求体面";
+    return value ? i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.prioritizeRespectability") : i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.notCompulsory");
   }
   if (key === "allowIncompleteSentences") {
-    return value ? "允许不完整句" : "句子尽量完整";
+    return value ? i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_d8381bfb") : i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_9778b01c");
   }
   if (key === "allowSwearing") {
-    return value ? "允许带一点粗口或脏字" : "尽量避免粗口";
+    return value ? i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_c738b034") : i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_036a10cf");
   }
   if (key === "allowUselessDetails") {
-    return value ? "允许保留生活杂音" : "尽量减少无关杂音";
+    return value ? i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_8e056673") : i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_5ee150e8");
   }
   if (key === "allowFragmentedFlow") {
-    return value ? "允许碎片化推进" : "尽量保持完整推进";
+    return value ? i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_e5b85f5c") : i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_6834c05e");
   }
   if (key === "actionOverExplanation") {
-    return value ? "动作先于解释" : "解释比动作更重要";
+    return value ? i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_0ae9a17b") : i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_b5fc857a");
   }
-  return value ? "是" : "否";
+  return value ? i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_0a60ac8f") : i18next.t("gen.pages.writingFormula.writingFormulaRulePresentation.gen_c9744f45");
 }
 
 function formatArrayValue(value: unknown[]): string {

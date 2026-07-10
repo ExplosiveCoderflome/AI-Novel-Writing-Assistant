@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
 import type {
@@ -120,8 +122,8 @@ const BookAnalysisChapterReader = forwardRef<BookAnalysisChapterReaderHandle, Bo
           <div className="shrink-0 border-b bg-background px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-sm font-semibold">原文章节</div>
-                <div className="mt-1 text-xs text-muted-foreground">{sortedChapters.length} 章可对照</div>
+                <div className="text-sm font-semibold">{t("gen.pages.bookAnalysis.components.BookAnalysisChapterReader.gen_8cb781c5")}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisChapterReader.gen_067a3cdb")}</div>
               </div>
               {currentChapterIndex !== null ? (
                 <div className="rounded-md border bg-muted/20 px-2 py-1 text-xs text-muted-foreground">
@@ -155,7 +157,7 @@ const BookAnalysisChapterReader = forwardRef<BookAnalysisChapterReaderHandle, Bo
                     >
                       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                         <h3 className="text-base font-semibold">{chapter.title}</h3>
-                        <span className="text-xs text-muted-foreground">{chapter.charCount} 字</span>
+                        <span className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisChapterReader.gen_821cf47a")}</span>
                       </div>
                       <ChapterContent
                         chapterContent={content}

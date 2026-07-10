@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
 import { ArrowRight, BookOpenText, Loader2, PlusCircle } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -53,14 +55,14 @@ export function HomeNextActionPanel(props: {
     return (
       <Card className="home-next-action-panel border-destructive/35">
         <CardContent className="space-y-4 p-6">
-          <Badge variant="destructive">首页无法读取项目</Badge>
+          <Badge variant="destructive">{t("gen.pages.home.components.HomeNextActionPanel.gen_66cb50eb")}</Badge>
           <div>
-            <h1 className="text-2xl font-semibold tracking-normal">无法判断下一步</h1>
+            <h1 className="text-2xl font-semibold tracking-normal">{t("gen.pages.home.components.HomeNextActionPanel.gen_32852644")}</h1>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               当前无法读取小说项目，首页不能为你推荐继续入口。重新加载后可以恢复推荐动作。
             </p>
           </div>
-          <Button onClick={props.onRetry}>重新加载项目</Button>
+          <Button onClick={props.onRetry}>{t("gen.pages.home.components.HomeNextActionPanel.gen_89c9b2e8")}</Button>
         </CardContent>
       </Card>
     );
@@ -90,10 +92,10 @@ export function HomeNextActionPanel(props: {
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
+              <Link to={MANUAL_CREATE_LINK}>{t("gen.pages.home.components.HomeNextActionPanel.gen_e40b8718")}</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link to="/help">新手上路</Link>
+              <Link to="/help">{t("gen.pages.home.components.HomeNextActionPanel.gen_c46d213c")}</Link>
             </Button>
           </div>
         </CardContent>
@@ -117,9 +119,9 @@ export function HomeNextActionPanel(props: {
               <Badge variant={workflowBadge.variant}>{workflowBadge.label}</Badge>
             ) : null}
             <Badge variant={novel.status === "published" ? "default" : "secondary"}>
-              {novel.status === "published" ? "发布态" : "草稿"}
+              {novel.status === "published" ? t("gen.pages.home.components.HomeNextActionPanel.gen_1a1476ea") : t("gen.pages.home.components.HomeNextActionPanel.gen_22b4334f")}
             </Badge>
-            <Badge variant="outline">{novel.writingMode === "continuation" ? "续写" : "原创"}</Badge>
+            <Badge variant="outline">{t("gen.pages.home.components.HomeNextActionPanel.gen_367a67a0")}</Badge>
           </div>
 
           <div>
@@ -139,19 +141,19 @@ export function HomeNextActionPanel(props: {
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground sm:grid-cols-4 lg:grid-cols-2">
               <div className="rounded-lg border bg-background/70 p-3">
-                <div>章节</div>
+                <div>{t("gen.pages.home.components.HomeNextActionPanel.gen_9290b644")}</div>
                 <div className="mt-1 text-base font-semibold text-foreground">{novel._count.chapters}</div>
               </div>
               <div className="rounded-lg border bg-background/70 p-3">
-                <div>角色</div>
+                <div>{t("gen.pages.home.components.HomeNextActionPanel.gen_464f3d4e")}</div>
                 <div className="mt-1 text-base font-semibold text-foreground">{novel._count.characters}</div>
               </div>
               <div className="rounded-lg border bg-background/70 p-3">
-                <div>世界观</div>
-                <div className="mt-1 truncate text-base font-semibold text-foreground">{novel.world?.name ?? "未绑定"}</div>
+                <div>{t("gen.pages.home.components.HomeNextActionPanel.gen_cfb83c02")}</div>
+                <div className="mt-1 truncate text-base font-semibold text-foreground">{t("gen.pages.home.components.HomeNextActionPanel.gen_bd764fb0")}</div>
               </div>
               <div className="rounded-lg border bg-background/70 p-3">
-                <div>更新</div>
+                <div>{t("gen.pages.home.components.HomeNextActionPanel.gen_32ac152b")}</div>
                 <div className="mt-1 truncate text-base font-semibold text-foreground">{formatHomeDate(novel.updatedAt)}</div>
               </div>
             </div>
@@ -166,10 +168,10 @@ export function HomeNextActionPanel(props: {
           <div>
             <div className="line-clamp-2 text-lg font-semibold">{novel.title}</div>
             {task?.currentStage ? (
-              <p className="mt-2 text-xs text-muted-foreground">阶段：{task.currentStage}</p>
+              <p className="mt-2 text-xs text-muted-foreground">{t("gen.pages.home.components.HomeNextActionPanel.gen_6ed9a54d")}</p>
             ) : null}
             {task?.lastHealthyStage ? (
-              <p className="mt-1 text-xs text-muted-foreground">最近健康阶段：{task.lastHealthyStage}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("gen.pages.home.components.HomeNextActionPanel.gen_e06f5a71")}</p>
             ) : null}
           </div>
           <div className="grid gap-2">
@@ -182,7 +184,7 @@ export function HomeNextActionPanel(props: {
               </Button>
             ) : (
               <Button asChild size="lg" variant="outline">
-                <Link to={`/novels/${novel.id}/edit`}>打开项目</Link>
+                <Link to={`/novels/${novel.id}/edit`}>{t("gen.pages.home.components.HomeNextActionPanel.gen_7df7da6d")}</Link>
               </Button>
             )}
           </div>

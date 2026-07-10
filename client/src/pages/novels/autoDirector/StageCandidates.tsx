@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import NovelAutoDirectorCandidateBatches from "../components/NovelAutoDirectorCandidateBatches";
 import NovelAutoDirectorProgressPanel from "../components/NovelAutoDirectorProgressPanel";
 import { Button } from "@/components/ui/button";
@@ -36,7 +38,7 @@ export default function StageCandidates({
     <section className="space-y-5">
       <div className="flex flex-col gap-4 pb-1 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="break-words text-2xl font-semibold leading-9 text-foreground [overflow-wrap:anywhere]">方向候选</div>
+          <div className="break-words text-2xl font-semibold leading-9 text-foreground [overflow-wrap:anywhere]">{t("gen.pages.novels.autoDirector.StageCandidates.gen_875c5ec8")}</div>
           <div className="mt-1 max-w-3xl break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
             先选最贴近你想法的一套方向；不满意时再展开调整或生成新一轮。
           </div>

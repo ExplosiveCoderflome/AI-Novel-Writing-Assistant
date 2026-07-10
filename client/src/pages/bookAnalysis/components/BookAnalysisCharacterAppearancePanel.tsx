@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
@@ -30,16 +32,16 @@ interface BookAnalysisCharacterAppearancePanelProps {
 
 const COVERAGE_MARKS = [25, 50, 75, 100];
 const IMAGE_STATUS_TEXT: Record<string, string> = {
-  queued: "排队中",
-  running: "生成中",
-  succeeded: "生成成功",
-  failed: "生成失败",
-  cancelled: "已取消",
+  queued: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_e5ac1d20"),
+  running: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_1ae3a984"),
+  succeeded: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_b6c4a445"),
+  failed: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_7f7de8a2"),
+  cancelled: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_2111ccbb"),
 };
 
 function formatJsonSummary(value: Record<string, unknown> | null | undefined): string {
   if (!value || Object.keys(value).length === 0) {
-    return "暂无稳定特征";
+    return t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_cdd9ef03");
   }
   return Object.entries(value)
     .slice(0, 6)
@@ -189,7 +191,7 @@ export default function BookAnalysisCharacterAppearancePanel({
       generate: async (overrides) => {
         const response = await generateBookAnalysisCharacterAppearanceImage(analysisId, character.id, snapshotId, {
           count: 2,
-          stylePreset: "同一角色章节形象演变图",
+          stylePreset: t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_3b02846a"),
           referenceImageAssetIds: selectedReferenceAssetIds,
           overrides,
         });
@@ -220,9 +222,9 @@ export default function BookAnalysisCharacterAppearancePanel({
       <ImageGenerationConfirmDialog {...flow.dialogProps} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">形象演变</span>
+          <span className="font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_c9f06a16")}</span>
           <Badge variant="outline">{appearance?.coveragePercent ?? 0}%</Badge>
-          <Badge variant="secondary">{appearance?.snapshots.length ?? 0} 个章节快照</Badge>
+          <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_2d3445a5")}</Badge>
         </div>
         <Button
           size="sm"
@@ -230,23 +232,23 @@ export default function BookAnalysisCharacterAppearancePanel({
           onClick={() => scanMutation.mutate()}
           disabled={disabled || scanActive}
         >
-          {scanActive ? "扫描中..." : "增量扫描"}
+          {scanActive ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_e6c2d5d3") : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_8beee664")}
         </Button>
       </div>
 
       <div className="rounded-md border bg-background p-2 text-sm">
-        <div className="text-xs text-muted-foreground">当前外貌</div>
-        <div className="mt-1 whitespace-pre-wrap">{currentAppearance || "暂无外貌描述"}</div>
+        <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_b5572402")}</div>
+        <div className="mt-1 whitespace-pre-wrap">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_c1bc7cbe")}</div>
       </div>
 
       {characterImages.length > 0 ? (
         <div className="rounded-md border bg-background p-2 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-xs text-muted-foreground">基础形象参考</div>
-              <div className="mt-1 text-sm">生成章节形象图时保持同一角色的脸型、发型和标志细节。</div>
+              <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_14c7c5cd")}</div>
+              <div className="mt-1 text-sm">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_0c87a821")}</div>
             </div>
-            <Badge variant="outline">{selectedReferenceAssetIds.length} 张参考图</Badge>
+            <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_e1fa77a5")}</Badge>
           </div>
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
             {characterImages.map((image) => (
@@ -268,7 +270,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                   loading="lazy"
                 />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{image.isPrimary ? "主图" : `参考 ${image.sortOrder + 1}`}</span>
+                    <span className="block truncate font-medium">{image.isPrimary ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_bf1456e7") : `参考 ${image.sortOrder + 1}`}</span>
                   <span className="block text-muted-foreground">
                     {image.width && image.height ? `${image.width}×${image.height}` : image.provider}
                   </span>
@@ -278,7 +280,7 @@ export default function BookAnalysisCharacterAppearancePanel({
           </div>
         </div>
       ) : characterImagesQuery.isLoading ? (
-        <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">正在读取基础形象图。</div>
+        <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_4448dcb3")}</div>
       ) : null}
 
       <div className="space-y-2">
@@ -305,30 +307,30 @@ export default function BookAnalysisCharacterAppearancePanel({
           onChange={(event) => setTargetPercent(Number(event.target.value))}
           className="w-full accent-primary"
           disabled={disabled || scanActive}
-          aria-label="目标覆盖率"
+          aria-label={t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_09d465e9")}
         />
       </div>
 
-      {appearanceQuery.isLoading ? <div className="text-xs text-muted-foreground">正在读取形象演变。</div> : null}
+      {appearanceQuery.isLoading ? <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_f041a0ef")}</div> : null}
       {scanMutation.error ? (
         <div className="text-xs text-destructive">
-          {scanMutation.error instanceof Error ? scanMutation.error.message : "形象扫描失败。"}
+          {scanMutation.error instanceof Error ? scanMutation.error.message : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_6433648a")}
         </div>
       ) : null}
       {scanJob || lastScanJob ? (
         <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">
-          形象扫描：{(scanJob ?? lastScanJob)?.status === "queued" ? "排队中" : (scanJob ?? lastScanJob)?.status === "running" ? "扫描中" : (scanJob ?? lastScanJob)?.status === "succeeded" ? "已完成" : "扫描失败"}
+          形象扫描：{(scanJob ?? lastScanJob)?.status === "queued" ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_e5ac1d20") : (scanJob ?? lastScanJob)?.status === "running" ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_06155bfc") : (scanJob ?? lastScanJob)?.status === "succeeded" ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_fad5222c") : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_5ec14542")}
           {(scanJob ?? lastScanJob)?.error ? <span className="ml-2 text-destructive">{(scanJob ?? lastScanJob)?.error}</span> : null}
         </div>
       ) : null}
       {scanJobQuery.error ? (
         <div className="text-xs text-destructive">
-          {scanJobQuery.error instanceof Error ? scanJobQuery.error.message : "读取扫描进度失败。"}
+          {scanJobQuery.error instanceof Error ? scanJobQuery.error.message : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_fb2e15c1")}
         </div>
       ) : null}
       {mergeTermsMutation.error ? (
         <div className="text-xs text-destructive">
-          {mergeTermsMutation.error instanceof Error ? mergeTermsMutation.error.message : "融合外貌失败。"}
+          {mergeTermsMutation.error instanceof Error ? mergeTermsMutation.error.message : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_8c437f26")}
         </div>
       ) : null}
       {activeTask ? (
@@ -343,8 +345,8 @@ export default function BookAnalysisCharacterAppearancePanel({
           <div className="rounded-md border bg-background p-2 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-xs text-muted-foreground">待确认外貌词条</div>
-                <div className="mt-1 text-sm">{pendingTerms.length > 0 ? "勾选可信词条后添加到角色外貌。" : "暂无待确认词条"}</div>
+                <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_c1240cbe")}</div>
+                <div className="mt-1 text-sm">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_942cedba")}</div>
               </div>
               <Button
                 type="button"
@@ -352,10 +354,10 @@ export default function BookAnalysisCharacterAppearancePanel({
                 onClick={() => mergeTermsMutation.mutate()}
                 disabled={disabled || selectedTermIds.length === 0 || mergeTermsMutation.isPending}
               >
-                {mergeTermsMutation.isPending ? "融合中..." : "融合外貌"}
+                {mergeTermsMutation.isPending ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_553d776f") : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_4743012d")}
               </Button>
             </div>
-            {termsQuery.isLoading ? <div className="mt-2 text-xs text-muted-foreground">正在读取词条。</div> : null}
+            {termsQuery.isLoading ? <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_374c1aac")}</div> : null}
             {pendingTerms.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-2">
                 {pendingTerms.map((term) => (
@@ -371,8 +373,8 @@ export default function BookAnalysisCharacterAppearancePanel({
                       className="size-3 accent-primary"
                     />
                     <span className="font-medium">{term.text}</span>
-                    <span className="text-muted-foreground">第 {term.chapterIndex + 1} 章</span>
-                    {term.evidence.length > 0 ? <span className="text-muted-foreground">{term.evidence.length} 证据</span> : null}
+                    <span className="text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_4b295fc8")}</span>
+                    {term.evidence.length > 0 ? <span className="text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_8d862979")}</span> : null}
                     <Button
                       type="button"
                       size="sm"
@@ -392,7 +394,7 @@ export default function BookAnalysisCharacterAppearancePanel({
             ) : null}
           </div>
           <div className="rounded-md border bg-background p-2 text-sm">
-            <div className="text-xs text-muted-foreground">稳定特征</div>
+            <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_6122b2f7")}</div>
             <div className="mt-1 whitespace-pre-wrap">{formatJsonSummary(appearance.consolidatedAppearance)}</div>
           </div>
           {appearance.variantPolicy && Object.keys(appearance.variantPolicy).length > 0 ? (
@@ -406,11 +408,11 @@ export default function BookAnalysisCharacterAppearancePanel({
                 <div key={snapshot.id} className="rounded-md border bg-background p-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="font-medium">第 {snapshot.chapterIndex + 1} 章</div>
-                      {snapshot.manuallyEdited ? <Badge variant="outline">手动保留</Badge> : null}
+                      <div className="font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_0f106303")}</div>
+                      {snapshot.manuallyEdited ? <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_4bd22121")}</Badge> : null}
                       {(() => {
                         const readyCount = snapshot.images.filter((image) => image.imageAsset).length;
-                        return readyCount > 0 ? <Badge variant="secondary">{readyCount} 张图</Badge> : null;
+                        return readyCount > 0 ? <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_fe4787aa")}</Badge> : null;
                       })()}
                     </div>
                     <Button
@@ -430,7 +432,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                     <div className="mt-2 text-sm">{snapshot.summaryCaption}</div>
                   ) : null}
                   <div className="mt-2 text-xs text-muted-foreground">
-                    {snapshot.evidence.length > 0 ? `${snapshot.evidence.length} 条证据` : "暂无证据"}
+                    {snapshot.evidence.length > 0 ? `${snapshot.evidence.length} 条证据` : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_6f7cbad1")}
                   </div>
                   {snapshot.images.some((image) => image.imageAsset) ? (
                     <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -453,7 +455,7 @@ export default function BookAnalysisCharacterAppearancePanel({
           ) : null}
         </>
       ) : (
-        <div className="text-xs text-muted-foreground">选择覆盖率后增量扫描，系统会按章节抽取这个角色的形象变化。</div>
+        <div className="text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterAppearancePanel.gen_17dcc18c")}</div>
       )}
     </div>
   );

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { BookAnalysisDetail } from "@ai-novel/shared/types/bookAnalysis";
 import {
@@ -22,12 +23,12 @@ export function useAnalysisBudget(input: {
         return;
       }
       onAnalysisUpdated(response.data);
-      toast.success("拆书预算已保存。");
+      toast.success(i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisBudget.gen_858e0779"));
       await queryClient.invalidateQueries({ queryKey: ["book-analysis"] });
       await refreshAnalysisData(payload.id);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "预算保存失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisBudget.gen_8ee0a0a4"));
     },
   });
 
@@ -39,12 +40,12 @@ export function useAnalysisBudget(input: {
         return;
       }
       onAnalysisUpdated(response.data);
-      toast.success("已提交续跑任务。");
+      toast.success(i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisBudget.gen_b0ca6863"));
       await queryClient.invalidateQueries({ queryKey: ["book-analysis"] });
       await refreshAnalysisData(payload.id);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "续跑任务提交失败。");
+      toast.error(error instanceof Error ? error.message : i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisBudget.gen_8538bbd0"));
     },
   });
 

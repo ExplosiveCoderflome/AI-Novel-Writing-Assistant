@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
@@ -149,7 +151,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const saveMutation = useMutation({
     mutationFn: async (nextContent: string) => {
       if (!chapter) {
-        throw new Error("当前未选中章节。");
+        throw new Error(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_af1e4a3a"));
       }
       return updateNovelChapter(novelId, chapter.id, { content: nextContent });
     },
@@ -160,28 +162,28 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSavedContent(nextContent);
       setSaveStatus("saved");
       await invalidateChapterQueries();
-      toast.success("章节正文已保存。");
+      toast.success(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_eb725780"));
     },
     onError: (error) => {
       setSaveStatus("error");
-      toast.error(error instanceof Error ? error.message : "章节保存失败。");
+      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_91d500a5"));
     },
   });
 
   const previewMutation = useMutation({
     mutationFn: async (request: ReturnType<typeof buildAiRevisionRequest>) => {
       if (!chapter) {
-        throw new Error("当前未选中章节。");
+        throw new Error(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_af1e4a3a"));
       }
       return previewChapterAiRevision(novelId, chapter.id, request);
     },
     onMutate: (request) => {
       lastPreviewRequestRef.current = request;
       const label = request.source === "freeform"
-        ? (request.scope === "chapter" ? "正在生成整章自然语言修正方案" : "正在按你的意见改写片段")
+        ? (request.scope === "chapter" ? t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_d6e77a91") : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_0bd855a0"))
         : request.presetOperation
           ? `正在生成${CHAPTER_EDITOR_OPERATION_LABELS[request.presetOperation]}方案`
-          : "正在生成修正方案";
+          : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_f04a616c");
       setSession((current) => ({
         ...current,
         status: "loading",
@@ -204,7 +206,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
         setSession((current) => ({
           ...current,
           status: "error",
-          errorMessage: "AI 未返回改写结果，请重试。",
+          errorMessage: t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.aiNoRewriteResultRetry"),
         }));
         return;
       }
@@ -222,7 +224,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSession((current) => ({
         ...current,
         status: "error",
-        errorMessage: error instanceof Error ? error.message : "AI 修正失败，请重试。",
+        errorMessage: error instanceof Error ? error.message : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.aiCorrectionFailedRetry"),
       }));
     },
   });
@@ -230,7 +232,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const acceptMutation = useMutation({
     mutationFn: async () => {
       if (!chapter || !activeCandidate || !session.targetRange) {
-        throw new Error("当前没有可应用的候选版本。");
+        throw new Error(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_5aa9265f"));
       }
       const label = `chapter-editor:${chapter.order}:${session.scope}:${Date.now()}`;
       const nextContent = applyCandidateToContent(contentDraft, session.targetRange, activeCandidate.content);
@@ -250,10 +252,10 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       setSession(EMPTY_SESSION);
       setRevisionInstruction("");
       await invalidateChapterQueries();
-      toast.success("已应用候选版本，并创建 AI 修改前快照。");
+      toast.success(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_32dd4115"));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "应用候选版本失败。");
+      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_d25bf6bd"));
     },
   });
 
@@ -308,7 +310,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       : null;
 
     if (scope === "selection" && !resolvedSelection) {
-      toast.error("请先选中正文片段，或先从问题卡定位到对应片段。");
+      toast.error(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_d8ad2137"));
       return;
     }
 
@@ -391,14 +393,14 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   };
 
   const currentTargetDescription = revisionScope === "chapter"
-    ? "整章正文"
+    ? t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_cacb093a")
     : selection
-      ? "你手动选中的正文片段"
+      ? t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.selectedTextManually")
       : selectedDiagnosticCard?.paragraphLabel
         ? `${selectedDiagnosticCard.paragraphLabel} 对应片段`
         : workspace?.recommendedTask?.paragraphLabel
           ? `${workspace.recommendedTask.paragraphLabel} 对应片段`
-          : "尚未选中片段";
+          : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_d4e517ac");
   const canRunSelectionRevision = Boolean(getSelectionTarget());
   const headerSaveLabel = getSaveStatusLabel(saveStatus, isDirty);
   const gridClassName = "xl:grid-cols-[320px_minmax(0,1fr)_400px]";
