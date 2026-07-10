@@ -161,9 +161,10 @@ test("auto director auto-approval audit loads the latest 10 records per novel", 
   const calls = [];
   prisma.autoDirectorAutoApprovalRecord.findMany = async ({ where, orderBy, take }) => {
     calls.push({ where, orderBy, take });
-    const novelId = where.novelId;
-    const count = novelId === "novel_a" ? 12 : 2;
-    return Array.from({ length: Math.min(count, take) }, (_, index) => ({
+    const novelId = Array.isArray(where.novelId?.in) ? where.novelId.in[0] : where.novelId;
+    return (Array.isArray(where.novelId?.in) ? where.novelId.in : [novelId]).flatMap((novelId) => {
+      const count = novelId === "novel_a" ? 12 : 2;
+      return Array.from({ length: Math.min(count, take ?? count) }, (_, index) => ({
       id: `${novelId}_${index}`,
       taskId: `task_${novelId}`,
       novelId,
@@ -176,15 +177,15 @@ test("auto director auto-approval audit loads the latest 10 records per novel", 
       scopeLabel: "全书",
       eventId: `${novelId}:event:${index}`,
       createdAt: new Date(`2026-04-22T10:${String(30 - index).padStart(2, "0")}:00.000Z`),
-    }));
+      }));
+    });
   };
 
   try {
     const rows = await loadRecentAutoDirectorAutoApprovalRecords(["novel_a", "novel_b", "novel_a"]);
 
     assert.deepEqual(calls.map((call) => [call.where, call.take]), [
-      [{ novelId: "novel_a" }, 10],
-      [{ novelId: "novel_b" }, 10],
+      [{ novelId: { in: ["novel_a", "novel_b"] } }, undefined],
     ]);
     assert.deepEqual(calls[0].orderBy, [{ createdAt: "desc" }, { id: "desc" }]);
     assert.equal(rows.filter((row) => row.novelId === "novel_a").length, 10);

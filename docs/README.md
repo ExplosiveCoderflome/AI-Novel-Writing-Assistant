@@ -80,6 +80,7 @@ Wiki 不替代计划、检查点或发布说明：
 
 用于放面向用户和维护者的公开说明、安装文档、功能介绍和使用指南。
 
+- [我想做什么：公开文档导航](./public/what-do-you-want-to-do.md)
 - [宫寒个人版说明](./public/gonghan-personal-edition.md)
 
 ### `docs/archive`

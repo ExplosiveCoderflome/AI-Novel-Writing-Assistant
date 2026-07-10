@@ -159,11 +159,18 @@ function withPatchedPrisma(store, fn) {
 
   prisma.bookAnalysis.findUnique = async (args) => {
     if (args?.select?.status) return { status: "succeeded" };
+    if (args?.select?.budgetTokens || args?.select?.usedTokens) {
+      return { budgetTokens: store.budgetTokens, usedTokens: store.usedTokens };
+    }
     return createAnalysis();
   };
   prisma.bookAnalysis.update = async ({ data }) => {
-    const increment = data?.usedTokens?.increment ?? 0;
-    store.usedTokens += increment;
+    if (typeof data?.usedTokens === "number") {
+      store.usedTokens = data.usedTokens;
+    } else {
+      const increment = data?.usedTokens?.increment ?? 0;
+      store.usedTokens += increment;
+    }
     return { budgetTokens: store.budgetTokens, usedTokens: store.usedTokens };
   };
   prisma.bookAnalysisCharacter.findMany = async (args = {}) => {

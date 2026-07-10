@@ -255,12 +255,12 @@ test("every routed page has a route-specific mobile CSS landing point", () => {
   }
 });
 
-test("mobile home status metrics stay compact in a single four-column row", () => {
+test("mobile home status metrics stay readable in a two-column grid", () => {
   assert.match(homePage, /home-status-summary-grid/);
   assert.match(
     css,
-    /mobile-route-home \.home-status-summary-grid[\s\S]+grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/,
-    "home status metrics should use one compact four-column grid on phone width",
+    /mobile-route-home \.home-status-summary-grid[\s\S]+grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/,
+    "home status metrics should use a readable two-column grid on phone width",
   );
   assert.match(
     css,
@@ -270,7 +270,7 @@ test("mobile home status metrics stay compact in a single four-column row", () =
   assert.match(
     css,
     /mobile-route-home \.home-status-summary-grid h3[\s\S]+font-size: 1rem;/,
-    "home status metric values should be reduced for a four-column mobile row",
+    "home status metric values should be reduced for a compact mobile grid",
   );
   assert.match(
     css,
@@ -304,8 +304,9 @@ test("mobile task status metrics use follow-up style compact partitions", () => 
   );
 });
 
-test("mobile status metrics keep four columns after generic grid collapse cascade", () => {
-  const expectedColumns = "repeat(4, minmax(0, 1fr))";
+test("mobile status metrics keep their intended columns after generic grid collapse cascade", () => {
+  const expectedHomeColumns = "repeat(2, minmax(0, 1fr))";
+  const expectedTaskColumns = "repeat(4, minmax(0, 1fr))";
   const homeWinner = getWinningGridTemplateColumns({
     routeClassName: "mobile-route-home",
     elementClassName: "home-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4",
@@ -317,14 +318,14 @@ test("mobile status metrics keep four columns after generic grid collapse cascad
 
   assert.equal(
     homeWinner?.value,
-    expectedColumns,
-    `home status grid should resolve to four columns, got ${homeWinner?.value ?? "no matching rule"} from ${
+    expectedHomeColumns,
+    `home status grid should resolve to two columns, got ${homeWinner?.value ?? "no matching rule"} from ${
       homeWinner?.selector ?? "no selector"
     }`,
   );
   assert.equal(
     taskWinner?.value,
-    expectedColumns,
+    expectedTaskColumns,
     `task status grid should resolve to four columns, got ${taskWinner?.value ?? "no matching rule"} from ${
       taskWinner?.selector ?? "no selector"
     }`,

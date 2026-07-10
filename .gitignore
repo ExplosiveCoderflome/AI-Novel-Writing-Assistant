@@ -25,10 +25,12 @@ server/src/prisma/dev.db-journal
 .history/
 .histyory/
 .logs/
+.codex-logs/
 .tmp/
 .codegraph/
 .trae/
 server/.tmp/
+server/backups/
 desktop/build/
 desktop/runtime-migration-smoke/
 server/prisma-diff-migrations-to-schema.sql

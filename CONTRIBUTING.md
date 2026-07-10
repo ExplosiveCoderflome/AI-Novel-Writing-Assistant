@@ -17,16 +17,34 @@ core terms:
   this project;
 - you will clearly identify any third-party material and its license
   obligations in the pull request description or related discussion.
+- you will clearly identify AI-assisted or AI-generated material in the pull
+  request description when it is included in the contribution.
 
 If you need to contribute under different terms, discuss it with the project
 maintainer before submitting the change.
 
 ## Third-Party Material
 
-If your contribution includes third-party code, prompts, assets, or data,
+If your contribution includes third-party code, prompts, assets, data, model
+weights, model output, generated media, or other license-restricted material,
 please also provide:
 
 - the original source;
 - the applicable license;
 - any required attribution or notice text that should be added to NOTICE or
   other repository metadata.
+
+## AI-Assisted Contributions
+
+AI-assisted work is welcome, but it must be transparent and reviewable. If a
+pull request includes AI-assisted or AI-generated code, documentation, prompts,
+images, data transformation, or model output, please disclose:
+
+- which parts were AI-assisted;
+- whether the output was manually reviewed and edited;
+- whether any third-party source, dataset, model output, or generated asset is
+  included;
+- any license, attribution, or usage limitation that applies.
+
+If no third-party material was introduced, say so in the pull request. This
+helps maintainers review provenance without guessing.

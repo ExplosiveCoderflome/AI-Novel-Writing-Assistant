@@ -39,6 +39,22 @@
 - 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
 - 公开介绍站：[GitHub Pages 介绍站](https://gonghan-princess.github.io/AI-Novel-Writing-Assistant/) 提供功能预览、模块文档和使用指南
 
+## 我想做什么
+
+如果你第一次打开这个项目，可以先按目标选择入口，而不是从功能列表里硬找：
+
+| 目标 | 推荐入口 |
+| --- | --- |
+| 我想直接下载使用 | [Windows 桌面版](#windows-桌面版) |
+| 我想跑起本地开发环境 | [快速开始](#快速开始) |
+| 我想写第一本小说 | [第一本小说实操路径](./docs/public/playbook/first-novel-walkthrough.md) |
+| 我想理解整条生产链 | [端到端生产链](./docs/public/flow/end-to-end-production.md) |
+| 我想排查启动或任务失败 | [故障排查](./docs/public/troubleshooting.md) |
+| 我想了解宫寒个人版边界 | [宫寒个人版说明](./docs/public/gonghan-personal-edition.md) |
+| 我想贡献代码或文档 | [贡献方式](#贡献方式) 与 [CONTRIBUTING.md](./CONTRIBUTING.md) |
+
+更多按目标组织的文档入口见 [公开文档导航](./docs/public/what-do-you-want-to-do.md)。
+
 ## 项目定位
 
 很多 AI 写作工具的使用方式其实差不多：你输入一句 Prompt，它回你一段正文，不满意就重试。写短篇还行，写长篇容易越写越散。
@@ -605,7 +621,7 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 - 补充测试、错误回放和运行时可观察性
 
 欢迎直接提 Issue 或 Pull Request。
-提交 Pull Request 即表示你确认自己有权提交该内容，并已阅读且同意 [CLA.md](./CLA.md)；如果包含第三方代码、素材、AI 生成内容或其他受许可证约束的内容，请在 PR 中明确说明来源和许可证。详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+提交 Pull Request 即表示你确认自己有权提交该内容，并已阅读且同意 [CLA.md](./CLA.md)；如果包含 AI 辅助生成内容、第三方代码、素材、数据、模型输出或其他受许可证约束的内容，请在 PR 中明确说明使用范围、来源、许可证和必要归属信息。详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ## 致谢
 

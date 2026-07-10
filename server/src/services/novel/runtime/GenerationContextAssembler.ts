@@ -566,7 +566,7 @@ export class GenerationContextAssembler {
         taskSheet: chapter.taskSheet ?? null,
         sceneCards: chapter.sceneCards ?? null,
         hook: chapter.hook ?? null,
-        supportingContextText: "",
+        supportingContextText: worldContextBlock?.promptBlock ?? "",
       },
       plan: mappedPlan,
       narrativeProgressHint: buildNarrativeProgressHint(

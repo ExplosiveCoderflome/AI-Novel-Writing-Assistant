@@ -2,9 +2,9 @@ import type {
   DirectorIdeaInspirationRequest,
   DirectorIdeaInspirationsResponse,
 } from "@ai-novel/shared/types/novelDirector";
-import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
-import { directorIdeaInspirationPrompt } from "../../../prompting/prompts/novel/ideaInspiration.prompts";
-import { buildBookFramingSummary } from "../bookFraming";
+import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
+import { directorIdeaInspirationPrompt } from "../../../../prompting/prompts/novel/ideaInspiration.prompts";
+import { buildBookFramingSummary } from "../../bookFraming";
 
 function compactText(value: string | null | undefined): string {
   return value?.replace(/\s+/g, " ").trim() ?? "";

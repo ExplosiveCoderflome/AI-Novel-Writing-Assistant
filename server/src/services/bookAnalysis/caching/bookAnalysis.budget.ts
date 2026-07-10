@@ -42,7 +42,11 @@ export class BookAnalysisBudgetGuard {
     const updated = tokenCount > 0
       ? await prisma.bookAnalysis.update({
           where: { id: this.analysisId },
-          data: { usedTokens: (current?.usedTokens ?? 0) + tokenCount },
+          data: {
+            usedTokens: current?.usedTokens == null
+              ? tokenCount
+              : { increment: tokenCount },
+          },
           select: { budgetTokens: true, usedTokens: true },
         })
       : current;

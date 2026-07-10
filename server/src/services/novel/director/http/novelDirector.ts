@@ -39,7 +39,7 @@ import { DirectorBookAutomationProjectionService } from "../projections/Director
 import { DirectorCommandService } from "../commands/DirectorCommandService";
 import { DirectorTaskSnapshotService } from "../projections/DirectorTaskSnapshotService";
 import { NovelDirectorService } from "../NovelDirectorService";
-import { novelDirectorIdeaInspirationService } from "../NovelDirectorIdeaInspirationService";
+import { novelDirectorIdeaInspirationService } from "../commands/NovelDirectorIdeaInspirationService";
 import { directorPersistedCandidateSchema } from "../runtime/novelDirectorSchemas";
 
 const router = Router();

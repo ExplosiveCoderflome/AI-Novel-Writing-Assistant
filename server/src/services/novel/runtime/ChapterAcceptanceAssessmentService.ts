@@ -185,18 +185,19 @@ export function normalizeAssessment(
     ? "repairable"
     : reconciled.status;
   if (status === "accepted" && missingObligations.length > 0) {
-    status = hasHardMissingObligation ? "repairable" : "continue_with_risk";
+    status = hasHardMissingObligation || reconciled.repairability === "patchable_obligation_gap"
+      ? "repairable"
+      : "continue_with_risk";
   }
   if (status === "needs_manual_review" && !hasHighRisk) {
     status = hasRepairWork ? "repairable" : "continue_with_risk";
   }
   if (
-    status === "repairable"
+    status === "accepted"
     && hasSoftOnlyMissingObligations
-    && !hasHighRisk
     && reconciled.repairability === "patchable_obligation_gap"
   ) {
-    status = "continue_with_risk";
+    status = "repairable";
   }
   if (status === "repairable" && !hasRepairWork) {
     status = "continue_with_risk";
