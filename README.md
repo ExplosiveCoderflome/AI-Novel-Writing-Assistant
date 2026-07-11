@@ -613,6 +613,24 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 感谢提交修复 Pull Request 的贡献者 [@ystyleb](https://github.com/ystyleb)。
 
 
+## Fork 与同步
+
+本仓库 Fork 自 [ExplosiveCoderflome/AI-Novel-Writing-Assistant](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant)，在此之上进行二次开发。
+
+### 同步原作者最新更新
+
+如果你克隆了本仓库，并希望同步原作者的最新代码：
+
+```bash
+# 添加原作者仓库为 upstream（首次）
+git remote add upstream https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant
+
+# 拉取并合并原作者最新更新
+git fetch upstream
+git checkout main
+git merge upstream/main
+```
+
 ## 说明
 
 - 这是一个持续快速迭代中的 AI Native 创作系统，功能边界仍在演化。
