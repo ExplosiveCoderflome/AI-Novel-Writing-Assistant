@@ -129,14 +129,13 @@ export const runtimeCharacterMindStateSchema = z.object({
   sourceChapterId: z.string().nullable().optional(),
 });
 
-export const runtimeCharacterInfluenceGuidanceSchema = z.object({
-  proposalId: z.string(),
+export const runtimeCharacterDialogueGuidanceSchema = z.object({
+  influenceId: z.string(),
   characterId: z.string(),
-  title: z.string(),
+  summary: z.string(),
   behaviorGuidance: z.string(),
   emotionalGuidance: z.string().nullable().optional(),
   relationTension: z.string().nullable().optional(),
-  authorIntent: z.string().nullable().optional(),
   targetStartChapterOrder: z.number().int(),
   targetEndChapterOrder: z.number().int(),
 });
@@ -800,7 +799,7 @@ export const generationContextPackageSchema = z.object({
   characterDynamics: runtimeDynamicCharacterOverviewSchema.nullable().optional(),
   characterMindStates: z.array(runtimeCharacterMindStateSchema).default([]),
   // Optional for older preview / recovery context producers; runtime consumers default to no guidance.
-  characterInfluenceGuidances: z.array(runtimeCharacterInfluenceGuidanceSchema).optional(),
+  characterDialogueGuidances: z.array(runtimeCharacterDialogueGuidanceSchema).optional(),
   bookContract: bookContractContextSchema.nullable().optional(),
   macroConstraints: macroConstraintContextSchema.nullable().optional(),
   volumeWindow: volumeWindowContextSchema.nullable().optional(),

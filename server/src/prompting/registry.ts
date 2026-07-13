@@ -270,6 +270,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/novel/characterInfluence.prompts").characterInfluenceOptionsPrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.character.dialogue.turn@v1",
+    load: () => require("./prompts/novel/characterDialogue.prompts").characterDialogueTurnPrompt as UnknownPromptAsset,
+  },
+  {
     key: "title.generation@v1",
     load: () => require("./prompts/helper/titleGeneration.prompt").titleGenerationPrompt as UnknownPromptAsset,
   },

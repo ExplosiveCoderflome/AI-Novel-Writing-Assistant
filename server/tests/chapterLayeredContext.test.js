@@ -869,7 +869,7 @@ test("chapter writer blocks enforce enabled critical context contracts", () => {
   assert.match(resourceBlock.content, /旧通行证/);
 });
 
-test("chapter context only supplies mind guidance to actual participants", () => {
+test("chapter context only supplies mind and active dialogue guidance to actual participants", () => {
   const contextPackage = createContextPackage();
   contextPackage.characterRoster.push({
     ...contextPackage.characterRoster[0],
@@ -919,26 +919,24 @@ test("chapter context only supplies mind guidance to actual participants", () =>
       sourceChapterId: "chapter-4",
     },
   ];
-  contextPackage.characterInfluenceGuidances = [
+  contextPackage.characterDialogueGuidances = [
     {
-      proposalId: "influence-1",
+      influenceId: "dialogue-1",
       characterId: "char-1",
-      title: "先确认代价再反打",
+      summary: "主角认可先确认代价再反打的方向。",
       behaviorGuidance: "先利用维修通道确认退路，再把情报转成反压。",
       emotionalGuidance: "保持克制，不让胜算变成冲动。",
       relationTension: null,
-      authorIntent: "让主角的反击更有代价感。",
       targetStartChapterOrder: 5,
       targetEndChapterOrder: 7,
     },
     {
-      proposalId: "influence-2",
+      influenceId: "dialogue-2",
       characterId: "char-3",
-      title: "继续观望",
+      summary: "旁观者仍坚持置身事外。",
       behaviorGuidance: "暂时避开冲突。",
       emotionalGuidance: null,
       relationTension: null,
-      authorIntent: null,
       targetStartChapterOrder: 5,
       targetEndChapterOrder: 7,
     },
@@ -959,7 +957,7 @@ test("chapter context only supplies mind guidance to actual participants", () =>
   assert.match(protagonistGuide.authorInfluenceGuidance, /先利用维修通道确认退路/);
   assert.equal(observerGuide.authorInfluenceGuidance, null);
   assert.match(guidanceBlock.content, /主观倾向（非客观事实）/);
-  assert.match(guidanceBlock.content, /作者选择的行动倾向（非客观事实）/);
+  assert.match(guidanceBlock.content, /角色对话后确认的软性行为倾向（非客观事实）/);
   assert.doesNotMatch(guidanceBlock.content, /旁观者以为自己无需卷入/);
   assert.doesNotMatch(guidanceBlock.content, /暂时避开冲突/);
   assert.ok(writeContext.characterHardFacts.some((fact) => fact.characterId === "char-1"));
