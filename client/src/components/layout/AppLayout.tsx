@@ -106,14 +106,14 @@ export default function AppLayout() {
 
   return (
     <TaskRecoveryProvider>
-      <div className="min-h-screen bg-background">
+      <div className="h-[100dvh] overflow-hidden bg-background">
         <AutoDirectorPauseNotificationWatcher />
         <LLMSelectionBootstrap />
         <Navbar
           workspaceNavMode={isNovelWorkspace ? workspaceNavMode : undefined}
           onWorkspaceNavModeChange={isNovelWorkspace ? setWorkspaceNavMode : undefined}
         />
-        <div className="flex min-h-[calc(100dvh-4rem)]">
+        <div className="flex h-[calc(100dvh-4rem)] min-h-0">
           <div className={useMobileFullWidthContent ? "hidden md:block" : "shrink-0"}>
             {isNovelWorkspace && workspaceNavMode === "workspace" && workspaceRoute ? (
               <NovelWorkspaceRail
