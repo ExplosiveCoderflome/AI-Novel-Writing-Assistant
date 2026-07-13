@@ -21,7 +21,7 @@ export default function AiActionLabel(props: AiActionLabelProps) {
       >
         AI
       </span>
-      <span className="leading-none">{children}</span>
+      <span className="inline-flex items-center leading-none whitespace-nowrap">{children}</span>
     </span>
   );
 }

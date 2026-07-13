@@ -87,7 +87,7 @@ export default function FullscreenView(props: FullscreenViewProps) {
           headerClassName,
         )}
       >
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <div id={headingId} className="text-base font-semibold">
