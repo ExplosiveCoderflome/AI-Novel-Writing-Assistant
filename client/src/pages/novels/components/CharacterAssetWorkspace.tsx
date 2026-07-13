@@ -100,7 +100,7 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
         </div>
       </CardHeader>
       <CardContent className="grid gap-4 bg-[linear-gradient(90deg,hsl(var(--muted)/0.18)_0%,hsl(var(--background))_38%)] p-4 xl:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="xl:max-h-[calc(100vh-220px)] xl:overflow-y-auto xl:pr-1">
+        <aside className="xl:max-h-[calc(100dvh-220px)] xl:overflow-y-auto xl:pr-1">
           <CharacterAssetSidebar
             characters={characters}
             selectedCharacterId={selectedCharacterId}

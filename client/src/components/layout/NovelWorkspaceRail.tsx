@@ -434,7 +434,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
           collapsed ? "w-[84px]" : "w-[248px]",
         )}
       >
-        <div className="flex h-[calc(100vh-4rem)] flex-col gap-3 p-3">
+        <div className="flex h-[calc(100dvh-4rem)] flex-col gap-3 p-3">
           <div className={cn("flex items-center gap-2", collapsed ? "justify-center" : "justify-between")}>
             {!collapsed ? (
               <div className="flex min-w-0 items-center gap-2">
