@@ -263,7 +263,7 @@ export function buildChapterWriteContext(input: {
   const characterBehaviorGuides = dynamicCharacterGuidance.characterBehaviorGuides.map((guide) => (
     participantIds.has(guide.characterId)
       ? guide
-      : { ...guide, mindGuidance: null }
+      : { ...guide, mindGuidance: null, authorInfluenceGuidance: null }
   ));
   const characterHardFacts = selectCharacterHardFactsForWriter({
     hardFacts: input.contextPackage.characterHardFacts ?? [],

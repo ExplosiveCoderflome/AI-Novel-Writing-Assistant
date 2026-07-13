@@ -919,6 +919,30 @@ test("chapter context only supplies mind guidance to actual participants", () =>
       sourceChapterId: "chapter-4",
     },
   ];
+  contextPackage.characterInfluenceGuidances = [
+    {
+      proposalId: "influence-1",
+      characterId: "char-1",
+      title: "先确认代价再反打",
+      behaviorGuidance: "先利用维修通道确认退路，再把情报转成反压。",
+      emotionalGuidance: "保持克制，不让胜算变成冲动。",
+      relationTension: null,
+      authorIntent: "让主角的反击更有代价感。",
+      targetStartChapterOrder: 5,
+      targetEndChapterOrder: 7,
+    },
+    {
+      proposalId: "influence-2",
+      characterId: "char-3",
+      title: "继续观望",
+      behaviorGuidance: "暂时避开冲突。",
+      emotionalGuidance: null,
+      relationTension: null,
+      authorIntent: null,
+      targetStartChapterOrder: 5,
+      targetEndChapterOrder: 7,
+    },
+  ];
 
   const writeContext = buildChapterWriteContext({
     bookContract: contextPackage.bookContract,
@@ -932,7 +956,11 @@ test("chapter context only supplies mind guidance to actual participants", () =>
 
   assert.match(protagonistGuide.mindGuidance, /主角相信反压机会已经出现/);
   assert.equal(observerGuide.mindGuidance, null);
+  assert.match(protagonistGuide.authorInfluenceGuidance, /先利用维修通道确认退路/);
+  assert.equal(observerGuide.authorInfluenceGuidance, null);
   assert.match(guidanceBlock.content, /主观倾向（非客观事实）/);
+  assert.match(guidanceBlock.content, /作者选择的行动倾向（非客观事实）/);
   assert.doesNotMatch(guidanceBlock.content, /旁观者以为自己无需卷入/);
+  assert.doesNotMatch(guidanceBlock.content, /暂时避开冲突/);
   assert.ok(writeContext.characterHardFacts.some((fact) => fact.characterId === "char-1"));
 });

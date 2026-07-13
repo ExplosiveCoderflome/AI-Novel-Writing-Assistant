@@ -129,6 +129,18 @@ export const runtimeCharacterMindStateSchema = z.object({
   sourceChapterId: z.string().nullable().optional(),
 });
 
+export const runtimeCharacterInfluenceGuidanceSchema = z.object({
+  proposalId: z.string(),
+  characterId: z.string(),
+  title: z.string(),
+  behaviorGuidance: z.string(),
+  emotionalGuidance: z.string().nullable().optional(),
+  relationTension: z.string().nullable().optional(),
+  authorIntent: z.string().nullable().optional(),
+  targetStartChapterOrder: z.number().int(),
+  targetEndChapterOrder: z.number().int(),
+});
+
 export const runtimeCreativeDecisionSchema = z.object({
   id: z.string(),
   chapterId: z.string().nullable().optional(),
@@ -654,6 +666,7 @@ export const chapterCharacterBehaviorGuideSchema = z.object({
   isCoreInVolume: z.boolean(),
   shouldPreferAppearance: z.boolean(),
   mindGuidance: z.string().nullable().optional(),
+  authorInfluenceGuidance: z.string().nullable().optional(),
 });
 
 export const chapterRelationStageGuideSchema = z.object({
@@ -786,6 +799,8 @@ export const generationContextPackageSchema = z.object({
   styleContext: runtimeStyleContextSchema.nullable().optional(),
   characterDynamics: runtimeDynamicCharacterOverviewSchema.nullable().optional(),
   characterMindStates: z.array(runtimeCharacterMindStateSchema).default([]),
+  // Optional for older preview / recovery context producers; runtime consumers default to no guidance.
+  characterInfluenceGuidances: z.array(runtimeCharacterInfluenceGuidanceSchema).optional(),
   bookContract: bookContractContextSchema.nullable().optional(),
   macroConstraints: macroConstraintContextSchema.nullable().optional(),
   volumeWindow: volumeWindowContextSchema.nullable().optional(),

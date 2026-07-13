@@ -57,6 +57,20 @@ type ChapterReference = {
 type ChapterArtifactDeltaResourceUpdate = ChapterArtifactDeltaOutput["characterResourceDeltas"][number];
 type ChapterArtifactPayoffDelta = ChapterArtifactDeltaOutput["payoffDeltas"][number];
 type ChapterArtifactKnowledgeState = ChapterArtifactDeltaOutput["characterKnowledgeStates"][number];
+type ChapterArtifactInfluenceResolution = ChapterArtifactDeltaOutput["characterInfluenceResolutions"][number];
+
+type ActiveCharacterInfluenceProposal = {
+  id: string;
+  characterId: string;
+  characterName: string;
+  title: string;
+  behaviorGuidance: string;
+  emotionalGuidance: string | null;
+  relationTension: string | null;
+  authorIntent: string | null;
+  targetStartChapterOrder: number;
+  targetEndChapterOrder: number;
+};
 
 export interface ChapterArtifactDeltaSyncInput {
   novelId: string;
@@ -78,6 +92,8 @@ export interface ChapterArtifactDeltaSyncResult {
   characterDynamicsCount: number;
   characterKnowledgeStateCount: number;
   characterMindSnapshotCount: number;
+  characterInfluenceAppliedCount: number;
+  characterInfluenceExpiredCount: number;
   payoffDeltaCount: number;
   canonicalCommittedCount: number;
   concreteFactCount: number;
@@ -214,6 +230,19 @@ function stringifyPayoffText(items: Array<{
   ].filter(Boolean).join(" | ")).join("\n");
 }
 
+function stringifyActiveCharacterInfluenceText(items: ActiveCharacterInfluenceProposal[]): string {
+  return items.slice(0, 8).map((item) => [
+    `- proposalId=${item.id}`,
+    `角色=${item.characterName}`,
+    `方案=${item.title}`,
+    `窗口=${item.targetStartChapterOrder}-${item.targetEndChapterOrder}`,
+    `行动倾向=${item.behaviorGuidance}`,
+    item.emotionalGuidance ? `情绪倾向=${item.emotionalGuidance}` : "",
+    item.relationTension ? `关系张力=${item.relationTension}` : "",
+    item.authorIntent ? `作者意图=${item.authorIntent}` : "",
+  ].filter(Boolean).join(" | ")).join("\n");
+}
+
 function stringifyPreviousState(snapshot: Awaited<ReturnType<typeof stateService.getLatestSnapshotBeforeChapter>>): string {
   if (!snapshot) {
     return "";
@@ -295,6 +324,15 @@ export class ChapterArtifactDeltaService {
       throw new Error("小说或章节不存在，无法提取资产 delta。");
     }
 
+    const characterInfluenceExpiredCount = await this.expirePastCharacterInfluenceProposals({
+      novelId: input.novelId,
+      chapterOrder: chapter.order,
+    }).catch(() => 0);
+    const activeCharacterInfluenceProposals = await this.listActiveCharacterInfluenceProposals({
+      novelId: input.novelId,
+      chapterOrder: chapter.order,
+    }).catch(() => []);
+
     const previousSnapshot = await stateService.getLatestSnapshotBeforeChapter(input.novelId, chapter.order);
     const contentHash = buildContentHash(content);
     const result = await runStructuredPrompt({
@@ -308,6 +346,7 @@ export class ChapterArtifactDeltaService {
         previousStateText: stringifyPreviousState(previousSnapshot),
         existingResourceText: stringifyChapterResourceText(existingResources),
         existingPayoffText: stringifyPayoffText(payoffRows),
+        activeCharacterInfluenceText: stringifyActiveCharacterInfluenceText(activeCharacterInfluenceProposals),
         chapterContent: content,
       },
       options: {
@@ -368,7 +407,7 @@ export class ChapterArtifactDeltaService {
       chapterOrder: chapter.order,
     }).catch(() => 0);
 
-    const [payoffDeltaCount, characterDynamicsCount, characterKnowledgeStateCount, characterMindSnapshotCount] = await Promise.all([
+    const [payoffDeltaCount, characterDynamicsCount, characterKnowledgeStateCount, characterMindSnapshotCount, characterInfluenceAppliedCount] = await Promise.all([
       output.syncPlan.payoffLedger === "skip"
         ? Promise.resolve(0)
         : this.applyPayoffDeltas({
@@ -402,6 +441,15 @@ export class ChapterArtifactDeltaService {
           chapterId: input.chapterId,
           deltas: output.characterMindDeltas,
         }),
+      output.characterInfluenceResolutions.length === 0
+        ? Promise.resolve(0)
+        : this.applyCharacterInfluenceResolutions({
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          chapterOrder: chapter.order,
+          activeProposals: activeCharacterInfluenceProposals,
+          resolutions: output.characterInfluenceResolutions,
+        }).catch(() => 0),
     ]);
 
     return {
@@ -412,12 +460,107 @@ export class ChapterArtifactDeltaService {
       characterDynamicsCount,
       characterKnowledgeStateCount,
       characterMindSnapshotCount,
+      characterInfluenceAppliedCount,
+      characterInfluenceExpiredCount,
       payoffDeltaCount,
       canonicalCommittedCount: stateCommitResult.committed.length,
       concreteFactCount,
       staleMarkedCount,
       requiresFullReconcile: output.requiresFullReconcile || output.syncPlan.payoffLedger === "full_reconcile",
     };
+  }
+
+  private async expirePastCharacterInfluenceProposals(input: {
+    novelId: string;
+    chapterOrder: number;
+  }): Promise<number> {
+    const result = await prisma.characterInfluenceProposal.updateMany({
+      where: {
+        novelId: input.novelId,
+        status: "accepted",
+        targetEndChapterOrder: { lt: input.chapterOrder },
+      },
+      data: { status: "expired" },
+    });
+    return result.count;
+  }
+
+  private async listActiveCharacterInfluenceProposals(input: {
+    novelId: string;
+    chapterOrder: number;
+  }): Promise<ActiveCharacterInfluenceProposal[]> {
+    const rows = await prisma.characterInfluenceProposal.findMany({
+      where: {
+        novelId: input.novelId,
+        status: "accepted",
+        targetStartChapterOrder: { lte: input.chapterOrder },
+        targetEndChapterOrder: { gte: input.chapterOrder },
+      },
+      select: {
+        id: true,
+        characterId: true,
+        title: true,
+        behaviorGuidance: true,
+        emotionalGuidance: true,
+        relationTension: true,
+        authorIntent: true,
+        targetStartChapterOrder: true,
+        targetEndChapterOrder: true,
+        character: { select: { name: true } },
+      },
+      orderBy: [{ acceptedAt: "desc" }, { updatedAt: "desc" }],
+      take: 8,
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      characterId: row.characterId,
+      characterName: row.character.name,
+      title: row.title,
+      behaviorGuidance: row.behaviorGuidance,
+      emotionalGuidance: row.emotionalGuidance,
+      relationTension: row.relationTension,
+      authorIntent: row.authorIntent,
+      targetStartChapterOrder: row.targetStartChapterOrder,
+      targetEndChapterOrder: row.targetEndChapterOrder,
+    }));
+  }
+
+  private async applyCharacterInfluenceResolutions(input: {
+    novelId: string;
+    chapterId: string;
+    chapterOrder: number;
+    activeProposals: ActiveCharacterInfluenceProposal[];
+    resolutions: ChapterArtifactInfluenceResolution[];
+  }): Promise<number> {
+    const activeProposalIds = new Set(input.activeProposals.map((proposal) => proposal.id));
+    const appliedResolutions = input.resolutions.filter((resolution) => (
+      resolution.status === "applied"
+      && resolution.evidence.length > 0
+      && activeProposalIds.has(resolution.proposalId)
+    ));
+    if (appliedResolutions.length === 0) {
+      return 0;
+    }
+
+    const resolvedAt = new Date();
+    const results = await Promise.all(appliedResolutions.map((resolution) => (
+      prisma.characterInfluenceProposal.updateMany({
+        where: {
+          id: resolution.proposalId,
+          novelId: input.novelId,
+          status: "accepted",
+          targetStartChapterOrder: { lte: input.chapterOrder },
+          targetEndChapterOrder: { gte: input.chapterOrder },
+        },
+        data: {
+          status: "applied",
+          appliedAt: resolvedAt,
+          resolvedChapterId: input.chapterId,
+          resolutionEvidenceJson: JSON.stringify(uniqueTextItems(resolution.evidence, 3)),
+        },
+      })
+    )));
+    return results.reduce((count, result) => count + result.count, 0);
   }
 
   private buildCharacterRosterText(characters: CharacterLookupItem[]): string {

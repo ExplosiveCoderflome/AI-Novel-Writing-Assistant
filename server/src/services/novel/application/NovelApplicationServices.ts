@@ -8,6 +8,7 @@ import { CharacterPreparationService } from "../characterPrep/CharacterPreparati
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { CharacterVisibleProfileService } from "../characterProfile/CharacterVisibleProfileService";
 import { CharacterMindService } from "../characterMind/CharacterMindService";
+import { CharacterInfluenceService } from "../characterInfluence/CharacterInfluenceService";
 import {
   buildManualChapterControlPolicy,
   registerChapterExecutionStageRunner,
@@ -49,6 +50,7 @@ export class DefaultNovelApplicationServices {
   private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly characterVisibleProfileService = new CharacterVisibleProfileService();
   private readonly characterMindService = new CharacterMindService();
+  private readonly characterInfluenceService = new CharacterInfluenceService();
   private readonly volumeService = new NovelVolumeService();
   private readonly chapterEditorWorkspaceService = new ChapterEditorWorkspaceService();
   private readonly chapterEditorService = new NovelChapterEditorService();
@@ -665,6 +667,22 @@ export class DefaultNovelApplicationServices {
 
   refreshCharacterMindState(...args: Parameters<CharacterMindService["refreshMindState"]>) {
     return this.characterMindService.refreshMindState(...args);
+  }
+
+  listCharacterInfluenceProposals(...args: Parameters<CharacterInfluenceService["listInfluenceProposals"]>) {
+    return this.characterInfluenceService.listInfluenceProposals(...args);
+  }
+
+  generateCharacterInfluenceProposals(...args: Parameters<CharacterInfluenceService["generateInfluenceProposals"]>) {
+    return this.characterInfluenceService.generateInfluenceProposals(...args);
+  }
+
+  acceptCharacterInfluenceProposal(...args: Parameters<CharacterInfluenceService["acceptInfluenceProposal"]>) {
+    return this.characterInfluenceService.acceptInfluenceProposal(...args);
+  }
+
+  dismissCharacterInfluenceProposal(...args: Parameters<CharacterInfluenceService["dismissInfluenceProposal"]>) {
+    return this.characterInfluenceService.dismissInfluenceProposal(...args);
   }
 }
 

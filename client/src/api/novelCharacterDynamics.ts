@@ -5,6 +5,7 @@ import type {
   DynamicCharacterOverview,
 } from "@ai-novel/shared/types/characterDynamics";
 import type { CharacterMindSnapshot } from "@ai-novel/shared/types/characterMind";
+import type { CharacterInfluenceProposal } from "@ai-novel/shared/types/characterInfluence";
 import { apiClient } from "./client";
 
 export async function getCharacterDynamicsOverview(id: string, chapterOrder?: number) {
@@ -121,6 +122,42 @@ export async function getCharacterMindState(id: string, characterId: string) {
 export async function refreshCharacterMindState(id: string, characterId: string) {
   const { data } = await apiClient.post<ApiResponse<CharacterMindSnapshot>>(
     `/novels/${id}/characters/${characterId}/mind-state/refresh`,
+    {},
+  );
+  return data;
+}
+
+export async function getCharacterInfluenceProposals(id: string, characterId: string) {
+  const { data } = await apiClient.get<ApiResponse<CharacterInfluenceProposal[]>>(
+    `/novels/${id}/characters/${characterId}/influence-proposals`,
+  );
+  return data;
+}
+
+export async function generateCharacterInfluenceProposals(id: string, characterId: string) {
+  const { data } = await apiClient.post<ApiResponse<CharacterInfluenceProposal[]>>(
+    `/novels/${id}/characters/${characterId}/influence-proposals/generate`,
+    {},
+  );
+  return data;
+}
+
+export async function acceptCharacterInfluenceProposal(
+  id: string,
+  characterId: string,
+  proposalId: string,
+  payload?: { authorIntent?: string },
+) {
+  const { data } = await apiClient.post<ApiResponse<CharacterInfluenceProposal>>(
+    `/novels/${id}/characters/${characterId}/influence-proposals/${proposalId}/accept`,
+    payload ?? {},
+  );
+  return data;
+}
+
+export async function dismissCharacterInfluenceProposal(id: string, characterId: string, proposalId: string) {
+  const { data } = await apiClient.post<ApiResponse<CharacterInfluenceProposal>>(
+    `/novels/${id}/characters/${characterId}/influence-proposals/${proposalId}/dismiss`,
     {},
   );
   return data;
