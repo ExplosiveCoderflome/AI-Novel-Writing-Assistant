@@ -263,6 +263,7 @@ export class GenerationContextAssembler {
       recentChapters,
       decisions,
       characterDynamics,
+      characterMindRows,
       continuationPack,
       styleContext,
       payoffLedger,
@@ -313,6 +314,15 @@ export class GenerationContextAssembler {
       characterDynamicsQueryService.getOverview(novelId, {
         chapterOrder: chapter.order,
       }).catch(() => null),
+      prisma.characterMindSnapshot.findMany({
+        where: { novelId, isCurrent: true },
+        select: {
+          characterId: true, currentInterpretation: true, privateIntent: true, activePlan: true,
+          emotionalStance: true, actionTendency: true, decisionTrigger: true, beliefsJson: true,
+          misbeliefsJson: true, evidenceJson: true, confidence: true, sourceChapterId: true,
+        },
+        orderBy: { updatedAt: "desc" },
+      }),
       this.continuationService.buildChapterContextPack(novelId),
       this.styleBindingService.resolveForGeneration({
         novelId,
@@ -428,6 +438,28 @@ export class GenerationContextAssembler {
       mappedCharacterRoster,
       pendingCharacterHardFactReviews,
     );
+    const parseMindItems = (raw: string) => {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.map((item) => String(item).trim()).filter(Boolean).slice(0, 4) : [];
+      } catch {
+        return [];
+      }
+    };
+    const characterMindStates = characterMindRows.map((item) => ({
+      characterId: item.characterId,
+      currentInterpretation: item.currentInterpretation,
+      privateIntent: item.privateIntent,
+      activePlan: item.activePlan,
+      emotionalStance: item.emotionalStance,
+      actionTendency: item.actionTendency,
+      decisionTrigger: item.decisionTrigger,
+      beliefs: parseMindItems(item.beliefsJson),
+      misbeliefs: parseMindItems(item.misbeliefsJson),
+      evidence: parseMindItems(item.evidenceJson),
+      confidence: item.confidence,
+      sourceChapterId: item.sourceChapterId,
+    }));
     const mappedCreativeDecisions = decisions.map((item) => ({
       id: item.id,
       chapterId: item.chapterId ?? null,
@@ -515,6 +547,7 @@ export class GenerationContextAssembler {
       openConflicts: mappedOpenConflicts,
       storyWorldSlice,
       characterDynamics,
+      characterMindStates,
       characterRoster: mappedCharacterRoster,
       characterHardFacts: mappedCharacterHardFacts,
       creativeDecisions: mappedCreativeDecisions,

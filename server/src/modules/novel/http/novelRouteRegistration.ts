@@ -5,6 +5,7 @@ import { registerNovelChapterEditorRoutes } from "../production/http/novelChapte
 import { registerNovelChapterRoutes } from "../production/http/novelChapterRoutes";
 import { registerNovelChapterGenerationRoutes } from "../production/http/novelChapterGeneration";
 import { registerNovelCharacterDynamicsRoutes } from "../characters/http/novelCharacterDynamicsRoutes";
+import { registerNovelCharacterMindRoutes } from "../characters/http/novelCharacterMindRoutes";
 import { registerNovelCharacterPreparationRoutes } from "../characters/http/novelCharacterPreparationRoutes";
 import { registerNovelCharacterResourceRoutes } from "../characters/http/novelCharacterResourceRoutes";
 import { registerNovelCharacterSyncRoutes } from "../characters/http/novelCharacterSyncRoutes";
@@ -119,6 +120,11 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
     router,
     novelService,
     idParamsSchema,
+  });
+
+  registerNovelCharacterMindRoutes({
+    router,
+    novelService,
   });
 
   registerNovelCharacterPreparationRoutes({

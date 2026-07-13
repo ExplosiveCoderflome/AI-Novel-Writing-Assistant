@@ -22,6 +22,7 @@ import {
 import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import { parseCharacterProhibitionsJson } from "../characters/characterHardFacts";
 import { WorldContextGateway } from "../worldContext/WorldContextGateway";
+import { characterMindService } from "../characterMind/CharacterMindService";
 
 type CharacterRowForOutput = Awaited<ReturnType<typeof prisma.character.create>>;
 
@@ -459,6 +460,14 @@ export class CharacterPreparationSupplementalService {
     await this.characterDynamicsService.rebuildDynamics(novelId, {
       sourceType: "supplemental_character_projection",
     }).catch(() => null);
+
+    void characterMindService.bootstrapMindStates(novelId, [created.id]).catch((error) => {
+      console.warn("[supplemental-character] 角色思路线补齐失败", {
+        novelId,
+        characterId: created.id,
+        error,
+      });
+    });
 
     return {
       character: serializeCharacter(created),

@@ -259,10 +259,16 @@ export function buildChapterWriteContext(input: {
 }): ChapterWriteContext {
   const dynamicCharacterGuidance = buildDynamicCharacterGuidance(input.contextPackage);
   const participants = buildParticipants(input.contextPackage, dynamicCharacterGuidance.characterBehaviorGuides);
+  const participantIds = new Set(participants.map((character) => character.id));
+  const characterBehaviorGuides = dynamicCharacterGuidance.characterBehaviorGuides.map((guide) => (
+    participantIds.has(guide.characterId)
+      ? guide
+      : { ...guide, mindGuidance: null }
+  ));
   const characterHardFacts = selectCharacterHardFactsForWriter({
     hardFacts: input.contextPackage.characterHardFacts ?? [],
     participants,
-    characterBehaviorGuides: dynamicCharacterGuidance.characterBehaviorGuides,
+    characterBehaviorGuides,
     currentChapterOrder: input.contextPackage.chapter.order,
   });
   const scenePlan = parseChapterScenePlan(input.contextPackage.chapter.sceneCards, {
@@ -285,7 +291,7 @@ export function buildChapterWriteContext(input: {
       protectedSecrets: input.contextPackage.protectedSecrets ?? [],
       payoffDirectives: input.contextPackage.chapterStateGoal?.targetPayoffDirectives ?? [],
       chapterBoundary: buildChapterBoundaryContract(input.contextPackage, scenePlan),
-      characterBehaviorGuides: dynamicCharacterGuidance.characterBehaviorGuides,
+      characterBehaviorGuides,
       ledgerPendingItems: input.contextPackage.ledgerPendingItems,
     }),
     chapterBoundary: buildChapterBoundaryContract(input.contextPackage, scenePlan),
@@ -293,7 +299,7 @@ export function buildChapterWriteContext(input: {
     scenePlan,
     participants,
     characterHardFacts,
-    characterBehaviorGuides: dynamicCharacterGuidance.characterBehaviorGuides,
+    characterBehaviorGuides,
     activeRelationStages: dynamicCharacterGuidance.activeRelationStages,
     pendingCandidateGuards: dynamicCharacterGuidance.pendingCandidateGuards,
     localStateSummary: summarizeStateSnapshot(input.contextPackage),

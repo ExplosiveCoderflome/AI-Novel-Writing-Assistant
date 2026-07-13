@@ -114,6 +114,21 @@ export const runtimeCharacterSchema = z.object({
   presenceImpression: z.string().nullable().optional(),
 });
 
+export const runtimeCharacterMindStateSchema = z.object({
+  characterId: z.string(),
+  currentInterpretation: z.string(),
+  privateIntent: z.string().nullable().optional(),
+  activePlan: z.string().nullable().optional(),
+  emotionalStance: z.string().nullable().optional(),
+  actionTendency: z.string().nullable().optional(),
+  decisionTrigger: z.string().nullable().optional(),
+  beliefs: z.array(z.string()).default([]),
+  misbeliefs: z.array(z.string()).default([]),
+  evidence: z.array(z.string()).default([]),
+  confidence: z.number().nullable().optional(),
+  sourceChapterId: z.string().nullable().optional(),
+});
+
 export const runtimeCreativeDecisionSchema = z.object({
   id: z.string(),
   chapterId: z.string().nullable().optional(),
@@ -638,6 +653,7 @@ export const chapterCharacterBehaviorGuideSchema = z.object({
   absenceSpan: z.number().int().nonnegative(),
   isCoreInVolume: z.boolean(),
   shouldPreferAppearance: z.boolean(),
+  mindGuidance: z.string().nullable().optional(),
 });
 
 export const chapterRelationStageGuideSchema = z.object({
@@ -769,6 +785,7 @@ export const generationContextPackageSchema = z.object({
   continuation: runtimeContinuationSchema,
   styleContext: runtimeStyleContextSchema.nullable().optional(),
   characterDynamics: runtimeDynamicCharacterOverviewSchema.nullable().optional(),
+  characterMindStates: z.array(runtimeCharacterMindStateSchema).default([]),
   bookContract: bookContractContextSchema.nullable().optional(),
   macroConstraints: macroConstraintContextSchema.nullable().optional(),
   volumeWindow: volumeWindowContextSchema.nullable().optional(),

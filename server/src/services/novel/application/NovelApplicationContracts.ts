@@ -111,6 +111,8 @@ export interface NovelApplicationServices {
   updateCharacterDynamicState: NovelApplicationMethod;
   updateCharacterRelationStage: NovelApplicationMethod;
   rebuildCharacterDynamics: NovelApplicationMethod;
+  getCharacterMindState: NovelApplicationMethod;
+  refreshCharacterMindState: NovelApplicationMethod;
 }
 
 export const novelApplicationServiceMethodNames = [
@@ -217,4 +219,6 @@ export const novelApplicationServiceMethodNames = [
   "updateCharacterDynamicState",
   "updateCharacterRelationStage",
   "rebuildCharacterDynamics",
+  "getCharacterMindState",
+  "refreshCharacterMindState",
 ] as const satisfies readonly (keyof NovelApplicationServices)[];
