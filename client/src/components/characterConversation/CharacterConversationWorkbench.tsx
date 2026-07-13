@@ -16,6 +16,7 @@ import {
 import FullscreenView from "@/components/common/FullscreenView";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import CharacterDialogueStage from "@/pages/novels/components/characterWorkspace/CharacterDialogueStage";
 import { MessageCircle, ShieldCheck } from "lucide-react";
 
@@ -33,6 +34,7 @@ interface CharacterConversationWorkbenchProps {
 export default function CharacterConversationWorkbench(props: CharacterConversationWorkbenchProps) {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const request = useMemo(() => ({
     ...props.subject,
     chapterAnchor: props.chapterAnchor ?? undefined,
@@ -49,6 +51,7 @@ export default function CharacterConversationWorkbench(props: CharacterConversat
   const projection = contextQuery.data?.data?.projection;
   const session = sessionQuery.data?.data ?? contextQuery.data?.data?.activeSession ?? null;
   const policy = projection?.interactionPolicy ?? policyForSubject(props.subject.kind);
+  const useCompactReadOnlyLayout = policy === "read_only" && !isFullscreen;
   const invalidateConversation = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: [...queryKey, "context"] }),
@@ -80,16 +83,27 @@ export default function CharacterConversationWorkbench(props: CharacterConversat
 
   return (
     <FullscreenView
+      fullscreen={isFullscreen}
+      onFullscreenChange={setIsFullscreen}
       title={<span className="inline-flex items-center gap-2"><MessageCircle className="h-4 w-4 text-primary" />{displayName} 的对话空间</span>}
       description={projection?.sourceDescription ?? sourceDescriptionForPolicy(policy)}
       meta={<><Badge variant="outline">{projection?.sourceLabel ?? sourceLabelForPolicy(policy)}</Badge><Badge variant="secondary">{policyLabel(policy)}</Badge></>}
       actions={<>{props.headerActions}{props.chapterAnchorOptions?.length && typeof props.chapterAnchor === "number" && props.onChapterAnchorChange ? <ChapterAnchorSelect chapterAnchor={props.chapterAnchor} options={props.chapterAnchorOptions} disabled={Boolean(session)} onChange={props.onChapterAnchorChange} /> : null}{props.onClose ? <Button size="sm" variant="ghost" onClick={props.onClose}>收起谈话</Button> : null}</>}
-      bodyClassName="grid min-h-[580px] min-w-0 xl:grid-cols-[minmax(0,1fr)_340px]"
+      bodyClassName={cn(
+        "grid min-w-0 xl:grid-cols-[minmax(0,1fr)_340px]",
+        useCompactReadOnlyLayout ? "min-h-[420px] xl:items-start" : "min-h-[580px]",
+      )}
       fullscreenBodyClassName="min-h-0 min-w-0 overflow-y-auto xl:h-full xl:overflow-hidden xl:grid-cols-[minmax(0,1fr)_380px]"
     >
-      <div className="min-h-0 min-w-0 border-b border-border/60 bg-muted/[0.08] p-4 xl:border-b-0 xl:border-r xl:p-6">
+      <div className={cn(
+        "min-h-0 min-w-0 border-b border-border/60 bg-muted/[0.08] p-4 xl:border-b-0 xl:border-r xl:p-6",
+        useCompactReadOnlyLayout && "xl:self-start",
+      )}>
         <CharacterDialogueStage
-          className="xl:h-full xl:min-h-0 xl:max-h-none"
+          className={cn(
+            "xl:min-h-0 xl:max-h-none",
+            useCompactReadOnlyLayout ? "min-h-[420px] xl:h-auto" : "xl:h-full",
+          )}
           characterName={displayName}
           interactionPolicy={policy}
           session={session}
@@ -107,7 +121,10 @@ export default function CharacterConversationWorkbench(props: CharacterConversat
           error={error}
         />
       </div>
-      <div className="min-h-0 min-w-0 bg-muted/[0.12] p-4 xl:overflow-y-auto xl:p-6">{sidePanel}</div>
+      <div className={cn(
+        "min-h-0 min-w-0 bg-muted/[0.12] p-4 xl:p-6",
+        useCompactReadOnlyLayout ? "xl:max-h-[520px] xl:overflow-y-auto" : "xl:overflow-y-auto",
+      )}>{sidePanel}</div>
     </FullscreenView>
   );
 }
