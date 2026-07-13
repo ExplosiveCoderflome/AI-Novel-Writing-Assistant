@@ -264,6 +264,7 @@ export class GenerationContextAssembler {
       decisions,
       characterDynamics,
       characterMindRows,
+      characterInfluenceRows,
       continuationPack,
       styleContext,
       payoffLedger,
@@ -323,6 +324,27 @@ export class GenerationContextAssembler {
         },
         orderBy: { updatedAt: "desc" },
       }),
+      prisma.characterInfluenceProposal.findMany({
+        where: {
+          novelId,
+          status: "accepted",
+          targetStartChapterOrder: { lte: chapter.order },
+          targetEndChapterOrder: { gte: chapter.order },
+        },
+        select: {
+          id: true,
+          characterId: true,
+          title: true,
+          behaviorGuidance: true,
+          emotionalGuidance: true,
+          relationTension: true,
+          authorIntent: true,
+          targetStartChapterOrder: true,
+          targetEndChapterOrder: true,
+        },
+        orderBy: [{ acceptedAt: "desc" }, { updatedAt: "desc" }],
+        take: 12,
+      }).catch(() => []),
       this.continuationService.buildChapterContextPack(novelId),
       this.styleBindingService.resolveForGeneration({
         novelId,
@@ -460,6 +482,17 @@ export class GenerationContextAssembler {
       confidence: item.confidence,
       sourceChapterId: item.sourceChapterId,
     }));
+    const characterInfluenceGuidances = characterInfluenceRows.map((item) => ({
+      proposalId: item.id,
+      characterId: item.characterId,
+      title: item.title,
+      behaviorGuidance: item.behaviorGuidance,
+      emotionalGuidance: item.emotionalGuidance,
+      relationTension: item.relationTension,
+      authorIntent: item.authorIntent,
+      targetStartChapterOrder: item.targetStartChapterOrder,
+      targetEndChapterOrder: item.targetEndChapterOrder,
+    }));
     const mappedCreativeDecisions = decisions.map((item) => ({
       id: item.id,
       chapterId: item.chapterId ?? null,
@@ -548,6 +581,7 @@ export class GenerationContextAssembler {
       storyWorldSlice,
       characterDynamics,
       characterMindStates,
+      characterInfluenceGuidances,
       characterRoster: mappedCharacterRoster,
       characterHardFacts: mappedCharacterHardFacts,
       creativeDecisions: mappedCreativeDecisions,

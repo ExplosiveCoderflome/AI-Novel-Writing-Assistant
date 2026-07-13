@@ -39,6 +39,9 @@ export function buildDynamicCharacterGuidance(
   const currentChapterOrder = contextPackage.chapter.order;
   const rosterById = new Map(contextPackage.characterRoster.map((character) => [character.id, character]));
   const mindByCharacterId = new Map((contextPackage.characterMindStates ?? []).map((mind) => [mind.characterId, mind]));
+  const influenceByCharacterId = new Map(
+    (contextPackage.characterInfluenceGuidances ?? []).map((guidance) => [guidance.characterId, guidance]),
+  );
   const planParticipantNames = new Set((contextPackage.plan?.participants ?? []).map((item) => compactText(item)));
   const conflictCharacterIds = new Set(
     contextPackage.openConflicts.flatMap((conflict) => conflict.affectedCharacterIds ?? []),
@@ -141,6 +144,7 @@ export function buildDynamicCharacterGuidance(
           isCoreInVolume: item.isCoreInVolume,
           shouldPreferAppearance,
           mindGuidance: buildMindGuidance(mindByCharacterId.get(item.characterId)),
+          authorInfluenceGuidance: buildAuthorInfluenceGuidance(influenceByCharacterId.get(item.characterId)),
         },
       };
     })
@@ -187,6 +191,21 @@ function buildMindGuidance(mind: GenerationContextPackage["characterMindStates"]
     mind.activePlan ? `倾向行动：${compactText(mind.activePlan)}` : "",
     mind.actionTendency ? `受压反应：${compactText(mind.actionTendency)}` : "",
     mind.misbeliefs[0] ? `可能误判：${compactText(mind.misbeliefs[0])}` : "",
+  ], 3);
+  return parts.length > 0 ? parts.join(" | ") : null;
+}
+
+function buildAuthorInfluenceGuidance(
+  influence: NonNullable<GenerationContextPackage["characterInfluenceGuidances"]>[number] | undefined,
+): string | null {
+  if (!influence) {
+    return null;
+  }
+  const parts = takeUnique([
+    influence.behaviorGuidance ? `行动倾向：${compactText(influence.behaviorGuidance)}` : "",
+    influence.emotionalGuidance ? `情绪倾向：${compactText(influence.emotionalGuidance)}` : "",
+    influence.relationTension ? `关系张力：${compactText(influence.relationTension)}` : "",
+    influence.authorIntent ? `作者意图：${compactText(influence.authorIntent)}` : "",
   ], 3);
   return parts.length > 0 ? parts.join(" | ") : null;
 }

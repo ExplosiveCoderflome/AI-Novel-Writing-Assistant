@@ -13,6 +13,7 @@ export const queryKeys = {
     characterDynamicsOverview: (id: string, chapterOrder?: number) => ["novels", "character-dynamics-overview", id, chapterOrder ?? "latest"] as const,
     characterCandidates: (id: string) => ["novels", "character-candidates", id] as const,
     characterMindState: (id: string, characterId: string) => ["novels", "character-mind-state", id, characterId] as const,
+    characterInfluenceProposals: (id: string, characterId: string) => ["novels", "character-influence-proposals", id, characterId] as const,
     characterTimeline: (id: string, charId: string) => ["novels", "character-timeline", id, charId] as const,
     chapterTraces: (novelId: string, chapterId: string) => ["novels", "chapter-traces", novelId, chapterId] as const,
     pipelineJob: (id: string, jobId: string) => ["novels", "pipeline", id, jobId] as const,

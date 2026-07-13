@@ -367,6 +367,7 @@ model Novel {
   characterFactionTracks CharacterFactionTrack[]
   characterRelationStages CharacterRelationStage[]
   characterMindSnapshots CharacterMindSnapshot[]
+  characterInfluenceProposals CharacterInfluenceProposal[]
   characterResourceItems CharacterResourceLedgerItem[]
   characterResourceEvents CharacterResourceEvent[]
   bible             NovelBible?
@@ -545,6 +546,7 @@ model Chapter {
   characterFactionTracks CharacterFactionTrack[]
   characterRelationStages CharacterRelationStage[] @relation("CharacterRelationStageChapter")
   characterMindSnapshots CharacterMindSnapshot[]
+  resolvedCharacterInfluenceProposals CharacterInfluenceProposal[] @relation("CharacterInfluenceResolvedChapter")
   facts           ConsistencyFact[]
   qualityReports  QualityReport[]
   storyStateSnapshots StoryStateSnapshot[]
@@ -641,6 +643,7 @@ model Character {
   outgoingRelationStages CharacterRelationStage[] @relation("CharacterRelationStageSource")
   incomingRelationStages CharacterRelationStage[] @relation("CharacterRelationStageTarget")
   mindSnapshots   CharacterMindSnapshot[]
+  influenceProposals CharacterInfluenceProposal[]
   stateEntries    CharacterState[]
   outgoingRelations RelationState[] @relation("RelationStateSource")
   incomingRelations RelationState[] @relation("RelationStateTarget")
@@ -679,11 +682,50 @@ model CharacterMindSnapshot {
   novel                 Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
   character             Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
   sourceChapter         Chapter? @relation(fields: [sourceChapterId], references: [id], onDelete: SetNull)
+  influenceProposals    CharacterInfluenceProposal[] @relation("CharacterInfluenceSourceMind")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
   @@index([novelId, characterId, isCurrent, updatedAt])
   @@index([sourceChapterId])
+}
+
+model CharacterInfluenceProposal {
+  id                      String   @id @default(cuid())
+  novelId                 String
+  characterId             String
+  proposalSetId           String
+  sourceMindSnapshotId    String?
+  title                   String
+  directionSummary        String
+  recommendationReason    String
+  isRecommended           Boolean  @default(false)
+  behaviorGuidance        String
+  emotionalGuidance       String?
+  relationTension         String?
+  readerPayoff            String
+  risk                    String
+  observableSignalsJson   String   @default("[]")
+  evidenceJson            String   @default("[]")
+  confidence              Float?
+  authorIntent            String?
+  targetStartChapterOrder Int
+  targetEndChapterOrder   Int
+  status                  String   @default("draft")
+  acceptedAt              DateTime?
+  appliedAt               DateTime?
+  resolvedChapterId       String?
+  resolutionEvidenceJson  String   @default("[]")
+  novel                   Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character               Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  sourceMindSnapshot      CharacterMindSnapshot? @relation("CharacterInfluenceSourceMind", fields: [sourceMindSnapshotId], references: [id], onDelete: SetNull)
+  resolvedChapter         Chapter? @relation("CharacterInfluenceResolvedChapter", fields: [resolvedChapterId], references: [id], onDelete: SetNull)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([novelId, characterId, status, targetStartChapterOrder, targetEndChapterOrder])
+  @@index([proposalSetId])
+  @@index([resolvedChapterId])
 }
 
 model CharacterRelation {
