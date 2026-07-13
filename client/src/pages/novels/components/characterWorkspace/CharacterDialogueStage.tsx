@@ -4,8 +4,10 @@ import { MessageCircle, Send, Sparkles } from "lucide-react";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface CharacterDialogueStageProps {
+  className?: string;
   characterName: string;
   session: CharacterDialogueSession | null;
   isLoading: boolean;
@@ -32,7 +34,7 @@ export default function CharacterDialogueStage(props: CharacterDialogueStageProp
   };
 
   return (
-    <section className="flex min-h-[520px] min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:max-h-[calc(100dvh-15rem)]">
+    <section className={cn("flex min-h-[520px] min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:max-h-[calc(100dvh-15rem)]", props.className)}>
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 bg-[linear-gradient(135deg,hsl(var(--primary)/0.08),hsl(var(--background))_58%)] px-5 py-4">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold">

@@ -3,8 +3,10 @@ import type { CharacterMindSnapshot } from "@ai-novel/shared/types/characterMind
 import { Brain, ChevronDown, ChevronUp, CircleAlert, Lightbulb, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface CharacterMindSceneAnalysisProps {
+  className?: string;
   characterName: string;
   mind: CharacterMindSnapshot;
 }
@@ -12,7 +14,7 @@ interface CharacterMindSceneAnalysisProps {
 export default function CharacterMindSceneAnalysis(props: CharacterMindSceneAnalysisProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   return (
-    <aside className="min-w-0 rounded-3xl border border-border/70 bg-background p-5 shadow-sm xl:sticky xl:top-0">
+    <aside className={cn("min-w-0 rounded-3xl border border-border/70 bg-background p-5 shadow-sm xl:sticky xl:top-0", props.className)}>
       <div className="flex items-center gap-2 text-sm font-semibold"><Brain className="h-4 w-4 text-primary" />角色场景分析</div>
       <p className="mt-1 text-xs leading-5 text-muted-foreground">以下内容帮助理解 {props.characterName} 的回应逻辑，是 AI 推断，不会改写小说正史。</p>
 

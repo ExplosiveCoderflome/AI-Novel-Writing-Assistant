@@ -13,6 +13,8 @@ import {
 } from "@/api/novelCharacterDynamics";
 import { queryKeys } from "@/api/queryKeys";
 import AiButton from "@/components/common/AiButton";
+import FullscreenView from "@/components/common/FullscreenView";
+import { Badge } from "@/components/ui/badge";
 import CharacterDialogueStage from "./CharacterDialogueStage";
 import CharacterMindSceneAnalysis from "./CharacterMindSceneAnalysis";
 
@@ -55,16 +57,19 @@ export default function CharacterIntelligenceTab(props: CharacterIntelligenceTab
   if (!mind) return <EmptyMindState characterName={selectedCharacter.name} isRefreshing={refreshMutation.isPending} error={refreshMutation.error} onRefresh={() => refreshMutation.mutate()} />;
 
   return (
-    <section className="space-y-4">
-      <header className="flex flex-wrap items-start justify-between gap-3 rounded-3xl border border-border/70 bg-[linear-gradient(135deg,hsl(var(--primary)/0.06),hsl(var(--background))_55%)] px-5 py-4">
-        <div>
-          <div className="flex items-center gap-2 text-sm font-semibold"><Brain className="h-4 w-4 text-primary" />{selectedCharacter.name} 的对话空间</div>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">先和角色谈谈，再决定这段交流是否带入后续创作。</p>
-        </div>
-        <AiButton variant="outline" size="sm" onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}><RefreshCw className="mr-1.5 h-3.5 w-3.5" />{refreshMutation.isPending ? "整理中..." : "更新场景分析"}</AiButton>
-      </header>
-      <div className="grid min-w-0 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <FullscreenView
+      title={<span className="inline-flex items-center gap-2"><Brain className="h-4 w-4 text-primary" />{selectedCharacter.name} 的对话空间</span>}
+      description="先和角色谈谈，再决定这段交流是否带入后续创作。"
+      meta={<><Badge variant="outline">角色对话</Badge><Badge variant="secondary">场景分析已就绪</Badge></>}
+      actions={<AiButton variant="outline" size="sm" onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}><RefreshCw className="mr-1.5 h-3.5 w-3.5" />{refreshMutation.isPending ? "整理中..." : "更新场景分析"}</AiButton>}
+      toggleLabel="全屏对话"
+      exitLabel="退出全屏"
+      bodyClassName="grid min-h-[580px] min-w-0 xl:grid-cols-[minmax(0,1fr)_340px]"
+      fullscreenBodyClassName="min-h-0 min-w-0 overflow-y-auto xl:h-full xl:overflow-hidden xl:grid-cols-[minmax(0,1fr)_380px]"
+    >
+      <div className="min-h-0 min-w-0 border-b border-border/60 bg-muted/[0.08] p-4 xl:border-b-0 xl:border-r xl:p-6">
         <CharacterDialogueStage
+          className="xl:h-full xl:min-h-0 xl:max-h-none"
           characterName={selectedCharacter.name}
           session={dialogueQuery.data?.data ?? null}
           isLoading={dialogueQuery.isLoading}
@@ -80,10 +85,12 @@ export default function CharacterIntelligenceTab(props: CharacterIntelligenceTab
           onDismiss={(sessionId) => dismissInfluenceMutation.mutate(sessionId)}
           error={createDialogueMutation.error ?? sendTurnMutation.error ?? activateInfluenceMutation.error ?? dismissInfluenceMutation.error ?? dialogueQuery.error}
         />
-        <CharacterMindSceneAnalysis characterName={selectedCharacter.name} mind={mind} />
       </div>
-      {refreshMutation.error ? <div className="text-sm text-destructive">{refreshMutation.error instanceof Error ? refreshMutation.error.message : "场景分析暂时无法更新，请稍后重试。"}</div> : null}
-    </section>
+      <div className="min-h-0 min-w-0 bg-muted/[0.12] p-4 xl:overflow-y-auto xl:p-6">
+        <CharacterMindSceneAnalysis className="xl:static" characterName={selectedCharacter.name} mind={mind} />
+        {refreshMutation.error ? <div className="mt-3 text-sm text-destructive">{refreshMutation.error instanceof Error ? refreshMutation.error.message : "场景分析暂时无法更新，请稍后重试。"}</div> : null}
+      </div>
+    </FullscreenView>
   );
 }
 
