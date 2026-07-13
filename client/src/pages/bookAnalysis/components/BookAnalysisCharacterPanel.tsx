@@ -239,6 +239,8 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
             chapterAnchor={conversationTarget.chapterAnchor}
             chapterAnchorOptions={conversationAnchors}
             onChapterAnchorChange={(chapterAnchor) => setConversationTarget({ characterId: conversationCharacter.id, chapterAnchor })}
+            defaultFullscreen
+            closeOnExitFullscreen
             onClose={() => setConversationTarget(null)}
           />
         ) : null}
