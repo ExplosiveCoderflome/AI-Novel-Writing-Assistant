@@ -125,8 +125,13 @@ function availableChapterAnchors(character: BookAnalysisCharacter): number[] {
     ...character.profileSections.flatMap((section) => section.evidence.map((item) => item.chapterIndex)),
     ...character.arcs.map((arc) => arc.chapterIndex),
     ...character.scenes.flatMap((scene) => scene.evidence.map((item) => item.chapterIndex)),
-  ].filter((chapterIndex): chapterIndex is number => typeof chapterIndex === "number" && chapterIndex > 0);
-  return [...new Set(chapterIndexes)].sort((left, right) => left - right);
+  ]
+    .filter((chapterIndex): chapterIndex is number => typeof chapterIndex === "number" && chapterIndex > 0)
+    .map((chapterIndex) => chapterIndex + 1);
+  const appearanceChapterOrders = (character.appearance?.snapshots ?? [])
+    .filter((snapshot) => snapshot.chapterIndex >= 0 && snapshot.evidence.length > 0)
+    .map((snapshot) => snapshot.chapterIndex + 1);
+  return [...new Set([...chapterIndexes, ...appearanceChapterOrders])].sort((left, right) => left - right);
 }
 
 export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterPanelProps) {

@@ -1,6 +1,7 @@
 import type {
   BookAnalysisCharacter,
   BookAnalysisCharacterArc,
+  BookAnalysisCharacterAppearanceSnapshot,
   BookAnalysisCharacterEvidenceItem,
   BookAnalysisCharacterProfileSection,
   BookAnalysisCharacterScene,
@@ -33,7 +34,7 @@ function evidenceAtOrBefore(
   // An evidence item without a chapter cannot prove it belongs before the
   // anchor, so it is intentionally excluded rather than guessed into scope.
   return evidence.filter((item) =>
-    typeof item.chapterIndex === "number" && item.chapterIndex > 0 && item.chapterIndex <= chapterAnchor,
+    typeof item.chapterIndex === "number" && item.chapterIndex > 0 && item.chapterIndex + 1 <= chapterAnchor,
   );
 }
 
@@ -54,8 +55,32 @@ function toConversationEvidence(
     detail: compact(item.quote || item.excerpt, 360) || compact(item.sourceLabel, 360) || "原文证据摘录。",
     sourceType,
     sourceRef: `${sourceRefPrefix}:${item.chunkId || item.noteSegmentId || index}`,
-    chapterOrder: item.chapterIndex ?? null,
+    chapterOrder: typeof item.chapterIndex === "number" ? item.chapterIndex + 1 : null,
   }));
+}
+
+function appearanceSnapshotsAtOrBefore(
+  character: BookAnalysisCharacter,
+  chapterAnchor: number,
+): BookAnalysisCharacterAppearanceSnapshot[] {
+  return (character.appearance?.snapshots ?? []).filter((snapshot) => (
+    snapshot.chapterIndex >= 0
+    && snapshot.chapterIndex + 1 <= chapterAnchor
+    && snapshot.evidence.length > 0
+  ));
+}
+
+function toAppearanceSnapshotEvidence(
+  snapshots: BookAnalysisCharacterAppearanceSnapshot[],
+  sourceRefPrefix: string,
+): CharacterConversationEvidence[] {
+  return snapshots.flatMap((snapshot) => snapshot.evidence.map((item, index) => ({
+    label: compact(item.label, 160) || "章节形象证据",
+    detail: compact(item.quote || item.excerpt, 360) || compact(item.sourceLabel, 360) || "章节形象证据摘录。",
+    sourceType: "book_analysis_appearance_snapshot",
+    sourceRef: `${sourceRefPrefix}:${snapshot.id}:${index}`,
+    chapterOrder: snapshot.chapterIndex + 1,
+  })));
 }
 
 function formatProfileSection(section: BookAnalysisCharacterProfileSection): string {
@@ -64,7 +89,8 @@ function formatProfileSection(section: BookAnalysisCharacterProfileSection): str
 
 function formatArc(arc: BookAnalysisCharacterArc): string {
   const state = arc.stateSnapshot ? `；状态：${compact(JSON.stringify(arc.stateSnapshot), 220)}` : "";
-  return `第 ${arc.chapterIndex} 章：${compact(arc.stageLabel)}${state}`;
+  const chapterLabel = typeof arc.chapterIndex === "number" ? `第 ${arc.chapterIndex + 1} 章` : "已证实阶段";
+  return `${chapterLabel}：${compact(arc.stageLabel)}${state}`;
 }
 
 function formatScene(scene: BookAnalysisCharacterScene): string {
@@ -96,6 +122,7 @@ function collectAnchoredContent(input: BookAnalysisCharacterSubjectAdapterInput)
     && isFullyAnchored(arc.evidence, chapterAnchor),
   );
   const scenes = character.scenes.filter((scene) => isFullyAnchored(scene.evidence, chapterAnchor));
+  const appearanceSnapshots = appearanceSnapshotsAtOrBefore(character, chapterAnchor);
   const evidence = [
     ...toConversationEvidence(characterEvidence, "book_analysis_character", `${character.analysisId}:${character.id}:character`),
     ...sections.flatMap((section) => toConversationEvidence(
@@ -113,9 +140,13 @@ function collectAnchoredContent(input: BookAnalysisCharacterSubjectAdapterInput)
       "book_analysis_scene",
       `${character.analysisId}:${character.id}:scene:${scene.id}`,
     )),
+    ...toAppearanceSnapshotEvidence(
+      appearanceSnapshots,
+      `${character.analysisId}:${character.id}:appearance`,
+    ),
   ].slice(0, MAX_EVIDENCE);
 
-  return { characterEvidence, sections, arcs, scenes, evidence };
+  return { characterEvidence, sections, arcs, scenes, appearanceSnapshots, evidence };
 }
 
 /**
@@ -125,7 +156,7 @@ function collectAnchoredContent(input: BookAnalysisCharacterSubjectAdapterInput)
 export const bookAnalysisCharacterSubjectAdapter: CharacterSubjectAdapter<BookAnalysisCharacterSubjectAdapterInput> = {
   project(input): CharacterSubjectProjection {
     const { character, analysisId, chapterAnchor } = input;
-    const { characterEvidence, sections, arcs, scenes, evidence } = collectAnchoredContent(input);
+    const { characterEvidence, sections, arcs, scenes, appearanceSnapshots, evidence } = collectAnchoredContent(input);
     const hasEvidence = evidence.length > 0;
     const identityLines = [
       `原文角色定位：${character.role}`,
@@ -134,6 +165,7 @@ export const bookAnalysisCharacterSubjectAdapter: CharacterSubjectAdapter<BookAn
     const situationLines = [
       arcs.length > 0 ? `已证实的阶段：${formatArc(arcs[arcs.length - 1])}` : null,
       scenes.length > 0 ? `已证实的场景表现：${formatScene(scenes[scenes.length - 1])}` : null,
+      appearanceSnapshots.length > 0 ? `已证实的形象节点：第 ${appearanceSnapshots[appearanceSnapshots.length - 1]!.chapterIndex + 1} 章。` : null,
       !hasEvidence ? "截至该章节锚点没有足够的原文证据，不能确认角色的处境、动机或未公开信息。" : null,
     ].filter((line): line is string => Boolean(line));
 
@@ -157,7 +189,7 @@ export const bookAnalysisCharacterSubjectAdapter: CharacterSubjectAdapter<BookAn
         "证据不足时必须明确说明无法从原文确认，不能补写秘密、动机或后续剧情。",
         "本次交流仅用于理解原作人物，不会修改原文、拆书结论或任何小说正文。",
       ],
-      subjectiveState: characterEvidence.length > 0
+      subjectiveState: characterEvidence.length > 0 || appearanceSnapshots.length > 0
         ? "以下判断只代表原文证据支持的角色表现，不是对其内心真相的确认。"
         : null,
       evidence,
@@ -168,7 +200,7 @@ export const bookAnalysisCharacterSubjectAdapter: CharacterSubjectAdapter<BookAn
 
   buildPromptContext(input): string {
     const { character, chapterAnchor } = input;
-    const { sections, arcs, scenes, evidence } = collectAnchoredContent(input);
+    const { sections, arcs, scenes, appearanceSnapshots, evidence } = collectAnchoredContent(input);
     const evidenceLines = evidence.slice(0, 8).map((item) =>
       `- 第 ${item.chapterOrder} 章｜${item.label}：${item.detail}`,
     );
@@ -179,6 +211,7 @@ export const bookAnalysisCharacterSubjectAdapter: CharacterSubjectAdapter<BookAn
       sections.length > 0 ? `可用人物档案：${sections.slice(0, 4).map(formatProfileSection).join("；")}` : null,
       arcs.length > 0 ? `可用角色阶段：${arcs.slice(-3).map(formatArc).join("；")}` : null,
       scenes.length > 0 ? `可用场景表现：${scenes.slice(-3).map(formatScene).join("；")}` : null,
+      appearanceSnapshots.length > 0 ? `可用形象节点：${appearanceSnapshots.slice(-3).map((snapshot) => `第 ${snapshot.chapterIndex + 1} 章`).join("、")}` : null,
       evidenceLines.length > 0 ? `原文证据：\n${evidenceLines.join("\n")}` : "原文证据不足：不得确认角色的内心、秘密、动机或后续发展。",
       "边界：只能基于上述证据回应；不得引用锚点后的内容，不得把合理推测说成原文事实。",
     ];
