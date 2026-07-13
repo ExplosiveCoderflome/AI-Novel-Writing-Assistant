@@ -15,18 +15,22 @@ const subjectSchema = z.object({
 const sessionSchema = subjectSchema.extend({ sessionId: z.string().trim().min(1) });
 const turnSchema = sessionSchema.extend({ message: z.string().trim().min(1).max(800) });
 
+export function parseCharacterConversationSubjectQuery(query: unknown) {
+  return subjectSchema.parse(query);
+}
+
 const router = Router();
 router.use(authMiddleware);
 
 router.get("/context", validate({ query: subjectSchema }), async (req, res, next) => {
   try {
-    const data = await characterConversationService.getContext(req.query as unknown as z.infer<typeof subjectSchema>);
+    const data = await characterConversationService.getContext(parseCharacterConversationSubjectQuery(req.query));
     res.json({ success: true, data } satisfies ApiResponse<typeof data>);
   } catch (error) { next(error); }
 });
 router.get("/sessions/active", validate({ query: subjectSchema }), async (req, res, next) => {
   try {
-    const data = await characterConversationService.getActiveSession(req.query as unknown as z.infer<typeof subjectSchema>);
+    const data = await characterConversationService.getActiveSession(parseCharacterConversationSubjectQuery(req.query));
     res.json({ success: true, data } satisfies ApiResponse<typeof data>);
   } catch (error) { next(error); }
 });

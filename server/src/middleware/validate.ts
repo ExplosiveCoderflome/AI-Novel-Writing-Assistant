@@ -15,9 +15,7 @@ export function validate(schema: ValidationSchema): RequestHandler {
         req.body = schema.body.parse(req.body);
       }
       if (schema.query) {
-        // 回写校验/强制转换后的结果，使 z.coerce.* 在查询参数中真正生效。
-        // Express 将 URL 查询参数解析为字符串；后续路由与领域服务应读取转换后的值。
-        Object.assign(req.query, schema.query.parse(req.query) as Record<string, unknown>);
+        schema.query.parse(req.query);
       }
       if (schema.params) {
         // 回写校验/强制转换后的结果，使 z.coerce.* 真正生效
