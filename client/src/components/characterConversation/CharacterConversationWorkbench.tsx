@@ -91,18 +91,20 @@ export default function CharacterConversationWorkbench(props: CharacterConversat
       actions={<>{props.headerActions}{props.chapterAnchorOptions?.length && typeof props.chapterAnchor === "number" && props.onChapterAnchorChange ? <ChapterAnchorSelect chapterAnchor={props.chapterAnchor} options={props.chapterAnchorOptions} disabled={Boolean(session)} onChange={props.onChapterAnchorChange} /> : null}{props.onClose ? <Button size="sm" variant="ghost" onClick={props.onClose}>收起谈话</Button> : null}</>}
       bodyClassName={cn(
         "grid min-w-0 xl:grid-cols-[minmax(0,1fr)_340px]",
-        useCompactReadOnlyLayout ? "min-h-[420px] xl:items-start" : "min-h-[580px]",
+        useCompactReadOnlyLayout
+          ? "min-h-[420px] xl:h-[54rem] xl:max-h-[calc(100dvh-10rem)] xl:min-h-0"
+          : "min-h-[580px]",
       )}
       fullscreenBodyClassName="min-h-0 min-w-0 overflow-y-auto xl:h-full xl:overflow-hidden xl:grid-cols-[minmax(0,1fr)_380px]"
     >
       <div className={cn(
         "min-h-0 min-w-0 border-b border-border/60 bg-muted/[0.08] p-4 xl:border-b-0 xl:border-r xl:p-6",
-        useCompactReadOnlyLayout && "xl:self-start",
+        useCompactReadOnlyLayout && "xl:h-full xl:self-stretch",
       )}>
         <CharacterDialogueStage
           className={cn(
-            "xl:min-h-0 xl:max-h-none",
-            useCompactReadOnlyLayout ? "min-h-[420px] xl:h-auto" : "xl:h-full",
+            "xl:h-full xl:min-h-0 xl:max-h-none",
+            useCompactReadOnlyLayout && "min-h-[420px]",
           )}
           characterName={displayName}
           interactionPolicy={policy}
@@ -123,7 +125,7 @@ export default function CharacterConversationWorkbench(props: CharacterConversat
       </div>
       <div className={cn(
         "min-h-0 min-w-0 bg-muted/[0.12] p-4 xl:p-6",
-        useCompactReadOnlyLayout ? "xl:max-h-[520px] xl:overflow-y-auto" : "xl:overflow-y-auto",
+        useCompactReadOnlyLayout ? "xl:h-full xl:max-h-none xl:overflow-y-auto" : "xl:overflow-y-auto",
       )}>{sidePanel}</div>
     </FullscreenView>
   );
