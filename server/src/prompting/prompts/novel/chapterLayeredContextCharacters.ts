@@ -39,8 +39,8 @@ export function buildDynamicCharacterGuidance(
   const currentChapterOrder = contextPackage.chapter.order;
   const rosterById = new Map(contextPackage.characterRoster.map((character) => [character.id, character]));
   const mindByCharacterId = new Map((contextPackage.characterMindStates ?? []).map((mind) => [mind.characterId, mind]));
-  const influenceByCharacterId = new Map(
-    (contextPackage.characterInfluenceGuidances ?? []).map((guidance) => [guidance.characterId, guidance]),
+  const dialogueGuidanceByCharacterId = new Map(
+    (contextPackage.characterDialogueGuidances ?? []).map((guidance) => [guidance.characterId, guidance]),
   );
   const planParticipantNames = new Set((contextPackage.plan?.participants ?? []).map((item) => compactText(item)));
   const conflictCharacterIds = new Set(
@@ -144,7 +144,7 @@ export function buildDynamicCharacterGuidance(
           isCoreInVolume: item.isCoreInVolume,
           shouldPreferAppearance,
           mindGuidance: buildMindGuidance(mindByCharacterId.get(item.characterId)),
-          authorInfluenceGuidance: buildAuthorInfluenceGuidance(influenceByCharacterId.get(item.characterId)),
+          authorInfluenceGuidance: buildDialogueInfluenceGuidance(dialogueGuidanceByCharacterId.get(item.characterId)),
         },
       };
     })
@@ -195,8 +195,8 @@ function buildMindGuidance(mind: GenerationContextPackage["characterMindStates"]
   return parts.length > 0 ? parts.join(" | ") : null;
 }
 
-function buildAuthorInfluenceGuidance(
-  influence: NonNullable<GenerationContextPackage["characterInfluenceGuidances"]>[number] | undefined,
+function buildDialogueInfluenceGuidance(
+  influence: NonNullable<GenerationContextPackage["characterDialogueGuidances"]>[number] | undefined,
 ): string | null {
   if (!influence) {
     return null;
@@ -205,7 +205,7 @@ function buildAuthorInfluenceGuidance(
     influence.behaviorGuidance ? `行动倾向：${compactText(influence.behaviorGuidance)}` : "",
     influence.emotionalGuidance ? `情绪倾向：${compactText(influence.emotionalGuidance)}` : "",
     influence.relationTension ? `关系张力：${compactText(influence.relationTension)}` : "",
-    influence.authorIntent ? `作者意图：${compactText(influence.authorIntent)}` : "",
+    influence.summary ? `对话沉淀：${compactText(influence.summary)}` : "",
   ], 3);
   return parts.length > 0 ? parts.join(" | ") : null;
 }

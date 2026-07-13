@@ -57,17 +57,16 @@ type ChapterReference = {
 type ChapterArtifactDeltaResourceUpdate = ChapterArtifactDeltaOutput["characterResourceDeltas"][number];
 type ChapterArtifactPayoffDelta = ChapterArtifactDeltaOutput["payoffDeltas"][number];
 type ChapterArtifactKnowledgeState = ChapterArtifactDeltaOutput["characterKnowledgeStates"][number];
-type ChapterArtifactInfluenceResolution = ChapterArtifactDeltaOutput["characterInfluenceResolutions"][number];
+type ChapterArtifactDialogueInfluenceResolution = ChapterArtifactDeltaOutput["characterDialogueInfluenceResolutions"][number];
 
-type ActiveCharacterInfluenceProposal = {
+type ActiveCharacterDialogueInfluence = {
   id: string;
   characterId: string;
   characterName: string;
-  title: string;
+  summary: string;
   behaviorGuidance: string;
   emotionalGuidance: string | null;
   relationTension: string | null;
-  authorIntent: string | null;
   targetStartChapterOrder: number;
   targetEndChapterOrder: number;
 };
@@ -92,8 +91,8 @@ export interface ChapterArtifactDeltaSyncResult {
   characterDynamicsCount: number;
   characterKnowledgeStateCount: number;
   characterMindSnapshotCount: number;
-  characterInfluenceAppliedCount: number;
-  characterInfluenceExpiredCount: number;
+  characterDialogueInfluenceAppliedCount: number;
+  characterDialogueInfluenceExpiredCount: number;
   payoffDeltaCount: number;
   canonicalCommittedCount: number;
   concreteFactCount: number;
@@ -230,16 +229,15 @@ function stringifyPayoffText(items: Array<{
   ].filter(Boolean).join(" | ")).join("\n");
 }
 
-function stringifyActiveCharacterInfluenceText(items: ActiveCharacterInfluenceProposal[]): string {
+function stringifyActiveCharacterDialogueInfluenceText(items: ActiveCharacterDialogueInfluence[]): string {
   return items.slice(0, 8).map((item) => [
-    `- proposalId=${item.id}`,
+    `- influenceId=${item.id}`,
     `角色=${item.characterName}`,
-    `方案=${item.title}`,
+    `对话沉淀=${item.summary}`,
     `窗口=${item.targetStartChapterOrder}-${item.targetEndChapterOrder}`,
     `行动倾向=${item.behaviorGuidance}`,
     item.emotionalGuidance ? `情绪倾向=${item.emotionalGuidance}` : "",
     item.relationTension ? `关系张力=${item.relationTension}` : "",
-    item.authorIntent ? `作者意图=${item.authorIntent}` : "",
   ].filter(Boolean).join(" | ")).join("\n");
 }
 
@@ -324,11 +322,11 @@ export class ChapterArtifactDeltaService {
       throw new Error("小说或章节不存在，无法提取资产 delta。");
     }
 
-    const characterInfluenceExpiredCount = await this.expirePastCharacterInfluenceProposals({
+    const characterDialogueInfluenceExpiredCount = await this.expirePastCharacterDialogueInfluences({
       novelId: input.novelId,
       chapterOrder: chapter.order,
     }).catch(() => 0);
-    const activeCharacterInfluenceProposals = await this.listActiveCharacterInfluenceProposals({
+    const activeCharacterDialogueInfluences = await this.listActiveCharacterDialogueInfluences({
       novelId: input.novelId,
       chapterOrder: chapter.order,
     }).catch(() => []);
@@ -346,7 +344,7 @@ export class ChapterArtifactDeltaService {
         previousStateText: stringifyPreviousState(previousSnapshot),
         existingResourceText: stringifyChapterResourceText(existingResources),
         existingPayoffText: stringifyPayoffText(payoffRows),
-        activeCharacterInfluenceText: stringifyActiveCharacterInfluenceText(activeCharacterInfluenceProposals),
+        activeCharacterDialogueInfluenceText: stringifyActiveCharacterDialogueInfluenceText(activeCharacterDialogueInfluences),
         chapterContent: content,
       },
       options: {
@@ -407,7 +405,7 @@ export class ChapterArtifactDeltaService {
       chapterOrder: chapter.order,
     }).catch(() => 0);
 
-    const [payoffDeltaCount, characterDynamicsCount, characterKnowledgeStateCount, characterMindSnapshotCount, characterInfluenceAppliedCount] = await Promise.all([
+    const [payoffDeltaCount, characterDynamicsCount, characterKnowledgeStateCount, characterMindSnapshotCount, characterDialogueInfluenceAppliedCount] = await Promise.all([
       output.syncPlan.payoffLedger === "skip"
         ? Promise.resolve(0)
         : this.applyPayoffDeltas({
@@ -441,14 +439,14 @@ export class ChapterArtifactDeltaService {
           chapterId: input.chapterId,
           deltas: output.characterMindDeltas,
         }),
-      output.characterInfluenceResolutions.length === 0
+      output.characterDialogueInfluenceResolutions.length === 0
         ? Promise.resolve(0)
-        : this.applyCharacterInfluenceResolutions({
+        : this.applyCharacterDialogueInfluenceResolutions({
           novelId: input.novelId,
           chapterId: input.chapterId,
           chapterOrder: chapter.order,
-          activeProposals: activeCharacterInfluenceProposals,
-          resolutions: output.characterInfluenceResolutions,
+          activeInfluences: activeCharacterDialogueInfluences,
+          resolutions: output.characterDialogueInfluenceResolutions,
         }).catch(() => 0),
     ]);
 
@@ -460,8 +458,8 @@ export class ChapterArtifactDeltaService {
       characterDynamicsCount,
       characterKnowledgeStateCount,
       characterMindSnapshotCount,
-      characterInfluenceAppliedCount,
-      characterInfluenceExpiredCount,
+      characterDialogueInfluenceAppliedCount,
+      characterDialogueInfluenceExpiredCount,
       payoffDeltaCount,
       canonicalCommittedCount: stateCommitResult.committed.length,
       concreteFactCount,
@@ -470,14 +468,14 @@ export class ChapterArtifactDeltaService {
     };
   }
 
-  private async expirePastCharacterInfluenceProposals(input: {
+  private async expirePastCharacterDialogueInfluences(input: {
     novelId: string;
     chapterOrder: number;
   }): Promise<number> {
-    const result = await prisma.characterInfluenceProposal.updateMany({
+    const result = await prisma.characterDialogueInfluence.updateMany({
       where: {
         novelId: input.novelId,
-        status: "accepted",
+        status: "active",
         targetEndChapterOrder: { lt: input.chapterOrder },
       },
       data: { status: "expired" },
@@ -485,58 +483,56 @@ export class ChapterArtifactDeltaService {
     return result.count;
   }
 
-  private async listActiveCharacterInfluenceProposals(input: {
+  private async listActiveCharacterDialogueInfluences(input: {
     novelId: string;
     chapterOrder: number;
-  }): Promise<ActiveCharacterInfluenceProposal[]> {
-    const rows = await prisma.characterInfluenceProposal.findMany({
+  }): Promise<ActiveCharacterDialogueInfluence[]> {
+    const rows = await prisma.characterDialogueInfluence.findMany({
       where: {
         novelId: input.novelId,
-        status: "accepted",
+        status: "active",
         targetStartChapterOrder: { lte: input.chapterOrder },
         targetEndChapterOrder: { gte: input.chapterOrder },
       },
       select: {
         id: true,
         characterId: true,
-        title: true,
+        summary: true,
         behaviorGuidance: true,
         emotionalGuidance: true,
         relationTension: true,
-        authorIntent: true,
         targetStartChapterOrder: true,
         targetEndChapterOrder: true,
         character: { select: { name: true } },
       },
-      orderBy: [{ acceptedAt: "desc" }, { updatedAt: "desc" }],
+      orderBy: [{ activatedAt: "desc" }, { updatedAt: "desc" }],
       take: 8,
     });
     return rows.map((row) => ({
       id: row.id,
       characterId: row.characterId,
       characterName: row.character.name,
-      title: row.title,
+      summary: row.summary,
       behaviorGuidance: row.behaviorGuidance,
       emotionalGuidance: row.emotionalGuidance,
       relationTension: row.relationTension,
-      authorIntent: row.authorIntent,
       targetStartChapterOrder: row.targetStartChapterOrder,
       targetEndChapterOrder: row.targetEndChapterOrder,
     }));
   }
 
-  private async applyCharacterInfluenceResolutions(input: {
+  private async applyCharacterDialogueInfluenceResolutions(input: {
     novelId: string;
     chapterId: string;
     chapterOrder: number;
-    activeProposals: ActiveCharacterInfluenceProposal[];
-    resolutions: ChapterArtifactInfluenceResolution[];
+    activeInfluences: ActiveCharacterDialogueInfluence[];
+    resolutions: ChapterArtifactDialogueInfluenceResolution[];
   }): Promise<number> {
-    const activeProposalIds = new Set(input.activeProposals.map((proposal) => proposal.id));
+    const activeInfluenceIds = new Set(input.activeInfluences.map((influence) => influence.id));
     const appliedResolutions = input.resolutions.filter((resolution) => (
       resolution.status === "applied"
       && resolution.evidence.length > 0
-      && activeProposalIds.has(resolution.proposalId)
+      && activeInfluenceIds.has(resolution.influenceId)
     ));
     if (appliedResolutions.length === 0) {
       return 0;
@@ -544,11 +540,11 @@ export class ChapterArtifactDeltaService {
 
     const resolvedAt = new Date();
     const results = await Promise.all(appliedResolutions.map((resolution) => (
-      prisma.characterInfluenceProposal.updateMany({
+      prisma.characterDialogueInfluence.updateMany({
         where: {
-          id: resolution.proposalId,
+          id: resolution.influenceId,
           novelId: input.novelId,
-          status: "accepted",
+          status: "active",
           targetStartChapterOrder: { lte: input.chapterOrder },
           targetEndChapterOrder: { gte: input.chapterOrder },
         },

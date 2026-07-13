@@ -9,6 +9,7 @@ import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { CharacterVisibleProfileService } from "../characterProfile/CharacterVisibleProfileService";
 import { CharacterMindService } from "../characterMind/CharacterMindService";
 import { CharacterInfluenceService } from "../characterInfluence/CharacterInfluenceService";
+import { CharacterDialogueService } from "../characterDialogue/CharacterDialogueService";
 import {
   buildManualChapterControlPolicy,
   registerChapterExecutionStageRunner,
@@ -51,6 +52,7 @@ export class DefaultNovelApplicationServices {
   private readonly characterVisibleProfileService = new CharacterVisibleProfileService();
   private readonly characterMindService = new CharacterMindService();
   private readonly characterInfluenceService = new CharacterInfluenceService();
+  private readonly characterDialogueService = new CharacterDialogueService();
   private readonly volumeService = new NovelVolumeService();
   private readonly chapterEditorWorkspaceService = new ChapterEditorWorkspaceService();
   private readonly chapterEditorService = new NovelChapterEditorService();
@@ -683,6 +685,26 @@ export class DefaultNovelApplicationServices {
 
   dismissCharacterInfluenceProposal(...args: Parameters<CharacterInfluenceService["dismissInfluenceProposal"]>) {
     return this.characterInfluenceService.dismissInfluenceProposal(...args);
+  }
+
+  getActiveCharacterDialogueSession(...args: Parameters<CharacterDialogueService["getActiveSession"]>) {
+    return this.characterDialogueService.getActiveSession(...args);
+  }
+
+  startCharacterDialogueSession(...args: Parameters<CharacterDialogueService["startSession"]>) {
+    return this.characterDialogueService.startSession(...args);
+  }
+
+  sendCharacterDialogueTurn(...args: Parameters<CharacterDialogueService["sendTurn"]>) {
+    return this.characterDialogueService.sendTurn(...args);
+  }
+
+  activateCharacterDialogueInfluence(...args: Parameters<CharacterDialogueService["activateLatestDraftInfluence"]>) {
+    return this.characterDialogueService.activateLatestDraftInfluence(...args);
+  }
+
+  dismissCharacterDialogueInfluence(...args: Parameters<CharacterDialogueService["dismissLatestDraftInfluence"]>) {
+    return this.characterDialogueService.dismissLatestDraftInfluence(...args);
   }
 }
 

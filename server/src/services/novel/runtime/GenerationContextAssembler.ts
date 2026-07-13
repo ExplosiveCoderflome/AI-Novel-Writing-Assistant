@@ -264,7 +264,7 @@ export class GenerationContextAssembler {
       decisions,
       characterDynamics,
       characterMindRows,
-      characterInfluenceRows,
+      characterDialogueRows,
       continuationPack,
       styleContext,
       payoffLedger,
@@ -324,25 +324,26 @@ export class GenerationContextAssembler {
         },
         orderBy: { updatedAt: "desc" },
       }),
-      prisma.characterInfluenceProposal.findMany({
+      prisma.characterDialogueInfluence.findMany({
         where: {
           novelId,
-          status: "accepted",
+          // 对话影响只为章节计划中真实参与的角色装配；缺少参与者时宁可不注入。
+          characterId: { in: resourceCharacterIds },
+          status: "active",
           targetStartChapterOrder: { lte: chapter.order },
           targetEndChapterOrder: { gte: chapter.order },
         },
         select: {
           id: true,
           characterId: true,
-          title: true,
+          summary: true,
           behaviorGuidance: true,
           emotionalGuidance: true,
           relationTension: true,
-          authorIntent: true,
           targetStartChapterOrder: true,
           targetEndChapterOrder: true,
         },
-        orderBy: [{ acceptedAt: "desc" }, { updatedAt: "desc" }],
+        orderBy: [{ activatedAt: "desc" }, { updatedAt: "desc" }],
         take: 12,
       }).catch(() => []),
       this.continuationService.buildChapterContextPack(novelId),
@@ -482,14 +483,13 @@ export class GenerationContextAssembler {
       confidence: item.confidence,
       sourceChapterId: item.sourceChapterId,
     }));
-    const characterInfluenceGuidances = characterInfluenceRows.map((item) => ({
-      proposalId: item.id,
+    const characterDialogueGuidances = characterDialogueRows.map((item) => ({
+      influenceId: item.id,
       characterId: item.characterId,
-      title: item.title,
+      summary: item.summary,
       behaviorGuidance: item.behaviorGuidance,
       emotionalGuidance: item.emotionalGuidance,
       relationTension: item.relationTension,
-      authorIntent: item.authorIntent,
       targetStartChapterOrder: item.targetStartChapterOrder,
       targetEndChapterOrder: item.targetEndChapterOrder,
     }));
@@ -581,7 +581,7 @@ export class GenerationContextAssembler {
       storyWorldSlice,
       characterDynamics,
       characterMindStates,
-      characterInfluenceGuidances,
+      characterDialogueGuidances,
       characterRoster: mappedCharacterRoster,
       characterHardFacts: mappedCharacterHardFacts,
       creativeDecisions: mappedCreativeDecisions,

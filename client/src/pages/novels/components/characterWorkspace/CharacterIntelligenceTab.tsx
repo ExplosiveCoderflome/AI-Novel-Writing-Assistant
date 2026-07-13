@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Character } from "@ai-novel/shared/types/novel";
-import type { CharacterInfluenceProposal, CharacterInfluenceProposalStatus } from "@ai-novel/shared/types/characterInfluence";
-import { Brain, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
+import type { CharacterDialogueInfluenceStatus, CharacterDialogueSession } from "@ai-novel/shared/types/characterDialogue";
+import { Brain, MessageCircle, RefreshCw, Send, ShieldCheck, Sparkles } from "lucide-react";
 import {
-  acceptCharacterInfluenceProposal,
-  dismissCharacterInfluenceProposal,
-  generateCharacterInfluenceProposals,
-  getCharacterInfluenceProposals,
+  activateLatestCharacterDialogueInfluence,
+  createCharacterDialogueSession,
+  dismissLatestCharacterDialogueInfluence,
+  getActiveCharacterDialogueSession,
   getCharacterMindState,
   refreshCharacterMindState,
+  sendCharacterDialogueTurn,
 } from "@/api/novelCharacterDynamics";
 import { queryKeys } from "@/api/queryKeys";
 import AiButton from "@/components/common/AiButton";
@@ -24,10 +25,9 @@ interface CharacterIntelligenceTabProps {
 export default function CharacterIntelligenceTab(props: CharacterIntelligenceTabProps) {
   const { novelId, selectedCharacter } = props;
   const queryClient = useQueryClient();
-  const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
-  const [authorIntent, setAuthorIntent] = useState("");
+  const [message, setMessage] = useState("");
   const queryKey = queryKeys.novels.characterMindState(novelId, selectedCharacter.id);
-  const influenceQueryKey = queryKeys.novels.characterInfluenceProposals(novelId, selectedCharacter.id);
+  const dialogueQueryKey = queryKeys.novels.characterDialogueSession(novelId, selectedCharacter.id);
   const mindQuery = useQuery({
     queryKey,
     queryFn: () => getCharacterMindState(novelId, selectedCharacter.id),
@@ -38,34 +38,33 @@ export default function CharacterIntelligenceTab(props: CharacterIntelligenceTab
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
   const mind = mindQuery.data?.data ?? null;
-  const influenceQuery = useQuery({
-    queryKey: influenceQueryKey,
-    queryFn: () => getCharacterInfluenceProposals(novelId, selectedCharacter.id),
+  const dialogueQuery = useQuery({
+    queryKey: dialogueQueryKey,
+    queryFn: () => getActiveCharacterDialogueSession(novelId, selectedCharacter.id),
     enabled: Boolean(novelId && selectedCharacter.id && mind),
   });
-  const invalidateInfluence = () => queryClient.invalidateQueries({ queryKey: influenceQueryKey });
-  const generateInfluenceMutation = useMutation({
-    mutationFn: () => generateCharacterInfluenceProposals(novelId, selectedCharacter.id),
-    onSuccess: invalidateInfluence,
+  const invalidateDialogue = () => queryClient.invalidateQueries({ queryKey: dialogueQueryKey });
+  const createDialogueMutation = useMutation({
+    mutationFn: () => createCharacterDialogueSession(novelId, selectedCharacter.id),
+    onSuccess: invalidateDialogue,
   });
-  const acceptInfluenceMutation = useMutation({
-    mutationFn: ({ proposalId, intent }: { proposalId: string; intent?: string }) =>
-      acceptCharacterInfluenceProposal(novelId, selectedCharacter.id, proposalId, intent ? { authorIntent: intent } : undefined),
+  const sendTurnMutation = useMutation({
+    mutationFn: ({ sessionId, content }: { sessionId: string; content: string }) =>
+      sendCharacterDialogueTurn(novelId, selectedCharacter.id, sessionId, { message: content }),
     onSuccess: () => {
-      setSelectedProposalId(null);
-      setAuthorIntent("");
-      invalidateInfluence();
+      setMessage("");
+      invalidateDialogue();
     },
+  });
+  const activateInfluenceMutation = useMutation({
+    mutationFn: (sessionId: string) => activateLatestCharacterDialogueInfluence(novelId, selectedCharacter.id, sessionId),
+    onSuccess: invalidateDialogue,
   });
   const dismissInfluenceMutation = useMutation({
-    mutationFn: (proposalId: string) => dismissCharacterInfluenceProposal(novelId, selectedCharacter.id, proposalId),
-    onSuccess: () => {
-      setSelectedProposalId(null);
-      setAuthorIntent("");
-      invalidateInfluence();
-    },
+    mutationFn: (sessionId: string) => dismissLatestCharacterDialogueInfluence(novelId, selectedCharacter.id, sessionId),
+    onSuccess: invalidateDialogue,
   });
-  const proposals = influenceQuery.data?.data ?? [];
+  const dialogue = dialogueQuery.data?.data ?? null;
 
   if (mindQuery.isLoading) {
     return <section className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">正在整理角色当前的想法与行动倾向...</section>;
@@ -128,138 +127,129 @@ export default function CharacterIntelligenceTab(props: CharacterIntelligenceTab
           {typeof mind.confidence === "number" ? <Badge variant="outline">置信度 {Math.round(mind.confidence * 100)}%</Badge> : null}
         </div>
       </section>
-      <CharacterInfluenceWorkspace
+      <CharacterDialogueWorkspace
         characterName={selectedCharacter.name}
-        proposals={proposals}
-        isLoading={influenceQuery.isLoading}
-        isGenerating={generateInfluenceMutation.isPending}
-        isAccepting={acceptInfluenceMutation.isPending}
+        session={dialogue}
+        isLoading={dialogueQuery.isLoading}
+        isCreating={createDialogueMutation.isPending}
+        isSending={sendTurnMutation.isPending}
+        isActivating={activateInfluenceMutation.isPending}
         isDismissing={dismissInfluenceMutation.isPending}
-        selectedProposalId={selectedProposalId}
-        authorIntent={authorIntent}
-        onGenerate={() => generateInfluenceMutation.mutate()}
-        onSelect={(proposalId) => {
-          setSelectedProposalId(proposalId);
-          setAuthorIntent("");
-        }}
-        onCloseSelection={() => {
-          setSelectedProposalId(null);
-          setAuthorIntent("");
-        }}
-        onIntentChange={setAuthorIntent}
-        onAccept={(proposalId) => acceptInfluenceMutation.mutate({ proposalId, intent: authorIntent.trim() || undefined })}
-        onDismiss={(proposalId) => dismissInfluenceMutation.mutate(proposalId)}
-        error={generateInfluenceMutation.error ?? acceptInfluenceMutation.error ?? dismissInfluenceMutation.error ?? influenceQuery.error}
+        message={message}
+        onMessageChange={setMessage}
+        onCreate={() => createDialogueMutation.mutate()}
+        onSend={(sessionId) => sendTurnMutation.mutate({ sessionId, content: message.trim() })}
+        onActivate={(sessionId) => activateInfluenceMutation.mutate(sessionId)}
+        onDismiss={(sessionId) => dismissInfluenceMutation.mutate(sessionId)}
+        error={createDialogueMutation.error ?? sendTurnMutation.error ?? activateInfluenceMutation.error ?? dismissInfluenceMutation.error ?? dialogueQuery.error}
       />
       {refreshMutation.error ? <div className="text-sm text-destructive">{refreshMutation.error instanceof Error ? refreshMutation.error.message : "刷新失败，请稍后重试。"}</div> : null}
     </div>
   );
 }
 
-function CharacterInfluenceWorkspace(props: {
+function CharacterDialogueWorkspace(props: {
   characterName: string;
-  proposals: CharacterInfluenceProposal[];
+  session: CharacterDialogueSession | null;
   isLoading: boolean;
-  isGenerating: boolean;
-  isAccepting: boolean;
+  isCreating: boolean;
+  isSending: boolean;
+  isActivating: boolean;
   isDismissing: boolean;
-  selectedProposalId: string | null;
-  authorIntent: string;
   error: unknown;
-  onGenerate: () => void;
-  onSelect: (proposalId: string) => void;
-  onCloseSelection: () => void;
-  onIntentChange: (value: string) => void;
-  onAccept: (proposalId: string) => void;
-  onDismiss: (proposalId: string) => void;
+  message: string;
+  onMessageChange: (value: string) => void;
+  onCreate: () => void;
+  onSend: (sessionId: string) => void;
+  onActivate: (sessionId: string) => void;
+  onDismiss: (sessionId: string) => void;
 }) {
-  const hasDraft = props.proposals.some((proposal) => proposal.status === "draft");
-  const canGenerate = !props.isGenerating && !hasDraft;
+  const influence = props.session?.latestInfluence ?? null;
+  const submitMessage = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (props.session && props.message.trim() && !props.isSending) props.onSend(props.session.id);
+  };
 
   return (
     <section className="rounded-2xl border border-border/70 bg-muted/10 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-sm font-medium"><Sparkles className="h-4 w-4" />为他准备下一步</div>
-          <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">AI 会基于当前思路线整理可选方向。确认后，它只会作为后续章节的软性行为引导，不会自动改写小说正史。</p>
+          <div className="flex items-center gap-2 text-sm font-medium"><MessageCircle className="h-4 w-4" />和角色聊聊</div>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">你可以直接说出想问的话。{props.characterName}会按自己的处境、认知和关系回应；谈话不会改写小说正史。</p>
         </div>
-        <AiButton variant="outline" size="sm" onClick={props.onGenerate} disabled={!canGenerate}>
-          <Sparkles className="mr-1.5 h-3.5 w-3.5" />{props.isGenerating ? "准备中..." : hasDraft ? "先处理候选方案" : "让 AI 准备方向"}
-        </AiButton>
       </div>
 
-      {props.isLoading ? <div className="mt-4 text-sm text-muted-foreground">正在读取可选方向...</div> : null}
-      {!props.isLoading && props.proposals.length === 0 ? <div className="mt-4 rounded-xl border border-dashed bg-background/60 p-4 text-sm leading-6 text-muted-foreground">还没有为“{props.characterName}”准备下一步方向。你可以让 AI 根据当前剧情给出 2–3 个可选倾向。</div> : null}
-      {props.proposals.length ? <div className="mt-4 space-y-3">{props.proposals.map((proposal) => (
-        <InfluenceProposalCard
-          key={proposal.id}
-          proposal={proposal}
-          selected={props.selectedProposalId === proposal.id}
-          authorIntent={props.authorIntent}
-          isAccepting={props.isAccepting}
-          isDismissing={props.isDismissing}
-          onSelect={() => props.onSelect(proposal.id)}
-          onCloseSelection={props.onCloseSelection}
-          onIntentChange={props.onIntentChange}
-          onAccept={() => props.onAccept(proposal.id)}
-          onDismiss={() => props.onDismiss(proposal.id)}
-        />
-      ))}</div> : null}
-      {props.error ? <div className="mt-3 text-sm text-destructive">{props.error instanceof Error ? props.error.message : "暂时无法处理这个方向，请稍后重试。"}</div> : null}
+      {props.isLoading ? <div className="mt-4 text-sm text-muted-foreground">正在读取谈话记录...</div> : null}
+      {!props.isLoading && !props.session ? (
+        <div className="mt-4 rounded-xl border border-dashed bg-background/60 p-4">
+          <p className="text-sm leading-6 text-muted-foreground">从一句话开始，和“{props.characterName}”谈谈此刻的局面、顾虑或选择。</p>
+          <AiButton className="mt-3" size="sm" onClick={props.onCreate} disabled={props.isCreating}>
+            <Sparkles className="mr-1.5 h-3.5 w-3.5" />{props.isCreating ? "准备谈话中..." : "开始谈话"}
+          </AiButton>
+        </div>
+      ) : null}
+      {props.session ? (
+        <>
+          <div className="mt-4 max-h-[28rem] space-y-3 overflow-y-auto rounded-xl border bg-background p-3">
+            {props.session.turns.length ? props.session.turns.map((turn) => (
+              <div key={turn.id} className={turn.role === "author" ? "ml-8 rounded-xl bg-primary px-3 py-2 text-sm leading-6 text-primary-foreground" : "mr-8 rounded-xl bg-muted px-3 py-2 text-sm leading-6"}>
+                <div className="mb-1 text-xs opacity-70">{turn.role === "author" ? "你" : props.characterName}</div>
+                {turn.content}
+              </div>
+            )) : <div className="p-2 text-sm leading-6 text-muted-foreground">说说你想和“{props.characterName}”谈的事。</div>}
+          </div>
+          <form className="mt-3 space-y-2" onSubmit={submitMessage}>
+            <label className="sr-only" htmlFor="character-dialogue-message">对角色说的话</label>
+            <textarea
+              id="character-dialogue-message"
+              value={props.message}
+              maxLength={800}
+              rows={3}
+              onChange={(event) => props.onMessageChange(event.target.value)}
+              placeholder={`想对“${props.characterName}”说什么？`}
+              className="w-full resize-none rounded-xl border bg-background p-3 text-sm leading-6 outline-none focus:ring-2 focus:ring-ring"
+              disabled={props.isSending}
+            />
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-muted-foreground">角色可以同意、犹豫、拒绝或说出自己的顾虑。</span>
+              <AiButton type="submit" size="sm" disabled={!props.message.trim() || props.isSending}>
+                <Send className="mr-1.5 h-3.5 w-3.5" />{props.isSending ? "回应中..." : "发送"}
+              </AiButton>
+            </div>
+          </form>
+          {influence ? <DialogueInfluencePanel influence={influence} isActivating={props.isActivating} isDismissing={props.isDismissing} onActivate={() => props.onActivate(props.session!.id)} onDismiss={() => props.onDismiss(props.session!.id)} /> : null}
+        </>
+      ) : null}
+      {props.error ? <div className="mt-3 text-sm text-destructive">{props.error instanceof Error ? props.error.message : "暂时无法继续这段谈话，请稍后重试。"}</div> : null}
     </section>
   );
 }
 
-function InfluenceProposalCard(props: {
-  proposal: CharacterInfluenceProposal;
-  selected: boolean;
-  authorIntent: string;
-  isAccepting: boolean;
+function DialogueInfluencePanel(props: {
+  influence: NonNullable<CharacterDialogueSession["latestInfluence"]>;
+  isActivating: boolean;
   isDismissing: boolean;
-  onSelect: () => void;
-  onCloseSelection: () => void;
-  onIntentChange: (value: string) => void;
-  onAccept: () => void;
+  onActivate: () => void;
   onDismiss: () => void;
 }) {
-  const { proposal } = props;
-  const canDismiss = proposal.status === "draft" || proposal.status === "accepted";
-  const canAccept = proposal.status === "draft";
+  const canDecide = props.influence.status === "draft";
+  const canDismiss = props.influence.status === "draft" || props.influence.status === "active";
   return (
-    <article className="rounded-xl border border-border/70 bg-background p-4">
+    <article className="mt-4 rounded-xl border border-border/70 bg-background p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2"><div className="text-sm font-medium">{proposal.title}</div>{proposal.isRecommended ? <Badge>推荐</Badge> : null}</div>
-        <Badge variant="outline">{influenceStatusLabel(proposal.status)}</Badge>
+        <div className="flex items-center gap-2 text-sm font-medium"><Sparkles className="h-4 w-4" />这段谈话可能留下的行动倾向</div>
+        <Badge variant="outline">{dialogueInfluenceStatusLabel(props.influence.status)}</Badge>
       </div>
-      <p className="mt-2 text-sm leading-6">{proposal.directionSummary}</p>
+      <p className="mt-2 text-sm leading-6">{props.influence.summary}</p>
       <div className="mt-3 grid gap-3 text-sm text-muted-foreground md:grid-cols-2">
-        <ProposalField title="为什么推荐" value={proposal.recommendationReason} />
-        <ProposalField title="读者会获得什么" value={proposal.readerPayoff} />
-        <ProposalField title="需要留意什么" value={proposal.risk} />
-        <ProposalField title="适用章节" value={`第 ${proposal.targetStartChapterOrder}–${proposal.targetEndChapterOrder} 章`} />
+        <ProposalField title="后续创作中的倾向" value={props.influence.behaviorGuidance} />
+        <ProposalField title="适用章节" value={`第 ${props.influence.targetStartChapterOrder}–${props.influence.targetEndChapterOrder} 章`} />
+        {props.influence.emotionalGuidance ? <ProposalField title="情绪变化" value={props.influence.emotionalGuidance} /> : null}
+        {props.influence.relationTension ? <ProposalField title="关系张力" value={props.influence.relationTension} /> : null}
       </div>
-      {proposal.resolutionEvidence.length ? <ProposalField title="正文承接依据" value={proposal.resolutionEvidence.join("；")} className="mt-3" /> : null}
-      {canAccept ? (
-        <div className="mt-4">
-          {props.selected ? (
-            <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
-              <label className="block text-sm font-medium" htmlFor={`author-intent-${proposal.id}`}>补充一句创作意图（可选）</label>
-              <textarea
-                id={`author-intent-${proposal.id}`}
-                value={props.authorIntent}
-                maxLength={160}
-                rows={2}
-                onChange={(event) => props.onIntentChange(event.target.value)}
-                placeholder="例如：希望他先克制试探，再在关键节点作出选择"
-                className="w-full resize-none rounded-md border bg-background p-2.5 text-sm leading-6 outline-none focus:ring-2 focus:ring-ring"
-              />
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground"><span>AI 会把这句话整理为后续章节的软性引导。</span><span>{props.authorIntent.length}/160</span></div>
-              <div className="flex flex-wrap gap-2"><AiButton size="sm" onClick={props.onAccept} disabled={props.isAccepting}>{props.isAccepting ? "确认中..." : "确认这个方向"}</AiButton><Button size="sm" variant="ghost" onClick={props.onCloseSelection}>收起</Button></div>
-            </div>
-          ) : <AiButton size="sm" onClick={props.onSelect}>选择这个方向</AiButton>}
-        </div>
-      ) : null}
-      {canDismiss ? <Button className="mt-3" size="sm" variant="ghost" onClick={props.onDismiss} disabled={props.isDismissing}>{props.isDismissing ? "处理中..." : "放弃这个方向"}</Button> : null}
+      {props.influence.resolutionEvidence.length ? <ProposalField title="正文承接依据" value={props.influence.resolutionEvidence.join("；")} className="mt-3" /> : null}
+      {canDecide ? <div className="mt-4 flex flex-wrap gap-2"><AiButton size="sm" onClick={props.onActivate} disabled={props.isActivating}>{props.isActivating ? "带入中..." : "带入后续创作"}</AiButton><Button size="sm" variant="ghost" onClick={props.onDismiss} disabled={props.isDismissing}>{props.isDismissing ? "处理中..." : "本次不带入"}</Button></div> : null}
+      {!canDecide && canDismiss ? <Button className="mt-3" size="sm" variant="ghost" onClick={props.onDismiss} disabled={props.isDismissing}>{props.isDismissing ? "处理中..." : "本次不带入"}</Button> : null}
     </article>
   );
 }
@@ -268,14 +258,14 @@ function ProposalField(props: { title: string; value: string; className?: string
   return <div className={props.className}><div className="text-xs font-medium text-muted-foreground">{props.title}</div><div className="mt-1 leading-6">{props.value}</div></div>;
 }
 
-function influenceStatusLabel(status: CharacterInfluenceProposalStatus) {
-  const labels: Record<CharacterInfluenceProposalStatus, string> = {
-    draft: "待选择",
-    accepted: "等待承接",
+function dialogueInfluenceStatusLabel(status: CharacterDialogueInfluenceStatus) {
+  const labels: Record<CharacterDialogueInfluenceStatus, string> = {
+    draft: "等待决定",
+    active: "等待正文承接",
     applied: "已在正文承接",
     expired: "已过适用章节",
-    superseded: "已被新方向替换",
-    dismissed: "已放弃",
+    superseded: "已被新的谈话替换",
+    dismissed: "本次不带入",
   };
   return labels[status];
 }

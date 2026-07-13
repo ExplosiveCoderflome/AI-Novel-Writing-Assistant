@@ -368,6 +368,8 @@ model Novel {
   characterRelationStages CharacterRelationStage[]
   characterMindSnapshots CharacterMindSnapshot[]
   characterInfluenceProposals CharacterInfluenceProposal[]
+  characterDialogueSessions CharacterDialogueSession[]
+  characterDialogueInfluences CharacterDialogueInfluence[]
   characterResourceItems CharacterResourceLedgerItem[]
   characterResourceEvents CharacterResourceEvent[]
   bible             NovelBible?
@@ -547,6 +549,7 @@ model Chapter {
   characterRelationStages CharacterRelationStage[] @relation("CharacterRelationStageChapter")
   characterMindSnapshots CharacterMindSnapshot[]
   resolvedCharacterInfluenceProposals CharacterInfluenceProposal[] @relation("CharacterInfluenceResolvedChapter")
+  resolvedCharacterDialogueInfluences CharacterDialogueInfluence[] @relation("CharacterDialogueInfluenceResolvedChapter")
   facts           ConsistencyFact[]
   qualityReports  QualityReport[]
   storyStateSnapshots StoryStateSnapshot[]
@@ -644,6 +647,8 @@ model Character {
   incomingRelationStages CharacterRelationStage[] @relation("CharacterRelationStageTarget")
   mindSnapshots   CharacterMindSnapshot[]
   influenceProposals CharacterInfluenceProposal[]
+  dialogueSessions CharacterDialogueSession[]
+  dialogueInfluences CharacterDialogueInfluence[]
   stateEntries    CharacterState[]
   outgoingRelations RelationState[] @relation("RelationStateSource")
   incomingRelations RelationState[] @relation("RelationStateTarget")
@@ -683,6 +688,8 @@ model CharacterMindSnapshot {
   character             Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
   sourceChapter         Chapter? @relation(fields: [sourceChapterId], references: [id], onDelete: SetNull)
   influenceProposals    CharacterInfluenceProposal[] @relation("CharacterInfluenceSourceMind")
+  dialogueSessions      CharacterDialogueSession[] @relation("CharacterDialogueSourceMind")
+  dialogueInfluences    CharacterDialogueInfluence[] @relation("CharacterDialogueInfluenceSourceMind")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -725,6 +732,67 @@ model CharacterInfluenceProposal {
 
   @@index([novelId, characterId, status, targetStartChapterOrder, targetEndChapterOrder])
   @@index([proposalSetId])
+  @@index([resolvedChapterId])
+}
+
+model CharacterDialogueSession {
+  id                   String   @id @default(cuid())
+  novelId              String
+  characterId          String
+  sourceMindSnapshotId String?
+  status               String   @default("active")
+  novel                Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character            Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  sourceMindSnapshot   CharacterMindSnapshot? @relation("CharacterDialogueSourceMind", fields: [sourceMindSnapshotId], references: [id], onDelete: SetNull)
+  turns                CharacterDialogueTurn[]
+  influences           CharacterDialogueInfluence[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([novelId, characterId, status, updatedAt])
+  @@index([sourceMindSnapshotId])
+}
+
+model CharacterDialogueTurn {
+  id        String   @id @default(cuid())
+  sessionId String
+  role      String
+  content   String
+  session   CharacterDialogueSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+model CharacterDialogueInfluence {
+  id                      String   @id @default(cuid())
+  novelId                 String
+  characterId             String
+  sessionId               String
+  sourceMindSnapshotId    String?
+  summary                 String
+  behaviorGuidance        String
+  emotionalGuidance       String?
+  relationTension         String?
+  evidenceJson            String   @default("[]")
+  confidence              Float?
+  targetStartChapterOrder Int
+  targetEndChapterOrder   Int
+  status                  String   @default("draft")
+  activatedAt             DateTime?
+  appliedAt               DateTime?
+  resolvedChapterId       String?
+  resolutionEvidenceJson  String   @default("[]")
+  novel                   Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character               Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  session                 CharacterDialogueSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sourceMindSnapshot      CharacterMindSnapshot? @relation("CharacterDialogueInfluenceSourceMind", fields: [sourceMindSnapshotId], references: [id], onDelete: SetNull)
+  resolvedChapter         Chapter? @relation("CharacterDialogueInfluenceResolvedChapter", fields: [resolvedChapterId], references: [id], onDelete: SetNull)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([novelId, characterId, status, targetStartChapterOrder, targetEndChapterOrder])
+  @@index([sessionId, createdAt])
   @@index([resolvedChapterId])
 }
 

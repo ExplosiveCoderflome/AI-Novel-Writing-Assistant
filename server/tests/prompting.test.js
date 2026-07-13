@@ -76,6 +76,13 @@ const {
   characterInfluenceOptionsResponseSchema,
 } = require("../dist/prompting/prompts/novel/characterInfluence.promptSchemas.js");
 const {
+  characterDialogueTurnPrompt,
+  buildCharacterDialogueContextBlocks,
+} = require("../dist/prompting/prompts/novel/characterDialogue.prompts.js");
+const {
+  characterDialogueTurnResponseSchema,
+} = require("../dist/prompting/prompts/novel/characterDialogue.promptSchemas.js");
+const {
   worldDraftGenerationPrompt,
   worldDraftRefineAlternativesPrompt,
 } = require("../dist/prompting/prompts/world/worldDraft.prompts.js");
@@ -153,6 +160,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.character.supplemental.zhNormalize@v1",
     "novel.character.mind.snapshot@v1",
     "novel.character.influence.options@v1",
+    "novel.character.dialogue.turn@v1",
     "novel.story_macro.decomposition@v1",
     "novel.volume.strategy@v2",
     "novel.volume.strategy.critique@v1",
@@ -233,8 +241,8 @@ test("chapter artifact delta prompt captures summary facts and knowledge boundar
       evidence: ["程秩把后门铜钥匙收进袖中，并决定先观察换岗。"],
       confidence: 0.78,
     }],
-    characterInfluenceResolutions: [{
-      proposalId: "proposal-1",
+    characterDialogueInfluenceResolutions: [{
+      influenceId: "dialogue-influence-1",
       status: "applied",
       evidence: ["程秩先观察换岗，确认退路后才进入库房。"],
       confidence: 0.8,
@@ -253,7 +261,7 @@ test("chapter artifact delta prompt captures summary facts and knowledge boundar
   assert.equal(parsed.concreteFacts.length, 1);
   assert.equal(parsed.characterKnowledgeStates[0].hiddenFacts[0], "库房内的守卫布置");
   assert.equal(parsed.characterMindDeltas[0].misbeliefs[0], "赵管事尚未察觉钥匙失踪");
-  assert.equal(parsed.characterInfluenceResolutions[0].status, "applied");
+  assert.equal(parsed.characterDialogueInfluenceResolutions[0].status, "applied");
 
   const messages = chapterArtifactDeltaPrompt.render({
     novelTitle: "测试小说",
@@ -264,14 +272,14 @@ test("chapter artifact delta prompt captures summary facts and knowledge boundar
     previousStateText: "",
     existingResourceText: "",
     existingPayoffText: "",
-    activeCharacterInfluenceText: "- proposalId=proposal-1 | 角色=程秩 | 行动倾向=先确认退路再进入库房",
+    activeCharacterDialogueInfluenceText: "- influenceId=dialogue-influence-1 | 角色=程秩 | 行动倾向=先确认退路再进入库房",
     chapterContent: "程秩拿到后门铜钥匙，但还不知道库房内的守卫布置。",
   });
   const systemText = String(messages[0].content);
   assert.match(systemText, /concreteFacts/);
   assert.match(systemText, /characterKnowledgeStates/);
   assert.match(systemText, /characterMindDeltas/);
-  assert.match(systemText, /characterInfluenceResolutions/);
+  assert.match(systemText, /characterDialogueInfluenceResolutions/);
   assert.match(systemText, /80-180/);
 });
 
@@ -356,6 +364,42 @@ test("character influence prompt produces evidence-backed soft guidance", () => 
   const systemText = String(messages[0].content);
   assert.match(systemText, /严禁新增或改写身份、阵营、资源、地点、已发生事件/);
   assert.match(systemText, /软性角色行为倾向/);
+});
+
+test("character dialogue prompt preserves character agency and only extracts evidenced soft influence", () => {
+  const output = characterDialogueTurnResponseSchema.parse({
+    characterReply: "我不会因为你一句话就交出钥匙。先让我看看你准备拿什么来换。",
+    influenceDraft: {
+      summary: "这次交谈让程秩更倾向先要求可验证的交换，再决定是否合作。",
+      behaviorGuidance: "在下一次合作前提出一个可撤回的验证条件。",
+      emotionalGuidance: "保持克制和戒备。",
+      relationTension: "对方必须先证明可信度。",
+      evidence: ["程秩明确拒绝立刻交出钥匙，并要求对方拿出交换条件。"],
+      confidence: 0.81,
+    },
+  });
+  assert.equal(output.influenceDraft.evidence.length, 1);
+  assert.throws(() => characterDialogueTurnResponseSchema.parse({
+    ...output,
+    influenceDraft: { ...output.influenceDraft, evidence: [] },
+  }));
+
+  const messages = characterDialogueTurnPrompt.render({ mode: "turn" }, {
+    blocks: buildCharacterDialogueContextBlocks({
+      target: "目标角色：程秩",
+      mind: "他仍怀疑任何主动靠近的人。",
+      facts: "程秩尚未交出后门钥匙，也不知道库房守卫布置。",
+      authorMessage: "把钥匙交给盟友吧。",
+      history: "作者：你为什么不信他？\n程秩：因为他知道得太多。",
+    }),
+    selectedBlockIds: ["character_dialogue_target", "character_dialogue_mind", "character_dialogue_facts", "character_dialogue_author_message"],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+  const systemText = String(messages[0].content);
+  assert.match(systemText, /可以拒绝、隐瞒、误解、反问/);
+  assert.match(systemText, /不是客观事实/);
 });
 
 test("prompt registry resolves style prompts by their declared asset versions", () => {
