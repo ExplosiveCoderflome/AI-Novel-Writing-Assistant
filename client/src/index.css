@@ -34,6 +34,15 @@ body {
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
 }
 
+@media (min-width: 768px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
 @layer utilities {
   .mobile-novel-workspace-panel {
     overflow-wrap: anywhere;
