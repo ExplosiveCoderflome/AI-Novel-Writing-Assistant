@@ -311,9 +311,17 @@ export class CharacterConversationService {
       });
       if (!row) throw new Error("拆书项目中没有找到这个角色。");
       const character = serializeCharacter(row);
-      const fallbackAnchor = [...character.evidence.map((item) => item.chapterIndex), ...character.arcs.map((item) => item.chapterIndex)]
-        .filter((item): item is number => typeof item === "number" && item > 0).sort((left, right) => right - left)[0];
-      const chapterAnchor = request.chapterAnchor ?? fallbackAnchor;
+      const fallbackAnchor = [
+        ...character.evidence.map((item) => item.chapterIndex),
+        ...character.arcs.map((item) => item.chapterIndex),
+      ]
+        .filter((item): item is number => typeof item === "number" && item > 0)
+        .map((item) => item + 1);
+      const appearanceFallbackAnchors = (character.appearance?.snapshots ?? [])
+        .filter((snapshot) => snapshot.chapterIndex >= 0 && snapshot.evidence.length > 0)
+        .map((snapshot) => snapshot.chapterIndex + 1);
+      const fallbackChapterAnchor = [...fallbackAnchor, ...appearanceFallbackAnchors].sort((left, right) => right - left)[0];
+      const chapterAnchor = request.chapterAnchor ?? fallbackChapterAnchor;
       if (!chapterAnchor) throw new Error("该拆书角色缺少带章节号的原文证据，暂时无法开始证据访谈。");
       return adaptCharacterSubject(bookAnalysisCharacterSubjectAdapter, { analysisId: request.scopeId, characterId: request.id, chapterAnchor, character });
     }

@@ -43,22 +43,22 @@ export default function CharacterDialogueStage(props: CharacterDialogueStageProp
   };
 
   return (
-    <section className={cn("flex min-h-[520px] min-w-0 flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:max-h-[calc(100dvh-15rem)]", props.className)}>
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 bg-[linear-gradient(135deg,hsl(var(--primary)/0.08),hsl(var(--background))_58%)] px-5 py-4">
+    <section className={cn("flex min-h-[520px] min-w-0 flex-col overflow-hidden bg-background xl:max-h-[calc(100dvh-15rem)]", props.className)}>
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border/60 py-3.5">
         <div>
-          <div className="flex items-center gap-2 text-sm font-semibold">
+          <div className="flex items-center gap-2 text-sm font-semibold tracking-tight">
             <MessageCircle className="h-4 w-4 text-primary" />
             和 {props.characterName} 聊聊
           </div>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">{POLICY_DESCRIPTION[props.interactionPolicy]}</p>
         </div>
-        {props.session ? <Badge variant="secondary">谈话进行中</Badge> : <Badge variant="outline">等待开启</Badge>}
+        <span className="pt-0.5 text-xs text-muted-foreground">{props.session ? "谈话进行中" : "等待开启"}</span>
       </header>
 
       {props.isLoading ? <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">正在读取谈话记录...</div> : null}
       {!props.isLoading && !props.session ? (
         <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><MessageCircle className="h-5 w-5" /></div>
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary"><MessageCircle className="h-5 w-5" /></div>
           <div className="mt-4 text-base font-semibold">从一句话开始</div>
           <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">可以询问 {props.characterName} 的顾虑、质疑他的选择，或聊聊他眼前的局面。</p>
           <AiButton className="mt-5" onClick={props.onCreate} disabled={props.isCreating}>
@@ -68,18 +68,18 @@ export default function CharacterDialogueStage(props: CharacterDialogueStageProp
       ) : null}
       {props.session ? (
         <>
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-muted/[0.18] px-5 py-5">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-1 py-6 sm:px-2">
             {props.session.turns.length ? props.session.turns.map((turn) => (
-              <article key={turn.id} className={turn.role === "author" ? "ml-auto max-w-[88%] rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-primary-foreground shadow-sm" : "mr-auto max-w-[88%] rounded-2xl rounded-tl-md border border-border/70 bg-background px-4 py-3 shadow-sm"}>
-                <div className={`mb-1.5 text-xs font-medium ${turn.role === "author" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{turn.role === "author" ? "你" : props.characterName}</div>
+              <article key={turn.id} className={turn.role === "author" ? "ml-auto max-w-[82%] rounded-lg bg-primary px-4 py-3.5 text-primary-foreground" : "mr-auto max-w-[88%] border-l-2 border-primary/35 pl-4"}>
+                <div className={`mb-2 text-xs font-medium ${turn.role === "author" ? "text-primary-foreground/70" : "text-primary"}`}>{turn.role === "author" ? "你" : props.characterName}</div>
                 <div className="whitespace-pre-wrap text-sm leading-7">{turn.content}</div>
-                {turn.role === "character" && turn.uncertainty ? <div className="mt-3 border-t border-border/50 pt-2 text-xs leading-5 text-muted-foreground">{turn.uncertainty}</div> : null}
-                {turn.role === "character" && turn.evidence.length > 0 ? <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/50 pt-2">{turn.evidence.map((evidence, index) => <Badge key={`${evidence.sourceRef ?? evidence.label}-${index}`} variant="outline" className="max-w-full truncate text-[10px]">{evidence.chapterOrder ? `第 ${evidence.chapterOrder} 章 · ` : ""}{evidence.label}</Badge>)}</div> : null}
+                {turn.role === "character" && turn.uncertainty ? <div className="mt-4 border-t border-border/60 pt-3 text-xs leading-5 text-muted-foreground"><span className="mr-1 font-medium text-foreground/75">不确定之处：</span>{turn.uncertainty}</div> : null}
+                {turn.role === "character" && turn.evidence.length > 0 ? <div className="mt-3 border-t border-border/60 pt-3 text-xs leading-5 text-muted-foreground"><span className="mr-2 font-medium text-foreground/75">依据</span>{turn.evidence.map((evidence, index) => <span key={`${evidence.sourceRef ?? evidence.label}-${index}`}>{index > 0 ? " · " : ""}{evidence.chapterOrder ? `第 ${evidence.chapterOrder} 章 · ` : ""}{evidence.label}</span>)}</div> : null}
               </article>
             )) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">说说你想和 {props.characterName} 谈的事。</div>}
           </div>
           {influence ? <DialogueInfluenceNotice influence={influence} isActivating={props.isActivating} isDismissing={props.isDismissing} onActivate={() => props.onActivate(props.session!.id)} onDismiss={() => props.onDismiss(props.session!.id)} /> : null}
-          <form className="border-t border-border/60 bg-background p-4" onSubmit={submitMessage}>
+          <form className="border-t border-border/60 bg-background pt-4" onSubmit={submitMessage}>
             <label className="sr-only" htmlFor="character-dialogue-message">对角色说的话</label>
             <textarea
               id="character-dialogue-message"
@@ -88,7 +88,7 @@ export default function CharacterDialogueStage(props: CharacterDialogueStageProp
               rows={3}
               onChange={(event) => props.onMessageChange(event.target.value)}
               placeholder={`想对“${props.characterName}”说什么？`}
-              className="w-full resize-none rounded-2xl border bg-muted/[0.18] px-4 py-3 text-sm leading-6 outline-none transition focus:bg-background focus:ring-2 focus:ring-ring"
+              className="w-full resize-none rounded-lg border border-border/70 bg-muted/[0.24] px-4 py-3 text-sm leading-6 outline-none transition focus:border-primary/50 focus:bg-background focus:ring-2 focus:ring-primary/15"
               disabled={props.isSending}
             />
             <div className="mt-2 flex items-center justify-between gap-3">
@@ -115,10 +115,10 @@ function DialogueInfluenceNotice(props: {
   const canDecide = props.influence.status === "draft";
   const canDismiss = props.influence.status === "draft" || props.influence.status === "active";
   return (
-    <aside className="border-t border-amber-200/70 bg-amber-50/70 px-5 py-4 dark:bg-amber-950/20">
+    <aside className="border-t border-primary/20 bg-primary/[0.045] px-1 py-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <div className="text-sm font-semibold">这段谈话留下的倾向</div>
+          <div className="text-sm font-semibold">这段谈话留下的创作倾向</div>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">{props.influence.summary}</p>
         </div>
         <Badge variant="outline">{influenceStatusLabel(props.influence.status)}</Badge>

@@ -1269,6 +1269,41 @@ model ImageAsset {
   @@index([bookAnalysisCharacterId, isPrimary, createdAt])
 }
 
+// 项目级视觉资源索引。它只保存可展示、筛选与选择所需的投影，
+// 原始业务事实与文件继续由 ImageAsset / Comic / Drama 等来源拥有。
+model VisualAssetProjection {
+  id                String   @id @default(cuid())
+  sourceDomain      String
+  sourceType        String
+  sourceId          String
+  sourceVersion     String   @default("current")
+  sourceLabel       String
+  scopeKind         String   @default("global")
+  scopeId           String?
+  scopeLabel        String?
+  kind              String
+  origin            String   @default("generated")
+  url               String
+  thumbnailUrl      String?
+  mimeType          String?
+  width             Int?
+  height            Int?
+  prompt            String?
+  provider          String?
+  model             String?
+  isPrimary         Boolean  @default(false)
+  metadata          String?
+  sourceCreatedAt   DateTime
+  lastSeenAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([sourceDomain, sourceType, sourceId, sourceVersion])
+  @@index([scopeKind, scopeId, sourceCreatedAt])
+  @@index([kind, sourceCreatedAt])
+  @@index([sourceDomain, sourceCreatedAt])
+}
+
 model NovelGenre {
   id          String       @id @default(cuid())
   name        String
