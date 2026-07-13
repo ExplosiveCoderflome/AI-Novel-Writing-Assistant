@@ -105,16 +105,14 @@ export default function FullscreenView(props: FullscreenViewProps) {
             {actions}
             <Button
               type="button"
-              size="sm"
+              size="icon"
               variant={isFullscreen ? "outline" : "secondary"}
               onClick={() => setFullscreen(!isFullscreen)}
               title={isFullscreen ? exitLabel : toggleLabel}
               aria-label={isFullscreen ? exitLabel : toggleLabel}
               aria-pressed={isFullscreen}
-              className="gap-1.5"
             >
               {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-              {isFullscreen ? exitLabel : toggleLabel}
             </Button>
           </div>
         </div>

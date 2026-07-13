@@ -62,8 +62,6 @@ export default function CharacterIntelligenceTab(props: CharacterIntelligenceTab
       description="先和角色谈谈，再决定这段交流是否带入后续创作。"
       meta={<><Badge variant="outline">角色对话</Badge><Badge variant="secondary">场景分析已就绪</Badge></>}
       actions={<AiButton variant="outline" size="sm" onClick={() => refreshMutation.mutate()} disabled={refreshMutation.isPending}><RefreshCw className="mr-1.5 h-3.5 w-3.5" />{refreshMutation.isPending ? "整理中..." : "更新场景分析"}</AiButton>}
-      toggleLabel="全屏对话"
-      exitLabel="退出全屏"
       bodyClassName="grid min-h-[580px] min-w-0 xl:grid-cols-[minmax(0,1fr)_340px]"
       fullscreenBodyClassName="min-h-0 min-w-0 overflow-y-auto xl:h-full xl:overflow-hidden xl:grid-cols-[minmax(0,1fr)_380px]"
     >
