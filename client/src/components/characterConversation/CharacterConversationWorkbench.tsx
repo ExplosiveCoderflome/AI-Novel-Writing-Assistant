@@ -28,13 +28,15 @@ interface CharacterConversationWorkbenchProps {
   onChapterAnchorChange?: (chapterAnchor: number) => void;
   sidePanel?: ReactNode;
   headerActions?: ReactNode;
+  defaultFullscreen?: boolean;
+  closeOnExitFullscreen?: boolean;
   onClose?: () => void;
 }
 
 export default function CharacterConversationWorkbench(props: CharacterConversationWorkbenchProps) {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState("");
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(props.defaultFullscreen ?? false);
   const request = useMemo(() => ({
     ...props.subject,
     chapterAnchor: props.chapterAnchor ?? undefined,
@@ -80,11 +82,17 @@ export default function CharacterConversationWorkbench(props: CharacterConversat
   const error = contextQuery.error ?? sessionQuery.error ?? createMutation.error ?? sendMutation.error ?? activateMutation.error ?? dismissMutation.error;
   const displayName = projection?.name || props.characterName;
   const sidePanel = props.sidePanel ?? <ConversationContextPanel projection={projection} />;
+  const handleFullscreenChange = (next: boolean) => {
+    setIsFullscreen(next);
+    if (!next && props.closeOnExitFullscreen) {
+      props.onClose?.();
+    }
+  };
 
   return (
     <FullscreenView
       fullscreen={isFullscreen}
-      onFullscreenChange={setIsFullscreen}
+      onFullscreenChange={handleFullscreenChange}
       title={<span className="inline-flex items-center gap-2"><MessageCircle className="h-4 w-4 text-primary" />{displayName} 的对话空间</span>}
       description={projection?.sourceDescription ?? sourceDescriptionForPolicy(policy)}
       meta={<><Badge variant="outline">{projection?.sourceLabel ?? sourceLabelForPolicy(policy)}</Badge><Badge variant="secondary">{policyLabel(policy)}</Badge></>}

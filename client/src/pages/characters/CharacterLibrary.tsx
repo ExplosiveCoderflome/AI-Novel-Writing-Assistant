@@ -183,6 +183,8 @@ export default function CharacterLibrary() {
         <CharacterConversationWorkbench
           subject={{ kind: "base_character", id: conversationCharacter.id, scopeKind: "base_library", scopeId: null }}
           characterName={conversationCharacter.name}
+          defaultFullscreen
+          closeOnExitFullscreen
           onClose={() => setConversationCharacter(null)}
         />
       ) : null}
