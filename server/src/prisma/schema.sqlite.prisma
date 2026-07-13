@@ -768,7 +768,8 @@ model CharacterDialogueInfluence {
   id                      String   @id @default(cuid())
   novelId                 String
   characterId             String
-  sessionId               String
+  sessionId               String?
+  conversationSessionId   String?
   sourceMindSnapshotId    String?
   summary                 String
   behaviorGuidance        String
@@ -785,7 +786,8 @@ model CharacterDialogueInfluence {
   resolutionEvidenceJson  String   @default("[]")
   novel                   Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
   character               Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
-  session                 CharacterDialogueSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session                 CharacterDialogueSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  conversationSession     CharacterConversationSession? @relation(fields: [conversationSessionId], references: [id], onDelete: SetNull)
   sourceMindSnapshot      CharacterMindSnapshot? @relation("CharacterDialogueInfluenceSourceMind", fields: [sourceMindSnapshotId], references: [id], onDelete: SetNull)
   resolvedChapter         Chapter? @relation("CharacterDialogueInfluenceResolvedChapter", fields: [resolvedChapterId], references: [id], onDelete: SetNull)
   createdAt               DateTime @default(now())
@@ -793,7 +795,42 @@ model CharacterDialogueInfluence {
 
   @@index([novelId, characterId, status, targetStartChapterOrder, targetEndChapterOrder])
   @@index([sessionId, createdAt])
+  @@index([conversationSessionId, createdAt])
   @@index([resolvedChapterId])
+}
+
+model CharacterConversationSession {
+  id                      String   @id @default(cuid())
+  subjectKind             String
+  subjectId               String
+  scopeKind               String
+  scopeId                 String?
+  interactionPolicy       String
+  chapterAnchor           Int?
+  sourceSnapshotJson      String   @default("{}")
+  evidenceBoundaryJson    String   @default("[]")
+  legacyDialogueSessionId String?  @unique
+  status                  String   @default("active")
+  turns                   CharacterConversationTurn[]
+  influences              CharacterDialogueInfluence[]
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([subjectKind, subjectId, scopeKind, scopeId, status, updatedAt])
+  @@index([scopeKind, scopeId, updatedAt])
+}
+
+model CharacterConversationTurn {
+  id              String   @id @default(cuid())
+  sessionId       String
+  role            String
+  content         String
+  evidenceJson    String   @default("[]")
+  uncertainty     String?
+  session         CharacterConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@index([sessionId, createdAt])
 }
 
 model CharacterRelation {

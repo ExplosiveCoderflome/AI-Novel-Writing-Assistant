@@ -6,6 +6,7 @@ import { deleteBaseCharacter, getBaseCharacterList, updateBaseCharacter } from "
 import { deleteImageAsset, listImageAssets, setPrimaryImageAsset } from "@/api/images";
 import { queryKeys } from "@/api/queryKeys";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
+import CharacterConversationWorkbench from "@/components/characterConversation/CharacterConversationWorkbench";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CharacterCard } from "./components/CharacterCard";
 import { CharacterCreateDialog } from "./components/CharacterCreateDialog";
@@ -20,6 +21,7 @@ export default function CharacterLibrary() {
   const [selectedImageCharacter, setSelectedImageCharacter] = useState<BaseCharacter | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState<BaseCharacter | null>(null);
+  const [conversationCharacter, setConversationCharacter] = useState<BaseCharacter | null>(null);
 
   const characterListQuery = useQuery({
     queryKey: queryKeys.baseCharacters.all,
@@ -177,6 +179,14 @@ export default function CharacterLibrary() {
         }}
       />
 
+      {conversationCharacter ? (
+        <CharacterConversationWorkbench
+          subject={{ kind: "base_character", id: conversationCharacter.id, scopeKind: "base_library", scopeId: null }}
+          characterName={conversationCharacter.name}
+          onClose={() => setConversationCharacter(null)}
+        />
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>角色列表</CardTitle>
@@ -193,6 +203,7 @@ export default function CharacterLibrary() {
               onDeleteAsset={(asset) => deleteAssetMutation.mutateAsync(asset.id).then(() => undefined)}
               onEdit={() => openEditDialog(character)}
               onDelete={() => handleDeleteCharacter(character)}
+              onConversation={() => setConversationCharacter(character)}
               settingPrimary={setPrimaryMutation.isPending}
               deletingAssetId={deleteAssetMutation.variables ?? null}
               deleting={deleteMutation.isPending && deleteMutation.variables === character.id}

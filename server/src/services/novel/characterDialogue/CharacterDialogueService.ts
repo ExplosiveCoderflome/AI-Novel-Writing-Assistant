@@ -7,10 +7,10 @@ import type {
 import { prisma } from "../../../db/prisma";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
 import {
-  buildCharacterDialogueContextBlocks,
-  characterDialogueTurnPrompt,
-} from "../../../prompting/prompts/novel/characterDialogue.prompts";
-import type { CharacterDialogueInfluenceDraft } from "../../../prompting/prompts/novel/characterDialogue.promptSchemas";
+  buildCharacterConversationContextBlocks,
+  characterConversationTurnPrompt,
+} from "../../../prompting/prompts/character/characterConversation.prompts";
+import type { CharacterConversationInfluenceDraft } from "../../../prompting/prompts/character/characterConversation.promptSchemas";
 
 type DialogueOptions = {
   provider?: any;
@@ -121,7 +121,7 @@ function serializeSession(row: DialogueSessionRow): CharacterDialogueSession {
   };
 }
 
-function draftData(draft: CharacterDialogueInfluenceDraft) {
+function draftData(draft: CharacterConversationInfluenceDraft) {
   if (!draft) {
     return null;
   }
@@ -182,9 +182,15 @@ export class CharacterDialogueService {
     }
     const context = await this.loadPromptContext(novelId, characterId, session.turns);
     const result = await runStructuredPrompt({
-      asset: characterDialogueTurnPrompt,
-      promptInput: { mode: "turn" },
-      contextBlocks: buildCharacterDialogueContextBlocks({ ...context, authorMessage }),
+      asset: characterConversationTurnPrompt,
+      promptInput: { interactionPolicy: "novel_influence" },
+      contextBlocks: buildCharacterConversationContextBlocks({
+        subject: `${context.target}\n${context.mind}`,
+        boundaries: context.facts,
+        authorMessage,
+        situation: [context.relations, context.recentEvents].filter(Boolean).join("\n\n"),
+        history: context.history,
+      }),
       options: {
         provider: options.provider,
         model: options.model,
