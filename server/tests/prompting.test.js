@@ -62,6 +62,13 @@ const {
   chapterArtifactDeltaOutputSchema,
 } = require("../dist/prompting/prompts/novel/chapterArtifactDelta.prompts.js");
 const {
+  characterMindSnapshotPrompt,
+  buildCharacterMindContextBlocks,
+} = require("../dist/prompting/prompts/novel/characterMind.prompts.js");
+const {
+  characterMindSnapshotResponseSchema,
+} = require("../dist/prompting/prompts/novel/characterMind.promptSchemas.js");
+const {
   worldDraftGenerationPrompt,
   worldDraftRefineAlternativesPrompt,
 } = require("../dist/prompting/prompts/world/worldDraft.prompts.js");
@@ -137,6 +144,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.character.castOptions.zhNormalize@v1",
     "novel.character.supplemental@v1",
     "novel.character.supplemental.zhNormalize@v1",
+    "novel.character.mind.snapshot@v1",
     "novel.story_macro.decomposition@v1",
     "novel.volume.strategy@v2",
     "novel.volume.strategy.critique@v1",
@@ -204,6 +212,19 @@ test("chapter artifact delta prompt captures summary facts and knowledge boundar
       knownFacts: ["后门铜钥匙可以打开库房后门"],
       hiddenFacts: ["库房内的守卫布置"],
     }],
+    characterMindDeltas: [{
+      characterName: "程秩",
+      currentInterpretation: "他认为钥匙让潜入成为可行方案，但仍低估守卫布置。",
+      privateIntent: "抢在赵管事察觉前验证后门。",
+      activePlan: "先观察换岗时间，再利用钥匙进入库房。",
+      emotionalStance: "紧张中带着主动争取的笃定。",
+      actionTendency: "会先隐瞒线索、独自试探。",
+      decisionTrigger: "若守卫异常增多，会转而寻找同盟。",
+      beliefs: ["钥匙能提供一次隐蔽进入机会"],
+      misbeliefs: ["赵管事尚未察觉钥匙失踪"],
+      evidence: ["程秩把后门铜钥匙收进袖中，并决定先观察换岗。"],
+      confidence: 0.78,
+    }],
     syncPlan: {
       stateSnapshot: "write",
       characterResources: "skip",
@@ -217,6 +238,7 @@ test("chapter artifact delta prompt captures summary facts and knowledge boundar
 
   assert.equal(parsed.concreteFacts.length, 1);
   assert.equal(parsed.characterKnowledgeStates[0].hiddenFacts[0], "库房内的守卫布置");
+  assert.equal(parsed.characterMindDeltas[0].misbeliefs[0], "赵管事尚未察觉钥匙失踪");
 
   const messages = chapterArtifactDeltaPrompt.render({
     novelTitle: "测试小说",
@@ -232,7 +254,52 @@ test("chapter artifact delta prompt captures summary facts and knowledge boundar
   const systemText = String(messages[0].content);
   assert.match(systemText, /concreteFacts/);
   assert.match(systemText, /characterKnowledgeStates/);
+  assert.match(systemText, /characterMindDeltas/);
   assert.match(systemText, /80-180/);
+});
+
+test("character mind snapshot prompt keeps subjective reasoning evidence-backed", () => {
+  const output = characterMindSnapshotResponseSchema.parse({
+    snapshots: [{
+      characterName: "程秩",
+      currentInterpretation: "他认为后门钥匙能带来一次先手，但不确定守卫是否已经换岗。",
+      privateIntent: "不让赵管事先发现自己的行动。",
+      activePlan: "观察换岗后从后门试探进入。",
+      emotionalStance: "紧张但愿意冒险。",
+      actionTendency: "优先独自试探，再决定是否求助。",
+      decisionTrigger: "若守卫数量异常，就暂缓进入。",
+      beliefs: ["钥匙能打开库房后门"],
+      misbeliefs: ["赵管事尚未察觉钥匙失踪"],
+      evidence: ["程秩把后门铜钥匙收进袖中。"],
+      confidence: 0.78,
+    }],
+  });
+  assert.equal(output.snapshots[0].evidence.length, 1);
+  assert.throws(() => characterMindSnapshotResponseSchema.parse({
+    snapshots: [{ ...output.snapshots[0], evidence: [] }],
+  }));
+
+  const messages = characterMindSnapshotPrompt.render({ mode: "refresh" }, {
+    blocks: [
+      createContextBlock({ id: "roster", group: "character_mind_roster", priority: 100, required: true, content: "程秩" }),
+      createContextBlock({ id: "facts", group: "character_mind_facts", priority: 99, required: true, content: "程秩拿到后门铜钥匙。" }),
+    ],
+    selectedBlockIds: ["roster", "facts"],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+  assert.match(String(messages[0].content), /主观推断/);
+  assert.match(String(messages[0].content), /不得新增角色、身份、资源、事件、关系或秘密/);
+
+  const contextBlocks = buildCharacterMindContextBlocks({
+    roster: "程秩",
+    facts: "程秩拿到后门铜钥匙。",
+    resources: "程秩持有后门铜钥匙。",
+    informationBoundaries: "程秩已知：钥匙能打开后门。",
+  });
+  assert.ok(contextBlocks.some((block) => block.group === "character_mind_resources"));
+  assert.ok(contextBlocks.some((block) => block.group === "character_mind_information_boundaries"));
 });
 
 test("prompt registry resolves style prompts by their declared asset versions", () => {

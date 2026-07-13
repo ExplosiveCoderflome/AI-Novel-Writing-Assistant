@@ -223,7 +223,7 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
                 />
               </TabsContent>
               <TabsContent value="intelligence" className="mt-4">
-                <CharacterIntelligenceTab selectedCharacter={selectedCharacter} />
+                <CharacterIntelligenceTab novelId={novelId} selectedCharacter={selectedCharacter} />
               </TabsContent>
             </Tabs>
           </div>

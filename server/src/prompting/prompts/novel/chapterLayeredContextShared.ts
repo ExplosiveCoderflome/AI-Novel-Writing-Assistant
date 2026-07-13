@@ -355,6 +355,7 @@ export function buildParticipantText(writeContext: ChapterWriteContext): string 
         character.currentState ? `状态：${character.currentState}` : "",
         character.currentGoal ? `目标：${character.currentGoal}` : "",
         guide?.relationStageLabels.length ? `关系阶段：${guide.relationStageLabels.join(" / ")}` : "",
+        guide?.mindGuidance ? `主观倾向：${guide.mindGuidance}` : "",
         guide?.absenceRisk && guide.absenceRisk !== "none"
           ? `缺席风险：${guide.absenceRisk}（跨度 ${guide.absenceSpan}）`
           : "",
@@ -373,6 +374,7 @@ export function buildCharacterGuidanceText(writeContext: ChapterWriteContext): s
     ...writeContext.characterBehaviorGuides.map((guide) => {
       const parts = takeUnique([
         guide.isCoreInVolume ? "本卷核心角色" : "本卷辅助角色",
+        guide.mindGuidance ? `主观倾向（非客观事实）：${guide.mindGuidance}` : "",
         guide.visibleProfileSummary ? `可见表现：${guide.visibleProfileSummary}` : "",
         guide.volumeRoleLabel ? `卷内定位：${guide.volumeRoleLabel}` : "",
         guide.volumeResponsibility ? `职责：${guide.volumeResponsibility}` : "",

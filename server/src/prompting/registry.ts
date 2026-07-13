@@ -262,6 +262,10 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/novel/chapterArtifactDelta.prompts").chapterArtifactDeltaPrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.character.mind.snapshot@v1",
+    load: () => require("./prompts/novel/characterMind.prompts").characterMindSnapshotPrompt as UnknownPromptAsset,
+  },
+  {
     key: "title.generation@v1",
     load: () => require("./prompts/helper/titleGeneration.prompt").titleGenerationPrompt as UnknownPromptAsset,
   },

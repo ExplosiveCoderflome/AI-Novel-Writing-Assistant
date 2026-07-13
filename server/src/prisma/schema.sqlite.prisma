@@ -366,6 +366,7 @@ model Novel {
   characterVolumeAssignments CharacterVolumeAssignment[]
   characterFactionTracks CharacterFactionTrack[]
   characterRelationStages CharacterRelationStage[]
+  characterMindSnapshots CharacterMindSnapshot[]
   characterResourceItems CharacterResourceLedgerItem[]
   characterResourceEvents CharacterResourceEvent[]
   bible             NovelBible?
@@ -543,6 +544,7 @@ model Chapter {
   characterCandidates CharacterCandidate[] @relation("CharacterCandidateSourceChapter")
   characterFactionTracks CharacterFactionTrack[]
   characterRelationStages CharacterRelationStage[] @relation("CharacterRelationStageChapter")
+  characterMindSnapshots CharacterMindSnapshot[]
   facts           ConsistencyFact[]
   qualityReports  QualityReport[]
   storyStateSnapshots StoryStateSnapshot[]
@@ -638,6 +640,7 @@ model Character {
   factionTracks CharacterFactionTrack[]
   outgoingRelationStages CharacterRelationStage[] @relation("CharacterRelationStageSource")
   incomingRelationStages CharacterRelationStage[] @relation("CharacterRelationStageTarget")
+  mindSnapshots   CharacterMindSnapshot[]
   stateEntries    CharacterState[]
   outgoingRelations RelationState[] @relation("RelationStateSource")
   incomingRelations RelationState[] @relation("RelationStateTarget")
@@ -654,6 +657,33 @@ model Character {
 
   @@index([novelId])
   @@index([baseCharacterId])
+}
+
+model CharacterMindSnapshot {
+  id                    String   @id @default(cuid())
+  novelId               String
+  characterId           String
+  sourceChapterId       String?
+  sourceType            String
+  currentInterpretation String
+  privateIntent         String?
+  activePlan            String?
+  emotionalStance       String?
+  actionTendency        String?
+  decisionTrigger       String?
+  beliefsJson           String   @default("[]")
+  misbeliefsJson        String   @default("[]")
+  evidenceJson          String   @default("[]")
+  confidence            Float?
+  isCurrent             Boolean  @default(true)
+  novel                 Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  character             Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  sourceChapter         Chapter? @relation(fields: [sourceChapterId], references: [id], onDelete: SetNull)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([novelId, characterId, isCurrent, updatedAt])
+  @@index([sourceChapterId])
 }
 
 model CharacterRelation {

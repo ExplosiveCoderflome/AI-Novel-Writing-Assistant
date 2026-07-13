@@ -868,3 +868,71 @@ test("chapter writer blocks enforce enabled critical context contracts", () => {
   assert.match(resourceBlock.content, /维修通道钥匙/);
   assert.match(resourceBlock.content, /旧通行证/);
 });
+
+test("chapter context only supplies mind guidance to actual participants", () => {
+  const contextPackage = createContextPackage();
+  contextPackage.characterRoster.push({
+    ...contextPackage.characterRoster[0],
+    id: "char-3",
+    name: "旁观者",
+    role: "路人",
+    currentGoal: "旁观局势",
+  });
+  contextPackage.characterHardFacts.push({
+    ...contextPackage.characterHardFacts[0],
+    characterId: "char-3",
+    name: "旁观者",
+    role: "路人",
+    currentGoal: "旁观局势",
+  });
+  contextPackage.characterDynamics.characters.push({
+    ...contextPackage.characterDynamics.characters[0],
+    characterId: "char-3",
+    name: "旁观者",
+    role: "路人",
+    volumeResponsibility: null,
+    isCoreInVolume: false,
+    plannedChapterOrders: [],
+    absenceRisk: "none",
+  });
+  contextPackage.characterMindStates = [
+    {
+      characterId: "char-1",
+      currentInterpretation: "主角相信反压机会已经出现。",
+      activePlan: "利用维修通道钥匙反打。",
+      actionTendency: "受压时会先确认代价再行动。",
+      beliefs: ["女二仍掌握关键情报"],
+      misbeliefs: ["幕后黑手还未察觉反压准备"],
+      evidence: ["主角攥紧维修通道钥匙。"],
+      confidence: 0.84,
+      sourceChapterId: "chapter-4",
+    },
+    {
+      characterId: "char-3",
+      currentInterpretation: "旁观者以为自己无需卷入。",
+      activePlan: "继续观望。",
+      actionTendency: "遇险会避开冲突。",
+      beliefs: [],
+      misbeliefs: [],
+      evidence: ["旁观者没有出现在本章计划中。"],
+      confidence: 0.7,
+      sourceChapterId: "chapter-4",
+    },
+  ];
+
+  const writeContext = buildChapterWriteContext({
+    bookContract: contextPackage.bookContract,
+    macroConstraints: contextPackage.macroConstraints,
+    volumeWindow: contextPackage.volumeWindow,
+    contextPackage,
+  });
+  const protagonistGuide = writeContext.characterBehaviorGuides.find((guide) => guide.characterId === "char-1");
+  const observerGuide = writeContext.characterBehaviorGuides.find((guide) => guide.characterId === "char-3");
+  const guidanceBlock = buildChapterWriterContextBlocks(writeContext).find((block) => block.id === "character_dynamics");
+
+  assert.match(protagonistGuide.mindGuidance, /主角相信反压机会已经出现/);
+  assert.equal(observerGuide.mindGuidance, null);
+  assert.match(guidanceBlock.content, /主观倾向（非客观事实）/);
+  assert.doesNotMatch(guidanceBlock.content, /旁观者以为自己无需卷入/);
+  assert.ok(writeContext.characterHardFacts.some((fact) => fact.characterId === "char-1"));
+});

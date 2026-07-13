@@ -1,6 +1,7 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
+import { characterMindDeltaSchema } from "./characterMind.promptSchemas";
 import { chapterConcreteFactSchema } from "../../../services/novel/chapterSummarySchemas";
 import { characterResourceExtractionUpdateSchema } from "./characterResource.promptSchemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
@@ -391,6 +392,7 @@ export const chapterArtifactDeltaOutputSchema = z.object({
   factionUpdates: z.array(chapterArtifactFactionUpdateSchema).default([]),
   characterCandidates: z.array(chapterArtifactCharacterCandidateSchema).default([]),
   characterKnowledgeStates: z.array(chapterArtifactCharacterKnowledgeStateSchema).default([]),
+  characterMindDeltas: z.array(characterMindDeltaSchema).max(4).default([]),
   syncPlan: chapterArtifactDeltaSyncPlanSchema,
   confidence: z.number().min(0).max(1),
   requiresFullReconcile: z.boolean().default(false),
@@ -502,6 +504,21 @@ const CHAPTER_ARTIFACT_DELTA_EXAMPLE: ChapterArtifactDeltaOutput = {
       hiddenFacts: ["库房内的守卫布置"],
     },
   ],
+  characterMindDeltas: [
+    {
+      characterName: "程秩",
+      currentInterpretation: "他认为后门钥匙让潜入成为可行方案，但仍低估库房守卫的准备程度。",
+      privateIntent: "抢在赵管事察觉前独自验证后门。",
+      activePlan: "先摸清换岗时间，再利用钥匙进入库房。",
+      emotionalStance: "紧张中带着主动争取的笃定。",
+      actionTendency: "会先隐瞒线索、独自试探，再决定是否求助。",
+      decisionTrigger: "若守卫异常增多，会转而寻找同盟。",
+      beliefs: ["钥匙能提供一次隐蔽进入机会"],
+      misbeliefs: ["他以为赵管事尚未察觉钥匙失踪"],
+      evidence: ["程秩把后门铜钥匙收进袖中，并决定先观察换岗。"],
+      confidence: 0.78,
+    },
+  ],
   syncPlan: {
     stateSnapshot: "write",
     characterResources: "write",
@@ -556,6 +573,7 @@ export const chapterArtifactDeltaPrompt: PromptAsset<
       "9. concreteFacts 只记录本章正文即兴产生且后续必须保持一致的硬事实，每条不超过 40 字；包括承诺、交易条款、事件性质、关键数字日期地点、身份与状态变化。",
       "10. concreteFacts.category 只能使用 completed、revealed、state_changed；无明确硬事实时输出 []，不得把抽象目标或氛围描述写入 concreteFacts。",
       "11. characterKnowledgeStates 只在本章存在显著信息差时填写；knownFacts 写该角色本章后明确知道的事实，hiddenFacts 写该角色仍不知道、后续不能让其超前知情的事实，每组最多 5 条；无信息差输出 []。",
+      "11a. characterMindDeltas 只在正文明确改变角色对局势的理解、情绪、意图、计划、误判或行动选择时填写，最多 4 条；它是可追溯的角色主观推断，不是客观事实，不得凭空补秘密。每条必须给 evidence；没有明显变化输出 []。",
       "12. payoffDeltas.currentStatus 只能使用 setup、hinted、pending_payoff、paid_off、failed、overdue；不要输出 active，已推进但未兑现统一用 pending_payoff。",
       "13. payoffDeltas.riskSignals 必须是对象数组，形如 { code, severity, summary }；没有风险就输出 []，不要输出字符串数组。",
       "14. relationDynamics 必须使用 sourceCharacterName、targetCharacterName、stageLabel、stageSummary；characterCandidates 必须使用 proposedName、proposedRole、summary。",

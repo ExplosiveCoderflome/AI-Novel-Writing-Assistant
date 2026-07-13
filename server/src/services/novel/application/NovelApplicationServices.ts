@@ -7,6 +7,7 @@ import { NovelWorldManualService } from "../worldContext/NovelWorldManualService
 import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { CharacterVisibleProfileService } from "../characterProfile/CharacterVisibleProfileService";
+import { CharacterMindService } from "../characterMind/CharacterMindService";
 import {
   buildManualChapterControlPolicy,
   registerChapterExecutionStageRunner,
@@ -47,6 +48,7 @@ export class DefaultNovelApplicationServices {
   private readonly characterPreparationService = new CharacterPreparationService();
   private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly characterVisibleProfileService = new CharacterVisibleProfileService();
+  private readonly characterMindService = new CharacterMindService();
   private readonly volumeService = new NovelVolumeService();
   private readonly chapterEditorWorkspaceService = new ChapterEditorWorkspaceService();
   private readonly chapterEditorService = new NovelChapterEditorService();
@@ -655,6 +657,14 @@ export class DefaultNovelApplicationServices {
 
   rebuildCharacterDynamics(...args: Parameters<CharacterDynamicsService["rebuildDynamics"]>) {
     return this.characterDynamicsService.rebuildDynamics(...args);
+  }
+
+  getCharacterMindState(...args: Parameters<CharacterMindService["getCurrentMindState"]>) {
+    return this.characterMindService.getCurrentMindState(...args);
+  }
+
+  refreshCharacterMindState(...args: Parameters<CharacterMindService["refreshMindState"]>) {
+    return this.characterMindService.refreshMindState(...args);
   }
 }
 

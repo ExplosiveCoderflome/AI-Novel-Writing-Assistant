@@ -22,6 +22,7 @@ import {
   serializeLedgerJson,
 } from "../../payoff/payoffLedgerShared";
 import { characterResourceLedgerService } from "../characterResource/CharacterResourceLedgerService";
+import { characterMindService } from "../characterMind/CharacterMindService";
 import { characterResourceStaleScanService } from "../characterResource/CharacterResourceStaleScanService";
 import {
   compactText,
@@ -76,6 +77,7 @@ export interface ChapterArtifactDeltaSyncResult {
   characterResourceProposalCount: number;
   characterDynamicsCount: number;
   characterKnowledgeStateCount: number;
+  characterMindSnapshotCount: number;
   payoffDeltaCount: number;
   canonicalCommittedCount: number;
   concreteFactCount: number;
@@ -366,7 +368,7 @@ export class ChapterArtifactDeltaService {
       chapterOrder: chapter.order,
     }).catch(() => 0);
 
-    const [payoffDeltaCount, characterDynamicsCount, characterKnowledgeStateCount] = await Promise.all([
+    const [payoffDeltaCount, characterDynamicsCount, characterKnowledgeStateCount, characterMindSnapshotCount] = await Promise.all([
       output.syncPlan.payoffLedger === "skip"
         ? Promise.resolve(0)
         : this.applyPayoffDeltas({
@@ -393,6 +395,13 @@ export class ChapterArtifactDeltaService {
           characters,
           output,
         }),
+      output.characterMindDeltas.length === 0
+        ? Promise.resolve(0)
+        : characterMindService.applyChapterMindDeltas({
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          deltas: output.characterMindDeltas,
+        }),
     ]);
 
     return {
@@ -402,6 +411,7 @@ export class ChapterArtifactDeltaService {
       characterResourceProposalCount: resourceProposals.length,
       characterDynamicsCount,
       characterKnowledgeStateCount,
+      characterMindSnapshotCount,
       payoffDeltaCount,
       canonicalCommittedCount: stateCommitResult.committed.length,
       concreteFactCount,
