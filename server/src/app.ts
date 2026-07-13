@@ -17,6 +17,7 @@ import autoDirectorFollowUpsRouter from "./routes/autoDirectorFollowUps";
 import bookAnalysisRouter from "./routes/bookAnalysis";
 import characterRouter from "./routes/character";
 import characterConversationRouter from "./modules/characterConversation/http/characterConversationRoutes";
+import visualAssetRouter from "./modules/visualAssets/http/visualAssetRoutes";
 import chatRouter from "./routes/chat";
 import creativeHubRouter from "./routes/creativeHub";
 import genreRouter from "./routes/genre";
@@ -144,6 +145,7 @@ export function createApp() {
   app.use("/api/creative-hub", creativeHubRouter);
   app.use("/api/prompt-workbench", promptWorkbenchRouter);
   app.use("/api/images", imagesRouter);
+  app.use("/api/visual-assets", visualAssetRouter);
   app.use("/api/tasks", tasksRouter);
   app.use("/api/auto-director/follow-ups", autoDirectorFollowUpsRouter);
   app.use("/api/settings/auto-director", settingsAutoDirectorRouter);
