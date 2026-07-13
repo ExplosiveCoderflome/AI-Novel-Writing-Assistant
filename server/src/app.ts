@@ -16,6 +16,7 @@ import autoDirectorChannelCallbacksRouter from "./routes/autoDirectorChannelCall
 import autoDirectorFollowUpsRouter from "./routes/autoDirectorFollowUps";
 import bookAnalysisRouter from "./routes/bookAnalysis";
 import characterRouter from "./routes/character";
+import characterConversationRouter from "./modules/characterConversation/http/characterConversationRoutes";
 import chatRouter from "./routes/chat";
 import creativeHubRouter from "./routes/creativeHub";
 import genreRouter from "./routes/genre";
@@ -137,6 +138,7 @@ export function createApp() {
   app.use("/api/worlds", worldRouter);
   app.use("/api/rag", ragRouter);
   app.use("/api/base-characters", characterRouter);
+  app.use("/api/character-conversations", characterConversationRouter);
   app.use("/api/writing-formula", writingFormulaRouter);
   app.use("/api/chat", chatRouter);
   app.use("/api/creative-hub", creativeHubRouter);

@@ -1,0 +1,163 @@
+import { useMemo, useState, type ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  CharacterConversationPolicy,
+  CharacterSubjectProjection,
+  CharacterSubjectRef,
+} from "@ai-novel/shared/types/characterConversation";
+import {
+  activateCharacterConversationInfluence,
+  createCharacterConversationSession,
+  dismissCharacterConversationInfluence,
+  getActiveCharacterConversationSession,
+  getCharacterConversationContext,
+  sendCharacterConversationTurn,
+} from "@/api/characterConversation";
+import FullscreenView from "@/components/common/FullscreenView";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import CharacterDialogueStage from "@/pages/novels/components/characterWorkspace/CharacterDialogueStage";
+import { MessageCircle, ShieldCheck } from "lucide-react";
+
+interface CharacterConversationWorkbenchProps {
+  subject: CharacterSubjectRef;
+  characterName: string;
+  chapterAnchor?: number | null;
+  chapterAnchorOptions?: number[];
+  onChapterAnchorChange?: (chapterAnchor: number) => void;
+  sidePanel?: ReactNode;
+  headerActions?: ReactNode;
+  onClose?: () => void;
+}
+
+export default function CharacterConversationWorkbench(props: CharacterConversationWorkbenchProps) {
+  const queryClient = useQueryClient();
+  const [message, setMessage] = useState("");
+  const request = useMemo(() => ({
+    ...props.subject,
+    chapterAnchor: props.chapterAnchor ?? undefined,
+  }), [props.chapterAnchor, props.subject]);
+  const queryKey = ["character-conversations", request.kind, request.id, request.scopeKind, request.scopeId ?? "global", request.chapterAnchor ?? "latest"] as const;
+  const contextQuery = useQuery({
+    queryKey: [...queryKey, "context"],
+    queryFn: () => getCharacterConversationContext(request),
+  });
+  const sessionQuery = useQuery({
+    queryKey: [...queryKey, "active-session"],
+    queryFn: () => getActiveCharacterConversationSession(request),
+  });
+  const projection = contextQuery.data?.data?.projection;
+  const session = sessionQuery.data?.data ?? contextQuery.data?.data?.activeSession ?? null;
+  const policy = projection?.interactionPolicy ?? policyForSubject(props.subject.kind);
+  const invalidateConversation = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: [...queryKey, "context"] }),
+      queryClient.invalidateQueries({ queryKey: [...queryKey, "active-session"] }),
+    ]);
+  };
+  const createMutation = useMutation({
+    mutationFn: () => createCharacterConversationSession(request),
+    onSuccess: invalidateConversation,
+  });
+  const sendMutation = useMutation({
+    mutationFn: ({ sessionId, content }: { sessionId: string; content: string }) => sendCharacterConversationTurn(sessionId, request, { message: content }),
+    onSuccess: async () => {
+      setMessage("");
+      await invalidateConversation();
+    },
+  });
+  const activateMutation = useMutation({
+    mutationFn: (sessionId: string) => activateCharacterConversationInfluence(sessionId, request),
+    onSuccess: invalidateConversation,
+  });
+  const dismissMutation = useMutation({
+    mutationFn: (sessionId: string) => dismissCharacterConversationInfluence(sessionId, request),
+    onSuccess: invalidateConversation,
+  });
+  const error = contextQuery.error ?? sessionQuery.error ?? createMutation.error ?? sendMutation.error ?? activateMutation.error ?? dismissMutation.error;
+  const displayName = projection?.name || props.characterName;
+  const sidePanel = props.sidePanel ?? <ConversationContextPanel projection={projection} />;
+
+  return (
+    <FullscreenView
+      title={<span className="inline-flex items-center gap-2"><MessageCircle className="h-4 w-4 text-primary" />{displayName} 的对话空间</span>}
+      description={projection?.sourceDescription ?? sourceDescriptionForPolicy(policy)}
+      meta={<><Badge variant="outline">{projection?.sourceLabel ?? sourceLabelForPolicy(policy)}</Badge><Badge variant="secondary">{policyLabel(policy)}</Badge></>}
+      actions={<>{props.headerActions}{props.chapterAnchorOptions?.length && typeof props.chapterAnchor === "number" && props.onChapterAnchorChange ? <ChapterAnchorSelect chapterAnchor={props.chapterAnchor} options={props.chapterAnchorOptions} disabled={Boolean(session)} onChange={props.onChapterAnchorChange} /> : null}{props.onClose ? <Button size="sm" variant="ghost" onClick={props.onClose}>收起谈话</Button> : null}</>}
+      bodyClassName="grid min-h-[580px] min-w-0 xl:grid-cols-[minmax(0,1fr)_340px]"
+      fullscreenBodyClassName="min-h-0 min-w-0 overflow-y-auto xl:h-full xl:overflow-hidden xl:grid-cols-[minmax(0,1fr)_380px]"
+    >
+      <div className="min-h-0 min-w-0 border-b border-border/60 bg-muted/[0.08] p-4 xl:border-b-0 xl:border-r xl:p-6">
+        <CharacterDialogueStage
+          className="xl:h-full xl:min-h-0 xl:max-h-none"
+          characterName={displayName}
+          interactionPolicy={policy}
+          session={session}
+          isLoading={contextQuery.isLoading || sessionQuery.isLoading}
+          isCreating={createMutation.isPending}
+          isSending={sendMutation.isPending}
+          isActivating={activateMutation.isPending}
+          isDismissing={dismissMutation.isPending}
+          message={message}
+          onMessageChange={setMessage}
+          onCreate={() => createMutation.mutate()}
+          onSend={(sessionId) => sendMutation.mutate({ sessionId, content: message.trim() })}
+          onActivate={(sessionId) => activateMutation.mutate(sessionId)}
+          onDismiss={(sessionId) => dismissMutation.mutate(sessionId)}
+          error={error}
+        />
+      </div>
+      <div className="min-h-0 min-w-0 bg-muted/[0.12] p-4 xl:overflow-y-auto xl:p-6">{sidePanel}</div>
+    </FullscreenView>
+  );
+}
+
+function ChapterAnchorSelect(props: { chapterAnchor: number; options: number[]; disabled: boolean; onChange: (chapterAnchor: number) => void }) {
+  return <label className="flex h-9 items-center gap-2 rounded-md border bg-background px-2 text-xs text-muted-foreground"><span>截至</span><select className="bg-transparent text-sm text-foreground outline-none" value={props.chapterAnchor} onChange={(event) => props.onChange(Number(event.target.value))} disabled={props.disabled}>{props.options.map((chapterOrder) => <option key={chapterOrder} value={chapterOrder}>第 {chapterOrder} 章</option>)}</select></label>;
+}
+
+function ConversationContextPanel(props: { projection: CharacterSubjectProjection | undefined }) {
+  if (!props.projection) {
+    return <aside className="rounded-3xl border border-dashed bg-background p-5 text-sm leading-6 text-muted-foreground">正在整理角色的谈话依据...</aside>;
+  }
+  const { projection } = props;
+  return (
+    <aside className="min-w-0 rounded-3xl border border-border/70 bg-background p-5 shadow-sm">
+      <div className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="h-4 w-4 text-primary" />回应依据</div>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">{projection.sourceDescription}</p>
+      {projection.chapterAnchorLabel ? <Badge className="mt-4" variant="outline">{projection.chapterAnchorLabel}</Badge> : null}
+      <section className="mt-4 rounded-2xl border border-primary/15 bg-primary/[0.045] p-4">
+        <div className="text-xs font-medium text-primary">角色基础</div>
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-7">{projection.identity}</p>
+      </section>
+      <section className="mt-3 rounded-2xl border border-border/70 bg-muted/[0.16] p-4">
+        <div className="text-xs font-medium text-muted-foreground">当前处境</div>
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-7">{projection.currentSituation}</p>
+      </section>
+      {projection.evidence.length > 0 ? <section className="mt-4 space-y-2 border-t border-border/60 pt-4"><div className="text-sm font-medium">可追溯证据</div>{projection.evidence.map((evidence, index) => <article key={`${evidence.sourceRef ?? evidence.label}-${index}`} className="rounded-xl border border-border/70 p-3"><div className="text-xs font-medium">{evidence.chapterOrder ? `第 ${evidence.chapterOrder} 章 · ` : ""}{evidence.label}</div><p className="mt-1 text-xs leading-5 text-muted-foreground">{evidence.detail}</p></article>)}</section> : null}
+      <section className="mt-4 border-t border-border/60 pt-4"><div className="text-xs font-medium text-muted-foreground">交流边界</div><ul className="mt-2 space-y-2 text-xs leading-5 text-muted-foreground">{projection.hardBoundaries.map((boundary) => <li key={boundary}>· {boundary}</li>)}</ul></section>
+    </aside>
+  );
+}
+
+function policyForSubject(kind: CharacterSubjectRef["kind"]): CharacterConversationPolicy {
+  if (kind === "novel_character") return "novel_influence";
+  if (kind === "book_analysis_character") return "evidence_interview";
+  return "read_only";
+}
+
+function policyLabel(policy: CharacterConversationPolicy) {
+  return policy === "novel_influence" ? "可带入创作" : policy === "evidence_interview" ? "证据访谈" : "只读访谈";
+}
+
+function sourceLabelForPolicy(policy: CharacterConversationPolicy) {
+  return policy === "novel_influence" ? "小说角色" : policy === "evidence_interview" ? "拆书角色档案" : "基础角色库";
+}
+
+function sourceDescriptionForPolicy(policy: CharacterConversationPolicy) {
+  return policy === "novel_influence"
+    ? "角色会结合当前小说处境回应；只有你确认后，谈话倾向才会带入后续创作。"
+    : policy === "evidence_interview"
+      ? "角色只依据选定章节范围内的原文证据回应，不会改写原文。"
+      : "角色依据角色库中的稳定设定回应；交流只用于理解人物，不会改写设定。";
+}

@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import type { ImageAsset } from "@ai-novel/shared/types/image";
 import { resolveImageAssetUrl } from "@/api/images";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
+import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 
@@ -14,6 +15,7 @@ interface CharacterCardProps {
   onDeleteAsset: (asset: ImageAsset) => Promise<void>;
   onEdit: () => void;
   onDelete: () => void;
+  onConversation: () => void;
   settingPrimary?: boolean;
   deletingAssetId?: string | null;
   deleting?: boolean;
@@ -29,6 +31,7 @@ export function CharacterCard({
   onDeleteAsset,
   onEdit,
   onDelete,
+  onConversation,
   settingPrimary,
   deletingAssetId,
   deleting,
@@ -58,6 +61,9 @@ export function CharacterCard({
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           {extraActions}
+          <Button size="sm" variant="outline" onClick={onConversation}>
+            <MessageCircle className="mr-1.5 h-3.5 w-3.5" />与角色交谈
+          </Button>
           <Button size="sm" variant="outline" onClick={onGenerateImage}>
             生成形象图
           </Button>

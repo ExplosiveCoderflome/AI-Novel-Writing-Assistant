@@ -1,5 +1,7 @@
 import type { FormEvent } from "react";
-import type { CharacterDialogueInfluenceStatus, CharacterDialogueSession } from "@ai-novel/shared/types/characterDialogue";
+import type { CharacterDialogueInfluence, CharacterDialogueInfluenceStatus } from "@ai-novel/shared/types/characterDialogue";
+import type { CharacterConversationPolicy } from "@ai-novel/shared/types/characterConversation";
+import type { CharacterConversationSessionView } from "@/api/characterConversation";
 import { MessageCircle, Send, Sparkles } from "lucide-react";
 import AiButton from "@/components/common/AiButton";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +11,8 @@ import { cn } from "@/lib/utils";
 interface CharacterDialogueStageProps {
   className?: string;
   characterName: string;
-  session: CharacterDialogueSession | null;
+  interactionPolicy: CharacterConversationPolicy;
+  session: CharacterConversationSessionView | null;
   isLoading: boolean;
   isCreating: boolean;
   isSending: boolean;
@@ -24,8 +27,14 @@ interface CharacterDialogueStageProps {
   onDismiss: (sessionId: string) => void;
 }
 
+const POLICY_DESCRIPTION: Record<CharacterConversationPolicy, string> = {
+  novel_influence: "角色会按自己的处境、认知和关系回应；谈话不会直接改写小说正史。",
+  read_only: "角色依据角色库中的稳定设定回应；这段交流不会改写角色设定或任何小说。",
+  evidence_interview: "角色只依据当前证据范围回应；证据不足时会明确说明，交流不会改写原文。",
+};
+
 export default function CharacterDialogueStage(props: CharacterDialogueStageProps) {
-  const influence = props.session?.latestInfluence ?? null;
+  const influence = props.interactionPolicy === "novel_influence" ? props.session?.latestInfluence ?? null : null;
   const submitMessage = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (props.session && props.message.trim() && !props.isSending) {
@@ -41,7 +50,7 @@ export default function CharacterDialogueStage(props: CharacterDialogueStageProp
             <MessageCircle className="h-4 w-4 text-primary" />
             和 {props.characterName} 聊聊
           </div>
-          <p className="mt-1 text-xs leading-5 text-muted-foreground">角色会按自己的处境、认知和关系回应；谈话不会直接改写小说正史。</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">{POLICY_DESCRIPTION[props.interactionPolicy]}</p>
         </div>
         {props.session ? <Badge variant="secondary">谈话进行中</Badge> : <Badge variant="outline">等待开启</Badge>}
       </header>
@@ -64,6 +73,8 @@ export default function CharacterDialogueStage(props: CharacterDialogueStageProp
               <article key={turn.id} className={turn.role === "author" ? "ml-auto max-w-[88%] rounded-2xl rounded-tr-md bg-primary px-4 py-3 text-primary-foreground shadow-sm" : "mr-auto max-w-[88%] rounded-2xl rounded-tl-md border border-border/70 bg-background px-4 py-3 shadow-sm"}>
                 <div className={`mb-1.5 text-xs font-medium ${turn.role === "author" ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{turn.role === "author" ? "你" : props.characterName}</div>
                 <div className="whitespace-pre-wrap text-sm leading-7">{turn.content}</div>
+                {turn.role === "character" && turn.uncertainty ? <div className="mt-3 border-t border-border/50 pt-2 text-xs leading-5 text-muted-foreground">{turn.uncertainty}</div> : null}
+                {turn.role === "character" && turn.evidence.length > 0 ? <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/50 pt-2">{turn.evidence.map((evidence, index) => <Badge key={`${evidence.sourceRef ?? evidence.label}-${index}`} variant="outline" className="max-w-full truncate text-[10px]">{evidence.chapterOrder ? `第 ${evidence.chapterOrder} 章 · ` : ""}{evidence.label}</Badge>)}</div> : null}
               </article>
             )) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">说说你想和 {props.characterName} 谈的事。</div>}
           </div>
@@ -95,7 +106,7 @@ export default function CharacterDialogueStage(props: CharacterDialogueStageProp
 }
 
 function DialogueInfluenceNotice(props: {
-  influence: NonNullable<CharacterDialogueSession["latestInfluence"]>;
+  influence: CharacterDialogueInfluence;
   isActivating: boolean;
   isDismissing: boolean;
   onActivate: () => void;
