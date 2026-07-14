@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openmontage/artifacts/render_report",
+  "title": "Render Report",
+  "description": "Output report produced by the Composer agent after rendering.",
+  "type": "object",
+  "required": ["version", "outputs"],
+  "properties": {
+    "version": { "type": "string", "const": "1.0" },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "format", "resolution", "duration_seconds"],
+        "properties": {
+          "path": { "type": "string" },
+          "format": { "type": "string" },
+          "codec": { "type": "string" },
+          "audio_codec": { "type": "string" },
+          "resolution": { "type": "string" },
+          "fps": { "type": "number" },
+          "duration_seconds": { "type": "number", "minimum": 0 },
+          "file_size_bytes": { "type": "integer" },
+          "platform_target": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "render_time_seconds": { "type": "number", "minimum": 0 },
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "verification_notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "render_grammar": {
+      "type": "string",
+      "description": "Which renderer family was used for this render",
+      "enum": ["explainer-data", "explainer-teacher", "cinematic-trailer", "documentary-montage", "product-reveal", "screen-demo", "presenter", "animation-first"]
+    },
+    "slideshow_risk_score": {
+      "type": "object",
+      "description": "Final slideshow risk assessment",
+      "properties": {
+        "average": { "type": "number" },
+        "verdict": { "type": "string" }
+      }
+    },
+    "decision_log_ref": {
+      "type": "string",
+      "description": "Path to the project's cumulative decision log"
+    },
+    "final_review_ref": {
+      "type": "string",
+      "description": "Path or inline reference to the final_review artifact produced by post-render self-review. Provides durable audit linkage between the render output and its quality inspection."
+    },
+    "metadata": { "type": "object" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openmontage/artifacts/review",
+  "title": "Stage Review",
+  "description": "Structured review findings and stage-agent dispositions from the Reviewer.",
+  "type": "object",
+  "required": ["version", "stage", "findings"],
+  "properties": {
+    "version": { "type": "string", "const": "1.0" },
+    "stage": { "type": "string", "enum": ["idea", "script", "scene_plan", "assets", "edit", "compose", "publish"] },
+    "round": { "type": "integer", "minimum": 1, "maximum": 2 },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "description"],
+        "properties": {
+          "id": { "type": "string" },
+          "severity": { "type": "string", "enum": ["critical", "suggestion", "nitpick"] },
+          "category": { "type": "string" },
+          "description": { "type": "string" },
+          "disposition": {
+            "type": "string",
+            "enum": ["accepted", "rejected", "pending"],
+            "default": "pending"
+          },
+          "agent_response": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "metadata": { "type": "object" }
+  },
+  "additionalProperties": false
+}

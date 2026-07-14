@@ -23,6 +23,7 @@ interface KnowledgeOpsTabProps {
   deletingJobId?: string;
   onClearFinishedJobs: () => void;
   onDeleteJob: (jobId: string) => void;
+  getOwnerName?: (ownerType: string, ownerId: string) => string | undefined;
 }
 
 const FINISHED_RAG_JOB_STATUSES = new Set<RagJobSummary["status"]>(["succeeded", "failed", "cancelled"]);
@@ -44,6 +45,7 @@ export default function KnowledgeOpsTab({
   deletingJobId,
   onClearFinishedJobs,
   onDeleteJob,
+  getOwnerName,
 }: KnowledgeOpsTabProps) {
   const finishedJobCount = jobs.filter((job) => canDeleteRagJob(job)).length;
 
@@ -124,7 +126,7 @@ export default function KnowledgeOpsTab({
               <div key={job.id} className="rounded-md border p-2 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="font-medium">
-                    {job.ownerType}:{job.ownerId}
+                    {job.ownerType}: {getOwnerName?.(job.ownerType, job.ownerId) ?? job.ownerId}
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
                     <Badge variant="outline">{formatStatus(job.status)}</Badge>
@@ -182,7 +184,7 @@ export default function KnowledgeOpsTab({
             {failedJobs.map((job) => (
               <div key={job.id} className="rounded-md border p-2 text-sm">
                 <div className="font-medium">
-                  {job.ownerType}:{job.ownerId}
+                  {job.ownerType}: {getOwnerName?.(job.ownerType, job.ownerId) ?? job.ownerId}
                 </div>
                 <div className="text-xs text-destructive">{job.lastError ?? "Unknown error"}</div>
               </div>

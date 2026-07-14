@@ -1,7 +1,10 @@
+import * as fs from "fs";
+import * as path from "path";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
+import { resolveServerRoot } from "../../../runtime/appPaths";
 
 export interface ChapterWriterPromptInput {
   novelTitle: string;
@@ -191,13 +194,19 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         ].filter(Boolean).join("\n")
       : "";
 
-    return [
-      new SystemMessage([
+    // Dynamically load system prompt from file
+    let systemPromptContent = "";
+    try {
+      const promptPath = path.join(resolveServerRoot(), "config", "prompts", "chapter_writer_system.md");
+      systemPromptContent = fs.readFileSync(promptPath, "utf8");
+    } catch (e) {
+      // Default fallback system prompt content
+      systemPromptContent = [
         "你是中文长篇网络小说写作助手。",
         "你的任务是根据当前章节任务，生成可直接阅读的正文，而不是提纲或解释。",
         "",
         "【叙事视角】",
-        povCopy,
+        "{{povCopy}}",
         "",
         "【任务边界】",
         "只输出章节正文，不输出标题、不输出提纲、不输出解释、不输出任何额外文本。",
@@ -217,23 +226,19 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "1. 开头必须迅速进入当前情境，不得长时间铺垫背景或复述上一章。",
         "2. 中段必须出现推进、变化或对抗，不能平铺直叙维持同一状态。",
         "3. 本章至少出现一次明确的「状态变化」（信息反转、局面升级、关系变化、风险上升或计划转向）。",
-        "4. " + endingHook,
+        "4. {{endingHook}}",
         "",
         "【篇幅要求】",
-        lengthBlock,
+        "{{lengthBlock}}",
         "",
         "【连续性约束】",
-        mode === "continue"
-          ? "1. 当前是补写模式，不得重写章节开头；只允许从现有正文尾部自然续接。"
-          : "1. 章节开头必须与 recent_chapters 明显区分，禁止复用相同开场模式（如重复描写环境、回忆开头等）。",
-        "2. 允许短回调，但不得大段复述已发生事件，不得复制上下文原句。",
-        "3. 必须延续当前人物状态与局面，不得让角色行为失去动机或连续性。",
-        continuationBlock ? continuationBlock : "",
+        "{{continuityBlock}}",
+        "{{continuationBlock}}",
         "",
         "【表达要求】",
-        "1. " + tonePreference,
+        "1. {{tonePreference}}",
         "2. 优先使用具体动作、对话与可感知细节推进，而不是抽象概述。",
-        "3. " + antiAiRules,
+        "3. {{antiAiRules}}",
         "4. 对话应服务推进或冲突，不得成为填充内容。",
         "5. 每一段叙述尽量同时完成两项以上叙事功能（推进情节、揭示人物、制造张力、建构世界），避免仅完成单一功能的过渡性段落。",
         "",
@@ -247,7 +252,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "禁止用总结性语句代替剧情发展。",
         "禁止重复追求 chapter_mission 中 'Already completed' 列表里已完成的目标（如已办好的证件、已签的协议）。",
         "禁止重复使用 opening_constraints 中 'Scene pattern blacklist' 列表里标注的场景模式（时间+地点+动作三要素完全相同的场景）。",
-        antiClicherEnabled ? `\n【额外套路禁区】\n${antiClicherCopy}` : "",
+        "{{antiClicherBlock}}",
         "",
         "【反模式替换】",
         "* 想写大段心理独白 -> 改为行为/对话/细节，让读者感受而非被告知。",
@@ -260,7 +265,27 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "(2) obligation contract 的所有必达项是否已在正文中可见兑现？",
         "(3) 是否违反了任何禁止规则（新角色、场景模式重复、未铺垫转折）？",
         "确认通过后再开始输出，不需要在正文中输出核查结果。",
-      ].filter((line) => line !== "").join("\n")),
+      ].join("\n");
+    }
+
+    const antiClicherBlock = antiClicherEnabled ? `\n【额外套路禁区】\n${antiClicherCopy}` : "";
+    const continuityBlock = mode === "continue"
+      ? "1. 当前是补写模式，不得重写章节开头；只允许从现有正文尾部自然续接。"
+      : "1. 章节开头必须与 recent_chapters 明显区分，禁止复用相同开场模式（如重复描写环境、回忆开头等）。\n2. 允许短回调，但不得大段复述已发生事件，不得复制上下文原句。\n3. 必须延续当前人物状态与局面，不得让角色行为失去动机或连续性。";
+
+    // Replace template tokens
+    const renderedSystemPrompt = systemPromptContent
+      .replace("{{povCopy}}", povCopy)
+      .replace("{{endingHook}}", endingHook)
+      .replace("{{lengthBlock}}", lengthBlock)
+      .replace("{{continuityBlock}}", continuityBlock)
+      .replace("{{continuationBlock}}", continuationBlock ? "\n" + continuationBlock : "")
+      .replace("{{tonePreference}}", tonePreference)
+      .replace("{{antiAiRules}}", antiAiRules)
+      .replace("{{antiClicherBlock}}", antiClicherBlock);
+
+    return [
+      new SystemMessage(renderedSystemPrompt),
       new HumanMessage([
         `小说：${input.novelTitle}`,
         `章节：第 ${input.chapterOrder} 章 ${input.chapterTitle}`,

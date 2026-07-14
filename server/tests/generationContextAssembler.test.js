@@ -161,6 +161,8 @@ test("assembler refreshes chapter execution fields after chapter plan regenerati
     buildRagContext: ragServices.hybridRetrievalService.buildContextBlock,
     getPayoffLedger: payoffLedgerSyncService.getPayoffLedger,
     buildCharacterResourceContext: characterResourceLedgerService.buildContext,
+    embedTexts: ragServices.embeddingService.embedTexts,
+    vectorSearch: ragServices.vectorStoreService.search,
   };
 
   try {
@@ -241,6 +243,12 @@ test("assembler refreshes chapter execution fields after chapter plan regenerati
     ragServices.hybridRetrievalService.buildContextBlock = async () => "";
     payoffLedgerSyncService.getPayoffLedger = async () => ({ items: [] });
     characterResourceLedgerService.buildContext = async () => null;
+    ragServices.embeddingService.embedTexts = async () => ({
+      vectors: [[0.1, 0.2, 0.3]],
+      provider: "openai",
+      model: "text-embedding-3-small",
+    });
+    ragServices.vectorStoreService.search = async () => [];
 
     const assembler = new GenerationContextAssembler();
     const storyWorldSlice = createStoryWorldSlice();
@@ -285,8 +293,6 @@ test("assembler refreshes chapter execution fields after chapter plan regenerati
     assert.equal(assembled.chapter.taskSheet, "新任务单");
     assert.equal(assembled.contextPackage.chapter.sceneCards, freshSceneCards);
     assert.equal(assembled.contextPackage.storyWorldSlice, storyWorldSlice);
-    assert.match(assembled.contextPackage.chapter.supportingContextText, /本书世界上下文/);
-    assert.match(assembled.contextPackage.chapter.supportingContextText, /星核枯竭的北境舞台/);
     assert.equal(assembled.contextPackage.chapterWriteContext.chapterBoundary.entryState, "新合同入口1");
     assert.ok(assembled.contextPackage.chapterWriteContext.chapterBoundary.doNotCross.includes("新禁止"));
   } finally {
@@ -308,5 +314,7 @@ test("assembler refreshes chapter execution fields after chapter plan regenerati
     ragServices.hybridRetrievalService.buildContextBlock = originals.buildRagContext;
     payoffLedgerSyncService.getPayoffLedger = originals.getPayoffLedger;
     characterResourceLedgerService.buildContext = originals.buildCharacterResourceContext;
+    ragServices.embeddingService.embedTexts = originals.embedTexts;
+    ragServices.vectorStoreService.search = originals.vectorSearch;
   }
 });

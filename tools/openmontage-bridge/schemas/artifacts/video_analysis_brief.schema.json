@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "video_analysis_brief",
+  "description": "Structured analysis of a reference video — produced by VideoAnalyzer, enriched by agent vision. Used as grounding context for reference-driven pipeline productions.",
+  "type": "object",
+  "required": ["version", "source", "content_analysis", "structure_analysis"],
+  "properties": {
+    "version": { "const": "1.0" },
+    "source": {
+      "type": "object",
+      "required": ["type", "duration_seconds"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["youtube", "shorts", "instagram", "tiktok", "local_file", "other_url"]
+        },
+        "url": { "type": "string" },
+        "local_path": { "type": "string" },
+        "title": { "type": "string" },
+        "duration_seconds": { "type": "number" },
+        "resolution": { "type": "string" },
+        "platform_metadata": {
+          "type": "object",
+          "properties": {
+            "uploader": { "type": "string" },
+            "upload_date": { "type": "string" },
+            "description": { "type": "string" },
+            "view_count": { "type": "integer" },
+            "like_count": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "content_analysis": {
+      "type": "object",
+      "required": ["summary", "topics", "target_audience"],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "2-3 sentence content summary"
+        },
+        "topics": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "key_claims": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "target_audience": { "type": "string" },
+        "tone": {
+          "type": "string",
+          "enum": ["educational", "entertaining", "cinematic", "corporate",
+                   "casual", "dramatic", "inspirational", "humorous"]
+        },
+        "hook_technique": {
+          "type": "string",
+          "description": "How the video opens to grab attention"
+        },
+        "call_to_action": { "type": "string" }
+      }
+    },
+    "structure_analysis": {
+      "type": "object",
+      "required": ["total_scenes", "scenes", "pacing_profile"],
+      "properties": {
+        "total_scenes": { "type": "integer" },
+        "scenes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["scene_index", "start_time", "end_time", "description"],
+            "properties": {
+              "scene_index": { "type": "integer" },
+              "start_time": { "type": "number" },
+              "end_time": { "type": "number" },
+              "description": { "type": "string" },
+              "narration_text": { "type": "string" },
+              "visual_type": {
+                "type": "string",
+                "enum": ["talking_head", "b_roll", "screen_recording", "animation",
+                         "text_card", "stock_footage", "diagram", "chart",
+                         "product_shot", "transition", "other"]
+              },
+              "shot_language": {
+                "type": "object",
+                "properties": {
+                  "shot_size": { "type": "string" },
+                  "camera_movement": { "type": "string" },
+                  "lighting_key": { "type": "string" },
+                  "depth_of_field": { "type": "string" }
+                }
+              },
+              "dominant_colors": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "on_screen_text": { "type": "string" },
+              "energy_level": {
+                "type": "string",
+                "enum": ["low", "medium", "high", "peak"]
+              }
+            }
+          }
+        },
+        "pacing_profile": {
+          "type": "object",
+          "properties": {
+            "avg_scene_duration_seconds": { "type": "number" },
+            "shortest_scene_seconds": { "type": "number" },
+            "longest_scene_seconds": { "type": "number" },
+            "cuts_per_minute": { "type": "number" },
+            "pacing_style": {
+              "type": "string",
+              "enum": ["slow_contemplative", "steady_educational",
+                       "dynamic_social", "rapid_fire", "variable"]
+            }
+          }
+        }
+      }
+    },
+    "style_profile": {
+      "type": "object",
+      "properties": {
+        "color_palette": {
+          "type": "object",
+          "properties": {
+            "primary_colors": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "accent_colors": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "overall_mood": { "type": "string" }
+          }
+        },
+        "typography_observed": { "type": "string" },
+        "transition_types": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "music_style": { "type": "string" },
+        "narration_style": {
+          "type": "object",
+          "properties": {
+            "has_narration": { "type": "boolean" },
+            "speaker_count": { "type": "integer" },
+            "delivery_style": { "type": "string" },
+            "words_per_minute": { "type": "number" }
+          }
+        },
+        "subtitle_style": { "type": "string" },
+        "production_quality": {
+          "type": "string",
+          "enum": ["amateur", "prosumer", "professional", "broadcast"]
+        },
+        "closest_playbook": { "type": "string" },
+        "playbook_delta": { "type": "string" }
+      }
+    },
+    "narration_transcript": {
+      "type": "object",
+      "properties": {
+        "full_text": { "type": "string" },
+        "segments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "start": { "type": "number" },
+              "end": { "type": "number" },
+              "text": { "type": "string" },
+              "speaker": { "type": "string" }
+            }
+          }
+        },
+        "language": { "type": "string" },
+        "word_count": { "type": "integer" }
+      }
+    },
+    "replication_guidance": {
+      "type": "object",
+      "properties": {
+        "suggested_pipeline": { "type": "string" },
+        "suggested_playbook": { "type": "string" },
+        "key_elements_to_replicate": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The 3-5 things that make this video work"
+        },
+        "elements_requiring_custom_work": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "estimated_complexity": {
+          "type": "string",
+          "enum": ["simple", "moderate", "complex", "beyond_current_capability"]
+        },
+        "motion_required": { "type": "boolean" },
+        "creative_differentiation_seeds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "3-5 ways the output should DIFFER from the reference to avoid being a copy"
+        },
+        "playbook_customizations": { "type": "object" }
+      }
+    },
+    "keyframes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": { "type": "number" },
+          "scene_index": { "type": "integer" },
+          "path": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    }
+  }
+}

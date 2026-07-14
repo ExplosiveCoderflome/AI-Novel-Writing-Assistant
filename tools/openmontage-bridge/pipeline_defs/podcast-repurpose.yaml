@@ -1,0 +1,212 @@
+name: podcast-repurpose
+version: "2.0"
+description: >
+  Podcast-to-video repurposing pipeline. Takes podcast audio (or video podcast) and
+  produces visual content: audiogram or caption-led clips, quote-led social assets,
+  and optional full-episode companion video when the source and asset budget support it.
+  EP orchestration adds quality gates for audio preservation, clip selection, and
+  multi-deliverable consistency.
+category: custom
+stability: beta
+default_checkpoint_policy: guided
+
+orchestration:
+  mode: executive-producer
+  skill: pipelines/podcast-repurpose/executive-producer
+  budget_default_usd: 1.00
+  max_revisions_per_stage: 3
+  max_send_backs: 3
+  max_wall_time_minutes: 12
+
+extensions:
+  custom_scripts: true
+  custom_playbooks: true
+  custom_skills: true
+  custom_tools: false
+
+required_skills:
+  - pipelines/podcast-repurpose/executive-producer
+  - pipelines/podcast-repurpose/idea-director
+  - pipelines/podcast-repurpose/script-director
+  - pipelines/podcast-repurpose/scene-director
+  - pipelines/podcast-repurpose/asset-director
+  - pipelines/podcast-repurpose/edit-director
+  - pipelines/podcast-repurpose/compose-director
+  - pipelines/podcast-repurpose/publish-director
+  - meta/reviewer
+  - meta/checkpoint-protocol
+
+compatible_playbooks:
+  recommended:
+    - clean-professional
+    - flat-motion-graphics
+  also_works: []
+  custom_allowed: true
+
+stages:
+  - name: idea
+    skill: pipelines/podcast-repurpose/idea-director
+    optional_artifacts_in:
+      - source_media_review
+    produces:
+      - brief
+      - decision_log
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Source podcast format identified (solo, interview, panel)
+      - Output types specified (audiogram clips, quote-led clips, companion video)
+      - Platform targets and clip count realistic
+    success_criteria:
+      - Schema-valid brief artifact
+      - Brief specifies output deliverable types and platform targets
+
+  - name: script
+    skill: pipelines/podcast-repurpose/script-director
+    required_artifacts_in:
+      - brief
+    produces:
+      - script
+    required_tools:
+      - transcriber
+    optional_tools:
+      - audio_enhance
+    tools_available:
+      - transcriber
+      - audio_enhance
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Full episode transcribed with speaker diarization
+      - Quotable moments and highlight segments identified
+      - Topic transitions mapped for chapter markers
+    success_criteria:
+      - Schema-valid script artifact
+      - Transcript sections have speaker labels and timestamps
+
+  - name: scene_plan
+    skill: pipelines/podcast-repurpose/scene-director
+    required_artifacts_in:
+      - script
+    optional_artifacts_in:
+      - brief
+    produces:
+      - scene_plan
+    required_tools: []
+    optional_tools:
+      - frame_sampler
+    tools_available:
+      - frame_sampler
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Visual treatment planned for each segment (source video, caption-led, quote-led, audiogram)
+      - Highlight clips have strong standalone hooks
+      - Full episode companion stays feasible with available source assets
+    success_criteria:
+      - Schema-valid scene_plan artifact
+      - Every deliverable (clips + full episode) has a scene plan
+
+  - name: assets
+    skill: pipelines/podcast-repurpose/asset-director
+    required_artifacts_in:
+      - scene_plan
+      - script
+    optional_artifacts_in:
+      - brief
+    produces:
+      - asset_manifest
+    required_tools:
+      - subtitle_gen
+    optional_tools:
+      - image_selector
+      - diagram_gen
+      - music_gen
+      - audio_enhance
+    tools_available:
+      - subtitle_gen
+      - image_selector
+      - diagram_gen
+      - music_gen
+      - audio_enhance
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Subtitles generated for all clips and full episode
+      - Quote card / speaker-card assets match playbook style
+      - Optional topic graphics are relevant and within budget
+    success_criteria:
+      - Schema-valid asset_manifest artifact
+      - All referenced asset files exist on disk
+
+  - name: edit
+    skill: pipelines/podcast-repurpose/edit-director
+    required_artifacts_in:
+      - scene_plan
+      - asset_manifest
+    optional_artifacts_in:
+      - script
+    produces:
+      - edit_decisions
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Clip openings land quickly and attribution is clear
+      - Quote cards and captions appear at the right moments
+      - Full-episode companion uses light-touch visuals instead of fake complexity
+    success_criteria:
+      - Schema-valid edit_decisions artifact
+      - Edit decisions cover all planned deliverables
+
+  - name: compose
+    skill: pipelines/podcast-repurpose/compose-director
+    required_artifacts_in:
+      - edit_decisions
+      - asset_manifest
+    optional_artifacts_in:
+      - scene_plan
+    produces:
+      - render_report
+      - final_review
+    required_tools:
+      - video_compose
+      - audio_mixer
+    optional_tools:
+      - video_trimmer
+      - audio_enhance
+    tools_available:
+      - video_compose
+      - audio_mixer
+      - video_trimmer
+      - audio_enhance
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - All deliverables rendered (clips + full episode if planned)
+      - Audio quality preserved from original podcast
+      - Any waveform or motion treatment matches the intended layout
+    success_criteria:
+      - Schema-valid render_report artifact
+      - All output files exist and pass ffprobe validation
+
+  - name: publish
+    skill: pipelines/podcast-repurpose/publish-director
+    required_artifacts_in:
+      - render_report
+      - final_review
+    optional_artifacts_in:
+      - brief
+    produces:
+      - publish_log
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Per-clip metadata optimized for each target platform
+      - Posting schedule suggested for clip distribution
+      - Full episode video metadata includes chapter markers
+    success_criteria:
+      - Schema-valid publish_log artifact
+      - Export directory contains all deliverables with metadata

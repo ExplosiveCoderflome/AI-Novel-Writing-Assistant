@@ -9,8 +9,8 @@ function clearDramaModules() {
     if (
       key.includes("\\dist\\services\\drama\\")
       || key.includes("/dist/services/drama/")
-      || key.includes("\\dist\\services\\image\\provider.js")
-      || key.includes("/dist/services/image/provider.js")
+      || key.includes("\\dist\\services\\image\\")
+      || key.includes("/dist/services/image/")
       || key.includes("\\dist\\db\\prisma.js")
       || key.includes("/dist/db/prisma.js")
       || key.includes("\\dist\\prompting\\core\\promptRunner.js")

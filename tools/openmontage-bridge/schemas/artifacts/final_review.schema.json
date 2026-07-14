@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openmontage/artifacts/final_review",
+  "title": "Final Review",
+  "description": "Structured self-review of the rendered output. The compose stage must produce this artifact to prove the agent inspected the actual rendered video before presenting it to the user. If status is 'revise' or 'fail', the agent must not present the video as complete.",
+  "type": "object",
+  "required": ["version", "output_path", "status", "checks"],
+  "properties": {
+    "version": { "type": "string", "const": "1.0" },
+    "output_path": {
+      "type": "string",
+      "description": "Path to the rendered output file that was reviewed"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "revise", "fail"],
+      "description": "pass=ready to present, revise=fixable issues found, fail=critical problems"
+    },
+    "checks": {
+      "type": "object",
+      "required": [
+        "technical_probe",
+        "visual_spotcheck",
+        "audio_spotcheck",
+        "promise_preservation",
+        "subtitle_check"
+      ],
+      "properties": {
+        "technical_probe": {
+          "type": "object",
+          "description": "ffprobe validation of the output file",
+          "properties": {
+            "valid_container": { "type": "boolean" },
+            "duration_seconds": { "type": "number" },
+            "resolution": { "type": "string" },
+            "fps": { "type": "number" },
+            "has_audio": { "type": "boolean" },
+            "codec": { "type": "string" },
+            "file_size_bytes": { "type": "integer" },
+            "issues": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "visual_spotcheck": {
+          "type": "object",
+          "description": "Sample frames inspected from opening, middle, climax, ending",
+          "properties": {
+            "frames_sampled": { "type": "integer", "minimum": 4 },
+            "frame_paths": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "black_frames_detected": { "type": "boolean" },
+            "broken_overlays": { "type": "boolean" },
+            "missing_assets": { "type": "boolean" },
+            "unreadable_text": { "type": "boolean" },
+            "issues": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "audio_spotcheck": {
+          "type": "object",
+          "description": "Audio quality verification",
+          "properties": {
+            "narration_present": { "type": "boolean" },
+            "music_present": { "type": "boolean" },
+            "unexpected_silence": { "type": "boolean" },
+            "clipping_detected": { "type": "boolean" },
+            "mix_intelligible": { "type": "boolean" },
+            "issues": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "promise_preservation": {
+          "type": "object",
+          "description": "Delivery promise and renderer governance checks",
+          "properties": {
+            "delivery_promise_honored": { "type": "boolean" },
+            "renderer_family_used": { "type": "string", "description": "Creative grammar that actually ran" },
+            "render_runtime_used": {
+              "type": "string",
+              "enum": ["remotion", "hyperframes", "ffmpeg"],
+              "description": "Technical runtime that actually executed the render. Must match the runtime locked at proposal unless a logged decision overrode it."
+            },
+            "runtime_swap_detected": {
+              "type": "boolean",
+              "description": "True if the runtime that ran differs from the runtime locked in proposal_packet. An unapproved swap is a contract violation."
+            },
+            "runtime_swap_check": {
+              "type": "string",
+              "description": "Human-readable status of the runtime-swap check: 'ok — …', 'detected — …', or 'skipped — …'. When the check was skipped, the reviewer skill is responsible for cross-artifact comparison."
+            },
+            "motion_ratio_actual": { "type": "number" },
+            "silent_downgrade_detected": { "type": "boolean" },
+            "issues": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "subtitle_check": {
+          "type": "object",
+          "description": "Subtitle/caption verification against source script",
+          "properties": {
+            "subtitles_expected": { "type": "boolean" },
+            "subtitles_present": { "type": "boolean" },
+            "coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "timing_drift_detected": { "type": "boolean" },
+            "issues": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "transcript_comparison": {
+          "type": "object",
+          "description": "Optional: transcribe the output and compare to source script",
+          "properties": {
+            "transcript_matches_script": { "type": "boolean" },
+            "word_accuracy": { "type": "number", "minimum": 0, "maximum": 1 },
+            "issues": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "issues_found": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "All issues found across all checks, summarized for the user"
+    },
+    "recommended_action": {
+      "type": "string",
+      "enum": ["present_to_user", "re_render", "revise_edit", "revise_assets", "block"],
+      "description": "What the agent should do next based on the review findings"
+    },
+    "metadata": { "type": "object" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openmontage/artifacts/scene_plan",
+  "title": "Scene Plan",
+  "description": "Ordered scene list produced by the Scene Planner agent.",
+  "type": "object",
+  "required": ["version", "scenes"],
+  "properties": {
+    "version": { "type": "string", "const": "1.0" },
+    "style_playbook": { "type": "string", "description": "Name of the active style playbook" },
+    "scenes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "description", "start_seconds", "end_seconds"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["talking_head", "broll", "animation", "character_scene", "diagram", "text_card", "transition", "generated", "screen_recording"]
+          },
+          "description": { "type": "string" },
+          "start_seconds": { "type": "number", "minimum": 0 },
+          "end_seconds": { "type": "number", "minimum": 0 },
+          "script_section_id": { "type": "string" },
+          "framing": { "type": "string" },
+          "movement": { "type": "string" },
+          "transition_in": { "type": "string" },
+          "transition_out": { "type": "string" },
+          "overlay_notes": { "type": "string" },
+          "shot_language": {
+            "type": "object",
+            "description": "Structured cinematography vocabulary for this scene",
+            "properties": {
+              "shot_size": {
+                "type": "string",
+                "enum": ["extreme_wide", "wide", "medium_wide", "medium", "medium_close", "close_up", "extreme_close_up", "over_shoulder", "insert", "establishing"]
+              },
+              "camera_movement": {
+                "type": "string",
+                "enum": ["static", "pan_left", "pan_right", "tilt_up", "tilt_down", "dolly_in", "dolly_out", "tracking_left", "tracking_right", "crane_up", "crane_down", "handheld", "steadicam", "whip_pan", "orbital", "zoom_in", "zoom_out", "rack_focus"]
+              },
+              "lens_mm": { "type": "integer", "enum": [14, 24, 35, 50, 85, 135, 200] },
+              "lighting_key": {
+                "type": "string",
+                "enum": ["high_key", "low_key", "natural", "golden_hour", "blue_hour", "tungsten_warm", "neon", "silhouette", "rim_lit", "volumetric", "overcast_soft"]
+              },
+              "depth_of_field": { "type": "string", "enum": ["shallow", "medium", "deep"] },
+              "color_temperature": { "type": "string", "enum": ["cool", "neutral", "warm", "mixed"] }
+            },
+            "additionalProperties": false
+          },
+          "shot_intent": {
+            "type": "string",
+            "description": "WHY this shot exists — what purpose it serves in the video"
+          },
+          "narrative_role": {
+            "type": "string",
+            "enum": ["establish_context", "introduce_subject", "build_tension", "deliver_payload", "transition", "emotional_beat", "evidence", "comparison", "resolution", "call_to_action"],
+            "description": "What role this scene plays in the narrative structure"
+          },
+          "information_role": {
+            "type": "string",
+            "description": "What the viewer learns or feels from this scene"
+          },
+          "hero_moment": {
+            "type": "boolean",
+            "default": false,
+            "description": "True if this is the visual peak of the video — deserves extra attention"
+          },
+          "character_actions": {
+            "type": "array",
+            "description": "Character-specific acting beats for rigged character animation scenes",
+            "items": {
+              "type": "object",
+              "required": ["character_id", "action_sequence"],
+              "properties": {
+                "character_id": { "type": "string" },
+                "emotion": { "type": "string" },
+                "action_sequence": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "minItems": 1
+                },
+                "dialogue": { "type": "string" },
+                "target": { "type": "string" },
+                "notes": { "type": "string" }
+              },
+              "additionalProperties": false
+            }
+          },
+          "texture_keywords": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Visual texture descriptors: grain, clean, anamorphic, gritty, ethereal, etc."
+          },
+          "required_assets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string" },
+                "description": { "type": "string" },
+                "source": { "type": "string", "enum": ["generate", "source", "provided", "record"] }
+              },
+              "required": ["type", "description", "source"]
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "metadata": { "type": "object" }
+  },
+  "additionalProperties": false
+}

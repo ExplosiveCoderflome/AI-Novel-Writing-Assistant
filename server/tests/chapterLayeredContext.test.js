@@ -718,7 +718,7 @@ test("chapter layered contexts carry volume mission, character duties and repair
   )));
   assert.ok(writerBlocks.some((block) => (
     block.id === "chapter_mission"
-    && /Original task sheet/.test(block.content)
+    && /(?:Original task sheet|原始任务单)/.test(block.content)
     && /维修通道钥匙/.test(block.content)
   )));
   assert.ok(writerBlocks.some((block) => (
@@ -757,8 +757,8 @@ test("chapter layered contexts carry volume mission, character duties and repair
   )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "character_dynamics"
-    && /Character behavior guidance/.test(block.content)
-    && /Pending candidate guardrails/.test(block.content)
+    && /(?:Character behavior guidance|角色行为指导)/.test(block.content)
+    && /(?:Pending candidate guardrails|候选角色护栏)/.test(block.content)
   )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "chapter_boundary"
@@ -774,8 +774,8 @@ test("chapter layered contexts carry volume mission, character duties and repair
   )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "chapter_mission"
-    && /Target length: around 3000 Chinese characters/.test(block.content)
-    && /State-driven next action: write_chapter/.test(block.content)
+    && /(?:Target length: around 3000 Chinese characters|目标篇幅：约 3000 个中文字符)/.test(block.content)
+    && /(?:State-driven next action: write_chapter|状态驱动的下一步动作：write_chapter)/.test(block.content)
     && /2550-3450/.test(block.content)
   )));
   assert.ok(writerBlocks.some((block) => (

@@ -17,15 +17,21 @@ import {
   getRagJobProgressWidth,
 } from "./knowledgeRagUi";
 
+export interface BatchUploadResult {
+  fileName: string;
+  status: "uploaded" | "skipped" | "failed";
+  reason?: string;
+}
+
 function formatDocumentKind(kind: KnowledgeDocumentSummary["kind"]): string {
   return kind === "analysis_published" ? "拆书发布" : "上传文档";
 }
 
 interface KnowledgeDocumentsTabProps {
-  uploadTitle: string;
-  onUploadTitleChange: (value: string) => void;
   uploadBusy: boolean;
-  onUploadFile: (file: File) => Promise<void>;
+  onUploadFiles: (files: File[]) => Promise<void>;
+  uploadResults: BatchUploadResult[];
+  onClearUploadResults: () => void;
   keyword: string;
   onKeywordChange: (value: string) => void;
   status: KnowledgeDocumentStatus | "";
@@ -39,10 +45,10 @@ interface KnowledgeDocumentsTabProps {
 }
 
 export default function KnowledgeDocumentsTab({
-  uploadTitle,
-  onUploadTitleChange,
   uploadBusy,
-  onUploadFile,
+  onUploadFiles,
+  uploadResults,
+  onClearUploadResults,
   keyword,
   onKeywordChange,
   status,
@@ -56,7 +62,6 @@ export default function KnowledgeDocumentsTab({
 }: KnowledgeDocumentsTabProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -72,28 +77,33 @@ export default function KnowledgeDocumentsTab({
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && (file.type === "text/plain" || file.name.endsWith(".txt"))) {
-      setSelectedFile(file);
+    const fileList = e.dataTransfer.files;
+    if (fileList && fileList.length > 0) {
+      const files = Array.from(fileList).filter(
+        (file) => file.type === "text/plain" || file.name.endsWith(".txt")
+      );
+      if (files.length > 0) {
+        void onUploadFiles(files);
+      }
     }
-  }, []);
+  }, [onUploadFiles]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const fileList = e.target.files;
     e.target.value = "";
-    if (file) setSelectedFile(file);
-  }, []);
-
-  const handleConfirmUpload = async () => {
-    if (!selectedFile) return;
-    await handleUploadFile(selectedFile);
-    setSelectedFile(null);
-  };
+    if (fileList && fileList.length > 0) {
+      const files = Array.from(fileList);
+      void onUploadFiles(files);
+    }
+  }, [onUploadFiles]);
 
   const handleDialogOpenChange = (open: boolean) => {
     setUploadDialogOpen(open);
-    if (!open) setSelectedFile(null);
+    if (!open) {
+      onClearUploadResults();
+    }
   };
+
   const statusOptions = [
     { value: "", label: "全部未归档" },
     { value: "enabled", label: "仅启用" },
@@ -109,11 +119,6 @@ export default function KnowledgeDocumentsTab({
       return;
     }
     onUpdateStatus(document.id, "archived");
-  };
-
-  const handleUploadFile = async (file: File) => {
-    await onUploadFile(file);
-    setUploadDialogOpen(false);
   };
 
   const renderDocumentRow = (document: KnowledgeDocumentSummary) => {
@@ -269,87 +274,85 @@ export default function KnowledgeDocumentsTab({
         <AppDialogContent
           className="max-w-lg"
           title="上传文档"
-          description="添加可用于检索、拆书和创作参考的文本资料。"
+          description="支持一次选择多个 `.txt` 文件。已存在同名且内容相同的文档会自动跳过。"
         >
           <div className="space-y-4">
-            <Input
-              value={uploadTitle}
-              onChange={(event) => onUploadTitleChange(event.target.value)}
-              placeholder="可选标题，留空则使用文件名"
-            />
-
             {/* 拖拽上传区域 */}
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              onClick={() => !selectedFile && fileInputRef.current?.click()}
+              onClick={() => !uploadBusy && fileInputRef.current?.click()}
               className={[
                 "relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-all",
                 dragOver
                   ? "border-primary bg-primary/5 scale-[1.01]"
-                  : selectedFile
-                    ? "border-primary/40 bg-primary/5"
-                    : "border-muted-foreground/25 bg-muted/30 hover:border-primary/40 hover:bg-muted/50 cursor-pointer",
+                  : "border-muted-foreground/25 bg-muted/30 hover:border-primary/40 hover:bg-muted/50 cursor-pointer",
               ].join(" ")}
             >
               <input
                 ref={fileInputRef}
                 type="file"
                 accept=".txt,text/plain"
+                multiple
                 className="hidden"
                 onChange={handleFileSelect}
                 disabled={uploadBusy}
               />
 
-              {selectedFile ? (
-                <>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                    <FileText className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">{selectedFile.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(selectedFile.size / 1024).toFixed(1)} KB
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
-                    className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className={[
-                    "flex h-12 w-12 items-center justify-center rounded-full transition-colors",
-                    dragOver ? "bg-primary/15" : "bg-muted",
-                  ].join(" ")}>
-                    <Upload className={["h-6 w-6 transition-colors", dragOver ? "text-primary" : "text-muted-foreground"].join(" ")} />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">
-                      {dragOver ? "松开鼠标上传" : "拖拽文件到此处，或点击选择"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">仅支持 .txt 文本文件</p>
-                  </div>
-                </>
-              )}
+              <div className={[
+                "flex h-12 w-12 items-center justify-center rounded-full transition-colors",
+                dragOver ? "bg-primary/15" : "bg-muted",
+              ].join(" ")}>
+                <Upload className={["h-6 w-6 transition-colors", dragOver ? "text-primary" : "text-muted-foreground"].join(" ")} />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">
+                  {dragOver ? "松开鼠标上传" : "拖拽文件到此处，或点击选择"}
+                </p>
+                <p className="text-xs text-muted-foreground">支持选择或拖入多个 .txt 文本文件</p>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground leading-5">
-                同名标题会追加为新版本并设为当前版本
-              </p>
-              <Button
-                type="button"
-                size="sm"
-                disabled={!selectedFile || uploadBusy}
-                onClick={() => void handleConfirmUpload()}
-              >
-                {uploadBusy ? "上传中…" : "确认上传"}
+            {uploadBusy ? (
+              <div className="rounded-md border border-dashed p-3 text-sm text-center text-muted-foreground">
+                正在上传并检查重复…
+              </div>
+            ) : null}
+
+            {!uploadBusy && uploadResults.length > 0 ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium">上传结果</span>
+                  <Button size="sm" variant="ghost" onClick={onClearUploadResults} className="h-6 px-2 text-xs">
+                    清除
+                  </Button>
+                </div>
+                <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
+                  {uploadResults.map((result, index) => (
+                    <div key={index} className="flex items-center gap-2 text-xs">
+                      <span className={
+                        result.status === "uploaded"
+                          ? "text-green-600 dark:text-green-400"
+                          : result.status === "skipped"
+                            ? "text-yellow-600 dark:text-yellow-400"
+                            : "text-red-600 dark:text-red-400"
+                      }>
+                        {result.status === "uploaded" ? "✓" : result.status === "skipped" ? "⊘" : "✗"}
+                      </span>
+                      <span className="min-w-0 truncate">{result.fileName}</span>
+                      {result.reason ? (
+                        <span className="ml-auto shrink-0 text-muted-foreground">{result.reason}</span>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => handleDialogOpenChange(false)}>
+                关闭
               </Button>
             </div>
           </div>

@@ -83,11 +83,11 @@ export function classifyChapterQualityLoopRisk(
   ) {
     return "blocking";
   }
-  if (recommendedAction === "manual_gate") {
-    return "blocking";
-  }
   if (qualityLoop.terminalAction === "defer_and_continue") {
     return "non_blocking_quality_debt";
+  }
+  if (recommendedAction === "manual_gate") {
+    return "blocking";
   }
   if (hasBlockingObligations(qualityLoop.blockingObligations)) {
     return "blocking";

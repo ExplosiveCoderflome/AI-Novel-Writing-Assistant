@@ -1,0 +1,103 @@
+identity:
+  name: "Minimalist Diagram"
+  category: whiteboard
+  mood: focused, technical, precise
+  pace: deliberate
+  best_for: "Technical deep-dives, architecture explainers, math/CS concepts, documentation videos"
+
+visual_language:
+  color_palette:
+    primary: ["#1A1A2E", "#16213E"]
+    accent: ["#E94560", "#0F3460"]
+    background: "#FAFAFA"
+    text: "#1A1A2E"
+    muted: "#6B7280"
+  composition: centered with generous margins, whiteboard feel, grid-aligned
+  texture: paper-like subtle texture, hand-drawn line quality optional
+
+typography:
+  headings:
+    font: "IBM Plex Sans"
+    weight: 600
+    tracking: "0"
+  body:
+    font: "IBM Plex Sans"
+    weight: 400
+    line_height: 1.7
+  code:
+    font: "IBM Plex Mono"
+    weight: 400
+  stat_card:
+    font: "IBM Plex Sans"
+    weight: 700
+    size_multiplier: 2.5
+  scale_system: "minor_third"
+  weight_matrix:
+    title: 700
+    heading: 600
+    body: 400
+    caption: 300
+
+motion:
+  transitions: [fade, dissolve]
+  animation_style: "ease-out, deliberate, no bounce, no overshoot"
+  pacing_rules:
+    min_scene_hold_seconds: 3.0
+    max_scene_hold_seconds: 15
+    text_card_hold_seconds: 4.0
+    stat_card_hold_seconds: 3.5
+    transition_duration_seconds: 0.5
+  entrance: "draw-in (SVG path animation) or fade-up"
+  exit: "fade-out"
+
+audio:
+  voice_style: "calm, measured, technical but accessible, professor-like"
+  music_mood: "minimal ambient, piano or synth pad, barely noticeable"
+  music_volume: 0.05
+  sfx_style: "soft pen strokes on diagram reveals, subtle click on node connections"
+  ducking_threshold_db: -2
+
+asset_generation:
+  image_prompt_prefix: "minimalist technical diagram, clean lines, light background, blueprint style, "
+  image_negative_prompt: "colorful, playful, 3d, photorealistic, busy, cluttered"
+  diagram_style: "thin dark lines on light background, square nodes, minimal color, monochrome with one accent"
+  consistency_anchors:
+    - "Red (#E94560) as the ONLY accent color for emphasis"
+    - "Light gray (#FAFAFA) backgrounds throughout"
+    - "Monochrome diagrams with single accent highlight"
+    - "Consistent line weight across all diagrams"
+
+overlays:
+  stat_card:
+    bg: "#FFFFFF"
+    border: "#1A1A2E"
+    radius: 2
+    shadow: "none"
+  key_term:
+    bg: "#FEE2E2"
+    text: "#B91C3C"
+    radius: 2
+  code_block:
+    bg: "#1A1A2E"
+    text: "#D1D5DB"
+    highlight: "#E94560"
+
+quality_rules:
+  - "Minimum contrast ratio 7:1 for body text (WCAG AAA)"
+  - "Maximum 2 colors on screen (base + accent)"
+  - "Diagrams must be legible at 480p (no fine detail)"
+  - "Progressive reveal for all diagrams — never show full diagram at once"
+  - "Hold each diagram step for 3s minimum"
+  - "Every concept gets its own visual — no cramming"
+  - "Whitespace is content — at least 30% of frame should be empty"
+
+chart_palette:
+  - "#E94560"
+  - "#1A1A2E"
+  - "#0F3460"
+  - "#6B7280"
+
+color_rules:
+  harmony_type: "complementary"
+  contrast_validation: true
+  colorblind_safe: true

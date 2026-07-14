@@ -16,6 +16,7 @@ const DramaWorkspacePage = lazy(() => import("@/pages/drama/DramaWorkspacePage")
 const DramaProjectPage = lazy(() => import("@/pages/drama/DramaProjectPage"));
 const ComicWorkspacePage = lazy(() => import("@/pages/comic/ComicWorkspacePage"));
 const ComicProjectPage = lazy(() => import("@/pages/comic/ComicProjectPage"));
+const VideoWorkspacePage = lazy(() => import("@/pages/video/VideoWorkspacePage"));
 const CreativeHubPage = lazy(() => import("@/pages/creativeHub/CreativeHubPage"));
 const ChatPage = lazy(() => import("@/pages/chat/ChatPage"));
 const BookAnalysisPage = lazy(() => import("@/pages/bookAnalysis/BookAnalysisPage"));
@@ -52,6 +53,7 @@ const routes: RouteObject[] = [
       { path: "drama/projects/:id", element: <DramaProjectPage /> },
       { path: "comic", element: <ComicWorkspacePage /> },
       { path: "comic/projects/:id", element: <ComicProjectPage /> },
+      { path: "video", element: <VideoWorkspacePage /> },
       { path: "creative-hub", element: <CreativeHubPage /> },
       { path: "chat-legacy", element: <ChatPage /> },
       { path: "chat", element: <Navigate to="/creative-hub" replace /> },

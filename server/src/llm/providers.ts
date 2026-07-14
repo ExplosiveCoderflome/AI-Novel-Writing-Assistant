@@ -133,8 +133,8 @@ export const PROVIDERS: Record<BuiltinLLMProvider, ProviderConfig> = {
   ollama: {
     name: "Ollama",
     baseURL: "http://127.0.0.1:11434/v1",
-    defaultModel: "llama3.2",
-    models: ["llama3.2", "qwen3:8b", "deepseek-r1:8b", "gpt-oss:20b"],
+    defaultModel: "gemma4:e4b",
+    models: ["gemma4:e4b", "gemma4:latest", "granite4.1:3b", "llama3.2", "qwen3:8b", "deepseek-r1:8b", "gpt-oss:20b"],
     envKey: "OLLAMA_API_KEY",
     envBaseURLKey: "OLLAMA_BASE_URL",
     envModelKey: "OLLAMA_MODEL",

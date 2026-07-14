@@ -1,4 +1,4 @@
-﻿# AI 小说创作工作台 / AI Novel Production Engine
+# AI 小说创作工作台 / AI Novel Production Engine
 一个面向长篇小说创作的 AI Native 开源项目。
 
 当前开发主线：
@@ -148,6 +148,15 @@
 - 如果任务记录确实缺少起始想法，页面会先提示补充想法，再继续生成或确认书级方向。
 
 > 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
+
+### 2026-06-07
+
+知识库体验大幅提升，支持一键批量上传和更清晰的运行状态展示：
+
+- 知识库现在支持一键选择多个文件进行批量上传，并在界面清晰展示每一个文件的上传、跳过或失败状态。
+- 新增上传查重保护：在批量上传时会自动比对同名文件的内容，跳过内容完全一致的重复上传操作，防止产生无效的文档新版本。
+- 修复了读取大量本地文本文件时因为编码猜测打分导致的浏览器卡死问题。现在会优先识别标准 UTF-8 和 BOM 头，且编码检测时间缩短到 1 毫秒内。
+- 运行状态页面的“最近任务”列表优化：现在会直接显示人类可读的知识库文档标题，而不是难以辨认的数据库乱码 ID。
 
 ## 功能预览
 ### 功能概览中的95%以上编写都是AI完成
@@ -444,20 +453,62 @@ Copy-Item client/.env.example client/.env
 - 启动默认值
 - 数据库里还没保存设置时的回退值
 
-### 3. 启动开发环境
+### 3. Starting Development Environment / 启动开发环境
 
+#### Option A: One-Click Startup (All Services) / 一键启动
 ```bash
 pnpm dev
 ```
+If you have copied `server/.env` and `client/.env`, this is the default one-click command to run all services concurrently.
 
-如果你已经复制好了 `server/.env` 和 `client/.env`，默认就是直接运行这一条。
-不需要在首次启动前手动再执行 `prisma generate`、`prisma db push` 或 `pnpm db:migrate`。
+#### Option B: Separate Startup (Recommended for macOS Debugging) / 分步单独启动
+To monitor backend logs and frontend console separately on macOS, open three separate terminal windows/tabs:
 
-默认情况下：
+1. **Terminal 1: Shared Package Compiler**
+   ```bash
+   pnpm dev:shared
+   ```
+   This watches and compiles the `@ai-novel/shared` package.
 
-- 前端：`http://localhost:5173`
-- 后端：`http://localhost:3000`
-- API：`http://localhost:3000/api`
+2. **Terminal 2: Backend Server**
+   ```bash
+   pnpm dev:server
+   ```
+   This starts the backend Express server on `http://localhost:3000` (which automatically generates the Prisma client and pushes migrations on first startup).
+
+3. **Terminal 3: Frontend Client**
+   ```bash
+   pnpm dev:client
+   ```
+   This starts the Vite React application on `http://localhost:5173`.
+
+#### Option C: Background Service Management Script (macOS Utility) / 使用后台管理脚本
+We have provided a helper script at [scripts/manage.sh](file:///Users/nvidia/GeneralAgent/scripts/manage.sh) to start, stop, restart, or check the status of the development services in the background:
+
+- **Start all services in background**:
+  ```bash
+  ./scripts/manage.sh start
+  ```
+- **Stop all services**:
+  ```bash
+  ./scripts/manage.sh stop
+  ```
+- **Check service status**:
+  ```bash
+  ./scripts/manage.sh status
+  ```
+- **Restart all services**:
+  ```bash
+  ./scripts/manage.sh restart
+  ```
+
+Default URLs:
+
+
+- Frontend Client: `http://localhost:5173`
+- Backend API: `http://localhost:3000`
+- API Endpoint: `http://localhost:3000/api`
+
 
 首次启动服务端时，会自动执行 Prisma generate 和 `db push`。
 只有在你自己修改了 Prisma schema，或者要处理正式迁移流程时，才需要手动使用 Prisma / 数据库相关命令。
@@ -541,25 +592,189 @@ pnpm --filter @ai-novel/server test:book-analysis
 
 | 层级 | 技术 |
 | --- | --- |
-| 前端 | React 19、Vite、React Router、TanStack Query、Plate |
-| 后端 | Express 5、Prisma、Zod |
-| AI 编排 | LangChain、LangGraph |
-| 数据库 | SQLite |
-| RAG | Qdrant |
-| 工程形态 | pnpm workspace Monorepo |
+| 前端 | React 19 + Vite + React Router + TanStack Query + Plate (富文本编辑器) |
+| 后端 | Express 5 + Prisma 7 + Zod |
+| AI 编排 | LangChain + LangGraph |
+| 数据库 | SQLite (主库) + Qdrant (向量库/RAG) |
+| 工程形态 | pnpm workspace Monorepo (pnpm@10.6.0) |
+| 桌面端 | Electron (electron-builder 打包) |
+| Node 版本 | `^20.19.0 \|\| ^22.12.0 \|\| >=24.0.0` |
 
 ### Monorepo 结构
 
 ```text
-client/   React + Vite 前端
-server/   Express + Prisma + Agent Runtime + Creative Hub
-shared/   前后端共享类型与协议
-images/   README 与产品预览截图
-scripts/  启动和辅助脚本
-docs/     设计文档、阶段检查点、模块计划与历史归档
+GeneralAgent/
+├── client/          # React + Vite 前端 (@ai-novel/client)
+├── server/          # Express + Prisma + Agent Runtime (@ai-novel/server)
+├── shared/          # 前后端共享类型与协议 (@ai-novel/shared)
+├── desktop/         # Electron 桌面端壳 (@ai-novel/desktop)
+├── docs/            # 设计文档 / wiki / 发版说明 / 历史归档
+├── images/          # README 与产品截图
+├── scripts/         # 启动和辅助脚本
+├── infra/           # 基础设施配置 (Docker 等)
+└── .github/         # CI/CD workflows
 ```
 
 更细的文档分区说明可以看 [docs/README.md](./docs/README.md)。
+
+完整的文件级项目结构审计见 [docs/sourcegraph/project-source-audit.md](./docs/sourcegraph/project-source-audit.md)，包含所有后端服务、前端页面、Prompt 体系、数据库模型、测试套件和文档体系的逐文件清单与规模统计。
+
+---
+
+### 服务端架构 (`server/src/`)
+
+```text
+server/src/
+├── app.ts                 # Express 应用入口 & 路由挂载
+├── agents/                # AI Agent (Editor Agent 等)
+├── chains/                # LangChain chains
+├── config/                # 服务端配置
+├── creativeHub/           # Creative Hub 创作中枢 (LangGraph 编排)
+│   ├── CreativeHubLangGraph.ts       # 主 LangGraph 图定义
+│   ├── CreativeHubInterruptLangGraph.ts  # 中断恢复图
+│   └── CreativeHubService.ts         # 服务层
+├── db/                    # 数据库连接
+├── events/                # 事件系统
+├── graphs/                # LangGraph Agent 工作流图
+│   ├── novelOutlineGraph.ts          # 小说大纲
+│   ├── worldBuildingGraph.ts         # 世界观构建
+│   ├── characterDesignGraph.ts       # 角色设计
+│   └── writingFormulaGraph.ts        # 写法公式
+├── llm/                   # LLM 集成层
+│   ├── factory.ts                    # LLM 工厂
+│   ├── modelRouter.ts                # 模型路由 (多任务/多模型)
+│   ├── structuredInvoke.ts           # 结构化输出调用
+│   ├── structuredOutput.ts           # 输出 Schema
+│   ├── usageTracking.ts              # Token 用量追踪
+│   └── reasoning.ts                  # 推理链
+├── middleware/             # Express 中间件
+├── modules/                # 功能模块
+├── platform/               # 平台基础设施 (connectors 等)
+├── prisma/                 # Prisma schema & 迁移
+├── prompting/              # Prompt Registry 系统 ⭐
+│   ├── registry.ts                   # Prompt 注册中心
+│   ├── core/                         # Prompt 运行器/类型/预算
+│   ├── prompts/                      # 按业务域分类的 Prompt 资产
+│   │   ├── novel/                    # 小说相关 Prompt
+│   │   ├── audit/                    # 审计 Prompt
+│   │   ├── comic/                    # 漫画 Prompt
+│   │   └── drama/                    # 短剧 Prompt
+│   ├── slots/                        # Prompt 插槽覆盖系统
+│   └── workflows/                    # Prompt 工作流
+├── routes/                 # API 路由层 (~25 个路由文件)
+├── runtime/                # 运行时基础设施
+├── services/               # 业务服务层 ⭐ (核心)
+│   ├── novel/              # 小说服务 (最大/最复杂)
+│   │   ├── director/       # 自动导演 (AutoExecution/Recovery/Takeover)
+│   │   ├── runtime/        # 章节运行时 (Pipeline/Artifact/Context)
+│   │   ├── production/     # 整本生产
+│   │   ├── planning/       # 规划层
+│   │   ├── volume/         # 卷管理
+│   │   ├── quality/        # 质量控制
+│   │   ├── dynamics/       # 角色动态
+│   │   ├── fact/           # 事实账本
+│   │   ├── state/          # 状态管理
+│   │   └── ...
+│   ├── comic/              # 漫画服务
+│   ├── drama/              # 短剧服务
+│   ├── character/          # 角色服务
+│   ├── world/              # 世界观服务
+│   ├── knowledge/          # 知识库服务
+│   ├── rag/                # RAG 检索增强
+│   ├── styleEngine/        # 写法引擎
+│   ├── bookAnalysis/       # 拆书分析
+│   ├── audit/              # 审计服务
+│   ├── image/              # 图像服务
+│   └── ...
+├── types/                  # 类型定义
+└── workers/                # 后台 Worker
+```
+
+### 客户端架构 (`client/src/`)
+
+```text
+client/src/
+├── main.tsx           # 入口
+├── index.css          # 全局样式 (~22KB, 设计系统)
+├── api/               # API 客户端
+├── components/        # UI 组件库
+├── hooks/             # 自定义 Hooks
+├── lib/               # 工具库
+├── pages/             # 页面 (按功能域组织)
+│   ├── Home.tsx                   # 首页
+│   ├── novels/                    # 小说相关页面
+│   ├── creativeHub/               # Creative Hub
+│   ├── characters/                # 角色管理
+│   ├── worlds/                    # 世界观管理
+│   ├── bookAnalysis/              # 拆书分析
+│   ├── knowledge/                 # 知识库
+│   ├── writingFormula/            # 写法引擎
+│   ├── genres/                    # 流派管理
+│   ├── settings/                  # 设置
+│   ├── tasks/                     # 任务中心
+│   └── ...
+├── router/            # 路由配置
+├── store/             # 状态管理
+└── config/            # 客户端配置
+```
+
+---
+
+### 核心业务流程
+
+```mermaid
+flowchart TD
+    A["一句灵感"] --> B["自动导演开书"]
+    B --> C["项目设定 / Book Framing"]
+    C --> D["故事宏观规划"]
+    D --> E["本书世界准备"]
+    E --> F["角色准备"]
+    F --> G["卷战略 / 卷骨架"]
+    G --> H["节奏 / 拆章"]
+    H --> I["章节执行 / 正文写作"]
+    I --> J["审核 / 质量修复"]
+    J --> K["整本生产批量推进"]
+    
+    L["写法引擎"] -.-> I
+    M["知识库 / RAG"] -.-> I
+    N["世界观上下文"] -.-> I
+    O["角色动态"] -.-> I
+    P["拆书分析"] -.-> D
+```
+
+---
+
+### 关键设计亮点
+
+1. **Prompt Registry 系统** — 所有业务 Prompt 集中在 `server/src/prompting/` 管理，注册 id/version/taskType/mode/contextPolicy/outputSchema，不允许在 service 里内联 Prompt
+2. **自动导演链路** — 支持检查点恢复、项目接管、换模型重试、按阶段审核 vs 自动推进
+3. **章节运行时** — 单章 Pipeline 包括生成上下文组装、正文写作、审校、修复、Artifact 同步
+4. **Creative Hub** — LangGraph 编排的统一创作中枢，集成 Planner / Tool Registry / Runtime / 审批 / 中断恢复
+5. **写法引擎** — 从文本提取写法特征 → 特征池 → 编辑组合 → 绑定到正文生成/检测/修正链路
+6. **内容改编支线** — 漫画 (Comic) 和短剧 (Drama) 两个改编模块，通过解耦的 SourceContentPort 与小说数据对接
+
+---
+
+### 核心架构支柱
+
+系统在 AI 编排之外构建了五个基础架构支柱，保障长篇创作在复杂多轮推进中的一致性、可恢复性和可观测性：
+
+| 支柱 | 核心机制 |
+| :--- | :--- |
+| **物理记忆 (Memory)** | 实时将小说大纲状态与资产快照同步存盘至 `docs/story_board.json` 与 `docs/story_ledger.md`，保障单次会话外的记忆留存，支持断电/异常重启后从物理存盘重建 |
+| **分支隔离 (Worktree)** | 引入 `ChapterDraft` 隔离草稿表，在 `WorktreeManager` 中隔离并行写作会话的读写，通过 `mergeAndCommit` 事务性合并入主干，防止写覆写 |
+| **对抗监察 (Debate)** | `EditorAgent` 审核主笔生成的草稿，通过 Zod 强类型校验返回修文建议或阻止不合规草稿，构成主笔与监察双代理的对抗闭环 |
+| **自诊断心跳 (Heartbeat)** | 后台定时轮询诊断器，定期检查小说整体一致性与质量缺陷，将自动分诊后的行动卡片持久化写入本地自检看板 `docs/STORY_TASKS.md` |
+| **监控驾驶舱 (Cockpit)** | 前端实时展示协同智能体的健康度评分、行动建议卡片、自检心跳状态，以及主笔与监察代理对抗生成的实时弹幕滚动日志 |
+
+### 模型网关与本地运行
+
+系统通过 `ModelGateway` 实现业务层与具体模型底座的完全解耦：
+
+- 所有核心任务类型（planner、writer、review、repair、replan、summary、fact_extraction、chat 等）通过 `ModelRouteConfig` 配置映射
+- 支持透明转发至本地 Ollama 实例或远程 API（OpenAI、DeepSeek、SiliconFlow、xAI 等），规划、正文、审阅可按路由拆开配
+- 前端设置页提供供应商 API Key 管理、模型路由配置和连通性测试
+- 默认使用 SQLite 就能把主链先跑起来；如果要完整体验知识库/RAG，再按需接 Qdrant
 
 ### 当前系统关注点
 
