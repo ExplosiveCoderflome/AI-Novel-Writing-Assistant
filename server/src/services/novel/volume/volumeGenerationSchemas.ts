@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { chapterSceneCardSchema } from "@ai-novel/shared/types/chapterLengthControl";
+import { generatedChapterSceneCardSchema } from "@ai-novel/shared/types/chapterLengthControl";
+import { generatedReaderExperienceContractSchema } from "@ai-novel/shared/types/novel/readerExperience";
 import type { VolumeCountRange } from "@ai-novel/shared/types/novel";
 import {
   getVolumeBeatSlot,
@@ -394,6 +395,10 @@ function normalizeSceneCardPayload(raw: unknown): unknown {
     exitState: ["endState", "sceneExit", "closingState"],
     forbiddenExpansion: ["forbiddenExpansions", "mustAvoid", "forbidden"],
     targetWordCount: ["target_word_count", "targetWords", "wordCount", "budget", "字数"],
+    resistance: ["obstacle", "opposition", "sceneResistance", "阻力"],
+    turn: ["turningPoint", "reversal", "sceneTurn", "转折"],
+    emotionalShift: ["emotionShift", "emotionalTurn", "情绪位移"],
+    readerValue: ["readerReward", "scenePayoff", "读者价值", "读者回报"],
   });
   if (!normalized || typeof normalized !== "object" || Array.isArray(normalized)) {
     return normalized;
@@ -412,6 +417,7 @@ function normalizeScenePlanPayload(raw: unknown): unknown {
   const normalized = normalizeObjectAlias(raw, {
     taskSheet: ["任务单", "task_sheet", "writingTask", "执行任务单"],
     sceneCards: ["scenePlan", "scenes", "scene_cards", "sceneCardList"],
+    readerExperience: ["readerExperienceContract", "reader_experience", "读者体验合同"],
   });
   if (!normalized || typeof normalized !== "object" || Array.isArray(normalized)) {
     return normalized;
@@ -771,7 +777,8 @@ export function createChapterBoundarySchema() {
 export function createChapterTaskSheetSchema() {
   return z.preprocess(normalizeScenePlanPayload, z.object({
     taskSheet: z.string().trim().min(1),
-    sceneCards: z.array(z.preprocess(normalizeSceneCardPayload, chapterSceneCardSchema)).min(1),
+    readerExperience: generatedReaderExperienceContractSchema,
+    sceneCards: z.array(z.preprocess(normalizeSceneCardPayload, generatedChapterSceneCardSchema)).min(3).max(8),
   }));
 }
 
@@ -794,7 +801,8 @@ export function createChapterExecutionContractSchema() {
       mustAvoid: z.string().trim().min(1),
       payoffRefs: z.array(z.string().trim().min(1)).default([]),
       taskSheet: z.string().trim().min(1),
-      sceneCards: z.array(z.preprocess(normalizeSceneCardPayload, chapterSceneCardSchema)).min(1),
+      readerExperience: generatedReaderExperienceContractSchema,
+      sceneCards: z.array(z.preprocess(normalizeSceneCardPayload, generatedChapterSceneCardSchema)).min(3).max(8),
     }),
   );
 }

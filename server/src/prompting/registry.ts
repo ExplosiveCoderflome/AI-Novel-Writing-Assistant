@@ -254,7 +254,7 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/novel/coreGeneration.prompts").novelChapterHookPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.chapter.acceptance_assessment@v1",
+    key: "novel.chapter.acceptance_assessment@v2",
     load: () => require("./prompts/novel/chapterAcceptance.prompts").chapterAcceptanceAssessmentPrompt as UnknownPromptAsset,
   },
   {
@@ -310,15 +310,15 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/novel/volume/chapterDetail.prompts").volumeChapterBoundaryPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.chapter_task_sheet@v2",
+    key: "novel.volume.chapter_task_sheet@v3",
     load: () => require("./prompts/novel/volume/chapterDetail.prompts").volumeChapterTaskSheetPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.chapter_execution_contract@v1",
+    key: "novel.volume.chapter_execution_contract@v2",
     load: () => require("./prompts/novel/volume/chapterDetail.prompts").volumeChapterExecutionContractPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.volume.chapter_task_sheet_quality@v1",
+    key: "novel.volume.chapter_task_sheet_quality@v2",
     load: () => require("./prompts/novel/volume/chapterTaskSheetQuality.prompts").chapterTaskSheetQualityPrompt as UnknownPromptAsset,
   },
   {
@@ -394,7 +394,7 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/novel/review.prompts").chapterSummaryPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.chapter.writer@v5",
+    key: "novel.chapter.writer@v6",
     load: () => require("./prompts/novel/chapterWriter.prompts").chapterWriterPrompt as UnknownPromptAsset,
   },
   {
@@ -414,15 +414,15 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/novel/chapterEditor/rewriteCandidates.prompts").chapterEditorRewriteCandidatesPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.review.chapter@v1",
+    key: "novel.review.chapter@v2",
     load: () => require("./prompts/novel/review.prompts").chapterReviewPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.review.repair@v1",
+    key: "novel.review.repair@v2",
     load: () => require("./prompts/novel/review.prompts").chapterRepairPrompt as UnknownPromptAsset,
   },
   {
-    key: "novel.review.patch@v1",
+    key: "novel.review.patch@v2",
     load: () => require("./prompts/novel/chapterPatchRepair.prompts").chapterPatchRepairPrompt as UnknownPromptAsset,
   },
   {

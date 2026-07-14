@@ -20,6 +20,7 @@ const CONTEXT_GROUP_LABELS: Record<string, string> = {
   previous_chapter_hook: "上一章钩子",
   previous_chapter_tail: "上一章结尾",
   rag_context: "检索补充",
+  reader_experience: "读者体验合同",
   recent_chapters: "近期章节摘要",
   repair_boundaries: "修文范围约束",
   repair_issues: "修文问题清单",

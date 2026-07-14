@@ -679,7 +679,10 @@ export async function generateChapterTaskSheetDetail(params: {
         },
       });
       const scenePlan = normalizeChapterScenePlan(
-        generated.output.sceneCards,
+        {
+          scenes: generated.output.sceneCards,
+          readerExperience: generated.output.readerExperience,
+        },
         generated.output.targetWordCount ?? promptInput.targetChapter.targetWordCount,
       );
       await qualityGate.assertCanEnterExecution({

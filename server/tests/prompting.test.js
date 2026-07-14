@@ -120,8 +120,7 @@ function buildWriterRequiredContextBlocks() {
   return [
     "book_contract",
     "chapter_mission",
-    "timeline_context",
-    "previous_chapter_hook",
+    "reader_experience",
     "character_hard_facts",
     "obligation_contract",
     "volume_window",
@@ -187,7 +186,7 @@ test("prompt registry exposes versioned planning assets", () => {
     promptKey(styleProfileExtractionPrompt),
     promptKey(styleProfileFromBookAnalysisPrompt),
     "style.recommendation@v1",
-    "novel.review.chapter@v1",
+    "novel.review.chapter@v2",
     promptKey(chapterWriterPrompt),
     promptKey(chapterArtifactDeltaPrompt),
     "world.draft.generate@v1",
@@ -678,11 +677,11 @@ test("novel main-chain prompt assets declare explicit non-zero context budgets",
     ["novel.volume.chapter_list@v7", NOVEL_PROMPT_BUDGETS.volumeChapterList],
     ["novel.volume.chapter_purpose@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_boundary@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
-    ["novel.volume.chapter_task_sheet@v2", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
+    ["novel.volume.chapter_task_sheet@v3", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.rebalance.adjacent@v1", NOVEL_PROMPT_BUDGETS.volumeRebalance],
     [promptKey(chapterWriterPrompt), NOVEL_PROMPT_BUDGETS.chapterWriter],
-    ["novel.review.chapter@v1", NOVEL_PROMPT_BUDGETS.chapterReview],
-    ["novel.review.repair@v1", NOVEL_PROMPT_BUDGETS.chapterRepair],
+    ["novel.review.chapter@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
+    ["novel.review.repair@v2", NOVEL_PROMPT_BUDGETS.chapterRepair],
     ["audit.chapter.full@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
   ]);
 
@@ -1757,8 +1756,7 @@ test("advanced prompt template expands referenced context and appends required f
     requiredContextGroups: [
       "book_contract",
       "chapter_mission",
-      "timeline_context",
-      "previous_chapter_hook",
+      "reader_experience",
       "character_hard_facts",
       "obligation_contract",
       "volume_window",
@@ -1773,11 +1771,11 @@ test("advanced prompt template expands referenced context and appends required f
   assert.match(rendered, /chapter_mission 测试内容/);
   assert.match(rendered, /【必需上下文保底】/);
   assert.match(rendered, /【书级合约】\nbook_contract 测试内容/);
-  assert.match(rendered, /【时间线】\ntimeline_context 测试内容/);
-  assert.doesNotMatch(rendered, /【timeline_context】/);
+  assert.match(rendered, /【读者体验合同】\nreader_experience 测试内容/);
+  assert.doesNotMatch(rendered, /【reader_experience】/);
   assert.deepEqual(compiled.diagnostics.missingRequiredGroups, []);
   assert.ok(compiled.diagnostics.fallbackRequiredGroups.includes("book_contract"));
-  assert.ok(compiled.diagnostics.fallbackRequiredGroups.includes("timeline_context"));
+  assert.ok(compiled.diagnostics.fallbackRequiredGroups.includes("reader_experience"));
 });
 
 test("chapter writer context text uses reader-facing labels instead of raw machine fields", () => {

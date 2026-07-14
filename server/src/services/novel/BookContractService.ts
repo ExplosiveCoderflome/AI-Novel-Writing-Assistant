@@ -1,5 +1,6 @@
 import type { BookContract, BookContractDraft } from "@ai-novel/shared/types/novelWorkflow";
 import { prisma } from "../../db/prisma";
+import { novelEventBus } from "../../events";
 
 function mapRowToBookContract(row: {
   id: string;
@@ -78,6 +79,10 @@ export class BookContractService {
         absoluteRedLinesJson: JSON.stringify(draft.absoluteRedLines),
       },
     });
+    void novelEventBus.emit({
+      type: "book-contract:updated",
+      payload: { novelId },
+    }).catch(() => {});
     return mapRowToBookContract(row);
   }
 }

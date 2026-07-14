@@ -29,31 +29,23 @@
   - 正文 writer、接收闸门、patch repair、heavy repair、保存正文、资产同步、复审和状态推进必须复用同一套 runtime 规则，不允许 route、旧 service 或导演分支各自再维护第二套正文执行实现。
 - `NovelGenerationService.createChapterStream`、`NovelService.createRepairStream`、`startPipelineJob / resumePipelineJob` 只是不同控制入口；它们的业务执行面必须继续汇入同一 coordinator，而不是按入口复制 writer 或修文逻辑。
 - 默认 writer 继续整章一次性生成，不把 sceneCards、章节合同或分场景多轮写作重新接入正文热路径。
-- 章节合同和 sceneCards 可作为规划、审校、诊断和局部修复辅助资产，不驱动默认正文生成。
+- writer 仍然整章一次性生成，不按场景多轮拼接正文；但 `sceneCards` 顶层保存的 `ReaderExperienceContract` 会进入默认正文、验收和修复上下文，场景卡本身继续作为规划、诊断和局部修复辅助资产。
 - 正文生成前只做最低可写性检查：章节存在、人物可用、上下文包可组装、任务目标可解释。
 - 生成后用一次结构化接收闸门判断是否可继续、是否需要局部修文、是否需要人工确认。
 - 接收闸门通过后、构建运行包前，会对最终正文执行一次确定性正文自然度/退化检测。该检测只做本地文本规则检查，覆盖 AI 自述、占位符、工程词泄漏、截断、复读、破折号/省略号、否定翻转句、碎句和长段落等风险；它不调用 LLM，也不改变正文。
 - 正文自然度/退化检测输出统一进入 `mode_fit` 审计报告，issue code 使用 `prose_*` 前缀。`high/critical` 视为本章阻塞审计问题并复用现有 patch repair / heavy repair 链路；`medium/low` 只作为提示和后续局部优化依据，不触发全章重写。
 - `prose_*` 问题默认属于本章局部质量问题。自动修复耗尽后，如果正文仍可读，应登记 `defer_and_continue` 质量债并继续剩余章节；不得仅因为单章正文自然度问题写入 `replanAlertDetails`、`PIPELINE_REPLAN_REQUIRED` 或全局自动导演重规划。
-- 接收闸门热路径只等待 `acceptance`。timeline extractor 不再阻塞正文接收；章节接收后由 `ChapterTimelineFinalizationService` 执行 stable/degraded 时间线定稿。
-- `acceptance` 门禁必须按同章、同正文 content hash、同模型请求写入持久化幂等缓存；timeline 定稿必须按同章、同正文 content hash 写入 `timeline_finalization` checkpoint。任务取消、失败或 worker 重启后，如果正文未变化，应优先复用成功结果，不能重新触发相同的接收评估或 timeline extractor。
-- 门禁缓存只能保存可复用的成功结果。`acceptance_gate_unavailable`、timeline extractor 失败、缺少 timeline context 等临时系统失败不得写成长期成功缓存；这类结果应保留为当前运行风险，允许后续重试。
+- 接收闸门热路径只等待 `acceptance`。Timeline 不属于 writer required context，也不构成下一章生成前置条件；未启用 Timeline 时不得生成“缺少 timeline context”的正文质量告警。
+- `acceptance` 门禁必须按同章、同正文 content hash、同模型请求写入持久化幂等缓存。任务取消、失败或 worker 重启后，如果正文未变化，应优先复用成功结果，不能重新触发相同接收评估。
+- 门禁缓存只能保存可复用的成功结果。`acceptance_gate_unavailable` 等临时系统失败不得写成长期成功缓存；这类结果应保留为当前运行风险，允许后续重试。
 - 任何会调用 LLM 的后置抽取或资产回灌，都必须在调用模型前抢占持久化 checkpoint，并把状态标记为 `running`。如果同章、同正文 content hash、同 artifactType 和 syncMode 已有 `running` 或 `succeeded` checkpoint，后续入口必须跳过本次 LLM 调用；失败时把 `running` 标记为 `failed`，允许后续重试。仅依赖服务实例内存锁不能满足任务重启、并发后台入口或上一章兜底补跑场景。
 - `artifact_delta` 是章节后置统一抽取的主所有者。`ChapterArtifactDeltaService` 的一次低温结构化调用负责产出 `summary`、`concreteFacts`、`stateDeltas`、`characterResourceDeltas`、`payoffDeltas`、`relationDynamics`、`factionUpdates`、`characterCandidates`、`characterKnowledgeStates` 和 `syncPlan`。
 - `ChapterContentFinalizationService` 在章节无需修复且正文稳定后等待 `artifact_delta` 完成，再允许后续章节组装读取新事实、状态、资源、伏笔和角色动态。手动修复完成、自动产线最终保留稿也必须通过同一条 awaited artifact sync；不得再额外同步调用 `NovelChapterSummaryService` 作为定稿主链路的一部分。
 - `NovelChapterSummaryService` 只保留给手动重新生成摘要或 UI 入口。`CharacterDynamicsMutationService.syncChapterDraftDynamics` 只作为 `artifact_delta` 未执行或失败时的手动运维兜底；`chapter:drafted -> character.chapterDraftSync` 自动 side-effect 链路已退役，不应重新接入常规章节事件，否则只会在 awaited artifact delta 后入队空跑。
-- 时间线检测独立于质量审校。它检查未来事件泄漏、上一章钩子未承接、时间倒退、事件重复、状态冲突和计划事件缺失，但默认作为接收后的定稿/复查步骤运行。
-- 时间线检测失败时保留正文并标记 `needs_repair`，但不把失败正文抽取出的事件提交为 `occurred` 时间线。
-- 时间线模块不能直接修改正文；它只输出结构化 issues，由现有局部修复或整章修复链路决定怎么修。
-- 高优先级硬约束：章节进入下一章前必须满足 `final_content -> timeline_finalization -> next_chapter`。`final_content` 指初稿通过后的正文、修复通过后的正文，或达到最大修复次数后允许跳过时保留的当前最佳正文。
-- 初稿需要修复时不得提交修复前 timeline。timeline finalization 必须等待最终正文确定；如果修复成功，使用修复后正文提交；如果最大修复次数耗尽但允许 `defer_and_continue`，必须先提交 degraded timeline，再登记质量债务并继续。
-- timeline finalization 只有一个入口：`ChapterTimelineFinalizationService`。它负责保存 `ChapterTimeAnchor`、提交 occurred events、新 hook、hook 承接状态，并写入 `ChapterArtifactSyncCheckpoint`，其中 `artifactType=timeline_finalization`，`syncMode=stable | degraded`。
-- 接收后触发的 timeline finalization 可以后台执行，但下一章生成前的 `ensurePreviousChapterFinalized` 必须兜底补齐。后台化只减少当前章接收等待，不允许跳过下一章前的时间线闭合。
-- `stable` 表示 timeline extractor 成功并基于最终正文完成事件、钩子和时间锚点提交；`degraded` 表示抽取失败、缺少上下文或跳过章节时写入最小时间锚点和 checkpoint。degraded 是“可继续承接的最小状态”，不是质量通过。
-- timeline extractor 失败不能伪装成空事件的 stable commit。抽取失败必须写 degraded checkpoint，并在 metadata 中记录 `extractorSucceeded=false`、失败原因、事件数、hook 数和是否使用 fallback anchor。
-- 下一章生成前必须检查上一章当前正文 content hash 是否已有 `timeline_finalization` checkpoint。没有 checkpoint 时应先补跑 finalization；补跑无法 stable 时提交 degraded checkpoint，不能在没有任何 finalization 记录的情况下继续组装下一章上下文。
-- hook 关闭以 extractor 输出的 `addressedHookIds / resolvedHookIds` 为主。字符串包含匹配只能作为兼容旧数据的安全辅助，不得作为新的主判断方式；Prompt 必须把 open hook id 提供给 extractor。
-- writer prompt 必须包含原始 `chapter.taskSheet` 和上一章实际正文尾段。任务单负责保留导演拆章的精细执行约束，上一章尾段负责约束本章开头的时间、地点、人物状态和未兑现动作，二者不能被 timeline_context 或旧摘要挤掉。
+- Timeline 服务保留给前端事件展示、历史数据和独立诊断入口，不直接修改正文，也不再决定正文是否可接收或能否进入下一章。
+- 当前章的钩子承接由 `ReaderExperienceContract.inheritedHookResponsibilities` 负责；已发生事实由 Novel Fact Ledger 负责；长期伏笔窗口由 Payoff Ledger 负责。
+- `ChapterTimelineFinalizationService` 作为兼容服务保留，但不得重新接入默认写章热路径，除非先完成所有权评审并同步更新本页、事实账本和读者体验合同边界。
+- writer prompt 必须包含原始 `chapter.taskSheet`、`reader_experience` 和上一章实际正文尾段。任务单负责执行职责，读者体验合同负责本章回报、主动性、转折、净变化和钩子责任，上一章尾段负责约束开场承接；三者不能被旧摘要挤掉。
 - 续写模式下，writer prompt 必须包含 `continuation_constraints` required context。该块只提炼前作承接约束，例如来源、角色当前状态、终局摘要、关键事实和未完线索；它不能携带大段原文，也不能替代结构规划阶段的参考注入。
 - 续写小说绑定已成功的拆书分析时，章节续写上下文优先消费结构化小节，尤其是 `character_system`、`timeline` 和 `plot_structure`。只有没有可用拆书分析或分析读取失败时，才退回站内小说 / 知识库原文的有限摘要切片。
 - 规划期参考注入必须内部兜底。`buildReferenceForStage` 读取小说绑定、拆书分析或知识库内容失败时，只记录 warning 并返回空参考文本，不能让开书、规划、卷章拆分或角色规划调用方因为参考资料异常而中断主链路。
@@ -138,11 +130,11 @@
 - 正文已经可读但 UI 显示失败：检查正文状态、资产回灌状态和账本校准状态是否被混为一个状态。
 - 第 3-8 章这类章节都显示“建议补写修复 / 质量需修复”：先检查 `riskFlags.qualityLoop` 是否是 `defer_and_continue` 质量债务。若没有 `replan_required`、`recommendedAction=replan` 或 `blockingObligations`，主界面和 AI 驾驶舱不得把它显示为阻塞错误。
 - 关闭自动审校后任务停在 `chapter.quality.review facts are not complete yet`：优先检查运行态 seed payload 中的 `autoExecution.autoReview`、`autoExecutionPlan.autoReview` 和 `directorInput.autoExecutionPlan.autoReview` 是否传入事实检查。若这些字段为 `false`，质量审校步骤应输出 `reviewSkipped=true` 并继续后续状态提交。
-- 章节出现未来剧情泄漏或上一章钩子未承接：优先检查 `timeline_context`、`previous_chapter_hook` 是否进入 writer prompt，以及 `TimelineCheckReport` 是否在失败时阻止了 occurred timeline 提交。
-- 下一章开头出现时间回退或重复承接旧钩子：优先检查上一章当前 content hash 是否有 `timeline_finalization` checkpoint、`ChapterTimeAnchor` 是否已落库、hook 是否通过 `addressedHookIds / resolvedHookIds` 关闭，以及上一章尾段是否进入 writer prompt。
-- 修复后仍从旧时间线继续：检查修复成功路径是否基于修复后正文调用 timeline finalization。若只在初稿路径提交 timeline，说明修复路径仍存在状态断层。
-- 跳过后后续章节脱节：检查跳过动作是否先提交 degraded timeline。若没有 degraded checkpoint，后续章节会只能读取旧 hook 或空时间锚点。
-- 章节反复重复相同后置检测：检查同章同内容 hash 是否已经命中过 acceptance / timeline 门禁缓存。
+- 章节出现未来剧情泄漏：优先检查章节边界、protected secrets、事实账本和 `reader_experience` 是否进入 writer prompt，不要把 Timeline 当成默认写章事实来源。
+- 下一章没有承接旧钩子：检查相邻章细化是否把责任写入 `inheritedHookResponsibilities`，以及 writer / acceptance / repair 是否消费同一个 `reader_experience` block。
+- 修复后读者回报或钩子责任丢失：检查修复上下文是否保留原合同及已经成立的 `readerValue`，不要通过新增大事件掩盖原问题。
+- 跳过后后续章节脱节：检查事实账本、artifact delta、上一章实际尾段和下一章读者体验合同是否已更新。
+- 章节反复重复相同后置检测：检查同章同内容 hash 是否已经命中 acceptance 门禁缓存及后置资产同步 checkpoint。
 - 章节出现阵营、身份、境界或当前状态错误：优先检查角色库是否已有硬事实，再检查 `GenerationContextPackage.characterHardFacts` 和 writer prompt 中的 `character_hard_facts` 是否存在。如果硬事实缺失，先修角色准备链路；如果硬事实已存在但未进入 writer，修上下文组装；如果已进入仍被违背，再查审计和修复链路。
 - 续写没有承接前作状态：优先检查小说是否为 continuation 模式、`NovelContinuationService.buildChapterContextPack` 是否返回 enabled pack、writer blocks 中是否存在 required `continuation_constraints`。若已绑定拆书分析，还要检查分析是否为 succeeded、结构化小节是否包含人物 / 时间线 / 剧情结构内容。
 - 规划期开书因为参考资料异常失败：这属于参考注入兜底缺口。参考资料读取失败应降级为空参考文本，不得冒泡为规划阶段失败；先检查 `buildReferenceForStage` 的 warning 日志和返回值。

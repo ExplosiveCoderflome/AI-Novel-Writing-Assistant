@@ -12,6 +12,10 @@ import {
 import { characterResourceContextSchema } from "./characterResource";
 import { storyWorldSliceSchema } from "./storyWorldSlice";
 import { timelineCheckResultSchema, timelineContextForChapterSchema } from "./timeline";
+import {
+  EMPTY_READER_EXPERIENCE_CONTRACT,
+  readerExperienceContractSchema,
+} from "./novel/readerExperience";
 import type { LLMProvider } from "./llm";
 
 const llmProviderSchema = z.custom<LLMProvider>((value) => typeof value === "string" && value.trim().length > 0);
@@ -538,6 +542,15 @@ export const bookContractContextSchema = z.object({
   emotionIntensity: z.string(),
   toneGuardrails: z.array(z.string()).default([]),
   hardConstraints: z.array(z.string()).default([]),
+  readingPromise: z.string().default(""),
+  protagonistFantasy: z.string().default(""),
+  coreSellingPoint: z.string().default(""),
+  chapter3Payoff: z.string().default(""),
+  chapter10Payoff: z.string().default(""),
+  chapter30Payoff: z.string().default(""),
+  escalationLadder: z.string().default(""),
+  relationshipMainline: z.string().default(""),
+  activeMilestonePayoffs: z.array(z.string()).default([]),
 });
 
 export const macroConstraintContextSchema = z.object({
@@ -566,6 +579,8 @@ export const volumeWindowContextSchema = z.object({
   pendingPayoffs: z.array(z.string()).default([]),
   softFutureSummary: z.string(),
   keyMilestoneGuards: z.array(volumeKeyMilestoneGuardSchema).default([]),
+  readerRewardLadder: z.string().default(""),
+  coreReward: z.string().default(""),
 });
 
 export const chapterMissionContextSchema = z.object({
@@ -730,6 +745,7 @@ export const chapterWriteContextSchema = z.object({
   chapterBoundary: chapterBoundaryContractSchema.nullable().optional(),
   lengthBudget: lengthBudgetContractSchema.nullable(),
   scenePlan: chapterScenePlanSchema.nullable().optional(),
+  readerExperience: readerExperienceContractSchema.default(EMPTY_READER_EXPERIENCE_CONTRACT),
   participants: z.array(runtimeCharacterSchema),
   characterHardFacts: z.array(chapterCharacterHardFactSchema).default([]),
   characterBehaviorGuides: z.array(chapterCharacterBehaviorGuideSchema).default([]),

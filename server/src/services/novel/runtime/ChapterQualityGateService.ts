@@ -279,17 +279,9 @@ export class ChapterQualityGateService {
   private buildDeferredTimelineGate(input: RunChapterQualityGatesInput): TimelineGateResult {
     return {
       result: {
-        status: "warning",
-        score: 0.9,
-        issues: [{
-          type: "unclear_time_anchor",
-          severity: "info",
-          message: "时间线抽取已移出章节接收热路径，将在正文接收后由时间线定稿补齐。",
-          evidence: "timeline_extraction_deferred",
-          suggestedFix: "无需修文；若下一章开始前仍未完成，系统会先补齐 stable/degraded timeline checkpoint。",
-          relatedEventIds: [],
-          relatedHookIds: [],
-        }],
+        status: "passed",
+        score: 1,
+        issues: [],
       },
       extractedEvents: [],
       extractedHooks: [],
@@ -413,17 +405,9 @@ export class ChapterQualityGateService {
     if (!timelineContext) {
       return {
         result: {
-          status: "warning",
-          score: 0.88,
-          issues: [{
-            type: "unclear_time_anchor",
-            severity: "warning",
-            message: "本章缺少时间线上下文，无法执行完整时间线检测。",
-            evidence: "timelineContext missing",
-            suggestedFix: "重新组装章节上下文，确保 timeline_context 为 required block。",
-            relatedEventIds: [],
-            relatedHookIds: [],
-          }],
+          status: "passed",
+          score: 1,
+          issues: [],
         },
         extractedEvents: [],
         extractedHooks: [],
@@ -431,7 +415,7 @@ export class ChapterQualityGateService {
         addressedHookIds: [],
         resolvedHookIds: [],
         extractorSucceeded: false,
-        extractorError: "timelineContext missing",
+        extractorError: "timeline_context_not_enabled_for_writer",
         timelineContext: null,
       };
     }
