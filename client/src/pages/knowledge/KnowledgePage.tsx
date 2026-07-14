@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { KnowledgeDocumentStatus, KnowledgeRecallTestResult } from "@ai-novel/shared/types/knowledge";
 import { useSearchParams } from "react-router-dom";
-import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { queryKeys } from "@/api/queryKeys";
 import {
@@ -27,6 +26,7 @@ import { isTxtFile, readTextFile } from "@/lib/textFile";
 import KnowledgeDocumentDetailDialog from "./components/KnowledgeDocumentDetailDialog";
 import KnowledgeDocumentsTab from "./components/KnowledgeDocumentsTab";
 import KnowledgeEmbeddingSettingsCard, { type KnowledgeEmbeddingSettingsFormState } from "./components/KnowledgeEmbeddingSettingsCard";
+import KnowledgeLibraryOverview from "./components/KnowledgeLibraryOverview";
 import KnowledgeOpsTab from "./components/KnowledgeOpsTab";
 
 const TAB_VALUES = new Set(["documents", "ops", "settings"]);
@@ -45,6 +45,7 @@ export default function KnowledgePage() {
   const [status, setStatus] = useState<KnowledgeDocumentStatus | "">("");
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
   const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [versionBusy, setVersionBusy] = useState(false);
   const [recallQuery, setRecallQuery] = useState("");
@@ -336,6 +337,18 @@ export default function KnowledgePage() {
     () => visibleDocuments.filter((item) => item.status === "disabled").length,
     [visibleDocuments],
   );
+  const searchableDocumentCount = useMemo(
+    () => visibleDocuments.filter((item) => item.status === "enabled" && item.latestIndexStatus === "succeeded").length,
+    [visibleDocuments],
+  );
+  const failedIndexDocumentCount = useMemo(
+    () => visibleDocuments.filter((item) => item.status !== "archived" && item.latestIndexStatus === "failed").length,
+    [visibleDocuments],
+  );
+  const failedKnowledgeJobCount = useMemo(
+    () => Array.from(latestKnowledgeDocumentJobs.values()).filter((item) => item.status === "failed").length,
+    [latestKnowledgeDocumentJobs],
+  );
   const failedJobs = (ragJobsQuery.data?.data ?? []).filter((item) => item.status === "failed").slice(0, 5);
   const selectedDocument = detailQuery.data?.data;
   const ragHealthNotice = ragHealthQuery.isError
@@ -346,6 +359,22 @@ export default function KnowledgePage() {
   const recallErrorMessage = recallTestMutation.isError
     ? (recallTestMutation.error instanceof Error ? recallTestMutation.error.message : "召回测试失败。")
     : null;
+  const documentListErrorMessage = documentsQuery.isError
+    ? (documentsQuery.error instanceof Error ? documentsQuery.error.message : "知识资料加载失败。")
+    : undefined;
+  const hasDocumentFilters = Boolean(keyword.trim() || status);
+
+  const openDocumentsSection = () => {
+    setSearchParams({ tab: "documents" });
+    window.requestAnimationFrame(() => {
+      document.getElementById("knowledge-documents")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const openUploadDialog = () => {
+    setSearchParams({ tab: "documents" });
+    setUploadDialogOpen(true);
+  };
 
   useEffect(() => {
     if (previousActiveKnowledgeJobCount.current > 0 && activeKnowledgeJobCount === 0) {
@@ -471,22 +500,36 @@ export default function KnowledgePage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <OpenInCreativeHubButton
-          bindings={{ knowledgeDocumentIds: selectedDocumentId ? [selectedDocumentId] : [] }}
-          label="发送到创作中枢"
-        />
-      </div>
+    <div className="space-y-5">
+      <KnowledgeLibraryOverview
+        activeJobCount={activeKnowledgeJobCount}
+        enabledCount={enabledCount}
+        failedIndexDocumentCount={failedIndexDocumentCount}
+        failedJobCount={failedKnowledgeJobCount}
+        hasFilters={hasDocumentFilters}
+        isError={documentsQuery.isError}
+        isLoading={documentsQuery.isLoading}
+        searchableDocumentCount={searchableDocumentCount}
+        selectedDocumentId={selectedDocumentId}
+        visibleDocumentCount={visibleDocuments.length}
+        onClearFilters={() => {
+          setKeyword("");
+          setStatus("");
+        }}
+        onOpenDocuments={openDocumentsSection}
+        onOpenOps={() => setSearchParams({ tab: "ops" })}
+        onRetry={() => void documentsQuery.refetch()}
+        onUpload={openUploadDialog}
+      />
 
       <Tabs
         value={activeTab}
         onValueChange={(value) => setSearchParams({ tab: value })}
         className="space-y-4"
       >
-        <TabsList>
-          <TabsTrigger value="documents">文档</TabsTrigger>
-          <TabsTrigger value="ops">运行状态</TabsTrigger>
+        <TabsList className="h-auto w-full justify-start overflow-x-auto">
+          <TabsTrigger value="documents">创作资料</TabsTrigger>
+          <TabsTrigger value="ops">索引与任务</TabsTrigger>
           <TabsTrigger value="settings">检索设置</TabsTrigger>
         </TabsList>
 
@@ -494,6 +537,8 @@ export default function KnowledgePage() {
           <KnowledgeDocumentsTab
             uploadTitle={uploadTitle}
             onUploadTitleChange={setUploadTitle}
+            uploadDialogOpen={uploadDialogOpen}
+            onUploadDialogOpenChange={setUploadDialogOpen}
             uploadBusy={uploadBusy}
             onUploadFile={handleUploadFile}
             keyword={keyword}
@@ -501,6 +546,13 @@ export default function KnowledgePage() {
             status={status}
             onStatusChange={setStatus}
             documents={visibleDocuments}
+            isLoading={documentsQuery.isLoading}
+            errorMessage={documentListErrorMessage}
+            onRetry={() => void documentsQuery.refetch()}
+            onClearFilters={() => {
+              setKeyword("");
+              setStatus("");
+            }}
             latestKnowledgeDocumentJobs={latestKnowledgeDocumentJobs}
             onSelectDocument={setSelectedDocumentId}
             onOpenRecallTest={(id) => {
