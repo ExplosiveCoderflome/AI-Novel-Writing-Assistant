@@ -17,24 +17,36 @@ import {
   readerExperienceContractSchema,
 } from "./novel/readerExperience";
 import type { LLMProvider } from "./llm";
+import {
+  dynamicCharacterRiskLevelSchema,
+  runtimeDynamicCharacterOverviewSchema,
+} from "./chapterRuntime/dynamicCharacterSchemas.js";
+import {
+  runtimeStyleContextSchema,
+  runtimeStyleContractSchema,
+} from "./chapterRuntime/styleSchemas.js";
+import {
+  runtimePayoffLedgerItemSchema,
+  runtimePayoffLedgerSummarySchema,
+} from "./chapterRuntime/payoffSchemas.js";
+import {
+  auditSeveritySchema,
+  chapterAcceptanceAssetSyncRecommendationSchema,
+  chapterAcceptanceContinuePolicySchema,
+  chapterAcceptanceRepairDirectiveSchema,
+  chapterAcceptanceStatusSchema,
+  runtimeAuditIssueSchema,
+  runtimeAuditReportSchema,
+  runtimeLengthControlSchema,
+  runtimeQualityScoreSchema,
+  runtimeStyleReviewSchema,
+} from "./chapterRuntime/qualitySchemas.js";
+
+export * from "./chapterRuntime/index.js";
 
 const llmProviderSchema = z.custom<LLMProvider>((value) => typeof value === "string" && value.trim().length > 0);
-const auditTypeSchema = z.enum(["continuity", "character", "plot", "mode_fit"]);
-const auditSeveritySchema = z.enum(["low", "medium", "high", "critical"]);
-const auditIssueStatusSchema = z.enum(["open", "resolved", "ignored"]);
 const chapterGenerationStateSchema = z.enum(["planned", "drafted", "reviewed", "repaired", "approved", "published"]);
 const storyPlanRoleSchema = z.enum(["setup", "progress", "pressure", "turn", "payoff", "cooldown"]);
-const payoffLedgerScopeTypeSchema = z.enum(["book", "volume", "chapter"]);
-const payoffLedgerStatusSchema = z.enum(["setup", "hinted", "pending_payoff", "paid_off", "failed", "overdue"]);
-const styleBindingTargetTypeSchema = z.enum(["novel", "chapter", "task"]);
-const styleDetectionRuleTypeSchema = z.enum(["style", "character", "forbidden", "risk", "encourage"]);
-const antiAiSeveritySchema = z.enum(["low", "medium", "high"]);
-const styleContractSectionKeySchema = z.enum(["narrative", "character", "language", "rhythm", "antiAi", "selfCheck"]);
-const styleContractMaturitySchema = z.enum(["structured", "summary_only"]);
-const styleContractIssueCategorySchema = z.enum(["style_expression", "story_structure"]);
-const styleContractViolationSourceSchema = z.enum(["global_anti_ai", "style_anti_ai", "style_contract"]);
-const characterCandidateStatusSchema = z.enum(["pending", "confirmed", "merged", "rejected"]);
-const dynamicCharacterRiskLevelSchema = z.enum(["none", "info", "warn", "high"]);
 const auditModeSchema = z.enum(["light", "full", "repair_only"]);
 const contextBlockTierSchema = z.enum(["hard_required", "situational", "optional"]);
 
@@ -157,20 +169,6 @@ export const runtimeCreativeDecisionSchema = z.object({
   updatedAt: z.string(),
 });
 
-export const runtimeAuditIssueSchema = z.object({
-  id: z.string(),
-  reportId: z.string(),
-  auditType: auditTypeSchema,
-  severity: auditSeveritySchema,
-  code: z.string(),
-  description: z.string(),
-  evidence: z.string(),
-  fixSuggestion: z.string(),
-  status: auditIssueStatusSchema,
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
 export const runtimeCharacterStateSchema = z.object({
   characterId: z.string(),
   currentGoal: z.string().nullable().optional(),
@@ -221,64 +219,6 @@ export const runtimeOpenConflictSchema = z.object({
   updatedAt: z.string(),
 });
 
-export const runtimePayoffLedgerSourceRefSchema = z.object({
-  kind: z.enum(["major_payoff", "volume_open_payoff", "chapter_payoff_ref", "foreshadow_state", "open_conflict", "audit_issue"]),
-  refId: z.string().nullable().optional(),
-  refLabel: z.string(),
-  chapterId: z.string().nullable().optional(),
-  chapterOrder: z.number().int().nullable().optional(),
-  volumeId: z.string().nullable().optional(),
-  volumeSortOrder: z.number().int().nullable().optional(),
-});
-
-export const runtimePayoffLedgerEvidenceSchema = z.object({
-  summary: z.string(),
-  chapterId: z.string().nullable().optional(),
-  chapterOrder: z.number().int().nullable().optional(),
-});
-
-export const runtimePayoffLedgerRiskSignalSchema = z.object({
-  code: z.string(),
-  severity: auditSeveritySchema,
-  summary: z.string(),
-  stale: z.boolean().optional(),
-});
-
-export const runtimePayoffLedgerItemSchema = z.object({
-  id: z.string(),
-  novelId: z.string(),
-  ledgerKey: z.string(),
-  title: z.string(),
-  summary: z.string(),
-  scopeType: payoffLedgerScopeTypeSchema,
-  currentStatus: payoffLedgerStatusSchema,
-  targetStartChapterOrder: z.number().int().nullable().optional(),
-  targetEndChapterOrder: z.number().int().nullable().optional(),
-  firstSeenChapterOrder: z.number().int().nullable().optional(),
-  lastTouchedChapterOrder: z.number().int().nullable().optional(),
-  lastTouchedChapterId: z.string().nullable().optional(),
-  setupChapterId: z.string().nullable().optional(),
-  payoffChapterId: z.string().nullable().optional(),
-  lastSnapshotId: z.string().nullable().optional(),
-  sourceRefs: z.array(runtimePayoffLedgerSourceRefSchema).default([]),
-  evidence: z.array(runtimePayoffLedgerEvidenceSchema).default([]),
-  riskSignals: z.array(runtimePayoffLedgerRiskSignalSchema).default([]),
-  statusReason: z.string().nullable().optional(),
-  confidence: z.number().nullable().optional(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export const runtimePayoffLedgerSummarySchema = z.object({
-  totalCount: z.number().int().nonnegative(),
-  pendingCount: z.number().int().nonnegative(),
-  urgentCount: z.number().int().nonnegative(),
-  overdueCount: z.number().int().nonnegative(),
-  paidOffCount: z.number().int().nonnegative(),
-  failedCount: z.number().int().nonnegative(),
-  updatedAt: z.string().nullable().optional(),
-});
-
 export const runtimeStateSnapshotSchema = z.object({
   id: z.string(),
   novelId: z.string(),
@@ -301,206 +241,6 @@ export const runtimeContinuationSchema = z.object({
   systemRule: z.string(),
   humanBlock: z.string(),
   antiCopyCorpus: z.array(z.string()).default([]),
-});
-
-export const runtimeStyleRuleBlockSchema = z.record(z.string(), z.unknown());
-
-export const runtimeStyleContractSectionSchema = z.object({
-  key: styleContractSectionKeySchema,
-  title: z.string(),
-  summary: z.string().nullable().optional(),
-  lines: z.array(z.string()).default([]),
-  text: z.string(),
-  hasContent: z.boolean(),
-});
-
-export const runtimeStyleContractSchema = z.object({
-  narrative: runtimeStyleContractSectionSchema,
-  character: runtimeStyleContractSectionSchema,
-  language: runtimeStyleContractSectionSchema,
-  rhythm: runtimeStyleContractSectionSchema,
-  antiAi: runtimeStyleContractSectionSchema,
-  selfCheck: runtimeStyleContractSectionSchema,
-  meta: z.object({
-    effectiveStyleProfileId: z.string().nullable().optional(),
-    taskStyleProfileId: z.string().nullable().optional(),
-    activeSourceTargets: z.array(styleBindingTargetTypeSchema).default([]),
-    activeSourceLabels: z.array(z.string()).default([]),
-    writerIncludedSections: z.array(styleContractSectionKeySchema).default([]),
-    plannerIncludedSections: z.array(styleContractSectionKeySchema).default([]),
-    droppedSections: z.array(styleContractSectionKeySchema).default([]),
-    maturity: styleContractMaturitySchema,
-    usesGlobalAntiAiBaseline: z.boolean(),
-    globalAntiAiRuleIds: z.array(z.string()).default([]),
-    styleAntiAiRuleIds: z.array(z.string()).default([]),
-  }),
-});
-
-export const runtimeCompiledStylePromptBlocksSchema = z.object({
-  context: z.string(),
-  style: z.string(),
-  character: z.string(),
-  antiAi: z.string(),
-  output: z.string(),
-  selfCheck: z.string(),
-  contract: runtimeStyleContractSchema,
-  mergedRules: z.object({
-    narrativeRules: runtimeStyleRuleBlockSchema,
-    characterRules: runtimeStyleRuleBlockSchema,
-    languageRules: runtimeStyleRuleBlockSchema,
-    rhythmRules: runtimeStyleRuleBlockSchema,
-  }),
-  appliedRuleIds: z.array(z.string()),
-});
-
-export const runtimeStyleProfileSummarySchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  description: z.string().nullable().optional(),
-  category: z.string().nullable().optional(),
-});
-
-export const runtimeStyleBindingSchema = z.object({
-  id: z.string(),
-  styleProfileId: z.string(),
-  targetType: styleBindingTargetTypeSchema,
-  targetId: z.string(),
-  priority: z.number().int(),
-  weight: z.number(),
-  enabled: z.boolean(),
-  styleProfile: runtimeStyleProfileSummarySchema.optional(),
-});
-
-export const runtimeStyleContextSchema = z.object({
-  matchedBindings: z.array(runtimeStyleBindingSchema),
-  compiledBlocks: runtimeCompiledStylePromptBlocksSchema.nullable(),
-  effectiveStyleProfileId: z.string().nullable().optional(),
-  taskStyleProfileId: z.string().nullable().optional(),
-  activeSourceTargets: z.array(styleBindingTargetTypeSchema).default([]),
-  activeSourceLabels: z.array(z.string()).default([]),
-  maturity: styleContractMaturitySchema.optional(),
-  usesGlobalAntiAiBaseline: z.boolean().optional(),
-  globalAntiAiRuleIds: z.array(z.string()).default([]),
-  styleAntiAiRuleIds: z.array(z.string()).default([]),
-  sanitizedGenerationProfile: z.object({
-    writingGuidance: z.array(z.string()).default([]),
-    forbiddenEntities: z.array(z.string()).default([]),
-    sourceProfileNames: z.array(z.string()).default([]),
-    sanitizedAt: z.string(),
-    strategy: z.enum(["deterministic", "llm"]),
-  }).nullable().optional(),
-});
-
-export const runtimeCharacterCandidateSchema = z.object({
-  id: z.string(),
-  novelId: z.string(),
-  sourceChapterId: z.string().nullable().optional(),
-  sourceChapterOrder: z.number().int().nullable().optional(),
-  proposedName: z.string(),
-  proposedRole: z.string().nullable().optional(),
-  summary: z.string().nullable().optional(),
-  evidence: z.array(z.string()).default([]),
-  matchedCharacterId: z.string().nullable().optional(),
-  status: characterCandidateStatusSchema,
-  confidence: z.number().nullable().optional(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export const runtimeCharacterVolumeAssignmentSchema = z.object({
-  id: z.string(),
-  novelId: z.string(),
-  characterId: z.string(),
-  volumeId: z.string(),
-  volumeTitle: z.string().nullable().optional(),
-  roleLabel: z.string().nullable().optional(),
-  responsibility: z.string(),
-  appearanceExpectation: z.string().nullable().optional(),
-  plannedChapterOrders: z.array(z.number().int()),
-  isCore: z.boolean(),
-  absenceWarningThreshold: z.number().int(),
-  absenceHighRiskThreshold: z.number().int(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export const runtimeCharacterFactionTrackSchema = z.object({
-  id: z.string(),
-  novelId: z.string(),
-  characterId: z.string(),
-  volumeId: z.string().nullable().optional(),
-  volumeTitle: z.string().nullable().optional(),
-  chapterId: z.string().nullable().optional(),
-  chapterOrder: z.number().int().nullable().optional(),
-  factionLabel: z.string(),
-  stanceLabel: z.string().nullable().optional(),
-  summary: z.string().nullable().optional(),
-  sourceType: z.string(),
-  confidence: z.number().nullable().optional(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export const runtimeCharacterRelationStageSchema = z.object({
-  id: z.string(),
-  novelId: z.string(),
-  relationId: z.string().nullable().optional(),
-  sourceCharacterId: z.string(),
-  targetCharacterId: z.string(),
-  sourceCharacterName: z.string().nullable().optional(),
-  targetCharacterName: z.string().nullable().optional(),
-  volumeId: z.string().nullable().optional(),
-  volumeTitle: z.string().nullable().optional(),
-  chapterId: z.string().nullable().optional(),
-  chapterOrder: z.number().int().nullable().optional(),
-  stageLabel: z.string(),
-  stageSummary: z.string(),
-  nextTurnPoint: z.string().nullable().optional(),
-  sourceType: z.string(),
-  confidence: z.number().nullable().optional(),
-  isCurrent: z.boolean(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export const runtimeDynamicCharacterOverviewItemSchema = z.object({
-  characterId: z.string(),
-  name: z.string(),
-  role: z.string(),
-  castRole: z.string().nullable().optional(),
-  currentState: z.string().nullable().optional(),
-  currentGoal: z.string().nullable().optional(),
-  volumeRoleLabel: z.string().nullable().optional(),
-  volumeResponsibility: z.string().nullable().optional(),
-  isCoreInVolume: z.boolean(),
-  plannedChapterOrders: z.array(z.number().int()),
-  appearanceCount: z.number().int(),
-  lastAppearanceChapterOrder: z.number().int().nullable().optional(),
-  absenceSpan: z.number().int(),
-  absenceRisk: dynamicCharacterRiskLevelSchema,
-  factionLabel: z.string().nullable().optional(),
-  stanceLabel: z.string().nullable().optional(),
-});
-
-export const runtimeDynamicCharacterCurrentVolumeSchema = z.object({
-  id: z.string().nullable().optional(),
-  title: z.string(),
-  sortOrder: z.number().int().nullable().optional(),
-  startChapterOrder: z.number().int().nullable().optional(),
-  endChapterOrder: z.number().int().nullable().optional(),
-  currentChapterOrder: z.number().int().nullable().optional(),
-});
-
-export const runtimeDynamicCharacterOverviewSchema = z.object({
-  novelId: z.string(),
-  currentVolume: runtimeDynamicCharacterCurrentVolumeSchema.nullable(),
-  summary: z.string(),
-  pendingCandidateCount: z.number().int(),
-  characters: z.array(runtimeDynamicCharacterOverviewItemSchema),
-  relations: z.array(runtimeCharacterRelationStageSchema),
-  candidates: z.array(runtimeCharacterCandidateSchema),
-  factionTracks: z.array(runtimeCharacterFactionTrackSchema),
-  assignments: z.array(runtimeCharacterVolumeAssignmentSchema),
 });
 
 export const promptBudgetProfileSchema = z.object({
@@ -837,122 +577,6 @@ export const generationContextPackageSchema = z.object({
   promptBudgetProfiles: z.array(promptBudgetProfileSchema).default([]),
 });
 
-export const runtimeQualityScoreSchema = z.object({
-  coherence: z.number(),
-  repetition: z.number(),
-  pacing: z.number(),
-  voice: z.number(),
-  engagement: z.number(),
-  overall: z.number(),
-});
-
-export const chapterAcceptanceStatusSchema = z.enum(["accepted", "repairable", "needs_manual_review", "continue_with_risk"]);
-export const chapterAcceptanceContinuePolicySchema = z.enum(["continue", "repair_once", "pause"]);
-export const chapterAcceptanceRepairDirectiveSchema = z.object({
-  mode: z.enum(["patch", "rewrite", "manual"]),
-  target: z.enum(["continuity", "character", "plot", "ending", "voice"]),
-  instruction: z.string(),
-});
-export const chapterAcceptanceRepairabilitySchema = z.enum([
-  "none",
-  "patchable_obligation_gap",
-  "rewrite_needed",
-  "plan_misalignment",
-]);
-export const chapterAcceptanceAssetSyncRecommendationSchema = z.object({
-  priority: z.enum(["normal", "high"]),
-  reason: z.string(),
-  requiresFullPayoffReconcile: z.boolean(),
-});
-
-export const runtimeAuditReportSchema = z.object({
-  id: z.string(),
-  novelId: z.string(),
-  chapterId: z.string(),
-  auditType: auditTypeSchema,
-  overallScore: z.number().nullable().optional(),
-  summary: z.string().nullable().optional(),
-  legacyScoreJson: z.string().nullable().optional(),
-  issues: z.array(runtimeAuditIssueSchema),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export const styleDetectionViolationSchema = z.object({
-  ruleId: z.string(),
-  ruleName: z.string(),
-  ruleType: styleDetectionRuleTypeSchema,
-  severity: antiAiSeveritySchema,
-  source: styleContractViolationSourceSchema,
-  issueCategory: styleContractIssueCategorySchema,
-  excerpt: z.string(),
-  reason: z.string(),
-  suggestion: z.string(),
-  canAutoRewrite: z.boolean(),
-});
-
-export const styleDetectionReportSchema = z.object({
-  riskScore: z.number().int(),
-  summary: z.string(),
-  violations: z.array(styleDetectionViolationSchema),
-  canAutoRewrite: z.boolean(),
-  appliedRuleIds: z.array(z.string()),
-});
-
-export const runtimeStyleReviewSchema = z.object({
-  report: styleDetectionReportSchema.nullable(),
-  autoRewritten: z.boolean(),
-  originalContent: z.string().nullable().optional(),
-});
-
-export const runtimeSceneGenerationResultSchema = z.object({
-  sceneKey: z.string(),
-  sceneTitle: z.string(),
-  sceneIndex: z.number().int().min(1),
-  targetWordCount: z.number().int().positive(),
-  beforeLength: z.number().int().nonnegative(),
-  afterLength: z.number().int().nonnegative(),
-  actualWordCount: z.number().int().nonnegative(),
-  sceneStatus: z.string(),
-});
-
-export const runtimeSceneRoundResultSchema = z.object({
-  roundIndex: z.number().int().min(1),
-  suggestedWordCount: z.number().int().nonnegative().nullable().optional(),
-  hardWordLimit: z.number().int().positive().nullable().optional(),
-  actualWordCount: z.number().int().nonnegative(),
-  isFinalRound: z.boolean(),
-  closingPhase: z.boolean(),
-  hardStopTriggered: z.boolean().default(false),
-  trimmedAtSentenceBoundary: z.boolean().default(false),
-  stopReason: z.string(),
-});
-
-export const runtimeSceneGenerationWithRoundsSchema = runtimeSceneGenerationResultSchema.extend({
-  wordControlMode: z.enum(["prompt_only", "balanced"]).default("balanced"),
-  roundCount: z.number().int().nonnegative().default(0),
-  hardStopCount: z.number().int().nonnegative().default(0),
-  closingPhaseTriggered: z.boolean().default(false),
-  roundResults: z.array(runtimeSceneRoundResultSchema).default([]),
-});
-
-export const runtimeLengthControlSchema = z.object({
-  targetWordCount: z.number().int().positive(),
-  softMinWordCount: z.number().int().positive(),
-  softMaxWordCount: z.number().int().positive(),
-  hardMaxWordCount: z.number().int().positive(),
-  finalWordCount: z.number().int().nonnegative(),
-  variance: z.number(),
-  wordControlMode: z.enum(["prompt_only", "balanced", "hybrid"]).default("hybrid"),
-  plannedSceneCount: z.number().int().nonnegative(),
-  generatedSceneCount: z.number().int().nonnegative(),
-  sceneResults: z.array(runtimeSceneGenerationWithRoundsSchema).default([]),
-  closingPhaseTriggered: z.boolean().default(false),
-  hardStopsTriggered: z.number().int().nonnegative().default(0),
-  lengthRepairPath: z.array(z.string()).default([]),
-  overlengthRepairApplied: z.boolean(),
-});
-
 export const chapterRuntimePackageSchema = z.object({
   novelId: z.string(),
   chapterId: z.string(),
@@ -1028,28 +652,10 @@ export type RuntimeCharacter = z.infer<typeof runtimeCharacterSchema>;
 export type ChapterCharacterHardFact = z.infer<typeof chapterCharacterHardFactSchema>;
 export type ChapterCharacterPendingReviewField = z.infer<typeof chapterCharacterPendingReviewFieldSchema>;
 export type RuntimeCreativeDecision = z.infer<typeof runtimeCreativeDecisionSchema>;
-export type RuntimeAuditIssue = z.infer<typeof runtimeAuditIssueSchema>;
 export type RuntimeStateSnapshot = z.infer<typeof runtimeStateSnapshotSchema>;
 export type RuntimeOpenConflict = z.infer<typeof runtimeOpenConflictSchema>;
 export type RuntimeContinuation = z.infer<typeof runtimeContinuationSchema>;
-export type RuntimeStyleContractSection = z.infer<typeof runtimeStyleContractSectionSchema>;
-export type RuntimeStyleContract = z.infer<typeof runtimeStyleContractSchema>;
-export type RuntimeCompiledStylePromptBlocks = z.infer<typeof runtimeCompiledStylePromptBlocksSchema>;
-export type RuntimeStyleBinding = z.infer<typeof runtimeStyleBindingSchema>;
-export type RuntimeStyleContext = z.infer<typeof runtimeStyleContextSchema>;
-export type RuntimePayoffLedgerSourceRef = z.infer<typeof runtimePayoffLedgerSourceRefSchema>;
-export type RuntimePayoffLedgerEvidence = z.infer<typeof runtimePayoffLedgerEvidenceSchema>;
-export type RuntimePayoffLedgerRiskSignal = z.infer<typeof runtimePayoffLedgerRiskSignalSchema>;
-export type RuntimePayoffLedgerItem = z.infer<typeof runtimePayoffLedgerItemSchema>;
-export type RuntimePayoffLedgerSummary = z.infer<typeof runtimePayoffLedgerSummarySchema>;
 export type RuntimeCharacterResourceContext = z.infer<typeof characterResourceContextSchema>;
-export type RuntimeCharacterCandidate = z.infer<typeof runtimeCharacterCandidateSchema>;
-export type RuntimeCharacterVolumeAssignment = z.infer<typeof runtimeCharacterVolumeAssignmentSchema>;
-export type RuntimeCharacterFactionTrack = z.infer<typeof runtimeCharacterFactionTrackSchema>;
-export type RuntimeCharacterRelationStage = z.infer<typeof runtimeCharacterRelationStageSchema>;
-export type RuntimeDynamicCharacterOverviewItem = z.infer<typeof runtimeDynamicCharacterOverviewItemSchema>;
-export type RuntimeDynamicCharacterCurrentVolume = z.infer<typeof runtimeDynamicCharacterCurrentVolumeSchema>;
-export type RuntimeDynamicCharacterOverview = z.infer<typeof runtimeDynamicCharacterOverviewSchema>;
 export type PromptBudgetProfile = z.infer<typeof promptBudgetProfileSchema>;
 export type AuditMode = z.infer<typeof auditModeSchema>;
 export type ContextBlockTier = z.infer<typeof contextBlockTierSchema>;
@@ -1074,17 +680,4 @@ export type ChapterReviewContext = z.infer<typeof chapterReviewContextSchema>;
 export type ChapterRepairIssue = z.infer<typeof chapterRepairIssueSchema>;
 export type ChapterRepairContext = z.infer<typeof chapterRepairContextSchema>;
 export type GenerationContextPackage = z.infer<typeof generationContextPackageSchema>;
-export type RuntimeQualityScore = z.infer<typeof runtimeQualityScoreSchema>;
-export type ChapterAcceptanceStatus = z.infer<typeof chapterAcceptanceStatusSchema>;
-export type ChapterAcceptanceContinuePolicy = z.infer<typeof chapterAcceptanceContinuePolicySchema>;
-export type ChapterAcceptanceRepairDirective = z.infer<typeof chapterAcceptanceRepairDirectiveSchema>;
-export type ChapterAcceptanceRepairability = z.infer<typeof chapterAcceptanceRepairabilitySchema>;
-export type ChapterAcceptanceAssetSyncRecommendation = z.infer<typeof chapterAcceptanceAssetSyncRecommendationSchema>;
-export type RuntimeAuditReport = z.infer<typeof runtimeAuditReportSchema>;
 export type ChapterRuntimePackage = z.infer<typeof chapterRuntimePackageSchema>;
-export type RuntimeStyleDetectionViolation = z.infer<typeof styleDetectionViolationSchema>;
-export type RuntimeStyleDetectionReport = z.infer<typeof styleDetectionReportSchema>;
-export type RuntimeStyleReview = z.infer<typeof runtimeStyleReviewSchema>;
-export type RuntimeSceneGenerationResult = z.infer<typeof runtimeSceneGenerationWithRoundsSchema>;
-export type RuntimeSceneRoundResult = z.infer<typeof runtimeSceneRoundResultSchema>;
-export type RuntimeLengthControl = z.infer<typeof runtimeLengthControlSchema>;
