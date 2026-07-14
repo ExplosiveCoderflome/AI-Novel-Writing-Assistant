@@ -340,7 +340,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
           </div>
 
           <aside className="space-y-3">
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+            <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-xs leading-5 text-foreground">
               {isDiagnosisMode
                 ? "诊断会根据小说正文长度消耗模型 token。章节越多，分析时间和 token 用量通常越高；建议先选择适合本次检查的拆书范围。"
                 : "拆书会根据书籍内容长度消耗模型 token。书籍越长，分析时间和 token 用量通常越高；建议先确认文档范围，再开始分析。"}

@@ -419,7 +419,7 @@ export default function BookAnalysisCharacterAppearancePanel({
             <div className="mt-1 whitespace-pre-wrap">{formatJsonSummary(appearance.consolidatedAppearance)}</div>
           </div>
           {appearance.variantPolicy && Object.keys(appearance.variantPolicy).length > 0 ? (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-sm text-amber-700 dark:text-amber-300">
+            <div className="rounded-md border border-warning/30 bg-warning/5 p-2 text-sm text-foreground">
               {formatJsonSummary(appearance.variantPolicy)}
             </div>
           ) : null}

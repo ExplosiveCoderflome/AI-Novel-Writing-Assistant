@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import type {
   BookAnalysisDetail,
@@ -11,9 +11,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import type { AggregatedEvidenceItem, SectionDraft, SectionEvidenceItem } from "../bookAnalysis.types";
-import { formatDate, formatStage, formatStatus } from "../bookAnalysis.utils";
+import {
+  formatDate,
+  formatStage,
+  formatStatus,
+  isBookAnalysisBudgetExceeded,
+} from "../bookAnalysis.utils";
+import {
+  getPreferredBookAnalysisSection,
+  isReadableBookAnalysisSection,
+  isUnselectedBookAnalysisSection,
+  summarizeBookAnalysisSections,
+} from "../bookAnalysisWorkspaceViewModel";
 import type { BookAnalysisMode } from "../hooks/bookAnalysisWorkspace.types";
 import type {
   BookAnalysisChapterHighlightRange,
@@ -50,6 +62,10 @@ interface BookAnalysisDetailPanelProps {
   novelOptions: NovelOption[];
   documentChapters: DocumentChapter[];
   sourceVersionContent: string;
+  sourceLoading: boolean;
+  sourceError: string;
+  chaptersLoading: boolean;
+  chaptersError: string;
   selectedNovelId: string;
   publishFeedback: string;
   styleProfileFeedback: string;
@@ -65,6 +81,8 @@ interface BookAnalysisDetailPanelProps {
   onActiveChapterChange: (chapterIndex: number) => void;
   onSelectChapter: (chapterIndex: number) => void;
   onEvidenceJump: (chapterIndex: number, range: { start: number; end: number }) => void;
+  onRetrySource: () => void;
+  onRetryChapters: () => void;
   onSelectedNovelChange: (novelId: string) => void;
   onPublish: () => void;
   onRegenerateSection: (section: BookAnalysisSection) => void;
@@ -83,6 +101,10 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     novelOptions,
     documentChapters,
     sourceVersionContent,
+    sourceLoading,
+    sourceError,
+    chaptersLoading,
+    chaptersError,
     selectedNovelId,
     publishFeedback,
     styleProfileFeedback,
@@ -98,6 +120,8 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     onActiveChapterChange,
     onSelectChapter,
     onEvidenceJump,
+    onRetrySource,
+    onRetryChapters,
     onSelectedNovelChange,
     onPublish,
     onRegenerateSection,
@@ -111,6 +135,8 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
   const [selectedEvidenceKey, setSelectedEvidenceKey] = useState("");
   const [readingMode, setReadingMode] = useState<"summary" | "full">("full");
   const [activeSectionKey, setActiveSectionKey] = useState<BookAnalysisSectionKey | "">("");
+  const previousAnalysisIdRef = useRef<string | null>(null);
+  const previousAnalysisStatusRef = useRef<BookAnalysisDetail["status"] | null>(null);
 
   const evidenceEntries = useMemo<SectionEvidenceItem[]>(
     () => aggregatedEvidence.map((item, index) => ({
@@ -162,32 +188,31 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
     }
   };
 
-  const sectionStats = useMemo(() => {
-    return selectedAnalysis.sections.reduce(
-      (acc, section) => {
-        acc.total += 1;
-        if (section.status === "succeeded") {
-          acc.succeeded += 1;
-        }
-        if (!section.frozen) {
-          acc.active += 1;
-        }
-        if (section.frozen) {
-          acc.frozen += 1;
-        }
-        return acc;
-      },
-      { total: 0, succeeded: 0, active: 0, frozen: 0 },
-    );
-  }, [selectedAnalysis]);
+  const sectionStats = useMemo(
+    () => summarizeBookAnalysisSections(selectedAnalysis),
+    [selectedAnalysis],
+  );
 
   useEffect(() => {
+    const analysisChanged = previousAnalysisIdRef.current !== selectedAnalysis.id;
+    const previousStatus = previousAnalysisStatusRef.current;
+    const generationJustFinished = !analysisChanged
+      && (previousStatus === "queued" || previousStatus === "running")
+      && selectedAnalysis.status !== "queued"
+      && selectedAnalysis.status !== "running";
+    previousAnalysisIdRef.current = selectedAnalysis.id;
+    previousAnalysisStatusRef.current = selectedAnalysis.status;
+    if (analysisChanged) {
+      setSelectedEvidenceKey("");
+    }
     if (!selectedAnalysis.sections.length) {
+      setActiveSectionKey("");
       return;
     }
-    const hasActiveSection = selectedAnalysis.sections.some((section) => section.sectionKey === activeSectionKey);
-    if (!hasActiveSection) {
-      setActiveSectionKey(selectedAnalysis.sections[0].sectionKey as BookAnalysisSectionKey);
+    const activeSection = selectedAnalysis.sections.find((section) => section.sectionKey === activeSectionKey);
+    if (analysisChanged || !activeSection || (generationJustFinished && !isReadableBookAnalysisSection(activeSection))) {
+      const preferred = getPreferredBookAnalysisSection(selectedAnalysis.sections);
+      setActiveSectionKey((preferred?.sectionKey ?? selectedAnalysis.sections[0].sectionKey) as BookAnalysisSectionKey);
     }
   }, [activeSectionKey, selectedAnalysis]);
 
@@ -196,7 +221,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
   const budgetTokens = selectedAnalysis.budgetTokens ?? null;
   const usedTokens = selectedAnalysis.usedTokens ?? 0;
   const budgetUsageRatio = budgetTokens ? Math.min(1, usedTokens / budgetTokens) : 0;
-  const budgetExceeded = selectedAnalysis.lastError?.includes("budget_exceeded") ?? false;
+  const budgetExceeded = isBookAnalysisBudgetExceeded(selectedAnalysis.lastError);
 
   return (
     <div className="space-y-3">
@@ -209,8 +234,38 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
         </div>
       ) : null}
 
+      {sourceLoading || chaptersLoading ? (
+        <div className="flex items-center gap-2 rounded-md border border-info/25 bg-info/5 p-3 text-sm text-muted-foreground" aria-live="polite">
+          <Loader2 className="h-4 w-4 animate-spin text-info" aria-hidden="true" />
+          正在加载原文阅读位置，拆书结果仍可继续查看。
+        </div>
+      ) : null}
+
+      {sourceError || chaptersError ? (
+        <div className="flex flex-col gap-3 rounded-md border border-warning/30 bg-warning/5 p-3 text-sm sm:flex-row sm:items-center sm:justify-between" role="status">
+          <div className="flex min-w-0 items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+            <div>
+              <div className="font-medium text-foreground">原文对照暂时不可用</div>
+              <div className="mt-1 text-muted-foreground">
+                {chaptersError || sourceError} 已生成的拆书结果不会被隐藏或删除。
+              </div>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={chaptersError ? onRetryChapters : onRetrySource}
+          >
+            <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+            重试原文加载
+          </Button>
+        </div>
+      ) : null}
+
       <BookAnalysisDualPaneLayout
-        enabled={isDualPane}
+        enabled={isDualPane && !sourceError && !chaptersError}
         chapters={documentChapters}
         sourceVersionContent={sourceVersionContent}
         readerRef={chapterReaderRef}
@@ -226,8 +281,9 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                 <div>
                   <div className="text-sm font-medium">分析信息与发布</div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    完成 {sectionStats.succeeded}/{sectionStats.total}，生成 {sectionStats.active} 项
-                    {sectionStats.frozen > 0 ? `，冻结 ${sectionStats.frozen} 项` : ""}
+                    计划小节 {sectionStats.readableExpected}/{sectionStats.expected} 可阅读
+                    {sectionStats.unselected > 0 ? `，本次未选择 ${sectionStats.unselected} 节` : ""}
+                    {sectionStats.frozenReadable > 0 ? `，已冻结结果 ${sectionStats.frozenReadable} 节` : ""}
                   </div>
                 </div>
                 <Badge variant="outline">展开</Badge>
@@ -235,7 +291,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
             </summary>
             <div className="mt-3 space-y-3">
               {!selectedAnalysis.isCurrentVersion ? (
-                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-sm text-foreground">
                   该分析基于旧版源文档，当前激活文档版本为 v{selectedAnalysis.currentDocumentVersionNumber}。
                 </div>
               ) : null}
@@ -292,7 +348,14 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                         : "不限"}
                     </div>
                     {budgetTokens ? (
-                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-1.5 overflow-hidden rounded-full bg-muted"
+                        role="progressbar"
+                        aria-label="拆书预算使用进度"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(budgetUsageRatio * 100)}
+                      >
                         <div
                           className={`h-full rounded-full ${budgetExceeded ? "bg-destructive" : "bg-primary"}`}
                           style={{ width: `${Math.round(budgetUsageRatio * 100)}%` }}
@@ -315,9 +378,9 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
             <div className="flex flex-wrap items-center justify-between gap-3 border-b p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="text-base font-semibold">拆书内容</div>
-                <Badge variant="outline">完成 {sectionStats.succeeded}/{sectionStats.total}</Badge>
-                <Badge variant="outline">生成 {sectionStats.active} 项</Badge>
-                {sectionStats.frozen > 0 ? <Badge variant="secondary">冻结 {sectionStats.frozen} 项</Badge> : null}
+                <Badge variant="outline">可读 {sectionStats.readableExpected}/{sectionStats.expected}</Badge>
+                {sectionStats.unselected > 0 ? <Badge variant="secondary">本次未选择 {sectionStats.unselected}</Badge> : null}
+                {sectionStats.frozenReadable > 0 ? <Badge variant="secondary">已冻结结果 {sectionStats.frozenReadable}</Badge> : null}
               </div>
               <div className="flex rounded-md border bg-background p-1">
                 <Button
@@ -337,6 +400,15 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
               </div>
             </div>
             <div className="space-y-3 p-3">
+              {selectedAnalysis.sections.length === 0 ? (
+                <div className="rounded-md border border-dashed border-warning/40 bg-warning/5 px-5 py-8 text-center">
+                  <AlertTriangle className="mx-auto h-5 w-5 text-warning" aria-hidden="true" />
+                  <div className="mt-3 text-sm font-medium text-foreground">没有可展示的拆书小节</div>
+                  <p className="mx-auto mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
+                    这份任务没有返回可阅读内容。源文档仍然安全，可以从上方重新生成或打开任务中心查看详情。
+                  </p>
+                </div>
+              ) : (
               <Tabs
                 value={activeTabValue}
                 onValueChange={(value) => setActiveSectionKey(value as BookAnalysisSectionKey)}
@@ -347,7 +419,9 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                     <TabsTrigger key={section.sectionKey} value={section.sectionKey} className="gap-2">
                       <span>{section.title}</span>
                       <span className="text-xs text-muted-foreground">
-                        {section.frozen ? "冻结" : formatStatus(section.status)}
+                        {section.frozen
+                          ? isUnselectedBookAnalysisSection(section) ? "本次未选择" : "已冻结"
+                          : formatStatus(section.status)}
                       </span>
                     </TabsTrigger>
                   ))}
@@ -362,7 +436,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                         section={section}
                         draft={getSectionDraft(section)}
                         readingMode={readingMode}
-                        canOperate={Boolean(selectedAnalysis)}
+                        canOperate={selectedAnalysis.status !== "archived"}
                         isRegenerating={pending.regenerate}
                         isOptimizing={pending.optimizePreview && optimizingSectionKey === section.sectionKey}
                         isSaving={pending.saveSection}
@@ -385,6 +459,7 @@ export default function BookAnalysisDetailPanel(props: BookAnalysisDetailPanelPr
                   );
                 })}
               </Tabs>
+              )}
             </div>
           </section>
           {rightColumnExtra}
