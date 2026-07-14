@@ -32,10 +32,10 @@
 
 如果你只是想直接下载安装并开始使用，优先从桌面版入口进入：
 
-- 下载入口：[GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases)
-- 最新版本页：[Latest Release](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
+- 下载入口：[GitHub Releases](https://github.com/winnerineast/GeneralAgent/releases)
+- 最新版本页：[Latest Release](https://github.com/winnerineast/GeneralAgent/releases/latest)
 - 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
-- 公开介绍站：[GitHub Pages 介绍站](https://explosivecoderflome.github.io/AI-Novel-Writing-Assistant/) 提供功能预览、模块文档和使用指南
+- 公开介绍站：[GitHub Pages 介绍站](https://winnerineast.github.io/GeneralAgent/) 提供功能预览、模块文档和使用指南
 
 ## 项目定位
 
