@@ -140,18 +140,6 @@
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
-<<<<<<< HEAD
-### 2026-06-23
-
-新增小说视频改编功能与 OpenMontage 外部渲染工具桥接集成。小说作者可将章节正文或预告片通过 AI 智能改编为视频脚本，并通过微服务桥接方式调用本地 OpenMontage 渲染管线，进行视频渲染生成与进度跟踪。
-
-- 新增视频改编与预告片改编功能，支持选择章节正文并自动生成包含分镜、旁白、画面描述和音乐类型的场景脚本。
-- 新增 OpenMontage 桥接微服务 (`tools/openmontage-bridge`)，支持通过 HTTP API 异步渲染视频并查询状态，通过环境变量 `OPENMONTAGE_ROOT` 动态定位 OpenMontage 工程。
-- 统一 Prompt 治理，在 Prompt Registry 注册了 `video.novel_to_script@v1` and `video.novel_trailer@v1` 两个核心视频 Prompt。
-- 数据库中新增 `VideoProject` 表结构用于记录视频改编项目生命周期及渲染状态，已完成 SQLite 与主 Schema 的同步及客户端生成。
-- 前端新增独立视频改编工作台页面（路径 `/video`），支持查看脚本生成、场景预览/编辑、一键提交渲染及播放/下载生成的视频。
-
-=======
 ### 2026-07-09（自动导演候选恢复更稳定）
 
 恢复到已经生成书级方向候选的自动导演任务时，候选页会保留起始想法，可以直接选择方案、继续生成新一轮，或按意见修正方向。
@@ -160,7 +148,6 @@
 - 如果任务记录确实缺少起始想法，页面会先提示补充想法，再继续生成或确认书级方向。
 
 > 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
->>>>>>> main
 
 ### 2026-06-07
 

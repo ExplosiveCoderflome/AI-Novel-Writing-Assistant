@@ -453,7 +453,7 @@ Prompt Registry：`video.novel_to_script@v1`（章节→视频脚本）、`video
 
 | 文件/目录 | 大小 | 功能 |
 |---|---|---|
-| `server.py` | 8KB | Flask HTTP 服务器（异步渲染 + 状态查询 + 健康检查） |
+| `server.py` | 8KB | FastAPI HTTP 服务器（异步渲染 + 状态查询 + 健康检查） |
 | `render_demo.py` | 4KB | 渲染示例脚本 |
 | `adapters.py` | 4KB | 适配器 |
 | `config.yaml` | 1KB | 配置 |
