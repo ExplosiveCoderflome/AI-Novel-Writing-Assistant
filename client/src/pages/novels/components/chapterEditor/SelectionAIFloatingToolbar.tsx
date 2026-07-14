@@ -10,7 +10,7 @@ interface SelectionAIFloatingToolbarProps {
   visible: boolean;
   position: SelectionToolbarPosition | null;
   disabled?: boolean;
-  onRunOperation: (operation: ChapterEditorOperation, customInstruction?: string) => void;
+  onRunOperation: (operation: ChapterEditorOperation | "continue", customInstruction?: string) => void;
 }
 
 const SECONDARY_OPERATIONS: ChapterEditorOperation[] = ["expand", "compress", "emotion", "conflict"];
@@ -44,6 +44,15 @@ export default function SelectionAIFloatingToolbar(props: SelectionAIFloatingToo
           onClick={() => onRunOperation("polish")}
         >
           AI 优化这段
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={disabled}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => onRunOperation("continue")}
+        >
+          AI 续写之后
         </Button>
         {SECONDARY_OPERATIONS.map((operation) => (
           <Button

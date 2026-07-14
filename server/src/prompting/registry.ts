@@ -398,6 +398,14 @@ const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     load: () => require("./prompts/novel/chapterEditor/rewriteCandidates.prompts").chapterEditorRewriteCandidatesPrompt as UnknownPromptAsset,
   },
   {
+    key: "novel.chapter_editor.continue_preview@v1",
+    load: () => require("./prompts/novel/chapterEditor/continuePreview.prompts").chapterEditorContinuePreviewPrompt as UnknownPromptAsset,
+  },
+  {
+    key: "novel.chapter_editor.issue_fix_preview@v1",
+    load: () => require("./prompts/novel/chapterEditor/issueFixPreview.prompts").chapterEditorIssueFixPreviewPrompt as UnknownPromptAsset,
+  },
+  {
     key: "novel.review.chapter@v1",
     load: () => require("./prompts/novel/review.prompts").chapterReviewPrompt as UnknownPromptAsset,
   },

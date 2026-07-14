@@ -20,6 +20,7 @@ export interface ChapterEditorWorkspaceDiagnosisPromptInput {
     text: string;
   }>;
   openIssues: Array<{
+    id: string;
     severity: "low" | "medium" | "high" | "critical";
     auditType: string;
     code: string;
@@ -71,6 +72,7 @@ export const chapterEditorWorkspaceDiagnosisPrompt: PromptAsset<
       "4. paragraphStart / paragraphEnd 必须引用提供的段落编号；整章问题可留空。",
       "5. 不要输出 schema 之外的任何解释。",
       "6. 不要输出中文动作词本身；只能输出对应的英文枚举值。",
+      "7. 如果某个问题卡对应或来源于下方给出的【开放问题】，请在 sourceIssueId 中填入该问题的 ID 值，以便进行精确定位关联；如果不匹配任何开放问题，请将 sourceIssueId 填为 null。",
       "",
       "推荐逻辑：",
       "1. 如果存在明显的节奏、冲突、情绪或承接问题，优先选择这类问题。",
@@ -89,7 +91,7 @@ export const chapterEditorWorkspaceDiagnosisPrompt: PromptAsset<
       "",
       renderList(
         "【开放问题】",
-        input.openIssues.map((issue, index) => `- ${index + 1}. [${issue.severity}/${issue.auditType}/${issue.code}] ${issue.evidence}；建议：${issue.fixSuggestion}`),
+        input.openIssues.map((issue) => `- ID: ${issue.id} | [${issue.severity}/${issue.auditType}/${issue.code}] ${issue.evidence}；建议：${issue.fixSuggestion}`),
       ),
       "",
       renderList(

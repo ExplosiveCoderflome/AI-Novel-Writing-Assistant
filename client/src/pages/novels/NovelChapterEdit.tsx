@@ -73,7 +73,6 @@ export default function NovelChapterEdit() {
             ? "error"
             : "ready"}
         onBack={() => navigate(`/novels/${id}/edit`)}
-        onOpenVersionHistory={() => navigate(`/novels/${id}/edit`)}
       />
     </div>
   );

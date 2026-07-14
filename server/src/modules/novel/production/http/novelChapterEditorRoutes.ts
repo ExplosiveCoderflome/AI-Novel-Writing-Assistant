@@ -11,10 +11,14 @@ interface RegisterNovelChapterEditorRoutesInput {
     | "getChapterEditorWorkspace"
     | "previewChapterAiRevision"
     | "previewChapterRewrite"
+    | "previewChapterContinue"
+    | "previewChapterIssueFix"
   >;
   chapterParamsSchema: z.ZodType<{ id: string; chapterId: string }>;
   rewritePreviewSchema: z.ZodTypeAny;
   aiRevisionPreviewSchema: z.ZodTypeAny;
+  continuePreviewSchema: z.ZodTypeAny;
+  issueFixPreviewSchema: z.ZodTypeAny;
   forwardBusinessError: (error: unknown, next: (err?: unknown) => void) => boolean;
 }
 
@@ -25,6 +29,8 @@ export function registerNovelChapterEditorRoutes(input: RegisterNovelChapterEdit
     chapterParamsSchema,
     rewritePreviewSchema,
     aiRevisionPreviewSchema,
+    continuePreviewSchema,
+    issueFixPreviewSchema,
     forwardBusinessError,
   } = input;
 
@@ -120,6 +126,59 @@ export function registerNovelChapterEditorRoutes(input: RegisterNovelChapterEdit
             "AI 未返回足够的候选版本，请重试。",
           ].includes(error.message)
         ) {
+          next(new AppError(error.message, 400));
+          return;
+        }
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:id/chapters/:chapterId/editor/continue-preview",
+    validate({ params: chapterParamsSchema, body: continuePreviewSchema }),
+    async (req, res, next) => {
+      try {
+        const { id, chapterId } = req.params as z.infer<typeof chapterParamsSchema>;
+        const data = await novelService.previewChapterContinue(id, chapterId, req.body as any);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Chapter editor continuation preview generated.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        if (forwardBusinessError(error, next)) {
+          return;
+        }
+        if (error instanceof Error && ["小说不存在。", "章节不存在。", "续写前文不能为空。"].includes(error.message)) {
+          next(new AppError(error.message, 400));
+          return;
+        }
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:id/chapters/:chapterId/editor/issues/:issueId/fix-preview",
+    validate({
+      params: z.object({ id: z.string(), chapterId: z.string(), issueId: z.string() }),
+      body: issueFixPreviewSchema,
+    }),
+    async (req, res, next) => {
+      try {
+        const { id, chapterId, issueId } = req.params;
+        const data = await novelService.previewChapterIssueFix(id, chapterId, issueId, req.body as any);
+        res.status(200).json({
+          success: true,
+          data,
+          message: "Chapter editor issue inline fix preview generated.",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        if (forwardBusinessError(error, next)) {
+          return;
+        }
+        if (error instanceof Error && ["小说不存在。", "章节不存在。", "审校问题不存在。"].includes(error.message)) {
           next(new AppError(error.message, 400));
           return;
         }

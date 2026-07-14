@@ -7,6 +7,7 @@ const {
 } = require("../dist/services/novel/application/NovelApplicationServices.js");
 const { NovelChapterEditorService } = require("../dist/services/novel/chapterEditor/NovelChapterEditorService.js");
 const { ChapterEditorWorkspaceService } = require("../dist/services/novel/chapterEditor/ChapterEditorWorkspaceService.js");
+const { prisma } = require("../dist/db/prisma.js");
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -501,6 +502,40 @@ test("GET workspace and POST ai-revision-preview routes return the new editor pa
   const server = http.createServer(app);
   const port = await listen(server);
 
+  const originalContinueMethod = DefaultNovelApplicationServices.prototype.previewChapterContinue;
+  const originalIssueFixMethod = DefaultNovelApplicationServices.prototype.previewChapterIssueFix;
+
+  DefaultNovelApplicationServices.prototype.previewChapterContinue = async () => ({
+    sessionId: "continue-session-1",
+    candidates: [{
+      id: "candidate-continue-1",
+      label: "顺接",
+      content: "continued content",
+      summary: "继续往下写两句。",
+      rationale: "保持前后流畅衔接。",
+      semanticTags: ["flow"],
+      diffChunks: [],
+    }],
+    activeCandidateId: "candidate-continue-1",
+  });
+
+  DefaultNovelApplicationServices.prototype.previewChapterIssueFix = async () => ({
+    sessionId: "fix-session-1",
+    candidates: [{
+      id: "candidate-fix-1",
+      label: "修复",
+      content: "fixed content",
+      summary: "修改拖沓细节。",
+      rationale: "缩减不必要的描写。",
+      semanticTags: ["compress"],
+      diffChunks: [
+        { id: "chunk-1", type: "delete", text: "alpha" },
+        { id: "chunk-2", type: "insert", text: "fixed content" },
+      ],
+    }],
+    activeCandidateId: "candidate-fix-1",
+  });
+
   try {
     const workspaceResponse = await fetch(`http://127.0.0.1:${port}/api/novels/novel-1/chapters/chapter-1/editor/workspace`);
     assert.equal(workspaceResponse.status, 200);
@@ -532,9 +567,144 @@ test("GET workspace and POST ai-revision-preview routes return the new editor pa
     assert.equal(revisionPayload.success, true);
     assert.equal(revisionPayload.data.scope, "chapter");
     assert.equal(revisionPayload.data.candidates.length, 2);
+
+    const continueResponse = await fetch(`http://127.0.0.1:${port}/api/novels/novel-1/chapters/chapter-1/editor/continue-preview`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        textBefore: "alpha",
+        textAfter: "beta",
+        customInstruction: "顺接",
+      }),
+    });
+    assert.equal(continueResponse.status, 200);
+    const continuePayload = await continueResponse.json();
+    assert.equal(continuePayload.success, true);
+    assert.equal(continuePayload.data.candidates.length, 1);
+
+    const fixResponse = await fetch(`http://127.0.0.1:${port}/api/novels/novel-1/chapters/chapter-1/editor/issues/issue-1/fix-preview`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        selectedText: "alpha",
+        beforeParagraphs: [],
+        afterParagraphs: ["beta"],
+      }),
+    });
+    assert.equal(fixResponse.status, 200);
+    const fixPayload = await fixResponse.json();
+    assert.equal(fixPayload.success, true);
+    assert.equal(fixPayload.data.candidates.length, 1);
   } finally {
     DefaultNovelApplicationServices.prototype.getChapterEditorWorkspace = originalWorkspaceMethod;
     DefaultNovelApplicationServices.prototype.previewChapterAiRevision = originalRevisionMethod;
+    DefaultNovelApplicationServices.prototype.previewChapterContinue = originalContinueMethod;
+    DefaultNovelApplicationServices.prototype.previewChapterIssueFix = originalIssueFixMethod;
     await new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  }
+});
+
+test("NovelChapterEditorService previewContinue returns candidates", async () => {
+  let capturedPromptInput = null;
+  const service = new NovelChapterEditorService(
+    {
+      loadContext: async () => createWorkspaceContext(),
+    },
+    async ({ asset, promptInput }) => {
+      if (asset.id === "novel.chapter_editor.continue_preview") {
+        capturedPromptInput = promptInput;
+        return {
+          output: {
+            macroAlignmentNote: "Continuity preserved",
+            candidates: [{
+              label: "Flow smoothly",
+              content: "alpha continued smooth",
+              summary: "Smooth continuation.",
+              rationale: "Align with lead expectation.",
+              semanticTags: ["flow"],
+            }, {
+              label: "Create tension",
+              content: "alpha continued tense",
+              summary: "Tense continuation.",
+              rationale: "Build some friction.",
+              semanticTags: ["tension"],
+            }],
+          },
+        };
+      }
+      throw new Error(`Unexpected asset: ${asset.id}`);
+    },
+  );
+
+  const result = await service.previewContinue("novel-1", "chapter-1", {
+    textBefore: "alpha",
+    textAfter: "beta",
+    customInstruction: "Make it direct",
+    provider: "deepseek",
+  });
+
+  assert.equal(result.candidates.length, 2);
+  assert.equal(capturedPromptInput.textBefore, "alpha");
+  assert.equal(capturedPromptInput.textAfter, "beta");
+  assert.equal(capturedPromptInput.customInstruction, "Make it direct");
+});
+
+test("NovelChapterEditorService previewIssueFix returns candidates", async () => {
+  const originalFindFirst = prisma.auditIssue.findFirst;
+  prisma.auditIssue.findFirst = async () => ({
+    id: "issue-1",
+    description: "pacing is too slow",
+    evidence: "The daily activity paragraph runs too long.",
+    fixSuggestion: "Compress the routine details and surface pressure earlier.",
+  });
+
+  let capturedPromptInput = null;
+  const service = new NovelChapterEditorService(
+    {
+      loadContext: async () => createWorkspaceContext(),
+    },
+    async ({ asset, promptInput }) => {
+      if (asset.id === "novel.chapter_editor.issue_fix_preview") {
+        capturedPromptInput = promptInput;
+        return {
+          output: {
+            macroAlignmentNote: "Fix pacing",
+            candidates: [{
+              label: "Polish flow",
+              content: "fixed content paragraph",
+              summary: "Summarized fix.",
+              rationale: "Make it faster.",
+              semanticTags: ["polish"],
+            }, {
+              label: "Compress pacing",
+              content: "fixed compressed paragraph",
+              summary: "Compressed fix.",
+              rationale: "Cut detail.",
+              semanticTags: ["compress"],
+            }],
+          },
+        };
+      }
+      throw new Error(`Unexpected asset: ${asset.id}`);
+    },
+  );
+
+  try {
+    const result = await service.previewIssueFix("novel-1", "chapter-1", "issue-1", {
+      selectedText: "alpha",
+      beforeParagraphs: [],
+      afterParagraphs: ["beta"],
+      provider: "deepseek",
+    });
+
+    assert.equal(result.candidates.length, 2);
+    assert.equal(capturedPromptInput.issueDescription, "pacing is too slow");
+    assert.equal(capturedPromptInput.selectedText, "alpha");
+  } finally {
+    prisma.auditIssue.findFirst = originalFindFirst;
   }
 });

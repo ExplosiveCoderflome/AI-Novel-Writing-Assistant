@@ -1,7 +1,7 @@
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import type {
   ChapterEditorDiagnosticCard,
   ChapterEditorOperation,
@@ -9,10 +9,12 @@ import type {
   ChapterEditorRevisionScope,
   ChapterEditorTargetRange,
 } from "@ai-novel/shared/types/novel";
-import { createNovelSnapshot, previewChapterAiRevision, updateNovelChapter } from "@/api/novel";
+import { createNovelSnapshot, previewChapterAiRevision, updateNovelChapter, previewChapterContinue, previewChapterIssueFix, listNovelSnapshots, restoreNovelSnapshot } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
+import { Dialog, AppDialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import ChapterEditorDirectorPanel from "./ChapterEditorDirectorPanel";
 import ChapterEditorSidebar from "./ChapterEditorSidebar";
 import ChapterTextEditor from "./ChapterTextEditor";
@@ -30,6 +32,7 @@ import {
   countEditorWords,
   getSaveStatusLabel,
   normalizeChapterContent,
+  getParagraphWindow,
 } from "./chapterEditorUtils";
 
 const EMPTY_SESSION: ChapterEditorSessionState = {
@@ -74,11 +77,16 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
     workspace,
     workspaceStatus,
     onBack,
-    onOpenVersionHistory,
   } = props;
   const llm = useLLMStore();
   const queryClient = useQueryClient();
-  const lastPreviewRequestRef = useRef<ReturnType<typeof buildAiRevisionRequest> | null>(null);
+  const lastPreviewRequestRef = useRef<{
+    actionType: "ai_revision" | "continue" | "issue_fix";
+    issueId?: string;
+    revisionRequest?: any;
+    continueRequest?: any;
+    issueFixRequest?: any;
+  } | null>(null);
   const normalizedChapterContent = useMemo(() => normalizeChapterContent(chapter?.content ?? ""), [chapter?.content]);
 
   const [contentDraft, setContentDraft] = useState(normalizedChapterContent);
@@ -90,6 +98,26 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   const [revisionScope, setRevisionScope] = useState<ChapterEditorRevisionScope>("selection");
   const [revisionInstruction, setRevisionInstruction] = useState("");
   const [selectedDiagnosticId, setSelectedDiagnosticId] = useState<string | null>(null);
+  const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+
+  const snapshotsQuery = useQuery({
+    queryKey: queryKeys.novels.snapshots(novelId),
+    queryFn: () => listNovelSnapshots(novelId),
+    enabled: isVersionHistoryOpen,
+  });
+
+  const restoreSnapshotMutation = useMutation({
+    mutationFn: (snapshotId: string) => restoreNovelSnapshot(novelId, snapshotId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterEditorWorkspace(novelId, chapter?.id ?? "none") });
+      setIsVersionHistoryOpen(false);
+      toast.success("已恢复到选定的历史版本。");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "恢复版本失败，请重试。");
+    },
+  });
 
   useEffect(() => {
     const nextContent = normalizedChapterContent;
@@ -171,36 +199,88 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
   });
 
   const previewMutation = useMutation({
-    mutationFn: async (request: ReturnType<typeof buildAiRevisionRequest>) => {
+    mutationFn: async (action: {
+      actionType: "ai_revision" | "continue" | "issue_fix";
+      issueId?: string;
+      revisionRequest?: any;
+      continueRequest?: any;
+      issueFixRequest?: any;
+    }) => {
       if (!chapter) {
         throw new Error(t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_af1e4a3a"));
       }
-      return previewChapterAiRevision(novelId, chapter.id, request);
+      if (action.actionType === "continue") {
+        return previewChapterContinue(novelId, chapter.id, action.continueRequest);
+      }
+      if (action.actionType === "issue_fix") {
+        if (!action.issueId) {
+          throw new Error("无法进行定位问题修复：未指定问题ID。");
+        }
+        return previewChapterIssueFix(novelId, chapter.id, action.issueId, action.issueFixRequest);
+      }
+      return previewChapterAiRevision(novelId, chapter.id, action.revisionRequest);
     },
-    onMutate: (request) => {
-      lastPreviewRequestRef.current = request;
-      const label = request.source === "freeform"
-        ? (request.scope === "chapter" ? t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_d6e77a91") : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_0bd855a0"))
-        : request.presetOperation
-          ? `正在生成${CHAPTER_EDITOR_OPERATION_LABELS[request.presetOperation]}方案`
-          : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_f04a616c");
+    onMutate: (action) => {
+      lastPreviewRequestRef.current = action;
+      let label = "正在处理 AI 请求";
+      let scope: any = "selection";
+      let targetRange = {
+        from: 0,
+        to: contentDraft.length,
+        text: contentDraft,
+      };
+      let instruction = "";
+
+      if (action.actionType === "continue") {
+        label = "正在生成 AI 续写内容";
+        scope = "selection";
+        const selectionRange = action.revisionRequest?.selection;
+        if (selectionRange) {
+          targetRange = {
+            from: selectionRange.from,
+            to: selectionRange.to,
+            text: selectionRange.text,
+          };
+        }
+        instruction = action.continueRequest?.customInstruction || "";
+      } else if (action.actionType === "issue_fix") {
+        label = "正在修复特定审校问题";
+        scope = "selection";
+        const selectionRange = action.revisionRequest?.selection;
+        if (selectionRange) {
+          targetRange = {
+            from: selectionRange.from,
+            to: selectionRange.to,
+            text: selectionRange.text,
+          };
+        }
+      } else {
+        const req = action.revisionRequest;
+        label = req.source === "freeform"
+          ? (req.scope === "chapter" ? t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_d6e77a91") : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_0bd855a0"))
+          : req.presetOperation
+            ? `正在生成${CHAPTER_EDITOR_OPERATION_LABELS[req.presetOperation as ChapterEditorOperation]}方案`
+            : t("gen.pages.novels.components.chapterEditor.ChapterEditorShell.gen_f04a616c");
+        scope = req.scope;
+        if (req.selection) {
+          targetRange = req.selection;
+        }
+        instruction = req.instruction || "";
+      }
+
       setSession((current) => ({
         ...current,
         status: "loading",
         requestLabel: label,
-        customInstruction: request.instruction,
-        scope: request.scope,
-        targetRange: request.selection ?? {
-          from: 0,
-          to: contentDraft.length,
-          text: contentDraft,
-        },
+        customInstruction: instruction,
+        scope,
+        targetRange,
         candidates: [],
         activeCandidateId: null,
         errorMessage: undefined,
       }));
     },
-    onSuccess: (response) => {
+    onSuccess: (response, action) => {
       const data = response.data;
       if (!data) {
         setSession((current) => ({
@@ -210,8 +290,29 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
         }));
         return;
       }
+
+      let processedData = data;
+      if (action.actionType === "continue") {
+        const origText = action.revisionRequest?.selection?.text || "";
+        processedData = {
+          ...data,
+          candidates: data.candidates.map((candidate: any) => {
+            const continuation = candidate.content;
+            const fullContent = origText + continuation;
+            return {
+              ...candidate,
+              content: fullContent,
+              diffChunks: [
+                { id: "chunk-orig", type: "equal", text: origText },
+                { id: "chunk-new", type: "insert", text: continuation },
+              ],
+            };
+          }),
+        };
+      }
+
       setSession((current) => ({
-        ...data,
+        ...processedData,
         status: "ready",
         viewMode: "block",
         requestLabel: current.requestLabel,
@@ -325,10 +426,36 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
       model: llm.model,
       temperature: llm.temperature,
     });
-    previewMutation.mutate(request);
+    previewMutation.mutate({
+      actionType: "ai_revision",
+      revisionRequest: request,
+    });
   };
 
-  const handleRunOperation = (operation: ChapterEditorOperation, customInstruction?: string) => {
+  const handleRunOperation = (operation: ChapterEditorOperation | "continue", customInstruction?: string) => {
+    if (operation === "continue") {
+      const resolvedSelection = selection ?? {
+        from: contentDraft.length,
+        to: contentDraft.length,
+        text: "",
+      };
+      previewMutation.mutate({
+        actionType: "continue",
+        continueRequest: {
+          textBefore: contentDraft.slice(0, resolvedSelection.to),
+          textAfter: contentDraft.slice(resolvedSelection.to) || undefined,
+          customInstruction: customInstruction?.trim() || undefined,
+          provider: llm.provider,
+          model: llm.model,
+          temperature: llm.temperature,
+        },
+        revisionRequest: {
+          selection: resolvedSelection,
+        },
+      });
+      return;
+    }
+
     runRevision(
       operation === "custom" ? "freeform" : "preset",
       "selection",
@@ -363,9 +490,35 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
 
   const handleRunDiagnostic = (card: ChapterEditorDiagnosticCard) => {
     setSelectedDiagnosticId(card.id);
+    const resolvedSelection = toSelectionFromRange(contentDraft, card.anchorRange ?? null) ?? {
+      from: 0,
+      to: 0,
+      text: "",
+    };
+
+    if (card.sourceIssueId) {
+      const { beforeParagraphs, afterParagraphs } = getParagraphWindow(contentDraft, resolvedSelection);
+      previewMutation.mutate({
+        actionType: "issue_fix",
+        issueId: card.sourceIssueId,
+        issueFixRequest: {
+          selectedText: resolvedSelection.text,
+          beforeParagraphs,
+          afterParagraphs,
+          provider: llm.provider,
+          model: llm.model,
+          temperature: llm.temperature,
+        },
+        revisionRequest: {
+          selection: resolvedSelection,
+        },
+      });
+      return;
+    }
+
     runRevision("preset", card.recommendedScope, {
       presetOperation: card.recommendedAction,
-      selectionOverride: toSelectionFromRange(contentDraft, card.anchorRange ?? null),
+      selectionOverride: resolvedSelection,
     });
   };
 
@@ -418,7 +571,7 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           isSaving={saveMutation.isPending}
           selectedDiagnosticId={selectedDiagnosticId}
           onBack={onBack}
-          onOpenVersionHistory={onOpenVersionHistory}
+          onOpenVersionHistory={() => setIsVersionHistoryOpen(true)}
           onSave={() => saveMutation.mutate(contentDraft)}
           onFocusDiagnostic={handleFocusDiagnostic}
           onRunDiagnostic={handleRunDiagnostic}
@@ -480,6 +633,54 @@ export default function ChapterEditorShell(props: ChapterEditorShellProps) {
           />
         </div>
       </div>
+
+      <Dialog open={isVersionHistoryOpen} onOpenChange={setIsVersionHistoryOpen}>
+        <AppDialogContent
+          title="章节历史版本"
+          description="选择并恢复之前保存的章节版本。恢复前系统会自动备份当前状态。"
+        >
+          {snapshotsQuery.isLoading ? (
+            <div className="space-y-4">
+              <div className="h-12 w-full animate-pulse rounded-xl bg-muted" />
+              <div className="h-12 w-full animate-pulse rounded-xl bg-muted" />
+            </div>
+          ) : snapshotsQuery.data?.data && snapshotsQuery.data.data.length > 0 ? (
+            <div className="space-y-4">
+              {snapshotsQuery.data.data.map((snapshot) => {
+                const isRestoring = restoreSnapshotMutation.isPending && restoreSnapshotMutation.variables === snapshot.id;
+                return (
+                  <div key={snapshot.id} className="flex items-center justify-between rounded-2xl border border-border/70 p-4">
+                    <div className="space-y-1">
+                      <div className="font-medium text-sm">
+                        {snapshot.label || `版本记录 ${new Date(snapshot.createdAt).toLocaleTimeString()}`}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {snapshot.triggerType === "manual" ? "手动保存" : snapshot.triggerType === "auto_milestone" ? "里程碑自动保存" : "流水线前保存"} · {new Date(snapshot.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={restoreSnapshotMutation.isPending}
+                      onClick={() => {
+                        if (confirm("确定要恢复到此版本吗？当前未保存的修改将被覆盖。")) {
+                          restoreSnapshotMutation.mutate(snapshot.id);
+                        }
+                      }}
+                    >
+                      {isRestoring ? "恢复中..." : "恢复此版本"}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-6 text-center text-sm text-muted-foreground">
+              暂无历史版本记录。
+            </div>
+          )}
+        </AppDialogContent>
+      </Dialog>
     </div>
   );
 }

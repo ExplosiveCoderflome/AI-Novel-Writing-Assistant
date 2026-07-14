@@ -292,6 +292,7 @@ export interface ChapterEditorDiagnosticCard {
   paragraphLabel?: string | null;
   severity: "low" | "medium" | "high" | "critical";
   sourceTags: string[];
+  sourceIssueId?: string | null;
 }
 
 export interface ChapterEditorRecommendedTask {
@@ -374,6 +375,38 @@ export interface ChapterEditorRewritePreviewResponse {
   targetRange: ChapterEditorTargetRange;
   candidates: ChapterEditorCandidate[];
   activeCandidateId: string | null;
+}
+
+export interface ChapterEditorContinuePreviewRequest {
+  textBefore: string;
+  textAfter?: string;
+  customInstruction?: string;
+  provider?: import("./llm").LLMProvider;
+  model?: string;
+  temperature?: number;
+}
+
+export interface ChapterEditorContinuePreviewResponse {
+  sessionId: string;
+  candidates: ChapterEditorCandidate[];
+  activeCandidateId: string | null;
+  macroAlignmentNote?: string | null;
+}
+
+export interface ChapterEditorIssueFixPreviewRequest {
+  selectedText: string;
+  beforeParagraphs: string[];
+  afterParagraphs: string[];
+  provider?: import("./llm").LLMProvider;
+  model?: string;
+  temperature?: number;
+}
+
+export interface ChapterEditorIssueFixPreviewResponse {
+  sessionId: string;
+  candidates: ChapterEditorCandidate[];
+  activeCandidateId: string | null;
+  macroAlignmentNote?: string | null;
 }
 
 export interface NovelGenre {

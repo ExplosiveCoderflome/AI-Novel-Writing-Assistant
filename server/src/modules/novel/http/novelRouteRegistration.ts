@@ -32,9 +32,11 @@ import {
   characterParamsSchema,
   characterSchema,
   characterTimelineSyncSchema,
+  continuePreviewSchema,
   draftOptimizeSchema,
   hookGenerateSchema,
   idParamsSchema,
+  issueFixPreviewSchema,
   llmGenerateSchema,
   outlineGenerateSchema,
   pipelineJobParamsSchema,
@@ -100,6 +102,8 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
     chapterParamsSchema,
     rewritePreviewSchema,
     aiRevisionPreviewSchema,
+    continuePreviewSchema,
+    issueFixPreviewSchema,
     forwardBusinessError,
   });
 
