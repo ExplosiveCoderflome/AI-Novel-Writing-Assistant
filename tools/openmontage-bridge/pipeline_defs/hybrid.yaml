@@ -1,0 +1,227 @@
+name: hybrid
+version: "2.0"
+description: >
+  Hybrid pipeline for videos that combine source footage with designed or generated support
+  assets: interviews plus diagrams, product footage plus overlays, screen recordings plus
+  companion graphics, or montage edits with support inserts. EP orchestration adds quality
+  gates for source/support balance, overlay density, and cross-medium coherence.
+category: hybrid
+stability: production
+default_checkpoint_policy: guided
+
+orchestration:
+  mode: executive-producer
+  skill: pipelines/hybrid/executive-producer
+  budget_default_usd: 2.00
+  max_revisions_per_stage: 3
+  max_send_backs: 3
+  max_wall_time_minutes: 12
+
+extensions:
+  custom_scripts: true
+  custom_playbooks: true
+  custom_skills: true
+  custom_tools: false
+
+required_skills:
+  - pipelines/hybrid/executive-producer
+  - pipelines/hybrid/idea-director
+  - pipelines/hybrid/script-director
+  - pipelines/hybrid/scene-director
+  - pipelines/hybrid/asset-director
+  - pipelines/hybrid/edit-director
+  - pipelines/hybrid/compose-director
+  - pipelines/hybrid/publish-director
+  - meta/reviewer
+  - meta/checkpoint-protocol
+
+compatible_playbooks:
+  recommended:
+    - clean-professional
+    - flat-motion-graphics
+  also_works:
+    - minimalist-diagram
+  custom_allowed: true
+
+stages:
+  - name: idea
+    skill: pipelines/hybrid/idea-director
+    optional_artifacts_in:
+      - source_media_review
+    produces:
+      - brief
+      - decision_log
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Anchor medium is clearly identified
+      - Support layers are justified and realistic
+      - Output mix matches the source inventory
+    success_criteria:
+      - Schema-valid brief artifact
+      - Brief distinguishes source-led and support-led elements
+
+  - name: script
+    skill: pipelines/hybrid/script-director
+    required_artifacts_in:
+      - brief
+    produces:
+      - script
+    optional_tools:
+      - transcriber
+      - scene_detect
+      - audio_enhance
+    tools_available:
+      - transcriber
+      - scene_detect
+      - audio_enhance
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Source-led beats and support-led beats are clearly separated
+      - Narration or dialogue plan is realistic
+      - The script does not rely on unsupported assets without stating it
+    success_criteria:
+      - Schema-valid script artifact
+      - Script sections map to a feasible hybrid structure
+
+  - name: scene_plan
+    skill: pipelines/hybrid/scene-director
+    required_artifacts_in:
+      - script
+    optional_artifacts_in:
+      - brief
+    produces:
+      - scene_plan
+    optional_tools:
+      - frame_sampler
+      - scene_detect
+    tools_available:
+      - frame_sampler
+      - scene_detect
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Source content remains visually primary where intended
+      - Overlay and support layers do not overload the frame
+      - Platform or aspect-ratio variants are planned deliberately
+    success_criteria:
+      - Schema-valid scene_plan artifact
+      - Every scene has a defined source/support treatment
+
+  - name: assets
+    skill: pipelines/hybrid/asset-director
+    required_artifacts_in:
+      - scene_plan
+    optional_artifacts_in:
+      - script
+      - brief
+    produces:
+      - asset_manifest
+    optional_tools:
+      - subtitle_gen
+      - tts_selector
+      - image_selector
+      - video_selector
+      - diagram_gen
+      - code_snippet
+      - music_gen
+      - audio_enhance
+    tools_available:
+      - subtitle_gen
+      - tts_selector
+      - image_selector
+      - video_selector
+      - diagram_gen
+      - code_snippet
+      - music_gen
+      - audio_enhance
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Support assets clearly map to real narrative gaps
+      - Shared template assets are reused
+      - Optional generated inserts do not eclipse source truth
+    success_criteria:
+      - Schema-valid asset_manifest artifact
+      - All referenced asset files exist on disk
+
+  - name: edit
+    skill: pipelines/hybrid/edit-director
+    required_artifacts_in:
+      - scene_plan
+      - asset_manifest
+    optional_artifacts_in:
+      - script
+    produces:
+      - edit_decisions
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Anchor cut is coherent before support layers are added
+      - Support visuals clarify rather than distract
+      - Variant logic is consistent across deliverables
+    success_criteria:
+      - Schema-valid edit_decisions artifact
+      - Edit decisions cover the planned deliverables
+
+  - name: compose
+    skill: pipelines/hybrid/compose-director
+    required_artifacts_in:
+      - edit_decisions
+      - asset_manifest
+    optional_artifacts_in:
+      - scene_plan
+    produces:
+      - render_report
+      - final_review
+    required_tools:
+      - video_compose
+      - audio_mixer
+    optional_tools:
+      - video_stitch
+      - video_trimmer
+      - color_grade
+      - audio_enhance
+    tools_available:
+      - video_compose
+      - hyperframes_compose
+      - audio_mixer
+      - video_stitch
+      - video_trimmer
+      - color_grade
+      - audio_enhance
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Source and support layers remain balanced
+      - Aspect-ratio variants preserve readability
+      - Audio stays coherent across footage and generated elements
+      - "render_runtime in edit_decisions matches proposal_packet — silent swap is a CRITICAL governance violation"
+      - "Hybrid typically uses render_runtime='remotion' so source footage and React support overlays compose in one pass; pick 'hyperframes' only when support layers are HTML/GSAP-native"
+    success_criteria:
+      - Schema-valid render_report artifact
+      - Output file exists and passes ffprobe validation
+
+  - name: publish
+    skill: pipelines/hybrid/publish-director
+    required_artifacts_in:
+      - render_report
+      - final_review
+    optional_artifacts_in:
+      - brief
+      - script
+    produces:
+      - publish_log
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Hero cut and derivative cuts are clearly organized
+      - Metadata reflects the actual source mix
+      - Export package is usable without manual cleanup
+    success_criteria:
+      - Schema-valid publish_log artifact
+      - Export package contains video and metadata outputs

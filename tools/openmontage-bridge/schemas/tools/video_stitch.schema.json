@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openmontage/tools/video_stitch",
+  "title": "Video Stitch Tool",
+  "description": "Multi-clip assembly tool with validation, transitions, and spatial layouts.",
+  "type": "object",
+  "required": ["operation"],
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": ["validate", "stitch", "preview_stitch", "spatial"],
+      "description": "The operation to perform"
+    },
+    "clips": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "List of input video file paths"
+    },
+    "output_path": {
+      "type": "string",
+      "description": "Path for the output video file"
+    },
+    "transition": {
+      "type": "string",
+      "enum": ["cut", "crossfade", "fade"],
+      "default": "cut",
+      "description": "Transition type between clips. 'cut' = hard cut (concat demuxer), 'crossfade' = blend between clips, 'fade' = fade through black"
+    },
+    "transition_duration": {
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 5.0,
+      "default": 0.5,
+      "description": "Duration of the transition in seconds (ignored for 'cut')"
+    },
+    "auto_normalize": {
+      "type": "boolean",
+      "default": false,
+      "description": "Re-encode clips to a common format before concatenation if they have mismatched properties"
+    },
+    "target_resolution": {
+      "type": "string",
+      "pattern": "^\\d+x\\d+$",
+      "description": "Target resolution for normalization (e.g. '1920x1080'). Defaults to first clip's resolution."
+    },
+    "target_fps": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 120,
+      "description": "Target frame rate for normalization. Defaults to first clip's FPS."
+    },
+    "codec": {
+      "type": "string",
+      "default": "libx264",
+      "description": "Video codec for encoding"
+    },
+    "crf": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 51,
+      "default": 23,
+      "description": "Constant Rate Factor for quality (lower = better)"
+    },
+    "preset": {
+      "type": "string",
+      "enum": ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"],
+      "default": "medium",
+      "description": "FFmpeg encoding preset"
+    },
+    "profile": {
+      "type": "string",
+      "description": "Media profile name from media_profiles.py (e.g. 'youtube_landscape', 'tiktok')"
+    },
+    "layout": {
+      "type": "string",
+      "enum": ["side_by_side", "vertical_stack", "picture_in_picture"],
+      "description": "Spatial layout for the 'spatial' operation"
+    },
+    "pip_position": {
+      "type": "string",
+      "enum": ["top_left", "top_right", "bottom_left", "bottom_right"],
+      "default": "bottom_right",
+      "description": "Corner position for picture-in-picture overlay"
+    },
+    "pip_scale": {
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 0.5,
+      "default": 0.3,
+      "description": "Scale of PiP overlay relative to base video dimensions"
+    },
+    "pip_margin": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 10,
+      "description": "Margin in pixels for PiP overlay from edges"
+    },
+    "dry_run": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, return what would be done without executing"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "operation": { "const": "stitch" } } },
+      "then": { "required": ["clips"] }
+    },
+    {
+      "if": { "properties": { "operation": { "const": "validate" } } },
+      "then": { "required": ["clips"] }
+    },
+    {
+      "if": { "properties": { "operation": { "const": "preview_stitch" } } },
+      "then": { "required": ["clips"] }
+    },
+    {
+      "if": { "properties": { "operation": { "const": "spatial" } } },
+      "then": { "required": ["clips", "layout"] }
+    }
+  ],
+  "additionalProperties": false
+}

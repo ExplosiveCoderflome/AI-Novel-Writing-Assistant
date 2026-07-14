@@ -407,6 +407,7 @@ model Novel {
   sideEffectJobs     NovelSideEffectJob[]
   novelWorld         NovelWorld?
   factEntries        NovelFactEntry[]
+  videoProjects      VideoProject[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -3614,4 +3615,27 @@ model ComicBatchJob {
   @@index([projectId, createdAt])
   @@index([episodeId, status])
   @@index([type, status])
+}
+
+model VideoProject {
+  id             String   @id @default(cuid())
+  title          String
+  novelId        String?
+  chapterIdsJson String?
+  sourceType     String   @default("chapter_adaptation")
+  pipeline       String?
+  status         String   @default("draft")
+  scriptJson     String?
+  renderTaskId   String?
+  resultUrl      String?
+  costEstimate   Float?
+  actualCost     Float?
+  errorMessage   String?
+  configJson     String?
+  novel          Novel?   @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([novelId, status])
+  @@index([status, updatedAt])
 }

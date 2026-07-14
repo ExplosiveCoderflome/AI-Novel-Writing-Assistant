@@ -1,0 +1,246 @@
+name: screen-demo
+version: "2.1"
+description: >
+  Screen recording pipeline. Two production modes:
+    1. REAL CAPTURE — takes raw screen capture (app demo, browser walkthrough,
+       coding tutorial) via screen_recorder, cap_recorder, or playwright-recording
+       and produces a polished demo video with callouts, zoom crops, subtitles,
+       and cleaned audio.
+    2. SYNTHETIC (Remotion TerminalScene) — for CLI/terminal/install-flow demos,
+       renders a deterministic terminal animation with typed commands, scrolling
+       output, floating command pills, and blinking cursor. See
+       .agents/skills/synthetic-screen-recording/SKILL.md. Preferred when the
+       demo content is predictable (install walkthroughs, make targets, git clone,
+       API key config) because it's faster to iterate, privacy-safe, pixel-perfect,
+       and frame-accurate to narration cues.
+  The idea-director picks the mode at brief time based on whether the demo surface
+  is a real app UI (real capture) or a scriptable terminal session (synthetic).
+category: screen_recording
+stability: production
+default_checkpoint_policy: guided
+
+# Production modes this pipeline supports
+production_modes:
+  - name: real_capture
+    description: "OS screen recording of a real desktop/browser session"
+    required_tools: [screen_recorder]
+    optional_tools: [cap_recorder]
+    best_for:
+      - Real app UIs (Figma, Photoshop, web apps with live state)
+      - Demos that depend on unpredictable live behavior
+      - User explicitly asked for a recording of their own screen
+  - name: synthetic_terminal
+    description: "Remotion TerminalScene — synthesized terminal animation"
+    required_tools: [video_compose]  # Remotion path
+    scene_type: terminal_scene
+    agent_skills: [synthetic-screen-recording]
+    best_for:
+      - CLI / terminal / coding session demos
+      - Install walkthroughs, setup demos, config flows
+      - Tight narration-synced pacing where every command lands on a beat
+      - Reproducible renders (same input = identical pixels)
+
+orchestration:
+  mode: executive-producer
+  skill: pipelines/screen-demo/executive-producer
+  budget_default_usd: 1.00
+  max_revisions_per_stage: 3
+  max_send_backs: 3
+  max_wall_time_minutes: 10
+
+extensions:
+  custom_scripts: true
+  custom_playbooks: true
+  custom_skills: true
+  custom_tools: false
+
+required_skills:
+  - pipelines/screen-demo/executive-producer
+  - pipelines/screen-demo/idea-director
+  - pipelines/screen-demo/script-director
+  - pipelines/screen-demo/scene-director
+  - pipelines/screen-demo/asset-director
+  - pipelines/screen-demo/edit-director
+  - pipelines/screen-demo/compose-director
+  - pipelines/screen-demo/publish-director
+  - meta/reviewer
+  - meta/checkpoint-protocol
+  - meta/animation-runtime-selector
+
+compatible_playbooks:
+  recommended:
+    - minimalist-diagram
+    - clean-professional
+  also_works: []
+  custom_allowed: true
+
+stages:
+  - name: idea
+    skill: pipelines/screen-demo/idea-director
+    produces:
+      - brief
+      - decision_log
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Brief accurately describes what the screen recording demonstrates
+      - Target platform and duration are realistic
+      - Callout strategy identified (what to highlight)
+    success_criteria:
+      - Schema-valid brief artifact
+      - Brief references the provided screen recording footage
+
+  - name: script
+    skill: pipelines/screen-demo/script-director
+    required_artifacts_in:
+      - brief
+    optional_artifacts_in:
+      - source_media_review
+    produces:
+      - script
+    required_tools:
+      - transcriber
+    optional_tools:
+      - scene_detect
+      - audio_enhance
+    tools_available:
+      - transcriber
+      - scene_detect
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Transcription captures any voiceover accurately
+      - Key UI actions are annotated with timestamps
+      - Sections align with logical workflow steps
+    success_criteria:
+      - Schema-valid script artifact
+      - Script sections have timestamps from transcript or manual annotation
+
+  - name: scene_plan
+    skill: pipelines/screen-demo/scene-director
+    required_artifacts_in:
+      - script
+    optional_artifacts_in:
+      - brief
+    produces:
+      - scene_plan
+    required_tools: []
+    optional_tools:
+      - frame_sampler
+    tools_available:
+      - frame_sampler
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Zoom-crop regions identified for key UI moments
+      - Callout overlay positions don't obscure important UI
+      - Pacing allows viewer to follow the workflow
+    success_criteria:
+      - Schema-valid scene_plan artifact
+      - Every key workflow step has a corresponding scene
+
+  - name: assets
+    skill: pipelines/screen-demo/asset-director
+    required_artifacts_in:
+      - scene_plan
+    optional_artifacts_in:
+      - script
+    produces:
+      - asset_manifest
+    required_tools: []
+    optional_tools:
+      - subtitle_gen
+      - tts_selector
+      - image_selector
+      - diagram_gen
+      - audio_enhance
+    tools_available:
+      - subtitle_gen
+      - tts_selector
+      - image_selector
+      - diagram_gen
+      - audio_enhance
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Subtitle file exists and matches speech timing
+      - Reusable callout overlays (arrows, highlights, masks) are prepared
+      - Audio cleaned of keyboard noise and background hum
+    success_criteria:
+      - Schema-valid asset_manifest artifact
+      - All referenced asset files exist on disk
+
+  - name: edit
+    skill: pipelines/screen-demo/edit-director
+    required_artifacts_in:
+      - scene_plan
+      - asset_manifest
+    optional_artifacts_in:
+      - script
+    produces:
+      - edit_decisions
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Zoom-crop notes are smooth and minimal (no constant motion)
+      - Dead time (loading, typing pauses) trimmed or sped up
+      - Callout timing matches narration
+    success_criteria:
+      - Schema-valid edit_decisions artifact
+      - All cuts reference valid source files and assets
+
+  - name: compose
+    skill: pipelines/screen-demo/compose-director
+    required_artifacts_in:
+      - edit_decisions
+      - asset_manifest
+    optional_artifacts_in:
+      - scene_plan
+    produces:
+      - render_report
+      - final_review
+    required_tools:
+      - video_compose
+      - audio_mixer
+    optional_tools:
+      - video_trimmer
+      - audio_enhance
+    tools_available:
+      - video_compose
+      - hyperframes_compose
+      - audio_mixer
+      - video_trimmer
+      - audio_enhance
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Output video is playable and crisp at target resolution
+      - UI text remains readable after crops and scaling
+      - Audio is clear with no keyboard/click noise
+      - "render_runtime in edit_decisions matches proposal_packet — silent swap is a CRITICAL governance violation"
+      - "For synthetic UI/terminal demos, render_runtime='remotion' (TerminalScene) is preferred; render_runtime='hyperframes' is valid for custom HTML UIs — in that case, lint+validate must pass before render"
+    success_criteria:
+      - Schema-valid render_report artifact
+      - Output file exists and passes ffprobe validation
+
+  - name: publish
+    skill: pipelines/screen-demo/publish-director
+    required_artifacts_in:
+      - render_report
+      - final_review
+    optional_artifacts_in:
+      - brief
+    produces:
+      - publish_log
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Metadata includes relevant software/tool keywords
+      - Chapter markers align with workflow steps
+      - Export package is complete
+    success_criteria:
+      - Schema-valid publish_log artifact
+      - Export directory contains video, metadata, and thumbnail concept

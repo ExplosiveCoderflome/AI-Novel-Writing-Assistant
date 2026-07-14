@@ -39,3 +39,5 @@ server/prisma-diff-migrations-to-schema.sql
 .spec-workflow/
 .codex-backups/
 .cursor/
+server/test-run.db
+server/dev.db.backup

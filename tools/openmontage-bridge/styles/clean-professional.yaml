@@ -1,0 +1,104 @@
+identity:
+  name: "Clean Professional"
+  category: motion-graphics
+  mood: polished, trustworthy, clear
+  pace: moderate
+  best_for: "Corporate explainers, educational content, SaaS demos, conference talks"
+
+visual_language:
+  color_palette:
+    primary: ["#2563EB", "#1E40AF"]
+    accent: ["#F59E0B", "#10B981"]
+    background: "#FFFFFF"
+    text: "#1F2937"
+    muted: "#6B7280"
+  composition: centered, generous whitespace, rule-of-thirds for key visuals
+  texture: clean flat, no grain, no noise
+
+typography:
+  headings:
+    font: "Inter"
+    weight: 700
+    tracking: "-0.02em"
+  body:
+    font: "Inter"
+    weight: 400
+    line_height: 1.6
+  code:
+    font: "JetBrains Mono"
+    weight: 400
+  stat_card:
+    font: "Inter"
+    weight: 800
+    size_multiplier: 3.0
+  scale_system: "major_third"
+  weight_matrix:
+    title: 800
+    heading: 700
+    body: 400
+    caption: 400
+
+motion:
+  transitions: [fade, dissolve, slide-left]
+  animation_style: "ease-in-out, clean, no bounce"
+  pacing_rules:
+    min_scene_hold_seconds: 2.5
+    max_scene_hold_seconds: 12
+    text_card_hold_seconds: 3.5
+    stat_card_hold_seconds: 3.0
+    transition_duration_seconds: 0.4
+  entrance: "fade-up with slight scale (0.95 -> 1.0)"
+  exit: "fade-out"
+
+audio:
+  voice_style: "professional, clear, moderate pace, warm but authoritative"
+  music_mood: "ambient corporate, upbeat but not distracting"
+  music_volume: 0.08
+  sfx_style: "subtle clicks, soft whooshes on transitions"
+  ducking_threshold_db: -3
+
+asset_generation:
+  image_prompt_prefix: "clean professional flat illustration, corporate style, white background, "
+  image_negative_prompt: "photorealistic, 3d render, dark, grungy, cluttered, low quality"
+  diagram_style: "clean lines, rounded nodes, subtle shadows"
+  consistency_anchors:
+    - "Blue (#2563EB) as primary accent in all illustrations"
+    - "White/light gray backgrounds throughout"
+    - "Flat illustration style, no 3D or photorealism"
+    - "Consistent lighting: soft, even, no dramatic shadows"
+
+overlays:
+  stat_card:
+    bg: "#F3F4F6"
+    border: "#2563EB"
+    radius: 8
+    shadow: "0 2px 8px rgba(0,0,0,0.08)"
+  key_term:
+    bg: "#EFF6FF"
+    text: "#1E40AF"
+    radius: 4
+  code_block:
+    bg: "#1F2937"
+    text: "#E5E7EB"
+    highlight: "#F59E0B"
+
+quality_rules:
+  - "Minimum contrast ratio 4.5:1 for all text"
+  - "No more than 3 colors on screen at once (excluding background)"
+  - "Text must be readable at 720p"
+  - "Every generated image uses the blue-white-gray palette"
+  - "Hold establishing shots for 2.5s minimum"
+  - "No rapid cuts — minimum 2s between transitions"
+
+chart_palette:
+  - "#2563EB"
+  - "#F59E0B"
+  - "#10B981"
+  - "#8B5CF6"
+  - "#EF4444"
+  - "#06B6D4"
+
+color_rules:
+  harmony_type: "analogous"
+  contrast_validation: true
+  colorblind_safe: true

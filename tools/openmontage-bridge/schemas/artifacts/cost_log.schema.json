@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openmontage/artifacts/cost_log",
+  "title": "Cost Log",
+  "description": "Estimated, reserved, and actual spend by operation.",
+  "type": "object",
+  "required": ["version", "entries"],
+  "properties": {
+    "version": { "type": "string", "const": "1.0" },
+    "budget_total_usd": { "type": "number", "minimum": 0 },
+    "budget_reserved_usd": { "type": "number", "minimum": 0 },
+    "budget_spent_usd": { "type": "number", "minimum": 0 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "tool", "operation", "status", "timestamp"],
+        "properties": {
+          "id": { "type": "string" },
+          "tool": { "type": "string" },
+          "operation": { "type": "string" },
+          "status": { "type": "string", "enum": ["estimated", "reserved", "completed", "failed", "refunded"] },
+          "estimated_usd": { "type": "number", "minimum": 0 },
+          "reserved_usd": { "type": "number", "minimum": 0 },
+          "actual_usd": { "type": "number", "minimum": 0 },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "details": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "metadata": { "type": "object" }
+  },
+  "additionalProperties": false
+}

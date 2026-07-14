@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openmontage/artifacts/edit_decisions",
+  "title": "Edit Decisions",
+  "description": "Editorial decisions produced by the Edit Agent.",
+  "type": "object",
+  "required": ["version", "cuts", "render_runtime"],
+  "properties": {
+    "version": { "type": "string", "const": "1.0" },
+    "cuts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "source", "in_seconds", "out_seconds"],
+        "properties": {
+          "id": { "type": "string" },
+          "source": { "type": "string", "description": "Source file path or asset-manifest ID" },
+          "in_seconds": { "type": "number", "minimum": 0 },
+          "out_seconds": { "type": "number", "minimum": 0 },
+          "speed": { "type": "number", "minimum": 0.1, "default": 1.0 },
+          "layer": {
+            "type": "string",
+            "enum": ["primary", "overlay", "background"],
+            "default": "primary"
+          },
+          "transform": {
+            "type": "object",
+            "properties": {
+              "scale": { "type": "number", "minimum": 0, "default": 1.0 },
+              "position": { "type": "string", "default": "center" },
+              "animation": {
+                "type": "string",
+                "description": "Motion applied to still images (e.g. ken-burns-slow-zoom, pan-left, static)"
+              },
+              "crop": {
+                "type": "object",
+                "properties": {
+                  "x": { "type": "number" },
+                  "y": { "type": "number" },
+                  "width": { "type": "number" },
+                  "height": { "type": "number" }
+                }
+              }
+            },
+            "additionalProperties": false
+          },
+          "transition_in": {
+            "type": "string",
+            "description": "Transition type entering this cut (e.g. fade, dissolve, cut, wipe)"
+          },
+          "transition_out": {
+            "type": "string",
+            "description": "Transition type leaving this cut"
+          },
+          "transition_duration": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Duration of transition in seconds"
+          },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "overlays": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["asset_id", "start_seconds", "end_seconds", "position"],
+        "properties": {
+          "asset_id": { "type": "string" },
+          "start_seconds": { "type": "number", "minimum": 0 },
+          "end_seconds": { "type": "number", "minimum": 0 },
+          "position": {
+            "type": "object",
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "width": { "type": "number" },
+              "height": { "type": "number" }
+            },
+            "required": ["x", "y"]
+          },
+          "animation": { "type": "string" },
+          "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "audio": {
+      "type": "object",
+      "description": "Audio configuration for narration, music, and SFX.",
+      "properties": {
+        "narration": {
+          "type": "object",
+          "properties": {
+            "segments": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["asset_id", "start_seconds"],
+                "properties": {
+                  "asset_id": { "type": "string" },
+                  "start_seconds": { "type": "number", "minimum": 0 },
+                  "end_seconds": { "type": "number", "minimum": 0 }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "music": {
+          "type": "object",
+          "properties": {
+            "asset_id": { "type": "string" },
+            "volume": { "type": "number", "minimum": 0, "maximum": 1 },
+            "fade_in_seconds": { "type": "number", "minimum": 0 },
+            "fade_out_seconds": { "type": "number", "minimum": 0 },
+            "ducking": {
+              "oneOf": [
+                { "type": "boolean" },
+                {
+                  "type": "object",
+                  "properties": {
+                    "enabled": { "type": "boolean", "default": true },
+                    "threshold_db": { "type": "number" },
+                    "reduction_db": { "type": "number" },
+                    "attack_ms": { "type": "number", "minimum": 0 },
+                    "release_ms": { "type": "number", "minimum": 0 }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            }
+          }
+        },
+        "sfx": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "asset_id": { "type": "string" },
+              "start_seconds": { "type": "number", "minimum": 0 },
+              "volume": { "type": "number", "minimum": 0, "maximum": 1, "default": 1.0 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "subtitles": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "style": { "type": "string", "description": "Display style: sentence, word-by-word, karaoke" },
+        "source": { "type": "string", "description": "Path to subtitle file or asset ID" },
+        "font": { "type": "string" },
+        "font_size": { "type": "integer" },
+        "color": { "type": "string", "description": "Primary text color (hex or ASS format)" },
+        "outline_color": { "type": "string" },
+        "background": { "type": "string", "description": "Background color with optional alpha (e.g. #00000088)" },
+        "position": { "type": "string", "enum": ["top-center", "bottom-center", "center"] },
+        "max_words_per_line": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "music": {
+      "type": "object",
+      "description": "Legacy top-level music config. Prefer audio.music for new pipelines.",
+      "properties": {
+        "asset_id": { "type": "string" },
+        "volume": { "type": "number", "minimum": 0, "maximum": 1 },
+        "ducking": { "type": "boolean", "default": true },
+        "fade_in_seconds": { "type": "number", "minimum": 0 },
+        "fade_out_seconds": { "type": "number", "minimum": 0 }
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "description": "Global transition list. Per-cut transitions in cuts[].transition_in/out are preferred.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "at_seconds": { "type": "number" },
+          "duration_seconds": { "type": "number", "minimum": 0 }
+        },
+        "required": ["type", "at_seconds", "duration_seconds"]
+      }
+    },
+    "renderer_family": {
+      "type": "string",
+      "enum": ["explainer-data", "explainer-teacher", "cinematic-trailer", "documentary-montage", "product-reveal", "screen-demo", "presenter", "animation-first"],
+      "description": "Locked at proposal stage — creative grammar for this deliverable. Preserved from proposal_packet; edit MUST NOT change without a logged decision."
+    },
+    "render_runtime": {
+      "type": "string",
+      "enum": ["remotion", "hyperframes", "ffmpeg"],
+      "description": "Locked at proposal stage — technical runtime that realizes renderer_family. Edit MUST carry this forward unchanged unless a logged render_runtime_selection decision overrides it."
+    },
+    "slideshow_risk_score": {
+      "type": "object",
+      "description": "Slideshow risk assessment from lib/slideshow_risk.py",
+      "properties": {
+        "average": { "type": "number" },
+        "verdict": { "type": "string", "enum": ["strong", "acceptable", "revise", "fail"] }
+      }
+    },
+    "metadata": { "type": "object" }
+  },
+  "additionalProperties": false
+}

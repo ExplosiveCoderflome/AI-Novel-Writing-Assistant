@@ -5,9 +5,7 @@ const {
   detectForbiddenStyleEntities,
   sanitizeStyleContextForGeneration,
 } = require("../dist/services/styleEngine/styleGenerationSanitizer.js");
-const {
-  buildStyleEngineBlock,
-} = require("../dist/services/novel/runtime/runtimeContextBlocks.js");
+// No additional imports needed for runtimeContextBlocks
 
 function section(key, text) {
   return {
@@ -120,7 +118,7 @@ test("sanitizeStyleContextForGeneration redacts source entities before writer co
     ["北凉王世子"],
   );
 
-  const block = buildStyleEngineBlock(sanitized);
+  const block = sanitized.sanitizedGenerationProfile.writingGuidance.join("\n");
   assert.match(block, /\[source-entity\]/);
   assert.doesNotMatch(block, /北凉王世子/);
   assert.doesNotMatch(block, /徐凤年/);

@@ -1,0 +1,266 @@
+name: animated-explainer
+version: "2.0"
+description: >
+  Generated explainer video from topic/idea - fully AI-produced with narration, visuals, and music.
+  Features a research-first pre-production phase: the agent researches the topic, proposes concepts
+  with cost estimates, and gets explicit user approval before any assets are generated.
+category: generated
+stability: production
+
+default_checkpoint_policy: guided
+
+# Reference video input support
+reference_input:
+  supported: true
+  analysis_depth: standard
+  analysis_tools:
+    - video_analyzer
+    - transcript_fetcher
+    - video_downloader
+    - scene_detect
+    - frame_sampler
+
+extensions:
+  custom_scripts: true
+  custom_playbooks: true
+  custom_skills: true
+  custom_tools: false
+
+required_skills:
+  - pipelines/explainer/executive-producer
+  - pipelines/explainer/research-director
+  - pipelines/explainer/proposal-director
+  - pipelines/explainer/script-director
+  - pipelines/explainer/scene-director
+  - pipelines/explainer/asset-director
+  - pipelines/explainer/edit-director
+  - pipelines/explainer/compose-director
+  - pipelines/explainer/publish-director
+  - meta/reviewer
+  - meta/checkpoint-protocol
+  - meta/skill-creator
+  - meta/animation-runtime-selector
+
+orchestration:
+  mode: executive-producer
+  skill: pipelines/explainer/executive-producer
+  budget_default_usd: 2.00
+  max_revisions_per_stage: 3
+  max_send_backs: 3
+  max_wall_time_minutes: 20
+
+compatible_playbooks:
+  recommended:
+    - clean-professional
+    - flat-motion-graphics
+  also_works:
+    - minimalist-diagram
+  custom_allowed: true
+
+stages:
+  # ── Pre-Production ──────────────────────────────────────────────
+
+  - name: research
+    skill: pipelines/explainer/research-director
+    produces:
+      - research_brief
+    tools_available: []
+    checkpoint_required: false
+    human_approval_default: false
+    review_focus:
+      - Content landscape mapped with at least 3 existing pieces
+      - Data points are specific and sourced, not vague
+      - Audience questions sourced from real forums, not invented
+      - At least 3 genuinely different angles discovered
+      - All angles grounded in specific research findings
+    success_criteria:
+      - Schema-valid research_brief with at least 3 data_points
+      - At least 3 angles_discovered, each with grounded_in references
+      - At least 5 sources cited with URLs
+
+  - name: proposal
+    skill: pipelines/explainer/proposal-director
+    required_artifacts_in:
+      - research_brief
+    produces:
+      - proposal_packet
+      - decision_log
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Concept options are genuinely different (structure, hook, audience)
+      - Each concept is grounded in research findings, not generic
+      - Production plan reflects actual tool availability from preflight
+      - Cost estimate is itemized and honest
+      - Quality/cost tradeoffs are clearly presented
+      - Alternative production paths shown at different price points
+      - "Concept differentiation from reference (if reference-driven)"
+    success_criteria:
+      - Schema-valid proposal_packet with at least 3 concept_options
+      - selected_concept references a valid concept_id
+      - cost_estimate has itemized line_items with per-tool costs
+      - approval.status is "approved" or "approved_with_changes" before proceeding
+    sub_stages:
+      - name: sample
+        description: "10-15 second preview clip for reference-driven productions"
+        condition: "video_analysis_brief_exists"
+        human_approval_default: true
+        tools_available: [tts_selector, image_selector, video_selector, video_compose, audio_mixer]
+        review_focus:
+          - "Sample represents the approved concept faithfully"
+          - "Audio levels and voice match approved direction"
+          - "Visual style matches approved playbook"
+
+  # ── Production ──────────────────────────────────────────────────
+
+  - name: script
+    skill: pipelines/explainer/script-director
+    required_artifacts_in:
+      - proposal_packet
+    optional_artifacts_in:
+      - research_brief
+    produces:
+      - script
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - "Word count within +/-10% of duration target from selected concept"
+      - "Enhancement cue density: 1 per 8-10 seconds"
+      - "Narrative arc: hook -> setup -> build -> climax -> landing"
+      - Speaker directions present for TTS
+      - Script incorporates research data points and cited facts
+    success_criteria:
+      - Schema-valid script with enhancement_cues per section
+      - Total duration matches selected concept target within 10%
+
+  - name: scene_plan
+    skill: pipelines/explainer/scene-director
+    required_artifacts_in:
+      - script
+    optional_artifacts_in:
+      - proposal_packet
+    produces:
+      - scene_plan
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - Full script duration covered with no gaps
+      - "Visual variety: no 3+ consecutive scenes of same type"
+      - Asset feasibility - every required_asset uses a tool from the production plan
+      - Playbook adherence - transitions, colors, pacing rules
+    success_criteria:
+      - Schema-valid scene_plan with required_assets per scene
+      - At least 3 different scene types used
+
+  - name: assets
+    skill: pipelines/explainer/asset-director
+    required_artifacts_in:
+      - scene_plan
+      - script
+    optional_artifacts_in:
+      - proposal_packet
+    produces:
+      - asset_manifest
+    required_tools:
+      - tts_selector
+      - image_selector
+    optional_tools:
+      - video_selector
+      - math_animate
+      - diagram_gen
+      - code_snippet
+      - music_gen
+    tools_available:
+      - tts_selector
+      - image_selector
+      - video_selector
+      - diagram_gen
+      - code_snippet
+      - music_gen
+      - math_animate
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - All asset files exist on disk
+      - Narration covers all script sections
+      - Total cost within approved budget from proposal_packet
+      - Image style consistency across all generated visuals
+    success_criteria:
+      - Schema-valid asset_manifest with all required assets generated
+      - All file paths resolve to existing files
+
+  - name: edit
+    skill: pipelines/explainer/edit-director
+    required_artifacts_in:
+      - scene_plan
+      - asset_manifest
+    optional_artifacts_in:
+      - script
+    produces:
+      - edit_decisions
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - All cuts reference valid assets from manifest
+      - Subtitles enabled with playbook-compatible styling
+      - Music configured with ducking parameters
+      - No timeline gaps or overlaps
+    success_criteria:
+      - Schema-valid edit_decisions
+      - Full video duration covered
+
+  - name: compose
+    skill: pipelines/explainer/compose-director
+    required_artifacts_in:
+      - edit_decisions
+      - asset_manifest
+    optional_artifacts_in:
+      - scene_plan
+    produces:
+      - render_report
+      - final_review
+    required_tools:
+      - video_compose
+      - audio_mixer
+    optional_tools:
+      - video_stitch
+    tools_available:
+      - video_compose
+      - hyperframes_compose
+      - video_stitch
+      - audio_mixer
+    checkpoint_required: true
+    human_approval_default: false
+    review_focus:
+      - Output video exists and is playable
+      - "Duration within +/-5% of target"
+      - Audio is clear with proper narration/music balance
+      - "render_runtime in edit_decisions matches proposal_packet — silent swap to another runtime is a CRITICAL governance violation"
+      - "If render_runtime='hyperframes': `hyperframes lint` and `hyperframes validate` must pass before render"
+    success_criteria:
+      - Schema-valid render_report with output paths
+      - Output file exists and passes ffprobe validation
+
+  - name: publish
+    skill: pipelines/explainer/publish-director
+    required_artifacts_in:
+      - render_report
+      - final_review
+    optional_artifacts_in:
+      - proposal_packet
+    produces:
+      - publish_log
+    tools_available: []
+    checkpoint_required: true
+    human_approval_default: true
+    review_focus:
+      - SEO metadata complete and keyword-rich
+      - Chapter markers present
+      - Export package structured correctly
+    success_criteria:
+      - Schema-valid publish_log
+      - Export directory contains video, metadata, and thumbnail concept

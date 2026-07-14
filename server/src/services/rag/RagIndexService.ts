@@ -750,23 +750,32 @@ export class RagIndexService {
     });
     const splitTexts = candidates.map((item) => item.searchText ?? item.chunkText);
     await this.assertJobNotCancelled(jobId);
-    const embedding = await this.embedTextsInBatches(splitTexts, async ({ processed, total }) => {
-      await this.updateJobProgress(jobId, {
-        stage: "embedding",
-        label: "生成向量",
-        detail: `已生成 ${processed}/${total} 个向量（${ragConfig.embeddingConcurrency} 并发）。`,
-        current: processed,
-        total,
-        documents: docs.length,
-        chunks: total,
-        percent: 0.15 + (total > 0 ? (processed / total) * 0.5 : 0),
+    let embedding: { vectors: number[][]; provider: string; model: string } | null = null;
+    try {
+      embedding = await this.embedTextsInBatches(splitTexts, async ({ processed, total }) => {
+        await this.updateJobProgress(jobId, {
+          stage: "embedding",
+          label: "生成向量",
+          detail: `已生成 ${processed}/${total} 个向量（${ragConfig.embeddingConcurrency} 并发）。`,
+          current: processed,
+          total,
+          documents: docs.length,
+          chunks: total,
+          percent: 0.15 + (total > 0 ? (processed / total) * 0.5 : 0),
+        });
       });
-    });
-    await this.assertJobNotCancelled(jobId);
-    for (const candidate of candidates) {
-      candidate.embedProvider = embedding.provider;
-      candidate.embedModel = embedding.model;
+    } catch (embedError) {
+      console.warn("[RAG] Embedding failed, continuing with SQLite-only indexing.", embedError);
     }
+    await this.assertJobNotCancelled(jobId);
+
+    const embedProvider = embedding?.provider ?? embeddingSettings.embeddingProvider;
+    const embedModel = embedding?.model ?? embeddingSettings.embeddingModel;
+    for (const candidate of candidates) {
+      candidate.embedProvider = embedProvider;
+      candidate.embedModel = embedModel;
+    }
+
     if (candidates.length === 0) {
       await this.updateJobProgress(jobId, {
         stage: "deleting_existing",
@@ -787,25 +796,8 @@ export class RagIndexService {
       });
       return { chunks: 0 };
     }
-    if (embedding.vectors.length !== candidates.length) {
-      throw new Error("RAG embedding 数量与 chunk 数量不一致。");
-    }
 
-    const vectorSize = embedding.vectors[0]?.length ?? 0;
-    await this.updateJobProgress(jobId, {
-      stage: "ensuring_collection",
-      label: "校验集合",
-      detail: `正在校验向量集合，目标维度 ${vectorSize}。`,
-      current: candidates.length,
-      total: candidates.length,
-      documents: docs.length,
-      chunks: candidates.length,
-      percent: 0.7,
-    });
-    await this.assertJobNotCancelled(jobId);
-    await this.vectorStoreService.ensureCollection(vectorSize);
-
-    // 读取旧 chunk id，但先不删除 — 保持旧数据可检索直到新数据写入完成
+    // 读取旧 chunk id，但先不删除 — 保持旧 data 可检索直到新数据写入完成
     const oldChunks = await prisma.knowledgeChunk.findMany({
       where: { tenantId, ownerType, ownerId },
       select: { id: true },
@@ -813,52 +805,67 @@ export class RagIndexService {
     const oldIds = oldChunks.map((item) => item.id);
     await this.assertJobNotCancelled(jobId);
 
-    await this.updateJobProgress(jobId, {
-      stage: "upserting_vectors",
-      label: "写入向量库",
-      detail: `正在向 Qdrant 写入 ${candidates.length} 个分块（${ragConfig.qdrantUpsertConcurrency} 并发）。`,
-      current: candidates.length,
-      total: candidates.length,
-      documents: docs.length,
-      chunks: candidates.length,
-      percent: 0.8,
-    });
-    await this.assertJobNotCancelled(jobId);
+    let qdrantSuccess = false;
+    if (embedding && embedding.vectors.length === candidates.length) {
+      const vectorSize = embedding.vectors[0]?.length ?? 0;
+      if (vectorSize > 0) {
+        try {
+          await this.updateJobProgress(jobId, {
+            stage: "ensuring_collection",
+            label: "校验集合",
+            detail: `正在校验向量集合，目标维度 ${vectorSize}。`,
+            current: candidates.length,
+            total: candidates.length,
+            documents: docs.length,
+            chunks: candidates.length,
+            percent: 0.7,
+          });
+          await this.assertJobNotCancelled(jobId);
+          await this.vectorStoreService.ensureCollection(vectorSize);
 
-    // Phase 3.1: 先写新分块到 Qdrant + DB，成功后再删旧分块，消除可见性空窗
-    const newPoints = candidates.map((item, index) => ({
-      id: item.id,
-      vector: embedding.vectors[index],
-      payload: {
-        tenantId: item.tenantId,
-        ownerType: item.ownerType,
-        ownerId: item.ownerId,
-        novelId: item.novelId,
-        worldId: item.worldId,
-        title: item.title,
-        chunkText: item.chunkText,
-        contextPrefix: item.contextPrefix,
-        contextVersion: item.contextVersion,
-        contextSourceHash: item.contextSourceHash,
-        searchText: item.searchText,
-        chunkHash: item.chunkHash,
-        chunkOrder: item.chunkOrder,
-        metadataJson: item.metadataJson,
-        facetKeys: item.facetKeys,
-        chapterAnchor: item.chapterAnchor,
-        ...(item.facets ?? {}),
-      },
-    }));
+          await this.updateJobProgress(jobId, {
+            stage: "upserting_vectors",
+            label: "写入向量库",
+            detail: `正在向 Qdrant 写入 ${candidates.length} 个分块（${ragConfig.qdrantUpsertConcurrency} 并发）。`,
+            current: candidates.length,
+            total: candidates.length,
+            documents: docs.length,
+            chunks: candidates.length,
+            percent: 0.8,
+          });
+          await this.assertJobNotCancelled(jobId);
 
-    // 1. Qdrant 写入新分块
-    try {
-      await this.vectorStoreService.upsertPoints(newPoints);
-    } catch (error) {
-      // 新分块写入失败，旧分块仍在，直接抛出
-      throw error;
+          const newPoints = candidates.map((item, index) => ({
+            id: item.id,
+            vector: embedding!.vectors[index],
+            payload: {
+              tenantId: item.tenantId,
+              ownerType: item.ownerType,
+              ownerId: item.ownerId,
+              novelId: item.novelId,
+              worldId: item.worldId,
+              title: item.title,
+              chunkText: item.chunkText,
+              contextPrefix: item.contextPrefix,
+              contextVersion: item.contextVersion,
+              contextSourceHash: item.contextSourceHash,
+              searchText: item.searchText,
+              chunkHash: item.chunkHash,
+              chunkOrder: item.chunkOrder,
+              metadataJson: item.metadataJson,
+              facetKeys: item.facetKeys,
+              chapterAnchor: item.chapterAnchor,
+              ...(item.facets ?? {}),
+            },
+          }));
+
+          await this.vectorStoreService.upsertPoints(newPoints);
+          qdrantSuccess = true;
+        } catch (qdrantError) {
+          console.warn("[RAG] Qdrant storage failed, continuing with SQLite-only indexing:", qdrantError);
+        }
+      }
     }
-
-    // 2. DB 写入新分块元数据
     try {
       await this.updateJobProgress(jobId, {
         stage: "writing_metadata",
@@ -894,8 +901,9 @@ export class RagIndexService {
         })),
       });
     } catch (error) {
-      // DB 写入失败，回滚：删除刚写的新 Qdrant 分块
-      await this.vectorStoreService.deletePoints(candidates.map((item) => item.id)).catch(() => {});
+      if (qdrantSuccess) {
+        await this.vectorStoreService.deletePoints(candidates.map((item) => item.id)).catch(() => {});
+      }
       throw error;
     }
 
