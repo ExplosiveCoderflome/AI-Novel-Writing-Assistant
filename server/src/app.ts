@@ -251,10 +251,17 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
   ragServices.ragWorker.start();
   ragServices.ragRetrievalTraceRetention.start();
   novelSideEffectWorker.start();
-  const directorWorker = new DirectorWorker();
-  void directorWorker.start().catch((error) => {
-    console.error("[director.worker] unexpected stop", error);
-  });
+  
+  let directorWorker: DirectorWorker | null = null;
+  const disableInlineWorker = parseEnvFlag(process.env.DISABLE_INLINE_WORKER, false);
+  if (!disableInlineWorker) {
+    directorWorker = new DirectorWorker();
+    void directorWorker.start().catch((error) => {
+      console.error("[director.worker] unexpected stop", error);
+    });
+  } else {
+    console.log("[server] inline director worker is disabled (DISABLE_INLINE_WORKER=true).");
+  }
   const recoveryInitialization = recoveryTaskService.initializePendingRecoveries();
 
   void loadProviderApiKeys().catch((error) => {
@@ -284,7 +291,9 @@ function initializeBackgroundServices(): BackgroundServicesHandle {
 
   return {
     stop: async () => {
-      directorWorker.stop();
+      if (directorWorker) {
+        directorWorker.stop();
+      }
       novelSideEffectWorker.stop();
       ragServices.ragWorker.stop();
       ragServices.ragRetrievalTraceRetention.stop();
