@@ -68,6 +68,10 @@
 - [Visualization Stack](./design/visualization-stack.md)：数据与链路可视化技术栈选型与架构设计。
 - [World Management v2](./design/world-management-v2.md)
 - [World Story Interface v1](./design/world-story-interface-v1.md)
+- [Video Adaptation and OpenMontage Bridge Design v1](./design/video-adaptation-openmontage-design-v1.md)：视频改编与 OpenMontage 异步桥接系统设计方案。
+- [RAG Retrieval Enhancements Design v1](./design/rag-enhancements-design-v1.md)：RAG 检索上下文化前缀、双路混合检索、Reranker 重排与 SQLite 物理降级直写兜底方案。
+- [Title Studio and Library Design v1](./design/title-studio-library-design-v1.md)：基于 LLM 句式分析与 Jaccard 相似度去重去同的标题发散生成及爆款标题库管理系统方案。
+
 
 ### `docs/architecture`
 
