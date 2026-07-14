@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SectionDraft, SectionEvidenceItem } from "../bookAnalysis.types";
 import { formatStatus } from "../bookAnalysis.utils";
+import { isUnselectedBookAnalysisSection } from "../bookAnalysisWorkspaceViewModel";
 import type { BookAnalysisMode } from "../hooks/bookAnalysisWorkspace.types";
 import BookAnalysisStructuredSummary from "./BookAnalysisStructuredSummary";
 
@@ -71,13 +72,23 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
     onCancelOptimizePreview,
     onSave,
   } = props;
-  const canRegenerate = canOperate && !draft.frozen && !isRegenerating;
-  const canOptimize = canOperate && !draft.frozen && !isOptimizing && draft.optimizeInstruction.trim().length > 0;
+  const canRegenerate = canOperate && !draft.frozen && !section.frozen && !isRegenerating;
+  const canOptimize = canOperate
+    && !draft.frozen
+    && !section.frozen
+    && !isOptimizing
+    && draft.optimizeInstruction.trim().length > 0;
   const hasContent = draft.editedContent.trim().length > 0;
+  const unselectedSection = isUnselectedBookAnalysisSection(section) && !hasContent;
+  const frozenChangePending = draft.frozen !== section.frozen;
   const contentBlock = hasContent ? (
     <MarkdownViewer content={draft.editedContent} />
   ) : (
-    <div className="text-sm text-muted-foreground">当前小节还没有可展示的内容。</div>
+    <div className="text-sm text-muted-foreground">
+      {unselectedSection
+        ? "这个小节未纳入本次生成。需要补充时，可先取消跳过并保存，再重新生成。"
+        : "当前小节还没有可展示的内容。"}
+    </div>
   );
 
   return (
@@ -86,8 +97,8 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <CardTitle>{section.title}</CardTitle>
-            <Badge variant="outline">{formatStatus(section.status)}</Badge>
-            {draft.frozen ? <Badge variant="secondary">已冻结</Badge> : null}
+            <Badge variant="outline">{unselectedSection ? "本次未选择" : formatStatus(section.status)}</Badge>
+            {draft.frozen && !unselectedSection ? <Badge variant="secondary">已冻结</Badge> : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -206,20 +217,27 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
         )}
 
         <details className="rounded-md border p-3">
-          <summary className="cursor-pointer text-sm font-medium">编辑与优化</summary>
+          <summary className="cursor-pointer text-sm font-medium">{canOperate ? "编辑与优化" : "归档内容与备注"}</summary>
           <div className="mt-3 space-y-4">
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 checked={draft.frozen}
+                disabled={!canOperate}
                 onChange={(event) => onDraftChange(section, { frozen: event.target.checked })}
               />
-              冻结此小节，自动重跑时不覆盖其内容。
+              跳过自动重跑，并保留这个小节的现有内容。
             </label>
 
-            {draft.frozen ? (
-              <div className="rounded-md border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
-                当前已冻结：请先取消冻结，才能使用“重新生成”或“AI 优化”。
+            {draft.frozen || frozenChangePending ? (
+              <div className="rounded-md border border-warning/30 bg-warning/5 p-2 text-xs text-foreground">
+                {frozenChangePending
+                  ? draft.frozen
+                    ? "跳过设置尚未保存。保存后，自动重跑会保留这个小节的现有内容。"
+                    : "取消跳过尚未保存。保存后，即可重新生成或使用 AI 优化。"
+                  : unselectedSection
+                    ? "这个小节未纳入本次生成。需要补充时，请先取消跳过并保存。"
+                    : "当前内容已冻结。需要重新生成或 AI 优化时，请先取消跳过并保存。"}
               </div>
             ) : null}
 
@@ -228,6 +246,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
               <textarea
                 className="min-h-[90px] w-full rounded-md border bg-background p-3 text-sm"
                 value={draft.focusInstruction}
+                disabled={!canOperate}
                 onChange={(event) => onDraftChange(section, { focusInstruction: event.target.value })}
                 placeholder="例如：只看阶段推进里的转折证据，或重点检查人物高光是否能复用。"
               />
@@ -238,6 +257,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
               <textarea
                 className="min-h-[220px] w-full rounded-md border bg-background p-3 text-sm"
                 value={draft.editedContent}
+                disabled={!canOperate}
                 onChange={(event) => onDraftChange(section, { editedContent: event.target.value })}
                 placeholder="在此直接编辑当前小节草稿。"
               />
@@ -248,6 +268,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
               <textarea
                 className="min-h-[90px] w-full rounded-md border bg-background p-2 text-sm"
                 value={draft.optimizeInstruction}
+                disabled={!canOperate}
                 onChange={(event) => onDraftChange(section, { optimizeInstruction: event.target.value })}
                 placeholder="输入优化或修正提示词，例如：压缩冗余、突出冲突、保持同样事实。"
               />
@@ -270,10 +291,10 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
                   <MarkdownViewer content={draft.optimizePreview} />
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => onApplyOptimizePreview(section)}>
+                  <Button size="sm" disabled={!canOperate} onClick={() => onApplyOptimizePreview(section)}>
                     应用到当前草稿
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => onCancelOptimizePreview(section)}>
+                  <Button size="sm" variant="outline" disabled={!canOperate} onClick={() => onCancelOptimizePreview(section)}>
                     取消预览
                   </Button>
                 </div>
@@ -285,6 +306,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
               <textarea
                 className="min-h-[120px] w-full rounded-md border bg-background p-3 text-sm"
                 value={draft.notes}
+                disabled={!canOperate}
                 onChange={(event) => onDraftChange(section, { notes: event.target.value })}
                 placeholder="添加备注、假设或后续行动。"
               />
@@ -313,7 +335,7 @@ function HighlightedChapterExcerpt(props: {
     <div className="max-h-[320px] overflow-auto rounded-md border bg-muted/20 p-3 leading-7 whitespace-pre-wrap">
       {previewStart > 0 ? <span className="text-muted-foreground">...</span> : null}
       <span>{before}</span>
-      <mark className="rounded bg-amber-200 px-1 text-amber-950">{highlight}</mark>
+      <mark className="rounded bg-warning/20 px-1 text-foreground">{highlight}</mark>
       <span>{after}</span>
       {previewEnd < props.chapterContent.length ? <span className="text-muted-foreground">...</span> : null}
     </div>

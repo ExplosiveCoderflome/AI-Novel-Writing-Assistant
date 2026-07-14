@@ -1,6 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { CreativeHubProductionStatus } from "@ai-novel/shared/types/creativeHub";
+import { RefreshCw } from "lucide-react";
 import { getNovelDetail, updateNovel } from "@/api/novel";
+import { queryKeys } from "@/api/queryKeys";
+import { WorkspaceStateNotice } from "@/components/workspace";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import SelectControl from "@/components/common/SelectControl";
@@ -9,8 +13,26 @@ interface NovelProductionStarterCardProps {
   currentNovelTitle?: string | null;
   currentNovelId?: string | null;
   productionStatus?: CreativeHubProductionStatus | null;
-  onSubmit: (prompt: string) => void;
+  actionDisabled?: boolean;
+  onSubmit: (prompt: string) => void | Promise<void>;
   onQuickAction?: (prompt: string) => void;
+}
+
+function ProductionField(props: {
+  htmlFor: string;
+  label: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <label htmlFor={props.htmlFor} className="block text-xs font-medium text-foreground">
+        {props.label}
+      </label>
+      {props.children}
+      {props.hint ? <p className="text-xs leading-5 text-muted-foreground">{props.hint}</p> : null}
+    </div>
+  );
 }
 
 function fromNarrativePov(value: "first_person" | "third_person" | "mixed" | null | undefined): string {
@@ -170,6 +192,7 @@ export default function NovelProductionStarterCard({
   currentNovelTitle,
   currentNovelId,
   productionStatus,
+  actionDisabled = false,
   onSubmit,
   onQuickAction,
 }: NovelProductionStarterCardProps) {
@@ -185,7 +208,29 @@ export default function NovelProductionStarterCard({
   const [aiFreedom, setAiFreedom] = useState("");
   const [defaultChapterLength, setDefaultChapterLength] = useState(2500);
   const [worldType, setWorldType] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submitInFlightRef = useRef(false);
+
+  const novelDetailQuery = useQuery({
+    queryKey: queryKeys.novels.detail(currentNovelId || "none"),
+    queryFn: () => getNovelDetail(currentNovelId!),
+    enabled: Boolean(currentNovelId),
+    retry: false,
+  });
+
+  useEffect(() => {
+    setTitle("");
+    setDescription("");
+    setTargetChapterCount(20);
+    setGenre("");
+    setStyleTone("");
+    setNarrativePov("");
+    setPacePreference("");
+    setProjectMode("");
+    setEmotionIntensity("");
+    setAiFreedom("");
+    setDefaultChapterLength(2500);
+    setWorldType("");
+  }, [currentNovelId]);
 
   useEffect(() => {
     if (productionStatus?.targetChapterCount) {
@@ -194,210 +239,301 @@ export default function NovelProductionStarterCard({
   }, [productionStatus?.targetChapterCount]);
 
   useEffect(() => {
-    let cancelled = false;
-    if (!currentNovelId) {
-      return () => {
-        cancelled = true;
-      };
+    const novel = novelDetailQuery.data?.data;
+    if (!currentNovelId || !novel) {
+      return;
     }
-    void getNovelDetail(currentNovelId)
-      .then((response) => {
-        if (cancelled) {
-          return;
-        }
-        const novel = response.data;
-        if (!novel) {
-          return;
-        }
-        setDescription(novel.description ?? "");
-        setGenre(novel.genre?.name ?? "");
-        setStyleTone(novel.styleTone ?? "");
-        setNarrativePov(fromNarrativePov(novel.narrativePov));
-        setPacePreference(fromPacePreference(novel.pacePreference));
-        setProjectMode(fromProjectMode(novel.projectMode));
-        setEmotionIntensity(fromLevel(novel.emotionIntensity));
-        setAiFreedom(fromLevel(novel.aiFreedom));
-        setDefaultChapterLength(novel.defaultChapterLength ?? 2500);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [currentNovelId]);
+    setDescription(novel.description ?? "");
+    setGenre(novel.genre?.name ?? "");
+    setStyleTone(novel.styleTone ?? "");
+    setNarrativePov(fromNarrativePov(novel.narrativePov));
+    setPacePreference(fromPacePreference(novel.pacePreference));
+    setProjectMode(fromProjectMode(novel.projectMode));
+    setEmotionIntensity(fromLevel(novel.emotionIntensity));
+    setAiFreedom(fromLevel(novel.aiFreedom));
+    setDefaultChapterLength(novel.defaultChapterLength ?? 2500);
+  }, [currentNovelId, novelDetailQuery.data]);
 
   const resolvedTitle = currentNovelTitle?.trim() || "";
   const isContinueMode = Boolean(currentNovelId);
+  const detailErrorMessage = novelDetailQuery.error instanceof Error
+    ? novelDetailQuery.error.message
+    : isContinueMode && novelDetailQuery.isSuccess && !novelDetailQuery.data?.data
+      ? "没有读取到当前小说的生产设置。"
+      : "";
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      if (currentNovelId) {
+        await updateNovel(currentNovelId, {
+          ...(description.trim() ? { description: description.trim() } : {}),
+          ...(styleTone.trim() ? { styleTone: styleTone.trim() } : {}),
+          ...(toNarrativePov(narrativePov) ? { narrativePov: toNarrativePov(narrativePov) } : {}),
+          ...(toPacePreference(pacePreference) ? { pacePreference: toPacePreference(pacePreference) } : {}),
+          ...(toProjectMode(projectMode) ? { projectMode: toProjectMode(projectMode) } : {}),
+          ...(toLevel(emotionIntensity) ? { emotionIntensity: toLevel(emotionIntensity) } : {}),
+          ...(toLevel(aiFreedom) ? { aiFreedom: toLevel(aiFreedom) } : {}),
+          ...(defaultChapterLength
+            ? { defaultChapterLength: Math.max(500, Math.min(10000, defaultChapterLength)) }
+            : {}),
+        });
+      }
+      await onSubmit(buildProductionPrompt({
+        currentNovelId,
+        title,
+        description,
+        targetChapterCount,
+        genre,
+        styleTone,
+        narrativePov,
+        pacePreference,
+        projectMode,
+        emotionIntensity,
+        aiFreedom,
+        defaultChapterLength,
+        worldType,
+      }));
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "整本生产启动失败。");
+    },
+  });
+  const formDisabled = actionDisabled
+    || novelDetailQuery.isFetching
+    || Boolean(detailErrorMessage)
+    || submitMutation.isPending;
+  const submitDisabled = formDisabled || (!isContinueMode && !title.trim());
+  const fieldClassName = "w-full rounded-md border border-input bg-background px-3 py-2 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 md:text-sm";
+  const startProduction = () => {
+    if (submitInFlightRef.current) {
+      return;
+    }
+    submitInFlightRef.current = true;
+    submitMutation.mutate(undefined, {
+      onSettled: () => {
+        submitInFlightRef.current = false;
+      },
+    });
+  };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3">
-      <div className="mb-2 text-xs font-medium text-slate-500">整本生产</div>
+    <div className="space-y-3" aria-busy={novelDetailQuery.isFetching || submitMutation.isPending}>
+      <div className="text-xs font-medium text-muted-foreground">整本生产</div>
       <div className="space-y-3">
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+        <div className="rounded-md border border-info/25 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
           {isContinueMode
             ? `当前将继续生产《${resolvedTitle || "当前小说"}》。`
             : "当前处于全局模式，可直接创建新书并启动整本生产。"}
         </div>
-        <div className="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-2 text-xs leading-5 text-slate-600">
+        <div className="rounded-md border border-dashed border-border bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
           建议先确认：题材、风格、视角、节奏、章长、AI 自由度。条件越完整，整本生产偏差越小。
         </div>
-        {!isContinueMode ? (
-          <input
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-            placeholder="小说标题"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
+
+        {novelDetailQuery.isFetching ? (
+          <WorkspaceStateNotice
+            compact
+            loading
+            tone="info"
+            title="正在读取小说设置"
+            description="读取完成前不会提交整本生产，避免用空设置覆盖当前小说。"
+          />
+        ) : detailErrorMessage ? (
+          <WorkspaceStateNotice
+            compact
+            tone="danger"
+            title="小说设置读取失败"
+            description={`${detailErrorMessage} 请重新读取后再启动整本生产。`}
+            action={(
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={novelDetailQuery.isFetching}
+                onClick={() => void novelDetailQuery.refetch()}
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                {novelDetailQuery.isFetching ? "正在重试..." : "重新读取"}
+              </Button>
+            )}
           />
         ) : null}
-        <textarea
-          className="min-h-[88px] w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-          placeholder="简介 / 核心设定"
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-        />
+
+        {!isContinueMode ? (
+          <ProductionField
+            htmlFor="creative-hub-production-title"
+            label="小说标题"
+            hint="创建新小说时必填。"
+          >
+            <input
+              id="creative-hub-production-title"
+              className={fieldClassName}
+              placeholder="例如：长夜巡灯人"
+              value={title}
+              disabled={formDisabled}
+              required
+              onChange={(event) => setTitle(event.target.value)}
+            />
+          </ProductionField>
+        ) : null}
+
+        <ProductionField htmlFor="creative-hub-production-description" label="简介与核心设定">
+          <textarea
+            id="creative-hub-production-description"
+            className={`${fieldClassName} min-h-[88px] resize-y`}
+            placeholder="概括主角处境、核心冲突和这本书最想兑现的体验"
+            value={description}
+            disabled={formDisabled}
+            onChange={(event) => setDescription(event.target.value)}
+          />
+        </ProductionField>
+
         <div className="grid gap-2 sm:grid-cols-2">
-          <input
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-            placeholder="题材类型，例如：东方玄幻 / 都市悬疑"
-            value={genre}
-            onChange={(event) => setGenre(event.target.value)}
-          />
-          <input
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-            placeholder="风格基调，例如：冷峻压抑 / 轻快热血"
-            value={styleTone}
-            onChange={(event) => setStyleTone(event.target.value)}
-          />
+          <ProductionField htmlFor="creative-hub-production-genre" label="题材类型">
+            <input
+              id="creative-hub-production-genre"
+              className={fieldClassName}
+              placeholder="例如：东方玄幻"
+              value={genre}
+              disabled={formDisabled}
+              onChange={(event) => setGenre(event.target.value)}
+            />
+          </ProductionField>
+          <ProductionField htmlFor="creative-hub-production-style" label="风格基调">
+            <input
+              id="creative-hub-production-style"
+              className={fieldClassName}
+              placeholder="例如：轻快热血"
+              value={styleTone}
+              disabled={formDisabled}
+              onChange={(event) => setStyleTone(event.target.value)}
+            />
+          </ProductionField>
         </div>
+
         <div className="grid gap-2 sm:grid-cols-2">
-          <SelectControl
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-            value={narrativePov}
-            onChange={(event) => setNarrativePov(event.target.value)}
-          >
-            <option value="">叙事视角</option>
-            <option value="第一人称">第一人称</option>
-            <option value="第三人称">第三人称</option>
-            <option value="混合视角">混合视角</option>
-          </SelectControl>
-          <SelectControl
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-            value={pacePreference}
-            onChange={(event) => setPacePreference(event.target.value)}
-          >
-            <option value="">推进节奏</option>
-            <option value="慢节奏">慢节奏</option>
-            <option value="均衡节奏">均衡节奏</option>
-            <option value="快节奏">快节奏</option>
-          </SelectControl>
+          <ProductionField htmlFor="creative-hub-production-pov" label="叙事视角">
+            <SelectControl
+              id="creative-hub-production-pov"
+              className={fieldClassName}
+              value={narrativePov}
+              disabled={formDisabled}
+              onChange={(event) => setNarrativePov(event.target.value)}
+            >
+              <option value="">交给 AI 判断</option>
+              <option value="第一人称">第一人称</option>
+              <option value="第三人称">第三人称</option>
+              <option value="混合视角">混合视角</option>
+            </SelectControl>
+          </ProductionField>
+          <ProductionField htmlFor="creative-hub-production-pace" label="推进节奏">
+            <SelectControl
+              id="creative-hub-production-pace"
+              className={fieldClassName}
+              value={pacePreference}
+              disabled={formDisabled}
+              onChange={(event) => setPacePreference(event.target.value)}
+            >
+              <option value="">交给 AI 判断</option>
+              <option value="慢节奏">慢节奏</option>
+              <option value="均衡节奏">均衡节奏</option>
+              <option value="快节奏">快节奏</option>
+            </SelectControl>
+          </ProductionField>
         </div>
+
         <div className="grid gap-2 sm:grid-cols-3">
-          <SelectControl
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-            value={projectMode}
-            onChange={(event) => setProjectMode(event.target.value)}
-          >
-            <option value="">协作模式</option>
-            <option value="AI 主导">AI 主导</option>
-            <option value="人机协作">人机协作</option>
-            <option value="草稿优先">草稿优先</option>
-            <option value="自动流水线">自动流水线</option>
-          </SelectControl>
-          <SelectControl
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-            value={emotionIntensity}
-            onChange={(event) => setEmotionIntensity(event.target.value)}
-          >
-            <option value="">情绪强度</option>
-            <option value="低">低</option>
-            <option value="中">中</option>
-            <option value="高">高</option>
-          </SelectControl>
-          <SelectControl
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-            value={aiFreedom}
-            onChange={(event) => setAiFreedom(event.target.value)}
-          >
-            <option value="">AI 自由度</option>
-            <option value="低">低</option>
-            <option value="中">中</option>
-            <option value="高">高</option>
-          </SelectControl>
+          <ProductionField htmlFor="creative-hub-production-mode" label="协作模式">
+            <SelectControl
+              id="creative-hub-production-mode"
+              className={fieldClassName}
+              value={projectMode}
+              disabled={formDisabled}
+              onChange={(event) => setProjectMode(event.target.value)}
+            >
+              <option value="">使用小说默认值</option>
+              <option value="AI 主导">AI 主导</option>
+              <option value="人机协作">人机协作</option>
+              <option value="草稿优先">草稿优先</option>
+              <option value="自动流水线">自动流水线</option>
+            </SelectControl>
+          </ProductionField>
+          <ProductionField htmlFor="creative-hub-production-emotion" label="情绪强度">
+            <SelectControl
+              id="creative-hub-production-emotion"
+              className={fieldClassName}
+              value={emotionIntensity}
+              disabled={formDisabled}
+              onChange={(event) => setEmotionIntensity(event.target.value)}
+            >
+              <option value="">使用小说默认值</option>
+              <option value="低">低</option>
+              <option value="中">中</option>
+              <option value="高">高</option>
+            </SelectControl>
+          </ProductionField>
+          <ProductionField htmlFor="creative-hub-production-freedom" label="AI 自由度">
+            <SelectControl
+              id="creative-hub-production-freedom"
+              className={fieldClassName}
+              value={aiFreedom}
+              disabled={formDisabled}
+              onChange={(event) => setAiFreedom(event.target.value)}
+            >
+              <option value="">使用小说默认值</option>
+              <option value="低">低</option>
+              <option value="中">中</option>
+              <option value="高">高</option>
+            </SelectControl>
+          </ProductionField>
         </div>
+
         <div className="grid gap-2 sm:grid-cols-3">
-          <input
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-            placeholder="目标章节数"
-            type="number"
-            min={1}
-            max={200}
-            value={targetChapterCount}
-            onChange={(event) => setTargetChapterCount(Number(event.target.value || 20))}
-          />
-          <input
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-            placeholder="默认章长（字）"
-            type="number"
-            min={500}
-            max={10000}
-            value={defaultChapterLength}
-            onChange={(event) => setDefaultChapterLength(Number(event.target.value || 2500))}
-          />
-          <input
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-slate-400"
-            placeholder="可选世界观类型"
-            value={worldType}
-            onChange={(event) => setWorldType(event.target.value)}
-          />
+          <ProductionField htmlFor="creative-hub-production-chapters" label="目标章节数">
+            <input
+              id="creative-hub-production-chapters"
+              className={fieldClassName}
+              type="number"
+              min={1}
+              max={200}
+              value={targetChapterCount}
+              disabled={formDisabled}
+              onChange={(event) => setTargetChapterCount(Number(event.target.value || 20))}
+            />
+          </ProductionField>
+          <ProductionField htmlFor="creative-hub-production-length" label="默认章长（字）">
+            <input
+              id="creative-hub-production-length"
+              className={fieldClassName}
+              type="number"
+              min={500}
+              max={10000}
+              value={defaultChapterLength}
+              disabled={formDisabled}
+              onChange={(event) => setDefaultChapterLength(Number(event.target.value || 2500))}
+            />
+          </ProductionField>
+          <ProductionField htmlFor="creative-hub-production-world" label="世界观类型（可选）">
+            <input
+              id="creative-hub-production-world"
+              className={fieldClassName}
+              placeholder="例如：末日废土"
+              value={worldType}
+              disabled={formDisabled}
+              onChange={(event) => setWorldType(event.target.value)}
+            />
+          </ProductionField>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
-            disabled={isSubmitting}
-            onClick={async () => {
-              if (!isContinueMode && !title.trim()) {
-                return;
-              }
-              setIsSubmitting(true);
-              try {
-                if (currentNovelId) {
-                  await updateNovel(currentNovelId, {
-                    ...(description.trim() ? { description: description.trim() } : {}),
-                    ...(styleTone.trim() ? { styleTone: styleTone.trim() } : {}),
-                    ...(toNarrativePov(narrativePov) ? { narrativePov: toNarrativePov(narrativePov) } : {}),
-                    ...(toPacePreference(pacePreference) ? { pacePreference: toPacePreference(pacePreference) } : {}),
-                    ...(toProjectMode(projectMode) ? { projectMode: toProjectMode(projectMode) } : {}),
-                    ...(toLevel(emotionIntensity) ? { emotionIntensity: toLevel(emotionIntensity) } : {}),
-                    ...(toLevel(aiFreedom) ? { aiFreedom: toLevel(aiFreedom) } : {}),
-                    ...(defaultChapterLength ? { defaultChapterLength: Math.max(500, Math.min(10000, defaultChapterLength)) } : {}),
-                  });
-                }
-                onSubmit(buildProductionPrompt({
-                  currentNovelId,
-                  title,
-                  description,
-                  targetChapterCount,
-                  genre,
-                  styleTone,
-                  narrativePov,
-                  pacePreference,
-                  projectMode,
-                  emotionIntensity,
-                  aiFreedom,
-                  defaultChapterLength,
-                  worldType,
-                }));
-              } catch (error) {
-                toast.error(error instanceof Error ? error.message : "生产前条件保存失败。");
-              } finally {
-                setIsSubmitting(false);
-              }
-            }}
+            disabled={submitDisabled}
+            onClick={startProduction}
           >
-            {isSubmitting ? "处理中..." : isContinueMode ? "继续整本生产" : "启动整本生产"}
+            {submitMutation.isPending ? "正在启动..." : isContinueMode ? "继续整本生产" : "启动整本生产"}
           </Button>
           <Button
             type="button"
             variant="outline"
+            disabled={formDisabled}
             onClick={() => onQuickAction?.("整本生成到哪一步了")}
           >
             查看进度
@@ -405,13 +541,15 @@ export default function NovelProductionStarterCard({
           <Button
             type="button"
             variant="outline"
+            disabled={formDisabled}
             onClick={() => onQuickAction?.("为什么整本生成没有启动")}
-            >
-              查看阻塞
-            </Button>
+          >
+            查看阻塞
+          </Button>
           <Button
             type="button"
             variant="outline"
+            disabled={formDisabled}
             onClick={() => onQuickAction?.("基于当前小说信息，为生产前的题材、风格、视角、节奏、章长和 AI 自由度各给出 3 个备选答案。")}
           >
             生成备选

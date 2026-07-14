@@ -104,6 +104,13 @@ novelEventBus.on(
   },
 );
 
+novelEventBus.on(
+  "book-contract:updated",
+  (event: Extract<NovelEvent, { type: "book-contract:updated" }>) => {
+    batchContextCache.invalidate(event.payload.novelId);
+  },
+);
+
 // pipeline 完成 → 失效（确保下次批次拿到最新状态）
 novelEventBus.on(
   "pipeline:completed",
@@ -126,10 +133,14 @@ async function fetchNovelRow(novelId: string) {
         select: { name: true },
       },
       characters: true,
+      bookContract: true,
       storyMacroPlan: true,
       volumePlans: {
         orderBy: { sortOrder: "asc" },
         include: {
+          sourceVersion: {
+            select: { contentJson: true },
+          },
           chapters: {
             orderBy: { chapterOrder: "asc" },
             select: { chapterOrder: true },

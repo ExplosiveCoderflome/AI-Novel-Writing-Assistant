@@ -136,6 +136,8 @@
 - Success：完成、可继续、同步成功。
 - Info：生成中、处理中、系统建议。
 
+客户端主题必须提供 `success`、`warning`、`info` 及对应 foreground token。业务页面应通过这些语义 token 表达状态，不直接散落 `emerald`、`amber`、`sky` 或一次性十六进制颜色。
+
 新增颜色前，应先判断能否映射到语义变量。确实需要新增时，先扩展全局 token，再使用。
 
 ### Typography
@@ -167,6 +169,7 @@
 
 - `client/src/components/ui/` 只放基础 UI primitive 或 shadcn 组件。
 - 业务组合组件放到明确模块目录，例如 `components/autoDirector/`、`components/creativeHub/`、`pages/novels/components/`。
+- 知识、题材、角色、世界和规则等跨模块资产库共用的页面结构归属 `components/assetLibrary/`；该目录只组合页头、状态、推荐动作、分区和空态，不读取 API 或持有业务状态。
 - 不把业务逻辑写进 `components/ui/`。
 - 不新增无归属的 `helpers`、`utils` 式 UI 文件来承载业务组件。
 

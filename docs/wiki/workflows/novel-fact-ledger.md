@@ -87,6 +87,8 @@ Already completed — do NOT re-pursue or re-trigger
 事实账本**不替代** timeline 的前端时间轴展示功能（`StoryTimelineEvent` 表保留）。
 只替代 timeline 对写章上下文的介入（`timeline_context` block 在 PR-B 中从 requiredGroups 移除）。
 
+事实账本不承担当前章的读者回报、主角欲望、场景转折或钩子承接责任。这些写前执行目标由 `ReaderExperienceContract` 负责；事实账本只在正文验收或观测确认后记录已经发生的不可逆事实。
+
 ## 相关模块
 
 - `server/src/services/novel/fact/NovelFactService.ts`（读写服务）

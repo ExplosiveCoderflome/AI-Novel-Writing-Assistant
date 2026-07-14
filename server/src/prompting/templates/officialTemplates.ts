@@ -62,7 +62,7 @@ const writerSystemTemplate = [
   "{{slot.writer.antiCliché}}",
   "",
   "【输出前自查】",
-  "在生成正文前，先内部确认：结尾钩子是否成立、义务合约是否兑现、人物硬事实是否违背。确认通过后再开始输出，不需要在正文中输出核查结果。",
+  "在生成正文前，先内部确认：读者回报、关键转折和章末净变化是否可见，旧钩子责任是否回应，结尾钩子是否成立，义务合约是否兑现，人物硬事实是否违背。确认通过后再开始输出，不需要在正文中输出核查结果。",
 ].join("\n");
 
 const writerHumanTemplate = [
@@ -76,8 +76,8 @@ const writerHumanTemplate = [
   "【章节任务】",
   "{{context.chapter_mission}}",
   "",
-  "【上一章钩子】",
-  "{{context.previous_chapter_hook}}",
+  "【读者体验合同】",
+  "{{context.reader_experience}}",
   "",
   "【人物硬事实】",
   "{{context.character_hard_facts}}",

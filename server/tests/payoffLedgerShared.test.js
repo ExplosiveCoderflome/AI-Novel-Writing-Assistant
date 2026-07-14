@@ -9,6 +9,10 @@ const {
   resolvePayoffLedgerSyncLedgerKey,
   sanitizePayoffLedgerSyncItem,
 } = require("../dist/services/payoff/payoffLedgerShared.js");
+const {
+  buildBookContractPayoffSources,
+  hasBookContractPayoffChanges,
+} = require("../dist/services/payoff/sources/bookContractPayoffSources.js");
 
 function createLedgerItem(overrides = {}) {
   return {
@@ -81,6 +85,17 @@ test("classifyPayoffLedgerItems separates pending urgent overdue and paid-off it
       payoffChapterId: "chapter-4",
       lastTouchedChapterOrder: 4,
     }),
+    createLedgerItem({
+      ledgerKey: "superseded",
+      title: "被新合同替换的旧回报",
+      currentStatus: "failed",
+      riskSignals: [{
+        code: "source_superseded",
+        severity: "low",
+        summary: "旧来源已失效。",
+        stale: true,
+      }],
+    }),
   ];
 
   const classified = classifyPayoffLedgerItems(items, 5);
@@ -89,6 +104,7 @@ test("classifyPayoffLedgerItems separates pending urgent overdue and paid-off it
   assert.deepEqual(classified.urgentItems.map((item) => item.ledgerKey), ["pending", "setup"]);
   assert.deepEqual(classified.overdueItems.map((item) => item.ledgerKey), ["overdue"]);
   assert.deepEqual(classified.paidOffItems.map((item) => item.ledgerKey), ["paid"]);
+  assert.equal(buildSyntheticPayoffIssues(items, 5).some((issue) => issue.ledgerKey === "superseded"), false);
 });
 
 test("buildSyntheticPayoffIssues surfaces overdue missing progress and payoff risk signals", () => {
@@ -257,4 +273,56 @@ test("sanitizePayoffLedgerSyncItem downgrades overdue without explicit payoff wi
   assert.equal(item.currentStatus, "pending_payoff");
   assert.equal(item.riskSignals.length, 1);
   assert.equal(item.riskSignals[0].code, "payoff_missing_progress");
+});
+
+test("book contract payoff sources keep stable refs and deterministic chapter windows", () => {
+  const sources = buildBookContractPayoffSources({
+    chapter3Payoff: "  主角获得第一次明确优势  ",
+    chapter10Payoff: "主角完成第一轮反压",
+    chapter30Payoff: "揭开长期谜团的第一层答案",
+  });
+
+  assert.deepEqual(sources.map((item) => ({
+    refId: item.refId,
+    payoff: item.payoff,
+    window: [item.targetStartChapterOrder, item.targetEndChapterOrder],
+  })), [
+    {
+      refId: "book_contract.chapter3Payoff",
+      payoff: "主角获得第一次明确优势",
+      window: [1, 3],
+    },
+    {
+      refId: "book_contract.chapter10Payoff",
+      payoff: "主角完成第一轮反压",
+      window: [4, 10],
+    },
+    {
+      refId: "book_contract.chapter30Payoff",
+      payoff: "揭开长期谜团的第一层答案",
+      window: [11, 30],
+    },
+  ]);
+});
+
+test("book contract payoff change detection ignores formatting-only edits", () => {
+  const previous = {
+    chapter3Payoff: "主角获得第一次明确优势",
+    chapter10Payoff: "主角完成第一轮反压",
+    chapter30Payoff: "揭开长期谜团",
+  };
+
+  assert.equal(hasBookContractPayoffChanges(previous, {
+    ...previous,
+    chapter3Payoff: " 主角获得第一次明确优势 ",
+  }), false);
+  assert.equal(hasBookContractPayoffChanges(previous, {
+    ...previous,
+    chapter10Payoff: "主角完成第一轮反压并获得关键证据",
+  }), true);
+  assert.equal(hasBookContractPayoffChanges(null, {
+    chapter3Payoff: "",
+    chapter10Payoff: "",
+    chapter30Payoff: "",
+  }), false);
 });

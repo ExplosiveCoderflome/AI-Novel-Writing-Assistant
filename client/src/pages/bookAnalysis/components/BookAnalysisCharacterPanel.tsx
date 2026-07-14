@@ -322,8 +322,8 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
           <div
             className={`flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm ${
               batchSummary.failed + batchSummary.pending > 0
-                ? "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300"
-                : "border-emerald-500/40 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+                ? "border-warning/30 bg-warning/5 text-warning"
+                : "border-success/30 bg-success/5 text-success"
             }`}
           >
             <div className="space-y-1">

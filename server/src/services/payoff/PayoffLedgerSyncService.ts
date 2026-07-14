@@ -19,6 +19,8 @@ import {
   createNovelChapterReferenceLookup,
   normalizePayoffLedgerPromptChapterRefs,
 } from "./payoffLedgerChapterRefs";
+import { resolveSupersededBookContractLedgerKeys } from "./domain/payoffLedgerSourceLifecycle";
+import { buildBookContractPayoffSources } from "./sources/bookContractPayoffSources";
 
 interface PayoffLedgerSyncOptions {
   provider?: LLMProvider;
@@ -139,6 +141,13 @@ export class PayoffLedgerSyncService {
           storyMacroPlan: {
             select: {
               decompositionJson: true,
+            },
+          },
+          bookContract: {
+            select: {
+              chapter3Payoff: true,
+              chapter10Payoff: true,
+              chapter30Payoff: true,
             },
           },
         },
@@ -273,6 +282,7 @@ export class PayoffLedgerSyncService {
       latestSnapshotId: snapshot?.id ?? null,
       promptInput: {
         novelTitle: novel.title,
+        bookContractPayoffs: buildBookContractPayoffSources(novel.bookContract),
         activeVolumeSummary,
         latestChapterContext,
         majorPayoffsText: formatMajorPayoffs(novel.storyMacroPlan?.decompositionJson),
@@ -381,6 +391,18 @@ export class PayoffLedgerSyncService {
       }
       const resolvedItems = Array.from(resolvedItemsByKey.values());
       const outputByKey = new Map(resolvedItems.map((item) => [item.ledgerKey, item]));
+      const supersededBookContractLedgerKeys = resolveSupersededBookContractLedgerKeys({
+        activeBookContractRefIds: (promptInput.bookContractPayoffs ?? []).map((item) => item.refId),
+        existingItems: existingRows.map((row) => ({
+          ledgerKey: row.ledgerKey,
+          currentStatus: row.currentStatus,
+          sourceRefs: safeParseJson(row.sourceRefsJson, []),
+        })),
+        resolvedItems: resolvedItems.map((item) => ({
+          ledgerKey: item.ledgerKey,
+          sourceRefs: item.sourceRefs,
+        })),
+      });
       const chapterLookup = createNovelChapterReferenceLookup(await prisma.chapter.findMany({
         where: { novelId },
         select: {
@@ -457,7 +479,32 @@ export class PayoffLedgerSyncService {
         }
 
         for (const row of existingRows) {
-          if (outputByKey.has(row.ledgerKey) || row.currentStatus === "paid_off") {
+          if (supersededBookContractLedgerKeys.has(row.ledgerKey)) {
+            const riskSignals = dedupeRiskSignals([
+              ...clearStaleRiskSignal(safeParseJson(row.riskSignalsJson, [])),
+              {
+                code: "source_superseded",
+                severity: "low",
+                summary: "Book Contract 阶段回报已修改或移除，这条旧承诺已退出当前执行义务。",
+                stale: true,
+              },
+            ]);
+            await tx.payoffLedgerItem.update({
+              where: { id: row.id },
+              data: {
+                currentStatus: "failed",
+                riskSignalsJson: serializeLedgerJson(riskSignals),
+                statusReason: "Book Contract 来源已被新的阶段回报替换或移除。",
+                updatedAt: now,
+              },
+            });
+            continue;
+          }
+          if (
+            outputByKey.has(row.ledgerKey)
+            || row.currentStatus === "paid_off"
+            || row.currentStatus === "failed"
+          ) {
             continue;
           }
           const staleSignals = appendStaleRiskSignal(

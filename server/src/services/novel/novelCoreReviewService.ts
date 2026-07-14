@@ -101,7 +101,11 @@ export class NovelCoreReviewService {
       ledgerSummary: review.contextPackage?.ledgerSummary ?? null,
       contextPackage: review.contextPackage ?? null,
     });
-    if ((review.auditReports?.length ?? 0) > 0 && replanRecommendation.recommended) {
+    if (
+      (review.auditReports?.length ?? 0) > 0
+      && replanRecommendation.recommended
+      && replanRecommendation.action === "stop_for_replan"
+    ) {
       await plannerService.replan(novelId, {
         chapterId,
         triggerType: "audit_failure",
