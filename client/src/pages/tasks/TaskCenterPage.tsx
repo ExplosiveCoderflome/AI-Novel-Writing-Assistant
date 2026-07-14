@@ -2,16 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type { TaskKind, TaskStatus, UnifiedTaskStep } from "@ai-novel/shared/types/task";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import type { NovelWorkflowMilestone } from "@ai-novel/shared/types/novelWorkflow";
 import { getDirectorTaskSnapshot } from "@/api/novelDirector";
 import { continueNovelWorkflow } from "@/api/novelWorkflow";
-import { archiveTask, cancelTask, getTaskDetail, listTasks, retryTask } from "@/api/tasks";
+import {
+  archiveTask,
+  cancelTask,
+  getTaskDetail,
+  getTaskOverview,
+  listRecoveryCandidates,
+  listTasks,
+  retryTask,
+} from "@/api/tasks";
 import { queryKeys } from "@/api/queryKeys";
-import DirectorRuntimeProjectionCard from "@/components/autoDirector/DirectorRuntimeProjectionCard";
-import { Badge } from "@/components/ui/badge";
+import { Activity, ListChecks, RefreshCw, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WorkspaceHeader, WorkspaceNextAction } from "@/components/workspace";
 import { toast } from "@/components/ui/toast";
 import { resolveWorkflowContinuationFeedback } from "@/lib/novelWorkflowContinuation";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
@@ -20,20 +27,24 @@ import { buildTaskNoticeRoute, isChapterTitleDiversitySummary, parseDirectorTask
 import { canCancelDirectorTask, canContinueChapterBatchAutoExecution, getCandidateSelectionLink, requiresCandidateSelection } from "@/lib/novelWorkflowTaskUi";
 import { useLLMStore } from "@/store/llmStore";
 import TaskCenterFilterPanel from "./components/TaskCenterFilterPanel";
-import TaskCenterDetailSummary from "./components/TaskCenterDetailSummary";
+import TaskCenterDetailPanel, { type TaskCenterActionSpec } from "./components/TaskCenterDetailPanel";
 import TaskCenterListPanel from "./components/TaskCenterListPanel";
-import TaskCenterMilestoneHistory from "./components/TaskCenterMilestoneHistory";
 import TaskCenterSummaryCards from "./components/TaskCenterSummaryCards";
 import {
   ACTIVE_STATUSES,
-  ANOMALY_STATUSES,
   ARCHIVABLE_STATUSES,
   formatCheckpoint,
   formatStatus,
   getTaskListPriority,
+  getTaskNoticeSeverity,
+  getTaskNoticeTitle,
+  getTaskQueueSeverity,
+  getTaskQueueTone,
+  isTaskFailureQualityReminder,
+  isTaskMustHandle,
+  isTaskReplanRequired,
   getTimestamp,
   serializeListParams,
-  toStatusVariant,
   type TaskSortMode,
 } from "./taskCenterUtils";
 
@@ -78,10 +89,31 @@ export default function TaskCenterPage() {
     },
   });
 
+  const overviewQuery = useQuery({
+    queryKey: queryKeys.tasks.overview,
+    queryFn: getTaskOverview,
+    refetchInterval: (query) => {
+      const overview = query.state.data?.data;
+      if (!overview) return false;
+      return overview.runningCount
+        + overview.queuedCount
+        + overview.waitingApprovalCount
+        + overview.recoveryCandidateCount > 0
+        ? 4000
+        : false;
+    },
+  });
+
+  const recoveryCandidatesQuery = useQuery({
+    queryKey: queryKeys.tasks.recoveryCandidates,
+    queryFn: listRecoveryCandidates,
+    refetchInterval: (query) => (query.state.data?.data?.items.length ?? 0) > 0 ? 4000 : false,
+  });
+
   const allRows = listQuery.data?.data?.items ?? [];
   const visibleRows = useMemo(
     () =>
-      (onlyAnomaly ? allRows.filter((item) => ANOMALY_STATUSES.has(item.status)) : allRows)
+      (onlyAnomaly ? allRows.filter(isTaskMustHandle) : allRows)
         .map((item, index) => ({ item, index }))
         .sort((left, right) => {
           if (sortMode !== "default") {
@@ -100,7 +132,7 @@ export default function TaskCenterPage() {
               return timeDiff;
             }
           }
-          const priorityDiff = getTaskListPriority(left.item.status) - getTaskListPriority(right.item.status);
+          const priorityDiff = getTaskListPriority(left.item) - getTaskListPriority(right.item);
           if (priorityDiff !== 0) {
             return priorityDiff;
           }
@@ -146,19 +178,20 @@ export default function TaskCenterPage() {
     }
   }, [selectedKind, selectedId, setSearchParams, visibleRows]);
 
-  const runningCount = allRows.filter((item) => item.status === "running").length;
-  const queuedCount = allRows.filter((item) => item.status === "queued").length;
-  const failedCount = allRows.filter((item) => item.status === "failed").length;
-  const completed24hCount = allRows.filter((item) => {
-    if (item.status !== "succeeded") {
-      return false;
-    }
-    const updatedAt = new Date(item.updatedAt).getTime();
-    if (Number.isNaN(updatedAt)) {
-      return false;
-    }
-    return Date.now() - updatedAt <= 24 * 60 * 60 * 1000;
-  }).length;
+  const taskOverview = overviewQuery.data?.data;
+  const runningCount = taskOverview?.runningCount ?? allRows.filter((item) => item.status === "running").length;
+  const queuedCount = taskOverview?.queuedCount ?? allRows.filter((item) => item.status === "queued").length;
+  const waitingActionCount = taskOverview?.waitingApprovalCount
+    ?? allRows.filter((item) => item.status === "waiting_approval").length;
+  const failedTaskCount = taskOverview?.failedCount
+    ?? allRows.filter((item) => item.status === "failed" && isTaskMustHandle(item)).length;
+  const recoveryCandidateCount = taskOverview?.recoveryCandidateCount
+    ?? recoveryCandidatesQuery.data?.data?.items.length
+    ?? allRows.filter((item) => item.pendingManualRecovery).length;
+  const blockingCount = allRows.filter((item) => getTaskQueueTone(item) === "danger").length;
+  const visibleReplanCount = allRows.filter(isTaskReplanRequired).length;
+  const mustHandleCount = failedTaskCount + recoveryCandidateCount + visibleReplanCount;
+  const qualityReminderCount = allRows.filter((item) => getTaskQueueSeverity(item) === "quality").length;
 
   const invalidateTaskQueries = async () => {
     await queryClient.invalidateQueries({ queryKey: ["tasks"] });
@@ -274,11 +307,6 @@ export default function TaskCenterPage() {
     && selectedTask.kind === "novel_workflow"
     && selectedTaskMeta.lane === "auto_director",
   );
-  const isActiveAutoDirectorTask = Boolean(
-    selectedTask
-    && isAutoDirectorTask
-    && ACTIVE_STATUSES.has(selectedTask.status),
-  );
   const canResumeFront10AutoExecution = Boolean(
     selectedTask
     && selectedTask.kind === "novel_workflow"
@@ -308,6 +336,9 @@ export default function TaskCenterPage() {
     && isChapterTitleDiversitySummary(
       selectedTask.failureSummary ?? selectedTask.lastError ?? null,
     ),
+  );
+  const selectedTaskHasQualityFailure = Boolean(
+    selectedTask && isTaskFailureQualityReminder(selectedTask),
   );
   const directorRuntimeQuery = useQuery({
     queryKey: queryKeys.tasks.directorTaskSnapshot(selectedId ?? "none"),
@@ -351,15 +382,251 @@ export default function TaskCenterPage() {
       && selectedDirectorRuntimeProjection?.status === "blocked"
     );
 
+  const detailActions: TaskCenterActionSpec[] = [];
+  if (selectedTask && !isAutoDirectorTask && needsCandidateSelection) {
+    detailActions.push({
+      key: "candidate-selection",
+      title: "确认书级方向",
+      label: selectedTask.resumeAction ?? "继续确认书级方向",
+      consequence: "打开候选确认页；只有确认后，后续小说生产才会继续。",
+      tone: "warning",
+      variant: "default",
+      onClick: () => navigate(getCandidateSelectionLink(selectedTask.id)),
+    });
+  }
+  if (selectedTask && !isAutoDirectorTask && canResumeFront10AutoExecution) {
+    detailActions.push({
+      key: "continue-range",
+      title: "继续当前章节范围",
+      label: selectedTask.resumeAction ?? `继续自动执行${selectedTask.executionScopeLabel ?? "当前章节范围"}`,
+      consequence: selectedTask.status === "failed" || selectedTask.status === "cancelled"
+        ? "任务会从可恢复位置重新入队，并继续当前章节范围。"
+        : "系统会提交继续执行命令，并从当前检查点推进该章节范围。",
+      tone: "info",
+      variant: "default",
+      disabled: continueWorkflowMutation.isPending || retryMutation.isPending || runtimeHardBlocked,
+      onClick: () => {
+        if (selectedTask.status === "failed" || selectedTask.status === "cancelled") {
+          retryMutation.mutate({ kind: selectedTask.kind, id: selectedTask.id, resume: true });
+          return;
+        }
+        continueWorkflowMutation.mutate({ taskId: selectedTask.id, mode: "auto_execute_range" });
+      },
+    });
+  }
+  if (
+    selectedTask
+    && !isAutoDirectorTask
+    && selectedTask.kind === "novel_workflow"
+    && !needsCandidateSelection
+    && !canResumeFront10AutoExecution
+    && (selectedTask.status === "waiting_approval" || selectedTask.status === "queued" || selectedTask.status === "running")
+  ) {
+    detailActions.push({
+      key: "continue-workflow",
+      title: selectedTask.status === "waiting_approval" ? "继续小说主流程" : "查看或推进当前任务",
+      label: selectedTask.resumeAction ?? (selectedTask.status === "waiting_approval" ? "继续" : "查看进度"),
+      consequence: selectedTask.status === "waiting_approval"
+        ? "系统会按当前检查点提交继续命令。"
+        : "系统会读取并推进当前任务，不会切换到其他任务身份。",
+      tone: "info",
+      variant: "default",
+      disabled: continueWorkflowMutation.isPending || runtimeHardBlocked,
+      onClick: () => continueWorkflowMutation.mutate({
+        taskId: selectedTask.id,
+        mode: selectedTask.status === "waiting_approval" ? "resume" : undefined,
+      }),
+    });
+  }
+  if (selectedTask && (selectedTask.status === "failed" || selectedTask.status === "cancelled") && !isAutoDirectorTask) {
+    detailActions.push({
+      key: "retry",
+      title: "重新执行任务",
+      label: "重试",
+      consequence: "任务会按现有任务配置重新入队；已保存的来源内容不会由重试按钮删除。",
+      tone: "danger",
+      variant: "default",
+      disabled: retryMutation.isPending,
+      onClick: () => retryMutation.mutate({ kind: selectedTask.kind, id: selectedTask.id }),
+    });
+  }
+  if (selectedTask && (
+    (selectedTask.kind === "novel_workflow" && canCancelDirectorTask(selectedTask))
+    || (selectedTask.kind !== "novel_workflow" && ACTIVE_STATUSES.has(selectedTask.status))
+  )) {
+    detailActions.push({
+      key: "cancel",
+      title: "停止后续执行",
+      label: "取消任务",
+      consequence: "系统会请求停止后续步骤；已保存的产物仍保留在来源页面。",
+      tone: "warning",
+      disabled: cancelMutation.isPending,
+      onClick: () => cancelMutation.mutate({ kind: selectedTask.kind, id: selectedTask.id }),
+    });
+  }
+  if (selectedTask && ARCHIVABLE_STATUSES.has(selectedTask.status)) {
+    detailActions.push({
+      key: "archive",
+      title: "从任务中心收起记录",
+      label: "归档",
+      consequence: "只隐藏任务中心记录，不删除小说正文、规划或其他生成资产。",
+      disabled: archiveMutation.isPending,
+      onClick: () => archiveMutation.mutate({ kind: selectedTask.kind, id: selectedTask.id }),
+    });
+  }
 
+  const noticeAction = selectedTask && (selectedTaskChapterTitleWarning || selectedTaskNoticeRoute)
+    ? {
+        label: selectedTaskChapterTitleWarning?.label ?? selectedTaskNotice?.action?.label ?? "打开当前卷拆章",
+        disabled: chapterTitleRepairMutation.isPending,
+        onClick: () => {
+          if (selectedTaskChapterTitleWarning) {
+            chapterTitleRepairMutation.startRepair(selectedTask);
+            return;
+          }
+          if (selectedTaskNoticeRoute) navigate(selectedTaskNoticeRoute);
+        },
+      }
+    : null;
+  const failureAction = selectedTask && (selectedTaskChapterTitleWarning || selectedTaskFailureRepairRoute)
+    ? {
+        label: selectedTaskChapterTitleWarning?.label ?? "快速修复章节标题",
+        disabled: chapterTitleRepairMutation.isPending,
+        onClick: () => {
+          if (selectedTaskChapterTitleWarning) {
+            chapterTitleRepairMutation.startRepair(selectedTask);
+            return;
+          }
+          if (selectedTaskFailureRepairRoute) navigate(selectedTaskFailureRepairRoute);
+        },
+      }
+    : null;
+
+  const listErrorMessage = listQuery.error instanceof Error ? listQuery.error.message : listQuery.isError ? "任务列表读取失败，请重试。" : null;
+  const overviewErrorMessage = overviewQuery.error instanceof Error
+    ? overviewQuery.error.message
+    : overviewQuery.isError ? "任务概览读取失败，请重试。" : null;
+  const detailErrorMessage = detailQuery.error instanceof Error ? detailQuery.error.message : detailQuery.isError ? "任务详情读取失败，请重试。" : null;
+  const recommendedBlockingTask = allRows.find(isTaskMustHandle) ?? null;
+  const hasMustHandleTask = mustHandleCount > 0 || blockingCount > 0;
+  const recommendedRecoveryCandidate = failedTaskCount === 0
+    ? recoveryCandidatesQuery.data?.data?.items[0] ?? null
+    : null;
+  const recommendedTask = recommendedBlockingTask
+    ?? recommendedRecoveryCandidate
+    ?? (!hasMustHandleTask
+      ? allRows.find((item) => item.status === "waiting_approval")
+        ?? allRows.find((item) => getTaskQueueSeverity(item) === "quality")
+        ?? allRows.find((item) => item.status === "running")
+        ?? allRows[0]
+        ?? null
+      : null);
+  const shouldOpenFailedFilter = hasMustHandleTask && !recommendedBlockingTask && failedTaskCount > 0;
+  const shouldRetryRecoveryLookup = hasMustHandleTask
+    && !recommendedTask
+    && !shouldOpenFailedFilter
+    && !recoveryCandidatesQuery.isLoading;
+  const hasRecommendedAction = Boolean(recommendedTask || shouldOpenFailedFilter || shouldRetryRecoveryLookup);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      <WorkspaceHeader
+        icon={ListChecks}
+        context="任务与恢复"
+        title="任务中心"
+        description="统一查看创作、拆书、知识索引和图片任务；阻塞任务需要处理，质量提醒可以按影响范围稍后跟进。"
+        meta={(
+          <>
+            <span>当前显示 {visibleRows.length} 项</span>
+            <span>全局执行 {runningCount + queuedCount} 项</span>
+            <span>等待操作 {waitingActionCount} 项</span>
+            <span>失败 {failedTaskCount} 项</span>
+            <span>可恢复 {recoveryCandidateCount} 项</span>
+            <span>质量提醒 {qualityReminderCount} 项</span>
+          </>
+        )}
+        actions={(
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void Promise.all([overviewQuery.refetch(), recoveryCandidatesQuery.refetch(), listQuery.refetch()])}
+            disabled={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching}
+          >
+            <RefreshCw className={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />
+            刷新任务
+          </Button>
+        )}
+      />
+
+      <WorkspaceNextAction
+        icon={overviewErrorMessage ? RefreshCw : hasMustHandleTask ? ShieldAlert : Activity}
+        tone={overviewQuery.isLoading ? "info" : overviewErrorMessage ? "danger" : hasMustHandleTask ? "danger" : waitingActionCount > 0 ? "info" : qualityReminderCount > 0 ? "warning" : runningCount + queuedCount > 0 ? "info" : allRows.length > 0 ? "success" : "neutral"}
+        title={overviewQuery.isLoading ? "正在读取全局任务状态" : overviewErrorMessage ? "重新读取任务概览" : hasMustHandleTask ? "先查看必须处理的任务" : waitingActionCount > 0 ? "完成等待中的操作" : qualityReminderCount > 0 ? "查看质量提醒" : runningCount + queuedCount > 0 ? "关注正在推进的任务" : allRows.length > 0 ? "当前没有阻塞任务" : "任务会在执行后汇总到这里"}
+        description={overviewQuery.isLoading
+          ? "正在汇总执行、等待操作、失败和可恢复任务，请稍候。"
+          : overviewErrorMessage
+            ? `${overviewErrorMessage} 当前不会据此判断是否存在阻塞任务。`
+            : hasMustHandleTask
+              ? recoveryCandidatesQuery.isLoading && !recommendedBlockingTask && failedTaskCount === 0
+                ? "正在定位可恢复任务；读取完成后会提供对应入口。"
+                : "阻塞状态可能影响对应来源流程；先查看原因和恢复位置，再决定恢复、重试或重规划。"
+              : waitingActionCount > 0
+                ? "候选确认、章节批次继续等节点需要你的操作，但不代表任务发生故障。"
+                : qualityReminderCount > 0
+                  ? "这些提醒不会阻止全书继续执行，可以按影响范围安排局部修复。"
+                  : runningCount + queuedCount > 0
+                    ? "系统会持续刷新进度，普通运行状态不需要手动干预。"
+                    : allRows.length > 0
+                      ? "已完成记录可按需归档，质量提醒仍会保留在任务详情中。"
+                      : "从小说、拆书、知识库或图片工作区发起任务后，可在这里查看状态。"}
+        consequence={overviewErrorMessage
+          ? "只重新读取任务概览，不会恢复、重试或取消任务。"
+          : !overviewQuery.isLoading && hasRecommendedAction
+            ? recommendedTask
+              ? "只定位到推荐任务，不会自动继续、重试或取消。"
+              : shouldOpenFailedFilter
+                ? "只筛选失败任务，不会自动恢复、重试或取消任务。"
+                : "只重新读取恢复候选，不会自动执行恢复。"
+            : undefined}
+        action={overviewErrorMessage ? (
+          <Button type="button" size="sm" variant="outline" onClick={() => void overviewQuery.refetch()}>
+            重新读取
+          </Button>
+        ) : !overviewQuery.isLoading && hasRecommendedAction ? (
+          <Button
+            type="button"
+            size="sm"
+            variant={hasMustHandleTask ? "destructive" : "outline"}
+            onClick={() => {
+              if (!recommendedTask) {
+                setKind("");
+                setKeyword("");
+                if (shouldOpenFailedFilter) {
+                  setStatus("failed");
+                  setOnlyAnomaly(false);
+                } else if (shouldRetryRecoveryLookup) {
+                  void recoveryCandidatesQuery.refetch();
+                }
+                return;
+              }
+              setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.set("kind", recommendedTask.kind);
+                next.set("id", recommendedTask.id);
+                return next;
+              });
+            }}
+          >
+            {shouldRetryRecoveryLookup ? "重新读取恢复任务" : hasMustHandleTask ? "查看需处理任务" : "查看推荐任务"}
+          </Button>
+        ) : undefined}
+      />
+
       <TaskCenterSummaryCards
-        runningCount={runningCount}
-        queuedCount={queuedCount}
-        failedCount={failedCount}
-        completed24hCount={completed24hCount}
+        activeCount={runningCount + queuedCount}
+        waitingActionCount={waitingActionCount}
+        mustHandleCount={mustHandleCount}
+        qualityReminderCount={qualityReminderCount}
       />
 
       <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_360px]">
@@ -380,6 +647,9 @@ export default function TaskCenterPage() {
           tasks={visibleRows}
           selectedKind={selectedKind}
           selectedId={selectedId}
+          loading={listQuery.isLoading}
+          errorMessage={listErrorMessage}
+          onRetry={() => void listQuery.refetch()}
           onSelectTask={(task) => {
             setSearchParams((prev) => {
               const next = new URLSearchParams(prev);
@@ -390,221 +660,26 @@ export default function TaskCenterPage() {
           }}
         />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">任务详情</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {selectedTask ? (
-              <>
-                <TaskCenterDetailSummary
-                  task={selectedTask}
-                  isAutoDirectorTask={isAutoDirectorTask}
-                  currentModelLabel={`${llm.provider} / ${llm.model}`}
-                  dashboardView={selectedDirectorDashboardView}
-                />
-                {selectedTask.noticeCode || selectedTask.noticeSummary ? (
-                  <div className="rounded-md border border-amber-300/50 bg-amber-50/70 p-2 text-amber-900">
-                    <div className="font-medium">
-                      {selectedTaskChapterTitleWarning ? "当前提醒" : (selectedTask.noticeCode ?? "结果提醒")}
-                    </div>
-                    {selectedTask.noticeSummary ? (
-                      <div className="mt-1 text-sm">{selectedTask.noticeSummary}</div>
-                    ) : null}
-                    {selectedTaskChapterTitleWarning || selectedTaskNoticeRoute ? (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            if (selectedTaskChapterTitleWarning) {
-                              chapterTitleRepairMutation.startRepair(selectedTask ?? null);
-                              return;
-                            }
-                            if (selectedTaskNoticeRoute) {
-                              navigate(selectedTaskNoticeRoute);
-                            }
-                          }}
-                          disabled={chapterTitleRepairMutation.isPending}
-                        >
-                          {selectedTaskChapterTitleWarning?.label ?? selectedTaskNotice?.action?.label ?? "打开当前卷拆章"}
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-                {selectedTask.failureCode || selectedTask.failureSummary ? (
-                  <div className="rounded-md border border-amber-300/50 bg-amber-50/70 p-2 text-amber-900">
-                    <div className="font-medium">
-                      {selectedTaskHasChapterTitleFailure ? "当前提醒" : (selectedTask.failureCode ?? "任务异常")}
-                    </div>
-                    {selectedTask.failureSummary ? (
-                      <div className="mt-1 text-sm">{selectedTask.failureSummary}</div>
-                    ) : null}
-                    {selectedTaskChapterTitleWarning || selectedTaskFailureRepairRoute ? (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            if (selectedTaskChapterTitleWarning) {
-                              chapterTitleRepairMutation.startRepair(selectedTask ?? null);
-                              return;
-                            }
-                            if (selectedTaskFailureRepairRoute) {
-                              navigate(selectedTaskFailureRepairRoute);
-                            }
-                          }}
-                          disabled={chapterTitleRepairMutation.isPending}
-                        >
-                          {selectedTaskChapterTitleWarning?.label ?? "快速修复章节标题"}
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-                {selectedTask.lastError && !selectedTaskHasChapterTitleFailure ? (
-                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-destructive">
-                    {selectedTask.lastError}
-                  </div>
-                ) : null}
-                {selectedTask.kind === "novel_workflow" && selectedTask.checkpointSummary ? (
-                  <div className="rounded-md border bg-muted/20 p-2 text-muted-foreground">
-                    {selectedTask.checkpointSummary}
-                  </div>
-                ) : null}
-                {isAutoDirectorTask ? (
-                  <DirectorRuntimeProjectionCard projection={selectedDirectorRuntimeProjectionForDisplay} />
-                ) : null}
-                {isAutoDirectorTask ? (
-                  <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
-                    继续导演、恢复任务、切换模型、推进策略和改动影响检查，请回到小说页面右侧的执行详情面板处理。这里保留任务记录、状态摘要以及取消、归档、打开来源页等基础操作。
-                  </div>
-                ) : null}
-                <div className="flex flex-wrap gap-2">
-                  {!isAutoDirectorTask && needsCandidateSelection ? (
-                    <Button
-                      size="sm"
-                      onClick={() => navigate(getCandidateSelectionLink(selectedTask.id))}
-                    >
-                      {selectedTask.resumeAction ?? "继续确认书级方向"}
-                    </Button>
-                  ) : null}
-                  {!isAutoDirectorTask && canResumeFront10AutoExecution ? (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        if (selectedTask.status === "failed" || selectedTask.status === "cancelled") {
-                          retryMutation.mutate({
-                            kind: selectedTask.kind,
-                            id: selectedTask.id,
-                            resume: true,
-                          });
-                          return;
-                        }
-                        continueWorkflowMutation.mutate({
-                          taskId: selectedTask.id,
-                          mode: "auto_execute_range",
-                        });
-                      }}
-                      disabled={continueWorkflowMutation.isPending || retryMutation.isPending || runtimeHardBlocked}
-                    >
-                      {selectedTask.resumeAction ?? `继续自动执行${selectedTask.executionScopeLabel ?? "当前章节范围"}`}
-                    </Button>
-                  ) : null}
-                  {!isAutoDirectorTask
-                  && selectedTask.kind === "novel_workflow"
-                  && !needsCandidateSelection
-                  && !canResumeFront10AutoExecution
-                  && (selectedTask.status === "waiting_approval" || selectedTask.status === "queued" || selectedTask.status === "running") ? (
-                    <Button
-                      size="sm"
-                      onClick={() =>
-                        continueWorkflowMutation.mutate({
-                          taskId: selectedTask.id,
-                          mode: selectedTask.status === "waiting_approval" ? "resume" : undefined,
-                        })}
-                      disabled={continueWorkflowMutation.isPending || runtimeHardBlocked}
-                    >
-                      {selectedTask.resumeAction ?? (isActiveAutoDirectorTask ? "查看进度" : "继续")}
-                    </Button>
-                  ) : null}
-                  {(selectedTask.status === "failed" || selectedTask.status === "cancelled") && !isAutoDirectorTask ? (
-                    <>
-                      <Button
-                        size="sm"
-                        variant={isAutoDirectorTask ? "outline" : "default"}
-                        onClick={() =>
-                          retryMutation.mutate({
-                            kind: selectedTask.kind,
-                            id: selectedTask.id,
-                            resume: isAutoDirectorTask ? true : undefined,
-                          })
-                        }
-                        disabled={retryMutation.isPending}
-                      >
-                        {isAutoDirectorTask ? "按任务原模型重试" : "重试"}
-                      </Button>
-                    </>
-                  ) : null}
-                  {(
-                    (selectedTask.kind === "novel_workflow" && canCancelDirectorTask(selectedTask))
-                    || (selectedTask.kind !== "novel_workflow"
-                      && (selectedTask.status === "queued"
-                        || selectedTask.status === "running"
-                        || selectedTask.status === "waiting_approval"))
-                  ) ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        cancelMutation.mutate({
-                          kind: selectedTask.kind,
-                          id: selectedTask.id,
-                        })}
-                      disabled={cancelMutation.isPending}
-                      >
-                      取消
-                    </Button>
-                  ) : null}
-                  {ARCHIVABLE_STATUSES.has(selectedTask.status) ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        archiveMutation.mutate({
-                          kind: selectedTask.kind,
-                          id: selectedTask.id,
-                        })}
-                      disabled={archiveMutation.isPending}
-                    >
-                      归档
-                    </Button>
-                  ) : null}
-                  <Button asChild size="sm" variant="outline">
-                    <Link to={selectedTask!.sourceRoute}>打开来源页面</Link>
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  <div className="font-medium">步骤状态</div>
-                  {selectedTaskSteps.length === 0 ? (
-                    <div className="rounded-md border border-dashed p-2 text-muted-foreground">暂无步骤状态。</div>
-                  ) : selectedTaskSteps.map((step) => (
-                    <div key={step.key} className="flex items-center justify-between rounded-md border p-2">
-                      <div>{step.label}</div>
-                      <Badge variant="outline">{step.status}</Badge>
-                    </div>
-                  ))}
-                </div>
-                {selectedTask.kind === "novel_workflow" && Array.isArray(selectedTaskMeta.milestones) && selectedTaskMeta.milestones.length > 0 ? (
-                  <TaskCenterMilestoneHistory milestones={selectedTaskMeta.milestones as NovelWorkflowMilestone[]} />
-                ) : null}
-              </>
-            ) : (
-              <div className="text-muted-foreground">请选择任务查看详情。</div>
-            )}
-          </CardContent>
-        </Card>
+        <TaskCenterDetailPanel
+          task={selectedTask}
+          loading={Boolean(selectedKind && selectedId && detailQuery.isLoading)}
+          errorMessage={detailErrorMessage}
+          onRetryLoad={() => void detailQuery.refetch()}
+          isAutoDirectorTask={isAutoDirectorTask}
+          currentModelLabel={`${llm.provider} / ${llm.model}`}
+          dashboardView={selectedDirectorDashboardView}
+          runtimeProjection={selectedDirectorRuntimeProjectionForDisplay}
+          noticeAction={noticeAction}
+          noticeSeverity={selectedTask ? getTaskNoticeSeverity(selectedTask) : "normal"}
+          noticeTitle={selectedTask ? getTaskNoticeTitle(selectedTask) : "任务提醒"}
+          failureAction={failureAction}
+          failureIsQualityReminder={selectedTaskHasQualityFailure}
+          actions={detailActions}
+          steps={selectedTaskSteps}
+          milestones={selectedTask?.kind === "novel_workflow" && Array.isArray(selectedTaskMeta.milestones)
+            ? selectedTaskMeta.milestones as NovelWorkflowMilestone[]
+            : []}
+        />
       </div>
     </div>
   );

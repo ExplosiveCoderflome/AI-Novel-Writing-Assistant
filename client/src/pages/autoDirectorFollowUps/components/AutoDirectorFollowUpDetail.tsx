@@ -4,29 +4,47 @@ import type {
   AutoDirectorFollowUpItem,
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  TaskQueueActionRow,
+  TaskQueueImpactNotice,
+  TaskQueueSection,
+  TaskQueueStatusBadge,
+} from "@/components/taskQueue";
+import { WorkspaceStateNotice } from "@/components/workspace";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
+import {
+  getFollowUpActionConsequence,
+  getFollowUpActionRiskDescription,
+  getFollowUpActionTone,
+  getFollowUpLevelLabel,
+  getFollowUpPriorityLabel,
+  getFollowUpSeverity,
+  getFollowUpTone,
+} from "../followUpPresentation";
 
 interface AutoDirectorFollowUpDetailPanelProps {
   detail: AutoDirectorFollowUpDetail | null;
   selectedItem: AutoDirectorFollowUpItem | null;
   loading: boolean;
+  errorMessage?: string | null;
   actionLoading: boolean;
   onExecuteAction: (item: AutoDirectorFollowUpItem, action: AutoDirectorAction) => void | Promise<void>;
   onRefreshValidation: () => void | Promise<void>;
   onSafeFix: () => void | Promise<void>;
+  onRetry: () => void | Promise<void>;
 }
 
 export function AutoDirectorFollowUpDetailPanel({
   detail,
   selectedItem,
   loading,
+  errorMessage,
   actionLoading,
   onExecuteAction,
   onRefreshValidation,
   onSafeFix,
+  onRetry,
 }: AutoDirectorFollowUpDetailPanelProps) {
   const deliveryStatusLabels = {
     delivered: "已送达",
@@ -41,19 +59,30 @@ export function AutoDirectorFollowUpDetailPanel({
     "auto_director.completed": "已完成",
     "auto_director.progress_changed": "进度变化",
   } as const;
+  const tone = selectedItem ? getFollowUpTone(selectedItem) : "neutral";
 
   return (
-    <Card className="min-w-0 overflow-hidden">
-      <CardHeader>
-        <CardTitle className="text-base">跟进详情</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <TaskQueueSection
+      title="跟进详情"
+      description="每个动作都会说明后果；跟进项会保持对应的导演任务身份，不与手动工作区任务混用。"
+      className="min-w-0 overflow-hidden"
+    >
+      <div className="space-y-4">
         {loading ? (
-          <div className={`rounded-md border border-dashed p-6 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>正在加载详情...</div>
+          <WorkspaceStateNotice loading title="正在读取跟进详情" description="正在同步导演任务、检查点和最近校验结果。" />
         ) : null}
 
-        {!loading && (!detail || !selectedItem) ? (
-          <div className={`rounded-md border border-dashed p-6 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>请选择一个导演跟进项查看详情。</div>
+        {errorMessage ? (
+          <WorkspaceStateNotice
+            tone="danger"
+            title="跟进详情读取失败"
+            description={errorMessage}
+            action={<Button size="sm" variant="outline" onClick={() => void onRetry()}>重新读取</Button>}
+          />
+        ) : null}
+
+        {!loading && !errorMessage && (!detail || !selectedItem) ? (
+          <WorkspaceStateNotice title="请选择一个导演跟进项" description="选择后可查看阻塞范围、下一步和安全动作。" />
         ) : null}
 
         {detail && selectedItem ? (
@@ -61,18 +90,35 @@ export function AutoDirectorFollowUpDetailPanel({
             <div className="space-y-1">
               <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} font-medium`}>{selectedItem.novelTitle}</div>
               <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-sm text-muted-foreground`}>{selectedItem.reasonLabel}</div>
+              <div className="flex flex-wrap gap-2 pt-2">
+                <TaskQueueStatusBadge label={getFollowUpLevelLabel(selectedItem)} tone={tone} />
+                <TaskQueueStatusBadge label={getFollowUpPriorityLabel(selectedItem.priority, selectedItem.reason)} tone={tone} />
+              </div>
             </div>
 
-            <div className={`space-y-2 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              <div>阻塞原因：{detail.blockingReason ?? "暂无"}</div>
+            <TaskQueueImpactNotice
+              severity={getFollowUpSeverity(selectedItem)}
+              title={getFollowUpLevelLabel(selectedItem)}
+              description={detail.blockingReason ?? detail.followUpSummary}
+            />
+
+            {detail.riskNote ? (
+              <WorkspaceStateNotice
+                compact
+                tone={tone === "danger" ? "danger" : tone === "warning" ? "warning" : "info"}
+                title="风险说明"
+                description={detail.riskNote}
+              />
+            ) : null}
+
+            <div className={`grid gap-2 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
               <div>下一步建议：{detail.nextStepSuggestion ?? "查看任务详情后再继续。"}</div>
               <div>检查点摘要：{detail.checkpointSummary ?? "暂无"}</div>
               <div>当前模型：{detail.currentModel ?? "暂无"}</div>
-              <div>来源页：{detail.originDetailUrl}</div>
             </div>
 
             {selectedItem.section === "needs_validation" ? (
-              <div className={`space-y-3 rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-950 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+              <div className={`space-y-3 rounded-md border border-warning/25 bg-warning/5 p-3 text-sm text-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                   <div>
@@ -111,7 +157,7 @@ export function AutoDirectorFollowUpDetailPanel({
                     variant="outline"
                     size="sm"
                     disabled={actionLoading}
-                    className={`${AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} border-yellow-400 bg-yellow-100 text-yellow-950 hover:bg-yellow-200 hover:text-yellow-950`}
+                    className={`${AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} border-warning/40 bg-warning/10 text-warning hover:bg-warning/15 hover:text-warning`}
                     title="仅修复校验标记为低风险的状态、检查点、进度、恢复目标、自动执行对账、替代原因、审计和通知记录；不会清除正文、重写资产、重规划、确认候选、切换模型或生成内容。"
                     onClick={() => void onSafeFix()}
                   >
@@ -124,20 +170,25 @@ export function AutoDirectorFollowUpDetailPanel({
 
             <div className="space-y-2">
               <div className="text-sm font-medium">可执行动作</div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                {detail.availableActions.map((action) => (
-                  <Button
-                    key={action.code}
-                    variant={action.kind === "mutation" ? "default" : "outline"}
-                    size="sm"
-                    className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
-                    disabled={actionLoading}
-                    onClick={() => void onExecuteAction(selectedItem, action)}
-                  >
-                    {action.label}
-                  </Button>
-                ))}
-              </div>
+              {detail.availableActions.map((action) => (
+                <TaskQueueActionRow
+                  key={action.code}
+                  title={action.label}
+                  consequence={`${getFollowUpActionConsequence(action)} 风险：${getFollowUpActionRiskDescription(action)}`}
+                  tone={getFollowUpActionTone(action)}
+                  action={(
+                    <Button
+                      variant={action.kind === "mutation" && action.riskLevel === "low" ? "default" : "outline"}
+                      size="sm"
+                      className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
+                      disabled={actionLoading}
+                      onClick={() => void onExecuteAction(selectedItem, action)}
+                    >
+                      {action.label}
+                    </Button>
+                  )}
+                />
+              ))}
             </div>
 
             <div className="space-y-2">
@@ -165,10 +216,11 @@ export function AutoDirectorFollowUpDetailPanel({
                 ) : detail.channelDeliveries?.map((delivery) => (
                   <div key={`${delivery.channelType}:${delivery.eventType}`} className={`rounded-md border p-3 text-sm ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={delivery.status === "delivered" ? "secondary" : (delivery.status === "failed" ? "destructive" : "outline")}>
-                        {delivery.channelType === "dingtalk" ? "钉钉" : "企微"}
-                      </Badge>
-                      <Badge variant="outline">{deliveryStatusLabels[delivery.status]}</Badge>
+                      <TaskQueueStatusBadge label={delivery.channelType === "dingtalk" ? "钉钉" : "企微"} tone="neutral" />
+                      <TaskQueueStatusBadge
+                        label={deliveryStatusLabels[delivery.status]}
+                        tone={delivery.status === "delivered" ? "success" : delivery.status === "failed" ? "danger" : "info"}
+                      />
                       <span className="text-xs text-muted-foreground">{eventTypeLabels[delivery.eventType]}</span>
                     </div>
                     <div className="mt-2 text-xs text-muted-foreground">
@@ -180,7 +232,7 @@ export function AutoDirectorFollowUpDetailPanel({
             </div>
           </>
         ) : null}
-      </CardContent>
-    </Card>
+      </div>
+    </TaskQueueSection>
   );
 }

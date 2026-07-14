@@ -1,20 +1,118 @@
 ﻿import type {
   AutoDirectorAction,
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
-import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
+import type { TaskKind, TaskStatus, UnifiedTaskSummary } from "@ai-novel/shared/types/task";
 import type {
   NovelWorkflowMilestoneType,
   NovelWorkflowResumeTarget,
 } from "@ai-novel/shared/types/novelWorkflow";
+import type { WorkspaceTone } from "@/components/workspace";
+import type { TaskQueueSeverity } from "@/components/taskQueue";
 
 export const ACTIVE_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
-export const ANOMALY_STATUSES = new Set<TaskStatus>(["failed", "cancelled"]);
 export const ARCHIVABLE_STATUSES = new Set<TaskStatus>(["succeeded", "failed", "cancelled"]);
 
 export type TaskSortMode = "default" | "updated_desc" | "updated_asc" | "heartbeat_desc" | "heartbeat_asc";
 
-export function getTaskListPriority(status: TaskStatus): number {
-  return status === "failed" ? 0 : 1;
+type TaskQueuePresentationInput = Pick<
+  UnifiedTaskSummary,
+  | "status"
+  | "pendingManualRecovery"
+  | "checkpointType"
+  | "noticeCode"
+  | "noticeSummary"
+  | "failureCode"
+  | "failureSummary"
+  | "lastError"
+>;
+
+const PIPELINE_QUALITY_REVIEW_CODE = "PIPELINE_QUALITY_REVIEW";
+const PIPELINE_REPLAN_REQUIRED_CODE = "PIPELINE_REPLAN_REQUIRED";
+const CHAPTER_TITLE_DIVERSITY_CODE = "CHAPTER_TITLE_DIVERSITY";
+
+export function isTaskReplanRequired(task: TaskQueuePresentationInput): boolean {
+  return task.checkpointType === "replan_required"
+    || task.noticeCode === PIPELINE_REPLAN_REQUIRED_CODE
+    || task.failureCode === PIPELINE_REPLAN_REQUIRED_CODE;
+}
+
+export function isTaskFailureQualityReminder(task: TaskQueuePresentationInput): boolean {
+  return task.failureCode === PIPELINE_QUALITY_REVIEW_CODE
+    || task.failureCode === CHAPTER_TITLE_DIVERSITY_CODE;
+}
+
+export function isTaskQueueQualityReminder(task: TaskQueuePresentationInput): boolean {
+  return task.noticeCode === PIPELINE_QUALITY_REVIEW_CODE
+    || task.noticeCode === CHAPTER_TITLE_DIVERSITY_CODE
+    || isTaskFailureQualityReminder(task);
+}
+
+export function getTaskNoticeSeverity(task: TaskQueuePresentationInput): TaskQueueSeverity {
+  if (isTaskReplanRequired(task)) return "blocking";
+  if (isTaskQueueQualityReminder(task)) return "quality";
+  return "normal";
+}
+
+export function getTaskNoticeTitle(task: TaskQueuePresentationInput): string {
+  if (isTaskReplanRequired(task)) return "需要重规划";
+  if (isTaskQueueQualityReminder(task)) return "质量提醒";
+  return "任务提醒";
+}
+
+export function getTaskListPriority(task: TaskQueuePresentationInput): number {
+  const tone = getTaskQueueTone(task);
+  if (tone === "danger") return 0;
+  if (tone === "warning") return 1;
+  if (tone === "info") return 2;
+  return 3;
+}
+
+export function isTaskMustHandle(task: TaskQueuePresentationInput): boolean {
+  return getTaskQueueTone(task) === "danger";
+}
+
+export function getTaskQueueTone(task: TaskQueuePresentationInput): WorkspaceTone {
+  if (task.pendingManualRecovery || isTaskReplanRequired(task)) {
+    return "danger";
+  }
+  if (task.status === "failed" && !isTaskFailureQualityReminder(task)) {
+    return "danger";
+  }
+  if (isTaskQueueQualityReminder(task)) {
+    return "warning";
+  }
+  if (task.status === "failed") {
+    return "danger";
+  }
+  if (task.failureCode || task.failureSummary) {
+    return "warning";
+  }
+  if (task.status === "waiting_approval" || task.status === "running" || task.noticeCode || task.noticeSummary) {
+    return "info";
+  }
+  if (task.status === "succeeded") {
+    return "success";
+  }
+  return "neutral";
+}
+
+export function getTaskQueueLevelLabel(task: TaskQueuePresentationInput): string {
+  const tone = getTaskQueueTone(task);
+  if (isTaskReplanRequired(task)) return "需要重规划";
+  if (task.pendingManualRecovery) return "需要恢复";
+  if (tone === "danger") return task.status === "failed" ? "任务失败" : "阻塞";
+  if (tone === "warning" && isTaskQueueQualityReminder(task)) return "质量提醒";
+  if (tone === "warning") return "待操作";
+  if (tone === "info") return task.status === "waiting_approval" ? "待操作" : "进行中";
+  if (tone === "success") return "已完成";
+  return "普通任务";
+}
+
+export function getTaskQueueSeverity(task: TaskQueuePresentationInput): TaskQueueSeverity {
+  const tone = getTaskQueueTone(task);
+  if (tone === "danger") return "blocking";
+  if (isTaskQueueQualityReminder(task)) return "quality";
+  return "normal";
 }
 
 export function getTimestamp(value: string | null | undefined): number {

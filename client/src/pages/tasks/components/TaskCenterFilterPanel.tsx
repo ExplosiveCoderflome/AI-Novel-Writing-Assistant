@@ -36,6 +36,7 @@ export default function TaskCenterFilterPanel({
       </CardHeader>
       <CardContent className="task-filter-controls grid min-w-0 grid-cols-3 gap-2 xl:grid-cols-1">
         <SelectControl
+          aria-label="按任务类型筛选"
           className="task-filter-kind col-start-1 row-start-1 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
           value={kind}
           onChange={(event) => onKindChange(event.target.value as TaskKind | "")}
@@ -50,6 +51,7 @@ export default function TaskCenterFilterPanel({
           <option value="agent_run">Agent 运行</option>
         </SelectControl>
         <SelectControl
+          aria-label="按任务状态筛选"
           className="task-filter-status col-start-2 row-start-1 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as TaskStatus | "")}
@@ -68,15 +70,17 @@ export default function TaskCenterFilterPanel({
             checked={onlyAnomaly}
             onChange={(event) => onOnlyAnomalyChange(event.target.checked)}
           />
-          仅看异常
+          仅看需处理
         </label>
         <Input
+          aria-label="按标题或关联对象搜索"
           className="task-filter-keyword col-span-2 col-start-1 row-start-2 h-10 px-2 xl:col-auto xl:row-auto"
           value={keyword}
           onChange={(event) => onKeywordChange(event.target.value)}
           placeholder="标题或关联对象"
         />
         <SelectControl
+          aria-label="任务排序方式"
           className="task-filter-sort col-start-3 row-start-2 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
           value={sortMode}
           onChange={(event) => onSortModeChange(event.target.value as TaskSortMode)}
@@ -85,7 +89,7 @@ export default function TaskCenterFilterPanel({
           <option value="updated_asc">按更新时间排序：最早优先</option>
           <option value="heartbeat_desc">按最近心跳排序：最新优先</option>
           <option value="heartbeat_asc">按最近心跳排序：最早优先</option>
-          <option value="default">默认排序：失败优先</option>
+          <option value="default">默认排序：需处理优先</option>
         </SelectControl>
       </CardContent>
     </Card>
