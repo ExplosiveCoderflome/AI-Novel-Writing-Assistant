@@ -9,6 +9,7 @@ import { ComicPanelScriptService } from "../../../services/comic/ComicPanelScrip
 import { comicPanelImageService } from "../../../services/comic/ComicPanelImageService";
 import { comicBubbleLayoutService } from "../../../services/comic/ComicBubbleLayoutService";
 import { comicExportService } from "../../../services/comic/ComicExportService";
+import { comicMotionService } from "../../../services/comic/ComicMotionService";
 import { comicCharacterImageService } from "../../../services/comic/ComicCharacterImageService";
 import { comicBatchOrchestrator } from "../../../services/comic/ComicBatchOrchestrator";
 import { comicFactService } from "../../../services/comic/ComicFactService";
@@ -743,6 +744,30 @@ router.get(
       res.setHeader("Content-Type", mimeMap[file.ext] ?? "application/octet-stream");
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       res.send(file.buffer);
+    } catch (err) { next(err); }
+  },
+);
+
+router.post(
+  "/episodes/:episodeId/motion/script",
+  validate({ params: episodeIdParams }),
+  async (req, res, next) => {
+    try {
+      const { episodeId } = req.params as z.infer<typeof episodeIdParams>;
+      await comicMotionService.generateEpisodeMotionScript(episodeId, true);
+      res.json({ success: true, message: "Comic episode motion script generated." });
+    } catch (err) { next(err); }
+  },
+);
+
+router.post(
+  "/episodes/:episodeId/motion/synthesize",
+  validate({ params: episodeIdParams }),
+  async (req, res, next) => {
+    try {
+      const { episodeId } = req.params as z.infer<typeof episodeIdParams>;
+      const data = await comicMotionService.synthesizeEpisodeVideo(episodeId);
+      res.json({ success: true, data } satisfies ApiResponse<typeof data>);
     } catch (err) { next(err); }
   },
 );
