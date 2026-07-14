@@ -52,6 +52,13 @@
 - `/novels/auto-director`
 - `/titles`
 - `/prompt-workbench`
+- `/knowledge`
+- `/genres`
+- `/base-characters`
+- `/book-analysis`
+- `/tasks`
+- `/auto-director/follow-ups`
+- `/creative-hub`
 
 ### 部分对齐
 
@@ -60,9 +67,6 @@
 - `/novels/:id/chapters/:chapterId`
 - `/drama`
 - `/drama/projects/:id`
-- `/book-analysis`
-- `/tasks`
-- `/auto-director/follow-ups`
 - `/settings`
 - `/worlds`
 - `/style-engine`
@@ -72,16 +76,12 @@
 - `/help`
 - `/comic`
 - `/comic/projects/:id`
-- `/creative-hub`
 - `/chat-legacy`
-- `/knowledge`
-- `/genres`
 - `/story-modes`
 - `/anti-ai-rules`
 - `/settings/model-routes`
 - `/worlds/generator`
 - `/worlds/:id/workspace`
-- `/base-characters`
 
 ## 分批实施
 
@@ -215,7 +215,7 @@
 ## 阶段状态
 
 - 第一批：完成（2026-07-14）。
-- 第二批：进行中（2026-07-14，2A / 2B 已完成，2C 收口中）。
+- 第二批：完成（2026-07-14，2A / 2B / 2C 均已完成）。
 - 第三批：待开始。
 - 第四批：待开始。
 - 第五批：待开始。
@@ -244,3 +244,13 @@
 - 运行中可以阅读已完成小节；失败或取消时会保留已有结果并明确剩余缺口；归档结果继续支持只读查看和复制。
 - 冻结且没有内容的小节按“本次未选择”表达，不计入本轮缺口；冻结的历史结果继续可读。
 - 原文或章节读取失败只降级双栏对照，不隐藏已生成结果；中窄屏优先展示结果区，历史分析列表作为辅助入口。
+
+## 第二批 2C 实施结果
+
+- Creative Hub 收敛为线程管理、创作推进记录和当前小说上下文三部分；页头固定展示小说、阶段、线程状态与唯一推荐下一步。
+- 推荐动作只消费现有线程、审批、诊断、生产、开书准备和回合摘要等结构化状态；查询失败、待确认、运行中、失败恢复、初始化建议和生产入口保持明确优先级。
+- URL `threadId` 成为当前线程事实源；线程切换会立即清空旧消息，旧加载、流式事件、审批、资源绑定或新建响应不能覆盖用户后来进入的线程。
+- 无线程、线程加载失败或状态读取失败时，创作输入和资源修改保持禁用，并提供创建、重试或切换线程的恢复入口；运行、绑定、审批和生产提交均展示真实 pending/disabled。
+- 深链接资源只复用绑定完全一致的线程；小说切换清除旧章节与世界观绑定，已绑定但不在首屏小说列表中的项目仍保留可识别选项。
+- 自由输入、停止、编辑、分支、重新生成、工具结果与审批能力继续保留；运行标识、资源 ID 和模型参数默认收进折叠详情。
+- 删除无引用的旧重复 Creative Hub 页面和 Activity Feed，`/chat-legacy` 兼容入口及旧聊天页保持不变。

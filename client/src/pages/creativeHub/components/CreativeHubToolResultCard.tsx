@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -86,7 +86,7 @@ function renderNovelList(output: Record<string, unknown>, onQuickAction?: (promp
   const items = asRecordArray(output.items).slice(0, 8);
   return (
     <div className="space-y-2">
-      <div className="text-xs text-slate-600">
+      <div className="text-xs text-muted-foreground">
         已发现 {total ?? items.length} 本小说
         {total != null && total > items.length ? `，当前展示前 ${items.length} 本` : ""}
       </div>
@@ -96,9 +96,9 @@ function renderNovelList(output: Record<string, unknown>, onQuickAction?: (promp
           const chapterCount = typeof item.chapterCount === "number" ? item.chapterCount : null;
           const projectStatus = formatNovelProjectStatus(item.projectStatus);
           return (
-            <div key={`${item.id ?? title}`} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-              <div className="text-sm font-medium text-slate-900">《{title}》</div>
-              <div className="mt-1 text-xs text-slate-500">
+            <div key={`${item.id ?? title}`} className="rounded-md border border-border bg-muted/20 px-3 py-2">
+              <div className="text-sm font-medium text-foreground">《{title}》</div>
+              <div className="mt-1 text-xs text-muted-foreground">
                 {chapterCount != null ? `${chapterCount} 章` : "章节未知"}
                 {projectStatus ? ` · ${projectStatus}` : ""}
               </div>
@@ -140,12 +140,12 @@ function renderWorkspaceCard(
     ];
   return (
     <div className="space-y-2">
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3">
-        <div className="text-sm font-medium text-slate-900">《{title}》</div>
-        <div className="mt-1 text-xs text-slate-600">
+      <div className="rounded-md border border-success/30 bg-success/5 px-3 py-3">
+        <div className="text-sm font-medium text-foreground">《{title}》</div>
+        <div className="mt-1 text-xs text-muted-foreground">
           {variant === "created" ? "新小说已创建并绑定到当前线程。" : "当前线程已切换到该小说工作区。"}
         </div>
-        <div className="mt-2 text-xs text-slate-500">当前章节数：{chapterCount}</div>
+        <div className="mt-2 text-xs text-muted-foreground">当前章节数：{chapterCount}</div>
       </div>
       {renderActionButtons(actions, onQuickAction)}
     </div>
@@ -161,9 +161,9 @@ function renderWorldBindingCard(output: Record<string, unknown>, onQuickAction?:
     : "未命名世界观";
   return (
     <div className="space-y-2">
-      <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-3">
-        <div className="text-sm font-medium text-slate-900">《{novelTitle}》</div>
-        <div className="mt-1 text-xs text-slate-600">已绑定世界观《{worldName}》。</div>
+      <div className="rounded-md border border-info/30 bg-info/5 px-3 py-3">
+        <div className="text-sm font-medium text-foreground">《{novelTitle}》</div>
+        <div className="mt-1 text-xs text-muted-foreground">已绑定世界观《{worldName}》。</div>
       </div>
       {renderActionButtons([
         { label: "查看世界观约束", prompt: "查看当前小说的世界观规则" },
@@ -181,9 +181,9 @@ function renderProductionAssetCard(
 ) {
   return (
     <div className="space-y-2">
-      <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-3">
-        <div className="text-sm font-medium text-slate-900">{title}</div>
-        <div className="mt-1 text-xs leading-5 text-slate-600">{description}</div>
+      <div className="rounded-md border border-primary/25 bg-primary/5 px-3 py-3">
+        <div className="text-sm font-medium text-foreground">{title}</div>
+        <div className="mt-1 text-xs leading-5 text-muted-foreground">{description}</div>
       </div>
       {renderActionButtons(actions, onQuickAction)}
     </div>
@@ -201,25 +201,25 @@ function renderProductionStatusCard(output: Record<string, unknown>, onQuickActi
   const assetStages = asRecordArray(output.assetStages);
   return (
     <div className="space-y-2">
-      <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-3">
-        <div className="text-sm font-medium text-slate-900">《{title}》</div>
-        <div className="mt-1 text-xs text-slate-600">当前阶段：{currentStage}</div>
-        <div className="mt-1 text-xs text-slate-600">
+      <div className="rounded-md border border-info/30 bg-info/5 px-3 py-3">
+        <div className="text-sm font-medium text-foreground">《{title}》</div>
+        <div className="mt-1 text-xs text-muted-foreground">当前阶段：{currentStage}</div>
+        <div className="mt-1 text-xs text-muted-foreground">
           章节目录：{targetChapterCount != null ? `${chapterCount}/${targetChapterCount}` : chapterCount} 章
         </div>
-        <div className="mt-1 text-xs text-slate-600">整本写作：{pipelineStatus}</div>
+        <div className="mt-1 text-xs text-muted-foreground">整本写作：{pipelineStatus}</div>
         {typeof output.failureSummary === "string" && output.failureSummary.trim() ? (
-          <div className="mt-2 text-xs leading-5 text-slate-600">失败摘要：{output.failureSummary.trim()}</div>
+          <div className="mt-2 text-xs leading-5 text-muted-foreground">失败摘要：{output.failureSummary.trim()}</div>
         ) : null}
       </div>
       {assetStages.length > 0 ? (
         <div className="grid gap-2">
           {assetStages.slice(0, 8).map((stage) => (
-            <div key={`${stage.key ?? stage.label}`} className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <div className="text-sm font-medium text-slate-900">{String(stage.label ?? stage.key ?? "阶段")}</div>
-              <div className="mt-1 text-xs text-slate-500">状态：{String(stage.status ?? "unknown")}</div>
+            <div key={`${stage.key ?? stage.label}`} className="rounded-md border border-border bg-muted/20 px-3 py-2">
+              <div className="text-sm font-medium text-foreground">{String(stage.label ?? stage.key ?? "阶段")}</div>
+              <div className="mt-1 text-xs text-muted-foreground">状态：{String(stage.status ?? "unknown")}</div>
               {typeof stage.detail === "string" && stage.detail.trim() ? (
-                <div className="mt-1 text-xs text-slate-600">{stage.detail.trim()}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{stage.detail.trim()}</div>
               ) : null}
             </div>
           ))}
@@ -268,9 +268,9 @@ function renderDiagnosticCard(output: Record<string, unknown>, onQuickAction?: (
   const recoveryHint = typeof output.recoveryHint === "string" ? output.recoveryHint : "";
   return (
     <div className="space-y-2">
-      {failureSummary ? <div className="text-sm font-medium text-slate-900">{failureSummary}</div> : null}
-      {failureDetails ? <div className="text-xs leading-5 text-slate-600">详情：{failureDetails}</div> : null}
-      {recoveryHint ? <div className="text-xs leading-5 text-slate-600">建议：{recoveryHint}</div> : null}
+      {failureSummary ? <div className="text-sm font-medium text-foreground">{failureSummary}</div> : null}
+      {failureDetails ? <div className="text-xs leading-5 text-muted-foreground">详情：{failureDetails}</div> : null}
+      {recoveryHint ? <div className="text-xs leading-5 text-muted-foreground">建议：{recoveryHint}</div> : null}
       {renderActionButtons([
         { label: "继续诊断", prompt: "继续解释失败原因和恢复建议" },
         { label: "查看任务状态", prompt: "列出当前系统任务状态" },
@@ -286,16 +286,16 @@ function renderListCard(
 ) {
   const items = asRecordArray(output.items).slice(0, 6);
   if (items.length === 0) {
-    return <div className="text-xs text-slate-500">{emptyLabel}</div>;
+    return <div className="text-xs text-muted-foreground">{emptyLabel}</div>;
   }
   return (
     <div className="space-y-2">
       <div className="space-y-2">
         {items.map((item) => (
-          <div key={`${item.id ?? itemLabel(item)}`} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-            <div className="text-sm font-medium text-slate-900">{itemLabel(item)}</div>
+          <div key={`${item.id ?? itemLabel(item)}`} className="rounded-md border border-border bg-muted/20 px-3 py-2">
+            <div className="text-sm font-medium text-foreground">{itemLabel(item)}</div>
             {"status" in item && typeof item.status === "string" ? (
-              <div className="mt-1 text-xs text-slate-500">状态：{item.status}</div>
+              <div className="mt-1 text-xs text-muted-foreground">状态：{item.status}</div>
             ) : null}
           </div>
         ))}
@@ -315,11 +315,11 @@ function renderChapterCard(output: Record<string, unknown>, onQuickAction?: (pro
       : "";
   return (
     <div className="space-y-2">
-      <div className="text-sm font-medium text-slate-900">
+      <div className="text-sm font-medium text-foreground">
         {order != null ? `第${order}章` : "章节内容"}
         {title ? `《${title}》` : ""}
       </div>
-      <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-700">
+      <div className="rounded-md border border-border bg-muted/20 px-3 py-3 text-sm leading-6 text-muted-foreground">
         {content || "当前没有可显示的章节内容。"}
       </div>
       {renderActionButtons([
@@ -339,6 +339,7 @@ export default function CreativeHubToolResultCard({
   onQuickAction,
 }: CreativeHubToolResultCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const detailsId = useId();
   const payload = asRecord(output);
   const summaryText = compactText(summary, 160) || "工具已返回结果。";
   const cardContent = (() => {
@@ -470,24 +471,34 @@ export default function CreativeHubToolResultCard({
   }
 
   return (
-    <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+    <div className="mt-3 rounded-md border border-border bg-muted/20 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="text-sm font-medium text-slate-900">{summaryText}</div>
-          <Badge variant={success ? "secondary" : "destructive"}>{success ? "已解析结果" : errorCode ?? "失败"}</Badge>
+          <div className="text-sm font-medium text-foreground">{summaryText}</div>
+          <Badge variant={success ? "secondary" : "destructive"}>{success ? "已解析结果" : "执行失败"}</Badge>
         </div>
-        <button
+        <Button
           type="button"
-          className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] text-slate-600 transition hover:bg-slate-100"
+          size="sm"
+          variant="outline"
           onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          aria-controls={detailsId}
         >
           {expanded ? "收起详情" : "展开详情"}
-        </button>
+        </Button>
       </div>
       {expanded ? (
-        <div className="mt-3">{cardContent}</div>
+        <div id={detailsId} className="mt-3 space-y-3">
+          {!success && errorCode ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-muted-foreground">
+              错误代码：{errorCode}
+            </div>
+          ) : null}
+          {cardContent}
+        </div>
       ) : (
-        <div className="mt-2 text-xs text-slate-500">默认已收起详细执行结果与完整摘要，点击“展开详情”查看。</div>
+        <div className="mt-2 text-xs text-muted-foreground">详细执行结果默认收起，可按需查看。</div>
       )}
     </div>
   );
