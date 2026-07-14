@@ -83,9 +83,9 @@
 - 自动导演的质量循环预算必须真正影响下一轮修复方式：同一失败签名已经尝试过局部修复后，下一轮章节管线要切到 `heavy_repair`，不能继续硬编码 `light_repair`。
 - 章节执行失败语义必须区分：正文未生成是 `draft_generation_failed`；正文已生成但未兑现本章义务是 `draft_obligation_unmet`；自动修复后仍有阻塞问题是 `draft_repair_exhausted`；需要调整邻章计划是 `replan_required`。UI 和任务详情应展示真实根因，不再把这些情况统一压成 `chapter.draft.write 未满足其完成标准。`
 - 质量闭环投影必须区分阻塞错误和非阻塞质量债务。`terminalAction=defer_and_continue` 且不是 `replan_required` / `recommendedAction=replan` / `blockingObligations` 的章节，只能作为“已记录质量债务”弱提示，不得驱动主状态进入“出错需处理”或生成 repair ticket；`local_patch_plan` / `continue_with_warning` 只能进入质量债务或局部修复建议通道，不得写入 `replanAlertDetails` 或 `PIPELINE_REPLAN_REQUIRED`；`replan_required` 即使同时带有 `defer_and_continue`，也仍是阻塞重规划。
-- `urgentPayoffs`、`ledgerSummary.urgentCount` 和 `nextAction=advance_payoff` 是生成前的章节职责信号，只能进入写作上下文和接收闸门判断。它们不能在生成后单独触发 `replanRecommendation`，否则系统会把“本章应该推进 payoff”误判成“本章已经失败，需要重规划”。只有逾期 payoff、显式 `nextAction=replan`、高/严重审计问题或人工请求才应打断章节链路进入重规划。
+- `urgentPayoffs`、`overduePayoffs`、`ledgerSummary.urgentCount / overdueCount` 和 `nextAction=advance_payoff` 都是章节职责或质量债信号。它们可以进入写作上下文、接收闸门和后续质量回收，但不能单独触发全局重规划，否则系统会把“本章应该推进 payoff”误判成“整本计划已经失配”。
 - `replanRecommendation` 必须携带动作语义：`continue_with_warning` 表示只记录提示并继续；`local_patch_plan` 表示局部计划或修复问题，不停止后续章节；`stop_for_replan` 才表示需要暂停批量流水线进入整窗重规划。调用方不得只看 `recommended=true` 就停止章节执行。
-- 逾期 payoff 需要按当前章节关联度和逾期距离分级。短窗口、未被当前章节目标显式要求、且未超过硬窗口的 overdue payoff 只能输出 `continue_with_warning`，避免同一 ledgerKey 在连续章节里反复触发整窗重规划。
+- 逾期 payoff 无论逾期距离、是否落在当前窗口、是否被当前章目标引用，都只能输出 `continue_with_warning`。只有结构化 `nextAction=replan`、人工强制或章节验收确认 `plan_misalignment` 才能输出 `stop_for_replan`；高/严重审计问题输出 `local_patch_plan`，不得停止剩余章节。
 - 无明确目标窗口的 overdue payoff 只能作为账本风险跟进，不能用 `lastTouchedChapterOrder` 或 `firstSeenChapterOrder` 推导逾期距离，也不能锚定旧章节触发 `stop_for_replan`。伏笔账本同步若发现 AI 输出了无 `targetStartChapterOrder`、`targetEndChapterOrder`、`payoffChapterOrder`、`payoffChapterId` 的 overdue，应降级为 `pending_payoff` 并保留 `payoff_missing_progress` 风险信号。
 - 章节创作合同中的 `mustAdvance` 只能保存剧情推进项。`acceptance_gate_unavailable`、`missing_must_hit`、`mode_fit/acceptance_gate_unavailable` 等系统审计标签只能进入审计、修复或诊断通道，不得写入任务单“必须推进”或 sceneCards 的 `mustAdvance`。
 - `autoReview=false` 时仍可保存正文并进入异步资产回灌。自动导演的 `chapter.quality.review` 事实检查应读取执行计划，把本轮不执行自动审校视为可解释的跳过事实；此时不能因为 `AuditReport` / `QualityReport` 数量为 0 而让已完成正文的批次失败。

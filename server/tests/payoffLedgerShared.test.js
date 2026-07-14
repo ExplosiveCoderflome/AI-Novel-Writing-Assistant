@@ -85,6 +85,17 @@ test("classifyPayoffLedgerItems separates pending urgent overdue and paid-off it
       payoffChapterId: "chapter-4",
       lastTouchedChapterOrder: 4,
     }),
+    createLedgerItem({
+      ledgerKey: "superseded",
+      title: "被新合同替换的旧回报",
+      currentStatus: "failed",
+      riskSignals: [{
+        code: "source_superseded",
+        severity: "low",
+        summary: "旧来源已失效。",
+        stale: true,
+      }],
+    }),
   ];
 
   const classified = classifyPayoffLedgerItems(items, 5);
@@ -93,6 +104,7 @@ test("classifyPayoffLedgerItems separates pending urgent overdue and paid-off it
   assert.deepEqual(classified.urgentItems.map((item) => item.ledgerKey), ["pending", "setup"]);
   assert.deepEqual(classified.overdueItems.map((item) => item.ledgerKey), ["overdue"]);
   assert.deepEqual(classified.paidOffItems.map((item) => item.ledgerKey), ["paid"]);
+  assert.equal(buildSyntheticPayoffIssues(items, 5).some((issue) => issue.ledgerKey === "superseded"), false);
 });
 
 test("buildSyntheticPayoffIssues surfaces overdue missing progress and payoff risk signals", () => {

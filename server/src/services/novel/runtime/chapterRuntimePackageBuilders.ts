@@ -417,7 +417,7 @@ export function buildRuntimePackage(input: BuildRuntimePackageInput): ChapterRun
       ),
       action: hasBlockingIssues ? "local_patch_plan" as const : "continue_with_warning" as const,
       reason: input.contextPackage.ledgerSummary?.overdueCount
-        ? "Overdue payoff ledger items require replan or explicit payoff handling."
+        ? "存在逾期承诺，记录为章节级质量债并继续执行。"
         : hasBlockingIssues
           ? "Blocking audit issues remain open after generation."
           : "No blocking audit issues were detected.",

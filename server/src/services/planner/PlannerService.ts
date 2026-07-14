@@ -941,7 +941,7 @@ export class PlannerService {
     return buildReplanDecision({
       auditReports,
       ledgerSummary,
-    }).recommended;
+    }).action === "stop_for_replan";
   }
 
   buildReplanRecommendation(input: {

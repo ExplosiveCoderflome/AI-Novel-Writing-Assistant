@@ -27,6 +27,15 @@ Book Contract 的 `chapter3Payoff / chapter10Payoff / chapter30Payoff` 是 Payof
 - Book Contract 保存时只比较三个阶段回报。格式化空白变化不触发同步，语义文本变化通过持久副作用队列触发同步。
 - 同步任务使用现有 `NovelSideEffectJob` 的幂等、租约、重试和 dead 状态，不在保存请求中等待 LLM。
 - 同步失败时保留上次成功账本和 stale 风险信号，不删除已有内容。
+- AI 对账完成后必须执行 Book Contract 固定来源的生命周期收口。尚未终结、未被本轮输出复用且来源全部属于 `book_contract.*` 的旧账项，在来源被移除或被新账项接管时退出当前正文义务。
+- 退出义务的旧账项复用 `failed / 已失效` 状态，并记录 `source_superseded` 风险原因。原始标题、来源引用和兑现证据必须保留；`paid_off` 永不退役，混合其他有效来源的账项保守保留。
+- `source_superseded` 账项跳过 `sync_stale` 标记，并且后续重复同步不得反复改变其终态。它们不进入 pending、urgent、overdue 分类，也不生成开放 Payoff 冲突。
+
+## Replan Gate
+
+- Payoff 逾期是章节级警告或质量债，不是全书计划失配的确定性证据。逾期距离、当前章窗口命中和当前章显式引用都不得单独升级为 `stop_for_replan`。
+- `nextAction=replan`、人工强制或章节验收确认 `plan_misalignment` 可以输出 `stop_for_replan`。高优先级章节审计只能输出 `local_patch_plan`。
+- 所有全局调用方必须以 `action === "stop_for_replan"` 为最终闸门。`recommended` 可以表达局部处理建议，但不能单独暂停章节批次、写入 `PIPELINE_REPLAN_REQUIRED` 或创建 `replan_required` failure classification。
 
 ## Ownership Boundaries
 
@@ -44,14 +53,17 @@ Book Contract 的 `chapter3Payoff / chapter10Payoff / chapter30Payoff` 是 Payof
 
 - **Book Contract 已修改但账本不变**：检查 `book-contract:updated` 是否带有 `payoffChanged=true`，以及 `payoff.bookContractSync` 副作用任务状态。
 - **同一承诺出现多个账项**：检查固定 `refId` 是否原样保留，以及账本身份归并是否复用未完成的同名项。
+- **Book Contract 改写后旧承诺仍进入正文**：检查旧账项是否只有 `book_contract.*` 来源、AI 新输出是否接管固定 `refId`，以及旧账项是否收敛为带 `source_superseded` 的 `failed`。
 - **AI 漏掉阶段承诺**：检查 Prompt 版本、Registry 版本和 `postValidate` 的固定来源覆盖校验。
 - **保存 Book Contract 很慢**：同步不应在保存请求中直接调用 LLM；检查是否绕过持久副作用队列。
 - **普通逾期阻断整本写作**：检查是否错误把局部 payoff 风险直接升级成全局 replan。
+- **局部审计触发全局停止**：检查调用方是否只判断 `recommended`，而没有同时要求 `action === "stop_for_replan"`。
 
 ## Related Modules
 
 - `server/src/services/payoff/sources/bookContractPayoffSources.ts`
 - `server/src/services/payoff/PayoffLedgerSyncService.ts`
+- `server/src/services/payoff/domain/payoffLedgerSourceLifecycle.ts`
 - `server/src/prompting/prompts/payoff/payoffLedgerSync.prompts.ts`
 - `server/src/events/handlers/registerNovelEventHandlers.ts`
 - `server/src/events/sideEffects/NovelSideEffectJobHandlers.ts`
@@ -60,5 +72,6 @@ Book Contract 的 `chapter3Payoff / chapter10Payoff / chapter30Payoff` 是 Payof
 ## Source Documents
 
 - `docs/plans/payoff-ledger-foundation-phase-two.md`
+- `docs/plans/payoff-ledger-safety-phase-three.md`
 - `docs/wiki/workflows/reader-experience-contract.md`
 - `docs/wiki/workflows/novel-fact-ledger.md`

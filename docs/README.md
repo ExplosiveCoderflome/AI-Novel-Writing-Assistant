@@ -36,6 +36,7 @@
 - [Director Mode Module and State Refactor Checklist](./plans/director-mode-module-state-refactor-checklist.md)
 - [读者体验合同闭环：第一阶段实施方案](./plans/reader-experience-contract-phase-one.md)
 - [Payoff Ledger 基础加固：第二阶段实施方案](./plans/payoff-ledger-foundation-phase-two.md)
+- [P0 基础安全闭环：幽灵承诺与重规划闸门](./plans/payoff-ledger-safety-phase-three.md)
 
 ### `docs/design`
 
