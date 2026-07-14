@@ -1,6 +1,7 @@
 import type { BookContract, BookContractDraft } from "@ai-novel/shared/types/novelWorkflow";
 import { prisma } from "../../db/prisma";
 import { novelEventBus } from "../../events";
+import { hasBookContractPayoffChanges } from "../payoff/sources/bookContractPayoffSources";
 
 function mapRowToBookContract(row: {
   id: string;
@@ -53,35 +54,41 @@ export class BookContractService {
   }
 
   async upsert(novelId: string, draft: BookContractDraft): Promise<BookContract> {
+    const normalizedDraft = {
+      readingPromise: draft.readingPromise.trim(),
+      protagonistFantasy: draft.protagonistFantasy.trim(),
+      coreSellingPoint: draft.coreSellingPoint.trim(),
+      chapter3Payoff: draft.chapter3Payoff.trim(),
+      chapter10Payoff: draft.chapter10Payoff.trim(),
+      chapter30Payoff: draft.chapter30Payoff.trim(),
+      escalationLadder: draft.escalationLadder.trim(),
+      relationshipMainline: draft.relationshipMainline.trim(),
+      absoluteRedLinesJson: JSON.stringify(draft.absoluteRedLines),
+    };
+    const previousPayoffs = await prisma.bookContract.findUnique({
+      where: { novelId },
+      select: {
+        chapter3Payoff: true,
+        chapter10Payoff: true,
+        chapter30Payoff: true,
+      },
+    });
+    const payoffChanged = hasBookContractPayoffChanges(previousPayoffs, normalizedDraft);
     const row = await prisma.bookContract.upsert({
       where: { novelId },
       create: {
         novelId,
-        readingPromise: draft.readingPromise.trim(),
-        protagonistFantasy: draft.protagonistFantasy.trim(),
-        coreSellingPoint: draft.coreSellingPoint.trim(),
-        chapter3Payoff: draft.chapter3Payoff.trim(),
-        chapter10Payoff: draft.chapter10Payoff.trim(),
-        chapter30Payoff: draft.chapter30Payoff.trim(),
-        escalationLadder: draft.escalationLadder.trim(),
-        relationshipMainline: draft.relationshipMainline.trim(),
-        absoluteRedLinesJson: JSON.stringify(draft.absoluteRedLines),
+        ...normalizedDraft,
       },
-      update: {
-        readingPromise: draft.readingPromise.trim(),
-        protagonistFantasy: draft.protagonistFantasy.trim(),
-        coreSellingPoint: draft.coreSellingPoint.trim(),
-        chapter3Payoff: draft.chapter3Payoff.trim(),
-        chapter10Payoff: draft.chapter10Payoff.trim(),
-        chapter30Payoff: draft.chapter30Payoff.trim(),
-        escalationLadder: draft.escalationLadder.trim(),
-        relationshipMainline: draft.relationshipMainline.trim(),
-        absoluteRedLinesJson: JSON.stringify(draft.absoluteRedLines),
-      },
+      update: normalizedDraft,
     });
     void novelEventBus.emit({
       type: "book-contract:updated",
-      payload: { novelId },
+      payload: {
+        novelId,
+        payoffChanged,
+        contractUpdatedAt: row.updatedAt.toISOString(),
+      },
     }).catch(() => {});
     return mapRowToBookContract(row);
   }

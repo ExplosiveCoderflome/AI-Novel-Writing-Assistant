@@ -19,6 +19,7 @@ import {
   createNovelChapterReferenceLookup,
   normalizePayoffLedgerPromptChapterRefs,
 } from "./payoffLedgerChapterRefs";
+import { buildBookContractPayoffSources } from "./sources/bookContractPayoffSources";
 
 interface PayoffLedgerSyncOptions {
   provider?: LLMProvider;
@@ -139,6 +140,13 @@ export class PayoffLedgerSyncService {
           storyMacroPlan: {
             select: {
               decompositionJson: true,
+            },
+          },
+          bookContract: {
+            select: {
+              chapter3Payoff: true,
+              chapter10Payoff: true,
+              chapter30Payoff: true,
             },
           },
         },
@@ -273,6 +281,7 @@ export class PayoffLedgerSyncService {
       latestSnapshotId: snapshot?.id ?? null,
       promptInput: {
         novelTitle: novel.title,
+        bookContractPayoffs: buildBookContractPayoffSources(novel.bookContract),
         activeVolumeSummary,
         latestChapterContext,
         majorPayoffsText: formatMajorPayoffs(novel.storyMacroPlan?.decompositionJson),

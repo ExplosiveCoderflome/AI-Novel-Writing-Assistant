@@ -130,4 +130,22 @@ export function registerNovelEventHandlers(
       },
     });
   }, 100);
+
+  eventBus.on("book-contract:updated", async (event) => {
+    if (event.type !== "book-contract:updated" || !event.payload.payoffChanged) {
+      return;
+    }
+    await sideEffectJobs.enqueueJob({
+      novelId: event.payload.novelId,
+      jobType: "payoff.bookContractSync",
+      idempotencyKey: [
+        "payoff.bookContractSync",
+        event.payload.novelId,
+        event.payload.contractUpdatedAt,
+      ].join(":"),
+      payload: {
+        novelId: event.payload.novelId,
+      },
+    });
+  }, 80);
 }

@@ -12,7 +12,14 @@ export type NovelEvent =
   | { type: "volume:updated"; payload: { novelId: string; reason: VolumeUpdateReason } }
   | { type: "world:updated"; payload: { worldId: string } }
   | { type: "outline:revised"; payload: { novelId: string; stage: "outline" | "structured_outline" } }
-  | { type: "book-contract:updated"; payload: { novelId: string } }
+  | {
+      type: "book-contract:updated";
+      payload: {
+        novelId: string;
+        payoffChanged: boolean;
+        contractUpdatedAt: string;
+      };
+    }
   | { type: "pipeline:completed"; payload: { novelId: string; jobId: string; status: string } };
 
 export type NovelEventType = NovelEvent["type"];

@@ -1,7 +1,9 @@
 import type { NovelSideEffectJob } from "@prisma/client";
 import { getSharedNovelServices } from "../../services/novel/application/sharedNovelServices";
 import { characterDynamicsService } from "../../services/novel/dynamics/CharacterDynamicsService";
+import { payoffLedgerSyncService } from "../../services/payoff/PayoffLedgerSyncService";
 import {
+  type BookContractPayoffSyncPayload,
   NOVEL_SIDE_EFFECT_PAYLOAD_VERSION,
   type CharacterVolumeRebuildPayload,
   type PipelineSnapshotPayload,
@@ -28,6 +30,12 @@ function parsePayload<T>(job: NovelSideEffectJob): T {
 }
 
 export class NovelSideEffectJobHandlers {
+  constructor(
+    private readonly dependencies: {
+      syncPayoffLedger?: (novelId: string) => Promise<unknown>;
+    } = {},
+  ) {}
+
   async execute(job: NovelSideEffectJob): Promise<void> {
     switch (job.jobType) {
       case "character.volumeRebuild": {
@@ -44,6 +52,13 @@ export class NovelSideEffectJobHandlers {
           "auto_milestone",
           payload.label,
         );
+        return;
+      }
+      case "payoff.bookContractSync": {
+        const payload = parsePayload<BookContractPayoffSyncPayload>(job);
+        await (this.dependencies.syncPayoffLedger ?? ((novelId: string) => (
+          payoffLedgerSyncService.syncLedger(novelId)
+        )))(payload.novelId);
         return;
       }
       default:
