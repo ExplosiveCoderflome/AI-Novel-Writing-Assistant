@@ -63,7 +63,7 @@ interface UseAutoDirectorCreateControllerInput {
     novelId: string;
     workflowTaskId?: string;
     resumeTarget?: {
-      stage?: "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline";
+      stage?: "basic" | "story_macro" | "world" | "character" | "outline" | "structured" | "chapter" | "pipeline";
       chapterId?: string | null;
       volumeId?: string | null;
     } | null;

@@ -44,6 +44,7 @@ export interface TakeoverChapterTargetViewModel {
 const ENTRY_STEP_USER_LABELS: Record<DirectorTakeoverEntryStep, string> = {
   basic: "项目设定",
   story_macro: "故事宏观规划",
+  world: "世界观准备",
   character: "角色准备",
   outline: "卷规划",
   structured: "节奏拆章",

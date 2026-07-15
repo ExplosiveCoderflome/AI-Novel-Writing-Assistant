@@ -1,10 +1,12 @@
 import type { NovelWorldManualInput } from "@ai-novel/shared/types/novelWorld";
 import { prisma } from "../../../db/prisma";
 import {
+  applyStructuredWorldToLegacyFields,
   buildWorldBindingSupport,
   normalizeWorldStructuredData,
   WORLD_STRUCTURE_SCHEMA_VERSION,
 } from "../../world/worldStructure";
+import { normalizeLayerStates } from "../../world/worldServiceShared";
 import { NovelWorldInstanceService, type NovelWorldInstanceView } from "./NovelWorldInstanceService";
 
 export class NovelWorldManualService {
@@ -46,12 +48,62 @@ export class NovelWorldManualService {
     const novelWorldId = `novel_world_${input.novelId}`;
     const structuredDataJson = JSON.stringify(structuredData);
     const bindingContractJson = JSON.stringify(bindingSupport);
+    const structuredFields = applyStructuredWorldToLegacyFields(structuredData, {
+      id: "",
+      name: title,
+      worldType: "custom",
+      description: coverSummary,
+      overviewSummary: coverSummary,
+      axioms: null,
+      background: null,
+      geography: null,
+      cultures: null,
+      magicSystem: null,
+      politics: null,
+      races: null,
+      religions: null,
+      technology: null,
+      conflicts: null,
+      history: null,
+      economy: null,
+      factions: null,
+      selectedElements: null,
+      structureJson: null,
+      bindingSupportJson: null,
+      structureSchemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
+    }, bindingSupport);
 
     await prisma.$transaction(async (tx) => {
+      const world = await tx.world.create({
+        data: {
+          name: title,
+          description: (structuredFields.description as string | null | undefined) ?? coverSummary,
+          worldType: "custom",
+          templateKey: "custom",
+          axioms: structuredFields.axioms as string | null | undefined,
+          geography: structuredFields.geography as string | null | undefined,
+          politics: structuredFields.politics as string | null | undefined,
+          conflicts: structuredFields.conflicts as string | null | undefined,
+          factions: structuredFields.factions as string | null | undefined,
+          status: "draft",
+          layerStates: JSON.stringify(normalizeLayerStates(undefined)),
+          overviewSummary: (structuredFields.overviewSummary as string | null | undefined) ?? coverSummary,
+          structureJson: structuredDataJson,
+          bindingSupportJson: bindingContractJson,
+          structureSchemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
+        },
+      });
+      await tx.worldSnapshot.create({
+        data: {
+          worldId: world.id,
+          label: "novel-world-manual-created",
+          data: JSON.stringify(world),
+        },
+      });
       await tx.novel.update({
         where: { id: input.novelId },
         data: {
-          worldId: null,
+          worldId: world.id,
           storyWorldSliceJson: null,
           storyWorldSliceOverridesJson: null,
         },
@@ -79,7 +131,7 @@ export class NovelWorldManualService {
         ) VALUES (
           ${novelWorldId},
           ${input.novelId},
-          ${null},
+          ${world.id},
           ${"manual"},
           ${title},
           ${coverSummary},
@@ -90,14 +142,14 @@ export class NovelWorldManualService {
           ${1},
           ${null},
           ${null},
-          ${false},
-          ${"none"},
-          ${null},
+          ${true},
+          ${"bidirectional"},
+          ${1},
           CURRENT_TIMESTAMP,
           CURRENT_TIMESTAMP
         )
         ON CONFLICT ("novelId") DO UPDATE SET
-          "sourceWorldId" = NULL,
+          "sourceWorldId" = EXCLUDED."sourceWorldId",
           "sourceType" = EXCLUDED."sourceType",
           "title" = EXCLUDED."title",
           "coverSummary" = EXCLUDED."coverSummary",
@@ -107,9 +159,9 @@ export class NovelWorldManualService {
           "storySliceOverridesJson" = NULL,
           "storySliceBuiltAt" = NULL,
           "storySliceDigest" = NULL,
-          "syncEnabled" = false,
-          "syncDirection" = ${"none"},
-          "syncBaseVersion" = NULL,
+          "syncEnabled" = EXCLUDED."syncEnabled",
+          "syncDirection" = EXCLUDED."syncDirection",
+          "syncBaseVersion" = EXCLUDED."syncBaseVersion",
           "updatedAt" = CURRENT_TIMESTAMP
       `;
     });
