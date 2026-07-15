@@ -8,6 +8,7 @@ const testsRoot = path.join(serverRoot, "tests");
 const integrationTests = new Set([
   "directorTaskFactInspection.test.js",
   "directorWorkflowStepModules.test.js",
+  "liveLlmSmoke.test.js",
   "novelDirectorPipelineRuntime.test.js",
   "novelDirectorRetry.test.js",
   "novelWorkflowRuntime.test.js",

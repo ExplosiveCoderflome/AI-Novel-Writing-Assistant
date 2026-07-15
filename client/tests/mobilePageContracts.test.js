@@ -12,6 +12,7 @@ const css = readClientFile("src/index.css");
 const mobileSiteNavigation = readClientFile("src/components/layout/mobile/mobileSiteNavigation.ts");
 const novelEditView = readClientFile("src/pages/novels/components/NovelEditView.tsx");
 const homePage = readClientFile("src/pages/Home.tsx");
+const homeStatusStrip = readClientFile("src/pages/home/components/HomeStatusStrip.tsx");
 const taskCenterPage = readClientFile("src/pages/tasks/TaskCenterPage.tsx");
 const taskCenterFilterPanel = readClientFile("src/pages/tasks/components/TaskCenterFilterPanel.tsx");
 const taskCenterSummaryCards = readClientFile("src/pages/tasks/components/TaskCenterSummaryCards.tsx");
@@ -256,7 +257,7 @@ test("every routed page has a route-specific mobile CSS landing point", () => {
 });
 
 test("mobile home status metrics stay compact in a single four-column row", () => {
-  assert.match(homePage, /home-status-summary-grid/);
+  assert.match(homeStatusStrip, /home-status-summary-grid/);
   assert.match(
     css,
     /mobile-route-home \.home-status-summary-grid[\s\S]+grid-template-columns: repeat\(4, minmax\(0, 1fr\)\);/,
@@ -465,10 +466,10 @@ test("mobile novel workspace keeps step navigation horizontal and recommendation
 
 test("mobile novel workspace collapses secondary tools behind one compact entry", () => {
   assert.match(mobileNovelEditView, /MoreHorizontal/);
-  assert.match(mobileNovelEditView, /创作工具/);
-  assert.match(mobileNovelEditView, /查看任务进度/);
-  assert.match(mobileNovelEditView, /导出当前步骤/);
-  assert.match(mobileNovelEditView, /导出整本书/);
+  assert.match(mobileNovelEditView, /gen_e6a2706f/);
+  assert.match(mobileNovelEditView, /gen_4de94e23/);
+  assert.match(mobileNovelEditView, /gen_169a61d7/);
+  assert.match(mobileNovelEditView, /gen_9b96a714/);
   assert.doesNotMatch(mobileNovelEditView, /<AITakeoverContainer/);
 });
 

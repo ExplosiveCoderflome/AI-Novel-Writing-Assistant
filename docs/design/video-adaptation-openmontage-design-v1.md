@@ -13,7 +13,7 @@
 sequenceDiagram
     participant Frontend as 前端工作台
     participant MainServer as 主后端服务
-    participant Bridge as 桥接服务 (8001)
+    participant Bridge as 桥接服务 (8100)
     participant OpenMontage as OpenMontage 引擎
 
     Frontend->>MainServer: 发起视频改编 / 预告片生成
@@ -24,7 +24,7 @@ sequenceDiagram
     Bridge-->>MainServer: 返回任务 ID & 202 Accepted
     MainServer-->>Frontend: 渲染中 (RENDERING)
     loop 轮询状态
-        MainServer->>Bridge: 查询渲染任务状态 (GET /status/:id)
+        MainServer->>Bridge: 查询渲染任务状态 (GET /render/:id/status)
         Bridge-->>MainServer: 返回状态 (Rendering / Completed)
     end
     Bridge->>OpenMontage: 调度执行渲染

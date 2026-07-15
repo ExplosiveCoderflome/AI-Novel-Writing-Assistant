@@ -1,13 +1,32 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {
+import i18next from "i18next";
+
+// Initialize i18next directly for test context with required zh translations
+i18next.init({
+  lng: "zh",
+  resources: {
+    zh: {
+      translation: {
+        "gen.components.layout.mobile.mobileSiteNavigation.gen_db1c89e0": "首页",
+        "gen.components.layout.mobile.mobileSiteNavigation.gen_1fb52965": "小说",
+        "gen.components.layout.mobile.mobileSiteNavigation.gen_93d695ff": "创作",
+        "gen.components.layout.mobile.mobileSiteNavigation.task": "任务",
+        "gen.components.layout.mobile.mobileSiteNavigation.gen_0ec9eaf9": "更多",
+      },
+    },
+  },
+});
+
+// Dynamic import ensures i18next is fully initialized before module-level constants translate
+const {
   MOBILE_ROUTE_PATTERNS,
   getMobileNavGroupForPath,
   getMobilePageTitle,
   getMobilePrimaryNavItems,
   getMobileMoreNavGroups,
   getMobileRouteClassName,
-} from "../src/components/layout/mobile/mobileSiteNavigation.ts";
+} = await import("../src/components/layout/mobile/mobileSiteNavigation.ts");
 
 const routedPaths = [
   "/",
@@ -17,6 +36,7 @@ const routedPaths = [
   "/novels/demo/preview",
   "/novels/demo/edit",
   "/novels/demo/chapters/chapter-1",
+  "/drama",
   "/creative-hub",
   "/chat-legacy",
   "/book-analysis",
@@ -67,6 +87,7 @@ test("mobile more menu contains all non-primary registered pages", () => {
     morePaths,
     [
       "/help",
+      "/drama",
       "/book-analysis",
       "/auto-director/follow-ups",
       "/chat-legacy",
