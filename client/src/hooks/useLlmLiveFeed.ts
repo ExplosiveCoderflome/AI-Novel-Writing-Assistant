@@ -81,6 +81,7 @@ export function useLlmLiveFeed(input: {
   const [connected, setConnected] = useState(false);
   const pendingFramesRef = useRef<LlmLiveStreamFrame[]>([]);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hiddenSessionIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     const taskId = input.taskId?.trim();
@@ -102,7 +103,9 @@ export function useLlmLiveFeed(input: {
         for (const frame of frames) {
           if (frame.type === "snapshot") {
             for (const session of frame.sessions) {
-              next[session.context.interactionId] = session;
+              if (!hiddenSessionIdsRef.current.has(session.context.interactionId)) {
+                next[session.context.interactionId] = session;
+              }
             }
             continue;
           }
@@ -111,6 +114,11 @@ export function useLlmLiveFeed(input: {
             const interactionId = event.type === "session_started"
               ? event.context.interactionId
               : event.interactionId;
+            if (event.type === "session_started") {
+              hiddenSessionIdsRef.current.delete(interactionId);
+            } else if (hiddenSessionIdsRef.current.has(interactionId)) {
+              continue;
+            }
             const updated = updateSession(next[interactionId], event);
             if (updated) {
               next[interactionId] = updated;
@@ -182,12 +190,22 @@ export function useLlmLiveFeed(input: {
   }, [input.enabled, input.taskId]);
 
   const sessions = useMemo(
-    () => Object.values(sessionsById).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
+    () => Object.values(sessionsById).sort((left, right) => left.startedAt.localeCompare(right.startedAt)),
     [sessionsById],
   );
+  const clearSessions = () => {
+    pendingFramesRef.current = [];
+    setSessionsById((previous) => {
+      for (const interactionId of Object.keys(previous)) {
+        hiddenSessionIdsRef.current.add(interactionId);
+      }
+      return {};
+    });
+  };
   return {
     connected,
     sessions,
-    latestSession: sessions[0] ?? null,
+    latestSession: sessions[sessions.length - 1] ?? null,
+    clearSessions,
   };
 }

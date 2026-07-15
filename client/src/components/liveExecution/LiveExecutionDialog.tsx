@@ -1,6 +1,7 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { GripHorizontal, Radio, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Eraser, GripHorizontal, Radio, X } from "lucide-react";
+import type { LlmLiveSessionSnapshot } from "@ai-novel/shared/types/llmLive";
 import { useLlmLiveFeed } from "@/hooks/useLlmLiveFeed";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,44 +27,87 @@ function isActive(phase: string): boolean {
   return !["completed", "failed", "cancelled"].includes(phase);
 }
 
+function sessionId(session: LlmLiveSessionSnapshot): string {
+  return session.context.interactionId;
+}
+
 export default function LiveExecutionDialog(props: { compact?: boolean; className?: string }) {
   const [open, setOpen] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [followingLatest, setFollowingLatest] = useState(true);
+  const [collapsedSessionIds, setCollapsedSessionIds] = useState<Set<string>>(() => new Set());
   const logRef = useRef<HTMLDivElement | null>(null);
+  const latestSessionRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<{ pointerX: number; pointerY: number; offsetX: number; offsetY: number } | null>(null);
   const followLatestRef = useRef(true);
-  const { connected, sessions } = useLlmLiveFeed({ enabled: true });
+  const latestSessionIdRef = useRef<string | null>(null);
+  const { clearSessions, connected, sessions } = useLlmLiveFeed({ enabled: true });
   const orderedSessions = useMemo(
-    () => [...sessions].sort((left, right) => Number(isActive(right.phase)) - Number(isActive(left.phase))),
+    () => [...sessions],
     [sessions],
   );
+  const latestSession = orderedSessions[orderedSessions.length - 1] ?? null;
+  const latestSessionId = latestSession ? sessionId(latestSession) : null;
   const activeCount = sessions.filter((session) => isActive(session.phase)).length;
-  const logText = useMemo(() => orderedSessions.map((session) => [
-    `[${phaseLabel(session.phase)}] ${session.context.label}`,
-    `${session.phaseMessage} · 已返回 ${session.totalChars.toLocaleString()} 个字符`,
-    session.preview || "等待模型开始返回内容…",
-  ].join("\n")).join("\n\n"), [orderedSessions]);
 
   useLayoutEffect(() => {
-    if (!open || !followLatestRef.current || !logRef.current) {
+    if (!open || !followLatestRef.current || !latestSessionRef.current) {
       return;
     }
     const frame = window.requestAnimationFrame(() => {
-      const log = logRef.current;
-      if (log && followLatestRef.current) {
-        log.scrollTop = log.scrollHeight;
+      if (latestSessionRef.current && followLatestRef.current) {
+        latestSessionRef.current.scrollIntoView({ block: "end" });
       }
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [logText, open]);
+  }, [latestSession?.preview, latestSession?.phase, latestSession?.phaseMessage, latestSessionId, open]);
+
+  useEffect(() => {
+    if (!latestSessionId || latestSessionIdRef.current === latestSessionId) {
+      return;
+    }
+    latestSessionIdRef.current = latestSessionId;
+    followLatestRef.current = true;
+    setFollowingLatest(true);
+    setCollapsedSessionIds((previous) => {
+      const next = new Set(previous);
+      for (const session of orderedSessions) {
+        const interactionId = sessionId(session);
+        if (interactionId !== latestSessionId && !isActive(session.phase)) {
+          next.add(interactionId);
+        }
+      }
+      next.delete(latestSessionId);
+      return next;
+    });
+  }, [latestSessionId, orderedSessions]);
 
   const scrollToLatest = () => {
     followLatestRef.current = true;
     setFollowingLatest(true);
     if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
+      latestSessionRef.current?.scrollIntoView({ block: "end" });
     }
+  };
+
+  const toggleSession = (interactionId: string) => {
+    setCollapsedSessionIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(interactionId)) {
+        next.delete(interactionId);
+      } else {
+        next.add(interactionId);
+      }
+      return next;
+    });
+  };
+
+  const clearFrontendLog = () => {
+    clearSessions();
+    latestSessionIdRef.current = null;
+    setCollapsedSessionIds(new Set());
+    followLatestRef.current = true;
+    setFollowingLatest(true);
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -131,12 +175,25 @@ export default function LiveExecutionDialog(props: { compact?: boolean; classNam
               <div className="min-w-0 flex-1">
                 <DialogPrimitive.Title className="font-mono text-sm font-semibold tracking-wide text-emerald-100">AI 创作实况 / LIVE LOG</DialogPrimitive.Title>
                 <DialogPrimitive.Description id="live-execution-description" className="mt-1 text-xs leading-5 text-emerald-100/65">
-                  生成过程日志。拖动标题栏可移动窗口；查看旧内容时不会被新输出打断。
+                  每次调用独立显示。新调用会自动聚焦，已完成调用会收起；清空只影响当前窗口。
                 </DialogPrimitive.Description>
               </div>
               <Badge variant="outline" className="shrink-0 border-emerald-400/50 bg-emerald-400/10 font-mono text-emerald-200">
                 {activeCount > 0 ? `${activeCount} 项进行中` : connected ? "等待生成" : "正在连接"}
               </Badge>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 shrink-0 gap-1.5 px-2 font-mono text-xs text-emerald-200 hover:bg-emerald-400/10 hover:text-emerald-50"
+                onClick={clearFrontendLog}
+                onPointerDown={(event) => event.stopPropagation()}
+                onPointerMove={(event) => event.stopPropagation()}
+                onPointerUp={(event) => event.stopPropagation()}
+              >
+                <Eraser className="h-3.5 w-3.5" />
+                清空前台
+              </Button>
               <DialogPrimitive.Close asChild>
                 <Button
                   type="button"
@@ -163,11 +220,47 @@ export default function LiveExecutionDialog(props: { compact?: boolean; classNam
                 setFollowingLatest(shouldFollow);
               }}
             >
-              {logText ? (
-                <pre className="m-0 whitespace-pre-wrap break-words text-emerald-100">{logText}</pre>
+              {orderedSessions.length > 0 ? (
+                <div className="space-y-2">
+                  {orderedSessions.map((session) => {
+                    const interactionId = sessionId(session);
+                    const collapsed = collapsedSessionIds.has(interactionId);
+                    const active = isActive(session.phase);
+                    return (
+                      <section
+                        key={interactionId}
+                        ref={interactionId === latestSessionId ? latestSessionRef : undefined}
+                        className={cn(
+                          "overflow-hidden rounded-lg border bg-[#07100d]/80",
+                          active ? "border-emerald-400/50 shadow-[0_0_0_1px_rgba(52,211,153,0.08)]" : "border-emerald-400/20",
+                        )}
+                      >
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 bg-emerald-400/[0.04] px-3 py-2 text-left transition-colors hover:bg-emerald-400/[0.09]"
+                          onClick={() => toggleSession(interactionId)}
+                          aria-expanded={!collapsed}
+                        >
+                          {collapsed ? <ChevronRight className="h-4 w-4 shrink-0 text-emerald-300" /> : <ChevronDown className="h-4 w-4 shrink-0 text-emerald-300" />}
+                          <span className="min-w-0 flex-1 truncate font-semibold text-emerald-50">{session.context.label}</span>
+                          <span className="shrink-0 text-[11px] text-emerald-100/55">{session.totalChars.toLocaleString()} 字符</span>
+                          <span className={cn("shrink-0 rounded border px-1.5 py-0.5 text-[10px]", active ? "border-emerald-400/45 text-emerald-200" : "border-emerald-400/20 text-emerald-100/65")}>
+                            {phaseLabel(session.phase)}
+                          </span>
+                        </button>
+                        {!collapsed ? (
+                          <div className="border-t border-emerald-400/15 px-3 py-2">
+                            <div className="mb-2 text-[11px] text-emerald-100/60">{session.phaseMessage}</div>
+                            <pre className="m-0 whitespace-pre-wrap break-words text-emerald-100">{session.preview || "等待模型开始返回内容…"}</pre>
+                          </div>
+                        ) : null}
+                      </section>
+                    );
+                  })}
+                </div>
               ) : (
                 <div className="text-emerald-200/65">
-                  {connected ? "等待新的 AI 生成开始…" : "正在连接 AI 实况服务…"}
+                  {connected ? "前台日志已清空，等待新的 AI 生成开始…" : "正在连接 AI 实况服务…"}
                 </div>
               )}
             </div>
