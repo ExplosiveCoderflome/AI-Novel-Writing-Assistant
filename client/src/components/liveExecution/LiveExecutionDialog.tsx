@@ -138,7 +138,16 @@ export default function LiveExecutionDialog(props: { compact?: boolean; classNam
                 {activeCount > 0 ? `${activeCount} 项进行中` : connected ? "等待生成" : "正在连接"}
               </Badge>
               <DialogPrimitive.Close asChild>
-                <Button type="button" variant="ghost" size="icon" className="-mr-1 -mt-1 h-8 w-8 shrink-0 text-emerald-100 hover:bg-emerald-400/10 hover:text-emerald-50" aria-label="关闭 AI 创作实况">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="-mr-1 -mt-1 h-8 w-8 shrink-0 text-emerald-100 hover:bg-emerald-400/10 hover:text-emerald-50"
+                  aria-label="关闭 AI 创作实况"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onPointerMove={(event) => event.stopPropagation()}
+                  onPointerUp={(event) => event.stopPropagation()}
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </DialogPrimitive.Close>
