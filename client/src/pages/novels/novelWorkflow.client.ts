@@ -9,6 +9,9 @@ export function workflowStageFromTab(tab: string): NovelWorkflowStage {
   if (tab === "story_macro") {
     return "story_macro";
   }
+  if (tab === "world") {
+    return "world_setup";
+  }
   if (tab === "character") {
     return "character_setup";
   }

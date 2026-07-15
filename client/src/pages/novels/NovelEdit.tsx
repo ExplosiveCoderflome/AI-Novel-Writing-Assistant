@@ -341,7 +341,7 @@ export default function NovelEdit() {
   });
   const shouldLoadVolumeWorkspace = activeTab === "outline" || activeTab === "structured";
   const shouldLoadStoryMacro = activeTab === "story_macro";
-  const shouldLoadWorldSlice = activeTab === "basic";
+  const shouldLoadWorldSlice = activeTab === "basic" || activeTab === "world";
   const shouldLoadQualityReport = activeTab === "pipeline";
   const shouldLoadLatestState = activeTab === "chapter" || activeTab === "pipeline";
   const shouldLoadPayoffLedger = activeTab === "structured" || activeTab === "chapter" || activeTab === "pipeline";
@@ -2690,6 +2690,8 @@ export default function NovelEdit() {
   const activeStepTakeoverEntry = renderTakeoverEntry(
     activeTab === "story_macro"
       ? "story_macro"
+      : activeTab === "world"
+        ? "world"
       : activeTab === "character"
         ? "character"
         : activeTab === "outline"
@@ -2747,6 +2749,7 @@ export default function NovelEdit() {
         },
       }}
       basicTab={basicTab}
+      worldTab={basicTab}
       storyMacroTab={storyMacroTab}
       outlineTab={outlineTab}
       structuredTab={structuredTab}

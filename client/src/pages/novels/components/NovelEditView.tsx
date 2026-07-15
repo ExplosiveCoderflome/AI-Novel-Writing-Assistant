@@ -25,6 +25,7 @@ import StoryMacroPlanTab from "./StoryMacroPlanTab";
 import StructuredOutlineTab from "./StructuredOutlineTab";
 import VersionHistoryTab from "./VersionHistoryTab";
 import BasicInfoTab from "./BasicInfoTab";
+import WorldSetupTab from "./WorldSetupTab";
 import { devResetNovelChapters } from "@/api/novel";
 import { toast } from "@/components/ui/toast";
 import { queryKeys } from "@/api/queryKeys";
@@ -56,6 +57,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
     workflowCurrentTab,
     exportControls,
     basicTab,
+    worldTab,
     storyMacroTab,
     outlineTab,
     structuredTab,
@@ -163,6 +165,8 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
     switch (activeTab) {
       case "basic":
         return <BasicInfoTab {...basicTab} />;
+      case "world":
+        return <WorldSetupTab {...worldTab} />;
       case "outline":
         return <OutlineTab {...outlineTab} />;
       case "story_macro":

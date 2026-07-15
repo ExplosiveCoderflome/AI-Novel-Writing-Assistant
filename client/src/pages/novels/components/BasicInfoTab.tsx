@@ -1,7 +1,6 @@
 import type { BasicTabProps } from "./NovelEditView.types";
 import NovelBasicInfoForm from "./NovelBasicInfoForm";
 import NovelStyleRecommendationCard from "./NovelStyleRecommendationCard";
-import NovelWorldManagerCard from "./NovelWorldManagerCard";
 import { BookFramingQuickFillButton } from "./basicInfoForm/BookFramingQuickFillButton";
 import NovelCreateTitleQuickFill from "./titleWorkshop/NovelCreateTitleQuickFill";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
@@ -9,8 +8,6 @@ import { NovelCoverCard } from "./cover/NovelCoverCard";
 import { DetailDisclosure, SectionBlock } from "./workspaceShell";
 
 export default function BasicInfoTab(props: BasicTabProps) {
-  const hasWorldAssets = Boolean(props.novelWorldView || props.worldSliceView);
-
   return (
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel
@@ -62,38 +59,6 @@ export default function BasicInfoTab(props: BasicTabProps) {
           projectQuickStart={props.projectQuickStart}
         />
       </SectionBlock>
-
-      <DetailDisclosure
-        title="本书世界"
-        description="维护当前小说会使用的世界规则、地点、势力和可注入片段。后续世界地图、势力关系和区域资产也应从这里延展。"
-        meta="世界资产"
-        defaultOpen={hasWorldAssets}
-      >
-        <NovelWorldManagerCard
-          view={props.novelWorldView}
-          syncDiff={props.novelWorldSyncDiff}
-          worldOptions={props.worldOptions}
-          selectedWorldId={props.basicForm.worldId}
-          isLoading={props.isLoadingNovelWorld}
-          isImporting={props.isImportingNovelWorld}
-          isGenerating={props.isGeneratingNovelWorld}
-          isCreatingManual={props.isCreatingManualNovelWorld}
-          isSavingToLibrary={props.isSavingNovelWorldToLibrary}
-          isLoadingSyncDiff={props.isLoadingNovelWorldSyncDiff}
-          isSyncing={props.isSyncingNovelWorld}
-          usageView={props.worldSliceView}
-          usageMessage={props.worldSliceMessage}
-          isRefreshingWorldSlice={props.isRefreshingWorldSlice}
-          isSavingWorldSliceOverrides={props.isSavingWorldSliceOverrides}
-          onImport={props.onImportNovelWorld}
-          onCreateManual={props.onCreateManualNovelWorld}
-          onGenerate={props.onGenerateNovelWorld}
-          onSaveToLibrary={props.onSaveNovelWorldToLibrary}
-          onSync={props.onSyncNovelWorld}
-          onRefreshWorldSlice={props.onRefreshWorldSlice}
-          onSaveWorldSliceOverrides={props.onSaveWorldSliceOverrides}
-        />
-      </DetailDisclosure>
 
       <DetailDisclosure
         title="写法建议"

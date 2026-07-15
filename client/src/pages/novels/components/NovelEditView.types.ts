@@ -644,6 +644,7 @@ export interface NovelEditViewProps {
     onExportFull: (format: NovelExportDownloadFormat) => void;
   };
   basicTab: BasicTabProps;
+  worldTab: BasicTabProps;
   storyMacroTab: StoryMacroTabProps;
   outlineTab: OutlineTabViewProps;
   structuredTab: StructuredTabViewProps;
