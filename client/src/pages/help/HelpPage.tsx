@@ -70,8 +70,8 @@ const guideSteps: GuideStep[] = [
     icon: BookOpenText,
   },
   {
-    title: "查看任务和跟进",
-    description: "任务中心处理失败、排队和运行状态；导演跟进页集中处理需要回收的质量事项。",
+    title: "查看创作实况与跟进",
+    description: "顶部“AI 实况”会显示正在生成的内容；运行记录只在需要查询异常、历史或恢复信息时使用。",
     icon: ListTodo,
   },
 ];
@@ -99,10 +99,10 @@ const goalEntries: GoalEntry[] = [
     icon: Route,
   },
   {
-    title: "处理任务",
-    description: "查看后台运行、排队和失败任务，优先处理会影响继续写作的问题。",
+    title: "查询运行记录",
+    description: "需要追查异常、历史或恢复位置时，再查看运行记录；正常生成过程直接从顶部“AI 实况”了解。",
     href: "/tasks",
-    action: "打开任务中心",
+    action: "查看运行记录",
     icon: ClipboardList,
   },
   {
@@ -132,7 +132,7 @@ const faqItems: FaqItem[] = [
   },
   {
     question: "任务失败怎么办？",
-    answer: "先到任务中心查看失败原因。常见的模型、网络或授权问题处理好后，可以回到原项目继续推进。",
+    answer: "先从顶部“AI 实况”确认生成停在哪个阶段；需要查看失败原因、历史记录或恢复位置时，再打开运行记录。",
   },
   {
     question: "质量待回收是什么意思？",

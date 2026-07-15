@@ -6,6 +6,7 @@ import LLMSelectionBootstrap from "./LLMSelectionBootstrap";
 import Navbar from "./Navbar";
 import NovelWorkspaceRail from "./NovelWorkspaceRail";
 import Sidebar from "./Sidebar";
+import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import MobileSiteShell from "./mobile/MobileSiteShell";
 import AutoDirectorPauseNotificationWatcher from "@/components/autoDirector/AutoDirectorPauseNotificationWatcher";
 import { TaskRecoveryProvider } from "./TaskRecoveryContext";
@@ -77,6 +78,7 @@ export default function AppLayout() {
       <TaskRecoveryProvider>
         <div className="min-h-screen bg-background">
           <AutoDirectorPauseNotificationWatcher />
+          <LiveExecutionDialog compact className="fixed right-3 top-3 z-50 h-9 w-9 bg-background px-0 shadow-sm" />
           <LLMSelectionBootstrap />
           <DesktopModelSetupGate />
           <Suspense fallback={<AppRouteFallback />}>

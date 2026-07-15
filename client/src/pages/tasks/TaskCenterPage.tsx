@@ -532,9 +532,9 @@ export default function TaskCenterPage() {
     <div className="space-y-5">
       <WorkspaceHeader
         icon={ListChecks}
-        context="任务与恢复"
-        title="任务中心"
-        description="统一查看创作、拆书、知识索引和图片任务；阻塞任务需要处理，质量提醒可以按影响范围稍后跟进。"
+        context="执行历史与恢复"
+        title="运行记录"
+        description="按需查询创作、拆书、知识索引和图片任务的历史、异常与恢复信息；实时生成请从顶部“AI 实况”查看。"
         meta={(
           <>
             <span>当前显示 {visibleRows.length} 项</span>
@@ -553,7 +553,7 @@ export default function TaskCenterPage() {
             disabled={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching}
           >
             <RefreshCw className={overviewQuery.isFetching || recoveryCandidatesQuery.isFetching || listQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />
-            刷新任务
+            刷新记录
           </Button>
         )}
       />

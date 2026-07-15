@@ -9,8 +9,6 @@ const router = Router();
 const streamQuerySchema = z.object({
   taskId: z.string().trim().min(1).optional(),
   interactionId: z.string().trim().min(1).optional(),
-}).refine((value) => Boolean(value.taskId || value.interactionId), {
-  message: "taskId 或 interactionId 至少需要提供一个。",
 });
 
 function writeFrame(res: import("express").Response, frame: LlmLiveStreamFrame, eventId?: number): void {
