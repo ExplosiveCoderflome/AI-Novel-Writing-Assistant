@@ -140,9 +140,9 @@
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
-### 2026-07-14（章节编辑器 V2 残留功能与 AI 漫画/短剧成片合成）
+### 2026-07-15（世界沙盒物理生态仿真控制台与平行宇宙分支）
 
-本阶段开发任务全部补齐，包括章节编辑器 V2 功能打磨（AI 续写之后、审校问题一键局部定位修复、历史版本回滚抽屉），以及 AI 漫画运镜合成（批处理运镜脚本及 ffmpeg 9:16 动态视频拼接）、短剧剪映草稿工程导出（微秒级多层音视频字幕轨对齐输出 `draft_content.json`）等功能落地。
+本阶段开发任务全部完成，包括地缘物理生态（海拔直减、动植物种群消长）、人物 Agent 艾宾浩斯记忆与 LOD 决策、戏剧张力与 Encounter Box 碰撞检测拦截、Git-like 零拷贝平行宇宙分支时序剪枝、虚拟摄像机光电渗漏过滤 feed 与正文 Paradox 校验，以及网页端 SVG 动态电子沙盘实时控制面板（VCR 播放器与自定义属性添加）等功能落地。
 
 > 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
 
