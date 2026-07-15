@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import CreativeHubToolResultCard from "./CreativeHubToolResultCard";
 import CreativeHubDebugTraceCard, { type CreativeHubDebugTraceEntry } from "./CreativeHubDebugTraceCard";
 import CreativeHubTurnSummaryCard from "./CreativeHubTurnSummaryCard";
 import { useCreativeHubInlineControls } from "./CreativeHubInlineControlsContext";
 import type { CreativeHubTurnSummary } from "@ai-novel/shared/types/creativeHub";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 function formatArgs(argsText: string | undefined): string | null {
   const text = argsText?.trim();
@@ -20,6 +22,49 @@ function formatSummary(text: string | undefined): string | null {
     return null;
   }
   return value.length > 120 ? `${value.slice(0, 120)}...` : value;
+}
+
+function formatToolLabel(toolName: string): string {
+  switch (toolName) {
+    case "list_novels":
+    case "list_worlds":
+    case "list_tasks":
+    case "list_knowledge_documents":
+    case "list_book_analyses":
+    case "list_writing_formulas":
+    case "list_base_characters":
+      return "读取创作资料";
+    case "create_novel":
+    case "select_novel_workspace":
+    case "bind_world_to_novel":
+      return "更新小说工作区";
+    case "generate_world_for_novel":
+    case "generate_novel_characters":
+    case "generate_story_bible":
+    case "generate_novel_outline":
+    case "generate_structured_outline":
+    case "sync_chapters_from_structured_outline":
+      return "生成小说资产";
+    case "start_full_novel_pipeline":
+    case "get_novel_production_status":
+    case "preview_pipeline_run":
+    case "queue_pipeline_run":
+      return "推进整本写作";
+    case "get_task_failure_reason":
+    case "get_run_failure_reason":
+    case "get_index_failure_reason":
+    case "get_book_analysis_failure_reason":
+    case "explain_generation_blocker":
+    case "explain_world_conflict":
+    case "failure_diagnostic":
+      return "诊断创作问题";
+    case "get_chapter_content":
+    case "get_chapter_content_by_order":
+    case "summarize_chapter_range":
+      return "读取章节内容";
+    default:
+      return "执行创作辅助操作";
+  }
 }
 
 function readArtifact(
@@ -46,6 +91,8 @@ function readArtifact(
 
 export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProps) {
   const [showArgs, setShowArgs] = useState(false);
+  const argsPanelId = useId();
+  const approvalNoteId = useId();
   const inlineControls = useCreativeHubInlineControls();
   const argsText = formatArgs("argsText" in props && typeof props.argsText === "string" ? props.argsText : undefined);
   const resultText = "result" in props && typeof props.result === "string" ? props.result : undefined;
@@ -57,43 +104,55 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
     : {};
 
   if (props.toolName === "approval_gate") {
+    const approvalDisabled = inlineControls.approvalPending || inlineControls.actionDisabled;
     const title = typeof args.title === "string" ? args.title : "等待审批";
     const summary = typeof args.summary === "string" ? args.summary : "当前高影响操作等待确认。";
     const targetType = typeof args.targetType === "string" ? args.targetType : inlineControls.interrupt?.targetType ?? "未知目标";
     const targetId = typeof args.targetId === "string" ? args.targetId : inlineControls.interrupt?.targetId ?? "-";
     return (
-      <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+      <div
+        className="mt-3 rounded-md border border-warning/30 bg-warning/5 p-4"
+        aria-busy={inlineControls.approvalPending}
+      >
         <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-medium text-slate-900">{title}</div>
-          <span className="rounded-full border border-amber-200 bg-white px-2 py-1 text-[11px] text-amber-700">
-            interrupt
-          </span>
+          <div className="text-sm font-medium text-foreground">{title}</div>
+          <Badge variant="secondary">等待确认</Badge>
         </div>
-        <div className="mt-1 text-xs text-slate-500">
-          {targetType}:{targetId}
-        </div>
-        <div className="mt-3 text-sm leading-6 text-slate-700">{summary}</div>
+        <div className="mt-3 text-sm leading-6 text-foreground">{summary}</div>
+        <details className="mt-3 rounded-md border border-border/70 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+          <summary className="cursor-pointer">审批目标信息</summary>
+          <div className="mt-2 break-all">类型：{targetType}</div>
+          <div className="mt-1 break-all">资源 ID：{targetId}</div>
+        </details>
+        <label htmlFor={approvalNoteId} className="mt-3 block text-xs font-medium text-muted-foreground">
+          审批备注（可选）
+        </label>
         <textarea
-          className="mt-3 min-h-[88px] w-full rounded-xl border border-amber-200 bg-white p-3 text-sm text-slate-700 outline-none focus:border-amber-400"
+          id={approvalNoteId}
+          className="mt-2 min-h-[88px] w-full rounded-md border border-input bg-background p-3 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 md:text-sm"
           value={inlineControls.approvalNote}
+          disabled={approvalDisabled}
           onChange={(event) => inlineControls.onApprovalNoteChange?.(event.target.value)}
           placeholder="审批备注（可选）"
         />
         <div className="mt-3 flex gap-2">
-          <button
+          <Button
             type="button"
-            className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-medium text-white transition hover:bg-slate-800"
+            size="sm"
+            disabled={approvalDisabled}
             onClick={() => inlineControls.onResolveInterrupt?.("approve")}
           >
-            同意并继续
-          </button>
-          <button
+            {inlineControls.approvalPending ? "正在处理..." : "同意并继续"}
+          </Button>
+          <Button
             type="button"
-            className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+            size="sm"
+            variant="destructive"
+            disabled={approvalDisabled}
             onClick={() => inlineControls.onResolveInterrupt?.("reject")}
           >
             拒绝
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -122,33 +181,34 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
   }
 
   return (
-    <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
+    <div className="mt-3 rounded-md border border-border bg-muted/20 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="space-y-1">
-          <div className="text-sm font-medium text-slate-900">工具调用 · {props.toolName}</div>
-          {summaryText ? <div className="text-xs text-slate-500">{summaryText}</div> : null}
+          <div className="text-sm font-medium text-foreground">{formatToolLabel(props.toolName)}</div>
+          {summaryText ? <div className="text-xs text-muted-foreground">{summaryText}</div> : null}
         </div>
         <div className="flex items-center gap-2">
           {argsText ? (
-            <button
+            <Button
               type="button"
-              className="rounded-full border border-slate-300 bg-white px-3 py-1 text-[11px] text-slate-600 transition hover:bg-slate-100"
+              size="sm"
+              variant="outline"
               onClick={() => setShowArgs((value) => !value)}
+              aria-expanded={showArgs}
+              aria-controls={argsPanelId}
             >
               {showArgs ? "收起参数" : "查看参数"}
-            </button>
+            </Button>
           ) : null}
-          <span className="rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500">
-            tool-call
-          </span>
+          <Badge variant="outline">工具执行</Badge>
         </div>
       </div>
       {argsText && showArgs ? (
-        <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-xl bg-white p-3 text-[11px] leading-5 text-slate-600">
+        <pre id={argsPanelId} className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-md bg-background p-3 text-[11px] leading-5 text-muted-foreground">
           {argsText}
         </pre>
       ) : argsText ? (
-        <div className="mt-2 text-xs text-slate-500">请求参数默认已收起，点击“查看参数”展开。</div>
+        <div className="mt-2 text-xs text-muted-foreground">请求参数默认收起，可按需查看。</div>
       ) : null}
       {(resultText || artifact.summary) ? (
         <div className="mt-3">

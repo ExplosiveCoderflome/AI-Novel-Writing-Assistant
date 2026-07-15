@@ -9,6 +9,7 @@ import {
   Database,
   Globe2,
   House,
+  Images,
   LayoutDashboard,
   ListTodo,
   MonitorPlay,
@@ -31,12 +32,14 @@ import { getAutoDirectorFollowUpOverview } from "@/api/autoDirectorFollowUps";
 import { getTaskOverview } from "@/api/tasks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { VisualAssetLibraryDialog } from "@/components/visualAssets";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
+  action?: "visual_asset_library";
   disabled?: boolean;
 }
 
@@ -56,7 +59,7 @@ const navGroups: NavGroup[] = [
       { to: "/comic", label: "漫画工作台", icon: SquareStack },
       { to: "/creative-hub", label: "创作中枢", icon: LayoutDashboard },
       { to: "/book-analysis", label: "拆书", icon: ScanSearch },
-      { to: "/tasks", label: "任务中心", icon: ListTodo },
+      { to: "/tasks", label: "运行记录", icon: ListTodo },
       { to: "/auto-director/follow-ups", label: "导演跟进", icon: Workflow },
     ],
   },
@@ -71,6 +74,7 @@ const navGroups: NavGroup[] = [
       { to: "/style-engine", label: "写法引擎", icon: WandSparkles },
       { to: "/anti-ai-rules", label: "反 AI 规则", icon: ShieldCheck },
       { to: "/base-characters", label: "基础角色库", icon: UsersRound },
+      { to: "#visual-assets", label: "视觉资源库", icon: Images, action: "visual_asset_library" },
     ],
   },
   {
@@ -90,6 +94,7 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const [badgeQueriesEnabled, setBadgeQueriesEnabled] = useState(false);
+  const [visualAssetLibraryOpen, setVisualAssetLibraryOpen] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setBadgeQueriesEnabled(true), 500);
@@ -124,7 +129,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     },
   });
 
-  const runningTaskCount = taskQuery.data?.data?.runningCount ?? 0;
   const failedTaskCount = taskQuery.data?.data?.failedCount ?? 0;
   const autoDirectorFollowUpCount = autoDirectorFollowUpQuery.data?.data?.totalCount ?? 0;
   const knowledgeDocuments = knowledgeQuery.data?.data ?? [];
@@ -147,27 +151,17 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     }
 
     if (to === "/tasks") {
-      if (runningTaskCount <= 0 && failedTaskCount <= 0) {
+      if (failedTaskCount <= 0) {
         return null;
       }
       return (
         <div className={cn("flex items-center gap-1", collapsed ? "absolute right-1 top-1" : "ml-auto")}>
-          {runningTaskCount > 0 ? (
-            <Badge
-              variant="secondary"
-              className={cn("h-5 px-1.5 text-[10px]", collapsed && "h-4 min-w-4 px-1 text-[9px]")}
-            >
-              {collapsed ? runningTaskCount : `R${runningTaskCount}`}
-            </Badge>
-          ) : null}
-          {failedTaskCount > 0 ? (
-            <Badge
-              variant="destructive"
-              className={cn("h-5 px-1.5 text-[10px]", collapsed && "h-4 min-w-4 px-1 text-[9px]")}
-            >
-              {collapsed ? failedTaskCount : `F${failedTaskCount}`}
-            </Badge>
-          ) : null}
+          <Badge
+            variant="destructive"
+            className={cn("h-5 px-1.5 text-[10px]", collapsed && "h-4 min-w-4 px-1 text-[9px]")}
+          >
+            {collapsed ? failedTaskCount : `F${failedTaskCount}`}
+          </Badge>
         </div>
       );
     }
@@ -239,6 +233,24 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               const Icon = item.icon;
               const isNovelEntry = item.to === "/novels";
 
+              if (item.action === "visual_asset_library") {
+                return (
+                  <button
+                    key={item.to}
+                    type="button"
+                    title={collapsed ? item.label : undefined}
+                    className={cn(
+                      "relative flex w-full items-center rounded-md text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+                      collapsed ? "justify-center px-2 py-2.5" : "py-2 pl-4 pr-2",
+                    )}
+                    onClick={() => setVisualAssetLibraryOpen(true)}
+                  >
+                    <Icon className={cn("h-[18px] w-[18px] shrink-0", collapsed ? "mx-auto" : "mr-3")} />
+                    {!collapsed ? <span className="truncate">{item.label}</span> : null}
+                  </button>
+                );
+              }
+
               if (item.disabled) {
                 return (
                   <div
@@ -304,6 +316,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </div>
         ))}
       </nav>
+      <VisualAssetLibraryDialog open={visualAssetLibraryOpen} onOpenChange={setVisualAssetLibraryOpen} />
     </aside>
   );
 }

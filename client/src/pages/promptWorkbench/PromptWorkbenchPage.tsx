@@ -3,8 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { getNovelChapters } from "@/api/novel/chapters";
 import { queryKeys } from "@/api/queryKeys";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
+import type { LLMSelectorValue } from "@/components/common/LLMSelector";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useLLMStore } from "@/store/llmStore";
 import { AdvancedPromptTemplateEditor } from "./components/AdvancedPromptTemplateEditor";
 import { PromptBodyEditor } from "./components/PromptBodyEditor";
 import { PromptCatalogSidebar } from "./components/PromptCatalogSidebar";
@@ -26,6 +28,16 @@ export default function PromptWorkbenchPage() {
   const [immersiveMode, setImmersiveMode] = useState(false);
   const [selectedChapterId, setSelectedChapterId] = useState("");
   const [editMode, setEditMode] = useState<PromptEditMode>("slots");
+  const globalLlmProvider = useLLMStore((state) => state.provider);
+  const globalLlmModel = useLLMStore((state) => state.model);
+  const globalLlmTemperature = useLLMStore((state) => state.temperature);
+  const globalLlmMaxTokens = useLLMStore((state) => state.maxTokens);
+  const [testLlm, setTestLlm] = useState<LLMSelectorValue>(() => ({
+    provider: globalLlmProvider,
+    model: globalLlmModel,
+    temperature: globalLlmTemperature,
+    maxTokens: globalLlmMaxTokens,
+  }));
 
   const catalog = usePromptCatalog(keyword);
   const prompts = catalog.prompts;
@@ -77,6 +89,9 @@ export default function PromptWorkbenchPage() {
     templateDraft: activeEditMode === "advanced" && advancedTemplateEnabled ? templateState.draftTemplate : undefined,
   });
   const preview = previewState.preview;
+  const testRunError = previewState.testRunMutation.error instanceof Error
+    ? previewState.testRunMutation.error.message
+    : null;
 
   useEffect(() => {
     setSelectedContextBlockId(null);
@@ -115,6 +130,33 @@ export default function PromptWorkbenchPage() {
       setEditMode("slots");
     }
   }, [advancedTemplateSupported, editMode]);
+
+  useEffect(() => {
+    if (testLlm.provider || !globalLlmProvider) {
+      return;
+    }
+    setTestLlm({
+      provider: globalLlmProvider,
+      model: globalLlmModel,
+      temperature: globalLlmTemperature,
+      maxTokens: globalLlmMaxTokens,
+    });
+  }, [
+    globalLlmMaxTokens,
+    globalLlmModel,
+    globalLlmProvider,
+    globalLlmTemperature,
+    testLlm.provider,
+  ]);
+
+  function handleRunTest() {
+    previewState.generateTestRun({
+      ...(testLlm.provider ? { provider: testLlm.provider } : {}),
+      ...(testLlm.model ? { model: testLlm.model } : {}),
+      ...(testLlm.temperature !== undefined ? { temperature: testLlm.temperature } : {}),
+      ...(testLlm.maxTokens !== undefined ? { maxTokens: testLlm.maxTokens } : {}),
+    });
+  }
 
   function handleSelectPrompt(prompt: PromptCatalogItem) {
     setSelectedKey(prompt.key);
@@ -219,6 +261,9 @@ export default function PromptWorkbenchPage() {
                   <AdvancedPromptTemplateEditor
                     templateState={templateState}
                     preview={preview}
+                    testRun={previewState.testRun}
+                    testRunPending={previewState.testRunMutation.isPending}
+                    testRunError={testRunError}
                     disabled={!advancedTemplateEnabled}
                   />
                 ) : (
@@ -226,6 +271,9 @@ export default function PromptWorkbenchPage() {
                     prompt={selectedPrompt}
                     immersive={immersiveMode}
                     preview={preview}
+                    testRun={previewState.testRun}
+                    testRunPending={previewState.testRunMutation.isPending}
+                    testRunError={testRunError}
                     sections={slotState.sections}
                     reconcile={slotState.reconcile}
                     reconcileMap={slotState.reconcileMap}
@@ -261,16 +309,21 @@ export default function PromptWorkbenchPage() {
                 estimatedTokens={preview?.context.estimatedInputTokens ?? null}
                 dirtyCount={effectiveDirtyCount}
                 isPreviewPending={previewState.previewMutation.isPending}
+                isTestRunPending={previewState.testRunMutation.isPending}
                 isSavePending={effectiveSavePending}
                 isSaveSuccess={effectiveSaveSuccess}
                 saveError={effectiveSaveError}
                 saveDisabled={effectiveSaveDisabled}
                 previewDisabled={!selectedPrompt || previewState.previewMutation.isPending}
+                testRunDisabled={!selectedPrompt || previewState.testRunMutation.isPending}
+                testLlm={testLlm}
+                onTestLlmChange={setTestLlm}
                 resetDisabled={effectiveResetDisabled}
                 officialVersionDisabled={effectiveOfficialDisabled}
                 officialVersionLabel={isAdvancedMode ? "恢复官方模板" : "官方版本"}
                 saveLabel={isAdvancedMode ? "保存为新版本" : "保存覆盖"}
                 onGeneratePreview={previewState.generatePreview}
+                onRunTest={handleRunTest}
                 onOpenOfficialVersion={
                   isAdvancedMode
                     ? () => templateState.restoreMutation.mutate()

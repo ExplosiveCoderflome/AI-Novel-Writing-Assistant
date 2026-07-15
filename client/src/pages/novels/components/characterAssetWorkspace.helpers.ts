@@ -36,9 +36,9 @@ export function isProtagonistCharacter(character?: Character | null): boolean {
   if (!character) {
     return false;
   }
-  if (character.castRole === "protagonist") {
-    return true;
+  if (character.castRole) {
+    return character.castRole === "protagonist";
   }
-  const roleText = `${character.role ?? ""} ${character.castRole ?? ""}`;
+  const roleText = character.role ?? "";
   return /主角|男主|女主|主人公/.test(roleText);
 }

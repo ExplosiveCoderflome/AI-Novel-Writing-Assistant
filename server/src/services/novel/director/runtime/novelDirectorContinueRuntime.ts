@@ -44,7 +44,7 @@ export type DirectorAssetFirstRecovery =
   }
   | {
     type: "phase";
-    phase: "story_macro" | "book_contract" | "character_setup" | "volume_strategy" | "structured_outline";
+    phase: "story_macro" | "book_contract" | "world_setup" | "character_setup" | "volume_strategy" | "structured_outline";
   }
   | null;
 
@@ -82,12 +82,15 @@ function parseResumeTargetLike(value: unknown) {
 function inferPhaseFromTaskState(input: {
   currentItemKey?: string | null;
   seedPayload: DirectorWorkflowSeedPayload;
-}): "story_macro" | "book_contract" | "character_setup" | "volume_strategy" | "structured_outline" | null {
+}): "story_macro" | "book_contract" | "world_setup" | "character_setup" | "volume_strategy" | "structured_outline" | null {
   const itemKey = input.currentItemKey?.trim() || "";
   const sessionPhase = input.seedPayload.directorSession?.phase?.trim() || "";
   const normalized = itemKey || sessionPhase;
   if (normalized === "story_macro" || normalized === "book_contract") {
     return normalized;
+  }
+  if (normalized === "world_setup") {
+    return "world_setup";
   }
   if (normalized === "character_setup") {
     return "character_setup";
@@ -235,6 +238,7 @@ export class NovelDirectorContinueRuntime {
     continuationMode?: DirectorContinuationMode;
     batchAlreadyStartedCount?: number;
     forceResume?: boolean;
+    acceptManualChanges?: boolean;
   }): Promise<void> {
     const continuationMode = normalizeDirectorContinuationMode(input?.continuationMode);
     const row = await this.deps.workflowService.getTaskById(taskId);
@@ -303,6 +307,7 @@ export class NovelDirectorContinueRuntime {
     const effectiveDirectorInput = applyDirectorRunModeContract({
       ...directorInput,
       runMode,
+      ...(input?.acceptManualChanges ? { stepCalibrationInstruction: null } : {}),
     });
     const assetFirstRecovery = await this.resolveAssetFirstRecovery({
       novelId,
@@ -455,10 +460,13 @@ export class NovelDirectorContinueRuntime {
   }
 
   private resolveDirectorEditStage(
-    phase: "story_macro" | "book_contract" | "character_setup" | "volume_strategy" | "structured_outline" | "chapter_execution",
-  ): "story_macro" | "character" | "outline" | "structured" | "chapter" {
+    phase: "story_macro" | "book_contract" | "world_setup" | "character_setup" | "volume_strategy" | "structured_outline" | "chapter_execution",
+  ): "story_macro" | "world" | "character" | "outline" | "structured" | "chapter" {
     if (phase === "story_macro" || phase === "book_contract") {
       return "story_macro";
+    }
+    if (phase === "world_setup") {
+      return "world";
     }
     if (phase === "character_setup") {
       return "character";
@@ -513,6 +521,13 @@ export class NovelDirectorContinueRuntime {
     const structuredOutlineStep = takeoverState.snapshot.structuredOutlineRecoveryStep;
     const latestCheckpointType = takeoverState.latestCheckpoint?.checkpointType ?? null;
     const generatedChapterCount = takeoverState.snapshot.generatedChapterCount ?? 0;
+    const latestAutoExecutionState = takeoverState.latestAutoExecutionState;
+    if (
+      latestAutoExecutionState?.volumeChapterListComplete === false
+      && (latestAutoExecutionState.remainingChapterCount ?? 0) === 0
+    ) {
+      return { type: "phase", phase: "structured_outline" };
+    }
     const autoExecutionRecovery = resolveAssetFirstRecoveryFromSnapshot({
       runMode: input.directorInput.runMode,
       structuredOutlineRecoveryStep: structuredOutlineStep,
@@ -537,7 +552,7 @@ export class NovelDirectorContinueRuntime {
 
   private async resolveResumePhase(input: {
     novelId: string;
-  }): Promise<"story_macro" | "book_contract" | "character_setup" | "volume_strategy" | "structured_outline"> {
+  }): Promise<"story_macro" | "book_contract" | "world_setup" | "character_setup" | "volume_strategy" | "structured_outline"> {
     const takeoverState = await loadDirectorTakeoverState({
       novelId: input.novelId,
       getStoryMacroPlan: (targetNovelId) => this.deps.storyMacroService.getPlan(targetNovelId),
@@ -561,6 +576,9 @@ export class NovelDirectorContinueRuntime {
     }
     if (!input.snapshot.hasBookContract) {
       return { type: "phase", phase: "book_contract" };
+    }
+    if (!input.snapshot.hasWorldSetupPrepared) {
+      return { type: "phase", phase: "world_setup" };
     }
     if (input.snapshot.characterCount === 0) {
       return { type: "phase", phase: "character_setup" };

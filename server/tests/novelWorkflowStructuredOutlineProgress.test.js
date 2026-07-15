@@ -239,7 +239,7 @@ function createBeatSheet() {
           mustDeliver: ["开局压力"],
         },
         {
-          key: "mid_turn",
+          key: "midpoint_turn",
           label: "中段转向",
           summary: "让局势转向。",
           chapterSpanHint: "2-2章",
@@ -262,20 +262,53 @@ test("resolveStructuredOutlineRecoveryCursor returns beat_sheet when required vo
 });
 
 test("resolveStructuredOutlineRecoveryCursor returns chapter_list for the first incomplete beat", () => {
+  const workspace = createWorkspace({
+    chapters: [
+      createEmptyChapter("chapter-1", 1, { beatKey: "open_hook" }),
+    ],
+    beatSheets: createBeatSheet(),
+  });
+  workspace.volumes[0].status = "chapter_list_partial:active";
+
   const cursor = resolveStructuredOutlineRecoveryCursor({
-    workspace: createWorkspace({
-      chapters: [
-        createEmptyChapter("chapter-1", 1, { beatKey: "open_hook" }),
-      ],
-      beatSheets: createBeatSheet(),
-    }),
+    workspace,
     plan: { mode: "volume", volumeOrder: 1 },
   });
 
   assert.equal(cursor.step, "chapter_list");
   assert.equal(cursor.volumeId, "volume-1");
-  assert.equal(cursor.beatKey, "mid_turn");
+  assert.equal(cursor.beatKey, "midpoint_turn");
   assert.equal(cursor.beatLabel, "中段转向");
+  assert.equal(cursor.beatChapterListReady, false);
+  assert.equal(cursor.volumeChapterListComplete, false);
+});
+
+test("resolveStructuredOutlineRecoveryCursor can expose a ready beat window before full volume completion", () => {
+  const workspace = createWorkspace({
+    chapters: [
+      createDetailedChapter("chapter-1", 1, {
+        beatKey: "open_hook",
+        sceneCards: null,
+      }),
+    ],
+    beatSheets: createBeatSheet(),
+  });
+  workspace.volumes[0].status = "chapter_list_partial:active";
+
+  const cursor = resolveStructuredOutlineRecoveryCursor({
+    workspace,
+    plan: { mode: "volume", volumeOrder: 1 },
+    allowPartialChapterListReady: true,
+  });
+
+  assert.equal(cursor.step, "chapter_detail_bundle");
+  assert.equal(cursor.volumeId, "volume-1");
+  assert.equal(cursor.chapterId, "chapter-1");
+  assert.equal(cursor.detailMode, "task_sheet");
+  assert.equal(cursor.beatKey, "midpoint_turn");
+  assert.equal(cursor.beatChapterListReady, true);
+  assert.equal(cursor.volumeChapterListComplete, false);
+  assert.deepEqual(cursor.selectedChapters.map((chapter) => chapter.chapterOrder), [1]);
 });
 
 test("resolveStructuredOutlineRecoveryCursor treats incomplete execution contract as pending chapter detail", () => {
@@ -287,7 +320,7 @@ test("resolveStructuredOutlineRecoveryCursor treats incomplete execution contrac
           sceneCards: null,
         }),
         createDetailedChapter("chapter-2", 2, {
-          beatKey: "mid_turn",
+          beatKey: "midpoint_turn",
         }),
       ],
       beatSheets: createBeatSheet(),
@@ -306,7 +339,7 @@ test("resolveStructuredOutlineRecoveryCursor returns chapter_sync after all sele
     workspace: createWorkspace({
       chapters: [
         createDetailedChapter("chapter-1", 1, { beatKey: "open_hook" }),
-        createDetailedChapter("chapter-2", 2, { beatKey: "mid_turn" }),
+        createDetailedChapter("chapter-2", 2, { beatKey: "midpoint_turn" }),
       ],
       beatSheets: createBeatSheet(),
     }),

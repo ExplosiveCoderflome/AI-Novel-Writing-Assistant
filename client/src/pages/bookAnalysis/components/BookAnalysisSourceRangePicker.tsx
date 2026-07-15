@@ -265,7 +265,7 @@ export default function BookAnalysisSourceRangePicker({
               type="button"
               className={cn(
                 "h-7 rounded px-3 text-xs transition-colors",
-                mode === key ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+                mode === key ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground",
                 key !== "full" && !sourceSelected ? "cursor-not-allowed opacity-50" : "",
               )}
               disabled={key !== "full" && !sourceSelected}
@@ -384,7 +384,7 @@ export default function BookAnalysisSourceRangePicker({
         </div>
         <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-emerald-500"
+            className="h-full rounded-full bg-success"
             style={{
               marginLeft: `${selectedRange ? barLeft : 0}%`,
               width: `${selectedRange ? barWidth : 100}%`,

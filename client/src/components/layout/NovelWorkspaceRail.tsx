@@ -13,6 +13,7 @@ import type { DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
 import type { VolumePlan } from "@ai-novel/shared/types/novel";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { getNovelDetail, getNovelQualityReport, getNovelVolumeWorkspace } from "@/api/novel";
+import { getNovelWorld } from "@/api/novelWorldSlice";
 import { getDirectorBookAutomationProjection, getDirectorRuntimeProjection, getDirectorTaskSnapshot } from "@/api/novelDirector";
 import { continueNovelWorkflow, getActiveAutoDirectorTask } from "@/api/novelWorkflow";
 import { queryKeys } from "@/api/queryKeys";
@@ -138,6 +139,11 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     queryFn: () => getNovelDetail(novelId),
     enabled: Boolean(novelId),
   });
+  const novelWorldQuery = useQuery({
+    queryKey: queryKeys.novels.novelWorld(novelId),
+    queryFn: () => getNovelWorld(novelId),
+    enabled: Boolean(novelId),
+  });
   const volumeWorkspaceQuery = useQuery({
     queryKey: queryKeys.novels.volumeWorkspace(novelId),
     queryFn: () => getNovelVolumeWorkspace(novelId),
@@ -256,6 +262,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
 
   const stepReadiness = useMemo(() => {
     const basicReady = Boolean(novelDetail?.title?.trim());
+    const worldReady = Boolean(novelWorldQuery.data?.data?.hasNovelWorld);
     const outlineReady = Boolean(workspace?.strategyPlan) || (workspace?.volumes ?? []).some((volume) => hasVolumePlanContent(volume));
     const structuredReady = (workspace?.beatSheets ?? []).some((sheet) => sheet.beats.length > 0)
       || (workspace?.volumes ?? []).some((volume) => volume.chapters.some((chapter) => hasChapterPlanContent(chapter)));
@@ -272,13 +279,14 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
     return applyAutoDirectorResetStepReadiness({
       basic: basicReady,
       story_macro: storyMacroReady,
+      world: worldReady,
       character: characterReady,
       outline: outlineReady,
       structured: structuredReady,
       chapter: chapterReady,
       pipeline: pipelineReady,
     } satisfies Record<NovelWorkspaceFlowTab, boolean>, effectiveResetSteps);
-  }, [effectiveResetSteps, novelDetail?.bible, novelDetail?.chapters, novelDetail?.characters, novelDetail?.plotBeats, qualitySummary, workspace]);
+  }, [effectiveResetSteps, novelDetail?.bible, novelDetail?.chapters, novelDetail?.characters, novelDetail?.plotBeats, novelWorldQuery.data?.data?.hasNovelWorld, qualitySummary, workspace]);
 
   const workflowIndex = workflowCurrentTab
     ? NOVEL_WORKSPACE_FLOW_STEPS.findIndex((item) => item.key === workflowCurrentTab)
@@ -434,7 +442,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
           collapsed ? "w-[84px]" : "w-[248px]",
         )}
       >
-        <div className="flex h-[calc(100vh-4rem)] flex-col gap-3 p-3">
+        <div className="flex h-[calc(100dvh-4rem)] flex-col gap-3 p-3">
           <div className={cn("flex items-center gap-2", collapsed ? "justify-center" : "justify-between")}>
             {!collapsed ? (
               <div className="flex min-w-0 items-center gap-2">

@@ -1,6 +1,6 @@
 import type { DirectorDashboardView } from "@ai-novel/shared/types/directorRuntime";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
-import { Badge } from "@/components/ui/badge";
+import { TaskQueueStatusBadge } from "@/components/taskQueue";
 import {
   formatCheckpoint,
   formatDate,
@@ -8,7 +8,8 @@ import {
   formatResumeTarget,
   formatStatus,
   formatTokenCount,
-  toStatusVariant,
+  getTaskQueueLevelLabel,
+  getTaskQueueTone,
 } from "../taskCenterUtils";
 
 interface TaskCenterDetailSummaryProps {
@@ -29,6 +30,7 @@ export default function TaskCenterDetailSummary({
     : Math.round(task.progress * 100);
   const currentStage = dashboardView?.stageLabel ?? task.currentStage ?? "暂无";
   const currentItem = dashboardView?.currentAction ?? task.currentItemLabel ?? "暂无";
+  const tone = getTaskQueueTone(task);
 
   return (
     <>
@@ -39,8 +41,9 @@ export default function TaskCenterDetailSummary({
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Badge variant={toStatusVariant(task.status)}>{formatStatus(task.status)}</Badge>
-        <Badge variant="outline">进度 {progressPercent}%</Badge>
+        <TaskQueueStatusBadge label={getTaskQueueLevelLabel(task)} tone={tone} />
+        <TaskQueueStatusBadge label={formatStatus(task.status)} tone="neutral" />
+        <TaskQueueStatusBadge label={`进度 ${progressPercent}%`} tone="neutral" />
       </div>
       <div className="space-y-1 text-muted-foreground">
         <div>展示状态：{dashboardView?.statusLabel ?? task.displayStatus ?? formatStatus(task.status)}</div>

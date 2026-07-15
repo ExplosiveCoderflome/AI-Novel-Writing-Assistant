@@ -20,7 +20,6 @@ type ReplanSignal =
 
 type WindowMode = "forward" | "surrounding";
 type ReplanAction = "continue_with_warning" | "local_patch_plan" | "stop_for_replan";
-const OVERDUE_PAYOFF_STOP_WINDOW = 3;
 
 export interface ReplanDecisionInput {
   requestedWindowSize?: number | null;
@@ -132,9 +131,8 @@ function resolveAnchorChapterOrder(signal: ReplanSignal, input: ReplanDecisionIn
 }
 
 function pickSignal(input: ReplanDecisionInput, blockingIssues: AuditIssue[], blockingLedgerKeys: string[]): ReplanSignal {
-  const overdueCount = (input.ledgerSummary?.overdueCount ?? 0) + blockingLedgerKeys.length;
-  if (overdueCount > 0) {
-    return "overdue_payoff";
+  if (input.forceRecommended) {
+    return "manual_request";
   }
   if (input.nextAction === "replan") {
     return "next_action_replan";
@@ -142,38 +140,11 @@ function pickSignal(input: ReplanDecisionInput, blockingIssues: AuditIssue[], bl
   if (blockingIssues.length > 0) {
     return "blocking_audit";
   }
-  // Urgent payoff state is a generation obligation; only overdue or audited failure should interrupt with replan.
-  if (input.forceRecommended) {
-    return "manual_request";
+  const overdueCount = (input.ledgerSummary?.overdueCount ?? 0) + blockingLedgerKeys.length;
+  if (overdueCount > 0) {
+    return "overdue_payoff";
   }
   return "stable";
-}
-
-function maxOverdueDistance(input: ReplanDecisionInput): number {
-  const currentOrder = pickFallbackAnchor(input);
-  if (!currentOrder) {
-    return 0;
-  }
-  return Math.max(0, ...(input.snapshot?.narrative.overduePayoffs ?? []).map((item) => {
-    const deadline = item.targetEndChapterOrder ?? item.targetStartChapterOrder ?? null;
-    return typeof deadline === "number" ? currentOrder - deadline : 0;
-  }));
-}
-
-function overduePayoffAffectsCurrentChapter(input: ReplanDecisionInput): boolean {
-  const currentOrder = pickFallbackAnchor(input);
-  if (!currentOrder) {
-    return false;
-  }
-  const goalPayoffs = uniqueStrings(input.chapterStateGoal?.targetPayoffs ?? []);
-  return (input.snapshot?.narrative.overduePayoffs ?? []).some((item) => {
-    const inCurrentWindow = typeof item.targetStartChapterOrder === "number"
-      && typeof item.targetEndChapterOrder === "number"
-      && item.targetStartChapterOrder <= currentOrder
-      && item.targetEndChapterOrder >= currentOrder;
-    const explicitlyTargeted = goalPayoffs.some((goal) => goal.includes(item.title) || item.title.includes(goal));
-    return inCurrentWindow || explicitlyTargeted;
-  });
 }
 
 function resolveReplanAction(signal: ReplanSignal, input: ReplanDecisionInput): ReplanAction {
@@ -184,9 +155,6 @@ function resolveReplanAction(signal: ReplanSignal, input: ReplanDecisionInput): 
     return "local_patch_plan";
   }
   if (signal === "overdue_payoff") {
-    if (overduePayoffAffectsCurrentChapter(input) || maxOverdueDistance(input) >= OVERDUE_PAYOFF_STOP_WINDOW) {
-      return "stop_for_replan";
-    }
     return "continue_with_warning";
   }
   return "continue_with_warning";
@@ -288,8 +256,8 @@ function buildTriggerReason(signal: ReplanSignal, input: ReplanDecisionInput, bl
   if (signal === "overdue_payoff") {
     const titles = uniqueStrings((input.snapshot?.narrative.overduePayoffs ?? []).map((item) => item.title)).slice(0, 2);
     return titles.length > 0
-      ? `canonical 状态显示 payoff 已逾期：${titles.join("；")}。`
-      : `canonical 状态显示存在逾期 payoff，需要重排后续章节。`;
+      ? `canonical 状态显示 payoff 已逾期：${titles.join("；")}，作为章节级质量债继续跟进。`
+      : `canonical 状态显示存在逾期 payoff，作为章节级质量债继续跟进。`;
   }
   if (signal === "next_action_replan") {
     return `状态驱动决策已切到 replan，说明当前章节目标与现有计划窗口失配。`;
@@ -315,6 +283,9 @@ function buildWindowReason(signal: ReplanSignal, anchorChapterOrder: number | nu
     ? ` 同时要守住“${protectedSecrets.slice(0, 2).join("；")}”这类未公开信息。`
     : "";
   if (signal === "overdue_payoff") {
+    if (affectedChapterOrders.length === 0) {
+      return `${chapterLabel}只用于定位逾期承诺；系统不会仅凭逾期距离或当前章引用自动选择重规划窗口。${secretHint}`.trim();
+    }
     return `以${chapterLabel}为锚点，窗口覆盖 ${formatOrders(affectedChapterOrders)}，因为逾期 payoff 往往需要补铺垫、兑现和兑现后的余波连续联动。${secretHint}`.trim();
   }
   if (signal === "blocking_audit") {
@@ -387,7 +358,11 @@ export function buildReplanDecision(input: ReplanDecisionInput): ReplanDecision 
   );
   return {
     recommended,
-    reason: recommended ? triggerReason : "当前没有阻塞性状态信号，无需重规划后续章节。",
+    reason: recommended
+      ? triggerReason
+      : signal === "overdue_payoff"
+        ? "逾期承诺已记录为章节级质量债，后续章节继续执行。"
+        : "当前没有阻塞性状态信号，无需重规划后续章节。",
     blockingIssueIds,
     blockingLedgerKeys,
     affectedChapterOrders,

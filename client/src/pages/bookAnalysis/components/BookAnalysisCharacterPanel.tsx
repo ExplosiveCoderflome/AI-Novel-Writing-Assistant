@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import CharacterConversationWorkbench from "@/components/characterConversation/CharacterConversationWorkbench";
 import BookAnalysisCharacterAppearancePanel from "./BookAnalysisCharacterAppearancePanel";
 import BookAnalysisCharacterCandidateCard from "./BookAnalysisCharacterCandidateCard";
 import BookAnalysisCharacterImagePanel from "./BookAnalysisCharacterImagePanel";
@@ -118,6 +119,21 @@ function buildEditDraft(character: BookAnalysisCharacter): CharacterEditDraft {
   };
 }
 
+function availableChapterAnchors(character: BookAnalysisCharacter): number[] {
+  const chapterIndexes = [
+    ...character.evidence.map((item) => item.chapterIndex),
+    ...character.profileSections.flatMap((section) => section.evidence.map((item) => item.chapterIndex)),
+    ...character.arcs.map((arc) => arc.chapterIndex),
+    ...character.scenes.flatMap((scene) => scene.evidence.map((item) => item.chapterIndex)),
+  ]
+    .filter((chapterIndex): chapterIndex is number => typeof chapterIndex === "number" && chapterIndex > 0)
+    .map((chapterIndex) => chapterIndex + 1);
+  const appearanceChapterOrders = (character.appearance?.snapshots ?? [])
+    .filter((snapshot) => snapshot.chapterIndex >= 0 && snapshot.evidence.length > 0)
+    .map((snapshot) => snapshot.chapterIndex + 1);
+  return [...new Set([...chapterIndexes, ...appearanceChapterOrders])].sort((left, right) => left - right);
+}
+
 export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterPanelProps) {
   const {
     characters,
@@ -142,6 +158,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
   const [editingId, setEditingId] = useState("");
   const [editDraft, setEditDraft] = useState<CharacterEditDraft | null>(null);
   const [candidateExpanded, setCandidateExpanded] = useState(false);
+  const [conversationTarget, setConversationTarget] = useState<{ characterId: string; chapterAnchor: number } | null>(null);
 
   const generatedCharacters = useMemo(
     () => characters.filter((character) => character.status === "generated"),
@@ -167,6 +184,8 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
   const identifyDisabled = disabled || pending.identify;
   const generateAllDisabled = disabled || pending.generateAll || selectedDimensions.length === 0 || pendingCandidateCount === 0;
   const createDisabled = disabled || pending.create || !manualName.trim() || !manualRole.trim();
+  const conversationCharacter = conversationTarget ? generatedCharacters.find((character) => character.id === conversationTarget.characterId) ?? null : null;
+  const conversationAnchors = conversationCharacter ? availableChapterAnchors(conversationCharacter) : [];
 
   const handleCreate = async () => {
     if (createDisabled) {
@@ -218,6 +237,18 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {conversationTarget && conversationCharacter ? (
+          <CharacterConversationWorkbench
+            subject={{ kind: "book_analysis_character", id: conversationCharacter.id, scopeKind: "book_analysis", scopeId: analysisId }}
+            characterName={conversationCharacter.name}
+            chapterAnchor={conversationTarget.chapterAnchor}
+            chapterAnchorOptions={conversationAnchors}
+            onChapterAnchorChange={(chapterAnchor) => setConversationTarget({ characterId: conversationCharacter.id, chapterAnchor })}
+            defaultFullscreen
+            closeOnExitFullscreen
+            onClose={() => setConversationTarget(null)}
+          />
+        ) : null}
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px]">
           <div className="space-y-3 rounded-md border p-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -291,8 +322,8 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
           <div
             className={`flex flex-wrap items-center justify-between gap-2 rounded-md border p-3 text-sm ${
               batchSummary.failed + batchSummary.pending > 0
-                ? "border-amber-500/40 bg-amber-500/5 text-amber-700 dark:text-amber-300"
-                : "border-emerald-500/40 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+                ? "border-warning/30 bg-warning/5 text-warning"
+                : "border-success/30 bg-success/5 text-success"
             }`}
           >
             <div className="space-y-1">
@@ -394,6 +425,21 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                         <div className="mt-1 text-muted-foreground">{character.role}</div>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const anchors = availableChapterAnchors(character);
+                            if (anchors.length === 0) {
+                              return;
+                            }
+                            setConversationTarget({ characterId: character.id, chapterAnchor: anchors[anchors.length - 1] });
+                          }}
+                          disabled={disabled || availableChapterAnchors(character).length === 0}
+                          title={availableChapterAnchors(character).length === 0 ? "该角色缺少带章节号的原文证据，暂时无法开始证据访谈。" : undefined}
+                        >
+                          基于原文访谈
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => startEdit(character)} disabled={disabled}>
                           编辑
                         </Button>

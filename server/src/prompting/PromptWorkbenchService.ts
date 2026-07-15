@@ -1,6 +1,12 @@
 import type { BaseMessage } from "@langchain/core/messages";
+import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../db/prisma";
+import { getLLM, getResolvedLLMClientOptionsFromInstance } from "../llm/factory";
 import type { TaskType } from "../llm/modelRouter";
+import { invokeStructuredLlmDetailed } from "../llm/structuredInvoke";
+import type { LlmTokenUsageSnapshot } from "../llm/usageTracking";
+import { extractLlmTokenUsage } from "../llm/usageTracking";
+import { toText } from "../services/novel/novelP0Utils";
 import {
   buildPromptAssetKey,
   type PromptAsset,
@@ -100,6 +106,40 @@ export interface PromptPreviewResult {
       activeVersionNo?: number;
       diagnostics: PromptTemplateDiagnostics;
     };
+  };
+}
+
+export interface PromptTestRunInput extends PromptPreviewInput {
+  llm?: {
+    provider?: LLMProvider;
+    model?: string;
+    temperature?: number;
+    maxTokens?: number;
+    timeoutMs?: number;
+  };
+}
+
+export interface PromptTestRunResult {
+  prompt: PromptCatalogItem;
+  outputType: "structured" | "text";
+  output: unknown;
+  outputText: string;
+  messages: PromptPreviewMessage[];
+  context: ReturnType<typeof serializePromptContext>;
+  meta: {
+    provider?: LLMProvider;
+    model?: string;
+    latencyMs: number;
+    tokenUsage?: LlmTokenUsageSnapshot | null;
+    repairUsed?: boolean;
+    repairAttempts?: number;
+  };
+  diagnostics: {
+    missingRequiredGroups: string[];
+    resolverErrors: Awaited<ReturnType<ContextBroker["resolve"]>>["resolverErrors"];
+    notes: string[];
+    structured?: unknown;
+    template?: PromptPreviewResult["diagnostics"]["template"];
   };
 }
 
@@ -428,7 +468,19 @@ export class PromptWorkbenchService {
     });
   }
 
-  async preview(input: PromptPreviewInput): Promise<PromptPreviewResult> {
+  private async renderPreviewPrompt(input: PromptPreviewInput): Promise<{
+    asset: UnknownPromptAsset;
+    prompt: PromptCatalogItem;
+    previewContext: {
+      executionContext: PromptExecutionContext;
+      notes: string[];
+    };
+    brokerResolution: Awaited<ReturnType<ContextBroker["resolve"]>>;
+    prepared: ReturnType<typeof preparePromptExecution>;
+    previewMessages: BaseMessage[];
+    missingRequiredGroups: string[];
+    templateDiagnosticPayload?: PromptPreviewResult["diagnostics"]["template"];
+  }> {
     const asset = getAssetFromPreviewInput(input);
     const prompt = toCatalogItem(asset);
     const previewContext = await this.preparePreviewExecutionContext({
@@ -543,33 +595,138 @@ export class PromptWorkbenchService {
     ];
 
     return {
+      asset,
       prompt,
-      messages: serializeMessages(previewMessages),
-      context: serializePromptContext(prepared.context),
+      previewContext,
       brokerResolution,
+      prepared,
+      previewMessages,
+      missingRequiredGroups,
+      templateDiagnosticPayload,
+    };
+  }
+
+  async preview(input: PromptPreviewInput): Promise<PromptPreviewResult> {
+    const rendered = await this.renderPreviewPrompt(input);
+
+    return {
+      prompt: rendered.prompt,
+      messages: serializeMessages(rendered.previewMessages),
+      context: serializePromptContext(rendered.prepared.context),
+      brokerResolution: rendered.brokerResolution,
       diagnostics: {
-        entrypoint: previewContext.executionContext.entrypoint,
-        missingRequiredGroups,
-        resolverErrors: brokerResolution.resolverErrors,
+        entrypoint: rendered.previewContext.executionContext.entrypoint,
+        missingRequiredGroups: rendered.missingRequiredGroups,
+        resolverErrors: rendered.brokerResolution.resolverErrors,
         tracePreview: buildPromptTracePreview({
-          asset,
-          prepared,
+          asset: rendered.asset,
+          prepared: rendered.prepared,
           options: {
             ...input,
-            executionContext: previewContext.executionContext,
+            executionContext: rendered.previewContext.executionContext,
           },
         }),
         notes: buildPreviewNotes({
-          prompt,
-          brokerResolution,
+          prompt: rendered.prompt,
+          brokerResolution: rendered.brokerResolution,
           extraNotes: [
-            ...previewContext.notes,
-            ...(templateDiagnosticPayload?.diagnostics.fallbackRequiredGroups.length
-              ? [`高级模板已自动追加必需上下文：${templateDiagnosticPayload.diagnostics.fallbackRequiredGroups.join("、")}。`]
+            ...rendered.previewContext.notes,
+            ...(rendered.templateDiagnosticPayload?.diagnostics.fallbackRequiredGroups.length
+              ? [`高级模板已自动追加必需上下文：${rendered.templateDiagnosticPayload.diagnostics.fallbackRequiredGroups.join("、")}。`]
               : []),
           ],
         }),
-        template: templateDiagnosticPayload,
+        template: rendered.templateDiagnosticPayload,
+      },
+    };
+  }
+
+  async testRun(input: PromptTestRunInput): Promise<PromptTestRunResult> {
+    const rendered = await this.renderPreviewPrompt(input);
+    const startedAt = Date.now();
+    const serializedMessages = serializeMessages(rendered.previewMessages);
+    const llmOptions = input.llm ?? {};
+
+    if (rendered.asset.mode === "structured") {
+      if (!rendered.asset.outputSchema) {
+        throw new Error(`提示词没有结构化输出 schema：${rendered.asset.id}@${rendered.asset.version}`);
+      }
+      const result = await invokeStructuredLlmDetailed<unknown>({
+        label: `${rendered.asset.id}@${rendered.asset.version}:workbench_test`,
+        provider: llmOptions.provider,
+        model: llmOptions.model,
+        temperature: llmOptions.temperature,
+        maxTokens: llmOptions.maxTokens,
+        timeoutMs: llmOptions.timeoutMs,
+        taskType: rendered.asset.taskType,
+        messages: rendered.previewMessages,
+        schema: rendered.asset.outputSchema,
+        maxRepairAttempts: Math.max(0, rendered.asset.repairPolicy?.maxAttempts ?? 1),
+      });
+      const outputText = JSON.stringify(result.data, null, 2);
+      return {
+        prompt: rendered.prompt,
+        outputType: "structured",
+        output: result.data,
+        outputText,
+        messages: serializedMessages,
+        context: serializePromptContext(rendered.prepared.context),
+        meta: {
+          provider: llmOptions.provider,
+          model: llmOptions.model,
+          latencyMs: Date.now() - startedAt,
+          tokenUsage: result.tokenUsage,
+          repairUsed: result.repairUsed,
+          repairAttempts: result.repairAttempts,
+        },
+        diagnostics: {
+          missingRequiredGroups: rendered.missingRequiredGroups,
+          resolverErrors: rendered.brokerResolution.resolverErrors,
+          notes: buildPreviewNotes({
+            prompt: rendered.prompt,
+            brokerResolution: rendered.brokerResolution,
+            extraNotes: rendered.previewContext.notes,
+          }),
+          structured: result.diagnostics,
+          template: rendered.templateDiagnosticPayload,
+        },
+      };
+    }
+
+    const llm = await getLLM(llmOptions.provider, {
+      fallbackProvider: "deepseek",
+      model: llmOptions.model,
+      temperature: llmOptions.temperature,
+      maxTokens: llmOptions.maxTokens,
+      timeoutMs: llmOptions.timeoutMs,
+      taskType: rendered.asset.taskType,
+    });
+    const resolved = getResolvedLLMClientOptionsFromInstance(llm);
+    const result = await llm.invoke(rendered.previewMessages);
+    const outputText = toText(result.content);
+
+    return {
+      prompt: rendered.prompt,
+      outputType: "text",
+      output: outputText,
+      outputText,
+      messages: serializedMessages,
+      context: serializePromptContext(rendered.prepared.context),
+      meta: {
+        provider: resolved?.provider ?? llmOptions.provider,
+        model: resolved?.model ?? llmOptions.model,
+        latencyMs: Date.now() - startedAt,
+        tokenUsage: extractLlmTokenUsage(result),
+      },
+      diagnostics: {
+        missingRequiredGroups: rendered.missingRequiredGroups,
+        resolverErrors: rendered.brokerResolution.resolverErrors,
+        notes: buildPreviewNotes({
+          prompt: rendered.prompt,
+          brokerResolution: rendered.brokerResolution,
+          extraNotes: rendered.previewContext.notes,
+        }),
+        template: rendered.templateDiagnosticPayload,
       },
     };
   }

@@ -17,6 +17,7 @@ export interface AutoDirectorBootstrapInitialState {
 
 function mapTabToStage(stage: NovelWorkflowResumeTarget["stage"] | null | undefined): NovelWorkflowStage | null {
   if (stage === "story_macro") return "story_macro";
+  if (stage === "world") return "world_setup";
   if (stage === "character") return "character_setup";
   if (stage === "outline") return "volume_strategy";
   if (stage === "structured") return "structured_outline";
@@ -36,6 +37,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function normalizeAutoDirectorPhase(value: unknown): NovelWorkflowStage | null {
   if (
     value === "story_macro"
+    || value === "world_setup"
     || value === "character_setup"
     || value === "volume_strategy"
     || value === "structured_outline"
@@ -80,6 +82,13 @@ function resolveAutoDirectorInitialItem(stage: NovelWorkflowStage): {
       itemKey: "character_setup",
       itemLabel: "正在补齐角色准备",
       progress: DIRECTOR_PROGRESS.characterSetup,
+    };
+  }
+  if (stage === "world_setup") {
+    return {
+      itemKey: "world_setup",
+      itemLabel: "正在准备本书世界观",
+      progress: DIRECTOR_PROGRESS.worldSetup,
     };
   }
   if (stage === "volume_strategy") {

@@ -17,6 +17,8 @@ export type DirectorPipelineCommandIntent =
   | "policy_update"
   | "workspace_analysis"
   | "manual_edit_impact"
+  | "calibrate_step"
+  | "accept_manual_changes_and_continue"
   | "repair_chapter_titles"
   | "cancel";
 
@@ -45,6 +47,8 @@ const SUPPORTED_COMMANDS = new Set<DirectorPipelineCommandIntent>([
   "policy_update",
   "workspace_analysis",
   "manual_edit_impact",
+  "calibrate_step",
+  "accept_manual_changes_and_continue",
   "repair_chapter_titles",
   "cancel",
 ]);
@@ -65,7 +69,7 @@ export class DirectorCommandInterpreter {
       intent,
       payload,
       takeoverRequest: payload.takeoverRequest ?? null,
-      forceResume: intent === "continue" || intent === "resume_from_checkpoint" || intent === "retry" || intent === "approve_gate"
+      forceResume: intent === "continue" || intent === "resume_from_checkpoint" || intent === "retry" || intent === "approve_gate" || intent === "accept_manual_changes_and_continue"
         ? true
         : Boolean(payload.forceResume),
       isControlOnly: intent === "cancel" || intent === "policy_update",

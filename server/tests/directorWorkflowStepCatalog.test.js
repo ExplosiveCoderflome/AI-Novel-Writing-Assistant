@@ -127,6 +127,28 @@ test("workflow catalog exposes step prerequisites", () => {
     [DIRECTOR_WORKFLOW_STEP_IDS.planning.story_macro],
   );
   assert.deepEqual(
+    getWorkflowStepPrerequisiteIds(DIRECTOR_WORKFLOW_STEP_IDS.planning.character_setup),
+    [
+      DIRECTOR_WORKFLOW_STEP_IDS.planning.book_contract,
+      DIRECTOR_WORKFLOW_STEP_IDS.planning.world_setup,
+    ],
+  );
+  const worldSetup = getWorkflowStepCatalogEntry(DIRECTOR_WORKFLOW_STEP_IDS.planning.world_setup);
+  assert.deepEqual(
+    {
+      stage: worldSetup.stage,
+      displayStage: worldSetup.displayStage,
+      workflowStage: worldSetup.workflowStage,
+      tab: worldSetup.tab,
+    },
+    {
+      stage: "world_setup",
+      displayStage: "world_setup",
+      workflowStage: "world_setup",
+      tab: "world",
+    },
+  );
+  assert.deepEqual(
     getWorkflowStepPrerequisiteIds(DIRECTOR_WORKFLOW_STEP_IDS.structuredOutline.chapter_detail_bundle),
     [DIRECTOR_WORKFLOW_STEP_IDS.structuredOutline.chapter_list],
   );
@@ -160,6 +182,10 @@ test("workflow step catalog resolves legacy node aliases and checkpoints", () =>
   assert.equal(
     resolveWorkflowDisplayStage({ currentStage: "story_macro" }),
     "story_planning",
+  );
+  assert.equal(
+    resolveWorkflowDisplayStage({ taskCurrentItemKey: "world_setup" }),
+    "world_setup",
   );
 });
 

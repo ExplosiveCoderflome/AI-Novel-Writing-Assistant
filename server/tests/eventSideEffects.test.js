@@ -9,11 +9,14 @@ const {
   NovelSideEffectWorker,
 } = require("../dist/events/sideEffects/NovelSideEffectWorker.js");
 const {
+  NovelSideEffectJobHandlers,
   UnsupportedNovelSideEffectPayloadError,
 } = require("../dist/events/sideEffects/NovelSideEffectJobHandlers.js");
 const {
   NOVEL_SIDE_EFFECT_JOB_TYPES,
 } = require("../dist/events/sideEffects/NovelSideEffectJobTypes.js");
+const { EventBus } = require("../dist/events/EventBus.js");
+const { registerNovelEventHandlers } = require("../dist/events/handlers/registerNovelEventHandlers.js");
 
 function cloneJob(job) {
   return job ? { ...job } : null;
@@ -144,6 +147,62 @@ test("enqueueJob deduplicates by idempotency key", async () => {
 
 test("side effect job types do not expose retired chapter draft dynamics sync", () => {
   assert.equal(NOVEL_SIDE_EFFECT_JOB_TYPES.includes("character.chapterDraftSync"), false);
+  assert.equal(NOVEL_SIDE_EFFECT_JOB_TYPES.includes("payoff.bookContractSync"), true);
+});
+
+test("book contract payoff changes enqueue one durable ledger sync job", async () => {
+  const enqueued = [];
+  const bus = new EventBus();
+  registerNovelEventHandlers(bus, {
+    sideEffectJobs: {
+      async enqueueJob(input) {
+        enqueued.push(input);
+        return { created: true, job: input };
+      },
+    },
+  });
+
+  await bus.emit({
+    type: "book-contract:updated",
+    payload: {
+      novelId: "novel-1",
+      payoffChanged: false,
+      contractUpdatedAt: "2026-07-14T00:00:00.000Z",
+    },
+  });
+  await bus.emit({
+    type: "book-contract:updated",
+    payload: {
+      novelId: "novel-1",
+      payoffChanged: true,
+      contractUpdatedAt: "2026-07-14T00:00:01.000Z",
+    },
+  });
+
+  assert.equal(enqueued.length, 1);
+  assert.equal(enqueued[0].jobType, "payoff.bookContractSync");
+  assert.equal(
+    enqueued[0].idempotencyKey,
+    "payoff.bookContractSync:novel-1:2026-07-14T00:00:01.000Z",
+  );
+  assert.deepEqual(enqueued[0].payload, { novelId: "novel-1" });
+});
+
+test("book contract payoff sync job delegates to the existing ledger synchronizer", async () => {
+  const calls = [];
+  const handlers = new NovelSideEffectJobHandlers({
+    async syncPayoffLedger(novelId) {
+      calls.push(novelId);
+    },
+  });
+
+  await handlers.execute({
+    jobType: "payoff.bookContractSync",
+    payloadVersion: 1,
+    payloadJson: JSON.stringify({ novelId: "novel-1" }),
+  });
+
+  assert.deepEqual(calls, ["novel-1"]);
 });
 
 test("leaseNext uses conditional update so concurrent workers cannot claim the same job", async () => {

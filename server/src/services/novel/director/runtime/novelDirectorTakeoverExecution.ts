@@ -39,7 +39,7 @@ interface TakeoverExecutionWorkflowPort {
     forceNew?: true;
     seedPayload: Record<string, unknown>;
     initialState?: {
-      stage: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline" | "chapter_execution" | "quality_repair";
+      stage: "story_macro" | "world_setup" | "character_setup" | "volume_strategy" | "structured_outline" | "chapter_execution" | "quality_repair";
       itemKey?: string | null;
       itemLabel: string;
       progress?: number;
@@ -48,7 +48,7 @@ interface TakeoverExecutionWorkflowPort {
     };
   }): Promise<TakeoverBootstrapTaskResult>;
   markTaskRunning(taskId: string, input: {
-    stage: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline" | "chapter_execution" | "quality_repair";
+    stage: "story_macro" | "world_setup" | "character_setup" | "volume_strategy" | "structured_outline" | "chapter_execution" | "quality_repair";
     itemLabel: string;
     itemKey?: string | null;
     progress?: number;
@@ -94,7 +94,7 @@ interface StartDirectorTakeoverExecutionInput {
     taskId: string;
     novelId: string;
     input: DirectorConfirmRequest;
-    startPhase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline";
+    startPhase: "story_macro" | "world_setup" | "character_setup" | "volume_strategy" | "structured_outline";
     approveCurrentGate?: boolean;
     approveAutoExecutionScope?: boolean;
   }) => Promise<void>;
@@ -140,6 +140,7 @@ interface StartDirectorTakeoverExecutionInput {
 
 function startPhaseToEntryStep(startPhase: NonNullable<DirectorTakeoverRequest["startPhase"]>): DirectorTakeoverEntryStep {
   if (startPhase === "story_macro") return "story_macro";
+  if (startPhase === "world_setup") return "world";
   if (startPhase === "character_setup") return "character";
   if (startPhase === "volume_strategy") return "outline";
   return "structured";
@@ -464,7 +465,10 @@ export async function startDirectorTakeoverExecution(
           request: directorInput,
           existingPipelineJobId: plan.usesCurrentBatch ? (input.takeoverState.activePipelineJob?.id ?? null) : null,
           existingState: plan.usesCurrentBatch ? (input.takeoverState.latestAutoExecutionState ?? null) : null,
-          resumeCheckpointType: plan.usesCurrentBatch ? (plan.resumeCheckpointType ?? null) : null,
+          resumeCheckpointType: plan.usesCurrentBatch
+            && (plan.resumeCheckpointType === "chapter_batch_ready" || plan.resumeCheckpointType === "replan_required")
+            ? plan.resumeCheckpointType
+            : null,
           resumeStage: plan.resumeStage === "pipeline" ? "pipeline" : "chapter",
           approveCurrentGate: isFullBookAutopilot,
           approveAutoExecutionScope: isFullBookAutopilot,

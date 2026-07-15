@@ -1,6 +1,7 @@
 import type {
   VolumeBeatSheet,
   VolumeChapterPlan,
+  VolumeCritiqueReport,
   VolumePlan,
   VolumePlanningReadiness,
   VolumeStrategyPlan,
@@ -28,12 +29,17 @@ export interface VolumeSyncOptions {
 export function buildVolumePlanningReadiness(params: {
   volumes: VolumePlan[];
   strategyPlan: VolumeStrategyPlan | null;
+  critiqueReport?: VolumeCritiqueReport | null;
   beatSheets: VolumeBeatSheet[];
 }): VolumePlanningReadiness {
-  const { volumes, strategyPlan, beatSheets } = params;
+  const { volumes, strategyPlan, critiqueReport, beatSheets } = params;
   const blockingReasons: string[] = [];
   if (!strategyPlan) {
     blockingReasons.push("请先生成卷战略建议，再确认卷骨架。");
+  }
+  const hasHighRiskCritique = critiqueReport?.overallRisk === "high";
+  if (hasHighRiskCritique) {
+    blockingReasons.push("当前卷战略审查为高风险，请先重新生成或修订卷战略。");
   }
   if (volumes.length === 0) {
     blockingReasons.push("当前还没有卷骨架。");
@@ -43,7 +49,7 @@ export function buildVolumePlanningReadiness(params: {
   }
   return {
     canGenerateStrategy: true,
-    canGenerateSkeleton: Boolean(strategyPlan),
+    canGenerateSkeleton: Boolean(strategyPlan) && !hasHighRiskCritique,
     canGenerateBeatSheet: Boolean(strategyPlan) && volumes.length > 0,
     canGenerateChapterList: Boolean(strategyPlan) && beatSheets.some((sheet) => sheet.beats.length > 0),
     blockingReasons,

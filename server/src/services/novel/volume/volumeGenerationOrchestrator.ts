@@ -1,4 +1,5 @@
 import type {
+  VolumeCountGuidance,
   VolumeGenerationScope,
   VolumePlanDocument,
 } from "@ai-novel/shared/types/novel";
@@ -62,6 +63,14 @@ import {
 } from "@ai-novel/shared/types/volumePlanning";
 
 type StoryMacroPlanResult = Awaited<ReturnType<StoryMacroPlanService["getPlan"]>> | null;
+
+export function resolveFixedRecommendedVolumeCount(
+  guidance: Pick<VolumeCountGuidance, "userPreferredVolumeCount" | "respectedExistingVolumeCount">,
+): number | null {
+  return guidance.userPreferredVolumeCount
+    ?? guidance.respectedExistingVolumeCount
+    ?? null;
+}
 
 async function notifyVolumeGenerationPhase(input: {
   novelId: string;
@@ -179,6 +188,7 @@ async function generateStrategy(params: {
     userPreferredVolumeCount: options.userPreferredVolumeCount,
     maxVolumeCount: MAX_VOLUME_COUNT,
   });
+  const fixedRecommendedVolumeCount = resolveFixedRecommendedVolumeCount(volumeCountGuidance);
   await notifyVolumeGenerationPhase({
     novelId: document.novelId,
     scope: "strategy",
@@ -190,7 +200,8 @@ async function generateStrategy(params: {
     asset: createVolumeStrategyPrompt({
       maxVolumeCount: MAX_VOLUME_COUNT,
       allowedVolumeCountRange: volumeCountGuidance.allowedVolumeCountRange,
-      fixedRecommendedVolumeCount: volumeCountGuidance.userPreferredVolumeCount,
+      decisionVolumeCountRange: volumeCountGuidance.decisionVolumeCountRange,
+      fixedRecommendedVolumeCount,
       hardPlannedVolumeRange: volumeCountGuidance.hardPlannedVolumeRange,
     }),
     promptInput: {
@@ -283,6 +294,9 @@ async function generateSkeleton(params: {
   const { document, novel, workspace, storyMacroPlan, options } = params;
   if (!document.strategyPlan) {
     throw new Error("请先生成卷战略建议。");
+  }
+  if (document.critiqueReport?.overallRisk === "high") {
+    throw new Error("当前卷战略审查为高风险，请先重新生成或修订卷战略，再生成卷骨架。");
   }
   const chapterBudget = deriveChapterBudget({ novel, workspace, options });
   const volumeCountGuidance = buildVolumeCountGuidance({
@@ -426,6 +440,17 @@ async function generateChapterList(params: {
       }
       : undefined,
   });
+  if ((options.generationMode ?? "full_volume") === "single_beat") {
+    await options.onIntermediateDocument?.({
+      scope: "chapter_list",
+      document: mergedDocument,
+      isFinal: true,
+      targetVolumeId: targetVolume.id,
+      targetBeatKey: options.targetBeatKey,
+      generationMode: options.generationMode,
+    });
+    return mergedDocument;
+  }
   const rebalancedDocument = await generateRebalance({
     document: mergedDocument,
     novel,

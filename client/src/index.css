@@ -19,6 +19,12 @@
   --accent-foreground: 222.2 47.4% 11.2%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
+  --success: 142 60% 32%;
+  --success-foreground: 138 76% 97%;
+  --warning: 32 92% 38%;
+  --warning-foreground: 48 100% 96%;
+  --info: 199 78% 36%;
+  --info-foreground: 204 100% 97%;
   --border: 214.3 31.8% 91.4%;
   --input: 214.3 31.8% 91.4%;
   --ring: 222.2 84% 4.9%;
@@ -32,6 +38,15 @@
 body {
   @apply bg-background text-foreground antialiased;
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+
+@media (min-width: 768px) {
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
 }
 
 @layer utilities {
@@ -260,6 +275,7 @@ body {
   .mobile-route-novels,
   .mobile-route-novel-create,
   .mobile-route-novel-preview,
+  .mobile-route-drama,
   .mobile-route-creative-hub,
   .mobile-route-chat-legacy,
   .mobile-route-book-analysis,
@@ -288,6 +304,7 @@ body {
   .mobile-route-novels,
   .mobile-route-novel-create,
   .mobile-route-novel-preview,
+  .mobile-route-drama,
   .mobile-route-creative-hub,
   .mobile-route-chat-legacy,
   .mobile-route-book-analysis,
@@ -474,6 +491,7 @@ body {
   }
 
   .mobile-route-creative-hub > .grid,
+  .mobile-route-drama > .grid,
   .mobile-route-chat-legacy,
   .mobile-route-book-analysis > .grid,
   .mobile-route-tasks > .grid,
@@ -487,6 +505,7 @@ body {
   }
 
   .mobile-route-chat-legacy > .rounded-xl:first-child,
+  .mobile-route-drama > .grid > div:first-child,
   .mobile-route-creative-hub > .grid > div:first-child,
   .mobile-route-book-analysis > .grid > :first-child,
   .mobile-route-tasks > .grid > :first-child,
@@ -495,6 +514,7 @@ body {
   }
 
   .mobile-route-chat-legacy > .rounded-xl:nth-child(2),
+  .mobile-route-drama > .grid > div:nth-child(2),
   .mobile-route-creative-hub > .grid > div:nth-child(2),
   .mobile-route-book-analysis > .grid > :nth-child(2),
   .mobile-route-tasks > .grid > :nth-child(2),
@@ -503,12 +523,14 @@ body {
   }
 
   .mobile-route-chat-legacy > :nth-child(3),
+  .mobile-route-drama > .grid > div:nth-child(3),
   .mobile-route-creative-hub > .grid > div:nth-child(3),
   .mobile-route-tasks > .grid > :nth-child(3) {
     order: 3;
   }
 
   .mobile-route-chat-legacy > .rounded-xl,
+  .mobile-route-drama > .grid > .rounded-xl,
   .mobile-route-tasks > .grid > .rounded-xl,
   .mobile-route-auto-director-follow-ups > .grid > .rounded-xl {
     box-shadow: none;
@@ -550,6 +572,7 @@ body {
   }
 
   .mobile-route-creative-hub .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-drama .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
   .mobile-route-book-analysis .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
   .mobile-route-tasks .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
   .mobile-route-auto-director-follow-ups .rounded-xl.border.bg-card .rounded-xl.border.bg-card,

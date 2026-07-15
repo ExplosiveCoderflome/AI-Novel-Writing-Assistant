@@ -114,6 +114,31 @@ export async function recordCompletedCheckpoint(
     pipelineStatus: input.pipelineStatus ?? input.autoExecution.pipelineStatus ?? null,
   };
   const scopeLabel = buildDirectorAutoExecutionScopeLabelFromState(completedState, input.range.totalChapterCount);
+  if (completedState.volumeChapterListComplete === false) {
+    await deps.workflowService.recordCheckpoint(input.taskId, {
+      stage: "quality_repair",
+      checkpointType: "chapter_batch_ready",
+      checkpointSummary: `《${input.request.candidate.workingTitle.trim() || input.request.title?.trim() || "当前项目"}》已完成${scopeLabel}正文。继续后会补齐下一段章节规划并进入后续写作。`,
+      itemLabel: `${scopeLabel}正文已完成，等待续拆下一段`,
+      progress: 0.98,
+      chapterId: completedState.firstChapterId ?? input.range.firstChapterId,
+      seedPayload: deps.buildDirectorSeedPayload(input.request, input.novelId, {
+        directorSession: buildDirectorSessionState({
+          runMode: input.request.runMode,
+          phase: "structured_outline",
+          isBackgroundRunning: false,
+        }),
+        resumeTarget: buildNovelEditResumeTarget({
+          novelId: input.novelId,
+          taskId: input.taskId,
+          stage: "structured",
+          chapterId: completedState.firstChapterId ?? input.range.firstChapterId,
+        }),
+        autoExecution: completedState,
+      }),
+    });
+    return;
+  }
   await deps.workflowService.recordCheckpoint(input.taskId, {
     stage: "quality_repair",
     checkpointType: "workflow_completed",

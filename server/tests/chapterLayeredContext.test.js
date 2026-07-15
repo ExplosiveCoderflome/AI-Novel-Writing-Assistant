@@ -2,6 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  buildBookContractContext,
+  buildVolumeWindowContext,
   buildNarrativeProgressHint,
   buildChapterWriteContext,
   buildChapterReviewContext,
@@ -10,6 +12,37 @@ const {
   buildChapterReviewContextBlocks,
   buildChapterRepairContextBlocks,
 } = require("../dist/prompting/prompts/novel/chapterLayeredContext.js");
+
+test("chapter layered context keeps full book promise and volume reader rewards", () => {
+  const book = buildBookContractContext({
+    title: "反压测试",
+    sellingPoint: "高压开局",
+    readingPromise: "每轮受压都换来更强反击。",
+    protagonistFantasy: "从被围猎者成为规则制定者。",
+    coreSellingPoint: "用敌方规则反杀敌方。",
+    chapter3Payoff: "完成第一次反制。",
+    chapter10Payoff: "夺下第一个稳定据点。",
+    chapter30Payoff: "击穿第一层幕后势力。",
+    escalationLadder: "个人反制 -> 团队破局 -> 势力对抗",
+    relationshipMainline: "主角与女二从互相利用走向互信。",
+    activeMilestonePayoffs: ["第 10 章：夺下第一个稳定据点。"],
+  });
+  const volume = buildVolumeWindowContext({
+    currentVolume: {
+      id: "volume-1",
+      sortOrder: 1,
+      title: "第一卷",
+      mainPromise: "完成第一次反压",
+      readerRewardLadder: "小反制 -> 稳定收益 -> 卷末翻盘",
+      coreReward: "让主角从被动求生转为掌握反击入口。",
+    },
+  });
+
+  assert.equal(book.readingPromise, "每轮受压都换来更强反击。");
+  assert.equal(book.activeMilestonePayoffs[0], "第 10 章：夺下第一个稳定据点。");
+  assert.equal(volume.readerRewardLadder, "小反制 -> 稳定收益 -> 卷末翻盘");
+  assert.equal(volume.coreReward, "让主角从被动求生转为掌握反击入口。");
+});
 
 function createContextPackage() {
   const now = new Date().toISOString();
@@ -32,6 +65,19 @@ function createContextPackage() {
           softMinWordCount: 2550,
           softMaxWordCount: 3450,
           hardMaxWordCount: 3750,
+        },
+        readerExperience: {
+          readerQuestion: "主角能否把维修通道钥匙转成第一次反压？",
+          promisedReward: "主角利用情报和钥匙拿到第一次可见主动权。",
+          rewardLevel: "partial",
+          protagonistWant: "抢回主动权并迫使敌方应对。",
+          primaryResistance: "敌方封锁维修通道，女二又无法直接现身。",
+          keyTurn: "主角把女二情报与维修记录交叉验证，反向锁定敌方漏洞。",
+          emotionalShift: "从持续受压转为看见并抓住反击机会。",
+          informationReveal: "维修通道封锁并非完整无缺。",
+          netChange: "主角获得实际反压支点，敌方被迫调整封锁。",
+          inheritedHookResponsibilities: ["回应第四章尾段的维修通道钥匙和女二暗号"],
+          endingHook: "幕后势力察觉漏洞暴露并启动反扑。",
         },
         scenes: [
           {
@@ -686,6 +732,8 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.equal(writeContext.lengthBudget.targetWordCount, 3000);
   assert.equal(writeContext.scenePlan.scenes.length, 3);
   assert.equal(writeContext.scenePlan.scenes[1].title, "第一次反压");
+  assert.equal(writeContext.readerExperience.rewardLevel, "partial");
+  assert.match(writeContext.readerExperience.promisedReward, /第一次可见主动权/);
   assert.ok(writeContext.chapterStateGoal.summary.includes("visible gain"));
   assert.deepEqual(writeContext.chapterMission.mustAdvance, ["The first counterattack must land.", "完成第一次明确反压"]);
   assert.equal(writeContext.payoffDirectives[0].operation, "pressure");
@@ -710,6 +758,18 @@ test("chapter layered contexts carry volume mission, character duties and repair
   const reviewBlocks = buildChapterReviewContextBlocks(reviewContext);
   const repairBlocks = buildChapterRepairContextBlocks(repairContext);
 
+  for (const blocks of [writerBlocks, reviewBlocks, repairBlocks]) {
+    const readerExperienceBlocks = blocks.filter((block) => block.id === "reader_experience");
+    assert.equal(readerExperienceBlocks.length, 1);
+    assert.equal(readerExperienceBlocks[0].required, true);
+    assert.equal(readerExperienceBlocks[0].allowSummary, false);
+    assert.match(readerExperienceBlocks[0].content, /第一次可见主动权/);
+    assert.match(readerExperienceBlocks[0].content, /维修通道钥匙和女二暗号/);
+    assert.match(readerExperienceBlocks[0].content, /幕后势力察觉漏洞暴露/);
+  }
+  assert.ok(!writerBlocks.some((block) => block.id === "timeline_context"));
+  assert.ok(!writerBlocks.some((block) => block.id === "previous_chapter_hook"));
+
   assert.ok(!writerBlocks.some((block) => block.id === "chapter_boundary"));
   assert.ok(writerBlocks.some((block) => (
     block.id === "payoff_directives"
@@ -718,7 +778,7 @@ test("chapter layered contexts carry volume mission, character duties and repair
   )));
   assert.ok(writerBlocks.some((block) => (
     block.id === "chapter_mission"
-    && /Original task sheet/.test(block.content)
+    && /原始任务单/.test(block.content)
     && /维修通道钥匙/.test(block.content)
   )));
   assert.ok(writerBlocks.some((block) => (
@@ -757,8 +817,8 @@ test("chapter layered contexts carry volume mission, character duties and repair
   )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "character_dynamics"
-    && /Character behavior guidance/.test(block.content)
-    && /Pending candidate guardrails/.test(block.content)
+    && /角色行为指导/.test(block.content)
+    && /候选角色护栏/.test(block.content)
   )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "chapter_boundary"
@@ -774,8 +834,8 @@ test("chapter layered contexts carry volume mission, character duties and repair
   )));
   assert.ok(reviewBlocks.some((block) => (
     block.id === "chapter_mission"
-    && /Target length: around 3000 Chinese characters/.test(block.content)
-    && /State-driven next action: write_chapter/.test(block.content)
+    && /目标篇幅：约 3000 个中文字符/.test(block.content)
+    && /状态驱动的下一步动作：write_chapter/.test(block.content)
     && /2550-3450/.test(block.content)
   )));
   assert.ok(writerBlocks.some((block) => (
@@ -867,4 +927,98 @@ test("chapter writer blocks enforce enabled critical context contracts", () => {
   const resourceBlock = assertNonEmptyBlock(writerBlocks, "character_resource_context");
   assert.match(resourceBlock.content, /维修通道钥匙/);
   assert.match(resourceBlock.content, /旧通行证/);
+});
+
+test("chapter context only supplies mind and active dialogue guidance to actual participants", () => {
+  const contextPackage = createContextPackage();
+  contextPackage.characterRoster.push({
+    ...contextPackage.characterRoster[0],
+    id: "char-3",
+    name: "旁观者",
+    role: "路人",
+    currentGoal: "旁观局势",
+  });
+  contextPackage.characterHardFacts.push({
+    ...contextPackage.characterHardFacts[0],
+    characterId: "char-3",
+    name: "旁观者",
+    role: "路人",
+    currentGoal: "旁观局势",
+  });
+  contextPackage.characterDynamics.characters.push({
+    ...contextPackage.characterDynamics.characters[0],
+    characterId: "char-3",
+    name: "旁观者",
+    role: "路人",
+    volumeResponsibility: null,
+    isCoreInVolume: false,
+    plannedChapterOrders: [],
+    absenceRisk: "none",
+  });
+  contextPackage.characterMindStates = [
+    {
+      characterId: "char-1",
+      currentInterpretation: "主角相信反压机会已经出现。",
+      activePlan: "利用维修通道钥匙反打。",
+      actionTendency: "受压时会先确认代价再行动。",
+      beliefs: ["女二仍掌握关键情报"],
+      misbeliefs: ["幕后黑手还未察觉反压准备"],
+      evidence: ["主角攥紧维修通道钥匙。"],
+      confidence: 0.84,
+      sourceChapterId: "chapter-4",
+    },
+    {
+      characterId: "char-3",
+      currentInterpretation: "旁观者以为自己无需卷入。",
+      activePlan: "继续观望。",
+      actionTendency: "遇险会避开冲突。",
+      beliefs: [],
+      misbeliefs: [],
+      evidence: ["旁观者没有出现在本章计划中。"],
+      confidence: 0.7,
+      sourceChapterId: "chapter-4",
+    },
+  ];
+  contextPackage.characterDialogueGuidances = [
+    {
+      influenceId: "dialogue-1",
+      characterId: "char-1",
+      summary: "主角认可先确认代价再反打的方向。",
+      behaviorGuidance: "先利用维修通道确认退路，再把情报转成反压。",
+      emotionalGuidance: "保持克制，不让胜算变成冲动。",
+      relationTension: null,
+      targetStartChapterOrder: 5,
+      targetEndChapterOrder: 7,
+    },
+    {
+      influenceId: "dialogue-2",
+      characterId: "char-3",
+      summary: "旁观者仍坚持置身事外。",
+      behaviorGuidance: "暂时避开冲突。",
+      emotionalGuidance: null,
+      relationTension: null,
+      targetStartChapterOrder: 5,
+      targetEndChapterOrder: 7,
+    },
+  ];
+
+  const writeContext = buildChapterWriteContext({
+    bookContract: contextPackage.bookContract,
+    macroConstraints: contextPackage.macroConstraints,
+    volumeWindow: contextPackage.volumeWindow,
+    contextPackage,
+  });
+  const protagonistGuide = writeContext.characterBehaviorGuides.find((guide) => guide.characterId === "char-1");
+  const observerGuide = writeContext.characterBehaviorGuides.find((guide) => guide.characterId === "char-3");
+  const guidanceBlock = buildChapterWriterContextBlocks(writeContext).find((block) => block.id === "character_dynamics");
+
+  assert.match(protagonistGuide.mindGuidance, /主角相信反压机会已经出现/);
+  assert.equal(observerGuide.mindGuidance, null);
+  assert.match(protagonistGuide.authorInfluenceGuidance, /先利用维修通道确认退路/);
+  assert.equal(observerGuide.authorInfluenceGuidance, null);
+  assert.match(guidanceBlock.content, /主观倾向（非客观事实）/);
+  assert.match(guidanceBlock.content, /角色对话后确认的软性行为倾向（非客观事实）/);
+  assert.doesNotMatch(guidanceBlock.content, /旁观者以为自己无需卷入/);
+  assert.doesNotMatch(guidanceBlock.content, /暂时避开冲突/);
+  assert.ok(writeContext.characterHardFacts.some((fact) => fact.characterId === "char-1"));
 });

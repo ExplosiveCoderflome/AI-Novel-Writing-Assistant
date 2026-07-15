@@ -29,6 +29,7 @@ import {
   type CharacterVisibleProfileGenerateOptions,
 } from "../characterProfile/CharacterVisibleProfileService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
+import { CharacterMindService } from "../characterMind/CharacterMindService";
 import { CharacterPreparationSupplementalService } from "./characterPreparationSupplemental";
 import {
   parseCharacterProhibitionsJson,
@@ -215,6 +216,7 @@ function serializeCharacterCastOptionWithQuality(
 export class CharacterPreparationService {
   private readonly novelContextService = new NovelContextService();
   private readonly characterDynamicsService = new CharacterDynamicsService();
+  private readonly characterMindService = new CharacterMindService();
   private readonly characterVisibleProfileService = new CharacterVisibleProfileService();
   private readonly worldContextGateway = new WorldContextGateway();
   private readonly supplementalService = new CharacterPreparationSupplementalService(
@@ -371,6 +373,20 @@ export class CharacterPreparationService {
       console.warn("[character-cast-apply] 外显资料后台补齐失败", {
         ...logContext,
         stage: "visible_profile",
+        error,
+      });
+    }
+
+    try {
+      await this.characterMindService.bootstrapMindStates(
+        input.novelId,
+        input.characterIds,
+        input.visibleProfileGeneration,
+      );
+    } catch (error) {
+      console.warn("[character-cast-apply] 角色思路线补齐失败", {
+        ...logContext,
+        stage: "character_mind",
         error,
       });
     }

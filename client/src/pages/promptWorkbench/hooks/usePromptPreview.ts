@@ -2,8 +2,10 @@ import { useCallback, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   previewPrompt,
+  testRunPrompt,
   type PromptCatalogItem,
   type PromptPreviewPayload,
+  type PromptTestRunPayload,
   type PromptTemplateJson,
 } from "@/api/promptWorkbench";
 import type { PromptSlotDrafts } from "../promptWorkbenchTypes";
@@ -308,48 +310,76 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
     templateDraft,
   } = input;
 
-  const previewMutation = useMutation({
-    mutationFn: () => {
-      if (!prompt) {
-        throw new Error("请选择提示词后再生成预览。");
-      }
-      const executionNovelId = novelId || "novel-1";
-      const executionChapterId = chapterId || previewChapter?.id || (novelId ? undefined : "chapter-1");
-      const hasRealChapterContext = Boolean(novelId && executionChapterId && previewChapter);
-      const payload: PromptPreviewPayload = {
-        promptKey: prompt.key,
-        promptInput: buildPreviewPromptInput(prompt, previewNovel, previewChapter),
-        executionContext: {
-          entrypoint,
+  const buildPayload = useCallback((): PromptPreviewPayload => {
+    if (!prompt) {
+      throw new Error("请选择提示词后再生成预览。");
+    }
+    const executionNovelId = novelId || "novel-1";
+    const executionChapterId = chapterId || previewChapter?.id || (novelId ? undefined : "chapter-1");
+    const hasRealChapterContext = Boolean(novelId && executionChapterId && previewChapter);
+    return {
+      promptKey: prompt.key,
+      promptInput: buildPreviewPromptInput(prompt, previewNovel, previewChapter),
+      executionContext: {
+        entrypoint,
+        novelId: executionNovelId,
+        chapterId: executionChapterId,
+        userGoal: "查看提示词预览",
+        resourceBindings: {
           novelId: executionNovelId,
-          chapterId: executionChapterId,
-          userGoal: "查看提示词预览",
-          resourceBindings: {
-            novelId: executionNovelId,
-            ...(executionChapterId ? { chapterId: executionChapterId } : {}),
-          },
-          metadata: buildPreviewExecutionMetadata(prompt, hasRealChapterContext),
+          ...(executionChapterId ? { chapterId: executionChapterId } : {}),
         },
-        maxContextTokens: prompt.contextPolicy.maxTokensBudget,
-        slotOverrides,
-        templateDraft,
+        metadata: buildPreviewExecutionMetadata(prompt, hasRealChapterContext),
+      },
+      maxContextTokens: prompt.contextPolicy.maxTokensBudget,
+      slotOverrides,
+      templateDraft,
+    };
+  }, [
+    chapterId,
+    entrypoint,
+    novelId,
+    previewChapter,
+    previewNovel,
+    prompt,
+    slotOverrides,
+    templateDraft,
+  ]);
+
+  const previewMutation = useMutation({
+    mutationFn: () => previewPrompt(buildPayload()),
+  });
+
+  const testRunMutation = useMutation({
+    mutationFn: (llm?: PromptTestRunPayload["llm"]) => {
+      const payload: PromptTestRunPayload = {
+        ...buildPayload(),
+        ...(llm ? { llm } : {}),
       };
-      return previewPrompt(payload);
+      return testRunPrompt(payload);
     },
   });
 
   useEffect(() => {
     previewMutation.reset();
+    testRunMutation.reset();
   }, [prompt?.key]);
 
   const generatePreview = useCallback(() => {
     previewMutation.mutate();
   }, [previewMutation]);
 
+  const generateTestRun = useCallback((llm?: PromptTestRunPayload["llm"]) => {
+    testRunMutation.mutate(llm);
+  }, [testRunMutation]);
+
   return {
     generatePreview,
+    generateTestRun,
     preview: previewMutation.data?.data ?? null,
     previewMutation,
+    testRun: testRunMutation.data?.data ?? null,
+    testRunMutation,
     resetPreview: previewMutation.reset,
   };
 }

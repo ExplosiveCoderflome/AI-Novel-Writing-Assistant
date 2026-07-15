@@ -227,6 +227,16 @@ export function reconcileAutoDirectorChapterBatchState(input: {
   });
 
   if ((autoExecution.remainingChapterCount ?? 0) === 0) {
+    if (autoExecution.volumeChapterListComplete === false) {
+      return {
+        autoExecution,
+        checkpointType: "chapter_batch_ready",
+        checkpointSummary: `《${input.title.trim() || "当前项目"}》已完成${buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount)}正文。继续后会补齐下一段章节规划并进入后续写作。`,
+        itemLabel: `${buildDirectorAutoExecutionScopeLabelFromState(autoExecution, range.totalChapterCount)}正文已完成，等待续拆下一段`,
+        chapterId: autoExecution.firstChapterId ?? range.firstChapterId,
+        progress: 0.98,
+      };
+    }
     return {
       autoExecution,
       checkpointType: "workflow_completed",

@@ -94,7 +94,7 @@ export const chapterReviewPrompt: PromptAsset<
   z.infer<typeof fullAuditOutputSchema>
 > = {
   id: "novel.review.chapter",
-  version: "v1",
+  version: "v2",
   taskType: "critical_review",
   mode: "structured",
   language: "zh",
@@ -102,6 +102,7 @@ export const chapterReviewPrompt: PromptAsset<
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterReview,
     preferredGroups: [
       "chapter_mission",
+      "reader_experience",
       "structure_obligations",
       "world_rules",
     ],
@@ -170,7 +171,7 @@ export const chapterReviewPrompt: PromptAsset<
 
 export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, string> = {
   id: "novel.review.repair",
-  version: "v1",
+  version: "v2",
   taskType: "repair",
   mode: "text",
   language: "zh",
@@ -180,6 +181,7 @@ export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, 
       "repair_issues",
       "chapter_boundary",
       "chapter_mission",
+      "reader_experience",
       "repair_boundaries",
       "world_rules",
     ],
@@ -214,6 +216,7 @@ export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, 
       "【修复原则】",
       "1. 优先修复 issuesJson 中明确指出的关键问题。",
       "2. 优先保证 chapter_mission、repair_boundaries、world_rules 的约束被满足。",
+      "2a. 同时保留 reader_experience 中已经兑现的读者价值，并定向补齐 promisedReward、主角主动性、关键转折、净变化或旧钩子承接缺口。",
       "3. 保留原章已经有效的推进、情绪、细节与角色状态，不要把有用内容一起洗掉。",
       "4. 若多个问题冲突，优先修复影响主线推进、逻辑连贯和阅读节奏的问题。",
       "",

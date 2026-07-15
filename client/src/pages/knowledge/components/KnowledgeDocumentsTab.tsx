@@ -1,12 +1,15 @@
 import { useState, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Upload, FileText, X } from "lucide-react";
+import { CircleAlert, FileText, LoaderCircle, RefreshCw, Upload, X } from "lucide-react";
 import type { KnowledgeDocumentStatus, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
+import {
+  AssetLibraryEmptyState,
+  AssetLibrarySection,
+} from "@/components/assetLibrary";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import SelectField from "@/components/common/SelectField";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { RagJobSummary } from "@/api/knowledge";
@@ -24,6 +27,8 @@ function formatDocumentKind(kind: KnowledgeDocumentSummary["kind"]): string {
 interface KnowledgeDocumentsTabProps {
   uploadTitle: string;
   onUploadTitleChange: (value: string) => void;
+  uploadDialogOpen: boolean;
+  onUploadDialogOpenChange: (open: boolean) => void;
   uploadBusy: boolean;
   onUploadFile: (file: File) => Promise<void>;
   keyword: string;
@@ -31,6 +36,10 @@ interface KnowledgeDocumentsTabProps {
   status: KnowledgeDocumentStatus | "";
   onStatusChange: (value: KnowledgeDocumentStatus | "") => void;
   documents: KnowledgeDocumentSummary[];
+  isLoading: boolean;
+  errorMessage?: string;
+  onRetry: () => void;
+  onClearFilters: () => void;
   latestKnowledgeDocumentJobs: Map<string, RagJobSummary>;
   onSelectDocument: (id: string) => void;
   onOpenRecallTest: (id: string) => void;
@@ -41,6 +50,8 @@ interface KnowledgeDocumentsTabProps {
 export default function KnowledgeDocumentsTab({
   uploadTitle,
   onUploadTitleChange,
+  uploadDialogOpen,
+  onUploadDialogOpenChange,
   uploadBusy,
   onUploadFile,
   keyword,
@@ -48,13 +59,16 @@ export default function KnowledgeDocumentsTab({
   status,
   onStatusChange,
   documents,
+  isLoading,
+  errorMessage,
+  onRetry,
+  onClearFilters,
   latestKnowledgeDocumentJobs,
   onSelectDocument,
   onOpenRecallTest,
   onReindexDocument,
   onUpdateStatus,
 }: KnowledgeDocumentsTabProps) {
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -91,7 +105,7 @@ export default function KnowledgeDocumentsTab({
   };
 
   const handleDialogOpenChange = (open: boolean) => {
-    setUploadDialogOpen(open);
+    onUploadDialogOpenChange(open);
     if (!open) setSelectedFile(null);
   };
   const statusOptions = [
@@ -113,7 +127,7 @@ export default function KnowledgeDocumentsTab({
 
   const handleUploadFile = async (file: File) => {
     await onUploadFile(file);
-    setUploadDialogOpen(false);
+    onUploadDialogOpenChange(false);
   };
 
   const renderDocumentRow = (document: KnowledgeDocumentSummary) => {
@@ -125,7 +139,7 @@ export default function KnowledgeDocumentsTab({
       : document.latestIndexStatus;
 
     return (
-      <div key={document.id} className="rounded-md border p-3">
+      <article key={document.id} className="px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <div className="font-medium">{document.title}</div>
@@ -224,21 +238,80 @@ export default function KnowledgeDocumentsTab({
             </>
           )}
         </div>
-      </div>
+      </article>
     );
+  };
+
+  const hasFilters = Boolean(keyword.trim() || status);
+
+  const renderDocuments = () => {
+    if (isLoading) {
+      return (
+        <div className="flex min-h-40 items-center justify-center rounded-md border border-dashed border-border px-5 py-8 text-center" role="status">
+          <div>
+            <LoaderCircle className="mx-auto h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
+            <p className="mt-3 text-sm font-medium text-foreground">正在加载创作资料</p>
+            <p className="mt-1 text-sm text-muted-foreground">正在确认资料版本和索引状态。</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (errorMessage) {
+      return (
+        <AssetLibraryEmptyState
+          icon={CircleAlert}
+          title="创作资料暂时无法加载"
+          description={`${errorMessage} 重新加载不会修改已有资料。`}
+          action={(
+            <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+              <RefreshCw className="h-4 w-4" />
+              重新加载
+            </Button>
+          )}
+        />
+      );
+    }
+
+    if (documents.length === 0) {
+      return (
+        <AssetLibraryEmptyState
+          icon={FileText}
+          title={hasFilters ? "没有符合条件的资料" : "还没有创作资料"}
+          description={hasFilters
+            ? "调整搜索词或状态筛选，返回其他资料。"
+            : "上传 TXT 资料后，系统会建立可供拆书、规划和正文创作使用的检索索引。"}
+          action={hasFilters ? (
+            <Button type="button" size="sm" variant="outline" onClick={onClearFilters}>
+              清除筛选
+            </Button>
+          ) : (
+            <Button type="button" size="sm" onClick={() => onUploadDialogOpenChange(true)}>
+              <Upload className="h-4 w-4" />
+              上传第一份资料
+            </Button>
+          )}
+        />
+      );
+    }
+
+    return <div className="divide-y divide-border/70 rounded-md border border-border/80">{documents.map(renderDocumentRow)}</div>;
   };
 
   return (
     <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3">
-          <CardTitle>文档列表</CardTitle>
-          <Button type="button" size="sm" onClick={() => setUploadDialogOpen(true)}>
+      <AssetLibrarySection
+        className="scroll-mt-5"
+        title="创作资料"
+        description="按标题或状态查找资料，确认索引完成后再用于拆书和正文创作。"
+        actions={(
+          <Button type="button" size="sm" variant="outline" onClick={() => onUploadDialogOpenChange(true)}>
             <Upload className="mr-2 h-4 w-4" />
-            上传文档
+            上传资料
           </Button>
-        </CardHeader>
-        <CardContent className="space-y-3">
+        )}
+      >
+        <div id="knowledge-documents" className="space-y-4 scroll-mt-5">
           <div className="grid gap-2 md:grid-cols-[1fr_180px]">
             <Input
               value={keyword}
@@ -254,16 +327,9 @@ export default function KnowledgeDocumentsTab({
               triggerClassName="h-10"
             />
           </div>
-          <div className="space-y-3">
-            {documents.map(renderDocumentRow)}
-            {documents.length === 0 ? (
-              <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-                当前没有符合条件的知识文档。
-              </div>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+          {renderDocuments()}
+        </div>
+      </AssetLibrarySection>
 
       <Dialog open={uploadDialogOpen} onOpenChange={handleDialogOpenChange}>
         <AppDialogContent
@@ -284,8 +350,17 @@ export default function KnowledgeDocumentsTab({
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => !selectedFile && fileInputRef.current?.click()}
+              onKeyDown={(event) => {
+                if (!selectedFile && (event.key === "Enter" || event.key === " ")) {
+                  event.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+              role={selectedFile ? undefined : "button"}
+              tabIndex={selectedFile ? undefined : 0}
+              aria-label={selectedFile ? undefined : "选择要上传的 TXT 文本资料"}
               className={[
-                "relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-all",
+                "relative flex flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed p-8 text-center transition-all",
                 dragOver
                   ? "border-primary bg-primary/5 scale-[1.01]"
                   : selectedFile
@@ -317,6 +392,7 @@ export default function KnowledgeDocumentsTab({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
                     className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    aria-label="移除已选择的文件"
                   >
                     <X className="h-4 w-4" />
                   </button>

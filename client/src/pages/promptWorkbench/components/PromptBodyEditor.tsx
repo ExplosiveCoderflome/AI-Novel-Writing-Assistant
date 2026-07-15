@@ -9,6 +9,7 @@ import type {
   PromptSlotDefToggle,
   PromptSlotReconcileItem,
   PromptSlotReconcileResult,
+  PromptTestRunResult,
 } from "@/api/promptWorkbench";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -561,6 +562,9 @@ export function PromptBodyEditor(props: {
   prompt: PromptCatalogItem;
   immersive?: boolean;
   preview: PromptPreviewResult | null;
+  testRun?: PromptTestRunResult | null;
+  testRunPending?: boolean;
+  testRunError?: string | null;
   sections: PromptEditorSection[];
   reconcile: PromptSlotReconcileResult | null;
   reconcileMap: Record<string, PromptSlotReconcileItem>;
@@ -590,6 +594,9 @@ export function PromptBodyEditor(props: {
     reconcilePending,
     sections,
     showReconcile,
+    testRun,
+    testRunError,
+    testRunPending,
   } = props;
   const controlSections = sections.filter((section) => section.placement === "control");
   const bodySections = sections.filter((section) => section.placement === "body");
@@ -688,7 +695,12 @@ export function PromptBodyEditor(props: {
 
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-foreground">最终消息预览</h3>
-        <PromptPreviewPanel preview={preview} />
+        <PromptPreviewPanel
+          preview={preview}
+          testRun={testRun}
+          testRunPending={testRunPending}
+          testRunError={testRunError}
+        />
       </section>
     </div>
   );

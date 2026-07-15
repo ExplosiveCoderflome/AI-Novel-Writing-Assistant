@@ -60,6 +60,13 @@ function buildVolumeStrategyPhaseUpdate(event: VolumeGenerationPhaseEvent): {
       progress: DIRECTOR_PROGRESS.volumeStrategy,
     };
   }
+  if (event.scope === "strategy_critique") {
+    return {
+      itemKey: "volume_strategy",
+      itemLabel: event.phase === "load_context" ? "正在整理卷战略审查上下文" : "正在审查卷战略",
+      progress: DIRECTOR_PROGRESS.volumeStrategyCritique,
+    };
+  }
   if (event.scope === "skeleton") {
     return {
       itemKey: "volume_skeleton",
@@ -273,6 +280,30 @@ export async function runDirectorVolumeStrategyPhase(input: {
       temperature: request.temperature,
       scope: "strategy",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
+      signal,
+      onPhaseStart: async (event) => {
+        const update = buildVolumeStrategyPhaseUpdate(event);
+        if (!update) {
+          return;
+        }
+        await updateStatus(update);
+      },
+    }),
+  });
+  workspace = await runDirectorTrackedStep({
+    taskId,
+    stage: "volume_strategy",
+    itemKey: "volume_strategy",
+    itemLabel: "正在审查卷战略",
+    progress: DIRECTOR_PROGRESS.volumeStrategyCritique,
+    callbacks,
+    run: async ({ updateStatus, signal }) => dependencies.volumeService.generateVolumes(novelId, {
+      provider: request.provider,
+      model: request.model,
+      temperature: request.temperature,
+      scope: "strategy_critique",
+      estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
+      draftWorkspace: workspace,
       signal,
       onPhaseStart: async (event) => {
         const update = buildVolumeStrategyPhaseUpdate(event);

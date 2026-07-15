@@ -1,7 +1,7 @@
 import type { AutoDirectorFollowUpItem, AutoDirectorMutationActionCode } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDirectorValidation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { TaskQueueActionRow } from "@/components/taskQueue";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
 interface AutoDirectorFollowUpBatchBarProps {
@@ -38,27 +38,29 @@ export function AutoDirectorFollowUpBatchBar({
     return null;
   }
   const selectedSection = getSelectedSection(selectedItems);
+  const consequence = batchActionCode === "continue_auto_execution"
+    ? "只向所选导演任务分别提交继续命令，不会跨任务合并状态。"
+    : batchActionCode === "retry_with_task_model"
+      ? "每个任务都会使用各自保存的模型重试，并保持对应的导演任务身份。"
+      : "不会执行批量操作；请重新选择同一分区且具有共同动作的任务。";
 
   return (
-    <Card className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpBatchBar}>
-      <CardContent className="flex flex-col gap-3 pt-6 md:flex-row md:items-center md:justify-between">
-        <div className={`min-w-0 text-sm ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-          已选择 {selectedItems.length} 项
-          <div className="text-xs text-muted-foreground">
-            {selectedSection === "pending" || selectedSection === "exception"
-              ? formatBatchActionLabel(batchActionCode)
-              : "该分区不提供批量动作"}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 md:flex">
+    <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpBatchBar}>
+      <TaskQueueActionRow
+        title={`已选择 ${selectedItems.length} 项 · ${selectedSection === "pending" || selectedSection === "exception" ? formatBatchActionLabel(batchActionCode) : "该分区不提供批量动作"}`}
+        consequence={consequence}
+        tone={selectedSection === "exception" ? "danger" : "info"}
+        action={(
+          <div className="grid grid-cols-2 gap-2 md:flex">
           <Button variant="outline" size="sm" className="w-full md:w-auto" onClick={onClear} disabled={loading}>
             清空
           </Button>
           <Button size="sm" className="w-full md:w-auto" onClick={() => void onExecute()} disabled={!batchActionCode || loading}>
             执行批量动作
           </Button>
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        )}
+      />
+    </div>
   );
 }

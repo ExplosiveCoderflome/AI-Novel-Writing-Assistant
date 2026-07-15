@@ -1,7 +1,6 @@
 import type { BasicTabProps } from "./NovelEditView.types";
 import NovelBasicInfoForm from "./NovelBasicInfoForm";
 import NovelStyleRecommendationCard from "./NovelStyleRecommendationCard";
-import NovelWorldManagerCard from "./NovelWorldManagerCard";
 import { BookFramingQuickFillButton } from "./basicInfoForm/BookFramingQuickFillButton";
 import NovelCreateTitleQuickFill from "./titleWorkshop/NovelCreateTitleQuickFill";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
@@ -16,33 +15,9 @@ export default function BasicInfoTab(props: BasicTabProps) {
         description="如果基础信息较完整，可以直接从选定步骤开始自动接管，并选择继续已有进度或重跑当前步。"
         entry={props.directorTakeoverEntry}
       />
-      <NovelWorldManagerCard
-        view={props.novelWorldView}
-        syncDiff={props.novelWorldSyncDiff}
-        worldOptions={props.worldOptions}
-        selectedWorldId={props.basicForm.worldId}
-        isLoading={props.isLoadingNovelWorld}
-        isImporting={props.isImportingNovelWorld}
-        isGenerating={props.isGeneratingNovelWorld}
-        isCreatingManual={props.isCreatingManualNovelWorld}
-        isSavingToLibrary={props.isSavingNovelWorldToLibrary}
-        isLoadingSyncDiff={props.isLoadingNovelWorldSyncDiff}
-        isSyncing={props.isSyncingNovelWorld}
-        usageView={props.worldSliceView}
-        usageMessage={props.worldSliceMessage}
-        isRefreshingWorldSlice={props.isRefreshingWorldSlice}
-        isSavingWorldSliceOverrides={props.isSavingWorldSliceOverrides}
-        onImport={props.onImportNovelWorld}
-        onCreateManual={props.onCreateManualNovelWorld}
-        onGenerate={props.onGenerateNovelWorld}
-        onSaveToLibrary={props.onSaveNovelWorldToLibrary}
-        onSync={props.onSyncNovelWorld}
-        onRefreshWorldSlice={props.onRefreshWorldSlice}
-        onSaveWorldSliceOverrides={props.onSaveWorldSliceOverrides}
-      />
       <SectionBlock
-        title="书级定位与基本信息"
-        description="继续完善标题、概述、读者与卖点，让后续自动导演和章节生成能稳定继承当前方向。"
+        title="书级定位"
+        description="先确认这本书面向谁、靠什么吸引读者、前期必须兑现什么，再让后续世界、角色和章节围绕同一组承诺展开。"
       >
         <NovelBasicInfoForm
           basicForm={props.basicForm}

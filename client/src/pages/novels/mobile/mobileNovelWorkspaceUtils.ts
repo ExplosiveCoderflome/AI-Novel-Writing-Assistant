@@ -41,6 +41,14 @@ export function getMobileNovelSaveState(
         isSaving: props.storyMacroTab.isSaving,
         onSave: props.storyMacroTab.onSaveEdits,
       };
+    case "world":
+      return {
+        visible: false,
+        label: "",
+        savingLabel: "",
+        isSaving: false,
+        onSave: () => undefined,
+      };
     case "character":
       return {
         visible: true,

@@ -13,6 +13,7 @@ export const DIRECTOR_PROGRESS = {
   characterSetup: 0.36,
   characterSetupReady: 0.42,
   volumeStrategy: 0.48,
+  volumeStrategyCritique: 0.53,
   volumeSkeleton: 0.58,
   volumeStrategyReady: 0.66,
   beatSheet: 0.72,

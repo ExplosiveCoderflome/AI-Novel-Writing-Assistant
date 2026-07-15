@@ -612,7 +612,23 @@ export class NovelVolumeService {
       sourceVersion = version.version;
     }
 
-    return buildVolumeImpactResult(novelId, workspace.volumes, candidateVolumes, sourceVersion);
+    const existingChapters = await prisma.chapter.findMany({
+      where: { novelId },
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        order: true,
+        title: true,
+        content: true,
+        generationState: true,
+        chapterStatus: true,
+      },
+    });
+
+    return buildVolumeImpactResult(novelId, workspace.volumes, candidateVolumes, sourceVersion, {
+      beatSheets: workspace.beatSheets,
+      existingChapters,
+    });
   }
 
   async syncVolumeChapters(novelId: string, input: VolumeSyncInput): Promise<VolumeSyncPreview> {

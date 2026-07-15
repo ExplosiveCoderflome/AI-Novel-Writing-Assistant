@@ -12,6 +12,7 @@ export {
   buildVolumeDiff,
   buildVolumeDiffSummary,
   buildVolumeImpactResult,
+  buildForwardVolumeBeatImpactItems,
   buildVolumeSyncPlan,
 } from "./volumePlanChangeDetection";
 export type {

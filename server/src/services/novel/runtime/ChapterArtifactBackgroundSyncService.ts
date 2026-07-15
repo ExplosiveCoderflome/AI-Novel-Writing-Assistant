@@ -34,7 +34,7 @@ const DEFERRED_SYNC_DELAY_MS = 5000;
 const ARTIFACT_SYNC_RUNNING_STALE_MS = 15 * 60 * 1000;
 
 export class ChapterArtifactBackgroundSyncService {
-  private readonly artifactDeltaService = new ChapterArtifactDeltaService();
+  private artifactDeltaService: ChapterArtifactDeltaService | null = null;
   private readonly activeSyncKeys = new Set<string>();
   private readonly latestSyncedContentHashByChapter = new Map<string, string>();
 
@@ -142,7 +142,7 @@ export class ChapterArtifactBackgroundSyncService {
     let requiresFullReconcileFromDelta = false;
     try {
       await this.runTrackedActivity(novelId, context, "artifact_delta", async () => {
-        const result = await this.artifactDeltaService.syncChapterArtifacts({
+        const result = await this.getArtifactDeltaService().syncChapterArtifacts({
           novelId,
           chapterId,
           content,
@@ -228,6 +228,11 @@ export class ChapterArtifactBackgroundSyncService {
         },
       });
     }
+  }
+
+  private getArtifactDeltaService(): ChapterArtifactDeltaService {
+    this.artifactDeltaService ??= new ChapterArtifactDeltaService();
+    return this.artifactDeltaService;
   }
 
   private async shouldRunPayoffFullReconcile(input: {

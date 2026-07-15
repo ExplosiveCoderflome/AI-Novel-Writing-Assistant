@@ -4,6 +4,12 @@ import type {
   CharacterRelationStage,
   DynamicCharacterOverview,
 } from "@ai-novel/shared/types/characterDynamics";
+import type { CharacterMindSnapshot } from "@ai-novel/shared/types/characterMind";
+import type {
+  CharacterDialogueInfluence,
+  CharacterDialogueSession,
+  CharacterDialogueTurnResult,
+} from "@ai-novel/shared/types/characterDialogue";
 import { apiClient } from "./client";
 
 export async function getCharacterDynamicsOverview(id: string, chapterOrder?: number) {
@@ -105,6 +111,65 @@ export async function updateCharacterRelationStage(
 export async function rebuildCharacterDynamics(id: string) {
   const { data } = await apiClient.post<ApiResponse<DynamicCharacterOverview>>(
     `/novels/${id}/character-dynamics/rebuild`,
+    {},
+  );
+  return data;
+}
+
+export async function getCharacterMindState(id: string, characterId: string) {
+  const { data } = await apiClient.get<ApiResponse<CharacterMindSnapshot | null>>(
+    `/novels/${id}/characters/${characterId}/mind-state`,
+  );
+  return data;
+}
+
+export async function refreshCharacterMindState(id: string, characterId: string) {
+  const { data } = await apiClient.post<ApiResponse<CharacterMindSnapshot>>(
+    `/novels/${id}/characters/${characterId}/mind-state/refresh`,
+    {},
+  );
+  return data;
+}
+
+export async function getActiveCharacterDialogueSession(id: string, characterId: string) {
+  const { data } = await apiClient.get<ApiResponse<CharacterDialogueSession | null>>(
+    `/novels/${id}/characters/${characterId}/dialogue-sessions/active`,
+  );
+  return data;
+}
+
+export async function createCharacterDialogueSession(id: string, characterId: string) {
+  const { data } = await apiClient.post<ApiResponse<CharacterDialogueSession>>(
+    `/novels/${id}/characters/${characterId}/dialogue-sessions`,
+    {},
+  );
+  return data;
+}
+
+export async function sendCharacterDialogueTurn(
+  id: string,
+  characterId: string,
+  sessionId: string,
+  payload: { message: string },
+) {
+  const { data } = await apiClient.post<ApiResponse<CharacterDialogueTurnResult>>(
+    `/novels/${id}/characters/${characterId}/dialogue-sessions/${sessionId}/turns`,
+    payload,
+  );
+  return data;
+}
+
+export async function activateLatestCharacterDialogueInfluence(id: string, characterId: string, sessionId: string) {
+  const { data } = await apiClient.post<ApiResponse<CharacterDialogueInfluence>>(
+    `/novels/${id}/characters/${characterId}/dialogue-sessions/${sessionId}/influence/activate`,
+    {},
+  );
+  return data;
+}
+
+export async function dismissLatestCharacterDialogueInfluence(id: string, characterId: string, sessionId: string) {
+  const { data } = await apiClient.post<ApiResponse<CharacterDialogueInfluence>>(
+    `/novels/${id}/characters/${characterId}/dialogue-sessions/${sessionId}/influence/dismiss`,
     {},
   );
   return data;

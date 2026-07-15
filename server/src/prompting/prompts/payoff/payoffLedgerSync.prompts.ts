@@ -45,6 +45,13 @@ const PAYOFF_LEDGER_SYNC_EXAMPLE = {
 
 export interface PayoffLedgerSyncPromptInput {
   novelTitle: string;
+  bookContractPayoffs?: Array<{
+    refId: string;
+    refLabel: string;
+    payoff: string;
+    targetStartChapterOrder: number;
+    targetEndChapterOrder: number;
+  }>;
   activeVolumeSummary: string;
   latestChapterContext: string;
   majorPayoffsText: string;
@@ -60,7 +67,7 @@ export const payoffLedgerSyncPrompt: PromptAsset<
   z.infer<typeof payoffLedgerSyncOutputSchema>
 > = {
   id: "novel.payoff_ledger.sync",
-  version: "v5",
+  version: "v6",
   taskType: "planner",
   mode: "structured",
   language: "zh",
@@ -115,12 +122,13 @@ export const payoffLedgerSyncPrompt: PromptAsset<
       "3. 不要编造 chapterId；拿不准时返回 chapterOrder，不要伪造 ID。",
       "",
       "压缩输出规则：",
-      "1. sourceRefs 只保留最强的 0-2 个来源。",
+      "1. sourceRefs 只保留最强的 0-4 个来源；Book Contract 固定来源不得在压缩时丢失。",
       "2. evidence 只保留最关键的 0-1 条证据。",
       "3. riskSignals 只在确有风险时填写，最多保留 2 条。",
       "4. statusReason 用一句短句说明当前状态判断依据，不要写长段。",
       "",
       "判断原则：",
+      "0. Book Contract 第 3/10/30 章回报是稳定书级承诺。每个非空来源都必须出现在某个账项的 sourceRefs 中，kind=major_payoff，refId 必须原样保留；允许与语义相同的其他承诺合并，但不得遗漏来源或放宽其截止章。",
       "1. major payoffs 是书级提示源，但只有映射到卷/章窗口后，才允许进入 pending_payoff 或 overdue。",
       "2. 同一 canonical payoff 若同时有卷级窗口和章节窗口，以章节窗口为更强约束。",
       "3. 如果已经有明确兑现证据，应优先标成 paid_off。",
@@ -132,6 +140,13 @@ export const payoffLedgerSyncPrompt: PromptAsset<
     ].join("\n")),
     new HumanMessage([
       `小说标题：${input.novelTitle}`,
+      "",
+      "Book Contract 阶段回报（稳定书级来源）：",
+      (input.bookContractPayoffs ?? []).length > 0
+        ? (input.bookContractPayoffs ?? []).map((item) => (
+            `${item.refLabel} | refId=${item.refId} | 目标窗口=${item.targetStartChapterOrder}-${item.targetEndChapterOrder} | 承诺=${item.payoff}`
+          )).join("\n")
+        : "无",
       "",
       "当前激活卷与章节窗口：",
       input.activeVolumeSummary,
@@ -163,7 +178,7 @@ export const payoffLedgerSyncPrompt: PromptAsset<
       "3. scopeType 只能是 book、volume、chapter。",
     ].join("\n")),
   ],
-  postValidate: (output) => {
+  postValidate: (output, input) => {
     const ledgerKeySet = new Set<string>();
     for (const item of output.items) {
       if (ledgerKeySet.has(item.ledgerKey)) {
@@ -179,6 +194,21 @@ export const payoffLedgerSyncPrompt: PromptAsset<
       }
       if (item.currentStatus === "paid_off" && !item.payoffChapterId && item.payoffChapterOrder == null) {
         throw new Error(`伏笔 ${item.ledgerKey} 已兑现时必须返回 payoffChapterOrder 或 payoffChapterId。`);
+      }
+    }
+    for (const requiredSource of input?.bookContractPayoffs ?? []) {
+      const coveringItem = output.items.find((item) => item.sourceRefs.some((source) => (
+        source.kind === "major_payoff" && source.refId === requiredSource.refId
+      )));
+      if (!coveringItem) {
+        throw new Error(`缺少 Book Contract 承诺来源：${requiredSource.refId}`);
+      }
+      if (
+        coveringItem.scopeType !== "book"
+        || coveringItem.targetEndChapterOrder == null
+        || coveringItem.targetEndChapterOrder > requiredSource.targetEndChapterOrder
+      ) {
+        throw new Error(`Book Contract 承诺 ${requiredSource.refId} 必须保持书级范围和不晚于第 ${requiredSource.targetEndChapterOrder} 章的截止窗口。`);
       }
     }
     return output;

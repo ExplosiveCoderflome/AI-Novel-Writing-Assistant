@@ -2,7 +2,7 @@ import type {
   BookAnalysis,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
-import { Plus } from "lucide-react";
+import { Loader2, Plus, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,10 +15,13 @@ interface BookAnalysisSidebarProps {
   status: BookAnalysisStatus | "";
   analyses: BookAnalysis[];
   selectedAnalysisId: string;
+  loading: boolean;
+  errorMessage: string;
   onKeywordChange: (keyword: string) => void;
   onStatusChange: (status: BookAnalysisStatus | "") => void;
   onOpenAnalysis: (analysisId: string, documentId: string) => void;
   onOpenCreateDialog: () => void;
+  onRetry: () => void;
 }
 
 export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
@@ -27,10 +30,13 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
     status,
     analyses,
     selectedAnalysisId,
+    loading,
+    errorMessage,
     onKeywordChange,
     onStatusChange,
     onOpenAnalysis,
     onOpenCreateDialog,
+    onRetry,
   } = props;
 
   return (
@@ -58,11 +64,27 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
           <option value="running">运行中</option>
           <option value="succeeded">成功</option>
           <option value="failed">失败</option>
+          <option value="cancelled">已取消</option>
           <option value="archived">已归档</option>
         </SelectControl>
 
         <div className="space-y-2">
-          {analyses.map((item) => (
+          {loading ? (
+            <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-4 text-xs text-muted-foreground" aria-live="polite">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              正在加载拆书分析...
+            </div>
+          ) : null}
+          {!loading && errorMessage ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive" role="alert">
+              <div>{errorMessage}</div>
+              <Button type="button" size="sm" variant="outline" className="mt-3" onClick={onRetry}>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                重新加载
+              </Button>
+            </div>
+          ) : null}
+          {!loading && !errorMessage ? analyses.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -95,11 +117,13 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
                 <div className="mt-1 line-clamp-2 text-[11px] text-destructive">{item.lastError}</div>
               ) : null}
             </button>
-          ))}
+          )) : null}
 
-          {analyses.length === 0 ? (
+          {!loading && !errorMessage && analyses.length === 0 ? (
             <div className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">
-              暂无拆书分析，点击上方「新建拆书」开始。
+              {keyword.trim() || status
+                ? "没有符合当前筛选的拆书分析，可以调整筛选条件。"
+                : "暂无拆书分析，点击上方「新建拆书」开始。"}
             </div>
           ) : null}
         </div>

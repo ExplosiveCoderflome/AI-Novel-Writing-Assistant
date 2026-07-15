@@ -62,12 +62,36 @@ const {
   chapterArtifactDeltaOutputSchema,
 } = require("../dist/prompting/prompts/novel/chapterArtifactDelta.prompts.js");
 const {
+  characterMindSnapshotPrompt,
+  buildCharacterMindContextBlocks,
+} = require("../dist/prompting/prompts/novel/characterMind.prompts.js");
+const {
+  characterMindSnapshotResponseSchema,
+} = require("../dist/prompting/prompts/novel/characterMind.promptSchemas.js");
+const {
+  characterInfluenceOptionsPrompt,
+  buildCharacterInfluenceContextBlocks,
+} = require("../dist/prompting/prompts/novel/characterInfluence.prompts.js");
+const {
+  characterInfluenceOptionsResponseSchema,
+} = require("../dist/prompting/prompts/novel/characterInfluence.promptSchemas.js");
+const {
+  characterDialogueTurnPrompt,
+  buildCharacterDialogueContextBlocks,
+} = require("../dist/prompting/prompts/novel/characterDialogue.prompts.js");
+const {
+  characterDialogueTurnResponseSchema,
+} = require("../dist/prompting/prompts/novel/characterDialogue.promptSchemas.js");
+const {
   worldDraftGenerationPrompt,
   worldDraftRefineAlternativesPrompt,
 } = require("../dist/prompting/prompts/world/worldDraft.prompts.js");
 const {
   createVolumeStrategyPrompt,
 } = require("../dist/prompting/prompts/novel/volume/strategy.prompts.js");
+const {
+  createVolumeSkeletonPrompt,
+} = require("../dist/prompting/prompts/novel/volume/skeleton.prompts.js");
 const {
   storyModeChildPrompt,
   storyModeTreePrompt,
@@ -96,8 +120,7 @@ function buildWriterRequiredContextBlocks() {
   return [
     "book_contract",
     "chapter_mission",
-    "timeline_context",
-    "previous_chapter_hook",
+    "reader_experience",
     "character_hard_facts",
     "obligation_contract",
     "volume_window",
@@ -134,6 +157,9 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.character.castOptions.zhNormalize@v1",
     "novel.character.supplemental@v1",
     "novel.character.supplemental.zhNormalize@v1",
+    "novel.character.mind.snapshot@v1",
+    "novel.character.influence.options@v1",
+    "novel.character.dialogue.turn@v1",
     "novel.story_macro.decomposition@v1",
     "novel.volume.strategy@v2",
     "novel.volume.strategy.critique@v1",
@@ -148,7 +174,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.framing.suggest@v1",
     "novel.production.characters@v1",
     "state.snapshot.extract@v4",
-    "novel.payoff_ledger.sync@v5",
+    "novel.payoff_ledger.sync@v6",
     "novel.characterDynamics.volumeProjection@v3",
     "novel.character_resource.extract_updates@v1",
     "storyMode.child.generate@v1",
@@ -160,7 +186,7 @@ test("prompt registry exposes versioned planning assets", () => {
     promptKey(styleProfileExtractionPrompt),
     promptKey(styleProfileFromBookAnalysisPrompt),
     "style.recommendation@v1",
-    "novel.review.chapter@v1",
+    "novel.review.chapter@v2",
     promptKey(chapterWriterPrompt),
     promptKey(chapterArtifactDeltaPrompt),
     "world.draft.generate@v1",
@@ -201,6 +227,25 @@ test("chapter artifact delta prompt captures summary facts and knowledge boundar
       knownFacts: ["后门铜钥匙可以打开库房后门"],
       hiddenFacts: ["库房内的守卫布置"],
     }],
+    characterMindDeltas: [{
+      characterName: "程秩",
+      currentInterpretation: "他认为钥匙让潜入成为可行方案，但仍低估守卫布置。",
+      privateIntent: "抢在赵管事察觉前验证后门。",
+      activePlan: "先观察换岗时间，再利用钥匙进入库房。",
+      emotionalStance: "紧张中带着主动争取的笃定。",
+      actionTendency: "会先隐瞒线索、独自试探。",
+      decisionTrigger: "若守卫异常增多，会转而寻找同盟。",
+      beliefs: ["钥匙能提供一次隐蔽进入机会"],
+      misbeliefs: ["赵管事尚未察觉钥匙失踪"],
+      evidence: ["程秩把后门铜钥匙收进袖中，并决定先观察换岗。"],
+      confidence: 0.78,
+    }],
+    characterDialogueInfluenceResolutions: [{
+      influenceId: "dialogue-influence-1",
+      status: "applied",
+      evidence: ["程秩先观察换岗，确认退路后才进入库房。"],
+      confidence: 0.8,
+    }],
     syncPlan: {
       stateSnapshot: "write",
       characterResources: "skip",
@@ -214,6 +259,8 @@ test("chapter artifact delta prompt captures summary facts and knowledge boundar
 
   assert.equal(parsed.concreteFacts.length, 1);
   assert.equal(parsed.characterKnowledgeStates[0].hiddenFacts[0], "库房内的守卫布置");
+  assert.equal(parsed.characterMindDeltas[0].misbeliefs[0], "赵管事尚未察觉钥匙失踪");
+  assert.equal(parsed.characterDialogueInfluenceResolutions[0].status, "applied");
 
   const messages = chapterArtifactDeltaPrompt.render({
     novelTitle: "测试小说",
@@ -224,12 +271,134 @@ test("chapter artifact delta prompt captures summary facts and knowledge boundar
     previousStateText: "",
     existingResourceText: "",
     existingPayoffText: "",
+    activeCharacterDialogueInfluenceText: "- influenceId=dialogue-influence-1 | 角色=程秩 | 行动倾向=先确认退路再进入库房",
     chapterContent: "程秩拿到后门铜钥匙，但还不知道库房内的守卫布置。",
   });
   const systemText = String(messages[0].content);
   assert.match(systemText, /concreteFacts/);
   assert.match(systemText, /characterKnowledgeStates/);
+  assert.match(systemText, /characterMindDeltas/);
+  assert.match(systemText, /characterDialogueInfluenceResolutions/);
   assert.match(systemText, /80-180/);
+});
+
+test("character mind snapshot prompt keeps subjective reasoning evidence-backed", () => {
+  const output = characterMindSnapshotResponseSchema.parse({
+    snapshots: [{
+      characterName: "程秩",
+      currentInterpretation: "他认为后门钥匙能带来一次先手，但不确定守卫是否已经换岗。",
+      privateIntent: "不让赵管事先发现自己的行动。",
+      activePlan: "观察换岗后从后门试探进入。",
+      emotionalStance: "紧张但愿意冒险。",
+      actionTendency: "优先独自试探，再决定是否求助。",
+      decisionTrigger: "若守卫数量异常，就暂缓进入。",
+      beliefs: ["钥匙能打开库房后门"],
+      misbeliefs: ["赵管事尚未察觉钥匙失踪"],
+      evidence: ["程秩把后门铜钥匙收进袖中。"],
+      confidence: 0.78,
+    }],
+  });
+  assert.equal(output.snapshots[0].evidence.length, 1);
+  assert.throws(() => characterMindSnapshotResponseSchema.parse({
+    snapshots: [{ ...output.snapshots[0], evidence: [] }],
+  }));
+
+  const messages = characterMindSnapshotPrompt.render({ mode: "refresh" }, {
+    blocks: [
+      createContextBlock({ id: "roster", group: "character_mind_roster", priority: 100, required: true, content: "程秩" }),
+      createContextBlock({ id: "facts", group: "character_mind_facts", priority: 99, required: true, content: "程秩拿到后门铜钥匙。" }),
+    ],
+    selectedBlockIds: ["roster", "facts"],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+  assert.match(String(messages[0].content), /主观推断/);
+  assert.match(String(messages[0].content), /不得新增角色、身份、资源、事件、关系或秘密/);
+
+  const contextBlocks = buildCharacterMindContextBlocks({
+    roster: "程秩",
+    facts: "程秩拿到后门铜钥匙。",
+    resources: "程秩持有后门铜钥匙。",
+    informationBoundaries: "程秩已知：钥匙能打开后门。",
+  });
+  assert.ok(contextBlocks.some((block) => block.group === "character_mind_resources"));
+  assert.ok(contextBlocks.some((block) => block.group === "character_mind_information_boundaries"));
+});
+
+test("character influence prompt produces evidence-backed soft guidance", () => {
+  const output = characterInfluenceOptionsResponseSchema.parse({
+    proposals: [{
+      title: "先验证盟友",
+      directionSummary: "先用小代价试探盟友，再决定是否交出线索。",
+      recommendationReason: "延续角色当前谨慎与信息缺口。",
+      isRecommended: true,
+      behaviorGuidance: "安排一次可撤回的试探，再决定是否合作。",
+      emotionalGuidance: "克制中保持戒备。",
+      relationTension: "盟友需要证明自己。",
+      readerPayoff: "读者看到信任在压力下逐步建立。",
+      risk: "试探过久会拖慢当下冲突。",
+      observableSignals: ["提出可验证的交换条件"],
+      evidence: ["程秩刚隐瞒了钥匙的真正用途。"],
+      confidence: 0.82,
+    }],
+  });
+  assert.equal(output.proposals[0].evidence.length, 1);
+  assert.throws(() => characterInfluenceOptionsResponseSchema.parse({
+    proposals: [{ ...output.proposals[0], evidence: [] }],
+  }));
+
+  const messages = characterInfluenceOptionsPrompt.render({ mode: "refine" }, {
+    blocks: buildCharacterInfluenceContextBlocks({
+      target: "目标角色：程秩",
+      mind: "他仍怀疑盟友。",
+      facts: "程秩尚未交出钥匙。",
+      authorIntent: "希望他先克制试探。",
+    }),
+    selectedBlockIds: ["character_influence_target", "character_influence_mind", "character_influence_facts", "character_influence_author_intent"],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+  const systemText = String(messages[0].content);
+  assert.match(systemText, /严禁新增或改写身份、阵营、资源、地点、已发生事件/);
+  assert.match(systemText, /软性角色行为倾向/);
+});
+
+test("character dialogue prompt preserves character agency and only extracts evidenced soft influence", () => {
+  const output = characterDialogueTurnResponseSchema.parse({
+    characterReply: "我不会因为你一句话就交出钥匙。先让我看看你准备拿什么来换。",
+    influenceDraft: {
+      summary: "这次交谈让程秩更倾向先要求可验证的交换，再决定是否合作。",
+      behaviorGuidance: "在下一次合作前提出一个可撤回的验证条件。",
+      emotionalGuidance: "保持克制和戒备。",
+      relationTension: "对方必须先证明可信度。",
+      evidence: ["程秩明确拒绝立刻交出钥匙，并要求对方拿出交换条件。"],
+      confidence: 0.81,
+    },
+  });
+  assert.equal(output.influenceDraft.evidence.length, 1);
+  assert.throws(() => characterDialogueTurnResponseSchema.parse({
+    ...output,
+    influenceDraft: { ...output.influenceDraft, evidence: [] },
+  }));
+
+  const messages = characterDialogueTurnPrompt.render({ mode: "turn" }, {
+    blocks: buildCharacterDialogueContextBlocks({
+      target: "目标角色：程秩",
+      mind: "他仍怀疑任何主动靠近的人。",
+      facts: "程秩尚未交出后门钥匙，也不知道库房守卫布置。",
+      authorMessage: "把钥匙交给盟友吧。",
+      history: "作者：你为什么不信他？\n程秩：因为他知道得太多。",
+    }),
+    selectedBlockIds: ["character_dialogue_target", "character_dialogue_mind", "character_dialogue_facts", "character_dialogue_author_message"],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+  const systemText = String(messages[0].content);
+  assert.match(systemText, /可以拒绝、隐瞒、误解、反问/);
+  assert.match(systemText, /不是客观事实/);
 });
 
 test("prompt registry resolves style prompts by their declared asset versions", () => {
@@ -288,8 +457,9 @@ test("character cast prompt hardens real-name constraints and required gender ou
 
 test("volume strategy prompt renders volume count guidance and fixed-count constraints", () => {
   const asset = createVolumeStrategyPrompt({
-    maxVolumeCount: 16,
-    allowedVolumeCountRange: { min: 8, max: 13 },
+    maxVolumeCount: 24,
+    allowedVolumeCountRange: { min: 1, max: 24 },
+    decisionVolumeCountRange: { min: 8, max: 13 },
     fixedRecommendedVolumeCount: 10,
     hardPlannedVolumeRange: { min: 2, max: 4 },
   });
@@ -298,7 +468,10 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
     volumeCountGuidance: {
       chapterBudget: 500,
       targetChapterRange: { min: 40, ideal: 55, max: 70 },
-      allowedVolumeCountRange: { min: 8, max: 13 },
+      allowedVolumeCountRange: { min: 1, max: 24 },
+      decisionVolumeCountRange: { min: 8, max: 13 },
+      volumeScaleProfile: "epic",
+      volumeCountRationale: "大长篇需要更多卷级回报节点。",
       recommendedVolumeCount: 10,
       systemRecommendedVolumeCount: 9,
       hardPlannedVolumeRange: { min: 2, max: 4 },
@@ -321,7 +494,10 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
         required: true,
         content: [
           "chapter budget: 500",
-          "allowed volume count range: 8-13",
+          "allowed volume count range: 1-24",
+          "decision volume count range: 8-13",
+          "volume scale profile: epic",
+          "volume count rationale: 大长篇需要更多卷级回报节点。",
           "system recommended volume count: 9",
           "active recommended volume count: 10",
           "hard planned volume range: 2-4",
@@ -338,9 +514,46 @@ test("volume strategy prompt renders volume count guidance and fixed-count const
   assert.equal(messages.length, 2);
   assert.match(String(messages[0].content), /recommendedVolumeCount 必须严格等于 10/);
   assert.match(String(messages[0].content), /hardPlannedVolumeCount 必须落在 2-4 之间/);
+  assert.match(String(messages[0].content), /60 章以上默认至少保留三段结构/);
   assert.match(String(messages[0].content), /超长篇必须避免把大量章节压成少数巨卷/);
-  assert.match(String(messages[1].content), /allowed volume count range: 8-13/);
+  assert.match(String(messages[1].content), /decision volume count range: 8-13/);
   assert.match(String(messages[1].content), /user preferred volume count: 10/);
+});
+
+test("registered volume strategy prompt uses the shared 24-volume ceiling", () => {
+  const asset = getRegisteredPromptAsset("novel.volume.strategy", "v2");
+  assert.ok(asset);
+  const messages = asset.render({}, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+
+  assert.match(String(messages[0].content), /recommendedVolumeCount 必须落在结构建议区间 1-24 之间/);
+});
+
+test("volume skeleton prompt protects compact and long-form volume structures", () => {
+  const compactMessages = createVolumeSkeletonPrompt(3).render({}, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+  assert.match(String(compactMessages[0].content), /3-4 卷/);
+  assert.match(String(compactMessages[0].content), /三幕式或四段式结构/);
+
+  const longMessages = createVolumeSkeletonPrompt(12).render({}, {
+    blocks: [],
+    selectedBlockIds: [],
+    droppedBlockIds: [],
+    summarizedBlockIds: [],
+    estimatedInputTokens: 0,
+  });
+  assert.match(String(longMessages[0].content), /12 卷以上/);
+  assert.match(String(longMessages[0].content), /卖点轮换、压力源轮换和阶段兑现密度/);
 });
 
 test("workspace diagnosis prompt requires english recommendedAction enum values", () => {
@@ -460,15 +673,15 @@ test("novel main-chain prompt assets declare explicit non-zero context budgets",
     ["novel.volume.strategy@v2", NOVEL_PROMPT_BUDGETS.volumeStrategy],
     ["novel.volume.strategy.critique@v1", NOVEL_PROMPT_BUDGETS.volumeStrategyCritique],
     ["novel.volume.skeleton@v2", NOVEL_PROMPT_BUDGETS.volumeSkeleton],
-    ["novel.volume.beat_sheet@v1", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
+    ["novel.volume.beat_sheet@v2", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
     ["novel.volume.chapter_list@v7", NOVEL_PROMPT_BUDGETS.volumeChapterList],
     ["novel.volume.chapter_purpose@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_boundary@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
-    ["novel.volume.chapter_task_sheet@v2", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
+    ["novel.volume.chapter_task_sheet@v3", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.rebalance.adjacent@v1", NOVEL_PROMPT_BUDGETS.volumeRebalance],
     [promptKey(chapterWriterPrompt), NOVEL_PROMPT_BUDGETS.chapterWriter],
-    ["novel.review.chapter@v1", NOVEL_PROMPT_BUDGETS.chapterReview],
-    ["novel.review.repair@v1", NOVEL_PROMPT_BUDGETS.chapterRepair],
+    ["novel.review.chapter@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
+    ["novel.review.repair@v2", NOVEL_PROMPT_BUDGETS.chapterRepair],
     ["audit.chapter.full@v2", NOVEL_PROMPT_BUDGETS.chapterReview],
   ]);
 
@@ -1325,12 +1538,16 @@ test("streamTextPrompt buffers streamed output and resolves completion metadata"
 test("runTextPrompt records empty outputs without changing return behavior", async () => {
   resetPromptQualityTelemetryForTests();
   setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async () => ({
-      content: "   ",
-      usage_metadata: {
-        input_tokens: 10,
-        output_tokens: 1,
-        total_tokens: 11,
+    stream: async () => ({
+      async *[Symbol.asyncIterator]() {
+        yield {
+          content: "   ",
+          usage_metadata: {
+            input_tokens: 10,
+            output_tokens: 1,
+            total_tokens: 11,
+          },
+        };
       },
     }),
   }));
@@ -1364,9 +1581,11 @@ test("prompt runner records failed executions without swallowing the original er
   resetPromptQualityTelemetryForTests();
   const originalError = new Error("provider timeout");
   setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async () => {
-      throw originalError;
-    },
+    stream: async () => ({
+      async *[Symbol.asyncIterator]() {
+        throw originalError;
+      },
+    }),
   }));
 
   try {
@@ -1426,9 +1645,13 @@ test("prompt runner injects enabled custom slot blocks for supported prompts", a
     };
   };
   setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async (messages) => {
+    stream: async (messages) => {
       capturedMessages = messages;
-      return { content: "正文" };
+      return {
+        async *[Symbol.asyncIterator]() {
+          yield { content: "正文" };
+        },
+      };
     },
   }));
 
@@ -1543,8 +1766,7 @@ test("advanced prompt template expands referenced context and appends required f
     requiredContextGroups: [
       "book_contract",
       "chapter_mission",
-      "timeline_context",
-      "previous_chapter_hook",
+      "reader_experience",
       "character_hard_facts",
       "obligation_contract",
       "volume_window",
@@ -1559,11 +1781,11 @@ test("advanced prompt template expands referenced context and appends required f
   assert.match(rendered, /chapter_mission 测试内容/);
   assert.match(rendered, /【必需上下文保底】/);
   assert.match(rendered, /【书级合约】\nbook_contract 测试内容/);
-  assert.match(rendered, /【时间线】\ntimeline_context 测试内容/);
-  assert.doesNotMatch(rendered, /【timeline_context】/);
+  assert.match(rendered, /【读者体验合同】\nreader_experience 测试内容/);
+  assert.doesNotMatch(rendered, /【reader_experience】/);
   assert.deepEqual(compiled.diagnostics.missingRequiredGroups, []);
   assert.ok(compiled.diagnostics.fallbackRequiredGroups.includes("book_contract"));
-  assert.ok(compiled.diagnostics.fallbackRequiredGroups.includes("timeline_context"));
+  assert.ok(compiled.diagnostics.fallbackRequiredGroups.includes("reader_experience"));
 });
 
 test("chapter writer context text uses reader-facing labels instead of raw machine fields", () => {
@@ -1727,9 +1949,13 @@ test("runTextPrompt uses active book-scoped advanced template for chapter writer
     };
   };
   setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async (messages) => {
+    stream: async (messages) => {
       capturedMessages = messages;
-      return { content: "正文" };
+      return {
+        async *[Symbol.asyncIterator]() {
+          yield { content: "正文" };
+        },
+      };
     },
   }));
 

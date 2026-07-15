@@ -66,16 +66,54 @@ function createPromptInput(targetChapterCount) {
   };
 }
 
+function createCoveringBeats(targetChapterCount) {
+  const spans = [
+    [1, Math.max(1, Math.floor(targetChapterCount * 0.15))],
+    [0, Math.max(1, Math.floor(targetChapterCount * 0.3))],
+    [0, Math.max(1, Math.floor(targetChapterCount * 0.5))],
+    [0, Math.max(1, Math.floor(targetChapterCount * 0.7))],
+    [0, Math.max(1, Math.floor(targetChapterCount * 0.88))],
+    [0, targetChapterCount],
+  ];
+  for (let index = 1; index < spans.length; index += 1) {
+    spans[index][0] = spans[index - 1][1] + 1;
+    if (spans[index][0] > spans[index][1]) {
+      spans[index][1] = spans[index][0];
+    }
+  }
+  spans[spans.length - 1][1] = targetChapterCount;
+
+  const slots = [
+    ["open_hook", "开卷抓手", "夜市夺印"],
+    ["first_escalation", "首次升级", "借刀反制"],
+    ["midpoint_turn", "中段转向", "旧盟破裂"],
+    ["pressure_lock", "高潮前挤压", "围城代价"],
+    ["climax", "卷高潮", "夺回令牌"],
+    ["end_hook", "卷尾钩子", "北境来信"],
+  ];
+
+  return slots.map(([key, label, title], index) => ({
+    key,
+    label,
+    title,
+    summary: `${label}推进`,
+    chapterSpanHint: spans[index][0] === spans[index][1]
+      ? `${spans[index][0]}章`
+      : `${spans[index][0]}-${spans[index][1]}章`,
+    mustDeliver: [`${label}兑现`],
+  }));
+}
+
 test("volumeBeatSheetPrompt postValidate rejects target 54 output that only covers 7 chapters", () => {
   assert.throws(
     () => volumeBeatSheetPrompt.postValidate({
       beats: [
-        { key: "b1", label: "开局", summary: "开局", chapterSpanHint: "1章", mustDeliver: ["开局"] },
-        { key: "b2", label: "推进", summary: "推进", chapterSpanHint: "2章", mustDeliver: ["推进"] },
-        { key: "b3", label: "转向", summary: "转向", chapterSpanHint: "3-4章", mustDeliver: ["转向"] },
-        { key: "b4", label: "挤压", summary: "挤压", chapterSpanHint: "5章", mustDeliver: ["挤压"] },
-        { key: "b5", label: "高潮", summary: "高潮", chapterSpanHint: "6章", mustDeliver: ["高潮"] },
-        { key: "b6", label: "尾钩", summary: "尾钩", chapterSpanHint: "7章", mustDeliver: ["尾钩"] },
+        { key: "open_hook", label: "开卷抓手", title: "开局", summary: "开局", chapterSpanHint: "1章", mustDeliver: ["开局"] },
+        { key: "first_escalation", label: "首次升级", title: "升级", summary: "推进", chapterSpanHint: "2章", mustDeliver: ["推进"] },
+        { key: "midpoint_turn", label: "中段转向", title: "转向", summary: "转向", chapterSpanHint: "3-4章", mustDeliver: ["转向"] },
+        { key: "pressure_lock", label: "高潮前挤压", title: "挤压", summary: "挤压", chapterSpanHint: "5章", mustDeliver: ["挤压"] },
+        { key: "climax", label: "卷高潮", title: "高潮", summary: "高潮", chapterSpanHint: "6章", mustDeliver: ["高潮"] },
+        { key: "end_hook", label: "卷尾钩子", title: "尾钩", summary: "尾钩", chapterSpanHint: "7章", mustDeliver: ["尾钩"] },
       ],
     }, createPromptInput(54), { blocks: [], selectedBlockIds: [], droppedBlockIds: [], summarizedBlockIds: [], estimatedInputTokens: 0 }),
     /54/,
@@ -84,14 +122,7 @@ test("volumeBeatSheetPrompt postValidate rejects target 54 output that only cove
 
 test("volumeBeatSheetPrompt postValidate accepts output that covers target 54", () => {
   const output = {
-    beats: [
-      { key: "b1", label: "开局", summary: "开局", chapterSpanHint: "1-8章", mustDeliver: ["开局"] },
-      { key: "b2", label: "推进", summary: "推进", chapterSpanHint: "9-18章", mustDeliver: ["推进"] },
-      { key: "b3", label: "转向", summary: "转向", chapterSpanHint: "19-30章", mustDeliver: ["转向"] },
-      { key: "b4", label: "挤压", summary: "挤压", chapterSpanHint: "31-42章", mustDeliver: ["挤压"] },
-      { key: "b5", label: "高潮", summary: "高潮", chapterSpanHint: "43-50章", mustDeliver: ["高潮"] },
-      { key: "b6", label: "尾钩", summary: "尾钩", chapterSpanHint: "51-54章", mustDeliver: ["尾钩"] },
-    ],
+    beats: createCoveringBeats(54),
   };
 
   assert.deepEqual(

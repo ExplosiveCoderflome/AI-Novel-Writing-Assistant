@@ -192,6 +192,7 @@ export function isChapterBatchCheckpointRow(
 
 export function mapStageToTab(stage: NovelWorkflowStage): NovelWorkflowResumeTarget["stage"] {
   if (stage === "story_macro") return "story_macro";
+  if (stage === "world_setup") return "world";
   if (stage === "character_setup") return "character";
   if (stage === "volume_strategy") return "outline";
   if (stage === "structured_outline") return "structured";

@@ -124,9 +124,9 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
       >
         <div className="space-y-4">
           {mode === "resume" ? (
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+            <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-sm leading-6 text-foreground">
               本次会重做 {retrySectionCount} 节，成功的 {succeededSectionCount} 节保留
-              {frozenSectionCount > 0 ? `，冻结的 ${frozenSectionCount} 节跳过` : ""}。
+              {frozenSectionCount > 0 ? `，另有 ${frozenSectionCount} 节不纳入本次续跑` : ""}。
             </div>
           ) : null}
 
@@ -193,7 +193,7 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
               </div>
             ) : null}
             {budgetIsFinite && remainingTokens !== null && remainingTokens < 0 ? (
-              <div className="text-xs leading-5 text-amber-700">
+              <div className="text-xs leading-5 text-warning">
                 新预算低于累计用量，继续生成时会触发预算停止。
               </div>
             ) : null}

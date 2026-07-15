@@ -101,3 +101,45 @@ test("payoffLedgerSyncPrompt postValidate still rejects paid_off items without c
     }],
   }), /payoffChapterOrder/);
 });
+
+test("payoffLedgerSyncPrompt requires every book contract payoff source and its deadline", () => {
+  const input = {
+    bookContractPayoffs: [{
+      refId: "book_contract.chapter3Payoff",
+      refLabel: "Book Contract 第 3 章阶段回报",
+      payoff: "主角获得第一次明确优势",
+      targetStartChapterOrder: 1,
+      targetEndChapterOrder: 3,
+    }],
+  };
+  const validItem = {
+    ledgerKey: "first-visible-reward",
+    title: "第一次明确优势",
+    summary: "主角在前三章拿到读者可见的第一次优势。",
+    scopeType: "book",
+    currentStatus: "setup",
+    targetStartChapterOrder: 1,
+    targetEndChapterOrder: 3,
+    sourceRefs: [{
+      kind: "major_payoff",
+      refId: "book_contract.chapter3Payoff",
+      refLabel: "Book Contract 第 3 章阶段回报",
+    }],
+    evidence: [],
+    riskSignals: [],
+  };
+
+  assert.doesNotThrow(() => payoffLedgerSyncPrompt.postValidate({ items: [validItem] }, input));
+  assert.throws(
+    () => payoffLedgerSyncPrompt.postValidate({
+      items: [{ ...validItem, sourceRefs: [] }],
+    }, input),
+    /缺少 Book Contract 承诺来源/,
+  );
+  assert.throws(
+    () => payoffLedgerSyncPrompt.postValidate({
+      items: [{ ...validItem, targetEndChapterOrder: 4 }],
+    }, input),
+    /不晚于第 3 章/,
+  );
+});

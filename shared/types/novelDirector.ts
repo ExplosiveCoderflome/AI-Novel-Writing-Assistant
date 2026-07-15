@@ -242,6 +242,16 @@ export function buildFullBookAutopilotExecutionPlan(): DirectorAutoExecutionPlan
 
 export type DirectorContinuationMode = "resume" | "auto_execute_range" | "skip_quality_repair";
 
+export const DIRECTOR_STEP_CALIBRATION_ACTIONS = ["validate", "improve", "regenerate"] as const;
+export type DirectorStepCalibrationAction = typeof DIRECTOR_STEP_CALIBRATION_ACTIONS[number];
+
+export interface DirectorStepCalibrationRequest {
+  stepId: string;
+  action: DirectorStepCalibrationAction;
+  instruction?: string | null;
+  targetId?: string | null;
+}
+
 export function normalizeDirectorContinuationMode(
   value: unknown,
 ): DirectorContinuationMode | null {
@@ -256,6 +266,8 @@ export interface DirectorAutoExecutionState extends DirectorAutoExecutionPlan {
   scopeLabel?: string | null;
   volumeTitle?: string | null;
   preparedVolumeIds?: string[];
+  beatChapterListReady?: boolean;
+  volumeChapterListComplete?: boolean;
   skippedChapterIds?: string[];
   skippedChapterOrders?: number[];
   qualityDebtChapterIds?: string[];
@@ -298,6 +310,7 @@ export interface DirectorQualityRepairRisk {
 
 export const DIRECTOR_TAKEOVER_START_PHASES = [
   "story_macro",
+  "world_setup",
   "character_setup",
   "volume_strategy",
   "structured_outline",
@@ -308,6 +321,7 @@ export type DirectorTakeoverStartPhase = typeof DIRECTOR_TAKEOVER_START_PHASES[n
 export const DIRECTOR_TAKEOVER_ENTRY_STEPS = [
   "basic",
   "story_macro",
+  "world",
   "character",
   "outline",
   "structured",
@@ -327,6 +341,7 @@ export type DirectorTakeoverStrategy = typeof DIRECTOR_TAKEOVER_STRATEGIES[numbe
 export const DIRECTOR_LOCK_SCOPES = [
   "basic",
   "story_macro",
+  "world",
   "character",
   "outline",
   "structured",
@@ -343,6 +358,7 @@ export interface DirectorSessionState {
   phase:
     | "candidate_selection"
     | "story_macro"
+    | "world_setup"
     | "character_setup"
     | "volume_strategy"
     | "structured_outline"
@@ -415,6 +431,14 @@ export interface DirectorTaskSeedPayloadSnapshot {
   styleIntentSummary?: StyleIntentSummary | null;
   postGenerationStyleReviewEnabled?: boolean | null;
   taskNotice?: DirectorTaskNotice | null;
+  stepReview?: {
+    stepId: string;
+    nodeKey: string;
+    label: string;
+    targetType: string;
+    targetId?: string | null;
+    completedAt: string;
+  } | null;
 }
 
 export interface DirectorLLMOptions {
@@ -469,7 +493,7 @@ export interface DirectorTakeoverPipelineJobSnapshot {
 }
 
 export interface DirectorTakeoverCheckpointSnapshot {
-  checkpointType: "chapter_batch_ready" | "replan_required" | null;
+  checkpointType: "chapter_batch_ready" | "step_review_required" | "replan_required" | null;
   checkpointSummary?: string | null;
   chapterId?: string | null;
   chapterOrder?: number | null;
@@ -492,6 +516,7 @@ export interface DirectorTakeoverReadinessResponse {
   snapshot: {
     hasStoryMacroPlan: boolean;
     hasBookContract: boolean;
+    hasWorldSetupPrepared: boolean;
     characterCount: number;
     chapterCount: number;
     volumeCount: number;
@@ -636,6 +661,7 @@ export interface DirectorConfirmRequest extends DirectorProjectContextInput, Dir
   workflowTaskId?: string;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
   autoApproval?: DirectorAutoApprovalConfig;
+  stepCalibrationInstruction?: string | null;
 }
 
 export interface DirectorPlanScene {

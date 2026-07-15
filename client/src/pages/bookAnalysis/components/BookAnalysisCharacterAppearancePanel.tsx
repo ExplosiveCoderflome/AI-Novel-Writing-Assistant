@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   BookAnalysisCharacter,
@@ -29,6 +29,7 @@ interface BookAnalysisCharacterAppearancePanelProps {
 }
 
 const COVERAGE_MARKS = [25, 50, 75, 100];
+const SNAPSHOT_PAGE_SIZE = 12;
 const IMAGE_STATUS_TEXT: Record<string, string> = {
   queued: "排队中",
   running: "生成中",
@@ -60,6 +61,8 @@ export default function BookAnalysisCharacterAppearancePanel({
   const [lastScanJob, setLastScanJob] = useState<BookAnalysisCharacterAppearanceScanJob | null>(null);
   const [selectedTermIds, setSelectedTermIds] = useState<string[]>([]);
   const [selectedReferenceAssetIds, setSelectedReferenceAssetIds] = useState<string[]>([]);
+  const [showAllSnapshots, setShowAllSnapshots] = useState(false);
+  const [snapshotPage, setSnapshotPage] = useState(0);
   const referenceInitializedForCharacter = useRef("");
   const queryKey = ["book-analysis-character-appearance", analysisId, character.id];
   const termsQueryKey = ["book-analysis-character-appearance-terms", analysisId, character.id, "pending"];
@@ -69,6 +72,22 @@ export default function BookAnalysisCharacterAppearancePanel({
     refetchInterval: activeScanJobId ? 2500 : false,
   });
   const appearance = appearanceQuery.data?.data ?? character.appearance ?? null;
+  const meaningfulSnapshots = useMemo(
+    () => (appearance?.snapshots ?? []).filter((snapshot) => (
+      snapshot.manuallyEdited
+      || snapshot.evidence.length > 0
+      || Boolean(snapshot.summaryCaption?.trim())
+      || snapshot.images.some((image) => Boolean(image.imageAsset))
+    )),
+    [appearance],
+  );
+  const snapshotPool = showAllSnapshots ? appearance?.snapshots ?? [] : meaningfulSnapshots;
+  const snapshotPageCount = Math.max(1, Math.ceil(snapshotPool.length / SNAPSHOT_PAGE_SIZE));
+  const currentSnapshotPage = Math.min(snapshotPage, snapshotPageCount - 1);
+  const visibleSnapshots = snapshotPool.slice(
+    currentSnapshotPage * SNAPSHOT_PAGE_SIZE,
+    (currentSnapshotPage + 1) * SNAPSHOT_PAGE_SIZE,
+  );
   const termsQuery = useQuery({
     queryKey: termsQueryKey,
     queryFn: () => listBookAnalysisCharacterAppearanceTerms(analysisId, character.id, "pending"),
@@ -157,6 +176,10 @@ export default function BookAnalysisCharacterAppearancePanel({
     setSelectedReferenceAssetIds(primary ? [primary.id] : []);
     referenceInitializedForCharacter.current = key;
   }, [analysisId, character.id, characterImages]);
+
+  useEffect(() => {
+    setSnapshotPage(0);
+  }, [character.id, showAllSnapshots]);
 
   const taskQuery = useQuery({
     queryKey: queryKeys.images.task(activeTaskId || "none"),
@@ -396,13 +419,58 @@ export default function BookAnalysisCharacterAppearancePanel({
             <div className="mt-1 whitespace-pre-wrap">{formatJsonSummary(appearance.consolidatedAppearance)}</div>
           </div>
           {appearance.variantPolicy && Object.keys(appearance.variantPolicy).length > 0 ? (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-sm text-amber-700 dark:text-amber-300">
+            <div className="rounded-md border border-warning/30 bg-warning/5 p-2 text-sm text-foreground">
               {formatJsonSummary(appearance.variantPolicy)}
             </div>
           ) : null}
           {appearance.snapshots.length > 0 ? (
             <div className="space-y-2">
-              {appearance.snapshots.map((snapshot) => (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-2">
+                <div>
+                  <div className="text-sm font-medium">章节快照</div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {showAllSnapshots
+                      ? `显示全部 ${appearance.snapshots.length} 个章节快照`
+                      : `优先显示 ${meaningfulSnapshots.length} 个有形象信息的关键章节`}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={showAllSnapshots ? "outline" : "secondary"}
+                    onClick={() => setShowAllSnapshots((current) => !current)}
+                  >
+                    {showAllSnapshots ? "只看关键章节" : "查看全部章节"}
+                  </Button>
+                  {snapshotPageCount > 1 ? (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSnapshotPage((current) => Math.max(0, current - 1))}
+                        disabled={currentSnapshotPage === 0}
+                      >
+                        上一页
+                      </Button>
+                      <span className="min-w-16 text-center text-xs text-muted-foreground">
+                        {currentSnapshotPage + 1} / {snapshotPageCount}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSnapshotPage((current) => Math.min(snapshotPageCount - 1, current + 1))}
+                        disabled={currentSnapshotPage >= snapshotPageCount - 1}
+                      >
+                        下一页
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              {visibleSnapshots.map((snapshot) => (
                 <div key={snapshot.id} className="rounded-md border bg-background p-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -449,6 +517,11 @@ export default function BookAnalysisCharacterAppearancePanel({
                   ) : null}
                 </div>
               ))}
+              {visibleSnapshots.length === 0 ? (
+                <div className="rounded-md border border-dashed bg-background p-4 text-sm text-muted-foreground">
+                  暂无带形象信息的章节。可以查看全部章节，或继续增量扫描。
+                </div>
+              ) : null}
             </div>
           ) : null}
         </>

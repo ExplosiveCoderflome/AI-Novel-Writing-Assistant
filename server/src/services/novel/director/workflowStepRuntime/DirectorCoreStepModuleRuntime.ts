@@ -1,5 +1,9 @@
 import type { DirectorChapterExecutionProgressSummary, DirectorArtifactRef, DirectorArtifactType } from "@ai-novel/shared/types/directorRuntime";
-import type { DirectorAutoExecutionState, DirectorConfirmRequest } from "@ai-novel/shared/types/novelDirector";
+import {
+  isDirectorAutoExecutionRunMode,
+  type DirectorAutoExecutionState,
+  type DirectorConfirmRequest,
+} from "@ai-novel/shared/types/novelDirector";
 import type { VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import { BookContractService } from "../../BookContractService";
 import { CharacterPreparationService } from "../../characterPrep/CharacterPreparationService";
@@ -201,6 +205,7 @@ export class DirectorCoreStepModuleRuntime {
     return resolveStructuredOutlineRecoveryCursor({
       workspace,
       plan: request ? normalizeDirectorAutoExecutionPlan(request.autoExecutionPlan) : undefined,
+      allowPartialChapterListReady: isDirectorAutoExecutionRunMode(request?.runMode),
     });
   }
 

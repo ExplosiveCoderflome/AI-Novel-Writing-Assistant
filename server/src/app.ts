@@ -16,6 +16,8 @@ import autoDirectorChannelCallbacksRouter from "./routes/autoDirectorChannelCall
 import autoDirectorFollowUpsRouter from "./routes/autoDirectorFollowUps";
 import bookAnalysisRouter from "./routes/bookAnalysis";
 import characterRouter from "./routes/character";
+import characterConversationRouter from "./modules/characterConversation/http/characterConversationRoutes";
+import visualAssetRouter from "./modules/visualAssets/http/visualAssetRoutes";
 import chatRouter from "./routes/chat";
 import creativeHubRouter from "./routes/creativeHub";
 import genreRouter from "./routes/genre";
@@ -23,6 +25,7 @@ import healthRouter from "./routes/health";
 import imagesRouter from "./routes/images";
 import knowledgeRouter from "./routes/knowledge";
 import llmRouter from "./routes/llm";
+import llmLiveRouter from "./platform/llm/live/http/llmLiveRoutes";
 import novelRouter from "./modules/novel/http/novel";
 import dramaRouter from "./modules/drama/http/dramaRoutes";
 import comicRouter from "./modules/comic/http/comicRoutes";
@@ -125,6 +128,7 @@ export function createApp() {
   app.use("/api/story-modes", storyModeRouter);
   app.use("/api/knowledge", knowledgeRouter);
   app.use("/api/llm", llmRouter);
+  app.use("/api/llm-live", llmLiveRouter);
   app.use("/api/title-library", titleLibraryRouter);
   app.use("/api", styleEngineRouter);
   app.use("/api", styleEngineExtractionRouter);
@@ -137,11 +141,13 @@ export function createApp() {
   app.use("/api/worlds", worldRouter);
   app.use("/api/rag", ragRouter);
   app.use("/api/base-characters", characterRouter);
+  app.use("/api/character-conversations", characterConversationRouter);
   app.use("/api/writing-formula", writingFormulaRouter);
   app.use("/api/chat", chatRouter);
   app.use("/api/creative-hub", creativeHubRouter);
   app.use("/api/prompt-workbench", promptWorkbenchRouter);
   app.use("/api/images", imagesRouter);
+  app.use("/api/visual-assets", visualAssetRouter);
   app.use("/api/tasks", tasksRouter);
   app.use("/api/auto-director/follow-ups", autoDirectorFollowUpsRouter);
   app.use("/api/settings/auto-director", settingsAutoDirectorRouter);

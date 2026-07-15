@@ -49,6 +49,17 @@ export interface PendingState {
   createDiagnosis: boolean;
 }
 
+export interface BookAnalysisQueryState {
+  analysesLoading: boolean;
+  analysesError: string;
+  detailLoading: boolean;
+  detailError: string;
+  sourceLoading: boolean;
+  sourceError: string;
+  chaptersLoading: boolean;
+  chaptersError: string;
+}
+
 export interface BookAnalysisWorkspace {
   analysisMode: BookAnalysisMode;
   keyword: string;
@@ -84,6 +95,7 @@ export interface BookAnalysisWorkspace {
   aggregatedEvidence: AggregatedEvidenceItem[];
   optimizingSectionKey: BookAnalysisSectionKey | null;
   pending: PendingState;
+  queryState: BookAnalysisQueryState;
   setKeyword: (keyword: string) => void;
   setStatus: (status: BookAnalysisStatus | "") => void;
   setAnalysisMode: (mode: BookAnalysisMode) => void;
@@ -93,6 +105,10 @@ export interface BookAnalysisWorkspace {
   setSelectedSourceRange: (range: BookAnalysisSourceRangeDraft) => void;
   setBudgetTokens: (budgetTokens: number | null) => void;
   requestSourceChapters: () => void;
+  retryAnalyses: () => void;
+  retryDetail: () => void;
+  retrySource: () => void;
+  retryChapters: () => void;
   setIncludeTimeline: (include: boolean) => void;
   setAnalysisPreset: (preset: BookAnalysisPreset) => void;
   setLlmConfig: (config: LLMConfigState) => void;

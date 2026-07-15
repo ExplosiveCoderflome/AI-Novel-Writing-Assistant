@@ -12,6 +12,8 @@ import type {
 import { generateVolumeProjection, extractChapterDynamics } from "./characterDynamicsLlm";
 import { CharacterDynamicsQueryService } from "./CharacterDynamicsQueryService";
 import { NovelContextService } from "../NovelContextService";
+import { NovelVolumeService } from "../volume/NovelVolumeService";
+import { buildForwardVolumeBeatImpactItems } from "../volume/volumePlanUtils";
 import {
   CHAPTER_EXTRACT_SOURCE_TYPE,
   MANUAL_SOURCE_TYPE,
@@ -23,16 +25,88 @@ import { buildContentHash } from "../runtime/ChapterArtifactDeltaService";
 
 type NovelContextCharacterPort = Pick<NovelContextService, "createCharacter">;
 type NovelContextServiceFactory = () => NovelContextCharacterPort;
+type VolumeWorkspacePort = Pick<NovelVolumeService, "getVolumes">;
+type VolumeWorkspaceServiceFactory = () => VolumeWorkspacePort;
 
 function createNovelContextService(): NovelContextCharacterPort {
   return new NovelContextService();
+}
+
+function createVolumeWorkspaceService(): VolumeWorkspacePort {
+  return new NovelVolumeService();
 }
 
 export class CharacterDynamicsMutationService {
   constructor(
     private readonly queryService: CharacterDynamicsQueryService,
     private readonly novelContextServiceFactory: NovelContextServiceFactory = createNovelContextService,
+    private readonly volumeWorkspaceServiceFactory: VolumeWorkspaceServiceFactory = createVolumeWorkspaceService,
   ) {}
+
+  private async recordCharacterInjectionBeatImpact(input: {
+    novelId: string;
+    characterName: string;
+    sourceChapterId?: string | null;
+    sourceChapterOrder?: number | null;
+    sourceType: string;
+    sourceRefId: string;
+  }): Promise<void> {
+    const workspace = await this.volumeWorkspaceServiceFactory().getVolumes(input.novelId).catch(() => null);
+    if (!workspace || workspace.beatSheets.length === 0) {
+      return;
+    }
+    const chapters = await prisma.chapter.findMany({
+      where: { novelId: input.novelId },
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        order: true,
+        title: true,
+        content: true,
+        generationState: true,
+        chapterStatus: true,
+      },
+    });
+    const affectedBeats = buildForwardVolumeBeatImpactItems({
+      volumes: workspace.volumes,
+      beatSheets: workspace.beatSheets,
+      existingChapters: chapters,
+      fromChapterOrder: input.sourceChapterOrder ? input.sourceChapterOrder + 1 : 1,
+    });
+    if (affectedBeats.length === 0) {
+      return;
+    }
+    const writableBeats = affectedBeats.filter((beat) => beat.status !== "locked_with_draft");
+    const lockedBeats = affectedBeats.filter((beat) => beat.status === "locked_with_draft");
+    if (writableBeats.length === 0 && lockedBeats.length === 0) {
+      return;
+    }
+    const formatBeat = (beat: (typeof affectedBeats)[number]) => {
+      const title = beat.beatTitle?.trim() ? ` · ${beat.beatTitle.trim()}` : "";
+      const chapterRange = beat.chapterOrders.length > 0
+        ? `（第${beat.chapterOrders[0]}-${beat.chapterOrders[beat.chapterOrders.length - 1]}章）`
+        : "（待生成章节）";
+      return `第${beat.volumeOrder}卷 ${beat.beatLabel}${title}${chapterRange}`;
+    };
+    const writableSummary = writableBeats.slice(0, 5).map(formatBeat).join("；");
+    const lockedSummary = lockedBeats.slice(0, 3).map(formatBeat).join("；");
+    await prisma.creativeDecision.create({
+      data: {
+        novelId: input.novelId,
+        chapterId: input.sourceChapterId ?? null,
+        category: "character_dynamic_beat_impact",
+        content: [
+          `角色 ${input.characterName} 接入范围：${writableSummary || "暂无未写节奏段"}`,
+          lockedSummary ? `已有正文锁定：${lockedSummary}` : "",
+          "默认只接入后续未写节奏段；已有正文段仅用于一致性检查。",
+        ].filter(Boolean).join("；"),
+        importance: writableBeats.length > 0 ? "high" : "normal",
+        sourceType: input.sourceType,
+        sourceRefId: input.sourceRefId,
+        expiresAt: input.sourceChapterOrder ? input.sourceChapterOrder + 12 : null,
+      },
+    });
+  }
 
   async confirmCandidate(novelId: string, candidateId: string, input: ConfirmCandidateInput) {
     const candidate = await prisma.characterCandidate.findFirst({
@@ -80,6 +154,14 @@ export class CharacterDynamicsMutationService {
     });
 
     await this.rebuildDynamics(novelId, { sourceType: "rebuild_projection" });
+    await this.recordCharacterInjectionBeatImpact({
+      novelId,
+      characterName: createdCharacter.name,
+      sourceChapterId: candidate.sourceChapter?.id ?? null,
+      sourceChapterOrder: candidate.sourceChapter?.order ?? null,
+      sourceType: "character_candidate",
+      sourceRefId: candidate.id,
+    });
     return {
       candidateId: candidate.id,
       characterId: createdCharacter.id,
@@ -131,6 +213,14 @@ export class CharacterDynamicsMutationService {
     });
 
     await this.rebuildDynamics(novelId, { sourceType: "rebuild_projection" });
+    await this.recordCharacterInjectionBeatImpact({
+      novelId,
+      characterName: character.name,
+      sourceChapterId: candidate.sourceChapter?.id ?? null,
+      sourceChapterOrder: candidate.sourceChapter?.order ?? null,
+      sourceType: "character_candidate",
+      sourceRefId: candidate.id,
+    });
     return {
       candidateId: candidate.id,
       characterId: character.id,
@@ -243,6 +333,24 @@ export class CharacterDynamicsMutationService {
         });
       }
     });
+
+    const shouldRecordForwardImpact = Boolean(
+      typeof input.roleLabel === "string"
+      || typeof input.responsibility === "string"
+      || typeof input.appearanceExpectation === "string"
+      || Array.isArray(input.plannedChapterOrders)
+      || typeof input.isCore === "boolean",
+    );
+    if (shouldRecordForwardImpact) {
+      await this.recordCharacterInjectionBeatImpact({
+        novelId,
+        characterName: character.name,
+        sourceChapterId: input.chapterId ?? null,
+        sourceChapterOrder: input.chapterOrder ?? null,
+        sourceType: "character_dynamic_state",
+        sourceRefId: character.id,
+      });
+    }
 
     return this.queryService.getOverview(novelId, {
       chapterOrder: input.chapterOrder,
@@ -771,5 +879,15 @@ export class CharacterDynamicsMutationService {
       });
     }
     await this.rebuildDynamics(novelId, { sourceType: "rebuild_projection" });
+    for (const candidate of candidates) {
+      await this.recordCharacterInjectionBeatImpact({
+        novelId,
+        characterName: candidate.proposedName,
+        sourceChapterId: candidate.sourceChapter?.id ?? null,
+        sourceChapterOrder: candidate.sourceChapter?.order ?? null,
+        sourceType: "character_candidate",
+        sourceRefId: candidate.id,
+      });
+    }
   }
 }
