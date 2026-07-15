@@ -61,7 +61,6 @@ function WorldSetupChoice({
 export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps) {
   const [selectedImportWorldId, setSelectedImportWorldId] = useState(props.selectedWorldId);
   const [syncEnabled, setSyncEnabled] = useState(false);
-  const [saveGeneratedToLibrary, setSaveGeneratedToLibrary] = useState(false);
   const [manualWorldTitle, setManualWorldTitle] = useState("");
   const [manualWorldSummary, setManualWorldSummary] = useState("");
   const [worldSetupMode, setWorldSetupMode] = useState<WorldSetupMode>("generate");
@@ -73,7 +72,7 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
           <div>
             <div className="text-sm font-medium text-foreground">选择本书世界来源</div>
             <div className="mt-1 text-sm leading-6 text-muted-foreground">
-              先决定这本小说的世界从哪里来，再展开对应操作。每条路径都会生成本书自己的世界副本。
+              先决定这本小说的世界从哪里来，再展开对应操作。新建世界会同时保存到世界库，并与本书关联。
             </div>
           </div>
           <Badge variant="outline">本书副本</Badge>
@@ -149,22 +148,13 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
         <div className="rounded-lg border border-border/70 bg-background p-4">
           <div className="text-sm font-medium text-foreground">根据本书生成世界</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">
-            系统会根据标题、简介、卖点、读者承诺和类型信息生成一套本书世界。适合新书起步时快速形成可用舞台。
+            系统会根据标题、简介、卖点、读者承诺和类型信息生成一套本书世界，同时保存到世界库，方便后续复用和维护。
           </div>
-          <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <label className="flex items-start gap-3 text-sm text-muted-foreground">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={saveGeneratedToLibrary}
-                onChange={(event) => setSaveGeneratedToLibrary(event.target.checked)}
-              />
-              <span>生成后保存到世界库，方便其他小说复用。</span>
-            </label>
+          <div className="mt-3 flex justify-end">
             <Button
               type="button"
               variant="secondary"
-              onClick={() => props.onGenerate({ saveToLibrary: saveGeneratedToLibrary })}
+              onClick={() => props.onGenerate({})}
               disabled={props.isGenerating || props.isCreatingManual}
             >
               <Sparkles className="size-4" />
@@ -178,7 +168,7 @@ export default function NovelWorldSourcePanel(props: NovelWorldSourcePanelProps)
         <div className="rounded-lg border border-border/70 bg-background p-4">
           <div className="text-sm font-medium text-foreground">自定义本书世界</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">
-            先创建一份空白世界手册，再到世界工作台补齐核心规则、主要势力、故事舞台和关键张力。
+            先创建一份空白世界手册，并同步保存到世界库；再到世界工作台补齐核心规则、主要势力、故事舞台和关键张力。
           </div>
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
             <label className="space-y-1 text-sm">

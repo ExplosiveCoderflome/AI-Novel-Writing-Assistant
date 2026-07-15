@@ -103,15 +103,13 @@ export function useNovelWorldSlice({
 
   const generateNovelWorldMutation = useMutation({
     mutationFn: (payload: NovelWorldGenerateInput) => generateNovelWorldFromTheme(novelId, payload),
-    onSuccess: async (_response, payload) => {
-      setWorldSliceMessage("已根据本书主题生成世界，后续会按这套世界整理可用设定。");
+    onSuccess: async () => {
+      setWorldSliceMessage("已根据本书主题生成世界，并保存到世界库供后续复用。");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
-        payload.saveToLibrary
-          ? queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all })
-          : Promise.resolve(),
+        queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all }),
       ]);
     },
   });
@@ -119,11 +117,12 @@ export function useNovelWorldSlice({
   const createManualNovelWorldMutation = useMutation({
     mutationFn: (payload: NovelWorldManualInput) => createManualNovelWorld(novelId, payload),
     onSuccess: async () => {
-      setWorldSliceMessage("本书自定义世界创建完成，可以继续补充规则、势力和故事舞台。");
+      setWorldSliceMessage("本书自定义世界已创建并保存到世界库，可以继续补充规则、势力和故事舞台。");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all }),
       ]);
     },
   });

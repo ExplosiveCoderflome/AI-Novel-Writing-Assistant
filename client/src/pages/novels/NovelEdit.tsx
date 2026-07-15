@@ -564,7 +564,7 @@ export default function NovelEdit() {
     () => basicForm.title.trim() || novelDetailQuery.data?.data?.title?.trim() || id,
     [basicForm.title, novelDetailQuery.data?.data?.title, id],
   );
-  const currentExportScope = isNovelWorkspaceFlowTab(activeTab) ? activeTab : null;
+  const currentExportScope = isNovelWorkspaceFlowTab(activeTab) && activeTab !== "world" ? activeTab : null;
   const importedBaseCharacterIds = useMemo(
     () => new Set(
       characters
@@ -2390,7 +2390,7 @@ export default function NovelEdit() {
   });
 
   const renderTakeoverEntry = (
-    step: "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline",
+    step: "basic" | "story_macro" | "world" | "character" | "outline" | "structured" | "chapter" | "pipeline",
     variant: "default" | "outline" | "secondary" = "default",
   ) => {
     const takeoverContextTaskId = resolveTakeoverDialogContextTaskId({

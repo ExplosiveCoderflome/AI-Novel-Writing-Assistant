@@ -403,6 +403,10 @@ export class NovelWorldInstanceService {
 
   async generateFromNovelTheme(input: {
     novelId: string;
+    /**
+     * Kept for request compatibility. A world generated inside a novel is
+     * always created in the world library and bound back to the novel.
+     */
     saveToLibrary?: boolean;
     provider?: LLMProvider;
     model?: string;
@@ -497,7 +501,7 @@ export class NovelWorldInstanceService {
       provider: result.meta.provider ?? input.provider ?? "deepseek",
       model: result.meta.model ?? input.model ?? null,
       temperature: input.temperature ?? 0.5,
-      saveToLibrary: input.saveToLibrary === true,
+      saveToLibrary: true,
     });
     const generatedFromThemeJson = JSON.stringify({
       novelTitle: novel.title,
@@ -514,38 +518,34 @@ export class NovelWorldInstanceService {
     });
 
     await prisma.$transaction(async (tx) => {
-      let sourceWorldId: string | null = null;
-      let savedToLibraryAt: Date | null = null;
-      if (input.saveToLibrary) {
-        const world = await tx.world.create({
-          data: {
-            name: title,
-            description: (structuredFields.description as string | null | undefined) ?? coverSummary,
-            worldType,
-            templateKey: "custom",
-            axioms: structuredFields.axioms as string | null | undefined,
-            geography: structuredFields.geography as string | null | undefined,
-            politics: structuredFields.politics as string | null | undefined,
-            conflicts: structuredFields.conflicts as string | null | undefined,
-            factions: structuredFields.factions as string | null | undefined,
-            status: "draft",
-            layerStates: JSON.stringify(normalizeLayerStates(undefined)),
-            overviewSummary: (structuredFields.overviewSummary as string | null | undefined) ?? coverSummary,
-            structureJson: structuredDataJson,
-            bindingSupportJson: bindingContractJson,
-            structureSchemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
-          },
-        });
-        sourceWorldId = world.id;
-        savedToLibraryAt = new Date();
-        await tx.worldSnapshot.create({
-          data: {
-            worldId: world.id,
-            label: "novel-theme-generated",
-            data: JSON.stringify(world),
-          },
-        });
-      }
+      const world = await tx.world.create({
+        data: {
+          name: title,
+          description: (structuredFields.description as string | null | undefined) ?? coverSummary,
+          worldType,
+          templateKey: "custom",
+          axioms: structuredFields.axioms as string | null | undefined,
+          geography: structuredFields.geography as string | null | undefined,
+          politics: structuredFields.politics as string | null | undefined,
+          conflicts: structuredFields.conflicts as string | null | undefined,
+          factions: structuredFields.factions as string | null | undefined,
+          status: "draft",
+          layerStates: JSON.stringify(normalizeLayerStates(undefined)),
+          overviewSummary: (structuredFields.overviewSummary as string | null | undefined) ?? coverSummary,
+          structureJson: structuredDataJson,
+          bindingSupportJson: bindingContractJson,
+          structureSchemaVersion: WORLD_STRUCTURE_SCHEMA_VERSION,
+        },
+      });
+      const sourceWorldId = world.id;
+      const savedToLibraryAt = new Date();
+      await tx.worldSnapshot.create({
+        data: {
+          worldId: world.id,
+          label: "novel-theme-generated",
+          data: JSON.stringify(world),
+        },
+      });
 
       await tx.novel.update({
         where: { id: input.novelId },
@@ -593,9 +593,9 @@ export class NovelWorldInstanceService {
           ${1},
           ${null},
           ${null},
-          ${input.saveToLibrary === true},
-          ${input.saveToLibrary ? "bidirectional" : "none"},
-          ${input.saveToLibrary ? 1 : null},
+          ${true},
+          ${"bidirectional"},
+          ${1},
           ${generationPolicyJson},
           ${generatedFromThemeJson},
           ${savedToLibraryAt},
