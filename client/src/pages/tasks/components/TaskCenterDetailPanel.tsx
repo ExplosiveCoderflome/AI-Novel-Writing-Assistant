@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { WorkspaceStateNotice, type WorkspaceTone } from "@/components/workspace";
 import TaskCenterDetailSummary from "./TaskCenterDetailSummary";
 import TaskCenterMilestoneHistory from "./TaskCenterMilestoneHistory";
+import TaskCenterLlmLiveFeed from "./TaskCenterLlmLiveFeed";
 
 export interface TaskCenterActionSpec {
   key: string;
@@ -80,6 +81,8 @@ export default function TaskCenterDetailPanel(props: TaskCenterDetailPanelProps)
               currentModelLabel={props.currentModelLabel}
               dashboardView={props.dashboardView}
             />
+
+            <TaskCenterLlmLiveFeed task={task} />
 
             {task.noticeCode || task.noticeSummary ? (
               <TaskQueueImpactNotice

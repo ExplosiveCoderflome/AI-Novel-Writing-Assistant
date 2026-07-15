@@ -44,6 +44,7 @@ export interface StructuredInvokeRawParseInput<T> {
   label: string;
   maxRepairAttempts?: number;
   promptMeta?: PromptInvocationMeta;
+  onRepairOutputDelta?: (content: string) => void;
   strategy: StructuredOutputStrategy;
   profile: StructuredOutputProfile;
   fallbackAvailable?: boolean;
