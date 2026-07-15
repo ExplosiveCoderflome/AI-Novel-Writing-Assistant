@@ -1,7 +1,7 @@
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -279,12 +279,21 @@ function ProjectCard({
 
 // ─── Wizard ───────────────────────────────────────────────────────────────────
 
-function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
-  const [step, setStep] = useState(0);
+interface CreateWizardProps {
+  onCreated: (id: string) => void;
+  defaultValues?: {
+    title?: string;
+    sourceType?: ComicSourceType;
+    sourceRef?: string;
+  };
+}
+
+function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
+  const [step, setStep] = useState(defaultValues?.sourceType ? 1 : 0);
   const [form, setForm] = useState({
-    title: "",
-    sourceType: "original" as ComicSourceType,
-    sourceRef: "",
+    title: defaultValues?.title ?? "",
+    sourceType: defaultValues?.sourceType ?? ("original" as ComicSourceType),
+    sourceRef: defaultValues?.sourceRef ?? "",
     inspiration: "",
     rawText: "",
     format: "webtoon",
@@ -508,8 +517,32 @@ function CreateWizard({ onCreated }: { onCreated: (id: string) => void }) {
 export default function ComicWorkspacePage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [showWizard, setShowWizard] = useState(false);
   const [busyId, setBusyId] = useState("");
+
+  const querySourceType = searchParams.get("sourceType") as ComicSourceType | null;
+  const querySourceRef = searchParams.get("sourceRef");
+  const queryNovelTitle = searchParams.get("novelTitle");
+
+  const [defaultWizardValues, setDefaultWizardValues] = useState<{
+    title?: string;
+    sourceType?: ComicSourceType;
+    sourceRef?: string;
+  } | undefined>(undefined);
+
+  // Automatically trigger wizard if routed with parameters
+  useEffect(() => {
+    if (querySourceType === "novel_import" && querySourceRef) {
+      const decodedTitle = queryNovelTitle ? decodeURIComponent(queryNovelTitle) : "";
+      setDefaultWizardValues({
+        title: decodedTitle ? `${decodedTitle}（漫画改编）` : "漫画改编项目",
+        sourceType: "novel_import",
+        sourceRef: querySourceRef,
+      });
+      setShowWizard(true);
+    }
+  }, [querySourceType, querySourceRef, queryNovelTitle]);
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["comic", "projects"],
@@ -548,6 +581,7 @@ export default function ComicWorkspacePage() {
 
       {showWizard && (
         <CreateWizard
+          defaultValues={defaultWizardValues}
           onCreated={(id) => {
             setShowWizard(false);
             queryClient.invalidateQueries({ queryKey: ["comic", "projects"] });

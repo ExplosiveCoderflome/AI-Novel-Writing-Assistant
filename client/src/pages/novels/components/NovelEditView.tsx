@@ -2,7 +2,8 @@ import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, RotateCcw } from "lucide-react";
+import { Loader2, RotateCcw, FileImage } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useIsMobileViewport } from "@/components/layout/mobile/useIsMobileViewport";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -210,6 +211,13 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
                 </Button>
               ) : activeStepTakeoverEntry
             ) : null}
+
+            <Button variant="outline" asChild>
+              <Link to={`/comic?sourceType=novel_import&sourceRef=${id}&novelTitle=${encodeURIComponent(novelTitle)}`}>
+                <FileImage className="mr-1.5 h-4 w-4 text-primary" />
+                改编漫画
+              </Link>
+            </Button>
 
             <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
               <DialogTrigger asChild>

@@ -167,6 +167,8 @@ export interface ComicPanelScriptPromptInput {
   /** 用户本次补充的分格要求，只能影响表达偏好，不得覆盖结构化输出规则 */
   scriptPromptInstruction?: string;
   targetPanelCount?: number;
+  /** 对应原小说的世界设定（势力、法则、地理） */
+  worldNotes?: string;
 }
 
 export const comicPanelScriptPrompt: PromptAsset<
@@ -264,7 +266,7 @@ ${input.sourceText ? `## 本话原文（对白来源）\n${input.sourceText.slic
 ## 出场角色
 ${characterList}
 
-${assetSection ? `## 角色可用资产（服装/武器/道具等）\n按剧情需要在 characterRefs 中引用：costume 填服装名，props 填道具/武器名列表\n${assetSection}\n` : ""}${existingSceneSection ? `## 项目已有场景（同地点请沿用同名，不要新建近义名）\n${existingSceneSection}\n` : ""}${input.factDigest ? `## 跨话一致性事实（请严格遵守）\n${input.factDigest}\n` : ""}
+${assetSection ? `## 角色可用资产（服装/武器/道具等）\n按剧情需要在 characterRefs 中引用：costume 填服装名，props 填道具/武器名列表\n${assetSection}\n` : ""}${existingSceneSection ? `## 项目已有场景（同地点请沿用同名，不要新建近义名）\n${existingSceneSection}\n` : ""}${input.factDigest ? `## 跨话一致性事实（请严格遵守）\n${input.factDigest}\n` : ""}${input.worldNotes ? `## 世界观与背景设定（请严格遵守其地理、法则、阵营等规则）\n${input.worldNotes}\n` : ""}
 ${input.scriptPromptInstruction ? `## 本次分格补充要求\n${input.scriptPromptInstruction}\n` : ""}
 ## 任务
 先识别本话场景 scenes（≤8 个），再生成约 ${panelTarget} 格的完整分格脚本，返回 { scenes, panels }。
