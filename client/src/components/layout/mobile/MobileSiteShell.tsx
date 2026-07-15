@@ -16,6 +16,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import AppVersionBadge from "../AppVersionBadge";
 import DesktopBrandMark from "../DesktopBrandMark";
 import ProjectGithubLink from "../ProjectGithubLink";
+import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import { Button } from "@/components/ui/button";
 import { VisualAssetLibraryDialog } from "@/components/visualAssets";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,7 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
             <ProjectGithubLink />
           </div>
           <div className="flex items-center gap-2">
+            <LiveExecutionDialog compact className="h-8 w-8 px-0" />
             <Button asChild size="sm" className="h-8 px-3">
               <Link to="/novels/auto-director" onClick={() => setMoreOpen(false)}>
                 <Plus className="h-3.5 w-3.5" />

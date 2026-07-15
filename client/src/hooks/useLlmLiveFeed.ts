@@ -84,7 +84,7 @@ export function useLlmLiveFeed(input: {
 
   useEffect(() => {
     const taskId = input.taskId?.trim();
-    if (!taskId || input.enabled === false) {
+    if (input.enabled === false) {
       setSessionsById({});
       setConnected(false);
       return;
@@ -132,8 +132,11 @@ export function useLlmLiveFeed(input: {
 
     const connect = async () => {
       try {
+        const streamUrl = taskId
+          ? API_BASE_URL + "/llm-live/stream?taskId=" + encodeURIComponent(taskId)
+          : API_BASE_URL + "/llm-live/stream";
         const response = await fetch(
-          API_BASE_URL + "/llm-live/stream?taskId=" + encodeURIComponent(taskId),
+          streamUrl,
           { signal: controller.signal },
         );
         if (!response.ok || !response.body) {

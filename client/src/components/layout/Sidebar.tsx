@@ -59,7 +59,7 @@ const navGroups: NavGroup[] = [
       { to: "/comic", label: "漫画工作台", icon: SquareStack },
       { to: "/creative-hub", label: "创作中枢", icon: LayoutDashboard },
       { to: "/book-analysis", label: "拆书", icon: ScanSearch },
-      { to: "/tasks", label: "任务中心", icon: ListTodo },
+      { to: "/tasks", label: "运行记录", icon: ListTodo },
       { to: "/auto-director/follow-ups", label: "导演跟进", icon: Workflow },
     ],
   },
@@ -129,7 +129,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     },
   });
 
-  const runningTaskCount = taskQuery.data?.data?.runningCount ?? 0;
   const failedTaskCount = taskQuery.data?.data?.failedCount ?? 0;
   const autoDirectorFollowUpCount = autoDirectorFollowUpQuery.data?.data?.totalCount ?? 0;
   const knowledgeDocuments = knowledgeQuery.data?.data ?? [];
@@ -152,27 +151,17 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     }
 
     if (to === "/tasks") {
-      if (runningTaskCount <= 0 && failedTaskCount <= 0) {
+      if (failedTaskCount <= 0) {
         return null;
       }
       return (
         <div className={cn("flex items-center gap-1", collapsed ? "absolute right-1 top-1" : "ml-auto")}>
-          {runningTaskCount > 0 ? (
-            <Badge
-              variant="secondary"
-              className={cn("h-5 px-1.5 text-[10px]", collapsed && "h-4 min-w-4 px-1 text-[9px]")}
-            >
-              {collapsed ? runningTaskCount : `R${runningTaskCount}`}
-            </Badge>
-          ) : null}
-          {failedTaskCount > 0 ? (
-            <Badge
-              variant="destructive"
-              className={cn("h-5 px-1.5 text-[10px]", collapsed && "h-4 min-w-4 px-1 text-[9px]")}
-            >
-              {collapsed ? failedTaskCount : `F${failedTaskCount}`}
-            </Badge>
-          ) : null}
+          <Badge
+            variant="destructive"
+            className={cn("h-5 px-1.5 text-[10px]", collapsed && "h-4 min-w-4 px-1 text-[9px]")}
+          >
+            {collapsed ? failedTaskCount : `F${failedTaskCount}`}
+          </Badge>
         </div>
       );
     }
