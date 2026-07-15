@@ -1,10 +1,9 @@
-import { useMemo, useState } from "react";
-import { Activity, Radio } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { GripHorizontal, Radio, X } from "lucide-react";
 import { useLlmLiveFeed } from "@/hooks/useLlmLiveFeed";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AppDialogContent, Dialog } from "@/components/ui/dialog";
-import { WorkspaceStateNotice } from "@/components/workspace";
 import { cn } from "@/lib/utils";
 
 function phaseLabel(phase: string): string {
@@ -29,12 +28,45 @@ function isActive(phase: string): boolean {
 
 export default function LiveExecutionDialog(props: { compact?: boolean; className?: string }) {
   const [open, setOpen] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [followingLatest, setFollowingLatest] = useState(true);
+  const logRef = useRef<HTMLDivElement | null>(null);
+  const dragStartRef = useRef<{ pointerX: number; pointerY: number; offsetX: number; offsetY: number } | null>(null);
+  const followLatestRef = useRef(true);
   const { connected, sessions } = useLlmLiveFeed({ enabled: true });
   const orderedSessions = useMemo(
     () => [...sessions].sort((left, right) => Number(isActive(right.phase)) - Number(isActive(left.phase))),
     [sessions],
   );
   const activeCount = sessions.filter((session) => isActive(session.phase)).length;
+  const logText = useMemo(() => orderedSessions.map((session) => [
+    `[${phaseLabel(session.phase)}] ${session.context.label}`,
+    `${session.phaseMessage} · 已返回 ${session.totalChars.toLocaleString()} 个字符`,
+    session.preview || "等待模型开始返回内容…",
+  ].join("\n")).join("\n\n"), [orderedSessions]);
+
+  useEffect(() => {
+    if (!open || !followLatestRef.current || !logRef.current) {
+      return;
+    }
+    logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [logText, open]);
+
+  const scrollToLatest = () => {
+    followLatestRef.current = true;
+    setFollowingLatest(true);
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      followLatestRef.current = true;
+      setFollowingLatest(true);
+    }
+    setOpen(nextOpen);
+  };
 
   return (
     <>
@@ -43,7 +75,7 @@ export default function LiveExecutionDialog(props: { compact?: boolean; classNam
         size="sm"
         variant="outline"
         className={cn("relative", props.className)}
-        onClick={() => setOpen(true)}
+        onClick={() => handleOpenChange(true)}
         title="查看 AI 创作实况"
       >
         <Radio className={activeCount > 0 ? "mr-1.5 h-3.5 w-3.5 animate-pulse text-primary" : "mr-1.5 h-3.5 w-3.5"} aria-hidden="true" />
@@ -55,41 +87,85 @@ export default function LiveExecutionDialog(props: { compact?: boolean; classNam
         ) : null}
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <AppDialogContent
-          title="AI 创作实况"
-          description="这里显示正在生成、检查或修复的内容。预览仅帮助你了解进度，正式内容会在检查完成后再保存。"
-          className="max-w-4xl"
-          bodyClassName="space-y-3"
-        >
-          {orderedSessions.length === 0 ? (
-            <WorkspaceStateNotice
-              icon={Activity}
-              title="暂时没有正在展示的 AI 生成"
-              description={connected ? "发起规划、写作或修复后，返回内容会自动出现在这里。" : "正在连接 AI 实况服务，稍后会自动显示新的生成过程。"}
-            />
-          ) : (
-            orderedSessions.map((session) => (
-              <section key={session.context.interactionId} className="rounded-lg border border-border/70 bg-muted/20 p-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-medium">{session.context.label}</div>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {session.phaseMessage} · 已返回 {session.totalChars.toLocaleString()} 个字符
-                    </p>
-                  </div>
-                  <Badge variant={isActive(session.phase) ? "default" : "outline"}>{phaseLabel(session.phase)}</Badge>
+      <DialogPrimitive.Root modal={false} open={open} onOpenChange={handleOpenChange}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Content
+            className="fixed right-4 top-20 z-[70] flex max-h-[min(42rem,calc(100dvh-6rem))] w-[min(42rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl border bg-background shadow-2xl outline-none"
+            style={{ transform: `translate(${dragOffset.x}px, ${dragOffset.y}px)` }}
+            aria-describedby="live-execution-description"
+          >
+            <header
+              className="flex shrink-0 touch-none items-start gap-3 border-b bg-muted/35 px-3 py-3 select-none"
+              onPointerDown={(event) => {
+                if (event.button !== 0) return;
+                dragStartRef.current = {
+                  pointerX: event.clientX,
+                  pointerY: event.clientY,
+                  offsetX: dragOffset.x,
+                  offsetY: dragOffset.y,
+                };
+                event.currentTarget.setPointerCapture(event.pointerId);
+              }}
+              onPointerMove={(event) => {
+                const start = dragStartRef.current;
+                if (!start) return;
+                setDragOffset({
+                  x: start.offsetX + event.clientX - start.pointerX,
+                  y: start.offsetY + event.clientY - start.pointerY,
+                });
+              }}
+              onPointerUp={() => {
+                dragStartRef.current = null;
+              }}
+              onPointerCancel={() => {
+                dragStartRef.current = null;
+              }}
+            >
+              <GripHorizontal className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <DialogPrimitive.Title className="text-sm font-semibold">AI 创作实况</DialogPrimitive.Title>
+                <DialogPrimitive.Description id="live-execution-description" className="mt-1 text-xs leading-5 text-muted-foreground">
+                  这是一份生成过程日志。拖动标题栏可移动窗口；查看旧内容时不会被新输出打断。
+                </DialogPrimitive.Description>
+              </div>
+              <Badge variant={activeCount > 0 ? "default" : "outline"} className="shrink-0">
+                {activeCount > 0 ? `${activeCount} 项进行中` : connected ? "等待生成" : "正在连接"}
+              </Badge>
+              <DialogPrimitive.Close asChild>
+                <Button type="button" variant="ghost" size="icon" className="-mr-1 -mt-1 h-8 w-8 shrink-0" aria-label="关闭 AI 创作实况">
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogPrimitive.Close>
+            </header>
+
+            <div
+              ref={logRef}
+              className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(to_bottom,hsl(var(--background)),hsl(var(--muted)/0.22))] px-4 py-3 font-mono text-xs leading-6"
+              onScroll={(event) => {
+                const element = event.currentTarget;
+                const shouldFollow = element.scrollHeight - element.scrollTop - element.clientHeight < 32;
+                followLatestRef.current = shouldFollow;
+                setFollowingLatest(shouldFollow);
+              }}
+            >
+              {logText ? (
+                <pre className="m-0 whitespace-pre-wrap break-words text-foreground">{logText}</pre>
+              ) : (
+                <div className="text-muted-foreground">
+                  {connected ? "等待新的 AI 生成开始…" : "正在连接 AI 实况服务…"}
                 </div>
-                {session.preview ? (
-                  <div className="mt-3 max-h-64 overflow-y-auto rounded-md border border-border/60 bg-background/80 p-3 text-xs leading-6 whitespace-pre-wrap">
-                    {session.preview}
-                  </div>
-                ) : null}
-              </section>
-            ))
-          )}
-        </AppDialogContent>
-      </Dialog>
+              )}
+            </div>
+
+            <footer className="flex shrink-0 items-center justify-between gap-3 border-t bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+              <span>{followingLatest ? "正在跟随最新输出" : "已停留在当前阅读位置"}</span>
+              <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={scrollToLatest}>
+                回到最新输出
+              </Button>
+            </footer>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
     </>
   );
 }
