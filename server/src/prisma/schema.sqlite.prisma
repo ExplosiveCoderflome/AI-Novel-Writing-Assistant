@@ -408,6 +408,10 @@ model Novel {
   novelWorld         NovelWorld?
   factEntries        NovelFactEntry[]
   videoProjects      VideoProject[]
+  sandboxBranches    SandboxBranch[]
+  sandboxSnapshots   SandboxSnapshot[]
+  sandboxChronologies SandboxChronology[]
+  customRelationBonds CharacterRelationBond[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -651,6 +655,9 @@ model Character {
   fromResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventFromHolder")
   toResourceEvents CharacterResourceEvent[] @relation("CharacterResourceEventToHolder")
   syncProposals   CharacterSyncProposal[]
+  customPropertiesJson String? @default("{}")
+  outgoingRelationBonds CharacterRelationBond[] @relation("CharacterRelationBondSource")
+  incomingRelationBonds CharacterRelationBond[] @relation("CharacterRelationBondTarget")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -1162,6 +1169,10 @@ model World {
   libraryItems       WorldPropertyLibrary[]
   novelWorlds        NovelWorld[]
   assets             WorldAsset[]
+  locations          Location[]
+  customPropertySchemas WorldCustomPropertySchema[]
+  customRelationSchemas WorldCustomRelationSchema[]
+  customConflictSchemas WorldCustomConflictSchema[]
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 }
@@ -3638,4 +3649,143 @@ model VideoProject {
 
   @@index([novelId, status])
   @@index([status, updatedAt])
+}
+
+// -------------------------------------------------------------
+// World Sandbox Simulator Models
+// -------------------------------------------------------------
+
+model Location {
+  id                  String              @id @default(cuid())
+  worldId             String
+  name                String
+  latitude            Float
+  longitude           Float
+  elevation           Float
+  biomeType           String
+  terrainType         String
+  hasRiver            Boolean             @default(false)
+  soilMoistureBase    Float               @default(0.3)
+  world               World               @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  sandboxChronologies SandboxChronology[]
+
+  @@index([worldId])
+}
+
+model WorldCustomPropertySchema {
+  id            String   @id @default(cuid())
+  worldId       String
+  targetType    String
+  propertyName  String
+  propertyLabel String
+  dataType      String
+  typeMetadata  String?
+  description   String?
+  defaultValue  String?
+  aiGuidance    String?
+  world         World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([worldId, targetType, propertyName])
+  @@index([worldId])
+}
+
+model WorldCustomRelationSchema {
+  id              String   @id @default(cuid())
+  worldId         String
+  bondType        String
+  bondLabel       String
+  description     String?
+  defaultLeverage Float    @default(1.0)
+  aiGuidance      String?
+  world           World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([worldId, bondType])
+  @@index([worldId])
+}
+
+model WorldCustomConflictSchema {
+  id              String   @id @default(cuid())
+  worldId         String
+  conflictType    String
+  conflictLabel   String
+  arbitrationRule String
+  climaxCriteria  String
+  world           World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([worldId, conflictType])
+  @@index([worldId])
+}
+
+model SandboxBranch {
+  id              String             @id @default(cuid())
+  novelId         String
+  name            String
+  parentBranchId  String?
+  parentForkTick  Int?
+  isMain          Boolean            @default(false)
+  novel           Novel              @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  snapshots       SandboxSnapshot[]
+  chronologies    SandboxChronology[]
+  createdAt       DateTime           @default(now())
+
+  @@index([novelId])
+  @@index([parentBranchId])
+}
+
+model SandboxSnapshot {
+  id                  String             @id @default(cuid())
+  novelId             String
+  branchId            String
+  tickIndex           Int
+  timeLabel           String?
+  stateJson           String
+  ecologicalStateJson String?
+  branch              SandboxBranch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  novel               Novel              @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt           DateTime           @default(now())
+
+  @@unique([branchId, tickIndex])
+  @@index([novelId, branchId])
+}
+
+model SandboxChronology {
+  id                String             @id @default(cuid())
+  novelId           String
+  branchId          String
+  tickIndex         Int
+  locationId        String
+  title             String
+  summary           String
+  observableDetails String
+  hiddenTruth       String?
+  branch            SandboxBranch      @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  novel             Novel              @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  location          Location           @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  createdAt         DateTime           @default(now())
+
+  @@index([novelId, branchId, tickIndex])
+  @@index([novelId, locationId])
+}
+
+model CharacterRelationBond {
+  id                String    @id @default(cuid())
+  novelId           String
+  sourceCharacterId String
+  targetCharacterId String
+  bondType          String
+  description       String
+  leverageWeight    Float     @default(1.0)
+  expiryTick        Int?
+  novel             Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  sourceCharacter   Character @relation("CharacterRelationBondSource", fields: [sourceCharacterId], references: [id], onDelete: Cascade)
+  targetCharacter   Character @relation("CharacterRelationBondTarget", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  createdAt         DateTime  @default(now())
+
+  @@index([novelId])
+  @@index([sourceCharacterId])
+  @@index([targetCharacterId])
 }

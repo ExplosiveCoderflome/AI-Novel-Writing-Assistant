@@ -51,6 +51,7 @@ import WorldHandbookEditor from "./components/workspace/WorldHandbookEditor";
 import WorldLayersTab from "./components/workspace/WorldLayersTab";
 import WorldOverviewTab from "./components/workspace/WorldOverviewTab";
 import WorldStructureTab from "./components/workspace/WorldStructureTab";
+import WorldSandboxTab from "./components/workspace/WorldSandboxTab";
 import {
   LAYERS,
   parseLayerStates,
@@ -338,6 +339,7 @@ export default function WorldWorkspace() {
           <TabsTrigger value="deepening">{t("gen.pages.worlds.WorldWorkspace.gen_7e7f0b6b")}</TabsTrigger>
           <TabsTrigger value="consistency">{t("gen.pages.worlds.WorldWorkspace.gen_01a3a187")}</TabsTrigger>
           <TabsTrigger value="assets">{t("gen.pages.worlds.WorldWorkspace.gen_e63dc6c9")}</TabsTrigger>
+          <TabsTrigger value="sandbox">世界沙盒模拟</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -558,6 +560,10 @@ export default function WorldWorkspace() {
             onExport={handleExport}
             onImport={() => importMutation.mutate()}
           />
+        </TabsContent>
+
+        <TabsContent value="sandbox">
+          <WorldSandboxTab worldId={id} />
         </TabsContent>
       </Tabs>
     </div>
