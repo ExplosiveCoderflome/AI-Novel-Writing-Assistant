@@ -16,6 +16,7 @@ const stageSchema = z.enum([
   "project_setup",
   "auto_director",
   "story_macro",
+  "world_setup",
   "character_setup",
   "volume_strategy",
   "structured_outline",

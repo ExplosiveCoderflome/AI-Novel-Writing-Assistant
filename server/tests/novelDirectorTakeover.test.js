@@ -21,6 +21,7 @@ function buildSnapshot(overrides = {}) {
   return {
     hasStoryMacroPlan: true,
     hasBookContract: true,
+    hasWorldSetupPrepared: true,
     characterCount: 5,
     chapterCount: 12,
     volumeCount: 2,
@@ -86,6 +87,7 @@ function buildSceneCards(chapterId, targetWordCount = 2800) {
 test("takeover phase and entry-step mappings cover every declared enum value", () => {
   const phaseMapping = {
     story_macro: "story_macro",
+    world_setup: "world",
     character_setup: "character",
     volume_strategy: "outline",
     structured_outline: "structured",
@@ -98,6 +100,7 @@ test("takeover phase and entry-step mappings cover every declared enum value", (
   const legacyStartPhaseMapping = {
     basic: "story_macro",
     story_macro: "story_macro",
+    world: "world_setup",
     character: "character_setup",
     outline: "volume_strategy",
     structured: "structured_outline",
@@ -107,6 +110,7 @@ test("takeover phase and entry-step mappings cover every declared enum value", (
   const workflowStageMapping = {
     basic: "story_macro",
     story_macro: "story_macro",
+    world: "world_setup",
     character: "character_setup",
     outline: "volume_strategy",
     structured: "structured_outline",
@@ -161,7 +165,7 @@ test("continue_existing from basic prefers repair continuation when pending fixe
   assert.equal(plan.effectiveStep, "pipeline");
   assert.equal(plan.effectiveStage, "quality_repair");
   assert.equal(plan.usesCurrentBatch, true);
-  assert.deepEqual(plan.skipSteps, ["basic", "story_macro", "character", "outline", "structured", "chapter"]);
+  assert.deepEqual(plan.skipSteps, ["basic", "story_macro", "world", "character", "outline", "structured", "chapter"]);
 });
 
 test("continue_existing routes back to structured outline when target range still has unprepared chapters", () => {
@@ -231,19 +235,38 @@ test("chapter sync structured outline is accepted by takeover validation readine
   }), false);
 });
 
-test("continue_existing from story macro only fills missing character step", () => {
+test("continue_existing from story macro enters world setup before missing character preparation", () => {
   const plan = resolveDirectorTakeoverPlan({
     entryStep: "story_macro",
     strategy: "continue_existing",
-    snapshot: buildSnapshot({ characterCount: 0 }),
+    snapshot: buildSnapshot({ hasWorldSetupPrepared: false, characterCount: 0 }),
     latestCheckpoint: null,
     executableRange: null,
   });
 
   assert.equal(plan.executionMode, "phase");
-  assert.equal(plan.effectiveStep, "character");
-  assert.equal(plan.effectiveStage, "character_setup");
-  assert.equal(plan.startPhase, "character_setup");
+  assert.equal(plan.effectiveStep, "world");
+  assert.equal(plan.effectiveStage, "world_setup");
+  assert.equal(plan.startPhase, "world_setup");
+});
+
+test("legacy character-stage task without a bound world resumes world setup first", () => {
+  const plan = resolveDirectorTakeoverPlan({
+    entryStep: "character",
+    strategy: "continue_existing",
+    snapshot: buildSnapshot({ hasWorldSetupPrepared: false, characterCount: 0 }),
+  });
+
+  assert.equal(plan.effectiveStep, "world");
+  assert.equal(plan.startPhase, "world_setup");
+
+  const basicPlan = resolveDirectorTakeoverPlan({
+    entryStep: "basic",
+    strategy: "continue_existing",
+    snapshot: buildSnapshot({ hasWorldSetupPrepared: false, characterCount: 0 }),
+  });
+  assert.equal(basicPlan.effectiveStep, "world");
+  assert.equal(basicPlan.startPhase, "world_setup");
 });
 
 test("continue_existing from structured ignores stale chapter_range checkpoint when the target range is not fully detailed", () => {

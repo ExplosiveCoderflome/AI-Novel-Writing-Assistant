@@ -132,9 +132,10 @@ export interface AutoDirectorFollowUpSectionInput {
 export const AUTO_DIRECTOR_TAKEOVER_ENTRY_ORDER: Record<DirectorTakeoverEntryStep, number> = {
   basic: 1,
   story_macro: 2,
-  character: 3,
-  outline: 4,
-  structured: 5,
-  chapter: 6,
-  pipeline: 7,
+  world: 3,
+  character: 4,
+  outline: 5,
+  structured: 6,
+  chapter: 7,
+  pipeline: 8,
 };

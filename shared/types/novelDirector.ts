@@ -310,6 +310,7 @@ export interface DirectorQualityRepairRisk {
 
 export const DIRECTOR_TAKEOVER_START_PHASES = [
   "story_macro",
+  "world_setup",
   "character_setup",
   "volume_strategy",
   "structured_outline",
@@ -320,6 +321,7 @@ export type DirectorTakeoverStartPhase = typeof DIRECTOR_TAKEOVER_START_PHASES[n
 export const DIRECTOR_TAKEOVER_ENTRY_STEPS = [
   "basic",
   "story_macro",
+  "world",
   "character",
   "outline",
   "structured",
@@ -339,6 +341,7 @@ export type DirectorTakeoverStrategy = typeof DIRECTOR_TAKEOVER_STRATEGIES[numbe
 export const DIRECTOR_LOCK_SCOPES = [
   "basic",
   "story_macro",
+  "world",
   "character",
   "outline",
   "structured",
@@ -355,6 +358,7 @@ export interface DirectorSessionState {
   phase:
     | "candidate_selection"
     | "story_macro"
+    | "world_setup"
     | "character_setup"
     | "volume_strategy"
     | "structured_outline"
@@ -512,6 +516,7 @@ export interface DirectorTakeoverReadinessResponse {
   snapshot: {
     hasStoryMacroPlan: boolean;
     hasBookContract: boolean;
+    hasWorldSetupPrepared: boolean;
     characterCount: number;
     chapterCount: number;
     volumeCount: number;

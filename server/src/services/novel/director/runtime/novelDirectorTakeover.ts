@@ -30,6 +30,7 @@ export interface DirectorTakeoverNovelContext extends Omit<DirectorProjectContex
 export interface DirectorTakeoverAssetSnapshot {
   hasStoryMacroPlan: boolean;
   hasBookContract: boolean;
+  hasWorldSetupPrepared: boolean;
   characterCount: number;
   chapterCount: number;
   plannedChapterCount?: number | null;
@@ -74,7 +75,7 @@ export interface DirectorTakeoverResolvedPlan {
   effectiveStep: DirectorTakeoverEntryStep;
   effectiveStage: NovelWorkflowStage;
   startPhase: DirectorTakeoverStartPhase;
-  resumeStage: "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline";
+  resumeStage: "basic" | "story_macro" | "world" | "character" | "outline" | "structured" | "chapter" | "pipeline";
   skipSteps: DirectorTakeoverEntryStep[];
   summary: string;
   effectSummary: string;
@@ -94,6 +95,10 @@ const DIRECTOR_TAKEOVER_STAGE_META: Record<
   story_macro: {
     label: "从故事宏观规划开始",
     description: "先补齐 Story Macro 和 Book Contract，再继续角色、卷战略和拆章。",
+  },
+  world_setup: {
+    label: "从世界观准备开始",
+    description: "沿用故事宏观规划，先完成本书世界观，再继续角色和后续规划。",
   },
   character_setup: {
     label: "从角色准备开始",
@@ -123,6 +128,10 @@ const TAKEOVER_ENTRY_META: Record<
   story_macro: {
     label: "故事宏观规划",
     description: "围绕 Story Macro 和 Book Contract 继续或重跑书级规划。",
+  },
+  world: {
+    label: "世界观准备",
+    description: "围绕本书世界规则、势力和约束继续或重跑当前步骤。",
   },
   character: {
     label: "角色准备",
@@ -350,6 +359,7 @@ function hasPendingRepairContext(input: {
 
 const TAKEOVER_PHASE_TO_ENTRY_STEP: Record<DirectorTakeoverStartPhase, DirectorTakeoverEntryStep> = {
   story_macro: "story_macro",
+  world_setup: "world",
   character_setup: "character",
   volume_strategy: "outline",
   structured_outline: "structured",
@@ -358,6 +368,7 @@ const TAKEOVER_PHASE_TO_ENTRY_STEP: Record<DirectorTakeoverStartPhase, DirectorT
 const TAKEOVER_ENTRY_STEP_TO_LEGACY_START_PHASE: Record<DirectorTakeoverEntryStep, DirectorTakeoverStartPhase> = {
   basic: "story_macro",
   story_macro: "story_macro",
+  world: "world_setup",
   character: "character_setup",
   outline: "volume_strategy",
   structured: "structured_outline",
@@ -368,6 +379,7 @@ const TAKEOVER_ENTRY_STEP_TO_LEGACY_START_PHASE: Record<DirectorTakeoverEntrySte
 const TAKEOVER_ENTRY_STEP_TO_WORKFLOW_STAGE: Record<DirectorTakeoverEntryStep, NovelWorkflowStage> = {
   basic: "story_macro",
   story_macro: "story_macro",
+  world: "world_setup",
   character: "character_setup",
   outline: "volume_strategy",
   structured: "structured_outline",
@@ -431,12 +443,14 @@ function resolveContinueTargetStep(input: {
   executableRange?: DirectorTakeoverExecutableRangeSnapshot | null;
 }): DirectorTakeoverEntryStep {
   const storyReady = isStoryMacroReady(input.snapshot);
+  const worldReady = input.snapshot.hasWorldSetupPrepared;
   const characterReady = isCharacterReady(input.snapshot);
   const outlineReady = isOutlineReady(input.snapshot);
   const structuredExecutionReady = hasExecutableRange(input);
 
   if (input.entryStep === "basic") {
     if (!storyReady) return "story_macro";
+    if (!worldReady) return "world";
     if (!characterReady) return "character";
     if (!outlineReady) return "outline";
     if (!structuredExecutionReady) return "structured";
@@ -447,9 +461,15 @@ function resolveContinueTargetStep(input: {
   }
   if (input.entryStep === "story_macro") {
     if (!storyReady) return "story_macro";
+    return resolveContinueTargetStep({ ...input, selectedEntryStep: input.selectedEntryStep ?? input.entryStep, entryStep: "world" });
+  }
+  if (input.entryStep === "world") {
+    if (!storyReady) return "story_macro";
+    if (!worldReady) return "world";
     return resolveContinueTargetStep({ ...input, selectedEntryStep: input.selectedEntryStep ?? input.entryStep, entryStep: "character" });
   }
   if (input.entryStep === "character") {
+    if (!worldReady) return "world";
     if (!characterReady) return "character";
     return resolveContinueTargetStep({ ...input, selectedEntryStep: input.selectedEntryStep ?? input.entryStep, entryStep: "outline" });
   }
@@ -480,7 +500,7 @@ function resolveContinueTargetStep(input: {
 function buildPhasePlan(input: {
   entryStep: DirectorTakeoverEntryStep;
   strategy: DirectorTakeoverStrategy;
-  effectiveStep: Extract<DirectorTakeoverEntryStep, "story_macro" | "character" | "outline" | "structured">;
+  effectiveStep: Extract<DirectorTakeoverEntryStep, "story_macro" | "world" | "character" | "outline" | "structured">;
   summary: string;
   effectSummary: string;
   impactNotes: string[];
@@ -538,6 +558,7 @@ function buildAutoExecutionPlan(input: {
 
 export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput): DirectorTakeoverResolvedPlan {
   const storyReady = isStoryMacroReady(input.snapshot);
+  const worldReady = input.snapshot.hasWorldSetupPrepared;
   const characterReady = isCharacterReady(input.snapshot);
   const outlineReady = isOutlineReady(input.snapshot);
   const executable = hasExecutableRange(input);
@@ -563,6 +584,16 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
         summary: "继续已有进度，接着补角色准备。",
         effectSummary: "会复用已完成的书级规划，只补角色阵容与角色应用。",
         impactNotes: ["不会重跑已存在的 Story Macro / Book Contract。"],
+      });
+    }
+    if (effectiveStep === "world") {
+      return buildPhasePlan({
+        entryStep: input.entryStep,
+        strategy: input.strategy,
+        effectiveStep,
+        summary: "继续已有进度，接着准备世界观。",
+        effectSummary: "会复用 Story Macro 与 Book Contract，生成或绑定本书使用的世界观资产。",
+        impactNotes: ["不会清空已有书级规划与正文。"],
       });
     }
     if (effectiveStep === "outline") {
@@ -622,9 +653,22 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
       impactNotes: ["会刷新当前书级规划资产。", "不会删除已写正文。"],
     });
   }
-  if (input.entryStep === "character") {
+  if (input.entryStep === "world") {
     if (!storyReady) {
-      throw new Error("当前缺少 Story Macro 或 Book Contract，不能直接从角色准备重跑。");
+      throw new Error("当前缺少 Story Macro 或 Book Contract，不能直接从世界观准备重跑。");
+    }
+    return buildPhasePlan({
+      entryStep: input.entryStep,
+      strategy: input.strategy,
+      effectiveStep: "world",
+      summary: "重新生成当前步，从世界观准备重跑。",
+      effectSummary: "会重新生成或替换本书世界观资产，再让后续角色准备使用新的世界约束。",
+      impactNotes: ["保留 Story Macro 与 Book Contract。", "不会删除已有正文。"],
+    });
+  }
+  if (input.entryStep === "character") {
+    if (!storyReady || !worldReady) {
+      throw new Error("当前缺少故事宏观规划或世界观资产，不能直接从角色准备重跑。");
     }
     return buildPhasePlan({
       entryStep: input.entryStep,
@@ -636,7 +680,7 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
     });
   }
   if (input.entryStep === "outline") {
-    if (!storyReady || !characterReady) {
+    if (!storyReady || !worldReady || !characterReady) {
       throw new Error("当前前置资产不足，不能直接从卷战略重跑。");
     }
     return buildPhasePlan({
@@ -649,7 +693,7 @@ export function resolveDirectorTakeoverPlan(input: DirectorTakeoverDecisionInput
     });
   }
   if (input.entryStep === "structured") {
-    if (!storyReady || !characterReady || !outlineReady) {
+    if (!storyReady || !worldReady || !characterReady || !outlineReady) {
       throw new Error("当前前置资产不足，不能直接从节奏 / 拆章重跑。");
     }
     return buildPhasePlan({
@@ -707,9 +751,32 @@ function buildCharacterSetupReadiness(
       reason: "跳过故事宏观规划前，需要先具备 Story Macro 与 Book Contract。",
     };
   }
+  if (!snapshot.hasWorldSetupPrepared) {
+    return {
+      available: false,
+      reason: "需要先完成世界观准备，才能直接从角色准备接管。",
+    };
+  }
   return {
     available: true,
-    reason: "书级规划已齐，可以从角色准备继续接管。",
+    reason: "书级规划与世界观资产已齐，可以从角色准备继续接管。",
+  };
+}
+
+function buildWorldSetupReadiness(
+  snapshot: DirectorTakeoverAssetSnapshot,
+): Pick<DirectorTakeoverStageReadiness, "available" | "reason"> {
+  if (!isStoryMacroReady(snapshot)) {
+    return {
+      available: false,
+      reason: "跳过故事宏观规划前，需要先具备 Story Macro 与 Book Contract。",
+    };
+  }
+  return {
+    available: true,
+    reason: snapshot.hasWorldSetupPrepared
+      ? "本书已绑定世界观，可以检查、完善或重新生成。"
+      : "书级规划已齐，可以准备本书世界观。",
   };
 }
 
@@ -720,6 +787,12 @@ function buildVolumeStrategyReadiness(
     return {
       available: false,
       reason: "跳过前置阶段前，需要先具备 Story Macro 与 Book Contract。",
+    };
+  }
+  if (!snapshot.hasWorldSetupPrepared) {
+    return {
+      available: false,
+      reason: "从卷战略开始前，需要先完成世界观准备。",
     };
   }
   if (!isCharacterReady(snapshot)) {
@@ -743,6 +816,12 @@ function buildStructuredOutlineReadiness(
       reason: "跳过前置阶段前，需要先具备 Story Macro 与 Book Contract。",
     };
   }
+  if (!snapshot.hasWorldSetupPrepared) {
+    return {
+      available: false,
+      reason: "从节奏 / 拆章开始前，需要先完成世界观准备。",
+    };
+  }
   if (!isCharacterReady(snapshot)) {
     return {
       available: false,
@@ -764,6 +843,9 @@ function buildStructuredOutlineReadiness(
 function resolveRecommendedTakeoverPhase(snapshot: DirectorTakeoverAssetSnapshot): DirectorTakeoverStartPhase {
   if (!isStoryMacroReady(snapshot)) {
     return "story_macro";
+  }
+  if (!snapshot.hasWorldSetupPrepared) {
+    return "world_setup";
   }
   if (!isCharacterReady(snapshot)) {
     return "character_setup";
@@ -830,16 +912,20 @@ function buildEntryStepStatus(input: {
     if (snapshot.hasStoryMacroPlan || snapshot.hasBookContract) return "partial";
     return "missing";
   }
-  if (input.step === "character") {
+  if (input.step === "world") {
     if (!isStoryMacroReady(snapshot)) return "blocked";
+    return snapshot.hasWorldSetupPrepared ? "complete" : "missing";
+  }
+  if (input.step === "character") {
+    if (!isStoryMacroReady(snapshot) || !snapshot.hasWorldSetupPrepared) return "blocked";
     return isCharacterReady(snapshot) ? "complete" : "missing";
   }
   if (input.step === "outline") {
-    if (!isStoryMacroReady(snapshot) || !isCharacterReady(snapshot)) return "blocked";
+    if (!isStoryMacroReady(snapshot) || !snapshot.hasWorldSetupPrepared || !isCharacterReady(snapshot)) return "blocked";
     return isOutlineReady(snapshot) ? "complete" : "missing";
   }
   if (input.step === "structured") {
-    if (!isStoryMacroReady(snapshot) || !isCharacterReady(snapshot) || !isOutlineReady(snapshot)) return "blocked";
+    if (!isStoryMacroReady(snapshot) || !snapshot.hasWorldSetupPrepared || !isCharacterReady(snapshot) || !isOutlineReady(snapshot)) return "blocked";
     if (snapshot.hasUnpreparedChaptersInRange) return "partial";
     if (hasExecutableRange(input)) return "complete";
     if (isStructuredSyncPending(snapshot)) return "partial";
@@ -881,9 +967,16 @@ function buildEntryReason(input: {
       ? "Story Macro 与 Book Contract 已具备，继续模式会自动推进到下一缺失步骤。"
       : "当前可以从故事宏观规划开始接管。";
   }
+  if (input.step === "world") {
+    return input.status === "blocked"
+      ? "需要先具备 Story Macro 与 Book Contract，才能直接从世界观准备接管。"
+      : input.status === "complete"
+        ? "世界观资产已具备，继续模式会自动推进到下一缺失步骤。"
+        : "当前可以从世界观准备继续。";
+  }
   if (input.step === "character") {
     return input.status === "blocked"
-      ? "需要先具备 Story Macro 与 Book Contract，才能直接从角色准备接管。"
+      ? "需要先具备故事宏观规划与世界观资产，才能直接从角色准备接管。"
       : input.status === "complete"
         ? "角色资产已具备，继续模式会自动推进到下一缺失步骤。"
         : "当前可以从角色准备继续。";
@@ -945,6 +1038,7 @@ export function buildDirectorTakeoverReadiness(input: {
   const recommendedPhase = resolveRecommendedTakeoverPhase(input.snapshot);
   const recommendedStep = phaseToEntryStep(recommendedPhase);
   const storyMacroReadiness = buildStoryMacroReadiness(input.novel);
+  const worldSetupReadiness = buildWorldSetupReadiness(input.snapshot);
   const characterSetupReadiness = buildCharacterSetupReadiness(input.snapshot);
   const volumeStrategyReadiness = buildVolumeStrategyReadiness(input.snapshot);
   const structuredOutlineReadiness = buildStructuredOutlineReadiness(input.snapshot);
@@ -1011,6 +1105,7 @@ export function buildDirectorTakeoverReadiness(input: {
     },
     stages: ([
       ["story_macro", storyMacroReadiness],
+      ["world_setup", worldSetupReadiness],
       ["character_setup", characterSetupReadiness],
       ["volume_strategy", volumeStrategyReadiness],
       ["structured_outline", structuredOutlineReadiness],

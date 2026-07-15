@@ -563,6 +563,7 @@ export async function loadDirectorTakeoverState(input: {
       ...assets,
       hasStoryMacroPlan: Boolean(storyMacroPlan?.storyInput?.trim() && storyMacroPlan.decomposition),
       hasBookContract: Boolean(novel.bookContract),
+      hasWorldSetupPrepared: Boolean(novel.worldId?.trim()),
       hasVolumeStrategyPlan: assets.hasVolumeStrategyPlan,
       firstVolumeId: assets.firstVolumeId,
       volumeChapterRanges: assets.volumeChapterRanges,
@@ -587,7 +588,7 @@ export async function loadDirectorTakeoverState(input: {
 }
 
 export function resolveDirectorRunningStateForPhase(
-  phase: "story_macro" | "character_setup" | "volume_strategy" | "structured_outline",
+  phase: "story_macro" | "world_setup" | "character_setup" | "volume_strategy" | "structured_outline",
 ) {
   if (phase === "story_macro") {
     return {
@@ -595,6 +596,14 @@ export function resolveDirectorRunningStateForPhase(
       itemKey: "book_contract" as const,
       itemLabel: "正在准备 Book Contract 与故事宏观规划",
       progress: DIRECTOR_PROGRESS.bookContract,
+    };
+  }
+  if (phase === "world_setup") {
+    return {
+      stage: "world_setup" as const,
+      itemKey: "world_setup" as const,
+      itemLabel: "正在准备本书世界观",
+      progress: DIRECTOR_PROGRESS.worldSetup,
     };
   }
   if (phase === "character_setup") {

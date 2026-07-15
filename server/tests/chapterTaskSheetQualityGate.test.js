@@ -158,6 +158,9 @@ test("chapter task sheet quality prompt declares strict JSON contract", () => {
 
   assert.match(systemText, /verdict 只能使用 usable、repairable、unusable/);
   assert.match(systemText, /issues\.target 只能使用 purpose、boundary、task_sheet、scene_cards、semantic/);
+  assert.match(systemText, /readerExperience\.rewardLevel 表示本章计划提供的可见回报强度/);
+  assert.match(systemText, /只能使用 setup、partial、major/);
+  assert.match(systemText, /完整兑现了 promisedReward，也不要建议把 rewardLevel 改为 full/);
   assert.match(systemText, /confidence 必须是 0 到 1 之间的小数/);
   assert.match(systemText, /"verdict": "repairable"/);
 });

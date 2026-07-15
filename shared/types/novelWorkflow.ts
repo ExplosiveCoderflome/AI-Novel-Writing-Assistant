@@ -4,6 +4,7 @@ export type NovelWorkflowStage =
   | "project_setup"
   | "auto_director"
   | "story_macro"
+  | "world_setup"
   | "character_setup"
   | "volume_strategy"
   | "structured_outline"
@@ -35,7 +36,7 @@ export interface NovelWorkflowResumeTarget {
   novelId?: string | null;
   taskId?: string | null;
   lane?: NovelWorkflowLane | null;
-  stage?: "basic" | "story_macro" | "character" | "outline" | "structured" | "chapter" | "pipeline";
+  stage?: "basic" | "story_macro" | "world" | "character" | "outline" | "structured" | "chapter" | "pipeline";
   chapterId?: string | null;
   volumeId?: string | null;
   mode?: "director" | null;

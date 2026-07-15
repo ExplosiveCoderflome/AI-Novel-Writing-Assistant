@@ -23,6 +23,7 @@ const WORKFLOW_STAGE_TO_DISPLAY_STAGE: Partial<Record<NovelWorkflowStage | strin
   project_setup: "project_setup",
   auto_director: "project_setup",
   story_macro: "story_planning",
+  world_setup: "world_setup",
   character_setup: "character_setup",
   volume_strategy: "volume_strategy",
   structured_outline: "structured_outline",

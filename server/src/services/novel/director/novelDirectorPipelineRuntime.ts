@@ -294,7 +294,7 @@ export class NovelDirectorPipelineRuntime {
     const progress = module.defaultWaitingState?.progress ?? 0.5;
     await this.deps.workflowService.markTaskWaitingApproval(input.taskId, {
       stage,
-      itemKey: module.id,
+      itemKey: module.defaultWaitingState?.itemKey ?? module.id,
       itemLabel: `${module.label}已完成，请检查后继续`,
       progress,
       checkpointType: "step_review_required",
@@ -306,6 +306,8 @@ export class NovelDirectorPipelineRuntime {
             ? "structured_outline"
             : stage === "character_setup"
               ? "character_setup"
+              : stage === "world_setup"
+                ? "world_setup"
               : stage === "volume_strategy"
                 ? "volume_strategy"
                 : "story_macro",
@@ -327,6 +329,7 @@ export class NovelDirectorPipelineRuntime {
     const stage = module.defaultWaitingState?.stage ?? module.stage;
     switch (stage) {
       case "story_macro":
+      case "world_setup":
       case "character_setup":
       case "volume_strategy":
       case "structured_outline":

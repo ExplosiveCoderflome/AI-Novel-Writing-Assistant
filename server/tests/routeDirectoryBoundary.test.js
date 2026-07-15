@@ -37,6 +37,11 @@ test("app mounts migrated novel and world routers from module HTTP entrypoints",
   }
 });
 
+test("workflow HTTP schema accepts every formal auto-director stage", () => {
+  const source = readSource("services", "novel", "director", "http", "novelWorkflows.ts");
+  assert.equal(source.includes('"world_setup",'), true);
+});
+
 test("migrated route root files do not remain as compatibility shims", () => {
   const forbiddenFiles = [
     "novel.ts",
