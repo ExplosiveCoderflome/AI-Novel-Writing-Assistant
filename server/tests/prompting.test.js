@@ -1538,12 +1538,16 @@ test("streamTextPrompt buffers streamed output and resolves completion metadata"
 test("runTextPrompt records empty outputs without changing return behavior", async () => {
   resetPromptQualityTelemetryForTests();
   setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async () => ({
-      content: "   ",
-      usage_metadata: {
-        input_tokens: 10,
-        output_tokens: 1,
-        total_tokens: 11,
+    stream: async () => ({
+      async *[Symbol.asyncIterator]() {
+        yield {
+          content: "   ",
+          usage_metadata: {
+            input_tokens: 10,
+            output_tokens: 1,
+            total_tokens: 11,
+          },
+        };
       },
     }),
   }));
@@ -1577,9 +1581,11 @@ test("prompt runner records failed executions without swallowing the original er
   resetPromptQualityTelemetryForTests();
   const originalError = new Error("provider timeout");
   setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async () => {
-      throw originalError;
-    },
+    stream: async () => ({
+      async *[Symbol.asyncIterator]() {
+        throw originalError;
+      },
+    }),
   }));
 
   try {
@@ -1639,9 +1645,13 @@ test("prompt runner injects enabled custom slot blocks for supported prompts", a
     };
   };
   setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async (messages) => {
+    stream: async (messages) => {
       capturedMessages = messages;
-      return { content: "正文" };
+      return {
+        async *[Symbol.asyncIterator]() {
+          yield { content: "正文" };
+        },
+      };
     },
   }));
 
@@ -1939,9 +1949,13 @@ test("runTextPrompt uses active book-scoped advanced template for chapter writer
     };
   };
   setPromptRunnerLLMFactoryForTests(async () => ({
-    invoke: async (messages) => {
+    stream: async (messages) => {
       capturedMessages = messages;
-      return { content: "正文" };
+      return {
+        async *[Symbol.asyncIterator]() {
+          yield { content: "正文" };
+        },
+      };
     },
   }));
 
