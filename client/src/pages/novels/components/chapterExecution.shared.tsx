@@ -56,6 +56,21 @@ export type QueueFilterOption = {
   count: number;
 };
 
+/**
+ * 手动新建的空白章节尚未进入任何生产步骤时，才允许从章节执行队列移除。
+ * 这里刻意不按标题判断，避免用户改名后失去操作能力，也避免误删 AI 已规划的章节。
+ */
+export function canRemoveEmptyManualChapter(chapter: Chapter): boolean {
+  return chapter.generationState === "planned"
+    && (chapter.chapterStatus ?? "unplanned") === "unplanned"
+    && !chapter.content?.trim()
+    && !chapter.expectation?.trim()
+    && !chapter.taskSheet?.trim()
+    && !chapter.sceneCards?.trim()
+    && !chapter.repairHistory?.trim()
+    && !chapter.riskFlags?.trim();
+}
+
 export interface ChapterExecutionFlowStage {
   key: ChapterExecutionFlowStageKey;
   label: string;
