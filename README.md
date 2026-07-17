@@ -313,6 +313,10 @@
 - 至少一组可用的 LLM API Key
   也可以先把项目跑起来，再在页面里配置
 - 如果你要完整体验知识库 / RAG，再额外准备可用的 Qdrant
+- 如果你需要生成本地短剧/短视频 (VellumReel 衍生工坊)：
+  - Python `^3.10`
+  - 系统本地已配置 FFmpeg 命令行环境 (用于音视频流和字幕渲染合成)
+  - 拥有 ONNX 依赖环境 (首次启动语音合成脚本会自动拉取 Kokoro 模型权重并完成环境适配)
 
 ### 1. 安装依赖
 
@@ -502,12 +506,20 @@ We have provided a helper script at [scripts/manage.sh](file:///Users/nvidia/Gen
   ./scripts/manage.sh restart
   ```
 
+#### Option D: Local Offline TTS Server Startup (For VellumReel Video Voiceovers) / 启动本地离线语音合成服务器
+若要在衍生工坊中合成高质量本地旁白配音，请开启本地语音合成服务器（会在首次启动时自动安装 pip 语音依赖并缓存 Kokoro-v1.0 权重）：
+
+```bash
+python scripts/start-local-tts.py
+```
+
 Default URLs:
 
 
 - Frontend Client: `http://localhost:5173`
 - Backend API: `http://localhost:3000`
 - API Endpoint: `http://localhost:3000/api`
+- Local Speech API Server: `http://localhost:8000`
 
 
 首次启动服务端时，会自动执行 Prisma generate 和 `db push`。
