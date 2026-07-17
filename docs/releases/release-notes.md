@@ -4,6 +4,11 @@
 
 ## 更新历史
 
+### 2026-07-17
+
+- README 现在补充了对 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill) 的独立介绍，方便想在 Codex 本地工作区里直接推进长篇中文小说的人，更快理解这条 Skill 化工作流和本项目完整工作台形态之间的关系。
+- 现在可以更清楚地区分两条互补路径：如果你想用带界面、运行时和资产管理的完整产品，可以从本仓库开始；如果你更想直接在 Codex 里推进可恢复的长篇创作流程，也可以沿 README 进入 `Ani Book Skill`。
+
 ### 2026-04-19
 
 - Windows 桌面版已经进入可分发的 Beta 阶段。现在可以产出 `Setup.exe` 和 `portable` 两种安装产物，普通用户不需要再自己准备 Node、pnpm 或 Prisma 环境，也不需要依赖源码目录来启动本地写作工作台。
