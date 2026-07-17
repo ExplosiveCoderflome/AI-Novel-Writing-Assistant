@@ -1,23 +1,24 @@
-import i18next from "i18next";
 import type { BookAnalysisDetail, BookAnalysisSection, BookAnalysisStatus } from "@ai-novel/shared/types/bookAnalysis";
 import type { SectionDraft } from "./bookAnalysis.types";
 
 export function formatStatus(status: BookAnalysisStatus | BookAnalysisSection["status"]): string {
   switch (status) {
     case "draft":
-      return i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_22b4334f");
+      return "草稿";
     case "queued":
-      return i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_e5ac1d20");
+      return "排队中";
     case "running":
-      return i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_d679aea3");
+      return "运行中";
     case "succeeded":
-      return i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_330363df");
+      return "成功";
     case "failed":
-      return i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_acd5cb84");
+      return "失败";
+    case "cancelled":
+      return "已取消";
     case "archived":
-      return i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_c3ba167c");
+      return "已归档";
     case "idle":
-      return i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_047109de");
+      return "待处理";
     default:
       return status;
   }
@@ -26,21 +27,27 @@ export function formatStatus(status: BookAnalysisStatus | BookAnalysisSection["s
 export function formatStage(stage?: string | null): string {
   switch (stage) {
     case "loading_cache":
-      return i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_d5e64505");
+      return "查找可复用结果";
     case "preparing_notes":
-      return i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_930dc9a1");
+      return "准备分析资料";
     case "generating_overview":
-      return i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_a28590de");
+      return "生成总览";
     case "generating_sections":
-      return i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_bd399ee5");
+      return "生成拆书小节";
     default:
-      return stage?.trim() || i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_f61f4cf6");
+      return stage?.trim() || "暂无";
   }
+}
+
+export const BOOK_ANALYSIS_BUDGET_EXCEEDED_CODE = "budget_exceeded";
+
+export function isBookAnalysisBudgetExceeded(lastError?: string | null): boolean {
+  return lastError?.includes(BOOK_ANALYSIS_BUDGET_EXCEEDED_CODE) ?? false;
 }
 
 export function formatDate(value?: string | null): string {
   if (!value) {
-    return i18next.t("gen.pages.bookAnalysis.bookAnalysis.utils.gen_f61f4cf6");
+    return "暂无";
   }
   return new Date(value).toLocaleString();
 }

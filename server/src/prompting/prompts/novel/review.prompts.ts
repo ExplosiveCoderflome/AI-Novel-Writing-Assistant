@@ -1,5 +1,3 @@
-import * as fs from "fs";
-import * as path from "path";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type { PromptAsset } from "../../core/promptTypes";
@@ -7,7 +5,6 @@ import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { fullAuditOutputSchema } from "../../../services/audit/auditSchemas";
 import { chapterSummaryOutputSchema } from "../../../services/novel/chapterSummarySchemas";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
-import { resolveServerRoot } from "../../../runtime/appPaths";
 
 export interface ChapterSummaryPromptInput {
   novelTitle: string;
@@ -97,7 +94,7 @@ export const chapterReviewPrompt: PromptAsset<
   z.infer<typeof fullAuditOutputSchema>
 > = {
   id: "novel.review.chapter",
-  version: "v1",
+  version: "v2",
   taskType: "critical_review",
   mode: "structured",
   language: "zh",
@@ -105,6 +102,7 @@ export const chapterReviewPrompt: PromptAsset<
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterReview,
     preferredGroups: [
       "chapter_mission",
+      "reader_experience",
       "structure_obligations",
       "world_rules",
     ],
@@ -173,7 +171,7 @@ export const chapterReviewPrompt: PromptAsset<
 
 export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, string> = {
   id: "novel.review.repair",
-  version: "v1",
+  version: "v2",
   taskType: "repair",
   mode: "text",
   language: "zh",
@@ -183,6 +181,7 @@ export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, 
       "repair_issues",
       "chapter_boundary",
       "chapter_mission",
+      "reader_experience",
       "repair_boundaries",
       "world_rules",
     ],
@@ -204,74 +203,61 @@ export const chapterRepairPrompt: PromptAsset<ChapterRepairPromptInput, string, 
       placeholderHint: "例如：修复时禁止改动对话内容；只允许压缩重复句式，不得引入新信息……",
     },
   ],
-  render: (input, context) => {
-    let systemPromptContent = "";
-    try {
-      const promptPath = path.join(resolveServerRoot(), "config", "prompts", "coherence_optimizer_system.md");
-      systemPromptContent = fs.readFileSync(promptPath, "utf8");
-    } catch (e) {
-      // Default fallback system prompt content
-      systemPromptContent = [
-        "你是资深网络小说修文编辑。",
-        "你的任务是根据问题清单与分层上下文，对当前章节进行最小必要修复，使其更符合任务要求、结构要求与阅读体验。",
-        "",
-        "【任务边界】",
-        "只输出修复后的完整章节正文，不要输出解释、提纲、注释或任何额外文本。",
-        "修文以‘最小必要修改’为原则，不要无关重写，不要把原章整体推翻重来。",
-        "不得引入新的核心角色、重大设定、主线转向或与上下文冲突的内容。",
-        "",
-        "【修复原则】",
-        "1. 优先修复 issuesJson 中明确指出的关键问题。",
-        "2. 优先保证 chapter_mission、repair_boundaries、world_rules 的约束被满足。",
-        "3. 保留原章已经有效的推进、情绪、细节与角色状态，不要把有用内容一起洗掉。",
-        "4. 若多个问题冲突，优先修复影响主线推进、逻辑连贯和阅读节奏的问题。",
-        "",
-        "【具体要求】",
-        "1. 修复后章节必须仍然是自然可读的完整正文，而不是拼补痕迹明显的修改稿。",
-        "2. 必须尽量保留本章原有核心事件顺序，除非问题清单明确指出结构需要调整。",
-        "3. 若存在重复、空转、失速问题，应通过压缩、合并、替换无效段落来修，不要只做表面润色。",
-        "4. 若存在逻辑、动机、衔接问题，应补足必要过桥与因果，而不是额外发明大设定。",
-        "5. 若存在钩子不足、结尾无力问题，应在不违背既有走向的前提下加强章末压力、悬念或决策点。",
-        "{{modeHint}}",
-        "",
-        "【风格要求】",
-        "1. 保持与原章相近的叙述视角、语言风格与人物说话方式。",
-        "2. 不要把修文写成另一种风格的新章。",
-        "3. 控制 AI 味、总结味和说明味，优先用具体动作、对话、细节与局面变化完成修复。",
-        "",
-        "【禁止事项】",
-        "禁止加入问题清单未要求的大幅扩写。",
-        "禁止通过新增大事件掩盖原问题。",
-        "禁止输出‘修改说明’‘修复点如下’等额外内容。",
-      ].join("\n");
-    }
-
-    const modeHintBlock = input.modeHint ? `6. 本次修复重点：${input.modeHint}` : "";
-    const renderedSystemPrompt = systemPromptContent.replace("{{modeHint}}", modeHintBlock);
-
-    return [
-      new SystemMessage(renderedSystemPrompt),
-      new HumanMessage([
-        `小说：${input.novelTitle}`,
-        `章节：${input.chapterTitle}`,
-        "",
-        "【分层上下文】",
-        renderSelectedContextBlocks(context),
-        "",
-        "【作品圣经】",
-        input.bibleContent || "none",
-        "",
-        "【当前正文】",
-        input.chapterContent,
-        "",
-        "【问题清单】",
-        input.issuesJson,
-        "",
-        "【检索补充】",
-        input.ragContext || "none",
-        "",
-        "请直接输出修复后的完整章节正文。",
-      ].join("\n")),
-    ];
-  },
+  render: (input, context) => [
+    new SystemMessage([
+      "你是资深网络小说修文编辑。",
+      "你的任务是根据问题清单与分层上下文，对当前章节进行最小必要修复，使其更符合任务要求、结构要求与阅读体验。",
+      "",
+      "【任务边界】",
+      "只输出修复后的完整章节正文，不要输出解释、提纲、注释或任何额外文本。",
+      "修文以‘最小必要修改’为原则，不要无关重写，不要把原章整体推翻重来。",
+      "不得引入新的核心角色、重大设定、主线转向或与上下文冲突的内容。",
+      "",
+      "【修复原则】",
+      "1. 优先修复 issuesJson 中明确指出的关键问题。",
+      "2. 优先保证 chapter_mission、repair_boundaries、world_rules 的约束被满足。",
+      "2a. 同时保留 reader_experience 中已经兑现的读者价值，并定向补齐 promisedReward、主角主动性、关键转折、净变化或旧钩子承接缺口。",
+      "3. 保留原章已经有效的推进、情绪、细节与角色状态，不要把有用内容一起洗掉。",
+      "4. 若多个问题冲突，优先修复影响主线推进、逻辑连贯和阅读节奏的问题。",
+      "",
+      "【具体要求】",
+      "1. 修复后章节必须仍然是自然可读的完整正文，而不是拼补痕迹明显的修改稿。",
+      "2. 必须尽量保留本章原有核心事件顺序，除非问题清单明确指出结构需要调整。",
+      "3. 若存在重复、空转、失速问题，应通过压缩、合并、替换无效段落来修，不要只做表面润色。",
+      "4. 若存在逻辑、动机、衔接问题，应补足必要过桥与因果，而不是额外发明大设定。",
+      "5. 若存在钩子不足、结尾无力问题，应在不违背既有走向的前提下加强章末压力、悬念或决策点。",
+      input.modeHint ? `6. 本次修复重点：${input.modeHint}` : "",
+      "",
+      "【风格要求】",
+      "1. 保持与原章相近的叙述视角、语言风格与人物说话方式。",
+      "2. 不要把修文写成另一种风格的新章。",
+      "3. 控制 AI 味、总结味和说明味，优先用具体动作、对话、细节与局面变化完成修复。",
+      "",
+      "【禁止事项】",
+      "禁止加入问题清单未要求的大幅扩写。",
+      "禁止通过新增大事件掩盖原问题。",
+      "禁止输出‘修改说明’‘修复点如下’等额外内容。",
+    ].join("\n")),
+    new HumanMessage([
+      `小说：${input.novelTitle}`,
+      `章节：${input.chapterTitle}`,
+      "",
+      "【分层上下文】",
+      renderSelectedContextBlocks(context),
+      "",
+      "【作品圣经】",
+      input.bibleContent || "none",
+      "",
+      "【当前正文】",
+      input.chapterContent,
+      "",
+      "【问题清单】",
+      input.issuesJson,
+      "",
+      "【检索补充】",
+      input.ragContext || "none",
+      "",
+      "请直接输出修复后的完整章节正文。",
+    ].join("\n")),
+  ],
 };

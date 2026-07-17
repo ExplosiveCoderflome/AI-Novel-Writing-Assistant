@@ -144,6 +144,9 @@ function formatCheckpoint(
   if (checkpoint === "chapter_batch_ready") {
     return `${resolveAutoExecutionScopeLabel(task)}自动执行已暂停`;
   }
+  if (checkpoint === "step_review_required") {
+    return "当前步骤待检查";
+  }
   if (checkpoint === "replan_required") {
     return t("gen.pages.novels.components.NovelAutoDirectorProgressPanel.gen_73ce2a55");
   }

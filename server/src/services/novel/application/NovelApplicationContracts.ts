@@ -113,6 +113,17 @@ export interface NovelApplicationServices {
   updateCharacterDynamicState: NovelApplicationMethod;
   updateCharacterRelationStage: NovelApplicationMethod;
   rebuildCharacterDynamics: NovelApplicationMethod;
+  getCharacterMindState: NovelApplicationMethod;
+  refreshCharacterMindState: NovelApplicationMethod;
+  listCharacterInfluenceProposals: NovelApplicationMethod;
+  generateCharacterInfluenceProposals: NovelApplicationMethod;
+  acceptCharacterInfluenceProposal: NovelApplicationMethod;
+  dismissCharacterInfluenceProposal: NovelApplicationMethod;
+  getActiveCharacterDialogueSession: NovelApplicationMethod;
+  startCharacterDialogueSession: NovelApplicationMethod;
+  sendCharacterDialogueTurn: NovelApplicationMethod;
+  activateCharacterDialogueInfluence: NovelApplicationMethod;
+  dismissCharacterDialogueInfluence: NovelApplicationMethod;
 }
 
 export const novelApplicationServiceMethodNames = [
@@ -221,4 +232,15 @@ export const novelApplicationServiceMethodNames = [
   "updateCharacterDynamicState",
   "updateCharacterRelationStage",
   "rebuildCharacterDynamics",
+  "getCharacterMindState",
+  "refreshCharacterMindState",
+  "listCharacterInfluenceProposals",
+  "generateCharacterInfluenceProposals",
+  "acceptCharacterInfluenceProposal",
+  "dismissCharacterInfluenceProposal",
+  "getActiveCharacterDialogueSession",
+  "startCharacterDialogueSession",
+  "sendCharacterDialogueTurn",
+  "activateCharacterDialogueInfluence",
+  "dismissCharacterDialogueInfluence",
 ] as const satisfies readonly (keyof NovelApplicationServices)[];

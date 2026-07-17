@@ -31,6 +31,8 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
     onGoToCharacterTab,
     onCreateChapter,
     isCreatingChapter,
+    onRemoveChapter,
+    removingChapterId,
     chapterOperationMessage,
     strategy,
     onStrategyChange,
@@ -188,6 +190,8 @@ export default function ChapterManagementTab(props: ChapterTabViewProps) {
               repairStreamingChapterId={repairStreamingChapterId}
               onQueueFilterChange={setQueueFilter}
               onSelectChapter={onSelectChapter}
+              onRemoveChapter={onRemoveChapter}
+              removingChapterId={removingChapterId}
             />
           </div>
 

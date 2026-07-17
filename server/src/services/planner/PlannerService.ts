@@ -3,7 +3,6 @@ import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { AuditReport, ReplanResult } from "@ai-novel/shared/types/novel";
 import type { PayoffLedgerSummary } from "@ai-novel/shared/types/payoffLedger";
 import { prisma } from "../../db/prisma";
-import { parseJsonStringArray } from "../novel/novelP0Utils";
 import { characterDynamicsQueryService } from "../novel/dynamics/CharacterDynamicsQueryService";
 import { contextAssemblyService } from "../novel/production/ContextAssemblyService";
 import { buildStateContextBlockFromCanonical } from "../novel/state/CanonicalStateService";
@@ -12,7 +11,6 @@ import { mapRowToPlan } from "../novel/storyMacro/storyMacroPlanPersistence";
 import { StyleBindingService } from "../styleEngine/StyleBindingService";
 import {
   buildDefaultPlanMetadata,
-  enrichStoryPlan,
   normalizePlanMetadata,
 } from "./plannerPlanMetadata";
 import {
@@ -27,7 +25,6 @@ import {
   buildChapterPlanContextBlocks,
 } from "./plannerContextBlocks";
 import { buildReplanDecision } from "./replanDecision";
-import { replanWindowDecisionService } from "./ReplanWindowDecisionService";
 import {
   buildCurrentVolumeWindowSummary,
   buildPlannerConflictLevelAnchorContext,
@@ -40,19 +37,19 @@ import {
   type PlannerStoryModeRow,
 } from "./plannerContextHelpers";
 import { resolveChapterPlanParticipants } from "./plannerParticipantResolution";
+import { plannerPlanQueryService } from "./query";
+import { plannerReplanService, type ReplanInput } from "./replan";
+import {
+  buildPlannerStateDrivenDirective,
+  buildPlannerStateGoalText,
+  compactPlannerText as compactText,
+  takeUniquePlannerItems as takeUnique,
+} from "./plannerStateDirectives";
 
 export { normalizePlannerOutput } from "./plannerOutputNormalization";
 
 interface PlannerOptions extends PlannerLlmOptions {
   taskStyleProfileId?: string;
-}
-
-interface ReplanInput extends PlannerOptions {
-  chapterId?: string;
-  triggerType?: string;
-  sourceIssueIds?: string[];
-  windowSize?: number;
-  reason: string;
 }
 
 interface GenerateChapterPlanOptions extends PlannerOptions {
@@ -83,127 +80,23 @@ const plannerStoryModeSelect = {
   updatedAt: true,
 } as const;
 
-function compactText(value: string | null | undefined, fallback = ""): string {
-  return String(value ?? "").replace(/\s+/g, " ").trim() || fallback;
-}
-
-function takeUnique(items: Array<string | null | undefined>, limit = items.length): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const item of items) {
-    const normalized = compactText(item);
-    if (!normalized || seen.has(normalized)) {
-      continue;
-    }
-    seen.add(normalized);
-    result.push(normalized);
-    if (result.length >= limit) {
-      break;
-    }
-  }
-  return result;
-}
-
-function buildPlannerStateDrivenDirective(input: {
-  nextAction: string;
-  pendingReviewProposalCount: number;
-  openAuditIssueCount: number;
-}): string {
-  return [
-    `recommended_next_action=${input.nextAction}`,
-    `pending_state_review=${input.pendingReviewProposalCount}`,
-    `open_audit_issues=${input.openAuditIssueCount}`,
-  ].join("\n");
-}
-
-function buildPlannerStateGoalText(input: {
-  summary: string | null;
-  targetConflicts: string[];
-  targetRelationships: string[];
-  targetPayoffs: string[];
-  protectedSecrets: string[];
-  recentTimeline: string[];
-}): string {
-  return [
-    `章节状态目标：${compactText(input.summary, "无")}`,
-    `应推进冲突：${takeUnique(input.targetConflicts, 4).join("；") || "无"}`,
-    `应推进关系：${takeUnique(input.targetRelationships, 4).join("；") || "无"}`,
-    `应触碰 payoff：${takeUnique(input.targetPayoffs, 4).join("；") || "无"}`,
-    `禁止提前泄露：${takeUnique(input.protectedSecrets, 4).join("；") || "无"}`,
-    `最近关键事件：${takeUnique(input.recentTimeline, 3).join("；") || "无"}`,
-  ].join("\n");
-}
-
 export class PlannerService {
   private readonly styleBindingService = new StyleBindingService();
 
   async getChapterPlan(novelId: string, chapterId: string) {
-    const plan = await prisma.storyPlan.findFirst({
-      where: { novelId, chapterId, level: "chapter", status: { not: "stale" } },
-      include: {
-        scenes: {
-          orderBy: { sortOrder: "asc" },
-        },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-    return plan ? enrichStoryPlan(plan as any) : null;
+    return plannerPlanQueryService.getChapterPlan(novelId, chapterId);
   }
 
   async getBookPlan(novelId: string) {
-    const plan = await prisma.storyPlan.findFirst({
-      where: { novelId, level: "book" },
-      include: {
-        scenes: {
-          orderBy: { sortOrder: "asc" },
-        },
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-    return plan ? enrichStoryPlan(plan as any) : null;
+    return plannerPlanQueryService.getBookPlan(novelId);
   }
 
   async listArcPlans(novelId: string) {
-    const plans = await prisma.storyPlan.findMany({
-      where: { novelId, level: "arc" },
-      include: {
-        scenes: {
-          orderBy: { sortOrder: "asc" },
-        },
-      },
-      orderBy: [
-        { updatedAt: "desc" },
-        { createdAt: "desc" },
-      ],
-      take: 6,
-    });
-    return plans.map((plan) => enrichStoryPlan(plan as any));
+    return plannerPlanQueryService.listArcPlans(novelId);
   }
 
   async buildPlanPromptBlock(novelId: string, chapterId: string): Promise<string> {
-    const plan = await this.getChapterPlan(novelId, chapterId);
-    if (!plan) {
-      return "";
-    }
-    const participants = parseJsonStringArray(plan.participantsJson);
-    const reveals = parseJsonStringArray(plan.revealsJson);
-    const riskNotes = parseJsonStringArray(plan.riskNotesJson);
-    const sceneLines = plan.scenes
-      .map((scene: (typeof plan.scenes)[number]) => `${scene.sortOrder}. ${scene.title}${scene.objective ? ` | 目标:${scene.objective}` : ""}${scene.conflict ? ` | 冲突:${scene.conflict}` : ""}${scene.reveal ? ` | 揭露:${scene.reveal}` : ""}${scene.emotionBeat ? ` | 情绪:${scene.emotionBeat}` : ""}`)
-      .join("\n");
-    return [
-      `Plan title: ${plan.title}`,
-      plan.planRole ? `Plan role: ${plan.planRole}` : "",
-      plan.phaseLabel ? `Phase: ${plan.phaseLabel}` : "",
-      `Objective: ${plan.objective}`,
-      participants.length > 0 ? `Participants: ${participants.join("、")}` : "",
-      reveals.length > 0 ? `Key reveals: ${reveals.join("；")}` : "",
-      riskNotes.length > 0 ? `Risk notes: ${riskNotes.join("；")}` : "",
-      plan.mustAdvanceJson ? `Must advance: ${parseJsonStringArray(plan.mustAdvanceJson).join("；")}` : "",
-      plan.mustPreserveJson ? `Must preserve: ${parseJsonStringArray(plan.mustPreserveJson).join("；")}` : "",
-      plan.hookTarget ? `Hook target: ${plan.hookTarget}` : "",
-      sceneLines ? `Scenes:\n${sceneLines}` : "",
-    ].filter(Boolean).join("\n");
+    return plannerPlanQueryService.buildPlanPromptBlock(novelId, chapterId);
   }
 
   async ensureChapterPlan(novelId: string, chapterId: string, options: PlannerOptions = {}) {
@@ -738,210 +631,14 @@ export class PlannerService {
   }
 
   async replan(novelId: string, input: ReplanInput): Promise<ReplanResult> {
-    const targetChapter = input.chapterId
-      ? await prisma.chapter.findFirst({
-          where: { id: input.chapterId, novelId },
-          select: { id: true, order: true },
-        })
-      : await prisma.chapter.findFirst({
-          where: { novelId },
-          orderBy: { order: "desc" },
-          select: { id: true, order: true },
-        });
-    if (!targetChapter) {
-      throw new Error("当前小说没有可重规划的章节。");
-    }
-    const [allChapters, recentAuditReports, pendingReviewProposalCount, payoffLedger] = await Promise.all([
-      prisma.chapter.findMany({
-        where: { novelId },
-        orderBy: { order: "asc" },
-        select: { id: true, order: true },
-      }),
-      prisma.auditReport.findMany({
-        where: { novelId, chapterId: targetChapter.id },
-        orderBy: { createdAt: "desc" },
-        take: 4,
-        include: {
-          issues: {
-            where: input.sourceIssueIds?.length
-              ? { id: { in: input.sourceIssueIds } }
-              : { status: "open" },
-          },
-        },
-      }),
-      prisma.stateChangeProposal.count({
-        where: {
-          novelId,
-          status: "pending_review",
-        },
-      }),
-      payoffLedgerSyncService.getPayoffLedger(novelId, {
-        chapterOrder: targetChapter.order,
-      }).catch(() => ({
-        summary: {
-          totalCount: 0,
-          pendingCount: 0,
-          urgentCount: 0,
-          overdueCount: 0,
-          paidOffCount: 0,
-          failedCount: 0,
-          updatedAt: null,
-        },
-        items: [],
-        updatedAt: null,
-      })),
-    ]);
-    const resolvedStateDrivenContext = await contextAssemblyService.build({
-      novelId,
-      chapterId: targetChapter.id,
-      chapterOrder: targetChapter.order,
-      includeCurrentChapterState: false,
-      policy: {
-        kickoffMode: "manual_start",
-        advanceMode: "stage_review",
-      },
-      pendingReviewProposalCount,
-      openAuditIssueCount: recentAuditReports.flatMap((report) => report.issues).length,
-      hasRepairableDraft: false,
-    });
-    const mappedAuditReports: AuditReport[] = recentAuditReports.map((report) => ({
-      id: report.id,
-      novelId: report.novelId,
-      chapterId: report.chapterId,
-      auditType: report.auditType as AuditReport["auditType"],
-      overallScore: report.overallScore ?? null,
-      summary: report.summary ?? null,
-      legacyScoreJson: report.legacyScoreJson ?? null,
-      issues: report.issues.map((issue) => ({
-        id: issue.id,
-        reportId: issue.reportId,
-        auditType: issue.auditType as AuditReport["issues"][number]["auditType"],
-        severity: issue.severity as AuditReport["issues"][number]["severity"],
-        code: issue.code,
-        description: issue.description,
-        evidence: issue.evidence,
-        fixSuggestion: issue.fixSuggestion,
-        status: issue.status as AuditReport["issues"][number]["status"],
-        createdAt: issue.createdAt.toISOString(),
-        updatedAt: issue.updatedAt.toISOString(),
-      })),
-      createdAt: report.createdAt.toISOString(),
-      updatedAt: report.updatedAt.toISOString(),
-    }));
-    const requestedWindowSize = input.windowSize ?? 3;
-    const replanDecision = await replanWindowDecisionService.decide({
-      requestedWindowSize,
-      availableChapterOrders: allChapters.map((item) => item.order),
-      targetChapterOrder: targetChapter.order,
-      triggerType: input.triggerType ?? "manual",
-      reason: input.reason,
-      sourceIssueIds: input.sourceIssueIds ?? [],
-      auditReports: mappedAuditReports,
-      ledgerSummary: payoffLedger.summary,
-      snapshot: resolvedStateDrivenContext.snapshot,
-      nextAction: resolvedStateDrivenContext.nextAction,
-      chapterStateGoal: resolvedStateDrivenContext.chapterStateGoal,
-      protectedSecrets: resolvedStateDrivenContext.protectedSecrets,
-      provider: input.provider,
-      model: input.model,
-      temperature: input.temperature,
-    });
-    const affectedChapterOrderSet = new Set(replanDecision.affectedChapterOrders);
-    const affectedChapters = allChapters.filter((item) => affectedChapterOrderSet.has(item.order));
-    if (affectedChapters.length === 0) {
-      throw new Error("当前小说没有可重规划的章节。");
-    }
-
-    const generatedPlans = [];
-    const affectedOrders = affectedChapters.map((item) => item.order);
-
-    for (let index = 0; index < affectedChapters.length; index += 1) {
-      const chapter = affectedChapters[index];
-      const existingPlan = await this.getChapterPlan(novelId, chapter.id);
-      const plan = await this.generateChapterPlan(novelId, chapter.id, {
-        provider: input.provider,
-        model: input.model,
-        temperature: input.temperature,
-        replanContext: {
-          reason: input.reason,
-          triggerType: input.triggerType ?? "manual",
-          triggerReason: replanDecision.triggerReason,
-          windowReason: replanDecision.windowReason,
-          whyTheseChapters: replanDecision.whyTheseChapters,
-          sourceIssueIds: replanDecision.blockingIssueIds.length > 0
-            ? replanDecision.blockingIssueIds
-            : input.sourceIssueIds ?? [],
-          windowIndex: index,
-          windowSize: affectedChapters.length,
-          affectedChapterOrders: affectedOrders,
-          anchorChapterOrder: replanDecision.anchorChapterOrder,
-          blockingLedgerKeys: replanDecision.blockingLedgerKeys,
-          replannedFromPlanId: existingPlan?.id ?? null,
-        },
-      });
-      generatedPlans.push(plan);
-    }
-
-    const primaryPlan = generatedPlans[0];
-    if (!primaryPlan) {
-      throw new Error("章节规划生成失败。");
-    }
-    const runPayload = {
-      affectedChapterIds: affectedChapters.map((item) => item.id),
-      affectedChapterOrders: affectedOrders,
-      generatedPlanIds: generatedPlans.map((plan) => plan.id),
-      sourceIssueIds: replanDecision.blockingIssueIds.length > 0
-        ? replanDecision.blockingIssueIds
-        : input.sourceIssueIds ?? [],
-      triggerType: input.triggerType ?? "manual",
-      reason: input.reason,
-      triggerReason: replanDecision.triggerReason,
-      windowReason: replanDecision.windowReason,
-      whyTheseChapters: replanDecision.whyTheseChapters,
-      anchorChapterOrder: replanDecision.anchorChapterOrder,
-      windowSize: affectedChapters.length,
-      blockingLedgerKeys: replanDecision.blockingLedgerKeys,
-      repairIntent: replanDecision.repairIntent,
-      confidence: replanDecision.confidence,
-    };
-
-    const run = await prisma.replanRun.create({
-      data: {
-        novelId,
-        chapterId: targetChapter.id,
-        sourcePlanId: primaryPlan.replannedFromPlanId ?? null,
-        triggerType: input.triggerType ?? "manual",
-        reason: input.reason,
-        outputSummary: JSON.stringify(runPayload),
-      },
-    });
-    return {
-      primaryPlan,
-      generatedPlans,
-      affectedChapterIds: runPayload.affectedChapterIds,
-      affectedChapterOrders: runPayload.affectedChapterOrders,
-      anchorChapterOrder: runPayload.anchorChapterOrder,
-      sourceIssueIds: runPayload.sourceIssueIds,
-      triggerType: runPayload.triggerType,
-      reason: runPayload.reason,
-      triggerReason: runPayload.triggerReason,
-      windowReason: runPayload.windowReason,
-      whyTheseChapters: runPayload.whyTheseChapters,
-      windowSize: runPayload.windowSize,
-      blockingLedgerKeys: runPayload.blockingLedgerKeys,
-      run: {
-        id: run.id,
-        outputSummary: run.outputSummary ?? null,
-        createdAt: run.createdAt.toISOString(),
-      },
-    };
+    return plannerReplanService.replan(novelId, input, this);
   }
 
   shouldTriggerReplanFromAudit(auditReports: AuditReport[], ledgerSummary?: PayoffLedgerSummary | null): boolean {
     return buildReplanDecision({
       auditReports,
       ledgerSummary,
-    }).recommended;
+    }).action === "stop_for_replan";
   }
 
   buildReplanRecommendation(input: {

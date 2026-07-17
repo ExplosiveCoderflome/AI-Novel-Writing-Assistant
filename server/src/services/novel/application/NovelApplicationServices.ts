@@ -7,6 +7,9 @@ import { NovelWorldManualService } from "../worldContext/NovelWorldManualService
 import { CharacterPreparationService } from "../characterPrep/CharacterPreparationService";
 import { CharacterDynamicsService } from "../dynamics/CharacterDynamicsService";
 import { CharacterVisibleProfileService } from "../characterProfile/CharacterVisibleProfileService";
+import { CharacterMindService } from "../characterMind/CharacterMindService";
+import { CharacterInfluenceService } from "../characterInfluence/CharacterInfluenceService";
+import { CharacterDialogueService } from "../characterDialogue/CharacterDialogueService";
 import {
   buildManualChapterControlPolicy,
   registerChapterExecutionStageRunner,
@@ -47,6 +50,9 @@ export class DefaultNovelApplicationServices {
   private readonly characterPreparationService = new CharacterPreparationService();
   private readonly characterDynamicsService = new CharacterDynamicsService();
   private readonly characterVisibleProfileService = new CharacterVisibleProfileService();
+  private readonly characterMindService = new CharacterMindService();
+  private readonly characterInfluenceService = new CharacterInfluenceService();
+  private readonly characterDialogueService = new CharacterDialogueService();
   private readonly volumeService = new NovelVolumeService();
   private readonly chapterEditorWorkspaceService = new ChapterEditorWorkspaceService();
   private readonly chapterEditorService = new NovelChapterEditorService();
@@ -663,6 +669,50 @@ export class DefaultNovelApplicationServices {
 
   rebuildCharacterDynamics(...args: Parameters<CharacterDynamicsService["rebuildDynamics"]>) {
     return this.characterDynamicsService.rebuildDynamics(...args);
+  }
+
+  getCharacterMindState(...args: Parameters<CharacterMindService["getCurrentMindState"]>) {
+    return this.characterMindService.getCurrentMindState(...args);
+  }
+
+  refreshCharacterMindState(...args: Parameters<CharacterMindService["refreshMindState"]>) {
+    return this.characterMindService.refreshMindState(...args);
+  }
+
+  listCharacterInfluenceProposals(...args: Parameters<CharacterInfluenceService["listInfluenceProposals"]>) {
+    return this.characterInfluenceService.listInfluenceProposals(...args);
+  }
+
+  generateCharacterInfluenceProposals(...args: Parameters<CharacterInfluenceService["generateInfluenceProposals"]>) {
+    return this.characterInfluenceService.generateInfluenceProposals(...args);
+  }
+
+  acceptCharacterInfluenceProposal(...args: Parameters<CharacterInfluenceService["acceptInfluenceProposal"]>) {
+    return this.characterInfluenceService.acceptInfluenceProposal(...args);
+  }
+
+  dismissCharacterInfluenceProposal(...args: Parameters<CharacterInfluenceService["dismissInfluenceProposal"]>) {
+    return this.characterInfluenceService.dismissInfluenceProposal(...args);
+  }
+
+  getActiveCharacterDialogueSession(...args: Parameters<CharacterDialogueService["getActiveSession"]>) {
+    return this.characterDialogueService.getActiveSession(...args);
+  }
+
+  startCharacterDialogueSession(...args: Parameters<CharacterDialogueService["startSession"]>) {
+    return this.characterDialogueService.startSession(...args);
+  }
+
+  sendCharacterDialogueTurn(...args: Parameters<CharacterDialogueService["sendTurn"]>) {
+    return this.characterDialogueService.sendTurn(...args);
+  }
+
+  activateCharacterDialogueInfluence(...args: Parameters<CharacterDialogueService["activateLatestDraftInfluence"]>) {
+    return this.characterDialogueService.activateLatestDraftInfluence(...args);
+  }
+
+  dismissCharacterDialogueInfluence(...args: Parameters<CharacterDialogueService["dismissLatestDraftInfluence"]>) {
+    return this.characterDialogueService.dismissLatestDraftInfluence(...args);
   }
 }
 

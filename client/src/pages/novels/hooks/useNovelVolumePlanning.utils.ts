@@ -63,6 +63,7 @@ function serializeBeatSheetsSnapshot(beatSheets: VolumeBeatSheet[]): Array<{
       beats: sheet.beats.map((beat) => ({
         key: beat.key,
         label: beat.label,
+        title: beat.title ?? null,
         summary: beat.summary,
         chapterSpanHint: beat.chapterSpanHint,
         mustDeliver: [...beat.mustDeliver],

@@ -117,7 +117,7 @@ const BookAnalysisChapterReader = forwardRef<BookAnalysisChapterReaderHandle, Bo
     }
 
     return (
-      <aside className="sticky top-0 isolate h-[calc(100vh-9rem)] min-h-[520px] overflow-hidden rounded-md border bg-background shadow-sm">
+      <aside className="sticky top-0 isolate h-[calc(100vh-9rem)] min-h-[520px] overflow-hidden rounded-md border bg-background">
         <div className="flex h-full min-h-0 flex-col">
           <div className="shrink-0 border-b bg-background px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -203,7 +203,7 @@ function ChapterContent({
   return (
     <div className="whitespace-pre-wrap text-sm leading-7">
       <span>{before}</span>
-      <mark className="rounded bg-amber-200 px-1 text-amber-950">{highlight}</mark>
+      <mark className="rounded bg-warning/20 px-1 text-foreground">{highlight}</mark>
       <span>{after}</span>
     </div>
   );

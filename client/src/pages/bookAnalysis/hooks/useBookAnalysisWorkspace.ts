@@ -37,6 +37,13 @@ function buildNovelOptions(items: Array<{ id: string; title: string }>): NovelOp
   return items.map((item) => ({ id: item.id, title: item.title }));
 }
 
+function getQueryErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+  return error ? fallback : "";
+}
+
 export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -573,6 +580,16 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       deleteCharacter: charactersState.pending.deleteCharacter,
       createDiagnosis: createDiagnosisMutation.isPending,
     },
+    queryState: {
+      analysesLoading: analysesQuery.isLoading,
+      analysesError: getQueryErrorMessage(analysesQuery.error, "拆书列表加载失败。"),
+      detailLoading: detailQuery.isLoading,
+      detailError: getQueryErrorMessage(detailQuery.error, "拆书详情加载失败。"),
+      sourceLoading: sourceDocumentQuery.isLoading,
+      sourceError: getQueryErrorMessage(sourceDocumentQuery.error, "来源文档加载失败。"),
+      chaptersLoading: documentChaptersQuery.isLoading,
+      chaptersError: getQueryErrorMessage(documentChaptersQuery.error, "原文章节加载失败。"),
+    },
     setKeyword,
     setStatus,
     setAnalysisMode,
@@ -582,6 +599,18 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     setSelectedSourceRange,
     setBudgetTokens,
     requestSourceChapters,
+    retryAnalyses: () => {
+      void analysesQuery.refetch();
+    },
+    retryDetail: () => {
+      void detailQuery.refetch();
+    },
+    retrySource: () => {
+      void sourceDocumentQuery.refetch();
+    },
+    retryChapters: () => {
+      void documentChaptersQuery.refetch();
+    },
     setIncludeTimeline,
     setAnalysisPreset,
     setLlmConfig,

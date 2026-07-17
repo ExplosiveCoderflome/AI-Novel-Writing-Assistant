@@ -23,6 +23,7 @@ import type {
   DirectorRefinementRequest,
   DirectorTakeoverReadinessResponse,
   DirectorTakeoverRequest,
+  DirectorStepCalibrationRequest,
 } from "@ai-novel/shared/types/novelDirector";
 import { apiClient } from "./client";
 
@@ -248,6 +249,27 @@ export async function continueDirectorRuntime(
       commandType: "continue",
       payload: payload ?? {},
     },
+  );
+  return data;
+}
+
+export async function calibrateDirectorStep(
+  directorTaskId: string,
+  payload: DirectorStepCalibrationRequest,
+): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(
+    `/novels/director/tasks/${directorTaskId}/commands`,
+    { commandType: "calibrate_step", payload },
+  );
+  return data;
+}
+
+export async function acceptManualChangesAndContinueDirector(
+  directorTaskId: string,
+): Promise<ApiResponse<DirectorCommandAcceptedResponse>> {
+  const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(
+    `/novels/director/tasks/${directorTaskId}/commands`,
+    { commandType: "accept_manual_changes_and_continue", payload: {} },
   );
   return data;
 }

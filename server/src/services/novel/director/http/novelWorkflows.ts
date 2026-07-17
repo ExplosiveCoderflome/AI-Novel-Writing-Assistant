@@ -16,6 +16,7 @@ const stageSchema = z.enum([
   "project_setup",
   "auto_director",
   "story_macro",
+  "world_setup",
   "character_setup",
   "volume_strategy",
   "structured_outline",
@@ -29,6 +30,7 @@ const checkpointSchema = z.enum([
   "character_setup_required",
   "volume_strategy_ready",
   "chapter_batch_ready",
+  "step_review_required",
   "replan_required",
   "workflow_completed",
 ]);

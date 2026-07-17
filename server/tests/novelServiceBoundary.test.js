@@ -106,6 +106,16 @@ test("event handlers do not import heavy side-effect executors directly", () => 
   assert.equal(/from\s+["'].*sharedNovelServices/.test(source), false);
 });
 
+test("global replan callers require an explicit stop_for_replan action", () => {
+  const plannerSource = readSource("services", "planner", "PlannerService.ts");
+  const reviewSource = readSource("services", "novel", "novelCoreReviewService.ts");
+  const pipelineSource = readSource("services", "novel", "novelCorePipelineService.ts");
+
+  assert.equal(plannerSource.includes(').action === "stop_for_replan"'), true);
+  assert.equal(reviewSource.includes('replanRecommendation.action === "stop_for_replan"'), true);
+  assert.equal(pipelineSource.includes('replanRecommendation.action === "stop_for_replan"'), true);
+});
+
 test("RAG keeps its dedicated persisted index queue", () => {
   const schema = readSource("prisma", "schema.prisma");
   const ragService = readSource("services", "rag", "RagIndexService.ts");

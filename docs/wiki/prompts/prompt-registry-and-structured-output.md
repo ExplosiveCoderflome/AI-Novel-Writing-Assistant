@@ -36,6 +36,7 @@
 - Prompt Workbench 的上下文注入面板只读消费 `preview.context.blocks`、`selectedBlockIds`、`droppedBlockIds` 和 `summarizedBlockIds`。`chapter_mission`、`character_hard_facts`、`obligation_contract`、`style_contract` 等 required 或关键生成上下文必须显示锁定状态，不能在前端提供关闭 required context 的入口。
 - Prompt Workbench 在“本书”范围下如果同时选择了小说和章节，预览必须优先使用该小说章节的只读上下文；只有没有真实章节或无法装配真实上下文时，才允许通过 `executionContext.metadata.extraContextBlocks` 提供示例资料块。示例块只服务预览，不保存为用户覆盖，也不能替代正式运行时的 Context Broker / resolver。
 - `novel.chapter.writer` 的 Workbench 预览必须注入只读 `chapterWriteContext`，并通过默认 Context Broker 解析出 `book_contract`、`chapter_mission`、`timeline_context`、`previous_chapter_hook`、`character_hard_facts`、`obligation_contract`、`volume_window`、`participant_subset`、`local_state` 和 `style_contract`。预览按钮不得调用会补写章节计划、推进自动导演或修改小说数据的生成装配器；如果只能使用降级上下文，诊断信息必须说明来源边界。
+- Prompt Workbench 的测试产出是预览之后的受控执行入口。它可以用当前未保存的 slot 草稿或高级模板草稿调用 LLM，并允许用户为这次测试选择 provider、model、temperature 和输出上限；但它仍必须先走注册 `PromptAsset`、Context Broker、slot/template 编译、结构化 schema 和 repair 策略。测试产出不得接受任意自由 system prompt，不得改写 `contextPolicy`、schema、postValidate、semantic retry 或 required context。
 - `PromptAsset.contextRequirements` 中声明的每个 required group 都必须能被默认 Context Broker 解析，或在真实调用路径中通过 fallback blocks 明确补齐。像 `chapter_boundary`、`structure_obligations` 这类审校必需上下文，不能只写在 prompt 文案或前端示例里，必须有后端 resolver / context block 产出路径。
 - Prompt Workbench 的官方版本库以代码注册的 `PromptAsset.slots` 为可信来源。官方当前版只能读取槽位默认值、hash、版本号和 changelog；不得把数据库里的自由编辑文本当作“官方 prompt”，也不得开放 schema、contextPolicy、required context、postValidate 或审批边界给用户覆盖。
 - 正文写作高级模板是受控专家例外，只允许 `novel.chapter.writer` 在本书范围覆盖 `system` / `human` 模板。它服务成熟用户对正文写作表达和上下文摆放的精细控制，不改变 `PromptAsset.id/version/taskType/mode`、schema、postValidate、contextPolicy 或正文输出形态。
@@ -65,6 +66,7 @@
 - 新增意图识别能力时，扩展 AI schema 和工具合同，不加关键词 fallback。
 - 角色阵容质量不足时，修角色准备 PromptAsset、结构化 schema、postValidate / semantic retry 或上下文块，不在 service 中新增关键词、正则或字符比例判断。
 - Prompt Workbench 预览只读返回 messages、上下文块、缺失 required groups 和 trace preview，不保存运行时 override。
+- Prompt Workbench 测试产出用于保存前验证当前草稿。结构化 prompt 应返回 schema 校验后的 JSON、repair 次数和诊断；文本 prompt 应返回模型文本。测试结果可以帮助判断提示词调整是否有效，但不能写入小说正文、推进自动导演或替代正式章节执行链。
 - 某本书需要摆脱被改坏的全局“章末钩子”时，应在本书层写入 `mode: "official_default"`。这样预览、运行时渲染和后续生成都会使用 `PromptAsset.slots` 的官方默认章末钩子，而不是全局覆盖。
 - 用户只想撤销本书自己的改动、继续继承团队/全局设置时，应清除本书覆盖；如果全局设置本身被改坏，则应使用“恢复官方当前版”。
 - 成熟用户要把“角色硬事实”提前放到 human message 开头时，应在正文写作高级模板中插入 `{{context.character_hard_facts}}`；如果同时没有插入 `{{context.style_contract}}`，系统会在 human message 末尾追加风格合约保底块。
@@ -75,6 +77,7 @@
 - 在 service 内直接拼 `systemPrompt/userPrompt` 后调用裸 LLM。
 - 在业务文件里新增一套本地 JSON 修复和 schema 分支。
 - 让 Prompt Override 直接替换整段系统提示词或结构化输出 schema。
+- 让测试产出接口接受任意 messages 或自由 prompt，绕过注册提示词、Context Broker、slot/template 编译和结构化输出治理。
 - 把高级模板扩展到审校、规划、修复或全局范围，或让高级模板编辑 contextPolicy、schema、postValidate、模型参数和返回结构。
 - 在高级模板中通过空模板、未知 token 或删除 required context 的方式绕开正文写作安全上下文。
 - 在角色准备、章节规划、意图识别、质量检查、RAG 选择或自动导演路由中，用固定词表、正则、字符比例或特殊字符串分支替代 AI 结构化理解。
@@ -88,6 +91,7 @@
 - `expected string, received number` 如果集中出现在状态抽取字段，通常不是模型理解偏差，而是 schema 将“可读状态文本”和“可计算数值”混在同一个字段里。处理顺序应是：明确 prompt 输出合同，给结构化示例，在 schema preprocess 中保留语义并转成字符串；不要要求 LLM 为每一个数值字段单独 repair。
 - Prompt Catalog 缺上下文预览：补 `contextRequirements`，不要让预览临时查数据库。
 - Prompt Workbench 预览提示缺少 required context：先检查该 group 是否注册在默认 Context Broker，以及 Workbench 样本是否通过 `extraContextBlocks` 提供了手动预览所需的示例块；不要通过放宽 required context 或让用户手动关闭缺失项来掩盖契约缺口。
+- Prompt Workbench 测试产出失败：先判断是模型配置不可用、上下文缺失、结构化 schema 校验失败，还是草稿模板编译失败。不要因为测试入口报错就退回直接调用裸 LLM；修复方向应仍然落在模型路由、Context Broker、PromptAsset schema、slot/template 草稿或 repair/semantic retry 合同上。
 - `novel.chapter.writer` 预览缺少 `book_contract`、`chapter_mission`、`timeline_context`、`previous_chapter_hook`、`character_hard_facts`、`obligation_contract`、`volume_window`、`participant_subset`、`local_state` 或 `style_contract`：优先检查 Workbench 是否为所选小说章节装配了 `metadata.chapterWriteContext`，而不是删 required group、改前端标签或用示例 `promptInput` 冒充运行时上下文。
 - Prompt Workbench 恢复官方默认后仍使用全局坏值：检查本书层是否写入了 `official_default`，以及运行时解析是否仍按“本书 > 全局 > 官方默认”的顺序合并。
 - Reconcile 面板一直提示同一个槽位漂移：检查用户是否选择了“保留我的设置”并更新 `baseHash`，或选择了“恢复官方当前版”并清除了旧覆盖 / 写入了 `official_default`。

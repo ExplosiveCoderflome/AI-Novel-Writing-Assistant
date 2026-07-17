@@ -1,8 +1,12 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BookOpenText, ListChecks, Plus, RefreshCw } from "lucide-react";
 import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  WorkspaceHeader,
+  WorkspaceNextAction,
+  WorkspaceStateNotice,
+} from "@/components/workspace";
+import { Button } from "@/components/ui/button";
 import BookAnalysisBudgetAdjustDialog from "./components/BookAnalysisBudgetAdjustDialog";
 import BookAnalysisCharacterPanel from "./components/BookAnalysisCharacterPanel";
 import BookAnalysisCreateDialog from "./components/BookAnalysisCreateDialog";
@@ -15,6 +19,11 @@ import { useBookAnalysisActiveView } from "./hooks/useBookAnalysisActiveView";
 import { useBookAnalysisChapterReader } from "./hooks/useBookAnalysisChapterReader";
 import { useBookAnalysisDualPanePreference } from "./hooks/useBookAnalysisDualPanePreference";
 import { useBookAnalysisWorkspace } from "./hooks/useBookAnalysisWorkspace";
+import {
+  resolveBookAnalysisNextAction,
+  summarizeBookAnalysisSections,
+} from "./bookAnalysisWorkspaceViewModel";
+import { formatStage, formatStatus } from "./bookAnalysis.utils";
 
 export default function BookAnalysisPage() {
   const workspace = useBookAnalysisWorkspace();
@@ -23,6 +32,7 @@ export default function BookAnalysisPage() {
   const { activeView, setActiveView } = useBookAnalysisActiveView();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [budgetDialogMode, setBudgetDialogMode] = useState<"adjust" | "resume" | null>(null);
+  const pendingResultFocusIdRef = useRef("");
 
   const { generatedCharacterCount, candidateCharacterCount } = useMemo(() => {
     let generated = 0;
@@ -94,6 +104,69 @@ export default function BookAnalysisPage() {
   ) : null;
 
   const sectionsViewDualPaneAvailable = activeView === "sections" && dualPanePreference.dualPaneAvailable;
+  const sectionSummary = useMemo(
+    () => summarizeBookAnalysisSections(workspace.selectedAnalysis),
+    [workspace.selectedAnalysis],
+  );
+  const nextAction = useMemo(
+    () => resolveBookAnalysisNextAction({
+      analysis: workspace.selectedAnalysis,
+      analysesCount: workspace.analyses.length,
+    }),
+    [workspace.analyses.length, workspace.selectedAnalysis],
+  );
+
+  const scrollToResults = () => {
+    window.requestAnimationFrame(() => {
+      document.getElementById("book-analysis-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const focusResults = () => {
+    if (workspace.selectedAnalysis?.id) {
+      pendingResultFocusIdRef.current = workspace.selectedAnalysis.id;
+    }
+    setActiveView("sections");
+    if (activeView === "sections") {
+      pendingResultFocusIdRef.current = "";
+      scrollToResults();
+    }
+  };
+
+  useEffect(() => {
+    const pendingAnalysisId = pendingResultFocusIdRef.current;
+    if (
+      !pendingAnalysisId
+      || activeView !== "sections"
+      || workspace.selectedAnalysis?.id !== pendingAnalysisId
+    ) {
+      return;
+    }
+    pendingResultFocusIdRef.current = "";
+    scrollToResults();
+  }, [activeView, workspace.selectedAnalysis?.id]);
+
+  const handlePrimaryAction = () => {
+    if (nextAction.action === "create") {
+      setCreateDialogOpen(true);
+      return;
+    }
+    if (nextAction.action === "view_results") {
+      focusResults();
+      return;
+    }
+    if (nextAction.action === "resume_budget") {
+      setBudgetDialogMode("resume");
+      return;
+    }
+    if (nextAction.action === "rebuild" && workspace.selectedAnalysis) {
+      workspace.rebuildAnalysis(workspace.selectedAnalysis.id);
+      return;
+    }
+    if (nextAction.action === "copy") {
+      void workspace.copySelectedAnalysis();
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -107,28 +180,125 @@ export default function BookAnalysisPage() {
           onSubmit={handleBudgetSubmit}
         />
       ) : null}
-      <div className="flex justify-end">
-        <OpenInCreativeHubButton
-          bindings={{
-            bookAnalysisId: workspace.selectedAnalysisId || null,
-            knowledgeDocumentIds: workspace.selectedDocumentId ? [workspace.selectedDocumentId] : [],
-          }}
-          label={t("gen.pages.bookAnalysis.BookAnalysisPage.gen_81021efb")}
-        />
-      </div>
-      <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
-        <BookAnalysisSidebar
-          keyword={workspace.keyword}
-          status={workspace.status}
-          analyses={workspace.analyses}
-          selectedAnalysisId={workspace.selectedAnalysisId}
-          onKeywordChange={workspace.setKeyword}
-          onStatusChange={workspace.setStatus}
-          onOpenAnalysis={workspace.openAnalysis}
-          onOpenCreateDialog={() => setCreateDialogOpen(true)}
-        />
+      <WorkspaceHeader
+        icon={BookOpenText}
+        context={workspace.analysisMode === "diagnosis" ? "稿件诊断 · 原文与结果工作台" : "参考拆书 · 原文与结果工作台"}
+        title={workspace.selectedAnalysis?.title ?? "拆书分析"}
+        description={workspace.selectedAnalysis
+          ? "围绕来源文档阅读结构、人物、世界和写法结论；结果可以继续发布到小说知识库或交给创作中枢引用。"
+          : "选择来源文档并生成结构化拆书结果，完成后可直接阅读小节、回看原文证据和整理角色档案。"}
+        meta={workspace.selectedAnalysis ? (
+          <>
+            <span>来源：{workspace.selectedAnalysis.documentTitle} · v{workspace.selectedAnalysis.documentVersionNumber}</span>
+            <span>
+              阶段：{workspace.selectedAnalysis.currentStage
+                ? formatStage(workspace.selectedAnalysis.currentStage)
+                : workspace.selectedAnalysis.status === "succeeded"
+                  ? "结果可阅读"
+                  : formatStatus(workspace.selectedAnalysis.status)}
+            </span>
+            <span>进度：{Math.round(workspace.selectedAnalysis.progress * 100)}%</span>
+            <span>范围：{workspace.selectedAnalysis.sourceRange?.label ?? "全文"}</span>
+            <span>计划小节：{sectionSummary.readableExpected}/{sectionSummary.expected} 可阅读</span>
+          </>
+        ) : null}
+        actions={(
+          <>
+            <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              新建拆书
+            </Button>
+            {workspace.selectedAnalysis ? (
+              <OpenInCreativeHubButton
+                bindings={{
+                  bookAnalysisId: workspace.selectedAnalysisId || null,
+                  knowledgeDocumentIds: workspace.selectedDocumentId ? [workspace.selectedDocumentId] : [],
+                }}
+                label="在创作中枢引用"
+              />
+            ) : null}
+          </>
+        )}
+      />
 
-        <div className="min-w-0 space-y-4">
+      {workspace.selectedAnalysisId && workspace.queryState.detailLoading ? (
+        <WorkspaceStateNotice
+          loading
+          tone="info"
+          title="正在读取拆书结果"
+          description="结果加载完成后会直接显示可阅读小节和原文证据。"
+        />
+      ) : workspace.selectedAnalysisId && workspace.queryState.detailError ? (
+        <WorkspaceStateNotice
+          tone="danger"
+          title="无法读取这份拆书结果"
+          description={`${workspace.queryState.detailError} 来源文档和已保存结果不会被覆盖。`}
+          action={(
+            <Button type="button" size="sm" variant="outline" onClick={workspace.retryDetail}>
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              重试详情
+            </Button>
+          )}
+        />
+      ) : !workspace.selectedAnalysisId && workspace.queryState.analysesLoading ? (
+        <WorkspaceStateNotice
+          loading
+          tone="info"
+          title="正在读取拆书列表"
+          description="正在确认已有分析和最近进度，加载完成后会给出下一步。"
+        />
+      ) : !workspace.selectedAnalysisId && workspace.queryState.analysesError ? (
+        <WorkspaceStateNotice
+          tone="danger"
+          title="无法读取拆书列表"
+          description={`${workspace.queryState.analysesError} 现有来源文档和分析结果不会被修改。`}
+          action={(
+            <Button type="button" size="sm" variant="outline" onClick={workspace.retryAnalyses}>
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              重新加载
+            </Button>
+          )}
+        />
+      ) : (
+        <WorkspaceNextAction
+          tone={nextAction.tone}
+          icon={nextAction.action === "view_results" ? ListChecks : undefined}
+          title={nextAction.title}
+          description={nextAction.description}
+          action={nextAction.action && nextAction.action !== "select" && nextAction.actionLabel ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={handlePrimaryAction}
+              disabled={workspace.pending.rebuild || workspace.pending.copy || workspace.pending.resumeWithBudget}
+            >
+              {nextAction.actionLabel}
+            </Button>
+          ) : null}
+        />
+      )}
+      <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
+        <div className="order-2 min-w-0 xl:order-1">
+          <BookAnalysisSidebar
+            keyword={workspace.keyword}
+            status={workspace.status}
+            analyses={workspace.analyses}
+            selectedAnalysisId={workspace.selectedAnalysisId}
+            loading={workspace.queryState.analysesLoading}
+            errorMessage={workspace.queryState.analysesError}
+            onKeywordChange={workspace.setKeyword}
+            onStatusChange={workspace.setStatus}
+            onOpenAnalysis={(analysisId, documentId) => {
+              pendingResultFocusIdRef.current = analysisId;
+              workspace.openAnalysis(analysisId, documentId);
+              setActiveView("sections");
+            }}
+            onOpenCreateDialog={() => setCreateDialogOpen(true)}
+            onRetry={workspace.retryAnalyses}
+          />
+        </div>
+
+        <div className="order-1 min-w-0 space-y-4 xl:order-2">
           {workspace.analysisMode === "diagnosis" && workspace.selectedAnalysis ? (
             <BookAnalysisDiagnosisTipBanner documentTitle={workspace.selectedAnalysis.documentTitle} />
           ) : null}
@@ -165,55 +335,65 @@ export default function BookAnalysisPage() {
                 candidateCharacterCount={candidateCharacterCount}
               />
               {activeView === "sections" ? (
-                <BookAnalysisDetailPanel
-                  analysisMode={workspace.analysisMode}
-                  selectedAnalysis={workspace.selectedAnalysis}
-                  novelOptions={workspace.novelOptions}
-                  documentChapters={workspace.documentChapters}
-                  sourceVersionContent={workspace.sourceVersionContent}
-                  selectedNovelId={workspace.selectedNovelId}
-                  publishFeedback={workspace.publishFeedback}
-                  styleProfileFeedback={workspace.styleProfileFeedback}
-                  lastPublishResult={workspace.lastPublishResult}
-                  aggregatedEvidence={workspace.aggregatedEvidence}
-                  optimizingSectionKey={workspace.optimizingSectionKey}
-                  isDualPane={dualPanePreference.dualPaneEnabled}
-                  currentChapterIndex={chapterReader.currentChapterIndex}
-                  chapterHighlightRange={chapterReader.highlightRange}
-                  chapterReaderRef={chapterReader.readerRef}
-                  rightColumnExtra={dualPanePreference.dualPaneEnabled ? characterPanelNode : null}
-                  pending={{
-                    regenerate: workspace.pending.regenerate,
-                    optimizePreview: workspace.pending.optimizePreview,
-                    saveSection: workspace.pending.saveSection,
-                    publish: workspace.pending.publish,
-                  }}
-                  onActiveChapterChange={chapterReader.setCurrentChapterIndex}
-                  onSelectChapter={chapterReader.scrollToChapter}
-                  onEvidenceJump={chapterReader.scrollToEvidence}
-                  onSelectedNovelChange={workspace.setSelectedNovelId}
-                  onPublish={() => void workspace.publishSelectedAnalysis()}
-                  onRegenerateSection={(section) => workspace.regenerateSection(section.sectionKey)}
-                  onOptimizeSection={(section) => void workspace.optimizeSectionPreview(section)}
-                  onApplyOptimizePreview={workspace.applySectionOptimizePreview}
-                  onCancelOptimizePreview={workspace.clearSectionOptimizePreview}
-                  onSaveSection={workspace.saveSection}
-                  onDraftChange={workspace.updateSectionDraft}
-                  getSectionDraft={workspace.getSectionDraft}
-                />
+                <div id="book-analysis-results" className="scroll-mt-4">
+                  <BookAnalysisDetailPanel
+                    analysisMode={workspace.analysisMode}
+                    selectedAnalysis={workspace.selectedAnalysis}
+                    novelOptions={workspace.novelOptions}
+                    documentChapters={workspace.documentChapters}
+                    sourceVersionContent={workspace.sourceVersionContent}
+                    sourceLoading={workspace.queryState.sourceLoading}
+                    sourceError={workspace.queryState.sourceError}
+                    chaptersLoading={workspace.queryState.chaptersLoading}
+                    chaptersError={workspace.queryState.chaptersError}
+                    selectedNovelId={workspace.selectedNovelId}
+                    publishFeedback={workspace.publishFeedback}
+                    styleProfileFeedback={workspace.styleProfileFeedback}
+                    lastPublishResult={workspace.lastPublishResult}
+                    aggregatedEvidence={workspace.aggregatedEvidence}
+                    optimizingSectionKey={workspace.optimizingSectionKey}
+                    isDualPane={dualPanePreference.dualPaneEnabled}
+                    currentChapterIndex={chapterReader.currentChapterIndex}
+                    chapterHighlightRange={chapterReader.highlightRange}
+                    chapterReaderRef={chapterReader.readerRef}
+                    rightColumnExtra={dualPanePreference.dualPaneEnabled ? characterPanelNode : null}
+                    pending={{
+                      regenerate: workspace.pending.regenerate,
+                      optimizePreview: workspace.pending.optimizePreview,
+                      saveSection: workspace.pending.saveSection,
+                      publish: workspace.pending.publish,
+                    }}
+                    onActiveChapterChange={chapterReader.setCurrentChapterIndex}
+                    onSelectChapter={chapterReader.scrollToChapter}
+                    onEvidenceJump={chapterReader.scrollToEvidence}
+                    onRetrySource={workspace.retrySource}
+                    onRetryChapters={workspace.retryChapters}
+                    onSelectedNovelChange={workspace.setSelectedNovelId}
+                    onPublish={() => void workspace.publishSelectedAnalysis()}
+                    onRegenerateSection={(section) => workspace.regenerateSection(section.sectionKey)}
+                    onOptimizeSection={(section) => void workspace.optimizeSectionPreview(section)}
+                    onApplyOptimizePreview={workspace.applySectionOptimizePreview}
+                    onCancelOptimizePreview={workspace.clearSectionOptimizePreview}
+                    onSaveSection={workspace.saveSection}
+                    onDraftChange={workspace.updateSectionDraft}
+                    getSectionDraft={workspace.getSectionDraft}
+                  />
+                </div>
               ) : (
                 characterPanelNode
               )}
             </>
           ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("gen.pages.bookAnalysis.BookAnalysisPage.gen_d150be05")}</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">
-                请先在左侧选择一个分析，或从知识文档创建新分析。
-              </CardContent>
-            </Card>
+            <WorkspaceStateNotice
+              tone="neutral"
+              title={workspace.analyses.length > 0 ? "选择一份拆书分析" : "还没有拆书结果"}
+              description={workspace.analyses.length > 0
+                ? "从左侧选择分析后，这里会展示来源、生成阶段、可阅读结果和恢复动作。"
+                : "新建拆书后，AI 会把来源文档整理为可阅读、可发布和可引用的结果。"}
+              action={workspace.analyses.length === 0 ? (
+                <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>新建拆书</Button>
+              ) : null}
+            />
           )}
         </div>
       </div>

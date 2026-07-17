@@ -49,6 +49,8 @@ function artifactTypeLabel(type: DirectorArtifactType): string {
     story_macro: "故事宏观规划",
     character_cast: "角色阵容",
     volume_strategy: "分卷策略",
+    volume_beat_sheet: "卷节奏板",
+    volume_chapter_list: "卷拆章列表",
     chapter_task_sheet: "章节任务单",
     chapter_draft: "章节正文",
     audit_report: "审校报告",

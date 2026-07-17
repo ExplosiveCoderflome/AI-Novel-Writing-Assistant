@@ -1,10 +1,11 @@
-import i18next from "i18next";
 import { useCallback, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   previewPrompt,
+  testRunPrompt,
   type PromptCatalogItem,
   type PromptPreviewPayload,
+  type PromptTestRunPayload,
   type PromptTemplateJson,
 } from "@/api/promptWorkbench";
 import type { PromptSlotDrafts } from "../promptWorkbenchTypes";
@@ -34,14 +35,14 @@ function buildPreviewExtraContextBlocks(prompt: PromptCatalogItem) {
       group: "chapter_mission",
       priority: 100,
       content: [
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_fa5f7a3e"),
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_09492cc9"),
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_25d09fe2"),
+        "Chapter mission: 示例章节",
+        "Objective: 让主角发现旧仓库暗号，并确认有人正在逼近。",
+        "Expectation: 本章需要推进线索发现、制造外部压力，并在结尾留下追踪钩子。",
         "Must advance",
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_187854b0"),
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_9226a0e2"),
+        "- 主角发现墙上暗号并判断它指向旧城档案站。",
+        "- 门外脚步声逼近，迫使主角做出即时选择。",
         "Must preserve",
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_006c7888"),
+        "- 暗号是真实线索，不是幻觉或普通涂鸦。",
       ].join("\n"),
     },
     {
@@ -51,15 +52,15 @@ function buildPreviewExtraContextBlocks(prompt: PromptCatalogItem) {
       required: true,
       content: [
         "Chapter boundary:",
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_0f1f1de4"),
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_e8b8223d"),
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_ccb45e1c"),
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_062c8a32"),
+        "Exclusive event: 主角第一次在旧仓库发现上一任调查员留下的暗号。",
+        "Entry state: 主角独自进入旧仓库，尚未确认暗号含义。",
+        "Ending state: 主角确认暗号指向旧城档案站，同时意识到追踪者已经到门外。",
+        "Next chapter entry state: 主角必须在暴露前决定带走证据还是设伏反查。",
         "Do not cross",
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_d0388d9d"),
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_04008be7"),
+        "- 不得在本章直接揭开旧城组织的真实首领。",
+        "- 不得让追踪者当场完整解释暗号系统。",
         "Protected reveals",
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_cebd0922"),
+        "- 上一任调查员的真实身份。",
       ].join("\n"),
     },
     {
@@ -69,22 +70,22 @@ function buildPreviewExtraContextBlocks(prompt: PromptCatalogItem) {
       required: true,
       content: [
         "Structure obligations",
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_b5afa73f"),
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_c606b03c"),
-        i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_94f1c7cb"),
+        "- 必须检查本章是否完成线索发现、压力逼近和章末选择点。",
+        "- 必须检查主角行动动机是否连续，不能凭空知道暗号答案。",
+        "- 必须检查结尾是否形成新的悬念或追踪压力。",
       ].join("\n"),
     },
     {
       id: "local_state",
       group: "local_state",
       priority: 89,
-      content: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_c17dae8b"),
+      content: "Local state before review:\n主角身处旧仓库内部，外部追踪者正在靠近，暗号含义尚未完全确认。",
     },
     {
       id: "world_rules",
       group: "world_rules",
       priority: 84,
-      content: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_b57151aa"),
+      content: "Relevant world rules\n- 旧城暗号系统只由少数调查员和地下组织成员掌握。",
     },
   ];
 }
@@ -113,19 +114,19 @@ function buildPreviewPromptInput(
       ? previewChapter.content?.trim()
         || previewChapter.taskSheet?.trim()
         || previewChapter.expectation?.trim()
-        || i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_07c0b1cc")
-      : i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_e7f2b0ba");
+        || "当前章节暂无正文。"
+      : "主角走进旧仓库，发现墙上残留着上一任调查员留下的暗号。门外脚步声逼近，他必须在暴露前判断暗号指向哪里。";
     return {
-      novelTitle: previewNovel?.title || i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_7a479795"),
+      novelTitle: previewNovel?.title || "示例小说",
       chapterTitle: previewChapter
-        ? `第 ${previewChapter.order ?? "?"} 章 ${previewChapter.title || i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_db55d102")}`
-        : i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_922be4ec"),
+        ? `第 ${previewChapter.order ?? "?"} 章 ${previewChapter.title || "未命名章节"}`
+        : "示例章节",
       requestedTypes: ["plot", "character", "continuity"],
       storyModeContext: previewNovel
-        ? i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_a79b9784")
-        : i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_62608d31"),
+        ? "使用所选小说的章节任务、章节边界和结构义务进行本书预览。"
+        : "本书偏连载网文节奏，章节需要持续推进冲突并保留章末钩子。",
       content: chapterContent,
-      ragContext: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_a9794fc2"),
+      ragContext: "无额外检索补充。",
     };
   }
 
@@ -134,9 +135,9 @@ function buildPreviewPromptInput(
     const softMinWordCount = Math.max(800, Math.round(targetWordCount * 0.86));
     const softMaxWordCount = Math.max(softMinWordCount + 200, Math.round(targetWordCount * 1.14));
     return {
-      novelTitle: previewNovel?.title || i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_7a479795"),
+      novelTitle: previewNovel?.title || "示例小说",
       chapterOrder: previewChapter?.order ?? 1,
-      chapterTitle: previewChapter?.title || i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_922be4ec"),
+      chapterTitle: previewChapter?.title || "示例章节",
       mode: "draft",
       targetWordCount,
       minWordCount: softMinWordCount,
@@ -146,15 +147,15 @@ function buildPreviewPromptInput(
 
   if (prompt.id === "novel.chapter_editor.workspace_diagnosis") {
     return {
-      chapterTitle: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_922be4ec"),
-      chapterMission: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_baf94af2"),
-      volumePositionLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_9ca42306"),
-      volumePhaseLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_bd3b7f55"),
-      paceDirective: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_ad61eb88"),
-      previousChapterBridge: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.previousChapterTrail"),
-      nextChapterBridge: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.enterPositiveConflict"),
-      activePlotThreads: [i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_60c5c0a7")],
-      paragraphs: [{ index: 1, text: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.mainCharacterEntersOldWarehouse") }],
+      chapterTitle: "示例章节",
+      chapterMission: "让主角发现关键线索。",
+      volumePositionLabel: "第一卷中段",
+      volumePhaseLabel: "冲突展开",
+      paceDirective: "加快推进",
+      previousChapterBridge: "上一章留下追踪线索。",
+      nextChapterBridge: "下一章进入正面对抗。",
+      activePlotThreads: ["追踪档案站"],
+      paragraphs: [{ index: 1, text: "主角走进旧仓库。" }],
       openIssues: [],
     };
   }
@@ -164,14 +165,14 @@ function buildPreviewPromptInput(
       generationDepth: "standard",
       selectedDimensions: ["basic", "personality", "arc"],
       character: {
-        name: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_e4abe8b6"),
-        role: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.mainCharacter"),
-        briefDescription: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_66fde00e"),
+        name: "林澈",
+        role: "主角",
+        briefDescription: "被迫追查旧仓库暗号的年轻调查员。",
         importance: "high",
-        occurringChapters: [i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_b74c6edc")],
+        occurringChapters: ["第 1 章"],
       },
-      characterSystemContext: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_86738028"),
-      notesText: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_64bb617b"),
+      characterSystemContext: "主角承担揭开旧城秘密的推进职责。",
+      notesText: "第 1 章中，林澈发现旧仓库暗号，并意识到有人正在追踪他。",
       ragEvidenceText: "",
     };
   }
@@ -180,42 +181,42 @@ function buildPreviewPromptInput(
     return {
       generationDepth: "standard",
       selectedDimensions: ["basic", "personality", "arc"],
-      characterNames: [i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_e4abe8b6"), i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_cf3fd6b1")],
-      characterSystemContext: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_04956884"),
-      notesText: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_aa409add"),
+      characterNames: ["林澈", "沈雾"],
+      characterSystemContext: "核心角色围绕旧城秘密和追踪压力形成关系网。",
+      notesText: "林澈发现暗号，沈雾掌握旧城线索，两人暂时互不信任。",
     };
   }
 
   if (prompt.id === "image.novel_cover.brief") {
     return {
-      sourcePrompt: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_ebf7234e"),
-      title: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_a11ed98f"),
-      description: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_a7dd2e1b"),
-      targetAudience: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_254602e3"),
-      bookSellingPoint: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_21fd768c"),
-      competingFeel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_360a6ce1"),
-      first30ChapterPromise: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_000f10cc"),
-      commercialTags: [i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_b6f72e6e"), i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_bc75b56a"), i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_ec9fda10")],
-      genreLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_b6f72e6e"),
-      primaryStoryModeLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_7128794b"),
-      secondaryStoryModeLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_9e9456bf"),
-      worldName: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_cd574c1e"),
-      worldSummary: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_b9a14988"),
-      styleTone: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_c35d44c5"),
-      narrativePovLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_d6180b7f"),
-      pacePreferenceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_a53ec413"),
-      emotionIntensityLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_20da5903"),
+      sourcePrompt: "旧城仓库、墙上暗号、门外脚步声、悬疑感强的竖版封面。",
+      title: "旧城暗号",
+      description: "年轻调查员在旧城废仓中发现改变命运的暗号。",
+      targetAudience: "喜欢都市悬疑和强钩子开篇的读者。",
+      bookSellingPoint: "每章都围绕一个可追查的线索推进。",
+      competingFeel: "紧张、克制、带一点冷色电影感。",
+      first30ChapterPromise: "揭开旧城暗号背后的组织，并让主角卷入更大的阴谋。",
+      commercialTags: ["都市悬疑", "线索追查", "高压开局"],
+      genreLabel: "都市悬疑",
+      primaryStoryModeLabel: "线索推进",
+      secondaryStoryModeLabel: "身份谜团",
+      worldName: "旧城",
+      worldSummary: "一座表面平静、地下线索交错的旧城区。",
+      styleTone: "冷峻、紧凑、画面感强",
+      narrativePovLabel: "第三人称有限视角",
+      pacePreferenceLabel: "中快节奏",
+      emotionIntensityLabel: "高压克制",
     };
   }
 
   if (prompt.id === "novel.character.castAuto.relations") {
     return {
-      storyInput: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_b544a42f"),
-      optionTitle: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_b9a8b7e7"),
-      optionSummary: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_9358433b"),
-      protagonistName: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_e4abe8b6"),
-      memberNames: [i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_e4abe8b6"), i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_cf3fd6b1"), i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_2f6eaf4c")],
-      memberRosterText: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_93de760e"),
+      storyInput: "主角在旧城追查暗号，逐步发现身边人的隐瞒与组织压力。",
+      optionTitle: "旧城追踪阵容",
+      optionSummary: "主角、线索提供者和压力来源围绕旧城秘密形成互相试探的关系网。",
+      protagonistName: "林澈",
+      memberNames: ["林澈", "沈雾", "顾衡"],
+      memberRosterText: "林澈：主角，年轻调查员。\n沈雾：线索提供者，知道旧城暗号来源。\n顾衡：压力来源，试图阻止调查。",
     };
   }
 
@@ -223,17 +224,17 @@ function buildPreviewPromptInput(
     return {
       layerKey: "foundation",
       targetFields: ["background", "geography"],
-      worldName: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_cd574c1e"),
-      worldType: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_49ce2313"),
-      templateName: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_b6f72e6e"),
-      templateDescription: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_9f62b479"),
-      classicElements: [i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_a7fc11d2"), i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_d727f8ce"), i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_5fce8ed9")],
-      pitfalls: [i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_b1e2d9de"), i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_e3f7033c")],
-      axioms: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_de691fea"),
-      summary: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_4f216488"),
-      blueprintPromptBlock: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_18260977"),
+      worldName: "旧城",
+      worldType: "都市异闻",
+      templateName: "都市悬疑",
+      templateDescription: "现实城市表层下隐藏长期运转的秘密秩序。",
+      classicElements: ["旧城区", "地下组织", "线索暗号"],
+      pitfalls: ["不要把所有谜团一次解释完", "不要让规则只停留在概念"],
+      axioms: "旧城的暗号系统真实存在，并会影响人物行动。",
+      summary: "旧城由表面生活区和地下线索网络构成。",
+      blueprintPromptBlock: "核心舞台是废弃仓库、老街和被遮蔽的档案站。",
       existingJson: "{}",
-      ragContext: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_a0cfcb1f"),
+      ragContext: "无额外参考。",
     };
   }
 
@@ -251,38 +252,38 @@ function buildPreviewPromptInput(
   if (prompt.id === "writingFormula.extract.stream") {
     return {
       extractLevel: "standard",
-      focusAreas: [i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_dd608458"), i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_885bfeeb"), i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_eb4de658")],
-      sourceText: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_e95c1e5b"),
+      focusAreas: ["节奏", "句式", "画面感"],
+      sourceText: "门外脚步声停住了。林澈按住呼吸，指尖擦过墙上的暗号，忽然明白这不是警告，而是邀请。",
     };
   }
 
   if (prompt.id === "novel.chapter_editor.rewrite_candidates") {
     return {
       operation: "polish",
-      operationLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_88f06f8a"),
+      operationLabel: "润色选中片段",
       scope: "selection",
       customInstruction: "",
-      selectedText: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_73a4c830"),
-      beforeParagraphs: [i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_2f243a17")],
-      afterParagraphs: [i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_24063769")],
-      goalSummary: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_2b987484"),
-      chapterSummary: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_25f2ae57"),
-      styleSummary: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_f51abd1d"),
-      characterStateSummary: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_6fb0fb48"),
-      worldConstraintSummary: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_86f576a8"),
-      macroContextSummary: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_f763afce"),
-      resolvedIntentSummary: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_1354797c"),
-      constraintsText: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_af58b965"),
+      selectedText: "门外脚步声停住了。林澈按住呼吸，指尖擦过墙上的暗号。",
+      beforeParagraphs: ["旧仓库里只剩一盏忽明忽暗的灯。"],
+      afterParagraphs: ["下一秒，铁门被人从外面轻轻推开。"],
+      goalSummary: "让主角发现关键线索，并用外部压力制造章末紧张感。",
+      chapterSummary: "主角进入旧仓库，发现暗号，同时意识到追踪者已经逼近。",
+      styleSummary: "冷峻、克制、动作细节清晰。",
+      characterStateSummary: "主角警惕但仍愿意冒险推进调查。",
+      worldConstraintSummary: "旧城暗号是真实线索，不是幻觉或普通涂鸦。",
+      macroContextSummary: "本章负责把主角卷入旧城秘密的第一层门槛。",
+      resolvedIntentSummary: "让片段更自然，并加强悬疑压力。",
+      constraintsText: "不改变暗号存在、门外有人逼近和主角正在调查这三个事实。",
     };
   }
 
   return {
-    goal: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_497aacb7"),
+    goal: "查看提示词预览",
     messages: [],
     contextMode: "novel",
     novelId: "novel-1",
-    chapterTitle: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_922be4ec"),
-    chapterMission: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_baf94af2"),
+    chapterTitle: "示例章节",
+    chapterMission: "让主角发现关键线索。",
   };
 }
 
@@ -309,48 +310,76 @@ export function usePromptPreview(input: UsePromptPreviewInput) {
     templateDraft,
   } = input;
 
-  const previewMutation = useMutation({
-    mutationFn: () => {
-      if (!prompt) {
-        throw new Error(i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_7ea1f499"));
-      }
-      const executionNovelId = novelId || "novel-1";
-      const executionChapterId = chapterId || previewChapter?.id || (novelId ? undefined : "chapter-1");
-      const hasRealChapterContext = Boolean(novelId && executionChapterId && previewChapter);
-      const payload: PromptPreviewPayload = {
-        promptKey: prompt.key,
-        promptInput: buildPreviewPromptInput(prompt, previewNovel, previewChapter),
-        executionContext: {
-          entrypoint,
+  const buildPayload = useCallback((): PromptPreviewPayload => {
+    if (!prompt) {
+      throw new Error("请选择提示词后再生成预览。");
+    }
+    const executionNovelId = novelId || "novel-1";
+    const executionChapterId = chapterId || previewChapter?.id || (novelId ? undefined : "chapter-1");
+    const hasRealChapterContext = Boolean(novelId && executionChapterId && previewChapter);
+    return {
+      promptKey: prompt.key,
+      promptInput: buildPreviewPromptInput(prompt, previewNovel, previewChapter),
+      executionContext: {
+        entrypoint,
+        novelId: executionNovelId,
+        chapterId: executionChapterId,
+        userGoal: "查看提示词预览",
+        resourceBindings: {
           novelId: executionNovelId,
-          chapterId: executionChapterId,
-          userGoal: i18next.t("gen.pages.promptWorkbench.hooks.usePromptPreview.gen_497aacb7"),
-          resourceBindings: {
-            novelId: executionNovelId,
-            ...(executionChapterId ? { chapterId: executionChapterId } : {}),
-          },
-          metadata: buildPreviewExecutionMetadata(prompt, hasRealChapterContext),
+          ...(executionChapterId ? { chapterId: executionChapterId } : {}),
         },
-        maxContextTokens: prompt.contextPolicy.maxTokensBudget,
-        slotOverrides,
-        templateDraft,
+        metadata: buildPreviewExecutionMetadata(prompt, hasRealChapterContext),
+      },
+      maxContextTokens: prompt.contextPolicy.maxTokensBudget,
+      slotOverrides,
+      templateDraft,
+    };
+  }, [
+    chapterId,
+    entrypoint,
+    novelId,
+    previewChapter,
+    previewNovel,
+    prompt,
+    slotOverrides,
+    templateDraft,
+  ]);
+
+  const previewMutation = useMutation({
+    mutationFn: () => previewPrompt(buildPayload()),
+  });
+
+  const testRunMutation = useMutation({
+    mutationFn: (llm?: PromptTestRunPayload["llm"]) => {
+      const payload: PromptTestRunPayload = {
+        ...buildPayload(),
+        ...(llm ? { llm } : {}),
       };
-      return previewPrompt(payload);
+      return testRunPrompt(payload);
     },
   });
 
   useEffect(() => {
     previewMutation.reset();
+    testRunMutation.reset();
   }, [prompt?.key]);
 
   const generatePreview = useCallback(() => {
     previewMutation.mutate();
   }, [previewMutation]);
 
+  const generateTestRun = useCallback((llm?: PromptTestRunPayload["llm"]) => {
+    testRunMutation.mutate(llm);
+  }, [testRunMutation]);
+
   return {
     generatePreview,
+    generateTestRun,
     preview: previewMutation.data?.data ?? null,
     previewMutation,
+    testRun: testRunMutation.data?.data ?? null,
+    testRunMutation,
     resetPreview: previewMutation.reset,
   };
 }

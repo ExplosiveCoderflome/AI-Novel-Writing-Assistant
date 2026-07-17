@@ -8,6 +8,7 @@ import type {
 export type WorkflowStepCatalogDisplayStage =
   | "project_setup"
   | "story_planning"
+  | "world_setup"
   | "character_setup"
   | "volume_strategy"
   | "structured_outline"
@@ -84,6 +85,7 @@ export const WORKFLOW_DISPLAY_STAGES: readonly {
 }[] = [
   { key: "project_setup", label: "项目设定" },
   { key: "story_planning", label: "故事宏观规划" },
+  { key: "world_setup", label: "世界观准备" },
   { key: "character_setup", label: "角色准备" },
   { key: "volume_strategy", label: "卷战略" },
   { key: "structured_outline", label: "节奏 / 拆章" },
@@ -322,10 +324,10 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
   },
   {
     id: DIRECTOR_WORKFLOW_STEP_IDS.planning.world_setup,
-    stage: "story_macro",
-    displayStage: "story_planning",
-    workflowStage: "story_macro",
-    tab: "story_macro",
+    stage: "world_setup",
+    displayStage: "world_setup",
+    workflowStage: "world_setup",
+    tab: "world",
     checkpoint: null,
     approvalPoint: null,
     defaultProgress: 0.47,
@@ -342,7 +344,7 @@ export const WORKFLOW_STEP_CATALOG: readonly WorkflowStepCatalogEntry[] = [
     aliases: {
       nodeKeys: ["world_setup"],
       currentItemKeys: ["world_setup"],
-      currentStages: ["story_macro", "story_planning"],
+      currentStages: ["world_setup"],
     },
   },
   {
@@ -724,6 +726,17 @@ export const WORKFLOW_CHECKPOINT_CATALOG: readonly WorkflowCheckpointCatalogEntr
     pausedLabel: "自动执行已暂停",
     approvalPoint: "structured_outline_ready",
     defaultProgress: 0.9,
+  },
+  {
+    checkpoint: "step_review_required",
+    displayStage: "story_planning",
+    workflowStage: "auto_director",
+    tab: "pipeline",
+    label: "步骤已生成，等待检查",
+    waitingApprovalLabel: "当前步骤已完成，请检查后继续",
+    pausedLabel: "逐步协作已暂停",
+    approvalPoint: null,
+    defaultProgress: 0.5,
   },
   {
     checkpoint: "replan_required",

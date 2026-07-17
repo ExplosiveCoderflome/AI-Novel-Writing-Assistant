@@ -1,9 +1,6 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { BasicTabProps } from "./NovelEditView.types";
 import NovelBasicInfoForm from "./NovelBasicInfoForm";
 import NovelStyleRecommendationCard from "./NovelStyleRecommendationCard";
-import NovelWorldManagerCard from "./NovelWorldManagerCard";
 import { BookFramingQuickFillButton } from "./basicInfoForm/BookFramingQuickFillButton";
 import NovelCreateTitleQuickFill from "./titleWorkshop/NovelCreateTitleQuickFill";
 import DirectorTakeoverEntryPanel from "./DirectorTakeoverEntryPanel";
@@ -14,37 +11,13 @@ export default function BasicInfoTab(props: BasicTabProps) {
   return (
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel
-        title={t("gen.pages.novels.components.BasicInfoTab.gen_1c2bfa8e")}
-        description={t("gen.pages.novels.components.BasicInfoTab.gen_48ee08a7")}
+        title="让 AI 从当前项目继续接管"
+        description="如果基础信息较完整，可以直接从选定步骤开始自动接管，并选择继续已有进度或重跑当前步。"
         entry={props.directorTakeoverEntry}
       />
-      <NovelWorldManagerCard
-        view={props.novelWorldView}
-        syncDiff={props.novelWorldSyncDiff}
-        worldOptions={props.worldOptions}
-        selectedWorldId={props.basicForm.worldId}
-        isLoading={props.isLoadingNovelWorld}
-        isImporting={props.isImportingNovelWorld}
-        isGenerating={props.isGeneratingNovelWorld}
-        isCreatingManual={props.isCreatingManualNovelWorld}
-        isSavingToLibrary={props.isSavingNovelWorldToLibrary}
-        isLoadingSyncDiff={props.isLoadingNovelWorldSyncDiff}
-        isSyncing={props.isSyncingNovelWorld}
-        usageView={props.worldSliceView}
-        usageMessage={props.worldSliceMessage}
-        isRefreshingWorldSlice={props.isRefreshingWorldSlice}
-        isSavingWorldSliceOverrides={props.isSavingWorldSliceOverrides}
-        onImport={props.onImportNovelWorld}
-        onCreateManual={props.onCreateManualNovelWorld}
-        onGenerate={props.onGenerateNovelWorld}
-        onSaveToLibrary={props.onSaveNovelWorldToLibrary}
-        onSync={props.onSyncNovelWorld}
-        onRefreshWorldSlice={props.onRefreshWorldSlice}
-        onSaveWorldSliceOverrides={props.onSaveWorldSliceOverrides}
-      />
       <SectionBlock
-        title={t("gen.pages.novels.components.BasicInfoTab.chapterLocationBasicInfo")}
-        description={t("gen.pages.novels.components.BasicInfoTab.gen_95e5f769")}
+        title="书级定位"
+        description="先确认这本书面向谁、靠什么吸引读者、前期必须兑现什么，再让后续世界、角色和章节围绕同一组承诺展开。"
       >
         <NovelBasicInfoForm
           basicForm={props.basicForm}
@@ -59,7 +32,7 @@ export default function BasicInfoTab(props: BasicTabProps) {
           onFormChange={props.onFormChange}
           onSubmit={props.onSave}
           isSubmitting={props.isSaving}
-          submitLabel={t("gen.pages.novels.components.BasicInfoTab.saveBasicInfo")}
+          submitLabel="保存基本信息"
           titleQuickFill={(
             <NovelCreateTitleQuickFill
               basicForm={props.basicForm}
@@ -88,9 +61,9 @@ export default function BasicInfoTab(props: BasicTabProps) {
       </SectionBlock>
 
       <DetailDisclosure
-        title={t("gen.pages.novels.components.BasicInfoTab.gen_b59a7318")}
-        description={t("gen.pages.novels.components.BasicInfoTab.gen_734fe645")}
-        meta={t("gen.pages.novels.components.BasicInfoTab.gen_d1de791d")}
+        title="写法建议"
+        description="确认本书的叙述口味、表达密度和风格参考，帮助后续章节保持统一。"
+        meta="写法参考"
       >
         <NovelStyleRecommendationCard novelId={props.novelId} />
       </DetailDisclosure>

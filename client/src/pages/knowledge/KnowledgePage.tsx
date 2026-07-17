@@ -1,11 +1,8 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import type { KnowledgeDocumentStatus, KnowledgeRecallTestResult } from "@ai-novel/shared/types/knowledge";
 import { useSearchParams } from "react-router-dom";
-import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { queryKeys } from "@/api/queryKeys";
 import {
@@ -27,8 +24,9 @@ import {
 import { getRagEmbeddingModels, getRagSettings, saveRagSettings } from "@/api/settings";
 import { isTxtFile, readTextFile } from "@/lib/textFile";
 import KnowledgeDocumentDetailDialog from "./components/KnowledgeDocumentDetailDialog";
-import KnowledgeDocumentsTab, { type BatchUploadResult } from "./components/KnowledgeDocumentsTab";
+import KnowledgeDocumentsTab from "./components/KnowledgeDocumentsTab";
 import KnowledgeEmbeddingSettingsCard, { type KnowledgeEmbeddingSettingsFormState } from "./components/KnowledgeEmbeddingSettingsCard";
+import KnowledgeLibraryOverview from "./components/KnowledgeLibraryOverview";
 import KnowledgeOpsTab from "./components/KnowledgeOpsTab";
 
 const TAB_VALUES = new Set(["documents", "ops", "settings"]);
@@ -46,8 +44,9 @@ export default function KnowledgePage() {
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState<KnowledgeDocumentStatus | "">("");
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploadBusy, setUploadBusy] = useState(false);
-  const [uploadResults, setUploadResults] = useState<BatchUploadResult[]>([]);
   const [versionBusy, setVersionBusy] = useState(false);
   const [recallQuery, setRecallQuery] = useState("");
   const [recallResult, setRecallResult] = useState<KnowledgeRecallTestResult | null>(null);
@@ -291,22 +290,22 @@ export default function KnowledgePage() {
   const clearFinishedRagJobsMutation = useMutation({
     mutationFn: clearFinishedRagJobs,
     onSuccess: async (response) => {
-      setRagJobsActionMessage(response.message ?? t("gen.pages.knowledge.KnowledgePage.gen_901ed15c"));
+      setRagJobsActionMessage(response.message ?? "已清理已结束任务。");
       await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
     },
     onError: (error) => {
-      setRagJobsActionMessage(error instanceof Error ? error.message : t("gen.pages.knowledge.KnowledgePage.gen_e1f338dd"));
+      setRagJobsActionMessage(error instanceof Error ? error.message : "清理任务失败。");
     },
   });
 
   const deleteRagJobMutation = useMutation({
     mutationFn: (jobId: string) => deleteRagJob(jobId),
     onSuccess: async (response) => {
-      setRagJobsActionMessage(response.message ?? t("gen.pages.knowledge.KnowledgePage.taskIdRecordDeleted"));
+      setRagJobsActionMessage(response.message ?? "任务记录已删除。");
       await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
     },
     onError: (error) => {
-      setRagJobsActionMessage(error instanceof Error ? error.message : t("gen.pages.knowledge.KnowledgePage.gen_0cd5921e"));
+      setRagJobsActionMessage(error instanceof Error ? error.message : "删除任务失败。");
     },
   });
 
@@ -338,16 +337,44 @@ export default function KnowledgePage() {
     () => visibleDocuments.filter((item) => item.status === "disabled").length,
     [visibleDocuments],
   );
+  const searchableDocumentCount = useMemo(
+    () => visibleDocuments.filter((item) => item.status === "enabled" && item.latestIndexStatus === "succeeded").length,
+    [visibleDocuments],
+  );
+  const failedIndexDocumentCount = useMemo(
+    () => visibleDocuments.filter((item) => item.status !== "archived" && item.latestIndexStatus === "failed").length,
+    [visibleDocuments],
+  );
+  const failedKnowledgeJobCount = useMemo(
+    () => Array.from(latestKnowledgeDocumentJobs.values()).filter((item) => item.status === "failed").length,
+    [latestKnowledgeDocumentJobs],
+  );
   const failedJobs = (ragJobsQuery.data?.data ?? []).filter((item) => item.status === "failed").slice(0, 5);
   const selectedDocument = detailQuery.data?.data;
   const ragHealthNotice = ragHealthQuery.isError
-    ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : t("gen.pages.knowledge.KnowledgePage.gen_9a6a1f05"))
+    ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : "加载 RAG 健康状态失败。")
     : (ragHealthQuery.data?.message && ragHealthQuery.data.message !== "RAG health check passed."
       ? ragHealthQuery.data.message
       : undefined);
   const recallErrorMessage = recallTestMutation.isError
-    ? (recallTestMutation.error instanceof Error ? recallTestMutation.error.message : t("gen.pages.knowledge.KnowledgePage.gen_25978068"))
+    ? (recallTestMutation.error instanceof Error ? recallTestMutation.error.message : "召回测试失败。")
     : null;
+  const documentListErrorMessage = documentsQuery.isError
+    ? (documentsQuery.error instanceof Error ? documentsQuery.error.message : "知识资料加载失败。")
+    : undefined;
+  const hasDocumentFilters = Boolean(keyword.trim() || status);
+
+  const openDocumentsSection = () => {
+    setSearchParams({ tab: "documents" });
+    window.requestAnimationFrame(() => {
+      document.getElementById("knowledge-documents")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const openUploadDialog = () => {
+    setSearchParams({ tab: "documents" });
+    setUploadDialogOpen(true);
+  };
 
   useEffect(() => {
     if (previousActiveKnowledgeJobCount.current > 0 && activeKnowledgeJobCount === 0) {
@@ -359,101 +386,56 @@ export default function KnowledgePage() {
     previousActiveKnowledgeJobCount.current = activeKnowledgeJobCount;
   }, [activeKnowledgeJobCount, documentListQueryKey, queryClient, selectedDocumentId]);
 
-  const handleUploadFiles = async (files: File[]) => {
+  const handleUpload = async (file: File) => {
+    if (!isTxtFile(file)) {
+      throw new Error("仅支持 .txt 文件。");
+    }
+    const content = await readTextFile(file);
+    if (!content) {
+      throw new Error("文件内容为空，或编码格式暂不支持。");
+    }
+    await createKnowledgeDocument({
+      title: uploadTitle.trim() || undefined,
+      fileName: file.name,
+      content,
+    });
+  };
+
+  const handleVersionUpload = async (file: File) => {
+    if (!selectedDocumentId) {
+      return;
+    }
+    if (!isTxtFile(file)) {
+      throw new Error("仅支持 .txt 文件。");
+    }
+    const content = await readTextFile(file);
+    if (!content) {
+      throw new Error("文件内容为空，或编码格式暂不支持。");
+    }
+    await createKnowledgeDocumentVersion(selectedDocumentId, {
+      fileName: file.name,
+      content,
+    });
+  };
+
+  const handleUploadFile = async (file: File) => {
     try {
       setUploadBusy(true);
-      setUploadResults([]);
-
-      // Load existing documents to check for duplicates
-      const existingDocs = await listKnowledgeDocuments();
-      const existingByTitle = new Map<string, { fileName: string; activeVersionId: string | null }>();
-      for (const doc of existingDocs.data ?? []) {
-        if (doc.status !== "archived") {
-          existingByTitle.set(doc.title, {
-            fileName: doc.fileName,
-            activeVersionId: doc.activeVersionId ?? null,
-          });
-        }
-      }
-
-      const results: BatchUploadResult[] = [];
-      for (const file of files) {
-        if (!isTxtFile(file)) {
-          results.push({ fileName: file.name, status: "skipped", reason: "Not a .txt file" });
-          continue;
-        }
-
-        try {
-          const content = await readTextFile(file);
-          if (!content) {
-            results.push({ fileName: file.name, status: "failed", reason: "Empty or unsupported encoding" });
-            continue;
-          }
-
-          // Derive the title the same way the server does (strip extension)
-          const dotIndex = file.name.lastIndexOf(".");
-          const derivedTitle = dotIndex > 0 ? file.name.slice(0, dotIndex).trim() : file.name.trim();
-          const normalizedTitle = derivedTitle.replace(/\s+/g, " ").trim();
-
-          // Check for existing document with same title
-          const existing = existingByTitle.get(normalizedTitle);
-          if (existing) {
-            // Fetch full document details to compare content hash
-            const allDocs = await listKnowledgeDocuments({ keyword: normalizedTitle });
-            const matchDoc = (allDocs.data ?? []).find((d) => d.title === normalizedTitle && d.status !== "archived");
-            if (matchDoc) {
-              const detail = await getKnowledgeDocument(matchDoc.id);
-              const activeVersion = detail.data?.versions?.find((v) => v.isActive);
-              if (activeVersion && activeVersion.content.trim() === content.trim()) {
-                results.push({ fileName: file.name, status: "skipped", reason: "Same content exists" });
-                continue;
-              }
-            }
-          }
-
-          await createKnowledgeDocument({
-            fileName: file.name,
-            content,
-          });
-          results.push({ fileName: file.name, status: "uploaded" });
-
-          // Update the local map so subsequent files in the same batch can dedup
-          existingByTitle.set(normalizedTitle, { fileName: file.name, activeVersionId: null });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Upload failed";
-          results.push({ fileName: file.name, status: "failed", reason: message });
-        }
-      }
-
-      setUploadResults(results);
+      await handleUpload(file);
+      setUploadTitle("");
       await queryClient.invalidateQueries({ queryKey: documentListQueryKey });
-      await queryClient.invalidateQueries({ queryKey: ragJobsQueryKey });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load existing documents";
-      setUploadResults([{ fileName: "Batch Upload", status: "failed", reason: message }]);
     } finally {
       setUploadBusy(false);
     }
   };
 
   const handleUploadVersionFile = async (file: File) => {
-    if (!selectedDocumentId) {
-      return;
-    }
     try {
       setVersionBusy(true);
-      if (!isTxtFile(file)) {
-        throw new Error(t("gen.pages.knowledge.KnowledgePage.onlySupportTxtFiles"));
+      await handleVersionUpload(file);
+      if (selectedDocumentId) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(selectedDocumentId) });
       }
-      const content = await readTextFile(file);
-      if (!content) {
-        throw new Error(t("gen.pages.knowledge.KnowledgePage.gen_dd1d03b9"));
-      }
-      await createKnowledgeDocumentVersion(selectedDocumentId, {
-        fileName: file.name,
-        content,
-      });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(selectedDocumentId) });
       await queryClient.invalidateQueries({ queryKey: documentListQueryKey });
     } finally {
       setVersionBusy(false);
@@ -504,58 +486,73 @@ export default function KnowledgePage() {
   };
 
   const handleClearFinishedRagJobs = () => {
-    if (!window.confirm(t("gen.pages.knowledge.KnowledgePage.gen_2d775f38"))) {
+    if (!window.confirm("清理已结束任务记录？排队中和执行中的任务会保留。")) {
       return;
     }
     clearFinishedRagJobsMutation.mutate();
   };
 
   const handleDeleteRagJob = (jobId: string) => {
-    if (!window.confirm(t("gen.pages.knowledge.KnowledgePage.gen_35c42d6b"))) {
+    if (!window.confirm("删除这条任务记录？排队中和执行中的任务不能删除。")) {
       return;
     }
     deleteRagJobMutation.mutate(jobId);
   };
 
-  const getOwnerName = (ownerType: string, ownerId: string) => {
-    if (ownerType === "knowledge_document") {
-      const doc = documentsQuery.data?.data?.find((d) => d.id === ownerId);
-      if (doc) return doc.title;
-    }
-    return undefined;
-  };
-
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <OpenInCreativeHubButton
-          bindings={{ knowledgeDocumentIds: selectedDocumentId ? [selectedDocumentId] : [] }}
-          label={t("gen.pages.knowledge.KnowledgePage.gen_dbbdc047")}
-        />
-      </div>
+    <div className="space-y-5">
+      <KnowledgeLibraryOverview
+        activeJobCount={activeKnowledgeJobCount}
+        enabledCount={enabledCount}
+        failedIndexDocumentCount={failedIndexDocumentCount}
+        failedJobCount={failedKnowledgeJobCount}
+        hasFilters={hasDocumentFilters}
+        isError={documentsQuery.isError}
+        isLoading={documentsQuery.isLoading}
+        searchableDocumentCount={searchableDocumentCount}
+        selectedDocumentId={selectedDocumentId}
+        visibleDocumentCount={visibleDocuments.length}
+        onClearFilters={() => {
+          setKeyword("");
+          setStatus("");
+        }}
+        onOpenDocuments={openDocumentsSection}
+        onOpenOps={() => setSearchParams({ tab: "ops" })}
+        onRetry={() => void documentsQuery.refetch()}
+        onUpload={openUploadDialog}
+      />
 
       <Tabs
         value={activeTab}
         onValueChange={(value) => setSearchParams({ tab: value })}
         className="space-y-4"
       >
-        <TabsList>
-          <TabsTrigger value="documents">{t("gen.pages.knowledge.KnowledgePage.gen_32536950")}</TabsTrigger>
-          <TabsTrigger value="ops">{t("gen.pages.knowledge.KnowledgePage.gen_e4b51d5c")}</TabsTrigger>
-          <TabsTrigger value="settings">{t("gen.pages.knowledge.KnowledgePage.gen_acb3166d")}</TabsTrigger>
+        <TabsList className="h-auto w-full justify-start overflow-x-auto">
+          <TabsTrigger value="documents">创作资料</TabsTrigger>
+          <TabsTrigger value="ops">索引与任务</TabsTrigger>
+          <TabsTrigger value="settings">检索设置</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents">
           <KnowledgeDocumentsTab
+            uploadTitle={uploadTitle}
+            onUploadTitleChange={setUploadTitle}
+            uploadDialogOpen={uploadDialogOpen}
+            onUploadDialogOpenChange={setUploadDialogOpen}
             uploadBusy={uploadBusy}
-            onUploadFiles={handleUploadFiles}
-            uploadResults={uploadResults}
-            onClearUploadResults={() => setUploadResults([])}
+            onUploadFile={handleUploadFile}
             keyword={keyword}
             onKeywordChange={setKeyword}
             status={status}
             onStatusChange={setStatus}
             documents={visibleDocuments}
+            isLoading={documentsQuery.isLoading}
+            errorMessage={documentListErrorMessage}
+            onRetry={() => void documentsQuery.refetch()}
+            onClearFilters={() => {
+              setKeyword("");
+              setStatus("");
+            }}
             latestKnowledgeDocumentJobs={latestKnowledgeDocumentJobs}
             onSelectDocument={setSelectedDocumentId}
             onOpenRecallTest={(id) => {
@@ -582,7 +579,6 @@ export default function KnowledgePage() {
             deletingJobId={deleteRagJobMutation.isPending ? deleteRagJobMutation.variables : undefined}
             onClearFinishedJobs={handleClearFinishedRagJobs}
             onDeleteJob={handleDeleteRagJob}
-            getOwnerName={getOwnerName}
           />
         </TabsContent>
 

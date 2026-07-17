@@ -11,7 +11,6 @@ const appLayout = readClientFile("src/components/layout/AppLayout.tsx");
 const css = readClientFile("src/index.css");
 const mobileSiteNavigation = readClientFile("src/components/layout/mobile/mobileSiteNavigation.ts");
 const novelEditView = readClientFile("src/pages/novels/components/NovelEditView.tsx");
-const homePage = readClientFile("src/pages/Home.tsx");
 const homeStatusStrip = readClientFile("src/pages/home/components/HomeStatusStrip.tsx");
 const taskCenterPage = readClientFile("src/pages/tasks/TaskCenterPage.tsx");
 const taskCenterFilterPanel = readClientFile("src/pages/tasks/components/TaskCenterFilterPanel.tsx");
@@ -309,7 +308,7 @@ test("mobile status metrics keep four columns after generic grid collapse cascad
   const expectedColumns = "repeat(4, minmax(0, 1fr))";
   const homeWinner = getWinningGridTemplateColumns({
     routeClassName: "mobile-route-home",
-    elementClassName: "home-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4",
+    elementClassName: "home-status-summary-grid grid gap-3 sm:grid-cols-2 xl:grid-cols-4",
   });
   const taskWinner = getWinningGridTemplateColumns({
     routeClassName: "mobile-route-tasks",
@@ -466,10 +465,10 @@ test("mobile novel workspace keeps step navigation horizontal and recommendation
 
 test("mobile novel workspace collapses secondary tools behind one compact entry", () => {
   assert.match(mobileNovelEditView, /MoreHorizontal/);
-  assert.match(mobileNovelEditView, /gen_e6a2706f/);
-  assert.match(mobileNovelEditView, /gen_4de94e23/);
-  assert.match(mobileNovelEditView, /gen_169a61d7/);
-  assert.match(mobileNovelEditView, /gen_9b96a714/);
+  assert.match(mobileNovelEditView, /创作工具/);
+  assert.match(mobileNovelEditView, /查看任务进度/);
+  assert.match(mobileNovelEditView, /导出当前步骤/);
+  assert.match(mobileNovelEditView, /导出整本书/);
   assert.doesNotMatch(mobileNovelEditView, /<AITakeoverContainer/);
 });
 
@@ -516,6 +515,10 @@ test("mobile structured outline avoids nested scroll inside volume and sync card
 test("mobile structured chapter navigation leaves scrolling to the page", () => {
   assert.match(structuredChapterListCard, /structured-chapter-navigation-list/);
   assert.match(structuredChapterListCard, /xl:max-h-\[calc\(100vh-12rem\)\]/);
+  assert.match(structuredChapterListCard, /生成下一段章节/);
+  assert.match(structuredChapterListCard, /高级：生成本卷全部章节标题/);
+  assert.match(structuredChapterListCard, /已有正文锁定/);
+  assert.match(structuredChapterListCard, /generationMode: "single_beat"/);
   assert.doesNotMatch(
     structuredChapterListCard,
     /className="max-h-\[560px\][^"]*overflow-y-auto/,

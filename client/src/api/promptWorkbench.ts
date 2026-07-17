@@ -163,6 +163,34 @@ export interface PromptPreviewResult {
   };
 }
 
+export interface PromptTestRunResult {
+  prompt: PromptCatalogItem;
+  outputType: "structured" | "text";
+  output: unknown;
+  outputText: string;
+  messages: PromptPreviewMessage[];
+  context: PromptPreviewResult["context"];
+  meta: {
+    provider?: string;
+    model?: string;
+    latencyMs: number;
+    tokenUsage?: {
+      inputTokens?: number;
+      outputTokens?: number;
+      totalTokens?: number;
+    } | null;
+    repairUsed?: boolean;
+    repairAttempts?: number;
+  };
+  diagnostics: {
+    missingRequiredGroups: string[];
+    resolverErrors: Array<{ group: string; message: string }>;
+    notes: string[];
+    structured?: unknown;
+    template?: PromptPreviewResult["diagnostics"]["template"];
+  };
+}
+
 // ─── Advanced templates ─────────────────────────────────────────────────────
 
 export type PromptTemplateOverrideMode = "official" | "custom";
@@ -405,6 +433,16 @@ export interface PromptPreviewPayload {
   templateDraft?: PromptTemplateJson;
 }
 
+export interface PromptTestRunPayload extends PromptPreviewPayload {
+  llm?: {
+    provider?: string;
+    model?: string;
+    temperature?: number;
+    maxTokens?: number;
+    timeoutMs?: number;
+  };
+}
+
 // ─── API functions ─────────────────────────────────────────────────────────────
 
 export async function getPromptCatalog(params: PromptCatalogParams = {}) {
@@ -416,6 +454,11 @@ export async function getPromptCatalog(params: PromptCatalogParams = {}) {
 
 export async function previewPrompt(payload: PromptPreviewPayload) {
   const { data } = await apiClient.post<ApiResponse<PromptPreviewResult>>("/prompt-workbench/preview", payload);
+  return data;
+}
+
+export async function testRunPrompt(payload: PromptTestRunPayload) {
+  const { data } = await apiClient.post<ApiResponse<PromptTestRunResult>>("/prompt-workbench/test-run", payload);
   return data;
 }
 

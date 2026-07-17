@@ -16,6 +16,8 @@ export const P0_DIRECTOR_ARTIFACT_TYPES = [
   "story_macro",
   "character_governance_state",
   "volume_strategy",
+  "volume_beat_sheet",
+  "volume_chapter_list",
   "chapter_task_sheet",
   "chapter_draft",
   "audit_report",
@@ -124,5 +126,83 @@ export class ArtifactWriter {
       },
     });
     return ref;
+  }
+
+  async markUserEdited(input: Omit<DirectorArtifactWriteInput, "source" | "protectedUserContent" | "status">): Promise<DirectorArtifactRef> {
+    const existing = await prisma.directorArtifact.findUnique({
+      where: {
+        id: buildDirectorArtifactRef({
+          novelId: input.novelId,
+          type: input.artifactType,
+          targetType: input.targetType,
+          targetId: input.targetId,
+          table: input.contentTable,
+          id: input.contentId,
+        }).id,
+      },
+      select: { version: true },
+    }).catch(() => null);
+    const ref = buildDirectorArtifactRef({
+      novelId: input.novelId,
+      type: input.artifactType,
+      targetType: input.targetType,
+      targetId: input.targetId,
+      table: input.contentTable,
+      id: input.contentId,
+      status: "active",
+      source: "user_edited",
+      contentHash: stableDirectorContentHash(input.contentText) ?? undefined,
+      protectedUserContent: true,
+      updatedAt: new Date(),
+    });
+    const nextVersion = (existing?.version ?? 0) + 1;
+    await prisma.directorArtifact.upsert({
+      where: { id: ref.id },
+      create: {
+        id: ref.id,
+        runId: input.runId ?? null,
+        novelId: input.novelId,
+        taskId: input.taskId ?? null,
+        artifactType: ref.artifactType,
+        targetType: ref.targetType,
+        targetId: ref.targetId,
+        version: nextVersion,
+        status: "active",
+        source: "user_edited",
+        contentTable: ref.contentRef.table,
+        contentId: ref.contentRef.id,
+        contentHash: ref.contentHash,
+        schemaVersion: ref.schemaVersion,
+        sourceStepRunId: input.sourceStepRunId ?? null,
+        protectedUserContent: true,
+        artifactUpdatedAt: new Date(),
+      },
+      update: {
+        runId: input.runId ?? null,
+        taskId: input.taskId ?? null,
+        version: nextVersion,
+        status: "active",
+        source: "user_edited",
+        contentHash: ref.contentHash,
+        protectedUserContent: true,
+        artifactUpdatedAt: new Date(),
+      },
+    });
+    const dependents = await prisma.directorArtifactDependency.findMany({
+      where: { dependsOnArtifactId: ref.id },
+      select: { artifactId: true },
+    }).catch(() => []);
+    const dependentIds = dependents.map((item) => item.artifactId);
+    if (dependentIds.length > 0) {
+      await prisma.directorArtifact.updateMany({
+        where: {
+          id: { in: dependentIds },
+          artifactType: { not: "chapter_draft" },
+          status: { notIn: ["rejected", "superseded"] },
+        },
+        data: { status: "stale" },
+      }).catch(() => null);
+    }
+    return { ...ref, version: nextVersion };
   }
 }

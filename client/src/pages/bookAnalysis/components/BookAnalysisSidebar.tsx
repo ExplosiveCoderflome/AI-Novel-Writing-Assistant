@@ -1,10 +1,8 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type {
   BookAnalysis,
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
-import { Plus } from "lucide-react";
+import { Loader2, Plus, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,10 +15,13 @@ interface BookAnalysisSidebarProps {
   status: BookAnalysisStatus | "";
   analyses: BookAnalysis[];
   selectedAnalysisId: string;
+  loading: boolean;
+  errorMessage: string;
   onKeywordChange: (keyword: string) => void;
   onStatusChange: (status: BookAnalysisStatus | "") => void;
   onOpenAnalysis: (analysisId: string, documentId: string) => void;
   onOpenCreateDialog: () => void;
+  onRetry: () => void;
 }
 
 export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
@@ -29,17 +30,20 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
     status,
     analyses,
     selectedAnalysisId,
+    loading,
+    errorMessage,
     onKeywordChange,
     onStatusChange,
     onOpenAnalysis,
     onOpenCreateDialog,
+    onRetry,
   } = props;
 
   return (
     <Card>
       <CardHeader className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle>{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_ff1eb893")}</CardTitle>
+          <CardTitle>分析列表</CardTitle>
           <Badge variant="outline">{analyses.length}</Badge>
         </div>
         <Button type="button" size="sm" className="w-full" onClick={onOpenCreateDialog}>
@@ -48,23 +52,39 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Input value={keyword} onChange={(event) => onKeywordChange(event.target.value)} placeholder={t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_b6228286")} />
+        <Input value={keyword} onChange={(event) => onKeywordChange(event.target.value)} placeholder="搜索标题或关键词" />
         <SelectControl
           className="h-10 w-full rounded-md border bg-background px-3 text-sm"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as BookAnalysisStatus | "")}
         >
-          <option value="">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_443483c9")}</option>
-          <option value="draft">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_22b4334f")}</option>
-          <option value="queued">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_e5ac1d20")}</option>
-          <option value="running">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_d679aea3")}</option>
-          <option value="succeeded">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_330363df")}</option>
-          <option value="failed">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_acd5cb84")}</option>
-          <option value="archived">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_c3ba167c")}</option>
+          <option value="">全部状态</option>
+          <option value="draft">草稿</option>
+          <option value="queued">排队中</option>
+          <option value="running">运行中</option>
+          <option value="succeeded">成功</option>
+          <option value="failed">失败</option>
+          <option value="cancelled">已取消</option>
+          <option value="archived">已归档</option>
         </SelectControl>
 
         <div className="space-y-2">
-          {analyses.map((item) => (
+          {loading ? (
+            <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-4 text-xs text-muted-foreground" aria-live="polite">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              正在加载拆书分析...
+            </div>
+          ) : null}
+          {!loading && errorMessage ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive" role="alert">
+              <div>{errorMessage}</div>
+              <Button type="button" size="sm" variant="outline" className="mt-3" onClick={onRetry}>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                重新加载
+              </Button>
+            </div>
+          ) : null}
+          {!loading && !errorMessage ? analyses.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -80,12 +100,12 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
                     {item.documentTitle} | v{item.documentVersionNumber}
                   </div>
                   {item.sourceRange ? (
-                    <div className="mt-1 truncate text-[11px] text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_4b5ebf8c")}</div>
+                    <div className="mt-1 truncate text-[11px] text-muted-foreground">范围：{item.sourceRange.label ?? "选定章节"}</div>
                   ) : null}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   {item.publishedDocumentId && (
-                    <Badge variant="secondary" className="text-[10px]">{t("gen.pages.bookAnalysis.components.BookAnalysisSidebar.gen_dca0c13b")}</Badge>
+                    <Badge variant="secondary" className="text-[10px]">已发布</Badge>
                   )}
                   <Badge variant="outline" className="text-[10px]">{formatStatus(item.status)}</Badge>
                 </div>
@@ -97,11 +117,13 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
                 <div className="mt-1 line-clamp-2 text-[11px] text-destructive">{item.lastError}</div>
               ) : null}
             </button>
-          ))}
+          )) : null}
 
-          {analyses.length === 0 ? (
+          {!loading && !errorMessage && analyses.length === 0 ? (
             <div className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">
-              暂无拆书分析，点击上方「新建拆书」开始。
+              {keyword.trim() || status
+                ? "没有符合当前筛选的拆书分析，可以调整筛选条件。"
+                : "暂无拆书分析，点击上方「新建拆书」开始。"}
             </div>
           ) : null}
         </div>

@@ -1,75 +1,28 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
-import { Boxes, Globe2, PlusCircle, ScrollText, Users } from "lucide-react";
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Boxes, Globe2, ScrollText, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import {
-  DIRECTOR_CREATE_LINK,
-  MANUAL_CREATE_LINK,
-  type HomeAssetHealthItem,
-} from "../homeViewModel";
-import { toneBorderClass, toneTextClass } from "./homeTone";
+import { type HomeAssetHealthItem } from "../homeViewModel";
+import { toneTextClass } from "./homeTone";
 
-const iconById: Record<string, typeof Boxes> = {
-  world: Globe2,
-  characters: Users,
-  chapters: ScrollText,
-  readiness: Boxes,
-};
+const iconById: Record<string, typeof Boxes> = { world: Globe2, characters: Users, chapters: ScrollText, readiness: Boxes };
 
-export function HomeAssetHealth(props: {
-  items: HomeAssetHealthItem[];
-  showStarterActions?: boolean;
-}) {
+export function HomeAssetHealth(props: { items: HomeAssetHealthItem[]; showStarterActions?: boolean }) {
   return (
-    <Card className="home-asset-health">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg tracking-normal">{t("gen.pages.home.components.HomeAssetHealth.gen_0e0512ed")}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+    <Card className="home-asset-health border-border/80 shadow-none">
+      <CardHeader className="pb-3"><CardTitle className="text-base tracking-normal">创作资产概览</CardTitle></CardHeader>
+      <CardContent>
+        <div className="space-y-1">
           {props.items.map((item) => {
             const Icon = iconById[item.id] ?? Boxes;
             return (
-              <div key={item.id} className={cn("rounded-lg border p-4", toneBorderClass(item.tone))}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm text-muted-foreground">{item.title}</div>
-                    <div className="mt-1 text-2xl font-semibold tabular-nums">{item.value}</div>
-                  </div>
-                  <Icon className={cn("h-4 w-4", toneTextClass(item.tone))} aria-hidden="true" />
-                </div>
-                <p className="mt-3 text-xs leading-5 text-muted-foreground">{item.description}</p>
+              <div key={item.id} className="flex items-center gap-3 rounded-md px-2 py-2.5">
+                <Icon className={cn("h-4 w-4 shrink-0", toneTextClass(item.tone))} aria-hidden="true" />
+                <div className="min-w-0 flex-1"><div className="text-sm">{item.title}</div><p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{item.description}</p></div>
+                <div className="text-lg font-semibold tabular-nums">{item.value}</div>
               </div>
             );
           })}
         </div>
-
-        {props.showStarterActions ? (
-          <div className="rounded-lg border bg-muted/20 p-4">
-            <div className="flex items-start gap-3">
-              <PlusCircle className="mt-0.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              <div className="min-w-0 flex-1 space-y-3">
-                <div>
-                  <div className="text-sm font-medium">{t("gen.pages.home.components.HomeAssetHealth.gen_9ca4fd2e")}</div>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    有新灵感时，可以直接交给自动导演整理方向、角色、世界观和章节准备。
-                  </p>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-                  <Button asChild size="sm">
-                    <Link to={DIRECTOR_CREATE_LINK}>{t("gen.pages.home.components.HomeAssetHealth.aiAutoDirectorBookStart")}</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link to={MANUAL_CREATE_LINK}>{t("gen.pages.home.components.HomeAssetHealth.gen_e40b8718")}</Link>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
       </CardContent>
     </Card>
   );

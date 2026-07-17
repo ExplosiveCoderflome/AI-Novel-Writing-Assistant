@@ -146,6 +146,140 @@ test("pipeline resumes structured outline from persisted volume workspace when v
   assert.equal(highMemoryChecks[0].volumeId, "volume_1");
 });
 
+test("stage_review pauses after one workflow step and records the resumable step", async () => {
+  const modules = [];
+  const checkpoints = [];
+  const runtime = createRuntime({
+    workflowService: {
+      async markTaskWaitingApproval(taskId, input) {
+        checkpoints.push({ taskId, input });
+      },
+    },
+    runtimeOrchestrator: {
+      async runStepModule({ module }) {
+        modules.push(module.id);
+        return undefined;
+      },
+      async runChapterExecutionNode() {},
+      async markTaskRunning() {},
+    },
+    buildDirectorSeedPayload(_input, _novelId, extra) {
+      return extra;
+    },
+  });
+
+  await runtime.runPipeline({
+    taskId: "task_stage_review",
+    novelId: "novel_stage_review",
+    input: buildDirectorInput({
+      workflowTaskId: "task_stage_review",
+      runMode: "stage_review",
+    }),
+    startPhase: "story_macro",
+  });
+
+  assert.deepEqual(modules, ["story.macro.plan"]);
+  assert.equal(checkpoints.length, 1);
+  assert.equal(checkpoints[0].input.checkpointType, "step_review_required");
+  assert.equal(checkpoints[0].input.seedPayload.stepReview.stepId, "story.macro.plan");
+});
+
+test("stage_review pauses at world setup and keeps the world review step identity", async () => {
+  const modules = [];
+  const checkpoints = [];
+  const runtime = createRuntime({
+    storyMacroService: {
+      async getPlan() {
+        return { id: "story_macro", storyInput: "story", decomposition: { core_conflict: "conflict" } };
+      },
+    },
+    bookContractService: {
+      async getByNovelId() {
+        return { id: "book_contract" };
+      },
+    },
+    workflowService: {
+      async markTaskWaitingApproval(taskId, input) {
+        checkpoints.push({ taskId, input });
+      },
+    },
+    runtimeOrchestrator: {
+      async runStepModule({ module }) {
+        modules.push(module.id);
+        return undefined;
+      },
+      async runChapterExecutionNode() {},
+      async markTaskRunning() {},
+    },
+    buildDirectorSeedPayload(_input, _novelId, extra) {
+      return extra;
+    },
+  });
+
+  await runtime.runPipeline({
+    taskId: "task_stage_review_world",
+    novelId: "novel_stage_review_world",
+    input: buildDirectorInput({
+      workflowTaskId: "task_stage_review_world",
+      runMode: "stage_review",
+      worldSetupMode: "auto_generate",
+    }),
+    startPhase: "world_setup",
+  });
+
+  assert.deepEqual(modules, ["book.world.prepare"]);
+  assert.equal(checkpoints.length, 1);
+  assert.equal(checkpoints[0].input.checkpointType, "step_review_required");
+  assert.equal(checkpoints[0].input.seedPayload.stepReview.stepId, "book.world.prepare");
+  assert.equal(checkpoints[0].input.stage, "world_setup");
+  assert.equal(checkpoints[0].input.itemKey, "world_setup");
+  assert.equal(checkpoints[0].input.seedPayload.directorSession.phase, "world_setup");
+});
+
+test("automatic mode continues from world setup without creating a review checkpoint", async () => {
+  const modules = [];
+  const checkpoints = [];
+  const runtime = createRuntime({
+    storyMacroService: {
+      async getPlan() {
+        return { id: "story_macro", storyInput: "story", decomposition: { core_conflict: "conflict" } };
+      },
+    },
+    bookContractService: {
+      async getByNovelId() {
+        return { id: "book_contract" };
+      },
+    },
+    workflowService: {
+      async markTaskWaitingApproval(taskId, input) {
+        checkpoints.push({ taskId, input });
+      },
+    },
+    runtimeOrchestrator: {
+      async runStepModule({ module }) {
+        modules.push(module.id);
+        return module.id === "character.cast.prepare" ? false : undefined;
+      },
+      async runChapterExecutionNode() {},
+      async markTaskRunning() {},
+    },
+  });
+
+  await runtime.runPipeline({
+    taskId: "task_auto_world",
+    novelId: "novel_auto_world",
+    input: buildDirectorInput({
+      workflowTaskId: "task_auto_world",
+      runMode: "auto_to_ready",
+      worldSetupMode: "auto_generate",
+    }),
+    startPhase: "world_setup",
+  });
+
+  assert.deepEqual(modules.slice(0, 2), ["book.world.prepare", "character.cast.prepare"]);
+  assert.equal(checkpoints.length, 0);
+});
+
 test("auto-to-execution volume strategy approval is passed into the runtime gate", async () => {
   const calls = [];
   const runtime = createRuntime({

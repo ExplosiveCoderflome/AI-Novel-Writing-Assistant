@@ -6,6 +6,7 @@ import LLMSelectionBootstrap from "./LLMSelectionBootstrap";
 import Navbar from "./Navbar";
 import NovelWorkspaceRail from "./NovelWorkspaceRail";
 import Sidebar from "./Sidebar";
+import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import MobileSiteShell from "./mobile/MobileSiteShell";
 import AutoDirectorPauseNotificationWatcher from "@/components/autoDirector/AutoDirectorPauseNotificationWatcher";
 import { TaskRecoveryProvider } from "./TaskRecoveryContext";
@@ -18,7 +19,7 @@ import {
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "ai-novel.sidebar.collapsed";
 const WORKSPACE_RAIL_COLLAPSED_STORAGE_KEY = "ai-novel.workspace-rail.collapsed";
-const DEFAULT_APP_MAIN_CLASS_NAME = "h-[calc(100vh-4rem)] min-w-0 flex-1 overflow-y-auto p-6";
+const DEFAULT_APP_MAIN_CLASS_NAME = "h-[calc(100dvh-4rem)] min-w-0 flex-1 overflow-y-auto p-6";
 
 export default function AppLayout() {
   const location = useLocation();
@@ -77,6 +78,7 @@ export default function AppLayout() {
       <TaskRecoveryProvider>
         <div className="min-h-screen bg-background">
           <AutoDirectorPauseNotificationWatcher />
+          <LiveExecutionDialog compact className="fixed right-3 top-3 z-50 h-9 w-9 bg-background px-0 shadow-sm" />
           <LLMSelectionBootstrap />
           <DesktopModelSetupGate />
           <Suspense fallback={<AppRouteFallback />}>
@@ -106,14 +108,14 @@ export default function AppLayout() {
 
   return (
     <TaskRecoveryProvider>
-      <div className="min-h-screen bg-background">
+      <div className="h-[100dvh] overflow-hidden bg-background">
         <AutoDirectorPauseNotificationWatcher />
         <LLMSelectionBootstrap />
         <Navbar
           workspaceNavMode={isNovelWorkspace ? workspaceNavMode : undefined}
           onWorkspaceNavModeChange={isNovelWorkspace ? setWorkspaceNavMode : undefined}
         />
-        <div className="flex min-h-[calc(100vh-4rem)]">
+        <div className="flex h-[calc(100dvh-4rem)] min-h-0">
           <div className={useMobileFullWidthContent ? "hidden md:block" : "shrink-0"}>
             {isNovelWorkspace && workspaceNavMode === "workspace" && workspaceRoute ? (
               <NovelWorkspaceRail

@@ -1,5 +1,11 @@
 import { z } from "zod";
 import { sanitizeCreativeMustAdvanceItems } from "./chapterCreativeContract.js";
+import {
+  EMPTY_READER_EXPERIENCE_CONTRACT,
+  generatedReaderExperienceContractSchema,
+  normalizeReaderExperienceContract,
+  readerExperienceContractSchema,
+} from "./novel/readerExperience.js";
 
 const SCENE_COUNT_MIN = 3;
 const SCENE_COUNT_MAX = 8;
@@ -21,12 +27,29 @@ export const chapterSceneCardSchema = z.object({
   exitState: z.string().trim().min(1),
   forbiddenExpansion: z.array(z.string().trim().min(1)).default([]),
   targetWordCount: z.number().int().positive(),
+  resistance: z.string().trim().default(""),
+  turn: z.string().trim().default(""),
+  emotionalShift: z.string().trim().default(""),
+  readerValue: z.string().trim().default(""),
+});
+
+export const generatedChapterSceneCardSchema = chapterSceneCardSchema.extend({
+  resistance: z.string().trim().min(1),
+  turn: z.string().trim().min(1),
+  emotionalShift: z.string().trim().min(1),
+  readerValue: z.string().trim().min(1),
 });
 
 export const chapterScenePlanSchema = z.object({
   targetWordCount: z.number().int().positive(),
   lengthBudget: lengthBudgetContractSchema,
   scenes: z.array(chapterSceneCardSchema).min(SCENE_COUNT_MIN).max(SCENE_COUNT_MAX),
+  readerExperience: readerExperienceContractSchema.default(EMPTY_READER_EXPERIENCE_CONTRACT),
+});
+
+export const generatedChapterScenePlanSchema = chapterScenePlanSchema.extend({
+  scenes: z.array(generatedChapterSceneCardSchema).min(SCENE_COUNT_MIN).max(SCENE_COUNT_MAX),
+  readerExperience: generatedReaderExperienceContractSchema,
 });
 
 export type LengthBudgetContract = z.infer<typeof lengthBudgetContractSchema>;
@@ -129,6 +152,30 @@ function normalizeSceneCardInput(raw: unknown, index: number): ChapterSceneCard 
     "sceneExit",
     "closingState",
   ]));
+  const resistance = normalizeText(readAlias(raw, [
+    "resistance",
+    "obstacle",
+    "opposition",
+    "阻力",
+  ]));
+  const turn = normalizeText(readAlias(raw, [
+    "turn",
+    "turningPoint",
+    "reversal",
+    "转折",
+  ]));
+  const emotionalShift = normalizeText(readAlias(raw, [
+    "emotionalShift",
+    "emotionShift",
+    "emotionalTurn",
+    "情绪位移",
+  ]));
+  const readerValue = normalizeText(readAlias(raw, [
+    "readerValue",
+    "readerReward",
+    "scenePayoff",
+    "读者价值",
+  ]));
 
   if (!title || !purpose || !entryState || !exitState || !targetWordCount || targetWordCount <= 0) {
     return null;
@@ -159,6 +206,10 @@ function normalizeSceneCardInput(raw: unknown, index: number): ChapterSceneCard 
       "forbidden",
     ])),
     targetWordCount,
+    resistance: resistance ?? "",
+    turn: turn ?? "",
+    emotionalShift: emotionalShift ?? "",
+    readerValue: readerValue ?? "",
   });
 }
 
@@ -240,6 +291,7 @@ export function normalizeChapterScenePlan(
     targetWordCount: budget.targetWordCount,
     lengthBudget: budget,
     scenes: rescaleSceneTargets(budget.targetWordCount, boundedScenes),
+    readerExperience: normalizeReaderExperienceContract(record?.readerExperience),
   });
 }
 

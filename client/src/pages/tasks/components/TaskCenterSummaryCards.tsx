@@ -1,54 +1,24 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TaskQueueSummaryGrid } from "@/components/taskQueue";
 
 interface TaskCenterSummaryCardsProps {
-  runningCount: number;
-  queuedCount: number;
-  failedCount: number;
-  completed24hCount: number;
+  activeCount: number;
+  waitingActionCount: number;
+  mustHandleCount: number;
+  qualityReminderCount: number;
 }
 
 export default function TaskCenterSummaryCards({
-  runningCount,
-  queuedCount,
-  failedCount,
-  completed24hCount,
+  activeCount,
+  waitingActionCount,
+  mustHandleCount,
+  qualityReminderCount,
 }: TaskCenterSummaryCardsProps) {
   return (
-    <div className="task-status-summary-grid grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("gen.pages.tasks.components.TaskCenterSummaryCards.gen_d679aea3")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-semibold">{runningCount}</div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("gen.pages.tasks.components.TaskCenterSummaryCards.gen_e5ac1d20")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-semibold">{queuedCount}</div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("gen.pages.tasks.components.TaskCenterSummaryCards.gen_acd5cb84")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-semibold">{failedCount}</div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("gen.pages.tasks.components.TaskCenterSummaryCards.completedIn24Hours")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-semibold">{completed24hCount}</div>
-        </CardContent>
-      </Card>
-    </div>
+    <TaskQueueSummaryGrid className="task-status-summary-grid" items={[
+      { key: "active", label: "全局执行", value: activeCount, detail: "运行中或排队中的任务", tone: "info" },
+      { key: "waiting", label: "等待操作", value: waitingActionCount, detail: "确认、选择或继续当前批次", tone: waitingActionCount > 0 ? "info" : "neutral" },
+      { key: "must-handle", label: "必须处理", value: mustHandleCount, detail: "失败、人工恢复或明确重规划", tone: mustHandleCount > 0 ? "danger" : "neutral" },
+      { key: "quality", label: "质量提醒", value: qualityReminderCount, detail: "可继续推进并稍后处理", tone: qualityReminderCount > 0 ? "warning" : "neutral" },
+    ]} />
   );
 }

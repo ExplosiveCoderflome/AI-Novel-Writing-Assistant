@@ -1,11 +1,9 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { BookAnalysisDetail } from "@ai-novel/shared/types/bookAnalysis";
 import { Columns2, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatStatus } from "../bookAnalysis.utils";
+import { formatStatus, isBookAnalysisBudgetExceeded } from "../bookAnalysis.utils";
 
 type ExportFormat = "markdown" | "json";
 
@@ -63,61 +61,71 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
 
   const budgetTokens = selectedAnalysis.budgetTokens ?? null;
   const usedTokens = selectedAnalysis.usedTokens ?? 0;
-  const budgetExceeded = selectedAnalysis.lastError?.includes("budget_exceeded") ?? false;
+  const budgetExceeded = isBookAnalysisBudgetExceeded(selectedAnalysis.lastError);
   const budgetResumeAvailable =
     budgetExceeded && (selectedAnalysis.status === "failed" || selectedAnalysis.status === "cancelled");
   const canAdjustBudget = selectedAnalysis.status !== "archived";
 
   return (
-    <div className="sticky top-0 z-30 rounded-md border bg-background/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/85">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
+    <div className="rounded-md border border-border/80 bg-card">
+      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="truncate text-lg font-semibold tracking-normal">{selectedAnalysis.title}</h2>
+            <h2 className="text-sm font-semibold tracking-normal text-foreground">结果工具</h2>
             <Badge variant="outline">{formatStatus(selectedAnalysis.status)}</Badge>
-            {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_dca0c13b")}</Badge> : null}
-            {selectedAnalysis.sourceRange ? <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_8cd9cf52")}</Badge> : null}
-            <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_a4b085c4")}</Badge>
-            <span className="inline-flex items-center gap-1">
-              <Badge variant={budgetExceeded ? "destructive" : "outline"}>
-                预算 {budgetTokens
-                  ? `${formatTokenCount(usedTokens)}/${formatTokenCount(budgetTokens)}`
-                  : `${formatTokenCount(usedTokens)}/不限`}
-              </Badge>
-              {canAdjustBudget ? (
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  title={t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_015d69aa")}
-                  onClick={onOpenBudgetAdjust}
-                  disabled={pending.updateBudget || pending.resumeWithBudget}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  <span className="sr-only">{t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_015d69aa")}</span>
-                </Button>
-              ) : null}
-            </span>
+            {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary">已发布</Badge> : null}
+            <Badge variant={budgetExceeded ? "destructive" : "outline"}>
+              预算 {budgetTokens
+                ? `${formatTokenCount(usedTokens)}/${formatTokenCount(budgetTokens)}`
+                : `${formatTokenCount(usedTokens)}/不限`}
+            </Badge>
           </div>
-          <div className="text-xs text-muted-foreground">
-            {selectedAnalysis.documentTitle} | 源版本 v{selectedAnalysis.documentVersionNumber}{selectedAnalysis.sourceRange ? ` | 范围：${selectedAnalysis.sourceRange.label ?? t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_963e1a7f")}` : ""}
-            {selectedAnalysis.isCurrentVersion ? "" : ` | 当前激活版本 v${selectedAnalysis.currentDocumentVersionNumber}`}
-          </div>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            阅读结果是当前主任务；发布、导出和维护操作可按需使用。
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={onCopy} disabled={pending.copy}>
-            复制
-          </Button>
+        <div className="mobile-full-actions flex flex-wrap gap-2">
           {budgetResumeAvailable ? (
             <Button
               size="sm"
+              variant="outline"
               onClick={onOpenBudgetResume}
               disabled={pending.resumeWithBudget || selectedAnalysis.status === "archived"}
             >
-              {pending.resumeWithBudget ? t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_abe2c5d2") : t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_a69ce727")}
+              {pending.resumeWithBudget ? "提交中..." : "扩容预算并续跑"}
             </Button>
           ) : null}
+          {dualPaneAvailable ? (
+            <Button
+              type="button"
+              size="sm"
+              variant={isDualPane ? "secondary" : "outline"}
+              onClick={() => onDualPaneChange(!isDualPane)}
+              title={isDualPane ? "关闭双栏对照" : "打开双栏对照"}
+            >
+              <Columns2 className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              {isDualPane ? "关闭双栏" : "原文双栏"}
+            </Button>
+          ) : null}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onPublish}
+            disabled={!selectedNovelId || pending.publish || selectedAnalysis.status === "archived"}
+            title={!selectedNovelId ? "请在下方「分析信息与发布」中选择目标小说" : "发布到小说知识库"}
+          >
+            {pending.publish ? "发布中..." : "发布到知识库"}
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link to={`/tasks?kind=book_analysis&id=${selectedAnalysis.id}`}>任务详情</Link>
+          </Button>
+        </div>
+      </div>
+
+      <details className="border-t border-border/70 px-4 py-3">
+        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">更多维护操作</summary>
+        <div className="mobile-full-actions mt-3 flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={onCopy} disabled={pending.copy}>复制分析</Button>
           <Button
             size="sm"
             variant="outline"
@@ -126,30 +134,27 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
           >
             重新生成
           </Button>
-          <Button
-            size="sm"
-            onClick={onPublish}
-            disabled={!selectedNovelId || pending.publish || selectedAnalysis.status === "archived"}
-            title={!selectedNovelId ? t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_aac678e4") : t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_a3db6e46")}
-          >
-            {pending.publish ? t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_27d8a2fa") : t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_83611abd")}
-          </Button>
-          <Button asChild size="sm" variant="outline">
-            <Link to={`/tasks?kind=book_analysis&id=${selectedAnalysis.id}`}>{t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_2488f577")}</Link>
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => onDownload("markdown")}>
-            导出 MD
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => onDownload("json")}>
-            导出 JSON
-          </Button>
+          {canAdjustBudget ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onOpenBudgetAdjust}
+              disabled={pending.updateBudget || pending.resumeWithBudget}
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              调整预算
+            </Button>
+          ) : null}
+          <Button size="sm" variant="outline" onClick={() => onDownload("markdown")}>导出 MD</Button>
+          <Button size="sm" variant="outline" onClick={() => onDownload("json")}>导出 JSON</Button>
           <Button
             size="sm"
             variant="outline"
             onClick={onCreateStyleProfile}
             disabled={pending.createStyleProfile || selectedAnalysis.status === "archived"}
           >
-            {pending.createStyleProfile ? t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_0245e8fb") : t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_ac303505")}
+            {pending.createStyleProfile ? "生成写法中..." : "生成写法"}
           </Button>
           <Button
             size="sm"
@@ -159,20 +164,8 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
           >
             归档
           </Button>
-          {dualPaneAvailable ? (
-            <Button
-              type="button"
-              size="sm"
-              variant={isDualPane ? "default" : "outline"}
-              onClick={() => onDualPaneChange(!isDualPane)}
-              title={isDualPane ? t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_e6f035fc") : t("gen.pages.bookAnalysis.components.BookAnalysisWorkspaceToolbar.gen_2ba77e44")}
-            >
-              <Columns2 className="mr-1.5 h-3.5 w-3.5" />
-              双栏
-            </Button>
-          ) : null}
         </div>
-      </div>
+      </details>
     </div>
   );
 }

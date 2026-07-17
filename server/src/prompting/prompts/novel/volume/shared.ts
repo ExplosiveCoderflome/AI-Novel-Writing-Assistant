@@ -242,7 +242,11 @@ export function buildStrategyContext(strategyPlan: VolumeStrategyPlan | null): s
 
 export function buildStoryMacroContext(storyMacroPlan: StoryMacroPlan | null): string {
   if (!storyMacroPlan) {
-    return "none";
+    return [
+      "none",
+      "degradation rule: story macro is missing, so volume strategy must stay conservative.",
+      "uncertainty rule: add uncertainty markers for macro-level selling point, conflict escalation, progression loop, and payoff mapping.",
+    ].join("\n");
   }
   return [
     storyMacroPlan.decomposition?.selling_point ? `selling point: ${storyMacroPlan.decomposition.selling_point}` : "",
@@ -260,6 +264,9 @@ export function buildVolumeCountGuidanceContext(volumeCountGuidance: VolumeCount
     `chapter budget: ${volumeCountGuidance.chapterBudget}`,
     `target chapter range per volume: ${volumeCountGuidance.targetChapterRange.min}-${volumeCountGuidance.targetChapterRange.max} chapters (ideal ${volumeCountGuidance.targetChapterRange.ideal})`,
     `allowed volume count range: ${volumeCountGuidance.allowedVolumeCountRange.min}-${volumeCountGuidance.allowedVolumeCountRange.max}`,
+    `decision volume count range: ${volumeCountGuidance.decisionVolumeCountRange.min}-${volumeCountGuidance.decisionVolumeCountRange.max}`,
+    `volume scale profile: ${volumeCountGuidance.volumeScaleProfile}`,
+    `volume count rationale: ${volumeCountGuidance.volumeCountRationale}`,
     `system recommended volume count: ${volumeCountGuidance.systemRecommendedVolumeCount}`,
     `active recommended volume count: ${volumeCountGuidance.recommendedVolumeCount}`,
     `hard planned volume range: ${volumeCountGuidance.hardPlannedVolumeRange.min}-${volumeCountGuidance.hardPlannedVolumeRange.max}`,

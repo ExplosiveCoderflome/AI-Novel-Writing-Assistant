@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+  resolveFixedRecommendedVolumeCount,
   resolveBeatSheetTargetChapterCount,
 } = require("../dist/services/novel/volume/volumeGenerationOrchestrator.js");
 const {
@@ -36,6 +37,27 @@ test("chapter budgets ignore incomplete prefix-only generated chapters", () => {
   assert.equal(budgets.reduce((sum, count) => sum + count, 0), 430);
   assert.ok(budgets[1] >= 40, `expected second volume budget to stay usable, got ${budgets[1]}`);
   assert.ok(budgets[1] <= 60, `expected second volume budget near an even split, got ${budgets[1]}`);
+});
+
+test("volume strategy fixed count respects explicit user count before existing draft count", () => {
+  assert.equal(resolveFixedRecommendedVolumeCount({
+    userPreferredVolumeCount: 6,
+    respectedExistingVolumeCount: 3,
+  }), 6);
+});
+
+test("volume strategy fixed count locks respected existing draft count", () => {
+  assert.equal(resolveFixedRecommendedVolumeCount({
+    userPreferredVolumeCount: null,
+    respectedExistingVolumeCount: 2,
+  }), 2);
+});
+
+test("volume strategy fixed count stays open without user or existing draft count", () => {
+  assert.equal(resolveFixedRecommendedVolumeCount({
+    userPreferredVolumeCount: null,
+    respectedExistingVolumeCount: null,
+  }), null);
 });
 
 test("beat sheet target chapter count is not shrunk by partial seed chapters", () => {

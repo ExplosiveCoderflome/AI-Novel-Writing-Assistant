@@ -1,5 +1,3 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { TaskKind, TaskStatus } from "@ai-novel/shared/types/task";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -34,35 +32,37 @@ export default function TaskCenterFilterPanel({
   return (
     <Card className="task-filter-card">
       <CardHeader className="task-filter-header">
-        <CardTitle className="text-base">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_c2fe6253")}</CardTitle>
+        <CardTitle className="text-base">筛选</CardTitle>
       </CardHeader>
       <CardContent className="task-filter-controls grid min-w-0 grid-cols-3 gap-2 xl:grid-cols-1">
         <SelectControl
+          aria-label="按任务类型筛选"
           className="task-filter-kind col-start-1 row-start-1 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
           value={kind}
           onChange={(event) => onKindChange(event.target.value as TaskKind | "")}
         >
-          <option value="">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_c079e7d5")}</option>
-          <option value="book_analysis">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_f90e9a49")}</option>
-          <option value="novel_workflow">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_227c1a99")}</option>
-          <option value="novel_pipeline">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_14f29641")}</option>
-          <option value="knowledge_document">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_a2a62a77")}</option>
-          <option value="image_generation">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_c7741980")}</option>
-          <option value="style_extraction">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_f94905b4")}</option>
-          <option value="agent_run">{t("gen.pages.tasks.components.TaskCenterFilterPanel.agentRunning")}</option>
+          <option value="">全部类型</option>
+          <option value="book_analysis">拆书分析</option>
+          <option value="novel_workflow">小说创作</option>
+          <option value="novel_pipeline">小说流水线</option>
+          <option value="knowledge_document">知识库索引</option>
+          <option value="image_generation">图片生成</option>
+          <option value="style_extraction">写法提取</option>
+          <option value="agent_run">Agent 运行</option>
         </SelectControl>
         <SelectControl
+          aria-label="按任务状态筛选"
           className="task-filter-status col-start-2 row-start-1 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as TaskStatus | "")}
         >
-          <option value="">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_443483c9")}</option>
-          <option value="queued">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_e5ac1d20")}</option>
-          <option value="running">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_d679aea3")}</option>
-          <option value="waiting_approval">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_3ced7e48")}</option>
-          <option value="failed">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_acd5cb84")}</option>
-          <option value="cancelled">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_2111ccbb")}</option>
-          <option value="succeeded">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_fad5222c")}</option>
+          <option value="">全部状态</option>
+          <option value="queued">排队中</option>
+          <option value="running">运行中</option>
+          <option value="waiting_approval">等待审批</option>
+          <option value="failed">失败</option>
+          <option value="cancelled">已取消</option>
+          <option value="succeeded">已完成</option>
         </SelectControl>
         <label className="task-filter-pill col-start-3 row-start-1 flex items-center gap-1.5 rounded-md border bg-muted/30 px-1.5 py-2 text-xs text-muted-foreground sm:gap-2 sm:px-2 sm:text-sm xl:col-auto xl:row-auto">
           <input
@@ -70,24 +70,26 @@ export default function TaskCenterFilterPanel({
             checked={onlyAnomaly}
             onChange={(event) => onOnlyAnomalyChange(event.target.checked)}
           />
-          仅看异常
+          仅看需处理
         </label>
         <Input
+          aria-label="按标题或关联对象搜索"
           className="task-filter-keyword col-span-2 col-start-1 row-start-2 h-10 px-2 xl:col-auto xl:row-auto"
           value={keyword}
           onChange={(event) => onKeywordChange(event.target.value)}
-          placeholder={t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_702bdace")}
+          placeholder="标题或关联对象"
         />
         <SelectControl
+          aria-label="任务排序方式"
           className="task-filter-sort col-start-3 row-start-2 w-full rounded-md border bg-background px-2 py-2 text-sm xl:col-auto xl:row-auto"
           value={sortMode}
           onChange={(event) => onSortModeChange(event.target.value as TaskSortMode)}
         >
-          <option value="updated_desc">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_cd2dd540")}</option>
-          <option value="updated_asc">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_d7c527a3")}</option>
-          <option value="heartbeat_desc">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_29dedce4")}</option>
-          <option value="heartbeat_asc">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_b2fb0583")}</option>
-          <option value="default">{t("gen.pages.tasks.components.TaskCenterFilterPanel.gen_644d8b3c")}</option>
+          <option value="updated_desc">按更新时间排序：最新优先</option>
+          <option value="updated_asc">按更新时间排序：最早优先</option>
+          <option value="heartbeat_desc">按最近心跳排序：最新优先</option>
+          <option value="heartbeat_asc">按最近心跳排序：最早优先</option>
+          <option value="default">默认排序：需处理优先</option>
         </SelectControl>
       </CardContent>
     </Card>

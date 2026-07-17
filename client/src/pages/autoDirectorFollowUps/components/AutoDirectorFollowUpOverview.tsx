@@ -1,8 +1,7 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { AutoDirectorFollowUpListResponse, AutoDirectorFollowUpOverview } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDirectorValidation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TaskQueueSection } from "@/components/taskQueue";
+import { workspaceToneSurfaceClass, type WorkspaceTone } from "@/components/workspace";
 import { cn } from "@/lib/utils";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
@@ -11,6 +10,7 @@ interface OverviewCardConfig {
   label: string;
   description: string;
   count: number;
+  tone: WorkspaceTone;
 }
 
 interface AutoDirectorFollowUpOverviewCardsProps {
@@ -27,68 +27,72 @@ export function AutoDirectorFollowUpOverviewCards({
   onSectionChange,
 }: AutoDirectorFollowUpOverviewCardsProps) {
   const counters = list?.countersBySection ?? overview?.countersBySection;
+  const reasonCounters = overview?.countersByReason ?? list?.countersByReason;
+  const blockingExceptionCount = (reasonCounters?.manual_recovery_required ?? 0)
+    + (reasonCounters?.runtime_failed ?? 0);
+  const pendingIncludesReplan = (reasonCounters?.replan_required ?? 0) > 0;
   const cards: OverviewCardConfig[] = [
     {
       section: "",
-      label: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_a8b0c204"),
-      description: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_320a65ab"),
+      label: "全部",
+      description: "查看所有需要跟进的导演任务",
       count: overview?.totalCount ?? list?.pagination.total ?? 0,
+      tone: "neutral",
     },
     {
       section: "needs_validation",
-      label: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_f781ac23"),
-      description: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_25588213"),
+      label: "需校验",
+      description: "先确认任务和资产是否一致",
       count: counters?.needs_validation ?? 0,
+      tone: "danger",
     },
     {
       section: "exception",
-      label: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_c195df63"),
-      description: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_b8c3c590"),
+      label: "异常与恢复",
+      description: blockingExceptionCount > 0 ? "失败或人工恢复需要先处理" : "取消记录可按需恢复",
       count: counters?.exception ?? 0,
+      tone: blockingExceptionCount > 0 ? "danger" : "neutral",
     },
     {
       section: "pending",
-      label: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_047109de"),
-      description: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_1ca27a0f"),
+      label: "待处理",
+      description: pendingIncludesReplan ? "包含必须先处理的重规划" : "需要确认或继续的节点",
       count: counters?.pending ?? 0,
+      tone: pendingIncludesReplan ? "danger" : "info",
     },
     {
       section: "auto_progress",
-      label: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_0eac0fc9"),
-      description: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_10ab0f5b"),
+      label: "自动推进",
+      description: "正在推进的任务和最近自动通过记录",
       count: counters?.auto_progress ?? 0,
+      tone: "info",
     },
     {
       section: "replaced",
-      label: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_5d7c27b7"),
-      description: t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_d21e0a39"),
+      label: "已替代",
+      description: "被新任务接管的旧任务",
       count: counters?.replaced ?? 0,
+      tone: "neutral",
     },
   ];
 
   return (
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewGrid}>
-      <Card className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewCard}>
-        <CardHeader className="pb-3">
-          <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewHeader}>
-            <div className="min-w-0">
-              <CardTitle className="text-base">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpOverview.gen_b46bfba6")}</CardTitle>
-              <div className={`mt-1 text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                今日恢复 {list?.summaryCounters.recoveredToday ?? 0} 项，今日完成 {list?.summaryCounters.completedToday ?? 0} 项
-              </div>
-            </div>
-            <div className="text-2xl font-semibold leading-none">{overview?.totalCount ?? 0}</div>
-          </div>
-        </CardHeader>
-        <CardContent>
+      <TaskQueueSection
+        title="跟进分区"
+        description={`今日恢复 ${list?.summaryCounters.recoveredToday ?? 0} 项，今日完成 ${list?.summaryCounters.completedToday ?? 0} 项；阻塞、待操作与自动推进分开处理。`}
+        className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewCard}
+      >
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpOverviewSectionGrid}>
             {cards.map((card) => (
               <button
                 key={card.section || "all"}
                 type="button"
+                aria-pressed={activeSection === card.section}
                 onClick={() => onSectionChange(card.section)}
                 className={cn(
-                  "h-full min-w-0 rounded-lg border bg-background p-3 text-left transition hover:border-primary/50",
+                  "h-full min-w-0 rounded-md border p-3 text-left transition hover:border-primary/50",
+                  workspaceToneSurfaceClass[card.tone],
                   activeSection === card.section && "border-primary bg-primary/5",
                 )}
               >
@@ -100,8 +104,7 @@ export function AutoDirectorFollowUpOverviewCards({
               </button>
             ))}
           </div>
-        </CardContent>
-      </Card>
+      </TaskQueueSection>
     </div>
   );
 }

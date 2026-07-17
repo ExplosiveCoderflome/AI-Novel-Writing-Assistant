@@ -14,6 +14,58 @@ const {
 const {
   timelineExtractorOutputSchema,
 } = require("../dist/prompting/prompts/novel/timelineExtractor.prompts.js");
+const {
+  createChapterExecutionContractSchema,
+} = require("../dist/services/novel/volume/volumeGenerationSchemas.js");
+
+test("chapter execution contract requires reader experience and scene experience fields", () => {
+  const schema = createChapterExecutionContractSchema();
+  const scene = (index) => ({
+    key: `scene_${index}`,
+    title: `场景${index}`,
+    purpose: "推进本章任务。",
+    mustAdvance: ["形成可见推进"],
+    mustPreserve: ["保持主线连续"],
+    entryState: `入口${index}`,
+    exitState: `出口${index}`,
+    forbiddenExpansion: ["不要越过下一章"],
+    targetWordCount: 1000,
+    resistance: "敌方施加具体阻力。",
+    turn: "主角改变策略并夺回一步主动。",
+    emotionalShift: "压迫转为反击期待。",
+    readerValue: "读者获得推进和局部回报。",
+  });
+  const base = {
+    purpose: "完成第一次反压。",
+    exclusiveEvent: "主角第一次迫使敌方后退。",
+    endingState: "主角获得局部主动。",
+    nextChapterEntryState: "敌方准备升级反扑。",
+    conflictLevel: 70,
+    revealLevel: 40,
+    targetWordCount: 3000,
+    mustAvoid: "不要提前揭露幕后黑手。",
+    payoffRefs: [],
+    taskSheet: "让主角主动试探并拿到可见收益。",
+    sceneCards: [scene(1), scene(2), scene(3)],
+  };
+  assert.equal(schema.safeParse(base).success, false);
+  assert.equal(schema.safeParse({
+    ...base,
+    readerExperience: {
+      readerQuestion: "主角能否完成第一次反压？",
+      promisedReward: "主角拿到第一次可见主动权。",
+      rewardLevel: "partial",
+      protagonistWant: "迫使敌方后退。",
+      primaryResistance: "敌方掌握资源优势。",
+      keyTurn: "主角识破并利用敌方漏洞。",
+      emotionalShift: "受压转为反击快感。",
+      informationReveal: "敌方封锁存在漏洞。",
+      netChange: "主角从被动转为局部主动。",
+      inheritedHookResponsibilities: ["回应上一章留下的钥匙"],
+      endingHook: "敌方启动更强反扑。",
+    },
+  }).success, true);
+});
 
 function makeResourceDelta(index = 1) {
   return {

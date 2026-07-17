@@ -1,4 +1,3 @@
-import i18next from "i18next";
 import type {
   DirectorTaskSnapshot,
 } from "@ai-novel/shared/types/directorRuntime";
@@ -43,20 +42,21 @@ export interface TakeoverChapterTargetViewModel {
 }
 
 const ENTRY_STEP_USER_LABELS: Record<DirectorTakeoverEntryStep, string> = {
-  basic: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_12dc9530"),
-  story_macro: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_15183ae2"),
-  character: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_3ed577c6"),
-  outline: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_19ac37e4"),
-  structured: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_e2a7c7b0"),
-  chapter: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_663bbefc"),
-  pipeline: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_9b00f20b"),
+  basic: "项目设定",
+  story_macro: "故事宏观规划",
+  world: "世界观准备",
+  character: "角色准备",
+  outline: "卷规划",
+  structured: "节奏拆章",
+  chapter: "章节执行",
+  pipeline: "质量修复",
 };
 
 const RUN_MODE_ACTION_LABELS: Record<DirectorRunMode, string> = {
-  auto_to_ready: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_901e9a25"),
-  auto_to_execution: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_a896249b"),
-  full_book_autopilot: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_500cf5d6"),
-  stage_review: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_6daaa38c"),
+  auto_to_ready: "继续推进到可开写",
+  auto_to_execution: "按范围继续推进",
+  full_book_autopilot: "接管整本书继续推进",
+  stage_review: "继续推进",
 };
 
 export function isTakeoverEntryStepAllowedForScope(
@@ -109,8 +109,8 @@ export function buildTakeoverGuidance(
   const task = taskSnapshot?.task ?? null;
   const chapterProgress = taskSnapshot?.chapterProgress ?? taskSnapshot?.projection?.chapterExecutionProgress ?? null;
   if (task && (task.status === "queued" || task.status === "running" || task.status === "waiting_approval")) {
-    const currentStage = task.currentStage?.trim() || taskSnapshot?.displayState.stageLabel || i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_5081b5c6");
-    const currentLabel = task.currentItemLabel?.trim() || taskSnapshot?.displayState.currentAction || i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_df69e3da");
+    const currentStage = task.currentStage?.trim() || taskSnapshot?.displayState.stageLabel || "当前任务";
+    const currentLabel = task.currentItemLabel?.trim() || taskSnapshot?.displayState.currentAction || "等待继续";
     const nextChapterOrder = chapterProgress?.currentChapterOrder ?? chapterProgress?.activeChapterOrder ?? null;
     return {
       diagnosis: `当前已有导演任务停在「${currentStage}」。`,
@@ -120,30 +120,30 @@ export function buildTakeoverGuidance(
       protectionNotes: [
         `任务状态：${task.status}`,
         currentLabel,
-        i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_0e010629"),
+        "继续当前任务不会新开一条重复接管。",
       ],
       riskLevel: "safe",
-      actionLabel: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_50f2047b"),
+      actionLabel: "进入当前任务",
     };
   }
   if (!readiness) {
     return {
-      diagnosis: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_32b26ff5"),
-      nextStep: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_0a116c77"),
-      protectionNotes: [i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_2fc7900b")],
+      diagnosis: "正在读取项目进度，读取完成后会给出推荐接续位置。",
+      nextStep: "读取完成后即可继续推进。",
+      protectionNotes: ["默认保留已有写作资产。"],
       riskLevel: "safe",
-      actionLabel: RUN_MODE_ACTION_LABELS[runMode] ?? i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_6daaa38c"),
+      actionLabel: RUN_MODE_ACTION_LABELS[runMode] ?? "继续推进",
     };
   }
   const preview = findTakeoverPreview(readiness, entryStep, strategy);
-  const entryLabel = ENTRY_STEP_USER_LABELS[preview?.effectiveStep ?? entryStep] ?? i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_6f90bf77");
+  const entryLabel = ENTRY_STEP_USER_LABELS[preview?.effectiveStep ?? entryStep] ?? "推荐位置";
   const hasCharacters = readiness.snapshot.characterCount > 0;
   const hasVolumes = readiness.snapshot.volumeCount > 0;
   const hasChapters = readiness.snapshot.chapterCount > 0;
   const protectionNotes = [
-    hasCharacters ? `保留已创建的 ${readiness.snapshot.characterCount} 个角色资产。` : i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_ab6350b6"),
-    hasVolumes ? i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_1a372abe") : i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_48d41db5"),
-    hasChapters ? `保留已有 ${readiness.snapshot.chapterCount} 章正文或章节资产。` : i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_e7d35cc2"),
+    hasCharacters ? `保留已创建的 ${readiness.snapshot.characterCount} 个角色资产。` : "没有检测到已创建角色，AI 会补齐角色准备。",
+    hasVolumes ? "沿用已有卷规划资产，只补后续缺口。" : "没有检测到卷规划，AI 会继续生成卷规划。",
+    hasChapters ? `保留已有 ${readiness.snapshot.chapterCount} 章正文或章节资产。` : "没有检测到已生成正文。",
   ];
   const riskLevel = strategy === "restart_current_step" ? "caution" : "safe";
   return {
@@ -152,7 +152,7 @@ export function buildTakeoverGuidance(
     protectionNotes,
     riskLevel,
     actionLabel: buildPrimaryActionLabel({
-      fallback: RUN_MODE_ACTION_LABELS[runMode] ?? i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_6daaa38c"),
+      fallback: RUN_MODE_ACTION_LABELS[runMode] ?? "继续推进",
       taskSnapshot,
       readiness,
     }),
@@ -161,7 +161,7 @@ export function buildTakeoverGuidance(
 
 function formatRatio(done: number, total: number): string {
   if (total <= 0) {
-    return done > 0 ? `${done} 项` : i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_f61f4cf6");
+    return done > 0 ? `${done} 项` : "暂无";
   }
   return `${done} / ${total}`;
 }
@@ -180,10 +180,10 @@ function buildPrimaryActionLabel(input: {
   const drafted = progress?.draftedChapterCount ?? input.readiness?.snapshot.generatedChapterCount ?? 0;
   const approved = progress?.approvedChapterCount ?? input.readiness?.snapshot.approvedChapterCount ?? 0;
   if (drafted > approved) {
-    return i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_21b5d972");
+    return "处理待确认章节";
   }
   if ((input.readiness?.snapshot.chapterCount ?? 0) > 0) {
-    return i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_aa7745d1");
+    return "继续章节执行";
   }
   return input.fallback;
 }
@@ -289,53 +289,53 @@ export function buildTakeoverProgressInspection(
 
   const cards: TakeoverProgressCard[] = [
     {
-      title: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_3ead3ec9"),
-      status: factSummary?.hasVolumeStrategy || (snapshot?.volumeCount ?? 0) > 0 ? i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_48408afa") : i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_4ed38aeb"),
+      title: "卷规划进度",
+      status: factSummary?.hasVolumeStrategy || (snapshot?.volumeCount ?? 0) > 0 ? "已具备卷战略" : "待补卷战略",
       detail: snapshot
-        ? `${snapshot.volumeCount} 卷；当前卷章节 ${snapshot.firstVolumeChapterCount} 章；已拆范围 ${volumeRanges.map((range) => `第${range.startOrder}-${range.endOrder}章`).join("、") || i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_f61f4cf6")}`
-        : i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_c11d6c54"),
+        ? `${snapshot.volumeCount} 卷；当前卷章节 ${snapshot.firstVolumeChapterCount} 章；已拆范围 ${volumeRanges.map((range) => `第${range.startOrder}-${range.endOrder}章`).join("、") || "暂无"}`
+        : "正在读取卷规划。",
     },
     {
-      title: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_b35a6efb"),
+      title: "拆章同步进度",
       status: formatRatio(syncedChapterCount, plannedChapterCount),
       detail: selectedChapterCount > 0
         ? `当前可执行范围 ${readiness?.executableRange?.startOrder ?? 1}-${readiness?.executableRange?.endOrder ?? selectedChapterCount} 章。`
-        : i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_59b7c2f0"),
+        : "尚未检测到可执行章节范围。",
     },
     {
-      title: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_1f6d47dd"),
+      title: "章节细化进度",
       status: formatRatio(detailDone, detailTotal),
       detail: outline?.chapterDetailReady || detailDone > 0
         ? `已准备 ${detailDone} 个章节任务单 / 执行资源。`
-        : i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_112a5c82"),
+        : "尚未检测到章节细化资源。",
     },
     {
-      title: i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_60c6456d"),
+      title: "正文与质量进度",
       status: formatRatio(drafted, chapterProgress?.totalChapters ?? chapterFacts?.totalChapters ?? plannedChapterCount),
       detail: [
         reviewed > 0 ? `已审校 ${reviewed} 章` : "",
         approved > 0 ? `已通过 ${approved} 章` : "",
         pendingRepair > 0 ? `待处理 ${pendingRepair} 章` : "",
         nextChapterOrder ? `下一章第 ${nextChapterOrder} 章` : "",
-      ].filter(Boolean).join("；") || i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_e24795d3"),
+      ].filter(Boolean).join("；") || "尚未开始正文生产。",
     },
   ];
 
   return {
     cards,
     summary: taskSnapshot?.task
-      ? `当前任务：${taskSnapshot.task.currentStage || taskSnapshot.displayState.stageLabel || i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_1772aede")} / ${taskSnapshot.task.currentItemLabel || taskSnapshot.displayState.currentAction || i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_df69e3da")}`
-      : i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.detectedAssetProgressCurrentProject"),
+      ? `当前任务：${taskSnapshot.task.currentStage || taskSnapshot.displayState.stageLabel || "自动导演"} / ${taskSnapshot.task.currentItemLabel || taskSnapshot.displayState.currentAction || "等待继续"}`
+      : "以下为当前项目已检测到的资产进度。",
   };
 }
 
 export function formatTakeoverStartError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error || "");
-  if (message.includes(i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_793fb4f8"))) {
-    return i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_1dc45f3e");
+  if (message.includes("章节范围只能从节奏拆章、章节执行或质量修复开始")) {
+    return "当前项目还没有进入章节生产阶段，不能直接从章节范围继续。建议使用系统推荐位置继续推进。";
   }
-  if (message.includes(i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_de3efd01"))) {
-    return i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_68d3ea47");
+  if (message.includes("当前已有自动导演任务")) {
+    return "当前已有自动导演任务在处理这本书，请先进入当前任务继续或取消后再接管。";
   }
-  return message || i18next.t("gen.pages.novels.components.novelExistingProjectTakeoverViewModel.gen_2f988e20");
+  return message || "启动自动导演接管失败。";
 }

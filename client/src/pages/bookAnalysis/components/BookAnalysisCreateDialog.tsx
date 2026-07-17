@@ -342,7 +342,7 @@ export default function BookAnalysisCreateDialog(props: BookAnalysisCreateDialog
           </div>
 
           <aside className="space-y-3">
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+            <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-xs leading-5 text-foreground">
               {isDiagnosisMode
                 ? t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_95778722")
                 : t("gen.pages.bookAnalysis.components.BookAnalysisCreateDialog.gen_f5f49733")}

@@ -7,6 +7,7 @@ import {
   promptWorkbenchService,
   type PromptCatalogFilter,
   type PromptPreviewInput,
+  type PromptTestRunInput,
 } from "../prompting/PromptWorkbenchService";
 import {
   exportNovelPromptMaterials,
@@ -82,6 +83,16 @@ const previewBodySchema = z.object({
   message: "Provide promptKey or both id and version.",
   path: ["promptKey"],
 });
+
+const promptTestRunBodySchema = previewBodySchema.and(z.object({
+  llm: z.object({
+    provider: z.string().trim().min(1).optional(),
+    model: z.string().trim().min(1).optional(),
+    temperature: z.number().min(0).max(2).optional(),
+    maxTokens: z.number().int().min(256).max(32768).optional(),
+    timeoutMs: z.number().int().min(1000).max(10 * 60 * 1000).optional(),
+  }).optional(),
+}));
 
 const materialExportBodySchema = z.object({
   novelId: z.string().trim().min(1),
@@ -190,6 +201,19 @@ router.post("/preview", validate({ body: previewBodySchema }), async (req, res, 
       success: true,
       data,
       message: "Prompt preview rendered.",
+    } satisfies ApiResponse<typeof data>);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/test-run", validate({ body: promptTestRunBodySchema }), async (req, res, next) => {
+  try {
+    const data = await promptWorkbenchService.testRun(req.body as PromptTestRunInput);
+    res.status(200).json({
+      success: true,
+      data,
+      message: "Prompt test run completed.",
     } satisfies ApiResponse<typeof data>);
   } catch (error) {
     next(error);

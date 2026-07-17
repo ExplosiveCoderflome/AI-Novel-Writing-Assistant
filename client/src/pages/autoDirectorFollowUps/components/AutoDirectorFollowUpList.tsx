@@ -1,5 +1,3 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type {
   AutoDirectorFollowUpAvailableFilters,
   AutoDirectorFollowUpItem,
@@ -7,9 +5,15 @@ import type {
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
 import type { AutoDirectorFollowUpSection } from "@ai-novel/shared/types/autoDirectorValidation";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  TaskQueueEmptyState,
+  TaskQueueItem,
+  TaskQueueSection,
+  TaskQueueSeverityBadge,
+  TaskQueueStatusBadge,
+} from "@/components/taskQueue";
+import { WorkspaceStateNotice } from "@/components/workspace";
 import {
   Select,
   SelectContent,
@@ -17,8 +21,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
+import {
+  getFollowUpLevelLabel,
+  getFollowUpPriorityLabel,
+  getFollowUpSeverity,
+  getFollowUpTone,
+} from "../followUpPresentation";
 
 interface AutoDirectorFollowUpListPanelProps {
   items: AutoDirectorFollowUpItem[];
@@ -31,81 +40,97 @@ interface AutoDirectorFollowUpListPanelProps {
   selectedTaskId: string;
   selectedTaskIds: string[];
   loading: boolean;
+  errorMessage?: string | null;
   actionLoading: boolean;
   onSelectTask: (taskId: string) => void;
   onFilterChange: (key: "reason" | "status" | "supportsBatch" | "channelType", value: string) => void;
   onToggleSelected: (taskId: string, checked: boolean) => void;
   onPageChange: (page: number) => void;
-}
-
-function formatPriority(priority: AutoDirectorFollowUpItem["priority"]): string {
-  return priority;
+  onRetry: () => void;
 }
 
 function formatStatus(status: TaskStatus): string {
-  if (status === "waiting_approval") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_3ced7e48");
-  if (status === "failed") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_acd5cb84");
-  if (status === "cancelled") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_2111ccbb");
-  if (status === "running") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_d679aea3");
-  if (status === "queued") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_e5ac1d20");
-  return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_fad5222c");
+  if (status === "waiting_approval") return "等待审批";
+  if (status === "failed") return "失败";
+  if (status === "cancelled") return "已取消";
+  if (status === "running") return "运行中";
+  if (status === "queued") return "排队中";
+  return "已完成";
+}
+
+function formatReason(reason: AutoDirectorFollowUpItem["reason"]): string {
+  const labels: Record<AutoDirectorFollowUpItem["reason"], string> = {
+    manual_recovery_required: "人工恢复待处理",
+    runtime_failed: "失败待重试",
+    candidate_selection_required: "待确认书级方向",
+    replan_required: "待处理重规划",
+    runtime_cancelled: "已取消待恢复",
+    chapter_batch_execution_pending: "自动执行待继续",
+    quality_repair_pending: "质量修复待继续",
+    auto_progress_running: "自动推进中",
+    auto_approval_completed: "最近自动通过",
+    runtime_replaced: "任务已替代",
+    validation_required: "需要重新校验",
+  };
+  return labels[reason];
 }
 
 function formatSection(section: AutoDirectorFollowUpSection): string {
-  if (section === "needs_validation") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_f781ac23");
-  if (section === "exception") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_c195df63");
-  if (section === "pending") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_047109de");
-  if (section === "auto_progress") return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_0eac0fc9");
-  return t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_5d7c27b7");
+  if (section === "needs_validation") return "需校验";
+  if (section === "exception") return "异常";
+  if (section === "pending") return "待处理";
+  if (section === "auto_progress") return "自动推进";
+  return "已替代";
 }
 
 function formatActiveSection(section: AutoDirectorFollowUpSection | ""): string {
-  return section ? formatSection(section) : t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_fb291d9d");
+  return section ? formatSection(section) : "全部分区";
 }
 
 function buildChannelBadges(item: AutoDirectorFollowUpItem): string[] {
   const labels: string[] = [];
   if (item.channelCapabilities.dingtalk) {
-    labels.push(t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_9595f74a"));
+    labels.push("钉钉可直达");
   }
   if (item.channelCapabilities.wecom) {
-    labels.push(t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.microDirectlyReachable"));
+    labels.push("企微可直达");
   }
   return labels;
 }
 
 function formatItemType(item: AutoDirectorFollowUpItem): string {
-  return item.itemType === "auto_approval_record" ? t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_c3a95b77") : t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_93792aa2");
+  return item.itemType === "auto_approval_record" ? "最近自动通过" : "正在推进";
 }
 
 export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPanelProps) {
   const totalPages = props.pagination ? Math.max(1, Math.ceil(props.pagination.total / props.pagination.pageSize)) : 1;
 
   return (
-    <Card className="min-w-0 overflow-hidden">
-      <CardHeader>
-        <CardTitle className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-base`}>{formatActiveSection(props.activeSection)}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <TaskQueueSection
+      title={formatActiveSection(props.activeSection)}
+      description="按结构化原因和状态筛选；质量提醒与阻塞任务使用不同等级。"
+      className="min-w-0 overflow-hidden"
+    >
+      <div className="space-y-4">
         <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterGrid}>
           <Select value={props.activeReason || "__all__"} onValueChange={(value) => props.onFilterChange("reason", value === "__all__" ? "" : value)}>
-            <SelectTrigger className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
-              <SelectValue placeholder={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_2e51c1e9")} />
+            <SelectTrigger aria-label="按跟进原因筛选" className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
+              <SelectValue placeholder="全部原因" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_2e51c1e9")}</SelectItem>
+              <SelectItem value="__all__">全部原因</SelectItem>
               {(props.filters?.reasons ?? []).map((reason) => (
-                <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                <SelectItem key={reason} value={reason}>{formatReason(reason)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
 
           <Select value={props.activeStatus || "__all__"} onValueChange={(value) => props.onFilterChange("status", value === "__all__" ? "" : value)}>
-            <SelectTrigger className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
-              <SelectValue placeholder={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_443483c9")} />
+            <SelectTrigger aria-label="按任务状态筛选" className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
+              <SelectValue placeholder="全部状态" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_443483c9")}</SelectItem>
+              <SelectItem value="__all__">全部状态</SelectItem>
               {(props.filters?.statuses ?? []).map((status) => (
                 <SelectItem key={status} value={status}>{formatStatus(status)}</SelectItem>
               ))}
@@ -113,13 +138,13 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
           </Select>
 
           <Select value={props.activeSupportsBatch || "__all__"} onValueChange={(value) => props.onFilterChange("supportsBatch", value === "__all__" ? "" : value)}>
-            <SelectTrigger className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
-              <SelectValue placeholder={t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_4db4c06a")} />
+            <SelectTrigger aria-label="按批量操作能力筛选" className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
+              <SelectValue placeholder="批量能力" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_a8b0c204")}</SelectItem>
-              <SelectItem value="true">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.onlyBulk")}</SelectItem>
-              <SelectItem value="false">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.onlyNonBulk")}</SelectItem>
+              <SelectItem value="__all__">全部</SelectItem>
+              <SelectItem value="true">仅可批量</SelectItem>
+              <SelectItem value="false">仅不可批量</SelectItem>
             </SelectContent>
           </Select>
 
@@ -127,70 +152,81 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
 
         <div className="space-y-3">
           {props.loading ? (
-            <div className={`rounded-md border border-dashed p-6 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_06c7d9c9")}</div>
+            <WorkspaceStateNotice compact loading title="正在读取跟进项" description="正在同步导演任务和最近自动通过记录。" />
           ) : null}
 
-          {!props.loading && props.items.length === 0 ? (
-            <div className={`rounded-md border border-dashed p-6 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              {props.activeSection === "auto_progress"
-                ? t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_821503ca")
+          {props.errorMessage ? (
+            <WorkspaceStateNotice
+              compact
+              tone="danger"
+              title="跟进列表读取失败"
+              description={props.errorMessage}
+              action={<Button size="sm" variant="outline" onClick={props.onRetry}>重新读取</Button>}
+            />
+          ) : null}
+
+          {!props.loading && !props.errorMessage && props.items.length === 0 ? (
+            <TaskQueueEmptyState
+              title="当前没有符合条件的跟进项"
+              description={props.activeSection === "auto_progress"
+                ? "当前没有正在推进的任务或最近自动通过记录。"
                 : props.activeSection === "replaced"
-                  ? t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_07c6d69e")
-                  : t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_358ef436")}
-            </div>
+                  ? "当前没有被新任务替代的旧任务。"
+                  : "可以切换分区或清除筛选条件查看其他导演任务。"}
+            />
           ) : null}
 
           {props.items.map((item) => {
             const itemKey = item.autoApprovalRecordId ?? item.directorTaskId;
             const checked = props.selectedTaskIds.includes(item.directorTaskId);
             const selected = props.selectedTaskId === item.directorTaskId;
+            const tone = getFollowUpTone(item);
             return (
-              <button
-                key={itemKey}
-                type="button"
-                className={cn(
-                  "w-full min-w-0 rounded-xl border p-4 text-left transition-colors",
-                  selected ? "border-primary bg-primary/5" : "hover:bg-muted/40",
-                )}
-                onClick={() => props.onSelectTask(item.directorTaskId)}
-              >
+              <div key={itemKey} className="relative">
+                <TaskQueueItem
+                  selected={selected}
+                  tone={tone}
+                  className={item.supportsBatch ? "p-4 pr-12" : "p-4"}
+                  onClick={() => props.onSelectTask(item.directorTaskId)}
+                >
                 <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpListHeader}>
                   <div className="min-w-0 space-y-1">
                     <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} font-medium`}>{item.novelTitle}</div>
                     <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-sm text-muted-foreground`}>{item.followUpSummary}</div>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    {item.supportsBatch ? (
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(event) => props.onToggleSelected(item.directorTaskId, event.target.checked)}
-                        onClick={(event) => event.stopPropagation()}
-                        disabled={props.actionLoading}
-                      />
-                    ) : null}
-                    <Badge variant={item.priority === "P0" ? "destructive" : item.priority === "P1" ? "secondary" : "outline"}>
-                      {formatSection(item.section)}
-                    </Badge>
+                    <TaskQueueSeverityBadge severity={getFollowUpSeverity(item)} label={getFollowUpLevelLabel(item)} />
                   </div>
                 </div>
 
                 <div className="mt-3 flex min-w-0 flex-wrap gap-2 text-xs text-muted-foreground">
-                  {item.section === "auto_progress" ? <Badge variant="secondary">{formatItemType(item)}</Badge> : null}
-                  <Badge variant="outline">{formatStatus(item.status)}</Badge>
-                  <Badge variant="outline">{item.reasonLabel}</Badge>
-                  <Badge variant="outline">{formatPriority(item.priority)}</Badge>
-                  {item.executionScope ? <Badge variant="outline" className={`max-w-full whitespace-normal text-left ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{item.executionScope}</Badge> : null}
-                  {item.supportsBatch ? <Badge variant="secondary">{t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_07945f54")}</Badge> : null}
+                  {item.section === "auto_progress" ? <TaskQueueStatusBadge label={formatItemType(item)} tone={tone} /> : null}
+                  <TaskQueueStatusBadge label={formatStatus(item.status)} tone="neutral" />
+                  <TaskQueueStatusBadge label={item.reasonLabel} tone="neutral" />
+                  <TaskQueueStatusBadge label={getFollowUpPriorityLabel(item.priority, item.reason)} tone={tone} />
+                  {item.executionScope ? <TaskQueueStatusBadge label={item.executionScope} tone="neutral" className={`max-w-full whitespace-normal text-left ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`} /> : null}
+                  {item.supportsBatch ? <TaskQueueStatusBadge label="可批量" tone="info" /> : null}
                   {buildChannelBadges(item).map((label) => (
-                    <Badge key={`${item.directorTaskId}:${label}`} variant="secondary">{label}</Badge>
+                    <TaskQueueStatusBadge key={`${item.directorTaskId}:${label}`} label={label} tone="info" />
                   ))}
                 </div>
 
                 <div className={`mt-2 text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                  当前阶段：{item.currentStage ?? t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_f61f4cf6")} · 当前模型：{item.currentModel ?? t("gen.pages.autoDirectorFollowUps.components.AutoDirectorFollowUpList.gen_f61f4cf6")} · 更新时间：{new Date(item.updatedAt).toLocaleString()}
+                  当前阶段：{item.currentStage ?? "暂无"} · 当前模型：{item.currentModel ?? "暂无"} · 更新时间：{new Date(item.updatedAt).toLocaleString()}
                 </div>
-              </button>
+                </TaskQueueItem>
+                {item.supportsBatch ? (
+                  <label className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center">
+                    <span className="sr-only">选择 {item.novelTitle} 进行批量操作</span>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) => props.onToggleSelected(item.directorTaskId, event.target.checked)}
+                      disabled={props.actionLoading}
+                    />
+                  </label>
+                ) : null}
+              </div>
             );
           })}
         </div>
@@ -220,7 +256,7 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
             </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </TaskQueueSection>
   );
 }

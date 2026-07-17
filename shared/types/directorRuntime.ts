@@ -16,6 +16,8 @@ export const DIRECTOR_ARTIFACT_TYPES = [
   "story_macro",
   "character_cast",
   "volume_strategy",
+  "volume_beat_sheet",
+  "volume_chapter_list",
   "chapter_task_sheet",
   "chapter_draft",
   "audit_report",
@@ -200,6 +202,8 @@ const DIRECTOR_NODE_DISPLAY_LABELS: Record<string, string> = {
   story_macro_phase: "故事宏观规划",
   book_contract: "书级创作约定",
   book_contract_phase: "书级创作约定",
+  world_setup: "世界观准备",
+  world_setup_phase: "世界观准备",
   character_setup: "角色阵容准备",
   character_setup_phase: "角色阵容准备",
   volume_strategy: "分卷策略",
@@ -442,6 +446,8 @@ export interface DirectorRuntimeQualityBudgetSummary {
 export interface DirectorOutlineFactSummary {
   beatSheetReady: boolean;
   chapterListReady: boolean;
+  beatChapterListReady?: boolean;
+  volumeChapterListComplete?: boolean;
   chapterDetailReady: boolean;
   plannedChapterCount: number;
   selectedChapterCount: number;
@@ -643,7 +649,7 @@ export interface DirectorBookAutomationActionTarget {
   novelId?: string | null;
   taskId?: string | null;
   chapterId?: string | null;
-  tab?: "basic" | "story_macro" | "outline" | "structured" | "chapter" | "pipeline" | "character" | "history" | null;
+  tab?: "basic" | "story_macro" | "world" | "outline" | "structured" | "chapter" | "pipeline" | "character" | "history" | null;
   href?: string | null;
 }
 
@@ -852,6 +858,7 @@ export interface DirectorTaskShell {
 export type DirectorDisplayStageKey =
   | "project_setup"
   | "story_planning"
+  | "world_setup"
   | "character_setup"
   | "volume_strategy"
   | "structured_outline"
@@ -1057,6 +1064,8 @@ export const DIRECTOR_RUN_COMMAND_TYPES = [
   "policy_update",
   "workspace_analysis",
   "manual_edit_impact",
+  "calibrate_step",
+  "accept_manual_changes_and_continue",
   "repair_chapter_titles",
   "cancel",
 ] as const;

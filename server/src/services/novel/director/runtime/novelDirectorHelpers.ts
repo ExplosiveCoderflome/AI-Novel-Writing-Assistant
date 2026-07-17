@@ -76,6 +76,14 @@ export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   autoExecution?: DirectorAutoExecutionState;
   taskNotice?: DirectorTaskNotice | null;
   directorRuntime?: DirectorRuntimeSnapshot | null;
+  stepReview?: {
+    stepId: string;
+    nodeKey: string;
+    label: string;
+    targetType: string;
+    targetId?: string | null;
+    completedAt: string;
+  } | null;
 }
 
 export interface CandidateGenerationContext {
@@ -384,6 +392,9 @@ export function buildStoryInput(input: DirectorConfirmRequest, bookSpec: BookSpe
     `主钩子：${bookSpec.hookStrategy}`,
     `推进循环：${bookSpec.progressionLoop}`,
     `结局方向：${bookSpec.endingDirection}`,
+    input.stepCalibrationInstruction?.trim()
+      ? `当前步骤校准要求：${input.stepCalibrationInstruction.trim()}`
+      : "",
   ].filter(Boolean);
   return lines.join("\n");
 }

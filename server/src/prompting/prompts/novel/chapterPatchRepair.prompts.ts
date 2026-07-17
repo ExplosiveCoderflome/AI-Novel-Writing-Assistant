@@ -18,7 +18,7 @@ export const chapterPatchRepairPrompt: PromptAsset<
   ChapterPatchRepairPlan
 > = {
   id: "novel.review.patch",
-  version: "v1",
+  version: "v2",
   taskType: "repair",
   mode: "structured",
   language: "zh",
@@ -27,6 +27,7 @@ export const chapterPatchRepairPrompt: PromptAsset<
     preferredGroups: [
       "repair_issues",
       "chapter_mission",
+      "reader_experience",
       "repair_boundaries",
       "world_rules",
     ],
@@ -60,6 +61,7 @@ export const chapterPatchRepairPrompt: PromptAsset<
       "2. patches 中每个 targetExcerpt 必须逐字摘自当前正文，并且应足够长，确保在正文里只出现一次。",
       "3. replacement 只替换 targetExcerpt 对应片段，不要改写无关段落；如果修复目标是删除重复片段，replacement 可以是空字符串。",
       "4. 优先修复问题清单中影响主线推进、连续性、人物动机、节奏和结尾钩子的关键问题。",
+      "4a. 若问题涉及读者体验合同，只修改能补齐 promisedReward、主角主动性、关键转折、净变化或旧钩子承接的必要片段，并保留已经有效的读者回报。",
       "5. 不得新增重大设定、核心角色或与章节任务冲突的剧情转向。",
       "6. 局部补丁只处理正文中能定位到完整句段的问题；审校系统不可用、结构化判断缺失、评分不足等系统风险不属于正文片段修复。",
       "7. targetExcerpt 必须是正文里的完整短句或段落，不得是单个词语、称谓、标点或过短短语。",

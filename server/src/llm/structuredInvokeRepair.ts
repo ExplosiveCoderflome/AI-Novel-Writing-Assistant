@@ -23,6 +23,7 @@ export interface StructuredRepairInput<T> {
   label: string;
   schema: ZodType<T>;
   promptMeta?: PromptInvocationMeta;
+  onRepairOutputDelta?: (content: string) => void;
 }
 
 interface ArrayLengthRepairHint {
@@ -218,16 +219,24 @@ export async function repairWithLlm<T>(
     if (input.signal) {
       invokeOptions.signal = input.signal;
     }
-    const result = await runWithEnforcedTimeout({
+    const repairedRaw = await runWithEnforcedTimeout({
       label: `${input.label}#repair-${repairAttempt}`,
       timeoutMs: input.timeoutMs,
       signal: input.signal,
-      run: (signal) => llm.invoke(
-        [new SystemMessage(repairSystem), new HumanMessage(repairHuman)],
-        signal ? { ...invokeOptions, signal } : invokeOptions,
-      ),
+      run: async (signal) => {
+        const stream = await llm.stream(
+          [new SystemMessage(repairSystem), new HumanMessage(repairHuman)],
+          signal ? { ...invokeOptions, signal } : invokeOptions,
+        );
+        let content = "";
+        for await (const chunk of stream) {
+          const delta = toText(chunk.content);
+          content += delta;
+          input.onRepairOutputDelta?.(delta);
+        }
+        return content;
+      },
     });
-    const repairedRaw = toText(result.content);
     const latencyMs = Date.now() - startedAt;
     helpers.logStructuredInvokeEvent({
       event: "repair_done",

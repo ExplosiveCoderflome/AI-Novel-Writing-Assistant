@@ -1,12 +1,21 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { CreativeHubThread } from "@ai-novel/shared/types/creativeHub";
+import { RefreshCw } from "lucide-react";
+import { WorkspaceStateNotice } from "@/components/workspace";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface CreativeHubThreadListProps {
   threads: CreativeHubThread[];
   activeThreadId: string;
+  loading?: boolean;
+  errorMessage?: string;
+  retryPending?: boolean;
+  actionPending?: boolean;
+  actionDisabled?: boolean;
+  pendingThreadId?: string;
+  onRetry?: () => void;
   onSelect: (threadId: string) => void;
   onCreate: () => void;
   onArchive: (threadId: string, archived: boolean) => void;
@@ -14,72 +23,128 @@ interface CreativeHubThreadListProps {
 }
 
 function toStatusLabel(status: CreativeHubThread["status"]): string {
-  if (status === "busy") return t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_d679aea3");
-  if (status === "interrupted") return t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_047109de");
-  if (status === "error") return t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_c195df63");
-  return t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_87bb5bbc");
+  if (status === "busy") return "执行中";
+  if (status === "interrupted") return "待确认";
+  if (status === "error") return "异常";
+  return "空闲";
+}
+
+function toStatusVariant(
+  status: CreativeHubThread["status"],
+): "default" | "secondary" | "destructive" | "outline" {
+  if (status === "busy") return "default";
+  if (status === "interrupted") return "secondary";
+  if (status === "error") return "destructive";
+  return "outline";
 }
 
 export default function CreativeHubThreadList({
   threads,
   activeThreadId,
+  loading = false,
+  errorMessage = "",
+  retryPending = false,
+  actionPending = false,
+  actionDisabled = false,
+  pendingThreadId = "",
+  onRetry,
   onSelect,
   onCreate,
   onArchive,
   onDelete,
 }: CreativeHubThreadListProps) {
   return (
-    <Card className="flex h-full min-h-0 flex-col">
+    <Card
+      className="flex h-full min-h-0 flex-col rounded-lg shadow-none"
+      aria-busy={actionPending || retryPending || Boolean(pendingThreadId)}
+    >
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">{t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_119cfb79")}</CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base">创作线程</CardTitle>
+          <Badge variant="outline">{threads.length}</Badge>
+        </div>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-        <Button className="h-9 w-full rounded-xl" onClick={onCreate}>
-          新建线程
+        <Button className="h-9 w-full" onClick={onCreate} disabled={actionPending || actionDisabled}>
+          {actionPending ? "正在创建..." : "新建线程"}
         </Button>
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-          {threads.map((thread) => (
-            <div
-              key={thread.id}
-              className={`rounded-xl border px-3 py-2.5 ${
-                thread.id === activeThreadId ? "border-slate-900 bg-slate-50" : "border-slate-200 bg-white"
-              }`}
-            >
-              <button
-                type="button"
-                className="w-full text-left"
-                onClick={() => onSelect(thread.id)}
-              >
-                <div className="truncate text-[13px] font-medium text-slate-900">{thread.title}</div>
-                <div className="mt-1 text-[11px] leading-4 text-slate-500">
-                  {toStatusLabel(thread.status)}
-                  {thread.latestRunId ? ` · ${thread.latestRunId.slice(0, 8)}` : ""}
+        {loading ? (
+          <WorkspaceStateNotice compact loading tone="info" title="正在加载线程" description="请稍候。" />
+        ) : errorMessage ? (
+          <WorkspaceStateNotice
+            compact
+            tone="danger"
+            title="线程列表加载失败"
+            description={errorMessage}
+            action={onRetry ? (
+              <Button type="button" size="sm" variant="outline" disabled={retryPending} onClick={onRetry}>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                {retryPending ? "正在重试..." : "重试"}
+              </Button>
+            ) : null}
+          />
+        ) : (
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+            {threads.map((thread) => {
+              const current = thread.id === activeThreadId;
+              const pending = pendingThreadId === thread.id;
+              return (
+                <div
+                  key={thread.id}
+                  className={cn(
+                    "rounded-md border px-3 py-2.5",
+                    current ? "border-primary bg-primary/5" : "border-border bg-background",
+                  )}
+                >
+                  <button
+                    type="button"
+                    className="w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => onSelect(thread.id)}
+                    disabled={actionDisabled}
+                    aria-current={current ? "true" : undefined}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 truncate text-sm font-medium text-foreground">
+                        {thread.title}{current ? " · 当前" : ""}
+                      </div>
+                      <Badge variant={toStatusVariant(thread.status)}>{toStatusLabel(thread.status)}</Badge>
+                    </div>
+                    <div className="mt-1 text-xs leading-4 text-muted-foreground">
+                      {thread.resourceBindings.novelId ? "已绑定小说" : "未绑定小说"}
+                    </div>
+                  </button>
+                  <div className="mt-2 flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => onArchive(thread.id, !thread.archived)}
+                      disabled={pending || actionDisabled}
+                    >
+                      {pending ? "处理中..." : thread.archived ? "取消归档" : "归档"}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                      onClick={() => onDelete(thread.id)}
+                      disabled={pending || actionDisabled}
+                    >
+                      删除
+                    </Button>
+                  </div>
                 </div>
-              </button>
-              <div className="mt-2 flex gap-2 text-[11px]">
-                <button
-                  type="button"
-                  className="rounded-md border border-slate-200 px-2 py-1 text-slate-600 transition hover:bg-slate-100"
-                  onClick={() => onArchive(thread.id, !thread.archived)}
-                >
-                  {thread.archived ? t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_bc83e0c0") : t("gen.pages.creativeHub.components.CreativeHubThreadList.gen_2f51c18f")}
-                </button>
-                <button
-                  type="button"
-                  className="rounded-md border border-red-200 px-2 py-1 text-red-600 transition hover:bg-red-50"
-                  onClick={() => onDelete(thread.id)}
-                >
-                  删除
-                </button>
+              );
+            })}
+            {threads.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
+                创建线程后，可以围绕同一小说持续保留创作目标和执行记录。
               </div>
-            </div>
-          ))}
-          {threads.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
-              还没有创作中枢线程。
-            </div>
-          ) : null}
-        </div>
+            ) : null}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -71,7 +71,7 @@ export const payoffLedgerSyncItemSchema = z.object({
   setupChapterOrder: z.number().int().optional().nullable(),
   payoffChapterId: z.string().trim().optional().nullable(),
   payoffChapterOrder: z.number().int().optional().nullable(),
-  sourceRefs: z.array(payoffLedgerSyncSourceRefSchema).default([]).transform((items) => items.slice(0, 2)),
+  sourceRefs: z.array(payoffLedgerSyncSourceRefSchema).default([]).transform((items) => items.slice(0, 4)),
   evidence: z.array(payoffLedgerSyncEvidenceSchema).default([]).transform((items) => items.slice(0, 1)),
   riskSignals: z.array(payoffLedgerSyncRiskSignalSchema).default([]).transform((items) => items.slice(0, 2)),
   statusReason: z.string().trim().optional().nullable(),

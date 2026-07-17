@@ -1,10 +1,10 @@
-import i18next from "i18next";
 import type { DirectorDisplayStageKey } from "@ai-novel/shared/types/directorRuntime";
 import type { DirectorLockScope } from "@ai-novel/shared/types/novelDirector";
 
 export type NovelWorkspaceFlowTab =
   | "basic"
   | "story_macro"
+  | "world"
   | "character"
   | "outline"
   | "structured"
@@ -14,17 +14,18 @@ export type NovelWorkspaceFlowTab =
 export type NovelWorkspaceTab = NovelWorkspaceFlowTab | "history";
 
 export const NOVEL_WORKSPACE_FLOW_STEPS: Array<{ key: NovelWorkspaceFlowTab; label: string }> = [
-  { key: "basic", label: i18next.t("gen.pages.novels.novelWorkspaceNavigation.gen_12dc9530") },
-  { key: "story_macro", label: i18next.t("gen.pages.novels.novelWorkspaceNavigation.gen_15183ae2") },
-  { key: "character", label: i18next.t("gen.pages.novels.novelWorkspaceNavigation.gen_3ed577c6") },
-  { key: "outline", label: i18next.t("gen.pages.novels.novelWorkspaceNavigation.gen_ec71d83a") },
-  { key: "structured", label: i18next.t("gen.pages.novels.novelWorkspaceNavigation.gen_4bb0dcce") },
-  { key: "chapter", label: i18next.t("gen.pages.novels.novelWorkspaceNavigation.gen_663bbefc") },
-  { key: "pipeline", label: i18next.t("gen.pages.novels.novelWorkspaceNavigation.gen_9b00f20b") },
+  { key: "basic", label: "项目设定" },
+  { key: "story_macro", label: "故事宏观规划" },
+  { key: "world", label: "世界观准备" },
+  { key: "character", label: "角色准备" },
+  { key: "outline", label: "卷战略 / 卷骨架" },
+  { key: "structured", label: "节奏 / 拆章" },
+  { key: "chapter", label: "章节执行" },
+  { key: "pipeline", label: "质量修复" },
 ];
 
 export const NOVEL_WORKSPACE_TOOL_TABS: Array<{ key: Extract<NovelWorkspaceTab, "history">; label: string }> = [
-  { key: "history", label: i18next.t("gen.pages.novels.novelWorkspaceNavigation.gen_6fdd8590") },
+  { key: "history", label: "版本历史" },
 ];
 
 const NOVEL_WORKSPACE_TAB_SET = new Set<NovelWorkspaceTab>([
@@ -68,12 +69,13 @@ export function getNextNovelWorkspaceFlowTab(value: string | null | undefined): 
 
 export function getNovelWorkspaceTabLabel(value: string | null | undefined): string {
   const normalized = normalizeNovelWorkspaceTab(value);
-  return [...NOVEL_WORKSPACE_FLOW_STEPS, ...NOVEL_WORKSPACE_TOOL_TABS].find((item) => item.key === normalized)?.label ?? i18next.t("gen.pages.novels.novelWorkspaceNavigation.gen_12dc9530");
+  return [...NOVEL_WORKSPACE_FLOW_STEPS, ...NOVEL_WORKSPACE_TOOL_TABS].find((item) => item.key === normalized)?.label ?? "项目设定";
 }
 
 export function scopeFromWorkspaceTab(tab: string): DirectorLockScope | null {
   if (tab === "basic") return "basic";
   if (tab === "story_macro") return "story_macro";
+  if (tab === "world") return "world";
   if (tab === "character") return "character";
   if (tab === "outline") return "outline";
   if (tab === "structured") return "structured";
@@ -95,6 +97,8 @@ export function tabFromWorkflowStageName(stage: string | null | undefined): Nove
       return "basic";
     case "story_macro":
       return "story_macro";
+    case "world_setup":
+      return "world";
     case "character_setup":
       return "character";
     case "volume_strategy":
@@ -116,6 +120,8 @@ export function tabFromDirectorDisplayStage(stage: DirectorDisplayStageKey | nul
       return "basic";
     case "story_planning":
       return "story_macro";
+    case "world_setup":
+      return "world";
     case "character_setup":
       return "character";
     case "volume_strategy":
@@ -170,6 +176,8 @@ export function tabFromDirectorProgress(input: {
     case "story_macro":
     case "constraint_engine":
       return "story_macro";
+    case "world_setup":
+      return "world";
     case "character_setup":
     case "character_cast_apply":
       return "character";

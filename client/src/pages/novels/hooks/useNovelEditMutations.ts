@@ -1,9 +1,10 @@
 import i18next from "i18next";
 import { useMutation, type QueryClient } from "@tanstack/react-query";
-import type { PipelineRepairMode, PipelineRunMode, VolumePlanDocument } from "@ai-novel/shared/types/novel";
+import type { Chapter, PipelineRepairMode, PipelineRunMode, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import {
   createNovelChapter,
+  deleteNovelChapter,
   generateChapterHook,
   optimizeNovelOutlinePreview,
   optimizeNovelStructuredOutlinePreview,
@@ -56,6 +57,7 @@ interface UseNovelEditMutationsArgs {
   pipelineForm: PipelineFormState;
   selectedChapterId: string;
   chapterCount: number;
+  chapters: Chapter[];
   setActiveTab: (value: string) => void;
   setSelectedChapterId: (value: string) => void;
   setCurrentJobId: (value: string) => void;
@@ -85,6 +87,7 @@ export function useNovelEditMutations({
   pipelineForm,
   selectedChapterId,
   chapterCount,
+  chapters,
   setActiveTab,
   setSelectedChapterId,
   setCurrentJobId,
@@ -227,6 +230,22 @@ export function useNovelEditMutations({
     },
   });
 
+  const deleteManualChapterMutation = useMutation({
+    mutationFn: (chapterId: string) => deleteNovelChapter(id, chapterId),
+    onSuccess: async (_response, chapterId) => {
+      const deletedIndex = chapters.findIndex((chapter) => chapter.id === chapterId);
+      const fallbackChapter = chapters[deletedIndex + 1] ?? chapters[deletedIndex - 1] ?? null;
+      if (selectedChapterId === chapterId) {
+        setSelectedChapterId(fallbackChapter?.id ?? "");
+      }
+      setPipelineMessage("已移除未开始的空白章节。");
+      await invalidateNovelDetail();
+    },
+    onError: (error) => {
+      setPipelineMessage(error instanceof Error ? error.message : "移除章节失败，请稍后重试。");
+    },
+  });
+
   const runPipelineMutation = useMutation({
     mutationFn: (override?: Partial<PipelineFormState>) =>
       runNovelPipeline(id, {
@@ -307,6 +326,7 @@ export function useNovelEditMutations({
     optimizeStructuredMutation,
     syncStructuredChaptersMutation,
     createChapterMutation,
+    deleteManualChapterMutation,
     runPipelineMutation,
     reviewMutation,
     hookMutation,

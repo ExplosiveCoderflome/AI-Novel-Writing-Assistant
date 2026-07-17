@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { GitBranch, History, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import type {
   PromptPreviewResult,
+  PromptTestRunResult,
   PromptTemplateVersionView,
 } from "@/api/promptWorkbench";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { usePromptTemplateEditor } from "../hooks/usePromptTemplateEditor";
 import { labelTemplateToken, type PromptTemplateTokenKind } from "../templateTokenEditor";
+import { PromptTestRunResultPanel } from "./PromptPreviewPanel";
 import { VisualTemplateEditor, type TemplateRole } from "./VisualTemplateEditor";
 
 type TemplateState = ReturnType<typeof usePromptTemplateEditor>;
@@ -74,9 +76,19 @@ function VersionRow(props: {
 export function AdvancedPromptTemplateEditor(props: {
   templateState: TemplateState;
   preview: PromptPreviewResult | null;
+  testRun?: PromptTestRunResult | null;
+  testRunPending?: boolean;
+  testRunError?: string | null;
   disabled?: boolean;
 }) {
-  const { disabled, preview, templateState } = props;
+  const {
+    disabled,
+    preview,
+    templateState,
+    testRun = null,
+    testRunError = null,
+    testRunPending = false,
+  } = props;
   const [tokenMenuRole, setTokenMenuRole] = useState<TemplateRole | null>(null);
   const [tokenQuery, setTokenQuery] = useState("");
   const tokenItems = templateState.references?.items ?? [];
@@ -216,6 +228,12 @@ export function AdvancedPromptTemplateEditor(props: {
           </div>
         </div>
       ) : null}
+
+      <PromptTestRunResultPanel
+        result={testRun}
+        isPending={testRunPending}
+        error={testRunError}
+      />
 
       {previewMessages.length > 0 ? (
         <div className="rounded-md border border-[#d7e4e0] bg-white">

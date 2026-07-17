@@ -33,9 +33,16 @@ import { AutoDirectorFollowUpDetailPanel } from "./components/AutoDirectorFollow
 import { AutoDirectorFollowUpListPanel } from "./components/AutoDirectorFollowUpList";
 import { AutoDirectorFollowUpOverviewCards } from "./components/AutoDirectorFollowUpOverview";
 import { reconcileSelectedTaskIds } from "./selectionState";
+import { resolveFollowUpOverviewPresentation } from "./followUpPresentation";
 import { toast } from "@/components/ui/toast";
+import { Button } from "@/components/ui/button";
+import {
+  WorkspaceHeader,
+  WorkspaceNextAction,
+} from "@/components/workspace";
 import { resolveInternalNavigationTarget } from "@/lib/internalNavigation";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
+import { Activity, RefreshCw, ShieldAlert } from "lucide-react";
 
 const TASK_STATUSES: readonly TaskStatus[] = [
   "queued",
@@ -255,10 +262,10 @@ export default function AutoDirectorFollowUpCenterPage() {
   const batchMutation = useMutation({
     mutationFn: (input: {
       actionCode: Extract<AutoDirectorMutationActionCode, "continue_auto_execution" | "retry_with_task_model">;
-      taskIds: string[];
+      directorTaskIds: string[];
     }) => executeAutoDirectorFollowUpBatchAction({
       actionCode: input.actionCode,
-      taskIds: input.taskIds,
+      taskIds: input.directorTaskIds,
       batchRequestKey: buildBatchRequestKey(input.actionCode),
     }),
     onSuccess: async (response) => {
@@ -364,7 +371,7 @@ export default function AutoDirectorFollowUpCenterPage() {
     }
     await batchMutation.mutateAsync({
       actionCode: batchActionCode,
-      taskIds: selectedItems.map((item) => item.directorTaskId),
+      directorTaskIds: selectedItems.map((item) => item.directorTaskId),
     });
   };
 
@@ -385,10 +392,92 @@ export default function AutoDirectorFollowUpCenterPage() {
     });
   };
 
+  const overview = overviewQuery.data?.data ?? null;
+  const {
+    criticalCount,
+    pendingActionCount,
+    progressCount,
+    replanCount,
+    recommendedSection,
+  } = resolveFollowUpOverviewPresentation(overview);
+  const overviewErrorMessage = overviewQuery.error instanceof Error
+    ? overviewQuery.error.message
+    : overviewQuery.isError ? "导演跟进摘要读取失败，请重试。" : null;
+  const listErrorMessage = listQuery.error instanceof Error
+    ? listQuery.error.message
+    : listQuery.isError ? "导演跟进列表读取失败，请重试。" : null;
+  const detailErrorMessage = detailQuery.error instanceof Error
+    ? detailQuery.error.message
+    : detailQuery.isError ? "导演跟进详情读取失败，请重试。" : null;
+
   return (
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpPageRoot}>
+      <WorkspaceHeader
+        icon={ShieldAlert}
+        context="自动导演"
+        title="导演跟进中心"
+        description="只汇总 AI 自动导演任务，不混入手动工作区任务；阻塞、质量提醒、待操作和自动推进使用不同等级。"
+        meta={(
+          <>
+            <span>阻塞 {criticalCount} 项</span>
+            <span>待操作 {pendingActionCount} 项</span>
+            <span>自动推进 {progressCount} 项</span>
+          </>
+        )}
+        actions={(
+          <Button
+            type="button"
+            variant="outline"
+            disabled={overviewQuery.isFetching || listQuery.isFetching}
+            onClick={() => void Promise.all([overviewQuery.refetch(), listQuery.refetch()])}
+          >
+            <RefreshCw className={overviewQuery.isFetching || listQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden="true" />
+            刷新跟进
+          </Button>
+        )}
+      />
+
+      {overviewQuery.isLoading ? (
+        <WorkspaceNextAction
+          icon={Activity}
+          tone="info"
+          title="正在读取导演跟进"
+          description="正在汇总阻塞、待操作和自动推进任务，请稍候。"
+        />
+      ) : overviewErrorMessage ? (
+        <WorkspaceNextAction
+          icon={RefreshCw}
+          tone="danger"
+          title="重新读取导演跟进"
+          description={overviewErrorMessage}
+          consequence="只重新读取跟进摘要，不会执行恢复、重试或重规划。"
+          action={<Button size="sm" variant="outline" onClick={() => void overviewQuery.refetch()}>重新读取</Button>}
+        />
+      ) : (
+        <WorkspaceNextAction
+          icon={criticalCount > 0 ? ShieldAlert : Activity}
+          tone={criticalCount > 0 ? "danger" : pendingActionCount > 0 ? "info" : progressCount > 0 ? "info" : "success"}
+          title={replanCount > 0 ? "先处理明确的重规划" : criticalCount > 0 ? "先处理阻塞任务" : pendingActionCount > 0 ? "确认待操作节点" : progressCount > 0 ? "自动导演正在推进" : "当前没有需要跟进的导演任务"}
+          description={criticalCount > 0
+            ? replanCount > 0
+              ? "后续章节已明确要求停止并重规划；先确认影响范围，再进入重规划入口。"
+              : "先查看校验或异常原因，再选择安全修复、恢复或重试。"
+            : pendingActionCount > 0
+              ? "待操作节点需要确认或继续；质量提醒不会阻止全书继续执行。"
+              : progressCount > 0
+                ? "自动推进记录用于了解进度，不需要手动干预。"
+                : "后续出现审批、异常或恢复需要时，会按影响等级出现在这里。"}
+          consequence={recommendedSection ? "只切换跟进分区，不会自动执行导演动作。" : undefined}
+          action={recommendedSection ? (
+            <Button size="sm" variant={criticalCount > 0 ? "destructive" : "outline"} onClick={() => handleSectionChange(recommendedSection)}>
+              查看推荐分区
+            </Button>
+          ) : undefined}
+        />
+      )}
+
       <AutoDirectorFollowUpOverviewCards
-        overview={overviewQuery.data?.data ?? null}
+        overview={overview}
         list={listQuery.data?.data ?? null}
         activeSection={section}
         onSectionChange={handleSectionChange}
@@ -406,10 +495,12 @@ export default function AutoDirectorFollowUpCenterPage() {
           selectedTaskId={selectedDirectorTaskId}
           selectedTaskIds={selectedDirectorTaskIds}
           loading={listQuery.isLoading}
+          errorMessage={listErrorMessage}
           actionLoading={actionMutation.isPending || batchMutation.isPending}
           onSelectTask={handleSelectTask}
           onFilterChange={handleFilterChange}
           onToggleSelected={handleToggleSelected}
+          onRetry={() => void listQuery.refetch()}
           onPageChange={(nextPage: number) => {
             setSearchParams((prev) => {
               const next = new URLSearchParams(prev);
@@ -423,10 +514,12 @@ export default function AutoDirectorFollowUpCenterPage() {
           detail={detailQuery.data?.data ?? null}
           selectedItem={items.find((item) => item.directorTaskId === selectedDirectorTaskId) ?? null}
           loading={detailQuery.isLoading || revalidationMutation.isPending}
+          errorMessage={detailErrorMessage}
           actionLoading={actionMutation.isPending || revalidationMutation.isPending}
           onExecuteAction={handleExecuteAction}
           onRefreshValidation={handleRefreshValidation}
           onSafeFix={handleSafeFix}
+          onRetry={() => void detailQuery.refetch()}
         />
       </div>
 

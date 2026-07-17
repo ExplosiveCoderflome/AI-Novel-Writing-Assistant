@@ -21,7 +21,6 @@ import { contextAssemblyService } from "../production/ContextAssemblyService";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import {
   buildPreviousChaptersSummary,
-  parseJsonStringArraySafe,
 } from "./runtimeContextBlocks";
 import { mapRowToPlan } from "../storyMacro/storyMacroPlanPersistence";
 import {
@@ -49,42 +48,22 @@ import {
   loadPendingCharacterHardFactReviews,
 } from "./context/pendingReviewContext";
 import { buildSyntheticCharacterResourceIssues } from "./context/syntheticCharacterResourceIssues";
+import {
+  buildRuntimeVolumeWindowSeed,
+  resolveActiveMilestonePayoffs,
+} from "./context/bookAndVolumeRewardContext";
+import {
+  extractChapterOpening,
+  extractChapterTail,
+  runtimeChapterSelect,
+} from "./context/chapterSourceText";
+import { resolveChapterResourceCharacterIds } from "./context/chapterParticipantSelection";
 
 export { buildBlockingPendingReviewProposalWhere } from "./context/pendingReviewContext";
+export { resolveChapterResourceCharacterIds } from "./context/chapterParticipantSelection";
 
 const OPENING_COMPARE_LIMIT = 3;
 const OPENING_SLICE_LENGTH = 220;
-
-const runtimeChapterSelect = {
-  id: true,
-  title: true,
-  order: true,
-  content: true,
-  expectation: true,
-  targetWordCount: true,
-  conflictLevel: true,
-  revealLevel: true,
-  mustAvoid: true,
-  taskSheet: true,
-  sceneCards: true,
-  hook: true,
-} as const;
-
-function extractOpening(content: string, maxLength = OPENING_SLICE_LENGTH): string {
-  return content.replace(/\s+/g, " ").trim().slice(0, maxLength);
-}
-
-function extractChapterTail(content: string | null | undefined, maxLength = 520): string {
-  const normalized = (content ?? "").replace(/\s+/g, " ").trim();
-  if (!normalized) {
-    return "";
-  }
-  return normalized.slice(Math.max(0, normalized.length - maxLength));
-}
-
-function normalizeRuntimeName(value: string | null | undefined): string {
-  return String(value ?? "").replace(/\s+/g, " ").trim();
-}
 
 function mapPlan(plan: Awaited<ReturnType<typeof plannerService.getChapterPlan>>): GenerationContextPackage["plan"] {
   if (!plan) {
@@ -117,73 +96,6 @@ function mapPlan(plan: Awaited<ReturnType<typeof plannerService.getChapterPlan>>
     })),
     createdAt: plan.createdAt.toISOString(),
     updatedAt: plan.updatedAt.toISOString(),
-  };
-}
-
-export function resolveChapterResourceCharacterIds(input: {
-  plan: Awaited<ReturnType<typeof plannerService.getChapterPlan>>;
-  characters: Array<{ id: string; name: string }>;
-}): string[] {
-  const participantNames = new Set(
-    parseJsonStringArray(input.plan?.participantsJson ?? null).map(normalizeRuntimeName).filter(Boolean),
-  );
-  if (participantNames.size === 0) {
-    return [];
-  }
-  return input.characters
-    .filter((character) => participantNames.has(normalizeRuntimeName(character.name)))
-    .map((character) => character.id)
-    .filter(Boolean);
-}
-
-function findVolumeWindowSeed(
-  volumeRows: Array<{
-    id: string;
-    sortOrder: number;
-    title: string;
-    summary: string | null;
-    mainPromise: string | null;
-    openPayoffsJson: string | null;
-    chapters: Array<{ chapterOrder: number }>;
-  }>,
-  chapterOrder: number,
-) {
-  const currentIndex = volumeRows.findIndex((volume) => (
-    volume.chapters.some((chapter) => chapter.chapterOrder === chapterOrder)
-  ));
-  if (currentIndex < 0) {
-    return {
-      currentVolume: null,
-      previousVolume: null,
-      nextVolume: null,
-      softFutureSummary: "",
-    };
-  }
-
-  const currentVolume = volumeRows[currentIndex];
-  const previousVolume = currentIndex > 0 ? volumeRows[currentIndex - 1] : null;
-  const nextVolume = currentIndex < volumeRows.length - 1 ? volumeRows[currentIndex + 1] : null;
-  const futureVolumes = volumeRows.slice(currentIndex + 1, currentIndex + 4);
-  return {
-    currentVolume: {
-      id: currentVolume.id,
-      sortOrder: currentVolume.sortOrder,
-      title: currentVolume.title,
-      summary: currentVolume.summary,
-      mainPromise: currentVolume.mainPromise,
-      openPayoffs: parseJsonStringArraySafe(currentVolume.openPayoffsJson),
-    },
-    previousVolume: previousVolume
-      ? { title: previousVolume.title, summary: previousVolume.summary }
-      : null,
-    nextVolume: nextVolume
-      ? { title: nextVolume.title, summary: nextVolume.summary }
-      : null,
-    softFutureSummary: futureVolumes.length > 0
-      ? futureVolumes
-        .map((volume) => `Volume ${volume.sortOrder} ${volume.title}: ${volume.mainPromise ?? volume.summary ?? "pending"}`)
-        .join("\n")
-      : "",
   };
 }
 
@@ -264,6 +176,8 @@ export class GenerationContextAssembler {
       recentChapters,
       decisions,
       characterDynamics,
+      characterMindRows,
+      characterDialogueRows,
       continuationPack,
       styleContext,
       payoffLedger,
@@ -314,6 +228,37 @@ export class GenerationContextAssembler {
       characterDynamicsQueryService.getOverview(novelId, {
         chapterOrder: chapter.order,
       }).catch(() => null),
+      prisma.characterMindSnapshot.findMany({
+        where: { novelId, isCurrent: true },
+        select: {
+          characterId: true, currentInterpretation: true, privateIntent: true, activePlan: true,
+          emotionalStance: true, actionTendency: true, decisionTrigger: true, beliefsJson: true,
+          misbeliefsJson: true, evidenceJson: true, confidence: true, sourceChapterId: true,
+        },
+        orderBy: { updatedAt: "desc" },
+      }),
+      prisma.characterDialogueInfluence.findMany({
+        where: {
+          novelId,
+          // 对话影响只为章节计划中真实参与的角色装配；缺少参与者时宁可不注入。
+          characterId: { in: resourceCharacterIds },
+          status: "active",
+          targetStartChapterOrder: { lte: chapter.order },
+          targetEndChapterOrder: { gte: chapter.order },
+        },
+        select: {
+          id: true,
+          characterId: true,
+          summary: true,
+          behaviorGuidance: true,
+          emotionalGuidance: true,
+          relationTension: true,
+          targetStartChapterOrder: true,
+          targetEndChapterOrder: true,
+        },
+        orderBy: [{ activatedAt: "desc" }, { updatedAt: "desc" }],
+        take: 12,
+      }).catch(() => []),
       this.continuationService.buildChapterContextPack(novelId),
       this.styleBindingService.resolveForGeneration({
         novelId,
@@ -348,7 +293,7 @@ export class GenerationContextAssembler {
     const previousChaptersSummary = buildPreviousChaptersSummary(request.previousChaptersSummary, summaries);
     const mappedOpenConflicts = buildRuntimeOpenConflictsFromCanonical(canonicalState);
     const storyMacroPlan = novel.storyMacroPlan ? mapRowToPlan(novel.storyMacroPlan) : null;
-    const volumeWindow = buildVolumeWindowContext(findVolumeWindowSeed(
+    const volumeWindow = buildVolumeWindowContext(buildRuntimeVolumeWindowSeed(
       novel.volumePlans.map((volume) => ({
         id: volume.id,
         sortOrder: volume.sortOrder,
@@ -356,6 +301,7 @@ export class GenerationContextAssembler {
         summary: volume.summary,
         mainPromise: volume.mainPromise,
         openPayoffsJson: volume.openPayoffsJson,
+        sourceVersion: volume.sourceVersion,
         chapters: volume.chapters,
       })),
       chapter.order,
@@ -390,6 +336,20 @@ export class GenerationContextAssembler {
       hardConstraints: canonicalState.bookContract.hardConstraints.length > 0
         ? canonicalState.bookContract.hardConstraints
         : storyMacroPlan?.constraints ?? [],
+      readingPromise: novel.bookContract?.readingPromise,
+      protagonistFantasy: novel.bookContract?.protagonistFantasy,
+      coreSellingPoint: novel.bookContract?.coreSellingPoint,
+      chapter3Payoff: novel.bookContract?.chapter3Payoff,
+      chapter10Payoff: novel.bookContract?.chapter10Payoff,
+      chapter30Payoff: novel.bookContract?.chapter30Payoff,
+      escalationLadder: novel.bookContract?.escalationLadder,
+      relationshipMainline: novel.bookContract?.relationshipMainline,
+      activeMilestonePayoffs: resolveActiveMilestonePayoffs({
+        chapterOrder: chapter.order,
+        chapter3Payoff: novel.bookContract?.chapter3Payoff,
+        chapter10Payoff: novel.bookContract?.chapter10Payoff,
+        chapter30Payoff: novel.bookContract?.chapter30Payoff,
+      }),
     });
     const macroConstraints = buildMacroConstraintContext(storyMacroPlan);
     const mappedPlan = mapPlan(ensuredPlan);
@@ -428,6 +388,38 @@ export class GenerationContextAssembler {
       mappedCharacterRoster,
       pendingCharacterHardFactReviews,
     );
+    const parseMindItems = (raw: string) => {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.map((item) => String(item).trim()).filter(Boolean).slice(0, 4) : [];
+      } catch {
+        return [];
+      }
+    };
+    const characterMindStates = characterMindRows.map((item) => ({
+      characterId: item.characterId,
+      currentInterpretation: item.currentInterpretation,
+      privateIntent: item.privateIntent,
+      activePlan: item.activePlan,
+      emotionalStance: item.emotionalStance,
+      actionTendency: item.actionTendency,
+      decisionTrigger: item.decisionTrigger,
+      beliefs: parseMindItems(item.beliefsJson),
+      misbeliefs: parseMindItems(item.misbeliefsJson),
+      evidence: parseMindItems(item.evidenceJson),
+      confidence: item.confidence,
+      sourceChapterId: item.sourceChapterId,
+    }));
+    const characterDialogueGuidances = characterDialogueRows.map((item) => ({
+      influenceId: item.id,
+      characterId: item.characterId,
+      summary: item.summary,
+      behaviorGuidance: item.behaviorGuidance,
+      emotionalGuidance: item.emotionalGuidance,
+      relationTension: item.relationTension,
+      targetStartChapterOrder: item.targetStartChapterOrder,
+      targetEndChapterOrder: item.targetEndChapterOrder,
+    }));
     const mappedCreativeDecisions = decisions.map((item) => ({
       id: item.id,
       chapterId: item.chapterId ?? null,
@@ -513,6 +505,8 @@ export class GenerationContextAssembler {
       openConflicts: mappedOpenConflicts,
       storyWorldSlice,
       characterDynamics,
+      characterMindStates,
+      characterDialogueGuidances,
       characterRoster: mappedCharacterRoster,
       characterHardFacts: mappedCharacterHardFacts,
       creativeDecisions: mappedCreativeDecisions,
@@ -737,7 +731,7 @@ export class GenerationContextAssembler {
       .map((item) => ({
         order: item.order,
         title: item.title,
-        opening: extractOpening(item.content ?? ""),
+        opening: extractChapterOpening(item.content ?? "", OPENING_SLICE_LENGTH),
       }))
       .filter((item) => item.opening.length > 0);
 

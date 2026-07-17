@@ -6,6 +6,8 @@ interface CreativeHubInlineControlsValue {
   interrupt?: CreativeHubInterrupt;
   diagnostics?: FailureDiagnostic;
   approvalNote: string;
+  approvalPending?: boolean;
+  actionDisabled?: boolean;
   onApprovalNoteChange?: (value: string) => void;
   onResolveInterrupt?: (action: "approve" | "reject") => void;
   onQuickAction?: (prompt: string) => void;

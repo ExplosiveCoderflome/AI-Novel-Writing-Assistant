@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import BasicInfoTab from "../components/BasicInfoTab";
+import WorldSetupTab from "../components/WorldSetupTab";
 import ChapterManagementTab from "../components/ChapterManagementTab";
 import NovelCharacterPanel from "../components/NovelCharacterPanel";
 import NovelTaskDrawer from "../components/NovelTaskDrawer";
@@ -42,6 +43,7 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
     workflowCurrentTab,
     exportControls,
     basicTab,
+    worldTab,
     storyMacroTab,
     outlineTab,
     structuredTab,
@@ -96,6 +98,8 @@ export default function MobileNovelEditView(props: NovelEditViewProps) {
     switch (normalizedActiveTab) {
       case "basic":
         return <BasicInfoTab {...basicTab} />;
+      case "world":
+        return <WorldSetupTab {...worldTab} />;
       case "story_macro":
         return <StoryMacroPlanTab {...storyMacroTab} />;
       case "character":

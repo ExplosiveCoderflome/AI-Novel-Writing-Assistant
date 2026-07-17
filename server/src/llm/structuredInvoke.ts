@@ -23,8 +23,9 @@ import {
   type StructuredOutputStrategy,
 } from "./structuredOutput";
 import { getStructuredFallbackSettings } from "./structuredFallbackSettings";
-import { extractLlmTokenUsage } from "./usageTracking";
+import { extractLlmTokenUsage, mergeStreamTokenUsage } from "./usageTracking";
 import { runWithEnforcedTimeout } from "./invokeTimeout";
+import { beginLlmLiveSession } from "../platform/llm/live/llmLiveSession";
 import {
   buildStructuredError,
   logStructuredInvokeEvent,
@@ -211,17 +212,36 @@ async function invokeStructuredAttempt<T>(input: {
     reasoningForcedOff: resolved.reasoningForcedOff,
   });
   const startedAt = Date.now();
+  const liveSession = beginLlmLiveSession({
+    label: input.baseInput.label,
+    mode: "structured",
+    promptMeta: input.baseInput.promptMeta,
+    provider: resolved.provider,
+    model: resolved.model,
+  });
   try {
-    const result = await runWithEnforcedTimeout({
+    liveSession.phase("streaming", "模型正在返回结构化结果");
+    const collected = await runWithEnforcedTimeout({
       label: input.baseInput.label,
       timeoutMs: input.baseInput.timeoutMs,
       signal: input.baseInput.signal,
-      run: (signal) => llm.invoke(
-        messages,
-        signal ? { ...invokeOptions, signal } : invokeOptions,
-      ),
+      run: async (signal) => {
+        const stream = await llm.stream(
+          messages,
+          signal ? { ...invokeOptions, signal } : invokeOptions,
+        );
+        let rawContent = "";
+        let tokenUsage = null;
+        for await (const chunk of stream) {
+          const content = toText(chunk.content);
+          rawContent += content;
+          liveSession.delta(content);
+          tokenUsage = mergeStreamTokenUsage(tokenUsage, extractLlmTokenUsage(chunk));
+        }
+        return { rawContent, tokenUsage };
+      },
     });
-    const rawContent = toText(result.content);
+    const rawContent = collected.rawContent;
     logStructuredInvokeEvent({
       event: "invoke_done",
       label: input.baseInput.label,
@@ -234,10 +254,12 @@ async function invokeStructuredAttempt<T>(input: {
       fallbackUsed: input.fallbackUsed,
       reasoningForcedOff: resolved.reasoningForcedOff,
     });
-    return parseStructuredLlmRawContentDetailed({
+    liveSession.phase("validating", "正在检查生成结果");
+    let repairStarted = false;
+    const parsed = await parseStructuredLlmRawContentDetailed({
       rawContent,
       schema: input.baseInput.schema,
-      tokenUsage: extractLlmTokenUsage(result),
+      tokenUsage: collected.tokenUsage,
       provider: resolved.provider,
       model: resolved.model,
       apiKey: input.target.apiKey,
@@ -251,13 +273,23 @@ async function invokeStructuredAttempt<T>(input: {
       label: input.baseInput.label,
       maxRepairAttempts: input.baseInput.maxRepairAttempts,
       promptMeta: input.baseInput.promptMeta,
+      onRepairOutputDelta: (content) => {
+        if (!repairStarted) {
+          repairStarted = true;
+          liveSession.phase("repairing", "正在修复生成结果");
+        }
+        liveSession.delta(content);
+      },
       strategy: input.strategy,
       profile: resolved.structuredProfile ?? input.target.profile,
       fallbackAvailable: input.fallbackAvailable,
       fallbackUsed: input.fallbackUsed,
       reasoningForcedOff: resolved.reasoningForcedOff,
     });
+    liveSession.complete();
+    return parsed;
   } catch (error) {
+    liveSession.fail(error);
     const category = error instanceof StructuredOutputError
       ? error.category
       : classifyStructuredOutputFailure({ error });

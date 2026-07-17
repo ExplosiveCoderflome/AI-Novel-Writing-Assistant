@@ -319,6 +319,8 @@ export interface ChapterTabViewProps {
   onGoToCharacterTab: () => void;
   onCreateChapter: () => void;
   isCreatingChapter: boolean;
+  onRemoveChapter: (chapter: Chapter) => void;
+  removingChapterId?: string | null;
   chapterOperationMessage: string;
   strategy: {
     runMode: "fast" | "polish";
@@ -644,6 +646,7 @@ export interface NovelEditViewProps {
     onExportFull: (format: NovelExportDownloadFormat) => void;
   };
   basicTab: BasicTabProps;
+  worldTab: BasicTabProps;
   storyMacroTab: StoryMacroTabProps;
   outlineTab: OutlineTabViewProps;
   structuredTab: StructuredTabViewProps;

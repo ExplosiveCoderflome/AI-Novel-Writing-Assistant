@@ -222,7 +222,7 @@ export default function Home() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="home-workbench space-y-6">
       <HomeNextActionPanel
         action={nextAction}
         primaryNovel={primaryNovel}
@@ -237,7 +237,7 @@ export default function Home() {
         pending={novelQuery.isPending || taskQuery.isPending}
       />
 
-      <div className="home-dashboard-grid grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="home-dashboard-grid grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-4">
           <HomeAttentionQueue items={attentionItems} hasNovels={hasNovels} />
           <HomeRecentNovels

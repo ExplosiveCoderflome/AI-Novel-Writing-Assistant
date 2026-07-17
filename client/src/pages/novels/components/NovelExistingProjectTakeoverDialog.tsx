@@ -65,6 +65,11 @@ interface NovelExistingProjectTakeoverDialogProps {
 
 const RUN_MODE_OPTIONS: Array<{ value: DirectorRunMode; label: string; description: string }> = [
   {
+    value: "stage_review",
+    label: "逐步协作",
+    description: "每完成一个导演步骤就暂停，检查或完善后再继续下一步。",
+  },
+  {
     value: "full_book_autopilot",
     label: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_a86a8754"),
     description: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.aiFillEntireBookGoal"),

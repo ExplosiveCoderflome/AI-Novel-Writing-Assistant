@@ -113,8 +113,13 @@ export function useNovelVolumePlanning({
     [normalizedSavedVolumes, normalizedVolumeDraft],
   );
   const readiness = useMemo(
-    () => buildVolumePlanningReadiness({ volumes: normalizedVolumeDraft, strategyPlan, beatSheets }),
-    [beatSheets, normalizedVolumeDraft, strategyPlan],
+    () => buildVolumePlanningReadiness({
+      volumes: normalizedVolumeDraft,
+      strategyPlan,
+      critiqueReport,
+      beatSheets,
+    }),
+    [beatSheets, critiqueReport, normalizedVolumeDraft, strategyPlan],
   );
   const currentChapterCount = useMemo(
     () => normalizedVolumeDraft.reduce((sum, volume) => sum + volume.chapters.length, 0),

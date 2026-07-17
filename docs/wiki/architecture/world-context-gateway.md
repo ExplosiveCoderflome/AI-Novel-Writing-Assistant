@@ -28,12 +28,12 @@
 - 角色阵容方案与补充角色生成必须提供 `useWorldContext` 开关，默认开启。用户关闭时，生成链跳过 `WorldContextGateway`，只根据书级信息、故事模式、已有角色和用户指令生成角色。
 - 角色阵容方案可携带 `worldFocusHints`，用于表达用户希望优先贴合的势力，以及是否强制检查身份、能力来源、阵营归属、地点和禁忌搭配。这个提示只能补充 Gateway 输出的本书世界上下文，不能替代或覆盖本书世界规则。
 - `NovelWorld.sourceType` 用于区分 `imported`、`generated`、`manual`，不要再只凭 `Novel.worldId` 判断用户当前世界来源。
-- 同步相关字段默认关闭，任何从小说世界推回外部世界库或从世界库拉取更新的行为都必须由用户手动确认。
+- 从小说内新建世界（根据本书生成或自定义空白手册）时，系统必须在同一事务内创建外部 `World` 样本，并把 `Novel.worldId` 与 `NovelWorld.sourceWorldId` 绑定到该样本；不再要求用户额外执行“保存到世界库”。创建完成后默认保留双向同步入口，但后续 `push` / `pull` 仍必须由用户手动确认，系统不得自动覆盖任一侧内容。
 - 小说内世界 UI 应优先调用 `GET /api/novels/:id/novel-world` 展示当前本书世界来源与状态。
 - 从外部世界库导入到小说时调用 `POST /api/novels/:id/novel-world/import`，后端会复制世界结构到 `NovelWorld`，并清空旧的故事切片缓存，等待下一次按本书内容重新裁剪。
 - 当用户没有选择外部世界库样本，或希望让系统先给本书搭建舞台时，调用 `POST /api/novels/:id/novel-world/generate`。该流程必须通过注册 PromptAsset `novel.world.generate_from_theme@v1` 生成结构化世界，不允许用固定关键词或题材分支伪造世界。
 - 编排层如需在生成链准备阶段创建本书世界，应优先调用 `WorldContextGateway.generateWorldFromNovelTheme(novelId, options)`，不要直接依赖 `NovelWorldInstanceService` 的内部方法。HTTP 路由可以通过应用服务保留现有接口，但生成链和工作流编排的抽象入口应是 Gateway。
-- “根据本书主题生成”默认只创建小说内部 `NovelWorld`。只有用户显式勾选保存到世界库时，后端才创建外部 `World`，并把 `NovelWorld.sourceWorldId` 指向该世界样本。
+- “根据本书主题生成”会同时创建小说内部 `NovelWorld` 和外部 `World` 样本，并把 `NovelWorld.sourceWorldId` 指向该世界样本。`saveToLibrary` 仅为旧请求兼容字段，不能再改变该创建规则。
 - 对于没有来源世界的本书世界，用户可以调用 `POST /api/novels/:id/novel-world/save-to-library` 保存为外部世界库样本。保存后 `sourceWorldId` 指向新样本，默认开启双向同步；如果请求设置 `syncEnabled=false`，则只记录来源，不自动提示同步差异。
 - 手动同步使用 `GET /api/novels/:id/novel-world/sync-diff` 查看差异，再用 `POST /api/novels/:id/novel-world/sync` 执行 `push` 或 `pull`。同步粒度按结构分区：世界概要、核心规则、阵营、势力、地点、关系网络。
 - 只要本书世界有关联的世界库样本，前端就可以读取 `sync-diff` 展示差异摘要；`syncEnabled=false` 只表示不提示自动同步关系，不应阻止用户手动查看差异或重新执行 `push` / `pull`。
@@ -96,7 +96,7 @@
 
 - `importFromWorldLibrary`：复制外部 `World` 的结构化设定到本书副本。
 - `generateFromNovelTheme`：读取小说标题、简介、目标读者、卖点、前 30 章承诺、商业标签、类型和故事模式，调用注册 prompt 生成本书世界副本。
-- 保存到世界库是 `generateFromNovelTheme` 的可选分支；未保存时应清空旧 `Novel.worldId`，避免旧模块误以为仍绑定外部世界。
+- `generateFromNovelTheme` 和 `createManualNovelWorld` 都会创建外部世界库样本并更新 `Novel.worldId`；创建与绑定必须原子提交，避免生成链读到“本书世界存在但没有来源样本”的半完成状态。
 - 每次导入或生成都会清空旧 `StoryWorldSlice` 缓存，后续由切片服务按当前本书世界重新整理进入生成链的设定范围。
 - `getSyncDiff` 和 `syncWithLibrary` 只处理本书世界与其来源世界库样本之间的显式同步。它们不参与 LLM 生成上下文组装，也不自动覆盖用户修改。
 - `pull` 会把选中的世界库分区写入 `NovelWorld`，并清空旧 `StoryWorldSlice`；`push` 会把选中的本书世界分区写回外部 `World` 并递增世界库版本。
@@ -138,8 +138,8 @@
 - `handbook.generationGuidance` 是面向用户解释的投影，用于说明本书世界能提供哪些角色身份边界、故事范围线索、场景规则约束和越界检查依据。它只解释现有结构化世界，不是新的生成链上下文来源；真正进入 LLM 的文本仍由 `WorldContextGateway` 输出。
 - `GET /api/novels/:id/novel-world` 同时返回 `assets` 摘要，用于展示世界地图、势力图谱、世界时间线、角色关系网和力量体系树等入口。没有已生成资产时，后端返回占位状态，前端只负责展示。
 - `POST /api/novels/:id/novel-world/import`：从外部世界库导入一个世界为本书副本。导入后 `Novel.worldId` 仍会同步更新以兼容旧模块，但新的权威副本是 `NovelWorld`。
-- `POST /api/novels/:id/novel-world/manual`：创建一个不关联世界库、不自动同步的本书自定义世界。后端会生成最小结构化世界手册、清空旧 Story Slice，等待用户继续补充规则、势力和故事舞台。
-- `POST /api/novels/:id/novel-world/generate`：根据小说主题生成本书世界副本。请求可携带 `saveToLibrary`；为 `true` 时同时创建外部世界库样本，为 `false` 时仅保存在本书内部。
+- `POST /api/novels/:id/novel-world/manual`：创建最小结构化世界手册，并同时保存为外部世界库样本、绑定回本书，随后等待用户补充规则、势力和故事舞台。
+- `POST /api/novels/:id/novel-world/generate`：根据小说主题生成本书世界副本，并同时创建、绑定外部世界库样本。兼容请求中的 `saveToLibrary` 字段会被接受，但不会关闭自动建库。
 - `POST /api/novels/:id/novel-world/save-to-library`：把没有来源样本的本书世界保存成外部世界库样本，并把本书世界重新关联到该样本。
 - `GET /api/novels/:id/novel-world/sync-diff`：比较本书世界副本和来源世界库样本，返回可展示的分区差异。
 - `POST /api/novels/:id/novel-world/sync`：由用户指定 `direction=push|pull` 和可选分区列表后执行同步。

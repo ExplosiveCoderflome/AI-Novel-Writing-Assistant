@@ -70,6 +70,17 @@ export function renderBookContractText(contract: BookContractContext): string {
     `目标读者：${displayPromptValue(contract.targetAudience)}`,
     `核心卖点：${displayPromptValue(contract.sellingPoint)}`,
     `前 30 章承诺：${displayPromptValue(contract.first30ChapterPromise)}`,
+    contract.readingPromise ? `阅读承诺：${displayPromptValue(contract.readingPromise)}` : "",
+    contract.protagonistFantasy ? `主角幻想：${displayPromptValue(contract.protagonistFantasy)}` : "",
+    contract.coreSellingPoint ? `合同核心卖点：${displayPromptValue(contract.coreSellingPoint)}` : "",
+    contract.chapter3Payoff ? `第 3 章兑现：${displayPromptValue(contract.chapter3Payoff)}` : "",
+    contract.chapter10Payoff ? `第 10 章兑现：${displayPromptValue(contract.chapter10Payoff)}` : "",
+    contract.chapter30Payoff ? `第 30 章兑现：${displayPromptValue(contract.chapter30Payoff)}` : "",
+    contract.escalationLadder ? `升级阶梯：${displayPromptValue(contract.escalationLadder)}` : "",
+    contract.relationshipMainline ? `关系主线：${displayPromptValue(contract.relationshipMainline)}` : "",
+    (contract.activeMilestonePayoffs?.length ?? 0) > 0
+      ? `当前阶段必须关注的兑现：${contract.activeMilestonePayoffs.join(" | ")}`
+      : "",
     `叙事视角：${displayPromptValue(contract.narrativePov)}`,
     `节奏偏好：${displayPromptValue(contract.pacePreference)}`,
     `情绪强度：${displayPromptValue(contract.emotionIntensity)}`,
@@ -355,6 +366,8 @@ export function buildParticipantText(writeContext: ChapterWriteContext): string 
         character.currentState ? `状态：${character.currentState}` : "",
         character.currentGoal ? `目标：${character.currentGoal}` : "",
         guide?.relationStageLabels.length ? `关系阶段：${guide.relationStageLabels.join(" / ")}` : "",
+        guide?.mindGuidance ? `主观倾向：${guide.mindGuidance}` : "",
+        guide?.authorInfluenceGuidance ? `角色对话后确认的软性行为倾向（非客观事实）：${guide.authorInfluenceGuidance}` : "",
         guide?.absenceRisk && guide.absenceRisk !== "none"
           ? `缺席风险：${guide.absenceRisk}（跨度 ${guide.absenceSpan}）`
           : "",
@@ -373,6 +386,8 @@ export function buildCharacterGuidanceText(writeContext: ChapterWriteContext): s
     ...writeContext.characterBehaviorGuides.map((guide) => {
       const parts = takeUnique([
         guide.isCoreInVolume ? "本卷核心角色" : "本卷辅助角色",
+        guide.mindGuidance ? `主观倾向（非客观事实）：${guide.mindGuidance}` : "",
+        guide.authorInfluenceGuidance ? `角色对话后确认的软性行为倾向（非客观事实）：${guide.authorInfluenceGuidance}` : "",
         guide.visibleProfileSummary ? `可见表现：${guide.visibleProfileSummary}` : "",
         guide.volumeRoleLabel ? `卷内定位：${guide.volumeRoleLabel}` : "",
         guide.volumeResponsibility ? `职责：${guide.volumeResponsibility}` : "",

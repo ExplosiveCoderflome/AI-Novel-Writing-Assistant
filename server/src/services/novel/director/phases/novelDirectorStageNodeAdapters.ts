@@ -70,9 +70,9 @@ export const DIRECTOR_STAGE_NODE_ADAPTERS: Record<DirectorPlanningStage, Directo
     requiresApprovalByDefault: false,
     supportsAutoRetry: false,
     waitingState: {
-      stage: "story_macro",
+      stage: "world_setup",
       itemKey: "world_setup",
-      itemLabel: "正在准备本书世界",
+      itemLabel: "正在准备本书世界观",
       progress: DIRECTOR_PROGRESS.worldSetup,
     },
   },

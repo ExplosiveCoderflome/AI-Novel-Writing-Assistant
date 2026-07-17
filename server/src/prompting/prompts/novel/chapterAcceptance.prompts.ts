@@ -283,7 +283,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   ChapterAcceptanceAssessmentOutput
 > = {
   id: "novel.chapter.acceptance_assessment",
-  version: "v1",
+  version: "v2",
   taskType: "review",
   mode: "structured",
   language: "zh",
@@ -291,6 +291,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterAcceptance,
     preferredGroups: [
       "chapter_mission",
+      "reader_experience",
       "obligation_contract",
       "structure_obligations",
       "local_state",
@@ -306,6 +307,7 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
   },
   contextRequirements: [
     { group: "chapter_mission", required: true, priority: 100 },
+    { group: "reader_experience", required: true, priority: 100 },
     { group: "obligation_contract", required: true, priority: 98 },
     { group: "structure_obligations", priority: 94 },
     { group: "local_state", priority: 89 },
@@ -340,6 +342,8 @@ export const chapterAcceptanceAssessmentPrompt: PromptAsset<
       "13. missingObligations 必须是对象数组，每项只能使用 kind、summary、evidence；不得输出字符串数组，也不得输出 obligationType、target、fixSuggestion、type 等别名字段。",
       "14. missingObligations.kind 只能使用 must_hit_now、must_preserve、payoff_touch、character_appearance、goal_change、forbidden_crossing。",
       "15. status 只能使用 accepted、repairable、needs_manual_review、continue_with_risk；不得输出 acceptable、pass、passed、ok、approved 等别名。",
+      "16. reader_experience 是本章读者体验合同。检查 promisedReward 是否在正文中可见、主角是否围绕 protagonistWant 主动行动并遭遇 primaryResistance、keyTurn 与 netChange 是否成立、inheritedHookResponsibilities 是否得到回应，以及 endingHook 是否产生追读力。",
+      "17. 普通读者体验缺口应输出可执行的 blockingIssues / repairDirectives，并优先使用 repairable 或 continue_with_risk；不得仅因爽点、钩子或情绪强度不足升级为 needs_manual_review 或全局重规划。",
     ].join("\n")),
     new HumanMessage([
       `小说：${input.novelTitle}`,

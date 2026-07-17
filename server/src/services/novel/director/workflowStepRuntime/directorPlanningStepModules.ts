@@ -599,7 +599,7 @@ export const DIRECTOR_PLANNING_STEP_MODULES: Record<
   })),
   world_setup: createWorldSetupExecutableModule(createWorkflowStepDescriptorFromDirectorAdapter({
     id: DIRECTOR_PLANNING_STEP_IDS.world_setup,
-    stage: "story_macro",
+    stage: "world_setup",
     adapter: getDirectorStageNodeAdapter("world_setup"),
   })),
   character_setup: createCharacterSetupExecutableModule(createWorkflowStepDescriptorFromDirectorAdapter({

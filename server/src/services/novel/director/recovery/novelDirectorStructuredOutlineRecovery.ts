@@ -16,7 +16,6 @@ import { DIRECTOR_CHAPTER_DETAIL_MODES } from "../projections/novelDirectorProgr
 import {
   getBeatExpectedChapterCount,
   getBeatSheet,
-  isVolumeChapterListPartiallyPersisted,
   resolveVolumeChapterBeatKey,
 } from "../../volume/volumeGenerationHelpers";
 
@@ -42,6 +41,8 @@ export interface StructuredOutlineRecoveryCursor {
   scopeLabel: string;
   requiredVolumes: VolumePlan[];
   preparedVolumeIds: string[];
+  beatChapterListReady: boolean;
+  volumeChapterListComplete: boolean;
   selectedChapters: PreparedOutlineChapterRef[];
   totalChapterCount: number;
   completedChapterCount: number;
@@ -195,24 +196,21 @@ function resolveVolumeChapterListCursor(input: {
 }): {
   isReady: boolean;
   nextBeat: VolumeBeat | null;
+  completedBeatKeys: string[];
 } {
   const beatSheet = getBeatSheet(input.workspace, input.volume.id);
   if (!beatSheet || beatSheet.beats.length === 0) {
     return {
       isReady: false,
       nextBeat: null,
-    };
-  }
-  if (isVolumeChapterListPartiallyPersisted(input.volume)) {
-    return {
-      isReady: false,
-      nextBeat: beatSheet.beats[0] ?? null,
+      completedBeatKeys: [],
     };
   }
 
   const chapters = input.volume.chapters
     .slice()
     .sort((left, right) => left.chapterOrder - right.chapterOrder);
+  const completedBeatKeys: string[] = [];
 
   for (const beat of beatSheet.beats) {
     const matchedChapterCount = chapters.filter((chapter) => resolveVolumeChapterBeatKey({
@@ -224,23 +222,30 @@ function resolveVolumeChapterListCursor(input: {
       return {
         isReady: false,
         nextBeat: beat,
+        completedBeatKeys,
       };
     }
+    completedBeatKeys.push(beat.key);
   }
 
   return {
     isReady: true,
     nextBeat: null,
+    completedBeatKeys,
   };
 }
 
 export function resolveStructuredOutlineRecoveryCursor(input: {
   workspace: VolumePlanDocument;
   plan?: DirectorAutoExecutionPlan | null;
+  allowPartialChapterListReady?: boolean;
 }): StructuredOutlineRecoveryCursor {
   const normalizedPlan = normalizeDirectorAutoExecutionPlan(input.plan);
   const requiredVolumes = resolveRequiredVolumes(input.workspace, normalizedPlan);
   const preparedVolumeIds: string[] = [];
+  let partialReadyVolume: VolumePlan | null = null;
+  let partialReadyCompletedBeatKeys: string[] = [];
+  let partialReadyNextBeat: VolumeBeat | null = null;
 
   for (const volume of requiredVolumes) {
     const beatSheet = getBeatSheet(input.workspace, volume.id);
@@ -250,6 +255,8 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
         scopeLabel: buildDirectorAutoExecutionScopeLabel(normalizedPlan, null, volume.title),
         requiredVolumes,
         preparedVolumeIds,
+        beatChapterListReady: false,
+        volumeChapterListComplete: false,
         selectedChapters: [],
         totalChapterCount: 0,
         completedChapterCount: 0,
@@ -272,11 +279,22 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
       workspace: input.workspace,
     });
     if (!chapterListCursor.isReady) {
+      if (
+        input.allowPartialChapterListReady === true
+        && chapterListCursor.completedBeatKeys.length > 0
+      ) {
+        partialReadyVolume = volume;
+        partialReadyCompletedBeatKeys = chapterListCursor.completedBeatKeys;
+        partialReadyNextBeat = chapterListCursor.nextBeat;
+        break;
+      }
       return {
         step: "chapter_list",
         scopeLabel: buildDirectorAutoExecutionScopeLabel(normalizedPlan, null, volume.title),
         requiredVolumes,
         preparedVolumeIds,
+        beatChapterListReady: false,
+        volumeChapterListComplete: false,
         selectedChapters: [],
         totalChapterCount: 0,
         completedChapterCount: 0,
@@ -297,7 +315,53 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
     preparedVolumeIds.push(volume.id);
   }
 
-  const selectedChapters = selectPreparedOutlineChapters(input.workspace, normalizedPlan);
+  const selectedChapters = (() => {
+    const chapters = selectPreparedOutlineChapters(input.workspace, normalizedPlan);
+    if (!partialReadyVolume) {
+      return chapters;
+    }
+    const completedBeatKeys = new Set(partialReadyCompletedBeatKeys);
+    const beatSheet = getBeatSheet(input.workspace, partialReadyVolume.id);
+    return chapters.filter((chapterRef) => {
+      if (chapterRef.volumeId !== partialReadyVolume.id) {
+        return chapterRef.volumeOrder < partialReadyVolume.sortOrder;
+      }
+      const chapter = partialReadyVolume.chapters.find((item) => item.id === chapterRef.id) ?? null;
+      if (!chapter || !beatSheet) {
+        return false;
+      }
+      const beatKey = resolveVolumeChapterBeatKey({
+        chapter,
+        volume: partialReadyVolume,
+        beatSheet,
+      });
+      return beatKey ? completedBeatKeys.has(beatKey) : false;
+    });
+  })();
+  if (partialReadyVolume && selectedChapters.length === 0) {
+    return {
+      step: "chapter_list",
+      scopeLabel: buildDirectorAutoExecutionScopeLabel(normalizedPlan, null, partialReadyVolume.title),
+      requiredVolumes,
+      preparedVolumeIds,
+      beatChapterListReady: false,
+      volumeChapterListComplete: false,
+      selectedChapters: [],
+      totalChapterCount: 0,
+      completedChapterCount: 0,
+      totalDetailSteps: 0,
+      completedDetailSteps: 0,
+      nextChapterIndex: null,
+      volumeId: partialReadyVolume.id,
+      volumeOrder: partialReadyVolume.sortOrder,
+      volumeTitle: partialReadyVolume.title,
+      beatKey: partialReadyNextBeat?.key ?? null,
+      beatLabel: partialReadyNextBeat?.label ?? null,
+      chapterId: null,
+      chapterOrder: null,
+      detailMode: null,
+    };
+  }
   const totalDetailSteps = selectedChapters.length * DIRECTOR_CHAPTER_DETAIL_MODES.length;
   let completedDetailSteps = 0;
   let completedChapterCount = 0;
@@ -339,6 +403,8 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
       scopeLabel,
       requiredVolumes,
       preparedVolumeIds,
+      beatChapterListReady: true,
+      volumeChapterListComplete: !partialReadyVolume,
       selectedChapters,
       totalChapterCount: selectedChapters.length,
       completedChapterCount,
@@ -348,8 +414,8 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
       volumeId: nextChapter.volumeId,
       volumeOrder: nextChapter.volumeOrder,
       volumeTitle: nextChapter.volumeTitle,
-      beatKey: null,
-      beatLabel: null,
+      beatKey: partialReadyNextBeat?.key ?? null,
+      beatLabel: partialReadyNextBeat?.label ?? null,
       chapterId: nextChapter.id,
       chapterOrder: nextChapter.chapterOrder,
       detailMode: nextDetailMode,
@@ -361,6 +427,8 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
     scopeLabel,
     requiredVolumes,
     preparedVolumeIds,
+    beatChapterListReady: selectedChapters.length > 0,
+    volumeChapterListComplete: !partialReadyVolume,
     selectedChapters,
     totalChapterCount: selectedChapters.length,
     completedChapterCount,
@@ -370,8 +438,8 @@ export function resolveStructuredOutlineRecoveryCursor(input: {
     volumeId: null,
     volumeOrder: null,
     volumeTitle: null,
-    beatKey: null,
-    beatLabel: null,
+    beatKey: partialReadyNextBeat?.key ?? null,
+    beatLabel: partialReadyNextBeat?.label ?? null,
     chapterId: null,
     chapterOrder: null,
     detailMode: null,

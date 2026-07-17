@@ -19,6 +19,7 @@ import {
 } from "../../llm/usageTracking";
 import { logMemoryUsage } from "../../runtime/memoryTelemetry";
 import { toText } from "../../services/novel/novelP0Utils";
+import { beginLlmLiveSession } from "../../platform/llm/live/llmLiveSession";
 import { hasRegisteredPromptAsset } from "../registry";
 import { CUSTOM_SLOT_CONTEXT_GROUP } from "../slots/slotResolution";
 import { promptSlotOverrideService } from "../slots/PromptSlotOverrideService";
@@ -467,7 +468,10 @@ function recordPromptFailure(input: {
   });
 }
 
-function captureStreamOutput(rawStream: AsyncIterable<BaseMessageChunk>): {
+function captureStreamOutput(
+  rawStream: AsyncIterable<BaseMessageChunk>,
+  onChunk?: (content: string) => void,
+): {
   stream: AsyncIterable<BaseMessageChunk>;
   completedText: Promise<string>;
   completedUsage: Promise<LlmTokenUsageSnapshot | null>;
@@ -491,7 +495,9 @@ function captureStreamOutput(rawStream: AsyncIterable<BaseMessageChunk>): {
       let usage: LlmTokenUsageSnapshot | null = null;
       try {
         for await (const chunk of rawStream) {
-          chunks.push(toText(chunk.content));
+          const content = toText(chunk.content);
+          chunks.push(content);
+          onChunk?.(content);
           usage = mergeStreamTokenUsage(usage, extractLlmTokenUsage(chunk));
           yield chunk;
         }
@@ -892,6 +898,13 @@ export async function runTextPrompt<I>(input: {
     novelId: input.options?.novelId,
   });
   const renderedPromptChars = estimateRenderedPromptChars(messages);
+  const liveSession = beginLlmLiveSession({
+    label: input.asset.id + "@" + input.asset.version,
+    mode: "text",
+    promptMeta: prepared.invocation,
+    provider: input.options?.provider,
+    model: input.options?.model,
+  });
   try {
     const llm = await promptRunnerLLMFactory(input.options?.provider, {
       fallbackProvider: "deepseek",
@@ -902,13 +915,24 @@ export async function runTextPrompt<I>(input: {
       taskType: input.asset.taskType,
       promptMeta: prepared.invocation,
     });
-    const result = await llm.invoke(messages, buildPromptCallOptions(input.options));
+    liveSession.phase("streaming", "模型正在返回内容");
+    const stream = await llm.stream(messages, buildPromptCallOptions(input.options));
+    let rawOutput = "";
+    let tokenUsage: LlmTokenUsageSnapshot | null = null;
+    for await (const chunk of stream) {
+      const content = toText(chunk.content);
+      rawOutput += content;
+      liveSession.delta(content);
+      tokenUsage = mergeStreamTokenUsage(tokenUsage, extractLlmTokenUsage(chunk));
+    }
+    liveSession.phase("validating", "正在整理生成结果");
     const output = applyPromptPostValidate({
       asset: input.asset,
       promptInput: input.promptInput,
       context: prepared.context,
-      rawOutput: toText(result.content),
+      rawOutput,
     });
+    liveSession.complete();
     return buildPromptRunResult({
       asset: input.asset as PromptAsset<unknown, unknown, unknown>,
       output,
@@ -926,9 +950,10 @@ export async function runTextPrompt<I>(input: {
         input.options,
       ),
       renderedPromptChars,
-      tokenUsage: extractLlmTokenUsage(result),
+      tokenUsage,
     });
   } catch (error) {
+    liveSession.fail(error);
     recordPromptFailure({
       asset: input.asset as PromptAsset<unknown, unknown, unknown>,
       context: prepared.context,
@@ -974,6 +999,13 @@ export async function streamTextPrompt<I>(input: {
     novelId: input.options?.novelId,
   });
   const renderedPromptChars = estimateRenderedPromptChars(messages);
+  const liveSession = beginLlmLiveSession({
+    label: input.asset.id + "@" + input.asset.version,
+    mode: "text",
+    promptMeta: prepared.invocation,
+    provider: input.options?.provider,
+    model: input.options?.model,
+  });
   let captured: ReturnType<typeof captureStreamOutput>;
   try {
     const llm = await promptRunnerLLMFactory(input.options?.provider, {
@@ -985,9 +1017,11 @@ export async function streamTextPrompt<I>(input: {
       taskType: input.asset.taskType,
       promptMeta: prepared.invocation,
     });
+    liveSession.phase("streaming", "模型正在返回内容");
     const rawStream = await llm.stream(messages, buildPromptCallOptions(input.options));
-    captured = captureStreamOutput(rawStream as AsyncIterable<BaseMessageChunk>);
+    captured = captureStreamOutput(rawStream as AsyncIterable<BaseMessageChunk>, (content) => liveSession.delta(content));
   } catch (error) {
+    liveSession.fail(error);
     recordPromptFailure({
       asset: input.asset as PromptAsset<unknown, unknown, unknown>,
       context: prepared.context,
@@ -1004,13 +1038,14 @@ export async function streamTextPrompt<I>(input: {
   return {
     stream: captured.stream,
     complete: captured.completedText.then(async (content) => {
+      liveSession.phase("validating", "正在整理生成结果");
       const output = applyPromptPostValidate({
         asset: input.asset,
         promptInput: input.promptInput,
         context: prepared.context,
         rawOutput: content,
       });
-      return buildPromptRunResult({
+      const result = buildPromptRunResult({
         asset: input.asset as PromptAsset<unknown, unknown, unknown>,
         output,
         context: prepared.context,
@@ -1029,7 +1064,10 @@ export async function streamTextPrompt<I>(input: {
         renderedPromptChars,
         tokenUsage: await captured.completedUsage.catch(() => null),
       });
+      liveSession.complete();
+      return result;
     }).catch((error) => {
+      liveSession.fail(error);
       recordPromptFailure({
         asset: input.asset as PromptAsset<unknown, unknown, unknown>,
         context: prepared.context,
@@ -1070,6 +1108,13 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
   });
   const startedAt = Date.now();
   const renderedPromptChars = estimateRenderedPromptChars(prepared.messages);
+  const liveSession = beginLlmLiveSession({
+    label: input.asset.id + "@" + input.asset.version,
+    mode: "structured",
+    promptMeta: prepared.invocation,
+    provider: input.options?.provider,
+    model: input.options?.model,
+  });
   let captured: ReturnType<typeof captureStreamOutput>;
   let strategy!: ReturnType<typeof selectStructuredOutputStrategy>;
   let profile!: ReturnType<typeof resolveStructuredOutputProfile>;
@@ -1105,9 +1150,11 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
     if (input.options?.signal) {
       invokeOptions.signal = input.options.signal;
     }
+    liveSession.phase("streaming", "模型正在返回结构化结果");
     const rawStream = await llm.stream(prepared.messages, invokeOptions);
-    captured = captureStreamOutput(rawStream as AsyncIterable<BaseMessageChunk>);
+    captured = captureStreamOutput(rawStream as AsyncIterable<BaseMessageChunk>, (content) => liveSession.delta(content));
   } catch (error) {
+    liveSession.fail(error);
     recordPromptFailure({
       asset: input.asset as PromptAsset<unknown, unknown, unknown>,
       context: prepared.context,
@@ -1124,6 +1171,8 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
   return {
     stream: captured.stream,
     complete: captured.completedText.then(async (rawContent) => {
+      liveSession.phase("validating", "正在检查生成结果");
+      let repairStarted = false;
       const parsed = await parseStructuredLlmRawContentDetailed({
         rawContent,
         schema: outputSchema,
@@ -1137,6 +1186,13 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
         label: `${input.asset.id}@${input.asset.version}`,
         maxRepairAttempts: resolveStructuredRepairAttempts(input.asset as PromptAsset<unknown, unknown, unknown>),
         promptMeta: prepared.invocation,
+        onRepairOutputDelta: (content) => {
+          if (!repairStarted) {
+            repairStarted = true;
+            liveSession.phase("repairing", "正在修复生成结果");
+          }
+          liveSession.delta(content);
+        },
         strategy,
         profile,
       });
@@ -1149,7 +1205,7 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
         initialResult: parsed,
         options: input.options,
       });
-      return buildPromptRunResult({
+      const result = buildPromptRunResult({
         asset: input.asset as PromptAsset<unknown, unknown, unknown>,
         output: resolved.output,
         context: prepared.context,
@@ -1161,7 +1217,10 @@ export async function streamStructuredPrompt<I, O, R = O>(input: {
         tokenUsage: await captured.completedUsage.catch(() => null),
         postValidateFailureRecovered: resolved.postValidateFailureRecovered,
       });
+      liveSession.complete();
+      return result;
     }).catch((error) => {
+      liveSession.fail(error);
       recordPromptFailure({
         asset: input.asset as PromptAsset<unknown, unknown, unknown>,
         context: prepared.context,

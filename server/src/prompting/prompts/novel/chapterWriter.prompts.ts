@@ -1,10 +1,7 @@
-import * as fs from "fs";
-import * as path from "path";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../core/promptTypes";
 import { renderSelectedContextBlocks } from "../../core/renderContextBlocks";
 import { NOVEL_PROMPT_BUDGETS } from "./promptBudgetProfiles";
-import { resolveServerRoot } from "../../../runtime/appPaths";
 
 export interface ChapterWriterPromptInput {
   novelTitle: string;
@@ -19,7 +16,7 @@ export interface ChapterWriterPromptInput {
 
 export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, string> = {
   id: "novel.chapter.writer",
-  version: "v5",
+  version: "v6",
   taskType: "writer",
   mode: "text",
   language: "zh",
@@ -27,8 +24,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
     maxTokensBudget: NOVEL_PROMPT_BUDGETS.chapterWriter,
     requiredGroups: [
       "chapter_mission",
-      "timeline_context",
-      "previous_chapter_hook",
+      "reader_experience",
       "character_hard_facts",
       "obligation_contract",
       "style_contract",
@@ -38,7 +34,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
     ],
     preferredGroups: [
       "obligation_contract",
-      "previous_chapter_hook",
+      "reader_experience",
       "character_hard_facts",
       "open_conflicts",
       "recent_chapters",
@@ -54,8 +50,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
   contextRequirements: [
     { group: "book_contract", required: true, priority: 104 },
     { group: "chapter_mission", required: true, priority: 100 },
-    { group: "timeline_context", required: true, priority: 100 },
-    { group: "previous_chapter_hook", required: true, priority: 100 },
+    { group: "reader_experience", required: true, priority: 100 },
     { group: "character_hard_facts", required: true, priority: 99 },
     { group: "obligation_contract", required: true, priority: 99 },
     { group: "payoff_directives", priority: 98 },
@@ -194,19 +189,13 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         ].filter(Boolean).join("\n")
       : "";
 
-    // Dynamically load system prompt from file
-    let systemPromptContent = "";
-    try {
-      const promptPath = path.join(resolveServerRoot(), "config", "prompts", "chapter_writer_system.md");
-      systemPromptContent = fs.readFileSync(promptPath, "utf8");
-    } catch (e) {
-      // Default fallback system prompt content
-      systemPromptContent = [
+    return [
+      new SystemMessage([
         "你是中文长篇网络小说写作助手。",
         "你的任务是根据当前章节任务，生成可直接阅读的正文，而不是提纲或解释。",
         "",
         "【叙事视角】",
-        "{{povCopy}}",
+        povCopy,
         "",
         "【任务边界】",
         "只输出章节正文，不输出标题、不输出提纲、不输出解释、不输出任何额外文本。",
@@ -215,9 +204,12 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "【核心约束】",
         "0. 以本章任务、人物状态、伏笔指令和连续性上下文为准，避免提前揭示未来答案或写到后续章节事件。",
         "1. 必须推进新的剧情动作，本章必须发生实质变化（局面、关系、信息、风险、决策至少一项）。",
-        "2. 必须在写作中体现并严格服从 local_state 中的 VIRTUAL CAMERA OBSERVATION FEED，即叙事视角与细节刻画不得超出摄像机可见范围、环境温度、光照照度(Lux)及相邻地块渗漏声光的限制，不得产生时空物理悖论。",
-        "3. 必须严格服从 chapter mission、mustAdvance、mustPreserve 与 ending hook。",
-        "4. character_hard_facts 是不可违背的人物硬事实，角色身份、阵营、立场、境界/战力、当前位置和可出场状态不得写反。",
+        "1a. reader_experience 是本章读者体验硬合同：必须让 promisedReward、keyTurn 与 netChange 在正文中可见，主角必须围绕 protagonistWant 主动行动并面对 primaryResistance。",
+        "1b. inheritedHookResponsibilities 必须优先得到回应、触达或部分兑现；不得只制造新钩子而不给旧问题任何回报。",
+        "2. 必须严格服从 chapter mission、mustAdvance、mustPreserve 与 ending hook。",
+        "3. obligation contract 中的 must hit now、required payoff touches、required character appearances、required goal changes 都是本章必达项，必须在正文中让读者可见。",
+      "4. character_hard_facts 是不可违背的人物硬事实，角色身份、阵营、立场、境界/战力、当前位置和可出场状态不得写反。",
+      "4a. 角色行为指导中的主观倾向、以及作者与角色对话后确认的软性行为倾向，都只用于塑造角色的选择、误判和情绪反应，不是客观真相或强制剧情命令；不得把角色的猜测、误判、隐藏意图或对话影响写成旁白确认的事实，也不得覆盖 character_hard_facts。",
         "5. payoff directives 只能按 operation 执行：seed/touch 只铺垫或轻触，pressure 只施压，partial_reveal/payoff 才允许揭示或兑现，forbid 必须避开。",
         "6. 不得引入新的核心角色、世界规则或与上下文冲突的重大设定。",
         "7. 不得写成总结、复盘、解释性段落为主的章节，正文必须以「正在发生」的内容为主。",
@@ -226,19 +218,23 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "1. 开头必须迅速进入当前情境，不得长时间铺垫背景或复述上一章。",
         "2. 中段必须出现推进、变化或对抗，不能平铺直叙维持同一状态。",
         "3. 本章至少出现一次明确的「状态变化」（信息反转、局面升级、关系变化、风险上升或计划转向）。",
-        "4. {{endingHook}}",
+        "4. " + endingHook,
         "",
         "【篇幅要求】",
-        "{{lengthBlock}}",
+        lengthBlock,
         "",
         "【连续性约束】",
-        "{{continuityBlock}}",
-        "{{continuationBlock}}",
+        mode === "continue"
+          ? "1. 当前是补写模式，不得重写章节开头；只允许从现有正文尾部自然续接。"
+          : "1. 章节开头必须与 recent_chapters 明显区分，禁止复用相同开场模式（如重复描写环境、回忆开头等）。",
+        "2. 允许短回调，但不得大段复述已发生事件，不得复制上下文原句。",
+        "3. 必须延续当前人物状态与局面，不得让角色行为失去动机或连续性。",
+        continuationBlock ? continuationBlock : "",
         "",
         "【表达要求】",
-        "1. {{tonePreference}}",
+        "1. " + tonePreference,
         "2. 优先使用具体动作、对话与可感知细节推进，而不是抽象概述。",
-        "3. {{antiAiRules}}",
+        "3. " + antiAiRules,
         "4. 对话应服务推进或冲突，不得成为填充内容。",
         "5. 每一段叙述尽量同时完成两项以上叙事功能（推进情节、揭示人物、制造张力、建构世界），避免仅完成单一功能的过渡性段落。",
         "",
@@ -252,7 +248,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "禁止用总结性语句代替剧情发展。",
         "禁止重复追求 chapter_mission 中 'Already completed' 列表里已完成的目标（如已办好的证件、已签的协议）。",
         "禁止重复使用 opening_constraints 中 'Scene pattern blacklist' 列表里标注的场景模式（时间+地点+动作三要素完全相同的场景）。",
-        "{{antiClicherBlock}}",
+        antiClicherEnabled ? `\n【额外套路禁区】\n${antiClicherCopy}` : "",
         "",
         "【反模式替换】",
         "* 想写大段心理独白 -> 改为行为/对话/细节，让读者感受而非被告知。",
@@ -264,28 +260,9 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
         "(1) 结尾是否形成了新的悬念或钩子？",
         "(2) obligation contract 的所有必达项是否已在正文中可见兑现？",
         "(3) 是否违反了任何禁止规则（新角色、场景模式重复、未铺垫转折）？",
+        "(4) 读者是否实际获得了 promisedReward，并能看见 keyTurn、netChange 和旧钩子承接？",
         "确认通过后再开始输出，不需要在正文中输出核查结果。",
-      ].join("\n");
-    }
-
-    const antiClicherBlock = antiClicherEnabled ? `\n【额外套路禁区】\n${antiClicherCopy}` : "";
-    const continuityBlock = mode === "continue"
-      ? "1. 当前是补写模式，不得重写章节开头；只允许从现有正文尾部自然续接。"
-      : "1. 章节开头必须与 recent_chapters 明显区分，禁止复用相同开场模式（如重复描写环境、回忆开头等）。\n2. 允许短回调，但不得大段复述已发生事件，不得复制上下文原句。\n3. 必须延续当前人物状态与局面，不得让角色行为失去动机或连续性。";
-
-    // Replace template tokens
-    const renderedSystemPrompt = systemPromptContent
-      .replace("{{povCopy}}", povCopy)
-      .replace("{{endingHook}}", endingHook)
-      .replace("{{lengthBlock}}", lengthBlock)
-      .replace("{{continuityBlock}}", continuityBlock)
-      .replace("{{continuationBlock}}", continuationBlock ? "\n" + continuationBlock : "")
-      .replace("{{tonePreference}}", tonePreference)
-      .replace("{{antiAiRules}}", antiAiRules)
-      .replace("{{antiClicherBlock}}", antiClicherBlock);
-
-    return [
-      new SystemMessage(renderedSystemPrompt),
+      ].filter((line) => line !== "").join("\n")),
       new HumanMessage([
         `小说：${input.novelTitle}`,
         `章节：第 ${input.chapterOrder} 章 ${input.chapterTitle}`,

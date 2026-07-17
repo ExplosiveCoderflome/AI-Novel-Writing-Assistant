@@ -511,6 +511,34 @@ export class NovelCoreCrudService {
   }
 
   async deleteChapter(novelId: string, chapterId: string) {
+    const chapter = await prisma.chapter.findFirst({
+      where: { id: chapterId, novelId },
+      select: {
+        id: true,
+        content: true,
+        generationState: true,
+        chapterStatus: true,
+        expectation: true,
+        taskSheet: true,
+        sceneCards: true,
+        repairHistory: true,
+        riskFlags: true,
+      },
+    });
+    if (!chapter) {
+      throw new Error("章节不存在");
+    }
+    const canRemove = chapter.generationState === "planned"
+      && (chapter.chapterStatus ?? "unplanned") === "unplanned"
+      && !chapter.content?.trim()
+      && !chapter.expectation?.trim()
+      && !chapter.taskSheet?.trim()
+      && !chapter.sceneCards?.trim()
+      && !chapter.repairHistory?.trim()
+      && !chapter.riskFlags?.trim();
+    if (!canRemove) {
+      throw new Error("只能移除尚未进入写作或规划流程的空白手动章节");
+    }
     queueRagDelete("chapter", chapterId);
     queueRagDelete("chapter_summary", chapterId);
     const deleted = await prisma.chapter.deleteMany({ where: { id: chapterId, novelId } });
