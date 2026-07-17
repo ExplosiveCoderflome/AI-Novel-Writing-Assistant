@@ -2,7 +2,7 @@
   "name": "@ai-novel/client",
   "version": "0.1.0",
   "private": true,
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
