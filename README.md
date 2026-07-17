@@ -37,6 +37,15 @@
 - 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
 - 公开介绍站：[GitHub Pages 介绍站](https://explosivecoderflome.github.io/AI-Novel-Writing-Assistant/) 提供功能预览、模块文档和使用指南
 
+## 用 Codex 持续创作长篇：Ani Book Skill
+
+如果你希望直接在 Codex 的本地工作区推进小说，可以使用 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill)。它将方向判断、故事发动机、章节推进、审校修复和连续性管理组织为一条可恢复、可追溯的长篇创作流程。
+
+这是一条与本项目互补的创作入口：
+
+- 需要可视化创作工作台、模型配置、运行实况与小说资产管理：使用本仓库。
+- 希望在 Codex 中通过本地文件、阶段工件和 Skill 直接持续创作：前往 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill)。
+
 ## 项目定位
 
 很多 AI 写作工具的使用方式其实差不多：你输入一句 Prompt，它回你一段正文，不满意就重试。写短篇还行，写长篇容易越写越散。
@@ -143,7 +152,7 @@
 ### 2026-07-17
 
 - 左侧导航菜单会在固定高度内独立滚动，窗口高度较小时也可以访问底部的系统入口。
-- README 现在新增了对 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill) 的独立介绍，方便想在 Codex 本地工作区里直接推进长篇中文小说的人，更快理解这条 Skill 化工作流和本项目完整工作台形态之间的互补关系。
+- README 在桌面版入口后直接展示 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill)，方便想在 Codex 本地工作区里直接推进长篇中文小说的人选择适合自己的创作入口。
 
 > 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
 
@@ -566,18 +575,6 @@ docs/     设计文档、阶段检查点、模块计划与历史归档
 - `Novel Production` 负责整本生成主链
 - `Style Engine` 负责写法资产、特征提取、绑定和反 AI 协同
 - `Knowledge / Book Analysis / World` 负责长期上下文沉淀与回灌
-
-## 相关 Skill 与扩展工作流
-
-如果你更想把这套“长篇小说生产”思路直接带进 Codex 里的本地创作流程，也可以看看我新开发的 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill)。
-
-它是一个面向 Codex 的长篇中文小说生产 Skill，重点不是“补一段正文”，而是把方向判断、故事发动机、章节推进、审校修复和连续性管理串成一条可恢复的工作流。对于想在本地工作区里持续推进长篇、保持章节承接稳定、把创作过程做成可回看工件的人来说，它会比一次性 Prompt 更接近真正可持续的写作生产线。
-
-可以把它理解成和本项目互补的一条路径：
-
-- 这个仓库更偏向完整产品形态，关注前后端、创作界面、运行时、数据资产和可视化工作台。
-- `Ani Book Skill` 更偏向 Codex 内的创作工作流封装，适合直接在 Agent 环境里推进长篇小说、拆书分析和连续性维护。
-- 如果你想研究“AI 如何帮助新手把整本书写完”，这两个项目也可以一起看：一个更偏产品化落地，一个更偏 Skill 化工作流沉淀。
 
 ## 当前路线图
 
