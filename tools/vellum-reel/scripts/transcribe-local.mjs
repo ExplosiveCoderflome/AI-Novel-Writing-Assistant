@@ -46,11 +46,18 @@ const whisperCppOutput = await transcribe({
   language: 'zh',
 });
 const {captions} = toCaptions({whisperCppOutput});
+const totalMs = project.format.durationSeconds * 1000;
 const pages = paginateCaptions(captions, {maxChars, maxDurationMs});
+const validatedPages = pages
+  .filter((page) => page.startMs < totalMs)
+  .map((page) => ({
+    ...page,
+    endMs: Math.min(page.endMs, totalMs),
+  }));
 
 await writeJson(
   output,
-  pages,
+  validatedPages,
 );
 await rm(wavPath, {force: true});
 

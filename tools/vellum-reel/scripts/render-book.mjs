@@ -1,6 +1,6 @@
 import {execFileSync} from 'node:child_process';
 import path from 'node:path';
-import {readJson, resolveArg, root} from './_shared.mjs';
+import {readJson, resolveArg, root, writeJson} from './_shared.mjs';
 
 const bookDir = resolveArg('book', 'examples/book-demo');
 const mode = resolveArg('mode', 'quick');
@@ -18,14 +18,19 @@ const output = path.join('out', slug, mode === 'final' ? 'book-video.mp4' : 'boo
 const qcDir = path.join('out', slug, 'qc');
 
 execFileSync('node', ['scripts/validate-project.mjs', `--project=${projectFile}`, `--captions=${captionsFile}`], {stdio: 'inherit'});
-execFileSync('npx', [
+
+const propsFile = path.join('out', slug, 'props.json');
+await writeJson(propsFile, {project, captions});
+
+const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+execFileSync(npxCmd, [
   'remotion', 'render', 'src/index.ts', 'BookVideo', output,
   '--codec=h264',
   mode === 'final' ? '--crf=18' : '--crf=24',
   ...(mode === 'quick' ? ['--scale=0.5'] : []),
   '--pixel-format=yuv420p',
-  `--props=${JSON.stringify({project, captions})}`,
-], {stdio: 'inherit'});
+  `--props=${propsFile}`,
+], {stdio: 'inherit', shell: process.platform === 'win32'});
 execFileSync('node', [
   'scripts/inspect-render.mjs', output,
   `--project=${projectFile}`,

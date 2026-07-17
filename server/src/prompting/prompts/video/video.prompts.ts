@@ -11,7 +11,7 @@ import type { PromptAsset } from "../../core/promptTypes";
 
 const videoSceneSchema = z.object({
   order: z.number().int().min(1),
-  durationSec: z.number().int().min(2).max(60),
+  durationSec: z.number().min(1).max(60),
   narration: z.string().trim().min(1).describe("画外旁白或字幕文本"),
   visualDescription: z.string().trim().min(1).describe("画面描述：场景、人物、动作、构图"),
   cameraDirection: z.string().trim().optional().describe("镜头运动：推拉摇移、特写等"),

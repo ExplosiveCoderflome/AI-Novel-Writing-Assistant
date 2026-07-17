@@ -1,6 +1,6 @@
 import {execFileSync} from 'node:child_process';
 import path from 'node:path';
-import {readJson, resolveArg, root} from './_shared.mjs';
+import {readJson, resolveArg, root, writeJson} from './_shared.mjs';
 
 const narrativeDir = resolveArg('narrative', 'examples/narrative-demo');
 const mode = resolveArg('mode', 'quick');
@@ -18,7 +18,12 @@ const output = path.join('out', slug, mode === 'final' ? 'narrative-full.mp4' : 
 const qcDir = path.join('out', slug, 'qc', mode);
 
 execFileSync('node', ['scripts/validate-project.mjs', `--project=${projectFile}`, `--captions=${captionsFile}`], {stdio: 'inherit'});
-execFileSync('npx', [
+
+const propsFile = path.join('out', slug, 'props.json');
+await writeJson(propsFile, {project, captions});
+
+const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+execFileSync(npxCmd, [
   'remotion', 'render', 'src/index.ts', 'NarrativeVideo', output,
   '--codec=h264',
   mode === 'final' ? '--crf=19' : '--crf=25',
@@ -26,8 +31,8 @@ execFileSync('npx', [
   ...(mode === 'final' ? ['--concurrency=8'] : []),
   '--pixel-format=yuv420p',
   '--audio-bitrate=192k',
-  `--props=${JSON.stringify({project, captions})}`,
-], {stdio: 'inherit'});
+  `--props=${propsFile}`,
+], {stdio: 'inherit', shell: process.platform === 'win32'});
 execFileSync('node', [
   'scripts/inspect-render.mjs', output,
   `--project=${projectFile}`,

@@ -9,20 +9,49 @@
 ```
 小说章节 / 预告大纲
        │
-       ▼ (1) 脚本生成：本地 Ollama 结构化推理 (e.g. deepseek-r1:8b)
+       ▼ (1) 脚本生成：本地 Ollama 结构化推理 (e.g. gemma4:e4b)
  结构化分镜脚本 (JSON)
        │
-       ├─► (2) 旁白生成：本地 Speech (TTS) 服务 (e.g. Kokoro-82M ONNX) ──► 分段音频文件
-       ├─► (3) 画面生成：本地 Stable Diffusion WebUI 自动出图 ─────────► 分镜图像文件
+       ├─► (2) 旁白生成：本地 Speech (TTS) 服务 ──► 分段音频文件 (若离线，由 ffmpeg 生成静音占位符)
+       ├─► (3) 画面生成：本地 Stable Diffusion WebUI ──► 分镜图像文件 (若离线，由 ffmpeg 生成单色占位图)
        │
        ▼ (4) 旁白拼接与音量规整 (FFmpeg)
- 拼接后完整旁白 (WAV/MP3)
+  拼接后完整旁白 (WAV/MP3)
        │
-       ▼ (5) 字幕时间轴对齐：本地 Whisper.cpp 分析 ──► 精确字幕文件 (captions.json)
+       ▼ (5) 字幕时间轴对齐：本地 Whisper.cpp 分析 ──► 精确字幕文件 (captions.json，含时长强制截断防溢出)
        │
-       ▼ (6) 视频编译：本地 Remotion + 浏览器内核 + FFmpeg
- 导出 9:16 竖版叙事视频 (.mp4)
+       ▼ (6) 视频编译：本地 Remotion + 浏览器内核 + FFmpeg (Windows 需通过 props.json 传输参数)
+  导出 9:16 竖版叙事视频 (.mp4)
 ```
+
+---
+
+## 避坑指南与开发规约 (Windows/本地离线适配)
+
+在 Windows 环境下运行离线 Remotion 编译和本地大模型时，有几个非常关键的底层系统级踩坑点，已在相关脚本中实现修复。后续扩展或重构必须遵守以下规约：
+
+### 1. Windows 的 `npx` 必须执行为 `npx.cmd` 且启用 `shell: true`
+在 Node.js 中使用 `execFileSync` 或 `spawnSync` 启动 `npx` 时：
+* 直接调用 `npx` 在 Windows 上会抛出 `ENOENT`，因为 Windows 下 `npx` 不是独立的可执行文件，而是脚本。
+* 必须将其解析为 `npx.cmd`，且在 `execFileSync` 的 `options` 选项中显式设置 `{ shell: true }`，否则 Windows 无法调用命令解释器并会抛出 `EINVAL` (参数无效) 错误。
+
+### 2. 避免在命令行中直接传输超长 JSON 参数 (使用 `props.json`)
+* Windows `cmd.exe` 存在 8191 字符的命令行最大长度限制。此外，双引号 `"` 在命令行参数逃逸时在 Windows 批处理中极易解析崩溃，导致 `EINVAL`。
+* 不要通过 `--props='{...}'` 传输包含全量分镜和数十行字幕的 JSON 参数。
+* **规约**：将属性序列化写入临时的 `out/<project_id>/props.json` 文件，然后以 `--props=out/<project_id>/props.json` 形式调用 Remotion CLI，该方法跨平台安全且无长度限制。
+
+### 3. Zod 时间字段兼容浮点数 (避免 `.int()`)
+* 本地模型在设计分镜时长时，常常生成带有半秒的微剪辑（如 `4.5` 秒、`7.5` 秒），以实现更加精确的情感与镜头切换节奏。
+* **规约**：视频分镜的 Zod 校验 Schema 中，`durationSec` 必须定义为普通的 `z.number()` 而不能限制为 `.int()`。否则，当大模型输出带小数的时长时，JSON schema 校验和 LLM 自我修正阶段将陷入死循环，引发 `StructuredOutputError`。
+
+### 4. 本地 Whisper 静音 Hallucination (幻听) 处理
+* 当 Stable Diffusion 或 TTS 离线时，系统为了保证流程完整，会使用 `ffmpeg` 生成对应的静音 MP3。
+* OpenAI Whisper 对长时间静音进行对齐时，极易陷入**幻听循环**，重复解析出最后一句话（如“我只想要你和我一起走”），且生成的时间戳会溢出，超过实际音频文件总时长。这会导致 VellumReel 视频项目校验抛出 `caption X 超出视频时长` 错误而中断。
+* **规约**：在 [transcribe-local.mjs](file:///c:/Users/lilin/GeneralAgent/tools/vellum-reel/scripts/transcribe-local.mjs) 生成字幕后，必须在写入文件前，过滤所有 `startMs >= totalMs` 的字幕，并将 `endMs` 强制与 `totalMs`（项目总时长）取最小值（`Math.min(endMs, totalMs)`）进行截断。
+
+### 5. 渲染轮询超时限制
+* Remotion 本地视频编译涉及 Webpack 构建、Chromium 无头浏览器逐帧渲染及 FFmpeg 二进制编码转码，是高计算强度的密集型任务，一个 60 秒的视频渲染一般需要 **1.5 至 3 分钟**。
+* **规约**：在任何自动化脚本（如 `test-offline-e2e.ts`）中轮询渲染状态时，轮询等待的时长必须保证在 **5 到 8 分钟以上**（例如 100 次轮询 * 5秒延时）。绝对不能过早退出并调用 `process.exit(0)`，这会触发孤儿进程清理，将正在执行渲染的 Remotion 子进程强制杀死。
 
 ---
 
@@ -33,44 +62,9 @@
 ### 1. 系统二进制依赖
 必须确保以下程序已安装且在系统环境变量 `PATH` 中：
 * **Node.js 20+**
-* **FFmpeg** 与 **ffprobe** (用于音频拼接、分析及 Remotion 视频合成)
+* **FFmpeg** 与 **ffprobe** (可使用 `scoop install ffmpeg` 自动安装配置到 Windows PATH)
 
 ### 2. 本地 AI 服务接口
-* **Ollama**：访问地址默认为 `http://127.0.0.1:11434`。需确保 Ollama 服务已启动。
-* **Stable Diffusion WebUI (A1111) / ComfyUI**：
-  * WebUI 启动参数必须包含 `--api` 开启 API 服务。
-  * 默认访问地址为 `http://127.0.0.1:7860`。
-* **本地 Speech (TTS) 服务**：
-  * 推荐使用 Kokoro-FastAPI 提供 OpenAI 兼容的语音合成接口。
-  * 默认访问地址为 `http://127.0.0.1:8000/v1`。
-
----
-
-## 自动拉取本地模型脚本
-
-项目中内置了自动拉取离线模型的脚本 `scripts/pull-offline-models.mjs`。该脚本会自动检测本地服务，并从 Hugging Face 和 Ollama 预加载所需模型。
-
-在项目根目录下运行：
-```bash
-node scripts/pull-offline-models.mjs
-```
-
-### 脚本拉取的模型清单：
-1. **Ollama LLM**：向本地 Ollama 发起拉取请求，拉取 `deepseek-r1:8b` (或指定的本地大模型)。
-2. **Whisper 对齐模型**：下载 `ggml-small.bin` 语音识别模型，保存至本地 `.cache/whisper.cpp/`，以避免在对齐字幕时进行在线下载。
-3. **Kokoro 语音合成模型**：下载 `kokoro-v0_19.onnx` 模型文件与指定的声音特征向量 (`.bin` 格式)，保存至本地 `.cache/kokoro/`。
-
----
-
-## 在控制台启用完全离线模式
-
-1. 启动项目前后端服务后，进入 **视频改编工作台**。
-2. 在左下角找到 **本地离线模型设置** 卡片。
-3. 勾选 **开启本地完全离线模式**。
-4. 填写您的本地服务配置：
-   * **Ollama 模型名称**：例如 `deepseek-r1:8b` 或 `qwen2.5:7b-instruct`。
-   * **Stable Diffusion API 地址**：例如 `http://127.0.0.1:7860`。
-   * **本地 Speech (TTS) API 地址**：例如 `http://127.0.0.1:8000/v1`。
-5. 点击 **保存离线配置**。
-
-开启后，系统在“生成视频脚本”和“提交渲染”时会自动使用本地资源完成推理、语音合成、AI 绘图及 Remotion 视频编译，生成的文件保存在 `tools/vellum-reel/public/assets/projects/<project_id>/` 下，成片将复制到服务端公共静态目录中以供在浏览器中直接预览播放。
+* **Ollama**：默认访问地址为 `http://127.0.0.1:11434`。推荐准备本地模型 `gemma4:e4b`。
+* **Stable Diffusion WebUI**：API 必须携带 `--api` 开启，默认 `http://127.0.0.1:7860`。
+* **本地 Speech (TTS) 服务**：默认 `http://127.0.0.1:8000/v1`。
