@@ -111,8 +111,8 @@ function splitLongText(text: string, startMs: number, endMs: number): Array<{ te
     return [{ text, startMs, endMs }];
   }
 
-  // Split by punctuation
-  const parts = text.split(/([，。；？！、\s]+)/).filter(p => p.trim());
+  // Split by punctuation, including Chinese colon and ellipsis
+  const parts = text.split(/([，。；？！、：…\s]+)/).filter(p => p.trim());
   
   const groups: string[] = [];
   let current = "";

@@ -51,12 +51,13 @@ if not os.path.exists(voices_path):
     download_file("https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/voices.bin", voices_path)
 
 # Auto-install dependencies if not present
-required_packages = ["kokoro-onnx", "soundfile", "fastapi", "uvicorn", "pydantic", "numpy"]
+required_packages = ["kokoro-onnx", "soundfile", "fastapi", "uvicorn", "pydantic", "numpy", "misaki[zh]"]
 try:
     import kokoro_onnx
     import soundfile
     import fastapi
     import uvicorn
+    from misaki.zh import ZHG2P
 except ImportError:
     print("[Local TTS] Installing python dependencies...")
     subprocess.check_call([sys.executable, "-m", "pip", "install"] + required_packages)
@@ -86,22 +87,36 @@ async def text_to_speech(request: SpeechRequest):
     if not request.input.strip():
         raise HTTPException(status_code=400, detail="Input text cannot be empty.")
     
-    lang = "en-us"
+    has_chinese = any('\u4e00' <= char <= '\u9fff' for char in request.input)
     
     voice = request.voice
     available_voices = ["af_bella", "af_sarah", "bf_emma", "af_nicole", "af_sky", "am_adam", "am_michael", "bf_isabella", "bm_george", "bm_lewis"]
     if voice not in available_voices:
         voice = "af_bella"
         
-    print(f"[TTS Synthesizing] '{request.input[:30]}...' -> Voice: {voice}, Lang: {lang}")
-    
     try:
-        samples, sample_rate = kokoro.create(
-            request.input,
-            voice=voice,
-            speed=request.speed,
-            lang=lang
-        )
+        if has_chinese:
+            from misaki.zh import ZHG2P
+            g2p = ZHG2P()
+            phonemes_res = g2p(request.input)
+            phonemes = phonemes_res[0] if isinstance(phonemes_res, tuple) else phonemes_res
+            print(f"[TTS Synthesizing ZH] '{request.input[:30]}...' -> Phonemes: '{phonemes[:30]}...' -> Voice: {voice}")
+            samples, sample_rate = kokoro.create(
+                phonemes,
+                voice=voice,
+                speed=request.speed,
+                lang="z",
+                is_phonemes=True
+            )
+        else:
+            print(f"[TTS Synthesizing EN] '{request.input[:30]}...' -> Voice: {voice}")
+            samples, sample_rate = kokoro.create(
+                request.input,
+                voice=voice,
+                speed=request.speed,
+                lang="en-us",
+                is_phonemes=False
+            )
         
         # Save to temp WAV file
         temp_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
