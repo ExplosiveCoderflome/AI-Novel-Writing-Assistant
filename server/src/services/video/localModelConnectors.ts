@@ -67,13 +67,27 @@ export async function generateLocalImage(params: {
 
     return relativePath;
   } catch (error) {
-    console.warn(`[Offline SD] Stable Diffusion WebUI is offline, generating dark solid color placeholder via ffmpeg: ${error}`);
+    console.warn(`[Offline SD] Stable Diffusion WebUI is offline, copying pre-generated classical Chinese painting placeholder: ${error}`);
     await mkdir(path.dirname(absolutePath), { recursive: true });
-    const colors = ["#08090a", "#1a120c", "#0c151c", "#101815", "#181016"];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    // Generate solid image via ffmpeg
-    await execAsync(`ffmpeg -y -f lavfi -i "color=c=${randomColor}:s=576x1024:d=1" -vframes 1 "${absolutePath}"`);
-    console.log(`[Offline SD] Saved fallback placeholder image to ${absolutePath}`);
+    
+    // Match shotId to get one of the 6 placeholders (e.g. shot_3 -> shot_3.png)
+    const match = params.shotId.match(/shot_(\d+)/);
+    const index = match ? parseInt(match[1], 10) : 1;
+    const placeholderIndex = ((index - 1) % 6) + 1;
+    
+    const placeholderRelPath = `assets/placeholders/shot_${placeholderIndex}.png`;
+    const placeholderAbsPath = path.join(params.rootDir, "public", placeholderRelPath);
+    
+    try {
+      const fsPromise = require("node:fs/promises");
+      await fsPromise.copyFile(placeholderAbsPath, absolutePath);
+      console.log(`[Offline SD] Copied default placeholder shot_${placeholderIndex}.png to ${absolutePath}`);
+    } catch (copyErr) {
+      console.warn(`[Offline SD] Failed to copy placeholder, falling back to solid color: ${copyErr}`);
+      const colors = ["#08090a", "#1a120c", "#0c151c", "#101815", "#181016"];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      await execAsync(`ffmpeg -y -f lavfi -i "color=c=${randomColor}:s=576x1024:d=1" -vframes 1 "${absolutePath}"`);
+    }
     return relativePath;
   }
 }

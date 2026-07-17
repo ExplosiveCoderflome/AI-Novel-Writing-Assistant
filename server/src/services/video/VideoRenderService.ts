@@ -152,14 +152,13 @@ export class VideoRenderService {
     await fs.writeFile(path.join(narrativeDir, "project.json"), JSON.stringify(vProject, null, 2), "utf-8");
     await fs.writeFile(path.join(narrativeDir, "captions.json"), JSON.stringify(captions, null, 2), "utf-8");
 
-    // Spawn async background processing chain:
-    // 1. node scripts/assemble-narration.mjs
-    // 2. node scripts/transcribe-local.mjs (Whisper caption alignment)
-    // 3. node scripts/render-narrative.mjs --mode=final
     const mode = config.mode || "final";
-    const command = `node scripts/assemble-narration.mjs --manifest=narratives/${projectId}/narration-segments.json --project=narratives/${projectId}/project.json && ` +
-                    `node scripts/transcribe-local.mjs --project=narratives/${projectId}/project.json --out=narratives/${projectId}/captions.json && ` +
-                    `node scripts/render-narrative.mjs --narrative=narratives/${projectId} --mode=${mode}`;
+    let command = `node scripts/assemble-narration.mjs --manifest=narratives/${projectId}/narration-segments.json --project=narratives/${projectId}/project.json --captions=narratives/${projectId}/captions.json`;
+
+    // Force skip Whisper transcription alignment entirely to prevent ASR hallucinations on offline silence and rely on precise script subtitles synchronization.
+    const isTtsOnline = false;
+
+    command += ` && node scripts/render-narrative.mjs --narrative=narratives/${projectId} --mode=${mode}`;
 
     console.log(`[VideoRenderService] Running pipeline command in tools/vellum-reel: ${command}`);
 

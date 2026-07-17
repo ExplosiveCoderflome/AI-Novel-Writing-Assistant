@@ -1,0 +1,132 @@
+import os
+import sys
+import subprocess
+import urllib.request
+
+# Reconfigure stdout/stderr to UTF-8 to support Windows console output of Chinese characters
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
+# Paths for Kokoro model
+CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".cache", "kokoro")
+model_path = os.path.join(CACHE_DIR, "kokoro-v0_19.onnx")
+voices_path = os.path.join(CACHE_DIR, "voices.bin")
+
+def download_file(url, dest):
+    print(f"[Local TTS] Downloading {url} -> {dest} ...")
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"})
+    try:
+        with urllib.request.urlopen(req) as response, open(dest, 'wb') as out_file:
+            total_size = int(response.info().get('Content-Length', 0))
+            block_size = 1024 * 1024  # 1MB chunks
+            count = 0
+            while True:
+                chunk = response.read(block_size)
+                if not chunk:
+                    break
+                out_file.write(chunk)
+                count += 1
+                if total_size > 0:
+                    percent = min(100, int(count * block_size * 100 / total_size))
+                    sys.stdout.write(f"\rProgress: {percent}% ({min(total_size, count * block_size) // 1024 // 1024}MB / {total_size // 1024 // 1024}MB)")
+                    sys.stdout.flush()
+        print("\n[Local TTS] Download complete!")
+    except Exception as e:
+        print(f"\n[Local TTS] Download failed: {e}")
+        if os.path.exists(dest):
+            try:
+                os.remove(dest)
+            except:
+                pass
+        raise e
+
+# Check and download ONNX assets if missing
+if not os.path.exists(model_path):
+    download_file("https://huggingface.co/thewh1teagle/Kokoro/resolve/main/kokoro-v0_19.onnx", model_path)
+
+if not os.path.exists(voices_path):
+    download_file("https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/voices.bin", voices_path)
+
+# Auto-install dependencies if not present
+required_packages = ["kokoro-onnx", "soundfile", "fastapi", "uvicorn", "pydantic", "numpy"]
+try:
+    import kokoro_onnx
+    import soundfile
+    import fastapi
+    import uvicorn
+except ImportError:
+    print("[Local TTS] Installing python dependencies...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install"] + required_packages)
+    print("[Local TTS] Dependencies installed successfully!")
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+import tempfile
+import soundfile as sf
+from kokoro_onnx import Kokoro
+
+app = FastAPI(title="VellumReel Local Offline TTS Server")
+
+print(f"Loading local Kokoro ONNX model from: {model_path}...")
+kokoro = Kokoro(model_path, voices_path)
+print("Local Kokoro TTS Engine initialized successfully!")
+
+class SpeechRequest(BaseModel):
+    model: str = "kokoro"
+    input: str
+    voice: str = "af_bella"
+    speed: float = 1.0
+
+@app.post("/v1/audio/speech")
+async def text_to_speech(request: SpeechRequest):
+    if not request.input.strip():
+        raise HTTPException(status_code=400, detail="Input text cannot be empty.")
+    
+    lang = "en-us"
+    
+    voice = request.voice
+    available_voices = ["af_bella", "af_sarah", "bf_emma", "af_nicole", "af_sky", "am_adam", "am_michael", "bf_isabella", "bm_george", "bm_lewis"]
+    if voice not in available_voices:
+        voice = "af_bella"
+        
+    print(f"[TTS Synthesizing] '{request.input[:30]}...' -> Voice: {voice}, Lang: {lang}")
+    
+    try:
+        samples, sample_rate = kokoro.create(
+            request.input,
+            voice=voice,
+            speed=request.speed,
+            lang=lang
+        )
+        
+        # Save to temp WAV file
+        temp_wav = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        temp_wav.close()
+        
+        sf.write(temp_wav.name, samples, sample_rate)
+        
+        # Convert WAV to MP3 using ffmpeg (Remotion and browser friendly)
+        temp_mp3 = temp_wav.name.replace(".wav", ".mp3")
+        subprocess.run(["ffmpeg", "-y", "-i", temp_wav.name, "-b:a", "192k", temp_mp3], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # Clean up temporary WAV
+        try:
+            os.remove(temp_wav.name)
+        except:
+            pass
+            
+        return FileResponse(temp_mp3, media_type="audio/mpeg", filename="speech.mp3")
+        
+    except Exception as e:
+        print(f"Synthesis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"TTS synthesis error: {str(e)}")
+
+if __name__ == "__main__":
+    import uvicorn
+    print("\nStarting local TTS API server at http://127.0.0.1:8000 ...")
+    print("Verify endpoint: POST http://127.0.0.1:8000/v1/audio/speech")
+    uvicorn.run(app, host="127.0.0.1", port=8000)

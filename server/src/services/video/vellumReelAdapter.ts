@@ -105,6 +105,53 @@ function mapTransition(trans?: string): "crossfade" | "cut" | "dip" {
   return "crossfade";
 }
 
+function splitLongText(text: string, startMs: number, endMs: number): Array<{ text: string; startMs: number; endMs: number }> {
+  const maxLen = 20;
+  if (text.length <= maxLen) {
+    return [{ text, startMs, endMs }];
+  }
+
+  // Split by punctuation
+  const parts = text.split(/([，。；？！、\s]+)/).filter(p => p.trim());
+  
+  const groups: string[] = [];
+  let current = "";
+  for (const part of parts) {
+    if ((current + part).length > maxLen) {
+      if (current) groups.push(current);
+      current = part;
+    } else {
+      current += part;
+    }
+  }
+  if (current) groups.push(current);
+
+  if (groups.length === 1 && groups[0].length > maxLen) {
+    const chars = groups[0];
+    const subGroups: string[] = [];
+    for (let i = 0; i < chars.length; i += maxLen) {
+      subGroups.push(chars.slice(i, i + maxLen));
+    }
+    const count = subGroups.length;
+    const duration = endMs - startMs;
+    const step = duration / count;
+    return subGroups.map((txt, idx) => ({
+      text: txt,
+      startMs: Math.round(startMs + idx * step),
+      endMs: Math.round(startMs + (idx + 1) * step),
+    }));
+  }
+
+  const count = groups.length;
+  const duration = endMs - startMs;
+  const step = duration / count;
+  return groups.map((txt, idx) => ({
+    text: txt,
+    startMs: Math.round(startMs + idx * step),
+    endMs: Math.round(startMs + (idx + 1) * step),
+  }));
+}
+
 /**
  * Adapts standard VideoScript Output to VellumReel project.json schema.
  */
@@ -135,12 +182,36 @@ export function adaptToVellumReelProject(
       grade: mapGrade(scene.mood),
     });
 
-    captions.push({
-      startMs: currentMs,
-      endMs: currentMs + durationMs,
-      text: scene.narration,
-      kind: "narration",
-      emphasis: [],
+    const splitCaps = splitLongText(scene.narration, currentMs, currentMs + durationMs);
+    splitCaps.forEach((subCap) => {
+      let kind: "narration" | "dialogue" | "quote" = "narration";
+      const text = subCap.text;
+      if (
+        text.startsWith('“') || 
+        text.startsWith('‘') || 
+        text.endsWith('”') || 
+        text.endsWith('’') ||
+        text.includes('“') ||
+        text.includes('”')
+      ) {
+        kind = "dialogue";
+      }
+
+      const emphasis: string[] = [];
+      const keywords = ['宝二哥', '林姑娘', '黛玉', '宝玉', '太虚幻境', '幻影', '眼泪', '悲剧', '假作真时', '兴衰', '琉璃'];
+      for (const kw of keywords) {
+        if (text.includes(kw)) {
+          emphasis.push(kw);
+        }
+      }
+
+      captions.push({
+        startMs: subCap.startMs,
+        endMs: subCap.endMs,
+        text,
+        kind,
+        emphasis,
+      });
     });
 
     currentMs += durationMs;

@@ -6,6 +6,7 @@ import {publicPath, readJson, resolveArg, writeJson} from './_shared.mjs';
 const manifestFile = resolveArg('manifest', 'narration-segments.json');
 const projectFile = resolveArg('project', 'project.json');
 const syncMapFile = resolveArg('sync-map', 'out/qc/voice-sync-map.json');
+const captionsFile = resolveArg('captions', 'captions.json');
 const manifest = await readJson(manifestFile);
 const project = await readJson(projectFile);
 const gapSeconds = manifest.gapMs / 1000;
@@ -70,6 +71,8 @@ const syncSegments = manifest.segments.map((segment, index) => {
 });
 const totalMs = syncSegments.at(-1).endMs;
 
+const originalScenes = project.scenes.map(s => ({ id: s.id, startMs: s.startMs, endMs: s.endMs }));
+
 project.format.durationSeconds = totalMs / 1000;
 project.audio.narration = manifest.output;
 project.scenes = project.scenes.map((scene, index) => ({
@@ -107,6 +110,53 @@ if (project.narrative && Array.isArray(project.narrative.beats)) {
   }
 
   project.narrative.beats = mappedBeats;
+}
+
+let captions = null;
+try {
+  captions = await readJson(captionsFile);
+} catch {
+  // Ignore
+}
+if (captions && Array.isArray(captions)) {
+  captions = captions.map((caption) => {
+    // Find the original scene that contains this caption
+    const origSceneIndex = originalScenes.findIndex(s => caption.startMs >= s.startMs && caption.startMs < s.endMs);
+    if (origSceneIndex !== -1 && syncSegments[origSceneIndex]) {
+      const origScene = originalScenes[origSceneIndex];
+      const newScene = syncSegments[origSceneIndex];
+      
+      const origDur = origScene.endMs - origScene.startMs;
+      const newDur = newScene.endMs - newScene.startMs;
+      
+      const relStart = (caption.startMs - origScene.startMs) / origDur;
+      const relEnd = (caption.endMs - origScene.startMs) / origDur;
+      
+      const newStartMs = Math.round(newScene.startMs + relStart * newDur);
+      const newEndMs = Math.round(newScene.startMs + relEnd * newDur);
+      
+      return {
+        ...caption,
+        startMs: newStartMs,
+        endMs: newEndMs,
+      };
+    }
+    return caption;
+  });
+
+  // Sort and clamp captions to ensure chronological, non-overlapping times
+  captions.sort((a, b) => a.startMs - b.startMs);
+  for (let i = 0; i < captions.length; i++) {
+    if (i > 0) {
+      captions[i].startMs = Math.max(captions[i].startMs, captions[i - 1].endMs);
+    }
+    if (captions[i].endMs <= captions[i].startMs) {
+      captions[i].endMs = captions[i].startMs + 100;
+    }
+  }
+
+  await writeJson(captionsFile, captions);
+  console.log('已按旁白边界同步更新 captions.json。');
 }
 
 await writeJson(projectFile, project);
