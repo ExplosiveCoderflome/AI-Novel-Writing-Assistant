@@ -14,8 +14,10 @@ export const BackgroundScene: React.FC<{
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
-  const transitionFrames = scene.transition === 'cut' ? 1 : scene.transition === 'dip' ? 24 : 14;
-  const fade = interpolate(frame, [0, transitionFrames, Math.max(0, durationInFrames - transitionFrames), durationInFrames], [0, 1, 1, 0], {
+  const rawTransition = scene.transition === 'cut' ? 1 : scene.transition === 'dip' ? 24 : 14;
+  const maxTransition = Math.max(1, Math.floor(durationInFrames / 3));
+  const transitionFrames = Math.min(rawTransition, maxTransition);
+  const fade = interpolate(frame, [0, transitionFrames, durationInFrames - transitionFrames, durationInFrames], [0, 1, 1, 0], {
     extrapolateLeft: 'clamp', extrapolateRight: 'clamp',
   });
   const travel = 0.045 + scene.intensity * 0.075;

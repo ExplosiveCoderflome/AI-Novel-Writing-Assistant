@@ -11,8 +11,8 @@ if hasattr(sys.stderr, "reconfigure"):
 
 # Paths for Kokoro model
 CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".cache", "kokoro")
-model_path = os.path.join(CACHE_DIR, "kokoro-v0_19.onnx")
-voices_path = os.path.join(CACHE_DIR, "voices.bin")
+model_path = os.path.join(CACHE_DIR, "kokoro-v1.0.onnx")
+voices_path = os.path.join(CACHE_DIR, "voices-v1.0.bin")
 
 def download_file(url, dest):
     print(f"[Local TTS] Downloading {url} -> {dest} ...")
@@ -45,10 +45,10 @@ def download_file(url, dest):
 
 # Check and download ONNX assets if missing
 if not os.path.exists(model_path):
-    download_file("https://huggingface.co/thewh1teagle/Kokoro/resolve/main/kokoro-v0_19.onnx", model_path)
+    download_file("https://huggingface.co/fastrtc/kokoro-onnx/resolve/main/kokoro-v1.0.onnx", model_path)
 
 if not os.path.exists(voices_path):
-    download_file("https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files/voices.bin", voices_path)
+    download_file("https://huggingface.co/fastrtc/kokoro-onnx/resolve/main/voices-v1.0.bin", voices_path)
 
 # Auto-install dependencies if not present
 required_packages = ["kokoro-onnx", "soundfile", "fastapi", "uvicorn", "pydantic", "numpy", "misaki[zh]"]
@@ -90,17 +90,38 @@ async def text_to_speech(request: SpeechRequest):
     has_chinese = any('\u4e00' <= char <= '\u9fff' for char in request.input)
     
     voice = request.voice
-    available_voices = ["af_bella", "af_sarah", "bf_emma", "af_nicole", "af_sky", "am_adam", "am_michael", "bf_isabella", "bm_george", "bm_lewis"]
-    if voice not in available_voices:
-        voice = "af_bella"
+    synthesis_text = request.input.strip()
+    
+    if has_chinese:
+        import re
+        # Strip generic character name prefix (e.g., "Name: text" or "Name（directions）: text")
+        match = re.match(r'^([^：:（(]+)(?:（[^）]+）|\([^)]+\))?[：:]\s*(.*)$', synthesis_text)
+        if match:
+            synthesis_text = match.group(2).strip()
+            
+        # Clean parentheticals from speech (e.g. "(旁白)", "（吸气）")
+        synthesis_text = re.sub(r'^[（(][^）)]+[）)]\s*', '', synthesis_text).strip()
+        # If text is empty (like just a Stage direction "（无旁白）"), yield a short silent audio track
+        if not synthesis_text:
+            synthesis_text = "..."
+            
+        # Map voice based on the gender prefix of the requested voice
+        if voice.startswith("am_") or voice.startswith("bm_") or voice.startswith("zm_"):
+            voice = "zm_yunjian"  # Native Chinese Male
+        else:
+            voice = "zf_xiaoxiao"  # Native Chinese Female
+    else:
+        available_voices = ["af_bella", "af_sarah", "bf_emma", "af_nicole", "af_sky", "am_adam", "am_michael", "bf_isabella", "bm_george", "bm_lewis"]
+        if voice not in available_voices:
+            voice = "af_bella"
         
     try:
         if has_chinese:
             from misaki.zh import ZHG2P
             g2p = ZHG2P()
-            phonemes_res = g2p(request.input)
+            phonemes_res = g2p(synthesis_text)
             phonemes = phonemes_res[0] if isinstance(phonemes_res, tuple) else phonemes_res
-            print(f"[TTS Synthesizing ZH] '{request.input[:30]}...' -> Phonemes: '{phonemes[:30]}...' -> Voice: {voice}")
+            print(f"[TTS Synthesizing ZH] '{synthesis_text[:30]}...' -> Phonemes: '{phonemes[:30]}...' -> Voice: {voice}")
             samples, sample_rate = kokoro.create(
                 phonemes,
                 voice=voice,
@@ -109,9 +130,9 @@ async def text_to_speech(request: SpeechRequest):
                 is_phonemes=True
             )
         else:
-            print(f"[TTS Synthesizing EN] '{request.input[:30]}...' -> Voice: {voice}")
+            print(f"[TTS Synthesizing EN] '{synthesis_text[:30]}...' -> Voice: {voice}")
             samples, sample_rate = kokoro.create(
-                request.input,
+                synthesis_text,
                 voice=voice,
                 speed=request.speed,
                 lang="en-us",
