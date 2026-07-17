@@ -200,7 +200,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "border-r bg-muted/20 p-3 transition-[width] duration-200",
+        "flex h-full min-h-0 flex-col border-r bg-muted/20 p-3 transition-[width] duration-200",
         collapsed ? "w-[72px]" : "w-64",
       )}
     >
@@ -218,7 +218,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </Button>
       </div>
 
-      <nav className="space-y-4">
+      <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1">
         {navGroups.map((group) => (
           <div key={group.title} className="space-y-1">
             {!collapsed ? (
