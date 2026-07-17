@@ -7,6 +7,7 @@
 ### 2026-07-17
 
 - README 现在补充了对 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill) 的独立介绍，方便想在 Codex 本地工作区里直接推进长篇中文小说的人，更快理解这条 Skill 化工作流和本项目完整工作台形态之间的关系。
+- 仓库首页顶部现在也新增了 `Ani Book Skill` 的宣传入口与直达链接，第一次进入 README 时就能更快看到这条面向 Codex 的长篇创作工作流。
 - 现在可以更清楚地区分两条互补路径：如果你想用带界面、运行时和资产管理的完整产品，可以从本仓库开始；如果你更想直接在 Codex 里推进可恢复的长篇创作流程，也可以沿 README 进入 `Ani Book Skill`。
 
 ### 2026-04-19

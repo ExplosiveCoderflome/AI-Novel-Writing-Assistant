@@ -4,6 +4,10 @@
 当前开发主线：
 `Creative Hub + 自动导演开书 + 整本生产主链 + 写法引擎`
 
+> 想直接在 Codex 里推进长篇中文小说工作流？
+>
+> 推荐看看我新开发的 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill)：把方向判断、故事发动机、章节推进、审校修复和连续性管理串成一条可恢复的本地创作流程。
+
 ![Monorepo](https://img.shields.io/badge/Monorepo-pnpm%20workspace-3C873A)
 ![Frontend](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB)
 ![Backend](https://img.shields.io/badge/Backend-Express%20%2B%20Prisma-111827)
@@ -119,6 +123,7 @@
 ### 2026-07-17
 
 最新更新：README 现在补充了对 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill) 的独立介绍，方便想在 Codex 本地工作区里直接推进长篇中文小说的人，更快理解这条 Skill 化工作流和本项目完整工作台形态之间的关系。
+- 仓库首页顶部现在也新增了 `Ani Book Skill` 的宣传入口与直达链接，第一次打开 README 就能直接看到这条面向 Codex 的长篇创作工作流。
 - 如果你更想要一个带前后端界面、资产管理、运行时和可视化创作工作台的完整产品，可以先从这个仓库开始。
 - 如果你更想直接在 Codex 里用可恢复的长篇工作流推进规划、章节写作、审校修复和连续性维护，现在也可以从 README 直接跳转到 `Ani Book Skill`。
 - 对刚接触这一套方法的新手来说，README 现在也更清楚地区分了“产品化落地”和“Skill 化创作流程”这两条互补路径，减少第一次了解项目时的理解成本。
