@@ -4,6 +4,7 @@ packages:
   - server
   - site
   - shared
+  - tools/vellum-reel
 injectWorkspacePackages: true
 allowBuilds:
   '@prisma/engines': true

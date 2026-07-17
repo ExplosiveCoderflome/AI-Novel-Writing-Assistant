@@ -1,0 +1,37 @@
+# Dependencies and generated output
+node_modules/
+out/
+.cache/
+*.log
+.DS_Store
+
+# Local credentials
+.env
+.env.*
+!.env.example
+
+# Private productions: keep the reusable engine public, projects private
+/books/
+/narratives/
+/project.json
+/captions.json
+/captions.provenance.json
+/narration-segments.json
+/ASSET_PROVENANCE.md
+/scripts/build-ashen-chapter.py
+
+# User media. Public demos are intentionally asset-free and use CSS fallbacks.
+/public/assets/**
+!/public/assets/.gitkeep
+!/public/assets/brand/
+!/public/assets/brand/**
+
+# Common raw media and editorial files
+*.mp3
+*.wav
+*.m4a
+*.mp4
+*.mov
+*.mkv
+*.docx
+*.srt

@@ -96,3 +96,20 @@ export async function checkBridgeHealth() {
   const { data } = await apiClient.get<ApiResponse<BridgeHealthResult>>("/video/bridge/health");
   return data;
 }
+
+export interface VideoOfflineSettings {
+  offlineMode: boolean;
+  ollamaModel: string;
+  sdUrl: string;
+  ttsUrl: string;
+}
+
+export async function getVideoOfflineSettings() {
+  const { data } = await apiClient.get<ApiResponse<VideoOfflineSettings>>("/video/offline-settings");
+  return data;
+}
+
+export async function saveVideoOfflineSettings(settings: Partial<VideoOfflineSettings>) {
+  const { data } = await apiClient.post<ApiResponse<null>>("/video/offline-settings", settings);
+  return data;
+}

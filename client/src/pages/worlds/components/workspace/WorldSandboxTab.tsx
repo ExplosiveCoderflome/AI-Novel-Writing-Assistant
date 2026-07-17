@@ -77,40 +77,48 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
   };
 
   // VCR Simulation tick hook
+  const runBackendTick = async (currentTick: number) => {
+    try {
+      const res = await fetch(`/api/worlds/${worldId}/sandbox/tick`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tickIndex: currentTick,
+        }),
+      });
+      const result = await res.json();
+      if (result.success && result.data) {
+        setLocations(result.data.locations);
+        setCharacters(result.data.characters);
+        if (result.data.events && result.data.events.length > 0) {
+          result.data.events.forEach((evt: string) => {
+            toast.success(`事件: ${evt}`);
+          });
+        }
+        return true;
+      }
+    } catch (e) {
+      console.error("Failed to run tick on backend", e);
+    }
+    return false;
+  };
+
+  // VCR Simulation tick hook
   useEffect(() => {
     let interval: any = null;
     if (isPlaying) {
-      interval = setInterval(() => {
-        setTick(prev => prev + 1);
-        
-        // Simple mock physics & ecology tick variables update
-        setLocations(prev =>
-          prev.map(loc => {
-            const tensionNoise = Math.floor(Math.random() * 6) - 3;
-            const newTension = Math.max(0, Math.min(100, loc.tension + tensionNoise));
-            return {
-              ...loc,
-              temp: Number((loc.temp + (Math.random() * 0.4 - 0.2)).toFixed(1)),
-              tension: newTension
-            };
-          })
-        );
-
-        setCharacters(prev =>
-          prev.map(char => {
-            const energyDelta = char.energy < 20 ? 15 : -2;
-            const hungerDelta = char.hunger > 80 ? -25 : 3;
-            return {
-              ...char,
-              energy: Math.max(0, Math.min(100, char.energy + energyDelta)),
-              hunger: Math.max(0, Math.min(100, char.hunger + hungerDelta))
-            };
-          })
-        );
-      }, 2000);
+      interval = setInterval(async () => {
+        const nextTick = tick + 1;
+        const success = await runBackendTick(tick);
+        if (success) {
+          setTick(nextTick);
+        }
+      }, 3000);
     }
     return () => clearInterval(interval);
-  }, [isPlaying]);
+  }, [isPlaying, tick, worldId]);
 
   // Fetch schema lists on load
   const loadSchemas = async () => {
@@ -295,9 +303,14 @@ export default function WorldSandboxTab({ worldId }: { worldId: string }) {
                   variant="outline"
                   size="sm"
                   disabled={isPlaying}
-                  onClick={() => {
-                    setTick(prev => prev + 1);
-                    toast.success("单步步进 (1 Tick)");
+                  onClick={async () => {
+                    const success = await runBackendTick(tick);
+                    if (success) {
+                      setTick(prev => prev + 1);
+                      toast.success("单步步进 (1 Tick) 成功");
+                    } else {
+                      toast.error("单步步进失败");
+                    }
                   }}
                 >
                   ⏭ 单步进

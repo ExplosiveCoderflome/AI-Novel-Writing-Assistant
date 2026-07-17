@@ -93,3 +93,60 @@ test("VirtualCameraNarrativeEngine - TimeConsistencyChecker Logic", () => {
   assert.equal(failRes.issues.length, 1);
   assert.match(failRes.issues[0], /时空逻辑悖论: 角色 焦大 已死亡/);
 });
+
+test("VirtualCameraNarrativeEngine - Spatial Teleport and Power Rules Cost Paradox Detection", () => {
+  const engine = new VirtualCameraNarrativeEngine();
+
+  const characterStates = [
+    { name: "林黛玉", isAlive: true, locationId: "loc_xiaoxiang" }
+  ];
+
+  const locations = [
+    { id: "loc_xiaoxiang", name: "潇湘馆" },
+    { id: "loc_fashan", name: "大观园假山" }
+  ];
+
+  const worldRules = [
+    { name: "降龙十八掌", cost: "极大内力损耗与疲惫" }
+  ];
+
+  const adjacencyMap = {
+    "loc_xiaoxiang": [] // Not adjacent to fashan
+  };
+
+  // A. Character teleport paradox -> should fail
+  const spatialFail = engine.checkConsistency(
+    "林黛玉在大观园假山现身并独自暗自流泪。",
+    characterStates,
+    { locations, worldRules: [], adjacencyMap }
+  );
+  assert.equal(spatialFail.pass, false);
+  assert.equal(spatialFail.issues.length, 1);
+  assert.match(spatialFail.issues[0], /时空逻辑悖论: 角色 林黛玉 描写在大观园假山活动/);
+
+  // B. Active teleport with motion text -> should pass
+  const spatialPass = engine.checkConsistency(
+    "林黛玉决定去大观园假山，她一路走向大观园假山，在假山旁现身流泪。",
+    characterStates,
+    { locations, worldRules: [], adjacencyMap }
+  );
+  assert.equal(spatialPass.pass, true);
+
+  // C. Power rules cost paradox -> should fail
+  const powerFail = engine.checkConsistency(
+    "贾宝玉催动施展降龙十八掌，金龙呼啸而出，瞬间击碎了假山石壁。",
+    [{ name: "贾宝玉", isAlive: true, locationId: "loc_fashan" }],
+    { locations, worldRules, adjacencyMap }
+  );
+  assert.equal(powerFail.pass, false);
+  assert.equal(powerFail.issues.length, 1);
+  assert.match(powerFail.issues[0], /规则代价漏洞: 文中描写了施展\/催动『降龙十八掌』/);
+
+  // D. Power rules cost matched -> should pass
+  const powerPass = engine.checkConsistency(
+    "贾宝玉爆发施展降龙十八掌，大呼一声，随即力气消耗殆尽，感到极度疲惫，吐血倒地。",
+    [{ name: "贾宝玉", isAlive: true, locationId: "loc_fashan" }],
+    { locations, worldRules, adjacencyMap }
+  );
+  assert.equal(powerPass.pass, true);
+});

@@ -1,0 +1,57 @@
+{
+  "name": "vellum-reel",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "Text-first vertical video pipeline for book notes and long-form narrative",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SilentFleetKK/vellum-reel.git"
+  },
+  "homepage": "https://github.com/SilentFleetKK/vellum-reel#readme",
+  "bugs": "https://github.com/SilentFleetKK/vellum-reel/issues",
+  "license": "MIT",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts BookVideo out/book-video.mp4 --codec=h264 --crf=18 --pixel-format=yuv420p",
+    "render:quick": "remotion render src/index.ts BookVideo out/book-video-preview.mp4 --codec=h264 --crf=24 --scale=0.5 --pixel-format=yuv420p",
+    "render:book": "node scripts/render-book.mjs",
+    "render:narrative": "node scripts/render-narrative.mjs",
+    "demo:narrative": "node scripts/render-narrative.mjs --mode=quick",
+    "demo:book": "node scripts/render-book.mjs --mode=quick",
+    "poster": "remotion still src/index.ts SocialPreview docs/social-preview.jpg --image-format=jpeg --jpeg-quality=92",
+    "poster:en": "remotion still src/index.ts SocialPreviewEn docs/social-preview-en.jpg --image-format=jpeg --jpeg-quality=92",
+    "captions:estimate": "node scripts/estimate-captions.mjs",
+    "captions:import": "node scripts/import-srt.mjs",
+    "captions:align": "node scripts/transcribe-local.mjs",
+    "timeline:sync": "node scripts/sync-timeline.mjs",
+    "voice:elevenlabs": "node scripts/generate-voice.mjs",
+    "voice:assemble": "node scripts/assemble-narration.mjs",
+    "validate:project": "node scripts/validate-project.mjs --project=examples/book-demo/project.json --captions=examples/book-demo/captions.json",
+    "validate:examples": "npm run validate:project && node scripts/validate-project.mjs --project=examples/narrative-demo/project.json --captions=examples/narrative-demo/captions.json",
+    "inspect": "node scripts/inspect-render.mjs out/book-video.mp4",
+    "produce:preview": "node scripts/production.mjs --mode=quick",
+    "produce:final": "node scripts/production.mjs --mode=final",
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run validate:examples && npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "@remotion/captions": "4.0.489",
+    "@remotion/cli": "4.0.489",
+    "@remotion/install-whisper-cpp": "4.0.489",
+    "@remotion/media": "4.0.489",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.489",
+    "zod": "4.3.6"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -3,7 +3,7 @@
  *
  * 最小前端：项目创建、脚本生成、Bridge 状态和渲染提交。
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Clapperboard,
@@ -17,6 +17,8 @@ import {
   Video,
   Wifi,
   WifiOff,
+  Cpu,
+  Settings,
 } from "lucide-react";
 import {
   checkBridgeHealth,
@@ -26,6 +28,8 @@ import {
   getVideoRenderStatus,
   listVideoProjects,
   submitVideoRender,
+  getVideoOfflineSettings,
+  saveVideoOfflineSettings,
   type CreateVideoProjectPayload,
   type VideoProject,
   type VideoScriptOptions,
@@ -156,6 +160,32 @@ export default function VideoWorkspacePage() {
     queryKey: queryKeys.video.bridgeHealth,
     queryFn: checkBridgeHealth,
     staleTime: 30_000,
+  });
+
+  const offlineSettingsQuery = useQuery({
+    queryKey: ["video", "offline-settings"],
+    queryFn: () => getVideoOfflineSettings(),
+  });
+
+  const [offlineForm, setOfflineForm] = useState({
+    offlineMode: false,
+    ollamaModel: "deepseek-r1:8b",
+    sdUrl: "http://127.0.0.1:7860",
+    ttsUrl: "http://127.0.0.1:8000/v1",
+  });
+
+  useEffect(() => {
+    if (offlineSettingsQuery.data?.data) {
+      setOfflineForm(offlineSettingsQuery.data.data);
+    }
+  }, [offlineSettingsQuery.data]);
+
+  const saveOfflineSettingsMutation = useMutation({
+    mutationFn: (payload: typeof offlineForm) => saveVideoOfflineSettings(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["video", "offline-settings"] });
+      toast.success("本地离线设置已保存。");
+    },
   });
 
   const projects = useMemo(() => projectsQuery.data?.data ?? [], [projectsQuery.data?.data]);
@@ -363,6 +393,77 @@ export default function VideoWorkspacePage() {
                 <Plus className="h-4 w-4" />
               )}
               创建视频项目
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* 本地离线设置卡片 */}
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle className="text-lg">
+              <Cpu className="mr-2 inline h-5 w-5" />
+              本地离线模型设置
+            </CardTitle>
+            <CardDescription>配置完全离线模式下的本地模型服务接口</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300"
+                checked={offlineForm.offlineMode}
+                onChange={(e) => setOfflineForm((c) => ({ ...c, offlineMode: e.target.checked }))}
+              />
+              <span>开启本地完全离线模式</span>
+            </label>
+
+            {offlineForm.offlineMode && (
+              <>
+                <label className="block space-y-1.5 text-sm">
+                  <span className="font-medium">Ollama 模型名称</span>
+                  <input
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                    value={offlineForm.ollamaModel}
+                    placeholder="例如: deepseek-r1:8b"
+                    onChange={(e) => setOfflineForm((c) => ({ ...c, ollamaModel: e.target.value }))}
+                  />
+                </label>
+
+                <label className="block space-y-1.5 text-sm">
+                  <span className="font-medium">Stable Diffusion API 地址</span>
+                  <input
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                    value={offlineForm.sdUrl}
+                    placeholder="例如: http://127.0.0.1:7860"
+                    onChange={(e) => setOfflineForm((c) => ({ ...c, sdUrl: e.target.value }))}
+                  />
+                </label>
+
+                <label className="block space-y-1.5 text-sm">
+                  <span className="font-medium">本地 Speech (TTS) API 地址</span>
+                  <input
+                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                    value={offlineForm.ttsUrl}
+                    placeholder="例如: http://127.0.0.1:8000/v1"
+                    onChange={(e) => setOfflineForm((c) => ({ ...c, ttsUrl: e.target.value }))}
+                  />
+                </label>
+              </>
+            )}
+
+            <Button
+              type="button"
+              className="w-full"
+              variant="outline"
+              disabled={saveOfflineSettingsMutation.isPending}
+              onClick={() => saveOfflineSettingsMutation.mutate(offlineForm)}
+            >
+              {saveOfflineSettingsMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Settings className="h-4 w-4" />
+              )}
+              保存离线配置
             </Button>
           </CardContent>
         </Card>

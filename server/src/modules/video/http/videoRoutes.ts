@@ -10,6 +10,7 @@ import { validate } from "../../../middleware/validate";
 import { videoProjectService } from "../../../services/video/VideoProjectService";
 import { videoScriptService } from "../../../services/video/VideoScriptService";
 import { videoRenderService } from "../../../services/video/VideoRenderService";
+import { prisma } from "../../../db/prisma";
 
 const router = Router();
 
@@ -178,6 +179,87 @@ router.get("/bridge/recommend-pipeline", async (req, res, next) => {
       success: true,
       data,
       message: "Pipeline recommendation loaded.",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ── Offline Settings ──────────────────────────────────────
+
+router.get("/offline-settings", async (_req, res, next) => {
+  try {
+    const [offlineMode, ollamaModel, sdUrl, ttsUrl] = await Promise.all([
+      prisma.appSetting.findUnique({ where: { key: "video.offlineMode" } }),
+      prisma.appSetting.findUnique({ where: { key: "video.ollamaModel" } }),
+      prisma.appSetting.findUnique({ where: { key: "video.sdUrl" } }),
+      prisma.appSetting.findUnique({ where: { key: "video.ttsUrl" } }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        offlineMode: offlineMode?.value === "true",
+        ollamaModel: ollamaModel?.value || "deepseek-r1:8b",
+        sdUrl: sdUrl?.value || "http://127.0.0.1:7860",
+        ttsUrl: ttsUrl?.value || "http://127.0.0.1:8000/v1",
+      },
+      message: "Offline settings loaded.",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/offline-settings", async (req, res, next) => {
+  try {
+    const { offlineMode, ollamaModel, sdUrl, ttsUrl } = req.body || {};
+
+    const updates = [];
+    if (offlineMode !== undefined) {
+      updates.push(
+        prisma.appSetting.upsert({
+          where: { key: "video.offlineMode" },
+          update: { value: String(offlineMode) },
+          create: { key: "video.offlineMode", value: String(offlineMode) },
+        })
+      );
+    }
+    if (ollamaModel !== undefined) {
+      updates.push(
+        prisma.appSetting.upsert({
+          where: { key: "video.ollamaModel" },
+          update: { value: String(ollamaModel) },
+          create: { key: "video.ollamaModel", value: String(ollamaModel) },
+        })
+      );
+    }
+    if (sdUrl !== undefined) {
+      updates.push(
+        prisma.appSetting.upsert({
+          where: { key: "video.sdUrl" },
+          update: { value: String(sdUrl) },
+          create: { key: "video.sdUrl", value: String(sdUrl) },
+        })
+      );
+    }
+    if (ttsUrl !== undefined) {
+      updates.push(
+        prisma.appSetting.upsert({
+          where: { key: "video.ttsUrl" },
+          update: { value: String(ttsUrl) },
+          create: { key: "video.ttsUrl", value: String(ttsUrl) },
+        })
+      );
+    }
+
+    if (updates.length > 0) {
+      await Promise.all(updates);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Offline settings saved.",
     });
   } catch (error) {
     next(error);

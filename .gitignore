@@ -41,3 +41,6 @@ server/prisma-diff-migrations-to-schema.sql
 .cursor/
 server/test-run.db
 server/dev.db.backup
+红楼梦.txt
+server/dev-backup-world-sandbox.db
+scratch/

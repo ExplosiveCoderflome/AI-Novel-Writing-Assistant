@@ -1,0 +1,21 @@
+{
+  "id": "field-notes-demo",
+  "brand": {"name": "VellumReel", "nameZh": "卷影", "tagline": "Narrative video, shaped by text.", "edition": "OPEN EDITION"},
+  "book": {
+    "title": "《远方手记》",
+    "author": "公开演示 / 虚构作品",
+    "englishTitle": "field notes",
+    "strapline": "把阅读感受变成可复用的影像叙事",
+    "cornerMark": "读",
+    "coverTop": "VELLUMREEL",
+    "coverAuthor": "OPEN DEMO"
+  },
+  "format": {"width": 1080, "height": 1920, "fps": 30, "durationSeconds": 28},
+  "style": {"accent": "#c8aa68", "subtitle": "#fffaf0", "overlayOpacity": 0.38, "grainOpacity": 0.08, "fontFamily": "Songti SC, STSong, Noto Serif CJK SC, serif", "surface": "#0b0c0d", "muted": "#a7a298"},
+  "audio": {"narration": "", "narrationVolume": 1, "bgm": "", "bgmVolume": 0.08},
+  "narration": ["我们以为远方是一个地点。", "后来才明白，远方是看待生活的另一种尺度。"],
+  "scenes": [
+    {"startMs": 0, "endMs": 14000, "image": "", "focus": "50% 55%", "fallback": ["#171812", "#75623d", "#111715"], "motion": "push", "intensity": 0.35, "transition": "crossfade", "grade": "amber"},
+    {"startMs": 14000, "endMs": 28000, "image": "", "focus": "44% 60%", "fallback": ["#101819", "#5e716d", "#0b1011"], "motion": "pan-right", "intensity": 0.5, "transition": "dip", "grade": "verdigris"}
+  ]
+}

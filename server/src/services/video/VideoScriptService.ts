@@ -2,10 +2,12 @@
  * 视频脚本生成服务
  *
  * 通过 Prompt Registry 调用 AI，将小说章节内容改编为视频脚本。
+ * 支持完全离线模式下路由至本地 Ollama。
  */
 import { runStructuredPrompt } from "../../prompting/core/promptRunner";
 import { novelToVideoScriptPrompt, novelTrailerScriptPrompt } from "../../prompting/prompts/video/video.prompts";
 import { videoProjectService } from "./VideoProjectService";
+import { prisma } from "../../db/prisma";
 
 export interface VideoScriptOptions {
   provider?: string;
@@ -47,9 +49,28 @@ export class VideoScriptService {
       targetDurationSec: String(options.targetDurationSec ?? 60),
       visualStyle: options.visualStyle ?? "cinematic",
     };
+
+    // Determine if offline mode is enabled
+    const offlineModeSetting = await prisma.appSetting.findUnique({
+      where: { key: "video.offlineMode" },
+    });
+    const isOffline = offlineModeSetting?.value === "true";
+
+    let provider = options.provider;
+    let model = options.model;
+
+    if (isOffline) {
+      provider = "ollama";
+      const modelSetting = await prisma.appSetting.findUnique({
+        where: { key: "video.ollamaModel" },
+      });
+      model = modelSetting?.value || "deepseek-r1:8b";
+      console.log(`[Offline Mode] Forcing script generation through Ollama. Model: ${model}`);
+    }
+
     const promptOptions = {
-      provider: options.provider,
-      model: options.model,
+      provider,
+      model,
       temperature: options.temperature ?? 0.5,
     };
 

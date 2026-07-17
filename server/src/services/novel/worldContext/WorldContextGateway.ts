@@ -8,6 +8,8 @@ import type {
 } from "@ai-novel/shared/types/storyWorldSlice";
 import { NovelWorldSliceService } from "../storyWorldSlice/NovelWorldSliceService";
 import { NovelWorldInstanceService } from "./NovelWorldInstanceService";
+import { prisma } from "../../../db/prisma";
+import { VirtualCameraNarrativeEngine } from "../../world/VirtualCameraNarrativeEngine";
 
 export type WorldContextPurpose = "outline" | "character" | "chapter" | "bible" | "optimize";
 export type WorldContextStrength = "light" | "normal" | "strict";
@@ -37,6 +39,7 @@ export interface WorldContextBlock {
   forbiddenCombinations: string[];
   expansionHints: string[];
   rawSlice: StoryWorldSlice;
+  cameraFeedText?: string;
 }
 
 export interface WorldContextGatewayOptions {
@@ -122,6 +125,7 @@ export function buildWorldContextBlockFromSlice(input: {
   purpose: WorldContextPurpose;
   strength?: WorldContextStrength;
   novelWorldId?: string;
+  cameraFeedText?: string;
 }): WorldContextBlock {
   const { slice, purpose } = input;
   const strength = input.strength ?? "normal";
@@ -167,6 +171,7 @@ export function buildWorldContextBlockFromSlice(input: {
     worldStageText,
     slice.mysterySources.length > 0 ? `悬念来源：\n${compactList(slice.mysterySources)}` : "",
     slice.suggestedStoryAxes.length > 0 ? `故事轴建议：\n${compactList(slice.suggestedStoryAxes)}` : "",
+    input.cameraFeedText ? `【环境与物理传感器观察】\n${input.cameraFeedText}` : "",
   ].filter(Boolean).join("\n\n");
 
   return {
@@ -188,6 +193,7 @@ export function buildWorldContextBlockFromSlice(input: {
       ...slice.suggestedStoryAxes,
     ],
     rawSlice: slice,
+    cameraFeedText: input.cameraFeedText,
   };
 }
 
@@ -231,11 +237,31 @@ export class WorldContextGateway {
     await this.novelWorldService.persistStorySlice(novelId, slice);
     const persistedNovelWorld = novelWorld ?? await this.novelWorldService.getByNovelId(novelId);
 
+    // 查取当前最新 Sandbox Chronology 真实的 Camera Feed 织入
+    let cameraFeedText = "";
+    try {
+      const mainBranch = await prisma.sandboxBranch.findFirst({
+        where: { novelId, isMain: true }
+      });
+      if (mainBranch) {
+        const latestChronology = await prisma.sandboxChronology.findFirst({
+          where: { branchId: mainBranch.id },
+          orderBy: { tickIndex: "desc" }
+        });
+        if (latestChronology && latestChronology.observableDetails) {
+          cameraFeedText = latestChronology.observableDetails;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to query sandbox chronology for context assembly:", e);
+    }
+
     return buildWorldContextBlockFromSlice({
       slice,
       purpose: options.purpose,
       strength: options.strength,
       novelWorldId: persistedNovelWorld?.id,
+      cameraFeedText
     });
   }
 
