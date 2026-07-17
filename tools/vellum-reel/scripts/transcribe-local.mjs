@@ -49,11 +49,45 @@ const {captions} = toCaptions({whisperCppOutput});
 const totalMs = project.format.durationSeconds * 1000;
 const pages = paginateCaptions(captions, {maxChars, maxDurationMs});
 const validatedPages = pages
-  .filter((page) => page.startMs < totalMs)
-  .map((page) => ({
-    ...page,
-    endMs: Math.min(page.endMs, totalMs),
-  }));
+  .filter((page) => page.startMs < totalMs - 50)
+  .map((page) => {
+    const text = (page.text || '').trim();
+    let kind = 'narration';
+    
+    // Classify as dialogue if it has Chinese quotes
+    if (
+      text.startsWith('“') || 
+      text.startsWith('‘') || 
+      text.endsWith('”') || 
+      text.endsWith('’') ||
+      text.includes('“') ||
+      text.includes('”')
+    ) {
+      kind = 'dialogue';
+    }
+    
+    // Match key narrative terms for typography emphasis
+    const emphasis = [];
+    const keywords = ['宝二哥', '林姑娘', '黛玉', '宝玉', '太虚幻境', '幻影', '眼泪', '悲剧', '假作真时', '兴衰', '琉璃'];
+    for (const kw of keywords) {
+      if (text.includes(kw)) {
+        emphasis.push(kw);
+      }
+    }
+
+    let finalEndMs = Math.min(page.endMs, totalMs);
+    if (finalEndMs <= page.startMs) {
+      finalEndMs = page.startMs + 100;
+    }
+
+    return {
+      ...page,
+      endMs: finalEndMs,
+      kind,
+      emphasis,
+    };
+  })
+  .filter((page) => page.endMs > page.startMs);
 
 await writeJson(
   output,

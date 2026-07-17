@@ -146,6 +146,26 @@ export function adaptToVellumReelProject(
     currentMs += durationMs;
   });
 
+  // Map beats to calculated scene times
+  const beats = (script.beats || []).map((beat, idx) => {
+    const startScene = scenes.find((s) => s.id === `shot_${beat.startSceneOrder}`);
+    const endScene = scenes.find((s) => s.id === `shot_${beat.endSceneOrder}`);
+    
+    const startMs = startScene ? startScene.startMs : 0;
+    const endMs = endScene ? endScene.endMs : currentMs;
+    
+    return {
+      id: `beat_${idx + 1}`,
+      startMs,
+      endMs,
+      index: beat.index,
+      label: beat.label,
+      title: beat.title,
+      startSceneOrder: beat.startSceneOrder,
+      endSceneOrder: beat.endSceneOrder,
+    };
+  });
+
   const project: VellumReelNarrativeProject = {
     id: projectId,
     brand: {
@@ -184,8 +204,8 @@ export function adaptToVellumReelProject(
     narrative: {
       eyebrow: "A VELLUMREEL PRODUCTION",
       logline: script.openingHook,
-      epigraphs: [],
-      beats: [],
+      epigraphs: script.epigraphs || [],
+      beats,
     },
     endCard: {
       kicker: "END OF EPISODE",

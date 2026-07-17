@@ -79,6 +79,36 @@ project.scenes = project.scenes.map((scene, index) => ({
   image: syncSegments[index].image,
 }));
 
+if (project.narrative && Array.isArray(project.narrative.beats)) {
+  let mappedBeats = project.narrative.beats.map((beat) => {
+    const startScene = project.scenes.find((s) => s.id === `shot_${beat.startSceneOrder}`);
+    const endScene = project.scenes.find((s) => s.id === `shot_${beat.endSceneOrder}`);
+    const startMs = startScene ? startScene.startMs : beat.startMs;
+    const endMs = endScene ? endScene.endMs : beat.endMs;
+    const { startSceneOrder, endSceneOrder, ...cleanBeat } = beat;
+    return {
+      ...cleanBeat,
+      startMs,
+      endMs,
+    };
+  });
+
+  // Sort beats by startMs to ensure chronological sequence
+  mappedBeats.sort((a, b) => a.startMs - b.startMs);
+
+  // Enforce progressive, non-overlapping start/end times
+  for (let i = 0; i < mappedBeats.length; i++) {
+    if (i > 0) {
+      mappedBeats[i].startMs = Math.max(mappedBeats[i].startMs, mappedBeats[i - 1].endMs);
+    }
+    if (mappedBeats[i].endMs <= mappedBeats[i].startMs) {
+      mappedBeats[i].endMs = mappedBeats[i].startMs + 1000;
+    }
+  }
+
+  project.narrative.beats = mappedBeats;
+}
+
 await writeJson(projectFile, project);
 await writeJson(syncMapFile, {
   generatedAt: new Date().toISOString(),

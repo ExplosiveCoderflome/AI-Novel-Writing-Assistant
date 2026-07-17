@@ -16,8 +16,12 @@ const OpeningTitles: React.FC<{project: NarrativeProject}> = ({project}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const seconds = frame / fps;
-  const openingEnd = (project.narrative.beats[0]?.startMs ?? project.scenes[0]?.endMs ?? 15000) / 1000;
-  const titleOut = Math.max(4.8, openingEnd * 0.58);
+  
+  const firstRealBeat = project.narrative.beats.find(b => b.startMs > 1000);
+  const rawOpeningEnd = (firstRealBeat?.startMs ?? project.scenes[0]?.endMs ?? 15000) / 1000;
+  const titleOut = Math.max(4.8, rawOpeningEnd * 0.58);
+  const openingEnd = Math.max(rawOpeningEnd, titleOut + 2.0);
+
   const titleOpacity = interpolate(seconds, [0.6, 1.6, titleOut - 1.2, titleOut], [0, 1, 1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',

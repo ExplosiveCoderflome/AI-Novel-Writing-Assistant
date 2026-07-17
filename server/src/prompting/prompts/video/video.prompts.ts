@@ -20,13 +20,26 @@ const videoSceneSchema = z.object({
   transition: z.string().trim().optional().describe("与下一场的转场方式"),
 });
 
+const beatSchema = z.object({
+  index: z.string().trim().min(1).describe("章节小序号，例如 '一' 或 '第I部'"),
+  label: z.string().trim().min(1).describe("小标题，例如 '前言' 或 '红尘初醒'"),
+  title: z.string().trim().min(1).describe("节拍主标题"),
+  startSceneOrder: z.number().int().min(1).describe("开始镜头的order值，对应scenes的order"),
+  endSceneOrder: z.number().int().min(1).describe("结束镜头的order值，对应scenes的order"),
+});
+
 export const novelToVideoScriptOutputSchema = z.object({
   title: z.string().trim().min(1),
   totalDurationSec: z.number().int().min(15).max(300),
   aspectRatio: z.string().trim().default("16:9"),
   visualStyle: z.string().trim().min(1),
   openingHook: z.string().trim().min(1).describe("前3秒抓眼球的视觉/文案钩子"),
+  epigraphs: z.array(z.object({
+    text: z.string().trim().min(1).describe("题记正文"),
+    source: z.string().trim().min(1).describe("题记出处，如 '曹雪芹' 或原著书名"),
+  })).max(3).optional().describe("片头优雅题记列表（古风或叙事必选）"),
   scenes: z.array(videoSceneSchema).min(3).max(30),
+  beats: z.array(beatSchema).optional().describe("章节大纲/叙事节拍，用于将场景分段归类"),
   closingCta: z.string().trim().optional().describe("片尾引导语，如「关注获取下一章」"),
   musicStyle: z.string().trim().optional().describe("整体音乐风格建议"),
 });
@@ -55,13 +68,15 @@ export const novelToVideoScriptPrompt: PromptAsset<
   render: (input) => [
     new SystemMessage([
       "你是专业的短视频内容导演，擅长将小说文字改编为视觉叙事。",
-      "你的任务是将小说章节改编为适合社交媒体短视频的结构化脚本。",
+      "你的任务是将小说章节改编为适合社交媒体短视频的结构化脚本，并匹配卷影 (VellumReel) 视频引擎的全部高级逻辑。",
       "改编原则：",
       "1. 保留故事核心冲突和情感高潮",
       "2. 开头3秒必须有强钩子（悬念/冲突/视觉冲击）",
       "3. 每个场景必须有明确的视觉指令，适合 AI 图像/视频生成",
-      "4. 旁白简洁有力，配合画面节奏",
+      "4. 旁白简洁有力，配合画面节奏，包含角色经典的台词（对话）",
       "5. 角色描述要包含视觉特征以便 AI 生成一致形象",
+      "6. 提取优雅的古风/名著题记 (epigraphs) 呈现在视频开头",
+      "7. 将小说场景通过叙事节拍 (beats) 划分为有结构的段落，每个节拍指定开始和结束镜头的 order 值（从1开始），例如第1个beat包含 scenes 1-2，第2个beat包含 scenes 3-4",
       "只输出符合 schema 的 JSON，不要 Markdown。",
     ].join("\n")),
     new HumanMessage([
@@ -74,7 +89,7 @@ export const novelToVideoScriptPrompt: PromptAsset<
       `【目标时长】${input.targetDurationSec} 秒`,
       `【视觉风格】${input.visualStyle}`,
       "",
-      "请将上述章节改编为短视频脚本 JSON。",
+      "请将上述章节改编为短视频脚本 JSON，包含题记 (epigraphs) 和大纲分段 (beats)。",
       "每个场景的 visualDescription 必须足够详细，能直接用于 AI 图像生成。",
     ].join("\n")),
   ],
