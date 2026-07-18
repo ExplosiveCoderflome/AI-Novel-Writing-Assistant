@@ -498,7 +498,7 @@ export default function NovelWorkspaceRail(props: NovelWorkspaceRailProps) {
         {!collapsed ? (
           <div className="rounded-2xl bg-background/75 px-3 py-2 text-xs text-muted-foreground">
             <div className="flex items-center justify-between gap-2">
-              <span>{t("gen.components.layout.NovelWorkspaceRail.gen_2049dfab")}</span>
+              <span>{t("gen.components.layout.NovelWorkspaceRail.workflowPrefix")}{getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}</span>
               <span>{workflowProgressCount}/{NOVEL_WORKSPACE_FLOW_STEPS.length}</span>
             </div>
           </div>

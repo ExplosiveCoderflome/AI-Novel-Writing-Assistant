@@ -400,16 +400,16 @@ export default function NovelTaskDrawer({
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="text-base font-semibold text-foreground">{task.title}</div>
                   <Badge variant={toTaskStatusVariant(task)}>{formatTaskStatus(task)}</Badge>
-                  <Badge variant="outline">{t("gen.pages.novels.components.NovelTaskDrawer.gen_43c5687e")}</Badge>
+                  <Badge variant="outline">{t("gen.pages.novels.components.NovelTaskDrawer.progressPrefix")} {progressPercent}%</Badge>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-xl border bg-background/80 p-3">
                     <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_ea328dc7")}</div>
-                    <div className="mt-1 text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.dashboardStage")}</div>
+                    <div className="mt-1 text-sm font-medium text-foreground">{dashboardView?.stageLabel ?? displayState?.stageLabel ?? task.currentStage ?? "暂无"}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
                     <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_b5e4737c")}</div>
-                    <div className="mt-1 text-sm font-medium text-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.dashboardAction")}</div>
+                    <div className="mt-1 text-sm font-medium text-foreground">{dashboardView?.currentAction ?? displayState?.currentAction ?? task.currentItemLabel ?? "暂无"}</div>
                   </div>
                   <div className="rounded-xl border bg-background/80 p-3">
                     <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_067d1583")}</div>
@@ -433,7 +433,7 @@ export default function NovelTaskDrawer({
                     <div className="font-medium">{t("gen.pages.novels.components.NovelTaskDrawer.gen_a2b83df0")}</div>
                     <div className="mt-1">{task.lastError}</div>
                     {task.recoveryHint ? (
-                      <div className="mt-2 text-xs text-destructive/80">{t("gen.pages.novels.components.NovelTaskDrawer.gen_25766e25")}</div>
+                      <div className="mt-2 text-xs text-destructive/80">{t("gen.pages.novels.components.NovelTaskDrawer.recoveryHintPrefix")}{task.recoveryHint}</div>
                     ) : null}
                   </div>
                 ) : null}

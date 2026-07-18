@@ -434,6 +434,7 @@
           "zhLanguage": "Chinese Language"
         },
         "NovelWorkspaceRail": {
+          "workflowPrefix": "Flow: ",
           "gen_2049dfab": "流程：{getNovelWorkspaceTabLabel(workflowCurrentTab ?? activeTab)}",
           "gen_3461732b": "当前没有后台导演任务，可以直接继续手动创作。",
           "gen_3fff0abf": "后台任务已中断，可打开执行详情查看原因。",
@@ -614,6 +615,8 @@
       },
       "workflow": {
         "AITakeoverContainer": {
+          "taskPrefix": "Task",
+          "checkpointPrefix": "Latest Checkpoint: ",
           "taskWithFirstEightDigitsOfId": "Task With First Eight Digits of ID",
           "gen_281a5f3e": "最近检查点：{checkpointLabel}",
           "aiTakingOver": "AI Taking Over",
@@ -3488,6 +3491,7 @@
             "gen_87c835a6": "女"
           },
           "NovelEditView": {
+            "currentPagePrefix": "Current Page: ",
             "generationProgress": "Generated X out of Y Chapters",
             "gen_dea4f01e": "按当前步骤整理这本书的生产资产，需要时可以交给 AI 自动导演接管。",
             "gen_2e8e82bc": "当前页面：{currentPageLabel}",
@@ -3557,6 +3561,8 @@
             "gen_3f981012": "推荐"
           },
           "NovelTaskDrawer": {
+            "progressPrefix": "Progress",
+            "recoveryHintPrefix": "Recovery Hint: ",
             "dashboardAction": "Current Action / No Label",
             "dashboardStage": "Current Stage / No Stage",
             "gen_a9d69ae6": "记录时间：{formatDate(milestone.createdAt)}",

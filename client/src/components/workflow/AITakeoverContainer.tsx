@@ -139,7 +139,7 @@ export default function AITakeoverContainer({
           <div className="flex flex-wrap items-center gap-2">
             <div className="text-sm font-semibold text-foreground">{title}</div>
             <Badge variant={badgeVariant(mode)}>{modeLabel(mode)}</Badge>
-            {taskId ? <Badge variant="outline">{t("gen.components.workflow.AITakeoverContainer.taskWithFirstEightDigitsOfId")}</Badge> : null}
+            {taskId ? <Badge variant="outline">{t("gen.components.workflow.AITakeoverContainer.taskPrefix")} #{taskId.slice(0, 8)}</Badge> : null}
           </div>
           <div className="text-sm text-muted-foreground">{description}</div>
         </div>
@@ -195,7 +195,7 @@ export default function AITakeoverContainer({
             </div>
           ) : null}
           {checkpointLabel ? (
-            <div className="mt-2 text-xs text-muted-foreground">{t("gen.components.workflow.AITakeoverContainer.gen_281a5f3e")}</div>
+            <div className="mt-2 text-xs text-muted-foreground">{t("gen.components.workflow.AITakeoverContainer.checkpointPrefix")}{checkpointLabel}</div>
           ) : null}
         </div>
       ) : null}

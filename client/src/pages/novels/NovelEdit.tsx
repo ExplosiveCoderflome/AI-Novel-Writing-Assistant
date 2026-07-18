@@ -929,8 +929,8 @@ export default function NovelEdit() {
     () => chapterAuditReports.flatMap((report) => report.issues.filter((issue) => issue.status === "open").map((issue) => issue.id)),
     [chapterAuditReports],
   );
-  const openAutoDirectorTaskCenter = (directorTaskId?: string) => {
-    const targetId = directorTaskId || actionTargetDirectorTaskId || activeAutoDirectorTask?.id;
+  const openAutoDirectorTaskCenter = (directorTaskId?: unknown) => {
+    const targetId = typeof directorTaskId === "string" ? directorTaskId : (actionTargetDirectorTaskId || activeAutoDirectorTask?.id);
     if (targetId) {
       navigate(`/tasks?kind=novel_workflow&id=${targetId}`);
       return;

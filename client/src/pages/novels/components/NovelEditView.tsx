@@ -198,7 +198,7 @@ function DesktopNovelEditView(props: NovelEditViewProps) {
             <>
               <span className="truncate font-semibold text-foreground">{novelTitle}</span>
               {progressLabel ? <span>{progressLabel}</span> : null}
-              <span>{t("gen.pages.novels.components.NovelEditView.gen_2e8e82bc")}</span>
+              <span>{t("gen.pages.novels.components.NovelEditView.currentPagePrefix")}{currentPageLabel}</span>
             </>
           )}
           title={currentStepLabel}
