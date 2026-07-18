@@ -162,7 +162,13 @@ export class VideoRenderService {
 
     console.log(`[VideoRenderService] Running pipeline command in tools/vellum-reel: ${command}`);
 
-    const renderProcess = exec(command, { cwd: VELLUM_REEL_ROOT });
+    const renderProcess = exec(command, {
+      cwd: VELLUM_REEL_ROOT,
+      env: {
+        ...process.env,
+        PATH: `${path.dirname(process.execPath)}${path.delimiter}${process.env.PATH}`
+      }
+    });
 
     const renderPromise = new Promise<void>((resolve, reject) => {
       let outputLogs = "";
