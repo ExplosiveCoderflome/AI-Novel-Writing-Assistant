@@ -23,6 +23,7 @@ import creativeHubRouter from "./routes/creativeHub";
 import genreRouter from "./routes/genre";
 import healthRouter from "./routes/health";
 import imagesRouter from "./routes/images";
+import { localInferenceDaemonService } from "./services/image/local/LocalInferenceDaemonService";
 import knowledgeRouter from "./routes/knowledge";
 import llmRouter from "./routes/llm";
 import llmLiveRouter from "./platform/llm/live/http/llmLiveRoutes";
@@ -82,6 +83,10 @@ function parseEnvFlag(value: string | undefined, defaultValue: boolean): boolean
 
 export function createApp() {
   getSharedNovelServices();
+  // 在后台异步拉起本地推理守护进程，不阻塞 HTTP 服务启动
+  localInferenceDaemonService.ensureDaemonStarted().catch((err) => {
+    console.warn("[LocalInferenceDaemon] 启动初始化警告:", err.message);
+  });
   const app = express();
   const jsonBodyLimit = process.env.API_JSON_LIMIT ?? "20mb";
   const corsOriginEnv = process.env.CORS_ORIGIN;

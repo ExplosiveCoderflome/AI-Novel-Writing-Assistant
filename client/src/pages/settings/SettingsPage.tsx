@@ -27,6 +27,7 @@ import ProviderSettingsSection from "./components/ProviderSettingsSection";
 import SettingsMaintenanceSection from "./components/SettingsMaintenanceSection";
 import SettingsNavigationCards from "./components/SettingsNavigationCards";
 import SettingsReadinessCard, { buildSettingsReadinessItems } from "./components/SettingsReadinessCard";
+import LocalDiagnosticsCard from "./components/LocalDiagnosticsCard";
 import SettingsSectionGroup from "./components/SettingsSectionGroup";
 import StyleEngineRuntimeSettingsCard from "./components/StyleEngineRuntimeSettingsCard";
 import SettingsActionResult from "./SettingsActionResult";
@@ -469,6 +470,7 @@ export default function SettingsPage() {
         status="required"
       >
         <SettingsReadinessCard items={readinessItems} />
+        <LocalDiagnosticsCard />
         <ProviderSettingsSection
           providers={providerConfigs}
           balances={providerBalancesQuery.data?.data ?? []}

@@ -76,7 +76,11 @@ async function resolveProviderSecret(provider: LLMProvider): Promise<ProviderSec
     throw new Error(`Provider ${provider} API key is not configured.`);
   }
 
-  const baseURLSource = savedBaseURL ?? getProviderEnvBaseUrl(provider) ?? getProviderDefaultBaseUrl(provider);
+  let baseURLSource = savedBaseURL ?? getProviderEnvBaseUrl(provider) ?? getProviderDefaultBaseUrl(provider);
+  if (provider === "sensenova" && !baseURLSource) {
+    baseURLSource = (process.env.OLLAMA_HOST ?? "http://127.0.0.1:11434").replace(/\/$/, "") + "/v1";
+  }
+
   if (!baseURLSource) {
     throw new Error(`Provider ${provider} API URL is not configured.`);
   }
@@ -277,6 +281,11 @@ async function generateWithFileRef(
 export async function generateImagesByProvider(input: ImageProviderGenerateInput): Promise<ImageProviderGenerateResult> {
   if (!isImageProviderSupported(input.provider)) {
     throw new Error(`Provider ${input.provider} does not support image generation currently.`);
+  }
+
+  if (input.provider === "sensenova") {
+    const { localInferenceDaemonService } = await import("./local/LocalInferenceDaemonService");
+    await localInferenceDaemonService.ensureModelLoaded();
   }
 
   const { apiKey, baseURL } = await resolveProviderSecret(input.provider);

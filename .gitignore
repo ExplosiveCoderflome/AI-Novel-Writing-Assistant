@@ -44,3 +44,5 @@ server/dev.db.backup
 红楼梦.txt
 server/dev-backup-world-sandbox.db
 scratch/
+.cache/
+server/public/assets/projects/

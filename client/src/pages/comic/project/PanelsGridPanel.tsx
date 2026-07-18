@@ -361,12 +361,14 @@ function StripView({
 function PanelDetailDialog({
   panel,
   busy,
+  provider,
   onClose,
   onGenerate,
   onSaved,
 }: {
   panel: ComicPanel;
   busy: boolean;
+  provider: string;
   onClose: () => void;
   onGenerate: (panelId: string) => void;
   onSaved: (panel: ComicPanel) => void;
@@ -377,6 +379,95 @@ function PanelDetailDialog({
   const density = densityBadge(panel.densityLevel);
   const layoutData = parseLayoutData(panel.layoutData);
   const imageStale = isPanelImageStale(panel, imageData);
+
+  // 局部微调状态与 Canvas 坐标选择
+  const [isEditingImage, setIsEditingImage] = useState(false);
+  const [editPrompt, setEditPrompt] = useState("");
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [box, setBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [startPos, setStartPos] = useState<{ x: number; y: number } | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!isEditingImage || !imgRef.current) return;
+    const rect = imgRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setStartPos({ x, y });
+    setBox({ x, y, w: 0, h: 0 });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isEditingImage || !startPos || !imgRef.current) return;
+    const rect = imgRef.current.getBoundingClientRect();
+    const currentX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const currentY = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+
+    const x = Math.min(startPos.x, currentX);
+    const y = Math.min(startPos.y, currentY);
+    const w = Math.abs(startPos.x - currentX);
+    const h = Math.abs(startPos.y - currentY);
+
+    setBox({ x, y, w, h });
+  };
+
+  const handleMouseUp = () => {
+    setStartPos(null);
+  };
+
+  const submitEdit = async () => {
+    if (!editPrompt.trim() || !imgRef.current) return;
+    setIsSubmittingEdit(true);
+    try {
+      const img = imgRef.current;
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Could not get canvas context");
+
+      // 绘制原图
+      ctx.drawImage(img, 0, 0);
+
+      // 如果有选择红框，在画布上叠加绘制红色线框
+      if (box && box.w > 2 && box.h > 2) {
+        const displayW = img.clientWidth;
+        const displayH = img.clientHeight;
+        const scaleX = img.naturalWidth / displayW;
+        const scaleY = img.naturalHeight / displayH;
+
+        const rx = box.x * scaleX;
+        const ry = box.y * scaleY;
+        const rw = box.w * scaleX;
+        const rh = box.h * scaleY;
+
+        ctx.strokeStyle = "red";
+        ctx.lineWidth = Math.max(3, Math.round(img.naturalWidth / 200));
+        ctx.strokeRect(rx, ry, rw, rh);
+      }
+
+      const base64Data = canvas.toDataURL("image/png");
+
+      const { editPanelImage } = await import("@/api/comic");
+      await editPanelImage({
+        assetId: panel.id,
+        imageBase64: base64Data,
+        prompt: editPrompt,
+        provider: provider || "sensenova",
+      });
+
+      toast.success("画面局部微调成功！");
+      setIsEditingImage(false);
+      setBox(null);
+      setEditPrompt("");
+      // 触发外部保存状态，以拉取最新图片
+      onSaved({ ...panel });
+    } catch (err) {
+      toast.error(`微调失败: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
 
   useEffect(() => {
     setDraftVisualPrompt(panel.visualPrompt);
@@ -414,15 +505,32 @@ function PanelDetailDialog({
         bodyClassName="p-0"
       >
         <div className="flex flex-col gap-0 lg:flex-row">
-          <div className="border-b bg-muted/30 p-4 lg:w-56 lg:border-b-0 lg:border-r">
+          <div className={`border-b bg-muted/30 p-4 lg:border-b-0 lg:border-r transition-all duration-300 ${isEditingImage ? "lg:w-[450px]" : "lg:w-56"}`}>
             {imageData.status === "done" ? (
-              <div className="relative">
+              <div
+                className={`relative select-none ${isEditingImage ? "cursor-crosshair border border-primary border-dashed rounded-md overflow-hidden" : ""}`}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+              >
                 <img
+                  ref={imgRef}
                   src={panelImageUrl(panel.id)}
                   alt={`第 ${panel.order} 格`}
-                  className="mx-auto max-h-72 w-full rounded-md object-contain lg:max-h-none"
+                  className="mx-auto max-h-72 w-full rounded-md object-contain lg:max-h-none pointer-events-none"
                 />
-                {imageStale && (
+                {box && (
+                  <div
+                    className="absolute border-2 border-red-500 bg-red-500/25 pointer-events-none animate-pulse"
+                    style={{
+                      left: box.x,
+                      top: box.y,
+                      width: box.w,
+                      height: box.h,
+                    }}
+                  />
+                )}
+                {imageStale && !isEditingImage && (
                   <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
                     待重抽
                   </span>
@@ -437,7 +545,7 @@ function PanelDetailDialog({
               type="button"
               size="sm"
               className="mt-3 w-full"
-              disabled={busy || savePromptMut.isPending}
+              disabled={busy || savePromptMut.isPending || isEditingImage}
               onClick={() => {
                 onGenerate(panel.id);
                 onClose();
@@ -455,10 +563,60 @@ function PanelDetailDialog({
                 </>
               )}
             </Button>
-            {imageStale && (
+            {imageStale && !isEditingImage && (
               <p className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs leading-relaxed text-amber-800">
                 画面脚本已在上次生图后修改，重抽后图片才会使用新的脚本。
               </p>
+            )}
+            {imageData.status === "done" && (
+              <div className="mt-2 space-y-2">
+                {!isEditingImage ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-xs"
+                    onClick={() => setIsEditingImage(true)}
+                  >
+                    局部微调 (红框标记)
+                  </Button>
+                ) : (
+                  <div className="rounded border bg-background p-2.5 space-y-2 text-xs">
+                    <div className="font-semibold text-muted-foreground">在图上拖拽绘制红色标记框，并输入修改指令：</div>
+                    <textarea
+                      placeholder="修改指令，例如：将红框中的头发改为银色，去除背景中的杂物"
+                      value={editPrompt}
+                      onChange={(e) => setEditPrompt(e.target.value)}
+                      rows={3}
+                      className="w-full resize-none rounded border p-1.5 focus:outline-none focus:ring-1 focus:ring-primary text-xs"
+                    />
+                    <div className="flex gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="flex-1 text-[11px] h-7"
+                        disabled={isSubmittingEdit || !editPrompt.trim()}
+                        onClick={submitEdit}
+                      >
+                        {isSubmittingEdit ? "正在提交..." : "确认修改"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-[11px] h-7"
+                        onClick={() => {
+                          setIsEditingImage(false);
+                          setBox(null);
+                          setEditPrompt("");
+                        }}
+                      >
+                        取消
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -742,6 +900,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
         <PanelDetailDialog
           panel={selectedPanel}
           busy={busyPanelId === selectedPanel.id}
+          provider={provider}
           onClose={() => setSelectedPanel(null)}
           onGenerate={startPanelGeneration}
           onSaved={(panel) => {
