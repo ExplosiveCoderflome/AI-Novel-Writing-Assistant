@@ -25,7 +25,7 @@ import {
   type ComicEpisode,
   type ComicProject,
 } from "@/api/comic";
-import { ComicImageGenerationNotice } from "@/pages/comic/ComicImageGenerationNotice";
+
 import { COMIC_FORMATS } from "@/pages/comic/ComicWorkspacePage";
 import { CharactersPanel } from "@/pages/comic/project/CharactersPanel";
 import { ScenesPanel } from "@/pages/comic/project/ScenesPanel";
@@ -188,8 +188,6 @@ export default function ComicProjectPage() {
           </a>
         </Button>
       </div>
-
-      <ComicImageGenerationNotice />
 
       {/* 项目信息头部 */}
       <div className="rounded-xl border bg-card p-5 space-y-4">
