@@ -210,10 +210,10 @@ function ResourceProposalCard(props: {
         </div>
       ) : null}
       {proposal.evidence[0] ? (
-        <div className="text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_eaa0bd1c")}</div>
+        <div className="text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.evidencePrefix")}{proposal.evidence[0]}</div>
       ) : null}
       {proposal.validationNotes[0] ? (
-        <div className="text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_19895a34")}</div>
+        <div className="text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.validationPrefix")}{proposal.validationNotes[0]}</div>
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">{formatProposalSource(proposal)}</Badge>
@@ -371,7 +371,7 @@ export default function NovelTaskDrawer({
                     这些判断会影响后续章节能使用哪些关键资源。
                   </div>
                 </div>
-                <Badge variant="secondary">{t("gen.pages.novels.components.NovelTaskDrawer.resourceProposalCount")}</Badge>
+                 <Badge variant="secondary">{resourceProposals.length} {t("gen.pages.novels.components.NovelTaskDrawer.itemCountSuffix")}</Badge>
               </div>
               <div className="space-y-2">
                 {resourceProposals.slice(0, 4).map((proposal) => (
@@ -449,12 +449,12 @@ export default function NovelTaskDrawer({
                     </Badge>
                   </div>
                   <div className="text-sm leading-6 text-muted-foreground">{followUp.followUpSummary}</div>
-                  {followUp.blockingReason ? (
-                    <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_1fe796ea")}</div>
-                  ) : null}
-                  {followUp.currentModel ? (
-                    <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_d1e47356")}</div>
-                  ) : null}
+                   {followUp.blockingReason ? (
+                     <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.blockingReasonPrefix")}{followUp.blockingReason}</div>
+                   ) : null}
+                   {followUp.currentModel ? (
+                     <div className="text-sm text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.currentModelPrefix")}{followUp.currentModel}</div>
+                   ) : null}
                   {runtimeHardBlocked && runtimeBlockedReason ? (
                     <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
                       {runtimeBlockedReason}
@@ -632,7 +632,7 @@ export default function NovelTaskDrawer({
                         <div key={`${milestone.checkpointType}:${milestone.createdAt}`} className="rounded-xl border bg-background/80 p-3">
                           <div className="font-medium text-foreground">{formatCheckpoint(milestone.checkpointType)}</div>
                           <div className="mt-1 text-sm text-muted-foreground">{milestone.summary}</div>
-                          <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.gen_a9d69ae6")}</div>
+                           <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.novels.components.NovelTaskDrawer.createdAtPrefix")}{formatDate(milestone.createdAt)}</div>
                         </div>
                       ))}
                   </div>

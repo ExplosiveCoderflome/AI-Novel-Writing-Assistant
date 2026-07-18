@@ -3561,6 +3561,12 @@
             "gen_3f981012": "推荐"
           },
           "NovelTaskDrawer": {
+            "evidencePrefix": "证据：",
+            "validationPrefix": "判断原因：",
+            "blockingReasonPrefix": "阻止动作的原因：",
+            "currentModelPrefix": "当前任务模型：",
+            "createdAtPrefix": "记录时间：",
+            "itemCountSuffix": "条",
             "progressPrefix": "进度",
             "recoveryHintPrefix": "恢复建议：",
             "dashboardAction": "{dashboardView?.currentAction ?? displayState?.currentAction ?? task.currentItemLabel ?? \"暂无\"}",

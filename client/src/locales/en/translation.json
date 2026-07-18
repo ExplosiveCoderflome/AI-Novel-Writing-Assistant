@@ -3561,6 +3561,12 @@
             "gen_3f981012": "推荐"
           },
           "NovelTaskDrawer": {
+            "evidencePrefix": "Evidence: ",
+            "validationPrefix": "Validation Reason: ",
+            "blockingReasonPrefix": "Reason for Blocking Action: ",
+            "currentModelPrefix": "Current Task Model: ",
+            "createdAtPrefix": "Record Time: ",
+            "itemCountSuffix": " items",
             "progressPrefix": "Progress",
             "recoveryHintPrefix": "Recovery Hint: ",
             "dashboardAction": "Current Action / No Label",
