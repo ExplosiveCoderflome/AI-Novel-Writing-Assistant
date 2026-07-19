@@ -312,8 +312,8 @@ function normalizeBeatSheetPayload(raw: unknown): unknown {
     const sortedBeats = [...beats].sort((a, b) => {
       const aKey = a && typeof a === "object" ? String(a.key || "") : "";
       const bKey = b && typeof b === "object" ? String(b.key || "") : "";
-      const aOrder = orderByKey.get(aKey) ?? 999;
-      const bOrder = orderByKey.get(bKey) ?? 999;
+      const aOrder = orderByKey.get(aKey as any) ?? 999;
+      const bOrder = orderByKey.get(bKey as any) ?? 999;
       return aOrder - bOrder;
     });
 

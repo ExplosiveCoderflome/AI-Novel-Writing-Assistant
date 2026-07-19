@@ -589,4 +589,8 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     key: "world.axioms.suggest@v1",
     load: () => require("../prompts/world/world.prompts").worldAxiomSuggestionPrompt as UnknownPromptAsset,
   },
+  {
+    key: "video.novel_to_script@v1",
+    load: () => require("../prompts/video/video.prompts").novelToVideoScriptPrompt as UnknownPromptAsset,
+  },
 ];
