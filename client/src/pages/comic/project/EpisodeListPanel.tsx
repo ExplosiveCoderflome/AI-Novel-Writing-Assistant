@@ -122,7 +122,7 @@ function EpisodeCard({
           </CardTitle>
           <div className="flex shrink-0 gap-1">
             {ep.isPaywalled && <Badge variant="destructive" className="h-5 text-[10px]">{t("gen.pages.comic.project.EpisodeListPanel.gen_a8448604")}</Badge>}
-            <Badge variant="outline" className="h-5 text-[10px]">{t("gen.pages.comic.project.EpisodeListPanel.panelCount")}</Badge>
+            <Badge variant="outline" className="h-5 text-[10px]">{ep._count?.panels ?? 0} 格</Badge>
             {!editing && (
               <button
                 type="button"
@@ -211,9 +211,9 @@ function EpisodeCard({
             )}
             {scriptConfig.densityMode && (
               <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] text-muted-foreground">
-                <span className="rounded border bg-muted/40 px-2 py-0.5">{t("gen.pages.comic.project.EpisodeListPanel.densityLabel")}</span>
+                <span className="rounded border bg-muted/40 px-2 py-0.5">{DENSITY_LABELS[scriptConfig.densityMode as DensityMode] || "未知"}密度</span>
                 {scriptConfig.targetPanelCount ? (
-                  <span className="rounded border bg-muted/40 px-2 py-0.5">{t("gen.pages.comic.project.EpisodeListPanel.gen_1ff67faa")}</span>
+                  <span className="rounded border bg-muted/40 px-2 py-0.5">约 {scriptConfig.targetPanelCount} 格</span>
                 ) : null}
               </div>
             )}
@@ -401,7 +401,7 @@ export function EpisodeListPanel({
                 </button>
               ))}
             </div>
-            <span className="text-xs text-muted-foreground">{t("gen.pages.comic.project.EpisodeListPanel.gen_ef3bfe62")}</span>
+            <span className="text-xs text-muted-foreground">约 {targetPanelCount} 格</span>
           </div>
         </div>
 
