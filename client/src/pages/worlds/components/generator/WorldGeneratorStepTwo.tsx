@@ -82,10 +82,10 @@ export default function WorldGeneratorStepTwo(props: WorldGeneratorStepTwoProps)
             <div className="text-sm font-semibold">{item.title}</div>
             <div className="mt-2 text-xs leading-5 text-muted-foreground">{item.description}</div>
             <div className="mt-3 grid grid-cols-2 gap-1 text-xs text-muted-foreground">
-              <span>{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_e5cf4116")}</span>
-              <span>{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_8579bec0")}</span>
-              <span>{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_459399c1")}</span>
-              <span>{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_35f03500")}</span>
+              <span>{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_e5cf4116")} {WORLD_SKELETON_PRESET_COUNTS[item.value].forces}</span>
+              <span>{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_8579bec0")} {WORLD_SKELETON_PRESET_COUNTS[item.value].locations}</span>
+              <span>{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_459399c1")} {WORLD_SKELETON_PRESET_COUNTS[item.value].conflicts}</span>
+              <span>{t("gen.pages.worlds.components.generator.WorldGeneratorStepTwo.gen_35f03500")} {WORLD_SKELETON_PRESET_COUNTS[item.value].storyEntrySuggestions}</span>
             </div>
           </button>
         ))}

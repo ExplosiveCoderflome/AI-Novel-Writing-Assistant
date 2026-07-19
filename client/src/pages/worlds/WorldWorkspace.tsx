@@ -334,7 +334,7 @@ export default function WorldWorkspace() {
       >
         <TabsList className="flex flex-wrap">
           <TabsTrigger value="structure">{t("gen.pages.worlds.WorldWorkspace.gen_eea623bc")}</TabsTrigger>
-          <TabsTrigger value="overview">{t("gen.pages.worlds.WorldWorkspace.gen_2bbede65")}</TabsTrigger>
+          <TabsTrigger value="overview">{t("gen.pages.worlds.WorldWorkspace.gen_2bbede65")}{featureFlags.worldVisEnabled ? `/${t("gen.pages.worlds.WorldWorkspace.worldVis")}` : ""}</TabsTrigger>
           <TabsTrigger value="layers">{t("gen.pages.worlds.WorldWorkspace.gen_89b03150")}</TabsTrigger>
           <TabsTrigger value="deepening">{t("gen.pages.worlds.WorldWorkspace.gen_7e7f0b6b")}</TabsTrigger>
           <TabsTrigger value="consistency">{t("gen.pages.worlds.WorldWorkspace.gen_01a3a187")}</TabsTrigger>

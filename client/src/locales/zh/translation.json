@@ -5877,7 +5877,8 @@
           "gen_2f4aaddd": "删除"
         },
         "WorldWorkspace": {
-          "gen_2bbede65": "查看手册{featureFlags.worldVisEnabled ? \"/可视化\" : \"\"}",
+          "gen_2bbede65": "查看手册",
+          "worldVis": "可视化",
           "gen_99bf2197": "删除世界样本失败。",
           "worldSampleDeleted": "世界样本已删除。",
           "gen_26b5bd49": "加载中...",
@@ -5970,10 +5971,10 @@
               "gen_184a8145": "阅读感"
             },
             "WorldGeneratorStepTwo": {
-              "gen_35f03500": "入口 {WORLD_SKELETON_PRESET_COUNTS[item.value].storyEntrySuggestions}",
-              "gen_8579bec0": "地点 {WORLD_SKELETON_PRESET_COUNTS[item.value].locations}",
-              "gen_459399c1": "冲突 {WORLD_SKELETON_PRESET_COUNTS[item.value].conflicts}",
-              "gen_e5cf4116": "势力 {WORLD_SKELETON_PRESET_COUNTS[item.value].forces}",
+              "gen_35f03500": "入口",
+              "gen_8579bec0": "地点",
+              "gen_459399c1": "冲突",
+              "gen_e5cf4116": "势力",
               "gen_17cc0890": "适合多数网文长篇，默认生成足够的规则、势力、地点和开局入口。",
               "gen_8f1b2dec": "适合短篇、单主线、低复杂度，先得到一个清楚好写的故事舞台。",
               "gen_04522d6d": "适合多势力、多地点、多线冲突，需要更强的地图和关系承载。",
