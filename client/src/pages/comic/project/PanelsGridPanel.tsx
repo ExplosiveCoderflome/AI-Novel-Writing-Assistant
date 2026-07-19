@@ -312,7 +312,7 @@ function StripView({
             </div>
 
             <div className="flex items-center gap-2 bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{t("gen.pages.comic.project.PanelsGridPanel.gen_8e2e31c5")}</span>
+              <span className="font-medium text-foreground">第 {panel.order} 格</span>
               <span className="opacity-60">{panel.panelType}</span>
               {panel.focus && <span className="flex-1 truncate">{panel.focus}</span>}
               <div className="ml-auto flex shrink-0 items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
@@ -960,7 +960,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                 )}
                 <div className="p-1.5 text-xs text-muted-foreground">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="font-medium">{t("gen.pages.comic.project.PanelsGridPanel.gen_8e2e31c5")}</span>
+                    <span className="font-medium">第 {panel.order} 格</span>
                     <span className={`rounded border px-1.5 py-0.5 text-[10px] ${density.className}`}>{density.label}</span>
                   </div>
                   <div className="mt-1 truncate">

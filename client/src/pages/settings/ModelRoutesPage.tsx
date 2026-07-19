@@ -469,7 +469,7 @@ export default function ModelRoutesPage() {
               </CardTitle>
               <CardDescription>
                 {label.description}
-                <span className="ml-2 text-xs">{t("gen.pages.settings.ModelRoutesPage.gen_cc21931a")}</span>
+                <span className="ml-2 text-xs">标识：{taskType}</span>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
