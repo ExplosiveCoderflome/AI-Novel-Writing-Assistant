@@ -79,6 +79,18 @@ function ProjectCard(props: {
   const { project, busy } = props;
   const hasScript = Boolean(project.scriptJson);
 
+  const videoUrl = useMemo(() => {
+    if (!project.resultUrl) return "";
+    try {
+      if (project.resultUrl.startsWith("http://localhost:") || project.resultUrl.startsWith("http://127.0.0.1:")) {
+        return new URL(project.resultUrl).pathname;
+      }
+    } catch (e) {
+      // fallback
+    }
+    return project.resultUrl;
+  }, [project.resultUrl]);
+
   return (
     <Card className="rounded-lg">
       <CardHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -125,9 +137,27 @@ function ProjectCard(props: {
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
-        {project.resultUrl ? (
-          <div className="rounded-md border bg-green-500/5 p-3 text-sm text-green-600">
-            渲染完成：{project.resultUrl}
+        {videoUrl ? (
+          <div className="space-y-2">
+            <div className="rounded-md border bg-green-500/5 p-3 text-sm text-green-600">
+              渲染完成：
+              <a
+                href={videoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-green-700 break-all font-mono"
+              >
+                {videoUrl}
+              </a>
+            </div>
+            <div className="mt-2 overflow-hidden rounded-md border bg-slate-950">
+              <video
+                src={videoUrl}
+                controls
+                className="aspect-video w-full"
+                preload="metadata"
+              />
+            </div>
           </div>
         ) : null}
       </CardContent>

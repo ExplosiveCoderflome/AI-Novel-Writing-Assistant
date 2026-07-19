@@ -50,11 +50,11 @@ export class VideoProjectService {
     status: string;
     pipeline: string;
     scriptJson: string;
-    renderTaskId: string;
-    resultUrl: string;
+    renderTaskId: string | null;
+    resultUrl: string | null;
     costEstimate: number;
     actualCost: number;
-    errorMessage: string;
+    errorMessage: string | null;
     configJson: string;
   }>) {
     return prisma.videoProject.update({

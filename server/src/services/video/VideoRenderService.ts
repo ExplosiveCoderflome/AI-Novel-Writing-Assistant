@@ -152,7 +152,10 @@ export class VideoRenderService {
     await fs.writeFile(path.join(narrativeDir, "project.json"), JSON.stringify(vProject, null, 2), "utf-8");
     await fs.writeFile(path.join(narrativeDir, "captions.json"), JSON.stringify(captions, null, 2), "utf-8");
 
-    const mode = config.mode || "final";
+    let mode = config.mode || "final";
+    if (mode === "preview") {
+      mode = "quick";
+    }
     let command = `node scripts/assemble-narration.mjs --manifest=narratives/${projectId}/narration-segments.json --project=narratives/${projectId}/project.json --captions=narratives/${projectId}/captions.json`;
 
     // Force skip Whisper transcription alignment entirely to prevent ASR hallucinations on offline silence and rely on precise script subtitles synchronization.
@@ -199,7 +202,7 @@ export class VideoRenderService {
             await fs.copyFile(absoluteVideoPath, serverPublicAbsPath);
             await videoProjectService.updateProject(projectId, {
               status: "completed",
-              resultUrl: `http://localhost:${process.env.PORT || 4000}/${serverPublicRelPath}`,
+              resultUrl: `http://localhost:${process.env.PORT || 3000}/${serverPublicRelPath}`,
             });
             resolve();
           } else {
@@ -223,12 +226,16 @@ export class VideoRenderService {
 
     activeLocalRenders.set(projectId, {
       process: renderProcess,
-      promise: renderPromise,
+      promise: renderPromise.catch((err) => {
+        console.error(`[VideoRenderService] Background render error for ${projectId}:`, err);
+      }),
     });
 
     await videoProjectService.updateProject(projectId, {
       renderTaskId: `local-${projectId}-${Date.now()}`,
       status: "rendering",
+      errorMessage: null,
+      resultUrl: null,
     });
 
     return { taskId: `local-${projectId}`, status: "running" };

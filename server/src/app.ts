@@ -1,6 +1,7 @@
 import "dotenv/config";
 import type { Server } from "node:http";
 import os from "node:os";
+import path from "node:path";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -125,6 +126,7 @@ export function createApp() {
     return `${method} ${url} ${status} ${responseTime} ms - ${contentLength}${errorSuffix}`;
   }));
   app.use(express.json({ limit: jsonBodyLimit }));
+  app.use(express.static(path.join(__dirname, "../public")));
 
   app.use("/api/health", healthRouter);
   app.use("/api/agent-catalog", agentCatalogRouter);
