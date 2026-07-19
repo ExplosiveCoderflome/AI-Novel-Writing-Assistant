@@ -140,6 +140,16 @@ export const PROVIDERS: Record<BuiltinLLMProvider, ProviderConfig> = {
     envModelKey: "OLLAMA_MODEL",
     requiresApiKey: false,
   },
+  sensenova: {
+    name: "SenseNova",
+    baseURL: "http://127.0.0.1:11434/v1",
+    defaultModel: "sensenova-u1:8b-v3",
+    models: ["sensenova-u1:8b-v3"],
+    envKey: "SENSENOVA_API_KEY",
+    envBaseURLKey: "SENSENOVA_BASE_URL",
+    envModelKey: "SENSENOVA_MODEL",
+    requiresApiKey: false,
+  },
 };
 
 export const SUPPORTED_PROVIDERS: BuiltinLLMProvider[] = [...LLM_PROVIDERS];
