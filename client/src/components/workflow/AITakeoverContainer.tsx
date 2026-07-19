@@ -149,6 +149,7 @@ export default function AITakeoverContainer({
               <Button
                 key={action.label}
                 type="button"
+                size="sm"
                 variant={action.variant ?? (mode === "running" ? "outline" : "default")}
                 disabled={action.disabled}
                 onClick={action.onClick}
