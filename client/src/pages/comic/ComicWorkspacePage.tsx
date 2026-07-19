@@ -394,7 +394,7 @@ function CreateWizard({ onCreated, defaultValues }: CreateWizardProps) {
                 >
                   <option value="">{t("gen.pages.comic.ComicWorkspacePage.selectNovel")}</option>
                   {novels?.data?.items?.map((n) => (
-                    <option key={n.id} value={n.id}>{t("gen.pages.comic.ComicWorkspacePage.titleMissing")}</option>
+                    <option key={n.id} value={n.id}>{n.title || "未命名"}</option>
                   ))}
                 </SelectControl>
               </div>

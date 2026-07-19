@@ -103,7 +103,7 @@ export interface RunImageGenerationOptions {
   sceneType?: "character" | "novel_cover" | "chapter_illustration";
 }
 
-export const DEFAULT_RUNTIME_PROVIDER: LLMProvider = "openai";
+export const DEFAULT_RUNTIME_PROVIDER: LLMProvider = "sensenova";
 export const DEFAULT_RUNTIME_SIZE: ImageSize = "1024x1536";
 
 // ─── 生图前预览数据（确认弹窗用） ────────────────────────────────────────────
