@@ -200,9 +200,13 @@ export function defaultWorkflowTitle(input: {
   title?: string | null;
   novelTitle?: string | null;
 }): string {
-  const novelTitle = input.novelTitle?.trim() || input.title?.trim();
+  const title = input.title?.trim();
+  if (title) {
+    return title;
+  }
+  const novelTitle = input.novelTitle?.trim();
   if (novelTitle) {
-    return novelTitle;
+    return input.lane === "auto_director" ? `《${novelTitle}》自动导演` : `《${novelTitle}》流程任务`;
   }
   return input.lane === "auto_director" ? "AI 自动导演小说" : "小说流程任务";
 }
