@@ -204,9 +204,9 @@
     "components": {
       "autoDirector": {
         "AICockpit": {
-          "circuitError": "{circuitBreaker.message || \"系统检测到继续自动推进可能反复失败。\"}",
+          "circuitError": "系统检测到继续自动推进可能反复失败。",
           "gen_898d03c7": "耗时 {formatDuration(item.durationMs)}",
-          "fallbackStatus": "{fallbackStatusLabel ?? \"未开启\"}",
+          "fallbackStatus": "未开启",
           "gen_5bb3c43b": "AI 会在这里汇总本书自动推进的最新状态。",
           "gen_a6fa6670": "建议：{circuitRecovery}。",
           "gen_1c5b29dc": "没有需要你处理的 AI 自动推进任务。",

@@ -336,7 +336,7 @@ export default function AICockpit(props: AICockpitProps) {
               <div className="mt-1 text-xs leading-5 text-muted-foreground">{fallbackProjectionReason(props)}</div>
             </div>
           </div>
-          <Badge variant="secondary" className="shrink-0">{t("gen.components.autoDirector.AICockpit.fallbackStatus")}</Badge>
+          <Badge variant="secondary" className="shrink-0">{fallbackStatusLabel ?? t("gen.components.autoDirector.AICockpit.fallbackStatus")}</Badge>
         </div>
         {onOpenFallbackDetails ? (
           <Button type="button" size="sm" variant="outline" className="mt-3 w-full" onClick={onOpenFallbackDetails}>
@@ -491,7 +491,7 @@ export default function AICockpit(props: AICockpitProps) {
       {circuitBreaker ? (
         <section className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm leading-6 text-destructive">
           <div className="font-medium">{t("gen.components.autoDirector.AICockpit.gen_a2b070d1")}</div>
-          <div className="mt-1">{t("gen.components.autoDirector.AICockpit.circuitError")}</div>
+          <div className="mt-1">{circuitBreaker.message || t("gen.components.autoDirector.AICockpit.circuitError")}</div>
           {circuitRecovery ? <div className="mt-1">{t("gen.components.autoDirector.AICockpit.gen_a6fa6670")}</div> : null}
         </section>
       ) : null}
