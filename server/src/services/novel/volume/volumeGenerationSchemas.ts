@@ -277,7 +277,7 @@ function normalizeChapterBeatBlockPayload(
 
 function normalizeBeatSheetPayload(raw: unknown): unknown {
   if (Array.isArray(raw)) {
-    return { beats: raw };
+    raw = { beats: raw };
   }
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return raw;
@@ -292,19 +292,43 @@ function normalizeBeatSheetPayload(raw: unknown): unknown {
     record.beatSheet,
   ];
 
-  let beats = record.beats;
+  let beats: any[] | undefined;
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) {
-      beats = candidate;
+      beats = candidate as any[];
       break;
     }
     if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
       const nestedBeats = (candidate as { beats?: unknown }).beats;
       if (Array.isArray(nestedBeats)) {
-        beats = nestedBeats;
+        beats = nestedBeats as any[];
         break;
       }
     }
+  }
+
+  if (Array.isArray(beats)) {
+    const orderByKey = new Map(VOLUME_BEAT_SLOT_DEFINITIONS.map((slot) => [slot.key, slot.order]));
+    const sortedBeats = [...beats].sort((a, b) => {
+      const aKey = a && typeof a === "object" ? String(a.key || "") : "";
+      const bKey = b && typeof b === "object" ? String(b.key || "") : "";
+      const aOrder = orderByKey.get(aKey) ?? 999;
+      const bOrder = orderByKey.get(bKey) ?? 999;
+      return aOrder - bOrder;
+    });
+
+    const seenKeys = new Set<string>();
+    const uniqueBeats = sortedBeats.filter((beat) => {
+      if (!beat || typeof beat !== "object") return false;
+      const key = String(beat.key || "");
+      if (seenKeys.has(key)) {
+        return false;
+      }
+      seenKeys.add(key);
+      return true;
+    });
+
+    beats = uniqueBeats;
   }
 
   return {
