@@ -29,7 +29,8 @@ test("Sandbox Tick Route - Success compute and fallback handling", async () => {
     snapshotCreate: prisma.sandboxSnapshot.create,
     chronologyCreate: prisma.sandboxChronology.create,
     propertySchemasFindMany: prisma.worldCustomPropertySchema.findMany,
-    conflictSchemasFindMany: prisma.worldCustomConflictSchema.findMany
+    conflictSchemasFindMany: prisma.worldCustomConflictSchema.findMany,
+    locationUpsert: prisma.location.upsert
   };
 
   prisma.world.findUnique = async () => ({
@@ -48,6 +49,7 @@ test("Sandbox Tick Route - Success compute and fallback handling", async () => {
 
   prisma.worldCustomPropertySchema.findMany = async () => [];
   prisma.worldCustomConflictSchema.findMany = async () => [];
+  prisma.location.upsert = async ({ where, create }) => ({ id: where.id, ...create });
 
   let snapshotCreated = false;
   prisma.sandboxSnapshot.create = async ({ data }) => {
@@ -102,5 +104,6 @@ test("Sandbox Tick Route - Success compute and fallback handling", async () => {
     prisma.sandboxChronology.create = original.chronologyCreate;
     prisma.worldCustomPropertySchema.findMany = original.propertySchemasFindMany;
     prisma.worldCustomConflictSchema.findMany = original.conflictSchemasFindMany;
+    prisma.location.upsert = original.locationUpsert;
   }
 });

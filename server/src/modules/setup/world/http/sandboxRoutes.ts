@@ -8,6 +8,9 @@ import { CharacterAgentSimulator } from "../../../../services/world/CharacterAge
 import { TensionAndConflictEngine } from "../../../../services/world/TensionAndConflictEngine";
 import { VirtualCameraNarrativeEngine } from "../../../../services/world/VirtualCameraNarrativeEngine";
 import { ChronologyBranchEngine } from "../../../../services/world/ChronologyBranchEngine";
+import { SandboxLlmScheduler } from "../../../../llm/sandboxLlmScheduler";
+import { invokeStructuredLlm } from "../../../../llm/structuredInvoke";
+
 
 // Validation schemas
 const worldIdParamSchema = z.object({
@@ -82,6 +85,8 @@ const overrideActionInput = z.object({
   targetEntityId: z.string(),
   intensityLevel: z.number().min(0).max(5)
 });
+
+const globalSandboxLlmScheduler = new SandboxLlmScheduler();
 
 export function registerSandboxRoutes(router: Router): void {
   // ==========================================
@@ -701,7 +706,7 @@ export function registerSandboxRoutes(router: Router): void {
           }
         }
 
-        // 3. 普适物理气候推进
+        // 3. 普适物理气候推进 (通过调度器包装)
         const dayOfYear = tickIndex % 365;
         const hourOfDay = (tickIndex * 6) % 24;
 
@@ -714,99 +719,177 @@ export function registerSandboxRoutes(router: Router): void {
           weatherList = ["晴", "雾", "惊雷", "微风"];
         }
 
-        locationsState = locationsState.map((loc: any) => {
-          const weather = weatherList[Math.floor(Math.random() * weatherList.length)];
-          const weatherStateObj = {
-            cloudCover: weather.includes("阴") || weather.includes("雾") ? 0.7 : weather.includes("沙尘") ? 0.9 : 0.1,
-            rainIntensity: weather.includes("酸雨") ? 0.7 : weather.includes("惊雷") ? 0.3 : 0.0,
-            snowIntensity: 0.0,
-            windSpeed: weather.includes("惊雷") || weather.includes("沙尘") ? 15.0 : 2.0,
-            windDirection: "NE"
-          };
+        const envUpdateTask = globalSandboxLlmScheduler.schedule(
+          "environment",
+          tickIndex,
+          3, // 最低优先级，物理排最后
+          async () => {
+            if (process.env.NODE_ENV === "test" || !world.templateKey) {
+              return locationsState.map((loc: any) => {
+                const weather = weatherList[Math.floor(Math.random() * weatherList.length)];
+                const weatherStateObj = {
+                  cloudCover: weather.includes("阴") || weather.includes("雾") ? 0.7 : weather.includes("沙尘") ? 0.9 : 0.1,
+                  rainIntensity: weather.includes("酸雨") ? 0.7 : weather.includes("惊雷") ? 0.3 : 0.0,
+                  snowIntensity: 0.0,
+                  windSpeed: weather.includes("惊雷") || weather.includes("沙尘") ? 15.0 : 2.0,
+                  windDirection: "NE"
+                };
 
-          const locPhysics = earthPhysicsSimulator.calculateLocPhysics(
-            {
-              id: loc.id,
-              name: loc.name,
-              latitude: loc.latitude,
-              longitude: loc.longitude,
-              elevation: loc.elevation,
-              biomeType: "temperate",
-              terrainType: loc.terrain || "plain",
-              hasRiver: true,
-              soilMoistureBase: 0.5
-            },
-            dayOfYear,
-            hourOfDay,
-            weatherStateObj
-          );
+                const locPhysics = earthPhysicsSimulator.calculateLocPhysics(
+                  {
+                    id: loc.id,
+                    name: loc.name,
+                    latitude: loc.latitude,
+                    longitude: loc.longitude,
+                    elevation: loc.elevation,
+                    biomeType: "temperate",
+                    terrainType: loc.terrain || "plain",
+                    hasRiver: true,
+                    soilMoistureBase: 0.5
+                  },
+                  dayOfYear,
+                  hourOfDay,
+                  weatherStateObj
+                );
 
-          // 生态步进
-          const prevEco = ecologyState[loc.id] || {
-            soilMoisture: 0.5,
-            floraDensity: 0.5,
-            preyPopulation: 120,
-            predatorPopulation: 8
-          };
-          const nextEco = earthPhysicsSimulator.stepEcology(
-            {
-              id: loc.id,
-              name: loc.name,
-              latitude: loc.latitude,
-              longitude: loc.longitude,
-              elevation: loc.elevation,
-              biomeType: "temperate",
-              terrainType: loc.terrain || "plain",
-              hasRiver: true,
-              soilMoistureBase: 0.5
-            },
-            prevEco,
-            locPhysics.temperature,
-            locPhysics.lux,
-            weatherStateObj
-          );
+                const prevEco = ecologyState[loc.id] || {
+                  soilMoisture: 0.5,
+                  floraDensity: 0.5,
+                  preyPopulation: 120,
+                  predatorPopulation: 8
+                };
 
-          ecologyState[loc.id] = nextEco;
+                const nextEco = earthPhysicsSimulator.stepEcology(
+                  {
+                    id: loc.id,
+                    name: loc.name,
+                    latitude: loc.latitude,
+                    longitude: loc.longitude,
+                    elevation: loc.elevation,
+                    biomeType: "temperate",
+                    terrainType: loc.terrain || "plain",
+                    hasRiver: true,
+                    soilMoistureBase: 0.5
+                  },
+                  prevEco,
+                  locPhysics.temperature,
+                  locPhysics.lux,
+                  weatherStateObj
+                );
 
-          return {
-            ...loc,
-            temp: Number(locPhysics.temperature.toFixed(1)),
-            weather,
-            flora: Number(nextEco.floraDensity.toFixed(2))
-          };
-        });
+                ecologyState[loc.id] = nextEco;
 
-        // 4. 角色状态推进与记忆衰退
-        const locationIds = locationsState.map((l: any) => l.id);
-        charactersState = charactersState.map((char: any) => {
-          const memories = characterAgentSimulator.decayMemories(char.memories || [], tickIndex, 0.05);
+                return {
+                  ...loc,
+                  temp: Number(locPhysics.temperature.toFixed(1)),
+                  weather,
+                  flora: Number(nextEco.floraDensity.toFixed(2))
+                };
+              });
+            }
 
-          const decision = characterAgentSimulator.evaluateLOD2Decision(
-            {
-              id: char.id,
-              name: char.name,
-              lod: 2,
-              currentLocationId: char.locationId,
-              hunger: char.hunger,
-              energy: char.energy,
-              sanity: char.sanity,
-              customPropertiesJson: JSON.stringify(char.customProperties || {}),
-              memories
-            },
-            locationIds.filter((id: string) => id !== char.locationId)
-          );
+            try {
+              const schema = z.object({
+                globalWeatherPattern: z.string(),
+                weatherByLocationId: z.record(z.string(), z.string())
+              });
 
-          return {
-            ...char,
-            locationId: decision.action === "MOVE" && decision.targetLocationId ? decision.targetLocationId : char.locationId,
-            hunger: Math.max(0, Math.min(100, char.hunger + decision.hungerDelta)),
-            energy: Math.max(0, Math.min(100, char.energy + decision.energyDelta)),
-            sanity: Math.max(0, Math.min(100, char.sanity + decision.sanityDelta)),
-            memories
-          };
-        });
+              const locInfo = locationsState.map((l: any) => `${l.name}(ID: ${l.id}, 当前天气: ${l.weather}, 温度: ${l.temp}℃)`).join("\n");
+              
+              const systemPrompt = `你正在扮演世界沙盘的环境气候主宰。
+当前世界观题材为：${world.worldType}。
+你需要根据当前的各地天气，计算下一个 Tick（第 ${tickIndex + 1} 周期）的天气变化并分配给各地理节点。`;
 
-        // 5. 基于势力关系网计算攻击意图与局部张力
+              const userPrompt = `【当前各地理节点气候状态】
+${locInfo}
+
+可选天气选项：${weatherList.join(", ")}
+请计算出每个地点的新天气，并以 JSON 格式返回。`;
+
+              const llmResult = await invokeStructuredLlm({
+                systemPrompt,
+                userPrompt,
+                schema,
+                label: `sandbox-environment`,
+                taskType: "planner",
+                timeoutMs: 10000
+              });
+
+              return locationsState.map((loc: any) => {
+                const weather = llmResult.weatherByLocationId[loc.id] || weatherList[Math.floor(Math.random() * weatherList.length)];
+                const weatherStateObj = {
+                  cloudCover: weather.includes("阴") || weather.includes("雾") ? 0.7 : 0.1,
+                  rainIntensity: weather.includes("酸雨") || weather.includes("雨") ? 0.5 : 0.0,
+                  snowIntensity: 0.0,
+                  windSpeed: 5.0,
+                  windDirection: "NE"
+                };
+
+                const locPhysics = earthPhysicsSimulator.calculateLocPhysics(
+                  {
+                    id: loc.id,
+                    name: loc.name,
+                    latitude: loc.latitude,
+                    longitude: loc.longitude,
+                    elevation: loc.elevation,
+                    biomeType: "temperate",
+                    terrainType: loc.terrain || "plain",
+                    hasRiver: true,
+                    soilMoistureBase: 0.5
+                  },
+                  dayOfYear,
+                  hourOfDay,
+                  weatherStateObj
+                );
+
+                const prevEco = ecologyState[loc.id] || {
+                  soilMoisture: 0.5,
+                  floraDensity: 0.5,
+                  preyPopulation: 120,
+                  predatorPopulation: 8
+                };
+
+                const nextEco = earthPhysicsSimulator.stepEcology(
+                  {
+                    id: loc.id,
+                    name: loc.name,
+                    latitude: loc.latitude,
+                    longitude: loc.longitude,
+                    elevation: loc.elevation,
+                    biomeType: "temperate",
+                    terrainType: loc.terrain || "plain",
+                    hasRiver: true,
+                    soilMoistureBase: 0.5
+                  },
+                  prevEco,
+                  locPhysics.temperature,
+                  locPhysics.lux,
+                  weatherStateObj
+                );
+
+                ecologyState[loc.id] = nextEco;
+
+                return {
+                  ...loc,
+                  temp: Number(locPhysics.temperature.toFixed(1)),
+                  weather,
+                  flora: Number(nextEco.floraDensity.toFixed(2))
+                };
+              });
+            } catch {
+              return locationsState.map((loc: any) => {
+                return {
+                  ...loc,
+                  temp: loc.temp,
+                  weather: loc.weather,
+                  flora: loc.flora
+                };
+              });
+            }
+          }
+        );
+
+        // 4. 角色动作意图宣言（通过调度器时间分片执行）
         const forceRelations = structure.relations?.forceRelations || [];
         const forces = structure.forces || [];
 
@@ -815,48 +898,160 @@ export function registerSandboxRoutes(router: Router): void {
           return matchedForce ? matchedForce.id : null;
         };
 
-        const intentions = charactersState.map((char: any) => {
-          // 查询人物所属势力的敌对状态
-          const forceId = getCharacterForceId(char.name);
-          let isAggressive = false;
-          let actionGoal = "巡逻与戒备";
+        const locationIds = locationsState.map((l: any) => l.id);
 
-          if (forceId) {
-            // 遍历同地点的其他角色，看是否有敌对势力
-            const rivals = charactersState.filter((c: any) => c.locationId === char.locationId && c.id !== char.id);
-            for (const rival of rivals) {
-              const rivalForceId = getCharacterForceId(rival.name);
-              if (rivalForceId) {
-                // 查找关系网中的张力
-                const relation = forceRelations.find(
-                  (r: any) =>
-                    (r.sourceForceId === forceId && r.targetForceId === rivalForceId) ||
-                    (r.sourceForceId === rivalForceId && r.targetForceId === forceId)
-                );
-                // 关系极度紧张(>=70) 或 包含仇恨敌对字眼 触发主动攻击
-                const hasHostility = relation && (parseInt(relation.tension, 10) >= 70 || /仇恨|敌对|宿敌|冲突/.test(relation.detail || ""));
-                if (hasHostility) {
-                  isAggressive = true;
-                  actionGoal = relation.relation || "交战";
-                  break;
+        const agentTasks = charactersState.map((char: any) => {
+          const memories = characterAgentSimulator.decayMemories(char.memories || [], tickIndex, 0.05);
+          char.memories = memories;
+
+          const priority = (char.stress >= 7 || char.sanity <= 30) ? 1 : 2;
+
+          return characterAgentSimulator.evaluateLOD1DecisionThroughScheduler(
+            char,
+            tickIndex,
+            priority,
+            globalSandboxLlmScheduler,
+            async () => {
+              if (process.env.NODE_ENV === "test" || !world.templateKey) {
+                const forceId = getCharacterForceId(char.name);
+                let isAggressive = false;
+                let actionType = "SOCIALIZE";
+                let targetId = undefined;
+                let targetLocationId = undefined;
+
+                if (forceId) {
+                  const rivals = charactersState.filter((c: any) => c.locationId === char.locationId && c.id !== char.id);
+                  for (const rival of rivals) {
+                    const rivalForceId = getCharacterForceId(rival.name);
+                    if (rivalForceId) {
+                      const relation = forceRelations.find(
+                        (r: any) =>
+                          (r.sourceForceId === forceId && r.targetForceId === rivalForceId) ||
+                          (r.sourceForceId === rivalForceId && r.targetForceId === forceId)
+                      );
+                      const hasHostility = relation && (parseInt(relation.tension, 10) >= 70 || /仇恨|敌对|宿敌|冲突/.test(relation.detail || ""));
+                      if (hasHostility) {
+                        isAggressive = true;
+                        actionType = "ATTACK";
+                        targetId = rival.id;
+                        break;
+                      }
+                    }
+                  }
                 }
+
+                if (!isAggressive) {
+                  if (char.energy < 30) {
+                    actionType = "REST";
+                  } else if (char.hunger > 70) {
+                    actionType = "MOVE";
+                    targetLocationId = locationIds.find((id: string) => id !== char.locationId);
+                  } else if (Math.random() < 0.15) {
+                    actionType = "FLEE";
+                    targetLocationId = locationIds.find((id: string) => id !== char.locationId);
+                  }
+                }
+
+                return {
+                  characterId: char.id,
+                  actionType,
+                  targetId,
+                  targetLocationId,
+                  intentionSpeed: isAggressive ? 85 : 45,
+                  narrativeAction: isAggressive ? `对宿敌发起挑战` : `在此地修整`
+                };
+              }
+
+              try {
+                const locationName = locationsState.find((l: any) => l.id === char.locationId)?.name || "未知区域";
+                const otherChars = charactersState
+                  .filter((c: any) => c.locationId === char.locationId && c.id !== char.id)
+                  .map((c: any) => `${c.name}(ID: ${c.id}, 状态: ${c.role})`)
+                  .join(", ") || "无";
+
+                const customActions = customConflictSchemas.map((schema: any) => {
+                  return `${schema.conflictType.toUpperCase()} (冲突规则：${schema.arbitrationRule}。意图：${schema.conflictLabel})`;
+                });
+
+                const systemPrompt = `你正在扮演世界沙盘中的角色：${char.name}。
+当前世界观题材为：${world.worldType}。
+你需要根据自身当前状态、所处环境及身边的其他角色，独立决定本回合（第 ${tickIndex + 1} 周期）的行动计划。
+请注意：当前 Tick 所有的动作同时发生，但会按照“先攻度”依次执行结算。`;
+
+                const userPrompt = `【角色状态】
+姓名：${char.name}
+当前地点：${locationName}
+身边其他人：${otherChars}
+体力：${char.energy}/100, 饥饿度：${char.hunger}/100, 理智值：${char.sanity}/100, 压力：${char.stress}/10
+
+【可选动作类型】
+1. DEFEND (原地防御/全神戒备，先攻极高)
+2. FLEE (撤退或逃离，需指定 targetLocationId)
+3. MOVE (正常移动到其他地点，需指定 targetLocationId)
+4. REST (休息恢复体力)
+5. SOCIALIZE (与当地人互动交流)
+${customActions.map((act: string, idx: number) => `${idx + 6}. ${act}`).join("\n")}
+
+请以 JSON 格式输出你的决策计划。如果选择发起冲突或自定义冲突动作，需指定 targetId。`;
+
+                const schema = z.object({
+                  actionType: z.string().describe("必须是上面可选动作类型中的某一个（例如 MOVE, FLEE, REST, SOCIALIZE, 或自定义冲突类型的大写）"),
+                  targetId: z.string().optional(),
+                  targetLocationId: z.string().optional(),
+                  intentionSpeed: z.number().min(0).max(100).default(50),
+                  narrativeAction: z.string()
+                });
+
+                const llmResult = await invokeStructuredLlm({
+                  systemPrompt,
+                  userPrompt,
+                  schema,
+                  label: `sandbox-agent-${char.name}`,
+                  taskType: "planner",
+                  timeoutMs: 15000
+                });
+
+                return {
+                  characterId: char.id,
+                  actionType: llmResult.actionType,
+                  targetId: llmResult.targetId,
+                  targetLocationId: llmResult.targetLocationId,
+                  intentionSpeed: llmResult.intentionSpeed,
+                  narrativeAction: llmResult.narrativeAction
+                };
+              } catch (err) {
+                return {
+                  characterId: char.id,
+                  actionType: "SOCIALIZE",
+                  intentionSpeed: 40,
+                  narrativeAction: "在原地徘徊思考"
+                };
               }
             }
-          }
-
-          // 兜底小概率爆发冲突
-          if (!isAggressive && Math.random() < 0.1) {
-            isAggressive = true;
-            actionGoal = "摩擦对峙";
-          }
-
-          return {
-            characterId: char.id,
-            locationId: char.locationId,
-            actionGoal,
-            isAggressive
-          };
+          );
         });
+
+        // 5. 并发等待同步 (Lock-Step Sync)
+        const [resolvedActions, nextLocationsState] = await Promise.all([
+          Promise.all(agentTasks),
+          envUpdateTask
+        ]);
+
+        locationsState = nextLocationsState;
+
+        // 6. 回合制先攻排序与因果结算
+        const sortedActions = tensionAndConflictEngine.sortActionsByInitiative(
+          resolvedActions,
+          charactersState
+        );
+
+        const resolution = tensionAndConflictEngine.resolveInitiativeChain(
+          sortedActions,
+          charactersState,
+          customConflictSchemas
+        );
+
+        const tickEvents = resolution.narrativeLogs;
 
         // 计算物理与势力压力合并张力
         const localTensions: Record<string, number> = {};
@@ -903,48 +1098,6 @@ export function registerSandboxRoutes(router: Router): void {
           };
         });
 
-        // 6. 动态冲突仲裁与编年史日志搜集
-        const encounters = tensionAndConflictEngine.detectEncounters(intentions, localTensions);
-        const tickEvents: string[] = [];
-        const activeEncounters = encounters.filter((e) => e.triggerArbitration && e.characterIds.length >= 2);
-
-        // 自适应冲突配置获取
-        const conflictType = customConflictSchemas.length > 0
-          ? customConflictSchemas[0].conflictType
-          : "battle";
-        const arbitrationRule = customConflictSchemas.length > 0
-          ? customConflictSchemas[0].arbitrationRule
-          : "力量与境界比拼";
-
-        for (const enc of activeEncounters) {
-          const charA = charactersState.find((c) => c.id === enc.characterIds[0]);
-          const charB = charactersState.find((c) => c.id === enc.characterIds[1]);
-
-          if (charA && charB) {
-            // 获取两者的真实实力等级 (境界换算值 + 自定义武力值)
-            const basePowerA = parsePowerLevel(charA.realm);
-            const basePowerB = parsePowerLevel(charB.realm);
-            const customPowerA = charA.customProperties?.martialPower ?? charA.customProperties?.combatPower ?? 20;
-            const customPowerB = charB.customProperties?.martialPower ?? charB.customProperties?.combatPower ?? 20;
-
-            const combatPowerA = basePowerA + customPowerA * 0.1;
-            const combatPowerB = basePowerB + customPowerB * 0.1;
-
-            const arbitrationResult = tensionAndConflictEngine.arbitrateConflict(
-              conflictType,
-              { id: charA.id, name: charA.name, combatPower: combatPowerA, status: { intelligence: 10 } },
-              { id: charB.id, name: charB.name, combatPower: combatPowerB, status: { intelligence: 10 } },
-              arbitrationRule
-            );
-
-            // 更新压力
-            charA.stress = Math.max(0, Math.min(10, (charA.stress || 2) + arbitrationResult.stressChangeA));
-            charB.stress = Math.max(0, Math.min(10, (charB.stress || 2) + arbitrationResult.stressChangeB));
-
-            tickEvents.push(`[${conflictType}] ${arbitrationResult.narrativeResult}`);
-          }
-        }
-
         // 7. 动态观察视口渲染与 SandboxChronology 存储
         for (const loc of locationsState) {
           const activeChars = charactersState
@@ -982,6 +1135,22 @@ export function registerSandboxRoutes(router: Router): void {
           });
 
           if (!resolvedNovelId.startsWith("temp-")) {
+            // Ensure the location exists in the Location database table to satisfy the foreign key constraint
+            await prisma.location.upsert({
+              where: { id: loc.id },
+              update: {},
+              create: {
+                id: loc.id,
+                worldId: worldId,
+                name: loc.name,
+                latitude: loc.latitude || 39.9,
+                longitude: loc.longitude || 116.4,
+                elevation: loc.elevation || 50,
+                biomeType: "temperate",
+                terrainType: loc.terrain || "plain"
+              }
+            });
+
             await prisma.sandboxChronology.create({
               data: {
                 novelId: resolvedNovelId,

@@ -156,7 +156,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                         : t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_e5b868d7")}
                   </Badge>
                   <Badge variant="outline">{chapterLabel}</Badge>
-                  <Badge variant="outline">{t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_55d56359")}</Badge>
+                  <Badge variant="outline">{t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_55d56359", { contentPanelWordCount })}</Badge>
                 </div>
                 <div>
                   <div className="text-base font-semibold text-foreground">{chapterTitle}</div>
@@ -170,7 +170,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_188a315d")}</span>
+                <span className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_188a315d", { contentPanelWordCount })}</span>
                 {needsAuditPrompt ? (
                   <Button size="sm" onClick={onRunFullAudit} disabled={isRunningFullAudit}>
                     {isRunningFullAudit ? t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_a9e55039") : t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_604bd4b3")}

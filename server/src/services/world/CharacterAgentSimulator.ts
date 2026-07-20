@@ -1,3 +1,5 @@
+import { SandboxLlmScheduler } from "../../llm/sandboxLlmScheduler";
+
 export interface CognitiveMemory {
   id: string;
   fact: string;
@@ -179,5 +181,24 @@ export class CharacterAgentSimulator {
     if (character.sanity <= 30) return true;
     if (character.hunger >= 85) return true;
     return false;
+  }
+
+  /**
+   * Submits a focal character (LOD 1) decision task to the scheduler.
+   * Action resolves based on character priority in lock-step mode.
+   */
+  public evaluateLOD1DecisionThroughScheduler<T>(
+    character: CharacterState,
+    tickIndex: number,
+    priority: number, // 1 = High (Defend/Flee), 2 = Normal (Attack/Move), 3 = Low
+    scheduler: SandboxLlmScheduler,
+    decisionFn: () => Promise<T>
+  ): Promise<T> {
+    return scheduler.schedule(
+      character.id,
+      tickIndex,
+      priority,
+      decisionFn
+    );
   }
 }

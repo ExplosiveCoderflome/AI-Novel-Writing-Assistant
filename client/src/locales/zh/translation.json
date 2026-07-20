@@ -2859,8 +2859,8 @@
           },
           "ChapterExecutionResultPanel": {
             "aiOutputtingChapterContentObservingRhythm": "AI 正在持续输出这一章的正文，先在这里观察节奏和手感，不满意时可以随时停止。",
-            "gen_55d56359": "当前展示 {contentPanelWordCount} 字",
-            "gen_188a315d": "字数 {contentPanelWordCount}",
+            "gen_55d56359": "当前展示 {{contentPanelWordCount}} 字",
+            "gen_188a315d": "字数 {{contentPanelWordCount}}",
             "gen_75007248": "正文可读，系统正在保存草稿并回灌章节资产。",
             "gen_6fc3748d": "这一章还没有明确目标，建议先补章节计划。",
             "gen_f7c795f9": "还有其他章节正在后台写作",
