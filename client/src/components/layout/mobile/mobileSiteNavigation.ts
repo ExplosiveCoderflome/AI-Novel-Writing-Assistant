@@ -28,7 +28,7 @@ export const MOBILE_ROUTE_PATTERNS: MobileRoutePattern[] = [
   { key: "novel-preview", pattern: /^\/novels\/[^/]+\/preview\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_38cb41c9"), group: "novels" },
   { key: "novel-edit", pattern: /^\/novels\/[^/]+\/edit\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_918c18fe"), group: "novels" },
   { key: "chapter-edit", pattern: /^\/novels\/[^/]+\/chapters\/[^/]+\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_a90e9b2a"), group: "novels" },
-  { key: "drama", pattern: /^\/drama\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_c5680c9e"), group: "creation" },
+  { key: "multimedia", pattern: /^\/multimedia\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.multimedia"), group: "creation" },
   { key: "creative-hub", pattern: /^\/creative-hub\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_d50f61ff"), group: "creation" },
   { key: "chat-legacy", pattern: /^\/chat-legacy\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_e5c1dd7f"), group: "creation" },
   { key: "book-analysis", pattern: /^\/book-analysis\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_f0dc6198"), group: "creation" },
@@ -62,7 +62,7 @@ const moreNavGroups: MobileNavGroup[] = [
     title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_27027b86"),
     items: [
       { key: "help", label: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_c46d213c"), to: "/help", group: "more" },
-      { key: "drama", label: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_8eb337a1"), to: "/drama", group: "creation" },
+      { key: "multimedia", label: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.multimedia"), to: "/multimedia", group: "creation" },
       { key: "book-analysis", label: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_f0dc6198"), to: "/book-analysis", group: "creation" },
       { key: "auto-director-follow-ups", label: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_ad254401"), to: "/auto-director/follow-ups", group: "tasks" },
       { key: "chat-legacy", label: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_e5c1dd7f"), to: "/chat-legacy", group: "creation" },

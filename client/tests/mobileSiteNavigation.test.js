@@ -36,7 +36,7 @@ const routedPaths = [
   "/novels/demo/preview",
   "/novels/demo/edit",
   "/novels/demo/chapters/chapter-1",
-  "/drama",
+  "/multimedia",
   "/creative-hub",
   "/chat-legacy",
   "/book-analysis",
@@ -87,7 +87,7 @@ test("mobile more menu contains all non-primary registered pages", () => {
     morePaths,
     [
       "/help",
-      "/drama",
+      "/multimedia",
       "/book-analysis",
       "/auto-director/follow-ups",
       "/chat-legacy",
