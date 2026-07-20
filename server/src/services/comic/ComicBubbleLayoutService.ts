@@ -46,7 +46,7 @@ export interface LetterPanelResult {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const COMIC_LETTERED_DIR = "comic-panels-lettered";
-const CJK_FONT_STACK = `"Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Source Han Sans CN", sans-serif`;
+const CJK_FONT_STACK = `'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Source Han Sans CN', sans-serif`;
 const DEFAULT_FONT_SIZE = 24;
 const BUBBLE_PADDING = 16;
 const LINE_HEIGHT_RATIO = 1.45;
