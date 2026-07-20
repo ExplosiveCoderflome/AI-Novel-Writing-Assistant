@@ -9,6 +9,7 @@ import {
   Database,
   Globe2,
   House,
+  Film,
   Images,
   LayoutDashboard,
   ListTodo,
@@ -56,9 +57,7 @@ const navGroups: NavGroup[] = [
       { to: "/", label: "首页", icon: House },
       { to: "/help", label: "新手上路", icon: CircleHelp },
       { to: "/novels", label: "小说列表", icon: BookOpenText },
-      { to: "/drama", label: "短剧工作台", icon: MonitorPlay },
-      { to: "/comic", label: "漫画工作台", icon: SquareStack },
-      { to: "/video", label: "视频工坊", icon: Video },
+      { to: "/multimedia", label: "多媒体改编", icon: Film },
       { to: "/creative-hub", label: "创作中枢", icon: LayoutDashboard },
       { to: "/book-analysis", label: "拆书", icon: ScanSearch },
       { to: "/tasks", label: "运行记录", icon: ListTodo },
@@ -137,7 +136,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const failedIndexCount = knowledgeDocuments.filter((item) => item.latestIndexStatus === "failed").length;
 
   const renderBadge = (to: string) => {
-    if (to === "/comic") {
+    if (to === "/multimedia") {
       if (collapsed) {
         return null;
       }
@@ -145,7 +144,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <Badge
           variant="outline"
           className="ml-auto h-5 border-amber-300 bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700"
-          title="漫画工作台仍在 Beta 阶段"
+          title="多媒体改编仍在 Beta 阶段"
         >
           Beta
         </Badge>
