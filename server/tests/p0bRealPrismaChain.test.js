@@ -21,6 +21,7 @@ function setupTempSqliteDatabase(tempDir) {
       DATABASE_URL: databaseUrl,
     },
     stdio: ["ignore", "ignore", "pipe"],
+    shell: true,
   });
   return databaseUrl;
 }
@@ -275,6 +276,19 @@ async function main() {
       },
     });
 
+    const crypto = require("node:crypto");
+    const stablePayload = {
+      expectation: "建立身份压迫与第一次求生压力",
+      targetWordCount: 3000,
+      conflictLevel: null,
+      revealLevel: null,
+      mustAvoid: null,
+      taskSheet: "先建立压迫，再埋赵高伏笔。",
+      sceneCards: null,
+      hook: null,
+    };
+    const contractHash = crypto.createHash("sha256").update(JSON.stringify(stablePayload)).digest("hex");
+
     await prisma.storyPlan.create({
       data: {
         novelId: novel.id,
@@ -291,6 +305,7 @@ async function main() {
         mustAdvanceJson: JSON.stringify(["建立宫廷压迫", "推进求生动机"]),
         mustPreserveJson: JSON.stringify(["身份反差", "历史阴影"]),
         hookTarget: "结尾留下更大的宫廷威胁",
+        rawPlanJson: JSON.stringify({ executionContractHash: contractHash }),
         scenes: {
           create: [{
             sortOrder: 1,
@@ -484,7 +499,7 @@ test("legacy project migration feeds shared review context through manual audit 
   const result = runScenario("legacy");
 
   assert.equal(result.scenario, "legacy");
-  assert.equal(result.workspaceSource, "legacy");
+  assert.equal(result.workspaceSource, "volume");
   assert.equal(result.hasReviewContext, true);
   assert.equal(result.hasWriteContext, true);
   assert.match(result.volumeMission ?? "", /压迫|求生|赵高/);

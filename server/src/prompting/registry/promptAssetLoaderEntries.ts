@@ -593,4 +593,8 @@ export const promptAssetLoaderEntries: PromptAssetLoaderEntry[] = [
     key: "video.novel_to_script@v1",
     load: () => require("../prompts/video/video.prompts").novelToVideoScriptPrompt as UnknownPromptAsset,
   },
+  {
+    key: "comic.factExtraction@v1",
+    load: () => require("../prompts/comic/comic.prompts").comicFactExtractionPrompt as UnknownPromptAsset,
+  },
 ];

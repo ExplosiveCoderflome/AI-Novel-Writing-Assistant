@@ -96,6 +96,7 @@ function createTempDatabase(prefix) {
       DATABASE_URL: databaseUrl,
     },
     stdio: ["ignore", "ignore", "pipe"],
+    shell: true,
   });
 
   return {
