@@ -296,26 +296,26 @@ export default function VideoWorkspacePage() {
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-normal">视频改编工作台</h1>
         <p className="max-w-3xl text-sm text-muted-foreground">
-          将小说章节改编为短视频或预告片。AI 生成视频脚本后提交到 OpenMontage 渲染。
+          将小说章节改编为短视频或预告片。AI 生成视频脚本后提交到 VellumReel 渲染。
         </p>
       </div>
 
-      {/* Bridge 状态 */}
+      {/* VellumReel 状态 */}
       <div className="flex items-center gap-3 rounded-md border px-4 py-3">
-        {bridgeReachable ? (
+        {bridgeReachable && bridgeHealth?.tools_available ? (
           <Wifi className="h-5 w-5 text-green-500" />
         ) : (
-          <WifiOff className="h-5 w-5 text-muted-foreground" />
+          <WifiOff className="h-5 w-5 text-destructive" />
         )}
         <div className="flex-1 text-sm">
-          <span className="font-medium">OpenMontage Bridge</span>
-          {bridgeReachable ? (
+          <span className="font-medium">VellumReel 渲染引擎环境</span>
+          {bridgeReachable && bridgeHealth?.tools_available ? (
             <span className="ml-2 text-green-600">
-              已连接 · {bridgeHealth?.toolNames?.length ?? 0} 个工具可用
+              已就绪 (Node: {bridgeHealth?.environment?.node || "Yes"}, FFmpeg: 已检测)
             </span>
           ) : (
-            <span className="ml-2 text-muted-foreground">
-              未连接 — 请启动 Bridge（<code>python tools/openmontage-bridge/server.py</code>）
+            <span className="ml-2 text-destructive">
+              环境未就绪 — 请确保系统已安装 Node.js 20+ 并配置 FFmpeg/ffprobe 环境变量
             </span>
           )}
         </div>

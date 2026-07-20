@@ -4,6 +4,12 @@
 
 ## 更新历史
 
+### 2026-07-20（v0.4.9 SenseNova 离线部署文档补全与旧版 OpenMontage 积压代码清理）
+
+- **SenseNova 本地模型部署文档补全**：在 `README.md` 中补充了本地多模态图像模型 `SenseNova-U1` (`sensenova-u1:8b-v3`) 的安装拉取、硬件诊断与运行级别 (Tiers) 自适应分配说明，以及单元测试与 E2E 模拟测试的相关命令。
+- **废弃 OpenMontage (VideoMontage) 桥接代码清理**：完全清理了已被 VellumReel 代替的旧 Python 桥接模块 `tools/openmontage-bridge/`，并删除了未使用的后台 HTTP 客户端 `OpenMontageBridgeClient.ts`。
+- **多媒体工坊 UI 升级与自检修正**：重构了视频改编工作台的环境自检信息。将原有的 `OpenMontage Bridge` 连接提示替换为对 VellumReel 渲染引擎本地 Node.js、FFmpeg 和 ffprobe 环境的自检，并能精准展示各工具在本地的检测状态，消除原先显示 `0 个工具可用` 的 Bug。
+
 ### 2026-07-19（v0.4.8 视频改编工坊与渲染引擎修复发布）
 
 - **后台积压任务清理**：成功自动清理并取消了数据库中全部遗留的 `NovelWorkflowTask` 后台挂死任务，运行记录与状态中心恢复纯净。

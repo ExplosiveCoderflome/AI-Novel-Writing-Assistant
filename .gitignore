@@ -46,3 +46,8 @@ server/dev-backup-world-sandbox.db
 scratch/
 .cache/
 server/public/assets/projects/
+hongloumeng.txt
+server/dev.db.backup_e2e_clean
+server/dev.db.task_backup
+server/scripts/clean-and-create-fresh-db.js
+server/scripts/reset-and-seed-db.js

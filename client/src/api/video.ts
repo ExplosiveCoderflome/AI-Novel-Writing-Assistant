@@ -41,11 +41,16 @@ export interface VideoScriptOptions {
 export interface BridgeHealthResult {
   reachable: boolean;
   status?: string;
-  openmontage_root?: string;
+  vellum_reel_root?: string;
   tools_available?: boolean;
   tool_count?: number;
   toolsSummary?: Record<string, unknown>;
   toolNames?: string[];
+  environment?: {
+    node?: string;
+    ffmpeg?: string;
+    ffprobe?: string;
+  };
   error?: string;
 }
 

@@ -582,6 +582,40 @@ pnpm db:seed
 pnpm db:studio
 ```
 
+### 6. 本地 SenseNova 多模态图像模型部署与测试 (可选)
+
+本项目默认支持完全离线的 `SenseNova-U1-8B-MoT-Infographic-V3` 图像局部微调和气泡纠错能力（运行在本地 Ollama 上），以确保 100% 离线隐私性。
+
+#### 6.1 安装 Ollama 与拉取模型
+1. 下载并安装 [Ollama](https://ollama.com/)。
+2. 确保 Ollama 服务正常启动后，系统在首次生图或启动时会自动尝试检查并拉取，你也可以在命令行手动拉取该模型：
+   ```bash
+   ollama pull sensenova-u1:8b-v3
+   ```
+
+#### 6.2 硬件自诊断与级别分配
+系统在首次运行或进入设置页时，会自动进行硬件自检和运行级别 (Tiers) 分配：
+* **Tier 1 (GPU 高加速)**: 显存 ≥ 15GB 或 Mac 统一内存 ≥ 32GB。运行 BF16/FP16 高精度模型（生成耗时约 8 秒）。
+* **Tier 2 (GPU 中加速)**: 显存 6GB-14GB 或 Mac 统一内存 16GB-24GB。运行 INT8/INT4 GGUF 量化模型（生成耗时约 30 秒）。
+* **Tier 3 (CPU 纯本地)**: 无独立显存加速，使用 CPU 慢速运行（生成耗时约 1.5 - 3 分钟）。
+
+系统后端服务启动时，会自动尝试检测本地 `127.0.0.1:11434` 端口。如果检测不到服务，会自动尝试在后台拉起 `ollama serve` 守护进程。
+
+#### 6.3 运行 SenseNova 测试
+* **运行本地推理诊断单元测试**：
+  ```bash
+  # 运行服务端快速测试（包含 SenseNova 硬件诊断与守护进程测试）
+  pnpm --filter @ai-novel/server test
+  
+  # 或直接指定执行 SenseNova 本地推理测试脚本
+  node --test server/tests/sensenovaLocalInference.test.js
+  ```
+* **运行端到端 API 模拟集成测试**：
+  在前后端服务（`pnpm dev`）正常运行的状态下，在根目录执行以下命令，即可模拟用户点击微调、调用本地 SenseNova API 接口以及一键视频改编渲染的完整流程：
+  ```bash
+  node server/scripts/test-e2e-api-simulation.js
+  ```
+
 ## 常用命令
 
 ```bash

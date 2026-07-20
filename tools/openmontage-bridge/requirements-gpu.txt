@@ -1,5 +1,0 @@
-# OpenMontage - GPU Dependencies
-# Install these in addition to requirements.txt when GPU is available
-torch>=2.0
-torchaudio>=2.0
-torchvision>=0.15

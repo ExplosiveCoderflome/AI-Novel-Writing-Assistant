@@ -38,8 +38,8 @@ export class VideoRenderService {
         reachable: true,
         status: "ok",
         tools_available: fullyOfflineCapable,
-        openmontage_root: VELLUM_REEL_ROOT,
-        tool_count: 5,
+        vellum_reel_root: VELLUM_REEL_ROOT,
+        tool_count: 3,
         environment: {
           node: nodeVer || "Not Found",
           ffmpeg: ffmpegVer || "Not Found",
