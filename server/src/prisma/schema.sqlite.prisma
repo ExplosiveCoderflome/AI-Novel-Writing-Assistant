@@ -4001,3 +4001,18 @@ model CharacterRelationBond {
   @@index([sourceCharacterId])
   @@index([targetCharacterId])
 }
+
+model StylePatch {
+  id                String   @id @default(cuid())
+  novelId           String
+  ruleKey           String
+  promptInstruction String
+  enabled           Boolean  @default(true)
+  violationCount    Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([novelId, ruleKey])
+  @@index([novelId])
+}
+

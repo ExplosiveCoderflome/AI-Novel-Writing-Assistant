@@ -6,6 +6,7 @@ import { StyleDetectionService } from "../../styleEngine/StyleDetectionService";
 import { StyleRewriteService } from "../../styleEngine/StyleRewriteService";
 import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import { PostGenerationStyleReviewPolicyResolver } from "./PostGenerationStyleReviewPolicyResolver";
+import { StylePatchService } from "../../styleEngine/StylePatchService";
 
 export interface StyleReviewResult {
   report: RuntimeStyleDetectionReport | null;
@@ -26,6 +27,7 @@ interface PostGenerationStyleReviewRunnerDeps {
   styleDetectionService?: Pick<StyleDetectionService, "check">;
   styleRewriteService?: Pick<StyleRewriteService, "rewrite">;
   postGenerationStyleReviewPolicyResolver?: Pick<PostGenerationStyleReviewPolicyResolver, "resolve">;
+  stylePatchService?: StylePatchService;
 }
 
 export class PostGenerationStyleReviewRunner {
@@ -37,8 +39,10 @@ export class PostGenerationStyleReviewRunner {
       styleRewriteService: deps.styleRewriteService ?? new StyleRewriteService(),
       postGenerationStyleReviewPolicyResolver: deps.postGenerationStyleReviewPolicyResolver
         ?? new PostGenerationStyleReviewPolicyResolver(),
+      stylePatchService: deps.stylePatchService ?? new StylePatchService(),
     };
   }
+
 
   async run(input: PostGenerationStyleReviewInput): Promise<StyleReviewResult> {
     const policy = await this.deps.postGenerationStyleReviewPolicyResolver.resolve(input.novelId).catch(() => ({
@@ -113,6 +117,17 @@ export class PostGenerationStyleReviewRunner {
       });
       const finalContent = rewritten.content.trim() || input.content;
       const autoRewritten = finalContent.trim() !== input.content.trim();
+
+      if (autoRewritten) {
+        for (const issue of rewritableIssues) {
+          await this.deps.stylePatchService.recordViolation(
+            input.novelId,
+            issue.ruleName,
+            issue.suggestion
+          ).catch(() => {});
+        }
+      }
+
       return {
         report,
         autoRewritten,
