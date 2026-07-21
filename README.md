@@ -103,14 +103,21 @@ If you prefer to write and manage your novel workspace in a local terminal using
 - Syncs deconstructed books and external documents via vector databases (Qdrant).
 - RAG pipelines use parallel indexing, deduplication hash keys, and retrieval traces to debug vector search relevance.
 
-### 7. Multi-Modal Adaptation Workbenches
+### 7. Virtual World Sandbox Simulation (Westworld Sandbox)
+- Implements a complete lock-step turn-based simulation sandbox representing physical and ecological laws of the novel's world (detailed in [world-sandbox-simulation.md](file:///c:/Users/lilin/GeneralAgent/docs/design/world-sandbox-simulation.md)).
+- **Earth Physics & Ecology**: Tracks dynamic temperatures (latitude & season modeling, altitude lapse rate, diurnal hour-angle shifts) and predator-prey dynamics using Lotka-Volterra equations.
+- **Character Cognitive Agents**: Features memory decay modeling (Ebbinghaus forgetting curve) and spatial rumor diffusion/distortion across adjacent locations.
+- **Behavior Trees & LLM Scheduler**: Employs LOD 2 Behavior Trees tracking hunger, energy, and sanity for background characters, while scheduling LOD 1 protagonist decisions using the Sandbox LLM Scheduler.
+- **Dramatic Tension & Consistency Audit**: Tracks local and global tension, registers encounters, and audits narrative consistency (such as geography flash-teleportation or deceased characters speaking in drafts) using a virtual camera narrative engine.
+
+### 8. Multi-Modal Adaptation Workbenches
 - **Comic Workbench**: Generates panels and sheets. Employs user verification prompts prior to generating images to save credits. Automatically ports book profiles (factions, landmarks, character visuals) into the comic generator.
 - **VellumReel Video & Short Drama Pipeline**: Integrated engine mapping storyboard scripts into 9:16 vertical short dramas.
   - **Completely Offline Rendering**: Built-in 6 high-definition hand-drawn ink landscape illustrations for offline fallbacks.
   - **Local High-Fidelity TTS**: Native FastAPI speech server powered by Kokoro-ONNX v1.0 and `misaki[zh]`, enabling offline Chinese/English narration.
   - **Voice Mapping & Prompt Cleaning**: Automatically maps gender attributes (`am_*`/`bm_*` to male voice `zm_yunjian`, `af_*`/`bf_*` to female voice `zf_xiaoxiao`). Cleans character names and stage directions (e.g., `(sighs)`) from the voiceover texts using regex filters.
 
-### 8. Internationalization (i18n) Support
+### 9. Internationalization (i18n) Support
 - Fully integrated with `i18next` and `react-i18next` on the client. UI elements, logs, page labels, and settings routes support complete localization between English and Chinese. User language selections are persisted locally.
 
 ---
@@ -127,11 +134,9 @@ As the project scales from a novel-writing engine to a full **Daydream Engine**,
 - Expand the local rendering pipeline (VellumReel) to support wider aspect ratios (16:9, 2.39:1) for movie/film pre-production.
 - Introduce timeline-based audio/SFX editing, letting users preview dialogue tracks overlaid with ambient environmental tracks.
 
-### 🗺️ Stage 3: The Virtual World Sandbox ("Westworld")
-- Create a web-based geographic and faction-based simulation grid (World Sandbox).
-- Build autonomous, LLM-driven character agents with persistent long-term memories, goal sheets, and personality matrices.
-- Allow factions and characters to interact on the grid under the world's physical and magical laws, recording their actions to generate an automated chronicle.
-- Enable users to inject "events" (e.g., a natural disaster, a war, or a mysterious artifact) and watch the world sandbox simulate and record the consequences in real-time, functioning as a story engine.
+### 🗺️ Stage 3: Visual Westworld Console & Faction Battles
+- Build a web-based visual interface mapping out the geographic grid, faction boundaries, and live character locations for the simulated World Sandbox.
+- Integrate multi-agent faction skirmishes and large-scale war campaigns under the lock-step chronology engine.
 
 ---
 
