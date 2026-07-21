@@ -163,6 +163,23 @@ async def text_to_speech(request: SpeechRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    print("\nStarting local TTS API server at http://127.0.0.1:8000 ...")
-    print("Verify endpoint: POST http://127.0.0.1:8000/v1/audio/speech")
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    import sys
+    port = 8000
+    if len(sys.argv) > 1:
+        try:
+            port = int(sys.argv[1])
+        except ValueError:
+            pass
+    else:
+        # Check if port 8000 is available, otherwise default to 8001
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind(("127.0.0.1", 8000))
+            s.close()
+        except OSError:
+            port = 8001
+
+    print(f"\nStarting local TTS API server at http://127.0.0.1:{port} ...")
+    print(f"Verify endpoint: POST http://127.0.0.1:{port}/v1/audio/speech")
+    uvicorn.run(app, host="127.0.0.1", port=port)

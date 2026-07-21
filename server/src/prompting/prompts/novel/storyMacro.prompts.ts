@@ -1,4 +1,4 @@
-﻿import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import type {
   StoryDecomposition,
@@ -85,6 +85,7 @@ function buildExpansionAndDecompositionPrompt(
       "1. 只输出严格合法的 JSON 对象。",
       "2. 不要输出解释、备注、Markdown、代码块或任何额外文本。",
       "3. 所有字段都必须填写；若无法完全确定，应给出最稳妥、最克制的结果，并在 issues 中说明。",
+      "4. 必须直接使用给定的 4 个顶层键（expansion、decomposition、constraints、issues），严禁嵌套在 novel、story_macro 或任何其他自定义的包装键中。",
       "",
       "JSON 结构：",
       "{",
