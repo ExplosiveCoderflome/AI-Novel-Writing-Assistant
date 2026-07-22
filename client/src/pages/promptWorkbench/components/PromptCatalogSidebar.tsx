@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Braces, PenLine, RefreshCw, Search } from "lucide-react";
 import type { PromptCatalogItem } from "@/api/promptWorkbench";
 import { Button } from "@/components/ui/button";
@@ -54,7 +56,7 @@ function PromptListItem(props: {
           {isChapterWriterPrompt ? (
             <div className="mb-1 inline-flex max-w-full items-center gap-1 rounded-md bg-[#0f766e] px-1.5 py-0.5 text-[11px] font-medium leading-4 text-white">
               <PenLine className="h-3 w-3 shrink-0" />
-              <span className="truncate">正文生成主提示词</span>
+              <span className="truncate">{t("gen.pages.promptWorkbench.components.PromptCatalogSidebar.gen_00baeb42")}</span>
             </div>
           ) : null}
           <div className="truncate text-[13px] font-semibold leading-5 text-foreground" title={prompt.description || prompt.id}>
@@ -79,7 +81,7 @@ function PromptListItem(props: {
             prompt.slotSupported ? "bg-[#0f766e]" : "bg-[#94a3b8]",
           )} />
           <span className="truncate">
-            {prompt.slotSupported ? "可定制" : MANAGEMENT_STATUS_LABELS[prompt.managementStatus]}
+            {prompt.slotSupported ? t("gen.pages.promptWorkbench.components.PromptCatalogSidebar.gen_82b22215") : MANAGEMENT_STATUS_LABELS[prompt.managementStatus]}
           </span>
         </span>
       </div>
@@ -110,7 +112,7 @@ export function PromptCatalogSidebar(props: PromptCatalogSidebarProps) {
                 Prompt Workbench
               </h1>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {prompts.length > 0 ? `${prompts.length} 个提示词` : "选择提示词并查看可编辑槽位"}
+                {prompts.length > 0 ? `${prompts.length} 个提示词` : t("gen.pages.promptWorkbench.components.PromptCatalogSidebar.gen_2043e5c6")}
               </p>
             </div>
           </div>
@@ -120,7 +122,7 @@ export function PromptCatalogSidebar(props: PromptCatalogSidebarProps) {
             size="sm"
             onClick={onRefresh}
             disabled={isFetching}
-            title="刷新目录"
+            title={t("gen.pages.promptWorkbench.components.PromptCatalogSidebar.gen_90b5a467")}
             className="h-8 w-8 p-0 text-[#5f7381] hover:bg-[#eef6f4] hover:text-[#0f766e]"
           >
             <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
@@ -132,7 +134,7 @@ export function PromptCatalogSidebar(props: PromptCatalogSidebarProps) {
           <Input
             value={keyword}
             onChange={(event) => onKeywordChange(event.target.value)}
-            placeholder="搜索 id、任务、上下文或槽位"
+            placeholder={t("gen.pages.promptWorkbench.components.PromptCatalogSidebar.gen_1e819138")}
             className="h-9 border-[#ccd9df] bg-white pl-9 shadow-sm"
           />
         </div>

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import type { Descendant, Value } from "platejs";
 import { createSlatePlugin } from "platejs";
@@ -31,10 +33,10 @@ const PromptTokenPlugin = createSlatePlugin({
 });
 
 const REFERENCE_GROUP_LABELS: Record<PromptTemplateReferenceItem["group"], string> = {
-  required_context: "必需上下文",
-  optional_context: "可选上下文",
-  input: "运行变量",
-  slot: "槽位",
+  required_context: t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_249df3d6"),
+  optional_context: t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_09053474"),
+  input: t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_6f1fc776"),
+  slot: t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_5e8e1d63"),
 };
 
 function groupReferences(items: PromptTemplateReferenceItem[], query: string) {
@@ -67,13 +69,13 @@ function TokenMenu(props: {
         <Input
           value={props.query}
           onChange={(event) => props.onQueryChange(event.target.value)}
-          placeholder="搜索上下文、变量或槽位"
+          placeholder={t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_7ca6421c")}
           className="h-8 border-[#cbdad6]"
         />
       </div>
       <div className="max-h-80 overflow-auto p-2">
         {grouped.length === 0 ? (
-          <div className="px-2 py-3 text-sm text-muted-foreground">没有可插入的引用。</div>
+          <div className="px-2 py-3 text-sm text-muted-foreground">{t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_d410caa8")}</div>
         ) : grouped.map((section) => (
           <div key={section.group} className="mb-2 last:mb-0">
             <div className="px-2 pb-1 text-[11px] font-semibold text-[#52606d]">
@@ -141,8 +143,8 @@ function PromptTokenElement(props: {
     element.label,
     keyText,
     element.description,
-    element.required ? "必需上下文" : "",
-    element.hasPreviewBlock === false ? "当前预览未装配内容" : "",
+    element.required ? t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_249df3d6") : "",
+    element.hasPreviewBlock === false ? t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_d6081554") : "",
   ].filter(Boolean).join("\n");
 
   return (
@@ -218,7 +220,7 @@ function TemplateSourceTextarea(props: {
       <div className="flex items-center justify-between gap-3 border-b border-[#e1ebe8] px-3 py-2">
         <div>
           <div className="text-sm font-semibold text-[#25443f]">{props.label}</div>
-          <div className="text-[11px] text-muted-foreground">源码调试视图会显示原始模板 token</div>
+          <div className="text-[11px] text-muted-foreground">{t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_71008670")}</div>
         </div>
         <Button
           type="button"
@@ -409,7 +411,7 @@ export function VisualTemplateEditor(props: {
       <div className="flex items-center justify-between gap-3 border-b border-[#e1ebe8] px-3 py-2">
         <div>
           <div className="text-sm font-semibold text-[#25443f]">{props.label}</div>
-          <div className="text-[11px] text-muted-foreground">输入 @ 可插入上下文、变量或槽位标签</div>
+          <div className="text-[11px] text-muted-foreground">{t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_5eb6247d")}</div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -450,7 +452,7 @@ export function VisualTemplateEditor(props: {
             <Plate editor={editor} onValueChange={handleValueChange}>
               <PlateContent
                 readOnly={props.disabled}
-                placeholder="编排提示词内容，可插入上下文标签"
+                placeholder={t("gen.pages.promptWorkbench.components.VisualTemplateEditor.gen_98f67dda")}
                 renderElement={renderTemplateElement}
                 onFocus={() => props.onFocusRole(props.role)}
                 onKeyDown={handleKeyDown}

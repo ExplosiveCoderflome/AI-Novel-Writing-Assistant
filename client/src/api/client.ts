@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import axios, { AxiosError } from "axios";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { API_BASE_URL, API_TIMEOUT_MS } from "@/lib/constants";
@@ -31,19 +32,19 @@ apiClient.interceptors.response.use(
     const backendError = error.response?.data?.error;
     const backendMessage = error.response?.data?.message;
     const silentErrorStatuses = error.config?.silentErrorStatuses ?? [];
-    let title = backendError ?? error.message ?? "请求失败。";
+    let title = backendError ?? error.message ?? i18next.t("gen.api.client.gen_8836d4a2");
     let description = backendMessage && backendMessage !== backendError ? backendMessage : undefined;
 
     if (!status) {
-      title = "网络连接失败，请检查网络后重试。";
+      title = i18next.t("gen.api.client.gen_f90f1ace");
       description = undefined;
     } else if (status >= 500) {
-      title = backendError ?? "服务器错误，请稍后重试。";
+      title = backendError ?? i18next.t("gen.api.client.gen_f7742f64");
       description = backendMessage && backendMessage !== title ? backendMessage : undefined;
     }
 
     if (!status || !silentErrorStatuses.includes(status)) {
-      const isGenericServerErrorToast = title === "服务器错误，请稍后重试。";
+      const isGenericServerErrorToast = title === i18next.t("gen.api.client.gen_f7742f64");
 
       if (description) {
         toast.error(

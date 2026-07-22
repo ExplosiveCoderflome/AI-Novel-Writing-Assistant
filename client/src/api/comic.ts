@@ -388,6 +388,20 @@ export async function generatePanelImage(
   return res.data.data!;
 }
 
+export async function editPanelImage(payload: {
+  assetId?: string;
+  imageBase64?: string;
+  prompt: string;
+  negativePrompt?: string;
+  provider?: string;
+  model?: string;
+  size?: string;
+}): Promise<any> {
+  const res = await apiClient.post<ApiResponse<any>>("/images/edit", payload);
+  return res.data;
+}
+
+
 export function panelImageUrl(panelId: string): string {
   return `/api/comic/panel-images/${panelId}/panel`;
 }

@@ -517,3 +517,31 @@ export async function testLLMConnection(payload: {
   >("/llm/test", payload);
   return data;
 }
+
+export type SystemTier = "tier1" | "tier2" | "tier3";
+
+export interface GpuInfo {
+  name: string;
+  totalVramMb: number;
+  freeVramMb: number;
+}
+
+export interface DiagnosticResult {
+  platform: string;
+  cpuModel: string;
+  cpuCores: number;
+  totalMemoryGb: number;
+  freeMemoryGb: number;
+  hasNvidiaGpu: boolean;
+  isAppleSilicon: boolean;
+  gpu?: GpuInfo;
+  recommendedTier: SystemTier;
+  reason: string;
+  expectedGenerationTimeSec: number;
+}
+
+export async function getSystemDiagnostics() {
+  const { data } = await apiClient.get<ApiResponse<DiagnosticResult>>("/images/diagnostics");
+  return data;
+}
+

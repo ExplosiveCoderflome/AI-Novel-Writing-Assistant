@@ -16,6 +16,7 @@ const DramaWorkspacePage = lazy(() => import("@/pages/drama/DramaWorkspacePage")
 const DramaProjectPage = lazy(() => import("@/pages/drama/DramaProjectPage"));
 const ComicWorkspacePage = lazy(() => import("@/pages/comic/ComicWorkspacePage"));
 const ComicProjectPage = lazy(() => import("@/pages/comic/ComicProjectPage"));
+const VideoWorkspacePage = lazy(() => import("@/pages/video/VideoWorkspacePage"));
 const CreativeHubPage = lazy(() => import("@/pages/creativeHub/CreativeHubPage"));
 const ChatPage = lazy(() => import("@/pages/chat/ChatPage"));
 const BookAnalysisPage = lazy(() => import("@/pages/bookAnalysis/BookAnalysisPage"));
@@ -34,6 +35,7 @@ const WorldGenerator = lazy(() => import("@/pages/worlds/WorldGenerator"));
 const WorldWorkspace = lazy(() => import("@/pages/worlds/WorldWorkspace"));
 const WritingFormulaPage = lazy(() => import("@/pages/writingFormula/WritingFormulaPage"));
 const CharacterLibrary = lazy(() => import("@/pages/characters/CharacterLibrary"));
+const MultimediaHub = lazy(() => import("@/pages/multimedia/MultimediaHub"));
 
 const routes: RouteObject[] = [
   {
@@ -48,10 +50,12 @@ const routes: RouteObject[] = [
       { path: "novels/:id/preview", element: <NovelPreview /> },
       { path: "novels/:id/edit", element: <NovelEdit /> },
       { path: "novels/:id/chapters/:chapterId", element: <NovelChapterEdit /> },
-      { path: "drama", element: <DramaWorkspacePage /> },
+      { path: "multimedia", element: <MultimediaHub /> },
+      { path: "drama", element: <Navigate to="/multimedia?tab=drama" replace /> },
       { path: "drama/projects/:id", element: <DramaProjectPage /> },
-      { path: "comic", element: <ComicWorkspacePage /> },
+      { path: "comic", element: <Navigate to="/multimedia?tab=comic" replace /> },
       { path: "comic/projects/:id", element: <ComicProjectPage /> },
+      { path: "video", element: <Navigate to="/multimedia?tab=video" replace /> },
       { path: "creative-hub", element: <CreativeHubPage /> },
       { path: "chat-legacy", element: <ChatPage /> },
       { path: "chat", element: <Navigate to="/creative-hub" replace /> },

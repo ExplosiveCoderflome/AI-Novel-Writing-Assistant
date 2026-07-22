@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
@@ -253,7 +255,7 @@ export default function AutoDirectorFollowUpCenterPage() {
     }),
     onSuccess: async (response) => {
       await invalidateFollowUps();
-      toast.success(formatActionFeedbackMessage(response.message ?? "", "操作已提交"));
+      toast.success(formatActionFeedbackMessage(response.message ?? "", t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_f40347bf")));
     },
   });
 
@@ -268,7 +270,7 @@ export default function AutoDirectorFollowUpCenterPage() {
     }),
     onSuccess: async (response) => {
       await invalidateFollowUps();
-      toast.success(formatActionFeedbackMessage(response.message ?? "", "批量操作已提交"));
+      toast.success(formatActionFeedbackMessage(response.message ?? "", t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_682cd178")));
       setSelectedDirectorTaskIds([]);
     },
   });
@@ -280,7 +282,7 @@ export default function AutoDirectorFollowUpCenterPage() {
         queryKeys.autoDirectorFollowUps.detail(directorTaskId),
         response,
       );
-      toast.success("校验结果已刷新。");
+      toast.success(t("gen.pages.autoDirectorFollowUps.AutoDirectorFollowUpCenterPage.gen_97b1c7da"));
     },
   });
 

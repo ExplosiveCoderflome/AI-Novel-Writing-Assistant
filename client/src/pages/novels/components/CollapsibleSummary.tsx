@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,8 +19,8 @@ export default function CollapsibleSummary(props: CollapsibleSummaryProps) {
     description,
     meta,
     className,
-    collapsedLabel = "展开查看",
-    expandedLabel = "收起内容",
+    collapsedLabel = t("gen.pages.novels.components.CollapsibleSummary.gen_02e099f5"),
+    expandedLabel = t("gen.pages.novels.components.CollapsibleSummary.gen_6f47e370"),
   } = props;
 
   return (

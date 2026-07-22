@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Headphones, RefreshCw } from "lucide-react";
@@ -46,11 +48,11 @@ function isActiveBatch(job: DramaBatchJob | undefined): boolean {
 
 function batchStatusLabel(status: DramaBatchJob["status"]): string {
   const labels: Record<DramaBatchJob["status"], string> = {
-    pending: "等待中",
-    running: "执行中",
-    paused: "已暂停",
-    done: "已完成",
-    failed: "有失败项",
+    pending: t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_65dd9ef1"),
+    running: t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_46e38679"),
+    paused: t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_a2d930fd"),
+    done: t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_fad5222c"),
+    failed: t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_db57fa9a"),
   };
   return labels[status] ?? status;
 }
@@ -105,18 +107,18 @@ export function DramaEpisodeAudioPanel(props: {
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium">配音</h3>
+        <h3 className="text-sm font-medium">{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_01ab0b75")}</h3>
         <div className="flex flex-wrap gap-2">
           <SelectControl
             className="h-9 rounded-md border bg-background px-2 text-xs"
             value={activeProvider}
             onChange={(event) => setSelectedProvider(event.target.value)}
-            aria-label="配音通道"
+            aria-label={t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_292c4d35")}
           >
             {props.ttsProviders.length > 0 ? props.ttsProviders.map((provider) => (
               <option key={provider.provider} value={provider.provider}>{provider.label}</option>
             )) : (
-              <option value="mock">模拟配音通道</option>
+              <option value="mock">{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_d4f44c32")}</option>
             )}
           </SelectControl>
           <Button
@@ -139,7 +141,7 @@ export function DramaEpisodeAudioPanel(props: {
       {latestTtsBatch ? (
         <div className="rounded-md border p-3 text-sm">
           <div className="flex items-center justify-between gap-3">
-            <div className="font-medium">本集配音任务</div>
+            <div className="font-medium">{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_7ea1157c")}</div>
             <Badge variant={latestTtsBatch.status === "failed" ? "destructive" : "outline"}>{batchStatusLabel(latestTtsBatch.status)}</Badge>
           </div>
           <div className="mt-3 h-2 overflow-hidden rounded bg-muted">
@@ -147,15 +149,15 @@ export function DramaEpisodeAudioPanel(props: {
           </div>
           <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
             <span>{done}/{total}</span>
-            {latestProgress.skipped ? <span>已跳过 {latestProgress.skipped}</span> : null}
-            {latestProgress.failed ? <span>失败 {latestProgress.failed}</span> : null}
-            {latestProgress.provider ? <span>通道：{latestProgress.provider}</span> : null}
-            {latestProgress.cost ? <span>预计：{formatCost(latestProgress.cost, latestProgress.cost.estimated)}</span> : null}
-            {latestProgress.cost ? <span>实际：{formatCost(latestProgress.cost, latestProgress.cost.actual)}</span> : null}
+            {latestProgress.skipped ? <span>{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_a7434e57")}</span> : null}
+            {latestProgress.failed ? <span>{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_21fbd353")}</span> : null}
+            {latestProgress.provider ? <span>{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_d3892aff")}</span> : null}
+            {latestProgress.cost ? <span>{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_8eb998f7")}</span> : null}
+            {latestProgress.cost ? <span>{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_9c458f9e")}</span> : null}
           </div>
           {failedShotIds.length > 0 ? (
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-destructive">失败镜头：{failedShotIds.join("、")}</span>
+              <span className="text-xs text-destructive">{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_1bb197a9")}</span>
               <Button
                 size="sm"
                 type="button"
@@ -180,9 +182,9 @@ export function DramaEpisodeAudioPanel(props: {
           {audioItems.map((item) => (
             <div key={`${item.shotOrder}-${item.lineIndex}`} className="rounded-md border p-3 text-sm">
               <div className="mb-2 flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">镜头 {item.shotOrder}</Badge>
+                <Badge variant="secondary">{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_c694ea96")}</Badge>
                 {item.speaker ? <span className="font-medium">{item.speaker}</span> : null}
-                {item.voiceId ? <span className="text-xs text-muted-foreground">声线：{item.voiceId}</span> : null}
+                {item.voiceId ? <span className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_2a860e6f")}</span> : null}
               </div>
               <p className="mb-2 text-muted-foreground">{item.text}</p>
               <audio className="w-full" controls src={item.audioUrl} />
@@ -190,7 +192,7 @@ export function DramaEpisodeAudioPanel(props: {
           ))}
         </div>
       ) : (
-        <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">生成分镜后可合成本集配音。</div>
+        <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_c98a47d7")}</div>
       )}
     </section>
   );
@@ -203,13 +205,13 @@ function formatCost(cost: DramaBatchCostBreakdown, amount: number): string {
 function CostEstimate(props: { cost?: DramaBatchCostBreakdown; loading: boolean }) {
   return (
     <div className="rounded-md border border-dashed p-3 text-sm">
-      <div className="text-xs text-muted-foreground">配音预计费用</div>
+      <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_01641425")}</div>
       <div className="mt-1 font-medium">
-        {props.loading ? "计算中" : props.cost ? formatCost(props.cost, props.cost.estimated) : "生成分镜后可计算"}
+        {props.loading ? t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_5930eaab") : props.cost ? formatCost(props.cost, props.cost.estimated) : t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_90675736")}
       </div>
       {props.cost ? (
         <div className="mt-1 text-xs text-muted-foreground">
-          {props.cost.unit.costPerSecond ? `时长 ${formatCost(props.cost, props.cost.unit.costPerSecond)}/秒` : "未配置单价"}
+          {props.cost.unit.costPerSecond ? `时长 ${formatCost(props.cost, props.cost.unit.costPerSecond)}/秒` : t("gen.pages.drama.components.DramaEpisodeAudioPanel.gen_8690d6e2")}
           {props.cost.estimatedUnits.shots ? ` · ${props.cost.estimatedUnits.shots} 个镜头` : ""}
         </div>
       ) : null}

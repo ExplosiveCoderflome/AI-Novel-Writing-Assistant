@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
 import type { BookAnalysis } from "@ai-novel/shared/types/bookAnalysis";
 import type { KnowledgeDocumentDetail, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
@@ -21,18 +23,18 @@ import type {
 const EXTRACTION_PRESET_OPTIONS = [
   {
     key: "imitate",
-    label: "尽量贴近原文",
-    summary: "尽量保留强烈指纹和表达习惯，适合短期临摹、风格试写和对照学习。",
+    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_670b95ab"),
+    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_38cd0be2"),
   },
   {
     key: "balanced",
-    label: "保留主要读感",
-    summary: "保留读感和推进节奏，弱化过强指纹，适合大多数项目直接使用。",
+    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.preserveMainReadFeel"),
+    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.preserveReadFeelAndProgressRhythmWeakenOverStrongFingerprintSuitableForMostProjectsDirectUse"),
   },
   {
     key: "transfer",
-    label: "只迁移可复用骨架",
-    summary: "更多保留可复用的节奏、结构和对白逻辑，适合长期项目和整书默认写法。",
+    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_6da989b7"),
+    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_ef957e52"),
   },
 ] as const;
 
@@ -43,18 +45,18 @@ const MATERIAL_SOURCE_OPTIONS: Array<{
 }> = [
   {
     key: "direct_text",
-    label: "直接粘贴文本",
-    summary: "把样本文本交给后台提取任务，适合手里已有片段或章节。",
+    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_26f1d00f"),
+    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_62c7ec91"),
   },
   {
     key: "knowledge_document",
-    label: "知识库原文",
-    summary: "选择知识库文档活动版本，系统冻结全文快照后用代表性样本学习写法。",
+    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_51a7e4d2"),
+    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_04b0ad79"),
   },
   {
     key: "book_analysis",
-    label: "拆书结果",
-    summary: "直接使用拆书里的文风与技法结果生成写法。",
+    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_64d477d1"),
+    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_585484cd"),
   },
 ];
 
@@ -66,54 +68,54 @@ const KNOWLEDGE_SOURCE_PROCESSING_OPTIONS: Array<{
 }> = [
   {
     key: "representative_sample",
-    label: "智能抽样",
-    summary: "从开篇、中段、后段和收束抽取代表性样本，适合长篇原文，速度和稳定性更好。",
-    badge: "推荐",
+    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_a42e20c2"),
+    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.extractRepresentativeSamples"),
+    badge: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_3f981012"),
   },
   {
     key: "full_text",
-    label: "全文提取",
-    summary: "把活动版本全文作为模型输入，适合短文档；长篇可能更慢，也更容易触发模型上下文或超时限制。",
+    label: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_fc456238"),
+    summary: t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_04ac9582"),
   },
 ];
 
 function formatTaskStatus(task: UnifiedTaskDetail | null): string {
   if (!task) {
-    return "暂无任务";
+    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_0589e591");
   }
   if (task.status === "queued") {
-    return "排队中";
+    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_e5ac1d20");
   }
   if (task.status === "running") {
-    return "处理中";
+    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5d459d55");
   }
   if (task.status === "succeeded") {
-    return "已完成";
+    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_fad5222c");
   }
   if (task.status === "failed") {
-    return "失败";
+    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_acd5cb84");
   }
   if (task.status === "cancelled") {
-    return "已取消";
+    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_2111ccbb");
   }
-  return "等待审批";
+  return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_3ced7e48");
 }
 
 function formatCharCount(value: number | null | undefined): string {
   if (!value) {
-    return "0 字";
+    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.zeroCharacters");
   }
   return `${value.toLocaleString("zh-CN")} 字`;
 }
 
 function formatKnowledgeStatus(status: KnowledgeDocumentSummary["status"]): string {
   if (status === "enabled") {
-    return "可用";
+    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_ad6b7038");
   }
   if (status === "disabled") {
-    return "停用";
+    return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5c56a889");
   }
-  return "归档";
+  return t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_2f51c18f");
 }
 
 interface WritingFormulaCreateDialogProps {
@@ -194,16 +196,16 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
     || (form.materialSource === "knowledge_document" && !knowledgeDocumentReady)
     || (form.materialSource === "book_analysis" && !bookAnalysisReady);
   const materialSubmitLabel = form.materialSource === "book_analysis"
-    ? "从拆书结果创建写法"
+    ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_从拆书结果创建写法_spus")
     : form.materialSource === "knowledge_document"
-      ? "从知识库原文提取并自动保存"
-      : "提交提取任务并自动保存";
+      ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.extractAndAutoSaveOriginalTextKnowledgeBase")
+      : t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_3a428b93");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[92vh] max-w-5xl flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>创建写法</DialogTitle>
+          <DialogTitle>{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_68a34a89")}</DialogTitle>
           <DialogDescription>
             先选最省力的起步方式。创建完成后会自动打开当前写法编辑，继续补规则、试写和绑定。
           </DialogDescription>
@@ -211,9 +213,9 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="flex min-h-0 flex-1 flex-col space-y-4">
           <TabsList className="grid w-full shrink-0 grid-cols-3">
-            <TabsTrigger value="quick_start">模板起步</TabsTrigger>
-            <TabsTrigger value="blank">空白 / AI</TabsTrigger>
-            <TabsTrigger value="extract">从素材提取</TabsTrigger>
+            <TabsTrigger value="quick_start">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_fefda8fe")}</TabsTrigger>
+            <TabsTrigger value="blank">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_63db6415")}</TabsTrigger>
+            <TabsTrigger value="extract">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.extractFromMaterials")}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="quick_start" className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
@@ -228,7 +230,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                       <div className="text-base font-semibold text-foreground">{template.name}</div>
                       <div className="mt-1 text-xs text-muted-foreground">{template.category}</div>
                     </div>
-                    <Badge variant="outline">模板</Badge>
+                    <Badge variant="outline">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_59cf15fe")}</Badge>
                   </div>
                   <div className="mt-3 text-sm leading-6 text-muted-foreground">{template.description}</div>
                   {template.tags.length > 0 ? (
@@ -249,7 +251,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     onClick={() => onCreateFromTemplate(template.id)}
                     disabled={createFromTemplatePending}
                   >
-                    {createFromTemplatePending ? "创建中..." : "基于这套创建"}
+                    {createFromTemplatePending ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_b26107b6") : t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_e32593d7")}
                   </Button>
                 </div>
               ))}
@@ -263,7 +265,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-lg border p-4">
                 <div className="mb-3">
-                  <div className="text-sm font-medium text-foreground">手动空白创建</div>
+                  <div className="text-sm font-medium text-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_53a4c0f4")}</div>
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">
                     适合你已经知道自己要维护什么类型的写法，只想先建一个空壳。
                   </div>
@@ -271,7 +273,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 <div className="space-y-3">
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder="例如：都市强冲突快推流"
+                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_例如都市强冲突快推流_hf3h")}
                     value={form.manualName}
                     onChange={(event) => onFormChange({ manualName: event.target.value })}
                   />
@@ -280,14 +282,14 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     onClick={onCreateManual}
                     disabled={!form.manualName.trim() || createManualPending}
                   >
-                    {createManualPending ? "创建中..." : "创建空白写法"}
+                    {createManualPending ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_b26107b6") : t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_94dde803")}
                   </Button>
                 </div>
               </div>
 
               <div className="rounded-lg border p-4">
                 <div className="mb-3">
-                  <div className="text-sm font-medium text-foreground">AI 帮我先搭一套</div>
+                  <div className="text-sm font-medium text-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.aiHelpBuildSet")}</div>
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">
                     适合你只知道想写成什么感觉，还不想先手填规则字段。
                   </div>
@@ -295,19 +297,19 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 <div className="space-y-3">
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder="写法名称（可选）"
+                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5eac1d80")}
                     value={form.briefName}
                     onChange={(event) => onFormChange({ briefName: event.target.value })}
                   />
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder="分类（可选）"
+                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_1befc273")}
                     value={form.briefCategory}
                     onChange={(event) => onFormChange({ briefCategory: event.target.value })}
                   />
                   <textarea
                     className="min-h-[180px] w-full rounded-md border p-2 text-sm"
-                    placeholder="例如：整体推进快，冲突密集，对话直接，情绪不拖泥带水，适合都市和热血升级文。"
+                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.exampleFastProgressiveConflictDirectDialogueEmotionFitsUrbanHeatUpgrade")}
                     value={form.briefPrompt}
                     onChange={(event) => onFormChange({ briefPrompt: event.target.value })}
                   />
@@ -316,7 +318,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     onClick={onCreateFromBrief}
                     disabled={!form.briefPrompt.trim() || createFromBriefPending}
                   >
-                    {createFromBriefPending ? "AI 生成中..." : "AI 生成一套写法"}
+                    {createFromBriefPending ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.aiGeneratingLoading") : t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.aiGenerateWritingStyleSet")}
                   </Button>
                 </div>
               </div>
@@ -332,14 +334,14 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 <div className={form.materialSource === "book_analysis" ? "grid gap-3" : "grid gap-3 md:grid-cols-2"}>
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder="写法名称"
+                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_a5d0edd4")}
                     value={form.extractName}
                     onChange={(event) => onFormChange({ extractName: event.target.value })}
                   />
                   {form.materialSource !== "book_analysis" ? (
                     <input
                       className="rounded-md border p-2 text-sm"
-                      placeholder="分类（可选）"
+                      placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_1befc273")}
                       value={form.extractCategory}
                       onChange={(event) => onFormChange({ extractCategory: event.target.value })}
                     />
@@ -372,7 +374,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 {form.materialSource === "direct_text" ? (
                   <textarea
                     className="min-h-[260px] w-full rounded-md border p-2 text-sm"
-                    placeholder="粘贴你想提取手感的参考文本。建议至少给一段完整场景。"
+                    placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_55494a88")}
                     value={form.extractSourceText}
                     onChange={(event) => onFormChange({ extractSourceText: event.target.value })}
                   />
@@ -382,7 +384,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                   <div className="space-y-3">
                     <input
                       className="w-full rounded-md border p-2 text-sm"
-                      placeholder="搜索知识库文档标题或文件名"
+                      placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_32d6b5f5")}
                       value={form.knowledgeSearchKeyword}
                       onChange={(event) => onFormChange({ knowledgeSearchKeyword: event.target.value })}
                     />
@@ -419,7 +421,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                                 <div className="mt-1 text-xs leading-5 text-slate-500">{document.fileName}</div>
                               </div>
                               <Badge variant={selected ? "default" : "outline"}>
-                                {selected ? "已选择" : formatKnowledgeStatus(document.status)}
+                                {selected ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_f08afd1f") : formatKnowledgeStatus(document.status)}
                               </Badge>
                             </div>
                             <div className="mt-2 text-xs leading-5 text-slate-500">
@@ -431,7 +433,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     </div>
                     <div className="space-y-2 rounded-xl border bg-white p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-sm font-medium text-slate-950">原文处理方式</div>
+                        <div className="text-sm font-medium text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_3d97e69b")}</div>
                         {activeKnowledgeVersion ? (
                           <div className="text-xs text-slate-500">
                             来源快照 {formatCharCount(activeKnowledgeVersion.charCount)}
@@ -477,7 +479,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     </div>
                     <div className="rounded-xl border bg-slate-50/80 p-3 text-sm leading-6 text-slate-700">
                       {selectedKnowledgeDocumentLoading ? (
-                        "读取所选文档的活动版本..."
+                        t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_b363cd08")
                       ) : selectedKnowledgeDocument ? (
                         <>
                           <div className="font-medium text-slate-950">{selectedKnowledgeDocument.title}</div>
@@ -486,14 +488,14 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                               活动版本 v{activeKnowledgeVersion.versionNumber} · {formatCharCount(activeKnowledgeVersion.charCount)}
                             </div>
                           ) : (
-                            <div className="mt-1 text-xs text-amber-700">所选文档缺少活动版本，不能提交。</div>
+                            <div className="mt-1 text-xs text-amber-700">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_e6b3a549")}</div>
                           )}
                           {activeKnowledgeVersion && !activeKnowledgeVersion.content.trim() ? (
-                            <div className="mt-1 text-xs text-amber-700">活动版本正文为空，不能提交。</div>
+                            <div className="mt-1 text-xs text-amber-700">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_0ee1d1fb")}</div>
                           ) : null}
                         </>
                       ) : (
-                        "选择一个知识库文档后，系统会读取活动版本全文并在提交任务时冻结快照。"
+                        t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_131c45bb")
                       )}
                     </div>
                   </div>
@@ -503,7 +505,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                   <div className="space-y-3">
                     <input
                       className="w-full rounded-md border p-2 text-sm"
-                      placeholder="搜索拆书标题或来源文档"
+                      placeholder={t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_8af1aea1")}
                       value={form.bookAnalysisSearchKeyword}
                       onChange={(event) => onFormChange({ bookAnalysisSearchKeyword: event.target.value })}
                     />
@@ -539,11 +541,11 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                                 <div className="mt-1 text-xs leading-5 text-slate-500">{analysis.documentTitle}</div>
                               </div>
                               <Badge variant={selected ? "default" : "outline"}>
-                                {selected ? "已选择" : "可生成"}
+                                {selected ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_f08afd1f") : t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_882ba885")}
                               </Badge>
                             </div>
                             <div className="mt-2 text-xs leading-5 text-slate-500">
-                              来源版本 v{analysis.documentVersionNumber} · {analysis.summary || "拆书结果可用于生成写法"}
+                              来源版本 v{analysis.documentVersionNumber} · {analysis.summary || t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_5299f9e8")}
                             </div>
                           </button>
                         );
@@ -559,9 +561,9 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     disabled={materialSubmitDisabled}
                   >
                     {extractTaskSubmitting
-                      ? form.materialSource === "book_analysis" ? "生成中..." : "提交任务中..."
+                      ? form.materialSource === "book_analysis" ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_4d020ba3") : t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_c661e656")
                       : extractionTaskIsActive && form.materialSource !== "book_analysis"
-                        ? "后台任务进行中..."
+                        ? t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_c5a43600")
                         : materialSubmitLabel}
                   </Button>
                 </div>
@@ -571,7 +573,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 {form.materialSource === "book_analysis" ? (
                   <>
                     <div>
-                      <div className="text-sm font-medium text-foreground">拆书结果生成</div>
+                      <div className="text-sm font-medium text-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_0ea66184")}</div>
                       <div className="mt-1 text-xs leading-5 text-muted-foreground">
                         这一路会直接读取拆书里的文风与技法小节，生成后立即打开写法编辑。
                       </div>
@@ -588,14 +590,14 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                           ) : null}
                         </>
                       ) : (
-                        "选择一个拆书结果后，系统会用文风与技法分析生成写法，不进入后台提取任务。"
+                        t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_47d21a58")
                       )}
                     </div>
                   </>
                 ) : (
                   <>
                     <div>
-                      <div className="text-sm font-medium text-foreground">保留策略</div>
+                      <div className="text-sm font-medium text-foreground">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.preserveStrategy")}</div>
                       <div className="mt-1 text-xs leading-5 text-muted-foreground">
                         先决定你要保留多少原始指纹，系统会按这个策略自动生成并保存写法。
                       </div>
@@ -616,7 +618,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div className="text-base font-semibold">{preset.label}</div>
-                              {active ? <Badge variant="secondary" className="bg-white/10 text-white">当前方案</Badge> : null}
+                              {active ? <Badge variant="secondary" className="bg-white/10 text-white">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_ce717abb")}</Badge> : null}
                             </div>
                             <div className={`mt-2 text-sm leading-6 ${active ? "text-slate-200" : "text-slate-600"}`}>
                               {preset.summary}
@@ -631,17 +633,17 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     {activeExtractionTask ? (
                       <div className="rounded-xl border bg-slate-50/80 p-4 text-sm text-slate-700">
                         <div className="flex items-center justify-between gap-3">
-                          <div className="font-medium text-slate-900">后台任务</div>
+                          <div className="font-medium text-slate-900">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_fea28a8c")}</div>
                           <Badge variant={extractionTaskIsActive ? "secondary" : "outline"}>
                             {formatTaskStatus(activeExtractionTask)}
                           </Badge>
                         </div>
                         <div className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
-                          <div>任务标题：{activeExtractionTask.title}</div>
-                          <div>执行阶段：{activeExtractionTask.currentStage ?? "等待调度"}</div>
-                          <div>任务进度：{Math.round(activeExtractionTask.progress * 100)}%</div>
+                          <div>{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.taskTitleActiveExtractionTask")}</div>
+                          <div>{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_f024aecf")}</div>
+                          <div>{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.taskProgressRoundActiveExtractionTaskProgress100Percent")}</div>
                           {activeExtractionTask.failureSummary ? (
-                            <div className="text-rose-600">异常原因：{activeExtractionTask.failureSummary}</div>
+                            <div className="text-rose-600">{t("gen.pages.writingFormula.components.WritingFormulaCreateDialog.gen_bd248a2f")}</div>
                           ) : null}
                         </div>
                         {onOpenTaskCenter ? (

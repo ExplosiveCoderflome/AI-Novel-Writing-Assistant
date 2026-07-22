@@ -1,23 +1,24 @@
+import i18next from "i18next";
 import type { RagJobSummary } from "@/api/knowledge";
 
 export function formatStatus(status: string): string {
   switch (status) {
     case "enabled":
-      return "已启用";
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_53ace430");
     case "disabled":
-      return "已停用";
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_69b0f684");
     case "archived":
-      return "已归档";
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_c3ba167c");
     case "idle":
-      return "空闲";
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_87bb5bbc");
     case "queued":
-      return "排队中";
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_e5ac1d20");
     case "running":
-      return "执行中";
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_46e38679");
     case "succeeded":
-      return "成功";
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_330363df");
     case "failed":
-      return "失败";
+      return i18next.t("gen.pages.knowledge.components.knowledgeRagUi.gen_acd5cb84");
     default:
       return status;
   }

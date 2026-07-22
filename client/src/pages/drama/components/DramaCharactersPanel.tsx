@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, ImageIcon, Loader2, Mic2, Save, UserRound, Video } from "lucide-react";
@@ -70,11 +72,11 @@ function buildDraft(character: DramaCharacter): DramaCharacterAssetInput {
 
 function assetCompleteness(draft: DramaCharacterAssetInput) {
   const items = [
-    { key: "screenRole", label: "出镜功能", done: Boolean(draft.screenRole.trim()) },
-    { key: "audienceRead", label: "观众识别", done: Boolean(draft.audienceRead.trim()) },
-    { key: "visualAnchor", label: "造型锚点", done: Boolean(draft.visualAnchor.trim()) },
-    { key: "voiceAnchor", label: "表演锚点", done: Boolean(draft.voiceAnchor.trim()) },
-    { key: "lineRule", label: "台词规则", done: Boolean(draft.lineRule.trim()) },
+    { key: "screenRole", label: t("gen.pages.drama.components.DramaCharactersPanel.gen_628d3842"), done: Boolean(draft.screenRole.trim()) },
+    { key: "audienceRead", label: t("gen.pages.drama.components.DramaCharactersPanel.gen_278bec03"), done: Boolean(draft.audienceRead.trim()) },
+    { key: "visualAnchor", label: t("gen.pages.drama.components.DramaCharactersPanel.gen_88498354"), done: Boolean(draft.visualAnchor.trim()) },
+    { key: "voiceAnchor", label: t("gen.pages.drama.components.DramaCharactersPanel.gen_d42b397c"), done: Boolean(draft.voiceAnchor.trim()) },
+    { key: "lineRule", label: t("gen.pages.drama.components.DramaCharactersPanel.gen_96657d7d"), done: Boolean(draft.lineRule.trim()) },
   ];
   return {
     items,
@@ -150,10 +152,10 @@ function CharacterImagesBlock(props: {
             selectedProvider || undefined,
             overrides,
           );
-          setSheet(result.data ?? { status: "error", error: "无结果" });
+          setSheet(result.data ?? { status: "error", error: t("gen.pages.drama.components.DramaCharactersPanel.gen_c5e6d122") });
           return result;
         } catch (error) {
-          setSheet({ status: "error", error: error instanceof Error ? error.message : "生成失败" });
+          setSheet({ status: "error", error: error instanceof Error ? error.message : t("gen.pages.drama.components.DramaCharactersPanel.gen_7f7de8a2") });
           throw error;
         } finally {
           setBusy(false);
@@ -171,8 +173,8 @@ function CharacterImagesBlock(props: {
       {/* 标题行 + Provider 选择器 */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-medium">角色设计稿</p>
-          <p className="text-xs text-muted-foreground">面部特写 + 全身正/侧/背三视图 — 生成后锁定跨集视觉一致性</p>
+          <p className="text-sm font-medium">{t("gen.pages.drama.components.DramaCharactersPanel.gen_45d713bf")}</p>
+          <p className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaCharactersPanel.gen_20a3f22c")}</p>
         </div>
         {imageProviders.length > 0 ? (
           <SelectControl
@@ -188,7 +190,7 @@ function CharacterImagesBlock(props: {
             ))}
           </SelectControl>
         ) : (
-          <span className="text-xs text-destructive">请先在设置中配置图片生成 Provider</span>
+          <span className="text-xs text-destructive">{t("gen.pages.drama.components.DramaCharactersPanel.gen_315e0fb8")}</span>
         )}
       </div>
 
@@ -210,17 +212,17 @@ function CharacterImagesBlock(props: {
           {sheet.status === "generating" ? (
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="h-6 w-6 animate-spin" />
-              <span className="text-xs">正在生成角色设计稿...</span>
+              <span className="text-xs">{t("gen.pages.drama.components.DramaCharactersPanel.gen_584fecff")}</span>
             </div>
           ) : sheet.status === "error" ? (
             <div className="flex flex-col items-center gap-1 px-4 text-center">
               <ImageIcon className="h-5 w-5 text-destructive" />
-              <span className="text-xs text-destructive">{sheet.error ?? "生成失败"}</span>
+              <span className="text-xs text-destructive">{t("gen.pages.drama.components.DramaCharactersPanel.gen_sheeterror_k4w2")}</span>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-1">
               <ImageIcon className="h-6 w-6" />
-              <span className="text-xs">尚未生成</span>
+              <span className="text-xs">{t("gen.pages.drama.components.DramaCharactersPanel.gen_ad282ec2")}</span>
             </div>
           )}
         </div>
@@ -240,15 +242,15 @@ function CharacterImagesBlock(props: {
           ) : (
             <ImageIcon className="h-3.5 w-3.5" />
           )}
-          {sheet.status === "done" ? "重新生成设计稿" : "生成角色设计稿"}
+          {sheet.status === "done" ? t("gen.pages.drama.components.DramaCharactersPanel.gen_52cfd5d4") : t("gen.pages.drama.components.DramaCharactersPanel.gen_1f81b704")}
         </Button>
         {sheet.status === "done" && (
           <>
             <Badge variant="outline">v{sheet.version ?? 1}</Badge>
-            <span className="text-xs text-muted-foreground">视频生成将自动引用此图作为角色参考</span>
+            <span className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaCharactersPanel.gen_e880376c")}</span>
           </>
         )}
-        {sheet.history?.length ? <Badge variant="secondary">{sheet.history.length} 个历史版本</Badge> : null}
+        {sheet.history?.length ? <Badge variant="secondary">{t("gen.pages.drama.components.DramaCharactersPanel.gen_sheethisto_sa99")}</Badge> : null}
       </div>
       <CharacterImageHistory history={sheet.history ?? []} />
     </div>
@@ -270,7 +272,7 @@ function CharacterImageHistory({ history }: { history: NonNullable<DramaCharacte
   const items = [...history].sort((left, right) => right.version - left.version);
   return (
     <div className="rounded-md border border-dashed p-3 text-xs">
-      <div className="mb-2 font-medium">设计稿历史版本</div>
+      <div className="mb-2 font-medium">{t("gen.pages.drama.components.DramaCharactersPanel.gen_ab381f57")}</div>
       <div className="flex flex-wrap gap-2">
         {items.map((item) => {
           const label = `v${item.version}${item.provider ? ` · ${item.provider}` : ""}`;
@@ -330,7 +332,7 @@ function CharacterAssetEditor(props: {
               <UserRound className="h-4 w-4" />
               {props.character.name}
             </CardTitle>
-            <CardDescription>{draft.screenRole || "先明确这个角色在短剧里的出镜功能。"}</CardDescription>
+            <CardDescription>{t("gen.pages.drama.components.DramaCharactersPanel.draftRolePrompt")}</CardDescription>
           </div>
           <Badge variant={completeness.done >= 4 ? "default" : "secondary"}>
             资产 {completeness.done}/{completeness.total}
@@ -340,7 +342,7 @@ function CharacterAssetEditor(props: {
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block space-y-1.5 text-sm">
-            <span className="font-medium">出镜名</span>
+            <span className="font-medium">{t("gen.pages.drama.components.DramaCharactersPanel.gen_11b8c0b8")}</span>
             <input
               className="h-10 w-full rounded-md border bg-background px-3 text-sm"
               value={draft.name}
@@ -348,22 +350,22 @@ function CharacterAssetEditor(props: {
             />
           </label>
           <label className="block space-y-1.5 text-sm">
-            <span className="font-medium">短剧功能</span>
+            <span className="font-medium">{t("gen.pages.drama.components.DramaCharactersPanel.gen_bf513d2f")}</span>
             <input
               className="h-10 w-full rounded-md border bg-background px-3 text-sm"
               value={draft.screenRole}
-              placeholder="主角 / 反派 / 阻力角色 / 助攻 / 情感对象"
+              placeholder={t("gen.pages.drama.components.DramaCharactersPanel.mainOpponentSupportObject")}
               onChange={(event) => setDraft((current) => ({ ...current, screenRole: event.target.value }))}
             />
           </label>
         </div>
 
         <label className="block space-y-1.5 text-sm">
-          <span className="font-medium">观众一眼要看懂什么</span>
+          <span className="font-medium">{t("gen.pages.drama.components.DramaCharactersPanel.gen_766d0fce")}</span>
           <textarea
             className="min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm"
             value={draft.audienceRead}
-            placeholder="例如：她表面低位受辱，但眼神始终冷静，观众要立刻相信她有反击底牌。"
+            placeholder={t("gen.pages.drama.components.DramaCharactersPanel.exampleSheSeemedHumiliatedButAlwaysCalmAudienceMustBelieveHer")}
             onChange={(event) => setDraft((current) => ({ ...current, audienceRead: event.target.value }))}
           />
         </label>
@@ -377,7 +379,7 @@ function CharacterAssetEditor(props: {
             <textarea
               className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={draft.visualAnchor}
-              placeholder="外貌、发型、服装、随身物、常用色彩；后续分镜和视频提示词会沿用。"
+              placeholder={t("gen.pages.drama.components.DramaCharactersPanel.gen_5e8df109")}
               onChange={(event) => setDraft((current) => ({ ...current, visualAnchor: event.target.value }))}
             />
           </label>
@@ -389,28 +391,28 @@ function CharacterAssetEditor(props: {
             <textarea
               className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={draft.voiceAnchor}
-              placeholder="语速、音色、表情习惯、情绪爆发方式；用于台词和视频表演一致。"
+              placeholder={t("gen.pages.drama.components.DramaCharactersPanel.gen_485f80fb")}
               onChange={(event) => setDraft((current) => ({ ...current, voiceAnchor: event.target.value }))}
             />
           </label>
         </div>
 
         <label className="block space-y-1.5 text-sm">
-          <span className="font-medium">台词规则</span>
+          <span className="font-medium">{t("gen.pages.drama.components.DramaCharactersPanel.gen_96657d7d")}</span>
           <textarea
             className="min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm"
             value={draft.lineRule}
-            placeholder="例如：短句压迫、少解释、多反问；被羞辱时不急着辩解，反击时一句话落锤。"
+            placeholder={t("gen.pages.drama.components.DramaCharactersPanel.exampleShortSentencesSuppressExplainLessAskMoreWhenHumiliatedDoNotImmediatelyDefendCounterWithOneSentence")}
             onChange={(event) => setDraft((current) => ({ ...current, lineRule: event.target.value }))}
           />
         </label>
 
         <label className="block space-y-1.5 text-sm">
-          <span className="font-medium">冲突关系和镜头搭配</span>
+          <span className="font-medium">{t("gen.pages.drama.components.DramaCharactersPanel.gen_0b08748a")}</span>
           <textarea
             className="min-h-20 w-full rounded-md border bg-background px-3 py-2 text-sm"
             value={draft.relationMap}
-            placeholder="这个角色主要和谁对戏、压制谁、保护谁，适合怎样同框。"
+            placeholder={t("gen.pages.drama.components.DramaCharactersPanel.gen_116afedb")}
             onChange={(event) => setDraft((current) => ({ ...current, relationMap: event.target.value }))}
           />
         </label>
@@ -451,8 +453,8 @@ export function DramaCharactersPanel(props: {
     <div className="space-y-4">
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle className="text-lg">短剧角色资产</CardTitle>
-          <CardDescription>角色资产会进入台本、分镜和视频提示词，优先保证观众识别、造型一致和台词可拍。</CardDescription>
+          <CardTitle className="text-lg">{t("gen.pages.drama.components.DramaCharactersPanel.gen_3f48cea6")}</CardTitle>
+          <CardDescription>{t("gen.pages.drama.components.DramaCharactersPanel.gen_2b042507")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           <SelectControl
@@ -461,7 +463,7 @@ export function DramaCharactersPanel(props: {
             disabled={props.busy || props.library.length === 0}
             onChange={(event) => setSelectedLibraryId(event.target.value)}
           >
-            <option value="" disabled>{props.library.length > 0 ? "选择短剧角色资产" : "暂无可导入角色资产"}</option>
+            <option value="" disabled>{t("gen.pages.drama.components.DramaCharactersPanel.librarySelection")}</option>
             {props.library.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}{item.archetype ? ` · ${item.archetype}` : ""}
@@ -481,7 +483,7 @@ export function DramaCharactersPanel(props: {
       </Card>
 
       {characters.length === 0 ? (
-        <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">整理素材后会自动导入主要角色，再补齐造型、表演和台词锚点。</div>
+        <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">{t("gen.pages.drama.components.DramaCharactersPanel.gen_05999521")}</div>
       ) : (
         <div className="grid gap-3 xl:grid-cols-2">
           {characters.map((character) => (

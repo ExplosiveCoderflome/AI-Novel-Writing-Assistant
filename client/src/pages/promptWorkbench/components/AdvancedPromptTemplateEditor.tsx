@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { GitBranch, History, RotateCcw, Save, ShieldCheck } from "lucide-react";
 import type {
@@ -28,7 +30,7 @@ function formatDiagnosticKeys(
   keys: string[],
   kind: Extract<PromptTemplateTokenKind, "context" | "input" | "slot">,
 ) {
-  return keys.map((key) => labelTemplateToken({ kind, key })).join("、") || "无";
+  return keys.map((key) => labelTemplateToken({ kind, key })).join("、") || t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_d81bb206");
 }
 
 function VersionRow(props: {
@@ -44,7 +46,7 @@ function VersionRow(props: {
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-[#25443f]">v{props.version.versionNo}</span>
-          {active ? <Badge className="bg-[#0f766e] text-white hover:bg-[#0f766e]">启用中</Badge> : null}
+          {active ? <Badge className="bg-[#0f766e] text-white hover:bg-[#0f766e]">{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_c16e2ef8")}</Badge> : null}
           <span className="font-mono text-[11px] text-muted-foreground">{props.version.compiledHash}</span>
         </div>
         <div className="mt-1 text-xs text-muted-foreground">{formatDate(props.version.createdAt)}</div>
@@ -92,7 +94,7 @@ export function AdvancedPromptTemplateEditor(props: {
   const tokenItems = templateState.references?.items ?? [];
   const templateDiagnostics = preview?.diagnostics.template?.diagnostics;
   const view = templateState.view;
-  const modeLabel = view?.mode === "custom" ? "本书自定义" : "官方模板";
+  const modeLabel = view?.mode === "custom" ? t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_d328cfb5") : t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_9ca25cc5");
   const isBusy = templateState.saveMutation.isPending
     || templateState.restoreMutation.isPending
     || templateState.activateMutation.isPending;
@@ -164,7 +166,7 @@ export function AdvancedPromptTemplateEditor(props: {
 
       <VisualTemplateEditor
         role="system"
-        label="System 模板"
+        label={t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_31f0b930")}
         value={templateState.systemContent}
         disabled={disabled || isBusy}
         textareaRef={templateState.systemRef}
@@ -182,7 +184,7 @@ export function AdvancedPromptTemplateEditor(props: {
 
       <VisualTemplateEditor
         role="human"
-        label="Human 模板"
+        label={t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_87e01c13")}
         value={templateState.humanContent}
         disabled={disabled || isBusy}
         textareaRef={templateState.humanRef}
@@ -206,7 +208,7 @@ export function AdvancedPromptTemplateEditor(props: {
           id="prompt-template-notes"
           value={templateState.notes}
           onChange={(event) => templateState.setNotes(event.target.value)}
-          placeholder="说明本次模板调整目标"
+          placeholder={t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_dc7b50a7")}
           className="mt-2 border-[#cbdad6]"
           disabled={disabled || isBusy}
         />
@@ -219,10 +221,10 @@ export function AdvancedPromptTemplateEditor(props: {
             预览注入结果
           </div>
           <div className="grid gap-2 text-sm text-[#52606d] md:grid-cols-2">
-            <div>显式上下文：{formatDiagnosticKeys(templateDiagnostics.referencedContextGroups, "context")}</div>
-            <div>保底追加：{formatDiagnosticKeys(templateDiagnostics.fallbackRequiredGroups, "context")}</div>
-            <div>运行变量：{formatDiagnosticKeys(templateDiagnostics.referencedInputFields, "input")}</div>
-            <div>槽位引用：{formatDiagnosticKeys(templateDiagnostics.referencedSlotKeys, "slot")}</div>
+            <div>{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_ee92a103")}</div>
+            <div>{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_d181d9be")}</div>
+            <div>{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_885594d5")}</div>
+            <div>{t("gen.pages.promptWorkbench.components.AdvancedPromptTemplateEditor.gen_3b9d0252")}</div>
           </div>
         </div>
       ) : null}

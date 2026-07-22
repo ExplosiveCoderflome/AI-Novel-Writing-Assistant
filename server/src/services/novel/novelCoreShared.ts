@@ -22,6 +22,7 @@ export interface CreateNovelInput {
   secondaryStoryModeId?: string;
   worldId?: string;
   writingMode?: "original" | "continuation";
+  language?: string;
   projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
   narrativePov?: "first_person" | "third_person" | "mixed";
   pacePreference?: "slow" | "balanced" | "fast";
@@ -51,6 +52,7 @@ export interface UpdateNovelInput {
   commercialTags?: string[] | null;
   status?: "draft" | "published";
   writingMode?: "original" | "continuation";
+  language?: string | null;
   projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline" | null;
   narrativePov?: "first_person" | "third_person" | "mixed" | null;
   pacePreference?: "slow" | "balanced" | "fast" | null;

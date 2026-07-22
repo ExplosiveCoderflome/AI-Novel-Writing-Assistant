@@ -2,7 +2,7 @@ import { prisma } from "../../db/prisma";
 import { safeJsonParse } from "./utils/json";
 
 export type DramaProjectExportFormat = "markdown" | "json";
-export type DramaEpisodeExportFormat = "srt" | "timeline-json";
+export type DramaEpisodeExportFormat = "srt" | "timeline-json" | "jianying";
 
 interface SubtitleEntry {
   index: number;
@@ -182,7 +182,7 @@ export class DramaExportService {
   }
 
   async exportEpisode(projectId: string, order: number, format: DramaEpisodeExportFormat = "srt") {
-    if (!["srt", "timeline-json"].includes(format)) {
+    if (!["srt", "timeline-json", "jianying"].includes(format)) {
       throw new Error(`暂不支持的短剧单集导出格式：${format}`);
     }
     const episode = await prisma.dramaEpisode.findUnique({
@@ -314,6 +314,118 @@ export class DramaExportService {
         contentType: "application/json; charset=utf-8",
         filename: `${episode.project.title}-E${episode.order}-timeline.json`,
         body: JSON.stringify(timeline, null, 2),
+      };
+    }
+
+    if (format === "jianying") {
+      const draftId = `draft_${episode.id}`;
+      const videoSegments: any[] = [];
+      const audioSegments: any[] = [];
+      const textSegments: any[] = [];
+
+      const videoMaterials: any[] = [];
+      const audioMaterials: any[] = [];
+      const textMaterials: any[] = [];
+
+      videoTrack.forEach((clip: any) => {
+        const materialId = `mat_video_${clip.shotId}`;
+        videoMaterials.push({
+          id: materialId,
+          path: clip.sourceUrl || clip.posterUrl || "",
+          duration: Math.round(clip.durationSec * 1000000),
+        });
+        videoSegments.push({
+          id: `seg_video_${clip.shotId}`,
+          material_id: materialId,
+          source_timerange: {
+            start: 0,
+            duration: Math.round(clip.durationSec * 1000000),
+          },
+          target_timerange: {
+            start: Math.round(clip.startSec * 1000000),
+            duration: Math.round(clip.durationSec * 1000000),
+          },
+          render_index: 0,
+        });
+      });
+
+      audioTrack.forEach((clip: any) => {
+        const materialId = `mat_audio_${clip.shotId}_${clip.lineIndex}`;
+        audioMaterials.push({
+          id: materialId,
+          path: clip.audioUrl || "",
+          duration: Math.round(clip.durationSec * 1000000),
+        });
+        audioSegments.push({
+          id: `seg_audio_${clip.shotId}_${clip.lineIndex}`,
+          material_id: materialId,
+          source_timerange: {
+            start: 0,
+            duration: Math.round(clip.durationSec * 1000000),
+          },
+          target_timerange: {
+            start: Math.round(clip.startSec * 1000000),
+            duration: Math.round(clip.durationSec * 1000000),
+          },
+          render_index: 0,
+        });
+      });
+
+      entries.forEach((sub: any) => {
+        const materialId = `mat_text_${sub.index}`;
+        textMaterials.push({
+          id: materialId,
+          content: sub.text,
+        });
+        textSegments.push({
+          id: `seg_text_${sub.index}`,
+          material_id: materialId,
+          source_timerange: {
+            start: 0,
+            duration: Math.round((sub.endSec - sub.startSec) * 1000000),
+          },
+          target_timerange: {
+            start: Math.round(sub.startSec * 1000000),
+            duration: Math.round((sub.endSec - sub.startSec) * 1000000),
+          },
+          render_index: 0,
+        });
+      });
+
+      const jianyingDraft = {
+        id: draftId,
+        fps: 30.0,
+        width: 1080,
+        height: 1920,
+        duration: Math.round((cursor || 1) * 1000000),
+        tracks: [
+          {
+            id: `track_video_${episode.id}`,
+            type: "video",
+            segments: videoSegments,
+          },
+          {
+            id: `track_audio_${episode.id}`,
+            type: "audio",
+            segments: audioSegments,
+          },
+          {
+            id: `track_text_${episode.id}`,
+            type: "text",
+            segments: textSegments,
+          },
+        ],
+        materials: {
+          videos: videoMaterials,
+          audios: audioMaterials,
+          texts: textMaterials,
+        },
+      };
+
+      return {
+        contentType: "application/json; charset=utf-8",
+        filename: `${episode.project.title}-E${episode.order}-jianying-draft.json`,
+        body: JSON.stringify(jianyingDraft, null, 2),
       };
     }
 

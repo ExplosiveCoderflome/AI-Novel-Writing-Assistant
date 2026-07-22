@@ -1,11 +1,12 @@
+import i18next from "i18next";
 const WORKFLOW_ACTIVITY_TAGS = [
-  "资产回灌中",
-  "角色成长中",
-  "状态同步中",
-  "资源账本同步中",
-  "伏笔账本同步中",
-  "账本校准中",
-  "伏笔回填中",
+  i18next.t("gen.lib.novelWorkflowActivityTags.gen_1b741742"),
+  i18next.t("gen.lib.novelWorkflowActivityTags.gen_f0e10078"),
+  i18next.t("gen.lib.novelWorkflowActivityTags.gen_52cd92d7"),
+  i18next.t("gen.lib.novelWorkflowActivityTags.gen_475ac79f"),
+  i18next.t("gen.lib.novelWorkflowActivityTags.syncingForeshadowingLedger"),
+  i18next.t("gen.lib.novelWorkflowActivityTags.gen_f6775234"),
+  i18next.t("gen.lib.novelWorkflowActivityTags.fillingBackInForeshadowing"),
 ] as const;
 
 export function extractWorkflowActivityTags(value: string | null | undefined): string[] {

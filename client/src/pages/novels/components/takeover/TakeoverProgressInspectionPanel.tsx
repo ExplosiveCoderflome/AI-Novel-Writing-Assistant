@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { TakeoverProgressInspectionViewModel } from "../novelExistingProjectTakeoverViewModel";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 
@@ -15,7 +17,7 @@ export default function TakeoverProgressInspectionPanel({
   return (
     <div className="mt-3 rounded-lg border bg-background/70 p-3">
       <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-        {isLoadingTaskSnapshot ? "正在读取当前任务的详细进度..." : inspection.summary}
+        {isLoadingTaskSnapshot ? t("gen.pages.novels.components.takeover.TakeoverProgressInspectionPanel.gen_a6cccc7c") : inspection.summary}
       </div>
       <div className="mt-3 grid min-w-0 gap-2 md:grid-cols-2">
         {inspection.cards.map((card) => (

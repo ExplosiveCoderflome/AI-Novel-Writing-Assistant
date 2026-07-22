@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -129,7 +131,7 @@ export default function WorldGenerator() {
         const defaultPropertySelection = buildDefaultPropertySelectionState(nextPropertyOptions);
 
         if (!nextConcept) {
-          throw new Error("世界分析结果缺少概念卡。");
+          throw new Error(t("gen.pages.worlds.WorldGenerator.analysisMissingConceptCard"));
         }
 
         setConcept(nextConcept);
@@ -145,7 +147,7 @@ export default function WorldGenerator() {
         setSkeleton(null);
         setStep(2);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "世界分析结果解析失败。";
+        const message = error instanceof Error ? error.message : t("gen.pages.worlds.WorldGenerator.analysisParseFailed");
         toast.error(message);
       }
     },
@@ -231,9 +233,9 @@ export default function WorldGenerator() {
         idea: [
           inspirationText.trim(),
           concept?.summary ? `概念卡：${concept.summary}` : "",
-        ].filter(Boolean).join("\n\n") || "生成一个可用于小说创作的世界样本。",
-        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || "自定义",
-        template: selectedTemplate?.name ?? "自定义",
+        ].filter(Boolean).join("\n\n") || t("gen.pages.worlds.WorldGenerator.gen_d441546d"),
+        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || t("gen.pages.worlds.WorldGenerator.gen_f1d4ff50"),
+        template: selectedTemplate?.name ?? t("gen.pages.worlds.WorldGenerator.gen_f1d4ff50"),
         referenceContext: buildReferenceContext(),
         blueprint: buildGenerationBlueprint(),
         options: {
@@ -253,13 +255,13 @@ export default function WorldGenerator() {
   const finalizeMutation = useMutation({
     mutationFn: async () => {
       if (!skeleton) {
-        throw new Error("请先生成世界骨架。");
+        throw new Error(t("gen.pages.worlds.WorldGenerator.gen_fe79fc55"));
       }
       const blueprint = buildGenerationBlueprint();
       return createWorld({
-        name: worldName.trim() || skeleton.concept.name || "未命名世界",
+        name: worldName.trim() || skeleton.concept.name || t("gen.pages.worlds.WorldGenerator.gen_a2a1fdc0"),
         description: skeleton.structuredData.profile.summary || skeleton.concept.oneSentence,
-        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || "自定义",
+        worldType: selectedGenre?.path || concept?.worldType || matchedTemplateWorldType || selectedTemplate?.worldType || t("gen.pages.worlds.WorldGenerator.gen_f1d4ff50"),
         templateKey: selectedTemplate?.key ?? "custom",
         selectedDimensions: JSON.stringify(selectedDimensions),
         selectedElements: serializeWorldGenerationBlueprint(blueprint),
@@ -290,7 +292,7 @@ export default function WorldGenerator() {
     <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>创建世界样本</CardTitle>
+          <CardTitle>{t("gen.pages.worlds.WorldGenerator.gen_85d21f84")}</CardTitle>
           <LLMSelector />
         </CardHeader>
         <CardContent className="space-y-4">
@@ -329,8 +331,8 @@ export default function WorldGenerator() {
               analyzeStreaming={analyzeStream.isStreaming}
               analyzeButtonLabel={
                 analyzeStream.isStreaming
-                  ? (analyzeStream.latestRun?.message ?? "分析中...")
-                  : (isReferenceMode ? "提取原作锚点与架空方向" : "生成概念卡与属性选项")
+                  ? (analyzeStream.latestRun?.message ?? t("gen.pages.worlds.WorldGenerator.gen_ee0b2c88"))
+                  : (isReferenceMode ? t("gen.pages.worlds.WorldGenerator.gen_eaa44d22") : t("gen.pages.worlds.WorldGenerator.gen_f2cedb5b"))
               }
               analyzeProgressMessage={analyzeStream.latestRun?.message}
               inspirationSourceMeta={inspirationSourceMeta}

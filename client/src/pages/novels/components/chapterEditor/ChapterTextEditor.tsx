@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Value } from "platejs";
 import { ParagraphPlugin, Plate, PlateContent, usePlateEditor } from "platejs/react";
@@ -117,11 +119,11 @@ function renderLoadingPreview(
 
       <div className="space-y-3">
         <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4">
-          <div className="mb-2 text-xs font-medium text-amber-700">待改写原文</div>
+          <div className="mb-2 text-xs font-medium text-amber-700">{t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_e922128c")}</div>
           <TextBlock text={preview.originalText} className="text-amber-950" />
         </div>
         <div className="rounded-2xl border border-dashed border-border/70 bg-background/80 p-4">
-          <div className="mb-2 text-xs font-medium text-muted-foreground">AI 正在生成候选版本</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.aiGeneratingCandidateVersion")}</div>
           <div className="space-y-2">
             <div className="h-4 w-11/12 rounded-full bg-muted/70" />
             <div className="h-4 w-full rounded-full bg-muted/60" />
@@ -146,11 +148,11 @@ function renderBlockPreview(
 
       <div className="space-y-3">
         <div className="rounded-2xl border border-rose-200/80 bg-rose-50/80 p-4">
-          <div className="mb-2 text-xs font-medium text-rose-700">原文</div>
+          <div className="mb-2 text-xs font-medium text-rose-700">{t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_e5729e94")}</div>
           <TextBlock text={preview.originalText} className="text-rose-950" />
         </div>
         <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/90 p-4">
-          <div className="mb-2 text-xs font-medium text-emerald-700">改写</div>
+          <div className="mb-2 text-xs font-medium text-emerald-700">{t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_670c24f0")}</div>
           <TextBlock text={preview.candidateText} className="text-emerald-950" />
         </div>
       </div>
@@ -253,14 +255,14 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
   );
 
   const helperText = preview?.mode === "inline"
-    ? "当前正在显示细节标记 diff，适合确认具体删改。"
+    ? t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_6b7629e0")
     : preview?.mode === "loading"
-      ? "AI 正在基于选中内容生成候选版本，原文位置会持续保留。"
+      ? t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.aiGeneratingCandidatesRetainingOriginal")
       : preview?.mode === "block"
-        ? "当前正在显示段落 patch 对比，原文和改写会在正文原位置并排落成红绿块。"
+        ? t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_09a5d331")
         : readOnly
-          ? "当前有待确认候选，正文暂时锁定，可在右侧切换候选或接受、拒绝。"
-      : "可直接编辑正文，选中内容后可发起 AI 改写。";
+          ? t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_35ac7097")
+      : t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_9f896df1");
 
   useEffect(() => {
     const surface = surfaceRef.current;
@@ -360,7 +362,7 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
   return (
     <div ref={containerRef} className="relative flex h-full min-h-[540px] flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:min-h-0">
       <div className="shrink-0 flex items-center justify-between border-b border-border/70 px-4 py-3">
-        <div className="text-sm font-medium text-foreground">正文</div>
+        <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterTextEditor.gen_58378f0d")}</div>
         <div className="text-xs text-muted-foreground">{helperText}</div>
       </div>
 

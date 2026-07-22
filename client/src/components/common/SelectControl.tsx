@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import * as React from "react";
 import {
   Select,
@@ -93,7 +95,7 @@ export default function SelectControl({
   className,
   triggerClassName,
   contentClassName,
-  placeholder = "请选择",
+  placeholder = t("gen.components.common.SelectControl.gen_708c9d6d"),
   disabled,
   id,
   name,

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -53,15 +55,15 @@ export default function KnowledgeBindingPanel(props: KnowledgeBindingPanelProps)
 
   return (
     <div className="space-y-3 rounded-md border p-3">
-      <div className="text-sm font-medium">{props.title ?? "参考知识"}</div>
+      <div className="text-sm font-medium">{t("gen.components.knowledge.KnowledgeBindingPanel.titleFallback")}</div>
       <KnowledgeDocumentPicker
         selectedIds={selectedIds}
         onChange={(next) => setSelectedIds(next ?? [])}
         queryStatus={undefined}
-        description="绑定后会成为该实体的默认知识文档来源。"
+        description={t("gen.components.knowledge.KnowledgeBindingPanel.gen_e7141af4")}
       />
       <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-        {saveMutation.isPending ? "保存中..." : "保存绑定"}
+        {saveMutation.isPending ? t("gen.components.knowledge.KnowledgeBindingPanel.savingInProgressDotDotDot") : t("gen.components.knowledge.KnowledgeBindingPanel.saveBinding")}
       </Button>
     </div>
   );

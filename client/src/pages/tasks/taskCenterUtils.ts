@@ -1,3 +1,4 @@
+import i18next from "i18next";
 ﻿import type {
   AutoDirectorAction,
 } from "@ai-novel/shared/types/autoDirectorFollowUp";
@@ -124,11 +125,11 @@ export function getTimestamp(value: string | null | undefined): number {
 
 export function formatDate(value: string | null | undefined): string {
   if (!value) {
-    return "暂无";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_f61f4cf6");
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "暂无";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_f61f4cf6");
   }
   return date.toLocaleString();
 }
@@ -139,42 +140,42 @@ export function formatTokenCount(value: number | null | undefined): string {
 
 export function formatKind(kind: TaskKind): string {
   if (kind === "book_analysis") {
-    return "拆书分析";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_f90e9a49");
   }
   if (kind === "novel_workflow") {
-    return "小说创作";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_227c1a99");
   }
   if (kind === "novel_pipeline") {
-    return "小说流水线";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_14f29641");
   }
   if (kind === "knowledge_document") {
-    return "知识库索引";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_a2a62a77");
   }
   if (kind === "style_extraction") {
-    return "写法提取";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_f94905b4");
   }
   if (kind === "agent_run") {
-    return "Agent 运行";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.agentRunning");
   }
-  return "图片生成";
+  return i18next.t("gen.pages.tasks.taskCenterUtils.gen_c7741980");
 }
 
 export function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefined, scopeLabel?: string | null): string {
-  const resolvedScopeLabel = scopeLabel?.trim() || "前 10 章";
+  const resolvedScopeLabel = scopeLabel?.trim() || i18next.t("gen.pages.tasks.taskCenterUtils.gen_dd4d6c1f");
   if (checkpoint === "rewrite_snapshot_created") {
-    return "重写前备份已创建";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_40c91bfe");
   }
   if (checkpoint === "candidate_selection_required") {
-    return "等待确认书级方向";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_dbc67929");
   }
   if (checkpoint === "book_contract_ready") {
-    return "Book Contract 已就绪";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_BookContra_ppep");
   }
   if (checkpoint === "character_setup_required") {
-    return "角色准备待审核";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_67358797");
   }
   if (checkpoint === "volume_strategy_ready") {
-    return "卷战略已就绪";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_c3eafe6f");
   }
   if (checkpoint === "chapter_batch_ready") {
     return `${resolvedScopeLabel}自动执行已暂停`;
@@ -183,59 +184,59 @@ export function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null |
     return "当前步骤待检查";
   }
   if (checkpoint === "replan_required") {
-    return "需要重规划";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_73ce2a55");
   }
   if (checkpoint === "workflow_completed") {
-    return "主流程完成";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.mainProcessComplete");
   }
-  return "暂无";
+  return i18next.t("gen.pages.tasks.taskCenterUtils.gen_f61f4cf6");
 }
 
 export function formatResumeTarget(target: NovelWorkflowResumeTarget | null | undefined): string {
   if (!target) {
-    return "暂无";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_f61f4cf6");
   }
   if (target.route === "/novels/create") {
-    return target.mode === "director" ? "创建页 / AI 自动导演" : "创建页";
+    return target.mode === "director" ? i18next.t("gen.pages.tasks.taskCenterUtils.gen_c25b9441") : i18next.t("gen.pages.tasks.taskCenterUtils.gen_7792a178");
   }
   if (target.stage === "story_macro") {
-    return "小说编辑页 / 故事宏观规划";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_da67aefa");
   }
   if (target.stage === "character") {
-    return "小说编辑页 / 角色准备";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_fe7246de");
   }
   if (target.stage === "outline") {
-    return "小说编辑页 / 卷战略";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_b36113e5");
   }
   if (target.stage === "structured") {
-    return "小说编辑页 / 节奏拆章";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_d5891c2e");
   }
   if (target.stage === "chapter") {
-    return "小说编辑页 / 章节执行";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_ce7f7916");
   }
   if (target.stage === "pipeline") {
-    return "小说编辑页 / 质量修复";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_c5a96912");
   }
-  return "小说编辑页 / 项目设定";
+  return i18next.t("gen.pages.tasks.taskCenterUtils.gen_99336744");
 }
 
 export function formatStatus(status: TaskStatus): string {
   if (status === "queued") {
-    return "排队中";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_e5ac1d20");
   }
   if (status === "running") {
-    return "运行中";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_d679aea3");
   }
   if (status === "waiting_approval") {
-    return "等待审批";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_3ced7e48");
   }
   if (status === "succeeded") {
-    return "已完成";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_fad5222c");
   }
   if (status === "failed") {
-    return "失败";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.gen_acd5cb84");
   }
-  return "已取消";
+  return i18next.t("gen.pages.tasks.taskCenterUtils.gen_2111ccbb");
 }
 
 export function toStatusVariant(status: TaskStatus): "default" | "outline" | "secondary" | "destructive" {
@@ -275,12 +276,12 @@ export function createIdempotencyKey(taskId: string, actionCode: string): string
 
 export function formatFollowUpPriority(priority: "P0" | "P1" | "P2"): string {
   if (priority === "P0") {
-    return "P0 立即处理";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.p0ProcessImmediately");
   }
   if (priority === "P1") {
-    return "P1 尽快处理";
+    return i18next.t("gen.pages.tasks.taskCenterUtils.p1ProcessSoon");
   }
-  return "P2 可稍后处理";
+  return i18next.t("gen.pages.tasks.taskCenterUtils.p2ProcessLater");
 }
 
 export function followUpActionVariant(action: AutoDirectorAction): "default" | "outline" {

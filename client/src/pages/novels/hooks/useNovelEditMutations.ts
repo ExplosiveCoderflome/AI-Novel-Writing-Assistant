@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useMutation, type QueryClient } from "@tanstack/react-query";
 import type { Chapter, PipelineRepairMode, PipelineRunMode, VolumePlanDocument } from "@ai-novel/shared/types/novel";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
@@ -102,7 +103,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "project_setup",
-        itemLabel: "项目设定已保存",
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_d7149fb5"),
         status: "waiting_approval",
       });
       await invalidateNovelDetail();
@@ -118,9 +119,9 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "volume_strategy",
-        itemLabel: "卷战略 / 卷骨架已保存",
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_78b07fdd"),
         checkpointType: "volume_strategy_ready",
-        checkpointSummary: "当前卷战略与卷骨架已保存到工作区。",
+        checkpointSummary: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_48933871"),
         status: "waiting_approval",
       });
       await invalidateNovelDetail();
@@ -133,11 +134,11 @@ export function useNovelEditMutations({
       syncToChapterExecution: true,
     }),
     onSuccess: async () => {
-      setStructuredMessage("节奏拆章已保存，章节执行区会直接使用同一批章节。");
+      setStructuredMessage(i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_f5b07847"));
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "structured_outline",
-        itemLabel: "节奏 / 拆章已保存",
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_f9c338a6"),
         status: "waiting_approval",
       });
       await invalidateNovelDetail();
@@ -194,15 +195,15 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "structured_outline",
-        itemLabel: "卷级拆章已连接到章节执行",
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_8dadfb98"),
         checkpointType: "chapter_batch_ready",
-        checkpointSummary: "章节列表、任务单和执行入口已准备好，可继续进入章节执行。",
+        checkpointSummary: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_e16212bd"),
         status: "waiting_approval",
       });
       await invalidateNovelDetail();
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "章节同步失败。";
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_27dd03ed");
       setStructuredMessage(message);
     },
   });
@@ -221,7 +222,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "chapter_execution",
-        itemLabel: "已创建新的章节执行项",
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_32dc10e9"),
         chapterId: response.data?.id,
         status: "waiting_approval",
       });
@@ -269,7 +270,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "quality_repair",
-        itemLabel: "章节流水线运行中",
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_1f45424b"),
         status: "running",
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.pipelineJob(id, response.data?.id ?? "none") });
@@ -289,7 +290,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "quality_repair",
-        itemLabel: "章节审校已完成",
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_38470cc3"),
         status: "waiting_approval",
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(id) });
@@ -309,7 +310,7 @@ export function useNovelEditMutations({
       await syncNovelWorkflowStageSilently({
         novelId: id,
         stage: "chapter_execution",
-        itemLabel: "章节钩子已生成",
+        itemLabel: i18next.t("gen.pages.novels.hooks.useNovelEditMutations.gen_a65b6536"),
         chapterId: selectedChapterId || undefined,
         status: "waiting_approval",
       });

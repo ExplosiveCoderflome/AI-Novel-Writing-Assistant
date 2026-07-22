@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
@@ -23,42 +25,42 @@ type ApprovalRequiredEvent = Extract<SSEFrame, { type: "approval_required" }>;
 type RunStatusEvent = Extract<SSEFrame, { type: "run_status" }>;
 
 function toRunStatusLabel(status: string): string {
-  if (status === "queued") return "排队中";
-  if (status === "running") return "运行中";
-  if (status === "waiting_approval") return "待审批";
-  if (status === "succeeded") return "已完成";
-  if (status === "failed") return "失败";
-  if (status === "cancelled") return "已取消";
+  if (status === "queued") return t("gen.pages.chat.ChatPage.gen_e5ac1d20");
+  if (status === "running") return t("gen.pages.chat.ChatPage.gen_d679aea3");
+  if (status === "waiting_approval") return t("gen.pages.chat.ChatPage.gen_b0bf01a4");
+  if (status === "succeeded") return t("gen.pages.chat.ChatPage.gen_fad5222c");
+  if (status === "failed") return t("gen.pages.chat.ChatPage.gen_acd5cb84");
+  if (status === "cancelled") return t("gen.pages.chat.ChatPage.gen_2111ccbb");
   return status;
 }
 
 function toApprovalActionLabel(action: string): string {
-  if (action === "approved") return "已通过";
-  if (action === "rejected") return "已拒绝";
+  if (action === "approved") return t("gen.pages.chat.ChatPage.gen_ecfa64c1");
+  if (action === "rejected") return t("gen.pages.chat.ChatPage.gen_81233d75");
   return action;
 }
 
 function toStepTypeLabel(stepType: string): string {
-  if (stepType === "planning") return "规划";
-  if (stepType === "tool_call") return "工具调用";
-  if (stepType === "tool_result") return "工具结果";
-  if (stepType === "approval") return "审批";
-  if (stepType === "completion") return "收尾";
-  if (stepType === "analysis") return "分析";
-  if (stepType === "review") return "审校";
-  if (stepType === "repair") return "修复";
-  if (stepType === "writing") return "写作";
-  if (stepType === "context") return "上下文";
+  if (stepType === "planning") return t("gen.pages.chat.ChatPage.gen_335d6d3b");
+  if (stepType === "tool_call") return t("gen.pages.chat.ChatPage.gen_850b4e4d");
+  if (stepType === "tool_result") return t("gen.pages.chat.ChatPage.gen_879cbfca");
+  if (stepType === "approval") return t("gen.pages.chat.ChatPage.gen_0273ba5c");
+  if (stepType === "completion") return t("gen.pages.chat.ChatPage.gen_bf3971dc");
+  if (stepType === "analysis") return t("gen.pages.chat.ChatPage.gen_72fa7c88");
+  if (stepType === "review") return t("gen.pages.chat.ChatPage.gen_4719af71");
+  if (stepType === "repair") return t("gen.pages.chat.ChatPage.gen_f82661e8");
+  if (stepType === "writing") return t("gen.pages.chat.ChatPage.gen_d58e850d");
+  if (stepType === "context") return t("gen.pages.chat.ChatPage.context");
   return stepType;
 }
 
 function toAgentNameLabel(name: string): string {
   const normalized = name.toLowerCase();
-  if (normalized === "planner") return "规划器";
-  if (normalized === "writer") return "写作器";
-  if (normalized === "reviewer") return "审校器";
-  if (normalized === "continuity") return "连续性检查";
-  if (normalized === "repair") return "修复器";
+  if (normalized === "planner") return t("gen.pages.chat.ChatPage.gen_58a5a703");
+  if (normalized === "writer") return t("gen.pages.chat.ChatPage.gen_2433d1d0");
+  if (normalized === "reviewer") return t("gen.pages.chat.ChatPage.gen_70db501e");
+  if (normalized === "continuity") return t("gen.pages.chat.ChatPage.gen_7cce156b");
+  if (normalized === "repair") return t("gen.pages.chat.ChatPage.gen_0146d371");
   return name;
 }
 
@@ -67,7 +69,7 @@ function formatEvent(event: RuntimeEvent): string {
     return `调用工具 ${event.toolName}: ${event.inputSummary}`;
   }
   if (event.type === "tool_result") {
-    return `${event.toolName} ${event.success ? "成功" : "失败"}: ${event.outputSummary}`;
+    return `${event.toolName} ${event.success ? t("gen.pages.chat.ChatPage.gen_330363df") : t("gen.pages.chat.ChatPage.gen_acd5cb84")}: ${event.outputSummary}`;
   }
   if (event.type === "approval_required") {
     return `等待审批: ${event.summary}`;
@@ -77,7 +79,7 @@ function formatEvent(event: RuntimeEvent): string {
 
 function safePreview(json: string | null | undefined): string {
   if (!json?.trim()) {
-    return "无";
+    return t("gen.pages.chat.ChatPage.gen_d81bb206");
   }
   try {
     const parsed = JSON.parse(json) as unknown;
@@ -123,7 +125,7 @@ export default function ChatPage() {
     if (!chatStore.hydrated || chatStore.currentSessionId || chatStore.sessions.length > 0) {
       return;
     }
-    void chatStore.createSession("新对话");
+    void chatStore.createSession(t("gen.pages.chat.ChatPage.gen_1ac07a4b"));
   }, [chatStore, chatStore.currentSessionId, chatStore.hydrated, chatStore.sessions.length]);
 
   useEffect(() => {
@@ -256,7 +258,7 @@ export default function ChatPage() {
     if (chatStore.currentSessionId) {
       return chatStore.currentSessionId;
     }
-    return chatStore.createSession("新对话");
+    return chatStore.createSession(t("gen.pages.chat.ChatPage.gen_1ac07a4b"));
   }, [chatStore]);
 
   const buildPayloadMessages = (
@@ -265,7 +267,7 @@ export default function ChatPage() {
     if (sessionMessages.length > 0) {
       return sessionMessages;
     }
-    return [{ role: "user" as const, content: "继续当前任务。" }];
+    return [{ role: "user" as const, content: t("gen.pages.chat.ChatPage.gen_37d781e1") }];
   };
 
   const onRuntimeEvent = useCallback((event: RuntimeEvent) => {
@@ -307,7 +309,7 @@ export default function ChatPage() {
         }
         : null);
     if (!runId || !pending) {
-      setLocalError("当前没有可处理的审批项。");
+      setLocalError(t("gen.pages.chat.ChatPage.gen_5290bfc4"));
       return;
     }
     setLocalError("");
@@ -316,7 +318,7 @@ export default function ChatPage() {
       type: "run_status",
       runId,
       status: "running",
-      message: action === "approve" ? "审批已提交，继续执行中" : "审批已提交，处理中",
+      message: action === "approve" ? t("gen.pages.chat.ChatPage.gen_f207e03d") : t("gen.pages.chat.ChatPage.gen_92b20fd5"),
     });
     const sessionMessages = buildPayloadMessages(
       (currentSession?.messages ?? [])
@@ -349,7 +351,7 @@ export default function ChatPage() {
 
   const triggerReplay = async (mode: "continue" | "dry_run") => {
     if (!currentRunId || !effectiveReplayStepId) {
-      setLocalError("当前运行没有可重放的步骤。");
+      setLocalError(t("gen.pages.chat.ChatPage.gen_9bac9865"));
       return;
     }
     setLocalError("");
@@ -360,7 +362,7 @@ export default function ChatPage() {
       });
       const newRunId = response.data?.run.id;
       if (!newRunId) {
-        setLocalError(response.error ?? "重放失败。");
+        setLocalError(response.error ?? t("gen.pages.chat.ChatPage.gen_ff7c0d46"));
         return;
       }
       if (chatStore.currentSessionId) {
@@ -374,10 +376,10 @@ export default function ChatPage() {
     } catch (error) {
       const message = error instanceof Error
         ? error.message
-        : "重放失败。";
+        : t("gen.pages.chat.ChatPage.gen_ff7c0d46");
       setLocalError(
         message === "No replayable tool steps after source step."
-          ? "所选步骤之后没有可重放的工具步骤，请选择更早的步骤。"
+          ? t("gen.pages.chat.ChatPage.gen_766c8754")
           : message,
       );
       return;
@@ -440,15 +442,15 @@ export default function ChatPage() {
     : (persistedRunState ?? scopedLatestRun);
   const headerRunLabel = headerRunState ? toRunStatusLabel(headerRunState.status) : "";
   const headerRunMessage = headerRunState?.status === "waiting_approval"
-    ? "当前运行等待审批"
+    ? t("gen.pages.chat.ChatPage.gen_1c761bfe")
     : headerRunState?.status === "running"
-      ? (headerRunState.message?.trim() || "当前运行中")
+      ? (headerRunState.message?.trim() || t("gen.pages.chat.ChatPage.gen_24f86364"))
       : headerRunState?.status === "succeeded"
-        ? "当前运行已完成"
+        ? t("gen.pages.chat.ChatPage.gen_07514175")
         : headerRunState?.status === "failed"
-          ? (headerRunState.message?.trim() || "当前运行失败")
+          ? (headerRunState.message?.trim() || t("gen.pages.chat.ChatPage.gen_4964c85b"))
           : headerRunState?.status === "cancelled"
-            ? "当前运行已取消"
+            ? t("gen.pages.chat.ChatPage.gen_320ec649")
             : "";
 
   const liveEvents = [...runtimeEvents, ...approvalSse.events];
@@ -468,10 +470,10 @@ export default function ChatPage() {
     <div className="grid min-h-[70vh] gap-4 lg:grid-cols-[240px_minmax(0,1fr)_360px]">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">会话列表</CardTitle>
+          <CardTitle className="text-base">{t("gen.pages.chat.ChatPage.sessionList")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <Button className="w-full" onClick={() => void chatStore.createSession("新对话")}>
+          <Button className="w-full" onClick={() => void chatStore.createSession(t("gen.pages.chat.ChatPage.gen_1ac07a4b"))}>
             新建对话
           </Button>
           <div className="space-y-1">
@@ -499,7 +501,7 @@ export default function ChatPage() {
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
           <div className="space-y-1">
-            <CardTitle className="text-base">对话消息</CardTitle>
+            <CardTitle className="text-base">{t("gen.pages.chat.ChatPage.gen_4369b958")}</CardTitle>
             {headerRunMessage ? (
               <div className="text-xs text-slate-500">{headerRunMessage}</div>
             ) : null}

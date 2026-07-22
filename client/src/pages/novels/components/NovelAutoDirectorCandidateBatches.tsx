@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Check, ChevronDown, RefreshCw, Wand2 } from "lucide-react";
@@ -38,8 +40,8 @@ function buildFallbackTitleOption(candidate: DirectorCandidate): TitleFactorySug
     title: candidate.workingTitle,
     clickRate: 60,
     style: "high_concept",
-    angle: "当前方案书名",
-    reason: "当前沿用导演候选方案的书名。",
+    angle: t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_c4e1c0b2"),
+    reason: t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_a93be638"),
   };
 }
 
@@ -52,19 +54,19 @@ function resolveCandidateTitleOptions(candidate: DirectorCandidate): TitleFactor
 
 function renderPrimaryCandidateDetails(candidate: DirectorCandidate) {
   return [
-    { label: "核心卖点", value: candidate.sellingPoint },
-    { label: "主线冲突", value: candidate.coreConflict },
-    { label: "主角路径", value: candidate.protagonistPath },
+    { label: t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_144c6d68"), value: candidate.sellingPoint },
+    { label: t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.mainConflict"), value: candidate.coreConflict },
+    { label: t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.mainPathway"), value: candidate.protagonistPath },
   ];
 }
 
 function renderSecondaryCandidateDetails(candidate: DirectorCandidate) {
   return [
-    { label: "作品定位", value: candidate.positioning },
-    { label: "主钩子", value: candidate.hookStrategy },
-    { label: "推进循环", value: candidate.progressionLoop },
-    { label: "结局方向", value: candidate.endingDirection },
-    { label: "章节规模", value: `约 ${candidate.targetChapterCount} 章` },
+    { label: t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.workPlacement"), value: candidate.positioning },
+    { label: t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.mainHook"), value: candidate.hookStrategy },
+    { label: t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_d7c63a37"), value: candidate.progressionLoop },
+    { label: t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_c4938a36"), value: candidate.endingDirection },
+    { label: t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_7feb3d33"), value: `约 ${candidate.targetChapterCount} 章` },
   ];
 }
 
@@ -117,7 +119,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
             <div className="min-w-0">
               <div className="break-words text-xs font-medium text-muted-foreground [overflow-wrap:anywhere]">{batch.roundLabel}</div>
               <div className="mt-1 break-words text-base font-semibold text-foreground [overflow-wrap:anywhere]">
-                {batch.refinementSummary?.trim() || "初始方案"}
+                {batch.refinementSummary?.trim() || t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_b8ef9220")}
               </div>
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
@@ -149,16 +151,16 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                         {String(candidateIndex + 1).padStart(2, "0")}
                       </div>
                       {candidateIndex === 0 ? (
-                        <div className="mt-2 text-xs font-medium text-primary">推荐先看</div>
+                        <div className="mt-2 text-xs font-medium text-primary">{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_ce329b20")}</div>
                       ) : null}
                     </div>
 
                     <div className="min-w-0">
                       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground">
-                        <span className="lg:hidden">方案 {candidateIndex + 1}</span>
-                        {candidateIndex === 0 ? <span className="lg:hidden">· 推荐先看</span> : null}
+                        <span className="lg:hidden">{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_20458081")}</span>
+                        {candidateIndex === 0 ? <span className="lg:hidden">{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_e66558a6")}</span> : null}
                         <span className="lg:hidden">·</span>
-                        <span>约 {candidate.targetChapterCount} 章</span>
+                        <span>{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_72724574")}</span>
                         {toneSummary ? (
                           <>
                             <span>·</span>
@@ -192,18 +194,18 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                         onClick={() => void onConfirmCandidate(candidate)}
                         disabled={isConfirming}
                       >
-                        {isConfirming ? "创建中..." : "选用这套"}
+                        {isConfirming ? t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_b26107b6") : t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_4c1f0748")}
                         <ArrowRight className="h-4 w-4" />
                       </Button>
 
                       <div className="space-y-4 text-sm">
                         <div className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-                          <div className="text-xs font-medium text-muted-foreground">为什么值得选</div>
+                          <div className="text-xs font-medium text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_03f27c74")}</div>
                           <div className="mt-1 line-clamp-5 break-words leading-6 text-foreground/90 [overflow-wrap:anywhere]">{candidate.whyItFits}</div>
                         </div>
                         {toneSummary ? (
                           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-                            <div className="text-xs font-medium text-muted-foreground">读感关键词</div>
+                            <div className="text-xs font-medium text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_8b5bb2ce")}</div>
                             <div className="mt-1 break-words leading-6 text-foreground [overflow-wrap:anywhere]">
                               {candidate.toneKeywords.join(" · ")}
                             </div>
@@ -235,7 +237,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                     </summary>
                     <div className="mt-4 space-y-5">
                       <div>
-                        <div className="text-xs font-medium text-muted-foreground">可选书名</div>
+                        <div className="text-xs font-medium text-muted-foreground">{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_6a848b19")}</div>
                         <div className="mt-2 divide-y divide-border/45">
                           {titleOptions.map((option) => {
                             const active = option.title === candidate.workingTitle;
@@ -257,7 +259,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                                     </span>
                                   </span>
                                   <span className={`mt-1 block line-clamp-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                                    {option.reason?.trim() || option.angle || "可直接作为这套方向的书名。"}
+                                    {option.reason?.trim() || option.angle || t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_1093d35c")}
                                   </span>
                                 </span>
                                 <span className={cn("shrink-0 text-xs tabular-nums", active ? "text-primary" : "text-muted-foreground")}>
@@ -279,7 +281,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                             className="mt-2 bg-background"
                             value={titlePatchFeedbacks[candidate.id] ?? ""}
                             onChange={(event) => onTitlePatchFeedbackChange(candidate.id, event.target.value)}
-                            placeholder="例如：更偏都市冷感，不要像旧式升级文。"
+                            placeholder={t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_9634a33b")}
                           />
                           <div className="mt-2">
                             <Button
@@ -291,7 +293,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                               onClick={() => onRefineTitle(batch.id, candidate, titlePatchFeedbacks[candidate.id] ?? "")}
                             >
                               <Wand2 className="h-4 w-4" />
-                              {isRefiningTitle ? "重做中..." : "AI 重做标题组"}
+                              {isRefiningTitle ? t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_7e2d4cd3") : t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.aiRedoTitleGroup")}
                             </Button>
                           </div>
                         </div>
@@ -305,7 +307,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                             className="mt-2 bg-background"
                             value={candidatePatchFeedbacks[candidate.id] ?? ""}
                             onChange={(event) => onCandidatePatchFeedbackChange(candidate.id, event.target.value)}
-                            placeholder="例如：保留这套，但主角更主动一点。"
+                            placeholder={t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_246d4a4e")}
                           />
                           <div className="mt-2">
                             <Button
@@ -317,7 +319,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                               onClick={() => onPatchCandidate(batch.id, candidate, candidatePatchFeedbacks[candidate.id] ?? "")}
                             >
                               <Wand2 className="h-4 w-4" />
-                              {isPatchingCandidate ? "修正中..." : "AI 调整方向"}
+                              {isPatchingCandidate ? t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_520009e5") : t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_190596c7")}
                             </Button>
                           </div>
                         </div>
@@ -332,7 +334,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
       ))}
 
       <section className="min-w-0 pt-4">
-        <div className="break-words text-base font-semibold text-foreground [overflow-wrap:anywhere]">没有合适的方向</div>
+        <div className="break-words text-base font-semibold text-foreground [overflow-wrap:anywhere]">{t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_1f8901d7")}</div>
         <div className="mt-1 max-w-3xl break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
           点几个修正方向，再补一句你想要的感觉。系统会保留上一轮，再生成一批新的方案。
         </div>
@@ -365,7 +367,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
             id="director-refine-feedback"
             value={feedback}
             onChange={(event) => onFeedbackChange(event.target.value)}
-            placeholder="例如：我想要女频成长感更强一点，别太像纯爱文，也不要太黑。"
+            placeholder={t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.exampleWantStrongerFemaleGrowthNotPureRomanceOrTooDark")}
           />
         </div>
 
@@ -377,7 +379,7 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
             disabled={isGenerating}
           >
             <RefreshCw className="h-4 w-4" />
-            {isGenerating ? "生成中..." : "带修正建议继续生成"}
+            {isGenerating ? t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_4d020ba3") : t("gen.pages.novels.components.NovelAutoDirectorCandidateBatches.gen_4a2da1b8")}
           </Button>
         </div>
       </section>

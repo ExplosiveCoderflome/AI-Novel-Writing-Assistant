@@ -406,7 +406,12 @@ router.get("/projects/:id/export", validate({ params: idParamsSchema }), async (
 router.get("/projects/:id/episodes/:order/export", validate({ params: episodeParamsSchema }), async (req, res, next) => {
   try {
     const { id, order } = req.params as unknown as z.infer<typeof episodeParamsSchema>;
-    const format = req.query.format === "timeline-json" ? "timeline-json" : "srt";
+    const formatQuery = req.query.format as string;
+    const format = formatQuery === "timeline-json"
+      ? "timeline-json"
+      : formatQuery === "jianying"
+        ? "jianying"
+        : "srt";
     const data = await dramaExportService.exportEpisode(id, order, format);
     res.setHeader("Content-Type", data.contentType);
     res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(data.filename)}"`);

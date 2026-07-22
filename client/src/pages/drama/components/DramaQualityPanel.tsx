@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { AlertTriangle, CheckCircle2, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import type { DramaEpisode, DramaProjectDetail } from "@/api/drama";
 import { Badge } from "@/components/ui/badge";
@@ -50,22 +52,22 @@ function safeJson<T>(input: string | null | undefined, fallback: T): T {
 
 function statusLabel(status?: QualityStatus): string {
   const labels: Record<QualityStatus, string> = {
-    approved: "已通过",
-    repairable: "建议修复",
-    continue_with_warning: "可继续",
-    blocked: "需处理",
+    approved: t("gen.pages.drama.components.DramaQualityPanel.gen_ecfa64c1"),
+    repairable: t("gen.pages.drama.components.DramaQualityPanel.gen_c94222f6"),
+    continue_with_warning: t("gen.pages.drama.components.DramaQualityPanel.gen_4281b2b4"),
+    blocked: t("gen.pages.drama.components.DramaQualityPanel.gen_2d25e6f9"),
   };
-  return status ? labels[status] : "未检查";
+  return status ? labels[status] : t("gen.pages.drama.components.DramaQualityPanel.gen_0b27f9ed");
 }
 
 function severityLabel(severity?: QualityFlag["severity"]): string {
   const labels: Record<NonNullable<QualityFlag["severity"]>, string> = {
-    low: "轻微",
-    medium: "中等",
-    high: "重要",
-    critical: "严重",
+    low: t("gen.pages.drama.components.DramaQualityPanel.gen_b3bd3d43"),
+    medium: t("gen.pages.drama.components.DramaQualityPanel.mediumLevel"),
+    high: t("gen.pages.drama.components.DramaQualityPanel.gen_fc7e3846"),
+    critical: t("gen.pages.drama.components.DramaQualityPanel.critical"),
   };
-  return severity ? labels[severity] : "提示";
+  return severity ? labels[severity] : t("gen.pages.drama.components.DramaQualityPanel.gen_02d9819d");
 }
 
 function qualityVariant(status?: QualityStatus): "default" | "secondary" | "destructive" | "outline" {
@@ -77,11 +79,11 @@ function qualityVariant(status?: QualityStatus): "default" | "secondary" | "dest
 
 function complianceLabel(level?: ComplianceLevel): string {
   const labels: Record<ComplianceLevel, string> = {
-    pass: "合规通过",
-    warn: "合规提醒",
-    block: "合规需修复",
+    pass: t("gen.pages.drama.components.DramaQualityPanel.gen_95af35ac"),
+    warn: t("gen.pages.drama.components.DramaQualityPanel.gen_30f50518"),
+    block: t("gen.pages.drama.components.DramaQualityPanel.gen_accf2138"),
   };
-  return level ? labels[level] : "未预检";
+  return level ? labels[level] : t("gen.pages.drama.components.DramaQualityPanel.gen_80a28338");
 }
 
 function complianceVariant(level?: ComplianceLevel): "default" | "secondary" | "destructive" | "outline" {
@@ -151,8 +153,8 @@ export function DramaQualityPanel(props: {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-sm font-medium">质量与合规</div>
-          <div className="text-xs text-muted-foreground">先检查台本质量，再确认平台合规风险。</div>
+          <div className="text-sm font-medium">{t("gen.pages.drama.components.DramaQualityPanel.gen_09ed848d")}</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaQualityPanel.gen_83450b9a")}</div>
         </div>
         <Button type="button" variant="outline" disabled={props.busy || scriptedCount === 0} onClick={props.onComplianceAll}>
           <ShieldCheck className="h-4 w-4" />
@@ -162,28 +164,28 @@ export function DramaQualityPanel(props: {
 
       <div className="grid gap-3 md:grid-cols-6">
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">已检查</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaQualityPanel.gen_2f9815ee")}</div>
           <div className="mt-1 text-lg font-semibold">{summary.checked.length}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">建议修复</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaQualityPanel.gen_c94222f6")}</div>
           <div className="mt-1 text-lg font-semibold">{summary.needsRepair.length}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">可继续</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaQualityPanel.gen_4281b2b4")}</div>
           <div className="mt-1 text-lg font-semibold">{summary.warning.length}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">已通过</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaQualityPanel.gen_ecfa64c1")}</div>
           <div className="mt-1 text-lg font-semibold">{summary.approved.length}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">合规风险</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaQualityPanel.gen_45d8d117")}</div>
           <div className="mt-1 text-lg font-semibold">{summary.complianceRisk.length}</div>
         </div>
         <div className="rounded-md border p-3 text-sm">
-          <div className="text-xs text-muted-foreground">平均分</div>
-          <div className="mt-1 text-lg font-semibold">{summary.average ?? "待检查"}</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.drama.components.DramaQualityPanel.gen_3569877e")}</div>
+          <div className="mt-1 text-lg font-semibold">{t("gen.pages.drama.components.DramaQualityPanel.gen_summaryave_7a58")}</div>
         </div>
       </div>
 
@@ -203,7 +205,7 @@ export function DramaQualityPanel(props: {
               <CardHeader className="gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <CardTitle className="text-base">第 {item.episode.order} 集：{item.episode.title}</CardTitle>
+                    <CardTitle className="text-base">{t("gen.pages.drama.components.DramaQualityPanel.gen_5e9e7814")}</CardTitle>
                     <Badge variant={qualityVariant(item.quality?.status)}>{statusLabel(item.quality?.status)}</Badge>
                     {item.quality?.compliance ? (
                       <Badge variant={complianceVariant(item.quality.compliance.level)}>
@@ -211,10 +213,10 @@ export function DramaQualityPanel(props: {
                       </Badge>
                     ) : null}
                     {item.quality?.score?.overall != null ? (
-                      <Badge variant="outline">综合 {item.quality.score.overall}</Badge>
+                      <Badge variant="outline">{t("gen.pages.drama.components.DramaQualityPanel.gen_b6d2bd0c")}</Badge>
                     ) : null}
                   </div>
-                  <CardDescription>{item.quality?.repairPlan?.instruction || "查看问题后决定是否修复。"}</CardDescription>
+                  <CardDescription>{t("gen.pages.drama.components.DramaQualityPanel.repairInstruction")}</CardDescription>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button type="button" size="sm" variant="outline" onClick={() => openEpisode(item.episode.order)}>
@@ -249,7 +251,7 @@ export function DramaQualityPanel(props: {
                       <Badge variant={flag.severity === "critical" ? "destructive" : "outline"}>
                         {severityLabel(flag.severity)}
                       </Badge>
-                      <span className="font-medium">{flag.code || "质量提示"}</span>
+                      <span className="font-medium">{t("gen.pages.drama.components.DramaQualityPanel.qualityHint")}</span>
                     </div>
                     <p className="mt-2 text-muted-foreground">{flag.evidence}</p>
                     <p className="mt-1">{flag.suggestion}</p>
@@ -269,13 +271,13 @@ export function DramaQualityPanel(props: {
       {uncheckedItems.length > 0 ? (
         <Card className="rounded-lg">
           <CardHeader>
-            <CardTitle className="text-base">待检查台本</CardTitle>
-            <CardDescription>这些集已有台本，还没有质量检查结果。</CardDescription>
+            <CardTitle className="text-base">{t("gen.pages.drama.components.DramaQualityPanel.gen_f043ee3a")}</CardTitle>
+            <CardDescription>{t("gen.pages.drama.components.DramaQualityPanel.gen_784f002a")}</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2 md:grid-cols-2">
             {uncheckedItems.map((item) => (
               <div key={item.episode.id} className="flex items-center justify-between gap-2 rounded-md border p-3 text-sm">
-                <span>第 {item.episode.order} 集：{item.episode.title}</span>
+                <span>{t("gen.pages.drama.components.DramaQualityPanel.gen_5e9e7814")}</span>
                 <Button
                   type="button"
                   size="sm"

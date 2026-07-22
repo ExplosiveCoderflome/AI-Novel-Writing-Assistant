@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
@@ -5,10 +7,10 @@ import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 export type SettingsSectionStatus = "required" | "enhancement" | "advanced" | "maintenance";
 
 const STATUS_LABELS: Record<SettingsSectionStatus, string> = {
-  required: "开始创作必需",
-  enhancement: "写作质量增强",
-  advanced: "自动导演高级",
-  maintenance: "系统维护",
+  required: t("gen.pages.settings.components.SettingsSectionGroup.gen_e7c25780"),
+  enhancement: t("gen.pages.settings.components.SettingsSectionGroup.gen_124a0559"),
+  advanced: t("gen.pages.settings.components.SettingsSectionGroup.gen_c72f1d50"),
+  maintenance: t("gen.pages.settings.components.SettingsSectionGroup.gen_e58e3369"),
 };
 
 export default function SettingsSectionGroup(props: {

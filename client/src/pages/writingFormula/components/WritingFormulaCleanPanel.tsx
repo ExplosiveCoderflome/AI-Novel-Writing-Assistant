@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { StyleDetectionReport, StyleProfile } from "@ai-novel/shared/types/styleEngine";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +34,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
   return (
     <Card>
       <CardHeader>
-        <CardTitle>去 AI 味</CardTitle>
+        <CardTitle>{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_b589a6aa")}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         {selectedProfile ? (
@@ -47,7 +49,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
 
         <div className="space-y-4 rounded-2xl border p-4">
           <div className="space-y-1">
-            <div className="text-base font-semibold text-slate-950">当前会优先参考的反 AI 约束</div>
+            <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_76986240")}</div>
             <div className="text-sm leading-6 text-slate-500">
               如果这套写法绑了反 AI 规则，检测和修正会优先按这些约束去判断问题。
             </div>
@@ -69,7 +71,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
 
         <div className="space-y-4 rounded-2xl border p-4">
           <div className="space-y-1">
-            <div className="text-base font-semibold text-slate-950">检测正文</div>
+            <div className="text-base font-semibold text-slate-950">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_c59ebd75")}</div>
             <div className="text-sm leading-6 text-slate-500">
               粘贴你想检查的正文。建议一次给一段完整场景，这样更容易看出叙述腔、对白腔和解释腔的问题。
             </div>
@@ -79,7 +81,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
             data-writing-formula-detect-input
             autoFocus
             className="min-h-[220px] w-full rounded-md border p-3 text-sm"
-            placeholder="粘贴待检测正文"
+            placeholder={t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_2273a526")}
             value={detectInput}
             onChange={(event) => onDetectInputChange(event.target.value)}
           />
@@ -96,7 +98,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
           {detectionReport ? (
             <div className="space-y-3 rounded-2xl border p-4 text-sm">
               <div className="space-y-1">
-                <div className="font-medium text-slate-900">风险分：{detectionReport.riskScore}</div>
+                <div className="font-medium text-slate-900">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_5feae2d7")}</div>
                 <div className="leading-6 text-slate-600">{detectionReport.summary}</div>
               </div>
               <div className="space-y-2">
@@ -119,7 +121,7 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
 
           {rewritePreview ? (
             <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-900">修正结果</div>
+              <div className="text-sm font-medium text-slate-900">{t("gen.pages.writingFormula.components.WritingFormulaCleanPanel.gen_1bc513b8")}</div>
               <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded-xl border bg-muted/20 p-4 text-sm">
                 {rewritePreview}
               </pre>

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   APIKeyStatus,
   ModelRouteConnectivityStatus,
@@ -102,24 +103,24 @@ export function isSameRouteDraft(draft: RouteDraft, route: SavedModelRoute | und
 
 export function formatStructuredStatus(status: ModelRouteConnectivityStatus["structured"]): string {
   if (!status) {
-    return "结构化诊断：未执行";
+    return i18next.t("gen.pages.settings.modelRoutes.utils.gen_eb184123");
   }
   if (status.ok) {
-    return `结构化正常 · ${status.requestProtocol ?? "auto"} · ${status.strategy ?? "prompt_json"}${status.reasoningForcedOff ? " · 会关闭 thinking" : ""}`;
+    return `结构化正常 · ${status.requestProtocol ?? "auto"} · ${status.strategy ?? "prompt_json"}${status.reasoningForcedOff ? i18next.t("gen.pages.settings.modelRoutes.utils.willCloseThinking") : ""}`;
   }
-  return `结构化异常 · ${status.errorCategory ?? "unknown"} · ${status.error ?? "未知错误"}`;
+  return `结构化异常 · ${status.errorCategory ?? "unknown"} · ${status.error ?? i18next.t("gen.pages.settings.modelRoutes.utils.gen_974e7484")}`;
 }
 
 export function formatConnectivityStatus(status?: ModelRouteConnectivityStatus | null): string {
   if (!status) {
-    return "尚未检测生效路由。";
+    return i18next.t("gen.pages.settings.modelRoutes.utils.gen_a2db68b2");
   }
   const parts: string[] = [];
   if (status.plain) {
     parts.push(
       status.plain.ok
         ? `普通连通正常${status.plain.latency != null ? ` · ${status.plain.latency}ms` : ""}`
-        : `普通连通失败 · ${status.plain.error ?? "未知错误"}`,
+        : `普通连通失败 · ${status.plain.error ?? i18next.t("gen.pages.settings.modelRoutes.utils.gen_974e7484")}`,
     );
   }
   parts.push(formatStructuredStatus(status.structured));

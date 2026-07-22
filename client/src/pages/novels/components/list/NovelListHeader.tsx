@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Link } from "react-router-dom";
 import { RotateCcw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,7 +23,7 @@ export function NovelListHeader(props: {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0 space-y-3">
           <div>
-            <h1 className="text-3xl font-semibold tracking-normal">小说列表</h1>
+            <h1 className="text-3xl font-semibold tracking-normal">{t("gen.pages.novels.components.list.NovelListHeader.gen_fd1e8631")}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
               管理正在推进的小说项目，快速判断哪些可以继续写、哪些需要先处理状态。
             </p>
@@ -36,14 +38,14 @@ export function NovelListHeader(props: {
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
+            <Link to={MANUAL_CREATE_LINK}>{t("gen.pages.novels.components.list.NovelListHeader.gen_e40b8718")}</Link>
           </Button>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-border/60 py-3 text-sm">
-        <HeaderMetric label="当前" value={`第 ${props.page} / ${props.totalPages} 页`} />
-        <HeaderMetric label="总数" value={`${props.totalNovels} 本`} />
+        <HeaderMetric label={t("gen.pages.novels.components.list.NovelListHeader.gen_48ac4797")} value={`第 ${props.page} / ${props.totalPages} 页`} />
+        <HeaderMetric label={t("gen.pages.novels.components.list.NovelListHeader.gen_9ed7d3ad")} value={`${props.totalNovels} 本`} />
         {props.summary.map((item) => (
           <HeaderMetric
             key={item.id}

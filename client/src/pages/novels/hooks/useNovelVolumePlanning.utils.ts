@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type {
   VolumeBeatSheet,
   VolumeCountGuidance,
@@ -102,7 +103,7 @@ export function resolveCustomVolumeCountInput(
   if (!Number.isFinite(parsed)) {
     return {
       value: null,
-      message: "请先输入有效的固定卷数。",
+      message: i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.utils.gen_ea9ad81e"),
     };
   }
   if (
@@ -122,6 +123,6 @@ export function resolveCustomVolumeCountInput(
 
 export function buildGenerationNotice(strategyPlan: VolumeStrategyPlan | null): string {
   return strategyPlan
-    ? "当前工作区已进入二期链路：先审卷战略，再确认卷骨架，之后按卷生成节奏板和章节列表。"
-    : "先生成卷战略建议，让系统帮你决定卷数和硬/软规划，再进入卷骨架。";
+    ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.utils.gen_57dade65")
+    : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.utils.gen_7f61f727");
 }

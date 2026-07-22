@@ -1,0 +1,49 @@
+{
+  "id": "the-last-light-demo",
+  "brand": {
+    "name": "VellumReel",
+    "nameZh": "卷影",
+    "tagline": "Narrative video, shaped by text.",
+    "edition": "OPEN EDITION"
+  },
+  "series": {
+    "title": "《最后一盏灯》",
+    "volume": "原创演示短篇",
+    "englishTitle": "THE LAST LIGHT",
+    "chapter": "第一幕 · 守夜人",
+    "subtitle": "VellumReel narrative demo"
+  },
+  "format": {"width": 1080, "height": 1920, "fps": 30, "durationSeconds": 32},
+  "style": {
+    "accent": "#d0ad63",
+    "subtitle": "#f6f1e6",
+    "overlayOpacity": 0.5,
+    "grainOpacity": 0.08,
+    "fontFamily": "Songti SC, STSong, Noto Serif CJK SC, serif",
+    "surface": "#080b0d",
+    "muted": "#9b978e"
+  },
+  "audio": {"narration": "", "narrationVolume": 1},
+  "narrative": {
+    "eyebrow": "A VELLUMREEL ORIGINAL",
+    "logline": "世界熄灭以后，还有一个人为陌生人守着灯。",
+    "epigraphs": [
+      {"text": "黑暗不是终点。", "source": "守灯人手记"}
+    ],
+    "beats": [
+      {"id": "silence", "startMs": 10500, "endMs": 19000, "index": "I", "label": "THE SILENCE", "title": "世界熄灭", "motif": "海雾吞没最后一条航线"},
+      {"id": "signal", "startMs": 19000, "endMs": 32000, "index": "II", "label": "THE SIGNAL", "title": "有人回应", "motif": "远方传来三次微弱闪光"}
+    ]
+  },
+  "scenes": [
+    {"id": "opening", "segmentId": "opening", "startMs": 0, "endMs": 10500, "image": "", "focus": "50% 50%", "fallback": ["#050709", "#54462d", "#0c1418"], "motion": "push", "intensity": 0.3, "transition": "crossfade", "grade": "noir"},
+    {"id": "silence", "segmentId": "silence", "startMs": 10500, "endMs": 19000, "image": "", "focus": "45% 58%", "fallback": ["#071015", "#36464b", "#10191c"], "motion": "pan-left", "intensity": 0.45, "transition": "dip", "grade": "verdigris"},
+    {"id": "signal", "segmentId": "signal", "startMs": 19000, "endMs": 32000, "image": "", "focus": "58% 48%", "fallback": ["#080908", "#94733f", "#141310"], "motion": "pull", "intensity": 0.7, "transition": "crossfade", "grade": "dawn"}
+  ],
+  "endCard": {
+    "kicker": "END OF DEMO",
+    "line1": "灯还亮着",
+    "line2": "VellumReel · 文字开始成为影像",
+    "cta": "Replace the JSON. Keep the story yours."
+  }
+}

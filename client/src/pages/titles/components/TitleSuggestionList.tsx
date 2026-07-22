@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { BookmarkPlus, Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,12 +19,12 @@ interface TitleSuggestionListProps {
 export default function TitleSuggestionList({
   suggestions,
   selectedTitle = "",
-  primaryActionLabel = "复制标题",
+  primaryActionLabel = t("gen.pages.titles.components.TitleSuggestionList.gen_6f3398e0"),
   onPrimaryAction,
   onCopy,
   onSave,
   savingTitle = "",
-  emptyMessage = "还没有生成任何标题。",
+  emptyMessage = t("gen.pages.titles.components.TitleSuggestionList.gen_2b2c3000"),
 }: TitleSuggestionListProps) {
   if (suggestions.length === 0) {
     return (
@@ -36,11 +38,11 @@ export default function TitleSuggestionList({
     <div className="divide-y divide-border/55">
       {suggestions.map((suggestion) => {
         const isSelected = selectedTitle === suggestion.title;
-        const showSecondaryCopy = Boolean(onCopy && primaryActionLabel !== "复制标题");
+        const showSecondaryCopy = Boolean(onCopy && primaryActionLabel !== t("gen.pages.titles.components.TitleSuggestionList.gen_6f3398e0"));
         const metadata = [
           getTitleStyleLabel(suggestion.style),
           suggestion.angle,
-          isSelected ? "当前选中" : null,
+          isSelected ? t("gen.pages.titles.components.TitleSuggestionList.gen_bf94700b") : null,
         ].filter((item): item is string => Boolean(item));
         return (
           <div
@@ -51,7 +53,7 @@ export default function TitleSuggestionList({
           >
             <div className="grid gap-3 lg:grid-cols-[64px_minmax(0,1fr)_auto] lg:items-start">
               <div className="text-xs leading-5 text-muted-foreground">
-                <div className="font-medium text-foreground">预估</div>
+                <div className="font-medium text-foreground">{t("gen.pages.titles.components.TitleSuggestionList.gen_4584c097")}</div>
                 <div className="text-lg font-semibold tabular-nums text-foreground">{suggestion.clickRate}</div>
               </div>
 
@@ -70,7 +72,7 @@ export default function TitleSuggestionList({
               <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                 {onPrimaryAction ? (
                   <Button type="button" size="sm" className="gap-1.5" onClick={() => onPrimaryAction(suggestion)}>
-                    {primaryActionLabel === "复制标题" ? <Copy className="h-3.5 w-3.5" /> : null}
+                    {primaryActionLabel === t("gen.pages.titles.components.TitleSuggestionList.gen_6f3398e0") ? <Copy className="h-3.5 w-3.5" /> : null}
                     {primaryActionLabel}
                   </Button>
                 ) : null}

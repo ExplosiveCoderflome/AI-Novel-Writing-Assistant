@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import type { Chapter, ReviewIssue } from "@ai-novel/shared/types/novel";
@@ -63,7 +64,7 @@ export function useChapterExecutionActions({
       await invalidateNovelDetail();
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "章节更新失败。";
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_3d21e9d2");
       onMessage(message);
     },
   });
@@ -75,14 +76,14 @@ export function useChapterExecutionActions({
       await syncNovelWorkflowStageSilently({
         novelId,
         stage: "chapter_execution",
-        itemLabel: "章节摘要已生成",
+        itemLabel: i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_e2d94dad"),
         chapterId: selectedChapterId || undefined,
         status: "waiting_approval",
       });
-      onMessage("已通过 AI 生成本章摘要。");
+      onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_788ce765"));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "章节摘要生成失败。";
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_7c664292");
       onMessage(message);
     },
   });
@@ -93,7 +94,7 @@ export function useChapterExecutionActions({
       await invalidateNovelDetail();
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "章节执行合同生成失败。";
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_7a1bf74c");
       onMessage(message);
     },
     onSettled: () => {
@@ -115,7 +116,7 @@ export function useChapterExecutionActions({
 
   const ensureChapter = (): Chapter | null => {
     if (!selectedChapterId || !selectedChapter) {
-      onMessage("请先选择章节。");
+      onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_c0bd44c0"));
       return null;
     }
     return selectedChapter;
@@ -137,11 +138,11 @@ export function useChapterExecutionActions({
     void syncNovelWorkflowStageSilently({
       novelId,
       stage: "chapter_execution",
-      itemLabel: "章节执行策略已应用",
+      itemLabel: i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_3dc01fd2"),
       chapterId: chapter.id,
       status: "waiting_approval",
     });
-    onMessage("生成策略已应用到当前章节。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_4d45dbf2"));
   };
 
   const rewriteChapter = () => {
@@ -158,12 +159,12 @@ export function useChapterExecutionActions({
     void syncNovelWorkflowStageSilently({
       novelId,
       stage: "chapter_execution",
-      itemLabel: "本章已重置并准备重写",
+      itemLabel: i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_612ac45b"),
       chapterId: chapter.id,
       status: "waiting_approval",
     });
     onGenerateChapter();
-    onMessage("已触发重写流程。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_3f47b378"));
   };
 
   const expandChapter = () => {
@@ -172,9 +173,9 @@ export function useChapterExecutionActions({
     }
     setRepairActionKind("expand");
     onStartRepair([
-      buildRepairIssue("engagement", "在不改动主线事件的前提下扩写场景细节和情绪反应，适度拉长文本。", "用户要求扩写章节"),
+      buildRepairIssue("engagement", i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_02942d0d"), i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_3d1d0fb6")),
     ]);
-    onMessage("已提交扩写任务。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_cd4c368e"));
   };
 
   const compressChapter = () => {
@@ -183,9 +184,9 @@ export function useChapterExecutionActions({
     }
     setRepairActionKind("compress");
     onStartRepair([
-      buildRepairIssue("repetition", "压缩重复表达，保留关键事件与冲突节点，控制篇幅更紧凑。", "用户要求压缩章节"),
+      buildRepairIssue("repetition", i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_18e8ea28"), i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_a0a8960d")),
     ]);
-    onMessage("已提交压缩任务。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_d9f44f8f"));
   };
 
   const summarizeChapter = () => {
@@ -207,11 +208,11 @@ export function useChapterExecutionActions({
         void syncNovelWorkflowStageSilently({
           novelId,
           stage: "chapter_execution",
-          itemLabel: "章节任务单已刷新",
+          itemLabel: i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_210ae9e0"),
           chapterId,
           status: "waiting_approval",
         });
-        onMessage("已通过后端 AI 刷新本章任务单。");
+        onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_9eac6f90"));
       },
     });
   };
@@ -228,11 +229,11 @@ export function useChapterExecutionActions({
         void syncNovelWorkflowStageSilently({
           novelId,
           stage: "chapter_execution",
-          itemLabel: "场景拆解已生成",
+          itemLabel: i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_2e6c4e10"),
           chapterId,
           status: "waiting_approval",
         });
-        onMessage("已通过后端 AI 生成场景拆解。");
+        onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_ab5adb5c"));
       },
     });
   };
@@ -242,7 +243,7 @@ export function useChapterExecutionActions({
       return;
     }
     onReviewChapter("continuity");
-    onMessage("已执行连续性检查。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_a6f6e584"));
   };
 
   const checkCharacterConsistency = () => {
@@ -250,7 +251,7 @@ export function useChapterExecutionActions({
       return;
     }
     onReviewChapter("character_consistency");
-    onMessage("已执行人设一致性检查。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_26c81642"));
   };
 
   const checkPacing = () => {
@@ -258,7 +259,7 @@ export function useChapterExecutionActions({
       return;
     }
     onReviewChapter("pacing");
-    onMessage("已执行节奏检查。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_192a6a52"));
   };
 
   const autoRepair = () => {
@@ -268,9 +269,9 @@ export function useChapterExecutionActions({
     setRepairActionKind("autoRepair");
     const issues = reviewIssues.length > 0
       ? reviewIssues
-      : [buildRepairIssue("coherence", "修复章节逻辑与叙事衔接问题，补足关键动机和因果。", "自动修复默认规则")];
+      : [buildRepairIssue("coherence", i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_17b6fe66"), i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_d01035d4"))];
     onStartRepair(issues);
-    onMessage("已触发自动修复。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_9e93c398"));
   };
 
   const strengthenConflict = () => {
@@ -279,9 +280,9 @@ export function useChapterExecutionActions({
     }
     setRepairActionKind("strengthenConflict");
     onStartRepair([
-      buildRepairIssue("pacing", "提升对抗密度，让冲突更早出现并持续施压。", "用户要求强化冲突"),
+      buildRepairIssue("pacing", i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_7d3fb9c8"), i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_a932503e")),
     ]);
-    onMessage("已触发冲突强化。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_05d1fb09"));
   };
 
   const enhanceEmotion = () => {
@@ -290,9 +291,9 @@ export function useChapterExecutionActions({
     }
     setRepairActionKind("enhanceEmotion");
     onStartRepair([
-      buildRepairIssue("engagement", "增强角色情绪层次与张力，突出内外部情感变化。", "用户要求增强情绪"),
+      buildRepairIssue("engagement", i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_727ed12b"), i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_06b5b08d")),
     ]);
-    onMessage("已触发情绪增强。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_fb41b4ed"));
   };
 
   const unifyStyle = () => {
@@ -301,9 +302,9 @@ export function useChapterExecutionActions({
     }
     setRepairActionKind("unifyStyle");
     onStartRepair([
-      buildRepairIssue("voice", "统一叙事语气与措辞，保持文风稳定。", "用户要求提升文风一致性"),
+      buildRepairIssue("voice", i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_7e885f33"), i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_1638bc02")),
     ]);
-    onMessage("已触发文风统一。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_81e68d93"));
   };
 
   const addDialogue = () => {
@@ -312,9 +313,9 @@ export function useChapterExecutionActions({
     }
     setRepairActionKind("addDialogue");
     onStartRepair([
-      buildRepairIssue("voice", "增加推动情节的有效对话，减少空泛叙述。", "用户要求增加对话推进"),
+      buildRepairIssue("voice", i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_0511286d"), i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_03515908")),
     ]);
-    onMessage("已触发对话增强。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_49668d0c"));
   };
 
   const addDescription = () => {
@@ -323,9 +324,9 @@ export function useChapterExecutionActions({
     }
     setRepairActionKind("addDescription");
     onStartRepair([
-      buildRepairIssue("engagement", "补充环境与动作描写，提升画面感与临场感。", "用户要求增加描写"),
+      buildRepairIssue("engagement", i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_ac08e8c8"), i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_22d278ec")),
     ]);
-    onMessage("已触发描写增强。");
+    onMessage(i18next.t("gen.pages.novels.hooks.useChapterExecutionActions.gen_33d10303"));
   };
 
   return {

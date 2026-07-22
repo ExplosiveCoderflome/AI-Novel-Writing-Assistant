@@ -1,3 +1,4 @@
+import i18next from "i18next";
 ﻿import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel";
 import type { NovelWorkflowCheckpoint } from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus } from "@ai-novel/shared/types/task";
@@ -15,7 +16,7 @@ type WorkflowTaskLike = {
 export const LIVE_TASK_STATUSES = new Set<TaskStatus>(["queued", "running", "waiting_approval"]);
 export const BACKGROUND_RUNNING_TASK_STATUSES = new Set<TaskStatus>(["running"]);
 
-function getExecutionScopeLabel(scopeLabel?: string | null, fallback = "第 1-10 章"): string {
+function getExecutionScopeLabel(scopeLabel?: string | null, fallback = i18next.t("gen.lib.novelWorkflowTaskUi.gen_fe4033ac")): string {
   return scopeLabel?.trim() || fallback;
 }
 
@@ -33,27 +34,27 @@ function buildAutoExecutionCancelledLabel(scopeLabel?: string | null): string {
 
 export function formatWorkflowCheckpoint(checkpoint?: NovelWorkflowCheckpoint | null, scopeLabel?: string | null): string {
   if (checkpoint === "candidate_selection_required") {
-    return "等待确认书级方向";
+    return i18next.t("gen.lib.novelWorkflowTaskUi.gen_dbc67929");
   }
   if (checkpoint === "book_contract_ready") {
-    return "Book Contract 已就绪";
+    return i18next.t("gen.lib.novelWorkflowTaskUi.gen_BookContra_ppep");
   }
   if (checkpoint === "character_setup_required") {
-    return "角色准备待审核";
+    return i18next.t("gen.lib.novelWorkflowTaskUi.gen_67358797");
   }
   if (checkpoint === "volume_strategy_ready") {
-    return "卷战略待审核";
+    return i18next.t("gen.lib.novelWorkflowTaskUi.gen_1172d3de");
   }
   if (checkpoint === "chapter_batch_ready") {
     return buildAutoExecutionPausedLabel(scopeLabel);
   }
   if (checkpoint === "replan_required") {
-    return "等待重规划";
+    return i18next.t("gen.lib.novelWorkflowTaskUi.gen_930a7919");
   }
   if (checkpoint === "workflow_completed") {
-    return "自动导演已完成";
+    return i18next.t("gen.lib.novelWorkflowTaskUi.gen_ccb5c92e");
   }
-  return "自动导演";
+  return i18next.t("gen.lib.novelWorkflowTaskUi.gen_1772aede");
 }
 
 export function getWorkflowBadge(task?: NovelAutoDirectorTaskSummary | null): {
@@ -89,31 +90,31 @@ export function getWorkflowBadge(task?: NovelAutoDirectorTaskSummary | null): {
   }
   if (task.status === "running") {
     return {
-      label: displayStatus ?? "自动导演进行中",
+      label: displayStatus ?? i18next.t("gen.lib.novelWorkflowTaskUi.gen_ce6c5058"),
       variant: "default",
     };
   }
   if (task.status === "queued") {
     return {
-      label: displayStatus ?? "自动导演排队中",
+      label: displayStatus ?? i18next.t("gen.lib.novelWorkflowTaskUi.gen_c26287bc"),
       variant: "secondary",
     };
   }
   if (task.status === "failed") {
     return {
-      label: displayStatus ?? "自动导演失败",
+      label: displayStatus ?? i18next.t("gen.lib.novelWorkflowTaskUi.gen_8a03db74"),
       variant: "destructive",
     };
   }
   if (task.status === "cancelled") {
     return {
-      label: displayStatus ?? "自动导演已取消",
+      label: displayStatus ?? i18next.t("gen.lib.novelWorkflowTaskUi.gen_6f6440f0"),
       variant: "outline",
     };
   }
   return {
     label: displayStatus ?? (task.checkpointType === "workflow_completed"
-      ? "自动导演已完成"
+      ? i18next.t("gen.lib.novelWorkflowTaskUi.gen_ccb5c92e")
       : formatWorkflowCheckpoint(task.checkpointType, task.executionScopeLabel)),
     variant: "outline",
   };

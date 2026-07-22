@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { LockKeyhole, PencilRuler, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -70,8 +72,8 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle className={cn("leading-none", compact ? "text-sm" : "text-base")}>{title}</CardTitle>
-              <Badge variant="outline">只读</Badge>
-              {userAnchorCount > 0 ? <Badge variant="secondary">{userAnchorCount} 个手动固定点</Badge> : null}
+              <Badge variant="outline">{t("gen.components.tensionCurve.TensionCurvePanel.gen_85541bd9")}</Badge>
+              {userAnchorCount > 0 ? <Badge variant="secondary">{t("gen.components.tensionCurve.TensionCurvePanel.gen_26e6c369")}</Badge> : null}
             </div>
             {subtitle ? <div className="text-xs leading-5 text-muted-foreground">{subtitle}</div> : null}
           </div>
@@ -97,11 +99,11 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
             ) : null}
             {primaryPointCount > 1 ? (
               <div className="flex items-center gap-2 rounded-md border border-border/70 px-2 py-1">
-                <span className="text-xs text-muted-foreground">参考线</span>
+                <span className="text-xs text-muted-foreground">{t("gen.components.tensionCurve.TensionCurvePanel.gen_78e6e8fc")}</span>
                 <Switch
                   checked={showReferenceCurve}
                   onCheckedChange={setShowReferenceCurve}
-                  aria-label="显示紧张度参考线"
+                  aria-label={t("gen.components.tensionCurve.TensionCurvePanel.gen_fbd9193d")}
                   className="h-5 w-9"
                 />
                 {showReferenceCurve ? (
@@ -134,7 +136,7 @@ export default function TensionCurvePanel(props: TensionCurvePanelProps) {
         />
 
         {!compact && canvasWidth > 900 ? (
-          <div className="text-xs text-muted-foreground">拖动画布或滚轮可横向浏览更多章节；双指/Ctrl+滚轮缩放查看细节。</div>
+          <div className="text-xs text-muted-foreground">{t("gen.components.tensionCurve.TensionCurvePanel.gen_a17e13a9")}</div>
         ) : null}
 
         {!compact ? <CompactLegend /> : null}

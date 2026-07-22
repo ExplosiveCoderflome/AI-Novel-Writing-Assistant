@@ -44,7 +44,7 @@ test("restoring archived knowledge document queues a rebuild and marks indexing 
       },
     });
     assert.deepEqual(enqueueCalls, [
-      ["rebuild", "knowledge_document", "knowledge-doc-1"],
+      ["rebuild", "knowledge_document", "knowledge-doc-1", { payload: undefined }],
     ]);
   } finally {
     prisma.knowledgeDocument.findUnique = originalFindUnique;

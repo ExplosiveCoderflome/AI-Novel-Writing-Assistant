@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
 import type { KnowledgeDocumentDetail, KnowledgeRecallTestResult } from "@ai-novel/shared/types/knowledge";
 import { Badge } from "@/components/ui/badge";
@@ -91,13 +93,13 @@ export default function KnowledgeDocumentDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
         className="max-w-4xl"
-        title={document?.title ?? "知识文档详情"}
+        title={document?.title ?? t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_043ec94a")}
         bodyClassName="min-w-0 space-y-4"
       >
           <div className="flex flex-wrap gap-2">
             {isArchived ? (
               <Button variant="outline" onClick={onRestoreDocument} disabled={restorePending}>
-                {restorePending ? "恢复中..." : "恢复启用"}
+                {restorePending ? t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_3baa9427") : t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_06dab430")}
               </Button>
             ) : (
               <input
@@ -125,8 +127,8 @@ export default function KnowledgeDocumentDetailDialog({
           {document ? (
             <>
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant="outline">文档状态：{formatStatus(document.status)}</Badge>
-                <Badge variant="outline">索引状态：{formatStatus(isArchived ? "idle" : (document.latestIndexStatus ?? "-"))}</Badge>
+                <Badge variant="outline">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_acf22c2d")}</Badge>
+                <Badge variant="outline">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_ac20cfba")}</Badge>
               </div>
               {document.latestIndexStatus === "failed" && document.latestIndexError ? (
                 <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
@@ -136,7 +138,7 @@ export default function KnowledgeDocumentDetailDialog({
 
               <Card>
                 <CardHeader>
-                  <CardTitle>召回测试</CardTitle>
+                  <CardTitle>{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_2ed53cd2")}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {isArchived ? (
@@ -149,13 +151,13 @@ export default function KnowledgeDocumentDetailDialog({
                         <Input
                           value={recallQuery}
                           onChange={(event) => onRecallQueryChange(event.target.value)}
-                          placeholder="输入一句问题或片段，测试当前激活版本的召回效果"
+                          placeholder={t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_f3d5ff52")}
                         />
                         <Button
                           onClick={onRecallTest}
                           disabled={recallPending || !selectedDocumentId || !recallQuery.trim()}
                         >
-                          {recallPending ? "测试中..." : "开始测试"}
+                          {recallPending ? t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_6c501b52") : t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_3df85acb")}
                         </Button>
                       </div>
                       <div className="text-xs text-muted-foreground">
@@ -175,9 +177,9 @@ export default function KnowledgeDocumentDetailDialog({
                               <div key={hit.id} className="min-w-0 max-w-full overflow-hidden rounded-md border p-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <div className="min-w-0 break-all font-medium">
-                                    命中 {index + 1} | {hit.source === "reranked" ? "重排" : hit.source === "vector" ? "向量" : "关键词"} | 分块 #{hit.chunkOrder + 1}
+                                    命中 {index + 1} | {hit.source === "reranked" ? t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_6ace83bd") : hit.source === "vector" ? t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_97005534") : t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_9699a50e")} | 分块 #{hit.chunkOrder + 1}
                                   </div>
-                                  <Badge variant="outline">得分 {hit.score.toFixed(4)}</Badge>
+                                  <Badge variant="outline">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_a4c9b484")}</Badge>
                                 </div>
                                 {hit.title ? (
                                   <div className="mt-1 break-all text-xs text-muted-foreground">{hit.title}</div>
@@ -208,8 +210,8 @@ export default function KnowledgeDocumentDetailDialog({
                 {document.versions.map((version) => (
                   <div key={version.id} className="min-w-0 max-w-full overflow-hidden rounded-md border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-medium">版本 v{version.versionNumber}</div>
-                      {version.isActive ? <Badge>当前激活</Badge> : null}
+                      <div className="font-medium">{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_ac17cf8f")}</div>
+                      {version.isActive ? <Badge>{t("gen.pages.knowledge.components.KnowledgeDocumentDetailDialog.gen_6fceed52")}</Badge> : null}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       字符数 {version.charCount} | {new Date(version.createdAt).toLocaleString()}

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ChapterEditorCandidate } from "@ai-novel/shared/types/novel";
 import { Button } from "@/components/ui/button";
 import type { ChapterEditorSessionState } from "./chapterEditorTypes";
@@ -27,19 +29,19 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
 
   const isIdle = session.status === "idle";
   const statusText = isIdle
-    ? "选中正文后可发起局部 AI 改写"
+    ? t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_55d7d90a")
     : session.status === "loading"
-      ? "正在生成候选版本"
+      ? t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_4ff96754")
       : session.status === "error"
-        ? session.errorMessage || "生成失败"
-        : session.requestLabel || "查看待确认改写";
+        ? session.errorMessage || t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_7f7de8a2")
+        : session.requestLabel || t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_2c1db253");
 
   return (
     <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:min-h-0">
       <div className="shrink-0 space-y-3 border-b border-border/70 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-medium text-foreground">AI 改写结果</div>
+            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.aiRewriteResult")}</div>
             <div className="text-xs text-muted-foreground">{statusText}</div>
           </div>
           <div className="flex items-center gap-2">
@@ -85,7 +87,7 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
               右侧结果面板已固定保留。你可以先在正文中选中一段，再从浮动工具条发起“优化表达、扩写、精简、强化情绪、强化冲突或自定义指令”。
             </div>
             <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
-              <div className="text-sm font-medium text-foreground">等待改写</div>
+              <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_7c71e233")}</div>
               <div className="mt-2 text-sm leading-6 text-muted-foreground">
                 发起改写后，这里会展示 2 到 3 个候选版本、改写摘要和段落对比。
               </div>
@@ -101,7 +103,7 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
 
         {session.status === "error" ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-            {session.errorMessage || "候选生成失败，请重试。"}
+            {session.errorMessage || t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_319a5871")}
           </div>
         ) : null}
 
@@ -146,7 +148,7 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
           再生成
         </Button>
         <Button size="sm" onClick={onAccept} disabled={session.status !== "ready" || !activeCandidate || isApplying}>
-          {isApplying ? "应用中..." : "接受全部"}
+          {isApplying ? t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_e596edd9") : t("gen.pages.novels.components.chapterEditor.AIDiffPanel.gen_3f8a36ff")}
         </Button>
       </div>
     </div>

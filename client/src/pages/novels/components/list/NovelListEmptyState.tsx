@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,19 +13,19 @@ export function NovelListEmptyState(props: {
   return (
     <section className="py-12 text-center">
       <h2 className="text-xl font-semibold tracking-normal">
-        {props.hasAnyNovel ? "没有符合筛选条件的小说" : "还没有小说项目"}
+        {props.hasAnyNovel ? t("gen.pages.novels.components.list.NovelListEmptyState.gen_325f8c1a") : t("gen.pages.novels.components.list.NovelListEmptyState.gen_acec76d7")}
       </h2>
       <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
         {props.hasAnyNovel
-          ? "可以切换上方筛选条件，或者创建一个新的小说项目。"
-          : "第一次使用时，推荐让 AI 自动导演先整理方向、角色、世界观和章节准备。"}
+          ? t("gen.pages.novels.components.list.NovelListEmptyState.gen_860e1882")
+          : t("gen.pages.novels.components.list.NovelListEmptyState.gen_1c5e7b24")}
       </p>
       <div className="mt-5 flex flex-wrap justify-center gap-2">
         <Button asChild>
-          <Link to={DIRECTOR_CREATE_LINK}>AI 自动导演开书</Link>
+          <Link to={DIRECTOR_CREATE_LINK}>{t("gen.pages.novels.components.list.NovelListEmptyState.aiAutoDirectorBookStart")}</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
+          <Link to={MANUAL_CREATE_LINK}>{t("gen.pages.novels.components.list.NovelListEmptyState.gen_e40b8718")}</Link>
         </Button>
       </div>
     </section>

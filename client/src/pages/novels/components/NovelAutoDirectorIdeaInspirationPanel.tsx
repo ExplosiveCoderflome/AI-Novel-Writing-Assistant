@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { DirectorIdeaInspiration } from "@ai-novel/shared/types/novelDirector";
 import { motion, useReducedMotion } from "framer-motion";
 import { Check, RefreshCw } from "lucide-react";
@@ -27,7 +29,7 @@ export default function NovelAutoDirectorIdeaInspirationPanel({
         </div>
         <Button type="button" size="sm" variant="ghost" onClick={onGenerate} disabled={isGenerating}>
           <RefreshCw className="h-4 w-4" />
-          {isGenerating ? "生成中..." : ideas.length > 0 ? "换一组" : "生成灵感"}
+          {isGenerating ? t("gen.pages.novels.components.NovelAutoDirectorIdeaInspirationPanel.gen_4d020ba3") : ideas.length > 0 ? t("gen.pages.novels.components.NovelAutoDirectorIdeaInspirationPanel.gen_ab0c9ba8") : t("gen.pages.novels.components.NovelAutoDirectorIdeaInspirationPanel.gen_b1307309")}
         </Button>
       </div>
       {ideas.length > 0 ? (

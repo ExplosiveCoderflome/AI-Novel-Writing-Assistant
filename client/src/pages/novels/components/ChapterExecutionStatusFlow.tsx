@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { cn } from "@/lib/utils";
 import type {
   ChapterExecutionFlowStage,
@@ -56,7 +58,7 @@ export default function ChapterExecutionStatusFlow(props: ChapterExecutionStatus
       <div className="text-xs leading-6 text-muted-foreground">
         <span className="font-medium text-foreground">
           当前阶段：
-          {stages.find((stage) => stage.key === currentStageKey)?.label ?? "未开始"}
+          {stages.find((stage) => stage.key === currentStageKey)?.label ?? t("gen.pages.novels.components.ChapterExecutionStatusFlow.gen_dd4e55c3")}
         </span>
         <span className="ml-2">{currentStageNote}</span>
       </div>

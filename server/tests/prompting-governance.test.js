@@ -178,9 +178,9 @@ test("core prompt management surfaces expose context and low-risk slot metadata"
       || assets.get(id).contextRequirements.length === 0);
 
   assert.deepEqual(missingContext, []);
-  assert.ok(assets.get("novel.chapter.writer").editableSlots.some((slot) => slot.key === "writer.tonePreference"));
-  assert.ok(assets.get("audit.chapter.full").editableSlots.some((slot) => slot.key === "audit.reportStyle"));
-  assert.ok(assets.get("novel.chapter_editor.rewrite_candidates").editableSlots.some((slot) => slot.key === "chapterEditor.candidateStyle"));
+  assert.ok(assets.get("novel.chapter.writer").slots.some((slot) => slot.key === "writer.tonePreference"));
+  assert.ok(assets.get("audit.chapter.full").slots.some((slot) => slot.key === "audit.reportStyle"));
+  assert.ok(assets.get("novel.chapter_editor.rewrite_candidates").slots.some((slot) => slot.key === "chapterEditor.candidateStyle"));
 });
 
 test("prompt quality telemetry stays in-process and schema-free", () => {

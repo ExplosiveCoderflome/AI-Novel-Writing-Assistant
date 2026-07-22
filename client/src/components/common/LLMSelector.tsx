@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -268,14 +270,14 @@ export default function LLMSelector({
   return (
     <div className={cn("space-y-2", compact && "space-y-1", className)}>
       <div className={cn("flex min-w-0 items-center gap-2", compact ? "flex-nowrap gap-1.5" : "flex-wrap")}>
-        {showBadge ? <Badge variant="secondary">模型</Badge> : null}
+        {showBadge ? <Badge variant="secondary">{t("gen.components.common.LLMSelector.gen_8000f187")}</Badge> : null}
         <Select
           value={providerSelectValue}
           onValueChange={onProviderChange}
           disabled={!hasRunnableProviders}
         >
           <SelectTrigger className={cn(compact ? "h-9 w-[148px] lg:w-[164px]" : "w-full sm:w-[180px]")}>
-            <SelectValue placeholder={hasRunnableProviders ? "选择厂商" : "请先配置可用厂商"} />
+            <SelectValue placeholder={hasRunnableProviders ? t("gen.components.common.LLMSelector.gen_c6d3930b") : t("gen.components.common.LLMSelector.gen_0597dad8")} />
           </SelectTrigger>
           <SelectContent>
             {!hasRunnableProviders ? (
@@ -296,9 +298,9 @@ export default function LLMSelector({
             value={resolvedModel}
             onValueChange={onModelChange}
             options={models.map((model) => ({ value: model }))}
-            placeholder={hasRunnableProviders ? "选择模型" : "暂无可用模型"}
-            searchPlaceholder="搜索模型"
-            emptyText="没有可用模型"
+            placeholder={hasRunnableProviders ? t("gen.components.common.LLMSelector.gen_f2d3731b") : t("gen.components.common.LLMSelector.gen_2d6b332e")}
+            searchPlaceholder={t("gen.components.common.LLMSelector.gen_8288a2e8")}
+            emptyText={t("gen.components.common.LLMSelector.gen_039e58de")}
             className={cn(compact ? "w-[184px] lg:w-[220px]" : "w-full sm:w-[240px]")}
             triggerClassName={compact ? "h-9 px-2.5" : undefined}
             disabled={!hasRunnableProviders}
@@ -315,7 +317,7 @@ export default function LLMSelector({
       {showParameters ? (
         <div className="grid gap-2 md:grid-cols-2">
           <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">温度 (0~2)</span>
+            <span className="text-muted-foreground">{t("gen.components.common.LLMSelector.gen_ac92ced8")}</span>
             <Input
               type="number"
               step="0.1"
@@ -347,7 +349,7 @@ export default function LLMSelector({
           </label>
 
           <label className="space-y-1 text-sm">
-            <span className="text-muted-foreground">最大 Tokens (留空 = 不限制)</span>
+            <span className="text-muted-foreground">{t("gen.components.common.LLMSelector.gen_19e57799")}</span>
             <Input
               type="number"
               step="1"

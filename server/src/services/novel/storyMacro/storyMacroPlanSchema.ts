@@ -95,7 +95,14 @@ export const STORY_MACRO_RESPONSE_SCHEMA = z.object({
     conflict_layers: conflictLayersSchema,
     mystery_box: z.string().trim().min(1).max(320),
     emotional_line: z.string().trim().min(1).max(400),
-    setpiece_seeds: z.array(z.string().trim().min(1).max(260)).min(2).max(3),
+    setpiece_seeds: z.preprocess((val) => {
+      if (!Array.isArray(val)) return ["主角遭遇重大认知危机", "核心矛盾全面爆发与正面交锋"];
+      const list = val.map(v => typeof v === "string" ? v.trim() : "").filter(Boolean);
+      while (list.length < 2) {
+        list.push(list.length === 0 ? "主角遭遇重大认知危机" : "核心矛盾全面爆发与正面交锋");
+      }
+      return list;
+    }, z.array(z.string().trim().min(1).max(260)).min(2).max(3)),
     tone_reference: z.string().trim().min(1).max(320),
   }),
   decomposition: z.object({
@@ -104,10 +111,24 @@ export const STORY_MACRO_RESPONSE_SCHEMA = z.object({
     main_hook: z.string().trim().min(1).max(320),
     progression_loop: z.string().trim().min(1).max(400),
     growth_path: z.string().trim().min(1).max(400),
-    major_payoffs: z.array(z.string().trim().min(1).max(220)).min(2).max(5),
+    major_payoffs: z.preprocess((val) => {
+      if (!Array.isArray(val)) return ["故事核心秘密最终揭晓", "主角完成自我认知重构与命运抉择"];
+      const list = val.map(v => typeof v === "string" ? v.trim() : "").filter(Boolean);
+      while (list.length < 2) {
+        list.push(list.length === 0 ? "故事核心秘密最终揭晓" : "主角完成自我认知重构与命运抉择");
+      }
+      return list;
+    }, z.array(z.string().trim().min(1).max(220)).min(2).max(5)),
     ending_flavor: z.string().trim().min(1).max(220),
   }),
-  constraints: z.array(z.string().trim().min(1).max(240)).min(2).max(8),
+  constraints: z.preprocess((val) => {
+    if (!Array.isArray(val)) return ["必须保持与设定背景一致", "遵循故事主线发展"];
+    const list = val.map(v => typeof v === "string" ? v.trim() : "").filter(Boolean);
+    while (list.length < 2) {
+      list.push(list.length === 0 ? "必须保持与设定背景一致" : "遵循故事主线发展");
+    }
+    return list;
+  }, z.array(z.string().trim().min(1).max(240)).min(2).max(8)),
   issues: z.array(z.object({
     type: z.string().trim().min(1).max(40),
     field: z.string().trim().min(1).max(60),

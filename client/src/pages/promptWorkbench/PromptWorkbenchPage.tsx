@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getNovelChapters } from "@/api/novel/chapters";
@@ -234,14 +236,14 @@ export default function PromptWorkbenchPage() {
               <div className="space-y-4">
                 <div className="flex flex-col gap-3 rounded-md border border-[#d7e4e0] bg-white/80 p-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-[#25443f]">编辑模式</div>
+                    <div className="text-sm font-semibold text-[#25443f]">{t("gen.pages.promptWorkbench.PromptWorkbenchPage.gen_ce0e89aa")}</div>
                     <div className="text-xs text-muted-foreground">
                       安全槽位适合稳定调整，高级模板适合本书正文写作自定义。
                     </div>
                   </div>
                   <Tabs value={activeEditMode} onValueChange={(value) => setEditMode(value as PromptEditMode)}>
                     <TabsList className="h-10">
-                      <TabsTrigger value="slots" className="px-4">安全槽位</TabsTrigger>
+                      <TabsTrigger value="slots" className="px-4">{t("gen.pages.promptWorkbench.PromptWorkbenchPage.gen_ed5d26aa")}</TabsTrigger>
                       <TabsTrigger
                         value="advanced"
                         className="px-4"
@@ -320,8 +322,8 @@ export default function PromptWorkbenchPage() {
                 onTestLlmChange={setTestLlm}
                 resetDisabled={effectiveResetDisabled}
                 officialVersionDisabled={effectiveOfficialDisabled}
-                officialVersionLabel={isAdvancedMode ? "恢复官方模板" : "官方版本"}
-                saveLabel={isAdvancedMode ? "保存为新版本" : "保存覆盖"}
+                officialVersionLabel={isAdvancedMode ? t("gen.pages.promptWorkbench.PromptWorkbenchPage.gen_36018f02") : t("gen.pages.promptWorkbench.PromptWorkbenchPage.gen_0bda51e1")}
+                saveLabel={isAdvancedMode ? t("gen.pages.promptWorkbench.PromptWorkbenchPage.gen_fd528847") : t("gen.pages.promptWorkbench.PromptWorkbenchPage.saveOverlay")}
                 onGeneratePreview={previewState.generatePreview}
                 onRunTest={handleRunTest}
                 onOpenOfficialVersion={

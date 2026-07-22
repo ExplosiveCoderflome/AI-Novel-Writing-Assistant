@@ -1,5 +1,5 @@
 import type { GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
-import { buildCompressionLog } from "../../../prompting/core/contextBudget";
+import { buildCompressionLog, estimateTextTokens } from "../../../prompting/core/contextBudget";
 import { prisma } from "../../../db/prisma";
 import { ragServices } from "../../rag";
 import { plannerService } from "../../planner/PlannerService";
@@ -42,6 +42,7 @@ import {
 } from "../characters/characterHardFacts";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { ChapterPlanJITService } from "../planning/ChapterPlanJITService";
+import { ragConfig } from "../../../config/rag";
 import {
   buildBlockingPendingReviewProposalWhere,
   loadPendingCharacterHardFactReviews,
@@ -285,8 +286,7 @@ export class GenerationContextAssembler {
       hasRepairableDraft: Boolean(chapter.content?.trim()),
     });
     // Phase 2 缺陷5：timelineContext 在写作路径已不消费（PR-B 已移除），
-    // 停止每章构建，将 timelineContext 置 null。ChapterQualityGateService
-    // 对 null 有防御处理（直接跳过 timeline 检查）。
+    // 停止每章构建，将 timelineContext 置 null。
     const canonicalState = resolvedStateDrivenContext.snapshot;
 
     const canonicalLedger = buildRuntimeLedgerFromCanonical(canonicalState);
@@ -475,8 +475,6 @@ export class GenerationContextAssembler {
     const storyWorldSlice = worldContextBlock?.rawSlice ?? null;
     const openingHint = await this.buildOpeningConstraintHint(novelId, chapter.order);
 
-    // Phase 2 缺陷6：合并 baseContextPackage 与 contextPackage 为单一构建。
-    // 先用占位值构建 chapterWriteContext，再后置填充派生字段，消除字段手抄两遍。
     const sharedFields = {
       chapter: {
         id: chapter.id,
@@ -525,8 +523,7 @@ export class GenerationContextAssembler {
       ledgerUrgentItems: canonicalLedger.ledgerUrgentItems,
       ledgerOverdueItems: canonicalLedger.ledgerOverdueItems,
       ledgerSummary: canonicalLedger.ledgerSummary,
-      // Phase 2 缺陷5：timelineContext 停止构建，写作路径已不消费
-      timelineContext: null,
+      timelineContext: null, // Phase 2 缺陷5：timelineContext 停止构建，写作路径已不消费
       characterResourceContext,
       contextGatingDecisions: [] as GenerationContextPackage["contextGatingDecisions"],
       chapterChangeFlags: {
@@ -623,15 +620,75 @@ export class GenerationContextAssembler {
       ragText = "";
     }
 
-    // Phase 2 缺陷6：用 sharedFields 展开，只补充派生字段，消除两遍手抄
+    // Dynamic Few-Shot Context Assembly (Loop 2) from Qdrant vector store
+    let fewShotContext = "";
+    try {
+      const queryText = `${chapterWriteContext.chapterMission.title}: ${chapterWriteContext.chapterMission.objective}`;
+      const embedding = await ragServices.embeddingService.embedTexts([queryText]);
+      const queryVector = embedding.vectors[0];
+
+      if (queryVector && queryVector.length > 0) {
+        const searchResults = await ragServices.vectorStoreService.search(queryVector, 3, {
+          tenantId: ragConfig.defaultTenantId,
+          novelId,
+          ownerTypes: ["chapter"],
+        });
+
+        if (searchResults && searchResults.length > 0) {
+          fewShotContext = "【优秀历史章节Few-Shot示例】\n";
+          const formattedExemplars: string[] = [];
+          for (let i = 0; i < searchResults.length; i++) {
+            const res = searchResults[i];
+            const title = res.payload.title || `示例章节 ${i + 1}`;
+            formattedExemplars.push(`[示例章节 - 标题: ${title}]\n[内容片段: ${res.payload.chunkText.trim()}]`);
+          }
+          fewShotContext += formattedExemplars.join("\n\n");
+        }
+      }
+    } catch (e) {
+      console.warn("[Loop 2] Failed to retrieve dynamic few-shot from Qdrant:", e);
+    }
+
+    if (!fewShotContext) {
+      fewShotContext = "【开局预设写作示例 (Seed Exemplars)】\n";
+      const seedExemplars = [
+        {
+          title: "第一章：林中偶遇",
+          content: "晨雾缭绕，山路湿滑。林羽身背药篓，小心翼翼地穿行在灌木丛中。突然，前方传来一阵低沉的咆哮，惊起一群飞鸟。林羽屏住呼吸，悄悄拨开树叶，只见一只斑斓猛虎正盯着前方树下的白衣女子..."
+        },
+        {
+          title: "第二章：密室之争",
+          content: "烛光摇曳，照亮了密室中的青铜古鼎。苏老负手而立，眼神深邃：“此鼎乃是当年天尊所遗，内藏造化。”赵无极冷哼一声，上前一步，浑身气劲爆发：“今日老夫志在必得，谁若阻拦，神魂俱灭！”"
+        }
+      ];
+      fewShotContext += seedExemplars.map(item => `[示例章节 - 标题: ${item.title}]\n[内容: ${item.content}]`).join("\n\n");
+
+      fewShotContext += "\n\n【开局初始世界与角色设定要素】\n";
+      if (novel.characters && novel.characters.length > 0) {
+        fewShotContext += "初始登场角色：\n" + novel.characters.slice(0, 4).map(c => `- ${c.name} (${c.role}): ${c.personality || "暂无"}`).join("\n") + "\n";
+      }
+      if (worldContextBlock?.summaryText) {
+        fewShotContext += `初始世界设定底色：${worldContextBlock.summaryText}\n`;
+      }
+    }
+
+    const combinedRagContext = [
+      ragText ? `【知识库检索事实 (RAG Facts)】\n${ragText}` : "",
+      fewShotContext ? `【动态Few-Shot上下文 (In-Context Learning)】\n${fewShotContext}` : ""
+    ].filter(Boolean).join("\n\n");
+
     const contextPackage: GenerationContextPackage = {
       ...sharedFields,
-      ragContext: ragText,
+      ragContext: combinedRagContext,
       chapterMission: chapterWriteContext.chapterMission,
       chapterWriteContext,
       chapterReviewContext,
       chapterRepairContext,
     };
+
+    // Perform context package pruning to strictly stay within token budget
+    pruneContextPackage(contextPackage, chapterWriteContext.participants);
+
     const compressionLog = buildCompressionLog(
       contextPackage.chapterWriteContext ? getAllContextBlocks(contextPackage) : [],
       2600,
@@ -686,5 +743,100 @@ export class GenerationContextAssembler {
       "Recent openings (do not reuse the same opening structure or sentence starter):",
       ...openingList.map((item) => `- Chapter ${item.order} ${item.title}: ${item.opening}`),
     ].join("\n");
+  }
+}
+
+function pruneContextPackage(
+  contextPackage: GenerationContextPackage,
+  participants: Array<{ id: string; name: string }>
+) {
+  const budget = contextPackage.promptBudgetProfiles.find((p) => p.promptId === "novel.chapter.writer")?.maxTokensBudget ?? 2600;
+  
+  const missionText = contextPackage.chapterMission ? JSON.stringify(contextPackage.chapterMission) : "";
+  const tailText = contextPackage.previousChapterTail || "";
+  const timelineText = contextPackage.timelineContext ? JSON.stringify(contextPackage.timelineContext) : "";
+  
+  let currentUsed = estimateTextTokens(missionText) + estimateTextTokens(tailText) + estimateTextTokens(timelineText);
+  
+  if (contextPackage.characterHardFacts && contextPackage.characterHardFacts.length > 0) {
+    const participantIds = new Set(participants.map((p) => p.id));
+    const prunedFacts = contextPackage.characterHardFacts.filter((fact) => participantIds.has(fact.characterId));
+    if (prunedFacts.length > 0) {
+      contextPackage.characterHardFacts = prunedFacts;
+    } else {
+      contextPackage.characterHardFacts = contextPackage.characterHardFacts.slice(0, 4);
+    }
+  }
+  
+  if (contextPackage.characterRoster && contextPackage.characterRoster.length > 0) {
+    const participantIds = new Set(participants.map((p) => p.id));
+    const prunedRoster = contextPackage.characterRoster.filter(
+      (c) => participantIds.has(c.id) || c.role?.toLowerCase() === "protagonist" || c.role?.toLowerCase() === "hero"
+    );
+    if (prunedRoster.length > 0) {
+      contextPackage.characterRoster = prunedRoster;
+    }
+  }
+
+  if (contextPackage.storyWorldSlice) {
+    const slice = contextPackage.storyWorldSlice;
+    const missionStr = (contextPackage.chapterMission?.objective || "") + " " + (contextPackage.chapterMission?.expectation || "");
+    const queryWords = missionStr.match(/[\u4e00-\u9fa5]+|[a-zA-Z]+/g) || [];
+    
+    const getRelevanceScore = (text: string) => {
+      let score = 0;
+      for (const word of queryWords) {
+        if (text.toLowerCase().includes(word.toLowerCase())) {
+          score += 1;
+        }
+      }
+      return score;
+    };
+    
+    if (slice.appliedRules && slice.appliedRules.length > 0) {
+      const scoredRules = slice.appliedRules.map((rule) => ({
+        rule,
+        score: getRelevanceScore(`${rule.name} ${rule.summary || ""} ${rule.whyItMatters || ""}`),
+      }));
+      scoredRules.sort((a, b) => b.score - a.score);
+      
+      const rulesTokenCount = estimateTextTokens(JSON.stringify(slice.appliedRules));
+      if (currentUsed + rulesTokenCount > budget) {
+        slice.appliedRules = scoredRules.slice(0, 3).map((x) => x.rule);
+      }
+    }
+    
+    if (slice.activeForces && slice.activeForces.length > 0) {
+      const scoredForces = slice.activeForces.map((force) => ({
+        force,
+        score: getRelevanceScore(`${force.name} ${force.roleInStory || ""} ${force.pressure || ""}`),
+      }));
+      scoredForces.sort((a, b) => b.score - a.score);
+      const forcesTokenCount = estimateTextTokens(JSON.stringify(slice.activeForces));
+      if (currentUsed + forcesTokenCount > budget) {
+        slice.activeForces = scoredForces.slice(0, 2).map((x) => x.force);
+      }
+    }
+    
+    if (slice.activeLocations && slice.activeLocations.length > 0) {
+      const scoredLocations = slice.activeLocations.map((loc) => ({
+        loc,
+        score: getRelevanceScore(`${loc.name} ${loc.storyUse || ""} ${loc.summary || ""}`),
+      }));
+      scoredLocations.sort((a, b) => b.score - a.score);
+      const locationsTokenCount = estimateTextTokens(JSON.stringify(slice.activeLocations));
+      if (currentUsed + locationsTokenCount > budget) {
+        slice.activeLocations = scoredLocations.slice(0, 2).map((x) => x.loc);
+      }
+    }
+  }
+
+  const totalEstimated = estimateTextTokens(JSON.stringify(contextPackage));
+  if (totalEstimated > budget && contextPackage.ragContext) {
+    const remainingBudget = Math.max(200, budget - currentUsed);
+    const ragTokens = estimateTextTokens(contextPackage.ragContext);
+    if (ragTokens > remainingBudget) {
+      contextPackage.ragContext = contextPackage.ragContext.slice(0, remainingBudget * 4) + "\n[rag pruned to budget]";
+    }
   }
 }

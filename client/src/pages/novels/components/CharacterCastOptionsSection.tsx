@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Character, CharacterCastOption, CharacterCastRole, CharacterGender } from "@ai-novel/shared/types/novel";
@@ -28,33 +30,33 @@ interface CharacterCastOptionsSectionProps {
 }
 
 const CAST_ROLE_LABELS: Record<CharacterCastRole, string> = {
-  protagonist: "主角",
-  antagonist: "主对手",
-  ally: "同盟",
-  foil: "镜像角色",
-  mentor: "导师",
-  love_interest: "情感牵引",
-  pressure_source: "压力源",
-  catalyst: "催化者",
+  protagonist: t("gen.pages.novels.components.CharacterCastOptionsSection.mainCharacter"),
+  antagonist: t("gen.pages.novels.components.CharacterCastOptionsSection.mainEnemy"),
+  ally: t("gen.pages.novels.components.CharacterCastOptionsSection.gen_9669fc43"),
+  foil: t("gen.pages.novels.components.CharacterCastOptionsSection.gen_d7fc88ac"),
+  mentor: t("gen.pages.novels.components.CharacterCastOptionsSection.gen_d62518be"),
+  love_interest: t("gen.pages.novels.components.CharacterCastOptionsSection.gen_65c52a7e"),
+  pressure_source: t("gen.pages.novels.components.CharacterCastOptionsSection.gen_7aa91c6c"),
+  catalyst: t("gen.pages.novels.components.CharacterCastOptionsSection.gen_f57197c6"),
 };
 
 const CHARACTER_GENDER_LABELS: Record<CharacterGender, string> = {
-  male: "男",
-  female: "女",
-  other: "其他",
-  unknown: "未知",
+  male: t("gen.pages.novels.components.CharacterCastOptionsSection.gen_36a4908a"),
+  female: t("gen.pages.novels.components.CharacterCastOptionsSection.gen_87c835a6"),
+  other: t("gen.pages.novels.components.CharacterCastOptionsSection.gen_0d98c747"),
+  unknown: t("gen.pages.novels.components.CharacterCastOptionsSection.gen_1622dc9b"),
 };
 
 function getCastRoleLabel(castRole?: CharacterCastRole | null): string {
   if (!castRole) {
-    return "未分类";
+    return t("gen.pages.novels.components.CharacterCastOptionsSection.gen_ecf7ebb5");
   }
   return CAST_ROLE_LABELS[castRole] ?? castRole;
 }
 
 function getCharacterGenderLabel(gender?: CharacterGender | null): string {
   if (!gender) {
-    return "未知";
+    return t("gen.pages.novels.components.CharacterCastOptionsSection.gen_1622dc9b");
   }
   return CHARACTER_GENDER_LABELS[gender] ?? gender;
 }
@@ -81,7 +83,7 @@ function buildCharacterCastApplyConfirmMessage(option: CharacterCastOption, warn
   return [
     `阵容「${option.title}」和当前故事设定还有不完全匹配的地方。`,
     warningText,
-    "仍然应用到角色资产工作台吗？应用后可以继续在角色资产里调整。",
+    t("gen.pages.novels.components.CharacterCastOptionsSection.stillApplyToAssetWorkshop"),
   ].filter((line) => line.trim().length > 0).join("\n\n");
 }
 
@@ -161,7 +163,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
   function handleRejectAll() {
     const confirmed = window.confirm(
       appliedOption
-        ? "确认清空当前所有阵容方案记录？已同步的角色与关系不会自动回滚。"
+        ? t("gen.pages.novels.components.CharacterCastOptionsSection.gen_a3322cb5")
         : `确认清空当前 ${castOptions.length} 套阵容方案？`,
     );
     if (!confirmed) {
@@ -195,12 +197,12 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
           : undefined,
       }),
     onSuccess: async (response) => {
-      setStatusMessage(response.message ?? "角色阵容方案已生成。");
+      setStatusMessage(response.message ?? t("gen.pages.novels.components.CharacterCastOptionsSection.gen_9c59d01a"));
       setIsPlannerExpanded(true);
       await refreshCastOptions();
     },
     onError: (error) => {
-      setStatusMessage(error instanceof Error ? error.message : "角色阵容方案生成失败。");
+      setStatusMessage(error instanceof Error ? error.message : t("gen.pages.novels.components.CharacterCastOptionsSection.gen_9d18891f"));
     },
   });
 
@@ -220,7 +222,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       }
       const createdCount = response.data?.createdCount ?? 0;
       const updatedCount = response.data?.updatedCount ?? 0;
-      const backgroundHint = "外显资料和角色动态会在后台补齐，稍后刷新角色资产即可查看。";
+      const backgroundHint = t("gen.pages.novels.components.CharacterCastOptionsSection.gen_e12b44f1");
       setStatusMessage(
         response.data?.qualityOverrideApplied
           ? `已按你的确认应用这套阵容，同步 ${createdCount} 个新角色，更新 ${updatedCount} 个既有角色。${backgroundHint}`
@@ -230,7 +232,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       await refreshAppliedCharacterWorkspace();
     },
     onError: (error) => {
-      setStatusMessage(error instanceof Error ? error.message : "角色阵容方案应用失败。");
+      setStatusMessage(error instanceof Error ? error.message : t("gen.pages.novels.components.CharacterCastOptionsSection.gen_b1c5d2c4"));
     },
   });
 
@@ -251,14 +253,14 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
     mutationFn: (optionId: string) => deleteCharacterCastOption(novelId, optionId),
     onSuccess: async (response) => {
       if (response.data?.deletedAppliedOption) {
-        setStatusMessage("方案记录已删除；角色库和关系网中的对应数据会保留。");
+        setStatusMessage(t("gen.pages.novels.components.CharacterCastOptionsSection.gen_e0c743d7"));
       } else {
-        setStatusMessage("这套阵容方案已删除。");
+        setStatusMessage(t("gen.pages.novels.components.CharacterCastOptionsSection.gen_815a0232"));
       }
       await refreshCastOptions();
     },
     onError: (error) => {
-      setStatusMessage(error instanceof Error ? error.message : "删除阵容方案失败。");
+      setStatusMessage(error instanceof Error ? error.message : t("gen.pages.novels.components.CharacterCastOptionsSection.gen_cec28e2d"));
     },
   });
 
@@ -268,7 +270,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       const deletedCount = response.data?.deletedCount ?? 0;
       const deletedAppliedCount = response.data?.deletedAppliedCount ?? 0;
       if (deletedCount === 0) {
-        setStatusMessage("没有可清空的阵容方案。");
+        setStatusMessage(t("gen.pages.novels.components.CharacterCastOptionsSection.gen_82c3bdac"));
       } else if (deletedAppliedCount > 0) {
         setStatusMessage(`已清空 ${deletedCount} 套阵容方案记录；已同步的角色与关系不会自动回滚。`);
       } else {
@@ -278,7 +280,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       await refreshCastOptions();
     },
     onError: (error) => {
-      setStatusMessage(error instanceof Error ? error.message : "清空阵容方案失败。");
+      setStatusMessage(error instanceof Error ? error.message : t("gen.pages.novels.components.CharacterCastOptionsSection.gen_2330d8fd"));
     },
   });
   const isWorking =
@@ -293,15 +295,15 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
         <CardHeader className="gap-3">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-1">
-              <CardTitle>AI 角色阵容方案</CardTitle>
+              <CardTitle>{t("gen.pages.novels.components.CharacterCastOptionsSection.aiCharacterLineupPlan")}</CardTitle>
               <div className="text-sm text-muted-foreground">
                 更适合前期搭建角色系统，或在故事方向大改后重新规划阵容。
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{castOptions.length} 套候选方案</Badge>
-              <Badge variant="outline">{relations.length} 条角色关系</Badge>
-              {appliedOption ? <Badge variant="secondary">已应用方案</Badge> : null}
+              <Badge variant="outline">{t("gen.pages.novels.components.CharacterCastOptionsSection.castOptionCount")}</Badge>
+              <Badge variant="outline">{t("gen.pages.novels.components.CharacterCastOptionsSection.relationshipCount")}</Badge>
+              {appliedOption ? <Badge variant="secondary">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_331e0006")}</Badge> : null}
             </div>
           </div>
         </CardHeader>
@@ -311,13 +313,13 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="font-medium">{appliedOption.title}</div>
-                  <Badge variant="secondary">当前生效</Badge>
+                  <Badge variant="secondary">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_4298a6d6")}</Badge>
                 </div>
                 <div className="text-sm text-muted-foreground">{appliedOption.summary}</div>
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span>{appliedOption.members.length} 个核心角色</span>
-                  <span>{appliedOption.relations.length} 条关键关系</span>
-                  {appliedOption.recommendedReason ? <span>推荐：{appliedOption.recommendedReason}</span> : null}
+                  <span>{t("gen.pages.novels.components.CharacterCastOptionsSection.coreCharactersCount")}</span>
+                  <span>{t("gen.pages.novels.components.CharacterCastOptionsSection.keyRelationsCount")}</span>
+                  {appliedOption.recommendedReason ? <span>{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_c44fe03f")}</span> : null}
                 </div>
                 {statusMessage ? <div className="text-xs text-muted-foreground">{statusMessage}</div> : null}
               </div>
@@ -335,14 +337,14 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
               <div className="grid gap-4 xl:grid-cols-[minmax(280px,0.72fr)_minmax(0,1.28fr)]">
                 <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
                   <div className="space-y-1">
-                    <div className="text-sm font-medium">生成指令</div>
+                    <div className="text-sm font-medium">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_eba49f80")}</div>
                     <div className="text-xs text-muted-foreground">
                       可补充主角欲望、对手压力、关系张力，或你想重点强化的人物方向。
                     </div>
                   </div>
                   <textarea
                     className="min-h-[140px] w-full rounded-xl border bg-background p-3 text-sm"
-                    placeholder="例如：主角必须在家族责任与个人自由之间二选一；反派不要是纯恶，而是带有保护欲和控制欲。"
+                    placeholder={t("gen.pages.novels.components.CharacterCastOptionsSection.exampleMainChooseFamilyOrFreedomEvilNotPureControl")}
                     value={storyInput}
                     onChange={(event) => setStoryInput(event.target.value)}
                   />
@@ -369,7 +371,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                   {useWorldContext ? (
                     <div className="grid gap-2 rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-muted-foreground">
                       {worldSliceQuery.isLoading ? (
-                        <div>正在读取本书世界使用范围...</div>
+                        <div>{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_1eb86022")}</div>
                       ) : !hasUsableWorld ? (
                         <div>
                           本书世界还没有准备好。本轮会优先根据书级信息和你的生成指令设计角色。
@@ -380,14 +382,14 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                         </div>
                       ) : null}
                       <label className="space-y-1">
-                        <span className="font-medium text-foreground">势力倾向</span>
+                        <span className="font-medium text-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_368e1d5d")}</span>
                         <SelectControl
                           className="w-full rounded-md border bg-background p-2 text-sm"
                           value={preferredWorldFaction}
                           onChange={(event) => setPreferredWorldFaction(event.target.value)}
                           disabled={!hasWorldSlice || activeWorldForces.length === 0}
                         >
-                          <option value="">由 AI 判断</option>
+                          <option value="">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_03b5582c")}</option>
                           {activeWorldForces.map((force) => (
                             <option key={force.id} value={force.name}>{force.name}</option>
                           ))}
@@ -395,18 +397,18 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                       </label>
                       <div>
                         {hasWorldSlice
-                          ? "角色会优先贴合本书世界的势力、地点、身份边界和禁止搭配。"
-                          : "本书世界使用范围整理后，可进一步指定势力倾向。"}
+                          ? t("gen.pages.novels.components.CharacterCastOptionsSection.gen_da93cd04")
+                          : t("gen.pages.novels.components.CharacterCastOptionsSection.gen_349b40cf")}
                       </div>
                     </div>
                   ) : null}
                   <div className="flex flex-wrap gap-2">
                     <AiButton onClick={() => generateMutation.mutate()} disabled={isWorking}>
-                      {generateMutation.isPending ? "生成中..." : "生成 3 套阵容"}
+                      {generateMutation.isPending ? t("gen.pages.novels.components.CharacterCastOptionsSection.gen_4d020ba3") : t("gen.pages.novels.components.CharacterCastOptionsSection.gen_75886390")}
                     </AiButton>
                     {castOptions.length > 0 ? (
                       <Button variant="outline" onClick={handleRejectAll} disabled={isWorking}>
-                        {clearMutation.isPending ? "清空中..." : "都不喜欢"}
+                        {clearMutation.isPending ? t("gen.pages.novels.components.CharacterCastOptionsSection.gen_67b24f4b") : t("gen.pages.novels.components.CharacterCastOptionsSection.gen_2b60475a")}
                       </Button>
                     ) : null}
                     {appliedOption ? (
@@ -446,9 +448,9 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                             <div className="space-y-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <div className="font-medium">{option.title}</div>
-                                {option.status === "applied" ? <Badge variant="secondary">已应用</Badge> : null}
-                                {option.recommendedReason ? <Badge variant="outline">推荐</Badge> : null}
-                                {requiresQualityConfirmation ? <Badge variant="outline">需确认</Badge> : null}
+                                {option.status === "applied" ? <Badge variant="secondary">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_1463e88d")}</Badge> : null}
+                                {option.recommendedReason ? <Badge variant="outline">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_3f981012")}</Badge> : null}
+                                {requiresQualityConfirmation ? <Badge variant="outline">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_bf45ca6e")}</Badge> : null}
                               </div>
                               <div className="text-xs leading-5 text-muted-foreground">{option.summary}</div>
                             </div>
@@ -460,12 +462,12 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                                 variant={option.status === "applied" ? "outline" : "default"}
                               >
                                 {isApplyingThisOption
-                                  ? "应用中..."
+                                  ? t("gen.pages.novels.components.CharacterCastOptionsSection.gen_e596edd9")
                                   : option.status === "applied"
-                                    ? "重新应用"
+                                    ? t("gen.pages.novels.components.CharacterCastOptionsSection.gen_118d4b70")
                                     : requiresQualityConfirmation
-                                      ? "确认后应用"
-                                      : "应用这套阵容"}
+                                      ? t("gen.pages.novels.components.CharacterCastOptionsSection.gen_6bef564c")
+                                      : t("gen.pages.novels.components.CharacterCastOptionsSection.gen_a52ee018")}
                               </Button>
                               <Button
                                 size="sm"
@@ -474,13 +476,13 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                                 onClick={() => handleDeleteOption(option)}
                                 disabled={isWorking}
                               >
-                                {deleteMutation.isPending && deleteMutation.variables === option.id ? "删除中..." : "删除"}
+                                {deleteMutation.isPending && deleteMutation.variables === option.id ? t("gen.pages.novels.components.CharacterCastOptionsSection.gen_09f2fb82") : t("gen.pages.novels.components.CharacterCastOptionsSection.gen_2f4aaddd")}
                               </Button>
                             </div>
                           </div>
                           {requiresQualityConfirmation ? (
                             <div className="mt-3 rounded-xl border border-amber-300/70 bg-amber-50/70 p-3 text-xs text-amber-900">
-                              <div className="font-medium">这套阵容需要你确认后再应用</div>
+                              <div className="font-medium">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_f3e41c8b")}</div>
                               <div className="mt-1">
                                 系统发现它和当前故事设定还有不完全匹配的地方。你可以先应用，再到角色资产里调整。
                               </div>
@@ -497,7 +499,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                             </div>
                           ) : null}
                           {option.whyItWorks ? (
-                            <div className="mt-2 text-xs text-muted-foreground">成立原因：{option.whyItWorks}</div>
+                            <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_d291d983")}</div>
                           ) : null}
                           <div className="mt-3 grid gap-2 sm:grid-cols-2">
                             {option.members.map((member) => (
@@ -508,14 +510,14 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                                   <Badge variant="secondary">{getCharacterGenderLabel(member.gender)}</Badge>
                                 </div>
                                 <div className="mt-1 text-xs text-muted-foreground">{member.role}</div>
-                                <div className="mt-2 text-xs text-muted-foreground">作用：{member.storyFunction}</div>
+                                <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.functionMemberStoryFunction")}</div>
                                 {member.relationToProtagonist ? (
                                   <div className="text-xs text-muted-foreground">
                                     与主角关系：{member.relationToProtagonist}
                                   </div>
                                 ) : null}
                                 {member.outerGoal ? (
-                                  <div className="text-xs text-muted-foreground">外在目标：{member.outerGoal}</div>
+                                  <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_f967d503")}</div>
                                 ) : null}
                               </div>
                             ))}
@@ -537,26 +539,26 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
 
       <Card>
         <CardHeader>
-          <CardTitle>角色关系网</CardTitle>
+          <CardTitle>{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_6606fcbf")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           {selectedCharacter ? (
             <div className="text-xs text-muted-foreground">
-              当前聚焦：{selectedCharacter.name}（{selectedCharacter.role || "未定义"}）
+              当前聚焦：{selectedCharacter.name}（{selectedCharacter.role || t("gen.pages.novels.components.CharacterCastOptionsSection.gen_cebc6bbb")}）
             </div>
           ) : (
-            <div className="text-xs text-muted-foreground">未选中角色时，默认展示最近的关系条目。</div>
+            <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_17397de3")}</div>
           )}
           {relationsQuery.isLoading ? (
-            <div className="text-muted-foreground">正在加载关系网络...</div>
+            <div className="text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_1f00d3fa")}</div>
           ) : filteredRelations.length > 0 ? (
             <div className="grid gap-2 lg:grid-cols-2">
               {filteredRelations.map((relation) => {
                 const selectedIsSource = selectedCharacter ? relation.sourceCharacterId === selectedCharacter.id : false;
                 const counterpartId = selectedIsSource ? relation.targetCharacterId : relation.sourceCharacterId;
                 const counterpartName = selectedIsSource
-                  ? relation.targetCharacterName || characterNameById.get(counterpartId) || "未命名角色"
-                  : relation.sourceCharacterName || characterNameById.get(counterpartId) || "未命名角色";
+                  ? relation.targetCharacterName || characterNameById.get(counterpartId) || t("gen.pages.novels.components.CharacterCastOptionsSection.gen_f9157038")
+                  : relation.sourceCharacterName || characterNameById.get(counterpartId) || t("gen.pages.novels.components.CharacterCastOptionsSection.gen_f9157038");
                 return (
                   <button
                     key={relation.id}
@@ -573,13 +575,13 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                       <Badge variant="outline">{relation.surfaceRelation}</Badge>
                     </div>
                     {relation.hiddenTension ? (
-                      <div className="mt-2 text-xs text-muted-foreground">隐藏张力：{relation.hiddenTension}</div>
+                      <div className="mt-2 text-xs text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_517ccc87")}</div>
                     ) : null}
                     {relation.conflictSource ? (
-                      <div className="text-xs text-muted-foreground">冲突来源：{relation.conflictSource}</div>
+                      <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.gen_5e01ec63")}</div>
                     ) : null}
                     {relation.nextTurnPoint ? (
-                      <div className="text-xs text-muted-foreground">下一反转点：{relation.nextTurnPoint}</div>
+                      <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.CharacterCastOptionsSection.nextReversalPoint")}</div>
                     ) : null}
                   </button>
                 );

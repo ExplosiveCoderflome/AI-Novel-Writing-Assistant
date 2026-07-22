@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Button } from "@/components/ui/button";
 
 export function NovelListPagination(props: {
@@ -10,7 +12,7 @@ export function NovelListPagination(props: {
     return null;
   }
   return (
-    <nav className="flex flex-wrap items-center justify-end gap-2" aria-label="小说列表分页">
+    <nav className="flex flex-wrap items-center justify-end gap-2" aria-label={t("gen.pages.novels.components.list.NovelListPagination.gen_5ecc53d5")}>
       <Button
         type="button"
         variant="outline"

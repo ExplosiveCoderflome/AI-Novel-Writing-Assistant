@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { TaskOverviewSummary } from "@ai-novel/shared/types/task";
 import type { NovelListResponse } from "@/api/novel/shared";
 import {
@@ -54,11 +55,11 @@ export interface HomeNextAction {
 
 export function formatHomeDate(value: string | undefined): string {
   if (!value) {
-    return "暂无";
+    return i18next.t("gen.pages.home.homeViewModel.gen_f61f4cf6");
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "暂无";
+    return i18next.t("gen.pages.home.homeViewModel.gen_f61f4cf6");
   }
   return date.toLocaleString();
 }
@@ -97,7 +98,7 @@ export function getNovelLeadSummary(novel: HomeNovelItem): string {
   if (novel.world?.name) {
     return `当前项目绑定世界观「${novel.world.name}」，可以继续创作。`;
   }
-  return "当前项目暂无简介，可以进入编辑页继续推进。";
+  return i18next.t("gen.pages.home.homeViewModel.gen_93364b21");
 }
 
 export function selectPrimaryNovel(novels: HomeNovelItem[]): HomeNovelItem | null {
@@ -118,10 +119,10 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
   if (!primaryNovel) {
     return {
       kind: "starter",
-      eyebrow: "开始第一本小说",
-      title: "用一句灵感启动自动导演",
-      description: "先给 AI 一个模糊想法，系统会帮你整理方向、角色、世界观和章节准备。",
-      reason: "适合还没想清楚题材、卖点和前期承诺的新手。",
+      eyebrow: i18next.t("gen.pages.home.homeViewModel.gen_de6465aa"),
+      title: i18next.t("gen.pages.home.homeViewModel.gen_9c3aa028"),
+      description: i18next.t("gen.pages.home.homeViewModel.gen_059a2612"),
+      reason: i18next.t("gen.pages.home.homeViewModel.gen_eace0878"),
       tone: "info",
     };
   }
@@ -130,69 +131,69 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
   if (canContinueChapterBatchAutoExecution(task)) {
     return {
       kind: "novel",
-      eyebrow: "推荐下一步",
+      eyebrow: i18next.t("gen.pages.home.homeViewModel.gen_9ff48c30"),
       title: `恢复《${primaryNovel.title}》的章节执行`,
       description: getNovelLeadSummary(primaryNovel),
-      reason: "章节批次停在可恢复节点，先恢复执行能最快回到正文生产。",
+      reason: i18next.t("gen.pages.home.homeViewModel.gen_036b9ab0"),
       tone: "danger",
     };
   }
   if (requiresCandidateSelection(task)) {
     return {
       kind: "novel",
-      eyebrow: "推荐下一步",
+      eyebrow: i18next.t("gen.pages.home.homeViewModel.gen_9ff48c30"),
       title: `确认《${primaryNovel.title}》的书级方向`,
       description: getNovelLeadSummary(primaryNovel),
-      reason: "确认方向后，系统才能继续准备世界观、角色和章节执行计划。",
+      reason: i18next.t("gen.pages.home.homeViewModel.gen_c2813e84"),
       tone: "warning",
     };
   }
   if (canContinueDirector(task)) {
     return {
       kind: "novel",
-      eyebrow: "推荐下一步",
+      eyebrow: i18next.t("gen.pages.home.homeViewModel.gen_9ff48c30"),
       title: `继续《${primaryNovel.title}》的自动导演`,
       description: getNovelLeadSummary(primaryNovel),
-      reason: "当前阶段等待确认，继续后会推进到下一段可执行准备。",
+      reason: i18next.t("gen.pages.home.homeViewModel.gen_7aa3fedb"),
       tone: "warning",
     };
   }
   if (task?.status === "running" || task?.status === "queued") {
     return {
       kind: "novel",
-      eyebrow: "系统推进中",
+      eyebrow: i18next.t("gen.pages.home.homeViewModel.gen_daf87615"),
       title: `关注《${primaryNovel.title}》的后台进度`,
       description: getNovelLeadSummary(primaryNovel),
-      reason: "自动导演或章节执行仍在后台处理，可以查看进度和最近阶段。",
+      reason: i18next.t("gen.pages.home.homeViewModel.gen_e3f5c26f"),
       tone: "info",
     };
   }
   if (canEnterChapterExecution(task)) {
     return {
       kind: "novel",
-      eyebrow: "推荐下一步",
+      eyebrow: i18next.t("gen.pages.home.homeViewModel.gen_9ff48c30"),
       title: `进入《${primaryNovel.title}》的章节执行`,
       description: getNovelLeadSummary(primaryNovel),
-      reason: "规划资产已经能支撑章节生产，可以进入正文生成和审阅。",
+      reason: i18next.t("gen.pages.home.homeViewModel.gen_c69fb4b4"),
       tone: "success",
     };
   }
   if (task?.status === "failed" || task?.status === "cancelled") {
     return {
       kind: "novel",
-      eyebrow: "需要处理",
+      eyebrow: i18next.t("gen.pages.home.homeViewModel.gen_54dc8247"),
       title: `查看《${primaryNovel.title}》的推进状态`,
       description: getNovelLeadSummary(primaryNovel),
-      reason: "任务存在暂停或失败记录，先查看详情再决定恢复、重试或调整。",
+      reason: i18next.t("gen.pages.home.homeViewModel.gen_9c5e9796"),
       tone: "danger",
     };
   }
   return {
     kind: "novel",
-    eyebrow: "推荐下一步",
+    eyebrow: i18next.t("gen.pages.home.homeViewModel.gen_9ff48c30"),
     title: `继续编辑《${primaryNovel.title}》`,
     description: getNovelLeadSummary(primaryNovel),
-    reason: "没有更高优先级的阻塞项，可以回到项目主页继续完善资料或章节。",
+    reason: i18next.t("gen.pages.home.homeViewModel.gen_083bfa9b"),
     tone: "neutral",
   };
 }
@@ -215,30 +216,30 @@ export function buildHomeMetrics(input: {
   return [
     {
       id: "running",
-      title: "推进中",
+      title: i18next.t("gen.pages.home.homeViewModel.gen_007edf50"),
       value: liveWorkflowCount,
-      hint: "最近项目中后台处理的自动导演或章节执行。",
+      hint: i18next.t("gen.pages.home.homeViewModel.gen_bba3e2f7"),
       tone: "info",
     },
     {
       id: "attention",
-      title: "待处理",
+      title: i18next.t("gen.pages.home.homeViewModel.gen_047109de"),
       value: actionRequiredCount,
-      hint: "等待确认、暂停或失败后需要决策的项目。",
+      hint: i18next.t("gen.pages.home.homeViewModel.gen_95c7ebda"),
       tone: actionRequiredCount > 0 ? "warning" : "success",
     },
     {
       id: "chapter-ready",
-      title: "可写章节",
+      title: i18next.t("gen.pages.home.homeViewModel.gen_7d7acbea"),
       value: readyForExecutionCount,
-      hint: "规划准备完成，可以进入章节执行的项目。",
+      hint: i18next.t("gen.pages.home.homeViewModel.gen_c7ea8ff7"),
       tone: readyForExecutionCount > 0 ? "success" : "neutral",
     },
     {
       id: "failed",
-      title: "失败任务",
+      title: i18next.t("gen.pages.home.homeViewModel.gen_a8a1f41f"),
       value: failedTaskCount,
-      hint: "来自任务中心的失败任务，需要集中处理。",
+      hint: i18next.t("gen.pages.home.homeViewModel.gen_ef51266d"),
       tone: failedTaskCount > 0 ? "danger" : "success",
     },
   ];
@@ -264,27 +265,27 @@ export function buildHomeAttentionItems(input: {
     items.push({
       id: "task-recovery",
       title: failedTaskCount > 0 ? `${failedTaskCount} 个后台任务失败` : `${recoveryCandidateCount} 个任务可恢复`,
-      description: "先处理失败或可恢复任务，可以避免后续生成继续卡在同一位置。",
+      description: i18next.t("gen.pages.home.homeViewModel.gen_6b7dbd6f"),
       tone: failedTaskCount > 0 ? "danger" : "warning",
       to: "/tasks",
-      actionLabel: "查看任务中心",
+      actionLabel: i18next.t("gen.pages.home.homeViewModel.gen_9dd8c364"),
     });
   }
   if (actionRequiredCount > 0 || waitingApprovalCount > 0) {
     items.push({
       id: "workflow-action-required",
       title: `${Math.max(actionRequiredCount, waitingApprovalCount)} 个创作流程等待处理`,
-      description: "这些项目可能在等待方向确认、阶段继续或失败后的恢复决策。",
+      description: i18next.t("gen.pages.home.homeViewModel.gen_3f382d26"),
       tone: "warning",
       to: "/auto-director/follow-ups",
-      actionLabel: "查看跟进事项",
+      actionLabel: i18next.t("gen.pages.home.homeViewModel.gen_cb22c7c1"),
     });
   }
   if (readyForExecutionCount > 0) {
     items.push({
       id: "chapter-ready",
       title: `${readyForExecutionCount} 个项目可进入章节执行`,
-      description: "这些项目的规划资产已经能支撑正文生产，可以继续推进章节。",
+      description: i18next.t("gen.pages.home.homeViewModel.gen_4b9e5601"),
       tone: "success",
     });
   }
@@ -292,10 +293,10 @@ export function buildHomeAttentionItems(input: {
     items.push({
       id: "running-tasks",
       title: `${runningCount} 个任务处理中`,
-      description: "后台任务仍在推进，可以稍后回到首页查看结果。",
+      description: i18next.t("gen.pages.home.homeViewModel.gen_758ac9f9"),
       tone: "info",
       to: "/tasks",
-      actionLabel: "查看进度",
+      actionLabel: i18next.t("gen.pages.home.homeViewModel.gen_9600c918"),
     });
   }
 
@@ -317,32 +318,32 @@ export function buildHomeAssetHealthItems(novels: HomeNovelItem[]): HomeAssetHea
   return [
     {
       id: "world",
-      title: "世界观覆盖",
+      title: i18next.t("gen.pages.home.homeViewModel.gen_ccd81d16"),
       value: totalNovels > 0 ? `${worldBoundCount}/${totalNovels}` : "0",
       description: totalNovels > 0
-        ? "绑定世界观的项目更容易在后续章节中保持规则一致。"
-        : "创建小说后，这里会显示世界观资产状态。",
+        ? i18next.t("gen.pages.home.homeViewModel.gen_1d29dac7")
+        : i18next.t("gen.pages.home.homeViewModel.gen_42f59f8a"),
       tone: totalNovels === 0 ? "neutral" : worldBoundCount === totalNovels ? "success" : "warning",
     },
     {
       id: "characters",
-      title: "角色资产",
+      title: i18next.t("gen.pages.home.homeViewModel.gen_88afed0d"),
       value: String(totalCharacters),
-      description: "角色数量用于判断项目是否具备连续生成的基本资产。",
+      description: i18next.t("gen.pages.home.homeViewModel.gen_33399576"),
       tone: totalCharacters > 0 ? "success" : "warning",
     },
     {
       id: "chapters",
-      title: "章节沉淀",
+      title: i18next.t("gen.pages.home.homeViewModel.gen_6ee26458"),
       value: String(totalChapters),
-      description: "章节越多，摘要、事实和角色时间线越需要稳定回灌。",
+      description: i18next.t("gen.pages.home.homeViewModel.gen_7d8e24a2"),
       tone: totalChapters > 0 ? "info" : "neutral",
     },
     {
       id: "readiness",
-      title: "资源准备度",
+      title: i18next.t("gen.pages.home.homeViewModel.gen_31032ccf"),
       value: averageResourceScore == null ? "--" : `${averageResourceScore}`,
-      description: "来自项目资料准备度的平均信号，用于辅助判断开写基础。",
+      description: i18next.t("gen.pages.home.homeViewModel.gen_ccc59df1"),
       tone: averageResourceScore == null
         ? "neutral"
         : averageResourceScore >= 80

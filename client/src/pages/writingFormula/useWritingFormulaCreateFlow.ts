@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { BookAnalysis } from "@ai-novel/shared/types/bookAnalysis";
@@ -158,7 +159,7 @@ export function useWritingFormulaCreateFlow({
       }
       handledTerminalTaskIdRef.current = pendingExtractionTaskId;
       setPendingExtractionTaskId("");
-      onFlowMessage("写法提取任务不存在或已被清理，请重新提交。");
+      onFlowMessage(i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_f4b80b71"));
       return;
     }
 
@@ -174,9 +175,9 @@ export function useWritingFormulaCreateFlow({
 
     if (task.status === "succeeded") {
       const profileId = readCreatedProfileId(task);
-      const profileName = readCreatedProfileName(task) || form.extractName.trim() || "新写法";
+      const profileName = readCreatedProfileName(task) || form.extractName.trim() || i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_6462c1e2");
       if (!profileId) {
-        onFlowMessage("写法提取任务已完成，但没有拿到自动保存结果。");
+        onFlowMessage(i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_8487c9c4"));
         return;
       }
       resetCreateFlow();
@@ -189,8 +190,8 @@ export function useWritingFormulaCreateFlow({
     const failureMessage = task.failureSummary
       ?? task.lastError
       ?? (task.status === "cancelled"
-        ? "写法提取任务已取消。"
-        : "写法提取任务失败，请稍后重试。");
+        ? i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_e59397af")
+        : i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_e47866f2"));
     onFlowMessage(failureMessage);
   }, [
     extractionTaskQuery.data,
@@ -261,7 +262,7 @@ export function useWritingFormulaCreateFlow({
     onSuccess: (response) => {
       const task = response.data;
       if (!task) {
-        onFlowMessage("写法提取任务提交成功，但没有拿到任务详情。");
+        onFlowMessage(i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_d85cc95d"));
         return;
       }
       handledTerminalTaskIdRef.current = "";
@@ -284,7 +285,7 @@ export function useWritingFormulaCreateFlow({
     onSuccess: (response) => {
       const task = response.data;
       if (!task) {
-        onFlowMessage("写法提取任务提交成功，但没有拿到任务详情。");
+        onFlowMessage(i18next.t("gen.pages.writingFormula.useWritingFormulaCreateFlow.gen_d85cc95d"));
         return;
       }
       handledTerminalTaskIdRef.current = "";

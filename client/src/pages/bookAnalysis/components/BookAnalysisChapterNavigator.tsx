@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { DocumentChapter } from "@ai-novel/shared/types/knowledge";
 import { Button } from "@/components/ui/button";
 
@@ -58,7 +60,7 @@ export default function BookAnalysisChapterNavigator({
                 title={chapter.title}
               >
                 <div className="font-medium">{chapter.chapterIndex + 1}. {chapter.title}</div>
-                <div className="mt-0.5 text-[11px] text-muted-foreground">{chapter.charCount} 字</div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisChapterNavigator.gen_821cf47a")}</div>
               </button>
             );
           })}

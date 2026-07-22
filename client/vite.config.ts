@@ -100,6 +100,10 @@ export default defineConfig({
         target: resolveDevProxyTarget(),
         changeOrigin: true,
       },
+      "/assets": {
+        target: resolveDevProxyTarget(),
+        changeOrigin: true,
+      },
     },
   },
 });

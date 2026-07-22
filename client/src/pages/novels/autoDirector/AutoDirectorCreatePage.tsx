@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
@@ -107,7 +109,7 @@ export default function AutoDirectorCreatePage() {
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "恢复自动导演任务失败。");
+      toast.error(error instanceof Error ? error.message : t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_d20b5da1"));
     },
   });
 
@@ -172,8 +174,8 @@ export default function AutoDirectorCreatePage() {
     candidates: controller.batches.length > 0
       ? `已生成 ${controller.batches.length} 批方向候选`
       : controller.hasActiveDirectorTask
-        ? "导演任务进行中"
-        : "等待生成方向候选",
+        ? t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_d3ec695c")
+        : t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_7c5ab588"),
   }), [
     controller.batches.length,
     controller.directorBasicForm,
@@ -293,13 +295,13 @@ export default function AutoDirectorCreatePage() {
       {showSummaryBar ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="text-2xl font-semibold tracking-normal text-foreground">AI 自动导演创建</div>
+            <div className="text-2xl font-semibold tracking-normal text-foreground">{t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.aiAutoDirectorCreate")}</div>
             <div className="mt-1 text-sm leading-6 text-muted-foreground">
               从一个起始想法开始，逐步确认默认设置，再选择整本书方向。
             </div>
           </div>
           <Button type="button" variant="outline" asChild>
-            <Link to="/novels/create">手动创建</Link>
+            <Link to="/novels/create">{t("gen.pages.novels.autoDirector.AutoDirectorCreatePage.gen_4364e2f1")}</Link>
           </Button>
         </div>
       ) : null}

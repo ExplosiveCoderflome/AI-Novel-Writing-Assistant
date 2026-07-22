@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type {
   ChapterEditorCandidate,
   ChapterEditorDiagnosticCard,
@@ -67,20 +69,20 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
   const isWorkspaceLoading = workspaceStatus === "loading";
   const statusText = isIdle
     ? isWorkspaceLoading
-      ? "AI 正在分析本章宏观定位与优先修正任务。"
-      : "AI 会先结合本章在本卷中的位置，再决定如何修。"
+      ? t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiAnalyzingMacroPositionAndTasks")
+      : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiConsiderChapterPositionInVolume")
     : session.status === "loading"
-      ? session.requestLabel || "正在生成候选版本"
+      ? session.requestLabel || t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_4ff96754")
       : session.status === "error"
-        ? session.errorMessage || "生成失败"
-        : session.resolvedIntent?.reasoningSummary || "查看待确认改写";
+        ? session.errorMessage || t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_7f7de8a2")
+        : session.resolvedIntent?.reasoningSummary || t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_2c1db253");
 
   return (
     <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:min-h-0">
       <div className="shrink-0 space-y-3 border-b border-border/70 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-medium text-foreground">AI 修正导演面板</div>
+            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiCorrectDirectorPanel")}</div>
             <div className="text-xs text-muted-foreground">{statusText}</div>
           </div>
           <div className="flex items-center gap-2">
@@ -126,7 +128,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
           <>
             {isWorkspaceLoading ? (
               <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4">
-                <div className="text-sm font-medium text-foreground">AI 正在梳理当前章节</div>
+                <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiReviewingCurrentChapter")}</div>
                 <div className="mt-2 text-sm leading-6 text-muted-foreground">
                   正在分析本章在卷中的位置、优先修正任务和可直接处理的片段，你可以稍等几秒再开始。
                 </div>
@@ -139,7 +141,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
             ) : null}
 
             <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
-              <div className="text-sm font-medium text-foreground">当前最推荐动作</div>
+              <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_f2a2904e")}</div>
               {isWorkspaceLoading ? (
                 <div className="mt-3 space-y-3">
                   <LoadingBar widthClassName="w-1/2" />
@@ -152,11 +154,11 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
                   <div className="mt-2 text-sm leading-6 text-muted-foreground">
                     {recommendedTask
                       ? `${recommendedTask.title}。${recommendedTask.summary}`
-                      : "AI 暂未生成推荐任务，你可以直接告诉 AI 你的修改想法。"}
+                      : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiNoRecommendedTask")}
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" onClick={onRunRecommended} disabled={!recommendedTask || isGenerating}>
-                      {isGenerating ? "处理中..." : "直接处理推荐任务"}
+                      {isGenerating ? t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_2fb90b05") : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_99ddac21")}
                     </Button>
                   </div>
                 </>
@@ -185,7 +187,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
             ) : null}
 
             <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
-              <div className="text-sm font-medium text-foreground">告诉 AI 怎么改</div>
+              <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_96b8f15f")}</div>
               {isWorkspaceLoading ? (
                 <div className="mt-3 space-y-3">
                   <LoadingBar widthClassName="w-1/3" />
@@ -201,23 +203,23 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
                   <textarea
                     className="mt-3 min-h-[140px] w-full resize-none rounded-2xl border border-border bg-background px-3 py-3 text-sm outline-none"
                     placeholder={revisionScope === "selection"
-                      ? "例如：让这段更压抑一点，但不要改剧情事实，并把节奏压得更紧。"
-                      : "例如：把这一章整体改得更压抑一点，但不要改剧情事实，并且更贴近卷中承压阶段。"}
+                      ? t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.exampleMakeThisPartMorePressuringNotChangePlotDetailAndMakeRhythmTighter")
+                      : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.exampleMakeChapterMorePressuringButNotChangePlotDetailCloserToMiddlePressureStage")}
                     value={revisionInstruction}
                     onChange={(event) => onInstructionChange(event.target.value)}
                   />
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                     <div className="text-xs text-muted-foreground">
                       {revisionScope === "selection"
-                        ? "片段模式会优先使用你手动选中的正文；如果没有手动选段，会使用当前问题卡定位的片段。"
-                        : "整章模式会基于整章内容生成候选，仍然需要你先比较再接受。"}
+                        ? t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_ec22d4ce")
+                        : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_c0e9328a")}
                     </div>
                     <Button
                       size="sm"
                       onClick={onRunFreeform}
                       disabled={isGenerating || revisionInstruction.trim().length === 0 || (revisionScope === "selection" && !canRunSelectionRevision)}
                     >
-                      {isGenerating ? "生成中..." : "发起 AI 修正"}
+                      {isGenerating ? t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_4d020ba3") : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_ac6f0e0e")}
                     </Button>
                   </div>
                 </>
@@ -234,21 +236,21 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
 
         {session.status === "error" ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-            {session.errorMessage || "候选生成失败，请重试。"}
+            {session.errorMessage || t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_319a5871")}
           </div>
         ) : null}
 
         {session.status === "ready" && activeCandidate ? (
           <>
             <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
-              <div className="text-sm font-medium text-foreground">AI 理解到的修改目标</div>
+              <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.aiUnderstoodRevisionGoal")}</div>
               <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-                <div>目标：{session.resolvedIntent?.editGoal}</div>
-                <div>语气：{session.resolvedIntent?.toneShift}</div>
-                <div>节奏：{session.resolvedIntent?.paceAdjustment}</div>
-                <div>冲突：{session.resolvedIntent?.conflictAdjustment}</div>
-                <div>情绪：{session.resolvedIntent?.emotionAdjustment}</div>
-                <div>说明：{session.resolvedIntent?.reasoningSummary}</div>
+                <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_e60a3a56")}</div>
+                <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_365c185b")}</div>
+                <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_a33d806e")}</div>
+                <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_6bcaf650")}</div>
+                <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_4aacc342")}</div>
+                <div>{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_9eb70cc8")}</div>
               </div>
               {session.macroAlignmentNote ? (
                 <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-3 text-sm leading-6 text-emerald-900">
@@ -276,7 +278,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
                 <div className="text-sm leading-6 text-muted-foreground">{activeCandidate.summary}</div>
               ) : null}
               {activeCandidate.rationale ? (
-                <div className="text-sm leading-6 text-foreground/80">为什么这样改：{activeCandidate.rationale}</div>
+                <div className="text-sm leading-6 text-foreground/80">{t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.whyChange")}</div>
               ) : null}
               {activeCandidate.riskNotes && activeCandidate.riskNotes.length > 0 ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50/90 p-3 text-sm leading-6 text-amber-900">
@@ -296,7 +298,7 @@ export default function ChapterEditorDirectorPanel(props: ChapterEditorDirectorP
           再生成
         </Button>
         <Button size="sm" onClick={onAccept} disabled={session.status !== "ready" || !activeCandidate || isApplying}>
-          {isApplying ? "应用中..." : "接受全部"}
+          {isApplying ? t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_e596edd9") : t("gen.pages.novels.components.chapterEditor.ChapterEditorDirectorPanel.gen_3f8a36ff")}
         </Button>
       </div>
     </div>

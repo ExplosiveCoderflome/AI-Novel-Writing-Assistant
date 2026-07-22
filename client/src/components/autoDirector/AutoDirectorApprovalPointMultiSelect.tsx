@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import {
   DIRECTOR_AUTO_APPROVAL_GROUPS,
   DIRECTOR_AUTO_APPROVAL_POINTS,
@@ -17,9 +19,9 @@ interface AutoDirectorApprovalPointMultiSelectProps {
 }
 
 function riskLabel(riskLevel: DirectorAutoApprovalPoint["riskLevel"]): string {
-  if (riskLevel === "high") return "高风险";
-  if (riskLevel === "medium") return "中风险";
-  return "低风险";
+  if (riskLevel === "high") return t("gen.components.autoDirector.AutoDirectorApprovalPointMultiSelect.gen_4433e710");
+  if (riskLevel === "medium") return t("gen.components.autoDirector.AutoDirectorApprovalPointMultiSelect.midRisk");
+  return t("gen.components.autoDirector.AutoDirectorApprovalPointMultiSelect.lowRisk");
 }
 
 function riskClassName(riskLevel: DirectorAutoApprovalPoint["riskLevel"]): string {
@@ -41,7 +43,7 @@ function toggleCodes(current: string[], targetCodes: string[], checked: boolean)
 export function summarizeDirectorAutoApprovalPoints(codes: string[]): string {
   const normalized = normalizeDirectorAutoApprovalPointCodes(codes, []);
   if (normalized.length === 0) {
-    return "不会自动通过审批点";
+    return t("gen.components.autoDirector.AutoDirectorApprovalPointMultiSelect.notAutoApprove");
   }
   const labels: string[] = normalized
     .map((code) => DIRECTOR_AUTO_APPROVAL_POINTS.find((item) => item.code === code)?.label)

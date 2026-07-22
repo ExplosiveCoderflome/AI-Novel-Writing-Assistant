@@ -609,6 +609,12 @@ export default function TaskCenterPage() {
                 }
                 return;
               }
+              // Reset filters so the recommended task is visible
+              setKind("");
+              setStatus("");
+              setKeyword("");
+              setOnlyAnomaly(false);
+
               setSearchParams((prev) => {
                 const next = new URLSearchParams(prev);
                 next.set("kind", recommendedTask.kind);

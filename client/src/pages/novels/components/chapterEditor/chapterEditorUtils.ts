@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import type { Descendant, Value } from "platejs";
 import type { ChapterEditorOperation } from "@ai-novel/shared/types/novel";
 import type {
@@ -7,12 +8,12 @@ import type {
 } from "./chapterEditorTypes";
 
 export const CHAPTER_EDITOR_OPERATION_LABELS: Record<ChapterEditorOperation, string> = {
-  polish: "优化表达",
-  expand: "扩写",
-  compress: "精简",
-  emotion: "强化情绪",
-  conflict: "强化冲突",
-  custom: "自定义指令",
+  polish: i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.optimizeExpression"),
+  expand: i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_0061f38a"),
+  compress: i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_06f296c9"),
+  emotion: i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_5efe70aa"),
+  conflict: i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_4f0071ff"),
+  custom: i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_4dde09a0"),
 };
 
 export function normalizeEditorText(text: string): string {
@@ -333,13 +334,13 @@ export function buildAiRevisionRequest(input: ChapterEditorRequestBuilderInput) 
 
 export function getSaveStatusLabel(status: "idle" | "saving" | "saved" | "error", isDirty: boolean): string {
   if (status === "saving") {
-    return "保存中";
+    return i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.savingInProgress");
   }
   if (status === "saved") {
-    return "已保存";
+    return i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_f8dfedcd");
   }
   if (status === "error") {
-    return "保存失败";
+    return i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.saveFailed");
   }
-  return isDirty ? "待保存" : "已同步";
+  return isDirty ? i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_29953c6f") : i18next.t("gen.pages.novels.components.chapterEditor.chapterEditorUtils.gen_8bf97a5b");
 }

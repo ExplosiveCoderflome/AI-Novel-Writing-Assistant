@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
@@ -49,7 +50,7 @@ export function useAnalysisPublishing(input: {
       await refreshAnalysisData(payload.id);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "发布失败。";
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisPublishing.gen_923c283d");
       setLastPublishResult(null);
       setPublishFeedback(message);
     },
@@ -63,7 +64,7 @@ export function useAnalysisPublishing(input: {
       temperature: llmConfig.temperature,
     }),
     onMutate: () => {
-      setStyleProfileFeedback("正在根据拆书里的“文风与技法”生成写法资产，完成后会自动跳转到写法引擎。");
+      setStyleProfileFeedback(i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisPublishing.gen_0f58ca85"));
     },
     onSuccess: async (response) => {
       const createdProfile = response.data;
@@ -71,12 +72,12 @@ export function useAnalysisPublishing(input: {
         return;
       }
       setStyleProfileFeedback("");
-      toast.success("已从拆书生成写法，正在打开写法引擎。");
+      toast.success(i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisPublishing.gen_440f5cc3"));
       await queryClient.invalidateQueries({ queryKey: queryKeys.styleEngine.profiles });
       navigate(`/style-engine?profileId=${createdProfile.id}&source=book-analysis`);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "从拆书生成写法失败。";
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.bookAnalysis.hooks.actions.useAnalysisPublishing.gen_从拆书生成写法失败_qtlc");
       setStyleProfileFeedback(message);
     },
   });

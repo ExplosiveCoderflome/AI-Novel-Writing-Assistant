@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import {
   buildDefaultNovelCoverSourceDescription,
   type NovelCoverImagePromptNovelContext,
@@ -33,21 +34,21 @@ export interface BuildNovelCoverDraftInput {
 }
 
 const NARRATIVE_POV_LABELS: Record<NovelBasicFormState["narrativePov"], string> = {
-  first_person: "第一人称",
-  third_person: "第三人称",
-  mixed: "混合视角",
+  first_person: i18next.t("gen.pages.novels.components.cover.novelCoverDraft.gen_f69e8c5f"),
+  third_person: i18next.t("gen.pages.novels.components.cover.novelCoverDraft.gen_5eff3cab"),
+  mixed: i18next.t("gen.pages.novels.components.cover.novelCoverDraft.gen_73b444ba"),
 };
 
 const PACE_PREFERENCE_LABELS: Record<NovelBasicFormState["pacePreference"], string> = {
-  slow: "慢节奏",
-  balanced: "均衡",
-  fast: "快节奏",
+  slow: i18next.t("gen.pages.novels.components.cover.novelCoverDraft.gen_7209da38"),
+  balanced: i18next.t("gen.pages.novels.components.cover.novelCoverDraft.gen_f07d8f75"),
+  fast: i18next.t("gen.pages.novels.components.cover.novelCoverDraft.gen_de82b2fd"),
 };
 
 const EMOTION_INTENSITY_LABELS: Record<NovelBasicFormState["emotionIntensity"], string> = {
-  low: "低情绪浓度",
-  medium: "中情绪浓度",
-  high: "高情绪浓度",
+  low: i18next.t("gen.pages.novels.components.cover.novelCoverDraft.lowEmotionalIntensity"),
+  medium: i18next.t("gen.pages.novels.components.cover.novelCoverDraft.mediumEmotionalIntensity"),
+  high: i18next.t("gen.pages.novels.components.cover.novelCoverDraft.gen_13fc3cc2"),
 };
 
 function normalizeOptionalText(value: string | null | undefined): string | null {
@@ -76,7 +77,7 @@ export function buildNovelCoverDraftContext(
   const commercialTags = normalizeCommercialTags(input.basicForm.commercialTagsText);
 
   return {
-    title: normalizeOptionalText(input.basicForm.title) ?? "这本小说",
+    title: normalizeOptionalText(input.basicForm.title) ?? i18next.t("gen.pages.novels.components.cover.novelCoverDraft.gen_be989cb8"),
     description: normalizeOptionalText(input.basicForm.description),
     targetAudience: normalizeOptionalText(input.basicForm.targetAudience),
     bookSellingPoint: normalizeOptionalText(input.basicForm.bookSellingPoint),

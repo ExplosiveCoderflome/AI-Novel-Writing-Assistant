@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Link } from "react-router-dom";
 import { BookOpen, GitCompareArrows, GitFork, Library, Map, Network, Workflow } from "lucide-react";
 import type {
@@ -63,43 +65,43 @@ const ASSET_ICON_BY_TYPE: Record<NovelWorldAssetSummary["assetType"], typeof Boo
 function labelSourceType(sourceType: string | null | undefined): string {
   switch (sourceType) {
     case "imported":
-      return "来自世界库";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_d6c97812");
     case "generated":
-      return "根据本书生成";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_b7ab0cfd");
     case "manual":
-      return "自定义世界";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_c1c6046e");
     default:
-      return "未设置";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_fe2d26a2");
   }
 }
 
 function labelSyncDirection(direction: string | null | undefined): string {
   switch (direction) {
     case "push":
-      return "只推送到世界库";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_3c11209d");
     case "pull":
-      return "只从世界库拉取";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_697b6277");
     case "bidirectional":
-      return "可双向同步";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_cc89795c");
     default:
-      return "不同步";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_db709d59");
   }
 }
 
 function sectionLabel(section: string): string {
   switch (section) {
     case "profile":
-      return "世界概要";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.worldOverview");
     case "rules":
-      return "核心规则";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_0a431a82");
     case "factions":
-      return "阵营";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_42988d4b");
     case "forces":
-      return "势力";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_dcfe557b");
     case "locations":
-      return "地点";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_fc1a7d3c");
     case "relations":
-      return "关系网络";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_bb016fed");
     default:
       return section;
   }
@@ -107,32 +109,32 @@ function sectionLabel(section: string): string {
 
 function labelAssetStatus(status: string, hasRenderData: boolean): string {
   if (hasRenderData || status === "ready") {
-    return "可查看";
+    return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_11b9933a");
   }
   switch (status) {
     case "draft":
-      return "整理中";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_cb581fad");
     case "archived":
-      return "已归档";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_c3ba167c");
     default:
-      return "待生成";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_418dde27");
   }
 }
 
 function assetReadinessHint(assetType: NovelWorldAssetSummary["assetType"]): string {
   switch (assetType) {
     case "map":
-      return "补足故事舞台和地点风险后，地图能呈现区域与冲突落点。";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_fc446dfe");
     case "faction_diagram":
-      return "补足主要势力、目标和压力后，图谱能呈现阵营关系。";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_fa8f91a9");
     case "timeline":
-      return "补足核心冲突和共同后果后，时间线能呈现局势变化。";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_5a00ad9e");
     case "character_network":
-      return "补足势力归属和阵营压力后，角色关系会更贴合世界。";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_46d0ecca");
     case "power_system_tree":
-      return "补足核心规则、代价和边界后，体系树能避免变成等级表。";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_ebf5b93c");
     default:
-      return "先补世界手册，再整理可视化资产。";
+      return t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_b9d7c980");
   }
 }
 
@@ -183,14 +185,14 @@ function WorldOverviewTab(props: {
   return (
     <div className="space-y-8">
       <section>
-        <SectionTitle title="世界总览" description="这里展示本书世界的门面信息，帮助你判断它是否支撑当前故事。" />
+        <SectionTitle title={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_61ae07e0")} description={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_874e945e")} />
         <div className="mt-4 rounded-2xl bg-muted/15 p-5">
           <div className="text-xs text-muted-foreground">
-            {novelWorld ? labelSourceType(novelWorld.sourceType) : "未设置来源"} · {novelWorld?.hasStorySlice ? "写作范围已整理" : "等待整理写作范围"}
+            {novelWorld ? labelSourceType(novelWorld.sourceType) : t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_7527f578")} · {novelWorld?.hasStorySlice ? t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_3f18376e") : t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_2e682702")}
           </div>
           <div className="mt-2 text-2xl font-semibold text-foreground">{props.activeWorldName}</div>
           <div className="mt-3 max-w-4xl text-base leading-8 text-muted-foreground">
-            {handbook?.summary ?? novelWorld?.coverSummary ?? "这本书的世界正在准备中。"}
+            {handbook?.summary ?? novelWorld?.coverSummary ?? t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_4ad23ded")}
           </div>
           <InlineMeta items={[
             handbook?.identity ? `身份：${handbook.identity}` : null,
@@ -202,7 +204,7 @@ function WorldOverviewTab(props: {
 
       <section className="grid gap-5 lg:grid-cols-2">
         <div>
-          <SectionTitle title="主要势力" />
+          <SectionTitle title={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.majorForce")} />
           <div className="mt-3 space-y-3">
             {(handbook?.forces.length ? handbook.forces : handbook?.factions ?? []).slice(0, 8).map((item) => (
               <div key={item.name} className="border-t border-border/50 pt-3 text-sm">
@@ -215,22 +217,22 @@ function WorldOverviewTab(props: {
                 </div>
               </div>
             ))}
-            {(!handbook || (handbook.forces.length === 0 && handbook.factions.length === 0)) ? <EmptyLine>还没有明确的势力。</EmptyLine> : null}
+            {(!handbook || (handbook.forces.length === 0 && handbook.factions.length === 0)) ? <EmptyLine>{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_73f75df3")}</EmptyLine> : null}
           </div>
         </div>
         <div>
-          <SectionTitle title="故事舞台" />
+          <SectionTitle title={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_bf876a86")} />
           <div className="mt-3 space-y-3">
             {handbook?.locations.slice(0, 8).map((location) => (
               <div key={location.name} className="border-t border-border/50 pt-3 text-sm">
                 <div className="font-medium text-foreground">{location.name}</div>
                 <div className="mt-1 leading-6 text-muted-foreground">
-                  {location.narrativeFunction || location.summary || "暂无说明"}
+                  {location.narrativeFunction || location.summary || t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_67a21991")}
                   {location.risk ? ` · 风险：${location.risk}` : null}
                 </div>
               </div>
             ))}
-            {!handbook?.locations.length ? <EmptyLine>还没有明确的故事舞台。</EmptyLine> : null}
+            {!handbook?.locations.length ? <EmptyLine>{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_7e4d987e")}</EmptyLine> : null}
           </div>
         </div>
       </section>
@@ -244,27 +246,27 @@ function RulesTab(props: { handbook: NovelWorldHandbook | null }) {
   return (
     <div className="space-y-8">
       <section>
-        <SectionTitle title="规则与代价" description="章节生成会优先遵守这些硬规则，避免临时发明不一致的设定。" />
+        <SectionTitle title={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_b68f57f0")} description={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_54f024b5")} />
         <div className="mt-4 space-y-4">
           {handbook?.coreRules.length ? handbook.coreRules.map((rule) => (
             <div key={`${rule.name}-${rule.summary}`} className="border-t border-border/60 pt-4">
               <div className="text-sm font-medium text-foreground">{rule.name}</div>
-              <div className="mt-1 text-sm leading-6 text-muted-foreground">{rule.summary || "暂无说明"}</div>
+              <div className="mt-1 text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_a227c868")}</div>
               <InlineMeta items={[
                 rule.cost ? `代价：${rule.cost}` : null,
                 rule.boundary ? `边界：${rule.boundary}` : null,
               ]} />
             </div>
-          )) : <EmptyLine>还没有明确的核心规则。</EmptyLine>}
+          )) : <EmptyLine>{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_5f599bff")}</EmptyLine>}
         </div>
       </section>
 
       <section>
-        <SectionTitle title="关键张力" description="这些长期矛盾会帮助大纲和章节保持世界压力。" />
+        <SectionTitle title={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_b7cadb8f")} description={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_575332b5")} />
         <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
           {handbook?.tensions.length ? handbook.tensions.map((tension) => (
             <div key={tension} className="border-t border-border/50 pt-2">{tension}</div>
-          )) : <EmptyLine>还没有明确的长期矛盾。</EmptyLine>}
+          )) : <EmptyLine>{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f0a49433")}</EmptyLine>}
         </div>
       </section>
     </div>
@@ -274,15 +276,15 @@ function RulesTab(props: { handbook: NovelWorldHandbook | null }) {
 function GuidanceTab(props: { handbook: NovelWorldHandbook | null }) {
   const guidance = props.handbook?.generationGuidance ?? null;
   const groups = [
-    { title: "角色身份边界", items: guidance?.characterUses ?? [] },
-    { title: "故事范围线索", items: guidance?.outlineUses ?? [] },
-    { title: "场景规则约束", items: guidance?.chapterUses ?? [] },
-    { title: "需要避开的越界", items: guidance?.avoidUses ?? [] },
+    { title: t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_3b750fe1"), items: guidance?.characterUses ?? [] },
+    { title: t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_5d2d0cf8"), items: guidance?.outlineUses ?? [] },
+    { title: t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_e38b93f6"), items: guidance?.chapterUses ?? [] },
+    { title: t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_186ea5c7"), items: guidance?.avoidUses ?? [] },
   ];
 
   return (
     <div className="space-y-6">
-      <SectionTitle title="生成约束" description="这些内容解释本书世界会怎样进入角色、大纲和章节生成。" />
+      <SectionTitle title={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f95045c7")} description={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_50805ded")} />
       <div className="grid gap-4 md:grid-cols-2">
         {groups.map((group) => (
           <section key={group.title} className="rounded-xl bg-muted/15 p-4">
@@ -291,7 +293,7 @@ function GuidanceTab(props: { handbook: NovelWorldHandbook | null }) {
               {group.items.length > 0 ? group.items.slice(0, 6).map((item) => (
                 <div key={item} className="text-sm leading-6 text-muted-foreground">{item}</div>
               )) : (
-                <div className="text-sm leading-6 text-muted-foreground">暂无明确提示。</div>
+                <div className="text-sm leading-6 text-muted-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_cfca02eb")}</div>
               )}
             </div>
           </section>
@@ -304,7 +306,7 @@ function GuidanceTab(props: { handbook: NovelWorldHandbook | null }) {
 function AssetsPanel(props: { worldAssets: NovelWorldAssetSummary[] }) {
   return (
     <section>
-      <SectionTitle title="世界资产" description="地图、势力图谱、时间线和体系树用于帮助你看见世界，不是章节生成的唯一来源。" />
+      <SectionTitle title={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_790cc6f1")} description={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_e0796d7a")} />
       {props.worldAssets.length > 0 ? (
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {props.worldAssets.map((asset) => {
@@ -324,7 +326,7 @@ function AssetsPanel(props: { worldAssets: NovelWorldAssetSummary[] }) {
         </div>
       ) : (
         <div className="mt-3">
-          <EmptyLine>世界资产入口会随本书世界手册一起整理。</EmptyLine>
+          <EmptyLine>{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_a65fcfff")}</EmptyLine>
         </div>
       )}
     </section>
@@ -349,28 +351,28 @@ function SyncPanel(props: Pick<NovelWorldHandbookDialogProps,
   return (
     <section id="novel-world-sync">
       <SectionTitle
-        title="同步管理"
-        description="先看本书世界和世界库样本差在哪里，再选择要同步的分区。系统不会自动覆盖两边内容。"
+        title={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_5e5b3e8f")}
+        description={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_8202c4b2")}
       />
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         <div className="rounded-xl bg-muted/15 p-3">
-          <div className="text-xs text-muted-foreground">差异检查</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_1a4fadb7")}</div>
           <div className="mt-1 text-sm font-medium text-foreground">
-            {props.isLoadingSyncDiff ? "检查中" : syncDiff ? "检查完成" : "等待检查"}
+            {props.isLoadingSyncDiff ? t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_69ac5a39") : syncDiff ? t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_6d24e672") : t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_c52ee445")}
           </div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">
-            {syncDiff?.differenceCount ? `${syncDiff.differenceCount} 个分区存在差异。` : syncDiff ? "没有发现需要处理的分区差异。" : "打开本书世界时会读取差异摘要。"}
+            {syncDiff?.differenceCount ? `${syncDiff.differenceCount} 个分区存在差异。` : syncDiff ? t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_dd674fee") : t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_5ef22e67")}
           </div>
         </div>
         <div className="rounded-xl bg-muted/15 p-3">
-          <div className="text-xs text-muted-foreground">选择分区</div>
-          <div className="mt-1 text-sm font-medium text-foreground">{hasSyncDiff ? `${selectedSectionCount} 个分区` : "无需选择"}</div>
-          <div className="mt-1 text-xs leading-5 text-muted-foreground">只同步你确认过的概要、规则、势力、地点或关系网络。</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_fe5f67de")}</div>
+          <div className="mt-1 text-sm font-medium text-foreground">{hasSyncDiff ? `${selectedSectionCount} 个分区` : t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_27b15041")}</div>
+          <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_480e8e5a")}</div>
         </div>
         <div className="rounded-xl bg-muted/15 p-3">
-          <div className="text-xs text-muted-foreground">手动同步</div>
-          <div className="mt-1 text-sm font-medium text-foreground">{novelWorld.syncEnabled ? labelSyncDirection(novelWorld.syncDirection) : "独立副本"}</div>
-          <div className="mt-1 text-xs leading-5 text-muted-foreground">推送会改世界库样本；拉取会改本书世界副本。</div>
+          <div className="text-xs text-muted-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_0b19c25e")}</div>
+          <div className="mt-1 text-sm font-medium text-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_b59a9121")}</div>
+          <div className="mt-1 text-xs leading-5 text-muted-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_207891c0")}</div>
         </div>
       </div>
 
@@ -388,7 +390,7 @@ function SyncPanel(props: Pick<NovelWorldHandbookDialogProps,
 
       {syncDiff?.canSync === false ? (
         <div className="mt-3 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          {syncDiff.reason ?? "暂无法同步。"}
+          {syncDiff.reason ?? t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_37d6b411")}
         </div>
       ) : syncDiff?.differences.length ? (
         <div className="mt-4 space-y-3">
@@ -420,10 +422,10 @@ function SyncPanel(props: Pick<NovelWorldHandbookDialogProps,
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={props.isSyncing || !effectiveSyncSections?.length} onClick={() => props.onSync({ direction: "pull", sections: effectiveSyncSections })}>
-              {props.isSyncing ? "同步中..." : "拉取世界库更新"}
+              {props.isSyncing ? t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f787f452") : t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_0c2f1d64")}
             </Button>
             <Button type="button" variant="secondary" disabled={props.isSyncing || !effectiveSyncSections?.length} onClick={() => props.onSync({ direction: "push", sections: effectiveSyncSections })}>
-              {props.isSyncing ? "同步中..." : "推送本书修改"}
+              {props.isSyncing ? t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f787f452") : t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_a7b36193")}
             </Button>
             <Button type="button" variant="outline" disabled={props.isSyncing} onClick={() => props.onSync({ direction: "none" })}>
               关闭同步
@@ -433,10 +435,10 @@ function SyncPanel(props: Pick<NovelWorldHandbookDialogProps,
       ) : !novelWorld.syncEnabled ? (
         <div className="mt-3 flex flex-wrap gap-2">
           <Button type="button" variant="outline" disabled={props.isSyncing} onClick={() => props.onSync({ direction: "pull" })}>
-            {props.isSyncing ? "同步中..." : "拉取世界库内容"}
+            {props.isSyncing ? t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f787f452") : t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_a1c8e949")}
           </Button>
           <Button type="button" variant="secondary" disabled={props.isSyncing} onClick={() => props.onSync({ direction: "push" })}>
-            {props.isSyncing ? "同步中..." : "推送本书世界"}
+            {props.isSyncing ? t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f787f452") : t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_b98c9cfc")}
           </Button>
         </div>
       ) : (
@@ -446,11 +448,11 @@ function SyncPanel(props: Pick<NovelWorldHandbookDialogProps,
       )}
 
       {props.syncHistory.length > 0 ? (
-        <DetailDisclosure title="最近同步" description="查看最近几次主动同步记录。" className="mt-4">
+        <DetailDisclosure title={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_34ac0ac3")} description={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_8f775b88")} className="mt-4">
           <div className="space-y-2">
             {props.syncHistory.map((record) => (
               <div key={record.id} className="text-xs leading-5 text-muted-foreground">
-                <span className="font-medium text-foreground">{record.direction === "pull" ? "拉取" : "推送"}</span>
+                <span className="font-medium text-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_49782ee4")}</span>
                 <span> · {formatSyncTime(record.createdAt) ?? record.createdAt}</span>
                 {record.syncedSections.length > 0 ? <span> · {record.syncedSections.map(sectionLabel).join("、")}</span> : null}
                 {record.diffSummary ? <span className="block">{record.diffSummary}</span> : null}
@@ -469,26 +471,26 @@ function SourceAndLibraryPanel(props: Pick<NovelWorldHandbookDialogProps,
 >) {
   return (
     <section>
-      <SectionTitle title="来源与世界库" description="从世界库导入、根据本书生成，或保存本书世界作为可复用样本。" />
+      <SectionTitle title={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_26deb25d")} description={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_e571d6ab")} />
       {props.novelWorld && !props.novelWorld.sourceWorldId ? (
         <div className="mt-4 flex flex-col gap-3 rounded-xl bg-muted/15 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-sm font-medium text-foreground">保存到世界库</div>
+            <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_cd592245")}</div>
             <div className="mt-1 text-sm leading-6 text-muted-foreground">
               把本书世界保存为可复用样本，后续可以推送本书修改或拉取世界库内容。
             </div>
           </div>
           <Button type="button" variant="secondary" disabled={props.isSavingToLibrary} onClick={() => props.onSaveToLibrary()}>
             <Library className="size-4" />
-            {props.isSavingToLibrary ? "保存中..." : "保存到世界库"}
+            {props.isSavingToLibrary ? t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.savingInProgressDotDotDot") : t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_cd592245")}
           </Button>
         </div>
       ) : null}
 
       <DetailDisclosure
-        title="选择或更换本书世界来源"
-        description="从世界库导入、根据本书生成，或先创建一个自定义世界骨架。"
-        meta={props.novelWorld ? "按需更换" : "待选择"}
+        title={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_ed2c3be6")}
+        description={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_81ee3c6c")}
+        meta={props.novelWorld ? t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_bebe47a3") : t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_43d22961")}
         defaultOpen={!props.novelWorld}
         className="mt-4"
       >
@@ -514,7 +516,7 @@ export function NovelWorldHandbookDialog(props: NovelWorldHandbookDialogProps) {
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <AppDialogContent
         title={props.activeWorldName}
-        description="查看本书世界手册、生成约束和使用范围。这里的内容会服务角色、大纲和章节生成。"
+        description={t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_0c46a450")}
         className="h-[calc(100dvh-2rem)] max-w-[calc(100vw-2rem)] xl:max-w-7xl"
         bodyClassName="overflow-hidden p-0"
       >
@@ -524,11 +526,11 @@ export function NovelWorldHandbookDialog(props: NovelWorldHandbookDialogProps) {
             "lg:flex lg:flex-col lg:items-stretch lg:overflow-visible lg:border-b-0 lg:border-r",
           )}>
             {[
-              ["overview", "世界总览"],
-              ["rules", "规则与张力"],
-              ["guidance", "生成约束"],
-              ["usage", "使用范围"],
-              ["sync", "同步与资产"],
+              ["overview", t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_61ae07e0")],
+              ["rules", t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_7eb5cd49")],
+              ["guidance", t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_f95045c7")],
+              ["usage", t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_6832ddc4")],
+              ["sync", t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_81e53644")],
             ].map(([value, label]) => (
               <TabsTrigger key={value} value={value} className="justify-start data-[state=active]:bg-muted">
                 {label}
@@ -551,7 +553,7 @@ export function NovelWorldHandbookDialog(props: NovelWorldHandbookDialogProps) {
             <TabsContent value="sync" className="mt-0 space-y-8">
               {props.novelWorld?.sourceWorldId ? (
                 <Button asChild size="sm" variant="outline">
-                  <Link to={`/worlds/${props.novelWorld.sourceWorldId}/workspace`}>打开来源世界手册</Link>
+                  <Link to={`/worlds/${props.novelWorld.sourceWorldId}/workspace`}>{t("gen.pages.novels.components.novelWorld.NovelWorldHandbookDialog.gen_d6274ec9")}</Link>
                 </Button>
               ) : null}
               <AssetsPanel worldAssets={props.worldAssets} />

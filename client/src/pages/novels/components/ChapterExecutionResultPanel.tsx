@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type {
   Chapter,
   StoryPlan,
@@ -67,8 +69,8 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
   }
 
   const chapterLabel = `第${selectedChapter.order}章`;
-  const chapterTitle = selectedChapter.title || "未命名章节";
-  const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? "这一章还没有明确目标，建议先补章节计划。";
+  const chapterTitle = selectedChapter.title || t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_db55d102");
+  const chapterObjective = chapterPlan?.objective ?? selectedChapter.expectation ?? t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_6fc3748d");
   const savedChapterContent = selectedChapter.content?.trim() ?? "";
   const hasSavedChapterContent = hasText(savedChapterContent);
 
@@ -78,10 +80,10 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
   const hasVisibleLiveWritingOutput = hasText(visibleLiveWritingOutput);
   const useLiveWritingPanel = isSelectedChapterStreaming || (!hasSavedChapterContent && hasVisibleLiveWritingOutput);
   const contentPanelTitle = isSelectedChapterFinalizing
-    ? "章节收尾中"
+    ? t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_02490291")
     : useLiveWritingPanel
-      ? "实时写作稿"
-      : "已保存正文";
+      ? t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_27a6eeeb")
+      : t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_f0a9f772");
   const contentPanelContent = useLiveWritingPanel
     ? visibleLiveWritingOutput
     : hasSavedChapterContent
@@ -137,8 +139,8 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
         <CardContent className="flex h-full min-h-0 flex-col gap-5 pt-5">
           {writingInOtherChapter ? (
             <WorkspaceNotice
-              title="还有其他章节正在后台写作"
-              description={`${streamingChapterLabel ?? "另一章"} 仍在生成中。切到这一章后不会再把那一章的流式正文带过来，返回对应章节即可继续查看实时输出。`}
+              title={t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_f7c795f9")}
+              description={`${streamingChapterLabel ?? t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_08e4466c")} 仍在生成中。切到这一章后不会再把那一章的流式正文带过来，返回对应章节即可继续查看实时输出。`}
             />
           ) : null}
 
@@ -148,30 +150,30 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={isSelectedChapterStreaming ? "default" : "secondary"}>
                     {isSelectedChapterFinalizing
-                      ? "收尾处理中"
+                      ? t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_d1df529f")
                       : isSelectedChapterStreaming
-                        ? "实时写作中"
-                        : "已保存版本"}
+                        ? t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_8e29dec6")
+                        : t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_e5b868d7")}
                   </Badge>
                   <Badge variant="outline">{chapterLabel}</Badge>
-                  <Badge variant="outline">当前展示 {contentPanelWordCount} 字</Badge>
+                  <Badge variant="outline">{t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_55d56359", { contentPanelWordCount })}</Badge>
                 </div>
                 <div>
                   <div className="text-base font-semibold text-foreground">{chapterTitle}</div>
                   <div className="mt-1 text-xs leading-6 text-muted-foreground">
                     {contentPanelTitle}。{isSelectedChapterFinalizing
-                      ? (chapterRunStatus?.message ?? "正文可读，系统正在保存草稿并回灌章节资产。")
+                      ? (chapterRunStatus?.message ?? t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_75007248"))
                       : isSelectedChapterStreaming
-                        ? "AI 正在持续输出这一章的正文，先在这里观察节奏和手感，不满意时可以随时停止。"
+                        ? t("gen.pages.novels.components.ChapterExecutionResultPanel.aiOutputtingChapterContentObservingRhythm")
                         : chapterObjective}
                   </div>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-muted-foreground">字数 {contentPanelWordCount}</span>
+                <span className="text-xs text-muted-foreground">{t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_188a315d", { contentPanelWordCount })}</span>
                 {needsAuditPrompt ? (
                   <Button size="sm" onClick={onRunFullAudit} disabled={isRunningFullAudit}>
-                    {isRunningFullAudit ? "审校中..." : "去审校"}
+                    {isRunningFullAudit ? t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_a9e55039") : t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_604bd4b3")}
                   </Button>
                 ) : null}
                 {needsConfirmationPrompt ? (
@@ -186,7 +188,7 @@ export default function ChapterExecutionResultPanel(props: ChapterExecutionResul
                     onClick={runAutoRepairFromWorkspace}
                     disabled={isSelectedChapterRepairStreaming}
                   >
-                    {isSelectedChapterRepairStreaming ? "修复中..." : "一键修复"}
+                    {isSelectedChapterRepairStreaming ? t("gen.pages.novels.components.ChapterExecutionResultPanel.gen_70ae8ad6") : t("gen.pages.novels.components.ChapterExecutionResultPanel.fixButton")}
                   </Button>
                 ) : null}
                 {isSelectedChapterStreaming && !isSelectedChapterFinalizing ? (

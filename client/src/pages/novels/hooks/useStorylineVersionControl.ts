@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, type QueryClient } from "@tanstack/react-query";
 import type { StorylineDiff, StorylineVersion } from "@ai-novel/shared/types/novel";
@@ -77,11 +78,11 @@ export function useStorylineVersionControl({
       if (nextVersionId) {
         setSelectedVersionId(nextVersionId);
       }
-      setStorylineMessage(response.message ?? "主线草稿版本已创建。");
+      setStorylineMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.mainDraftVersionCreated"));
       await invalidateVersionList();
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "创建主线草稿版本失败。";
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_03aa49b7");
       setStorylineMessage(message);
     },
   });
@@ -89,17 +90,17 @@ export function useStorylineVersionControl({
   const activateVersionMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error("请先选择一个主线版本。");
+        throw new Error(i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f75fd1ff"));
       }
       return activateStorylineVersion(novelId, selectedVersionId);
     },
     onSuccess: async (response) => {
-      setStorylineMessage(response.message ?? "已设为生效主线。");
+      setStorylineMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_918e4b38"));
       await invalidateVersionList();
       await invalidateNovelDetail();
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "设置生效版失败。";
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_5c4833b3");
       setStorylineMessage(message);
     },
   });
@@ -107,16 +108,16 @@ export function useStorylineVersionControl({
   const freezeVersionMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error("请先选择一个主线版本。");
+        throw new Error(i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f75fd1ff"));
       }
       return freezeStorylineVersion(novelId, selectedVersionId);
     },
     onSuccess: async (response) => {
-      setStorylineMessage(response.message ?? "主线版本已冻结。");
+      setStorylineMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.mainVersionFrozen"));
       await invalidateVersionList();
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "冻结主线版本失败。";
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_5341f192");
       setStorylineMessage(message);
     },
   });
@@ -124,16 +125,16 @@ export function useStorylineVersionControl({
   const diffMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error("请先选择一个主线版本。");
+        throw new Error(i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f75fd1ff"));
       }
       return getStorylineDiff(novelId, selectedVersionId);
     },
     onSuccess: (response) => {
       setDiffResult(response.data ?? null);
-      setStorylineMessage(response.message ?? "主线版本差异已更新。");
+      setStorylineMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.mainVersionDiffUpdated"));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "加载版本差异失败。";
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_6537ecc8");
       setStorylineMessage(message);
     },
   });
@@ -142,10 +143,10 @@ export function useStorylineVersionControl({
     mutationFn: () => analyzeStorylineImpact(novelId, { content: draftText }),
     onSuccess: (response) => {
       setImpactResult(response.data ?? null);
-      setStorylineMessage(response.message ?? "草稿影响分析完成。");
+      setStorylineMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_10f8e0c9"));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "草稿影响分析失败。";
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_780ab73e");
       setStorylineMessage(message);
     },
   });
@@ -153,16 +154,16 @@ export function useStorylineVersionControl({
   const analyzeVersionImpactMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error("请先选择一个主线版本。");
+        throw new Error(i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f75fd1ff"));
       }
       return analyzeStorylineImpact(novelId, { versionId: selectedVersionId });
     },
     onSuccess: (response) => {
       setImpactResult(response.data ?? null);
-      setStorylineMessage(response.message ?? "版本影响分析完成。");
+      setStorylineMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_40fb1cf0"));
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "版本影响分析失败。";
+      const message = error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useStorylineVersionControl.gen_f2d5956b");
       setStorylineMessage(message);
     },
   });

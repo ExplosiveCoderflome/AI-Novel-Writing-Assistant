@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
@@ -58,7 +60,7 @@ export default function NovelTitleWorkshop({
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success("标题已加入标题库。");
+      toast.success(t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_fccedc6f"));
     },
   });
 
@@ -71,20 +73,20 @@ export default function NovelTitleWorkshop({
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success("当前标题已加入标题库。");
+      toast.success(t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_bfcbedb9"));
     },
   });
 
   const handleCopy = async (suggestion: TitleFactorySuggestion) => {
     await navigator.clipboard.writeText(suggestion.title);
     setSelectedTitle(suggestion.title);
-    toast.success("标题已复制到剪贴板。");
+    toast.success(t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_3257008e"));
   };
 
   const handleApply = (suggestion: TitleFactorySuggestion) => {
     setSelectedTitle(suggestion.title);
     onApplyTitle(suggestion.title);
-    toast.success("标题已写入基本信息表单，记得保存。");
+    toast.success(t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_45732748"));
   };
 
   return (
@@ -92,20 +94,20 @@ export default function NovelTitleWorkshop({
       <div className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
-            <div className="text-sm font-semibold text-foreground">项目内标题工坊</div>
+            <div className="text-sm font-semibold text-foreground">{t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_c7a5bed7")}</div>
             <div className="text-sm leading-6 text-muted-foreground">
               基于当前已保存的小说简介和类型生成候选。如果刚修改过简介或类型，建议先保存基本信息再生成。
             </div>
           </div>
           <Button type="button" variant="outline" disabled={!currentTitle.trim() || saveCurrentMutation.isPending} onClick={() => saveCurrentMutation.mutate()}>
-            {saveCurrentMutation.isPending ? "保存中..." : "保存当前标题"}
+            {saveCurrentMutation.isPending ? t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.savingInProgressDotDotDot") : t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.saveCurrentTitle")}
           </Button>
         </div>
         <div className="space-y-3">
           <LLMSelector />
           <div className="flex justify-end">
             <AiButton type="button" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
-              {generateMutation.isPending ? "生成中..." : "生成标题候选"}
+              {generateMutation.isPending ? t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_4d020ba3") : t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_65b0c5a6")}
             </AiButton>
           </div>
         </div>
@@ -114,12 +116,12 @@ export default function NovelTitleWorkshop({
       <TitleSuggestionList
         suggestions={suggestions}
         selectedTitle={selectedTitle}
-        primaryActionLabel="应用到项目"
+        primaryActionLabel={t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_42767810")}
         onPrimaryAction={handleApply}
         onCopy={handleCopy}
         onSave={(suggestion) => saveMutation.mutate(suggestion)}
         savingTitle={saveMutation.isPending ? saveMutation.variables?.title ?? "" : ""}
-        emptyMessage="点一次生成，就能得到一批基于当前项目设定的标题候选。"
+        emptyMessage={t("gen.pages.novels.components.titleWorkshop.NovelTitleWorkshop.gen_ebad2918")}
       />
     </div>
   );

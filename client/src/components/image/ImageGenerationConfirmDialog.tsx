@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 /**
  * 生图前统一确认弹窗
  *
@@ -18,18 +20,18 @@ import { toast } from "@/components/ui/toast";
 import SelectControl from "@/components/common/SelectControl";
 
 const SIZE_OPTIONS = [
-  { value: "1024x1024", label: "1024×1024（方形 1:1）" },
-  { value: "1024x1536", label: "1024×1536（竖版 2:3，漫画/角色）" },
-  { value: "1536x1024", label: "1536×1024（横版 3:2，三视图/表情稿）" },
+  { value: "1024x1024", label: t("gen.components.image.ImageGenerationConfirmDialog.gen_4646d30c") },
+  { value: "1024x1536", label: t("gen.components.image.ImageGenerationConfirmDialog.gen_ac0160dc") },
+  { value: "1536x1024", label: t("gen.components.image.ImageGenerationConfirmDialog.gen_8cc03476") },
 ];
 
 const REF_KIND_LABEL: Record<string, string> = {
-  character_sheet: "三视图",
-  character_expression: "表情稿",
-  character_face: "面部裁剪",
-  book_analysis_character_base: "基础形象",
-  asset: "资产",
-  scene: "场景",
+  character_sheet: t("gen.components.image.ImageGenerationConfirmDialog.threeViews"),
+  character_expression: t("gen.components.image.ImageGenerationConfirmDialog.gen_1a07c5a4"),
+  character_face: t("gen.components.image.ImageGenerationConfirmDialog.gen_0a071b57"),
+  book_analysis_character_base: t("gen.components.image.ImageGenerationConfirmDialog.gen_79e5b55e"),
+  asset: t("gen.components.image.ImageGenerationConfirmDialog.gen_5110a0d1"),
+  scene: t("gen.components.image.ImageGenerationConfirmDialog.gen_c931653c"),
 };
 
 const REF_KIND_COLOR: Record<string, string> = {
@@ -166,16 +168,16 @@ export function ImageGenerationConfirmDialog({
         })),
       });
       if (!response.data) {
-        throw new Error("没有收到 Prompt 处理结果。");
+        throw new Error(t("gen.components.image.ImageGenerationConfirmDialog.gen_6abf9a2d"));
       }
       if (action === "optimize" && response.data.optimizedPrompt?.trim()) {
         setPrompt(response.data.optimizedPrompt.trim());
       }
       setPromptAssistResult(response.data);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Prompt 处理失败。";
+      const message = error instanceof Error ? error.message : t("gen.components.image.ImageGenerationConfirmDialog.gen_6eb607e0");
       setPromptAssistError(message);
-      toast.error("Prompt 处理失败", { description: message });
+      toast.error(t("gen.components.image.ImageGenerationConfirmDialog.gen_79634078"), { description: message });
     } finally {
       setPromptAssistLoading(null);
     }
@@ -184,7 +186,7 @@ export function ImageGenerationConfirmDialog({
   const footer = preview ? (
     <div className="flex w-full items-center justify-between gap-3">
       <p className="text-[11px] text-muted-foreground">
-        {anyDirty ? "本次将使用上方修改后的参数生图（仅一次性，不保存到角色）" : "点击「开始生图」按当前参数生成"}
+        {anyDirty ? t("gen.components.image.ImageGenerationConfirmDialog.gen_a7da5981") : t("gen.components.image.ImageGenerationConfirmDialog.gen_864c3a74")}
       </p>
       <div className="flex gap-2">
         <Button type="button" size="sm" variant="outline" onClick={onCancel} disabled={submitting}>
@@ -192,7 +194,7 @@ export function ImageGenerationConfirmDialog({
         </Button>
         <Button type="button" size="sm" onClick={handleConfirm} disabled={submitting || !prompt.trim()}>
           {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-          {submitting ? "生成中..." : "开始生图"}
+          {submitting ? t("gen.components.image.ImageGenerationConfirmDialog.gen_4d020ba3") : t("gen.components.image.ImageGenerationConfirmDialog.gen_150f1303")}
         </Button>
       </div>
     </div>
@@ -201,7 +203,7 @@ export function ImageGenerationConfirmDialog({
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
       <AppDialogContent
-        title="生图前确认"
+        title={t("gen.components.image.ImageGenerationConfirmDialog.gen_470008c3")}
         description={preview?.title}
         footer={footer}
         className="max-w-3xl"
@@ -213,7 +215,7 @@ export function ImageGenerationConfirmDialog({
             正在准备生图素材...
           </div>
         ) : !preview ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">无预览数据</div>
+          <div className="py-12 text-center text-sm text-muted-foreground">{t("gen.components.image.ImageGenerationConfirmDialog.gen_4d62dfb4")}</div>
         ) : (
           <div className="space-y-4">
             {/* 参考图素材 */}
@@ -256,7 +258,7 @@ export function ImageGenerationConfirmDialog({
                         <button
                           type="button"
                           className="absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full border bg-background/95 text-muted-foreground shadow-sm hover:text-destructive"
-                          title="本次不发送这张参考图"
+                          title={t("gen.components.image.ImageGenerationConfirmDialog.gen_eccabacd")}
                           onClick={() => {
                             setIncludedReferenceImageUrls((urls) => urls.filter((url) => url !== ref.url));
                             clearPromptAssistResult();
@@ -297,7 +299,7 @@ export function ImageGenerationConfirmDialog({
               <div className="mb-1 flex items-center justify-between">
                 <p className="text-xs font-semibold text-muted-foreground">
                   Prompt
-                  {promptDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">已修改</span>}
+                  {promptDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{t("gen.components.image.ImageGenerationConfirmDialog.gen_2b689f7b")}</span>}
                 </p>
                 <div className="flex flex-wrap items-center justify-end gap-1.5">
                   <Button
@@ -336,10 +338,10 @@ export function ImageGenerationConfirmDialog({
                 }}
                 disabled={submitting || !!promptAssistLoading}
               />
-              <p className="mt-1 text-[10px] text-muted-foreground">{prompt.length} 字符 · 临时修改不会改动角色/项目设置</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">{t("gen.components.image.ImageGenerationConfirmDialog.gen_f1c9a752")}</p>
               <div className="mt-2">
                 <div className="mb-1 flex items-center justify-between">
-                  <p className="text-xs font-semibold text-muted-foreground">优化要求</p>
+                  <p className="text-xs font-semibold text-muted-foreground">{t("gen.components.image.ImageGenerationConfirmDialog.gen_6b77df8b")}</p>
                   <div className="flex items-center justify-end gap-1.5">
                     <Button
                       type="button"
@@ -375,10 +377,10 @@ export function ImageGenerationConfirmDialog({
                     setOptimizationInstruction(e.target.value);
                     clearPromptAssistResult();
                   }}
-                  placeholder="例如：更像水彩、画面更温柔、保留服装和发型"
+                  placeholder={t("gen.components.image.ImageGenerationConfirmDialog.gen_86c3b879")}
                   disabled={submitting || !!promptAssistLoading}
                 />
-                <p className="mt-1 text-[10px] text-muted-foreground">{optimizationInstruction.length} 字符 · 仅用于「优化 Prompt」</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">{t("gen.components.image.ImageGenerationConfirmDialog.gen_8c16cea5")}</p>
               </div>
               {(promptAssistResult || promptAssistError) && (
                 <div className="mt-2 rounded-md border bg-muted/20 p-2.5 text-xs">
@@ -401,7 +403,7 @@ export function ImageGenerationConfirmDialog({
                       </ul>
                       {promptAssistAction === "optimize" && promptAssistResult.changes.length > 0 && (
                         <div className="rounded border bg-background/70 px-2 py-1.5">
-                          <p className="mb-1 text-[11px] font-semibold text-muted-foreground">已调整</p>
+                          <p className="mb-1 text-[11px] font-semibold text-muted-foreground">{t("gen.components.image.ImageGenerationConfirmDialog.gen_0e07c241")}</p>
                           <ul className="space-y-1 pl-4 text-muted-foreground">
                             {promptAssistResult.changes.map((item, index) => (
                               <li key={`change-${index}`} className="list-disc leading-relaxed">{item}</li>
@@ -411,7 +413,7 @@ export function ImageGenerationConfirmDialog({
                       )}
                       {promptAssistResult.risks.length > 0 && (
                         <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-                          <p className="mb-1 text-[11px] font-semibold">注意事项</p>
+                          <p className="mb-1 text-[11px] font-semibold">{t("gen.components.image.ImageGenerationConfirmDialog.gen_1bbbb204")}</p>
                           <ul className="space-y-1 pl-4">
                             {promptAssistResult.risks.map((item, index) => (
                               <li key={`risk-${index}`} className="list-disc leading-relaxed">{item}</li>
@@ -430,7 +432,7 @@ export function ImageGenerationConfirmDialog({
                 <div className="mb-1 flex items-center justify-between">
                   <p className="text-xs font-semibold text-muted-foreground">
                     负面 Prompt
-                    {negativePromptDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">已修改</span>}
+                    {negativePromptDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{t("gen.components.image.ImageGenerationConfirmDialog.gen_2b689f7b")}</span>}
                   </p>
                   {negativePromptDirty && (
                     <button
@@ -456,7 +458,7 @@ export function ImageGenerationConfirmDialog({
                   }}
                   disabled={submitting || !!promptAssistLoading}
                 />
-                <p className="mt-1 text-[10px] text-muted-foreground">{negativePrompt.length} 字符 · 仅用于本次生成</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">{t("gen.components.image.ImageGenerationConfirmDialog.gen_79a329d4")}</p>
               </div>
             )}
 
@@ -465,7 +467,7 @@ export function ImageGenerationConfirmDialog({
               <div>
                 <p className="mb-1 text-xs font-semibold text-muted-foreground">
                   图片模型
-                  {providerDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">已修改</span>}
+                  {providerDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{t("gen.components.image.ImageGenerationConfirmDialog.gen_2b689f7b")}</span>}
                 </p>
                 <SelectControl
                   className="w-full rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
@@ -477,7 +479,7 @@ export function ImageGenerationConfirmDialog({
                   disabled={submitting || !!promptAssistLoading}
                 >
                   {providerChoices.length === 0 ? (
-                    <option value="">无可用图片服务，请先在系统设置配置</option>
+                    <option value="">{t("gen.components.image.ImageGenerationConfirmDialog.gen_bcc8f88e")}</option>
                   ) : (
                     providerChoices.map((p) => (
                       <option key={p.value} value={p.value}>{p.label}</option>
@@ -488,7 +490,7 @@ export function ImageGenerationConfirmDialog({
               <div>
                 <p className="mb-1 text-xs font-semibold text-muted-foreground">
                   图片尺寸
-                  {sizeDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">已修改</span>}
+                  {sizeDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{t("gen.components.image.ImageGenerationConfirmDialog.gen_2b689f7b")}</span>}
                 </p>
                 <SelectControl
                   className="w-full rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"

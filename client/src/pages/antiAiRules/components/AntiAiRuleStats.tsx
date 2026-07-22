@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 interface StatTileProps {
   label: string;
   value: number;
@@ -24,10 +26,10 @@ interface AntiAiRuleStatsProps {
 export default function AntiAiRuleStats(props: AntiAiRuleStatsProps) {
   return (
     <div className="grid gap-3 md:grid-cols-4">
-      <StatTile label="规则总数" value={props.total} hint="规则库中可查看和编辑的全部规则。" />
-      <StatTile label="启用规则" value={props.enabled} hint="会参与全局或写法绑定解析的规则。" />
-      <StatTile label="全局默认" value={props.global} hint="不绑定写法时也会进入正文生成。" />
-      <StatTile label="自动改写" value={props.autoRewrite} hint="检测命中后可进入改写建议链路。" />
+      <StatTile label={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_17cea87d")} value={props.total} hint={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_01aa8262")} />
+      <StatTile label={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_fd2ea09f")} value={props.enabled} hint={t("gen.pages.antiAiRules.components.AntiAiRuleStats.willParticipateRulesForGlobalOrStyleBindingParsing")} />
+      <StatTile label={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_1c65ec9e")} value={props.global} hint={t("gen.pages.antiAiRules.components.AntiAiRuleStats.enterTextGeneration")} />
+      <StatTile label={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_11519661")} value={props.autoRewrite} hint={t("gen.pages.antiAiRules.components.AntiAiRuleStats.gen_c82a210c")} />
     </div>
   );
 }

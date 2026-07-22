@@ -2807,7 +2807,7 @@ test("NovelReferenceService formats structured timeline nodes by phase", async (
 
   try {
     const service = new NovelReferenceService();
-    const reference = await service.buildReferenceForStage("novel-1", "chapter");
+    const reference = await service.buildReferenceForStage("novel-1", "outline");
 
     assert.match(reference, /\[analysis\.reference\] 测试拆书/);
     assert.match(reference, /### 潜入/);

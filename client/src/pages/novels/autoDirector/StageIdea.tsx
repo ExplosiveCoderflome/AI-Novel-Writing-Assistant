@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useRef, useState } from "react";
 import type { DirectorIdeaInspiration } from "@ai-novel/shared/types/novelDirector";
 import { motion, useReducedMotion } from "framer-motion";
@@ -48,7 +50,7 @@ export default function StageIdea({
 
   const useIdeaInspiration = (text: string) => {
     if (idea.trim()) {
-      const confirmed = window.confirm("上方起始想法已有内容。确认使用这条灵感并覆盖原内容吗？");
+      const confirmed = window.confirm(t("gen.pages.novels.autoDirector.StageIdea.confirmOverwrite"));
       if (!confirmed) {
         return;
       }
@@ -105,7 +107,7 @@ export default function StageIdea({
           className="min-h-[180px] w-full resize-none bg-transparent px-1 py-1 text-base leading-7 text-foreground outline-none placeholder:text-muted-foreground/60 sm:text-lg sm:leading-8"
           value={idea}
           onChange={(event) => onIdeaChange(event.target.value)}
-          placeholder="例如：普通女大学生误入异能组织，一边上学打工，一边调查父亲失踪真相。"
+          placeholder={t("gen.pages.novels.autoDirector.StageIdea.exampleOrdinaryFemaleUniversityStudentEnteredAbilitiesOrganizationWorkingAndStudyingWhileInvestigatingFatherDisappearedTruth")}
         />
         <div className="flex flex-col gap-2 pt-3 sm:flex-row sm:items-center sm:justify-between">
           <button
@@ -115,7 +117,7 @@ export default function StageIdea({
             disabled={isGeneratingIdeaInspirations}
           >
             <Sparkles className="h-4 w-4" />
-            {isGeneratingIdeaInspirations ? "正在准备几个开头..." : "没有想法？看几个开头"}
+            {isGeneratingIdeaInspirations ? t("gen.pages.novels.autoDirector.StageIdea.gen_95e81025") : t("gen.pages.novels.autoDirector.StageIdea.gen_fab2c176")}
           </button>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <button
@@ -124,7 +126,7 @@ export default function StageIdea({
               onClick={onQuickGenerate}
               disabled={!canContinue || isGenerating}
             >
-              {isGenerating ? "生成中..." : "用默认设置直接生成方向"}
+              {isGenerating ? t("gen.pages.novels.autoDirector.StageIdea.gen_4d020ba3") : t("gen.pages.novels.autoDirector.StageIdea.gen_9649cffc")}
             </button>
             <Button type="button" onClick={onContinue} disabled={!canContinue}>
               继续完善设定

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import { Button } from "@/components/ui/button";
@@ -96,27 +98,27 @@ export function CharacterEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[96vw] max-h-[90vh] max-w-[1100px] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{character ? `编辑角色：${character.name}` : "编辑角色"}</DialogTitle>
+          <DialogTitle>{character ? `编辑角色：${character.name}` : t("gen.pages.characters.components.CharacterEditDialog.gen_ac775e9a")}</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-2 md:grid-cols-2">
           <Input
-            placeholder="角色名称"
+            placeholder={t("gen.pages.characters.components.CharacterEditDialog.gen_10a6f121")}
             value={form.name}
             onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
           />
           <Input
-            placeholder="角色定位"
+            placeholder={t("gen.pages.characters.components.CharacterEditDialog.gen_22cffcec")}
             value={form.role}
             onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}
           />
           <Input
-            placeholder="角色类别"
+            placeholder={t("gen.pages.characters.components.CharacterEditDialog.gen_b5921bc1")}
             value={form.category}
             onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
           />
           <Input
-            placeholder="标签（逗号分隔）"
+            placeholder={t("gen.pages.characters.components.CharacterEditDialog.gen_04c16cd4")}
             value={form.tags}
             onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))}
           />
@@ -125,43 +127,43 @@ export function CharacterEditDialog({
         <div className="space-y-2">
           <textarea
             className="min-h-[90px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="性格"
+            placeholder={t("gen.pages.characters.components.CharacterEditDialog.gen_689150c2")}
             value={form.personality}
             onChange={(event) => setForm((prev) => ({ ...prev, personality: event.target.value }))}
           />
           <textarea
             className="min-h-[90px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="背景故事"
+            placeholder={t("gen.pages.characters.components.CharacterEditDialog.gen_78c847e0")}
             value={form.background}
             onChange={(event) => setForm((prev) => ({ ...prev, background: event.target.value }))}
           />
           <textarea
             className="min-h-[90px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="成长轨迹"
+            placeholder={t("gen.pages.characters.components.CharacterEditDialog.gen_4578b906")}
             value={form.development}
             onChange={(event) => setForm((prev) => ({ ...prev, development: event.target.value }))}
           />
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="外貌/体态"
+            placeholder={t("gen.pages.characters.components.CharacterEditDialog.gen_0ba83898")}
             value={form.appearance ?? ""}
             onChange={(event) => setForm((prev) => ({ ...prev, appearance: event.target.value }))}
           />
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="弱点与代价"
+            placeholder={t("gen.pages.characters.components.CharacterEditDialog.gen_b2833ce5")}
             value={form.weaknesses ?? ""}
             onChange={(event) => setForm((prev) => ({ ...prev, weaknesses: event.target.value }))}
           />
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="习惯与特长"
+            placeholder={t("gen.pages.characters.components.CharacterEditDialog.habitsAndSkills")}
             value={form.interests ?? ""}
             onChange={(event) => setForm((prev) => ({ ...prev, interests: event.target.value }))}
           />
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="关键事件"
+            placeholder={t("gen.pages.characters.components.CharacterEditDialog.gen_cbf6f4f8")}
             value={form.keyEvents ?? ""}
             onChange={(event) => setForm((prev) => ({ ...prev, keyEvents: event.target.value }))}
           />
@@ -172,7 +174,7 @@ export function CharacterEditDialog({
             取消
           </Button>
           <Button onClick={handleSubmit} disabled={saving || !hasRequiredFields || !character}>
-            {saving ? "保存中..." : "保存修改"}
+            {saving ? t("gen.pages.characters.components.CharacterEditDialog.savingInProgressDotDotDot") : t("gen.pages.characters.components.CharacterEditDialog.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

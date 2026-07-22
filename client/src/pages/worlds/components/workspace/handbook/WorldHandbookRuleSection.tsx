@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Plus, WandSparkles } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
 import type { WorldRule, WorldStructuredData } from "@ai-novel/shared/types/world";
@@ -40,18 +42,18 @@ export default function WorldHandbookRuleSection(props: {
     <section className="rounded-md border p-4">
       <SectionHeader
         icon={WandSparkles}
-        title="核心规则"
-        description="这些规则会约束角色身份、力量边界和冲突来源，属于本书写作时最需要遵守的底层设定。"
+        title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_0a431a82")}
+        description={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_c5c8c56a")}
         count={draftStructure.rules.axioms.length}
       />
       <div className="mt-4 space-y-3">
-        <HandbookField title="规则总纲" hint="用一段话说明力量、资源、禁忌和后果如何共同限制这个世界。">
+        <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_9c10e19a")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_07fef44f")}>
           <HandbookTextarea
             value={draftStructure.rules.summary}
             onChange={(value) =>
               setDraftStructure((prev) => (prev ? { ...prev, rules: { ...prev.rules, summary: value } } : prev))
             }
-            placeholder="例如：所有超凡力量都来自星核借贷，越级使用会透支寿命，并被天机阁记录。"
+            placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.exampleAllSupernaturalPowerFromStellarLoanOveruseDrainsLifespanRecordedByOracleHall")}
             minRows={3}
           />
         </HandbookField>
@@ -74,7 +76,7 @@ export default function WorldHandbookRuleSection(props: {
                 </Button>
               </div>
               <div className="mt-3 grid gap-3">
-                <HandbookField title="规则名称" hint="短句即可，方便作者在写作时反复引用。">
+                <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_87080256")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_357e0b0c")}>
                   <Input
                     value={rule.name}
                     onChange={(event) =>
@@ -90,10 +92,10 @@ export default function WorldHandbookRuleSection(props: {
                           : prev,
                       )
                     }
-                    placeholder="星核借贷、血脉不可逆、禁城不得施法"
+                    placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_ad19045f")}
                   />
                 </HandbookField>
-                <HandbookField title="故事含义" hint="写清角色、势力和章节事件会怎样被这条规则影响。">
+                <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_fda6e32b")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_ab0b3fa3")}>
                   <HandbookTextarea
                     value={rule.summary}
                     onChange={(value) =>
@@ -106,11 +108,11 @@ export default function WorldHandbookRuleSection(props: {
                           : prev,
                       )
                     }
-                    placeholder="这条规则在故事里意味着什么？"
+                    placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_2463cba5")}
                     minRows={3}
                   />
                 </HandbookField>
-                <HandbookField title="代价" hint="使用、违反或绕开规则时必须付出的代价。">
+                <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.cost")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_使用违反或绕开规则时_xd66")}>
                   <Input
                     value={rule.cost}
                     onChange={(event) =>
@@ -126,10 +128,10 @@ export default function WorldHandbookRuleSection(props: {
                           : prev,
                       )
                     }
-                    placeholder="寿命、记忆、身份、资源、阵营信任..."
+                    placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_608c6ca1")}
                   />
                 </HandbookField>
-                <HandbookField title="不可随意突破的边界" hint="防止后续剧情为了解决问题而破坏世界可信度。">
+                <HandbookField title={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.boundaryLimit")} hint={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_f0cedcf9")}>
                   <Input
                     value={rule.boundary}
                     onChange={(event) =>
@@ -145,7 +147,7 @@ export default function WorldHandbookRuleSection(props: {
                           : prev,
                       )
                     }
-                    placeholder="谁也不能无代价复活；低阶角色不能越过封印规则。"
+                    placeholder={t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_6fdc2189")}
                   />
                 </HandbookField>
               </div>

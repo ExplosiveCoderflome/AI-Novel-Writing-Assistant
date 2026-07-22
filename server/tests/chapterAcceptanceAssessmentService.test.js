@@ -95,7 +95,7 @@ test("normalizeAssessment routes missing obligations to repairable draft obligat
   const normalized = normalizeAssessment(createAssessment({
     status: "accepted",
     missingObligations: [{
-      kind: "payoff_touch",
+      kind: "must_hit_now",
       summary: "补出截信计划的可见行动。",
       evidence: "正文只回忆了计划，没有发生行动。",
     }],
@@ -105,5 +105,5 @@ test("normalizeAssessment routes missing obligations to repairable draft obligat
 
   assert.equal(normalized.status, "repairable");
   assert.equal(normalized.continuePolicy, "repair_once");
-  assert.equal(normalized.missingObligations[0].kind, "payoff_touch");
+  assert.equal(normalized.missingObligations[0].kind, "must_hit_now");
 });

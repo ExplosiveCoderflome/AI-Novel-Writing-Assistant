@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,7 @@ interface KnowledgeOpsTabProps {
   deletingJobId?: string;
   onClearFinishedJobs: () => void;
   onDeleteJob: (jobId: string) => void;
+  getOwnerName?: (ownerType: string, ownerId: string) => string | undefined;
 }
 
 const FINISHED_RAG_JOB_STATUSES = new Set<RagJobSummary["status"]>(["succeeded", "failed", "cancelled"]);
@@ -44,6 +47,7 @@ export default function KnowledgeOpsTab({
   deletingJobId,
   onClearFinishedJobs,
   onDeleteJob,
+  getOwnerName,
 }: KnowledgeOpsTabProps) {
   const finishedJobCount = jobs.filter((job) => canDeleteRagJob(job)).length;
 
@@ -51,16 +55,16 @@ export default function KnowledgeOpsTab({
     <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
       <Card>
         <CardHeader>
-          <CardTitle>基础统计</CardTitle>
+          <CardTitle>{t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_49e6a2ab")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <div>当前列表文档数：{visibleDocumentsCount}</div>
-          <div>启用文档数：{enabledCount}</div>
-          <div>停用文档数：{disabledCount}</div>
+          <div>{t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_9811f598")}</div>
+          <div>{t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_0bd3819b")}</div>
+          <div>{t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_cc3dfd03")}</div>
           <div>
             RAG 健康：
             <Badge variant="outline" className="ml-2">
-              {ragHealth?.ok ? "正常" : "异常"}
+              {ragHealth?.ok ? t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_fd6e80f1") : t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_c195df63")}
             </Badge>
           </div>
         </CardContent>
@@ -69,7 +73,7 @@ export default function KnowledgeOpsTab({
       <div className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle>健康状态</CardTitle>
+            <CardTitle>{t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_fb844b8b")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {ragHealthNotice ? (
@@ -94,7 +98,7 @@ export default function KnowledgeOpsTab({
         <Card>
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 space-y-1">
-              <CardTitle>最近任务</CardTitle>
+              <CardTitle>{t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_cad670fb")}</CardTitle>
               <div className="text-xs text-muted-foreground">
                 清理已结束的索引记录，排队中和执行中的任务会保留。
               </div>
@@ -108,7 +112,7 @@ export default function KnowledgeOpsTab({
               disabled={isClearingJobs || finishedJobCount === 0}
             >
               <Trash2 className="h-4 w-4" />
-              {isClearingJobs ? "清理中..." : `清理已结束 ${finishedJobCount}`}
+              {isClearingJobs ? t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_e329328e") : `清理已结束 ${finishedJobCount}`}
             </Button>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -118,13 +122,13 @@ export default function KnowledgeOpsTab({
               </div>
             ) : null}
             {jobs.length === 0 ? (
-              <div className="text-sm text-muted-foreground">当前还没有 RAG 任务。</div>
+              <div className="text-sm text-muted-foreground">{t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_360f80e4")}</div>
             ) : null}
             {jobs.map((job) => (
               <div key={job.id} className="rounded-md border p-2 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="font-medium">
-                    {job.ownerType}:{job.ownerId}
+                    {job.ownerType}: {getOwnerName?.(job.ownerType, job.ownerId) ?? job.ownerId}
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
                     <Badge variant="outline">{formatStatus(job.status)}</Badge>
@@ -136,10 +140,10 @@ export default function KnowledgeOpsTab({
                         className="h-8 px-2"
                         onClick={() => onDeleteJob(job.id)}
                         disabled={deletingJobId === job.id}
-                        aria-label="删除任务记录"
+                        aria-label={t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_64b1d61a")}
                       >
                         <Trash2 className="h-4 w-4" />
-                        {deletingJobId === job.id ? "删除中..." : "删除"}
+                        {deletingJobId === job.id ? t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_09f2fb82") : t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_2f4aaddd")}
                       </Button>
                     ) : null}
                   </div>
@@ -173,16 +177,16 @@ export default function KnowledgeOpsTab({
 
         <Card>
           <CardHeader>
-            <CardTitle>最近失败任务</CardTitle>
+            <CardTitle>{t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_6d57a1c1")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {failedJobs.length === 0 ? (
-              <div className="text-sm text-muted-foreground">没有失败任务。</div>
+              <div className="text-sm text-muted-foreground">{t("gen.pages.knowledge.components.KnowledgeOpsTab.gen_b1652934")}</div>
             ) : null}
             {failedJobs.map((job) => (
               <div key={job.id} className="rounded-md border p-2 text-sm">
                 <div className="font-medium">
-                  {job.ownerType}:{job.ownerId}
+                  {job.ownerType}: {getOwnerName?.(job.ownerType, job.ownerId) ?? job.ownerId}
                 </div>
                 <div className="text-xs text-destructive">{job.lastError ?? "Unknown error"}</div>
               </div>

@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { SSEFrame } from "@ai-novel/shared/types/api";
 import type { ChapterRuntimePackage } from "@ai-novel/shared/types/chapterRuntime";
@@ -150,7 +151,7 @@ export function useSSE(options?: UseSSEOptions) {
         }
       } catch (streamError) {
         if ((streamError as Error).name !== "AbortError") {
-          setError(streamError instanceof Error ? streamError.message : "流式请求失败。");
+          setError(streamError instanceof Error ? streamError.message : i18next.t("gen.hooks.useSSE.gen_19c02c2c"));
           setIsStreaming(false);
         }
       } finally {

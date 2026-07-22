@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import type { Chapter, ChapterStatus } from "@ai-novel/shared/types/novel";
 import { useQuery } from "@tanstack/react-query";
@@ -31,19 +33,19 @@ function formatCount(value: number): string {
 function formatChapterStatus(status?: ChapterStatus | null): string {
   switch (status) {
     case "completed":
-      return "正文完成";
+      return t("gen.pages.novels.NovelPreview.gen_84af95a7");
     case "pending_review":
-      return "待审校";
+      return t("gen.pages.novels.NovelPreview.gen_420b5a47");
     case "needs_repair":
-      return "待修复";
+      return t("gen.pages.novels.NovelPreview.gen_a7a05e79");
     case "generating":
-      return "生成中";
+      return t("gen.pages.novels.NovelPreview.gen_1ae3a984");
     case "pending_generation":
-      return "待生成";
+      return t("gen.pages.novels.NovelPreview.gen_418dde27");
     case "unplanned":
-      return "未规划";
+      return t("gen.pages.novels.NovelPreview.gen_16fe50f9");
     default:
-      return "未标记";
+      return t("gen.pages.novels.NovelPreview.gen_120e6f23");
   }
 }
 
@@ -139,19 +141,19 @@ export default function NovelPreview() {
 
   const copyActiveChapter = async () => {
     if (!activeChapter || !activeContent) {
-      toast.error("当前章节还没有可复制的正文。");
+      toast.error(t("gen.pages.novels.NovelPreview.gen_307412f2"));
       return;
     }
 
     try {
       await writeTextToClipboard(activeContent);
       setCopiedChapterId(activeChapter.id);
-      toast.success("正文已复制到剪贴板。");
+      toast.success(t("gen.pages.novels.NovelPreview.gen_d6f3284a"));
       window.setTimeout(() => {
         setCopiedChapterId((current) => (current === activeChapter.id ? null : current));
       }, 1600);
     } catch {
-      toast.error("复制失败，请手动选择正文后复制。");
+      toast.error(t("gen.pages.novels.NovelPreview.gen_44bcfdfc"));
     }
   };
 
@@ -159,12 +161,12 @@ export default function NovelPreview() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>缺少小说信息</CardTitle>
-          <CardDescription>返回小说列表后重新选择要预览的作品。</CardDescription>
+          <CardTitle>{t("gen.pages.novels.NovelPreview.gen_2813d1e2")}</CardTitle>
+          <CardDescription>{t("gen.pages.novels.NovelPreview.gen_137f80e7")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link to="/novels">返回小说列表</Link>
+            <Link to="/novels">{t("gen.pages.novels.NovelPreview.gen_9c469174")}</Link>
           </Button>
         </CardContent>
       </Card>
@@ -187,11 +189,11 @@ export default function NovelPreview() {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="break-words text-2xl font-semibold tracking-tight">
-                {novel?.title ?? "小说预览"}
+                {novel?.title ?? t("gen.pages.novels.NovelPreview.gen_38cb41c9")}
               </h1>
               {novel?.status ? (
                 <Badge variant={novel.status === "published" ? "default" : "secondary"}>
-                  {novel.status === "published" ? "已发布" : "草稿"}
+                  {novel.status === "published" ? t("gen.pages.novels.NovelPreview.gen_dca0c13b") : t("gen.pages.novels.NovelPreview.gen_22b4334f")}
                 </Badge>
               ) : null}
             </div>
@@ -246,8 +248,8 @@ export default function NovelPreview() {
       ) : isError ? (
         <Card>
           <CardHeader>
-            <CardTitle>加载预览失败</CardTitle>
-            <CardDescription>当前无法读取小说章节，可以重新加载。</CardDescription>
+            <CardTitle>{t("gen.pages.novels.NovelPreview.gen_57d68ea3")}</CardTitle>
+            <CardDescription>{t("gen.pages.novels.NovelPreview.gen_900b1e74")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => {
@@ -262,12 +264,12 @@ export default function NovelPreview() {
       ) : chapters.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>还没有章节</CardTitle>
-            <CardDescription>先进入小说工作区生成章节目录或正文，再回到这里预览整本内容。</CardDescription>
+            <CardTitle>{t("gen.pages.novels.NovelPreview.gen_6c29ec53")}</CardTitle>
+            <CardDescription>{t("gen.pages.novels.NovelPreview.gen_25b00d48")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link to={`/novels/${id}/edit`}>进入小说工作区</Link>
+              <Link to={`/novels/${id}/edit`}>{t("gen.pages.novels.NovelPreview.gen_781a989a")}</Link>
             </Button>
           </CardContent>
         </Card>
@@ -303,16 +305,16 @@ export default function NovelPreview() {
                           第 {chapter.order} 章
                         </div>
                         <div className="mt-1 line-clamp-2 break-words text-muted-foreground">
-                          {chapter.title || "未命名章节"}
+                          {chapter.title || t("gen.pages.novels.NovelPreview.gen_db55d102")}
                         </div>
                       </div>
                       <Badge variant={chapterContent ? "outline" : "secondary"}>
-                        {chapterContent ? "有正文" : "无正文"}
+                        {chapterContent ? t("gen.pages.novels.NovelPreview.gen_9c39cadc") : t("gen.pages.novels.NovelPreview.gen_6de9bb70")}
                       </Badge>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span>{formatChapterStatus(chapter.chapterStatus)}</span>
-                      <span>{formatCount(countWords(chapter.content))} 字</span>
+                      <span>{t("gen.pages.novels.NovelPreview.chapterWordCount")}</span>
                     </div>
                   </button>
                 );
@@ -327,7 +329,7 @@ export default function NovelPreview() {
                   <CardTitle className="flex items-center gap-2 text-xl">
                     <BookOpen className="h-5 w-5 shrink-0" aria-hidden="true" />
                     <span className="break-words">
-                      {activeChapter ? `第 ${activeChapter.order} 章：${activeChapter.title || "未命名章节"}` : "选择章节"}
+                      {activeChapter ? `第 ${activeChapter.order} 章：${activeChapter.title || t("gen.pages.novels.NovelPreview.gen_db55d102")}` : t("gen.pages.novels.NovelPreview.gen_0ca66ea7")}
                     </span>
                   </CardTitle>
                   {activeChapter ? (
@@ -350,7 +352,7 @@ export default function NovelPreview() {
                       ) : (
                         <Copy className="h-4 w-4" aria-hidden="true" />
                       )}
-                      {copiedChapterId === activeChapter.id ? "已复制" : "复制正文"}
+                      {copiedChapterId === activeChapter.id ? t("gen.pages.novels.NovelPreview.gen_52e6abbe") : t("gen.pages.novels.NovelPreview.gen_26c0d431")}
                     </Button>
                     <Button asChild variant="outline" size="sm">
                       <Link to={`/novels/${id}/chapters/${activeChapter.id}`}>
@@ -371,13 +373,13 @@ export default function NovelPreview() {
                 <div className="flex min-h-[420px] items-center justify-center px-6 text-center">
                   <div className="max-w-md space-y-3">
                     <FileText className="mx-auto h-10 w-10 text-muted-foreground" aria-hidden="true" />
-                    <div className="text-lg font-medium">本章还没有正文</div>
+                    <div className="text-lg font-medium">{t("gen.pages.novels.NovelPreview.gen_8722b85f")}</div>
                     <p className="text-sm leading-6 text-muted-foreground">
                       进入章节编辑页生成或补写正文后，这里会显示完整内容。
                     </p>
                     {activeChapter ? (
                       <Button asChild>
-                        <Link to={`/novels/${id}/chapters/${activeChapter.id}`}>编辑本章</Link>
+                        <Link to={`/novels/${id}/chapters/${activeChapter.id}`}>{t("gen.pages.novels.NovelPreview.gen_21a7b9c5")}</Link>
                       </Button>
                     ) : null}
                   </div>

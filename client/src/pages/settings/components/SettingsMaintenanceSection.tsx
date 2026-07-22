@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import DesktopLegacyDataImportCard from "@/components/layout/DesktopLegacyDataImportCard";
 import DesktopUpdateCard from "@/components/layout/DesktopUpdateCard";
@@ -9,7 +11,7 @@ export default function SettingsMaintenanceSection() {
     return (
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <CardTitle>系统维护</CardTitle>
+          <CardTitle>{t("gen.pages.settings.components.SettingsMaintenanceSection.gen_e58e3369")}</CardTitle>
           <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
             当前环境没有需要处理的桌面维护事项。
           </CardDescription>
@@ -22,7 +24,7 @@ export default function SettingsMaintenanceSection() {
     <div className="min-w-0 space-y-4">
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <CardTitle>系统维护</CardTitle>
+          <CardTitle>{t("gen.pages.settings.components.SettingsMaintenanceSection.gen_e58e3369")}</CardTitle>
           <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
             检查桌面更新或导入本机旧数据；这些操作不会影响当前创作配置。
           </CardDescription>

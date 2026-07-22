@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getNovelList } from "@/api/novel/core";
@@ -81,20 +82,20 @@ function getSectionSource(input: {
   const { globalOverride, novelOverride, scope } = input;
   if (scope === "novel") {
     if (isOfficialDefaultEntry(novelOverride)) {
-      return { source: "novel_official_default", sourceLabel: "本书使用官方默认" };
+      return { source: "novel_official_default", sourceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_1680287e") };
     }
     if (novelOverride) {
-      return { source: "novel", sourceLabel: "本书覆盖" };
+      return { source: "novel", sourceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_9c2e07fe") };
     }
     if (globalOverride && !isOfficialDefaultEntry(globalOverride)) {
-      return { source: "global", sourceLabel: "全局覆盖" };
+      return { source: "global", sourceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_603d1174") };
     }
-    return { source: "official", sourceLabel: "官方默认" };
+    return { source: "official", sourceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_0ccefc6c") };
   }
   if (globalOverride && !isOfficialDefaultEntry(globalOverride)) {
-    return { source: "global", sourceLabel: "全局覆盖" };
+    return { source: "global", sourceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_603d1174") };
   }
-  return { source: "official", sourceLabel: "官方默认" };
+  return { source: "official", sourceLabel: i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.gen_0ccefc6c") };
 }
 
 export function buildPromptEditorSections(input: {
@@ -221,7 +222,7 @@ export function usePromptDraftSlots(prompt: PromptCatalogItem | null) {
   useEffect(() => {
     if (saveMutation.isError) {
       const error = saveMutation.error;
-      setSaveError(error instanceof Error ? error.message : "保存失败，请重试。");
+      setSaveError(error instanceof Error ? error.message : i18next.t("gen.pages.promptWorkbench.hooks.usePromptDraftSlots.saveFailedPleaseRetry"));
     }
   }, [saveMutation.error, saveMutation.isError]);
 

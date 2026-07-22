@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import {
   BOOK_ANALYSIS_STRUCTURED_FIELD_SPECS,
   BOOK_ANALYSIS_STRUCTURED_FIELD_LABELS,
@@ -87,8 +89,8 @@ function TimelineNodeList({ nodes }: { nodes: BookAnalysisTimelineNode[] }) {
               <div className="leading-5 text-foreground">{node.label}</div>
               {node.timeHint || node.sourceRefs?.length ? (
                 <div className="mt-1 flex flex-wrap gap-1 text-[11px] text-muted-foreground">
-                  {node.timeHint ? <span>时间：{node.timeHint}</span> : null}
-                  {node.sourceRefs?.length ? <span>来源：{node.sourceRefs.join("、")}</span> : null}
+                  {node.timeHint ? <span>{t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_c45f354d")}</span> : null}
+                  {node.sourceRefs?.length ? <span>{t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_1e5fb252")}</span> : null}
                 </div>
               ) : null}
             </div>
@@ -119,9 +121,9 @@ export default function BookAnalysisStructuredSummary({
   return (
     <div className="space-y-3 rounded-md border bg-muted/20 p-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-medium">{analysisMode === "diagnosis" ? "诊断结论" : "关键结论"}</div>
+        <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_0945e166")}</div>
         <div className="text-xs text-muted-foreground">
-          {analysisMode === "diagnosis" ? "来自结构化稿件诊断" : "来自结构化拆书结果"}
+          {analysisMode === "diagnosis" ? t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_e1933430") : t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_ecc54e73")}
         </div>
       </div>
       {warningLabels.length > 0 ? (
@@ -143,7 +145,7 @@ export default function BookAnalysisStructuredSummary({
                 </span>
               ) : null}
               {currentChapterIndex !== null && row.timelineNodes.length > 0 && row.evidence.some((item) => item.chapterIndex === currentChapterIndex) ? (
-                <Badge variant="secondary">本章</Badge>
+                <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_071a68fb")}</Badge>
               ) : null}
             </div>
             {row.timelineNodes.length > 0 ? (
@@ -161,7 +163,7 @@ export default function BookAnalysisStructuredSummary({
                       className="inline-flex items-center gap-1 rounded-md border bg-muted/30 px-2 py-1 text-xs leading-5 text-foreground"
                     >
                       <span>{value}</span>
-                      {isCurrentChapterValue ? <Badge variant="secondary">本章</Badge> : null}
+                      {isCurrentChapterValue ? <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisStructuredSummary.gen_071a68fb")}</Badge> : null}
                     </span>
                   );
                 })}

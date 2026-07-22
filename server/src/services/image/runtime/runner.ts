@@ -124,7 +124,7 @@ export async function runImageGeneration<TState extends GeneratedImageState>(
       ...(opts.referenceImages && opts.referenceImages.length > 0 ? { referenceImages: opts.referenceImages } : {}),
     };
     const extraDone = adapter.buildExtraDoneState ? adapter.buildExtraDoneState(doneBase) : ({} as Partial<TState>);
-    const doneState = { ...existing, ...doneBase, ...extraDone } as TState;
+    const doneState = { ...existing, ...doneBase, ...extraDone, error: undefined } as TState;
     await adapter.saveState(doneState);
     return doneState;
   } catch (err) {

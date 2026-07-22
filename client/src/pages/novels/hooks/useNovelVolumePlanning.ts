@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { buildVolumeCountGuidance } from "@ai-novel/shared/types/volumePlanning";
@@ -198,7 +199,7 @@ export function useNovelVolumePlanning({
     if (hasCharacters) {
       return true;
     }
-    return window.confirm("当前小说还没有角色。继续生成会降低后续一致性，是否继续？");
+    return window.confirm(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_d1f32388"));
   };
 
   const startStrategyGeneration = () => {
@@ -214,7 +215,7 @@ export function useNovelVolumePlanning({
 
   const startStrategyCritique = () => {
     if (!strategyPlan) {
-      setVolumeGenerationMessage("请先生成卷战略建议。");
+      setVolumeGenerationMessage(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_b348702c"));
       return;
     }
     startStrategyCritiqueAction({
@@ -263,11 +264,11 @@ export function useNovelVolumePlanning({
     const targetVolume = normalizedVolumeDraft.find((volume) => volume.id === volumeId);
     const targetChapter = targetVolume?.chapters.find((chapter) => chapter.id === chapterId);
     if (!targetVolume || !targetChapter) {
-      setStructuredMessage("当前章节不存在，无法生成细化信息。");
+      setStructuredMessage(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_2f1fbdeb"));
       return;
     }
     if (!findBeatSheet(beatSheets, volumeId)) {
-      setStructuredMessage("请先生成当前卷节奏板，再细化章节。");
+      setStructuredMessage(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_cec42941"));
       return;
     }
     if (!ensureCharacterGuard()) {
@@ -276,9 +277,9 @@ export function useNovelVolumePlanning({
     const confirmed = window.confirm([
       `将基于当前内容为第${targetChapter.chapterOrder}章《${targetChapter.title}》AI 修正${detailModeLabel(detailMode)}。`,
       hasChapterDetailDraft(targetChapter, detailMode)
-        ? "会优先沿用当前已填写结果，只修正空缺、模糊和不够可执行的部分。"
-        : "当前这块还是空白，AI 会先补出首版，再按现有标题和摘要收束。",
-      "不会改动本章标题和摘要，也不会影响其他章节。",
+        ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.willPrioritizeCarryingOverCurrentlyFilledResultsOnlyFixMissingFuzzyOrNotExecutableParts")
+        : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_0dad7103"),
+      i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.unchangedChapter"),
     ].join("\n\n"));
     if (!confirmed) {
       return;
@@ -298,15 +299,15 @@ export function useNovelVolumePlanning({
     const targetVolume = normalizedVolumeDraft.find((volume) => volume.id === volumeId);
     const batch = resolveChapterDetailBatch(targetVolume, request);
     if (!targetVolume) {
-      setStructuredMessage("当前卷不存在，无法生成章节细化。");
+      setStructuredMessage(i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_29193639"));
       return;
     }
     if (batch.targets.length === 0) {
-      setStructuredMessage(typeof request === "string" ? "当前章节不存在，无法整套生成章节细化。" : "当前范围内没有可细化章节。");
+      setStructuredMessage(typeof request === "string" ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_ab82f96b") : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_72c1e215"));
       return;
     }
     if (!findBeatSheet(beatSheets, volumeId)) {
-      setStructuredMessage(batch.targets.length > 1 ? "请先生成当前卷节奏板，再做批量章节细化。" : "请先生成当前卷节奏板，再做单章整套细化。");
+      setStructuredMessage(batch.targets.length > 1 ? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_e4dca0a1") : i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_00dd7c8d"));
       return;
     }
     if (!ensureCharacterGuard()) {
@@ -426,7 +427,7 @@ export function useNovelVolumePlanning({
   const applyCustomVolumeCount = () => {
     const resolved = resolveCustomVolumeCountInput(customVolumeCountInput, volumeCountGuidance);
     if (!resolved.value) {
-      setVolumeGenerationMessage(resolved.message ?? "请先输入有效的固定卷数。");
+      setVolumeGenerationMessage(resolved.message ?? i18next.t("gen.pages.novels.hooks.useNovelVolumePlanning.gen_ea9ad81e"));
       return;
     }
     setUserPreferredVolumeCount(resolved.value);

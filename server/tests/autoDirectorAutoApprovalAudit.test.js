@@ -161,30 +161,35 @@ test("auto director auto-approval audit loads the latest 10 records per novel", 
   const calls = [];
   prisma.autoDirectorAutoApprovalRecord.findMany = async ({ where, orderBy, take }) => {
     calls.push({ where, orderBy, take });
-    const novelId = where.novelId;
-    const count = novelId === "novel_a" ? 12 : 2;
-    return Array.from({ length: Math.min(count, take) }, (_, index) => ({
-      id: `${novelId}_${index}`,
-      taskId: `task_${novelId}`,
-      novelId,
-      approvalPointCode: "structured_outline_ready",
-      approvalPointLabel: "节奏拆章完成后继续",
-      checkpointType: "chapter_batch_ready",
-      checkpointSummary: null,
-      summary: `${novelId} 自动通过 ${index}`,
-      stage: "structured_outline",
-      scopeLabel: "全书",
-      eventId: `${novelId}:event:${index}`,
-      createdAt: new Date(`2026-04-22T10:${String(30 - index).padStart(2, "0")}:00.000Z`),
-    }));
+    const ids = where.novelId?.in || [where.novelId];
+    const results = [];
+    for (const id of ids) {
+      const count = id === "novel_a" ? 12 : 2;
+      for (let i = 0; i < count; i++) {
+        results.push({
+          id: `${id}_${i}`,
+          taskId: `task_${id}`,
+          novelId: id,
+          approvalPointCode: "structured_outline_ready",
+          approvalPointLabel: "节奏拆章完成后继续",
+          checkpointType: "chapter_batch_ready",
+          checkpointSummary: null,
+          summary: `${id} 自动通过 ${i}`,
+          stage: "structured_outline",
+          scopeLabel: "全书",
+          eventId: `${id}:event:${i}`,
+          createdAt: new Date(`2026-04-22T10:${String(30 - i).padStart(2, "0")}:00.000Z`),
+        });
+      }
+    }
+    return results.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   };
 
   try {
     const rows = await loadRecentAutoDirectorAutoApprovalRecords(["novel_a", "novel_b", "novel_a"]);
 
     assert.deepEqual(calls.map((call) => [call.where, call.take]), [
-      [{ novelId: "novel_a" }, 10],
-      [{ novelId: "novel_b" }, 10],
+      [{ novelId: { in: ["novel_a", "novel_b"] } }, undefined],
     ]);
     assert.deepEqual(calls[0].orderBy, [{ createdAt: "desc" }, { id: "desc" }]);
     assert.equal(rows.filter((row) => row.novelId === "novel_a").length, 10);

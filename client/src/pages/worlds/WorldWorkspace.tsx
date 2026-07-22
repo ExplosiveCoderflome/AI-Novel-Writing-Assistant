@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,6 +51,7 @@ import WorldHandbookEditor from "./components/workspace/WorldHandbookEditor";
 import WorldLayersTab from "./components/workspace/WorldLayersTab";
 import WorldOverviewTab from "./components/workspace/WorldOverviewTab";
 import WorldStructureTab from "./components/workspace/WorldStructureTab";
+import WorldSandboxTab from "./components/workspace/WorldSandboxTab";
 import {
   LAYERS,
   parseLayerStates,
@@ -272,11 +275,11 @@ export default function WorldWorkspace() {
     mutationFn: (worldId: string) => deleteWorld(worldId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
-      toast.success("世界样本已删除。");
+      toast.success(t("gen.pages.worlds.WorldWorkspace.worldSampleDeleted"));
       navigate("/worlds", { replace: true });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "删除世界样本失败。");
+      toast.error(error instanceof Error ? error.message : t("gen.pages.worlds.WorldWorkspace.gen_99bf2197"));
     },
   });
 
@@ -304,7 +307,7 @@ export default function WorldWorkspace() {
     <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>世界工作台：{world?.name ?? "加载中..."} {world?.version ? `(v${world.version})` : ""}</CardTitle>
+          <CardTitle>世界工作台：{world?.name ?? t("gen.pages.worlds.WorldWorkspace.gen_26b5bd49")} {world?.version ? `(v${world.version})` : ""}</CardTitle>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <LLMSelector />
             <Button
@@ -313,7 +316,7 @@ export default function WorldWorkspace() {
               onClick={handleDelete}
               disabled={!id || !world || deleteWorldMutation.isPending}
             >
-              {deleteWorldMutation.isPending ? "删除中..." : "删除世界样本"}
+              {deleteWorldMutation.isPending ? t("gen.pages.worlds.WorldWorkspace.gen_09f2fb82") : t("gen.pages.worlds.WorldWorkspace.gen_4ffdc87d")}
             </Button>
           </div>
         </CardHeader>
@@ -330,12 +333,13 @@ export default function WorldWorkspace() {
         className="space-y-4"
       >
         <TabsList className="flex flex-wrap">
-          <TabsTrigger value="structure">整理世界手册</TabsTrigger>
-          <TabsTrigger value="overview">查看手册{featureFlags.worldVisEnabled ? "/可视化" : ""}</TabsTrigger>
-          <TabsTrigger value="layers">分层草稿</TabsTrigger>
-          <TabsTrigger value="deepening">补齐手册</TabsTrigger>
-          <TabsTrigger value="consistency">手册体检</TabsTrigger>
-          <TabsTrigger value="assets">资料与版本</TabsTrigger>
+          <TabsTrigger value="structure">{t("gen.pages.worlds.WorldWorkspace.gen_eea623bc")}</TabsTrigger>
+          <TabsTrigger value="overview">{t("gen.pages.worlds.WorldWorkspace.gen_2bbede65")}{featureFlags.worldVisEnabled ? `/${t("gen.pages.worlds.WorldWorkspace.worldVis")}` : ""}</TabsTrigger>
+          <TabsTrigger value="layers">{t("gen.pages.worlds.WorldWorkspace.gen_89b03150")}</TabsTrigger>
+          <TabsTrigger value="deepening">{t("gen.pages.worlds.WorldWorkspace.gen_7e7f0b6b")}</TabsTrigger>
+          <TabsTrigger value="consistency">{t("gen.pages.worlds.WorldWorkspace.gen_01a3a187")}</TabsTrigger>
+          <TabsTrigger value="assets">{t("gen.pages.worlds.WorldWorkspace.gen_e63dc6c9")}</TabsTrigger>
+          <TabsTrigger value="sandbox">世界沙盒模拟</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -388,7 +392,7 @@ export default function WorldWorkspace() {
             <>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between gap-3">
-                  <CardTitle>高级字段维护</CardTitle>
+                  <CardTitle>{t("gen.pages.worlds.WorldWorkspace.gen_6d58393f")}</CardTitle>
                   <Button variant="outline" size="sm" onClick={() => setAdvancedStructureOpen(false)}>
                     返回整理手册
                   </Button>
@@ -482,6 +486,7 @@ export default function WorldWorkspace() {
 
         <TabsContent value="deepening">
           <WorldDeepeningTab
+            worldId={id}
             questions={visibleDeepeningQuestions}
             answerDrafts={answerDrafts}
             setAnswerDrafts={setAnswerDrafts}
@@ -556,6 +561,10 @@ export default function WorldWorkspace() {
             onExport={handleExport}
             onImport={() => importMutation.mutate()}
           />
+        </TabsContent>
+
+        <TabsContent value="sandbox">
+          <WorldSandboxTab worldId={id} />
         </TabsContent>
       </Tabs>
     </div>

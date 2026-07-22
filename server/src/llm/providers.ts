@@ -133,11 +133,21 @@ export const PROVIDERS: Record<BuiltinLLMProvider, ProviderConfig> = {
   ollama: {
     name: "Ollama",
     baseURL: "http://127.0.0.1:11434/v1",
-    defaultModel: "llama3.2",
-    models: ["llama3.2", "qwen3:8b", "deepseek-r1:8b", "gpt-oss:20b"],
+    defaultModel: "qwen3.6:27b",
+    models: ["qwen3.6:27b", "gemma4:12b", "gemma4:e4b"],
     envKey: "OLLAMA_API_KEY",
     envBaseURLKey: "OLLAMA_BASE_URL",
     envModelKey: "OLLAMA_MODEL",
+    requiresApiKey: false,
+  },
+  sensenova: {
+    name: "SenseNova",
+    baseURL: "http://127.0.0.1:11434/v1",
+    defaultModel: "sensenova-u1:8b-v3",
+    models: ["sensenova-u1:8b-v3"],
+    envKey: "SENSENOVA_API_KEY",
+    envBaseURLKey: "SENSENOVA_BASE_URL",
+    envModelKey: "SENSENOVA_MODEL",
     requiresApiKey: false,
   },
 };

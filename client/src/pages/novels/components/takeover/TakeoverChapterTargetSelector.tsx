@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useState } from "react";
 import type { TakeoverChapterTargetViewModel } from "../novelExistingProjectTakeoverViewModel";
 import { Input } from "@/components/ui/input";
@@ -34,7 +36,7 @@ export default function TakeoverChapterTargetSelector({
   return (
     <div className="rounded-lg border bg-background/70 p-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm font-medium text-foreground">推进至</div>
+        <div className="text-sm font-medium text-foreground">{t("gen.pages.novels.components.takeover.TakeoverChapterTargetSelector.gen_06b045ba")}</div>
         <Input
           className="h-10 sm:w-40"
           type="number"
@@ -57,7 +59,7 @@ export default function TakeoverChapterTargetSelector({
               commitDraftValue();
             }
           }}
-          aria-label="推进至章节"
+          aria-label={t("gen.pages.novels.components.takeover.TakeoverChapterTargetSelector.gen_0e5d1dbe")}
         />
       </div>
       <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>

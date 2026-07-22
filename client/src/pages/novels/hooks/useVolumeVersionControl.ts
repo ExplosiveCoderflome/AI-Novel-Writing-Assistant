@@ -1,3 +1,4 @@
+import i18next from "i18next";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, type QueryClient } from "@tanstack/react-query";
 import type {
@@ -82,60 +83,60 @@ export function useVolumeVersionControl({
       if (nextVersionId) {
         setSelectedVersionId(nextVersionId);
       }
-      setMessage(response.message ?? "卷级草稿版本已创建。");
+      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_a69308e8"));
       await invalidateVersionList();
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : "创建卷级草稿版本失败。");
+      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_9e0e39c3"));
     },
   });
 
   const activateVersionMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error("请先选择一个卷级版本。");
+        throw new Error(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
       }
       return activateVolumeVersion(novelId, selectedVersionId);
     },
     onSuccess: async (response) => {
-      setMessage(response.message ?? "已设为生效卷级版本。");
+      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b64724b6"));
       await invalidateVersionList();
       await invalidateNovelDetail();
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : "设置生效版失败。");
+      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_5c4833b3"));
     },
   });
 
   const freezeVersionMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error("请先选择一个卷级版本。");
+        throw new Error(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
       }
       return freezeVolumeVersion(novelId, selectedVersionId);
     },
     onSuccess: async (response) => {
-      setMessage(response.message ?? "卷级版本已冻结。");
+      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_4519b3fb"));
       await invalidateVersionList();
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : "冻结卷级版本失败。");
+      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_040f912d"));
     },
   });
 
   const diffMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error("请先选择一个卷级版本。");
+        throw new Error(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
       }
       return getVolumeDiff(novelId, selectedVersionId);
     },
     onSuccess: (response) => {
       setDiffResult(response.data ?? null);
-      setMessage(response.message ?? "卷级版本差异已更新。");
+      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_436e727f"));
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : "加载卷级版本差异失败。");
+      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_bb98c27a"));
     },
   });
 
@@ -143,40 +144,40 @@ export function useVolumeVersionControl({
     mutationFn: () => analyzeVolumeImpact(novelId, { volumes: draftDocument.volumes }),
     onSuccess: (response) => {
       setImpactResult(response.data ?? null);
-      setMessage(response.message ?? "卷级草稿影响分析完成。");
+      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_52fea1df"));
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : "卷级草稿影响分析失败。");
+      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_7fa8f912"));
     },
   });
 
   const analyzeVersionImpactMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error("请先选择一个卷级版本。");
+        throw new Error(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
       }
       return analyzeVolumeImpact(novelId, { versionId: selectedVersionId });
     },
     onSuccess: (response) => {
       setImpactResult(response.data ?? null);
-      setMessage(response.message ?? "卷级版本影响分析完成。");
+      setMessage(response.message ?? i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_1a5590e4"));
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : "卷级版本影响分析失败。");
+      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_d2c7a968"));
     },
   });
 
   const loadSelectedVersionMutation = useMutation({
     mutationFn: () => {
       if (!selectedVersionId) {
-        throw new Error("请先选择一个卷级版本。");
+        throw new Error(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_b8ccbcfc"));
       }
       return getVolumeVersion(novelId, selectedVersionId);
     },
     onSuccess: (response) => {
       const version = response.data;
       if (!version) {
-        setMessage("读取卷级版本内容失败。");
+        setMessage(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_e4fa5194"));
         return;
       }
       try {
@@ -188,11 +189,11 @@ export function useVolumeVersionControl({
         setRebalanceDecisions(parsed.rebalanceDecisions ?? []);
         setMessage(`已加载 V${version.version} 到当前卷级草稿。`);
       } catch {
-        setMessage("读取卷级版本内容失败。");
+        setMessage(i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_e4fa5194"));
       }
     },
     onError: (error) => {
-      setMessage(error instanceof Error ? error.message : "读取卷级版本内容失败。");
+      setMessage(error instanceof Error ? error.message : i18next.t("gen.pages.novels.hooks.useVolumeVersionControl.gen_e4fa5194"));
     },
   });
 

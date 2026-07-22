@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import type { ComponentProps } from "react";
 import type { CreativeHubResourceBinding } from "@ai-novel/shared/types/creativeHub";
 import { Link } from "react-router-dom";
@@ -14,7 +16,7 @@ interface OpenInCreativeHubButtonProps {
 
 export default function OpenInCreativeHubButton({
   bindings,
-  label = "在创作中枢中继续",
+  label = t("gen.components.creativeHub.OpenInCreativeHubButton.gen_d69e4819"),
   variant = "outline",
   size = "sm",
   className,

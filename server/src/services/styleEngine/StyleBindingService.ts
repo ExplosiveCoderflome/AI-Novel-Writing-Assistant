@@ -130,6 +130,27 @@ export class StyleBindingService {
   }): Promise<ResolvedStyleContext> {
     await ensureStyleEngineSeedData();
 
+    const activePatches = await prisma.stylePatch.findMany({
+      where: {
+        novelId: input.novelId,
+        enabled: true,
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    const applyPatches = (blocks: any) => {
+      if (!blocks || activePatches.length === 0) return;
+      const patchLines = activePatches.map(
+        (p) => `- Style Patch [${p.ruleKey}] (Violations: ${p.violationCount}): ${p.promptInstruction}`
+      );
+      const patchText = "\n\nRuntime Style Correction Patches:\n" + patchLines.join("\n");
+      blocks.antiAi += patchText;
+      if (blocks.contract?.antiAi) {
+        blocks.contract.antiAi.lines.push(...patchLines);
+        blocks.contract.antiAi.text += patchText;
+      }
+    };
+
     const bindings = await prisma.styleBinding.findMany({
       where: {
         enabled: true,
@@ -236,6 +257,8 @@ export class StyleBindingService {
         styleAntiAiRuleIds: [],
       });
 
+      applyPatches(compiledBlocks);
+
       return sanitizeStyleContextForGeneration({
         matchedBindings: [],
         compiledBlocks,
@@ -320,6 +343,8 @@ export class StyleBindingService {
       globalAntiAiRuleIds: baselineRules.map((rule) => rule.id),
       styleAntiAiRuleIds: styleSpecificRules.map((rule) => rule.id),
     });
+
+    applyPatches(compiledBlocks);
 
     return sanitizeStyleContextForGeneration({
       matchedBindings: sortMatchedBindings(matchedBindings),

@@ -1,3 +1,5 @@
+import i18next from "i18next";
+const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
 import type {
   BookAnalysisCharacter,
@@ -229,10 +231,10 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle>角色档案</CardTitle>
+          <CardTitle>{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_90154762")}</CardTitle>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{generatedCharacters.length} 份档案</Badge>
-            {candidateCharacters.length > 0 ? <Badge variant="secondary">{candidateCharacters.length} 个候选</Badge> : null}
+            <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_6c68ddc0")}</Badge>
+            {candidateCharacters.length > 0 ? <Badge variant="secondary">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_2209d75c")}</Badge> : null}
           </div>
         </div>
       </CardHeader>
@@ -253,7 +255,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
           <div className="space-y-3 rounded-md border p-3">
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" onClick={() => void onIdentify()} disabled={identifyDisabled}>
-                {pending.identify ? "识别中..." : characters.length > 0 ? "再识别角色" : "识别角色"}
+                {pending.identify ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_c5437f5f") : characters.length > 0 ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_0c223f86") : t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_86de9a2c")}
               </Button>
               {candidateCharacters.length > 0 ? (
                 <Button
@@ -262,7 +264,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                   disabled={generateAllDisabled}
                   title={batchButtonTitle}
                 >
-                  {pending.generateAll ? "生成中..." : `全部生成 (${pendingCandidateCount})`}
+                  {pending.generateAll ? t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_4d020ba3") : `全部生成 (${pendingCandidateCount})`}
                 </Button>
               ) : null}
               <SelectControl
@@ -271,10 +273,10 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                 onChange={(event) => setGenerationDepth(event.target.value as BookAnalysisCharacterGenerationDepth)}
                 disabled={disabled || operationPending}
               >
-                <option value="brief">简要</option>
-                <option value="standard">标准</option>
-                <option value="deep">深入</option>
-                <option value="exhaustive">完整</option>
+                <option value="brief">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_2b53097b")}</option>
+                <option value="standard">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_544fac40")}</option>
+                <option value="deep">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_618d64f8")}</option>
+                <option value="exhaustive">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_63c59813")}</option>
               </SelectControl>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -296,20 +298,20 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
             <Input
               value={manualName}
               onChange={(event) => setManualName(event.target.value)}
-              placeholder="角色名"
+              placeholder={t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_577c73c2")}
               disabled={disabled || pending.create}
             />
             <Input
               value={manualRole}
               onChange={(event) => setManualRole(event.target.value)}
-              placeholder="角色定位"
+              placeholder={t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_22cffcec")}
               disabled={disabled || pending.create}
             />
             <textarea
               className="min-h-[72px] w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={manualPersonality}
               onChange={(event) => setManualPersonality(event.target.value)}
-              placeholder="性格或关键表现"
+              placeholder={t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_339e6277")}
               disabled={disabled || pending.create}
             />
             <Button size="sm" variant="outline" onClick={() => void handleCreate()} disabled={createDisabled}>
@@ -348,7 +350,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
         ) : null}
 
         {isLoading ? (
-          <div className="text-sm text-muted-foreground">正在读取角色档案。</div>
+          <div className="text-sm text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_ec184058")}</div>
         ) : null}
 
         {!isLoading && candidateCharacters.length > 0 ? (
@@ -359,12 +361,12 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
               onClick={() => setCandidateExpanded((current) => !current)}
             >
               <div>
-                <div className="text-sm font-medium">待生成角色</div>
+                <div className="text-sm font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_cc06e06c")}</div>
                 <div className="mt-1 text-xs text-muted-foreground">
                   {candidateCharacters.length} 个候选，可按需生成深度档案。
                 </div>
               </div>
-              <Badge variant="outline">{candidateExpanded ? "收起" : "展开"}</Badge>
+              <Badge variant="outline">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_1a5c3564")}</Badge>
             </button>
             {candidateExpanded ? (
               <div className="grid gap-3 border-t p-3 xl:grid-cols-2">
@@ -466,12 +468,12 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                     </div>
                     {character.arcs.length > 0 ? (
                       <div className="mt-3 space-y-2">
-                        <div className="font-medium">弧线节点</div>
+                        <div className="font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_7a929c32")}</div>
                         {character.arcs.map((arc) => (
                           <div key={arc.id} className="rounded-md border bg-background p-2">
                             <div>{arc.stageLabel}</div>
                             {arc.chapterIndex !== null && arc.chapterIndex !== undefined ? (
-                              <div className="mt-1 text-xs text-muted-foreground">第 {arc.chapterIndex + 1} 章</div>
+                              <div className="mt-1 text-xs text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_2e1a684a")}</div>
                             ) : null}
                           </div>
                         ))}
@@ -479,7 +481,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                     ) : null}
                     {character.scenes.length > 0 ? (
                       <div className="mt-3 space-y-2">
-                        <div className="font-medium">场景表现</div>
+                        <div className="font-medium">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_7da599e8")}</div>
                         {character.scenes.map((scene) => (
                           <div key={scene.id} className="rounded-md border bg-background p-2">
                             <div>{scene.sceneLabel}</div>
@@ -508,7 +510,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
         </div>
 
         {!isLoading && characters.length === 0 ? (
-          <div className="text-sm text-muted-foreground">可先识别角色候选，再选择需要深挖的角色生成档案。</div>
+          <div className="text-sm text-muted-foreground">{t("gen.pages.bookAnalysis.components.BookAnalysisCharacterPanel.gen_b90ce47e")}</div>
         ) : null}
       </CardContent>
     </Card>
