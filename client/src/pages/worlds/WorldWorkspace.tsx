@@ -486,6 +486,7 @@ export default function WorldWorkspace() {
 
         <TabsContent value="deepening">
           <WorldDeepeningTab
+            worldId={id}
             questions={visibleDeepeningQuestions}
             answerDrafts={answerDrafts}
             setAnswerDrafts={setAnswerDrafts}
