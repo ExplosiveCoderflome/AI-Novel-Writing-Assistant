@@ -148,7 +148,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
           disabled={genreLoading || genreOptions.length === 0}
           onChange={(event) => onGenreChange(event.target.value)}
         >
-          <option value="">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.genreLoadingText")}</option>
+          <option value="">{genreLoading ? "正在加载题材基底..." : "请选择题材基底"}</option>
           {genreOptions.map((genre) => (
             <option key={genre.id} value={genre.id}>
               {genre.path}
@@ -157,10 +157,10 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
         </SelectControl>
         {selectedGenre ? (
           <div className="rounded-md border p-3 text-xs text-muted-foreground space-y-1">
-            <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_5f4ffa69")}</div>
-            {selectedGenre.description?.trim() ? <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_dbbeaadd")}</div> : null}
+            <div>当前题材基底路径：{selectedGenre.path}</div>
+            {selectedGenre.description?.trim() ? <div>题材基底说明：{selectedGenre.description.trim()}</div> : null}
             {selectedGenre.template?.trim() ? (
-              <div className="whitespace-pre-wrap">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_b0221764")}</div>
+              <div className="whitespace-pre-wrap">题材基底模板：{selectedGenre.template.trim()}</div>
             ) : null}
           </div>
         ) : null}
@@ -321,7 +321,7 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
       {analyzeStreaming ? (
         <div className="rounded-md border p-3 text-sm space-y-1">
           <div className="font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_75ea7b29")}</div>
-          <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_analyzePro_dsqa")}</div>
+          <div>{analyzeProgressMessage ?? "正在启动分析..."}</div>
           <div className="text-xs text-muted-foreground">
             {isReferenceMode
               ? t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_fbd39c55")
@@ -338,11 +338,11 @@ export default function WorldGeneratorStepOne(props: WorldGeneratorStepOneProps)
 
       {concept ? (
         <div className="rounded-md border p-3 text-sm space-y-2">
-          <div className="font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.referenceType")}</div>
-          <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_92f79e03")}</div>
-          <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_a379c3ce")}</div>
-          <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_f7f6cfee")}</div>
-          <div>{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_b8f334d9")}</div>
+          <div className="font-medium">{isReferenceMode ? "参考分析摘要" : "概念卡"}</div>
+          <div>类型：{concept.worldType}</div>
+          <div>基调：{concept.tone}</div>
+          <div>关键词：{concept.keywords.join(" / ") || "-"}</div>
+          <div>前置属性选项：{propertyOptionsCount}</div>
           {isReferenceMode && referenceAnchors.length > 0 ? (
             <div className="space-y-1">
               <div className="text-xs font-medium text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepOne.gen_81c19e9b")}</div>

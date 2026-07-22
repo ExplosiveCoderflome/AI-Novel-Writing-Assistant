@@ -81,7 +81,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                     onClick={() => setActiveQuestionId(question.id)}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-foreground">{t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_b23b540c")}</span>
+                      <span className="font-medium text-foreground">问题 {index + 1}</span>
                       <span className={answered ? "text-xs text-primary" : "text-xs text-muted-foreground"}>
                         {answered ? t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_8ce34e40") : t("gen.pages.worlds.components.workspace.WorldDeepeningTab.gen_94f1ce1b")}
                       </span>

@@ -50,7 +50,7 @@ export default function WorldHandbookLocationSection(props: {
         {draftStructure.locations.map((location: WorldLocation, index) => (
           <div key={location.id || index} className="rounded-md border bg-muted/20 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm font-medium">{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookLocationSection.gen_8ad26930")}</div>
+              <div className="text-sm font-medium">地点 {index + 1}</div>
               <Button
                 type="button"
                 size="sm"

@@ -56,7 +56,7 @@ export default function WorldHandbookForceSection(props: {
         {draftStructure.forces.map((force: WorldForce, index) => (
           <div key={force.id || index} className="rounded-md border bg-muted/20 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm font-medium">{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookForceSection.gen_467a3d1a")}</div>
+              <div className="text-sm font-medium">势力 {index + 1}</div>
               <Button
                 type="button"
                 size="sm"

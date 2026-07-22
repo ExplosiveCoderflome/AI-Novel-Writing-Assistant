@@ -24,7 +24,7 @@ export function SectionHeader({
         </div>
         <div className="mt-1 text-sm leading-6 text-muted-foreground">{description}</div>
       </div>
-      {typeof count === "number" ? <Badge variant="secondary">{t("gen.pages.worlds.components.workspace.handbook.HandbookPrimitives.itemCount")}</Badge> : null}
+      {typeof count === "number" ? <Badge variant="secondary">{count} 条</Badge> : null}
     </div>
   );
 }

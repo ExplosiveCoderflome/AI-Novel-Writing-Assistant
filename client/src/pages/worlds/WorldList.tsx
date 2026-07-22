@@ -328,7 +328,7 @@ export default function WorldList() {
                     <div className="space-y-1 rounded-md border-l-2 border-primary bg-muted/30 px-3 py-2 text-sm leading-6">
                       {preview.identity ? <div className="line-clamp-2 text-foreground">{preview.identity}</div> : null}
                       {preview.coreConflict ? (
-                        <div className="line-clamp-2 text-muted-foreground">{t("gen.pages.worlds.WorldList.gen_a5579b77")}</div>
+                        <div className="line-clamp-2 text-muted-foreground">关键张力：{preview.coreConflict}</div>
                       ) : null}
                     </div>
                   ) : null}

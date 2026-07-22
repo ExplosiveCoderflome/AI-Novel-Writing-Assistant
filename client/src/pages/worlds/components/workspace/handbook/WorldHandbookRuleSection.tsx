@@ -61,7 +61,7 @@ export default function WorldHandbookRuleSection(props: {
           {draftStructure.rules.axioms.map((rule: WorldRule, index) => (
             <div key={rule.id || index} className="rounded-md border bg-muted/20 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm font-medium">{t("gen.pages.worlds.components.workspace.handbook.WorldHandbookRuleSection.gen_8f26801b")}</div>
+                <div className="text-sm font-medium">规则 {index + 1}</div>
                 <Button
                   type="button"
                   size="sm"

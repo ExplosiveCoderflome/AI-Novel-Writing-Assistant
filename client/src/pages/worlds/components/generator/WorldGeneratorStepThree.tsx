@@ -55,7 +55,7 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           </div>
           <div className="rounded border p-2 text-xs">
             <div className="text-muted-foreground">{t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_2d4c60c3")}</div>
-            <div className="mt-1 font-medium">{t("gen.pages.worlds.components.generator.WorldGeneratorStepThree.gen_skeletonas_fbxw")}</div>
+            <div className="mt-1 font-medium">{skeleton.assessment.readyForNovelUse ? "可以进入世界手册" : "建议先补齐缺口"}</div>
           </div>
         </div>
       </div>
