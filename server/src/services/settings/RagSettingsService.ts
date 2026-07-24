@@ -1,3 +1,4 @@
+import type { BuiltinLLMProvider } from "@ai-novel/shared/types/llm";
 import { prisma } from "../../db/prisma";
 import { ragConfig, asEmbeddingProvider, type EmbeddingProvider } from "../../config/rag";
 import {
@@ -74,6 +75,12 @@ export interface SaveRagEmbeddingSettingsResult {
   modelChanged: boolean;
   providerChanged: boolean;
   shouldReindex: boolean;
+}
+
+const NON_EMBEDDING_BUILT_IN_PROVIDERS = new Set<BuiltinLLMProvider>(["atlascloud"]);
+
+export function getBuiltInRagEmbeddingProviders(): BuiltinLLMProvider[] {
+  return SUPPORTED_PROVIDERS.filter((provider) => !NON_EMBEDDING_BUILT_IN_PROVIDERS.has(provider));
 }
 
 function normalizeEmbeddingModel(value: string | undefined, provider: EmbeddingProvider = ragConfig.embeddingProvider): string {
@@ -394,7 +401,7 @@ export async function saveRagEmbeddingSettings(input: RagEmbeddingSettingsInput)
 }
 
 export async function getRagEmbeddingProviders(): Promise<RagEmbeddingProviderStatus[]> {
-  const builtInProviders = [...SUPPORTED_PROVIDERS];
+  const builtInProviders = getBuiltInRagEmbeddingProviders();
   try {
     const items = await prisma.aPIKey.findMany({
       select: {
