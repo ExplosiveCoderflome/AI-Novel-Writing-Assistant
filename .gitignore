@@ -51,3 +51,8 @@ server/dev.db.backup_e2e_clean
 server/dev.db.task_backup
 server/scripts/clean-and-create-fresh-db.js
 server/scripts/reset-and-seed-db.js
+
+# Local service PID and scan temp outputs
+.services.pid
+chinese_scan_results.json
+raw_chinese_strings.json
