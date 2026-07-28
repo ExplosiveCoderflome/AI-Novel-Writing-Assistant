@@ -246,17 +246,6 @@ export default function AutoDirectorCreatePage() {
         <StageModelRun
           basicForm={controller.directorBasicForm}
           onBasicFormChange={controller.onBasicFormChange}
-          runMode={controller.runMode}
-          runModeOptions={controller.runModeOptions}
-          onRunModeChange={controller.setRunMode}
-          autoExecutionDraft={controller.autoExecutionDraft}
-          onAutoExecutionDraftChange={(patch) => controller.setAutoExecutionDraft((prev) => ({ ...prev, ...patch }))}
-          autoApprovalEnabled={controller.autoApprovalDraft.enabled}
-          autoApprovalCodes={controller.autoApprovalDraft.codes}
-          autoApprovalGroups={controller.autoApprovalDraft.groups}
-          autoApprovalPoints={controller.autoApprovalDraft.points}
-          onAutoApprovalEnabledChange={controller.autoApprovalDraft.setEnabled}
-          onAutoApprovalCodesChange={controller.autoApprovalDraft.setCodes}
           canGenerate={controller.canGenerate}
           isGenerating={controller.generateMutation.isPending}
           onBack={() => setActiveStage("world_style")}
@@ -281,7 +270,7 @@ export default function AutoDirectorCreatePage() {
           <div>
             <div className="text-2xl font-semibold tracking-normal text-foreground">AI 自动导演创建</div>
             <div className="mt-1 text-sm leading-6 text-muted-foreground">
-              从一个起始想法开始，逐步确认默认设置，再选择整本书方向。
+              从一个起始想法开始，AI 完成整本规划准备后，再由你选择正文生产方式。
             </div>
           </div>
           <Button type="button" variant="outline" asChild>

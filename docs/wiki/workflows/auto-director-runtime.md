@@ -40,6 +40,8 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 
 新书与已有项目接管的前期导演任务统一使用 `auto_to_ready`。`auto_to_execution` 和 `full_book_autopilot` 只允许在 `production_experience_required` 交接后，由生产方式命令写入原任务；它们不能作为启动参数绕过正文生产交接。只有用户显式选择 `stage_review`，或在任务检查点点击确认并继续，才使用单步骤暂停策略。
 
+`auto_to_ready` 的目标是连续抵达生产方式交接。角色准备、分卷策略、卷骨架、节奏拆章和章节执行资源同步中的普通系统规划重算，应以安全范围策略自动通过；这些步骤不能写入无 checkpoint 的 `waiting_approval` 抢占最终交接。若步骤会覆盖 `protectedUserContent`，或命中数据完整性、正文保护、模型服务和运行时安全风险，仍必须暂停。
+
 - API route 不直接 `await` 自动导演长任务、章节生成、卷拆章、质量修复或 LLM 生产链路。
 - 高优先级硬约束：自动导演不是第二套章节生成系统。控制面可以有导演专属 command、projection 和审批策略，但正文生成与正文修复的业务执行链必须与手动单章和批量执行共用同一套 runtime。
 - 继续、恢复、重试、接管、审批、取消等用户动作先转为 command，不各自维护独立业务流程。
@@ -124,6 +126,7 @@ Web API 只接收命令和返回轻量投影；Worker 负责执行重型生产�
 - 服务重启后假 running：检查租约过期、active step、command 状态和产物断点是否统一投影。
 - 重复点击继续产生多条执行链：检查 command 幂等键和 active command 复用。
 - 到达可开写后直接进入工作台或开始生成正文：检查最终规划阶段是否仍写 `chapter_batch_ready`，或新书 / 接管启动参数是否保留了旧自动执行模式。正确状态必须先停在 `production_experience_required`。
+- `auto_to_ready` 停在“等待确认分卷策略”且没有 checkpoint：检查运行策略是否把普通 `downstream_recompute` 当成人工审批。前期规划门应自动使用安全范围授权，用户保护内容仍由 policy gate 拦截。
 
 不能用前端禁用按钮或降低轮询频率掩盖执行面阻塞。
 

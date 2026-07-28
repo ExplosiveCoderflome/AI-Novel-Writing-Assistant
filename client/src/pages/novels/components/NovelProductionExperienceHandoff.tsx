@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, BookOpen, Loader2, Settings2, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, Check, Loader2, Settings2, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { selectNovelProductionExperience } from "@/api/novelWorkflow";
 import { Button } from "@/components/ui/button";
@@ -40,41 +40,60 @@ export default function NovelProductionExperienceHandoff({
   });
 
   return (
-    <section className="mx-auto max-w-5xl space-y-6 px-3 py-5 sm:px-4 lg:px-0">
-      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 sm:p-6">
-        <div className="flex items-center gap-2 text-sm font-medium text-primary">
-          <BookOpen className="h-4 w-4" />
-          自动导演已完成正文生产前的准备
+    <section className="mx-auto max-w-5xl space-y-5 px-3 py-6 sm:px-4 lg:px-0">
+      <div className="relative overflow-hidden rounded-3xl bg-foreground px-6 py-7 text-background shadow-[0_30px_80px_-50px_hsl(var(--foreground))] sm:px-8 sm:py-9">
+        <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
+        <div className="relative">
+          <div className="flex items-center gap-2 text-sm font-medium text-background/70">
+            <BookOpen className="h-4 w-4" />
+            开写前准备完成
+          </div>
+          <h1 className="mt-4 max-w-3xl text-2xl font-semibold tracking-tight sm:text-3xl">
+            选择《{novelTitle?.trim() || "这本小说"}》的正文生产方式
+          </h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-background/70">
+            故事方向、角色和卷章安排准备完毕。接下来可以让 AI 持续写完整本书，也可以进入完整工作台亲自控制。
+          </p>
         </div>
-        <h1 className="mt-3 text-2xl font-semibold text-foreground">
-          选择《{novelTitle?.trim() || "这本小说"}》的生产方式
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-          故事方向、角色和卷章安排准备完成。选择简易创作让 AI 自动完成整本书；选择专业创作则进入完整工作台亲自检查和调整。
-        </p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <article className="flex flex-col rounded-2xl border border-primary/30 bg-background p-6 shadow-sm">
+        <article className="flex flex-col rounded-3xl border border-primary/30 bg-background p-6 shadow-[0_24px_65px_-50px_hsl(var(--primary))] ring-1 ring-primary/10 sm:p-7">
           <div className="flex items-center justify-between gap-3">
-            <Sparkles className="h-6 w-6 text-primary" />
+            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+              <Sparkles className="h-5 w-5" />
+            </span>
             <span className="rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground">推荐新手</span>
           </div>
           <h2 className="mt-5 text-xl font-semibold text-foreground">简易创作</h2>
-          <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">
-            AI 自动完成后续章节写作、审校、修复和必要的重规划。你只需在只读章节书架中查看进度和阅读完成稿。
-          </p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">AI 接管正文生产，你只需关注章节进度和完成稿。</p>
+          <ul className="mt-5 flex-1 space-y-3 text-sm text-foreground">
+            {["持续写完整本书", "自动审校、修复与必要重规划", "进入只读章节书架"].map((item) => (
+              <li key={item} className="flex items-center gap-2.5">
+                <Check className="h-4 w-4 shrink-0 text-primary" />
+                {item}
+              </li>
+            ))}
+          </ul>
           <Button type="button" className="mt-6 w-full justify-between" disabled={mutation.isPending} onClick={() => mutation.mutate("simple")}>
             {mutation.isPending && mutation.variables === "simple" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             让 AI 写完整本书
             <ArrowRight className="h-4 w-4" />
           </Button>
         </article>
-        <article className="flex flex-col rounded-2xl border border-border bg-background p-6">
-          <Settings2 className="h-6 w-6 text-muted-foreground" />
+        <article className="flex flex-col rounded-3xl border border-border/80 bg-background p-6 sm:p-7">
+          <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+            <Settings2 className="h-5 w-5" />
+          </span>
           <h2 className="mt-5 text-xl font-semibold text-foreground">专业创作</h2>
-          <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">
-            打开完整工作台，查看和修改世界、角色、卷章规划与章节正文，并自行决定章节生产范围。
-          </p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">保留完整控制权，检查规划后自行安排正文生产。</p>
+          <ul className="mt-5 flex-1 space-y-3 text-sm text-foreground">
+            {["查看并调整全部创作资产", "自由修改卷章规划与正文", "自行决定章节生产范围"].map((item) => (
+              <li key={item} className="flex items-center gap-2.5">
+                <Check className="h-4 w-4 shrink-0 text-muted-foreground" />
+                {item}
+              </li>
+            ))}
+          </ul>
           <Button type="button" variant="outline" className="mt-6 w-full justify-between" disabled={mutation.isPending} onClick={() => mutation.mutate("professional")}>
             {mutation.isPending && mutation.variables === "professional" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Settings2 className="h-4 w-4" />}
             进入完整工作台
