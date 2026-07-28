@@ -119,7 +119,7 @@ export const desktopBootstrapStore = new SnapshotStore<DesktopBootstrapSnapshot>
 export const desktopUpdaterStore = new SnapshotStore<DesktopUpdaterSnapshot>(
   createUpdaterSnapshot({
     status: "disabled",
-    message: "Updates are unavailable until the installed desktop build finishes booting.",
+    message: "桌面版启动完成后即可检查更新。",
     currentVersion: "0.0.0",
     availableVersion: null,
     progressPercent: null,
