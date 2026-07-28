@@ -47,6 +47,7 @@ export type {
 export type NovelStatus = "draft" | "published";
 export type NovelWritingMode = "original" | "continuation";
 export type ProjectMode = "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
+export type CreationExperience = "simple" | "professional";
 export type NarrativePov = "first_person" | "third_person" | "mixed";
 export type PacePreference = "slow" | "balanced" | "fast";
 export type EmotionIntensity = "low" | "medium" | "high";
@@ -154,6 +155,7 @@ export interface Novel {
   status: NovelStatus;
   writingMode: NovelWritingMode;
   projectMode?: ProjectMode | null;
+  creationExperience: CreationExperience;
   narrativePov?: NarrativePov | null;
   pacePreference?: PacePreference | null;
   styleTone?: string | null;

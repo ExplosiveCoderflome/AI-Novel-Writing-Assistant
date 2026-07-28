@@ -46,6 +46,7 @@ const createNovelSchema = z.object({
   continuationBookAnalysisId: z.string().trim().optional(),
   continuationBookAnalysisSections: z.array(bookAnalysisSectionKeySchema).min(1).max(8).optional(),
   projectMode: z.enum(["ai_led", "co_pilot", "draft_mode", "auto_pipeline"]).optional(),
+  creationExperience: z.enum(["simple", "professional"]).optional(),
   narrativePov: z.enum(["first_person", "third_person", "mixed"]).optional(),
   pacePreference: z.enum(["slow", "balanced", "fast"]).optional(),
   styleTone: z.string().trim().optional(),
@@ -258,6 +259,34 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
           success: true,
           data,
           message: "更新小说成功。",
+        } satisfies ApiResponse<typeof data>);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  router.post(
+    "/:id/creation-experience/professional",
+    validate({ params: idParamsSchema }),
+    async (req, res, next) => {
+      try {
+        const { id } = req.params as z.infer<typeof idParamsSchema>;
+        const current = await novelService.getNovelById(id);
+        if (!current) {
+          res.status(404).json({
+            success: false,
+            error: "小说不存在。",
+          } satisfies ApiResponse<null>);
+          return;
+        }
+        const data = current.creationExperience === "professional"
+          ? current
+          : await novelService.updateNovel(id, { creationExperience: "professional" });
+        res.status(200).json({
+          success: true,
+          data,
+          message: "已转为专业创作，可使用完整编辑工作台。",
         } satisfies ApiResponse<typeof data>);
       } catch (error) {
         next(error);
