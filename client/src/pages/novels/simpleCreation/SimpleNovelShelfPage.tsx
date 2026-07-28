@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import SimpleCreationMaterialsPanel from "./SimpleCreationMaterialsPanel";
+import OnboardingTip from "@/components/onboarding/OnboardingTip";
 
 const STATUS_LABELS: Record<SimpleCreationShelfChapterStatus, string> = {
   waiting_planning: "等待规划",
@@ -155,6 +156,13 @@ export default function SimpleNovelShelfPage() {
           </div>
         ) : null}
       </header>
+
+      <OnboardingTip
+        storageKey="simple-creation-shelf"
+        title="只阅读已完成的稳定正文"
+        description="生成中的章节会经历写作、审校和修复，完成前不会提前展示。你可以离开页面，后台任务仍会继续。"
+        next="第一章完成后，书架会自动突出最新成稿。"
+      />
 
       <SimpleCreationMaterialsPanel materials={shelf.materials} />
 

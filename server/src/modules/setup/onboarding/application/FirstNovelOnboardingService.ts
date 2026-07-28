@@ -171,7 +171,7 @@ export async function getFirstNovelOnboardingProjection(): Promise<FirstNovelOnb
         ? latestTask.lastError ?? "查看安全暂停原因，处理后即可继续。"
         : latestTask.currentItemLabel ?? "正文完成并通过审校后，就会开放阅读。";
       reason = isAttention
-        ? "恢复当前任务不会丢失已经保存的规划和正文。"
+        ? "从当前检查点恢复会保留已保存的规划和正文。"
         : "正在生成的正文不会提前展示，避免你读到尚未稳定的版本。";
       primaryAction = {
         label: isAttention ? "查看并恢复" : "查看章节书架",
@@ -198,7 +198,7 @@ export async function getFirstNovelOnboardingProjection(): Promise<FirstNovelOnb
   } else if (setup.readyForCreation && novel) {
     currentMilestone = "first_chapter";
     headline = "继续完成第一章";
-    description = "项目已经建立，进入工作台继续准备或生成首章正文。";
+    description = "项目可继续推进，进入工作台准备或生成首章正文。";
     reason = "第一章成稿后，你就跑通了从灵感到正文的完整链路。";
     primaryAction = {
       label: novel.creationExperience === "simple" ? "打开章节书架" : "继续当前项目",
@@ -210,8 +210,8 @@ export async function getFirstNovelOnboardingProjection(): Promise<FirstNovelOnb
   const graduated = Boolean(firstReadableChapter);
   if (graduated && firstReadableChapter) {
     currentMilestone = "first_chapter";
-    headline = "第一章已经可以阅读";
-    description = `《${firstReadableChapter.title}》已完成，你已经跑通从灵感到成稿的完整流程。`;
+    headline = "第一章可以阅读";
+    description = `《${firstReadableChapter.title}》形成可读成稿，从灵感到正文的完整流程顺利跑通。`;
     reason = "接下来可以继续观察整书生产，或进入工作台完善后续内容。";
     primaryAction = {
       label: "阅读第一章",
@@ -263,7 +263,7 @@ export async function getFirstNovelOnboardingProjection(): Promise<FirstNovelOnb
       {
         key: "style",
         title: "写法引擎",
-        description: "有明确文风样本后再提取写法，第一章之前无需配置。",
+        description: "有明确文风样本后再提取写法，首章创作无需等待这项配置。",
         route: "/style-engine",
       },
       {

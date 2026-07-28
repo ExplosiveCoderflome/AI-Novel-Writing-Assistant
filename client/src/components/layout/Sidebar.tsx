@@ -53,7 +53,7 @@ const navGroups: NavGroup[] = [
     title: "创作",
     items: [
       { to: "/", label: "首页", icon: House },
-      { to: "/help", label: "新手上路", icon: CircleHelp },
+      { to: "/help", label: "创作向导", icon: CircleHelp },
       { to: "/novels", label: "小说列表", icon: BookOpenText },
       { to: "/drama", label: "短剧工作台", icon: MonitorPlay, disabled: true },
       { to: "/comic", label: "漫画工作台", icon: SquareStack },

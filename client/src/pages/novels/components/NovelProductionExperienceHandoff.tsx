@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { selectNovelProductionExperience } from "@/api/novelWorkflow";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import OnboardingTip from "@/components/onboarding/OnboardingTip";
+import { queryKeys } from "@/api/queryKeys";
 
 interface NovelProductionExperienceHandoffProps {
   taskId: string;
@@ -30,6 +32,7 @@ export default function NovelProductionExperienceHandoff({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
         queryClient.invalidateQueries({ queryKey: ["novels", novelId] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.onboarding.firstNovel }),
       ]);
       toast.success(response.experience === "simple"
         ? "简易创作已启动，AI 会继续完成整本书。"
@@ -41,6 +44,11 @@ export default function NovelProductionExperienceHandoff({
 
   return (
     <section className="mx-auto max-w-5xl space-y-5 px-3 py-6 sm:px-4 lg:px-0">
+      <OnboardingTip
+        storageKey="production-experience-handoff"
+        title="这是正文开始前唯一一次生产方式选择"
+        description="新手推荐简易创作：AI 会持续写作、审校和修复，你只看稳定的完成稿。需要亲自修改时再选专业创作。"
+      />
       <div className="relative overflow-hidden rounded-3xl bg-foreground px-6 py-7 text-background shadow-[0_30px_80px_-50px_hsl(var(--foreground))] sm:px-8 sm:py-9">
         <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/25 blur-3xl" />
         <div className="relative">

@@ -177,3 +177,53 @@ test("first novel onboarding graduates only when a readable completed chapter ex
     quickSetup.getQuickSetupStatus = quickStatusOriginal;
   }
 });
+
+test("first novel onboarding exposes production handoff as the single next action", async () => {
+  const chapterOriginal = prisma.chapter.findFirst;
+  const taskOriginal = prisma.novelWorkflowTask.findFirst;
+  const novelOriginal = prisma.novel.findFirst;
+  const quickStatusOriginal = quickSetup.getQuickSetupStatus;
+
+  quickSetup.getQuickSetupStatus = async () => ({
+    readyForCreation: true,
+    providers: [],
+    selectedProvider: "deepseek",
+    selectedModel: "deepseek-chat",
+    routeCoverage: { configured: 11, total: 11, missingTaskTypes: [] },
+    blockingReasons: [],
+    recommendedAction: "start_creating",
+  });
+  prisma.chapter.findFirst = async () => null;
+  prisma.novelWorkflowTask.findFirst = async () => ({
+    id: "task-handoff",
+    novelId: "novel-handoff",
+    status: "waiting_approval",
+    checkpointType: "production_experience_required",
+    currentStage: "structured_outline",
+    currentItemLabel: "等待选择生产方式",
+    lastError: null,
+    novel: {
+      id: "novel-handoff",
+      title: "新手的第一本书",
+      creationExperience: "professional",
+    },
+  });
+  prisma.novel.findFirst = async () => null;
+
+  try {
+    const projection = await firstNovel.getFirstNovelOnboardingProjection();
+    assert.equal(projection.graduated, false);
+    assert.equal(projection.currentMilestone, "production_choice");
+    assert.equal(projection.primaryAction.label, "选择生产方式");
+    assert.match(projection.primaryAction.route, /directorTaskId=task-handoff/);
+    assert.equal(
+      projection.milestones.find((milestone) => milestone.key === "production_choice").status,
+      "current",
+    );
+  } finally {
+    prisma.chapter.findFirst = chapterOriginal;
+    prisma.novelWorkflowTask.findFirst = taskOriginal;
+    prisma.novel.findFirst = novelOriginal;
+    quickSetup.getQuickSetupStatus = quickStatusOriginal;
+  }
+});

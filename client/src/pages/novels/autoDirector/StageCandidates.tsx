@@ -3,6 +3,7 @@ import NovelAutoDirectorProgressPanel from "../components/NovelAutoDirectorProgr
 import { Button } from "@/components/ui/button";
 import type { useAutoDirectorCreateController } from "./useAutoDirectorCreateController";
 import NovelProductionExperienceHandoff from "../components/NovelProductionExperienceHandoff";
+import OnboardingTip from "@/components/onboarding/OnboardingTip";
 
 type AutoDirectorCreateController = ReturnType<typeof useAutoDirectorCreateController>;
 
@@ -48,6 +49,12 @@ export default function StageCandidates({
 
   return (
     <section className="space-y-5">
+      <OnboardingTip
+        storageKey="auto-director-candidates"
+        title="这里只需要判断哪本书更想读"
+        description="重点比较主角欲望、核心冲突和持续爽点；标题与局部设定以后仍可调整。"
+        next="确认后，AI 会继续准备角色、世界和卷章资源。"
+      />
       <div className="flex flex-col gap-4 pb-1 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="break-words text-2xl font-semibold leading-9 text-foreground [overflow-wrap:anywhere]">方向候选</div>

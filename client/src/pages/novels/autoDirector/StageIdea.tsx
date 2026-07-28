@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import NovelAutoDirectorIdeaInspirationPanel from "../components/NovelAutoDirectorIdeaInspirationPanel";
+import OnboardingTip from "@/components/onboarding/OnboardingTip";
 
 interface StageIdeaProps {
   idea: string;
@@ -93,6 +94,15 @@ export default function StageIdea({
           写下你想看的故事，AI 会先帮你整理成可选择的整本书方向。
         </p>
       </motion.div>
+
+      <div className="mt-6 w-full">
+        <OnboardingTip
+          storageKey="auto-director-idea"
+          title="一句话不需要写成完整大纲"
+          description="写清主角、处境或最想看的冲突即可。题材、卖点和长篇推进方式会由 AI 在下一步整理。"
+          next="AI 生成两套差异明确的整书方向。"
+        />
+      </div>
 
       <motion.div
         initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}

@@ -1,5 +1,6 @@
 import { Check, Circle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import OnboardingTip from "@/components/onboarding/OnboardingTip";
 
 export type DirectorPreparationStepStatus = "pending" | "running" | "completed" | "failed";
 
@@ -48,6 +49,12 @@ export default function NovelDirectorPreparationJourney({
 }: NovelDirectorPreparationJourneyProps) {
   return (
     <div className="space-y-4">
+      <OnboardingTip
+        storageKey="director-preparation"
+        title="这段准备不需要逐项审核"
+        description="AI 会把已完成的故事方向转成角色、卷战略、节奏和章节执行资源；页面上的成果可以随时展开查看。"
+        next="所有开写资源准备好后，再选择简易创作或专业创作。"
+      />
       <section className="rounded-2xl border border-border/70 bg-background px-4 py-5 shadow-[0_18px_45px_-38px_hsl(var(--foreground)/0.45)] sm:px-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
