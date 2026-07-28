@@ -23,6 +23,7 @@ export interface CreateNovelInput {
   worldId?: string;
   writingMode?: "original" | "continuation";
   projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
+  creationExperience?: "simple" | "professional";
   narrativePov?: "first_person" | "third_person" | "mixed";
   pacePreference?: "slow" | "balanced" | "fast";
   styleTone?: string;
@@ -52,6 +53,7 @@ export interface UpdateNovelInput {
   status?: "draft" | "published";
   writingMode?: "original" | "continuation";
   projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline" | null;
+  creationExperience?: "professional";
   narrativePov?: "first_person" | "third_person" | "mixed" | null;
   pacePreference?: "slow" | "balanced" | "fast" | null;
   styleTone?: string | null;

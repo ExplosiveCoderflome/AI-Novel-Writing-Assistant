@@ -47,16 +47,16 @@ function modeLabel(mode: AITakeoverMode): string {
 function shellClass(mode: AITakeoverMode): string {
   switch (mode) {
     case "loading":
-      return "bg-slate-50/80";
+      return "border-slate-200/80 bg-gradient-to-br from-background via-background to-slate-50/70";
     case "failed":
-      return "bg-destructive/5";
+      return "border-destructive/20 bg-gradient-to-br from-background via-background to-destructive/5";
     case "action_required":
-      return "bg-orange-50/80";
+      return "border-orange-200/70 bg-gradient-to-br from-background via-background to-orange-50/70";
     case "waiting":
-      return "bg-amber-50/80";
+      return "border-amber-200/70 bg-gradient-to-br from-background via-background to-amber-50/70";
     case "running":
     default:
-      return "bg-sky-50/80";
+      return "border-sky-200/70 bg-gradient-to-br from-background via-background to-sky-50/65";
   }
 }
 
@@ -131,15 +131,17 @@ export default function AITakeoverContainer({
 
   return (
     <div className="space-y-4">
-      <div className={cn("rounded-2xl px-4 py-3", shellClass(mode))}>
+      <div className={cn(
+        "rounded-2xl border px-5 py-5 shadow-[0_22px_55px_-42px_hsl(var(--foreground)/0.55)] sm:px-6",
+        shellClass(mode),
+      )}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="text-sm font-semibold text-foreground">{title}</div>
+            <div className="text-lg font-semibold tracking-tight text-foreground">{title}</div>
             <Badge variant={badgeVariant(mode)}>{modeLabel(mode)}</Badge>
-            {taskId ? <Badge variant="outline">任务 #{taskId.slice(0, 8)}</Badge> : null}
           </div>
-          <div className="text-sm text-muted-foreground">{description}</div>
+          <div className="max-w-3xl text-sm leading-6 text-muted-foreground">{description}</div>
         </div>
         {actions.length > 0 ? (
           <div className="flex flex-wrap gap-2">
@@ -159,7 +161,7 @@ export default function AITakeoverContainer({
       </div>
 
       {resolvedProgress !== null ? (
-        <div className={cn("mt-3 rounded-xl px-3 py-2", progressShellClass(mode))}>
+        <div className={cn("mt-5 rounded-xl border border-border/60 px-4 py-3", progressShellClass(mode))}>
           <div className="flex items-center justify-between gap-3 text-sm">
             <div className="flex min-w-0 items-center gap-2">
               {mode === "running" ? (
@@ -194,6 +196,9 @@ export default function AITakeoverContainer({
           ) : null}
           {checkpointLabel ? (
             <div className="mt-2 text-xs text-muted-foreground">最近检查点：{checkpointLabel}</div>
+          ) : null}
+          {taskId ? (
+            <div className="mt-2 text-[11px] text-muted-foreground/70">运行编号 {taskId.slice(0, 8)}</div>
           ) : null}
         </div>
       ) : null}

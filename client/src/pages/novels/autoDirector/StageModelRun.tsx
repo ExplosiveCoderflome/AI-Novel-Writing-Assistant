@@ -1,34 +1,13 @@
-import type { DirectorRunMode } from "@ai-novel/shared/types/novelDirector";
-import type {
-  DirectorAutoApprovalGroup,
-  DirectorAutoApprovalPoint,
-} from "@ai-novel/shared/types/autoDirectorApproval";
+import { BookOpen, GitBranch, Settings2, Sparkles } from "lucide-react";
 import LLMSelector from "@/components/common/LLMSelector";
-import AutoDirectorApprovalStrategyPanel from "@/components/autoDirector/AutoDirectorApprovalStrategyPanel";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 import type { NovelBasicFormState } from "../novelBasicInfo.shared";
-import type { DirectorRunModeOption } from "../components/NovelAutoDirectorDialog.shared";
-import {
-  type DirectorAutoExecutionDraftState,
-  DirectorAutoExecutionPlanFields,
-} from "../components/directorAutoExecutionPlan.shared";
 
 interface StageModelRunProps {
   basicForm: NovelBasicFormState;
   onBasicFormChange: (patch: Partial<NovelBasicFormState>) => void;
-  runMode: DirectorRunMode;
-  runModeOptions: DirectorRunModeOption[];
-  onRunModeChange: (value: DirectorRunMode) => void;
-  autoExecutionDraft: DirectorAutoExecutionDraftState;
-  onAutoExecutionDraftChange: (patch: Partial<DirectorAutoExecutionDraftState>) => void;
-  autoApprovalEnabled: boolean;
-  autoApprovalCodes: string[];
-  autoApprovalGroups?: DirectorAutoApprovalGroup[];
-  autoApprovalPoints?: DirectorAutoApprovalPoint[];
-  onAutoApprovalEnabledChange: (enabled: boolean) => void;
-  onAutoApprovalCodesChange: (next: string[]) => void;
   canGenerate: boolean;
   isGenerating: boolean;
   onBack: () => void;
@@ -38,17 +17,6 @@ interface StageModelRunProps {
 export default function StageModelRun({
   basicForm,
   onBasicFormChange,
-  runMode,
-  runModeOptions,
-  onRunModeChange,
-  autoExecutionDraft,
-  onAutoExecutionDraftChange,
-  autoApprovalEnabled,
-  autoApprovalCodes,
-  autoApprovalGroups,
-  autoApprovalPoints,
-  onAutoApprovalEnabledChange,
-  onAutoApprovalCodesChange,
   canGenerate,
   isGenerating,
   onBack,
@@ -58,9 +26,9 @@ export default function StageModelRun({
     <section className="mx-auto w-full max-w-5xl space-y-7 py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="text-2xl font-semibold tracking-normal text-foreground">最后确认怎么推进</div>
+          <div className="text-2xl font-semibold tracking-normal text-foreground">确认模型与生产准备</div>
           <div className={`mt-2 max-w-2xl text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            选择这次要用的模型和自动化范围。确认后，AI 会生成第一批整本书方向候选。
+            确认后，AI 会先给出两套整书方向，再自动完成开写前的角色和卷章准备。
           </div>
         </div>
         <div className="rounded-full bg-muted/55 px-3 py-1 text-xs text-muted-foreground">
@@ -68,85 +36,36 @@ export default function StageModelRun({
         </div>
       </div>
 
-      <div className="space-y-5">
-        <div className="space-y-4">
-          <div>
-            <div className="text-sm font-medium text-foreground">这次希望 AI 推进到哪里</div>
-            <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              第一次使用建议先生成方向和前置规划，确认路子对了再扩大自动执行范围。
+      <div className="space-y-6">
+        <section className="overflow-hidden rounded-2xl border border-border/70 bg-background shadow-[0_20px_55px_-45px_hsl(var(--foreground)/0.5)]">
+          <div className="border-b border-border/60 bg-muted/15 px-5 py-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <GitBranch className="h-4 w-4 text-primary" />
+              自动导演会这样推进
             </div>
           </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            {runModeOptions.map((option) => {
-              const active = option.value === runMode;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={`rounded-lg px-4 py-4 text-left transition ring-1 ${
-                    active
-                      ? "bg-foreground text-background ring-foreground shadow-sm"
-                      : "bg-muted/30 text-foreground ring-border/20 hover:bg-muted/50"
-                  }`}
-                  onClick={() => onRunModeChange(option.value)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="text-sm font-medium">{option.label}</div>
-                    {option.recommended ? (
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                        active ? "bg-background/15 text-background" : "bg-background text-muted-foreground"
-                      }`}>
-                        推荐
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className={`mt-2 text-xs leading-5 ${active ? "text-background/70" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                    {option.description}
-                  </div>
-                  {option.recommendation ? (
-                    <div className={`mt-3 text-xs leading-5 ${active ? "text-background/75" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                      建议：{option.recommendation}
-                    </div>
-                  ) : null}
-                </button>
-              );
-            })}
+          <div className="grid gap-px bg-border/60 md:grid-cols-3">
+            <div className="bg-background p-5">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <div className="mt-3 text-sm font-semibold text-foreground">1. 选择整书方向</div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">AI 生成两套差异明确的方向，由你二选一。</div>
+            </div>
+            <div className="bg-background p-5">
+              <BookOpen className="h-5 w-5 text-primary" />
+              <div className="mt-3 text-sm font-semibold text-foreground">2. 自动准备到可开写</div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">系统完成角色、卷战略、拆章和章节执行资源。</div>
+            </div>
+            <div className="bg-background p-5">
+              <Settings2 className="h-5 w-5 text-primary" />
+              <div className="mt-3 text-sm font-semibold text-foreground">3. 选择正文生产方式</div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">简易创作由 AI 写完整本书；专业创作进入完整工作台。</div>
+            </div>
           </div>
-
-          {runMode === "auto_to_execution" ? (
-            <div className="space-y-4 pt-2">
-              <div>
-                <div className="text-sm font-medium text-foreground">执行范围与自动确认</div>
-                <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                  只在你选择按范围执行时生效，用来控制 AI 直接推进到哪里。
-                </div>
-              </div>
-              <DirectorAutoExecutionPlanFields
-                draft={autoExecutionDraft}
-                onChange={onAutoExecutionDraftChange}
-                usage="new_book"
-                maxChapterCount={basicForm.estimatedChapterCount}
-              />
-              <AutoDirectorApprovalStrategyPanel
-                enabled={autoApprovalEnabled}
-                approvalPointCodes={autoApprovalCodes}
-                groups={autoApprovalGroups}
-                approvalPoints={autoApprovalPoints}
-                onEnabledChange={onAutoApprovalEnabledChange}
-                onApprovalPointCodesChange={onAutoApprovalCodesChange}
-              />
-            </div>
-          ) : null}
-          {runMode === "full_book_autopilot" ? (
-            <div className={`space-y-1 pt-2 text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              <div className="font-medium text-foreground">全书自动成书</div>
-              <div>
-                系统会以整本书为目标完成规划、拆章、正文生成、审校和修复。只有模型不可用、服务异常、正文保护或不可恢复风险会停下。
-              </div>
-            </div>
-          ) : null}
-        </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-primary/10 bg-primary/[0.05] px-5 py-3 text-xs">
+            <span className="font-medium text-foreground">正文会停在开写前等待你的选择</span>
+            <span className="text-muted-foreground">不会提前生成章节正文</span>
+          </div>
+        </section>
 
         <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
@@ -162,7 +81,7 @@ export default function StageModelRun({
           />
         </div>
 
-        <details className="group pt-1">
+        <details className="group rounded-2xl border border-border/70 bg-background px-5 py-4">
           <summary className="cursor-pointer list-none">
             <div className="text-sm font-medium text-foreground">模型设置</div>
             <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>

@@ -120,6 +120,11 @@ enum ProjectMode {
   auto_pipeline
 }
 
+enum CreationExperience {
+  simple
+  professional
+}
+
 enum NarrativePov {
   first_person
   third_person
@@ -322,6 +327,7 @@ model Novel {
   status            String      @default("draft")
   writingMode       String      @default("original")
   projectMode       ProjectMode?
+  creationExperience CreationExperience @default(professional)
   narrativePov      NarrativePov?
   pacePreference    PacePreference?
   styleTone         String?

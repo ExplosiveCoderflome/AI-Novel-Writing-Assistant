@@ -21,7 +21,7 @@ export interface MobileRoutePattern {
 
 export const MOBILE_ROUTE_PATTERNS: MobileRoutePattern[] = [
   { key: "home", pattern: /^\/$/, title: "首页", group: "home" },
-  { key: "help", pattern: /^\/help\/?$/, title: "新手上路", group: "more" },
+  { key: "help", pattern: /^\/help\/?$/, title: "创作向导", group: "more" },
   { key: "novels", pattern: /^\/novels\/?$/, title: "小说", group: "novels" },
   { key: "novel-create", pattern: /^\/novels\/create\/?$/, title: "创建小说", group: "novels" },
   { key: "novel-preview", pattern: /^\/novels\/[^/]+\/preview\/?$/, title: "小说预览", group: "novels" },
@@ -60,7 +60,7 @@ const moreNavGroups: MobileNavGroup[] = [
   {
     title: "创作辅助",
     items: [
-      { key: "help", label: "新手上路", to: "/help", group: "more" },
+      { key: "help", label: "创作向导", to: "/help", group: "more" },
       { key: "drama", label: "短剧工作台", to: "/drama", group: "creation" },
       { key: "book-analysis", label: "拆书", to: "/book-analysis", group: "creation" },
       { key: "auto-director-follow-ups", label: "导演跟进", to: "/auto-director/follow-ups", group: "tasks" },

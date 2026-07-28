@@ -240,6 +240,7 @@ export class NovelCoreCrudService {
         worldId: input.worldId,
         writingMode,
         projectMode: input.projectMode,
+        creationExperience: input.creationExperience ?? "professional",
         narrativePov: input.narrativePov,
         pacePreference: input.pacePreference,
         styleTone: input.styleTone,

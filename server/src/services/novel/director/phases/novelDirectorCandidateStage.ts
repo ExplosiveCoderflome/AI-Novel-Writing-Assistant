@@ -204,6 +204,10 @@ export class NovelDirectorCandidateStageService {
         provider: context.options.provider,
         model: context.options.model,
         temperature: clampTemperature(context.options.temperature, 0.45),
+        taskId: context.workflowTaskId,
+        stage: "auto_director",
+        itemKey: "candidate_direction_batch",
+        entrypoint: "auto_director_create",
       },
     });
 
@@ -432,6 +436,10 @@ export class NovelDirectorCandidateStageService {
         provider: input.provider,
         model: input.model,
         temperature: clampTemperature(input.temperature, 0.4),
+        taskId: input.workflowTaskId,
+        stage: "auto_director",
+        itemKey: "candidate_direction_batch",
+        entrypoint: "auto_director_create",
       },
     });
 

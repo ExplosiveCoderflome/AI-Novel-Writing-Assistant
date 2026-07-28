@@ -16,6 +16,7 @@ export type NovelWorkflowCheckpoint =
   | "book_contract_ready"
   | "character_setup_required"
   | "volume_strategy_ready"
+  | "production_experience_required"
   | "chapter_batch_ready"
   | "step_review_required"
   | "replan_required"
@@ -32,7 +33,7 @@ export interface NovelWorkflowMilestone {
 }
 
 export interface NovelWorkflowResumeTarget {
-  route: "/novels/create" | "/novels/:id/edit";
+  route: "/novels/create" | "/novels/:id/edit" | "/novels/:id/simple";
   novelId?: string | null;
   taskId?: string | null;
   lane?: NovelWorkflowLane | null;
@@ -40,6 +41,17 @@ export interface NovelWorkflowResumeTarget {
   chapterId?: string | null;
   volumeId?: string | null;
   mode?: "director" | null;
+}
+
+export type NovelProductionExperience = "simple" | "professional";
+
+export interface NovelProductionExperienceSelectionResponse {
+  experience: NovelProductionExperience;
+  workflowTaskId: string;
+  novelId: string;
+  targetRoute: `/novels/${string}/simple` | `/novels/${string}/edit`;
+  backgroundStarted: boolean;
+  commandId?: string | null;
 }
 
 export interface BookContract {

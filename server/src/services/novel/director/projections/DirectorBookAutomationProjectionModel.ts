@@ -439,6 +439,18 @@ export function buildPrimaryAction(input: {
         emphasis: "primary",
       });
     }
+    if (input.task?.checkpointType === "production_experience_required") {
+      return action({
+        type: "open_novel",
+        label: "选择正文生产方式",
+        target: {
+          novelId: input.novelId,
+          taskId,
+          href: buildNovelHref(input.novelId, { taskId }),
+        },
+        emphasis: "primary",
+      });
+    }
     if (input.task?.checkpointType === "chapter_batch_ready") {
       return action({
         type: "auto_execute_range",

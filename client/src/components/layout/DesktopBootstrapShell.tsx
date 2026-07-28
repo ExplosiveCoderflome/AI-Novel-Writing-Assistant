@@ -294,7 +294,7 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge className="bg-cyan-500/20 text-cyan-100 hover:bg-cyan-500/20">
-                    桌面版 Beta
+                    桌面版 · 测试通道
                   </Badge>
                   <Badge variant="outline" className="border-slate-600 bg-slate-900/70 text-slate-100">
                     {resolveStageLabel(snapshot)}
