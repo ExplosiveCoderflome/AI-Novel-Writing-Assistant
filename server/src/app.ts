@@ -38,6 +38,7 @@ import novelWorkflowsRouter from "./services/novel/director/http/novelWorkflows"
 import promptWorkbenchRouter from "./routes/promptWorkbench";
 import ragRouter from "./routes/rag";
 import settingsAutoDirectorRouter from "./routes/settingsAutoDirector";
+import { creatorProfileRouter } from "./routes/creatorProfileRoutes";
 import settingsRouter from "./routes/settings";
 import styleEngineRouter from "./routes/styleEngine";
 import styleEngineExtractionRouter from "./routes/styleEngineExtraction";
@@ -162,6 +163,7 @@ export function createApp() {
   app.use("/api/settings/auto-director", settingsAutoDirectorRouter);
   app.use("/api/auto-director/channel-callbacks", autoDirectorChannelCallbacksRouter);
   app.use("/api/settings", settingsRouter);
+  app.use("/api/creator/profile", creatorProfileRouter);
   app.use("/api/astrology", astrologyRouter);
 
   app.use((_req, res) => {

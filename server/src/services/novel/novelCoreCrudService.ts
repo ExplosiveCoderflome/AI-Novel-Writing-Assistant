@@ -2,6 +2,7 @@ import { serializeCommercialTagsJson } from "@ai-novel/shared/types/novelFraming
 import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel";
 import { prisma } from "../../db/prisma";
 import { AppError } from "../../middleware/errorHandler";
+import { safetyGuardService } from "../../platform/security/SafetyGuardService";
 import { mapNovelAutoDirectorTaskSummary } from "../task/novelWorkflowTaskSummary";
 import { getArchivedTaskIdSet } from "../task/taskArchive";
 import { NovelWorkflowService } from "./workflow/NovelWorkflowService";
@@ -404,7 +405,13 @@ export class NovelCoreCrudService {
     return normalizeNovelOutput(updated);
   }
 
-  async deleteNovel(id: string) {
+  async deleteNovel(id: string, confirmToken?: string) {
+    await safetyGuardService.assertSafetyCheck({
+      operationName: "deleteNovel",
+      riskLevel: "CRITICAL",
+      novelId: id,
+      confirmToken,
+    });
     queueRagDelete("novel", id);
     queueRagDelete("bible", id);
     await prisma.novel.delete({ where: { id } });

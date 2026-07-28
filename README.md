@@ -120,6 +120,17 @@ If you prefer to write and manage your novel workspace in a local terminal using
 ### 9. Internationalization (i18n) Support
 - Fully integrated with `i18next` and `react-i18next` on the client. UI elements, logs, page labels, and settings routes support complete localization between English and Chinese. User language selections are persisted locally.
 
+### 10. PAI Core Infrastructure Architecture (Insights #1 - #8)
+Fully implemented Daniel Miessler's Personal AI Infrastructure (PAI) architecture principles tailored for long-form narrative synthesis:
+- **Insight #1 (Determinism-First Architecture)**: Pure-code lexical JSON repair (`tryFixSyntacticJson`) & coercion across 250+ LLM invocation points, avoiding unnecessary LLM retries and saving latency/tokens.
+- **Insight #2 (User/System Separation & Asset Protection)**: Non-destructive setting management (`UserSettingProtectionService`) and project backup packaging gateway (`UserAssetBackupGateway`). Maintain single canonical prompt templates.
+- **Insight #3 (Three-Tier Memory Architecture)**: Deterministic 15% Hot / 35% Cold / 50% Warm memory budget allocation with dynamic 70%/30% reallocation when Warm memory is absent (e.g. Chapter 1), locking world axioms and character rules to prevent setting drift in long novels.
+- **Insight #4 (Pipeline Hooks System & Proactive Director)**: Asynchronous event bus (`PipelineHookRegistry`) with error isolation, auto-clearing video error states (`errorMessage: null`) and normalizing asset paths upon render completion.
+- **Insight #5 (TELOS Creator Profile System)**: 10-dimensional creator profile & 4 built-in aesthetic presets (修仙, 悬疑古风, 赛博朋克, 都市爽文) with beginner-first low-cognitive-load onboarding (presets, Q&A wizard modal, implicit feedback learning).
+- **Insight #6 (Security & Permission Guard)**: `SafetyGuardService` with 4 risk tiers (LOW, MEDIUM, HIGH, CRITICAL). Enforces explicit double-confirmation tokens and automatic pre-deletion project snapshot verification before destructive operations.
+- **Insight #7 (CLI-First Automation Engine & UNIX Philosophy)**: Standalone CLI automation gateway (`CLIAutomationService` & `cliRunner.ts`) for headless health auditing, asset exports, and RAG index rebuilding via `pnpm --filter server run:cli`.
+- **Insight #8 (Specs-First & Anti-Hallucination Guard)**: Quantitative knowledge confidence evaluation (`evaluateKnowledgeConfidence`). Automatically appends `ALLOW "I DON'T KNOW"` prompt instructions when context is missing, preventing AI hallucinations.
+
 ---
 
 ## 🔮 What Is To Be Done (Future Vision)

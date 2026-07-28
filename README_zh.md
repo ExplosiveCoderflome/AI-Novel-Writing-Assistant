@@ -118,6 +118,17 @@ flowchart LR
 ### 9. 国际化（i18n）多语言支持
 - 前端全面接入 `i18next` 与 `react-i18next`。全部 UI 界面、日志、页面标签与设置路由均支持中英文双语动态切换，并自动在本地保存用户的语言偏好设置。
 
+### 10. PAI 核心架构与八大启示落地 (Insights #1 - #8)
+全量落地 Daniel Miessler Personal AI Infrastructure (PAI) 核心架构思想，针对长篇小说与叙事生成进行生产级增强：
+- **启示一 (确定性优先架构)**：纯代码词法修复 `tryFixSyntacticJson` 与隐式转换辐射全站 250+ 处 LLM 调用点，避免无效大模型重试，大幅节省 Token 与延迟。
+- **启示二 (USER/SYSTEM 资产分离)**：实现“不存在则创建，存在则保留”的配置保护服务 (`UserSettingProtectionService`) 与快照网关 (`UserAssetBackupGateway`)，保持单一主版本 Prompt。
+- **启示三 (Hot/Warm/Cold 三层记忆架构)**：确定性 15% Hot / 35% Cold / 50% Warm 预算分配与无 Warm 时的 70%/30% 动态再分配算法，锁定世界观与角色底线，防止长篇设定崩溃。
+- **启示四 (事件钩子系统与主动式导演)**：强类型事件总线 (`PipelineHookRegistry`) 与错误隔离机制，渲染完成后自动清空错误状态 (`errorMessage: null`) 并标准化资源路径。
+- **启示五 (TELOS 创作者身份系统)**：10 维创作者模型与【修仙】、【悬疑】、【赛博】、【都市】4 套美学预设，提供一键预设、问答向导与无感学习三种低认知负荷构建路径。
+- **启示六 (确定性安全 Guard 网关)**：四级风险评估 (`SafetyGuardService`)，在删除项目等破坏性高危动作前强行校验确认 Token 并自动导出全量快照备份。
+- **启示七 (CLI 优先自动化引擎 & UNIX 哲学)**：独立 CLI 命令行网关 (`CLIAutomationService` & `cliRunner.ts`)，支持在终端通过 `pnpm --filter server run:cli` 无头执行健康审计与资产导出。
+- **启示八 (规格测试先行 & 防幻觉“不知道”机制)**：定量评估检索知识置信度，在检索缺乏依据时强行注入“设定未明确”屏蔽指令，拦截未证实断言，防范大模型胡乱臆造。
+
 ---
 
 ## 🔮 展望与待做 (What Is To Be Done)

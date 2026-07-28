@@ -75,8 +75,8 @@ export class NovelCoreService {
     return this.crudService.updateNovel(id, input);
   }
 
-  async deleteNovel(id: string) {
-    return this.crudService.deleteNovel(id);
+  async deleteNovel(id: string, confirmToken?: string) {
+    return this.crudService.deleteNovel(id, confirmToken);
   }
 
   async listChapters(novelId: string) {

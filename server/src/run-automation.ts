@@ -94,7 +94,7 @@ async function main() {
       where: { ownerId: doc.id, ownerType: "knowledge_document" },
       orderBy: { createdAt: "desc" }
     });
-    console.log(`Job status: ${job?.status || "unknown"}. Progress: ${job?.progress || 0}`);
+    console.log(`Job status: ${job?.status || "unknown"}. Progress: ${(job as any)?.progress || 0}`);
     if (job?.status === "succeeded") {
       indexed = true;
       break;
@@ -150,12 +150,10 @@ async function main() {
     autoApproval: {
       enabled: true,
       approvalPointCodes: [
-        "candidates_confirm",
-        "story_macro_confirm",
-        "world_setup_confirm",
-        "character_prep_confirm",
-        "volume_strategy_confirm",
-        "chapters_split_confirm"
+        "candidate_direction_confirmed",
+        "character_setup_ready",
+        "volume_strategy_ready",
+        "structured_outline_ready"
       ]
     }
   });
@@ -169,7 +167,7 @@ async function main() {
       where: { id: takeoverResponse.taskId }
     });
     console.log(`Autopilot progress: ${task?.progress || 0}%, status: ${task?.status || "unknown"}, stage: ${task?.currentStage || "unknown"}, item: ${task?.currentItemLabel || "unknown"}`);
-    if (task?.status === "completed") {
+    if ((task?.status as string) === "completed" || (task?.status as string) === "succeeded") {
       novelFinished = true;
       break;
     }

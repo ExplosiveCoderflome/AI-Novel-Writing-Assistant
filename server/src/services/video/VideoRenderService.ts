@@ -6,6 +6,7 @@ import { videoProjectService } from "./VideoProjectService";
 import { adaptToVellumReelProject } from "./vellumReelAdapter";
 import { generateLocalImage, generateLocalSpeech } from "./localModelConnectors";
 import { prisma } from "../../db/prisma";
+import { pipelineHookRegistry } from "../novel/director/automation/PipelineHookRegistry";
 
 const execAsync = promisify(exec);
 
@@ -203,6 +204,10 @@ export class VideoRenderService {
             await videoProjectService.updateProject(projectId, {
               status: "completed",
               resultUrl: `http://localhost:${process.env.PORT || 3000}/${serverPublicRelPath}`,
+            });
+            await pipelineHookRegistry.emitHook("onPostVideoRender", {
+              projectId,
+              novelId: project.novelId ?? undefined,
             });
             resolve();
           } else {

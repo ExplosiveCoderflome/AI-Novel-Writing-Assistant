@@ -52,9 +52,18 @@ export interface StructuredInvokeRawParseInput<T> {
   reasoningForcedOff?: boolean;
 }
 
-function tryFixTruncatedJson(raw: string): string {
-  const text = raw.trim();
+function tryFixSyntacticJson(raw: string): string {
+  let text = raw.trim();
   if (!text) return text;
+
+  // 1. Strip Markdown Code Blocks if present
+  text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+
+  // 2. Normalize smart/curly quotes
+  text = text.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+
+  // 3. Fix trailing commas before closing braces/brackets
+  text = text.replace(/,\s*([}\]])/g, "$1");
 
   const count = (re: RegExp) => (text.match(re) ?? []).length;
   const openBraces = count(/{/g);
@@ -72,13 +81,56 @@ function tryFixTruncatedJson(raw: string): string {
   return fixed;
 }
 
+function tryFixTruncatedJson(raw: string): string {
+  return tryFixSyntacticJson(raw);
+}
+
+function applyDeterministicCoercion(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed === "true") return true;
+    if (trimmed === "false") return false;
+    if (/^-?\d+(\.\d+)?$/.test(trimmed) && trimmed.length < 16) {
+      const num = Number(trimmed);
+      if (!isNaN(num)) return num;
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(applyDeterministicCoercion);
+  }
+  if (typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+      result[key] = applyDeterministicCoercion(val);
+    }
+    return result;
+  }
+  return value;
+}
+
+function tryCoerceStructuredData<T>(
+  parsed: unknown,
+  schema: ZodType<T>,
+): { data: T } | null {
+  const coerced = applyDeterministicCoercion(parsed);
+  const result = schema.safeParse(coerced);
+  if (result.success) {
+    return { data: result.data };
+  }
+  return null;
+}
+
 function tryParseStructuredJsonValue(source: string): { parsed: unknown } | { error: string } {
   try {
     return {
       parsed: JSON.parse(extractJSONValue(source)) as unknown,
     };
   } catch (error) {
-    const fixed = tryFixTruncatedJson(source);
+    const fixed = tryFixSyntacticJson(source);
     if (fixed === source) {
       return {
         error: [
@@ -451,6 +503,27 @@ export async function parseStructuredLlmRawContentDetailed<T>(
     });
     return {
       data: normalizedInitial.data,
+      repairUsed: false,
+      repairAttempts: 0,
+      diagnostics,
+      tokenUsage: input.tokenUsage ?? null,
+    };
+  }
+
+  const coercedInitial = tryCoerceStructuredData(parsed, runtimeSchema);
+  if (coercedInitial) {
+    logStructuredInvokeEvent({
+      event: "coerced_deterministic",
+      label: input.label,
+      provider: input.provider,
+      model: input.model,
+      taskType: input.taskType,
+      strategy: input.strategy,
+      fallbackUsed: input.fallbackUsed,
+      reasoningForcedOff: input.reasoningForcedOff,
+    });
+    return {
+      data: coercedInitial.data,
       repairUsed: false,
       repairAttempts: 0,
       diagnostics,
