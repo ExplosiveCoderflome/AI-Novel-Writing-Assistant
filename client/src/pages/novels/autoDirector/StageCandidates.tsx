@@ -2,6 +2,7 @@ import NovelAutoDirectorCandidateBatches from "../components/NovelAutoDirectorCa
 import NovelAutoDirectorProgressPanel from "../components/NovelAutoDirectorProgressPanel";
 import { Button } from "@/components/ui/button";
 import type { useAutoDirectorCreateController } from "./useAutoDirectorCreateController";
+import NovelProductionExperienceHandoff from "../components/NovelProductionExperienceHandoff";
 
 type AutoDirectorCreateController = ReturnType<typeof useAutoDirectorCreateController>;
 
@@ -14,6 +15,19 @@ export default function StageCandidates({
   controller,
   onRegenerateSettings,
 }: StageCandidatesProps) {
+  if (
+    controller.directorTask?.checkpointType === "production_experience_required"
+    && controller.directorTask.resumeTarget?.novelId
+  ) {
+    return (
+      <NovelProductionExperienceHandoff
+        taskId={controller.directorTask.id}
+        novelId={controller.directorTask.resumeTarget.novelId}
+        novelTitle={controller.directorTask.title}
+      />
+    );
+  }
+
   if (controller.dialogMode !== "candidate_selection") {
     return (
       <section className="space-y-4">

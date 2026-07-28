@@ -19,6 +19,7 @@ import type {
   VolumeStrategyPlan,
 } from "@ai-novel/shared/types/novel";
 import NovelEditView from "./components/NovelEditView";
+import NovelProductionExperienceHandoff from "./components/NovelProductionExperienceHandoff";
 import type { LLMSelectorValue } from "@/components/common/LLMSelector";
 import { getBaseCharacterList } from "@/api/character";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
@@ -2735,6 +2736,16 @@ export default function NovelEdit() {
   const isExportingFullJson = exportNovelMutation.isPending
     && exportVariables?.scope === "full"
     && exportVariables?.format === "json";
+
+  if (displayAutoDirectorTask?.checkpointType === "production_experience_required") {
+    return (
+      <NovelProductionExperienceHandoff
+        taskId={displayAutoDirectorTask.id}
+        novelId={id}
+        novelTitle={basicForm.title}
+      />
+    );
+  }
 
   return (
     <NovelEditView

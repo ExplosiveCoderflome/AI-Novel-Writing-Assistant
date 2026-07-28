@@ -71,9 +71,9 @@ export default function StageModelRun({
       <div className="space-y-5">
         <div className="space-y-4">
           <div>
-            <div className="text-sm font-medium text-foreground">这次希望 AI 推进到哪里</div>
+            <div className="text-sm font-medium text-foreground">自动导演会推进到可开写</div>
             <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              第一次使用建议先生成方向和前置规划，确认路子对了再扩大自动执行范围。
+              AI 会完成方向后的前期准备。进入正文生产前，你再选择简易创作或专业创作。
             </div>
           </div>
 

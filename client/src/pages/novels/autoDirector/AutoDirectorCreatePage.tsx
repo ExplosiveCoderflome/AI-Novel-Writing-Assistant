@@ -129,20 +129,6 @@ export default function AutoDirectorCreatePage() {
     restoredTask: restoredWorkflowTask,
     onWorkflowTaskChange: replaceTaskId,
     onBasicFormChange: (patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch)),
-    onConfirmed: ({ novelId, workflowTaskId, resumeTarget }) => {
-      const search = new URLSearchParams();
-      search.set("stage", resumeTarget?.stage ?? "story_macro");
-      if (workflowTaskId) {
-        search.set("directorTaskId", workflowTaskId);
-      }
-      if (resumeTarget?.chapterId) {
-        search.set("chapterId", resumeTarget.chapterId);
-      }
-      if (resumeTarget?.volumeId) {
-        search.set("volumeId", resumeTarget.volumeId);
-      }
-      navigate(`/novels/${novelId}/edit?${search.toString()}`);
-    },
   });
 
   useEffect(() => {

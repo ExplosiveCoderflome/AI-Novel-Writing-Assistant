@@ -87,6 +87,9 @@ function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefi
   if (checkpoint === "volume_strategy_ready") {
     return "卷战略 / 卷骨架待审核";
   }
+  if (checkpoint === "production_experience_required") {
+    return "已可开写，等待选择生产方式";
+  }
   if (checkpoint === "chapter_batch_ready") {
     return `${resolvedScopeLabel}自动执行已暂停`;
   }

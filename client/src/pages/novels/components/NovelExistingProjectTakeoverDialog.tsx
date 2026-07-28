@@ -63,24 +63,9 @@ interface NovelExistingProjectTakeoverDialogProps {
 
 const RUN_MODE_OPTIONS: Array<{ value: DirectorRunMode; label: string; description: string }> = [
   {
-    value: "stage_review",
-    label: "逐步协作",
-    description: "每完成一个导演步骤就暂停，检查或完善后再继续下一步。",
-  },
-  {
-    value: "full_book_autopilot",
-    label: "全书自动接管",
-    description: "AI 会按整本书目标补齐规划、继续写作、审校和修复。",
-  },
-  {
     value: "auto_to_ready",
     label: "推进到可开写",
-    description: "AI 会持续推进到章节执行资源准备好后再交接。",
-  },
-  {
-    value: "auto_to_execution",
-    label: "按范围执行",
-    description: "按全书、章节范围或卷范围接管，并继续准备目标范围的章节执行。",
+    description: "AI 会补齐正文生产前需要的资源，再让你选择简易生产或专业生产。",
   },
 ];
 

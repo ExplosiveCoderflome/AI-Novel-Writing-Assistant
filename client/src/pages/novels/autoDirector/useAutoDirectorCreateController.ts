@@ -59,15 +59,6 @@ interface UseAutoDirectorCreateControllerInput {
   restoredTask?: UnifiedTaskDetail | null;
   onWorkflowTaskChange?: (workflowTaskId: string) => void;
   onBasicFormChange: (patch: Partial<NovelBasicFormState>) => void;
-  onConfirmed: (input: {
-    novelId: string;
-    workflowTaskId?: string;
-    resumeTarget?: {
-      stage?: "basic" | "story_macro" | "world" | "character" | "outline" | "structured" | "chapter" | "pipeline";
-      chapterId?: string | null;
-      volumeId?: string | null;
-    } | null;
-  }) => void;
 }
 
 function resolveIdeaFromCandidateBatches(batches: DirectorCandidateBatch[] | null | undefined): string {
@@ -92,7 +83,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     restoredTask,
     onWorkflowTaskChange,
     onBasicFormChange,
-    onConfirmed,
   } = input;
   const navigate = useNavigate();
   const llm = useLLMStore();
@@ -115,7 +105,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
   const [titlePatchFeedbacks, setTitlePatchFeedbacks] = useState<Record<string, string>>({});
   const confirmSubmitLockedRef = useRef(false);
-  const confirmedTaskHandledRef = useRef<string | null>(null);
   const autoApprovalDraft = useDirectorAutoApprovalDraft(true);
   const { applySnapshot: applyAutoApprovalSnapshot } = autoApprovalDraft;
 
@@ -493,32 +482,6 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const applyCandidateTitleOption = (batchId: string, candidateId: string, option: { title: string }) => {
     setBatches((prev) => applyDirectorCandidateTitleOption(prev, batchId, candidateId, option));
   };
-
-  useEffect(() => {
-    const resumeTarget = directorTask?.resumeTarget ?? null;
-    const confirmedNovelId = resumeTarget?.novelId?.trim() || "";
-    if (!executionRequested || !directorTask || !confirmedNovelId) {
-      return;
-    }
-    if (workflowTaskId && directorTask.id !== workflowTaskId) {
-      return;
-    }
-    if (confirmedTaskHandledRef.current === directorTask.id) {
-      return;
-    }
-    confirmedTaskHandledRef.current = directorTask.id;
-    setExecutionRequested(false);
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.novels.all }),
-      queryClient.invalidateQueries({ queryKey: ["tasks"] }),
-    ]);
-    toast.success("自动导演创建小说项目，并继续推进规划。");
-    onConfirmed({
-      novelId: confirmedNovelId,
-      workflowTaskId: directorTask.id,
-      resumeTarget,
-    });
-  }, [directorTask, executionRequested, onConfirmed, queryClient, workflowTaskId]);
 
   const canGenerate = idea.trim().length > 0 && !generateMutation.isPending;
 

@@ -139,6 +139,9 @@ function formatCheckpoint(
   if (checkpoint === "volume_strategy_ready") {
     return "卷战略已就绪";
   }
+  if (checkpoint === "production_experience_required") {
+    return "已可开写，等待选择生产方式";
+  }
   if (checkpoint === "chapter_batch_ready") {
     return `${resolveAutoExecutionScopeLabel(task)}自动执行已暂停`;
   }

@@ -80,8 +80,6 @@ const autoApprovalSchema = z.object({
 }).optional();
 
 const projectContextSchema = z.object({
-  creationExperience: z.enum(["simple", "professional"]).optional(),
-  genreTagIds: z.array(z.string().trim().min(1)).max(6).optional(),
   title: z.string().trim().optional(),
   description: z.string().trim().optional(),
   targetAudience: z.string().trim().optional(),
@@ -129,7 +127,6 @@ const projectContextSchema = z.object({
 
 const candidatesSchema = projectContextSchema.extend({
   idea: z.string().trim().min(1),
-  candidateCount: z.literal(2).optional(),
   workflowTaskId: z.string().trim().optional(),
 }).merge(llmOptionsSchema);
 

@@ -241,6 +241,34 @@ test("book automation projection aggregates task, command, event, approval and a
   }
 });
 
+test("book automation projection exposes production experience handoff as the primary action", async () => {
+  const harness = createHarness({
+    latestTask: {
+      status: "waiting_approval",
+      progress: 90,
+      currentStage: "chapter_execution",
+      currentItemKey: "production_experience_required",
+      currentItemLabel: "项目已可开写，等待选择生产方式",
+      checkpointType: "production_experience_required",
+      checkpointSummary: "前期准备完成，请选择正文生产方式。",
+      seedPayloadJson: JSON.stringify({ runMode: "auto_to_ready" }),
+    },
+    commands: [],
+    events: [],
+    steps: [],
+    approvals: [],
+    runtimeProjection: null,
+  });
+  try {
+    const projection = await harness.service.getProjection("novel-1");
+    assert.equal(projection.status, "waiting_approval");
+    assert.equal(projection.primaryAction.label, "选择正文生产方式");
+    assert.equal(projection.primaryAction.target.href, "/novels/novel-1/edit?directorTaskId=task-1");
+  } finally {
+    harness.restore();
+  }
+});
+
 test("book automation projection prefers runtime chapter label over generic task label", async () => {
   const harness = createHarness({
     latestTask: {

@@ -56,6 +56,7 @@ export interface DirectorCandidateStageState {
 }
 
 export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
+  productionExperience?: "simple" | "professional";
   novelId?: string | null;
   provider?: DirectorLLMOptions["provider"] | null;
   model?: string | null;
@@ -424,8 +425,6 @@ export function buildWorkflowSeedPayload(
   extra?: Record<string, unknown>,
 ): Record<string, unknown> {
   const basicForm = {
-    creationExperience: input.creationExperience ?? "professional",
-    genreTagIds: input.genreTagIds ?? [],
     title: input.title?.trim() || "",
     description: input.description?.trim() || "",
     targetAudience: input.targetAudience?.trim() || "",
@@ -463,8 +462,6 @@ export function buildWorkflowSeedPayload(
     : null;
   return {
     title: basicForm.title || null,
-    creationExperience: basicForm.creationExperience,
-    genreTagIds: basicForm.genreTagIds,
     description: basicForm.description || null,
     targetAudience: basicForm.targetAudience || null,
     bookSellingPoint: basicForm.bookSellingPoint || null,

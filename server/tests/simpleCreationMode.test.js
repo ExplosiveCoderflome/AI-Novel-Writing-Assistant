@@ -2,6 +2,10 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { buildWorkflowSeedPayload } = require("../dist/services/novel/director/runtime/novelDirectorHelpers.js");
 const { directorCandidateResponseSchema } = require("../dist/services/novel/director/runtime/novelDirectorSchemas.js");
+const {
+  buildProductionExperienceSeed,
+  parseSelectedExperience,
+} = require("../dist/services/novel/director/commands/DirectorProductionExperienceService.js");
 const { isSimpleCreationWriteAllowed } = require("../dist/modules/novel/http/simpleCreationWriteGuard.js");
 
 function candidate(title) {
@@ -22,16 +26,47 @@ function candidate(title) {
   };
 }
 
-test("simple creation seed preserves the experience and genre choices", () => {
+function directorSeed() {
+  const directorInput = {
+    idea: "一座城市只剩七天。",
+    candidate: candidate("七日之城"),
+    runMode: "auto_to_ready",
+  };
+  return {
+    ...buildWorkflowSeedPayload(directorInput),
+    directorInput,
+  };
+}
+
+test("automatic director starts in preparation-only mode", () => {
   const seed = buildWorkflowSeedPayload({
     idea: "一座城市只剩七天。",
-    creationExperience: "simple",
-    genreTagIds: ["suspense", "urban"],
-    runMode: "full_book_autopilot",
+    runMode: "auto_to_ready",
   });
-  assert.equal(seed.creationExperience, "simple");
-  assert.deepEqual(seed.genreTagIds, ["suspense", "urban"]);
-  assert.equal(seed.runMode, "full_book_autopilot");
+  assert.equal(seed.runMode, "auto_to_ready");
+  assert.equal(seed.productionExperience, undefined);
+});
+
+test("production handoff converts the same seed to full-book simple creation", () => {
+  const seed = directorSeed();
+  const nextSeed = buildProductionExperienceSeed(seed, "simple");
+  assert.equal(parseSelectedExperience(nextSeed), "simple");
+  assert.equal(nextSeed.runMode, "full_book_autopilot");
+  assert.equal(nextSeed.directorInput.runMode, "full_book_autopilot");
+  assert.equal(nextSeed.autoExecutionPlan.mode, "book");
+  assert.equal(nextSeed.autoExecutionPlan.autoReview, true);
+  assert.equal(nextSeed.autoExecutionPlan.autoRepair, true);
+  assert.equal(nextSeed.autoApproval.enabled, true);
+  assert.ok(nextSeed.autoApproval.approvalPointCodes.includes("chapter_execution_continue"));
+  assert.ok(nextSeed.autoApproval.approvalPointCodes.includes("replan_continue"));
+});
+
+test("professional handoff keeps preparation-only mode without auto execution", () => {
+  const seed = directorSeed();
+  const nextSeed = buildProductionExperienceSeed(seed, "professional");
+  assert.equal(parseSelectedExperience(nextSeed), "professional");
+  assert.equal(nextSeed.runMode, "auto_to_ready");
+  assert.equal(nextSeed.autoExecutionPlan, undefined);
 });
 
 test("director candidate contract requires exactly two directions", () => {
