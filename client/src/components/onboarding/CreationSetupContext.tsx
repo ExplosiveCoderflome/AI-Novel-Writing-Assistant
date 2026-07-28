@@ -59,12 +59,12 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const requireCreationSetup = useCallback(() => {
-    if (statusQuery.isPending || statusQuery.isError || readyForCreation) {
+    if (readyForCreation) {
       return true;
     }
     setDialogOpen(true);
     return false;
-  }, [readyForCreation, statusQuery.isError, statusQuery.isPending]);
+  }, [readyForCreation]);
 
   useEffect(() => {
     if (automaticPromptChecked || statusQuery.isPending || statusQuery.isError) {
@@ -82,9 +82,7 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (
-      !statusQuery.isPending
-      && !statusQuery.isError
-      && !readyForCreation
+      !readyForCreation
       && GATED_ROUTE_PREFIXES.some((prefix) => location.pathname.startsWith(prefix))
     ) {
       setDialogOpen(true);

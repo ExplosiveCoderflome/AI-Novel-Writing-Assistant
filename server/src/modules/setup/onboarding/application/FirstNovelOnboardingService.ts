@@ -207,7 +207,7 @@ export async function getFirstNovelOnboardingProjection(): Promise<FirstNovelOnb
     };
   }
 
-  const graduated = Boolean(firstReadableChapter);
+  const graduated = Boolean(firstReadableChapter && setup.readyForCreation);
   if (graduated && firstReadableChapter) {
     currentMilestone = "first_chapter";
     headline = "第一章可以阅读";
