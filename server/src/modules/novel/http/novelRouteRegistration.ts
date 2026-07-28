@@ -24,6 +24,7 @@ import { registerNovelWorldSliceRoutes } from "../setup/http/novelWorldSliceRout
 import novelChapterSummaryRouter from "../production/http/novelChapterSummary";
 import novelDecisionsRouter from "../state/http/novelDecisions";
 import type { NovelHttpServices } from "./novelHttpServices";
+import { guardSimpleCreationUserWrites } from "./simpleCreationWriteGuard";
 import {
   aiRevisionPreviewSchema,
   arcPlanParamsSchema,
@@ -77,6 +78,8 @@ function forwardBusinessError(error: unknown, next: (err?: unknown) => void): bo
 
 export function registerNovelHttpRoutes(router: Router, services: NovelHttpServices): void {
   const { novelService, novelDraftOptimizeService } = services;
+
+  router.use("/:id", guardSimpleCreationUserWrites);
 
   registerNovelBaseRoutes({
     router,

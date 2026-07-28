@@ -37,6 +37,11 @@ export interface CharacterPrepOptions {
   storyInput?: string;
   useWorldContext?: boolean;
   worldFocusHints?: CharacterWorldFocusHints;
+  novelId?: string;
+  taskId?: string;
+  stage?: string;
+  itemKey?: string;
+  entrypoint?: string;
 }
 
 type CharacterCastGenerationContextBlocks = ReturnType<typeof buildCharacterCastContextBlocks>;
@@ -44,6 +49,16 @@ type CharacterCastGenerationContextBlocks = ReturnType<typeof buildCharacterCast
 interface CharacterCastGenerationContext {
   storyInput: string;
   contextBlocks: CharacterCastGenerationContextBlocks;
+}
+
+function buildLivePromptContext(options: CharacterPrepOptions) {
+  return {
+    novelId: options.novelId,
+    taskId: options.taskId,
+    stage: options.stage,
+    itemKey: options.itemKey,
+    entrypoint: options.entrypoint,
+  };
 }
 
 function toOptionalText(value: string | null | undefined): string | null {
@@ -203,6 +218,7 @@ async function normalizeCharacterCastOptions(
       payloadJson: JSON.stringify(parsed, null, 2),
     },
     options: {
+      ...buildLivePromptContext(options),
       provider: options.provider,
       model: options.model,
       temperature: 0.2,
@@ -225,6 +241,7 @@ async function repairCharacterCastOptions(input: {
     },
     contextBlocks: input.contextBlocks,
     options: {
+      ...buildLivePromptContext(input.options),
       provider: input.options.provider,
       model: input.options.model,
       temperature: Math.max(0.2, Math.min(input.options.temperature ?? 0.55, 0.6)),
@@ -243,6 +260,7 @@ async function normalizeAutoCharacterCastOption(
       payloadJson: JSON.stringify(parsed, null, 2),
     },
     options: {
+      ...buildLivePromptContext(options),
       provider: options.provider,
       model: options.model,
       temperature: 0.2,
@@ -261,6 +279,7 @@ async function generateAutoCharacterCastDraftViaStagedPrompts(
     promptInput: {},
     contextBlocks: context.contextBlocks,
     options: {
+      ...buildLivePromptContext(options),
       provider: options.provider,
       model: options.model,
       temperature: memberTemperature,
@@ -282,6 +301,7 @@ async function generateAutoCharacterCastDraftViaStagedPrompts(
       memberRosterText,
     },
     options: {
+      ...buildLivePromptContext(options),
       provider: options.provider,
       model: options.model,
       temperature: 0.3,
@@ -310,6 +330,7 @@ async function repairAutoCharacterCastOption(input: {
     },
     contextBlocks: input.contextBlocks,
     options: {
+      ...buildLivePromptContext(input.options),
       provider: input.options.provider,
       model: input.options.model,
       temperature: Math.max(0.2, Math.min(input.options.temperature ?? 0.55, 0.6)),
@@ -330,6 +351,7 @@ export async function generateCharacterCastOptionsDraft(
     },
     contextBlocks: context.contextBlocks,
     options: {
+      ...buildLivePromptContext(options),
       provider: options.provider,
       model: options.model,
       temperature: options.temperature ?? 0.5,
@@ -367,6 +389,7 @@ export async function generateAutoCharacterCastDraft(
       promptInput: {},
       contextBlocks: context.contextBlocks,
       options: {
+        ...buildLivePromptContext(options),
         provider: options.provider,
         model: options.model,
         temperature: options.temperature ?? 0.5,

@@ -55,7 +55,7 @@ export class NovelDirectorConfirmRuntime {
 
   async confirmCandidate(input: DirectorConfirmRequest): Promise<DirectorConfirmApiResponse> {
     const resolvedInput = applyDirectorRunModeContract(await this.deps.enrichDirectorStyleContext(input));
-    const runMode = resolvedInput.runMode;
+    const runMode = "auto_to_ready" as const;
     const title = resolvedInput.candidate.workingTitle.trim() || resolvedInput.title?.trim() || "未命名项目";
     const description = resolvedInput.description?.trim() || resolvedInput.candidate.logline.trim();
     const bookSpec = toBookSpec(

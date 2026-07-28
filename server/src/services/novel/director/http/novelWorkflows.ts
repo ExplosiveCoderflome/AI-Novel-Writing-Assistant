@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authMiddleware } from "../../../../middleware/auth";
 import { validate } from "../../../../middleware/validate";
 import { DirectorCommandService } from "../commands/DirectorCommandService";
+import { DirectorProductionExperienceService } from "../commands/DirectorProductionExperienceService";
 import { NovelWorkflowService } from "../../workflow/NovelWorkflowService";
 import { NovelWorkflowTaskAdapter } from "../../../task/adapters/NovelWorkflowTaskAdapter";
 
@@ -11,6 +12,7 @@ const router = Router();
 const workflowService = new NovelWorkflowService();
 const workflowAdapter = new NovelWorkflowTaskAdapter();
 const directorCommandService = new DirectorCommandService(workflowService);
+const productionExperienceService = new DirectorProductionExperienceService(directorCommandService);
 
 const stageSchema = z.enum([
   "project_setup",
@@ -29,6 +31,7 @@ const checkpointSchema = z.enum([
   "book_contract_ready",
   "character_setup_required",
   "volume_strategy_ready",
+  "production_experience_required",
   "chapter_batch_ready",
   "step_review_required",
   "replan_required",
@@ -53,6 +56,10 @@ const continueBodySchema = z.object({
 
 const repairChapterTitlesBodySchema = z.object({
   volumeId: z.string().trim().optional(),
+});
+
+const productionExperienceBodySchema = z.object({
+  experience: z.enum(["simple", "professional"]),
 });
 
 const novelParamsSchema = z.object({
@@ -124,6 +131,27 @@ router.post("/:id/continue", validate({ params: continueParamsSchema, body: cont
     next(error);
   }
 });
+
+router.post(
+  "/:id/production-experience",
+  validate({ params: continueParamsSchema, body: productionExperienceBodySchema }),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof continueParamsSchema>;
+      const { experience } = req.body as z.infer<typeof productionExperienceBodySchema>;
+      const data = await productionExperienceService.select(id, experience);
+      res.status(experience === "simple" ? 202 : 200).json({
+        success: true,
+        data,
+        message: experience === "simple"
+          ? "简易创作已启动，AI 将继续完成整本书。"
+          : "已进入专业创作工作台。",
+      } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 router.post("/:id/repair-chapter-titles", validate({ params: continueParamsSchema, body: repairChapterTitlesBodySchema }), async (req, res, next) => {
   try {

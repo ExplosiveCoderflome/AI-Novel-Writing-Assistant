@@ -19,8 +19,8 @@ export const AUTO_DIRECTOR_CREATE_STAGES: Array<{
   { key: "idea", order: 0, label: "起始想法" },
   { key: "basic", order: 1, label: "导演起始设置" },
   { key: "world_style", order: 2, label: "世界与写法" },
-  { key: "model_run", order: 3, label: "模型与运行方式" },
-  { key: "candidates", order: 4, label: "方向候选" },
+  { key: "model_run", order: 3, label: "模型与生产准备" },
+  { key: "candidates", order: 4, label: "方向与自动准备" },
 ];
 
 function findLabel(options: Array<{ value: string; label: string }>, value: string): string {

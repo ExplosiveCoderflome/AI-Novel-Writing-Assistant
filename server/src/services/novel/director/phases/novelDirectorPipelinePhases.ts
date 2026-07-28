@@ -119,6 +119,11 @@ export async function runDirectorCharacterSetupPhase(input: {
       model: request.model,
       temperature: request.temperature,
       storyInput,
+      novelId,
+      taskId,
+      stage: "character_setup",
+      itemKey: "character_setup",
+      entrypoint: "auto_director",
     }),
   });
   if (reusableOption) {
@@ -279,6 +284,8 @@ export async function runDirectorVolumeStrategyPhase(input: {
       model: request.model,
       temperature: request.temperature,
       scope: "strategy",
+      taskId,
+      entrypoint: "auto_director",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
       signal,
       onPhaseStart: async (event) => {
@@ -302,6 +309,8 @@ export async function runDirectorVolumeStrategyPhase(input: {
       model: request.model,
       temperature: request.temperature,
       scope: "strategy_critique",
+      taskId,
+      entrypoint: "auto_director",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
       draftWorkspace: workspace,
       signal,
@@ -326,6 +335,8 @@ export async function runDirectorVolumeStrategyPhase(input: {
       model: request.model,
       temperature: request.temperature,
       scope: "skeleton",
+      taskId,
+      entrypoint: "auto_director",
       estimatedChapterCount: request.estimatedChapterCount ?? toBookSpec(request.candidate, request.idea, request.estimatedChapterCount).targetChapterCount,
       draftWorkspace: workspace,
       signal,

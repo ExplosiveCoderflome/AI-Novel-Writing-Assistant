@@ -56,6 +56,7 @@ export interface DirectorCandidateStageState {
 }
 
 export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
+  productionExperience?: "simple" | "professional";
   novelId?: string | null;
   provider?: DirectorLLMOptions["provider"] | null;
   model?: string | null;

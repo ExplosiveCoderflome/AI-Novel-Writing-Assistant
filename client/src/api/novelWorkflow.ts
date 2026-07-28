@@ -3,6 +3,8 @@ import type { DirectorCommandAcceptedResponse } from "@ai-novel/shared/types/dir
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type {
   NovelWorkflowCheckpoint,
+  NovelProductionExperience,
+  NovelProductionExperienceSelectionResponse,
   NovelWorkflowStage,
 } from "@ai-novel/shared/types/novelWorkflow";
 import type { TaskStatus, UnifiedTaskDetail } from "@ai-novel/shared/types/task";
@@ -23,6 +25,17 @@ export async function continueNovelWorkflow(directorTaskId: string, payload?: {
   continuationMode?: DirectorContinuationMode;
 }) {
   const { data } = await apiClient.post<ApiResponse<DirectorCommandAcceptedResponse>>(`/novel-workflows/${directorTaskId}/continue`, payload ?? {});
+  return data;
+}
+
+export async function selectNovelProductionExperience(
+  directorTaskId: string,
+  experience: NovelProductionExperience,
+) {
+  const { data } = await apiClient.post<ApiResponse<NovelProductionExperienceSelectionResponse>>(
+    `/novel-workflows/${directorTaskId}/production-experience`,
+    { experience },
+  );
   return data;
 }
 

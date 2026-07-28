@@ -13,11 +13,13 @@ import {
 } from "@ai-novel/shared/types/novelDirector";
 import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { useQuery } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
 import {
   getDirectorTaskSnapshot,
 } from "@/api/novelDirector";
 import { queryKeys } from "@/api/queryKeys";
 import DirectorRuntimeProjectionCard from "@/components/autoDirector/DirectorRuntimeProjectionCard";
+import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AITakeoverContainer, { type AITakeoverMode } from "@/components/workflow/AITakeoverContainer";
@@ -27,6 +29,9 @@ import {
 } from "@/lib/directorTaskNotice";
 import { extractWorkflowActivityTags } from "@/lib/novelWorkflowActivityTags";
 import { useDirectorChapterTitleRepair } from "@/hooks/useDirectorChapterTitleRepair";
+import NovelDirectorPreparationJourney, {
+  type DirectorPreparationStepStatus,
+} from "./NovelDirectorPreparationJourney";
 
 type DirectorExecutionViewMode = "execution_progress" | "execution_failed";
 
@@ -42,7 +47,7 @@ interface NovelAutoDirectorProgressPanelProps {
   onOpenTaskCenter: () => void;
 }
 
-type DirectorStepVisualStatus = "pending" | "running" | "completed" | "failed";
+type DirectorStepVisualStatus = DirectorPreparationStepStatus;
 type DirectorStepDefinition = {
   key: string;
   label: string;
@@ -138,6 +143,9 @@ function formatCheckpoint(
   }
   if (checkpoint === "volume_strategy_ready") {
     return "卷战略已就绪";
+  }
+  if (checkpoint === "production_experience_required") {
+    return "已可开写，等待选择生产方式";
   }
   if (checkpoint === "chapter_batch_ready") {
     return `${resolveAutoExecutionScopeLabel(task)}自动执行已暂停`;
@@ -240,45 +248,6 @@ function resolveDirectorStepStatuses(
     }
     return "pending";
   });
-}
-
-function stepClasses(status: DirectorStepVisualStatus): string {
-  if (status === "completed") {
-    return "bg-emerald-500/10";
-  }
-  if (status === "running") {
-    return "bg-sky-50";
-  }
-  if (status === "failed") {
-    return "bg-destructive/5";
-  }
-  return "bg-muted/20";
-}
-
-function stepBadgeClasses(status: DirectorStepVisualStatus): string {
-  if (status === "completed") {
-    return "bg-emerald-600 text-white";
-  }
-  if (status === "running") {
-    return "bg-sky-600 text-white";
-  }
-  if (status === "failed") {
-    return "bg-destructive text-destructive-foreground";
-  }
-  return "bg-muted text-muted-foreground";
-}
-
-function stepStatusLabel(status: DirectorStepVisualStatus): string {
-  if (status === "completed") {
-    return "\u5df2\u5b8c\u6210";
-  }
-  if (status === "running") {
-    return "\u8fdb\u884c\u4e2d";
-  }
-  if (status === "failed") {
-    return "\u9700\u5904\u7406";
-  }
-  return "\u5f85\u63a8\u8fdb";
 }
 
 function mapDisplayStepStatus(status: DirectorDisplayStepStatus | null | undefined): DirectorStepVisualStatus {
@@ -429,7 +398,7 @@ export default function NovelAutoDirectorProgressPanel({
     }
     if (dashboardAction.type === "background_continue") {
       return {
-        label: dashboardAction.label,
+        label: "稍后回来查看",
         onClick: onBackgroundContinue,
         variant: "outline" as const,
       };
@@ -490,21 +459,18 @@ export default function NovelAutoDirectorProgressPanel({
         taskId={task?.id || taskId}
         actions={actions}
       >
-        <div className={`grid gap-3 ${candidateSetupFlow ? "md:grid-cols-4" : "md:grid-cols-7"}`}>
-          {(candidateSetupFlow
-            ? stepDefinitions
-            : displaySteps.map((step) => ({ key: step.key, label: step.label }))).map((step, index) => (
-            <div key={step.key} className={`rounded-lg p-3 ${stepClasses(steps[index] ?? "pending")}`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${stepBadgeClasses(steps[index] ?? "pending")}`}>
-                  {index + 1}
-                </span>
-                <span className="text-[11px] text-muted-foreground">{stepStatusLabel(steps[index] ?? "pending")}</span>
-              </div>
-              <div className="mt-3 text-sm font-medium text-foreground">{step.label}</div>
-            </div>
-          ))}
+        <div className="mb-4 flex justify-end">
+          <LiveExecutionDialog
+            taskId={runtimeTaskId}
+            autoOpenOnActivity
+          />
         </div>
+        <NovelDirectorPreparationJourney
+          steps={candidateSetupFlow
+            ? stepDefinitions
+            : displaySteps.map((step) => ({ key: step.key, label: step.label }))}
+          statuses={steps}
+        />
 
         {activityTags.length > 0 ? (
           <div className="mt-4">
@@ -517,10 +483,20 @@ export default function NovelAutoDirectorProgressPanel({
           </div>
         ) : null}
 
-        <DirectorRuntimeProjectionCard
-          projection={runtimeProjectionForDisplay}
-          className="mt-4"
-        />
+        <details className="group mt-4 overflow-hidden rounded-2xl border border-border/70 bg-muted/[0.12]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3.5">
+            <div>
+              <div className="text-sm font-medium text-foreground">运行详情</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">按需查看实时指标、事件记录、写法和 AI 用量</div>
+            </div>
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+          </summary>
+          <div className="border-t border-border/60 px-4 pb-4">
+            <DirectorRuntimeProjectionCard
+              projection={runtimeProjectionForDisplay}
+              compact
+              className="mt-4"
+            />
 
         <div className="mt-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -594,6 +570,8 @@ export default function NovelAutoDirectorProgressPanel({
             </div>
           </div>
         ) : null}
+          </div>
+        </details>
 
         {chapterTitleWarning ? (
           <div className="mt-4 rounded-xl border border-amber-300/60 bg-amber-50/80 p-4 text-sm text-amber-950">
@@ -634,8 +612,15 @@ export default function NovelAutoDirectorProgressPanel({
         ) : null}
       </AITakeoverContainer>
 
-      <div className="pt-1">
-        <div className="text-sm font-medium text-foreground">里程碑历史</div>
+      <details className="group rounded-2xl border border-border/70 bg-background">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5">
+          <div>
+            <div className="text-sm font-medium text-foreground">里程碑历史</div>
+            <div className="mt-0.5 text-xs text-muted-foreground">查看可恢复检查点与完成记录</div>
+          </div>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition group-open:rotate-180" />
+        </summary>
+        <div className="border-t border-border/60 px-4 pb-4 pt-1">
         {milestones.length > 0 ? (
           <div className="mt-3 space-y-3 border-l border-border/60 pl-3">
             {milestones
@@ -654,7 +639,8 @@ export default function NovelAutoDirectorProgressPanel({
             任务已创建，正在等待第一个稳定里程碑写入。
           </div>
         )}
-      </div>
+        </div>
+      </details>
     </div>
   );
 }
