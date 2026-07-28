@@ -11,6 +11,9 @@
 - 正式发布 tag 必须是 `vX.Y.Z`，并且 `X.Y.Z` 必须等于 `desktop/package.json` 的 `version`。
 - 不在 UI、README 或发布脚本中硬编码另一个客户端版本号。
 - GitHub 桌面发布 workflow 必须使用 Node 24 运行时和 Node 24 代际的官方 action，不再依赖 `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` 去强制旧 Node 20 action。
+- 桌面更新状态以 Electron runtime 投影为唯一事实来源；工作区顶部入口、更新弹窗、启动页和系统设置只负责以不同密度展示同一份状态，不各自推断更新结果。
+- 工作区顶部版本号是日常更新入口。发现新版本、下载中或等待重启时，入口必须直接显示对应状态；系统设置保留完整详情，但不能作为唯一入口。
+- 面向用户的更新状态、错误说明和操作按钮使用中文；底层错误详情写入桌面日志，不把英文异常原文直接暴露给用户。
 
 ## Release Steps
 
@@ -30,5 +33,8 @@
 
 - `client/vite.config.ts`：把桌面版本注入网页开发态和普通前端构建。
 - `client/src/lib/constants.ts`：统一导出前端可用的 `APP_VERSION`。
+- `client/src/components/layout/desktopUpdaterPresentation.ts`：统一更新状态、安装形态和通道的用户文案。
+- `client/src/components/layout/DesktopUpdatePanel.tsx`：供顶部弹窗与系统设置复用的更新操作面板。
 - `desktop/src/main.ts`：桌面运行态把 Electron `app.getVersion()` 注入 renderer。
+- `desktop/src/runtime/updater.ts`：检查、下载和安装状态的事实来源。
 - `scripts/bump-desktop-version.cjs` 与 `scripts/trigger-desktop-release.cjs`：版本推进与正式发布 tag 校验。
