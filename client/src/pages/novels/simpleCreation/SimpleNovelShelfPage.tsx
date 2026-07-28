@@ -11,6 +11,7 @@ import {
 import { continueNovelWorkflow, getActiveAutoDirectorTask } from "@/api/novelWorkflow";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import LiveExecutionDialog from "@/components/liveExecution/LiveExecutionDialog";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import SimpleCreationMaterialsPanel from "./SimpleCreationMaterialsPanel";
 
 const STATUS_LABELS: Record<SimpleCreationShelfChapterStatus, string> = {
   waiting_planning: "等待规划",
@@ -128,6 +130,10 @@ export default function SimpleNovelShelfPage() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <LiveExecutionDialog
+              taskId={shelf.progress.directorTaskId}
+              autoOpenOnActivity
+            />
             {shelf.progress.canRetry ? (
               <Button onClick={() => retryMutation.mutate()} disabled={retryMutation.isPending}>
                 {retryMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null} 按 AI 建议继续
@@ -149,6 +155,8 @@ export default function SimpleNovelShelfPage() {
           </div>
         ) : null}
       </header>
+
+      <SimpleCreationMaterialsPanel materials={shelf.materials} />
 
       <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
         <aside className="rounded-2xl border border-border bg-background p-4 lg:max-h-[calc(100vh-13rem)] lg:overflow-y-auto">
@@ -174,13 +182,9 @@ export default function SimpleNovelShelfPage() {
               );
             })}
           </div>
-          <details className="mt-5 border-t border-border pt-4">
-            <summary className="cursor-pointer text-sm font-medium text-foreground">创作资料</summary>
-            <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
-              <div>{shelf.materials.description || "AI 正在整理整书简介。"}</div>
-              <div>角色 {shelf.materials.characterCount} 位 · 卷规划 {shelf.materials.volumeCount} 卷 · 待跟进质量项 {shelf.materials.openQualityDebtCount} 条</div>
-            </div>
-          </details>
+          <div className="mt-5 border-t border-border pt-4 text-xs leading-5 text-muted-foreground">
+            待跟进质量项 {shelf.materials.openQualityDebtCount} 条。普通质量问题由 AI 继续处理，不会打断全书生产。
+          </div>
         </aside>
 
         <main className="min-h-[560px] rounded-2xl border border-border bg-background">

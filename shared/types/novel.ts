@@ -118,6 +118,7 @@ export interface SimpleCreationShelfProjection {
     estimatedChapterCount: number | null;
   };
   progress: {
+    directorTaskId: string | null;
     percent: number;
     completedChapters: number;
     totalChapters: number;
@@ -140,6 +141,32 @@ export interface SimpleCreationShelfProjection {
     characterCount: number;
     volumeCount: number;
     openQualityDebtCount: number;
+    story: {
+      coreSellingPoint: string | null;
+      readingPromise: string | null;
+      first30ChapterPromise: string | null;
+      protagonistFantasy: string | null;
+    };
+    world: {
+      name: string;
+      summary: string | null;
+    } | null;
+    characters: Array<{
+      id: string;
+      name: string;
+      role: string;
+      storyFunction: string | null;
+      currentGoal: string | null;
+      personality: string | null;
+    }>;
+    volumes: Array<{
+      id: string;
+      order: number;
+      title: string;
+      summary: string | null;
+      mainPromise: string | null;
+      chapterCount: number;
+    }>;
   };
 }
 

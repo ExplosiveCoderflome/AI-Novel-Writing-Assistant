@@ -226,8 +226,51 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
           id: true,
           title: true,
           description: true,
+          bookSellingPoint: true,
+          competingFeel: true,
+          first30ChapterPromise: true,
           creationExperience: true,
           estimatedChapterCount: true,
+          world: {
+            select: {
+              name: true,
+              overviewSummary: true,
+              description: true,
+            },
+          },
+          bookContract: {
+            select: {
+              readingPromise: true,
+              protagonistFantasy: true,
+              coreSellingPoint: true,
+            },
+          },
+          characters: {
+            orderBy: { createdAt: "asc" },
+            take: 12,
+            select: {
+              id: true,
+              name: true,
+              role: true,
+              storyFunction: true,
+              currentGoal: true,
+              personality: true,
+            },
+          },
+          volumePlans: {
+            where: { status: "active" },
+            orderBy: { sortOrder: "asc" },
+            select: {
+              id: true,
+              sortOrder: true,
+              title: true,
+              summary: true,
+              mainPromise: true,
+              _count: {
+                select: { chapters: true },
+              },
+            },
+          },
           chapters: {
             orderBy: { order: "asc" },
             select: {
@@ -252,6 +295,7 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
             orderBy: { updatedAt: "desc" },
             take: 1,
             select: {
+              id: true,
               status: true,
               progress: true,
               currentItemLabel: true,
@@ -292,6 +336,7 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
           estimatedChapterCount: novel.estimatedChapterCount,
         },
         progress: {
+          directorTaskId: task?.id ?? null,
           percent: task ? Math.max(0, Math.min(100, Math.round(task.progress))) : 0,
           completedChapters,
           totalChapters,
@@ -331,6 +376,27 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
           characterCount: novel._count.characters,
           volumeCount: novel._count.volumePlans,
           openQualityDebtCount: novel._count.auditReports,
+          story: {
+            coreSellingPoint: novel.bookContract?.coreSellingPoint ?? novel.bookSellingPoint,
+            readingPromise: novel.bookContract?.readingPromise ?? novel.competingFeel,
+            first30ChapterPromise: novel.first30ChapterPromise,
+            protagonistFantasy: novel.bookContract?.protagonistFantasy ?? null,
+          },
+          world: novel.world
+            ? {
+                name: novel.world.name,
+                summary: novel.world.overviewSummary ?? novel.world.description,
+              }
+            : null,
+          characters: novel.characters,
+          volumes: novel.volumePlans.map((volume) => ({
+            id: volume.id,
+            order: volume.sortOrder,
+            title: volume.title,
+            summary: volume.summary,
+            mainPromise: volume.mainPromise,
+            chapterCount: volume._count.chapters,
+          })),
         },
       };
       res.status(200).json({ success: true, data, message: "章节书架已更新。" } satisfies ApiResponse<typeof data>);

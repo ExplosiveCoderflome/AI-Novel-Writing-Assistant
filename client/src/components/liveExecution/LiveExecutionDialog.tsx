@@ -31,7 +31,14 @@ function sessionId(session: LlmLiveSessionSnapshot): string {
   return session.context.interactionId;
 }
 
-export default function LiveExecutionDialog(props: { compact?: boolean; className?: string }) {
+interface LiveExecutionDialogProps {
+  compact?: boolean;
+  className?: string;
+  taskId?: string | null;
+  autoOpenOnActivity?: boolean;
+}
+
+export default function LiveExecutionDialog(props: LiveExecutionDialogProps) {
   const [open, setOpen] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [followingLatest, setFollowingLatest] = useState(true);
@@ -41,7 +48,11 @@ export default function LiveExecutionDialog(props: { compact?: boolean; classNam
   const dragStartRef = useRef<{ pointerX: number; pointerY: number; offsetX: number; offsetY: number } | null>(null);
   const followLatestRef = useRef(true);
   const latestSessionIdRef = useRef<string | null>(null);
-  const { clearSessions, connected, sessions } = useLlmLiveFeed({ enabled: true });
+  const autoOpenedSessionIdsRef = useRef(new Set<string>());
+  const { clearSessions, connected, sessions } = useLlmLiveFeed({
+    enabled: true,
+    taskId: props.taskId,
+  });
   const orderedSessions = useMemo(
     () => [...sessions],
     [sessions],
@@ -49,6 +60,27 @@ export default function LiveExecutionDialog(props: { compact?: boolean; classNam
   const latestSession = orderedSessions[orderedSessions.length - 1] ?? null;
   const latestSessionId = latestSession ? sessionId(latestSession) : null;
   const activeCount = sessions.filter((session) => isActive(session.phase)).length;
+
+  useEffect(() => {
+    if (!props.autoOpenOnActivity) {
+      return;
+    }
+    const unseenActiveSession = orderedSessions.find((session) => (
+      isActive(session.phase)
+      && !autoOpenedSessionIdsRef.current.has(sessionId(session))
+    ));
+    if (!unseenActiveSession) {
+      return;
+    }
+    for (const session of orderedSessions) {
+      if (isActive(session.phase)) {
+        autoOpenedSessionIdsRef.current.add(sessionId(session));
+      }
+    }
+    setOpen(true);
+    followLatestRef.current = true;
+    setFollowingLatest(true);
+  }, [orderedSessions, props.autoOpenOnActivity]);
 
   useLayoutEffect(() => {
     if (!open || !followLatestRef.current || !latestSessionRef.current) {
