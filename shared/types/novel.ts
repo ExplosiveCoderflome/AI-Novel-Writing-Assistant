@@ -102,6 +102,47 @@ export type ChapterStatus =
   | "needs_repair"
   | "completed";
 
+export type SimpleCreationShelfChapterStatus =
+  | "waiting_planning"
+  | "waiting_writing"
+  | "generating"
+  | "reviewing"
+  | "completed"
+  | "error";
+
+export interface SimpleCreationShelfProjection {
+  novel: {
+    id: string;
+    title: string;
+    creationExperience: CreationExperience;
+    estimatedChapterCount: number | null;
+  };
+  progress: {
+    percent: number;
+    completedChapters: number;
+    totalChapters: number;
+    currentAction: string;
+    status: "queued" | "running" | "paused" | "failed" | "completed";
+    canRetry: boolean;
+    safetyMessage?: string | null;
+  };
+  chapters: Array<{
+    id: string;
+    order: number;
+    title: string;
+    status: SimpleCreationShelfChapterStatus;
+    wordCount: number;
+    content: string | null;
+    updatedAt: string;
+  }>;
+  materials: {
+    description: string | null;
+    characterCount: number;
+    volumeCount: number;
+    openQualityDebtCount: number;
+  };
+}
+
 export type PipelineRunMode = "fast" | "polish";
 export type ArtifactSyncMode = "adaptive" | "deferred" | "strict";
 export type PipelineRepairMode =

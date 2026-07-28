@@ -264,7 +264,7 @@ export class NovelDirectorCandidateStageService {
 
     const result = await this.generateBatch({
       idea: input.idea,
-      count: 2,
+      count: input.candidateCount ?? 2,
       batches: [],
       presets: [],
       request: input,

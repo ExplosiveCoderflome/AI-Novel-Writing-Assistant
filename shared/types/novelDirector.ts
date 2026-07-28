@@ -1,5 +1,6 @@
 import type {
   AIFreedom,
+  CreationExperience,
   EmotionIntensity,
   NarrativePov,
   Novel,
@@ -566,6 +567,8 @@ export interface DirectorTakeoverResponse {
 }
 
 export interface DirectorProjectContextInput {
+  creationExperience?: CreationExperience;
+  genreTagIds?: string[];
   title?: string;
   description?: string;
   targetAudience?: string;
@@ -605,6 +608,7 @@ export type DirectorWorldSetupMode = NonNullable<DirectorProjectContextInput["wo
 
 export interface DirectorCandidatesRequest extends DirectorProjectContextInput, DirectorLLMOptions {
   idea: string;
+  candidateCount?: 2;
   workflowTaskId?: string;
 }
 

@@ -173,6 +173,7 @@ export class NovelDirectorConfirmRuntime {
               worldId: resolvedInput.worldId?.trim() || undefined,
               writingMode: resolvedInput.writingMode,
               projectMode: resolvedInput.projectMode,
+              creationExperience: resolvedInput.creationExperience,
               narrativePov: resolvedInput.narrativePov,
               pacePreference: resolvedInput.pacePreference,
               styleTone: resolvedInput.styleTone?.trim() || undefined,

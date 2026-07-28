@@ -2,13 +2,13 @@ import type { NextFunction, Request, Response } from "express";
 import { prisma } from "../../../db/prisma";
 import { AppError } from "../../../middleware/errorHandler";
 
-function isAllowedSimpleProjectRequest(req: Request): boolean {
-  if (req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS") {
+export function isSimpleCreationWriteAllowed(method: string, path: string): boolean {
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
     return true;
   }
-  const path = req.path.toLowerCase();
-  return path.endsWith("/creation-experience/professional")
-    || path.includes("/export");
+  const normalizedPath = path.toLowerCase();
+  return normalizedPath.endsWith("/creation-experience/professional")
+    || normalizedPath.includes("/export");
 }
 
 export async function guardSimpleCreationUserWrites(
@@ -17,7 +17,7 @@ export async function guardSimpleCreationUserWrites(
   next: NextFunction,
 ): Promise<void> {
   try {
-    if (isAllowedSimpleProjectRequest(req)) {
+    if (isSimpleCreationWriteAllowed(req.method, req.path)) {
       next();
       return;
     }

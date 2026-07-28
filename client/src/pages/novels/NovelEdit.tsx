@@ -355,6 +355,12 @@ export default function NovelEdit() {
     queryFn: () => getNovelDetail(id),
     enabled: Boolean(id),
   });
+
+  useEffect(() => {
+    if (novelDetailQuery.data?.data?.creationExperience === "simple") {
+      navigate(`/novels/${id}/simple`, { replace: true });
+    }
+  }, [id, navigate, novelDetailQuery.data?.data?.creationExperience]);
   const qualityReportQuery = useQuery({
     queryKey: queryKeys.novels.qualityReport(id),
     queryFn: () => getNovelQualityReport(id),

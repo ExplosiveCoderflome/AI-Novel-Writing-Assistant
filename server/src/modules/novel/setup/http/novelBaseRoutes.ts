@@ -2,6 +2,8 @@ import type { Router } from "express";
 import type { ApiResponse } from "@ai-novel/shared/types/api";
 import { NOVEL_LIST_PAGE_LIMIT_DEFAULT, NOVEL_LIST_PAGE_LIMIT_MAX } from "@ai-novel/shared/types/pagination";
 import { z } from "zod";
+import type { SimpleCreationShelfProjection } from "@ai-novel/shared/types/novel";
+import { prisma } from "../../../../db/prisma";
 import { llmProviderSchema } from "../../../../llm/providerSchema";
 import { validate } from "../../../../middleware/validate";
 import { KnowledgeService } from "../../../../services/knowledge/KnowledgeService";
@@ -210,6 +212,128 @@ export function registerNovelBaseRoutes(input: RegisterNovelBaseRoutesInput): vo
         data,
         message: "获取小说详情成功。",
       } satisfies ApiResponse<typeof data>);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get("/:id/simple-shelf", validate({ params: idParamsSchema }), async (req, res, next) => {
+    try {
+      const { id } = req.params as z.infer<typeof idParamsSchema>;
+      const novel = await prisma.novel.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          creationExperience: true,
+          estimatedChapterCount: true,
+          chapters: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              order: true,
+              title: true,
+              content: true,
+              chapterStatus: true,
+              generationState: true,
+              updatedAt: true,
+            },
+          },
+          _count: {
+            select: {
+              characters: true,
+              volumePlans: true,
+              auditReports: true,
+            },
+          },
+          workflowTasks: {
+            where: { lane: "auto_director" },
+            orderBy: { updatedAt: "desc" },
+            take: 1,
+            select: {
+              status: true,
+              progress: true,
+              currentItemLabel: true,
+              pendingManualRecovery: true,
+              lastError: true,
+              checkpointType: true,
+            },
+          },
+        },
+      });
+      if (!novel) {
+        res.status(404).json({ success: false, error: "小说不存在。" } satisfies ApiResponse<null>);
+        return;
+      }
+      const task = novel.workflowTasks[0] ?? null;
+      const completedChapters = novel.chapters.filter((chapter) => (
+        chapter.chapterStatus === "completed"
+        || chapter.generationState === "approved"
+        || chapter.generationState === "published"
+      )).length;
+      const totalChapters = Math.max(
+        novel.chapters.length,
+        novel.estimatedChapterCount ?? 0,
+        completedChapters,
+      );
+      const taskStatus = task?.status;
+      const progressStatus: SimpleCreationShelfProjection["progress"]["status"] =
+        taskStatus === "failed" ? "failed"
+          : taskStatus === "succeeded" ? "completed"
+            : task?.pendingManualRecovery || taskStatus === "waiting_approval" ? "paused"
+              : taskStatus === "running" ? "running"
+                : "queued";
+      const data: SimpleCreationShelfProjection = {
+        novel: {
+          id: novel.id,
+          title: novel.title,
+          creationExperience: novel.creationExperience,
+          estimatedChapterCount: novel.estimatedChapterCount,
+        },
+        progress: {
+          percent: task ? Math.max(0, Math.min(100, Math.round(task.progress))) : 0,
+          completedChapters,
+          totalChapters,
+          currentAction: task?.currentItemLabel ?? (progressStatus === "completed" ? "整本书已完成" : "等待 AI 开始处理"),
+          status: progressStatus,
+          canRetry: progressStatus === "failed" || progressStatus === "paused",
+          safetyMessage: task?.lastError ?? null,
+        },
+        chapters: novel.chapters.map((chapter) => {
+          const isCompleted = chapter.chapterStatus === "completed"
+            || chapter.generationState === "approved"
+            || chapter.generationState === "published";
+          const status: SimpleCreationShelfProjection["chapters"][number]["status"] = isCompleted
+            ? "completed"
+            : chapter.chapterStatus === "needs_repair" || chapter.chapterStatus === "pending_review"
+              ? "reviewing"
+              : chapter.chapterStatus === "generating"
+                ? "generating"
+                : chapter.chapterStatus === "pending_generation"
+                  ? "waiting_writing"
+                  : progressStatus === "failed" && task?.checkpointType?.includes("chapter")
+                    ? "error"
+                    : "waiting_planning";
+          const content = isCompleted ? chapter.content?.trim() || null : null;
+          return {
+            id: chapter.id,
+            order: chapter.order,
+            title: chapter.title,
+            status,
+            wordCount: content ? Array.from(content).length : 0,
+            content,
+            updatedAt: chapter.updatedAt.toISOString(),
+          };
+        }),
+        materials: {
+          description: novel.description,
+          characterCount: novel._count.characters,
+          volumeCount: novel._count.volumePlans,
+          openQualityDebtCount: novel._count.auditReports,
+        },
+      };
+      res.status(200).json({ success: true, data, message: "章节书架已更新。" } satisfies ApiResponse<typeof data>);
     } catch (error) {
       next(error);
     }

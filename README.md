@@ -149,10 +149,10 @@
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
-### 2026-07-17
+### 2026-07-28
 
-- 左侧导航菜单会在固定高度内独立滚动，窗口高度较小时也可以访问底部的系统入口。
-- README 在桌面版入口后直接展示 [Ani Book Skill](https://github.com/ExplosiveCoderflome/ani-book-skill)，方便想在 Codex 本地工作区里直接推进长篇中文小说的人选择适合自己的创作入口。
+- 创建小说时可以选择“简易创作”：只需一句话灵感和可选题材标签，从两套整书方向中选一个，AI 就会自动完成后续规划、写作、审校与修复。
+- 简易项目使用只读的实时章节书架，持续展示全书进度和章节状态，完成稿可直接阅读和导出；需要亲自修改时，可以保留全部内容并转为专业创作。
 
 > 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
 

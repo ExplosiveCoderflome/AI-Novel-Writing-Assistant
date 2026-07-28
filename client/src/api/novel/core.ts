@@ -16,6 +16,7 @@ import type {
   PacePreference,
   ProjectMode,
   ProjectProgressStatus,
+  SimpleCreationShelfProjection,
 } from "@ai-novel/shared/types/novel";
 import { apiClient } from "../client";
 import {
@@ -79,6 +80,11 @@ export async function createNovel(payload: {
 
 export async function convertNovelToProfessional(id: string) {
   const { data } = await apiClient.post<ApiResponse<Novel>>(`/novels/${id}/creation-experience/professional`);
+  return data;
+}
+
+export async function getSimpleCreationShelf(id: string) {
+  const { data } = await apiClient.get<ApiResponse<SimpleCreationShelfProjection>>(`/novels/${id}/simple-shelf`);
   return data;
 }
 

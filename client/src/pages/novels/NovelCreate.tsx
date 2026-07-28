@@ -9,6 +9,7 @@ import { queryKeys } from "@/api/queryKeys";
 import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { getWorldList } from "@/api/world";
 import { Button } from "@/components/ui/button";
+import { ArrowRight, Sparkles, SlidersHorizontal } from "lucide-react";
 import NovelBasicInfoForm from "./components/NovelBasicInfoForm";
 import NovelCreateResourceRecommendationCard from "./components/NovelCreateResourceRecommendationCard";
 import { BookFramingQuickFillButton } from "./components/basicInfoForm/BookFramingQuickFillButton";
@@ -28,6 +29,7 @@ export default function NovelCreate() {
 
   const workflowTaskIdFromQuery = searchParams.get("workflowTaskId") ?? "";
   const workflowMode = searchParams.get("mode");
+  const creationChoice = searchParams.get("experience");
 
   const worldListQuery = useQuery({
     queryKey: queryKeys.worlds.all,
@@ -165,11 +167,56 @@ export default function NovelCreate() {
     },
   });
 
+  if (!creationChoice && !workflowTaskIdFromQuery && workflowMode !== "director") {
+    return (
+      <div className="mx-auto max-w-5xl space-y-8 px-3 py-8 sm:px-4 lg:px-0">
+        <div className="max-w-3xl">
+          <h1 className="text-3xl font-semibold tracking-normal text-foreground">你想怎样完成这本小说？</h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            第一次写小说，建议让 AI 负责规划和写作。你只需要给一句灵感，再从两个方向中选一个。
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Link
+            to="/novels/simple-create"
+            className="group rounded-2xl border border-primary/30 bg-primary/5 p-6 transition hover:border-primary/60 hover:bg-primary/10"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <Sparkles className="h-6 w-6 text-primary" />
+              <span className="rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground">推荐</span>
+            </div>
+            <div className="mt-5 text-xl font-semibold text-foreground">简易创作</div>
+            <div className="mt-2 text-sm leading-6 text-muted-foreground">
+              写一句灵感并选择题材，AI 给出两个整书方向。选定后自动完成规划、章节写作、审校与修复。
+            </div>
+            <div className="mt-5 flex items-center gap-2 text-sm font-medium text-primary">
+              开始简易创作 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+            </div>
+          </Link>
+          <button
+            type="button"
+            className="group rounded-2xl border border-border bg-background p-6 text-left transition hover:border-foreground/30 hover:bg-muted/20"
+            onClick={() => setSearchParams({ experience: "professional" })}
+          >
+            <SlidersHorizontal className="h-6 w-6 text-muted-foreground" />
+            <div className="mt-5 text-xl font-semibold text-foreground">专业创作</div>
+            <div className="mt-2 text-sm leading-6 text-muted-foreground">
+              自己设置题材、世界、角色、写法与执行范围，并在完整工作台中随时编辑和调整。
+            </div>
+            <div className="mt-5 flex items-center gap-2 text-sm font-medium text-foreground">
+              打开完整设置 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+            </div>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-7 px-3 py-4 sm:px-4 lg:px-0">
       <section className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-3xl">
-          <h1 className="text-3xl font-semibold tracking-normal text-foreground">创建小说项目</h1>
+          <h1 className="text-3xl font-semibold tracking-normal text-foreground">专业创作</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
             推荐先让 AI 自动导演从一句灵感整理方向、世界、角色和章节准备。需要完全手动填写时，也可以继续使用下方表单。
           </p>
