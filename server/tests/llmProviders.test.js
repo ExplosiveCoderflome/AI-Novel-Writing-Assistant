@@ -1,7 +1,14 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { z } = require("zod");
-const { PROVIDERS, SUPPORTED_PROVIDERS } = require("../dist/llm/providers.js");
+const {
+  getProviderEnvApiKey,
+  getProviderEnvBaseUrl,
+  getProviderEnvModel,
+  PROVIDERS,
+  resolveProviderBaseUrl,
+  SUPPORTED_PROVIDERS,
+} = require("../dist/llm/providers.js");
 const {
   getJsonCapability,
   getModelParameterCompatibility,
@@ -14,18 +21,62 @@ const {
   selectStructuredOutputStrategy,
 } = require("../dist/llm/structuredOutput.js");
 
-test("supported providers include kimi, minimax, glm, qwen, gemini and ollama", () => {
-  for (const provider of ["kimi", "minimax", "glm", "qwen", "gemini", "ollama"]) {
+test("supported providers include kimi, minimax, glm, qwen, gemini, ollama and atlascloud", () => {
+  for (const provider of ["kimi", "minimax", "glm", "qwen", "gemini", "ollama", "atlascloud"]) {
     assert.ok(SUPPORTED_PROVIDERS.includes(provider), `${provider} should be available`);
   }
 });
 
 test("new provider defaults are present in their model fallback lists", () => {
-  for (const provider of ["kimi", "minimax", "glm", "qwen", "gemini", "ollama"]) {
+  for (const provider of ["kimi", "minimax", "glm", "qwen", "gemini", "ollama", "atlascloud"]) {
     assert.ok(
       PROVIDERS[provider].models.includes(PROVIDERS[provider].defaultModel),
       `${provider} default model should exist in fallback models`,
     );
+  }
+});
+
+test("atlascloud defaults and environment aliases use the OpenAI-compatible endpoint", () => {
+  const envKeys = [
+    "ATLASCLOUD_API_KEY",
+    "ATLAS_CLOUD_API_KEY",
+    "ATLASCLOUD_BASE_URL",
+    "ATLAS_CLOUD_BASE_URL",
+    "ATLASCLOUD_MODEL",
+    "ATLAS_CLOUD_MODEL",
+  ];
+  const previous = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
+
+  try {
+    for (const key of envKeys) {
+      delete process.env[key];
+    }
+
+    assert.equal(PROVIDERS.atlascloud.name, "Atlas Cloud");
+    assert.equal(PROVIDERS.atlascloud.baseURL, "https://api.atlascloud.ai/v1");
+    assert.equal(PROVIDERS.atlascloud.defaultModel, "qwen/qwen3.5-flash");
+    assert.ok(PROVIDERS.atlascloud.models.includes("deepseek-ai/deepseek-v4-pro"));
+    assert.equal(resolveProviderBaseUrl("atlascloud"), "https://api.atlascloud.ai/v1");
+
+    process.env.ATLAS_CLOUD_API_KEY = " alias-key ";
+    assert.equal(getProviderEnvApiKey("atlascloud"), "alias-key");
+    process.env.ATLASCLOUD_API_KEY = " primary-key ";
+    assert.equal(getProviderEnvApiKey("atlascloud"), "primary-key");
+
+    process.env.ATLAS_CLOUD_BASE_URL = "https://proxy.example/v1/";
+    assert.equal(getProviderEnvBaseUrl("atlascloud"), "https://proxy.example/v1");
+    assert.equal(resolveProviderBaseUrl("atlascloud"), "https://proxy.example/v1");
+
+    process.env.ATLAS_CLOUD_MODEL = " deepseek-ai/deepseek-v4-pro ";
+    assert.equal(getProviderEnvModel("atlascloud"), "deepseek-ai/deepseek-v4-pro");
+  } finally {
+    for (const key of envKeys) {
+      if (previous[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = previous[key];
+      }
+    }
   }
 });
 
@@ -117,6 +168,16 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
   assert.equal(qwenBehindProxyProfile.family, "custom_openai_compatible_qwen");
   assert.equal(qwenBehindProxyProfile.nativeJsonSchema, false);
   assert.equal(selectStructuredOutputStrategy(qwenBehindProxyProfile, schema), "prompt_json");
+
+  const atlasCloudProfile = resolveStructuredOutputProfile({
+    provider: "atlascloud",
+    model: "qwen/qwen3.5-flash",
+    baseURL: "https://api.atlascloud.ai/v1",
+    executionMode: "structured",
+  });
+  assert.equal(atlasCloudProfile.family, "custom_openai_compatible_qwen");
+  assert.equal(atlasCloudProfile.nativeJsonSchema, false);
+  assert.equal(selectStructuredOutputStrategy(atlasCloudProfile, schema), "prompt_json");
 
   const deepseekBehindProxyProfile = resolveStructuredOutputProfile({
     provider: "openai",
@@ -259,6 +320,19 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwenThinking.modelKwargs?.enable_thinking, undefined);
     assert.equal(qwenThinking.maxTokens, 8192);
     assert.equal(qwenThinking.requestProtocol, "openai_compatible");
+
+    const atlasCloud = await resolveLLMClientOptions("atlascloud", {
+      apiKey: "test-key",
+      executionMode: "structured",
+      structuredStrategy: "prompt_json",
+      maxTokens: 20000,
+    });
+    assert.equal(atlasCloud.providerName, "Atlas Cloud");
+    assert.equal(atlasCloud.model, "qwen/qwen3.5-flash");
+    assert.equal(atlasCloud.baseURL, "https://api.atlascloud.ai/v1");
+    assert.equal(atlasCloud.structuredProfile?.family, "custom_openai_compatible_qwen");
+    assert.equal(atlasCloud.maxTokens, 8192);
+    assert.equal(atlasCloud.requestProtocol, "openai_compatible");
 
     const anthropicProtocol = await resolveLLMClientOptions("openai", {
       apiKey: "test-key",
