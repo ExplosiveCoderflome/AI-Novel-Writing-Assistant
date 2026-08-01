@@ -129,6 +129,14 @@ flowchart LR
 - **启示七 (CLI 优先自动化引擎 & UNIX 哲学)**：独立 CLI 命令行网关 (`CLIAutomationService` & `cliRunner.ts`)，支持在终端通过 `pnpm --filter server run:cli` 无头执行健康审计与资产导出。
 - **启示八 (规格测试先行 & 防幻觉“不知道”机制)**：定量评估检索知识置信度，在检索缺乏依据时强行注入“设定未明确”屏蔽指令，拦截未证实断言，防范大模型胡乱臆造。
 
+### 11. OpenRSI 演化算子引擎与 Crossover (基因熔炼交叉)
+融合 Frontis OpenRSI 递归自我改进 (RSI) 演化思想，构建标准化的 4 大原子演化算子链（位于 [server/src/services/novel/director/operators/](file:///c:/Users/lilin/GeneralAgent/server/src/services/novel/director/operators/)）：
+- **`Draft` 算子**：基于大纲上下文与创作者画像生成全新章节初稿。
+- **`Improve` 算子**：结合 `AuditService` 诊断意见执行增量文笔与剧情提升，保留原精粹段落。
+- **`Debug` 算子**：针对违背设定或角色出戏等硬性错误，进行外科手术式精准修补 (Surgical Patch)。
+- **`Crossover` (基因熔炼交叉算子 - 核心创新)**：解构 Parent A (如高潮打斗/动作节奏) 与 Parent B (如心理独白/环境氛围) 的优异基因特征，结构化融合成体验更佳的子代候选，变异轨迹由 `MutationTraceNode` 完整记录追溯。
+- **演化调度引擎与接口**：统一算子调度中心 `EvolutionaryOperatorEngine` 及 REST API 路由（`/api/novel/director/operators/crossover` 等），为创意中枢与自动导演提供高可用的算法算子支持。
+
 ---
 
 ## 🔮 展望与待做 (What Is To Be Done)

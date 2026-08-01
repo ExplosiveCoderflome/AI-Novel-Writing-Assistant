@@ -131,6 +131,14 @@ Fully implemented Daniel Miessler's Personal AI Infrastructure (PAI) architectur
 - **Insight #7 (CLI-First Automation Engine & UNIX Philosophy)**: Standalone CLI automation gateway (`CLIAutomationService` & `cliRunner.ts`) for headless health auditing, asset exports, and RAG index rebuilding via `pnpm --filter server run:cli`.
 - **Insight #8 (Specs-First & Anti-Hallucination Guard)**: Quantitative knowledge confidence evaluation (`evaluateKnowledgeConfidence`). Automatically appends `ALLOW "I DON'T KNOW"` prompt instructions when context is missing, preventing AI hallucinations.
 
+### 11. OpenRSI Evolutionary Operator Engine & Crossover Recombination
+Integrated Frontis OpenRSI Recursive Self-Improvement (RSI) principles to build standardized atomic program/text evolution operators under [server/src/services/novel/director/operators/](file:///c:/Users/lilin/GeneralAgent/server/src/services/novel/director/operators/):
+- **`Draft` Operator**: Generates initial chapter candidates based on outline context, 3-tier memory, and creator profile (TELOS).
+- **`Improve` Operator**: Applies non-destructive prose & pacing enhancements guided by `AuditService` diagnostics while preserving parent text highlights.
+- **`Debug` Operator**: Executes surgical patches for critical constraint violations (setting breaches, character voice OOC, timeline errors).
+- **`Crossover` Operator (Core Innovation)**: Deconstructs Parent A (e.g. action pacing / climax payoff) & Parent B (e.g. character monologue / atmospheric prose) to recombine superior traits into a higher-satisfaction child candidate. Full mutation lineage is logged via `MutationTraceNode`.
+- **Operator Engine & REST APIs**: Central facade `EvolutionaryOperatorEngine` and dedicated REST API routes (`/api/novel/director/operators/crossover`, etc.) serving both Creative Hub and Auto-Director.
+
 ---
 
 ## 🔮 What Is To Be Done (Future Vision)
