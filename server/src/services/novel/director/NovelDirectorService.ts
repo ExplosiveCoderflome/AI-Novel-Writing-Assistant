@@ -97,6 +97,8 @@ import { getDirectorInputFromSeedPayload } from "./runtime/novelDirectorHelpers"
 import {
   directorWorkflowStepModuleRegistry,
 } from "./workflowStepRuntime/directorWorkflowStepModules";
+import { evolutionaryOperatorEngine } from "./operators/EvolutionaryOperatorEngine";
+import type { OperatorInput, OperatorResult } from "./operators/operatorTypes";
 import {
   inspectWorkflowStepFacts,
   isExecutableWorkflowStepModule,
@@ -824,4 +826,7 @@ export class NovelDirectorService {
     return this.confirmRuntime.confirmCandidate(input);
   }
 
+  async executeEvolutionaryOperator<T = any>(input: OperatorInput<T>): Promise<OperatorResult<T>> {
+    return evolutionaryOperatorEngine.executeOperator<T>(input);
+  }
 }

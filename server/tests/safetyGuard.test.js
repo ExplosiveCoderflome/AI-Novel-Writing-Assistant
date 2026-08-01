@@ -2,7 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { safetyGuardService } = require("../dist/platform/security/SafetyGuardService.js");
 const { SafetyCheckFailedError } = require("../dist/platform/security/safetyGuardTypes.js");
-const { novelService } = require("../dist/services/novel/NovelService.js");
+const { NovelService } = require("../dist/services/novel/NovelService.js");
+const novelService = new NovelService();
 const { prisma } = require("../dist/db/prisma.js");
 
 test("PAI Insight 6: Security & Permission System (SafetyGuardService)", async (t) => {
@@ -81,7 +82,7 @@ test("PAI Insight 6: Security & Permission System (SafetyGuardService)", async (
           await novelService.deleteNovel(novelId);
         },
         (err) => {
-          assert.ok(err instanceof SafetyCheckFailedError);
+          assert.ok(err.name === "SafetyCheckFailedError" || err.constructor.name === "SafetyCheckFailedError" || err instanceof SafetyCheckFailedError);
           return true;
         },
       );

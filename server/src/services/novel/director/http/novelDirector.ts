@@ -489,4 +489,69 @@ router.get("/manual-edit-impact/:novelId", validate({ params: takeoverParamsSche
   }
 });
 
+router.post("/operators/crossover", async (req, res, next) => {
+  try {
+    const { novelId, chapterId, parentA, parentB, strategy } = req.body;
+    const result = await novelDirectorService.executeEvolutionaryOperator({
+      operatorType: "crossover",
+      novelId: novelId || "default_novel",
+      chapterId,
+      primaryCandidate: parentA,
+      secondaryCandidate: parentB,
+      crossoverStrategy: strategy,
+    });
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/operators/improve", async (req, res, next) => {
+  try {
+    const { novelId, chapterId, candidate, auditDiagnostics } = req.body;
+    const result = await novelDirectorService.executeEvolutionaryOperator({
+      operatorType: "improve",
+      novelId: novelId || "default_novel",
+      chapterId,
+      primaryCandidate: candidate,
+      auditDiagnostics,
+    });
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/operators/debug", async (req, res, next) => {
+  try {
+    const { novelId, chapterId, candidate, auditDiagnostics } = req.body;
+    const result = await novelDirectorService.executeEvolutionaryOperator({
+      operatorType: "debug",
+      novelId: novelId || "default_novel",
+      chapterId,
+      primaryCandidate: candidate,
+      auditDiagnostics,
+    });
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/operators/draft", async (req, res, next) => {
+  try {
+    const { novelId, chapterId, contextBlock, primaryCandidate } = req.body;
+    const result = await novelDirectorService.executeEvolutionaryOperator({
+      operatorType: "draft",
+      novelId: novelId || "default_novel",
+      chapterId,
+      primaryCandidate,
+      contextBlock,
+    });
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
