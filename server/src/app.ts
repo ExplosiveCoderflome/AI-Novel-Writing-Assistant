@@ -138,7 +138,10 @@ export function createApp() {
   app.use("/api/novel-workflows", novelWorkflowsRouter);
   app.use("/api/novels", novelExportRouter);
   app.use("/api/drama", dramaRouter);
-  app.use("/api/comic", comicRouter);
+  // 漫画工坊依赖 sharp（安卓编译困难），AI_NOVEL_DISABLE_COMIC=1 时跳过挂载
+  if (!parseEnvFlag(process.env.AI_NOVEL_DISABLE_COMIC, false)) {
+    app.use("/api/comic", comicRouter);
+  }
   app.use("/api/worlds", worldRouter);
   app.use("/api/rag", ragRouter);
   app.use("/api/base-characters", characterRouter);
