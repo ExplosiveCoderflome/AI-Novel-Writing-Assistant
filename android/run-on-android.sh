@@ -14,7 +14,12 @@
 # 说明：
 #   - 后端默认 SQLite（schema.sqlite.prisma），无需 Postgres
 #   - RAG/Qdrant 默认禁用（不配置 QDRANT_URL 即离线可用）
-#   - 漫画工坊因 sharp 在安卓编译困难，默认禁用（见 .env.android）
+#   - 漫画工坊默认禁用：依赖 sharp（libvips）。安卓有两种路径——
+#       (a) 纯 WASM 回退 @img/sharp-wasm32：在 APK 内嵌的 JNI node 运行时里
+#           会因 emscripten pthreads 工作线程死锁（模块加载即阻塞事件循环），不可用；
+#       (b) 原生 sharp-linux-arm64：需用 NDK 交叉编译 libvips（含 glib/cairo/pango 等
+#           大量系统库），属于独立专项，未纳入本版本。
+#     故漫画工作台在安卓端暂不可用，其余创作功能均正常。
 # ============================================================================
 
 set -euo pipefail

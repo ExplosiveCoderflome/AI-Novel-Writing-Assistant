@@ -138,7 +138,7 @@ export function createApp() {
   app.use("/api/novel-workflows", novelWorkflowsRouter);
   app.use("/api/novels", novelExportRouter);
   app.use("/api/drama", dramaRouter);
-  // 漫画工坊依赖 sharp（安卓编译困难），AI_NOVEL_DISABLE_COMIC=1 时跳过挂载
+  // 漫画工坊依赖 sharp（原生 libvips 在安卓需 NDK 交叉编译，WASM 回退在嵌入运行时死锁，暂禁用）
   if (!parseEnvFlag(process.env.AI_NOVEL_DISABLE_COMIC, false)) {
     app.use("/api/comic", comicRouter);
   }
