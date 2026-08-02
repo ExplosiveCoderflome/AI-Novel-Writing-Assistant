@@ -158,6 +158,28 @@
 
 > 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
 
+## 安卓端构建（fork 后首次构建必读）
+
+安卓 APK 的内嵌资产（`node-project.zip` / `bundle.cjs` / `www.zip` / `noderuntime/`）体积较大，
+已被 `.gitignore` 忽略、**不入库**。fork 后 clone 下来需要先跑一次资产构建脚本，
+再 `gradle assembleDebug` 才会得到完整 APK（跳过会得到缺资产/白屏的空壳 APK）：
+
+```bash
+git clone https://github.com/<你的 fork>/AI-Novel-Writing-Assistant.git
+cd AI-Novel-Writing-Assistant
+pnpm install                          # 安装依赖（含 server 的 sharp / prisma）
+bash android/build-android-assets.sh  # 生成三个资产并注入 bionic sharp.node
+cd android-app && gradle clean assembleDebug
+```
+
+产物：`android-app/app/build/outputs/apk/debug/app-debug.apk`（约 900MB，含内嵌 Node 运行时）。
+
+> 脚本会：① esbuild 完整打包 `server/src/app.ts` → `bundle.cjs`（express 等打进包内，
+> 仅 sharp/better-sqlite3/@prisma/client 走原生加载）；② 打包前端 `www/` → `www.zip`；
+> ③ 打包 `assets/nodejs/` 目录 → `node-project.zip`；④ 注入 NDK 编译的 bionic `sharp.node`
+> （漫画工作台原生渲染，见 [android/sharp-android/README.md](./android/sharp-android/README.md)）。
+> 构建环境需配置 Android SDK / NDK / JDK，并在 MSYS/Git-Bash 下运行（脚本已做路径兼容）。
+
 ## 功能预览
 ### 功能概览中的95%以上编写都是AI完成
 

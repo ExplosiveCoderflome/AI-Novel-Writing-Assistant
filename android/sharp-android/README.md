@@ -32,16 +32,25 @@ bionic libvips。
 
 ## 重新构建流程
 
+`node-project.zip` / `bundle.cjs` / `www.zip` / `noderuntime/` 已用 git LFS 入库
+（见仓库根 `.gitattributes`），fork 后 clone 即自带，无需重新生成。若需重建
+`node-project.zip`（例如改了 server 依赖），方法如下：
+
+1. 准备真实扁平的 `node_modules`（pnpm install 后解软链），放回
+   `android-app/app/src/main/assets/nodejs/`（含手写 `app.js`/`init-db.cjs` + esbuild 产物 `bundle.cjs`）
+2. 将该目录打包为 `node-project.zip`
+3. 注入 bionic sharp.node（本目录的 `inject-sharp.sh`，已做 MSYS 路径兼容）
+
+## 仅重编译 sharp 的流程（sharp.node 损坏或需升级时）
+
 ```bash
 # 1) 准备 Termux libvips + sharp 官方 C++ 头文件（一次性，见 compile-sharp.sh 顶部注释）
 # 2) 编译 sharp.node
 bash android/sharp-android/compile-sharp.sh
-# 3) 注入 node-project.zip（node-project.zip 本身被 .gitignore 忽略，需从桌面构建产物取得）
+# 3) 注入 node-project.zip（LFS 已入库，checkout 后即存在）
 bash android/sharp-android/inject-sharp.sh
 # 4) 重建 APK
 cd android-app && gradle clean assembleDebug
 ```
 
-> `node-project.zip` / `bundle.cjs` / `www.zip` 均为重二进制/可重建产物，已在 `.gitignore`
-> 忽略，仅保留手写 `app.js`、`init-db.cjs` 与上方脚本。重新生成 `node-project.zip` 的
-> 上游桌面构建链路不在本目录，注入步骤依赖已存在的 zip 作为输入。
+> 注：`inject-sharp.sh` 依赖已存在的 `node-project.zip` 作为输入（LFS 已入库）。

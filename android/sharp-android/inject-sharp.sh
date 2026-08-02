@@ -27,6 +27,12 @@ fi
 
 PY="${PY:-C:/Users/Administrator/AppData/Local/Programs/Python/Python311/python.exe}"
 
+# MSYS：把路径转成 Windows 原生格式，原生 python.exe 才能打开
+if command -v cygpath >/dev/null 2>&1; then
+  ZIP="$(cygpath -w "$ZIP")"
+  SRC_NODE="$(cygpath -w "$SRC_NODE")"
+fi
+
 "$PY" - "$ZIP" "$SRC_NODE" "$TARGET" <<'PYEOF'
 import sys, zipfile, shutil, os
 zip_path, src_node, target = sys.argv[1], sys.argv[2], sys.argv[3]
