@@ -14,12 +14,10 @@
 # 说明：
 #   - 后端默认 SQLite（schema.sqlite.prisma），无需 Postgres
 #   - RAG/Qdrant 默认禁用（不配置 QDRANT_URL 即离线可用）
-#   - 漫画工坊默认禁用：依赖 sharp（libvips）。安卓有两种路径——
-#       (a) 纯 WASM 回退 @img/sharp-wasm32：在 APK 内嵌的 JNI node 运行时里
-#           会因 emscripten pthreads 工作线程死锁（模块加载即阻塞事件循环），不可用；
-#       (b) 原生 sharp-linux-arm64：需用 NDK 交叉编译 libvips（含 glib/cairo/pango 等
-#           大量系统库），属于独立专项，未纳入本版本。
-#     故漫画工作台在安卓端暂不可用，其余创作功能均正常。
+#   - 漫画工坊：安卓端通过 NDK 交叉编译的 bionic `sharp.node` + Termux libvips 启用
+#     （WASM 回退会因 emscripten pthreads 死锁不可用，glibc 预编译包 bionic 无法加载）。
+#     见 android/sharp-android/README.md。
+#   - RAG/Qdrant 默认禁用（不配置 QDRANT_URL 即离线可用）
 # ============================================================================
 
 set -euo pipefail
@@ -52,8 +50,7 @@ export HOST="${HOST:-localhost}"
 export AI_NOVEL_DATABASE_MODE="${AI_NOVEL_DATABASE_MODE:-sqlite}"
 export DATABASE_URL="${DATABASE_URL:-file:${AI_NOVEL_APP_DATA_DIR}/ai_novel.db}"
 
-# 禁用 PC 专属/安卓不可用的能力
-export AI_NOVEL_DISABLE_COMIC="${AI_NOVEL_DISABLE_COMIC:-1}"
+# 禁用 PC 专属/安卓不可用的能力（RAG 默认关闭，可配 QDRANT_URL 开启）
 export AI_NOVEL_DISABLE_RAG="${AI_NOVEL_DISABLE_RAG:-1}"
 
 # --- 确保 Prisma SQLite client 已生成（首次运行） ---

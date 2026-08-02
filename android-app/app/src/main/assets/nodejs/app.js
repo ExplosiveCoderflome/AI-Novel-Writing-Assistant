@@ -2,8 +2,6 @@
 process.env.NODE_PATH = __dirname;
 process.env.AI_NOVEL_RUNTIME = process.env.AI_NOVEL_RUNTIME || 'web';
 process.env.AI_NOVEL_DATABASE_MODE = process.env.AI_NOVEL_DATABASE_MODE || 'sqlite';
-process.env.AI_NOVEL_DISABLE_COMIC = process.env.AI_NOVEL_DISABLE_COMIC || '1';
-process.env.AI_NOVEL_DISABLE_RAG = process.env.AI_NOVEL_DISABLE_RAG || '1';
 process.env.PORT = process.env.PORT || '3000';
 process.env.HOST = process.env.HOST || '127.0.0.1';
 process.env.AI_NOVEL_APP_DATA_DIR = __dirname;

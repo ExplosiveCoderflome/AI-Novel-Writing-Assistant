@@ -131,8 +131,6 @@ public class NodeService extends Service {
                     env.put("NODE_PATH", nodeDir.getAbsolutePath());
                     env.put("AI_NOVEL_RUNTIME", "web");
                     env.put("AI_NOVEL_DATABASE_MODE", "sqlite");
-                    env.put("AI_NOVEL_DISABLE_COMIC", "1");
-                    env.put("AI_NOVEL_DISABLE_RAG", "1");
                     env.put("AI_NOVEL_APP_DATA_DIR", dataDir.getAbsolutePath());
                     env.put("DATABASE_URL", "file:" + nodeDir.getAbsolutePath() + "/dev.db");
                     // 允许 file:// 页面（WebView 从本地加载，Origin 为 null）跨域访问后端 API

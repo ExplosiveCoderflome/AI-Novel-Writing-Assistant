@@ -138,10 +138,8 @@ export function createApp() {
   app.use("/api/novel-workflows", novelWorkflowsRouter);
   app.use("/api/novels", novelExportRouter);
   app.use("/api/drama", dramaRouter);
-  // 漫画工坊依赖 sharp（原生 libvips 在安卓需 NDK 交叉编译，WASM 回退在嵌入运行时死锁，暂禁用）
-  if (!parseEnvFlag(process.env.AI_NOVEL_DISABLE_COMIC, false)) {
-    app.use("/api/comic", comicRouter);
-  }
+  // 漫画工坊：安卓端使用 NDK 交叉编译的 bionic libvips + sharp 原生 .node（在 node-project.zip 内）
+  app.use("/api/comic", comicRouter);
   app.use("/api/worlds", worldRouter);
   app.use("/api/rag", ragRouter);
   app.use("/api/base-characters", characterRouter);
