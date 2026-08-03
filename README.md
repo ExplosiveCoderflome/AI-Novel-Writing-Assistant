@@ -16,7 +16,6 @@ Currently active development path:
 ![Database](https://img.shields.io/badge/Database-SQLite%20%2B%20Prisma-111827)
 ![Vector DB](https://img.shields.io/badge/RAG-Qdrant-E63946)
 
-<<<<<<< HEAD
 ---
 
 ## 🌌 Project Vision & Roadmap: The Daydream Continuum
@@ -175,30 +174,26 @@ As the project scales from a novel-writing engine to a full **Daydream Engine**,
   - ONNX runtime dependencies (local FastAPI TTS server will download Kokoro model weights automatically on its first run).
 
 ### 1. Install Dependencies
-=======
+```bash
+pnpm install
+```
 
-## ✨ 项目简介
+### 2. Configure Environment Variables
+Copy `.env.example` to `.env` and fill in your LLM Provider configurations:
+```bash
+cp .env.example .env
+```
 
-这是一个**面向长篇小说完成度的 AI 生产系统**，不是普通的"你写一句、AI 补一句"聊天壳子。
+### 3. Run Database Migrations
+```bash
+pnpm db:migrate
+```
 
-它的核心做法是：
-
-- 👉 用一句灵感启动整本书的规划，AI 自动给出方向 / 世界 / 角色 / 卷战略 / 章节任务
-- 👉 把章节生成、审核、修复、状态回灌串成可暂停可恢复的生产链
-- 👉 把拆书、知识库、写法引擎、角色资源账本、世界手册都做成可召回的长期资产
-- 👉 提供漫画、短剧等衍生工坊围绕已完成的小说内容做视觉与剧本延展
-- 👉 配套公开介绍站、生产链深度文档和按阶段的恢复手册
-
-适合**完全不懂写作的新手**走完一本长篇，也适合研究 AI Native 应用、Agent Workflow、LangGraph 编排和长链路任务的开发者参考。
-
-## Windows 桌面版
-
-如果你只是想直接下载安装并开始使用，优先从桌面版入口进入：
-
-- 下载入口：[GitHub Releases](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases)
-- 最新版本页：[Latest Release](https://github.com/ExplosiveCoderflome/AI-Novel-Writing-Assistant/releases/latest)
-- 建议优先下载 `Setup.exe` 安装版；如果你不想安装，或者想放在 U 盘 / 临时目录里直接运行，再选择 `portable` 版本
-- 公开介绍站：[GitHub Pages 介绍站](https://explosivecoderflome.github.io/AI-Novel-Writing-Assistant/) 提供功能预览、模块文档和使用指南
+### 4. Start Development Mode
+```bash
+pnpm dev
+```
+Open `http://localhost:5173` in your browser.
 
 ## 用 Codex 持续创作长篇：Ani Book Skill
 

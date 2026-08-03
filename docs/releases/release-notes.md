@@ -4,6 +4,13 @@
 
 ## 更新历史
 
+### 2026-08-03（v0.5.1 极简创作与新手引导发布 & 上游 v0.4.7 合并）
+
+- **极简创作与新手引导体验**：全新的零门槛“极简创作模式”（Simple Creation Mode）和“新手首书引导流程”（First Novel Onboarding Journey），包含实况面板、基础素材展示、一键极简/专业生产交接与首章阅读保护。
+- **自动导演管线增强**：重构并升级 Candidate 候选生成阶段、故事宏观大纲与结构化大纲生成，优化接管逻辑与状态自动投影。
+- **桌面端应用与更新面板优化**：重构桌面 Bootstrapping 外壳，提供中文更新展示面板及平滑交互。
+- **UI/UX 自动化测试与文档**：新增本地 UI 导航测试脚本 `scripts/test-ui-flow.js` 与 Wiki 文档 `docs/wiki/workflows/ui-ux-testing-automation.md`。
+
 ### 2026-08-01（v0.5.0 PAI 演化算子引擎 OpenRSI 模块上线）
 
 - **OpenRSI 演化算子引擎**：支持 4 大原子演化算子（变异、交叉、继承、淘劣）与 Crossover 基因交叉重组，强化了长篇小说框架与角色关系的自动调优能力。
