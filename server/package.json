@@ -46,7 +46,7 @@
     "db:prune-snapshots": "node scripts/prune-snapshots.cjs"
   },
   "dependencies": {
-    "@ai-novel/shared": "file:../shared",
+    "@ai-novel/shared": "workspace:*",
     "@aws-sdk/client-s3": "^3.910.0",
     "@langchain/community": "^1.1.21",
     "@langchain/core": "^1.1.29",
