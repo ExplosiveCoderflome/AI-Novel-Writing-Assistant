@@ -150,8 +150,12 @@ flowchart LR
   - **第一层 (通用元评估框架引擎 Layer 1)**：100% 领域解耦的纯代码确定性求值引擎，通过 JSON-path 路径运行原子运算符断言（`NON_EMPTY`, `GREATER_THAN`, `MATCHES_REGEX` 等），计算出定量 $V_{\text{handoff}} \in [0.0, 1.0]$ 得分。
   - **第二层 (动态公式编译器 Layer 2)**：根据传入的任意 Payload 拓扑结构与运行时上下文（世界观公理），动态编译出专属的 `ValueFormulaSpec` 规则、动态权重与硬约束。
   - **防篡改数字证书**：通过验证的阶段交接 ($V_{\text{handoff}} \ge 0.85$) 自动颁发带 SHA256 签名的 `VerifiedHandoffCertificate`，中度扣分 ($0.60 \le V_{\text{handoff}} < 0.85$) 自动触发 `AUTO_REPAIR` 定向修补。
+- **配额感知无人值守自动唤醒调度器 (Module 2，缺省开启)**：
+  彻底消除 API 429 限流或额度用尽时的人工恢复介入门槛，贴合零基础新手痛点：
+  - **缺省无人值守模式 (`enabled: true`)**：默认开箱即用。捕获限流错误后自动切入 `QUOTA_COOLING` 冷却状态，计算指数退避+抖动时长，后台心跳 Worker 监测倒计时结束自动调用 `resumeTask()` 恢复。
+  - **支持 Opt-out 切回手动**：极少数高级开发者可显式配置 `enabled: false` 切回经典手动恢复弹窗。
 - **零伪造硬核物理打点验证**：
-  构建了 [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js) 与 [stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js) 测试套件，真实验证静态 Prompt Head 100% 精确匹配、上下文压缩比以及两层交接门控的硬性断言。
+  构建了 [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js)、[stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js) 与 [autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js) 测试套件，真实验证静态 Prompt Head 100% 精确匹配、两层门控断言与无人值守心跳唤醒。
 
 ---
 

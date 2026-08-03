@@ -153,8 +153,12 @@ Evolved Daydream Engine from session-assembled prompts into an organized **Agent
   - **Layer 1 (Generic Meta-Evaluator Framework)**: Domain-decoupled, deterministic evaluation runtime that executes atomic operator rules (`NON_EMPTY`, `GREATER_THAN`, `MATCHES_REGEX`) against JSON-path targets to compute a quantitative $V_{\text{handoff}} \in [0.0, 1.0]$ score.
   - **Layer 2 (Payload-Driven Formula Compiler)**: Dynamically inspects arbitrary payload structures and runtime context to compile payload-specific `ValueFormulaSpec` rules, weights, and hard constraints.
   - **Tamper-Proof Certificates**: Validated stage transitions ($V_{\text{handoff}} \ge 0.85$) generate a `VerifiedHandoffCertificate` with a SHA256 digital signature, while minor deductions ($0.60 \le V_{\text{handoff}} < 0.85$) trigger targeted `AUTO_REPAIR`.
+- **Quota-Aware Unattended Auto-Wake Scheduler (Module 2, Default: Unattended)**:
+  Eliminates manual task intervention upon API 429 rate limits or quota exhaustion. Designed for beginner users:
+  - **Default Unattended Mode (`enabled: true`)**: Automatically captures rate-limit errors, transitions task into `QUOTA_COOLING`, calculates exponential backoff + jitter, and uses a background Heartbeat Worker to auto-resume execution once the provider recovers.
+  - **Opt-out Manual Recovery**: Expert users can explicitly toggle `enabled: false` to return to classic manual checkpoint recovery.
 - **Empirical Automated Benchmarking**:
-  Built [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js) and [stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js) for un-mocked verification of prompt head exact-matching, context reduction ratios, and two-layer handoff gate assertions.
+  Built [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js), [stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js), and [autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js) for un-mocked verification of prompt head exact-matching, two-layer handoff gates, and auto-wake heartbeat recovery.
 
 ---
 
