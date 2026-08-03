@@ -148,8 +148,13 @@ Evolved Daydream Engine from session-assembled prompts into an organized **Agent
   Maintains permanent, workspace-bound thread states (`LongLivedThreadService`) with static, deterministic `staticPromptHead` persona headers. Guarantees 100% immutable cache hit conditions for LLM Prompt Caching, reducing API costs by 50%-90% and lowering latency by 42.5%.
 - **Dynamic Warm Memory Compaction**:
   Automatically distills historical turn logs into a `workingMemoryDigest` when conversation length grows, preserving user writing preferences, corrections, and style constraints across turns while keeping input token growth bounded.
+- **Two-Layer Generic Stage Handoff Gate & Value Function Engine ($V_{\text{handoff}}$)**:
+  Eliminates "fake handoffs" where upstream director stages pass incomplete payloads to downstream execution. Powered by a decoupled two-layer architecture:
+  - **Layer 1 (Generic Meta-Evaluator Framework)**: Domain-decoupled, deterministic evaluation runtime that executes atomic operator rules (`NON_EMPTY`, `GREATER_THAN`, `MATCHES_REGEX`) against JSON-path targets to compute a quantitative $V_{\text{handoff}} \in [0.0, 1.0]$ score.
+  - **Layer 2 (Payload-Driven Formula Compiler)**: Dynamically inspects arbitrary payload structures and runtime context to compile payload-specific `ValueFormulaSpec` rules, weights, and hard constraints.
+  - **Tamper-Proof Certificates**: Validated stage transitions ($V_{\text{handoff}} \ge 0.85$) generate a `VerifiedHandoffCertificate` with a SHA256 digital signature, while minor deductions ($0.60 \le V_{\text{handoff}} < 0.85$) trigger targeted `AUTO_REPAIR`.
 - **Empirical Automated Benchmarking**:
-  Built [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js) for un-mocked verification of prompt head exact-matching, context reduction ratios, and preference retention scores.
+  Built [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js) and [stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js) for un-mocked verification of prompt head exact-matching, context reduction ratios, and two-layer handoff gate assertions.
 
 ---
 

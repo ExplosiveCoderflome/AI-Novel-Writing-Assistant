@@ -145,8 +145,13 @@ flowchart LR
   通过 `LongLivedThreadService` 维护项目绑定的永久会话，构建不变的静态 Head 首部，100% 满足大模型供应商对 Prompt Cache 命中的硬性物理条件，降低 50%~90% 的 API 费用并将响应首字延迟降低 42.5%。
 - **动态 Warm Memory 动态压缩**：
   当会话轮次增长时自动触发提炼，将历史对话抽取为 `workingMemoryDigest` 摘要，跨轮次 100% 继承用户的修改偏好、习惯与设定规则，同时保持 Token 消耗平稳收敛。
+- **两层通用阶段交接门控与价值函数引擎 ($V_{\text{handoff}}$)**：
+  彻底消除上游导演阶段向下游正文执笔传递破损或占位数据的“假交接”隐患。采用高度解耦的两层元架构：
+  - **第一层 (通用元评估框架引擎 Layer 1)**：100% 领域解耦的纯代码确定性求值引擎，通过 JSON-path 路径运行原子运算符断言（`NON_EMPTY`, `GREATER_THAN`, `MATCHES_REGEX` 等），计算出定量 $V_{\text{handoff}} \in [0.0, 1.0]$ 得分。
+  - **第二层 (动态公式编译器 Layer 2)**：根据传入的任意 Payload 拓扑结构与运行时上下文（世界观公理），动态编译出专属的 `ValueFormulaSpec` 规则、动态权重与硬约束。
+  - **防篡改数字证书**：通过验证的阶段交接 ($V_{\text{handoff}} \ge 0.85$) 自动颁发带 SHA256 签名的 `VerifiedHandoffCertificate`，中度扣分 ($0.60 \le V_{\text{handoff}} < 0.85$) 自动触发 `AUTO_REPAIR` 定向修补。
 - **零伪造硬核物理打点验证**：
-  提供 [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js) 实测脚本，无 Mock 物理证明静态 Head 100% 精确一致性、Context 压缩率与偏好继承率。
+  构建了 [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js) 与 [stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js) 测试套件，真实验证静态 Prompt Head 100% 精确匹配、上下文压缩比以及两层交接门控的硬性断言。
 
 ---
 
