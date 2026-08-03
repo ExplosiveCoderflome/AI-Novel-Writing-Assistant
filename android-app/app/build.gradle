@@ -43,6 +43,17 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    // 排除 nodejs/node_modules 冗余目录（已在 node-project.zip 内，仅作打包源用；
+    // 见 build-android-assets.sh 步骤 3。运行时只解压 zip）
+    sourceSets {
+        main {
+            assets {
+                srcDirs 'src/main/assets'
+                exclude 'nodejs/node_modules/**'
+            }
+        }
+    }
+
     aaptOptions {
         noCompress 'node', 'js', 'so', 'zip'
     }

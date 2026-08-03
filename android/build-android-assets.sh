@@ -129,6 +129,15 @@ print(f"  node-project.zip {count} files -> {os.path.getsize(out)} bytes")
 PYEOF
 )
 
+# 打包完成后删除 assets/nodejs/node_modules 真实目录（300MB，已全部进 zip）。
+# 不删的话 gradle 会把目录也打进 APK，导致体积翻倍（assets exclude 对目录无效）。
+# 下次需要重建 zip 时，从 node-project.zip 解压恢复该目录即可。
+NODE_MODULES_DIR="$NODEJS_ASSETS/node_modules"
+if [ -d "$NODE_MODULES_DIR" ]; then
+  echo "[android-assets] 清理 assets/nodejs/node_modules（已打包进 zip，避免 APK 冗余 300MB）..."
+  rm -rf "$NODE_MODULES_DIR"
+fi
+
 # 注入 bionic sharp.node（漫画工作台原生渲染，WASM 在 JNI node 下死锁不可用）
 if [ -f "$PROJECT_ROOT/android/sharp-android/sharp.node" ]; then
   echo "[android-assets] 注入 bionic sharp.node ..."
