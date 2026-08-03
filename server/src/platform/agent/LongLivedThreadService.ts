@@ -116,6 +116,9 @@ export class LongLivedThreadService {
     thread.turnMessages.push({ role: 'user', content: userPrompt, timestamp: now });
     thread.turnMessages.push({ role: 'assistant', content: assistantResponse, timestamp: now });
     thread.lastActiveAt = now;
+
+    // Trigger compaction after adding messages if window limit reached
+    this.compactIfNeeded(thread);
   }
 
   /**
@@ -126,9 +129,10 @@ export class LongLivedThreadService {
       const turnsToCompress = thread.turnMessages.slice(0, 4);
       thread.turnMessages = thread.turnMessages.slice(4);
 
-      // Extract key user preferences or corrections
+      // Extract key user preferences or corrections (supports both Chinese & English keywords)
+      const feedbackRegex = /偏好|修正|风格|prefer|feedback|correct|style|avoid|never|always/i;
       const preferenceNotes = turnsToCompress
-        .filter((t) => t.role === 'user' && (t.content.includes('偏好') || t.content.includes('修正') || t.content.includes('风格')))
+        .filter((t) => t.role === 'user' && feedbackRegex.test(t.content))
         .map((t) => `- User Feedback: ${t.content}`)
         .join('\n');
 
