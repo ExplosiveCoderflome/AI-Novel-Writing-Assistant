@@ -66,9 +66,23 @@ OUT_WIN="$(to_win "$NODEJS_ASSETS/bundle.cjs")"
 echo "  bundle.cjs $(stat -c%s "$NODEJS_ASSETS/bundle.cjs" 2>/dev/null || wc -c < "$NODEJS_ASSETS/bundle.cjs") bytes"
 
 # ---------------------------------------------------------------------------
-# 2) www.zip：打包 www/ 目录内容（条目不带 www/ 前缀）
+# 2) 前端构建 + www.zip：vite 构建（相对 base + 安卓 API 地址）→ www/ → 打包
+#    注意：必须 AI_NOVEL_CLIENT_BASE=relative（file:// 加载需要相对路径），
+#    VITE_API_BASE_URL 指向 127.0.0.1:3000（安卓上 localhost 解析异常）
 # ---------------------------------------------------------------------------
 echo "[android-assets] 2/3 构建前端 www.zip ..."
+if [ -d "$PROJECT_ROOT/client/node_modules" ]; then
+  (cd "$PROJECT_ROOT/client" && AI_NOVEL_CLIENT_BASE=relative VITE_API_BASE_URL="http://127.0.0.1:3000/api" npx vite build >/tmp/vite_android_build.log 2>&1) \
+    && echo "  vite build OK" \
+    || { echo "[android-assets] WARN: vite build 失败，使用现有 www/ 目录" >&2; }
+  # vite 输出到 dist/，同步到 www/
+  if [ -d "$PROJECT_ROOT/client/dist" ]; then
+    rm -rf "$WWW_DIR"
+    cp -r "$PROJECT_ROOT/client/dist" "$WWW_DIR"
+  fi
+else
+  echo "[android-assets] WARN: client/node_modules 不存在，跳过前端构建（使用现有 www/）" >&2
+fi
 WWW_ZIP_WIN="$(to_win "$ASSETS_ROOT/www.zip")"
 rm -f "$ASSETS_ROOT/www.zip"
 (cd "$WWW_DIR" && "$PY" - "$WWW_ZIP_WIN" <<'PYEOF'
