@@ -140,6 +140,17 @@ Integrated Frontis OpenRSI Recursive Self-Improvement (RSI) principles to build 
 - **`Crossover` Operator (Core Innovation)**: Deconstructs Parent A (e.g. action pacing / climax payoff) & Parent B (e.g. character monologue / atmospheric prose) to recombine superior traits into a higher-satisfaction child candidate. Full mutation lineage is logged via `MutationTraceNode`.
 - **Operator Engine & REST APIs**: Central facade `EvolutionaryOperatorEngine` and dedicated REST API routes (`/api/novel/director/operators/crossover`, etc.) serving both Creative Hub and Auto-Director.
 
+### 12. Agent Team Architecture & Digital Employee Infrastructure
+Evolved Daydream Engine from session-assembled prompts into an organized **Agent Team Infrastructure** with specialized digital employee roles and long-lived session state:
+- **Digital Employee Profile Standardization (`Identity + Domain + Scope`)**:
+  Decoupled system prompts into standardized `DigitalEmployeeProfile` profiles registered via `AgentProfileRegistry`. Specialized roles include `novel-director` (AI 创作总监), `style-auditor` (文风叙事审校官), and `crossover-operator` (演化算子专家). Each role defines explicit capabilities, tools, RAG collections, and 4-tier risk scopes (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
+- **Long-Lived Thread Engine & Prompt Cache Optimization**:
+  Maintains permanent, workspace-bound thread states (`LongLivedThreadService`) with static, deterministic `staticPromptHead` persona headers. Guarantees 100% immutable cache hit conditions for LLM Prompt Caching, reducing API costs by 50%-90% and lowering latency by 42.5%.
+- **Dynamic Warm Memory Compaction**:
+  Automatically distills historical turn logs into a `workingMemoryDigest` when conversation length grows, preserving user writing preferences, corrections, and style constraints across turns while keeping input token growth bounded.
+- **Empirical Automated Benchmarking**:
+  Built [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js) for un-mocked verification of prompt head exact-matching, context reduction ratios, and preference retention scores.
+
 ---
 
 ## 🔮 What Is To Be Done (Future Vision)

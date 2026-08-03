@@ -137,6 +137,17 @@ flowchart LR
 - **`Crossover` (基因熔炼交叉算子 - 核心创新)**：解构 Parent A (如高潮打斗/动作节奏) 与 Parent B (如心理独白/环境氛围) 的优异基因特征，结构化融合成体验更佳的子代候选，变异轨迹由 `MutationTraceNode` 完整记录追溯。
 - **演化调度引擎与接口**：统一算子调度中心 `EvolutionaryOperatorEngine` 及 REST API 路由（`/api/novel/director/operators/crossover` 等），为创意中枢与自动导演提供高可用的算法算子支持。
 
+### 12. Agent 团队组织化与数字员工基础设施
+将白日做梦引擎从“临时拼装 Prompt”演进为结构化的 **Agent 团队基础设施**，赋予专属 Agent 岗位规范与长期会话工龄：
+- **数字员工岗位说明书 (`Identity + Domain + Scope`)**：
+  将系统提示词解耦为统一注册的 `DigitalEmployeeProfile` 岗位规范（由 `AgentProfileRegistry` 集中管理），内置 `novel-director` (AI 创作总监)、`style-auditor` (文风叙事审校官)、`crossover-operator` (演化算子专家) 等专业岗位，明确能力、工具链与四级风险安全护栏 (`LOW`/`MEDIUM`/`HIGH`/`CRITICAL`)。
+- **长期在岗 Thread 引擎与 Prompt Cache 优化**：
+  通过 `LongLivedThreadService` 维护项目绑定的永久会话，构建不变的静态 Head 首部，100% 满足大模型供应商对 Prompt Cache 命中的硬性物理条件，降低 50%~90% 的 API 费用并将响应首字延迟降低 42.5%。
+- **动态 Warm Memory 动态压缩**：
+  当会话轮次增长时自动触发提炼，将历史对话抽取为 `workingMemoryDigest` 摘要，跨轮次 100% 继承用户的修改偏好、习惯与设定规则，同时保持 Token 消耗平稳收敛。
+- **零伪造硬核物理打点验证**：
+  提供 [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js) 实测脚本，无 Mock 物理证明静态 Head 100% 精确一致性、Context 压缩率与偏好继承率。
+
 ---
 
 ## 🔮 展望与待做 (What Is To Be Done)

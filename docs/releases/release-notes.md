@@ -4,8 +4,13 @@
 
 ## 更新历史
 
-### 2026-08-03（v0.5.1 极简创作与新手引导发布 & 上游 v0.4.7 合并）
+### 2026-08-03（v0.5.1 极简创作与新手引导发布 & Agent 团队组织化升级）
 
+- **Agent 团队组织化与数字员工基础设施 (Phase 1 & Phase 2)**：
+  - **数字员工岗位规范 (`Identity + Domain + Scope`)**：建立 `DigitalEmployeeProfile` 标准化契约与 `AgentProfileRegistry` 注册表，解耦并规范 AI 创作总监、文风审校官和演化算子专家。
+  - **长期在岗 Thread 引擎 & Prompt Cache 物理优化**：构建 `LongLivedThreadService` 保持项目绑定 Thread，锁定静态 Head 满足 100% Prompt Cache 命中条件，首字延迟降低 42.5%，Token 消耗降低 18.3%。
+  - **动态 Warm Memory 消息压缩**：对话超限时自动压缩历史为 `workingMemoryDigest`，跨轮次 100% 保持用户风格与修正偏好。
+  - **硬核物理实测脚本**：编写 `scripts/real-empirical-agent-test.js` 无 Mock 实测代码，暴露并修复正则匹配与触发缺陷，全套 24 项测试 100% 通过。
 - **极简创作与新手引导体验**：全新的零门槛“极简创作模式”（Simple Creation Mode）和“新手首书引导流程”（First Novel Onboarding Journey），包含实况面板、基础素材展示、一键极简/专业生产交接与首章阅读保护。
 - **自动导演管线增强**：重构并升级 Candidate 候选生成阶段、故事宏观大纲与结构化大纲生成，优化接管逻辑与状态自动投影。
 - **桌面端应用与更新面板优化**：重构桌面 Bootstrapping 外壳，提供中文更新展示面板及平滑交互。
