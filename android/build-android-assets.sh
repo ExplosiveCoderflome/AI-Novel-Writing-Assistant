@@ -104,47 +104,22 @@ PYEOF
 )
 
 # ---------------------------------------------------------------------------
-# 3) node-project.zip：打包 assets/nodejs/ 目录内容 + 注入 bionic sharp.node
-#    注意：assets/nodejs/ 必须已有真实扁平 node_modules（非 pnpm 软链）！
-#    若无 node_modules 或缺失 sharp，请先 pnpm install 后手工解软链铺平。
+# 3) node-project.zip：固定资产（依赖锁定），不重新打包。
+#    依赖树包含安卓版原生库（better-sqlite3 ELF + WASM sharp 运行时），
+#    Windows 开发机无法凭空生成（pnpm 会装 Windows 版原生库导致真机
+#    bad ELF magic）。zip 缺失时从 GitHub Release 下载（见 README）。
 # ---------------------------------------------------------------------------
-echo "[android-assets] 3/3 构建 nodejs/node-project.zip ..."
-NP_ZIP_WIN="$(to_win "$NODEJS_ASSETS/node-project.zip")"
-rm -f "$NODEJS_ASSETS/node-project.zip"
-(cd "$NODEJS_ASSETS" && "$PY" - "$NP_ZIP_WIN" <<'PYEOF'
-import sys, os, zipfile
-out = os.path.abspath(sys.argv[1])
-z = zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED)
-count = 0
-for root, _, files in os.walk("."):
-    for f in files:
-        p = os.path.join(root, f)
-        if os.path.abspath(p) == out:
-            continue  # 跳过输出文件自身，避免无限自包含
-        arc = p[2:] if p.startswith("./") else p
-        z.write(p, arc)
-        count += 1
-z.close()
-print(f"  node-project.zip {count} files -> {os.path.getsize(out)} bytes")
-PYEOF
-)
-
-# 打包完成后删除 assets/nodejs/node_modules 真实目录（300MB，已全部进 zip）。
-# 不删的话 gradle 会把目录也打进 APK，导致体积翻倍（assets exclude 对目录无效）。
-# 下次需要重建 zip 时，从 node-project.zip 解压恢复该目录即可。
-NODE_MODULES_DIR="$NODEJS_ASSETS/node_modules"
-if [ -d "$NODE_MODULES_DIR" ]; then
-  echo "[android-assets] 清理 assets/nodejs/node_modules（已打包进 zip，避免 APK 冗余 300MB）..."
-  rm -rf "$NODE_MODULES_DIR"
-fi
-
-# 注入 bionic sharp.node（漫画工作台原生渲染，WASM 在 JNI node 下死锁不可用）
-if [ -f "$PROJECT_ROOT/android/sharp-android/sharp.node" ]; then
-  echo "[android-assets] 注入 bionic sharp.node ..."
-  bash "$PROJECT_ROOT/android/sharp-android/inject-sharp.sh"
+if [ -f "$NODEJS_ASSETS/node-project.zip" ]; then
+  echo "[android-assets] 3/3 node-project.zip 已存在（固定资产，跳过重建）"
+  echo "  $(stat -c%s "$NODEJS_ASSETS/node-project.zip" 2>/dev/null || wc -c < "$NODEJS_ASSETS/node-project.zip") bytes"
 else
-  echo "[android-assets] WARN: sharp.node 不存在，跳过注入（漫画工作台不可用）" >&2
+  echo "[android-assets] 3/3 WARN: node-project.zip 缺失！" >&2
+  echo "  请从 GitHub Release 下载（README 有说明），或从发布版 APK 提取。" >&2
 fi
+
+# 注：漫画工作台 sharp 使用 WASM 版（@img/sharp-wasm32 + @emnapi/runtime），
+# 不注入 bionic sharp.node——原生版依赖 libvips 全家（libstdc++ ABI 在真机
+# 不兼容，dlopen 失败）；WASM 版免原生库、真机验证渲染正常。
 
 echo "[android-assets] 完成。现在可构建 APK："
 echo "  cd android-app && gradle clean assembleDebug"
