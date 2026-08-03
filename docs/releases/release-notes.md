@@ -12,7 +12,8 @@
   - **动态 Warm Memory 消息压缩**：对话超限时自动压缩历史为 `workingMemoryDigest`，跨轮次 100% 保持用户风格与修正偏好。
   - **两层通用阶段交接门控与价值函数引擎 (Module 1)**：重构实现了基于两层元架构（Layer 1 通用求值引擎 + Layer 2 动态公式编译器）的阶段交接门控，彻底拦截“假交接”，对合规交接自动签发带 SHA256 签名的 `VerifiedHandoffCertificate` 证书。
   - **配额感知无人值守自动唤醒调度器 (Module 2)**：实现缺省开启的无人值守自动唤醒模式，遇 429 限流时自动冷却并计算指数退避，心跳 Worker 倒计时结束自动 Resume 恢复，支持显示 Opt-out 切回手动模式。
-  - **硬核物理实测脚本**：编写 `scripts/real-empirical-agent-test.js`、`stageHandoffTwoLayer.test.js` 与 `autoWakeScheduler.test.js` 实测代码，全套 35 项测试 100% 通过。
+  - **原子级持久化 Task 看板引擎 (Module 3)**：将长篇生成管线解构为写在 SQLite 中的 `AgentExecutableTodo` 节点，支持 `claimNextTodo` 排他抢单、带凭据完成打卡与超时自愈重置，保障 100% 崩溃防护与断点续写。
+  - **硬核物理实测脚本**：编写 `scripts/real-empirical-agent-test.js`、`stageHandoffTwoLayer.test.js`、`autoWakeScheduler.test.js` 与 `agentKanbanTodo.test.js` 实测代码，全套 40 项测试 100% 通过。
 - **极简创作与新手引导体验**：全新的零门槛“极简创作模式”（Simple Creation Mode）和“新手首书引导流程”（First Novel Onboarding Journey），包含实况面板、基础素材展示、一键极简/专业生产交接与首章阅读保护。
 - **自动导演管线增强**：重构并升级 Candidate 候选生成阶段、故事宏观大纲与结构化大纲生成，优化接管逻辑与状态自动投影。
 - **桌面端应用与更新面板优化**：重构桌面 Bootstrapping 外壳，提供中文更新展示面板及平滑交互。

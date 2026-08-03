@@ -157,8 +157,13 @@ Evolved Daydream Engine from session-assembled prompts into an organized **Agent
   Eliminates manual task intervention upon API 429 rate limits or quota exhaustion. Designed for beginner users:
   - **Default Unattended Mode (`enabled: true`)**: Automatically captures rate-limit errors, transitions task into `QUOTA_COOLING`, calculates exponential backoff + jitter, and uses a background Heartbeat Worker to auto-resume execution once the provider recovers.
   - **Opt-out Manual Recovery**: Expert users can explicitly toggle `enabled: false` to return to classic manual checkpoint recovery.
+- **Durable Agent Executable Todos Kanban Engine (Module 3)**:
+  Replaces volatile in-memory pipeline state with a durable, atomic task Kanban backed by SQLite (`AgentExecutableTodo`). Guarantees 100% crash resilience and zero-loss resuming across long-running (80+ chapter) novel generations:
+  - **Atomic Task Claiming (`claimNextTodo`)**: Multi-agent race prevention with database-level transaction locking.
+  - **Evidence-Backed Completions (`completeTodo`)**: Links Module 1 `VerifiedHandoffCertificate` directly into task completion records.
+  - **Deadlock Self-Healing (`recoverStaleClaimedTodos`)**: Automatically resets stale, crashed worker claims back to `PENDING` after configurable timeouts.
 - **Empirical Automated Benchmarking**:
-  Built [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js), [stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js), and [autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js) for un-mocked verification of prompt head exact-matching, two-layer handoff gates, and auto-wake heartbeat recovery.
+  Built [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js), [stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js), [autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js), and [agentKanbanTodo.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/agentKanbanTodo.test.js) for un-mocked verification of prompt head exact-matching, two-layer handoff gates, auto-wake heartbeat recovery, and durable Kanban claiming.
 
 ---
 

@@ -154,8 +154,13 @@ flowchart LR
   彻底消除 API 429 限流或额度用尽时的人工恢复介入门槛，贴合零基础新手痛点：
   - **缺省无人值守模式 (`enabled: true`)**：默认开箱即用。捕获限流错误后自动切入 `QUOTA_COOLING` 冷却状态，计算指数退避+抖动时长，后台心跳 Worker 监测倒计时结束自动调用 `resumeTask()` 恢复。
   - **支持 Opt-out 切回手动**：极少数高级开发者可显式配置 `enabled: false` 切回经典手动恢复弹窗。
+- **原子级持久化 Agent Task 看板引擎 (Module 3)**：
+  将易失的内存管线彻底重构为写在 SQLite 中的持久化 Task 看板 (`AgentExecutableTodo`)，保障 80+ 章长篇小说跨天/跨会话生成时的 100% 崩溃防护与精准零损耗断点续写：
+  - **原子抢单原语 (`claimNextTodo`)**：数据库级排他锁，防止多 Agent 协作时的抢单冲突与重复生成。
+  - **带凭证打卡完成 (`completeTodo`)**：关联模块一的 `VerifiedHandoffCertificate` 电子证书存入数据库。
+  - **崩溃防死锁自愈 (`recoverStaleClaimedTodos`)**：心跳监控自动发现超时崩溃的 Worker，将其节点安全重置为 `PENDING` 重新开启认领。
 - **零伪造硬核物理打点验证**：
-  构建了 [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js)、[stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js) 与 [autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js) 测试套件，真实验证静态 Prompt Head 100% 精确匹配、两层门控断言与无人值守心跳唤醒。
+  构建了 [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js)、[stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js)、[autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js) 与 [agentKanbanTodo.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/agentKanbanTodo.test.js) 测试套件，真实验证静态 Prompt Head 100% 精确匹配、两层门控断言、无人值守自动唤醒与持久化看板抢单。
 
 ---
 

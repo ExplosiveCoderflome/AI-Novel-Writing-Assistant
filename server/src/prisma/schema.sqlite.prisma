@@ -4022,3 +4022,24 @@ model StylePatch {
   @@index([novelId])
 }
 
+model AgentExecutableTodo {
+  id              String   @id @default(uuid())
+  novelId         String
+  directorTaskId  String
+  agentRole       String
+  title           String
+  stageId         String
+  chapterIndex    Int?
+  orderIndex      Int
+  status          String   // "PENDING", "CLAIMED", "COMPLETED", "FAILED"
+  claimedByWorker String?
+  claimedAtMs     BigInt?
+  evidencePayload String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([novelId, status])
+  @@index([directorTaskId, orderIndex])
+}
+
+
