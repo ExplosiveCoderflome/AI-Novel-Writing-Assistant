@@ -1,0 +1,17 @@
+capi.so
+legacy.so
+libc++_shared.so
+libcares.so
+libcrypto.so.3
+libffi.so
+libicudata.so.78
+libicui18n.so.78
+libicuio.so.78
+libicutu.so.78
+libicuuc.so.78
+libsqlite3.so
+libsqlite3.so.0
+libssl.so.3
+libuv.so
+libz.so.1
+loader_attic.so

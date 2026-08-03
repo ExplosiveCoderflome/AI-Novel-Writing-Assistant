@@ -1,0 +1,20 @@
+ALTER TABLE "Character" ADD COLUMN "identityLabel" TEXT;
+ALTER TABLE "Character" ADD COLUMN "factionLabel" TEXT;
+ALTER TABLE "Character" ADD COLUMN "stanceLabel" TEXT;
+ALTER TABLE "Character" ADD COLUMN "powerLevel" TEXT;
+ALTER TABLE "Character" ADD COLUMN "realm" TEXT;
+ALTER TABLE "Character" ADD COLUMN "currentLocation" TEXT;
+ALTER TABLE "Character" ADD COLUMN "availability" TEXT;
+ALTER TABLE "Character" ADD COLUMN "prohibitionsJson" TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE "CharacterCastOptionMember" ADD COLUMN "personality" TEXT;
+ALTER TABLE "CharacterCastOptionMember" ADD COLUMN "background" TEXT;
+ALTER TABLE "CharacterCastOptionMember" ADD COLUMN "development" TEXT;
+ALTER TABLE "CharacterCastOptionMember" ADD COLUMN "identityLabel" TEXT;
+ALTER TABLE "CharacterCastOptionMember" ADD COLUMN "factionLabel" TEXT;
+ALTER TABLE "CharacterCastOptionMember" ADD COLUMN "stanceLabel" TEXT;
+ALTER TABLE "CharacterCastOptionMember" ADD COLUMN "powerLevel" TEXT;
+ALTER TABLE "CharacterCastOptionMember" ADD COLUMN "realm" TEXT;
+ALTER TABLE "CharacterCastOptionMember" ADD COLUMN "currentLocation" TEXT;
+ALTER TABLE "CharacterCastOptionMember" ADD COLUMN "availability" TEXT;
+ALTER TABLE "CharacterCastOptionMember" ADD COLUMN "prohibitionsJson" TEXT NOT NULL DEFAULT '[]';
