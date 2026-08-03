@@ -62,6 +62,7 @@ export default function StageModelRun({
               <div className="mt-3 text-sm font-semibold text-foreground">3. 选择正文生产方式</div>
               <div className="mt-1 text-xs leading-5 text-muted-foreground">简易创作由 AI 写完整本书；专业创作进入完整工作台。</div>
             </div>
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-primary/10 bg-primary/[0.05] px-5 py-3 text-xs">
             <span className="font-medium text-foreground">正文会停在开写前等待你的选择</span>
             <span className="text-muted-foreground">不会提前生成章节正文</span>

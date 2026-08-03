@@ -65,7 +65,6 @@ interface NovelExistingProjectTakeoverDialogProps {
 
 const RUN_MODE_OPTIONS: Array<{ value: DirectorRunMode; label: string; description: string }> = [
   {
-<<<<<<< HEAD
     value: "stage_review",
     label: "逐步协作",
     description: "每完成一个导演步骤就暂停，检查或完善后再继续下一步。",
@@ -77,18 +76,13 @@ const RUN_MODE_OPTIONS: Array<{ value: DirectorRunMode; label: string; descripti
   },
   {
     value: "auto_to_ready",
-    label: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_0736c320"),
-    description: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.aiHandoverAfterResourceReady"),
+    label: "推进到可开写",
+    description: "AI 会补齐正文生产前需要的资源，再让你选择简易生产或专业生产。",
   },
   {
     value: "auto_to_execution",
     label: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_88309d03"),
     description: t("gen.pages.novels.components.NovelExistingProjectTakeoverDialog.gen_19ede094"),
-=======
-    value: "auto_to_ready",
-    label: "推进到可开写",
-    description: "AI 会补齐正文生产前需要的资源，再让你选择简易生产或专业生产。",
->>>>>>> upstream/main
   },
 ];
 
