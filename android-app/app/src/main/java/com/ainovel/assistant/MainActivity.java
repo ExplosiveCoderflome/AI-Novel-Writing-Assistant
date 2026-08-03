@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -62,6 +63,20 @@ public class MainActivity extends AppCompatActivity {
         settings.setAllowUniversalAccessFromFileURLs(true);
         settings.setAllowFileAccessFromFileURLs(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        // WebView 下载（前端导出 a[download] / blob）→ 写入公共 Downloads/AINovel，
+        // Android 10+ 通过 MediaStore 免权限写入，用户文件管理器直接可见
+        webView.setDownloadListener((url, userAgent, contentDisposition, mimetype, contentLength) -> {
+            try {
+                String fileName = parseDownloadFileName(contentDisposition, url);
+                if (url.startsWith("blob:")) {
+                    saveBlobDownload(url, fileName, mimetype);
+                } else {
+                    downloadToPublicStorage(url, userAgent, fileName, mimetype);
+                }
+            } catch (Exception e) {
+                android.util.Log.e("AINOVEL", "download failed: " + e.getMessage());
+            }
+        });
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(android.webkit.WebView view, String url) {
@@ -143,6 +158,89 @@ public class MainActivity extends AppCompatActivity {
         try {
             unregisterReceiver(serverReadyReceiver);
         } catch (Exception ignored) {
+        }
+    }
+
+    // ---- 下载辅助（导出到公共 Downloads/AINovel）----
+
+    private static String parseDownloadFileName(String contentDisposition, String url) {
+        if (contentDisposition != null) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("filename\\*?=(?:UTF-8'')?\"?([^;\"]+)\"?").matcher(contentDisposition);
+            if (m.find()) {
+                try {
+                    return java.net.URLDecoder.decode(m.group(1).trim(), "UTF-8");
+                } catch (Exception ignored) {
+                    return m.group(1).trim();
+                }
+            }
+        }
+        String path = url.contains("?") ? url.substring(0, url.indexOf("?")) : url;
+        String name = path.substring(path.lastIndexOf("/") + 1);
+        return name.isEmpty() ? "download.txt" : name;
+    }
+
+    /** 常规 URL 下载：流式写入公共 Downloads/AINovel（MediaStore，免权限） */
+    private void downloadToPublicStorage(String url, String userAgent, String fileName, String mimetype) {
+        new Thread(() -> {
+            try {
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+                conn.setRequestProperty("User-Agent", userAgent != null ? userAgent : "Mozilla/5.0");
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+                java.io.InputStream in = conn.getInputStream();
+                writeToPublicDownloads(in, fileName, mimetype);
+                in.close();
+                conn.disconnect();
+            } catch (Exception e) {
+                android.util.Log.e("AINOVEL", "url download failed: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    /** blob URL 下载：evaluateJavascript 取回 base64，解码写入公共目录 */
+    private void saveBlobDownload(String blobUrl, String fileName, String mimetype) {
+        webView.evaluateJavascript(
+            "(async () => { const r = await fetch('" + blobUrl + "'); const b = await r.arrayBuffer(); " +
+            "let bytes = new Uint8Array(b); let bin = ''; const chunk = 0x8000; " +
+            "for (let i = 0; i < bytes.length; i += chunk) { bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk)); } " +
+            "return btoa(bin); })()",
+            value -> {
+                if (value == null || value.equals("null")) return;
+                try {
+                    String base64 = value.replaceAll("^\"|\"$", "");
+                    byte[] data = android.util.Base64.decode(base64, android.util.Base64.DEFAULT);
+                    writeToPublicDownloads(new java.io.ByteArrayInputStream(data), fileName, mimetype);
+                } catch (Exception e) {
+                    android.util.Log.e("AINOVEL", "blob download failed: " + e.getMessage());
+                }
+            });
+    }
+
+    /** 写入公共 Downloads/AINovel 目录（Android 10+ MediaStore 免权限） */
+    private void writeToPublicDownloads(java.io.InputStream in, String fileName, String mimetype) {
+        try {
+            String type = mimetype != null ? mimetype : "application/octet-stream";
+            android.content.ContentValues values = new android.content.ContentValues();
+            values.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
+            values.put(MediaStore.Downloads.MIME_TYPE, type);
+            values.put(MediaStore.Downloads.RELATIVE_PATH, "Download/AINovel");
+            android.net.Uri collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+            android.net.Uri item = getContentResolver().insert(collection, values);
+            if (item == null) {
+                android.util.Log.e("AINOVEL", "MediaStore insert failed for " + fileName);
+                return;
+            }
+            java.io.OutputStream out = getContentResolver().openOutputStream(item);
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) {
+                out.write(buf, 0, n);
+            }
+            out.flush();
+            out.close();
+            android.util.Log.i("AINOVEL", "downloaded to Download/AINovel/" + fileName);
+        } catch (Exception e) {
+            android.util.Log.e("AINOVEL", "writeToPublicDownloads failed: " + e.getMessage());
         }
     }
 }
