@@ -55,7 +55,7 @@ const navGroups: NavGroup[] = [
       { to: "/", label: "首页", icon: House },
       { to: "/help", label: "创作向导", icon: CircleHelp },
       { to: "/novels", label: "小说列表", icon: BookOpenText },
-      { to: "/drama", label: "短剧工作台", icon: MonitorPlay, disabled: true },
+      { to: "/drama", label: "短剧工作台", icon: MonitorPlay },
       { to: "/comic", label: "漫画工作台", icon: SquareStack },
       { to: "/creative-hub", label: "创作中枢", icon: LayoutDashboard },
       { to: "/book-analysis", label: "拆书", icon: ScanSearch },
