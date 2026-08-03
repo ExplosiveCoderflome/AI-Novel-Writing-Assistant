@@ -31,9 +31,7 @@ android-app/app/src/main/assets/nodejs/bundle.cjs
 android-app/app/src/main/assets/nodejs/node_modules/
 android-app/app/src/main/assets/nodejs/dev.db
 android-app/app/src/main/assets/nodejs/.extracted
-android-app/app/src/main/assets/nodejs/migrations.sqlite/
 android-app/app/src/main/assets/www/
-android-app/app/src/main/assets/noderuntime/
 android-app/app/src/main/assets/www.zip
 android-app/app/src/main/assets/*.zip
 *.iml

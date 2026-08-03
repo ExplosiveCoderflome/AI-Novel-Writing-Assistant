@@ -51,7 +51,19 @@ fi
 echo "[android-assets] PROJECT_ROOT = $PROJECT_ROOT"
 
 # ---------------------------------------------------------------------------
-# 1) bundle.cjs：esbuild 完整打包 server/src/app.ts
+# 0) 构建 @ai-novel/shared（workspace 包，tsc 编译 dist；bundle 需要其 exports）
+# ---------------------------------------------------------------------------
+echo "[android-assets] 0/3 构建 @ai-novel/shared ..."
+if [ -d "$PROJECT_ROOT/shared" ]; then
+  (cd "$PROJECT_ROOT/shared" && pnpm build >/tmp/shared_build.log 2>&1) \
+    && echo "  shared build OK" \
+    || { echo "[android-assets] WARN: shared 构建失败，继续（可能已有 dist）" >&2; }
+else
+  echo "[android-assets] WARN: shared 目录不存在，跳过" >&2
+fi
+
+# ---------------------------------------------------------------------------
+# 1) bundle.cjs：esbuild 打包 server/src/app.ts（server 全部代码）
 #    只 external 原生/重型模块；express/cors/helmet/morgan 等打进包内
 # ---------------------------------------------------------------------------
 echo "[android-assets] 1/3 构建 bundle.cjs ..."

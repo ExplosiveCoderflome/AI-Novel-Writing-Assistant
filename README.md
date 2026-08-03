@@ -149,36 +149,43 @@
 
 完整历史更新见 [docs/releases/release-notes.md](./docs/releases/release-notes.md)。
 
-### 2026-08-02
+### 2026-08-03
 
-- 新增安卓手机离线运行版本：完整的创作工作台可以完全在手机本地运行，不依赖电脑或云端。
-- 手机端导航分类与命名和电脑端保持一致：资产、系统、运行记录等入口名称统一。
-- 手机端启动时显示加载提示，不再白屏等待；顶部状态栏不再遮挡内容，切换横竖屏不会重启工作台，App 图标与电脑端一致。
-- 漫画工作台已在手机端启用：通过 NDK 交叉编译的 bionic `sharp.node` + Termux libvips 原生渲染，替代在嵌入运行时死锁的 WASM 回退，手机端可本地生成分镜图像。
+- 安卓端构建资产全部入库，fork 仓库后按文档两步即可构建出可运行的 APK。
+- 漫画工作台渲染改用 WASM sharp，免原生库依赖，真机渲染稳定，APK 体积降至约 163MB。
+- 修复首次启动模型配置弹窗、安卓网络连接失败等问题；导出文件写入公共下载目录。
+- 手机端统一为桌面布局（横屏固定），操作入口与电脑端一致。
 
 > 查看完整更新历史：[docs/releases/release-notes.md](./docs/releases/release-notes.md)
 
-## 安卓端构建（fork 后首次构建必读）
+## 安卓端构建（fork 后构建必读）
 
-安卓 APK 的内嵌资产（`node-project.zip` / `bundle.cjs` / `www.zip` / `noderuntime/`）体积较大，
-已被 `.gitignore` 忽略、**不入库**。fork 后 clone 下来需要先跑一次资产构建脚本，
-再 `gradle assembleDebug` 才会得到完整 APK（跳过会得到缺资产/白屏的空壳 APK）：
+安卓 APK 需要的全部内嵌资产已**入库**（`node-project.zip` 40MB / `noderuntime/` 48MB / `migrations.sqlite/`），
+fork 后 clone 下来即可直接构建，无需从 Release 下载或从 APK 提取：
 
 ```bash
 git clone https://github.com/<你的 fork>/AI-Novel-Writing-Assistant.git
 cd AI-Novel-Writing-Assistant
-pnpm install                          # 安装依赖（含 server 的 sharp / prisma）
-bash android/build-android-assets.sh  # 生成三个资产并注入 bionic sharp.node
-cd android-app && gradle clean assembleDebug
+pnpm install                          # 安装依赖（esbuild / vite / prisma 等）
+bash android/build-android-assets.sh  # 生成 bundle.cjs + www.zip（node-project.zip 为固定资产，跳过重建）
+cd android-app
+# 首次需创建 local.properties 指向你的 Android SDK：sdk.dir=C:/Android/sdk
+gradle clean assembleDebug
 ```
 
-产物：`android-app/app/build/outputs/apk/debug/app-debug.apk`（约 900MB，含内嵌 Node 运行时）。
+产物：`android-app/app/build/outputs/apk/debug/app-debug.apk`（约 166MB，含内嵌 Node 运行时）。
 
-> 脚本会：① esbuild 完整打包 `server/src/app.ts` → `bundle.cjs`（express 等打进包内，
-> 仅 sharp/better-sqlite3/@prisma/client 走原生加载）；② 打包前端 `www/` → `www.zip`；
-> ③ 打包 `assets/nodejs/` 目录 → `node-project.zip`；④ 注入 NDK 编译的 bionic `sharp.node`
-> （漫画工作台原生渲染，见 [android/sharp-android/README.md](./android/sharp-android/README.md)）。
-> 构建环境需配置 Android SDK / NDK / JDK，并在 MSYS/Git-Bash 下运行（脚本已做路径兼容）。
+> 脚本会：① 构建 `@ai-novel/shared`（workspace 包，tsc 生成 dist）；② esbuild 完整打包
+> `server/src/app.ts` → `bundle.cjs`（express 等打进包内，仅 sharp/better-sqlite3/@prisma/client
+> 走原生加载）；③ 打包前端 `www/` → `www.zip`；④ `node-project.zip` 是固定资产（依赖锁定，
+> 含安卓 ELF better-sqlite3 + WASM sharp），存在则跳过重建。
+>
+> 漫画工作台 sharp 使用 **WASM 版**（@img/sharp-wasm32 + @emnapi/runtime，免原生库）：
+> 原生 bionic 版依赖 libvips 全家，libstdc++ ABI 在真机不兼容（dlopen 失败），故已弃用。
+> 旧文档见 [android/sharp-android/README.md](./android/sharp-android/README.md)（历史参考）。
+>
+> 构建环境需配置：Android SDK（compileSdk 35）、JDK 17、Gradle 8.9（或使用 wrapper）。
+> 构建脚本在 MSYS/Git-Bash / Linux / macOS 下均可运行（路径已兼容）。
 
 ## 功能预览
 ### 功能概览中的95%以上编写都是AI完成
