@@ -46,3 +46,4 @@ server/test-android.db-wal
 
 # 其他
 ARM64/
+android-app/release.keystore

@@ -10,10 +10,19 @@ android {
         applicationId "com.ainovel.assistant"
         minSdk 31
         targetSdk 35
-        versionCode 1
-        versionName "0.4.7"
+        versionCode 2
+        versionName "0.4.7.1"
         ndk {
             abiFilters 'arm64-v8a'
+        }
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('../release.keystore')
+            storePassword 'ainovel123'
+            keyAlias 'ainovel'
+            keyPassword 'ainovel123'
         }
     }
 
@@ -25,6 +34,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
 
