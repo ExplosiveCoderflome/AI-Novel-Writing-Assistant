@@ -28,6 +28,7 @@ export * from "./types/autoDirectorApproval";
 export * from "./types/autoDirectorFollowUp";
 export * from "./types/autoDirectorValidation";
 export * from "./types/novelWorkflow";
+export * from "./types/onboarding";
 export * from "./types/volumePlanning";
 export * from "./types/canonicalState";
 export * from "./utils/bookAnalysisTimeline";

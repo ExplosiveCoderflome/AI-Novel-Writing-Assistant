@@ -33,6 +33,8 @@ import { HomeAttentionQueue } from "./home/components/HomeAttentionQueue";
 import { HomeNextActionPanel } from "./home/components/HomeNextActionPanel";
 import { HomeRecentNovels } from "./home/components/HomeRecentNovels";
 import { HomeStatusStrip } from "./home/components/HomeStatusStrip";
+import CreationSetupNotice from "@/components/onboarding/CreationSetupNotice";
+import FirstNovelJourneyStrip from "@/components/onboarding/FirstNovelJourneyStrip";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -223,6 +225,8 @@ export default function Home() {
 
   return (
     <div className="home-workbench space-y-6">
+      <CreationSetupNotice />
+      <FirstNovelJourneyStrip />
       <HomeNextActionPanel
         action={nextAction}
         primaryNovel={primaryNovel}

@@ -45,6 +45,7 @@ async function ensureDirectorConstraintEngine(
 }
 
 async function generateDirectorBookContract(input: {
+  taskId: string;
   request: DirectorConfirmRequest;
   novelId: string;
   storyMacroService: StoryMacroPlanService;
@@ -75,6 +76,11 @@ async function generateDirectorBookContract(input: {
       provider: request.provider,
       model: request.model,
       temperature,
+      novelId: input.novelId,
+      taskId: input.taskId,
+      stage: "story_macro",
+      itemKey: "book_contract",
+      entrypoint: "auto_director",
     },
   });
   return normalizeBookContract(parsed.output);
@@ -134,6 +140,7 @@ export async function runDirectorBookContractPhase(input: {
     progress: DIRECTOR_PROGRESS.bookContract,
     callbacks,
     run: async () => generateDirectorBookContract({
+      taskId,
       request,
       novelId,
       storyMacroService: dependencies.storyMacroService,

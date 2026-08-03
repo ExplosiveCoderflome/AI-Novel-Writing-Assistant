@@ -155,6 +155,10 @@ export const queryKeys = {
     autoDirectorChannels: ["settings", "auto-director-channels"] as const,
     autoDirectorApprovalPreferences: ["settings", "auto-director-approval-preferences"] as const,
     pendingReviewAutoPromotion: ["settings", "pending-review-auto-promotion"] as const,
+    quickSetup: ["settings", "quick-setup"] as const,
+  },
+  onboarding: {
+    firstNovel: ["onboarding", "first-novel"] as const,
   },
   novelsKnowledge: {
     bindings: (id: string) => ["novels", "knowledge-documents", id] as const,

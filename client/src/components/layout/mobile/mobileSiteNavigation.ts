@@ -26,6 +26,7 @@ export const MOBILE_ROUTE_PATTERNS: MobileRoutePattern[] = [
   { key: "novels", pattern: /^\/novels\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_1fb52965"), group: "novels" },
   { key: "novel-create", pattern: /^\/novels\/create\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_14196ad0"), group: "novels" },
   { key: "novel-preview", pattern: /^\/novels\/[^/]+\/preview\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_38cb41c9"), group: "novels" },
+  { key: "novel-simple", pattern: /^\/novels\/[^/]+\/simple\/?$/, title: "极简开书", group: "novels" },
   { key: "novel-edit", pattern: /^\/novels\/[^/]+\/edit\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_918c18fe"), group: "novels" },
   { key: "chapter-edit", pattern: /^\/novels\/[^/]+\/chapters\/[^/]+\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_a90e9b2a"), group: "novels" },
   { key: "multimedia", pattern: /^\/multimedia\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.multimedia"), group: "creation" },
@@ -47,6 +48,7 @@ export const MOBILE_ROUTE_PATTERNS: MobileRoutePattern[] = [
   { key: "style-engine", pattern: /^\/style-engine\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_da3a12f6"), group: "more" },
   { key: "anti-ai-rules", pattern: /^\/anti-ai-rules\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_d6a7d091"), group: "more" },
   { key: "base-characters", pattern: /^\/base-characters\/?$/, title: i18next.t("gen.components.layout.mobile.mobileSiteNavigation.gen_9a36d1be"), group: "more" },
+
 ];
 
 const primaryNavItems: MobileNavItem[] = [

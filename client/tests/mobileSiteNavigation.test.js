@@ -34,6 +34,7 @@ const routedPaths = [
   "/novels",
   "/novels/create",
   "/novels/demo/preview",
+  "/novels/demo/simple",
   "/novels/demo/edit",
   "/novels/demo/chapters/chapter-1",
   "/multimedia",

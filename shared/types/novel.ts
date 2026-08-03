@@ -47,6 +47,7 @@ export type {
 export type NovelStatus = "draft" | "published";
 export type NovelWritingMode = "original" | "continuation";
 export type ProjectMode = "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
+export type CreationExperience = "simple" | "professional";
 export type NarrativePov = "first_person" | "third_person" | "mixed";
 export type PacePreference = "slow" | "balanced" | "fast";
 export type EmotionIntensity = "low" | "medium" | "high";
@@ -100,6 +101,74 @@ export type ChapterStatus =
   | "pending_review"
   | "needs_repair"
   | "completed";
+
+export type SimpleCreationShelfChapterStatus =
+  | "waiting_planning"
+  | "waiting_writing"
+  | "generating"
+  | "reviewing"
+  | "completed"
+  | "error";
+
+export interface SimpleCreationShelfProjection {
+  novel: {
+    id: string;
+    title: string;
+    creationExperience: CreationExperience;
+    estimatedChapterCount: number | null;
+  };
+  progress: {
+    directorTaskId: string | null;
+    percent: number;
+    completedChapters: number;
+    totalChapters: number;
+    currentAction: string;
+    status: "queued" | "running" | "paused" | "failed" | "completed";
+    canRetry: boolean;
+    safetyMessage?: string | null;
+  };
+  chapters: Array<{
+    id: string;
+    order: number;
+    title: string;
+    status: SimpleCreationShelfChapterStatus;
+    wordCount: number;
+    content: string | null;
+    updatedAt: string;
+  }>;
+  materials: {
+    description: string | null;
+    characterCount: number;
+    volumeCount: number;
+    openQualityDebtCount: number;
+    story: {
+      coreSellingPoint: string | null;
+      readingPromise: string | null;
+      first30ChapterPromise: string | null;
+      protagonistFantasy: string | null;
+    };
+    world: {
+      name: string;
+      summary: string | null;
+    } | null;
+    characters: Array<{
+      id: string;
+      name: string;
+      role: string;
+      storyFunction: string | null;
+      currentGoal: string | null;
+      personality: string | null;
+    }>;
+    volumes: Array<{
+      id: string;
+      order: number;
+      title: string;
+      summary: string | null;
+      mainPromise: string | null;
+      chapterCount: number;
+    }>;
+  };
+}
 
 export type PipelineRunMode = "fast" | "polish";
 export type ArtifactSyncMode = "adaptive" | "deferred" | "strict";
@@ -155,6 +224,7 @@ export interface Novel {
   writingMode: NovelWritingMode;
   language: string;
   projectMode?: ProjectMode | null;
+  creationExperience: CreationExperience;
   narrativePov?: NarrativePov | null;
   pacePreference?: PacePreference | null;
   styleTone?: string | null;

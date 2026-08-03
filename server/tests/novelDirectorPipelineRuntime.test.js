@@ -318,6 +318,44 @@ test("auto-to-execution volume strategy approval is passed into the runtime gate
   }]);
 });
 
+test("auto-to-ready passes planning gates until the production experience handoff", async () => {
+  const calls = [];
+  const runtime = createRuntime({
+    runtimeOrchestrator: {
+      async runStepModule(input) {
+        calls.push({
+          moduleId: input.module.id,
+          approveCurrentGate: input.approveCurrentGate,
+          approveAutoExecutionScope: input.approveAutoExecutionScope,
+        });
+        return null;
+      },
+      async runChapterExecutionNode() {},
+      async markTaskRunning() {},
+    },
+  });
+
+  await runtime.runPipeline({
+    taskId: "task_auto_to_ready_volume_gate",
+    novelId: "novel_auto_to_ready_volume_gate",
+    input: buildDirectorInput({
+      workflowTaskId: "task_auto_to_ready_volume_gate",
+      runMode: "auto_to_ready",
+      autoApproval: {
+        enabled: false,
+        approvalPointCodes: [],
+      },
+    }),
+    startPhase: "volume_strategy",
+  });
+
+  assert.deepEqual(calls, [{
+    moduleId: "volume.strategy.plan",
+    approveCurrentGate: true,
+    approveAutoExecutionScope: true,
+  }]);
+});
+
 test("auto-to-execution structured outline approval is passed into each structured runtime gate", async () => {
   const calls = [];
   const workspace = {

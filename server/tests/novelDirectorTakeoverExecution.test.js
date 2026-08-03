@@ -13,9 +13,11 @@ function buildTakeoverState() {
     snapshot: {
       hasStoryMacroPlan: true,
       hasBookContract: true,
+      hasWorldSetupPrepared: true,
       characterCount: 4,
       chapterCount: 10,
       volumeCount: 1,
+      hasVolumeStrategyPlan: true,
       firstVolumeId: "volume_1",
       firstVolumeChapterCount: 10,
       firstVolumeBeatSheetReady: true,
@@ -51,10 +53,9 @@ function buildTakeoverState() {
   };
 }
 
-test("restart_current_step prepares reset before bootstrapping execution", async () => {
+test("restart_current_step prepares reset before recording the production handoff", async () => {
   const calls = [];
-  const scheduled = [];
-  let runFromReadyInput = null;
+  let checkpointInput = null;
   const response = await startDirectorTakeoverExecution({
     request: {
       novelId: "novel_takeover_demo",
@@ -75,20 +76,22 @@ test("restart_current_step prepares reset before bootstrapping execution", async
       markTaskRunning: async () => {
         calls.push("mark_running");
       },
+      recordCheckpoint: async (_taskId, input) => {
+        checkpointInput = input;
+        calls.push("production_handoff");
+      },
     },
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async (input) => {
         calls.push(["prepare_auto_execution", input.existingState]);
       },
-      runFromReady: async (input) => {
-        runFromReadyInput = input;
+      runFromReady: async () => {
         calls.push("auto_execution");
       },
     },
     buildDirectorSeedPayload: () => ({}),
-    scheduleBackgroundRun: (_taskId, runner) => {
+    scheduleBackgroundRun: () => {
       calls.push("schedule");
-      scheduled.push(runner);
     },
     runDirectorPipeline: async () => {
       calls.push("phase_pipeline");
@@ -108,10 +111,10 @@ test("restart_current_step prepares reset before bootstrapping execution", async
   assert.equal(response.strategy, "restart_current_step");
   assert.equal(response.effectiveStage, "chapter_execution");
   assert.deepEqual(calls.slice(0, 2), ["reset:chapter", "bootstrap"]);
-  assert.deepEqual(calls[2], ["prepare_auto_execution", null]);
-  await Promise.all(scheduled.map((runner) => runner()));
-  assert.ok(calls.includes("auto_execution"));
-  assert.equal(runFromReadyInput.existingState, null);
+  assert.equal(calls[2], "production_handoff");
+  assert.equal(checkpointInput.checkpointType, "production_experience_required");
+  assert.equal(calls.includes("prepare_auto_execution"), false);
+  assert.equal(calls.includes("auto_execution"), false);
 });
 
 test("restart_current_step stores rewrite snapshot reference in task seed and milestone", async () => {
@@ -139,6 +142,9 @@ test("restart_current_step stores rewrite snapshot reference in task seed and mi
       },
       markTaskRunning: async () => {
         calls.push("mark_running");
+      },
+      recordCheckpoint: async () => {
+        calls.push("production_handoff");
       },
     },
     autoExecutionRuntime: {
@@ -245,6 +251,7 @@ test("continue_existing does not invoke restart preparation", async () => {
     workflowService: {
       bootstrapTask: async () => ({ id: "workflow_takeover_demo" }),
       markTaskRunning: async () => {},
+      recordCheckpoint: async () => {},
     },
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async () => {},
@@ -390,8 +397,9 @@ test("continue_existing from structured resets downstream runtime state before b
   assert.equal(bootstrapInput.seedPayload.autoExecution, undefined);
 });
 
-test("continue_existing from chapter keeps current batch auto execution state in seed", async () => {
+test("continue_existing from chapter records the production handoff without auto execution", async () => {
   let bootstrapInput = null;
+  let checkpointInput = null;
 
   await startDirectorTakeoverExecution({
     request: {
@@ -411,6 +419,9 @@ test("continue_existing from chapter keeps current batch auto execution state in
         return { id: "workflow_takeover_demo" };
       },
       markTaskRunning: async () => {},
+      recordCheckpoint: async (_taskId, input) => {
+        checkpointInput = input;
+      },
     },
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async () => {},
@@ -423,11 +434,14 @@ test("continue_existing from chapter keeps current batch auto execution state in
   });
 
   assert.equal(bootstrapInput.seedPayload.autoExecution?.nextChapterId, "chapter_1");
+  assert.equal(checkpointInput.checkpointType, "production_experience_required");
+  assert.equal(checkpointInput.seedPayload.directorSession.runMode, "auto_to_ready");
 });
 
-test("continue_existing chapter takeover clamps stale requested range to the next actionable chapter", async () => {
+test("continue_existing chapter takeover does not reuse the requested auto execution range", async () => {
   let preparedInput = null;
   let bootstrapInput = null;
+  let checkpointInput = null;
   const takeoverState = buildTakeoverState();
   takeoverState.executableRange.nextChapterOrder = 3;
   takeoverState.latestAutoExecutionState.nextChapterOrder = 3;
@@ -459,6 +473,9 @@ test("continue_existing chapter takeover clamps stale requested range to the nex
         return { id: "workflow_takeover_demo" };
       },
       markTaskRunning: async () => {},
+      recordCheckpoint: async (_taskId, input) => {
+        checkpointInput = input;
+      },
     },
     autoExecutionRuntime: {
       prepareRequestedAutoExecution: async (input) => {
@@ -475,9 +492,9 @@ test("continue_existing chapter takeover clamps stale requested range to the nex
     cancelReplacedRuns: async () => {},
   });
 
-  assert.equal(preparedInput.request.autoExecutionPlan.startOrder, 3);
-  assert.equal(preparedInput.request.autoExecutionPlan.endOrder, 10);
-  assert.equal(bootstrapInput.seedPayload.autoExecutionPlan.startOrder, 3);
+  assert.equal(preparedInput, null);
+  assert.equal(bootstrapInput.seedPayload.autoExecutionPlan, undefined);
+  assert.equal(checkpointInput.checkpointType, "production_experience_required");
 });
 
 test("restart_current_step records downstream reset metadata for workspace navigation", async () => {

@@ -89,6 +89,9 @@ function formatCheckpoint(checkpoint: NovelWorkflowMilestoneType | null | undefi
   if (checkpoint === "volume_strategy_ready") {
     return t("gen.pages.novels.components.NovelTaskDrawer.gen_2282ccfa");
   }
+  if (checkpoint === "production_experience_required") {
+    return "已可开写，等待选择生产方式";
+  }
   if (checkpoint === "chapter_batch_ready") {
     return `${resolvedScopeLabel}自动执行已暂停`;
   }

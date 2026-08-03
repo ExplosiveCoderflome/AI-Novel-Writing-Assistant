@@ -24,6 +24,7 @@ export interface CreateNovelInput {
   writingMode?: "original" | "continuation";
   language?: string;
   projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
+  creationExperience?: "simple" | "professional";
   narrativePov?: "first_person" | "third_person" | "mixed";
   pacePreference?: "slow" | "balanced" | "fast";
   styleTone?: string;
@@ -54,6 +55,7 @@ export interface UpdateNovelInput {
   writingMode?: "original" | "continuation";
   language?: string | null;
   projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline" | null;
+  creationExperience?: "professional";
   narrativePov?: "first_person" | "third_person" | "mixed" | null;
   pacePreference?: "slow" | "balanced" | "fast" | null;
   styleTone?: string | null;
