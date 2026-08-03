@@ -174,19 +174,20 @@ Evolved Daydream Engine from session-assembled prompts into an organized **Agent
 
 ## 🔮 What Is To Be Done (Future Vision)
 
-As the project scales from a novel-writing engine to a full **Daydream Engine**, our future development tasks focus on the following milestones:
+As the project scales from a novel-writing engine to a full **Daydream Engine**, our future development tasks focus on evolving our **Agent Team Infrastructure** and **Loop Engineering State Kernel** across the following multi-modal milestones:
 
 ### 🎭 Stage 1: Seamless Adaptations (Novel ➔ Comic ➔ Short Video)
-- Implement an automated compiler that automatically breaks down written chapters into storyboard cues, feeding directly into the Comic and Video workbenches.
-- Build a persistent Visual Style Sheet system ensuring character face, hair, costume, and color scheme consistency across both images and synthetic video.
+- **Cross-Modal Handoff Gates**: Extend the **Module 1 Two-Layer Stage Handoff Gate** to verify cross-modal assets (novel chapters $\rightarrow$ storyboard cues $\rightarrow$ visual panel assets) before video rendering.
+- **Multi-Modal Durable Kanban**: Expand **Module 3 Durable Executable Todos** to track long-running image generation, voice synthesis (TTS), and video stitching tasks with crash-proof resuming.
+- **Persistent Visual Style Sheets**: Build a persistent Visual Style Sheet system ensuring character face, hair, costume, and color scheme consistency across both images and synthetic video.
 
 ### 🎬 Stage 2: Storyboard Scripts ➔ Full Cinematic Video
-- Expand the local rendering pipeline (VellumReel) to support wider aspect ratios (16:9, 2.39:1) for movie/film pre-production.
-- Introduce timeline-based audio/SFX editing, letting users preview dialogue tracks overlaid with ambient environmental tracks.
+- **Video Rendering Evidence Logs**: Extend **Module 4 Evidence Trace Logger** to record audio/video rendering parameters, aesthetic score deltas, and automatic video re-rendering rollbacks.
+- **Cinematic Pipeline Expansion**: Expand local rendering pipelines (VellumReel) to support wider aspect ratios (16:9, 2.39:1) and multi-track audio/SFX timeline editing.
 
 ### 🗺️ Stage 3: Visual Westworld Console & Faction Battles
-- Build a web-based visual interface mapping out the geographic grid, faction boundaries, and live character locations for the simulated World Sandbox.
-- Integrate multi-agent faction skirmishes and large-scale war campaigns under the lock-step chronology engine.
+- **Long-Lived Agent Team Sandbox**: Combine **Digital Employee Profiles** and **Long-Lived Threads** to support tens of autonomous agents interacting continuously in the Simulated World Sandbox.
+- **Visual Westworld Console**: Build a web-based visual interface mapping out geographic grids, faction boundaries, and live character locations for lock-step chronology simulation.
 
 ---
 
