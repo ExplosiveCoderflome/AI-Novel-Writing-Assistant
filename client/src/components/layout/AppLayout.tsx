@@ -47,8 +47,12 @@ export default function AppLayout() {
   }, [location.pathname]);
 
   const isNovelWorkspace = Boolean(workspaceRoute?.novelId);
+  // AI 自动导演创建向导：移动端不走站点壳（无底部导航/开书按钮），
+  // 避免横竖屏切换时同一页面外壳完全不同
+  const isMobileBarePage = location.pathname === "/novels/auto-director";
   const useMobileNovelWorkspaceLayout = isMobileViewport && isNovelWorkspace;
-  const useMobileSiteLayout = isMobileViewport && !isNovelWorkspace;
+  const useMobileSiteLayout = isMobileViewport && !isNovelWorkspace && !isMobileBarePage;
+  const useMobileBareLayout = isMobileViewport && isMobileBarePage;
   const useMobileFullWidthContent = useMemo(
     () => shouldUseAutoDirectorMobileFullWidthContent(location.pathname),
     [location.pathname],
@@ -73,13 +77,32 @@ export default function AppLayout() {
     setWorkspaceNavMode(isNovelWorkspace ? "workspace" : "project");
   }, [isNovelWorkspace, location.pathname]);
 
+  if (useMobileBareLayout) {
+    return (
+      <CreationSetupProvider>
+      <TaskRecoveryProvider>
+        <div className="min-h-screen bg-background">
+          <AutoDirectorPauseNotificationWatcher />
+          <LiveExecutionDialog compact className="fixed bottom-16 right-3 z-50 h-9 w-9 bg-background px-0 shadow-sm" />
+          <LLMSelectionBootstrap />
+          <Suspense fallback={<AppRouteFallback />}>
+            <Outlet />
+          </Suspense>
+          <TaskRecoveryDialog />
+        </div>
+      </TaskRecoveryProvider>
+      </CreationSetupProvider>
+    );
+  }
+
   if (useMobileNovelWorkspaceLayout) {
     return (
       <CreationSetupProvider>
       <TaskRecoveryProvider>
         <div className="min-h-screen bg-background">
           <AutoDirectorPauseNotificationWatcher />
-          <LiveExecutionDialog compact className="fixed right-3 top-3 z-50 h-9 w-9 bg-background px-0 shadow-sm" />
+          {/* AI 创作实况入口：放右下角，避免与 header 右上角的创作工具菜单重叠 */}
+          <LiveExecutionDialog compact className="fixed bottom-16 right-3 z-50 h-9 w-9 bg-background px-0 shadow-sm" />
           <LLMSelectionBootstrap />
           <Suspense fallback={<AppRouteFallback />}>
             <Outlet />

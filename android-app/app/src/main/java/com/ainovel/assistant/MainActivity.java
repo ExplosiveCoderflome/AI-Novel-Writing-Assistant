@@ -62,7 +62,15 @@ public class MainActivity extends AppCompatActivity {
         settings.setAllowUniversalAccessFromFileURLs(true);
         settings.setAllowFileAccessFromFileURLs(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(android.webkit.WebView view, String url) {
+                super.onPageFinished(view, url);
+                // 注入安卓 App 标志：前端据此强制桌面布局（本 App 已固定横屏，
+                // 不使用宽度断点判断移动端，避免低分辨率手机横屏误入移动布局）
+                view.evaluateJavascript("window.__ANDROID_APP__ = true;", null);
+            }
+        });
 
         // 直接启动 Node 服务（前台服务在 Android 12+ 即使无通知权限也能运行，
         // 只是通知不可见；不阻塞在权限请求上，避免用户未授权导致服务永不启动）
