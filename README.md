@@ -162,8 +162,13 @@ Evolved Daydream Engine from session-assembled prompts into an organized **Agent
   - **Atomic Task Claiming (`claimNextTodo`)**: Multi-agent race prevention with database-level transaction locking.
   - **Evidence-Backed Completions (`completeTodo`)**: Links Module 1 `VerifiedHandoffCertificate` directly into task completion records.
   - **Deadlock Self-Healing (`recoverStaleClaimedTodos`)**: Automatically resets stale, crashed worker claims back to `PENDING` after configurable timeouts.
+- **OpenRSI Evolutionary Operator Evidence Trace Logger (Module 4)**:
+  Provides 100% auditability, AI explainability, and quality guardrails for evolutionary text operations (`Draft`, `Improve`, `Debug`, `Crossover`):
+  - **AI Lineage Tree (`getChapterMutationLineage`)**: Records exact parent/child text hashes (`parentHashes`), score deltas (`scoreDelta`), and recombination rationales for clear user visualization.
+  - **Anti-Degradation Rollback Guard (`shouldRollbackMutation`)**: Automatically detects negative score deltas ($scoreDelta < 0$) and triggers rollbacks to pre-mutation states to guarantee prose quality strictly increases.
+  - **Elite Vector RAG Feedback Loop (`getEliteMutationNodes`)**: Filters high-gain mutation nodes ($scoreDelta \ge +0.15$) for index insertion into Qdrant, keeping vector context pristine.
 - **Empirical Automated Benchmarking**:
-  Built [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js), [stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js), [autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js), and [agentKanbanTodo.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/agentKanbanTodo.test.js) for un-mocked verification of prompt head exact-matching, two-layer handoff gates, auto-wake heartbeat recovery, and durable Kanban claiming.
+  Built [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js), [stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js), [autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js), [agentKanbanTodo.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/agentKanbanTodo.test.js), and [evidenceTraceLogger.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/evidenceTraceLogger.test.js) for un-mocked verification of prompt head exact-matching, two-layer handoff gates, auto-wake heartbeat recovery, durable Kanban claiming, and mutation trace logging.
 
 ---
 

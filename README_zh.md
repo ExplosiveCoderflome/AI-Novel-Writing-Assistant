@@ -159,8 +159,13 @@ flowchart LR
   - **原子抢单原语 (`claimNextTodo`)**：数据库级排他锁，防止多 Agent 协作时的抢单冲突与重复生成。
   - **带凭证打卡完成 (`completeTodo`)**：关联模块一的 `VerifiedHandoffCertificate` 电子证书存入数据库。
   - **崩溃防死锁自愈 (`recoverStaleClaimedTodos`)**：心跳监控自动发现超时崩溃的 Worker，将其节点安全重置为 `PENDING` 重新开启认领。
+- **演化算子证据链追溯与防降级引擎 (Module 4)**：
+  为 OpenRSI 演化算子（`Draft`, `Improve`, `Debug`, `Crossover`）提供 100% 可解释性、黑盒消除与质量护栏：
+  - **AI 基因进化树 (`getChapterMutationLineage`)**：记录父本/子本文本哈希、评分差值 (`scoreDelta`) 与重组理由，可视化呈现文章演化脉络。
+  - **防降级自动回滚保护 (`shouldRollbackMutation`)**：自动检测负向变异 ($scoreDelta < 0$) 并触发回滚，硬性保证文本质量只升不降。
+  - **高质量 RAG 向量库回灌 (`getEliteMutationNodes`)**：筛选高分变异节点 ($scoreDelta \ge +0.15$) 回灌至 Qdrant 向量库，保证上下文库全是精英文本。
 - **零伪造硬核物理打点验证**：
-  构建了 [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js)、[stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js)、[autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js) 与 [agentKanbanTodo.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/agentKanbanTodo.test.js) 测试套件，真实验证静态 Prompt Head 100% 精确匹配、两层门控断言、无人值守自动唤醒与持久化看板抢单。
+  构建了 [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js)、[stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js)、[autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js)、[agentKanbanTodo.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/agentKanbanTodo.test.js) 与 [evidenceTraceLogger.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/evidenceTraceLogger.test.js) 测试套件，真实验证静态 Prompt Head 100% 精确匹配、两层门控断言、无人值守自动唤醒、持久化看板抢单与演化算子证据链。
 
 ---
 

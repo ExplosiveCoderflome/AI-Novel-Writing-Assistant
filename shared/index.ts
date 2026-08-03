@@ -34,4 +34,5 @@ export * from "./types/canonicalState";
 export * from "./types/agentProfile";
 export * from "./types/metaEvaluator";
 export * from "./types/autoWakeConfig";
+export * from "./types/mutationTrace";
 export * from "./utils/bookAnalysisTimeline";
