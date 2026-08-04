@@ -465,10 +465,10 @@ test("mobile novel workspace keeps step navigation horizontal and recommendation
 
 test("mobile novel workspace collapses secondary tools behind one compact entry", () => {
   assert.match(mobileNovelEditView, /MoreHorizontal/);
-  assert.match(mobileNovelEditView, /创作工具/);
-  assert.match(mobileNovelEditView, /查看任务进度/);
-  assert.match(mobileNovelEditView, /导出当前步骤/);
-  assert.match(mobileNovelEditView, /导出整本书/);
+  assert.match(mobileNovelEditView, /(创作工具|gen_e6a2706f)/);
+  assert.match(mobileNovelEditView, /(查看任务进度|gen_4de94e23)/);
+  assert.match(mobileNovelEditView, /(导出当前步骤|gen_169a61d7)/);
+  assert.match(mobileNovelEditView, /(导出整本书|gen_9b96a714)/);
   assert.doesNotMatch(mobileNovelEditView, /<AITakeoverContainer/);
 });
 
