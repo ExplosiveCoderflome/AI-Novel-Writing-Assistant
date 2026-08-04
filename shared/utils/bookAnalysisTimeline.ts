@@ -1,4 +1,4 @@
-import type { BookAnalysisTimelineNode } from "../types/bookAnalysis";
+import type { BookAnalysisTimelineNode } from "../types/common/bookAnalysis";
 
 const SOURCE_REF_LIMIT = 8;
 
