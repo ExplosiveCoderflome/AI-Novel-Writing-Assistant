@@ -572,6 +572,8 @@ body {
     display: none;
   }
 
+  .mobile-route-novel-simple .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
+  .mobile-route-multimedia .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
   .mobile-route-creative-hub .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
   .mobile-route-drama .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
   .mobile-route-book-analysis .rounded-xl.border.bg-card .rounded-xl.border.bg-card,
