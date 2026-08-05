@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   SquarePen,
   Tags,
+  TrendingUp,
   UsersRound,
   WandSparkles,
   Video,
@@ -52,9 +53,10 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    title: "创作",
+    title: "创作与扩展",
     items: [
       { to: "/", label: "首页", icon: House },
+      { to: "/stock", label: "美股投研与调仓", icon: TrendingUp },
       { to: "/help", label: "创作向导", icon: CircleHelp },
       { to: "/novels", label: "小说列表", icon: BookOpenText },
       { to: "/multimedia", label: "多媒体改编", icon: Film },

@@ -170,6 +170,13 @@ Evolved Daydream Engine from session-assembled prompts into an organized **Agent
 - **Empirical Automated Benchmarking**:
   Built [real-empirical-agent-test.js](file:///c:/Users/lilin/GeneralAgent/scripts/real-empirical-agent-test.js), [stageHandoffTwoLayer.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/stageHandoffTwoLayer.test.js), [autoWakeScheduler.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/autoWakeScheduler.test.js), [agentKanbanTodo.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/agentKanbanTodo.test.js), and [evidenceTraceLogger.test.js](file:///c:/Users/lilin/GeneralAgent/server/tests/evidenceTraceLogger.test.js) for un-mocked verification of prompt head exact-matching, two-layer handoff gates, auto-wake heartbeat recovery, durable Kanban claiming, and mutation trace logging.
 
+### 13. US Stock Investment Research & Daily Rebalancing Agent (MooMoo OpenD Integration)
+- **Zero-Auto-Order Advisory Blueprint**: Combines local holdings, cash balances, and budget constraints to generate pre-market BUY/SELL/TRIM/HOLD actions and concentration risk alerts (**Advisory Only, no auto-trading**).
+- **MooMoo OpenD Native Connection & Auto-Daemon**: Backend integrates `OpenDaemonManager` to probe port `11111`, auto-spawn `moomoo_OpenD`, detect GUI unlock status, and sync live positions and cash.
+- **MooMoo Watchlist Priority Recommendation**: Automatically queries the user's MooMoo stock Watchlist (Cmd 3213) without trade passwords, prioritizing recommendations from the user's personal favorites pool.
+- **100% Real-Time Market Price Data Integrity**: Fetches live quotes via OpenD `Cmd 3001` & `Cmd 3004` and runs a deterministic post-processing layer to overwrite all action numerical fields with real market prices, eliminating AI hallucinations.
+- **Deduction State Glassmorphism Blur**: Applies a frosted glass blur overlay (`Backdrop Blur`) to updating regions during AI strategy generation, seamlessly unblurring once generation completes.
+
 ---
 
 ## 🔮 What Is To Be Done (Future Vision)
@@ -298,6 +305,12 @@ Open `http://localhost:5173` in your browser.
 
 - **漫画工作台**：场景一致性、角色视觉资产、视觉锚点控制；分镜与角色面板支持图像生成确认弹窗，避免误触消耗额度
 - **短剧改编生产管线 v3**：从小说内容衍生短剧剧本和镜头
+
+### 8. US Stock Investment & Daily Rebalancing Agent (MooMoo Integration)
+
+- **Safety-First Advisory Blueprint**: Analyzes portfolio positions, cash balances, and new budget allocations every day before stock market open. Outputs trade recommendations and risk concentration alerts (**Advisory Only, No Auto-Trading**).
+- **Auto-Daemon Management**: Built-in `OpenDaemonManager` automatically verifies local port `127.0.0.1:11111` upon system startup or API call, silently launching the local `moomoo_OpenD` gateway process when unpowered.
+- **Dual-View Analysis Report**: Toggle between "Institutional Research View" and "Gamified Narrative Breakdown" (explaining stock rallies, breakthroughs, and risk management with zero cognitive load).
 - 衍生工坊不在主链跑通前打开——它们消费的是小说已生成的章节、角色和场景
 
 ### 8. 公开介绍站与文档体系

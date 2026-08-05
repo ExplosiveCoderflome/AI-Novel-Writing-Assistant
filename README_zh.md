@@ -98,10 +98,16 @@ flowchart LR
 
 ### 6. 世界观、角色、知识库联动与 RAG
 - 势力图谱、地图、法则等作为背景世界观自动进入章节上下文。
-- 拆书产物与知识库文档通过 Qdrant 进行向量检索（RAG）。
-- 检索路径透明，后端可查阅 retrieval trace 召回轨迹以调试召回相关性。
+- 支持从用户文档构建知识库，提炼章节要点注入生成链。
 
-### 7. 世界沙盒模拟与物理生态引擎 (World Sandbox Simulation)
+### 7. 美股投资研究与每日调仓智能体 (US Stock Agent & MooMoo OpenD Integration)
+- **零自动下单的安全调仓指南**：结合用户持仓、闲置资金与新增预算，每日开盘前生成拟定买/卖/减仓/观望的交易指令清单与风控集中度警报（**仅供决策参考，绝不自动下单**）。
+- **MooMoo OpenD 本地守护与实盘连接**：后端原生集成 `OpenDaemonManager` 与原生 TCP 协议包解析，自动探针检测拉起 `moomoo_OpenD`，并自动捕获 GUI 解锁状态。支持一键同步实盘现金与持仓。
+- **MooMoo 自选关注股票池优先推荐**：无需敏感交易密码，通过 OpenD `Cmd 3213` 实时拉取用户 MooMoo 账号中的自选关注列表，推演时优先从用户的自选关注池中精选具催化剂风口的标的。
+- **100% 真实行情数据硬核保障**：通过 OpenD `Cmd 3001` (Sub) 与 `Cmd 3004` (GetBasicQot) 实时抓取美股盘中/夜盘现价，并通过确定性后处理校验管道强制覆盖 AI 生成结果中的股价与估额，杜绝任何 AI 幻觉与数字虚构。
+- **隔夜推演实时毛玻璃虚化与无缝刷新**：AI 推演过程中，受影响的推荐指令与研报区域自动开启 `Backdrop Blur` 虚化遮罩与醒目推演提示，推演完成后平滑解冻刷新。
+
+### 8. 世界沙盒模拟与物理生态引擎 (World Sandbox Simulation)
 - 实现了完整的锁步时序轮转模拟沙盒，遵循小说的物理与生态法则（详见 [world-sandbox-simulation_CN.md](file:///c:/Users/lilin/GeneralAgent/docs/design/world-sandbox-simulation_CN.md)）。
 - **地球物理与生态仿真**：根据纬度、季节和海拔垂直递减率实时计算气温、太阳光照、土壤湿度，并运用 Lotka-Volterra 方程组模拟食物链群落的捕食者-猎物数量演变。
 - **智能体认知仿真**：基于艾宾浩斯遗忘曲线模拟角色记忆衰减，并实现了谣言/传言在邻接地区传播过程中的空间扩散与信息失真变异模型。
@@ -321,6 +327,16 @@ node server/scripts/test-e2e-api-simulation.js
    QDRANT_API_KEY=your_database_api_key
    ```
 3. 在页面 `知识库 -> 向量设置` 中保存 embedding 设置。
+
+---
+
+### 6. MooMoo OpenD 本地美股网关配置与运行 (可选)
+
+系统内置了美股投资研究智能体与 MooMoo OpenD 的自动守护集成：
+1. **自动感知与后台唤醒**：只要你本地安装过 `MooMoo OpenD`（或 `FutuOpenD`），运行 GeneralAgent (`pnpm dev`) 后，后端服务会在初始化及调用时自动校验 `127.0.0.1:11111` 端口；若端口未连通，系统会自动在后台静默唤醒本地 OpenD 守护进程。
+2. **访问美股投研工作台**：项目启动后，在浏览器访问 `http://localhost:5173/stock` 或在侧边栏点击 **【美股投研与调仓】**。
+3. **零配置安全 Fallback**：即使未启动 OpenD，工作台也支持一键拖拽/导入 MooMoo 导出的持仓 CSV 文件或全选复制持仓文本。
+4. **安全提示**：系统仅生成开盘前操作建议与风控分析 (Advisory Only)，**绝不会自动下单**，最终挂单操作完全由你在 MooMoo 客户端上确认执行。
 
 ---
 

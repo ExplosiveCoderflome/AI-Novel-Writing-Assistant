@@ -56,3 +56,13 @@ server/scripts/reset-and-seed-db.js
 .services.pid
 chinese_scan_results.json
 raw_chinese_strings.json
+
+# Test & Diagnostic Scripts with sensitive local outputs
+server/scripts/*.cjs
+server/scripts/test*.cjs
+server/scripts/diagnose*.cjs
+
+# Credentials & Environment
+*.env
+*.env.local
+!.env.example

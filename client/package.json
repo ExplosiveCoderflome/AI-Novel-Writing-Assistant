@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "build": "tsc -p tsconfig.json --noEmit && node --max-old-space-size=4096 ./node_modules/vite/bin/vite.js build",
     "build:desktop": "tsc -p tsconfig.json --noEmit && node scripts/build-desktop.mjs",
     "preview": "vite preview",
     "test": "node scripts/run-client-tests.cjs",
