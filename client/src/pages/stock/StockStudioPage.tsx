@@ -455,6 +455,15 @@ export default function StockStudioPage() {
 
   const [selectedKgSymbol, setSelectedKgSymbol] = useState<string>("");
 
+  // 人工修改/自定义知识图谱 State
+  const [editKgModalOpen, setEditKgModalOpen] = useState(false);
+  const [customNodesMap, setCustomNodesMap] = useState<Record<string, KnowledgeGraphEntityNode[]>>({});
+  const [customEdgesMap, setCustomEdgesMap] = useState<Record<string, KnowledgeGraphRelationEdge[]>>({});
+  const [newEntityName, setNewEntityName] = useState("");
+  const [newEntityType, setNewEntityType] = useState<"SUPPLIER" | "CLIENT" | "COMPETITOR" | "MACRO" | "CONCEPT">("SUPPLIER");
+  const [newRelationText, setNewRelationText] = useState("");
+  const [newEntityDesc, setNewEntityDesc] = useState("");
+
   const quotesMap = new Map<string, number>(quotes.map((q) => [q.symbol.toUpperCase(), q.price]));
   const posList = portfolio?.positions || [];
   const kgList: KnowledgeGraphItem[] = strategy?.knowledgeGraph ||
@@ -470,13 +479,13 @@ export default function StockStudioPage() {
           ],
           nodes: [
             { id: p.symbol.toUpperCase(), name: p.companyName || p.symbol, type: "ROOT_STOCK", marketSymbol: p.symbol.toUpperCase(), description: `实盘持仓: ${p.shares}股` },
-            { id: "TSMC", name: "台积电 (TSMC)", type: "SUPPLIER", marketSymbol: "TSM", description: "先进 3nm/4nm 晶圆代工与 CoWoS 封装核心供应商" },
-            { id: "CLOUD_GIANTS", name: "微软 Azure & 亚马逊 AWS", type: "CLIENT", marketSymbol: "MSFT", description: "全球最大 hyperscaler 算力资本开支购买方" },
+            { id: `SUP_${p.symbol}`, name: `${p.symbol} 核心供应商`, type: "SUPPLIER", description: `${p.symbol} 上游关键零部件与服务提供商` },
+            { id: `CLI_${p.symbol}`, name: `${p.symbol} 下游核心客户`, type: "CLIENT", description: `${p.symbol} 核心产品采购与大单需求方` },
             { id: "FED_POLICY", name: "美联储降息周期", type: "MACRO", description: "分母端折现率下行提振长久期科技股估值" },
           ],
           edges: [
-            { source: p.symbol.toUpperCase(), target: "TSMC", relation: "晶圆代工 & CoWoS 封装依赖", impact: "POSITIVE" },
-            { source: p.symbol.toUpperCase(), target: "CLOUD_GIANTS", relation: "AI 算力硬件大单采购", impact: "POSITIVE" },
+            { source: p.symbol.toUpperCase(), target: `SUP_${p.symbol}`, relation: "上游供应链与零件代工", impact: "POSITIVE" },
+            { source: p.symbol.toUpperCase(), target: `CLI_${p.symbol}`, relation: "核心产品大单采购", impact: "POSITIVE" },
             { source: "FED_POLICY", target: p.symbol.toUpperCase(), relation: "降息预期提振科技股估值", impact: "POSITIVE" },
           ],
           actionAdvice: "HOLD",
@@ -484,7 +493,75 @@ export default function StockStudioPage() {
         }))
       : []);
 
-  const currentKgItem = kgList.find((item) => item.symbol === (selectedKgSymbol || kgList[0]?.symbol)) || kgList[0];
+  const activeKgSymbol = (selectedKgSymbol || kgList[0]?.symbol || "").toUpperCase();
+  const rawCurrentKgItem = kgList.find((item) => item.symbol.toUpperCase() === activeKgSymbol) || kgList[0];
+
+  // 融合人工修改的自定义实体节点与三元组边
+  const currentKgItem: KnowledgeGraphItem | undefined = rawCurrentKgItem
+    ? {
+        ...rawCurrentKgItem,
+        nodes: [
+          ...(rawCurrentKgItem.nodes || []),
+          ...(customNodesMap[rawCurrentKgItem.symbol.toUpperCase()] || []),
+        ],
+        edges: [
+          ...(rawCurrentKgItem.edges || []),
+          ...(customEdgesMap[rawCurrentKgItem.symbol.toUpperCase()] || []),
+        ],
+      }
+    : undefined;
+
+  // 添加人工自定义图谱实体 (同步落库至 Prisma 数据库)
+  const handleAddCustomEntity = async () => {
+    if (!currentKgItem || !newEntityName.trim()) return;
+    const symbolKey = currentKgItem.symbol.toUpperCase();
+    const customId = `CUSTOM_${Date.now()}`;
+
+    const newNode: KnowledgeGraphEntityNode = {
+      id: customId,
+      name: newEntityName.trim(),
+      type: newEntityType,
+      description: newEntityDesc.trim() || `人工添加自定义实体 (${newEntityName})`,
+    };
+
+    const newEdge: KnowledgeGraphRelationEdge = {
+      source: symbolKey,
+      target: customId,
+      relation: newRelationText.trim() || "人工绑定拓展关系",
+      impact: "POSITIVE",
+    };
+
+    // 本地 UI 状态即时响应
+    setCustomNodesMap((prev) => ({
+      ...prev,
+      [symbolKey]: [...(prev[symbolKey] || []), newNode],
+    }));
+
+    setCustomEdgesMap((prev) => ({
+      ...prev,
+      [symbolKey]: [...(prev[symbolKey] || []), newEdge],
+    }));
+
+    // 同步发送 POST 请求持久化落库至数据库
+    try {
+      await fetch("/api/stock/knowledge-graph/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol: symbolKey,
+          newNode,
+          newEdge,
+        }),
+      });
+    } catch (e) {
+      console.warn("[StockStudioPage] DB Knowledge Graph update failed:", e);
+    }
+
+    setNewEntityName("");
+    setNewRelationText("");
+    setNewEntityDesc("");
+    setEditKgModalOpen(false);
+  };
 
   // ⚙️ 生成过程：渲染工作流可视化与数据透视审计箱 (100% 动态 OpenD 数据 + 双指南 + 股票知识图谱)
   const renderWorkflowProcessView = () => {
@@ -1558,16 +1635,19 @@ export default function StockStudioPage() {
                 </div>
               </div>
 
-              {/* 股票快速切换 Tabs */}
+              {/* 股票快速切换 Tabs + 人工修改图谱入口 */}
               <div className="flex items-center space-x-3">
                 <div className="hidden md:flex gap-1.5 bg-slate-900 p-1 rounded-lg border border-slate-800">
                   {kgList.map((item) => (
                     <button
                       key={item.symbol}
-                      onClick={() => setSelectedKgSymbol(item.symbol)}
+                      onClick={() => {
+                        setSelectedKgSymbol(item.symbol.toUpperCase());
+                        setActiveModalNode(null);
+                      }}
                       className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all cursor-pointer ${
-                        currentKgItem.symbol === item.symbol
-                          ? "bg-purple-600 text-white shadow"
+                        currentKgItem.symbol.toUpperCase() === item.symbol.toUpperCase()
+                          ? "bg-purple-600 text-white shadow ring-1 ring-purple-400"
                           : "text-slate-400 hover:text-slate-200"
                       }`}
                     >
@@ -1575,6 +1655,13 @@ export default function StockStudioPage() {
                     </button>
                   ))}
                 </div>
+
+                <button
+                  onClick={() => setEditKgModalOpen(true)}
+                  className="px-3 py-1.5 bg-amber-950/80 text-amber-300 hover:bg-amber-900 border border-amber-700/60 rounded-lg text-xs font-bold font-mono transition-all cursor-pointer flex items-center gap-1.5 shadow"
+                >
+                  <span>✏️ 人工修改图谱</span>
+                </button>
 
                 <button
                   onClick={() => setKgModalOpen(false)}
@@ -1753,6 +1840,97 @@ export default function StockStudioPage() {
                   关闭 2D 全景全屏视图
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✏️ 人工编辑/新增股票知识图谱实体 Form Modal */}
+      {editKgModalOpen && currentKgItem && (
+        <div className="fixed inset-0 z-[60] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-amber-500/40 rounded-2xl w-full max-w-lg p-6 space-y-5 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h3 className="text-base font-extrabold text-amber-300 flex items-center gap-2 font-mono">
+                ✏️ 人工编辑/新增图谱实体 — {currentKgItem.symbol}
+              </h3>
+              <button
+                onClick={() => setEditKgModalOpen(false)}
+                className="text-slate-400 hover:text-white text-sm font-mono cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed bg-slate-950 p-3 rounded-lg border border-slate-800 font-sans">
+              融合 4 大数据源：<strong className="text-emerald-400">OpenD 盘口</strong> + <strong className="text-cyan-400">网络资讯快讯</strong> + <strong className="text-amber-400">实盘组合持仓</strong> + <strong className="text-purple-400">人工研判修正</strong>。你可以随时在此添加专属关联实体与语义三元组。
+            </p>
+
+            <div className="space-y-4 text-xs font-sans">
+              <div className="space-y-1.5">
+                <label className="text-slate-300 font-semibold block">关联实体名称 (Entity Name)</label>
+                <input
+                  type="text"
+                  placeholder="例如：鸿海精密 / 富士康 (Foxconn) 或 台积电 CoWoS"
+                  value={newEntityName}
+                  onChange={(e) => setNewEntityName(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-slate-100 placeholder:text-slate-600 font-mono text-xs"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-semibold block">实体分类 (Entity Type)</label>
+                  <select
+                    value={newEntityType}
+                    onChange={(e) => setNewEntityType(e.target.value as any)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-slate-100 font-mono text-xs"
+                  >
+                    <option value="SUPPLIER">上游供应商 (SUPPLIER)</option>
+                    <option value="CLIENT">下游客户 (CLIENT)</option>
+                    <option value="COMPETITOR">同业竞争者 (COMPETITOR)</option>
+                    <option value="MACRO">宏观因子 (MACRO)</option>
+                    <option value="CONCEPT">概念/板块 (CONCEPT)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-semibold block">语义关联谓词 (Relation)</label>
+                  <input
+                    type="text"
+                    placeholder="例如：iPhone 独家精密组装"
+                    value={newRelationText}
+                    onChange={(e) => setNewRelationText(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2.5 text-slate-100 placeholder:text-slate-600 font-mono text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-slate-300 font-semibold block">实体深度基本面说明 (Description)</label>
+                <textarea
+                  rows={3}
+                  placeholder="例如：全球最大智能手机代工厂，苹果供应链重要组件及产能出货核心保障"
+                  value={newEntityDesc}
+                  onChange={(e) => setNewEntityDesc(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 placeholder:text-slate-600 font-sans text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+              <button
+                onClick={() => setEditKgModalOpen(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg cursor-pointer"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleAddCustomEntity}
+                disabled={!newEntityName.trim()}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-lg shadow-lg shadow-amber-500/20 disabled:opacity-50 cursor-pointer"
+              >
+                保存并实时更新 2D 拓扑图谱
+              </button>
             </div>
           </div>
         </div>

@@ -4106,5 +4106,20 @@ model StockMarketIntelCache {
   @@index([intelDate, symbol])
 }
 
+// 股票专属数据库持久化知识图谱 Store (按每日新闻、OpenD 盘口与人工编辑更新)
+model StockKnowledgeGraphStore {
+  id                String   @id @default(uuid())
+  portfolioId       String   @default("default_portfolio")
+  symbol            String   // 如 "AAPL", "AMD", "NVDA", "AMZN", "SPCX"
+  nodesJson         String   // 持久化节点集 JSON (KnowledgeGraphEntityNode[])
+  edgesJson         String   // 持久化关系边集 JSON (KnowledgeGraphRelationEdge[])
+  newsCatalystsJson String   // 每日动态快讯 JSON (string[])
+  guidanceText      String?  // 专属研判指南
+  updatedAt         DateTime @updatedAt
+
+  @@unique([portfolioId, symbol])
+  @@index([portfolioId, symbol])
+}
+
 
 

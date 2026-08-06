@@ -1,6 +1,7 @@
 import { prisma } from "../../../db/prisma";
 import { openDaemonManager } from "./openDaemonManager";
 import { moomooAdapter } from "../adapters/moomooAdapter";
+import { stockKnowledgeGraphStoreService } from "./stockKnowledgeGraphStore";
 import { DailyAllocationOutput, StockPositionItem } from "../types/stockTypes";
 import { stockAllocationPrompt } from "../../../prompting/prompts/stock/stock.prompts";
 import { runStructuredPrompt } from "../../../prompting/core/promptRunner";
@@ -154,7 +155,17 @@ ${quotesTextList}
       });
     }
 
-    // 5. 将生成的《每日操盘指南》持久化落库
+    // 5. 将生成的《每日操盘指南》与各股票专属知识图谱落库持久化 (Prisma DB Knowledge Graph Storage)
+    if (output.knowledgeGraph && Array.isArray(output.knowledgeGraph)) {
+      for (const kgItem of output.knowledgeGraph) {
+        try {
+          await stockKnowledgeGraphStoreService.upsertKnowledgeGraph(portfolio.id, kgItem);
+        } catch (e) {
+          console.warn(`[DailyStrategyDirector] Failed to persist Knowledge Graph for ${kgItem.symbol}:`, e);
+        }
+      }
+    }
+
     const savedRecord = await prisma.stockDailyStrategy.create({
       data: {
         portfolioId: portfolio.id,

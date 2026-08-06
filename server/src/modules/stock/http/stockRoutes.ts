@@ -410,3 +410,58 @@ stockRouter.get("/daily-strategy/latest", async (_req: Request, res: Response) =
     return res.status(500).json({ success: false, error: err.message || err });
   }
 });
+
+// 10. 从数据库读取指定股票的专属持久化知识图谱
+stockRouter.get("/knowledge-graph", async (req: Request, res: Response) => {
+  try {
+    const symbol = String(req.query.symbol || "").toUpperCase();
+    const portfolioId = String(req.query.portfolioId || "default_portfolio");
+
+    if (!symbol) {
+      // 若未指定单股，查询数据库中已保存的所有股票图谱
+      const allRecords = await prisma.stockKnowledgeGraphStore.findMany({
+        where: { portfolioId },
+      });
+      const items = allRecords.map((rec) => ({
+        symbol: rec.symbol,
+        companyName: rec.symbol,
+        positionCategory: "EXISTING" as const,
+        industrySector: "数据库持久化知识图谱",
+        nodes: JSON.parse(rec.nodesJson || "[]"),
+        edges: JSON.parse(rec.edgesJson || "[]"),
+        newsCatalysts: JSON.parse(rec.newsCatalystsJson || "[]"),
+        actionAdvice: "HOLD" as const,
+        guidanceText: rec.guidanceText || `从数据库加载的 ${rec.symbol} 专属图谱`,
+      }));
+      return res.json({ success: true, data: items });
+    }
+
+    const { stockKnowledgeGraphStoreService } = await import("../services/stockKnowledgeGraphStore");
+    const item = await stockKnowledgeGraphStoreService.getKnowledgeGraph(portfolioId, symbol);
+    return res.json({ success: true, data: item });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || err });
+  }
+});
+
+// 11. 将前端人工修改/新增的知识图谱节点与三元组持久化落库
+stockRouter.post("/knowledge-graph/update", async (req: Request, res: Response) => {
+  try {
+    const { symbol, newNode, newEdge, portfolioId = "default_portfolio" } = req.body;
+    if (!symbol || !newNode || !newEdge) {
+      return res.status(400).json({ success: false, error: "缺少必要字段 symbol / newNode / newEdge" });
+    }
+
+    const { stockKnowledgeGraphStoreService } = await import("../services/stockKnowledgeGraphStore");
+    const updated = await stockKnowledgeGraphStoreService.addCustomEntityToDb(
+      portfolioId,
+      symbol,
+      newNode,
+      newEdge
+    );
+
+    return res.json({ success: true, data: updated });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || err });
+  }
+});

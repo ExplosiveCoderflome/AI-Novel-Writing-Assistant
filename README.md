@@ -124,7 +124,10 @@ If you prefer to write and manage your novel workspace in a local terminal using
   - **Guide 1 (Existing Position Adjustments)**: Dynamic concentration risk diagnostics (>30% risk alert) & profit-taking/stop-loss guidance.
   - **Guide 2 (New Position Discovery)**: Idle cash & budget allocation prioritizing MooMoo watchlist targets.
   - **Guide 3 (Retrospective & Execution Audit Loop)**: Compares historical recommendations against actual portfolio changes to distill long-term trading discipline.
-- **Per-Stock Knowledge Graph & OpenD News Intelligence**: Interactive stock selector rendering supply chain nodes, internet news, OpenD API fast flashes, and decision logic.
+- **Prisma DB-Persisted 2D Interactive Knowledge Graph & Multi-Source Fusion**:
+  - **Multi-Source Data Fusion Engine**: Fuses OpenD real-time bid/ask quotes, web news catalysts, portfolio positions/cash metrics, and manual human insights.
+  - **Strict Semantic Triples $(E_1 \rightarrow R \rightarrow E_2)$**: Classifies entities (`ROOT_STOCK`, `SUPPLIER`, `CLIENT`, `COMPETITOR`, `MACRO`, `CONCEPT`) and directional relation edges with SVG topology network & interactive side-drawer.
+  - **Prisma DB Persistence (`StockKnowledgeGraphStore`) & API (`/api/stock/knowledge-graph/update`)**: Saves each stock's dedicated graph and manual edits (`✏️ 人工修改图谱`) permanently in DB across server restarts and daily refreshes.
 - **Deterministic Guardrails Layer**: 100% mathematical formula calculations for buying power limits and real quote overrides to eliminate AI hallucinations.
 
 ### 9. Internationalization (i18n) Support
