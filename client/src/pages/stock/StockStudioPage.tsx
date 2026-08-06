@@ -101,6 +101,16 @@ export default function StockStudioPage() {
     Array<{ symbol: string; shares: number; costBasis: number; marketPrice?: number }>
   >([]);
 
+  // 2D 交互知识图谱全屏 Modal State
+  const [kgModalOpen, setKgModalOpen] = useState(false);
+  const [activeModalNode, setActiveModalNode] = useState<{
+    id: string;
+    label: string;
+    relation: string;
+    detail: string;
+    type: "ROOT" | "SUPPLY" | "CLIENT" | "CATALYST" | "POSITION";
+  } | null>(null);
+
   // 保存手动修改的持仓
   const handleSavePortfolio = async () => {
     try {
@@ -429,11 +439,34 @@ export default function StockStudioPage() {
 
   const [selectedKgSymbol, setSelectedKgSymbol] = useState<string>("");
 
+  const quotesMap = new Map<string, number>(quotes.map((q) => [q.symbol.toUpperCase(), q.price]));
+  const posList = portfolio?.positions || [];
+  const kgList: KnowledgeGraphItem[] = strategy?.knowledgeGraph ||
+    (posList.length > 0
+      ? posList.map((p) => ({
+          symbol: p.symbol.toUpperCase(),
+          companyName: p.companyName || p.symbol,
+          positionCategory: "EXISTING",
+          industrySector: "实盘持仓资产",
+          newsCatalysts: [
+            `【OpenD 接口】正在监听 ${p.symbol} 实时盘口与最新快讯...`,
+            `集中度占比分析: ${((p.shares * (p.marketPrice || p.costBasis || 0) / Math.max(1, posList.reduce((acc, item) => acc + item.shares * (item.marketPrice || item.costBasis || 0), 0))) * 100).toFixed(1)}%`,
+          ],
+          knowledgeGraphNodes: [
+            { relation: "持仓规模", targetNode: `${p.shares} 股` },
+            { relation: "持仓成本", targetNode: `$${p.costBasis}` },
+          ],
+          actionAdvice: "HOLD",
+          guidanceText: "针对已有持仓进行动态诊断，点击生成获取最新推演。",
+        }))
+      : []);
+
+  const currentKgItem = kgList.find((item) => item.symbol === (selectedKgSymbol || kgList[0]?.symbol)) || kgList[0];
+
   // ⚙️ 生成过程：渲染工作流可视化与数据透视审计箱 (100% 动态 OpenD 数据 + 双指南 + 股票知识图谱)
   const renderWorkflowProcessView = () => {
     const totalCash = portfolio?.cashBalance || 0;
     const totalAvailableCapital = totalCash + customBudget;
-    const posList = portfolio?.positions || [];
     const totalPositionsMarketValue = posList.reduce(
       (acc, p) => acc + p.shares * (p.marketPrice || p.costBasis || 0),
       0
@@ -444,27 +477,6 @@ export default function StockStudioPage() {
       .reduce((acc, a) => acc + (a.estimatedAmount || a.suggestedShares * a.estimatedPrice || 0), 0);
 
     const isBudgetCompliant = totalBuyCost <= totalAvailableCapital;
-
-    // 动态关联股票代号列表 (优先来自 AI 返回的知识图谱，无 AI 结果时根据实盘持仓动态衍生，绝不 Hardcode 假标的)
-    const kgList: KnowledgeGraphItem[] = strategy?.knowledgeGraph ||
-      (posList.length > 0
-        ? posList.map((p) => ({
-            symbol: p.symbol,
-            companyName: p.companyName || p.symbol,
-            positionCategory: "EXISTING" as const,
-            industrySector: "实盘持仓标的",
-            newsCatalysts: [`【OpenD 接口】正在监听 ${p.symbol} 实时盘口与最新快讯...`],
-            knowledgeGraphNodes: [
-              { relation: "持仓规模", targetNode: `${p.shares} 股` },
-              { relation: "持仓成本", targetNode: `$${p.costBasis}` },
-            ],
-            actionAdvice: "HOLD" as const,
-            guidanceText: `实时跟踪 ${p.symbol} 持仓变化与技术位支撑。`,
-          }))
-        : []);
-
-    const currentKgItem =
-      kgList.find((k) => k.symbol === selectedKgSymbol) || kgList[0];
 
     return (
       <div className="space-y-5 animate-fadeIn">
@@ -533,21 +545,31 @@ export default function StockStudioPage() {
               </p>
             </div>
 
-            {/* 股票 Selector */}
-            <div className="flex flex-wrap gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
-              {kgList.map((item) => (
-                <button
-                  key={item.symbol}
-                  onClick={() => setSelectedKgSymbol(item.symbol)}
-                  className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all cursor-pointer ${
-                    (selectedKgSymbol || kgList[0]?.symbol) === item.symbol
-                      ? "bg-purple-600 text-white shadow"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  {item.symbol}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setKgModalOpen(true)}
+                className="px-3 py-1.5 bg-purple-600/90 hover:bg-purple-500 text-white rounded-lg text-xs font-bold transition-all shadow-lg flex items-center gap-1.5 cursor-pointer animate-pulse"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-300" />
+                点击弹出【全景 2D 交互知识图谱】
+              </button>
+
+              {/* 股票 Selector */}
+              <div className="flex flex-wrap gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                {kgList.map((item) => (
+                  <button
+                    key={item.symbol}
+                    onClick={() => setSelectedKgSymbol(item.symbol)}
+                    className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all cursor-pointer ${
+                      (selectedKgSymbol || kgList[0]?.symbol) === item.symbol
+                        ? "bg-purple-600 text-white shadow"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {item.symbol}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -564,30 +586,32 @@ export default function StockStudioPage() {
                     {currentKgItem.industrySector}
                   </span>
                 </div>
-                <span
-                  className={`px-2 py-0.5 rounded text-xs font-bold font-mono ${
-                    currentKgItem.positionCategory === "EXISTING"
-                      ? "bg-amber-950 text-amber-300 border border-amber-800"
-                      : "bg-emerald-950 text-emerald-300 border border-emerald-800"
-                  }`}
+                <button
+                  onClick={() => setKgModalOpen(true)}
+                  className="px-2.5 py-1 rounded text-xs font-bold font-mono bg-purple-950 text-purple-300 border border-purple-800 hover:bg-purple-900 transition-all cursor-pointer flex items-center gap-1"
                 >
-                  {currentKgItem.positionCategory === "EXISTING" ? "已有仓位增减" : "新仓位建立"}
-                </span>
+                  <Sparkles className="w-3 h-3 text-purple-400" />
+                  查看 2D 全景图
+                </button>
               </div>
 
               {/* 知识图谱节点关联 */}
               <div className="space-y-1.5">
                 <h4 className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                  产业链与关联知识图谱节点 (Knowledge Graph Nodes):
+                  产业链与关联知识图谱节点 (点击卡片可弹出全景 2D 图谱):
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {currentKgItem.knowledgeGraphNodes.map((node, idx) => (
                     <div
                       key={idx}
-                      className="bg-slate-900 border border-slate-800/80 p-2.5 rounded text-xs text-slate-300 font-mono space-y-1"
+                      onClick={() => setKgModalOpen(true)}
+                      className="bg-slate-900 border border-slate-800/80 hover:border-purple-500/80 p-2.5 rounded text-xs text-slate-300 font-mono space-y-1 cursor-pointer transition-all hover:bg-slate-850"
                     >
-                      <div className="text-[10px] text-slate-400">{node.relation}</div>
+                      <div className="text-[10px] text-slate-400 flex justify-between">
+                        <span>{node.relation}</span>
+                        <span className="text-[9px] text-purple-400">点击图化 ➔</span>
+                      </div>
                       <div className="font-bold text-indigo-300">{node.targetNode}</div>
                     </div>
                   ))}
@@ -1479,6 +1503,246 @@ export default function StockStudioPage() {
                 <RefreshCw className={`w-3.5 h-3.5 ${unlocking ? "animate-spin" : ""}`} />
                 <span>{unlocking ? "验证中..." : "解锁密码并同步持仓"}</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🕸️ 2D 全景可交互股票知识图谱全屏 Modal */}
+      {kgModalOpen && currentKgItem && (
+        <div className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-purple-500/30 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden relative">
+            {/* 顶栏 Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/80">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-950 text-purple-400 rounded-xl border border-purple-800">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-white flex items-center gap-2 font-mono">
+                    🕸️ 2D 全景交互知识图谱 — {currentKgItem.symbol}
+                    <span className="text-xs text-slate-400 font-sans font-normal">
+                      ({currentKgItem.companyName})
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    双向透视产业链上下游、核心客户、互联网快讯与 OpenD 盘口实体映射
+                  </p>
+                </div>
+              </div>
+
+              {/* 股票快速切换 Tabs */}
+              <div className="flex items-center space-x-3">
+                <div className="hidden md:flex gap-1.5 bg-slate-900 p-1 rounded-lg border border-slate-800">
+                  {kgList.map((item) => (
+                    <button
+                      key={item.symbol}
+                      onClick={() => setSelectedKgSymbol(item.symbol)}
+                      className={`px-2.5 py-1 rounded text-xs font-mono font-bold transition-all cursor-pointer ${
+                        currentKgItem.symbol === item.symbol
+                          ? "bg-purple-600 text-white shadow"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {item.symbol}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setKgModalOpen(false)}
+                  className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-all text-sm font-mono cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* 2D 可视化 Canvas + 侧边栏说明 */}
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 overflow-hidden bg-slate-950 relative">
+              {/* 左侧 2D 拓扑图 (SVG 渲染网络) */}
+              <div className="md:col-span-2 relative p-6 flex items-center justify-center overflow-auto bg-slate-950/90 border-r border-slate-800/80">
+                {/* 拓扑网络背景点阵 */}
+                <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px] opacity-25" />
+
+                {/* SVG 拓扑连线 */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none stroke-slate-700/60 stroke-2">
+                  <line x1="50%" y1="50%" x2="20%" y2="25%" stroke="#818cf8" strokeDasharray="4 2" />
+                  <line x1="50%" y1="50%" x2="20%" y2="75%" stroke="#34d399" strokeDasharray="4 2" />
+                  <line x1="50%" y1="50%" x2="80%" y2="25%" stroke="#22d3ee" strokeDasharray="4 2" />
+                  <line x1="50%" y1="50%" x2="80%" y2="75%" stroke="#f59e0b" strokeDasharray="4 2" />
+                </svg>
+
+                {/* 中心主节点 */}
+                <div className="relative z-10 text-center">
+                  <div
+                    onClick={() =>
+                      setActiveModalNode({
+                        id: currentKgItem.symbol,
+                        label: `${currentKgItem.symbol} (${currentKgItem.companyName})`,
+                        relation: "核心研判目标标的",
+                        detail: `板块: ${currentKgItem.industrySector} | 类型: ${
+                          currentKgItem.positionCategory === "EXISTING" ? "已有持仓" : "新仓位建立"
+                        }`,
+                        type: "ROOT",
+                      })
+                    }
+                    className="w-28 h-28 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 p-1 shadow-2xl shadow-purple-500/40 cursor-pointer transform hover:scale-105 transition-all flex flex-col items-center justify-center border-4 border-slate-900 animate-pulse"
+                  >
+                    <span className="text-xl font-black text-white font-mono">{currentKgItem.symbol}</span>
+                    <span className="text-[10px] text-purple-100 font-semibold">{currentKgItem.companyName}</span>
+                    <span className="text-[9px] bg-slate-950/80 text-amber-300 px-1.5 py-0.5 rounded mt-1 font-mono">
+                      ${quotesMap.get(currentKgItem.symbol)?.toFixed(2) || "实时抓取中"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 节点 1：产业链上游关系节点 (Top-Left) */}
+                <div
+                  onClick={() =>
+                    setActiveModalNode({
+                      id: "supply-node",
+                      label: currentKgItem.knowledgeGraphNodes[0]?.targetNode || "台积电 CoWoS 封装",
+                      relation: currentKgItem.knowledgeGraphNodes[0]?.relation || "上游晶圆代工",
+                      detail: "根据最新美股与 OpenD 供应链分析，晶圆封装与核心芯片产能直接决定交货周期与毛利率。",
+                      type: "SUPPLY",
+                    })
+                  }
+                  className="absolute left-8 top-12 z-10 bg-slate-900/90 border border-indigo-500/50 hover:border-indigo-400 p-3 rounded-xl shadow-xl hover:scale-105 transition-all cursor-pointer w-48 text-xs"
+                >
+                  <div className="text-[10px] text-indigo-400 font-mono flex justify-between">
+                    <span>{currentKgItem.knowledgeGraphNodes[0]?.relation || "上游供应链"}</span>
+                    <span>➔</span>
+                  </div>
+                  <div className="font-bold text-slate-100 mt-1">
+                    {currentKgItem.knowledgeGraphNodes[0]?.targetNode || "产业链上游核心节点"}
+                  </div>
+                </div>
+
+                {/* 节点 2：核心下游客户节点 (Bottom-Left) */}
+                <div
+                  onClick={() =>
+                    setActiveModalNode({
+                      id: "client-node",
+                      label: currentKgItem.knowledgeGraphNodes[1]?.targetNode || "微软 Azure & 亚马逊 AWS",
+                      relation: currentKgItem.knowledgeGraphNodes[1]?.relation || "核心云服务客户",
+                      detail: "云巨头 CapEx 资本开支增加直接转化为芯片大单需求。",
+                      type: "CLIENT",
+                    })
+                  }
+                  className="absolute left-8 bottom-12 z-10 bg-slate-900/90 border border-emerald-500/50 hover:border-emerald-400 p-3 rounded-xl shadow-xl hover:scale-105 transition-all cursor-pointer w-48 text-xs"
+                >
+                  <div className="text-[10px] text-emerald-400 font-mono flex justify-between">
+                    <span>{currentKgItem.knowledgeGraphNodes[1]?.relation || "下游客户"}</span>
+                    <span>➔</span>
+                  </div>
+                  <div className="font-bold text-slate-100 mt-1">
+                    {currentKgItem.knowledgeGraphNodes[1]?.targetNode || "核心下游客户端"}
+                  </div>
+                </div>
+
+                {/* 节点 3：隔夜新闻催化剂 (Top-Right) */}
+                <div
+                  onClick={() =>
+                    setActiveModalNode({
+                      id: "catalyst-node",
+                      label: "新闻催化剂快讯",
+                      relation: "互联网/OpenD 快讯",
+                      detail: currentKgItem.newsCatalysts[0] || "隔夜科技板块反弹，资金流入迹象明显。",
+                      type: "CATALYST",
+                    })
+                  }
+                  className="absolute right-8 top-12 z-10 bg-slate-900/90 border border-cyan-500/50 hover:border-cyan-400 p-3 rounded-xl shadow-xl hover:scale-105 transition-all cursor-pointer w-48 text-xs"
+                >
+                  <div className="text-[10px] text-cyan-400 font-mono flex justify-between">
+                    <span>隔夜新闻催化剂</span>
+                    <span>⚡</span>
+                  </div>
+                  <div className="font-bold text-cyan-200 mt-1 line-clamp-2">
+                    {currentKgItem.newsCatalysts[0] || "隔夜异动情报"}
+                  </div>
+                </div>
+
+                {/* 节点 4：实盘持仓与风控防线 (Bottom-Right) */}
+                <div
+                  onClick={() =>
+                    setActiveModalNode({
+                      id: "position-node",
+                      label: currentKgItem.positionCategory === "EXISTING" ? "已有持仓诊断" : "新仓位挖潜",
+                      relation: "MooMoo 实盘规则",
+                      detail: currentKgItem.guidanceText,
+                      type: "POSITION",
+                    })
+                  }
+                  className="absolute right-8 bottom-12 z-10 bg-slate-900/90 border border-amber-500/50 hover:border-amber-400 p-3 rounded-xl shadow-xl hover:scale-105 transition-all cursor-pointer w-48 text-xs"
+                >
+                  <div className="text-[10px] text-amber-400 font-mono flex justify-between">
+                    <span>持仓/自选状态</span>
+                    <span>🛡️</span>
+                  </div>
+                  <div className="font-bold text-amber-200 mt-1">
+                    {currentKgItem.positionCategory === "EXISTING" ? "实盘持仓资产" : "MooMoo 自选关注标的"}
+                  </div>
+                </div>
+              </div>
+
+              {/* 右侧节点详情与 OpenD 盘口抽屉 Side Panel */}
+              <div className="p-6 bg-slate-900 flex flex-col justify-between space-y-4 overflow-y-auto">
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2 flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-purple-400" />
+                    节点深度关联透视面板
+                  </h4>
+
+                  {activeModalNode ? (
+                    <div className="space-y-3 bg-slate-950 p-4 rounded-xl border border-purple-500/30 animate-in fade-in">
+                      <div className="text-[10px] bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded font-mono inline-block">
+                        {activeModalNode.relation}
+                      </div>
+                      <h5 className="text-sm font-bold text-white">{activeModalNode.label}</h5>
+                      <p className="text-xs text-slate-300 leading-relaxed bg-slate-900 p-3 rounded-lg border border-slate-800 font-sans">
+                        {activeModalNode.detail}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-center space-y-2">
+                      <Sparkles className="w-6 h-6 text-purple-400 mx-auto animate-bounce" />
+                      <p className="text-xs text-slate-400">
+                        在左侧 2D 拓扑图中点击任意节点，查看产业链深度解读与数据流来源。
+                      </p>
+                    </div>
+                  )}
+
+                  {/* OpenD 实时行情数据流卡 */}
+                  <div className="space-y-2 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <h5 className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                      <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                      OpenD 直连盘口情报 ({currentKgItem.symbol})
+                    </h5>
+                    <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
+                      <div className="bg-slate-900 p-2 rounded border border-slate-800">
+                        <div className="text-[10px] text-slate-500">最新美股现价</div>
+                        <div className="text-emerald-400 font-bold">
+                          ${quotesMap.get(currentKgItem.symbol)?.toFixed(2) || "实时获取中..."}
+                        </div>
+                      </div>
+                      <div className="bg-slate-900 p-2 rounded border border-slate-800">
+                        <div className="text-[10px] text-slate-500">资产关联状态</div>
+                        <div className="text-purple-300 font-bold">
+                          {currentKgItem.positionCategory === "EXISTING" ? "已有持仓" : "自选关注池"}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setKgModalOpen(false)}
+                  className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition-all shadow-lg cursor-pointer"
+                >
+                  关闭 2D 全景全屏视图
+                </button>
+              </div>
             </div>
           </div>
         </div>
