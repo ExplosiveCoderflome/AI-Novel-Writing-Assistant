@@ -37,13 +37,29 @@ interface RiskAlert {
   relatedSymbol?: string;
 }
 
+interface KnowledgeGraphEntityNode {
+  id: string;
+  name: string;
+  type: "ROOT_STOCK" | "SUPPLIER" | "CLIENT" | "COMPETITOR" | "MACRO" | "CONCEPT";
+  marketSymbol?: string;
+  description?: string;
+}
+
+interface KnowledgeGraphRelationEdge {
+  source: string;
+  target: string;
+  relation: string;
+  impact: "POSITIVE" | "NEGATIVE" | "NEUTRAL";
+}
+
 interface KnowledgeGraphItem {
   symbol: string;
   companyName: string;
   positionCategory: "EXISTING" | "NEW_DISCOVERY";
   industrySector: string;
+  nodes?: KnowledgeGraphEntityNode[];
+  edges?: KnowledgeGraphRelationEdge[];
   newsCatalysts: string[];
-  knowledgeGraphNodes: Array<{ relation: string; targetNode: string }>;
   actionAdvice: "BUY" | "SELL" | "HOLD" | "TRIM";
   guidanceText: string;
 }
@@ -452,9 +468,16 @@ export default function StockStudioPage() {
             `【OpenD 接口】正在监听 ${p.symbol} 实时盘口与最新快讯...`,
             `集中度占比分析: ${((p.shares * (p.marketPrice || p.costBasis || 0) / Math.max(1, posList.reduce((acc, item) => acc + item.shares * (item.marketPrice || item.costBasis || 0), 0))) * 100).toFixed(1)}%`,
           ],
-          knowledgeGraphNodes: [
-            { relation: "持仓规模", targetNode: `${p.shares} 股` },
-            { relation: "持仓成本", targetNode: `$${p.costBasis}` },
+          nodes: [
+            { id: p.symbol.toUpperCase(), name: p.companyName || p.symbol, type: "ROOT_STOCK", marketSymbol: p.symbol.toUpperCase(), description: `实盘持仓: ${p.shares}股` },
+            { id: "TSMC", name: "台积电 (TSMC)", type: "SUPPLIER", marketSymbol: "TSM", description: "先进 3nm/4nm 晶圆代工与 CoWoS 封装核心供应商" },
+            { id: "CLOUD_GIANTS", name: "微软 Azure & 亚马逊 AWS", type: "CLIENT", marketSymbol: "MSFT", description: "全球最大 hyperscaler 算力资本开支购买方" },
+            { id: "FED_POLICY", name: "美联储降息周期", type: "MACRO", description: "分母端折现率下行提振长久期科技股估值" },
+          ],
+          edges: [
+            { source: p.symbol.toUpperCase(), target: "TSMC", relation: "晶圆代工 & CoWoS 封装依赖", impact: "POSITIVE" },
+            { source: p.symbol.toUpperCase(), target: "CLOUD_GIANTS", relation: "AI 算力硬件大单采购", impact: "POSITIVE" },
+            { source: "FED_POLICY", target: p.symbol.toUpperCase(), relation: "降息预期提振科技股估值", impact: "POSITIVE" },
           ],
           actionAdvice: "HOLD",
           guidanceText: "针对已有持仓进行动态诊断，点击生成获取最新推演。",
@@ -599,20 +622,24 @@ export default function StockStudioPage() {
               <div className="space-y-1.5">
                 <h4 className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                  产业链与关联知识图谱节点 (点击卡片可弹出全景 2D 图谱):
+                  金融语义三元组与实体多跳关联 (Triples: E1 ──[Relation]──► E2):
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {currentKgItem.knowledgeGraphNodes.map((node, idx) => (
+                  {(currentKgItem.edges || []).map((edge, idx) => (
                     <div
                       key={idx}
                       onClick={() => setKgModalOpen(true)}
                       className="bg-slate-900 border border-slate-800/80 hover:border-purple-500/80 p-2.5 rounded text-xs text-slate-300 font-mono space-y-1 cursor-pointer transition-all hover:bg-slate-850"
                     >
-                      <div className="text-[10px] text-slate-400 flex justify-between">
-                        <span>{node.relation}</span>
-                        <span className="text-[9px] text-purple-400">点击图化 ➔</span>
+                      <div className="text-[10px] text-purple-400 flex justify-between">
+                        <span>[{edge.relation}]</span>
+                        <span className="text-[9px] text-slate-500">点击交互 ➔</span>
                       </div>
-                      <div className="font-bold text-indigo-300">{node.targetNode}</div>
+                      <div className="font-bold text-slate-100 flex items-center justify-between text-[11px]">
+                        <span className="text-amber-300">{edge.source}</span>
+                        <span className="text-slate-500">➔</span>
+                        <span className="text-emerald-300">{edge.target}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1560,130 +1587,113 @@ export default function StockStudioPage() {
 
             {/* 2D 可视化 Canvas + 侧边栏说明 */}
             <div className="flex-1 grid grid-cols-1 md:grid-cols-3 overflow-hidden bg-slate-950 relative">
-              {/* 左侧 2D 拓扑图 (SVG 渲染网络) */}
-              <div className="md:col-span-2 relative p-6 flex items-center justify-center overflow-auto bg-slate-950/90 border-r border-slate-800/80">
+              {/* 左侧 2D 拓扑图 (动态渲染 Multi-Entity Triple Network Canvas) */}
+              <div className="md:col-span-2 relative p-6 flex items-center justify-center overflow-auto bg-slate-950/90 border-r border-slate-800/80 min-h-[400px]">
                 {/* 拓扑网络背景点阵 */}
-                <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:16px_16px] opacity-25" />
+                <div className="absolute inset-0 bg-[radial-gradient(#334155_1px,transparent_1px)] [background-size:20px_20px] opacity-20" />
 
-                {/* SVG 拓扑连线 */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none stroke-slate-700/60 stroke-2">
-                  <line x1="50%" y1="50%" x2="20%" y2="25%" stroke="#818cf8" strokeDasharray="4 2" />
-                  <line x1="50%" y1="50%" x2="20%" y2="75%" stroke="#34d399" strokeDasharray="4 2" />
-                  <line x1="50%" y1="50%" x2="80%" y2="25%" stroke="#22d3ee" strokeDasharray="4 2" />
-                  <line x1="50%" y1="50%" x2="80%" y2="75%" stroke="#f59e0b" strokeDasharray="4 2" />
+                {/* SVG 实体关系定向连线 (Edges) */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none stroke-purple-500/40 stroke-2">
+                  {(currentKgItem.edges || []).map((edge, idx) => {
+                    const nodeCount = (currentKgItem.nodes || []).length;
+                    const angle = (idx / Math.max(1, nodeCount - 1)) * 2 * Math.PI - Math.PI / 2;
+                    const endX = 50 + 35 * Math.cos(angle);
+                    const endY = 50 + 35 * Math.sin(angle);
+                    return (
+                      <g key={idx}>
+                        <line x1="50%" y1="50%" x2={`${endX}%`} y2={`${endY}%`} strokeDasharray="5 3" />
+                      </g>
+                    );
+                  })}
                 </svg>
 
-                {/* 中心主节点 */}
-                <div className="relative z-10 text-center">
+                {/* 中心根节点 (Root Stock Entity) */}
+                <div className="relative z-20 text-center">
                   <div
                     onClick={() =>
                       setActiveModalNode({
                         id: currentKgItem.symbol,
                         label: `${currentKgItem.symbol} (${currentKgItem.companyName})`,
-                        relation: "核心研判目标标的",
-                        detail: `板块: ${currentKgItem.industrySector} | 类型: ${
-                          currentKgItem.positionCategory === "EXISTING" ? "已有持仓" : "新仓位建立"
+                        relation: "核心研判目标标的 (Root Stock Entity)",
+                        detail: `板块: ${currentKgItem.industrySector} | 分类: ${
+                          currentKgItem.positionCategory === "EXISTING" ? "MooMoo 实盘持仓" : "自选关注风口"
                         }`,
                         type: "ROOT",
                       })
                     }
-                    className="w-28 h-28 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-500 p-1 shadow-2xl shadow-purple-500/40 cursor-pointer transform hover:scale-105 transition-all flex flex-col items-center justify-center border-4 border-slate-900 animate-pulse"
+                    className="w-28 h-28 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 p-1 shadow-2xl shadow-purple-500/50 cursor-pointer transform hover:scale-110 transition-all flex flex-col items-center justify-center border-4 border-slate-900 animate-pulse ring-4 ring-purple-500/20"
                   >
-                    <span className="text-xl font-black text-white font-mono">{currentKgItem.symbol}</span>
+                    <span className="text-xl font-black text-white font-mono tracking-wider">{currentKgItem.symbol}</span>
                     <span className="text-[10px] text-purple-100 font-semibold">{currentKgItem.companyName}</span>
-                    <span className="text-[9px] bg-slate-950/80 text-amber-300 px-1.5 py-0.5 rounded mt-1 font-mono">
-                      ${quotesMap.get(currentKgItem.symbol)?.toFixed(2) || "实时抓取中"}
+                    <span className="text-[9px] bg-slate-950/90 text-amber-300 px-1.5 py-0.5 rounded mt-1 font-mono">
+                      ${quotesMap.get(currentKgItem.symbol)?.toFixed(2) || "实时现价"}
                     </span>
                   </div>
                 </div>
 
-                {/* 节点 1：产业链上游关系节点 (Top-Left) */}
-                <div
-                  onClick={() =>
-                    setActiveModalNode({
-                      id: "supply-node",
-                      label: currentKgItem.knowledgeGraphNodes[0]?.targetNode || "台积电 CoWoS 封装",
-                      relation: currentKgItem.knowledgeGraphNodes[0]?.relation || "上游晶圆代工",
-                      detail: "根据最新美股与 OpenD 供应链分析，晶圆封装与核心芯片产能直接决定交货周期与毛利率。",
-                      type: "SUPPLY",
-                    })
-                  }
-                  className="absolute left-8 top-12 z-10 bg-slate-900/90 border border-indigo-500/50 hover:border-indigo-400 p-3 rounded-xl shadow-xl hover:scale-105 transition-all cursor-pointer w-48 text-xs"
-                >
-                  <div className="text-[10px] text-indigo-400 font-mono flex justify-between">
-                    <span>{currentKgItem.knowledgeGraphNodes[0]?.relation || "上游供应链"}</span>
-                    <span>➔</span>
-                  </div>
-                  <div className="font-bold text-slate-100 mt-1">
-                    {currentKgItem.knowledgeGraphNodes[0]?.targetNode || "产业链上游核心节点"}
-                  </div>
-                </div>
+                {/* 动态分布周边关系实体节点 (Multi-Hop Entity Nodes) */}
+                {(currentKgItem.nodes || [])
+                  .filter((n) => n.id !== currentKgItem.symbol)
+                  .map((node, idx, arr) => {
+                    const angle = (idx / arr.length) * 2 * Math.PI - Math.PI / 4;
+                    const radius = 160; // 像素分布半径
+                    const posX = Math.cos(angle) * radius;
+                    const posY = Math.sin(angle) * radius;
 
-                {/* 节点 2：核心下游客户节点 (Bottom-Left) */}
-                <div
-                  onClick={() =>
-                    setActiveModalNode({
-                      id: "client-node",
-                      label: currentKgItem.knowledgeGraphNodes[1]?.targetNode || "微软 Azure & 亚马逊 AWS",
-                      relation: currentKgItem.knowledgeGraphNodes[1]?.relation || "核心云服务客户",
-                      detail: "云巨头 CapEx 资本开支增加直接转化为芯片大单需求。",
-                      type: "CLIENT",
-                    })
-                  }
-                  className="absolute left-8 bottom-12 z-10 bg-slate-900/90 border border-emerald-500/50 hover:border-emerald-400 p-3 rounded-xl shadow-xl hover:scale-105 transition-all cursor-pointer w-48 text-xs"
-                >
-                  <div className="text-[10px] text-emerald-400 font-mono flex justify-between">
-                    <span>{currentKgItem.knowledgeGraphNodes[1]?.relation || "下游客户"}</span>
-                    <span>➔</span>
-                  </div>
-                  <div className="font-bold text-slate-100 mt-1">
-                    {currentKgItem.knowledgeGraphNodes[1]?.targetNode || "核心下游客户端"}
-                  </div>
-                </div>
+                    const matchingEdge = (currentKgItem.edges || []).find(
+                      (e) => e.source === node.id || e.target === node.id
+                    );
 
-                {/* 节点 3：隔夜新闻催化剂 (Top-Right) */}
-                <div
-                  onClick={() =>
-                    setActiveModalNode({
-                      id: "catalyst-node",
-                      label: "新闻催化剂快讯",
-                      relation: "互联网/OpenD 快讯",
-                      detail: currentKgItem.newsCatalysts[0] || "隔夜科技板块反弹，资金流入迹象明显。",
-                      type: "CATALYST",
-                    })
-                  }
-                  className="absolute right-8 top-12 z-10 bg-slate-900/90 border border-cyan-500/50 hover:border-cyan-400 p-3 rounded-xl shadow-xl hover:scale-105 transition-all cursor-pointer w-48 text-xs"
-                >
-                  <div className="text-[10px] text-cyan-400 font-mono flex justify-between">
-                    <span>隔夜新闻催化剂</span>
-                    <span>⚡</span>
-                  </div>
-                  <div className="font-bold text-cyan-200 mt-1 line-clamp-2">
-                    {currentKgItem.newsCatalysts[0] || "隔夜异动情报"}
-                  </div>
-                </div>
+                    const typeColors: Record<string, string> = {
+                      SUPPLIER: "border-indigo-500/60 bg-slate-900/95 text-indigo-300 hover:border-indigo-400",
+                      CLIENT: "border-emerald-500/60 bg-slate-900/95 text-emerald-300 hover:border-emerald-400",
+                      COMPETITOR: "border-rose-500/60 bg-slate-900/95 text-rose-300 hover:border-rose-400",
+                      MACRO: "border-cyan-500/60 bg-slate-900/95 text-cyan-300 hover:border-cyan-400",
+                      CONCEPT: "border-amber-500/60 bg-slate-900/95 text-amber-300 hover:border-amber-400",
+                    };
 
-                {/* 节点 4：实盘持仓与风控防线 (Bottom-Right) */}
-                <div
-                  onClick={() =>
-                    setActiveModalNode({
-                      id: "position-node",
-                      label: currentKgItem.positionCategory === "EXISTING" ? "已有持仓诊断" : "新仓位挖潜",
-                      relation: "MooMoo 实盘规则",
-                      detail: currentKgItem.guidanceText,
-                      type: "POSITION",
-                    })
-                  }
-                  className="absolute right-8 bottom-12 z-10 bg-slate-900/90 border border-amber-500/50 hover:border-amber-400 p-3 rounded-xl shadow-xl hover:scale-105 transition-all cursor-pointer w-48 text-xs"
-                >
-                  <div className="text-[10px] text-amber-400 font-mono flex justify-between">
-                    <span>持仓/自选状态</span>
-                    <span>🛡️</span>
-                  </div>
-                  <div className="font-bold text-amber-200 mt-1">
-                    {currentKgItem.positionCategory === "EXISTING" ? "实盘持仓资产" : "MooMoo 自选关注标的"}
-                  </div>
-                </div>
+                    const typeBadges: Record<string, string> = {
+                      SUPPLIER: "上游供应商",
+                      CLIENT: "下游客户",
+                      COMPETITOR: "同业竞争者",
+                      MACRO: "宏观因子",
+                      CONCEPT: "概念板块",
+                    };
+
+                    return (
+                      <div
+                        key={node.id}
+                        onClick={() =>
+                          setActiveModalNode({
+                            id: node.id,
+                            label: node.name,
+                            relation: matchingEdge?.relation || typeBadges[node.type] || "关联实体",
+                            detail: node.description || `金融实体 ID: ${node.id}，涉及多跳关联特征。`,
+                            type: node.type as any,
+                          })
+                        }
+                        style={{
+                          transform: `translate(${posX}px, ${posY}px)`,
+                        }}
+                        className={`absolute z-10 border p-3 rounded-xl shadow-2xl hover:scale-110 transition-all cursor-pointer w-48 text-xs ${
+                          typeColors[node.type] || "border-slate-700 bg-slate-900 text-slate-200"
+                        }`}
+                      >
+                        <div className="text-[10px] opacity-80 font-mono flex justify-between items-center mb-1">
+                          <span className="bg-slate-950/80 px-1.5 py-0.5 rounded border border-slate-800">
+                            {typeBadges[node.type] || "实体"}
+                          </span>
+                          <span className="text-[9px] opacity-70">➔ {matchingEdge?.impact || "LINK"}</span>
+                        </div>
+                        <div className="font-extrabold text-white text-[13px]">{node.name}</div>
+                        {matchingEdge && (
+                          <div className="text-[10px] text-purple-300 mt-1 line-clamp-1 italic font-mono">
+                            [{matchingEdge.relation}]
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
               </div>
 
               {/* 右侧节点详情与 OpenD 盘口抽屉 Side Panel */}

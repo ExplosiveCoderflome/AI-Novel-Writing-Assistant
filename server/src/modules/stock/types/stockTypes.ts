@@ -70,23 +70,56 @@ export const StrategyRiskAlertSchema = z.object({
 });
 
 // 单只股票知识图谱与互联网/OpenD资讯节点
+// 真正的金融语义知识图谱三元组数据结构 (Entity-Relation-Entity Triple Graph)
+export interface KnowledgeGraphEntityNode {
+  id: string;                                           // 实体 ID (如 "AAPL", "TSMC", "FED_RATE")
+  name: string;                                         // 实体显示名 (如 "苹果公司", "台积电", "美联储利率")
+  type: "ROOT_STOCK" | "SUPPLIER" | "CLIENT" | "COMPETITOR" | "MACRO" | "CONCEPT"; // 实体类型
+  marketSymbol?: string;                                // 若为美股则带股票代码
+  description?: string;                                 // 实体描述
+}
+
+export interface KnowledgeGraphRelationEdge {
+  source: string;                                       // 源实体 ID (E1)
+  target: string;                                       // 目标实体 ID (E2)
+  relation: string;                                     // 关系谓词 (如 "晶圆代工依赖", "同业芯片竞争", "云端算力采购")
+  impact: "POSITIVE" | "NEGATIVE" | "NEUTRAL";          // 传导影响方向
+}
+
+export interface StockKnowledgeGraphItem {
+  symbol: string;
+  companyName: string;
+  positionCategory: "EXISTING" | "NEW_DISCOVERY";
+  industrySector: string;
+  nodes: KnowledgeGraphEntityNode[];                    // 多实体节点集
+  edges: KnowledgeGraphRelationEdge[];                  // 实体间关系边集
+  newsCatalysts: string[];
+  actionAdvice: "BUY" | "SELL" | "HOLD" | "TRIM";
+  guidanceText: string;
+}
+
 export const StockKnowledgeGraphItemSchema = z.object({
   symbol: z.string(),
   companyName: z.string(),
   positionCategory: z.enum(["EXISTING", "NEW_DISCOVERY"]),
   industrySector: z.string(),
+  nodes: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.enum(["ROOT_STOCK", "SUPPLIER", "CLIENT", "COMPETITOR", "MACRO", "CONCEPT"]),
+    marketSymbol: z.string().optional(),
+    description: z.string().optional(),
+  })),
+  edges: z.array(z.object({
+    source: z.string(),
+    target: z.string(),
+    relation: z.string(),
+    impact: z.enum(["POSITIVE", "NEGATIVE", "NEUTRAL"]),
+  })),
   newsCatalysts: z.array(z.string()).describe("互联网新闻与OpenD API资讯快讯"),
-  knowledgeGraphNodes: z.array(
-    z.object({
-      relation: z.string(),
-      targetNode: z.string(),
-    })
-  ),
   actionAdvice: z.enum(["BUY", "SELL", "HOLD", "TRIM"]),
   guidanceText: z.string().describe("增减仓或新建仓的具体策略研判"),
 });
-
-export type StockKnowledgeGraphItem = z.infer<typeof StockKnowledgeGraphItemSchema>;
 
 // AI 调仓推演结构化输出 Schema
 export const DailyAllocationOutputSchema = z.object({

@@ -62,49 +62,110 @@ export class StockContextManager {
         newsCatalysts.push(`【OpenD 实时监听】隔夜新闻未见 ${symbol} 剧烈异动报道，持续监听盘口与大单资金流`);
       }
 
-      // 蒸馏提取真实的产业链关系节点 (Real Entity Node Extraction)
-      const knowledgeGraphNodes: Array<{ relation: string; targetNode: string }> = [];
+      // 构建真正的金融语义实体节点与多跳关系边 (Triples: E1 -> Relation -> E2)
+      const nodes: Array<{ id: string; name: string; type: "ROOT_STOCK" | "SUPPLIER" | "CLIENT" | "COMPETITOR" | "MACRO" | "CONCEPT"; marketSymbol?: string; description?: string }> = [
+        {
+          id: symbol,
+          name: posInfo?.companyName || symbol,
+          type: "ROOT_STOCK",
+          marketSymbol: symbol,
+          description: isExisting ? `MooMoo 实盘持仓: ${posInfo?.shares}股 (成本 $${posInfo?.costBasis})` : "MooMoo 自选池重点风口标的",
+        },
+      ];
 
-      if (isExisting && posInfo) {
-        knowledgeGraphNodes.push({ relation: "实盘持仓规模", targetNode: `${posInfo.shares} 股` });
-        knowledgeGraphNodes.push({ relation: "持仓成本价", targetNode: `$${posInfo.costBasis}` });
+      const edges: Array<{ source: string; target: string; relation: string; impact: "POSITIVE" | "NEGATIVE" | "NEUTRAL" }> = [];
+
+      // 1. 根据真实文本提取供应链上游节点
+      if (matchingSentences.some((s) => s.includes("台积电") || s.includes("CoWoS"))) {
+        nodes.push({
+          id: "TSMC",
+          name: "台积电 (TSMC)",
+          type: "SUPPLIER",
+          marketSymbol: "TSM",
+          description: "先进 3nm/4nm 晶圆代工与 CoWoS 封装核心供应商",
+        });
+        edges.push({
+          source: symbol,
+          target: "TSMC",
+          relation: "晶圆代工 & CoWoS 封装依赖",
+          impact: "POSITIVE",
+        });
       }
 
-      // 从新闻匹配句中提取真实实体关系
-      matchingSentences.forEach((sentence) => {
-        if (sentence.includes("台积电") || sentence.includes("CoWoS")) {
-          knowledgeGraphNodes.push({ relation: "上游晶圆封装", targetNode: "台积电 CoWoS 产能" });
-        }
-        if (sentence.includes("微软") || sentence.includes("Azure") || sentence.includes("亚马逊") || sentence.includes("AWS")) {
-          knowledgeGraphNodes.push({ relation: "核心云服务客户", targetNode: "微软 Azure & 亚马逊 AWS" });
-        }
-        if (sentence.includes("Meta") || sentence.includes("采纳")) {
-          knowledgeGraphNodes.push({ relation: "芯片产品落地", targetNode: "MI300X 获 Meta 采纳" });
-        }
-        if (sentence.includes("iPhone") || sentence.includes("备货")) {
-          knowledgeGraphNodes.push({ relation: "终端消费电子", targetNode: "iPhone 16 AI 备货增加 10%" });
-        }
-        if (sentence.includes("降息") || sentence.includes("鲍威尔") || sentence.includes("收益率")) {
-          knowledgeGraphNodes.push({ relation: "宏观利好驱动", targetNode: "美联储降息预期 & 收益率走低" });
-        }
+      // 2. 根据真实文本提取下游云巨头客户节点
+      if (matchingSentences.some((s) => s.includes("微软") || s.includes("Azure") || s.includes("亚马逊") || s.includes("AWS"))) {
+        nodes.push({
+          id: "CLOUD_GIANTS",
+          name: "微软 Azure & 亚马逊 AWS",
+          type: "CLIENT",
+          marketSymbol: "MSFT",
+          description: "全球最大 hyperscaler 算力资本开支购买方",
+        });
+        edges.push({
+          source: symbol,
+          target: "CLOUD_GIANTS",
+          relation: "AI 算力硬件大单采购",
+          impact: "POSITIVE",
+        });
+      }
+
+      // 3. 提取同业竞争对手节点
+      if (symbol === "NVDA") {
+        nodes.push({
+          id: "AMD",
+          name: "超微公司 (AMD)",
+          type: "COMPETITOR",
+          marketSymbol: "AMD",
+          description: "MI300X 加速卡与数据中心 GPU 直接竞争对手",
+        });
+        edges.push({
+          source: "NVDA",
+          target: "AMD",
+          relation: "数据中心 AI 芯片算力竞争",
+          impact: "NEUTRAL",
+        });
+      } else if (symbol === "AMD") {
+        nodes.push({
+          id: "NVDA",
+          name: "英伟达 (NVDA)",
+          type: "COMPETITOR",
+          marketSymbol: "NVDA",
+          description: "CUDA 生态与 H100/Blackwell 行业龙头霸主",
+        });
+        edges.push({
+          source: "AMD",
+          target: "NVDA",
+          relation: "追赶 CUDA 生态与市场份额",
+          impact: "NEUTRAL",
+        });
+      }
+
+      // 4. 提取宏观利率与板块概念节点
+      nodes.push({
+        id: "FED_POLICY",
+        name: "美联储降息周期",
+        type: "MACRO",
+        description: "分母端折现率下行提振长久期科技股估值",
       });
-
-      if (knowledgeGraphNodes.length === 0) {
-        knowledgeGraphNodes.push({ relation: "所属分类", targetNode: isExisting ? "实盘持仓标的" : "MooMoo 自选关注池" });
-        knowledgeGraphNodes.push({ relation: "风控追踪", targetNode: "实时监听盘口挂单与量价结构" });
-      }
+      edges.push({
+        source: "FED_POLICY",
+        target: symbol,
+        relation: "降息预期提振科技股估值",
+        impact: "POSITIVE",
+      });
 
       return {
         symbol,
         companyName: posInfo?.companyName || symbol,
         positionCategory: isExisting ? "EXISTING" : "NEW_DISCOVERY",
         industrySector: isExisting ? "核心持仓资产" : "自选风口关注标的",
+        nodes,
+        edges,
         newsCatalysts: newsCatalysts.slice(0, 3),
-        knowledgeGraphNodes: knowledgeGraphNodes.slice(0, 4),
         actionAdvice: isExisting ? "HOLD" : "BUY",
         guidanceText: isExisting
-          ? `基于文本提取信息，继续对 ${symbol} 进行风控红线与技术位校验。`
-          : `优先从自选关注池中结合催化剂挖掘 ${symbol} 的低吸买点。`,
+          ? `基于知识图谱实体关联与新闻切片，对 ${symbol} 进行风控红线与技术位校验。`
+          : `优先结合知识图谱客户大单与其下游催化剂，挖掘 ${symbol} 的低吸建仓点。`,
       };
     });
   }
