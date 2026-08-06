@@ -96,7 +96,7 @@ export default function StockStudioPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [importTab, setImportTab] = useState<"manual" | "paste">("manual");
   const [pasteText, setPasteText] = useState("");
-  const [editingCash, setEditingCash] = useState(3500);
+  const [editingCash, setEditingCash] = useState(0);
   const [editingPositions, setEditingPositions] = useState<
     Array<{ symbol: string; shares: number; costBasis: number; marketPrice?: number }>
   >([]);

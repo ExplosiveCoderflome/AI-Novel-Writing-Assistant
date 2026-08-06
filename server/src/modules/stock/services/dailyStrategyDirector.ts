@@ -31,7 +31,7 @@ export class DailyStrategyDirector {
         data: {
           id: portfolioId,
           name: "MooMoo 美股主仓位",
-          cashBalance: openDData.cashBalance || 3500.0,
+          cashBalance: openDData.cashBalance ?? 0.0,
           totalBudget: customBudget ?? 1000.0,
           riskPreference: "BALANCED",
           positions: {
@@ -64,7 +64,7 @@ export class DailyStrategyDirector {
       console.warn("[DailyStrategyDirector] Watchlist fetch notice:", e);
     }
 
-    const allSymbols = Array.from(new Set([...positionSymbols, ...watchlistSymbols, "NVDA", "AAPL", "AMD", "TSLA", "MSFT"]));
+    const allSymbols = Array.from(new Set([...positionSymbols, ...watchlistSymbols]));
     const realQuotes = await moomooAdapter.fetchMarketQuotes(allSymbols);
     const quotesMap = new Map<string, number>();
 
