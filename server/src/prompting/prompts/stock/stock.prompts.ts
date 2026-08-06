@@ -37,7 +37,7 @@ export const stockAllocationPrompt: PromptAsset<StockAllocationPromptInput, Dail
    - existingPositionGuidance：【指南一：已有仓位的增减】(针对用户 MooMoo 真实持仓进行集中度、盈亏状态与加减仓/止盈止损策略判定)；
    - newPositionGuidance：【指南二：新仓位的建立】(优先基于 MooMoo 自选池及行业风口，挖掘具备强催化剂的潜在新标的并分配新预算)；
    - retrospectiveGuidance：【指南三：昨日指南复盘与沉淀优化】(对比历史操盘策略与真实持仓成交追踪，归因损益并沉淀为长效交易纪律)；
-7. 【每股知识图谱 knowledgeGraph】：为涉及的每一只核心股票构建包含产业链/基本面节点 (knowledgeGraphNodes)、互联网新闻与 OpenD 资讯快讯 (newsCatalysts)、所属分类 (EXISTING 或 NEW_DISCOVERY) 的知识图谱。
+7. 【每股真实知识图谱 (Knowledge Graph Triples)】：基于给定的海量新闻、美股常识与用户实盘持仓，为涉及的每一只股票动态解析提取真实的多实体节点 (nodes: Root Stock, Supplier, Client, Competitor, Macro, Concept) 与方向性三元组关系边 (edges: source, target, relation, impact)，严禁硬编码假节点。
 8. 策略解读 (narrativeReport)：采用清晰、严谨、条理分明且极具实操价值的专业金融研报结构。`
       ),
       new HumanMessage(
@@ -52,7 +52,7 @@ ${input.watchlistJson || "暂无自选"}
 【美股隔夜宏观与持仓/自选个股情报】：
 ${input.marketIntelContext}
 
-请输出包含【指南一：已有仓位增减】、【指南二：新仓位建立】与【指南三：昨日指南复盘沉淀】的今日调仓建议清单、各股票知识图谱、风控警报与专业机构研报。`
+请输出包含【指南一：已有仓位增减】、【指南二：新仓位建立】与【指南三：昨日指南复盘沉淀】的今日调仓建议清单、各股票知识图谱实体与三元组边、风控警报与专业机构研报。`
       ),
     ];
   },
@@ -76,12 +76,12 @@ export const stockKnowledgeGraphDistillPrompt: PromptAsset<StockKnowledgeGraphDi
     return [
       new SystemMessage(
         `你是一位专业的金融 NLP 文本分析与知识图谱蒸馏专家。
-你的任务是从给定的美股隔夜海量新闻与快讯中，为指定的目标股票列表 (${input.symbols.join(", ")}) 蒸馏提取真实的个股催化剂 (newsCatalysts) 与产业链上下游/基本面关联节点 (knowledgeGraphNodes)。
+你的任务是从给定的美股隔夜海量新闻与快讯中，根据真实数据、新闻提及的事实与美股产业链常识，为目标股票列表 (${input.symbols.join(", ")}) 动态构建标准的金融语义知识图谱。
 
-【蒸馏铁律】：
-1. 必须 100% 提取原始新闻中提及的真实事实、真实公司、真实芯片型号或真实业绩数据，严禁凭空捏造。
-2. 若某只股票在新闻中未被提及，催化剂明确注明 "隔夜新闻未见异动报道，持续监听盘口"，切勿编造虚假新闻。
-3. 关系节点 (knowledgeGraphNodes) 必须精准反映产业链（如“上游代工”、“下游客户”、“竞争对手”、“业绩数据”）。`
+【蒸馏与建模铁律】：
+1. 【动态提取实体 nodes】：识别主股票 (ROOT_STOCK)、供应商 (SUPPLIER)、客户 (CLIENT)、竞争对手 (COMPETITOR)、宏观环境 (MACRO) 与概念板块 (CONCEPT)。
+2. 【构建语义三元组 edges】：提取方向性实体关系 (source, target, relation, impact: POSITIVE/NEGATIVE/NEUTRAL)。
+3. 【数据真实性】：只提炼输入新闻和美股产业链真实包含的关系与事实，严禁凭空编造假信息，绝对禁止写死固定条件。`
       ),
       new HumanMessage(
         `【目标股票清单】：${input.symbols.join(", ")}
@@ -89,7 +89,7 @@ export const stockKnowledgeGraphDistillPrompt: PromptAsset<StockKnowledgeGraphDi
 【海量美股原始新闻流】：
 ${input.rawNewsText}
 
-请为以上每一只目标股票蒸馏输出结构化知识图谱与新闻催化剂清单。`
+请为以上每一只目标股票动态提炼并输出包含真实实体 nodes 和三元组 edges 的结构化知识图谱与新闻催化剂清单。`
       ),
     ];
   },

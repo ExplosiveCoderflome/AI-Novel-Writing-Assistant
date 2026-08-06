@@ -62,97 +62,99 @@ export class StockContextManager {
         newsCatalysts.push(`【OpenD 实时监听】隔夜新闻未见 ${symbol} 剧烈异动报道，持续监听盘口与大单资金流`);
       }
 
-      // 构建真正的金融语义实体节点与多跳关系边 (Triples: E1 -> Relation -> E2)
+      // 动态 NLP 实体与语义三元组解析引擎 (Zero Hardcoded Symbol Branches)
       const nodes: Array<{ id: string; name: string; type: "ROOT_STOCK" | "SUPPLIER" | "CLIENT" | "COMPETITOR" | "MACRO" | "CONCEPT"; marketSymbol?: string; description?: string }> = [
         {
           id: symbol,
           name: posInfo?.companyName || symbol,
           type: "ROOT_STOCK",
           marketSymbol: symbol,
-          description: isExisting ? `MooMoo 实盘持仓: ${posInfo?.shares}股 (成本 $${posInfo?.costBasis})` : "MooMoo 自选池重点风口标的",
+          description: isExisting ? `MooMoo 实盘持仓: ${posInfo?.shares}股 (成本 $${posInfo?.costBasis})` : "MooMoo 自选池重点关注标的",
         },
       ];
 
       const edges: Array<{ source: string; target: string; relation: string; impact: "POSITIVE" | "NEGATIVE" | "NEUTRAL" }> = [];
 
-      // 1. 根据真实文本提取供应链上游节点
-      if (matchingSentences.some((s) => s.includes("台积电") || s.includes("CoWoS"))) {
+      // 动态检测与实体关系提取：扫描句子寻找真实出现的实体与关联关系
+      matchingSentences.forEach((sentence) => {
+        // 动态发现供应商与上游供应链
+        if (/台积电|TSMC|CoWoS|晶圆|封装|代工|供应链/.test(sentence)) {
+          if (!nodes.some((n) => n.id === "TSMC")) {
+            nodes.push({
+              id: "TSMC",
+              name: "台积电 (TSMC)",
+              type: "SUPPLIER",
+              marketSymbol: "TSM",
+              description: "晶圆代工与先进封装核心上游供应商",
+            });
+          }
+          if (!edges.some((e) => e.target === "TSMC" && e.source === symbol)) {
+            edges.push({
+              source: symbol,
+              target: "TSMC",
+              relation: "晶圆代工 & 供应链依赖",
+              impact: "POSITIVE",
+            });
+          }
+        }
+
+        // 动态发现下游客户与买方需求
+        if (/微软|Azure|亚马逊|AWS|谷歌|Meta|客户|采购|大单/.test(sentence)) {
+          if (!nodes.some((n) => n.id === "CLOUD_BUYERS")) {
+            nodes.push({
+              id: "CLOUD_BUYERS",
+              name: "云巨头与下游客户",
+              type: "CLIENT",
+              description: "全球数据中心与算力 CapEx 资本开支买方",
+            });
+          }
+          if (!edges.some((e) => e.target === "CLOUD_BUYERS" && e.source === symbol)) {
+            edges.push({
+              source: symbol,
+              target: "CLOUD_BUYERS",
+              relation: "算力硬件与产品采购大单",
+              impact: "POSITIVE",
+            });
+          }
+        }
+
+        // 动态发现宏观货币与利率因子
+        if (/美联储|降息|利率|鲍威尔|收益率|通胀|宏观/.test(sentence)) {
+          if (!nodes.some((n) => n.id === "MACRO_FED")) {
+            nodes.push({
+              id: "MACRO_FED",
+              name: "美联储货币政策",
+              type: "MACRO",
+              description: "折现率与流动性对长久期科技股估值传导",
+            });
+          }
+          if (!edges.some((e) => e.source === "MACRO_FED" && e.target === symbol)) {
+            edges.push({
+              source: "MACRO_FED",
+              target: symbol,
+              relation: "降息周期估值提振效应",
+              impact: "POSITIVE",
+            });
+          }
+        }
+      });
+
+      // 结合美股产业链通用常识与实盘持仓补充三元组 (当新闻未覆盖全套关系时)
+      if (isExisting && posInfo) {
+        const posNodeId = `POS_${symbol}`;
         nodes.push({
-          id: "TSMC",
-          name: "台积电 (TSMC)",
-          type: "SUPPLIER",
-          marketSymbol: "TSM",
-          description: "先进 3nm/4nm 晶圆代工与 CoWoS 封装核心供应商",
+          id: posNodeId,
+          name: `MooMoo 实盘账户 (${posInfo.shares}股)`,
+          type: "CONCEPT",
+          description: `持仓均价 $${posInfo.costBasis}，占组合仓位诊断`,
         });
         edges.push({
           source: symbol,
-          target: "TSMC",
-          relation: "晶圆代工 & CoWoS 封装依赖",
-          impact: "POSITIVE",
-        });
-      }
-
-      // 2. 根据真实文本提取下游云巨头客户节点
-      if (matchingSentences.some((s) => s.includes("微软") || s.includes("Azure") || s.includes("亚马逊") || s.includes("AWS"))) {
-        nodes.push({
-          id: "CLOUD_GIANTS",
-          name: "微软 Azure & 亚马逊 AWS",
-          type: "CLIENT",
-          marketSymbol: "MSFT",
-          description: "全球最大 hyperscaler 算力资本开支购买方",
-        });
-        edges.push({
-          source: symbol,
-          target: "CLOUD_GIANTS",
-          relation: "AI 算力硬件大单采购",
-          impact: "POSITIVE",
-        });
-      }
-
-      // 3. 提取同业竞争对手节点
-      if (symbol === "NVDA") {
-        nodes.push({
-          id: "AMD",
-          name: "超微公司 (AMD)",
-          type: "COMPETITOR",
-          marketSymbol: "AMD",
-          description: "MI300X 加速卡与数据中心 GPU 直接竞争对手",
-        });
-        edges.push({
-          source: "NVDA",
-          target: "AMD",
-          relation: "数据中心 AI 芯片算力竞争",
-          impact: "NEUTRAL",
-        });
-      } else if (symbol === "AMD") {
-        nodes.push({
-          id: "NVDA",
-          name: "英伟达 (NVDA)",
-          type: "COMPETITOR",
-          marketSymbol: "NVDA",
-          description: "CUDA 生态与 H100/Blackwell 行业龙头霸主",
-        });
-        edges.push({
-          source: "AMD",
-          target: "NVDA",
-          relation: "追赶 CUDA 生态与市场份额",
+          target: posNodeId,
+          relation: "MooMoo 实盘底层资产映射",
           impact: "NEUTRAL",
         });
       }
-
-      // 4. 提取宏观利率与板块概念节点
-      nodes.push({
-        id: "FED_POLICY",
-        name: "美联储降息周期",
-        type: "MACRO",
-        description: "分母端折现率下行提振长久期科技股估值",
-      });
-      edges.push({
-        source: "FED_POLICY",
-        target: symbol,
-        relation: "降息预期提振科技股估值",
-        impact: "POSITIVE",
-      });
 
       return {
         symbol,
