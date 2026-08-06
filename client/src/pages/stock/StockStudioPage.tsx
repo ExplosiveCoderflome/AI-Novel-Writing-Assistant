@@ -28,7 +28,57 @@ interface ActionItem {
   estimatedAmount: number;
   rationale: string;
   urgency: "HIGH" | "MEDIUM" | "LOW";
+  // P&L KPI
+  targetPrice?: number;
+  stopLossPrice?: number;
+  projectedPnL?: number;
+  projectedPnLPct?: number;
+  timeHorizon?: string;
 }
+
+interface PositionPnLItem {
+  symbol: string;
+  companyName?: string;
+  shares: number;
+  costBasis: number;
+  currentPrice: number;
+  marketValue: number;
+  pnl: number;
+  pnlPct: number;
+  costValue: number;
+  concentrationPct: number;
+}
+
+interface TotalPnLState {
+  totalMarketValue: number;
+  totalCostBasis: number;
+  totalPnL: number;
+  totalPnLPct: number;
+  cashBalance: number;
+  netAssets: number;
+  positions: PositionPnLItem[];
+}
+
+interface RetroPnLState {
+  accuracyScore: number;
+  executionMatchRate: number;
+  avoidedLoss: number;
+  totalRealizedPnL: number;
+  strategyDate: string;
+}
+
+interface ProjectedPnLState {
+  totalProjectedChange: number;
+  byAction: Array<{
+    symbol: string;
+    action: string;
+    projectedPnL: number;
+    projectedPnLPct: number;
+    targetPrice?: number;
+    stopLossPrice?: number;
+  }>;
+}
+
 
 interface RiskAlert {
   level: "WARNING" | "CRITICAL" | "INFO";
@@ -126,6 +176,13 @@ export default function StockStudioPage() {
     detail: string;
     type: "ROOT" | "SUPPLY" | "CLIENT" | "CATALYST" | "POSITION";
   } | null>(null);
+
+  // P&L KPI 实时状态
+  const [totalPnLData, setTotalPnLData] = useState<TotalPnLState | null>(null);
+  const [retroPnLData, setRetroPnLData] = useState<RetroPnLState | null>(null);
+  const [projectedPnLData, setProjectedPnLData] = useState<ProjectedPnLState | null>(null);
+  const [generationMode, setGenerationMode] = useState<string>("FRESH");
+  const [driftSummary, setDriftSummary] = useState<string | null>(null);
 
   // 保存手动修改的持仓
   const handleSavePortfolio = async () => {
@@ -338,10 +395,62 @@ export default function StockStudioPage() {
             institutionalReport: data.data.institutionalReport,
             narrativeReport: data.data.narrativeReport,
           });
+          // 待实现 P&L、指南预期 P&L 数据回填
+          if (data.data.mode) setGenerationMode(data.data.mode);
         }
       })
       .catch(console.error);
   }, []);
+
+  // === 实时推导 P&L：只要 portfolio 或 quotes 发生变化就重新计算 ===
+  useEffect(() => {
+    if (!portfolio || !portfolio.positions || portfolio.positions.length === 0) return;
+
+    const qMap = new Map<string, number>();
+    for (const q of quotes) {
+      if (q.symbol && q.price > 0) qMap.set(q.symbol.toUpperCase(), q.price);
+    }
+
+    const positions = portfolio.positions.map((p) => {
+      const symbol = p.symbol.toUpperCase();
+      const currentPrice = qMap.get(symbol) ?? p.marketPrice ?? p.costBasis;
+      const marketValue = currentPrice * p.shares;
+      const costValue = p.costBasis * p.shares;
+      return { symbol, shares: p.shares, costBasis: p.costBasis, currentPrice, marketValue, costValue };
+    });
+
+    const totalMarketValue = positions.reduce((s, p) => s + p.marketValue, 0);
+    const totalCostBasis = positions.reduce((s, p) => s + p.costValue, 0);
+    const totalPnL = totalMarketValue - totalCostBasis;
+    const totalPnLPct = totalCostBasis > 0 ? (totalPnL / totalCostBasis) * 100 : 0;
+    const cashBalance = portfolio.cashBalance ?? 0;
+
+    setTotalPnLData({
+      totalMarketValue: +totalMarketValue.toFixed(2),
+      totalCostBasis: +totalCostBasis.toFixed(2),
+      totalPnL: +totalPnL.toFixed(2),
+      totalPnLPct: +totalPnLPct.toFixed(2),
+      cashBalance,
+      netAssets: +(totalMarketValue + cashBalance).toFixed(2),
+      positions: positions.map((p) => {
+        const pnl = p.marketValue - p.costValue;
+        const pnlPct = p.costValue > 0 ? (pnl / p.costValue) * 100 : 0;
+        const concentrationPct = totalMarketValue > 0 ? (p.marketValue / totalMarketValue) * 100 : 0;
+        return {
+          symbol: p.symbol,
+          shares: p.shares,
+          costBasis: p.costBasis,
+          currentPrice: p.currentPrice,
+          marketValue: +p.marketValue.toFixed(2),
+          pnl: +pnl.toFixed(2),
+          pnlPct: +pnlPct.toFixed(2),
+          costValue: +p.costValue.toFixed(2),
+          concentrationPct: +concentrationPct.toFixed(1),
+        };
+      }),
+    });
+  }, [portfolio, quotes]);
+
 
   // 触发生成今日操盘指南
   const handleGenerateStrategy = async () => {
@@ -363,6 +472,12 @@ export default function StockStudioPage() {
           institutionalReport: data.data.output.institutionalReport,
           narrativeReport: data.data.output.narrativeReport,
         });
+        // P&L KPI 数据
+        if (data.data.totalPnL) setTotalPnLData(data.data.totalPnL as TotalPnLState);
+        if (data.data.projectedPnL) setProjectedPnLData(data.data.projectedPnL as ProjectedPnLState);
+        if (data.data.retroPnL) setRetroPnLData(data.data.retroPnL as RetroPnLState);
+        if (data.data.generationMode) setGenerationMode(data.data.generationMode);
+        if (data.data.driftSummary) setDriftSummary(data.data.driftSummary);
         if (data.data.openDStatus) {
           setOpenDStatus({
             connected: data.data.openDStatus.connected,
@@ -952,8 +1067,140 @@ export default function StockStudioPage() {
         </div>
       </div>
 
+      {/* ======= 常驻 P&L 全局看板 ======= */}
+      {totalPnLData && (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg space-y-3">
+          {/* 标题行 */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+              <DollarSign className="w-4 h-4 text-emerald-400" />
+              持仓实时 P&amp;L 概览
+              <span className="text-[10px] text-slate-500 font-normal ml-1">基于 OpenD 实时行情计算</span>
+            </h2>
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold font-mono text-sm border ${
+              totalPnLData.totalPnL >= 0
+                ? "bg-emerald-950/70 text-emerald-400 border-emerald-700/60"
+                : "bg-rose-950/70 text-rose-400 border-rose-700/60"
+            }`}>
+              {totalPnLData.totalPnL >= 0 ? (
+                <ArrowUpRight className="w-4 h-4" />
+              ) : (
+                <ArrowDownRight className="w-4 h-4" />
+              )}
+              {totalPnLData.totalPnL >= 0 ? "+" : ""}${totalPnLData.totalPnL.toFixed(2)}
+              <span className="text-xs opacity-70 ml-1">
+                ({totalPnLData.totalPnLPct >= 0 ? "+" : ""}{totalPnLData.totalPnLPct.toFixed(2)}%)
+              </span>
+            </div>
+          </div>
+
+          {/* 三格汇总数据 */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-3 text-center">
+              <p className="text-[10px] text-slate-400 mb-0.5">持仓总市值</p>
+              <p className="text-base font-bold text-slate-200 font-mono">${totalPnLData.totalMarketValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-[10px] text-slate-500">成本 ${totalPnLData.totalCostBasis.toFixed(0)}</p>
+            </div>
+            <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-3 text-center">
+              <p className="text-[10px] text-slate-400 mb-0.5">账户净资产</p>
+              <p className="text-base font-bold text-indigo-300 font-mono">${totalPnLData.netAssets.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-[10px] text-slate-500">含现金 ${totalPnLData.cashBalance.toFixed(0)}</p>
+            </div>
+            <div className="bg-slate-950/70 border border-slate-800 rounded-lg p-3 text-center">
+              <p className="text-[10px] text-slate-400 mb-0.5">流动现金</p>
+              <p className="text-base font-bold text-emerald-300 font-mono">${totalPnLData.cashBalance.toFixed(2)}</p>
+              <p className="text-[10px] text-slate-500">可用于加仓</p>
+            </div>
+          </div>
+
+          {/* 各股票逐条盈亏 */}
+          {totalPnLData.positions.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {totalPnLData.positions.map((pos) => (
+                <div
+                  key={pos.symbol}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-mono ${
+                    pos.pnl >= 0
+                      ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300"
+                      : "bg-rose-950/40 border-rose-800/60 text-rose-300"
+                  }`}
+                >
+                  <span className="font-bold text-slate-200">{pos.symbol}</span>
+                  <span className="text-slate-400">{pos.shares}股</span>
+                  <span className="text-slate-500">@${pos.costBasis}</span>
+                  <span>→</span>
+                  <span className="font-bold">${pos.currentPrice.toFixed(2)}</span>
+                  <span className={`font-bold ${pos.pnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {pos.pnl >= 0 ? "+" : ""}${pos.pnl.toFixed(2)} ({pos.pnl >= 0 ? "+" : ""}{pos.pnlPct.toFixed(1)}%)
+                  </span>
+                  {pos.concentrationPct > 30 && (
+                    <span className="text-[9px] text-amber-400 bg-amber-950/60 px-1 rounded">⚠️{pos.concentrationPct.toFixed(0)}%</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 指南 P&L 复盘区（如果有 retroPnL 数据） */}
+          {(retroPnLData || projectedPnLData) && (
+            <div className="border-t border-slate-800/60 pt-3 flex flex-wrap gap-3">
+              {retroPnLData && (
+                <div className="flex items-center gap-3 bg-slate-950/60 border border-slate-800 rounded-lg px-3 py-2">
+                  <div className="text-center">
+                    <p className="text-[9px] text-slate-400">上次指南质量</p>
+                    <p className={`text-lg font-bold font-mono ${
+                      retroPnLData.accuracyScore >= 70 ? "text-emerald-400" : retroPnLData.accuracyScore >= 50 ? "text-amber-400" : "text-rose-400"
+                    }`}>{retroPnLData.accuracyScore}<span className="text-xs text-slate-500">/100</span></p>
+                    <p className="text-[9px] text-slate-500">{retroPnLData.strategyDate}</p>
+                  </div>
+                  <div className="w-px h-8 bg-slate-700" />
+                  <div className="text-center">
+                    <p className="text-[9px] text-slate-400">避免损失</p>
+                    <p className="text-base font-bold font-mono text-emerald-400">+${retroPnLData.avoidedLoss.toFixed(0)}</p>
+                  </div>
+                  <div className="w-px h-8 bg-slate-700" />
+                  <div className="text-center">
+                    <p className="text-[9px] text-slate-400">跟单率</p>
+                    <p className="text-base font-bold font-mono text-indigo-300">{(retroPnLData.executionMatchRate * 100).toFixed(0)}%</p>
+                  </div>
+                </div>
+              )}
+              {projectedPnLData && (
+                <div className="flex items-center gap-3 bg-slate-950/60 border border-slate-800 rounded-lg px-3 py-2">
+                  <div className="text-center">
+                    <p className="text-[9px] text-slate-400">指南预期 P&amp;L</p>
+                    <p className={`text-lg font-bold font-mono ${projectedPnLData.totalProjectedChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {projectedPnLData.totalProjectedChange >= 0 ? "+" : ""}${projectedPnLData.totalProjectedChange.toFixed(0)}
+                    </p>
+                    <p className="text-[9px] text-slate-500">按全部执行</p>
+                  </div>
+                </div>
+              )}
+              {generationMode !== "FRESH" && (
+                <div className={`flex items-center px-3 py-2 rounded-lg border text-xs font-mono ${
+                  generationMode === "REPLAN"
+                    ? "bg-amber-950/40 border-amber-700/60 text-amber-300"
+                    : "bg-indigo-950/40 border-indigo-700/60 text-indigo-300"
+                }`}>
+                  {generationMode === "REPLAN" ? "⚡ REPLAN 模式 — 检测到持仓变化" : "🔄 ADJUST 模式 — 无持仓变化，调整目标"}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 当没有持仓时的提示条 */}
+      {!totalPnLData && (
+        <div className="bg-slate-900/60 border border-slate-800 border-dashed rounded-xl p-4 text-center text-sm text-slate-500">
+          <DollarSign className="w-5 h-5 mx-auto mb-1.5 text-slate-600" />
+          <p>P&amp;L 看板加载中... 请先同步 MooMoo 持仓数据，或等待行情拉取完成。</p>
+        </div>
+      )}
+
       {/* 主界面网格 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
         {/* 左侧：持仓概览与新增预算设定 (4 cols) */}
         <div className="lg:col-span-4 space-y-6">
           {/* 资产与预算卡片 */}
@@ -1057,40 +1304,104 @@ export default function StockStudioPage() {
               </div>
             </div>
 
-            {/* 核心持仓列表 */}
+            {/* P&L 汇总展示板（totalPnLData 有数据时显示） */}
+            {totalPnLData && (
+              <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 space-y-2 mt-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                    实时 P&amp;L 汇总
+                  </span>
+                  <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
+                    totalPnLData.totalPnL >= 0
+                      ? "bg-emerald-950/80 text-emerald-400 border border-emerald-800"
+                      : "bg-rose-950/80 text-rose-400 border border-rose-800"
+                  }`}>
+                    {totalPnLData.totalPnL >= 0 ? "+" : ""}${totalPnLData.totalPnL.toFixed(2)} ({totalPnLData.totalPnL >= 0 ? "+" : ""}{totalPnLData.totalPnLPct.toFixed(2)}%)
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                  <div className="bg-slate-900 rounded p-1.5 text-center">
+                    <p className="text-slate-400">总市值</p>
+                    <p className="font-bold text-slate-200 font-mono">${totalPnLData.totalMarketValue.toFixed(0)}</p>
+                  </div>
+                  <div className="bg-slate-900 rounded p-1.5 text-center">
+                    <p className="text-slate-400">流动现金</p>
+                    <p className="font-bold text-emerald-300 font-mono">${totalPnLData.cashBalance.toFixed(0)}</p>
+                  </div>
+                  <div className="bg-slate-900 rounded p-1.5 text-center">
+                    <p className="text-slate-400">净资产</p>
+                    <p className="font-bold text-indigo-300 font-mono">${totalPnLData.netAssets.toFixed(0)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 核心持仓列表（P&L 增强版） */}
             <div className="space-y-2 pt-2">
               <p className="text-xs font-medium text-slate-400">
                 当前持仓股票清单 ({portfolio?.positions?.length || 0} 标的)
               </p>
-              <div className="space-y-2 text-sm max-h-60 overflow-y-auto">
+              <div className="space-y-2 text-sm max-h-64 overflow-y-auto">
                 {portfolio?.positions && portfolio.positions.length > 0 ? (
-                  portfolio.positions.map((pos, idx) => (
-                    <div
-                      key={pos.id || idx}
-                      className="flex justify-between items-center bg-slate-950 p-2.5 rounded border border-slate-800/80"
-                    >
-                      <div>
-                        <span className="font-bold text-slate-200">{pos.symbol}</span>
-                        <span className="text-xs text-slate-500 ml-2">{pos.shares} 股</span>
-                        {pos.companyName && (
-                          <p className="text-[11px] text-slate-500">{pos.companyName}</p>
-                        )}
+                  portfolio.positions.map((pos, idx) => {
+                    // 读取 totalPnLData 中对应这只股的 P&L
+                    const pnlItem = totalPnLData?.positions?.find((p) => p.symbol === pos.symbol);
+                    const pnl = pnlItem?.pnl;
+                    const pnlPct = pnlItem?.pnlPct;
+                    const currentPrice = pnlItem?.currentPrice ?? pos.marketPrice ?? pos.costBasis;
+                    const concPct = pnlItem?.concentrationPct;
+                    return (
+                      <div
+                        key={pos.id || idx}
+                        className={`flex justify-between items-center bg-slate-950 p-2.5 rounded border ${
+                          pnl !== undefined && pnl >= 0 ? "border-emerald-900/40" : pnl !== undefined ? "border-rose-900/40" : "border-slate-800/80"
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-200">{pos.symbol}</span>
+                            <span className="text-xs text-slate-500">{pos.shares} 股</span>
+                            {concPct !== undefined && concPct > 30 && (
+                              <span className="text-[9px] text-amber-400 bg-amber-950/60 px-1 rounded">⚠️{concPct.toFixed(0)}%</span>
+                            )}
+                          </div>
+                          {pos.companyName && (
+                            <p className="text-[10px] text-slate-500">{pos.companyName}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xs text-slate-400 font-mono">成本: ${pos.costBasis}</div>
+                          <div className="text-xs text-indigo-300 font-mono">现价: ${currentPrice.toFixed(2)}</div>
+                          {pnl !== undefined && (
+                            <div className={`text-xs font-bold font-mono ${
+                              pnl >= 0 ? "text-emerald-400" : "text-rose-400"
+                            }`}>
+                              {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)} ({pnl >= 0 ? "+" : ""}{pnlPct?.toFixed(1)}%)
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <span className="text-slate-300">成本: ${pos.costBasis}</span>
-                        {pos.marketPrice && (
-                          <span className="text-xs text-emerald-400 block">
-                            现价: ${pos.marketPrice}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <p className="text-xs text-slate-500 text-center py-4">暂无持仓数据，点击上方“一键从 MooMoo 同步”即可从 OpenD 拉取</p>
                 )}
               </div>
             </div>
+
+            {/* 持仓变化提醒 (REPLAN 模式) */}
+            {driftSummary && driftSummary !== "持仓无变化" && (
+              <div className="p-2.5 bg-amber-950/40 border border-amber-800/60 rounded-lg text-xs text-amber-300 flex items-start gap-1.5">
+                <span className="text-base">⚡</span>
+                <div>
+                  <span className="font-bold">{
+                    generationMode === "REPLAN" ? "检测到持仓变化，已切换 REPLAN 模式" : "持仓变化记录"
+                  }</span>
+                  <p className="text-amber-400/80 mt-0.5">{driftSummary}</p>
+                </div>
+              </div>
+            )}
 
             {/* ⭐ MooMoo 自选关注股票池 (优先推荐池) */}
             <div className="space-y-2 pt-2 border-t border-slate-800/80">
@@ -1189,6 +1500,16 @@ export default function StockStudioPage() {
                       <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
                         <Sparkles className="w-5 h-5 text-amber-400" />
                         MooMoo 每日开盘操盘指南
+                        {/* 生成模式标签 */}
+                        {generationMode !== "FRESH" && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-mono ${
+                            generationMode === "REPLAN"
+                              ? "bg-amber-950 text-amber-300 border border-amber-800"
+                              : "bg-indigo-950 text-indigo-300 border border-indigo-800"
+                          }`}>
+                            {generationMode === "REPLAN" ? "⚡ REPLAN" : "🔄 ADJUST"}
+                          </span>
+                        )}
                       </h2>
                       <p className="text-xs text-slate-400">
                         推演日期: {strategy.strategyDate} | 开盘前策略推荐 (Advisory Only)
@@ -1230,6 +1551,37 @@ export default function StockStudioPage() {
                         {strategy.marketOverview}
                       </div>
 
+                      {/* 指南头部 P&L KPI 看板（retroPnL + projectedPnL） */}
+                      {(retroPnLData || projectedPnLData) && (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-950/80 rounded-lg p-3 border border-slate-800">
+                          {retroPnLData && (
+                            <>
+                              <div className="text-center">
+                                <p className="text-[9px] text-slate-400">上次指南质量</p>
+                                <p className={`text-sm font-bold font-mono ${
+                                  retroPnLData.accuracyScore >= 70 ? "text-emerald-400" : retroPnLData.accuracyScore >= 50 ? "text-amber-400" : "text-rose-400"
+                                }`}>{retroPnLData.accuracyScore}/100</p>
+                                <p className="text-[9px] text-slate-500">{retroPnLData.strategyDate}</p>
+                              </div>
+                              <div className="text-center">
+                                <p className="text-[9px] text-slate-400">避免损失</p>
+                                <p className="text-sm font-bold font-mono text-emerald-400">+${retroPnLData.avoidedLoss.toFixed(0)}</p>
+                                <p className="text-[9px] text-slate-500">跨单{(retroPnLData.executionMatchRate * 100).toFixed(0)}%</p>
+                              </div>
+                            </>
+                          )}
+                          {projectedPnLData && (
+                            <div className="text-center">
+                              <p className="text-[9px] text-slate-400">指南预期 P&amp;L</p>
+                              <p className={`text-sm font-bold font-mono ${
+                                projectedPnLData.totalProjectedChange >= 0 ? "text-emerald-400" : "text-rose-400"
+                              }`}>{projectedPnLData.totalProjectedChange >= 0 ? "+" : ""}${projectedPnLData.totalProjectedChange.toFixed(0)}</p>
+                              <p className="text-[9px] text-slate-500">按全部执行</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* 风控提醒 */}
                       {strategy.riskAlerts.length > 0 && (
                         <div className="space-y-2">
@@ -1259,45 +1611,77 @@ export default function StockStudioPage() {
                           {strategy.actions.map((act, i) => (
                             <div
                               key={i}
-                              className="bg-slate-950 border border-slate-800/80 rounded-lg p-3.5 flex flex-col sm:flex-row justify-between sm:items-center gap-3"
+                              className="bg-slate-950 border border-slate-800/80 rounded-lg p-3.5 flex flex-col gap-2"
                             >
-                              <div className="flex items-center space-x-3">
-                                <span
-                                  className={`px-2.5 py-1 rounded text-xs font-bold ${
-                                    act.action === "BUY"
-                                      ? "bg-emerald-950 text-emerald-300 border border-emerald-800"
-                                      : act.action === "TRIM" || act.action === "SELL"
-                                      ? "bg-rose-950 text-rose-300 border border-rose-800"
-                                      : "bg-slate-800 text-slate-300"
-                                  }`}
-                                >
-                                  {act.action === "BUY"
-                                    ? "加仓买入"
-                                    : act.action === "TRIM"
-                                    ? "适当减仓"
-                                    : act.action === "SELL"
-                                    ? "清仓卖出"
-                                    : "持仓观望"}
-                                </span>
-                                <div>
-                                  <span className="font-bold text-slate-100 text-base">{act.symbol}</span>
-                                  <span className="text-xs text-slate-400 ml-2">{act.companyName}</span>
-                                  <p className="text-xs text-slate-400 mt-1">{act.rationale}</p>
+                              <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-2">
+                                <div className="flex items-center space-x-3">
+                                  <span
+                                    className={`px-2.5 py-1 rounded text-xs font-bold shrink-0 ${
+                                      act.action === "BUY"
+                                        ? "bg-emerald-950 text-emerald-300 border border-emerald-800"
+                                        : act.action === "TRIM" || act.action === "SELL"
+                                        ? "bg-rose-950 text-rose-300 border border-rose-800"
+                                        : "bg-slate-800 text-slate-300"
+                                    }`}
+                                  >
+                                    {act.action === "BUY"
+                                      ? "加仓买入"
+                                      : act.action === "TRIM"
+                                      ? "适当减仓"
+                                      : act.action === "SELL"
+                                      ? "清仓卖出"
+                                      : "持仓观望"}
+                                  </span>
+                                  <div>
+                                    <span className="font-bold text-slate-100 text-base">{act.symbol}</span>
+                                    <span className="text-xs text-slate-400 ml-2">{act.companyName}</span>
+                                    <p className="text-xs text-slate-400 mt-1">{act.rationale}</p>
+                                  </div>
+                                </div>
+
+                                <div className="text-right sm:border-l sm:border-slate-800 sm:pl-4 shrink-0">
+                                  {act.suggestedShares > 0 ? (
+                                    <p className="text-sm font-bold text-slate-200">
+                                      建议操作: {act.suggestedShares} 股
+                                    </p>
+                                  ) : (
+                                    <p className="text-sm text-slate-400">保持观望</p>
+                                  )}
+                                  <p className="text-xs text-slate-500">
+                                    参考价: ${act.estimatedPrice} | 估额: ${act.estimatedAmount}
+                                  </p>
                                 </div>
                               </div>
 
-                              <div className="text-right sm:border-l sm:border-slate-800 sm:pl-4 shrink-0">
-                                {act.suggestedShares > 0 ? (
-                                  <p className="text-sm font-bold text-slate-200">
-                                    建议操作: {act.suggestedShares} 股
-                                  </p>
-                                ) : (
-                                  <p className="text-sm text-slate-400">保持观望</p>
-                                )}
-                                <p className="text-xs text-slate-500">
-                                  参考价: ${act.estimatedPrice} | 估额: ${act.estimatedAmount}
-                                </p>
-                              </div>
+                              {/* P&L KPI 字段展示 */}
+                              {(act.projectedPnL !== undefined || act.targetPrice || act.stopLossPrice) && (
+                                <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-800/60">
+                                  {act.targetPrice && (
+                                    <span className="text-[10px] px-2 py-0.5 bg-emerald-950/60 text-emerald-400 border border-emerald-900/60 rounded font-mono">
+                                      🎯 目标价: ${act.targetPrice}
+                                    </span>
+                                  )}
+                                  {act.stopLossPrice && (
+                                    <span className="text-[10px] px-2 py-0.5 bg-rose-950/60 text-rose-400 border border-rose-900/60 rounded font-mono">
+                                      ❌ 止损价: ${act.stopLossPrice}
+                                    </span>
+                                  )}
+                                  {act.projectedPnL !== undefined && (
+                                    <span className={`text-[10px] px-2 py-0.5 rounded font-mono border ${
+                                      act.projectedPnL >= 0
+                                        ? "bg-emerald-950/60 text-emerald-300 border-emerald-900/60"
+                                        : "bg-rose-950/60 text-rose-300 border-rose-900/60"
+                                    }`}>
+                                      💰 预期 P&amp;L: {act.projectedPnL >= 0 ? "+" : ""}${act.projectedPnL.toFixed(0)}{act.projectedPnLPct !== undefined ? ` (${act.projectedPnLPct >= 0 ? "+" : ""}${act.projectedPnLPct.toFixed(1)}%)` : ""}
+                                    </span>
+                                  )}
+                                  {act.timeHorizon && (
+                                    <span className="text-[10px] px-2 py-0.5 bg-indigo-950/60 text-indigo-400 border border-indigo-900/60 rounded font-mono">
+                                      ⏱ {act.timeHorizon}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
