@@ -12,6 +12,14 @@ export interface StockPositionItem {
   notes?: string;
 }
 
+export interface RetrospectiveEvaluationResult {
+  executionMatchRate: number;
+  followedActionsCount: number;
+  totalActionsCount: number;
+  avoidedLossAmount: number;
+  distilledDisciplines: string[];
+}
+
 // 组合设置与资金定义
 export interface StockPortfolioInput {
   name: string;
