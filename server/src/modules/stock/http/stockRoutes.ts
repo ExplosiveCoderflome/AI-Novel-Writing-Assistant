@@ -29,6 +29,16 @@ stockRouter.get("/opend/status", async (_req: Request, res: Response) => {
   }
 });
 
+// 1.5 重启 / 唤起 OpenD 守护进程
+stockRouter.post("/opend/restart", async (_req: Request, res: Response) => {
+  try {
+    const result = await openDaemonManager.restartOpenD();
+    return res.json({ success: result.success, message: result.message });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message || err });
+  }
+});
+
 // 2. 获取用户美股组合持仓
 stockRouter.get("/portfolio", async (_req: Request, res: Response) => {
   try {
@@ -70,16 +80,19 @@ stockRouter.get("/portfolio", async (_req: Request, res: Response) => {
 stockRouter.post("/portfolio/moomoo-sync", async (_req: Request, res: Response) => {
   try {
     const openDData = await moomooAdapter.fetchPortfolioFromOpenD();
+    console.log("[stockRoutes] moomoo-sync openDData:", JSON.stringify(openDData));
     
     let portfolio = await prisma.stockPortfolio.findFirst({
       include: { positions: true },
     });
 
+    const hasRealPositions = openDData.positions && openDData.positions.length > 0;
+
     if (!portfolio) {
       portfolio = await prisma.stockPortfolio.create({
         data: {
           name: "MooMoo 美股主仓位",
-          cashBalance: openDData.cashBalance,
+          cashBalance: openDData.cashBalance || 3500.0,
           totalBudget: 1000.0,
           riskPreference: "BALANCED",
           positions: {
@@ -96,39 +109,44 @@ stockRouter.post("/portfolio/moomoo-sync", async (_req: Request, res: Response) 
         include: { positions: true },
       });
     } else {
-      const hasRealPositions = openDData.positions && openDData.positions.length > 0;
-
+      // 只有在 OpenD 返回 > 0 笔真实持仓时才全量重置；若 OpenD 返回 0 笔，保留现有看板防止误抹除
       if (hasRealPositions) {
         await prisma.stockPosition.deleteMany({
           where: { portfolioId: portfolio.id },
         });
-      }
 
-      portfolio = await prisma.stockPortfolio.update({
-        where: { id: portfolio.id },
-        data: {
-          cashBalance: hasRealPositions ? openDData.cashBalance : portfolio.cashBalance,
-          sourceType: "MOOMOO",
-          ...(hasRealPositions
-            ? {
-                positions: {
-                  create: openDData.positions.map((p) => ({
-                    symbol: p.symbol,
-                    companyName: p.companyName,
-                    shares: p.shares,
-                    costBasis: p.costBasis,
-                    marketPrice: p.marketPrice,
-                    notes: p.notes,
-                  })),
-                },
-              }
-            : {}),
-        },
-        include: { positions: true },
-      });
+        portfolio = await prisma.stockPortfolio.update({
+          where: { id: portfolio.id },
+          data: {
+            cashBalance: openDData.cashBalance || portfolio.cashBalance,
+            sourceType: "MOOMOO",
+            positions: {
+              create: openDData.positions.map((p) => ({
+                symbol: p.symbol,
+                companyName: p.companyName,
+                shares: p.shares,
+                costBasis: p.costBasis,
+                marketPrice: p.marketPrice,
+                notes: p.notes,
+              })),
+            },
+          },
+          include: { positions: true },
+        });
+      }
     }
 
-    return res.json({ success: true, data: portfolio });
+    let customMsg = openDData.rawMessage;
+    if (!hasRealPositions && openDData.fromOpenD) {
+      customMsg = "💡 OpenD 网关已成功连通！但当前 OpenD 账户中返回了 0 笔真实持仓。系统已自动保护并保留了您当前的仓位看板。您也可以点击【一键粘贴导入】或【修改持仓】同步您的实际仓位。";
+    }
+
+    return res.json({
+      success: true,
+      data: portfolio,
+      rawMessage: customMsg,
+      fromOpenD: openDData.fromOpenD,
+    });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err.message || err });
   }

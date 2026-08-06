@@ -52,7 +52,7 @@ export class DailyStrategyDirector {
     const todayStr = new Date().toISOString().split("T")[0];
     const budgetToUse = customBudget !== undefined ? customBudget : portfolio.totalBudget;
 
-    // 3. 尝试从 OpenD 实时拉取最新真实的盘中/盘后/夜盘现价 (如 NVDA $211.94, AAPL $309.38)
+    // 3. 尝试从 OpenD 实时拉取最新真实的盘中/盘后/夜盘现价
     const positionSymbols = portfolio.positions.map((p) => p.symbol);
     let watchlistSymbols: string[] = [];
     let watchlistItems: Array<{ symbol: string; companyName: string }> = [];
@@ -100,7 +100,7 @@ export class DailyStrategyDirector {
 ${quotesTextList}
 
 - 宏观分析: 美股标普500与纳斯达克高位震荡，算力芯片与科技龙头表现坚挺。
-- 【严禁虚构价格指令】：调仓建议清单 (actions) 中的 estimatedPrice 必须与上述真实即时现价 (如 NVDA 现价约 $211.94, AAPL 现价约 $309.38) 保持一致！
+- 【严禁虚构价格指令】：调仓建议清单 (actions) 中的 estimatedPrice 必须与上述真实即时现价保持一致！
 `;
 
     // 4. 调用 Prompt Governance 注册的结构化 AI 智能体推演

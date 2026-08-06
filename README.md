@@ -118,6 +118,15 @@ If you prefer to write and manage your novel workspace in a local terminal using
   - **Local High-Fidelity TTS**: Native FastAPI speech server powered by Kokoro-ONNX v1.0 and `misaki[zh]`, enabling offline Chinese/English narration.
   - **Voice Mapping & Prompt Cleaning**: Automatically maps gender attributes (`am_*`/`bm_*` to male voice `zm_yunjian`, `af_*`/`bf_*` to female voice `zf_xiaoxiao`). Cleans character names and stage directions (e.g., `(sighs)`) from the voiceover texts using regex filters.
 
+### 9. US Stock Investment Research Agent & MooMoo OpenD Direct Strategy Engine
+- **MooMoo OpenD Direct TCP Connection**: Direct 44-byte binary native header socket protocol communication with OpenD (`127.0.0.1:11111`) handling 64-bit `uint64` account IDs via dedicated Python SDK bridge (`moomoo-api`).
+- **3 Core Guidance Blueprint**:
+  - **Guide 1 (Existing Position Adjustments)**: Dynamic concentration risk diagnostics (>30% risk alert) & profit-taking/stop-loss guidance.
+  - **Guide 2 (New Position Discovery)**: Idle cash & budget allocation prioritizing MooMoo watchlist targets.
+  - **Guide 3 (Retrospective & Execution Audit Loop)**: Compares historical recommendations against actual portfolio changes to distill long-term trading discipline.
+- **Per-Stock Knowledge Graph & OpenD News Intelligence**: Interactive stock selector rendering supply chain nodes, internet news, OpenD API fast flashes, and decision logic.
+- **Deterministic Guardrails Layer**: 100% mathematical formula calculations for buying power limits and real quote overrides to eliminate AI hallucinations.
+
 ### 9. Internationalization (i18n) Support
 - Fully integrated with `i18next` and `react-i18next` on the client. UI elements, logs, page labels, and settings routes support complete localization between English and Chinese. User language selections are persisted locally.
 

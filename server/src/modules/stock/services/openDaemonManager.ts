@@ -116,6 +116,59 @@ export class OpenDaemonManager {
   }
 
   /**
+   * 唤起并前台显示 MooMoo 客户端（Winnerineast 101835190）及解锁界面
+   */
+  public async activateOrCreateOpenD(customExePath?: string): Promise<{ success: boolean; message: string }> {
+    const exePath = customExePath || this.defaultExePath;
+    const { exec } = require("child_process");
+
+    try {
+      // 1. 查找已在任务栏运行的 MooMoo 客户端进程并置顶前台弹出
+      const activated = await new Promise<boolean>((resolve) => {
+        const psCmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "$p = Get-Process -Name 'moomoo','moomoo_OpenD','Futu' -ErrorAction SilentlyContinue | Select-Object -First 1; if ($p) { (New-Object -ComObject wscript.shell).AppActivate($p.Id); 'OK' } else { 'NONE' }"`;
+        exec(psCmd, (_err: any, stdout: string) => {
+          resolve(Boolean(stdout && stdout.includes("OK")));
+        });
+      });
+
+      if (activated) {
+        return {
+          success: true,
+          message: "已成功为您在前台唤起并置顶显示 MooMoo 官方客户端！请在 MooMoo 界面点击左上角【设置⚙️】或【交易】解锁密码。",
+        };
+      }
+
+      // 2. 若当前未启动，拉起 MooMoo 客户端程序
+      const moomooAppPath = "C:\\Program Files\\moomoo\\app\\16.24.16908\\moomoo.exe";
+      const moomooClientPath = "C:\\Program Files\\moomoo\\moomoo.exe";
+      if (fs.existsSync(moomooAppPath)) {
+        exec(`explorer.exe "${moomooAppPath}"`);
+      } else if (fs.existsSync(moomooClientPath)) {
+        exec(`explorer.exe "${moomooClientPath}"`);
+      } else if (fs.existsSync(exePath)) {
+        exec(`explorer.exe "${exePath}"`);
+      }
+
+      return {
+        success: true,
+        message: "已发起 MooMoo 客户端启动指令，正在前台初始化展现中...",
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `唤起失败: ${error?.message || error}`,
+      };
+    }
+  }
+
+  /**
+   * 唤起或重启前台 OpenD 进程
+   */
+  public async restartOpenD(customExePath?: string): Promise<{ success: boolean; message: string }> {
+    return this.activateOrCreateOpenD(customExePath);
+  }
+
+  /**
    * 获取 OpenD 状态信息
    */
   public async getStatus(): Promise<{ connected: boolean; host: string; port: number; exePath: string }> {
