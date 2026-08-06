@@ -1,6 +1,6 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { PromptAsset } from "../../core/promptTypes";
-import { DailyAllocationOutputSchema, DailyAllocationOutput } from "../../../modules/stock/types/stockTypes";
+import { DailyAllocationOutputSchema, DailyAllocationOutput, StockKnowledgeGraphItem } from "../../../modules/stock/types/stockTypes";
 
 export interface StockAllocationPromptInput {
   strategyDate: string;
@@ -57,3 +57,41 @@ ${input.marketIntelContext}
     ];
   },
 };
+
+export interface StockKnowledgeGraphDistillInput {
+  rawNewsText: string;
+  symbols: string[];
+}
+
+export const stockKnowledgeGraphDistillPrompt: PromptAsset<StockKnowledgeGraphDistillInput, { items: StockKnowledgeGraphItem[] }> = {
+  id: "stock.knowledgegraph.distill",
+  version: "v1",
+  taskType: "planner",
+  mode: "structured",
+  language: "zh",
+  contextPolicy: {
+    maxTokensBudget: 2000,
+  },
+  render(input: StockKnowledgeGraphDistillInput) {
+    return [
+      new SystemMessage(
+        `你是一位专业的金融 NLP 文本分析与知识图谱蒸馏专家。
+你的任务是从给定的美股隔夜海量新闻与快讯中，为指定的目标股票列表 (${input.symbols.join(", ")}) 蒸馏提取真实的个股催化剂 (newsCatalysts) 与产业链上下游/基本面关联节点 (knowledgeGraphNodes)。
+
+【蒸馏铁律】：
+1. 必须 100% 提取原始新闻中提及的真实事实、真实公司、真实芯片型号或真实业绩数据，严禁凭空捏造。
+2. 若某只股票在新闻中未被提及，催化剂明确注明 "隔夜新闻未见异动报道，持续监听盘口"，切勿编造虚假新闻。
+3. 关系节点 (knowledgeGraphNodes) 必须精准反映产业链（如“上游代工”、“下游客户”、“竞争对手”、“业绩数据”）。`
+      ),
+      new HumanMessage(
+        `【目标股票清单】：${input.symbols.join(", ")}
+
+【海量美股原始新闻流】：
+${input.rawNewsText}
+
+请为以上每一只目标股票蒸馏输出结构化知识图谱与新闻催化剂清单。`
+      ),
+    ];
+  },
+};
+
