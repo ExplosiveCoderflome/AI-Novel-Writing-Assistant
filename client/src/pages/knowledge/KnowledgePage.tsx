@@ -354,7 +354,9 @@ export default function KnowledgePage() {
   const ragHealthNotice = ragHealthQuery.isError
     ? (ragHealthQuery.error instanceof Error ? ragHealthQuery.error.message : "加载 RAG 健康状态失败。")
     : (ragHealthQuery.data?.message && ragHealthQuery.data.message !== "RAG health check passed."
-      ? ragHealthQuery.data.message
+      ? (ragHealthQuery.data.message === "RAG health check failed."
+        ? "资料检索连接检查未通过。"
+        : ragHealthQuery.data.message)
       : undefined);
   const recallErrorMessage = recallTestMutation.isError
     ? (recallTestMutation.error instanceof Error ? recallTestMutation.error.message : "召回测试失败。")
@@ -579,6 +581,7 @@ export default function KnowledgePage() {
             deletingJobId={deleteRagJobMutation.isPending ? deleteRagJobMutation.variables : undefined}
             onClearFinishedJobs={handleClearFinishedRagJobs}
             onDeleteJob={handleDeleteRagJob}
+            onOpenSettings={() => setSearchParams({ tab: "settings" })}
           />
         </TabsContent>
 
