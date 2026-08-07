@@ -135,6 +135,8 @@ test("world visualizations separate layout, canvas, and view controls", () => {
   assert.match(worldGraphCanvas, /WorldGraphNode/);
   assert.match(worldGraphCanvas, /WorldGraphEdge/);
   assert.match(worldGraphCanvas, /getVisibleEdgeLabelIds/);
+  assert.match(worldGraphCanvas, /edgeHoverTimerRef/);
+  assert.match(worldGraphCanvas, /window\.setTimeout/);
   assert.match(worldGraphCanvas, /拖动地点整理空间/);
   assert.match(worldGraphCanvas, /悬停连线查看双方与完整关系/);
   assert.match(worldGraphCanvas, /FullscreenView/);
@@ -142,6 +144,8 @@ test("world visualizations separate layout, canvas, and view controls", () => {
   assert.match(worldGraphCanvas, /退出图谱全屏/);
   assert.match(worldGraphElements, /EdgeLabelRenderer/);
   assert.match(worldGraphElements, /interactionWidth=\{28\}/);
+  assert.match(worldGraphElements, /line-clamp-2/);
+  assert.match(worldGraphElements, /group-focus-within:block/);
   assert.match(worldGraphElements, /点击画布空白处收起/);
   assert.match(worldGraphLayout, /forceSimulation/);
   assert.match(worldGraphLayout, /forceLink/);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -80,6 +80,7 @@ export default function WorldGraphCanvas({
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const edgeHoverTimerRef = useRef<number | null>(null);
   const canvasWidth = layout === "map" ? 1120 : 1040;
   const canvasHeight = layout === "map" ? 620 : 560;
   const size = GRAPH_NODE_SIZE[layout];
@@ -107,7 +108,7 @@ export default function WorldGraphCanvas({
         },
         draggable: true,
         selectable: true,
-        focusable: true,
+        focusable: false,
         style: { width: size.width, height: size.height },
         zIndex: 10,
       }];
@@ -139,7 +140,24 @@ export default function WorldGraphCanvas({
   const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
 
   const handleEdgeHoverChange = useCallback((edgeId: string | null) => {
-    setHoveredEdgeId(edgeId);
+    if (edgeHoverTimerRef.current != null) {
+      window.clearTimeout(edgeHoverTimerRef.current);
+      edgeHoverTimerRef.current = null;
+    }
+    if (edgeId) {
+      setHoveredEdgeId(edgeId);
+      return;
+    }
+    edgeHoverTimerRef.current = window.setTimeout(() => {
+      setHoveredEdgeId(null);
+      edgeHoverTimerRef.current = null;
+    }, 140);
+  }, []);
+
+  useEffect(() => () => {
+    if (edgeHoverTimerRef.current != null) {
+      window.clearTimeout(edgeHoverTimerRef.current);
+    }
   }, []);
 
   const handleEdgeSelect = useCallback((edgeId: string) => {
@@ -210,8 +228,8 @@ export default function WorldGraphCanvas({
 
   const handleNodeEnter: NodeMouseHandler<WorldFlowNode> = (_, node) => setHoveredNodeId(node.id);
   const handleNodeLeave: NodeMouseHandler<WorldFlowNode> = () => setHoveredNodeId(null);
-  const handleEdgeEnter: EdgeMouseHandler<WorldFlowEdge> = (_, edge) => setHoveredEdgeId(edge.id);
-  const handleEdgeLeave: EdgeMouseHandler<WorldFlowEdge> = () => setHoveredEdgeId(null);
+  const handleEdgeEnter: EdgeMouseHandler<WorldFlowEdge> = (_, edge) => handleEdgeHoverChange(edge.id);
+  const handleEdgeLeave: EdgeMouseHandler<WorldFlowEdge> = () => handleEdgeHoverChange(null);
   const handleEdgeClick: EdgeMouseHandler<WorldFlowEdge> = (event, edge) => {
     event.stopPropagation();
     handleEdgeSelect(edge.id);
@@ -292,7 +310,7 @@ export default function WorldGraphCanvas({
           onEdgeClick={handleEdgeClick}
           onPaneClick={() => {
             setSelectedEdgeId(null);
-            setHoveredEdgeId(null);
+            handleEdgeHoverChange(null);
           }}
           onMove={(_, viewport) => setZoom(viewport.zoom)}
           nodesDraggable

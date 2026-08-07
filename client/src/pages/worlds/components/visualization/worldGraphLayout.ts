@@ -40,7 +40,7 @@ export type Point = { x: number; y: number };
 export type GraphLayout = "graph" | "map";
 
 export const GRAPH_NODE_SIZE = {
-  graph: { width: 136, height: 62 },
+  graph: { width: 204, height: 82 },
   map: { width: 148, height: 72 },
 } as const;
 
@@ -173,7 +173,7 @@ export function buildGraphLayout(
     .map((edge) => ({ source: edge.source, target: edge.target }));
   const simulation = forceSimulation<ForceNode>(forceNodes)
     .randomSource(seededRandom(hashGraph(nodes, edges, layout)))
-    .force("collide", forceCollide<ForceNode>(layout === "map" ? 82 : 88).strength(0.96).iterations(3))
+    .force("collide", forceCollide<ForceNode>(layout === "map" ? 82 : 122).strength(0.96).iterations(3))
     .stop();
 
   if (layout === "map") {
@@ -185,7 +185,9 @@ export function buildGraphLayout(
     simulation
       .force("links", forceLink<ForceNode, ForceEdge>(forceEdges).id((node) => node.id).distance(210).strength(0.24))
       .force("charge", forceManyBody<ForceNode>().strength(-690))
-      .force("center", forceCenter(width / 2, height / 2).strength(0.08));
+      .force("center", forceCenter(width / 2, height / 2).strength(0.08))
+      .force("canvas-x", forceX<ForceNode>(width / 2).strength(0.065))
+      .force("canvas-y", forceY<ForceNode>(height / 2).strength(0.065));
   }
   simulation.tick(layout === "map" ? 180 : 220);
 
