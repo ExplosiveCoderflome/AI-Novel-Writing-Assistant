@@ -15,6 +15,8 @@ const assetLibrarySection = readClientFile("src/components/assetLibrary/AssetLib
 const knowledgePage = readClientFile("src/pages/knowledge/KnowledgePage.tsx");
 const knowledgeDocuments = readClientFile("src/pages/knowledge/components/KnowledgeDocumentsTab.tsx");
 const knowledgeOverview = readClientFile("src/pages/knowledge/components/KnowledgeLibraryOverview.tsx");
+const knowledgeOps = readClientFile("src/pages/knowledge/components/KnowledgeOpsTab.tsx");
+const knowledgeSettings = readClientFile("src/pages/knowledge/components/KnowledgeEmbeddingSettingsCard.tsx");
 const genrePage = readClientFile("src/pages/genres/GenreManagementPage.tsx");
 const genreTreeBrowser = readClientFile("src/pages/genres/components/GenreTreeBrowser.tsx");
 const storyModePage = readClientFile("src/pages/storyModes/StoryModeManagementPage.tsx");
@@ -70,6 +72,19 @@ test("knowledge library presents a document shelf before maintenance controls", 
   assert.match(knowledgeDocuments, /onOpenRecallTest/);
   assert.match(knowledgeDocuments, /onReindexDocument/);
   assert.match(knowledgeDocuments, /confirmArchiveDocument/);
+});
+
+test("knowledge maintenance keeps recovery obvious and technical detail secondary", () => {
+  assert.match(knowledgeOps, /资料检索可用状态/);
+  assert.match(knowledgeOps, /检查检索设置/);
+  assert.match(knowledgeOps, /资料同步记录/);
+  assert.match(knowledgeOps, /任务详情/);
+  assert.doesNotMatch(knowledgeOps, /最近失败任务/);
+  assert.match(knowledgeSettings, /让资料参与创作/);
+  assert.match(knowledgeSettings, /选择资料理解方式/);
+  assert.match(knowledgeSettings, /连接资料库/);
+  assert.match(knowledgeSettings, /高级配置/);
+  assert.match(knowledgeSettings, /保存检索设置/);
 });
 
 test("genre library uses a compact tree browser with a separate detail surface", () => {
