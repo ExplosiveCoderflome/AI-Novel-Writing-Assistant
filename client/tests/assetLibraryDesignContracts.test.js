@@ -134,7 +134,10 @@ test("world visualizations separate layout, canvas, and view controls", () => {
   assert.match(worldVisualization, /世界地图 ·/);
   assert.match(worldGraphCanvas, /buildEdgeLabelPlacements/);
   assert.match(worldGraphCanvas, /节点按势力类型分散排布/);
-  assert.match(worldGraphCanvas, /地点会按相对方位铺开/);
+  assert.match(worldGraphCanvas, /地点按相对方位铺开/);
+  assert.match(worldGraphCanvas, /FullscreenView/);
+  assert.match(worldGraphCanvas, /全屏查看图谱/);
+  assert.match(worldGraphCanvas, /退出图谱全屏/);
   assert.match(worldGraphLayout, /buildFactionLayout/);
   assert.match(worldGraphLayout, /spreadAxis/);
   assert.match(worldGraphLayout, /duplicateCounts/);
