@@ -3,6 +3,7 @@ import type {
   BookAnalysisStatus,
 } from "@ai-novel/shared/types/bookAnalysis";
 import { Loader2, Plus, RefreshCw } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +12,7 @@ import { formatDate, formatStatus } from "../bookAnalysis.utils";
 import SelectControl from "@/components/common/SelectControl";
 
 interface BookAnalysisSidebarProps {
+  analysisMode: "reference" | "diagnosis";
   keyword: string;
   status: BookAnalysisStatus | "";
   analyses: BookAnalysis[];
@@ -26,6 +28,7 @@ interface BookAnalysisSidebarProps {
 
 export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
   const {
+    analysisMode,
     keyword,
     status,
     analyses,
@@ -84,10 +87,18 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
               </Button>
             </div>
           ) : null}
-          {!loading && !errorMessage ? analyses.map((item) => (
-            <button
+          {!loading && !errorMessage ? analyses.map((item) => {
+            const itemSearchParams = new URLSearchParams({
+              analysisId: item.id,
+              documentId: item.documentId,
+            });
+            if (analysisMode === "diagnosis") {
+              itemSearchParams.set("mode", "diagnosis");
+            }
+            return (
+              <Link
               key={item.id}
-              type="button"
+              to={{ pathname: "/book-analysis", search: itemSearchParams.toString() }}
               className={`relative w-full rounded-xl border-0 px-3 py-3 text-left transition-all ${
                 item.id === selectedAnalysisId
                   ? "bg-primary/[0.07] shadow-[inset_3px_0_0_hsl(var(--primary))]"
@@ -121,8 +132,9 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
               {item.lastError ? (
                 <div className="mt-1 line-clamp-2 text-[11px] text-destructive">{item.lastError}</div>
               ) : null}
-            </button>
-          )) : null}
+              </Link>
+            );
+          }) : null}
 
           {!loading && !errorMessage && analyses.length === 0 ? (
             <div className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">

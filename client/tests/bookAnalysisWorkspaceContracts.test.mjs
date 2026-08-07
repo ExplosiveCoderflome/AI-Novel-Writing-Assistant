@@ -84,6 +84,18 @@ test("book analysis selection uses URL as the single source before local query s
   assert.doesNotMatch(openAnalysisBlock, /setSelectedDocumentId/);
 });
 
+test("book analysis history rows are route links instead of event-only buttons", () => {
+  const page = read("src/pages/bookAnalysis/BookAnalysisPage.tsx");
+  const sidebar = read("src/pages/bookAnalysis/components/BookAnalysisSidebar.tsx");
+
+  assert.match(sidebar, /import \{ Link \} from "react-router-dom"/);
+  assert.match(sidebar, /<Link/);
+  assert.match(sidebar, /pathname: "\/book-analysis"/);
+  assert.match(sidebar, /analysisId: item\.id/);
+  assert.match(sidebar, /documentId: item\.documentId/);
+  assert.doesNotMatch(page, /workspace\.openAnalysis\(analysisId, documentId\)/);
+});
+
 test("book analysis stays on semantic tokens without decorative gradients", () => {
   const sources = listSourceFiles(bookAnalysisRoot).map((path) => readFileSync(path, "utf8")).join("\n");
   assert.doesNotMatch(sources, /#[0-9a-f]{3,8}/i);

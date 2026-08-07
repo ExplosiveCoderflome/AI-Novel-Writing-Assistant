@@ -279,6 +279,7 @@ export default function BookAnalysisPage() {
       <div className="grid gap-6 xl:grid-cols-[252px_minmax(0,1fr)]">
         <div className="order-2 min-w-0 xl:order-1 xl:sticky xl:top-4 xl:self-start">
           <BookAnalysisSidebar
+            analysisMode={workspace.analysisMode}
             keyword={workspace.keyword}
             status={workspace.status}
             analyses={workspace.analyses}
@@ -287,9 +288,8 @@ export default function BookAnalysisPage() {
             errorMessage={workspace.queryState.analysesError}
             onKeywordChange={workspace.setKeyword}
             onStatusChange={workspace.setStatus}
-            onOpenAnalysis={(analysisId, documentId) => {
+            onOpenAnalysis={(analysisId) => {
               pendingResultFocusIdRef.current = analysisId;
-              workspace.openAnalysis(analysisId, documentId);
               setActiveView("sections");
             }}
             onOpenCreateDialog={() => setCreateDialogOpen(true)}
