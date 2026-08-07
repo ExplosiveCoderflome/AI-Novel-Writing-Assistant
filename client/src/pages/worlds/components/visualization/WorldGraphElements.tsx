@@ -46,6 +46,13 @@ export type WorldFlowNode = Node<WorldGraphNodeData, "worldNode">;
 export type WorldFlowEdge = Edge<WorldGraphEdgeData, "worldEdge">;
 
 const HANDLE_POSITIONS = [Position.Top, Position.Right, Position.Bottom, Position.Left];
+const NODE_TYPE_LABELS: Record<string, string> = {
+  state: "政权",
+  faction: "阵营",
+  race: "种族",
+  organization: "组织",
+  other: "其他势力",
+};
 
 function handleName(position: Position) {
   return String(position).toLowerCase();
@@ -54,7 +61,11 @@ function handleName(position: Position) {
 export function WorldGraphNode(props: NodeProps<WorldFlowNode>) {
   const { graphNode, layout, tone, active, dimmed } = props.data;
   const isMap = layout === "map";
+  const metaText = isMap
+    ? graphNode.terrain || graphNode.regionType || "关键地点"
+    : NODE_TYPE_LABELS[graphNode.type ?? "other"] ?? graphNode.type ?? "世界势力";
   const detailItems = [
+    `类型：${metaText}`,
     graphNode.summary,
     graphNode.storyRelevance ? `故事作用：${graphNode.storyRelevance}` : "",
     graphNode.risk ? `风险：${graphNode.risk}` : "",
@@ -63,11 +74,13 @@ export function WorldGraphNode(props: NodeProps<WorldFlowNode>) {
   return (
     <div
       className={cn(
-        "group relative h-full w-full rounded-2xl border bg-background/95 px-3 py-2.5 shadow-sm transition-[opacity,box-shadow,border-color] duration-150",
+        "group relative h-full w-full rounded-2xl border bg-background/95 px-3.5 py-3 shadow-sm transition-[opacity,box-shadow,border-color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
         active && "shadow-md ring-2 ring-primary/15",
         dimmed && "opacity-35",
       )}
       style={{ borderColor: active ? tone : undefined }}
+      tabIndex={0}
+      aria-label={`${graphNode.label}，${metaText}`}
     >
       {HANDLE_POSITIONS.flatMap((position) => [
         <Handle
@@ -88,40 +101,42 @@ export function WorldGraphNode(props: NodeProps<WorldFlowNode>) {
         />,
       ])}
 
-      <div className="flex min-w-0 items-center gap-2.5">
+      <div className="flex min-w-0 items-start gap-3">
         <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[11px] font-semibold text-white"
+          className={cn(
+            "flex shrink-0 items-center justify-center rounded-xl font-semibold text-white",
+            isMap ? "h-9 w-9 text-[11px]" : "h-11 w-11 text-xs",
+          )}
           style={{ backgroundColor: tone }}
         >
           {getNodeBadgeText(graphNode.label)}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-foreground">{graphNode.label}</div>
-          <div className="mt-0.5 flex items-center gap-1 truncate text-[10px] text-muted-foreground">
+          <div className={cn(
+            "break-words font-semibold leading-5 text-foreground",
+            isMap ? "truncate text-sm" : "line-clamp-2 text-[15px]",
+          )}>
+            {graphNode.label}
+          </div>
+          <div className="mt-1 flex items-center gap-1 truncate text-[10px] text-muted-foreground">
             {isMap ? <MapPin className="h-3 w-3 shrink-0" /> : <Network className="h-3 w-3 shrink-0" />}
-            <span className="truncate">
-              {isMap
-                ? graphNode.terrain || graphNode.regionType || "关键地点"
-                : graphNode.type || "世界势力"}
-            </span>
+            <span className="truncate">{metaText}</span>
           </div>
         </div>
       </div>
 
-      {detailItems.length > 0 ? (
-        <div
-          className={cn(
-            "pointer-events-none absolute left-1/2 top-[calc(100%+8px)] z-50 hidden w-64 -translate-x-1/2 rounded-2xl border border-border/60 bg-popover p-3 text-left text-xs leading-5 text-popover-foreground shadow-lg",
-            "group-hover:block",
-          )}
-          role="tooltip"
-        >
-          <div className="font-semibold">{graphNode.label}</div>
-          <div className="mt-1.5 space-y-1 text-muted-foreground">
-            {detailItems.map((item, index) => <div key={`${graphNode.id}-${index}`}>{item}</div>)}
-          </div>
+      <div
+        className={cn(
+          "pointer-events-none absolute left-1/2 top-[calc(100%+8px)] z-50 hidden w-72 -translate-x-1/2 rounded-2xl border border-border/60 bg-popover p-3 text-left text-xs leading-5 text-popover-foreground shadow-lg",
+          "group-hover:block group-focus-within:block",
+        )}
+        role="tooltip"
+      >
+        <div className="break-words text-sm font-semibold leading-6">{graphNode.label}</div>
+        <div className="mt-1.5 space-y-1 text-muted-foreground">
+          {detailItems.map((item, index) => <div key={`${graphNode.id}-${index}`}>{item}</div>)}
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

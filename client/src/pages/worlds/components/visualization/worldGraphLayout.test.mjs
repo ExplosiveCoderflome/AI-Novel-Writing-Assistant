@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  GRAPH_NODE_SIZE,
   buildGraphLayout,
   getShortRelation,
   getVisibleEdgeLabelIds,
@@ -18,6 +19,8 @@ const factionEdges = factionNodes.slice(1).map((node, index) => ({
 }));
 
 test("faction force layout is deterministic and uses the available canvas", () => {
+  assert.ok(GRAPH_NODE_SIZE.graph.width >= 200);
+  assert.ok(GRAPH_NODE_SIZE.graph.height >= 80);
   const first = buildGraphLayout(factionNodes, factionEdges, 1040, 560, "graph");
   const second = buildGraphLayout(factionNodes, factionEdges, 1040, 560, "graph");
   assert.deepEqual([...first], [...second]);
