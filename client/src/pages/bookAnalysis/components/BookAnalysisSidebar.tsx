@@ -97,41 +97,41 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
             }
             return (
               <Link
-              key={item.id}
-              to={{ pathname: "/book-analysis", search: itemSearchParams.toString() }}
-              className={`relative w-full rounded-xl border-0 px-3 py-3 text-left transition-all ${
-                item.id === selectedAnalysisId
-                  ? "bg-primary/[0.07] shadow-[inset_3px_0_0_hsl(var(--primary))]"
-                  : "hover:bg-muted/45"
-              }`}
-              onClick={() => onOpenAnalysis(item.id, item.documentId)}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{item.title}</div>
-                  <div className="mt-1 truncate text-xs text-muted-foreground">
-                    {item.documentTitle} | v{item.documentVersionNumber}
+                key={item.id}
+                to={{ pathname: "/book-analysis", search: itemSearchParams.toString() }}
+                className={`relative block w-full rounded-xl border-0 px-3 py-3 text-left transition-all ${
+                  item.id === selectedAnalysisId
+                    ? "bg-primary/[0.07] shadow-[inset_3px_0_0_hsl(var(--primary))]"
+                    : "hover:bg-muted/45"
+                }`}
+                onClick={() => onOpenAnalysis(item.id, item.documentId)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">{item.title}</div>
+                    <div className="mt-1 truncate text-xs text-muted-foreground">
+                      {item.documentTitle} | v{item.documentVersionNumber}
+                    </div>
+                    {item.sourceRange ? (
+                      <div className="mt-1 truncate text-[11px] text-muted-foreground">范围：{item.sourceRange.label ?? "选定章节"}</div>
+                    ) : null}
                   </div>
-                  {item.sourceRange ? (
-                    <div className="mt-1 truncate text-[11px] text-muted-foreground">范围：{item.sourceRange.label ?? "选定章节"}</div>
-                  ) : null}
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {item.publishedDocumentId && (
+                      <Badge variant="secondary" className="border-0 bg-muted px-1.5 text-[10px] font-normal">已发布</Badge>
+                    )}
+                    <Badge variant="secondary" className="border-0 bg-transparent px-1 text-[10px] font-normal text-muted-foreground">
+                      <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${item.status === "succeeded" ? "bg-success" : item.status === "failed" ? "bg-destructive" : "bg-muted-foreground/50"}`} />
+                      {formatStatus(item.status)}
+                    </Badge>
+                  </div>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-1">
-                  {item.publishedDocumentId && (
-                    <Badge variant="secondary" className="border-0 bg-muted px-1.5 text-[10px] font-normal">已发布</Badge>
-                  )}
-                  <Badge variant="secondary" className="border-0 bg-transparent px-1 text-[10px] font-normal text-muted-foreground">
-                    <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${item.status === "succeeded" ? "bg-success" : item.status === "failed" ? "bg-destructive" : "bg-muted-foreground/50"}`} />
-                    {formatStatus(item.status)}
-                  </Badge>
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                  {Math.round(item.progress * 100)}% | {formatDate(item.updatedAt)}
                 </div>
-              </div>
-              <div className="mt-2 text-[11px] text-muted-foreground">
-                {Math.round(item.progress * 100)}% | {formatDate(item.updatedAt)}
-              </div>
-              {item.lastError ? (
-                <div className="mt-1 line-clamp-2 text-[11px] text-destructive">{item.lastError}</div>
-              ) : null}
+                {item.lastError ? (
+                  <div className="mt-1 line-clamp-2 text-[11px] text-destructive">{item.lastError}</div>
+                ) : null}
               </Link>
             );
           }) : null}

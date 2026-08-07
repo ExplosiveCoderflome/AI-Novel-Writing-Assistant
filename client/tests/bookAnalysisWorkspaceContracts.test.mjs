@@ -93,6 +93,7 @@ test("book analysis history rows are route links instead of event-only buttons",
   assert.match(sidebar, /pathname: "\/book-analysis"/);
   assert.match(sidebar, /analysisId: item\.id/);
   assert.match(sidebar, /documentId: item\.documentId/);
+  assert.match(sidebar, /className=\{`relative block w-full/);
   assert.doesNotMatch(page, /workspace\.openAnalysis\(analysisId, documentId\)/);
 });
 
