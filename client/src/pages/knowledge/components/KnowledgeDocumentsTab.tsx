@@ -1,12 +1,9 @@
-import i18next from "i18next";
 import { useState, useRef, useCallback } from "react";
-import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { CircleAlert, FileText, LoaderCircle, RefreshCw, Upload, X } from "lucide-react";
+import { CircleAlert, FileText, LoaderCircle, MoreHorizontal, RefreshCw, Upload, X } from "lucide-react";
 import type { KnowledgeDocumentStatus, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
 import {
   AssetLibraryEmptyState,
-  AssetLibrarySection,
 } from "@/components/assetLibrary";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,10 +108,10 @@ export default function KnowledgeDocumentsTab({
     if (!open) setSelectedFile(null);
   };
   const statusOptions = [
-    { value: "", label: i18next.t("dict.gen_7d80f755") },
-    { value: "enabled", label: i18next.t("dict.onlyEnable") },
-    { value: "disabled", label: i18next.t("dict.onlyDisable") },
-    { value: "archived", label: i18next.t("dict.onlyArchive") },
+    { value: "", label: "全部未归档" },
+    { value: "enabled", label: "仅启用" },
+    { value: "disabled", label: "仅停用" },
+    { value: "archived", label: "仅归档" },
   ] as const;
 
   const confirmArchiveDocument = (document: KnowledgeDocumentSummary) => {
@@ -141,21 +138,44 @@ export default function KnowledgeDocumentsTab({
       : document.latestIndexStatus;
 
     return (
-      <article key={document.id} className="px-4 py-4 sm:px-5">
+      <article
+        key={document.id}
+        className="flex min-h-64 flex-col rounded-2xl border border-border/35 bg-card/70 p-5 transition-all hover:border-border/65 hover:shadow-[0_12px_32px_rgba(15,23,42,0.035)]"
+      >
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1">
-            <div className="font-medium">{document.title}</div>
-            <div className="text-xs text-muted-foreground">
-              {document.fileName} | 版本数 {document.versionCount} | 当前 v{document.activeVersionNumber}
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/[0.07] text-primary">
+              <FileText className="h-5 w-5" aria-hidden="true" />
             </div>
-            <div className="text-xs text-muted-foreground">拆书项目 {document.bookAnalysisCount}</div>
+            <div className="min-w-0 space-y-1">
+              <div className="truncate text-base font-semibold tracking-tight">{document.title}</div>
+              <div className="truncate text-xs text-muted-foreground">{document.fileName}</div>
+              <div className="text-xs text-muted-foreground">
+                当前 v{document.activeVersionNumber} · 共 {document.versionCount} 个版本 · {formatDocumentKind(document.kind)}
+              </div>
+              {document.bookAnalysisCount > 0 ? (
+                <div className="text-xs text-muted-foreground">关联 {document.bookAnalysisCount} 个拆书项目</div>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{formatStatus(document.status)}</Badge>
+            <Badge
+              variant="secondary"
+              className={`border-0 font-normal ${displayIndexStatus === "succeeded" ? "bg-success/10 text-success" : displayIndexStatus === "failed" ? "bg-destructive/10 text-destructive" : "bg-muted/60"}`}
+            >
+              {formatStatus(displayIndexStatus)}
+            </Badge>
+          </div>
+        </div>
+        <div className="mt-4 flex-1">
             {documentJob?.progress && (documentJob.status === "queued" || documentJob.status === "running") ? (
-              <div className="mt-2 rounded-md border border-dashed p-2">
+              <div className="rounded-xl bg-info/5 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <span className="font-medium">{documentJob.progress.label}</span>
                   <span>{getRagJobProgressPercent(documentJob)}%</span>
                 </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                   <div
                     className="h-full rounded-full bg-primary transition-all"
                     style={{ width: getRagJobProgressWidth(documentJob) }}
@@ -168,64 +188,67 @@ export default function KnowledgeDocumentsTab({
               </div>
             ) : null}
             {document.latestIndexStatus === "failed" && document.latestIndexError ? (
-              <div className="text-xs text-destructive">失败原因：{document.latestIndexError}</div>
+              <div className="rounded-xl bg-destructive/[0.055] px-3 py-2 text-xs leading-5 text-destructive">{document.latestIndexError}</div>
             ) : null}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant={document.kind === "analysis_published" ? "secondary" : "outline"}>
-              {formatDocumentKind(document.kind)}
-            </Badge>
-            <Badge variant="outline">{formatStatus(document.status)}</Badge>
-            <Badge variant="outline">{formatStatus(displayIndexStatus)}</Badge>
-          </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={() => onSelectDocument(document.id)}>{i18next.t("knowledge.knowledgeDocumentsTab.dlqjvu")}</Button>
+        <div className="mt-5 flex flex-wrap gap-2 border-t border-border/30 pt-4">
+          <Button size="sm" variant="secondary" className="rounded-full" onClick={() => onSelectDocument(document.id)}>
+            查看资料
+          </Button>
           {document.status === "archived" ? (
             <Button
               size="sm"
               variant="outline"
+              className="rounded-full"
               onClick={() => onUpdateStatus(document.id, "enabled")}
-            >{i18next.t("dict.gen_06dab430")}</Button>
+            >
+              恢复启用
+            </Button>
           ) : (
             <>
               <OpenInCreativeHubButton
                 bindings={{ knowledgeDocumentIds: [document.id] }}
-                label={i18next.t("dict.gen_d69e4819")}
-              />
-              <Button asChild size="sm" variant="outline">
-                <Link to={`/book-analysis?documentId=${document.id}`}>{i18next.t("dict.gen_989a71a3")}</Link>
-              </Button>
-              {document.kind === "analysis_published" && document.sourceAnalysisId ? (
-                <Button asChild size="sm" variant="outline">
-                  <Link to={`/book-analysis?analysisId=${document.sourceAnalysisId}`}>{i18next.t("dict.gen_31a84195")}</Link>
-                </Button>
-              ) : null}
-              {document.latestIndexStatus === "succeeded" ? (
-                <Button size="sm" variant="outline" onClick={() => onOpenRecallTest(document.id)}>{i18next.t("dict.gen_2ed53cd2")}</Button>
-              ) : null}
-              <Button size="sm" variant="outline" onClick={() => onReindexDocument(document.id)}>{i18next.t("knowledge.knowledgeDocumentsTab.isjjk0")}</Button>
-              {document.status === "enabled" ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onUpdateStatus(document.id, "disabled")}
-                >{i18next.t("dict.gen_5c56a889")}</Button>
-              ) : document.status === "disabled" ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onUpdateStatus(document.id, "enabled")}
-                >{i18next.t("dict.gen_7854b52a")}</Button>
-              ) : null}
-              <Button
-                size="sm"
+                label="继续创作"
                 variant="outline"
-                onClick={() => confirmArchiveDocument(document)}
-              >{i18next.t("dict.gen_2f51c18f")}</Button>
+                className="rounded-full"
+              />
             </>
           )}
         </div>
+        {document.status !== "archived" ? (
+          <details className="group mt-3">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs text-muted-foreground marker:hidden">
+              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+              更多操作
+            </summary>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="ghost" className="rounded-full">
+                <Link to={`/book-analysis?documentId=${document.id}`}>新建拆书</Link>
+              </Button>
+              {document.kind === "analysis_published" && document.sourceAnalysisId ? (
+                <Button asChild size="sm" variant="ghost" className="rounded-full">
+                  <Link to={`/book-analysis?analysisId=${document.sourceAnalysisId}`}>查看来源拆书</Link>
+                </Button>
+              ) : null}
+              {document.latestIndexStatus === "succeeded" ? (
+                <Button size="sm" variant="ghost" className="rounded-full" onClick={() => onOpenRecallTest(document.id)}>
+                  召回测试
+                </Button>
+              ) : null}
+              <Button size="sm" variant="ghost" className="rounded-full" onClick={() => onReindexDocument(document.id)}>
+                重建索引
+              </Button>
+              {document.status === "enabled" ? (
+                <Button size="sm" variant="ghost" className="rounded-full" onClick={() => onUpdateStatus(document.id, "disabled")}>停用</Button>
+              ) : document.status === "disabled" ? (
+                <Button size="sm" variant="ghost" className="rounded-full" onClick={() => onUpdateStatus(document.id, "enabled")}>启用</Button>
+              ) : null}
+              <Button size="sm" variant="ghost" className="rounded-full text-muted-foreground hover:text-destructive" onClick={() => confirmArchiveDocument(document)}>
+                归档
+              </Button>
+            </div>
+          </details>
+        ) : null}
       </article>
     );
   };
@@ -238,8 +261,8 @@ export default function KnowledgeDocumentsTab({
         <div className="flex min-h-40 items-center justify-center rounded-md border border-dashed border-border px-5 py-8 text-center" role="status">
           <div>
             <LoaderCircle className="mx-auto h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
-            <p className="mt-3 text-sm font-medium text-foreground">{i18next.t("knowledge.knowledgeDocumentsTab.bea7t4")}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{i18next.t("knowledge.knowledgeDocumentsTab.yb3m6k")}</p>
+            <p className="mt-3 text-sm font-medium text-foreground">正在加载创作资料</p>
+            <p className="mt-1 text-sm text-muted-foreground">正在确认资料版本和索引状态。</p>
           </div>
         </div>
       );
@@ -249,11 +272,13 @@ export default function KnowledgeDocumentsTab({
       return (
         <AssetLibraryEmptyState
           icon={CircleAlert}
-          title={i18next.t("knowledge.knowledgeDocumentsTab.xx0b24")}
+          title="创作资料暂时无法加载"
           description={`${errorMessage} 重新加载不会修改已有资料。`}
           action={(
             <Button type="button" size="sm" variant="outline" onClick={onRetry}>
-              <RefreshCw className="h-4 w-4" />{i18next.t("common.retry")}</Button>
+              <RefreshCw className="h-4 w-4" />
+              重新加载
+            </Button>
           )}
         />
       );
@@ -268,60 +293,66 @@ export default function KnowledgeDocumentsTab({
             ? "调整搜索词或状态筛选，返回其他资料。"
             : "上传 TXT 资料后，系统会建立可供拆书、规划和正文创作使用的检索索引。"}
           action={hasFilters ? (
-            <Button type="button" size="sm" variant="outline" onClick={onClearFilters}>{i18next.t("visualAssets.visualAssetLibrary.ei6tl9")}</Button>
+            <Button type="button" size="sm" variant="outline" onClick={onClearFilters}>
+              清除筛选
+            </Button>
           ) : (
             <Button type="button" size="sm" onClick={() => onUploadDialogOpenChange(true)}>
-              <Upload className="h-4 w-4" />{i18next.t("knowledge.knowledgeDocumentsTab.bcj6eg")}</Button>
+              <Upload className="h-4 w-4" />
+              上传第一份资料
+            </Button>
           )}
         />
       );
     }
 
-    return <div className="divide-y divide-border/70 rounded-md border border-border/80">{documents.map(renderDocumentRow)}</div>;
+    return <div className="grid gap-4 xl:grid-cols-2">{documents.map(renderDocumentRow)}</div>;
   };
 
   return (
     <>
-      <AssetLibrarySection
-        className="scroll-mt-5"
-        title={i18next.t("knowledge.knowledgeDocumentsTab.ap46ye")}
-        description={i18next.t("knowledge.knowledgeDocumentsTab.szpequ")}
-        actions={(
+      <section className="scroll-mt-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">资料书架</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">选择可检索资料继续创作，版本与索引维护按需处理。</p>
+          </div>
           <Button type="button" size="sm" variant="outline" onClick={() => onUploadDialogOpenChange(true)}>
-            <Upload className="mr-2 h-4 w-4" />{i18next.t("knowledge.knowledgeDocumentsTab.a6m94b")}</Button>
-        )}
-      >
-        <div id="knowledge-documents" className="space-y-4 scroll-mt-5">
-          <div className="grid gap-2 md:grid-cols-[1fr_180px]">
+            <Upload className="mr-2 h-4 w-4" />
+            上传资料
+          </Button>
+        </div>
+        <div id="knowledge-documents" className="mt-5 space-y-4 scroll-mt-5">
+          <div className="grid gap-2 rounded-2xl bg-muted/20 p-3 md:grid-cols-[1fr_180px]">
             <Input
               value={keyword}
               onChange={(event) => onKeywordChange(event.target.value)}
-              placeholder={i18next.t("dict.gen_87dbe672")}
+              placeholder="按标题或文件名搜索"
             />
             <SelectField
               value={status}
               onValueChange={(value) => onStatusChange(value as KnowledgeDocumentStatus | "")}
               options={statusOptions.map((option) => ({ ...option }))}
-              placeholder={i18next.t("dict.gen_91b44d6f")}
+              placeholder="筛选状态"
               className="space-y-0"
               triggerClassName="h-10"
             />
           </div>
           {renderDocuments()}
         </div>
-      </AssetLibrarySection>
+      </section>
 
       <Dialog open={uploadDialogOpen} onOpenChange={handleDialogOpenChange}>
         <AppDialogContent
           className="max-w-lg"
-          title={i18next.t("dict.uploadDocument")}
-          description={i18next.t("knowledge.knowledgeDocumentsTab.o337fh")}
+          title="上传文档"
+          description="添加可用于检索、拆书和创作参考的文本资料。"
         >
           <div className="space-y-4">
             <Input
               value={uploadTitle}
               onChange={(event) => onUploadTitleChange(event.target.value)}
-              placeholder={i18next.t("knowledge.knowledgeDocumentsTab.ilsav6")}
+              placeholder="可选标题，留空则使用文件名"
             />
 
             {/* 拖拽上传区域 */}
@@ -372,7 +403,7 @@ export default function KnowledgeDocumentsTab({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
                     className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                    aria-label={i18next.t("knowledge.knowledgeDocumentsTab.j2ryne")}
+                    aria-label="移除已选择的文件"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -389,14 +420,16 @@ export default function KnowledgeDocumentsTab({
                     <p className="text-sm font-medium">
                       {dragOver ? "松开鼠标上传" : "拖拽文件到此处，或点击选择"}
                     </p>
-                    <p className="text-xs text-muted-foreground">{i18next.t("knowledge.knowledgeDocumentsTab.4l0l3")}</p>
+                    <p className="text-xs text-muted-foreground">仅支持 .txt 文本文件</p>
                   </div>
                 </>
               )}
             </div>
 
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground leading-5">{i18next.t("knowledge.knowledgeDocumentsTab.ebs7qt")}</p>
+              <p className="text-xs text-muted-foreground leading-5">
+                同名标题会追加为新版本并设为当前版本
+              </p>
               <Button
                 type="button"
                 size="sm"
