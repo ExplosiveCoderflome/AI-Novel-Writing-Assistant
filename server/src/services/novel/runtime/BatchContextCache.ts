@@ -130,7 +130,7 @@ async function fetchNovelRow(novelId: string) {
     include: {
       world: true,
       genre: {
-        select: { name: true },
+        select: { name: true, description: true, template: true },
       },
       characters: true,
       bookContract: true,

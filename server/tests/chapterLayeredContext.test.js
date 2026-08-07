@@ -201,6 +201,8 @@ function createContextPackage() {
         powerLevel: "普通人",
         currentState: "被压制",
         currentGoal: "抢回主动权",
+        attireStyle: "洗旧的深灰工装外套，袖口留有维修区油渍。",
+        presenceImpression: "沉默克制，但进入现场后会让周围人自然等待他的判断。",
         prohibitions: ["不得突然拥有超自然能力"],
       },
       {
@@ -720,6 +722,8 @@ test("chapter layered contexts carry volume mission, character duties and repair
   assert.ok(writeContext.characterHardFacts.some((item) => item.name === "女二"));
   assert.ok(writeContext.characterBehaviorGuides.some((item) => item.volumeResponsibility.includes("反压机会")));
   assert.ok(writeContext.characterBehaviorGuides.some((item) => item.absenceRisk === "high"));
+  assert.ok(writeContext.characterBehaviorGuides.some((item) => item.visibleProfileSummary?.includes("常见穿着=洗旧的深灰工装外套")));
+  assert.ok(writeContext.characterBehaviorGuides.some((item) => item.visibleProfileSummary?.includes("登场印象=沉默克制")));
   assert.ok(writeContext.obligationContract.requiredCharacterAppearances.includes("女二（已缺席 3 章，宜自然带出）"));
   assert.match(writeContext.narrativeProgressHint, /第 5 章 \/ 预计共 20 章/);
   assert.ok(writeContext.pendingCandidateGuards.some((item) => item.proposedName === "林策"));
@@ -927,6 +931,29 @@ test("chapter writer blocks enforce enabled critical context contracts", () => {
   const resourceBlock = assertNonEmptyBlock(writerBlocks, "character_resource_context");
   assert.match(resourceBlock.content, /维修通道钥匙/);
   assert.match(resourceBlock.content, /旧通行证/);
+});
+
+test("chapter prose receives the resolved genre and progression foundation as a required contract", () => {
+  const contextPackage = createContextPackage();
+  const productionFoundationPrompt = `创作底座：东方玄幻 × 升级成长
+题材承诺：能力规则必须可理解并持续兑现。
+推进循环：受压 -> 破局 -> 收益 -> 升级。`;
+  const writeContext = buildChapterWriteContext({
+    bookContract: contextPackage.bookContract,
+    macroConstraints: contextPackage.macroConstraints,
+    volumeWindow: contextPackage.volumeWindow,
+    contextPackage,
+    productionFoundationPrompt,
+  });
+
+  const foundationBlock = assertNonEmptyBlock(
+    buildChapterWriterContextBlocks(writeContext),
+    "production_foundation",
+  );
+  assert.equal(foundationBlock.required, true);
+  assert.equal(foundationBlock.allowSummary, false);
+  assert.match(foundationBlock.content, /东方玄幻 × 升级成长/);
+  assert.match(foundationBlock.content, /受压 -> 破局 -> 收益 -> 升级/);
 });
 
 test("chapter context only supplies mind and active dialogue guidance to actual participants", () => {

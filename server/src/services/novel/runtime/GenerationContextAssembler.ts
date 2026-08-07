@@ -22,6 +22,7 @@ import type { ChapterRuntimeRequestInput } from "./chapterRuntimeSchema";
 import {
   buildPreviousChaptersSummary,
 } from "./runtimeContextBlocks";
+import { buildStoryModePromptBlock, normalizeStoryModeOutput } from "../../storyMode/storyModeProfile";
 import { mapRowToPlan } from "../storyMacro/storyMacroPlanPersistence";
 import {
   buildBookContractContext,
@@ -42,6 +43,7 @@ import {
 } from "../characters/characterHardFacts";
 import { NovelVolumeService } from "../volume/NovelVolumeService";
 import { ChapterPlanJITService } from "../planning/ChapterPlanJITService";
+import { ChapterRouteWindowService } from "../planning/ChapterRouteWindowService";
 import {
   buildBlockingPendingReviewProposalWhere,
   loadPendingCharacterHardFactReviews,
@@ -103,9 +105,13 @@ export class GenerationContextAssembler {
   private readonly worldContextGateway = new WorldContextGateway();
   private readonly styleBindingService = new StyleBindingService();
   private readonly volumeService = new NovelVolumeService();
+  private readonly chapterRouteWindowService = new ChapterRouteWindowService(this.volumeService);
   private readonly chapterPlanJITService = new ChapterPlanJITService({
     ensureChapterExecutionContract: (novelId, chapterId, options) => (
       this.volumeService.ensureChapterExecutionContract(novelId, chapterId, options)
+    ),
+    ensureRouteWindow: (novelId, fromChapterOrder, options) => (
+      this.chapterRouteWindowService.ensureRouteWindow(novelId, fromChapterOrder, options)
     ),
   });
 
@@ -147,7 +153,13 @@ export class GenerationContextAssembler {
     // 懒规划 JIT：全书 autopilot 路径在 ensureChapterPlan 之前确保 task sheet 就绪。
     // JIT 生成时会注入已发生事实（factLedger），解决 task sheet 与实际前文脱节问题。
     if (request.controlPolicy?.advanceMode === "full_book_autopilot") {
-      await this.chapterPlanJITService.ensureExecutionReady(novelId, chapterId);
+      await this.chapterPlanJITService.ensureExecutionReady(novelId, chapterId, {
+        min: 3,
+        target: 5,
+        provider: request.provider,
+        model: request.model,
+        temperature: request.temperature,
+      });
     }
     const ensuredPlan = await plannerService.ensureChapterPlan(novelId, chapterId, request);
     const refreshedChapter = await prisma.chapter.findFirst({
@@ -352,6 +364,15 @@ export class GenerationContextAssembler {
       }),
     });
     const macroConstraints = buildMacroConstraintContext(storyMacroPlan);
+    const productionFoundationPrompt = [
+      novel.genre?.name ? `题材基底：${novel.genre.name}` : "",
+      novel.genre?.description ? `题材定位：${novel.genre.description}` : "",
+      novel.genre?.template ? `题材使用倾向：${novel.genre.template}` : "",
+      buildStoryModePromptBlock({
+        primary: novel.primaryStoryMode ? normalizeStoryModeOutput(novel.primaryStoryMode) : null,
+        secondary: novel.secondaryStoryMode ? normalizeStoryModeOutput(novel.secondaryStoryMode) : null,
+      }),
+    ].filter(Boolean).join("\n\n");
     const mappedPlan = mapPlan(ensuredPlan);
     const mappedStateSnapshot = buildRuntimeStateSnapshotFromCanonical(canonicalState);
     const canonicalCharacterMap = new Map(
@@ -555,6 +576,7 @@ export class GenerationContextAssembler {
     // buildChapterWriteContext 仅需稳定字段，用 sharedFields + 占位派生字段构建
     const chapterWriteContext = buildChapterWriteContext({
       bookContract,
+      productionFoundationPrompt,
       macroConstraints,
       volumeWindow,
       contextPackage: {

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getWorkflowBadge } from "@/lib/novelWorkflowTaskUi";
 import { cn } from "@/lib/utils";
-import { formatHomeDate, type HomeNovelItem } from "../homeViewModel";
+import { formatHomeDate, getHomeNovelTask, type HomeNovelItem } from "../homeViewModel";
 import type { RenderNovelPrimaryAction } from "./HomeNextActionPanel";
 
 export function HomeRecentNovels(props: {
@@ -42,7 +42,7 @@ export function HomeRecentNovels(props: {
 }
 
 function RecentNovelRow(props: { novel: HomeNovelItem; onOpenNovel: (novelId: string) => void }) {
-  const workflowTask = props.novel.latestAutoDirectorTask ?? null;
+  const workflowTask = getHomeNovelTask(props.novel);
   const workflowBadge = getWorkflowBadge(workflowTask);
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === "Enter" || event.key === " ") { event.preventDefault(); props.onOpenNovel(props.novel.id); }
@@ -61,7 +61,7 @@ function RecentNovelRow(props: { novel: HomeNovelItem; onOpenNovel: (novelId: st
           <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-1 group-hover:text-sky-700" aria-hidden="true" />
         </div>
         <div className="grid grid-cols-2 gap-x-5 gap-y-2 border-l border-border pl-5 text-xs text-muted-foreground sm:grid-cols-4 lg:min-w-[29rem]">
-          <Fact label="章节" value={String(props.novel._count.chapters)} />
+          <Fact label={props.novel.narrativeForm === "short_story" ? "形式" : "章节"} value={props.novel.narrativeForm === "short_story" ? "短篇" : String(props.novel._count.chapters)} />
           <Fact label="角色" value={String(props.novel._count.characters)} />
           <Fact label="世界观" value={props.novel.world?.name ?? "未绑定"} />
           <Fact label="更新" value={formatHomeDate(props.novel.updatedAt)} />

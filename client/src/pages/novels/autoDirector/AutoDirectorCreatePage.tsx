@@ -4,6 +4,7 @@ import type { UnifiedTaskDetail } from "@ai-novel/shared/types/task";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { flattenGenreTreeOptions, getGenreTree } from "@/api/genre";
+import { flattenStoryModeTreeOptions, getStoryModeTree } from "@/api/storyMode";
 import { bootstrapNovelWorkflow } from "@/api/novelWorkflow";
 import { queryKeys } from "@/api/queryKeys";
 import { getWorldList } from "@/api/world";
@@ -68,7 +69,14 @@ export default function AutoDirectorCreatePage() {
     queryKey: queryKeys.genres.all,
     queryFn: getGenreTree,
   });
-  const genreOptions = flattenGenreTreeOptions(genreTreeQuery.data?.data ?? []);
+  const storyModeTreeQuery = useQuery({
+    queryKey: queryKeys.storyModes.all,
+    queryFn: getStoryModeTree,
+  });
+  const genreTree = genreTreeQuery.data?.data ?? [];
+  const storyModeTree = storyModeTreeQuery.data?.data ?? [];
+  const genreOptions = flattenGenreTreeOptions(genreTree);
+  const storyModeOptions = flattenStoryModeTreeOptions(storyModeTree);
   const worldOptions = worldListQuery.data?.data ?? [];
 
   useEffect(() => {
@@ -124,6 +132,7 @@ export default function AutoDirectorCreatePage() {
   const controller = useAutoDirectorCreateController({
     basicForm,
     genreOptions,
+    storyModeOptions,
     worldOptions,
     workflowTaskId: normalizedTaskId,
     restoredTask: restoredWorkflowTask,
@@ -136,11 +145,27 @@ export default function AutoDirectorCreatePage() {
       return;
     }
     setCompletedStages((prev) => new Set([...prev, ...completedThrough("model_run")]));
-    setActiveStage("candidates");
   }, [controller.batches.length, controller.hasActiveDirectorTask]);
 
+  const latestProductionFoundation = controller.batches.at(-1)?.candidates[0]?.productionFoundation ?? null;
+  const selectedGenre = genreOptions.find((option) => option.id === controller.directorBasicForm.genreId) ?? null;
+  const selectedStoryMode = storyModeOptions.find(
+    (option) => option.id === controller.directorBasicForm.primaryStoryModeId,
+  ) ?? null;
+  const latestGenreFoundation = latestProductionFoundation?.genre;
+  const latestPrimaryStoryModeFoundation = latestProductionFoundation?.primaryStoryMode;
+  const selectedGenreSource = latestGenreFoundation?.id === selectedGenre?.id
+    ? latestGenreFoundation?.source
+    : selectedGenre ? "user_selected" as const : undefined;
+  const selectedStoryModeSource = latestPrimaryStoryModeFoundation?.id === selectedStoryMode?.id
+    ? latestPrimaryStoryModeFoundation?.source
+    : selectedStoryMode ? "user_selected" as const : undefined;
+
   const summaries = useMemo(() => ({
-    idea: summarizeIdea(controller.idea),
+    idea: summarizeIdea(controller.idea, {
+      genre: selectedGenre?.path,
+      storyMode: selectedStoryMode?.path,
+    }),
     basic: summarizeBasicStage(controller.directorBasicForm),
     world_style: summarizeWorldStyleStage({
       basicForm: controller.directorBasicForm,
@@ -171,6 +196,8 @@ export default function AutoDirectorCreatePage() {
     controller.selectedStyleSummary,
     controller.styleProfiles,
     controller.worldSetupMode,
+    selectedGenre?.path,
+    selectedStoryMode?.path,
     worldOptions,
   ]);
 
@@ -203,6 +230,26 @@ export default function AutoDirectorCreatePage() {
           onQuickGenerate={startGenerate}
           canContinue={controller.idea.trim().length > 0}
           isGenerating={controller.generateMutation.isPending}
+          genreTree={genreTree}
+          storyModeTree={storyModeTree}
+          selectedGenreId={controller.directorBasicForm.genreId}
+          selectedGenreLabel={selectedGenre
+            ? `故事类型：${selectedGenre.path}`
+            : controller.directorBasicForm.genreId ? "故事类型：选择已失效" : ""}
+          selectedGenreSource={selectedGenreSource}
+          selectedStoryModeId={controller.directorBasicForm.primaryStoryModeId}
+          selectedStoryModeLabel={selectedStoryMode
+            ? `推进方式：${selectedStoryMode.path}`
+            : controller.directorBasicForm.primaryStoryModeId ? "推进方式：选择已失效" : ""}
+          selectedStoryModeSource={selectedStoryModeSource}
+          genreLoading={genreTreeQuery.isPending}
+          genreError={genreTreeQuery.isError}
+          storyModeLoading={storyModeTreeQuery.isPending}
+          storyModeError={storyModeTreeQuery.isError}
+          isUpdatingFoundation={controller.isUpdatingFoundation}
+          onRetryGenres={() => void genreTreeQuery.refetch()}
+          onRetryStoryModes={() => void storyModeTreeQuery.refetch()}
+          onFoundationChange={controller.updateProductionFoundation}
         />
       );
     }

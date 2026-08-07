@@ -354,8 +354,10 @@ export function buildParticipantText(writeContext: ChapterWriteContext): string 
         character.appearance || character.physique
           ? `外观：${compactText([character.appearance, character.physique].filter(Boolean).join("；"))}`
           : "",
+        character.attireStyle ? `常见穿着：${compactText(character.attireStyle)}` : "",
         character.signatureDetail ? `标志细节：${compactText(character.signatureDetail)}` : "",
         character.voiceTexture ? `声音：${compactText(character.voiceTexture)}` : "",
+        character.presenceImpression ? `登场印象：${compactText(character.presenceImpression)}` : "",
       ], 3).join(" | ");
       const parts = takeUnique([
         character.role,

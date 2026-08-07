@@ -27,6 +27,7 @@ export default function AppLayout() {
   const [isWorkspaceRailCollapsed, setIsWorkspaceRailCollapsed] = useState(false);
   const [workspaceNavMode, setWorkspaceNavMode] = useState<"workspace" | "project">("project");
   const isMobileViewport = useIsMobileViewport();
+  const isNovelPreview = Boolean(matchPath("/novels/:id/preview", location.pathname));
 
   const workspaceRoute = useMemo(() => {
     const editMatch = matchPath("/novels/:id/edit", location.pathname);
@@ -72,6 +73,23 @@ export default function AppLayout() {
   useEffect(() => {
     setWorkspaceNavMode(isNovelWorkspace ? "workspace" : "project");
   }, [isNovelWorkspace, location.pathname]);
+
+  if (isNovelPreview) {
+    return (
+      <CreationSetupProvider>
+        <TaskRecoveryProvider>
+          <div className="h-[100dvh] overflow-hidden bg-[#faf9f6]">
+            <AutoDirectorPauseNotificationWatcher />
+            <LLMSelectionBootstrap />
+            <Suspense fallback={<AppRouteFallback />}>
+              <Outlet />
+            </Suspense>
+            <TaskRecoveryDialog />
+          </div>
+        </TaskRecoveryProvider>
+      </CreationSetupProvider>
+    );
+  }
 
   if (useMobileNovelWorkspaceLayout) {
     return (

@@ -66,6 +66,53 @@ export class DirectorProductionExperienceService {
 
     const seed = parseSeedPayload<DirectorWorkflowSeedPayload>(task.seedPayloadJson) ?? {};
     const selected = parseSelectedExperience(seed);
+    if (selected === "simple" && experience === "professional") {
+      const activeJob = await prisma.generationJob.findFirst({
+        where: {
+          novelId: task.novelId,
+          status: { in: ["queued", "running"] },
+        },
+        select: { id: true },
+      });
+      const nextSeed: DirectorWorkflowSeedPayload = activeJob
+        ? { ...seed, pendingProductionExperience: "professional" }
+        : { ...buildProductionExperienceSeed(seed, "professional"), pendingProductionExperience: undefined };
+      await prisma.$transaction([
+        prisma.novelWorkflowTask.update({
+          where: { id: task.id },
+          data: activeJob
+            ? {
+              seedPayloadJson: JSON.stringify(nextSeed),
+              currentItemLabel: "将在当前章节完成后交接到专业创作",
+            }
+            : {
+              seedPayloadJson: JSON.stringify(nextSeed),
+              status: "succeeded",
+              progress: 1,
+              currentStage: "chapter_execution",
+              currentItemKey: "professional_production_handoff",
+              currentItemLabel: "已交接到专业创作工作台",
+              checkpointType: "workflow_completed",
+              checkpointSummary: "自动创作已在安全章节边界停止，后续由专业工作台接管。",
+              pendingManualRecovery: false,
+              finishedAt: new Date(),
+            },
+        }),
+        ...(activeJob
+          ? []
+          : [prisma.novel.update({
+            where: { id: task.novelId },
+            data: { creationExperience: "professional" },
+          })]),
+      ]);
+      return {
+        experience,
+        workflowTaskId: task.id,
+        novelId: task.novelId,
+        targetRoute: `/novels/${task.novelId}/edit`,
+        backgroundStarted: Boolean(activeJob),
+      };
+    }
     if (selected && selected !== experience) {
       throw new AppError("这次生产方式已确认，不能重复改选。", 409);
     }

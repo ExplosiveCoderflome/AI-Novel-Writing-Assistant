@@ -48,6 +48,7 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
     ],
   },
   contextRequirements: [
+    { group: "writing_platform", required: true, priority: 105 },
     { group: "book_contract", required: true, priority: 104 },
     { group: "chapter_mission", required: true, priority: 100 },
     { group: "reader_experience", required: true, priority: 100 },
@@ -64,6 +65,29 @@ export const chapterWriterPrompt: PromptAsset<ChapterWriterPromptInput, string, 
     { group: "style_contract", required: true, priority: 74 },
     { group: "continuation_constraints", priority: 72 },
     { group: "rag_context", priority: 60 },
+  ],
+  management: {
+    productPrompt: true,
+    proseGeneration: true,
+    editModes: ["slots", "advanced_template"],
+    advancedTemplate: {
+      scope: "novel",
+      requiredContextGroups: [
+        "writing_platform", "book_contract", "chapter_mission", "reader_experience",
+        "character_hard_facts", "obligation_contract", "volume_window",
+        "participant_subset", "local_state", "style_contract",
+      ],
+    },
+  },
+  editableSlots: [
+    {
+      key: "writer.tonePreference",
+      label: "语气与节奏",
+      description: "调整正文语气、节奏和读感倾向。",
+      riskLevel: "low",
+      maxLength: 600,
+      defaultValue: "使用简体中文，语言自然流畅，适合网文阅读节奏。",
+    },
   ],
   slots: [
     // replace：改写出厂指令

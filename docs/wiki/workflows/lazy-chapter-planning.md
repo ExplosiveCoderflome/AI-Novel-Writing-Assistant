@@ -15,6 +15,8 @@
 
 **懒规划（Lazy Planning / JIT）**：把 task sheet 从"规划阶段全量预生成"改为"执行前即时生成（Just-In-Time）"，并将已发生事实（Fact Ledger）注入到生成上下文，从根本上解决义务不可达（根因 D）问题。
 
+快速启动把懒规划扩展为“滚动路线窗口 + 下一章执行合同”：系统始终保证未来至少 3 章、目标 5 章的简略路线，但只为下一章准备完整 task sheet、scene cards、字数和避坑约束。路线回答“接下来往哪里走”，执行合同回答“下一章具体怎么写”，两者不能混成整卷全量细化。
+
 ---
 
 ## 架构变化
@@ -51,6 +53,8 @@ chapter_execution 阶段
 ### ChapterPlanJITService
 
 **文件**：`server/src/services/novel/planning/ChapterPlanJITService.ts`
+
+`ChapterPlanJITService` 在自动成书模式下先调用 `ChapterRouteWindowService` 检查路线窗口，再细化当前章。未写路线少于 3 章时补齐到目标 5 章；补齐按节拍块增量生成并复用现有卷文档与章节同步，不重建已完成路线，也不触发无变化的 Payoff Ledger 同步。
 
 核心方法：`ensureExecutionReady(novelId, chapterId)`
 
@@ -190,6 +194,8 @@ if (request.controlPolicy?.advanceMode === "full_book_autopilot") {
 **文件**：`server/src/services/novel/novelCorePipelineService.ts`
 
 - 在每章 `runPipelineChapter` 完成后（factLedger 已写入），**非阻塞**触发下一章（N+1）的 JIT task sheet 预取
+- 预取失败不得阻断当前生产。下一章正式执行时会再次保证路线窗口和执行合同；只有明确重规划或无可用章节路线时才进入可恢复失败。
+- Pipeline 的执行队列可以在章节边界追加滚动生成的新章节，不能把任务启动时查询到的章节数组视为整本书固定范围。
 - 仅在 `advanceMode === "full_book_autopilot"` 时启用
 - 预取失败不影响流水线，下一章正式组装时会自动重试
 - 配合 `BatchContextCache`：novel 稳定层已缓存，预取仅需生成 task sheet，组装近乎瞬时

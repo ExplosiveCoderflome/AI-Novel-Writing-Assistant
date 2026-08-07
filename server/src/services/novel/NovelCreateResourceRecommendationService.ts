@@ -13,6 +13,7 @@ import { novelCreateResourceRecommendationPrompt } from "../../prompting/prompts
 import { ensureSystemResourceStarterData } from "../bootstrap/SystemResourceBootstrapService";
 import { GenreService, type GenreTreeNode } from "../genre/GenreService";
 import { StoryModeService, type StoryModeTreeNode } from "../storyMode/StoryModeService";
+import { buildStoryModePromptBlock } from "../storyMode/storyModeProfile";
 import { buildBookFramingSummary } from "./bookFraming";
 
 interface RecommendNovelCreateResourcesInput {
@@ -36,6 +37,14 @@ interface RecommendNovelCreateResourcesInput {
   provider?: LLMProvider;
   model?: string;
   temperature?: number;
+}
+
+export interface ResolvedNovelProductionFoundation {
+  genreId: string;
+  primaryStoryModeId: string;
+  secondaryStoryModeId?: string;
+  recommendation: NovelCreateResourceRecommendation;
+  promptBlock: string;
 }
 
 interface FlattenedGenreOption {
@@ -175,32 +184,36 @@ export class NovelCreateResourceRecommendationService {
 
   private readonly storyModeService = new StoryModeService();
 
-  async recommend(input: RecommendNovelCreateResourcesInput): Promise<NovelCreateResourceRecommendation> {
+  private async loadOptions(): Promise<{
+    genres: FlattenedGenreOption[];
+    storyModes: FlattenedStoryModeOption[];
+  }> {
     await ensureSystemResourceStarterData();
 
     const [genreTree, storyModeTree] = await Promise.all([
       this.genreService.listGenreTree(),
       this.storyModeService.listStoryModeTree(),
     ]);
-
-    const genreOptions = flattenGenreOptions(genreTree);
-    const storyModeOptions = flattenStoryModeOptions(storyModeTree);
-
-    if (genreOptions.length === 0 || storyModeOptions.length === 0) {
+    const genres = flattenGenreOptions(genreTree);
+    const storyModes = flattenStoryModeOptions(storyModeTree);
+    if (genres.length === 0 || storyModes.length === 0) {
       throw new Error("系统内置资源尚未就绪，暂时无法推荐题材基底和推进模式。");
     }
+    return { genres, storyModes };
+  }
 
+  private async recommendFromOptions(
+    input: RecommendNovelCreateResourcesInput,
+    options: { genres: FlattenedGenreOption[]; storyModes: FlattenedStoryModeOption[] },
+  ): Promise<NovelCreateResourceRecommendation> {
     const result = await runStructuredPrompt({
       asset: novelCreateResourceRecommendationPrompt,
       promptInput: {
-        userIntentSummary: buildUserIntentSummary(input, {
-          genres: genreOptions,
-          storyModes: storyModeOptions,
-        }),
-        genreCatalogText: buildGenreCatalogText(genreOptions),
-        storyModeCatalogText: buildStoryModeCatalogText(storyModeOptions),
-        allowedGenreIds: genreOptions.map((item) => item.id),
-        allowedStoryModeIds: storyModeOptions.map((item) => item.id),
+        userIntentSummary: buildUserIntentSummary(input, options),
+        genreCatalogText: buildGenreCatalogText(options.genres),
+        storyModeCatalogText: buildStoryModeCatalogText(options.storyModes),
+        allowedGenreIds: options.genres.map((item) => item.id),
+        allowedStoryModeIds: options.storyModes.map((item) => item.id),
       },
       options: {
         provider: input.provider,
@@ -210,10 +223,10 @@ export class NovelCreateResourceRecommendationService {
     });
 
     const parsed = result.output;
-    const genre = genreOptions.find((item) => item.id === parsed.genreId);
-    const primaryStoryMode = storyModeOptions.find((item) => item.id === parsed.primaryStoryModeId);
+    const genre = options.genres.find((item) => item.id === parsed.genreId);
+    const primaryStoryMode = options.storyModes.find((item) => item.id === parsed.primaryStoryModeId);
     const secondaryStoryMode = parsed.secondaryStoryModeId
-      ? storyModeOptions.find((item) => item.id === parsed.secondaryStoryModeId)
+      ? options.storyModes.find((item) => item.id === parsed.secondaryStoryModeId)
       : null;
 
     if (!genre || !primaryStoryMode) {
@@ -244,6 +257,111 @@ export class NovelCreateResourceRecommendationService {
         : null,
       caution: parsed.caution?.trim() || null,
       recommendedAt: new Date().toISOString(),
+    };
+  }
+
+  async recommend(input: RecommendNovelCreateResourcesInput): Promise<NovelCreateResourceRecommendation> {
+    const options = await this.loadOptions();
+    return this.recommendFromOptions(input, options);
+  }
+
+  async resolveRequired(input: RecommendNovelCreateResourcesInput): Promise<ResolvedNovelProductionFoundation> {
+    const options = await this.loadOptions();
+    const selectedGenre = input.genreId?.trim()
+      ? options.genres.find((item) => item.id === input.genreId?.trim())
+      : null;
+    const selectedPrimary = input.primaryStoryModeId?.trim()
+      ? options.storyModes.find((item) => item.id === input.primaryStoryModeId?.trim())
+      : null;
+    const selectedSecondary = input.secondaryStoryModeId?.trim()
+      ? options.storyModes.find((item) => item.id === input.secondaryStoryModeId?.trim())
+      : null;
+
+    if (input.genreId?.trim() && !selectedGenre) {
+      throw new Error("当前选择的题材基底已不可用，请重新选择或让 AI 推荐。");
+    }
+    if (input.primaryStoryModeId?.trim() && !selectedPrimary) {
+      throw new Error("当前选择的主推进模式已不可用，请重新选择或让 AI 推荐。");
+    }
+    if (input.secondaryStoryModeId?.trim() && !selectedSecondary) {
+      throw new Error("当前选择的副推进模式已不可用，请重新选择。");
+    }
+    if (selectedPrimary && selectedSecondary && selectedPrimary.id === selectedSecondary.id) {
+      throw new Error("主推进模式和副推进模式不能相同。");
+    }
+
+    const aiRecommendation = selectedGenre && selectedPrimary && selectedSecondary
+      ? null
+      : await this.recommendFromOptions(input, options);
+    const genre = selectedGenre
+      ?? options.genres.find((item) => item.id === aiRecommendation?.genre.id);
+    const primary = selectedPrimary
+      ?? options.storyModes.find((item) => item.id === aiRecommendation?.primaryStoryMode.id);
+    const secondary = selectedSecondary
+      ?? (!input.secondaryStoryModeId && aiRecommendation?.secondaryStoryMode
+        ? options.storyModes.find((item) => (
+          item.id === aiRecommendation.secondaryStoryMode?.id
+          && item.id !== primary?.id
+        ))
+        : null);
+
+    if (!genre || !primary) {
+      throw new Error("AI 未能确定可用的题材基底和主推进模式，请重试。");
+    }
+    if (secondary?.id === primary.id) {
+      throw new Error("AI 推荐的副推进模式与主推进模式重复，请重试。");
+    }
+
+    const recommendation: NovelCreateResourceRecommendation = {
+      summary: aiRecommendation?.summary
+        ?? `本书将以“${genre.path}”作为题材基底，并按“${primary.path}”持续推进。`,
+      genre: {
+        id: genre.id,
+        name: genre.name,
+        path: genre.path,
+        source: selectedGenre ? "user_selected" : "ai_recommended",
+        reason: aiRecommendation?.genre.id === genre.id
+          ? aiRecommendation.genre.reason
+          : "沿用你确认的题材基底。",
+      },
+      primaryStoryMode: {
+        id: primary.id,
+        name: primary.name,
+        path: primary.path,
+        source: selectedPrimary ? "user_selected" : "ai_recommended",
+        reason: aiRecommendation?.primaryStoryMode.id === primary.id
+          ? aiRecommendation.primaryStoryMode.reason
+          : "沿用你确认的主推进模式。",
+      },
+      secondaryStoryMode: secondary
+        ? {
+          id: secondary.id,
+          name: secondary.name,
+          path: secondary.path,
+          source: selectedSecondary ? "user_selected" : "ai_recommended",
+          reason: aiRecommendation?.secondaryStoryMode?.id === secondary.id
+            ? aiRecommendation.secondaryStoryMode.reason
+            : "沿用你确认的辅助推进模式。",
+        }
+        : null,
+      caution: aiRecommendation?.caution ?? null,
+      recommendedAt: new Date().toISOString(),
+    };
+    const storyModeBlock = buildStoryModePromptBlock({
+      primary,
+      secondary: secondary ?? null,
+    });
+    return {
+      genreId: genre.id,
+      primaryStoryModeId: primary.id,
+      secondaryStoryModeId: secondary?.id,
+      recommendation,
+      promptBlock: [
+        `题材基底：${genre.path}`,
+        genre.description ? `题材定位：${genre.description}` : "",
+        genre.template ? `题材使用倾向：${genre.template}` : "",
+        storyModeBlock,
+      ].filter(Boolean).join("\n\n"),
     };
   }
 }

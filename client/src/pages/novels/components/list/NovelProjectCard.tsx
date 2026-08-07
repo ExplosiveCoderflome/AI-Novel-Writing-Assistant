@@ -1,5 +1,5 @@
 import type { KeyboardEvent, MouseEvent } from "react";
-import { BookOpen, Gauge, Trash2 } from "lucide-react";
+import { Download, Eye, Gauge, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { DirectorContinuationMode } from "@ai-novel/shared/types/novelDirector";
 import type { NovelAutoDirectorTaskSummary } from "@ai-novel/shared/types/novel";
@@ -14,17 +14,16 @@ import {
   getWorkflowBadge,
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
-import NovelWorkflowRunningIndicator from "../NovelWorkflowRunningIndicator";
 import {
   buildWorkflowDisplay,
   formatProgressStatus,
   formatTokenCount,
   getPrimaryActionLabel,
   getProjectAssetRows,
+  getNovelWorkflowTask,
   type NovelListItem,
 } from "./novelListViewModel";
 import {
-  toneSurfaceClass,
   toneTextClass,
 } from "./novelListTone";
 
@@ -39,10 +38,28 @@ export function NovelProjectCard(props: {
   onDownload: (input: { novelId: string; novelTitle: string }) => void;
   onDelete: (novelId: string, title: string) => void;
 }) {
-  const task = props.novel.latestAutoDirectorTask ?? null;
+  const task = getNovelWorkflowTask(props.novel);
   const workflow = buildWorkflowDisplay(props.novel);
   const workflowBadge = getWorkflowBadge(task);
   const primaryLabel = getPrimaryActionLabel(props.novel);
+  const progressToneClass = workflow.tone === "danger"
+    ? "bg-destructive"
+    : workflow.tone === "warning"
+      ? "bg-amber-600"
+      : workflow.tone === "success"
+        ? "bg-emerald-600"
+        : workflow.tone === "info"
+          ? "bg-sky-600"
+          : "bg-primary";
+  const progressBorderClass = workflow.tone === "danger"
+    ? "border-destructive"
+    : workflow.tone === "warning"
+      ? "border-amber-600"
+      : workflow.tone === "success"
+        ? "border-emerald-600"
+        : workflow.tone === "info"
+          ? "border-sky-600"
+          : "border-primary";
   const isWorkflowPending = props.continuePendingTaskId === task?.id;
   const isDownloadPending = props.downloadPendingNovelId === props.novel.id;
   const isDeletePending = props.deletePendingNovelId === props.novel.id;
@@ -65,19 +82,19 @@ export function NovelProjectCard(props: {
     <Card
       role="link"
       tabIndex={0}
-      className="group h-full cursor-pointer overflow-hidden rounded-xl border-border/70 bg-background/90 transition hover:border-primary/35 hover:bg-muted/[0.08] hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+      className="group h-full cursor-pointer overflow-hidden rounded-xl border-border/60 bg-background focus:outline-none focus:ring-2 focus:ring-ring"
       onClick={() => props.onOpenNovel(props.novel.id)}
       onKeyDown={handleKeyDown}
     >
-      <CardContent className="flex h-full flex-col gap-4 p-4 sm:p-5">
+      <CardContent className="flex h-full flex-col gap-3 p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 space-y-2">
-            <div className="line-clamp-1 text-xl font-semibold tracking-normal transition group-hover:text-primary">
+          <div className="min-w-0 space-y-1.5">
+            <div className="line-clamp-1 text-lg font-semibold tracking-normal transition group-hover:text-primary">
               {props.novel.title}
             </div>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
               <span>{props.novel.status === "published" ? "已发布" : "草稿"}</span>
-              <span>{props.novel.writingMode === "continuation" ? "续写" : "原创"}</span>
+              <span>{props.novel.narrativeForm === "short_story" ? "短篇" : (props.novel.writingMode === "continuation" ? "续写" : "长篇原创")}</span>
               {workflowBadge ? (
                 <span className={toneTextClass(workflow.tone)}>{workflowBadge.label}</span>
               ) : null}
@@ -89,37 +106,27 @@ export function NovelProjectCard(props: {
           {props.novel.description || "暂无简介"}
         </p>
 
-        <div className={cn("rounded-xl p-3", toneSurfaceClass(workflow.tone))}>
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className={cn("border-l-2 py-0.5 pl-3", progressBorderClass)}>
+          <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className={cn("text-sm font-medium", toneTextClass(workflow.tone))}>{workflow.label}</div>
-              <div className="mt-1 text-xs text-muted-foreground">
+              <div className="mt-1 truncate text-xs text-muted-foreground">
                 {workflow.currentStage}{workflow.currentAction ? ` · ${workflow.currentAction}` : ""}
               </div>
             </div>
-            <div className="text-xs font-medium tabular-nums text-foreground">进度 {workflow.progress}%</div>
+            <div className="shrink-0 text-xs font-medium tabular-nums text-foreground">{workflow.progress}%</div>
           </div>
-          <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted-foreground">{workflow.description}</p>
-          {workflow.running ? (
-            <NovelWorkflowRunningIndicator
-              className="mt-3"
-              progress={task?.progress ?? 0}
-              label={workflow.currentAction || "AI 正在后台持续推进"}
-            />
-          ) : (
-            <div className="mt-3 flex items-center justify-between rounded-lg bg-background/45 px-3 py-2 text-xs text-muted-foreground">
-              <span className="line-clamp-1">
-                {workflow.lastHealthyStage ? `最近健康阶段：${workflow.lastHealthyStage}` : "等待下一步操作"}
-              </span>
-              <span className="font-medium tabular-nums text-foreground">{workflow.progress}%</span>
-            </div>
-          )}
-          {workflow.running && workflow.lastHealthyStage ? (
-            <div className="mt-2 text-xs text-muted-foreground">最近健康阶段：{workflow.lastHealthyStage}</div>
-          ) : null}
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-border/70">
+            <div className={cn("h-full rounded-full transition-[width] duration-500", progressToneClass)} style={{ width: `${workflow.progress}%` }} />
+          </div>
+          <div className="mt-2 h-10 overflow-hidden opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+            <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+              {workflow.description}{workflow.lastHealthyStage ? ` 最近完成：${workflow.lastHealthyStage}` : ""}
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-y border-border/55 py-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-border/55 pt-3 sm:grid-cols-4">
           {getProjectAssetRows(props.novel).map((item) => (
             <div key={item.label} className="min-w-0">
               <div className="text-xs text-muted-foreground">{item.label}</div>
@@ -130,14 +137,16 @@ export function NovelProjectCard(props: {
           ))}
         </div>
 
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span>项目：{formatProgressStatus(props.novel.projectStatus)}</span>
-          <span>主线：{formatProgressStatus(props.novel.storylineStatus)}</span>
-          <span>大纲：{formatProgressStatus(props.novel.outlineStatus)}</span>
-          <span>Token：{formatTokenCount(props.novel.tokenUsage?.totalTokens)}</span>
+        <div className="h-5 overflow-hidden opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
+          <div className="flex flex-nowrap gap-x-4 overflow-hidden whitespace-nowrap text-xs text-muted-foreground">
+            <span>项目：{formatProgressStatus(props.novel.projectStatus)}</span>
+            <span>主线：{formatProgressStatus(props.novel.storylineStatus)}</span>
+            <span>大纲：{formatProgressStatus(props.novel.outlineStatus)}</span>
+            <span>Token：{formatTokenCount(props.novel.tokenUsage?.totalTokens)}</span>
+          </div>
         </div>
 
-        <div className="mt-auto flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-auto flex items-center justify-between gap-3 border-t border-border/55 pt-3">
           <div className="flex flex-wrap items-center gap-2">
             {renderPrimaryAction({
               novel: props.novel,
@@ -147,36 +156,42 @@ export function NovelProjectCard(props: {
               onContinueWorkflow: props.onContinueWorkflow,
               onStopCardClick: stopCardClick,
             })}
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={(event) => {
-                stopCardClick(event);
-                props.onOpenCockpit(props.novel.id);
-              }}
-            >
-              <Gauge className="mr-1.5 h-4 w-4" aria-hidden="true" />
-              AI 驾驶舱
-            </Button>
+            {props.novel.narrativeForm !== "short_story" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="h-8 w-8 px-0 opacity-70 transition group-hover:opacity-100 focus-visible:opacity-100"
+                onClick={(event) => {
+                  stopCardClick(event);
+                  props.onOpenCockpit(props.novel.id);
+                }}
+                title="打开 AI 驾驶舱"
+                aria-label="打开 AI 驾驶舱"
+              >
+                <Gauge className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            ) : null}
           </div>
-          <div className="flex flex-wrap items-center gap-1">
-            {task ? (
-              <Button asChild size="sm" variant="ghost">
+          <div className="flex items-center gap-1 opacity-70 transition group-hover:opacity-100 focus-within:opacity-100">
+            {task && props.novel.narrativeForm !== "short_story" ? (
+              <Button asChild size="sm" variant="ghost" className="h-8 w-8 px-0" title="查看执行详情" aria-label="查看执行详情">
                 <Link to={`/novels/${props.novel.id}/edit?directorTaskId=${task.id}&taskPanel=1`} onClick={stopCardClick}>
-                  执行详情
+                  <Gauge className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </Button>
             ) : null}
-            <Button asChild size="sm" variant="ghost">
-              <Link to={`/novels/${props.novel.id}/preview`} onClick={stopCardClick}>
-                <BookOpen className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                预览
-              </Link>
-            </Button>
+            {props.novel.narrativeForm !== "short_story" ? (
+              <Button asChild size="sm" variant="ghost" className="h-8 w-8 px-0" title="阅读预览" aria-label="阅读预览">
+                <Link to={`/novels/${props.novel.id}/preview`} onClick={stopCardClick}>
+                  <Eye className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </Button>
+            ) : null}
             <Button
               size="sm"
               variant="ghost"
+              className="h-8 w-8 px-0"
               onClick={(event) => {
                 stopCardClick(event);
                 props.onDownload({
@@ -185,21 +200,24 @@ export function NovelProjectCard(props: {
                 });
               }}
               disabled={isDownloadPending}
+              title={isDownloadPending ? "正在导出" : "导出作品"}
+              aria-label={isDownloadPending ? "正在导出" : "导出作品"}
             >
-              {isDownloadPending ? "导出中..." : "导出"}
+              <Download className="h-4 w-4" aria-hidden="true" />
             </Button>
             <Button
               size="sm"
               variant="ghost"
-              className="text-muted-foreground hover:text-destructive"
+              className="h-8 w-8 px-0 text-muted-foreground hover:text-destructive"
               onClick={(event) => {
                 stopCardClick(event);
                 props.onDelete(props.novel.id, props.novel.title);
               }}
               disabled={isDeletePending}
+              title={isDeletePending ? "正在删除" : "删除作品"}
+              aria-label={isDeletePending ? "正在删除" : "删除作品"}
             >
-              <Trash2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
-              {isDeletePending ? "删除中..." : "删除"}
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         </div>
@@ -216,6 +234,15 @@ function renderPrimaryAction(input: {
   onContinueWorkflow: (input: { taskId: string; mode?: DirectorContinuationMode }) => void;
   onStopCardClick: (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>) => void;
 }) {
+  if (input.novel.narrativeForm === "short_story") {
+    return (
+      <Button asChild size="sm">
+        <Link to={`/novels/${input.novel.id}/story`} onClick={input.onStopCardClick}>
+          打开作品
+        </Link>
+      </Button>
+    );
+  }
   if (canContinueChapterBatchAutoExecution(input.task)) {
     return (
       <Button

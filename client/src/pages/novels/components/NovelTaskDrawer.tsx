@@ -499,6 +499,7 @@ export default function NovelTaskDrawer({
                     value={overrideModel}
                     onChange={onOverrideModelChange}
                     compact
+                    showParameters
                     showBadge={false}
                     showHelperText={false}
                   />

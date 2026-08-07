@@ -25,6 +25,8 @@ import novelChapterSummaryRouter from "../production/http/novelChapterSummary";
 import novelDecisionsRouter from "../state/http/novelDecisions";
 import type { NovelHttpServices } from "./novelHttpServices";
 import { guardSimpleCreationUserWrites } from "./simpleCreationWriteGuard";
+import { registerShortStoryRoutes } from "../short-story/http/shortStoryRoutes";
+import { registerWritingPlatformRoutes } from "../writing-platform/http/writingPlatformRoutes";
 import {
   aiRevisionPreviewSchema,
   arcPlanParamsSchema,
@@ -85,6 +87,9 @@ export function registerNovelHttpRoutes(router: Router, services: NovelHttpServi
     router,
     novelService,
   });
+
+  registerShortStoryRoutes(router);
+  registerWritingPlatformRoutes(router);
 
   registerNovelFramingRoutes({
     router,

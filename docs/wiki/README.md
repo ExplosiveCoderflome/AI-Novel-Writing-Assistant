@@ -35,6 +35,7 @@ Wiki 不记录单次提交改了什么，也不替代 release notes。它只记�
 ### Prompts
 
 - [Prompt Registry 与结构化输出](./prompts/prompt-registry-and-structured-output.md)
+- [平台写法配置与正文 Prompt 可编辑合同](./prompts/platform-writing-profiles.md)
 
 ### RAG
 

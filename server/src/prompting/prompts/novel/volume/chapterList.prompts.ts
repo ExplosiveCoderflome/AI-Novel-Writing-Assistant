@@ -277,7 +277,7 @@ export function createVolumeChapterListPrompt(
 
   return {
     id: "novel.volume.chapter_list",
-    version: "v7",
+    version: "v8",
     taskType: "planner",
     mode: "structured",
     language: "zh",
@@ -367,6 +367,8 @@ export function createVolumeChapterListPrompt(
           `5. chapterCount 与 chapters.length 必须严格等于 ${targetChapterCount}。`,
           `6. 每章 beatKey 都必须严格等于 ${targetBeatKey}。`,
           "7. 不得输出 Markdown、注释、解释或任何额外文本。",
+          "8. 每章 summary 控制在 40-120 个汉字，只写核心行动、阻力和造成的新局面；禁止扩写场景、对白或正文。",
+          "9. 写完指定数量的最后一章后立即结束 JSON，不得追加分析、自检过程或候选版本。",
           "",
           "三、章节规划核心原则",
           "1. 章节列表必须严格服从当前卷骨架与当前目标 beat 合同，不能偷跑到相邻 beat。",

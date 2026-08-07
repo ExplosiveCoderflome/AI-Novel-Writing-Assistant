@@ -85,6 +85,22 @@ const chapterCountSchema = z.preprocess((value) => {
   return value;
 }, z.number().int().min(DIRECTOR_MIN_TARGET_CHAPTER_COUNT).max(DIRECTOR_MAX_TARGET_CHAPTER_COUNT));
 
+const productionFoundationOptionSchema = z.object({
+  id: nonEmptyString,
+  name: nonEmptyString,
+  path: nonEmptyString,
+  reason: nonEmptyString,
+});
+
+const productionFoundationSchema = z.object({
+  summary: nonEmptyString,
+  genre: productionFoundationOptionSchema,
+  primaryStoryMode: productionFoundationOptionSchema,
+  secondaryStoryMode: productionFoundationOptionSchema.nullable().optional(),
+  caution: z.string().nullable().optional(),
+  recommendedAt: nonEmptyString,
+});
+
 export const directorCandidateSchema = z.object({
   id: nonEmptyString.optional(),
   workingTitle: nonEmptyString,
@@ -104,8 +120,11 @@ export const directorCandidateSchema = z.object({
   hookStrategy: nonEmptyString,
   progressionLoop: nonEmptyString,
   whyItFits: nonEmptyString,
+  recommendedWritingPlatform: z.enum(["fanqie_free", "qidian_male", "jinjiang_female"]).optional(),
+  writingPlatformReason: nonEmptyString.optional(),
   toneKeywords: keywordArraySchema,
   targetChapterCount: chapterCountSchema,
+  productionFoundation: productionFoundationSchema.optional(),
 });
 
 export const directorPersistedCandidateSchema = directorCandidateSchema.extend({
@@ -113,7 +132,10 @@ export const directorPersistedCandidateSchema = directorCandidateSchema.extend({
 });
 
 export const directorCandidateResponseSchema = z.object({
-  candidates: z.array(directorCandidateSchema).length(2),
+  candidates: z.array(directorCandidateSchema.extend({
+    recommendedWritingPlatform: z.enum(["fanqie_free", "qidian_male", "jinjiang_female"]),
+    writingPlatformReason: nonEmptyString,
+  })).length(2),
 });
 
 export const directorBookContractSchema = z.object({

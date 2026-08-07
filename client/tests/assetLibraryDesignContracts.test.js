@@ -16,6 +16,10 @@ const knowledgePage = readClientFile("src/pages/knowledge/KnowledgePage.tsx");
 const knowledgeDocuments = readClientFile("src/pages/knowledge/components/KnowledgeDocumentsTab.tsx");
 const knowledgeOverview = readClientFile("src/pages/knowledge/components/KnowledgeLibraryOverview.tsx");
 const genrePage = readClientFile("src/pages/genres/GenreManagementPage.tsx");
+const genreTreeBrowser = readClientFile("src/pages/genres/components/GenreTreeBrowser.tsx");
+const storyModePage = readClientFile("src/pages/storyModes/StoryModeManagementPage.tsx");
+const storyModeTreeBrowser = readClientFile("src/pages/storyModes/components/StoryModeTreeBrowser.tsx");
+const assetTreeNavigator = readClientFile("src/components/assetLibrary/AssetTreeNavigator.tsx");
 const characterPage = readClientFile("src/pages/characters/CharacterLibrary.tsx");
 
 test("asset library semantic status colors are registered as theme tokens", () => {
@@ -53,4 +57,28 @@ test("phase one asset pages expose purpose status recommendation and recovery st
   assert.match(genrePage, /genreTreeQuery\.isError/);
   assert.match(characterPage, /characterListQuery\.isLoading/);
   assert.match(characterPage, /characterListQuery\.isError/);
+});
+
+test("genre library uses a compact tree browser with a separate detail surface", () => {
+  assert.match(genrePage, /GenreTreeBrowser/);
+  assert.match(genreTreeBrowser, /AssetTreeNavigator/);
+  assert.match(assetTreeNavigator, /role="tree"/);
+  assert.match(assetTreeNavigator, /role="treeitem"/);
+  assert.match(genreTreeBrowser, /题材目录/);
+  assert.match(genreTreeBrowser, /selected-genre-title/);
+  assert.match(genreTreeBrowser, /lg:grid-cols-\[320px_minmax\(0,1fr\)\]/);
+  assert.match(genreTreeBrowser, /viewportClassName="max-h-\[380px\]"/);
+  assert.doesNotMatch(genreTreeBrowser, /min-h-\[520px\]/);
+  assert.doesNotMatch(genreTreeBrowser, /shadow-(?:sm|md|lg|xl|2xl)/);
+});
+
+test("story mode library reuses the tree navigator and keeps mode contracts in the detail pane", () => {
+  assert.match(storyModePage, /StoryModeTreeBrowser/);
+  assert.match(storyModeTreeBrowser, /AssetTreeNavigator/);
+  assert.match(storyModeTreeBrowser, /推进模式目录/);
+  assert.match(storyModeTreeBrowser, /核心驱动/);
+  assert.match(storyModeTreeBrowser, /读者回报/);
+  assert.match(storyModeTreeBrowser, /推进单元/);
+  assert.match(storyModeTreeBrowser, /冲突上限/);
+  assert.doesNotMatch(storyModeTreeBrowser, /shadow-(?:sm|md|lg|xl|2xl)/);
 });

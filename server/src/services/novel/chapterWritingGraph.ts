@@ -16,6 +16,23 @@ import {
 import { chapterWriterPrompt } from "../../prompting/prompts/novel/chapterWriter.prompts";
 import { NovelContinuationService } from "./NovelContinuationService";
 import { assertChapterContentNotEmpty } from "./runtime/chapterEmptyContentError";
+import { prisma } from "../../db/prisma";
+import type { WritingPlatformSnapshot } from "@ai-novel/shared/types/writingPlatform";
+
+async function loadWritingPlatformBlock(novelId: string) {
+  const novel = await prisma.novel.findUnique({
+    where: { id: novelId },
+    select: { writingPlatformSnapshotJson: true },
+  });
+  let content = "沿用通用中文商业网文写法，保持情节推进、人物主动、因果清晰和章节回报。";
+  if (novel?.writingPlatformSnapshotJson) {
+    try {
+      const snapshot = JSON.parse(novel.writingPlatformSnapshotJson) as WritingPlatformSnapshot;
+      content = `${snapshot.label}（配置版本 ${snapshot.profileVersion}）：${snapshot.guidance.drafting}`;
+    } catch { /* 旧数据继续使用通用合同。 */ }
+  }
+  return createContextBlock({ id: "writing_platform", group: "writing_platform", priority: 105, required: true, content });
+}
 
 export interface ChapterGraphLLMOptions {
   provider?: LLMProvider;
@@ -173,7 +190,7 @@ export class ChapterWritingGraph {
       lengthGoal.targetWordCount - currentLength,
       lengthGoal.minWordCount - currentLength,
     );
-    const builtBlocks = buildChapterWriterContextBlocks(writeContext);
+    const builtBlocks = [await loadWritingPlatformBlock(input.novelId), ...buildChapterWriterContextBlocks(writeContext)];
     const sanitized = sanitizeWriterContextBlocks([
       createContextBlock({
         id: "current_draft_excerpt",
@@ -266,7 +283,7 @@ export class ChapterWritingGraph {
     }
     const contextPackage = input.contextPackage;
     const targetRange = resolveTargetWordRange(chapterWriteContext.chapterMission.targetWordCount);
-    const builtBlocks = buildChapterWriterContextBlocks(chapterWriteContext);
+    const builtBlocks = [await loadWritingPlatformBlock(input.novelId), ...buildChapterWriterContextBlocks(chapterWriteContext)];
     const sanitized = sanitizeWriterContextBlocks(builtBlocks);
     if (sanitized.removedBlockIds.length > 0) {
       this.deps.logWarn("Writer context blocks removed by guard", {

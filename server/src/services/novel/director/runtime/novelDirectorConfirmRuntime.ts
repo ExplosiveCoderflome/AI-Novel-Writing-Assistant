@@ -1,4 +1,7 @@
-import { isFullBookAutopilotRunMode } from "@ai-novel/shared/types/novelDirector";
+import {
+  DEFAULT_DIRECTOR_STARTUP_PREPARATION,
+  isFullBookAutopilotRunMode,
+} from "@ai-novel/shared/types/novelDirector";
 import type {
   BookSpec,
   DirectorConfirmApiResponse,
@@ -25,6 +28,11 @@ import type { DirectorRuntimeService } from "./DirectorRuntimeService";
 import type { NovelDirectorRuntimeOrchestrator } from "./novelDirectorRuntimeOrchestrator";
 import type { NovelDirectorPipelineRuntime } from "../novelDirectorPipelineRuntime";
 import { getDirectorConfirmNovelCreateStepModule } from "../workflowStepRuntime/directorWorkflowStepModules";
+import { runStructuredPrompt } from "../../../../prompting/core/promptRunner";
+import { writingPlatformRecommendationPrompt } from "../../../../prompting/prompts/novel/writingPlatformRecommendation.prompts";
+import { writingPlatformProfileService } from "../../../../modules/novel/writing-platform";
+import { prisma } from "../../../../db/prisma";
+import { novelCreateResourceRecommendationService } from "../../NovelCreateResourceRecommendationService";
 
 type WorkflowTaskSnapshot = Awaited<ReturnType<NovelWorkflowService["getTaskByIdWithoutHealing"]>>;
 
@@ -54,8 +62,12 @@ export class NovelDirectorConfirmRuntime {
   }) {}
 
   async confirmCandidate(input: DirectorConfirmRequest): Promise<DirectorConfirmApiResponse> {
-    const resolvedInput = applyDirectorRunModeContract(await this.deps.enrichDirectorStyleContext(input));
-    const runMode = "auto_to_ready" as const;
+    const resolvedInput = applyDirectorRunModeContract({
+      ...await this.deps.enrichDirectorStyleContext(input),
+      runMode: "full_book_autopilot" as const,
+      startupPreparation: input.startupPreparation ?? DEFAULT_DIRECTOR_STARTUP_PREPARATION,
+    });
+    const runMode = "full_book_autopilot" as const;
     const title = resolvedInput.candidate.workingTitle.trim() || resolvedInput.title?.trim() || "未命名项目";
     const description = resolvedInput.description?.trim() || resolvedInput.candidate.logline.trim();
     const bookSpec = toBookSpec(
@@ -68,6 +80,8 @@ export class NovelDirectorConfirmRuntime {
       lane: "auto_director",
       title,
       seedPayload: this.deps.buildDirectorSeedPayload({ ...resolvedInput, runMode }, null, {
+        productionExperience: "simple",
+        startupPreparation: resolvedInput.startupPreparation,
         directorSession: buildDirectorSessionState({
           runMode,
           phase: "candidate_selection",
@@ -146,6 +160,57 @@ export class NovelDirectorConfirmRuntime {
           ...resolvedBookFraming,
           runMode,
         };
+        const foundation = await novelCreateResourceRecommendationService.resolveRequired({
+          title,
+          description,
+          targetAudience: resolvedBookFraming.targetAudience,
+          bookSellingPoint: resolvedBookFraming.bookSellingPoint,
+          competingFeel: resolvedBookFraming.competingFeel,
+          first30ChapterPromise: resolvedBookFraming.first30ChapterPromise,
+          commercialTags: resolvedBookFraming.commercialTags,
+          genreId: directorInput.genreId || directorInput.candidate.productionFoundation?.genre.id,
+          primaryStoryModeId: directorInput.primaryStoryModeId || directorInput.candidate.productionFoundation?.primaryStoryMode.id,
+          secondaryStoryModeId: directorInput.secondaryStoryModeId || directorInput.candidate.productionFoundation?.secondaryStoryMode?.id,
+          writingMode: directorInput.writingMode,
+          projectMode: directorInput.projectMode,
+          narrativePov: directorInput.narrativePov,
+          pacePreference: directorInput.pacePreference,
+          styleTone: directorInput.styleTone,
+          emotionIntensity: directorInput.emotionIntensity,
+          aiFreedom: directorInput.aiFreedom,
+          provider: directorInput.provider,
+          model: directorInput.model,
+          temperature: directorInput.temperature,
+        });
+        const resolvedDirectorInput: DirectorConfirmRequest = {
+          ...directorInput,
+          genreId: foundation.genreId,
+          primaryStoryModeId: foundation.primaryStoryModeId,
+          secondaryStoryModeId: foundation.secondaryStoryModeId,
+        };
+        const selectedPlatform = resolvedDirectorInput.writingPlatformPreference && resolvedDirectorInput.writingPlatformPreference !== "ai_recommend"
+          ? resolvedDirectorInput.writingPlatformPreference
+          : resolvedDirectorInput.candidate.recommendedWritingPlatform
+            ? resolvedDirectorInput.candidate.recommendedWritingPlatform
+            : (await runStructuredPrompt({
+            asset: writingPlatformRecommendationPrompt,
+            promptInput: {
+              narrativeForm: "long_novel",
+              title,
+              description,
+              targetAudience: resolvedBookFraming.targetAudience,
+              bookSellingPoint: resolvedBookFraming.bookSellingPoint,
+              styleTone: resolvedDirectorInput.styleTone,
+              originalIdea: resolvedDirectorInput.idea,
+            },
+            options: {
+              taskId: workflowTask.id,
+              entrypoint: "auto_director",
+              stage: "writing_platform_recommend",
+              temperature: 0.25,
+            },
+            })).output.platform;
+        const platformSnapshot = await writingPlatformProfileService.snapshot(selectedPlatform, "long_novel");
 
         const novelCreateModule = getDirectorConfirmNovelCreateStepModule();
         const createdNovel = await this.deps.runtimeOrchestrator.runStepModule({
@@ -167,9 +232,9 @@ export class NovelDirectorConfirmRuntime {
               competingFeel: resolvedBookFraming.competingFeel,
               first30ChapterPromise: resolvedBookFraming.first30ChapterPromise,
               commercialTags: resolvedBookFraming.commercialTags,
-              genreId: resolvedInput.genreId?.trim() || undefined,
-              primaryStoryModeId: resolvedInput.primaryStoryModeId?.trim() || undefined,
-              secondaryStoryModeId: resolvedInput.secondaryStoryModeId?.trim() || undefined,
+              genreId: resolvedDirectorInput.genreId,
+              primaryStoryModeId: resolvedDirectorInput.primaryStoryModeId,
+              secondaryStoryModeId: resolvedDirectorInput.secondaryStoryModeId,
               worldId: resolvedInput.worldId?.trim() || undefined,
               writingMode: resolvedInput.writingMode,
               projectMode: resolvedInput.projectMode,
@@ -208,6 +273,15 @@ export class NovelDirectorConfirmRuntime {
         if (!createdNovel?.id) {
           throw new Error("自动导演建书节点没有返回小说项目。");
         }
+        await prisma.novel.update({
+          where: { id: createdNovel.id },
+          data: {
+            creationExperience: "simple",
+            writingPlatform: selectedPlatform,
+            writingPlatformProfileVersion: platformSnapshot.profileVersion,
+            writingPlatformSnapshotJson: JSON.stringify(platformSnapshot),
+          },
+        });
         await this.deps.ensurePrimaryNovelStyleBinding(createdNovel.id, resolvedInput.styleProfileId);
         const directorSession = buildDirectorSessionState({
           runMode,
@@ -224,7 +298,9 @@ export class NovelDirectorConfirmRuntime {
           novelId: createdNovel.id,
           lane: "auto_director",
           title,
-          seedPayload: this.deps.buildDirectorSeedPayload(directorInput, createdNovel.id, {
+          seedPayload: this.deps.buildDirectorSeedPayload(resolvedDirectorInput, createdNovel.id, {
+            productionExperience: "simple",
+            startupPreparation: resolvedDirectorInput.startupPreparation,
             directorSession,
             resumeTarget,
           }),
@@ -247,7 +323,7 @@ export class NovelDirectorConfirmRuntime {
           await this.deps.pipelineRuntime.runPipeline({
             taskId: workflowTask.id,
             novelId: createdNovel.id,
-            input: directorInput,
+            input: resolvedDirectorInput,
             startPhase: "story_macro",
             scope: "book",
             approveCurrentGate: isFullBookAutopilotRunMode(runMode),

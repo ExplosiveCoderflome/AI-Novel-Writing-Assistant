@@ -128,6 +128,15 @@ test("structured output profiles distinguish official, ModelScope Qwen and unkno
   assert.equal(deepseekBehindProxyProfile.nativeJsonSchema, false);
   assert.equal(selectStructuredOutputStrategy(deepseekBehindProxyProfile, schema), "json_object");
 
+  const deepseekFlashProfile = resolveStructuredOutputProfile({
+    provider: "deepseek",
+    model: "deepseek-v4-flash",
+    baseURL: "https://api.deepseek.com/v1",
+    executionMode: "structured",
+  });
+  assert.equal(deepseekFlashProfile.requiresNonThinkingForStructured, true);
+  assert.equal(deepseekFlashProfile.supportsReasoningToggle, true);
+
   const kimiProfile = resolveStructuredOutputProfile({
     provider: "kimi",
     model: "kimi-k2.5",
@@ -216,6 +225,10 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     key: "test-key",
     reasoningEnabled: true,
   });
+  setProviderSecretCache("deepseek", {
+    key: "test-key",
+    reasoningEnabled: true,
+  });
 
   try {
     const modelscope = await resolveLLMClientOptions("custom_modelscope", {
@@ -260,6 +273,18 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     assert.equal(qwenThinking.maxTokens, 8192);
     assert.equal(qwenThinking.requestProtocol, "openai_compatible");
 
+    const deepseekFlash = await resolveLLMClientOptions("deepseek", {
+      model: "deepseek-v4-flash",
+      executionMode: "structured",
+      structuredStrategy: "json_object",
+      maxTokens: 5000,
+    });
+    assert.equal(deepseekFlash.structuredProfile?.family, "deepseek");
+    assert.equal(deepseekFlash.reasoningEnabled, false);
+    assert.equal(deepseekFlash.reasoningForcedOff, true);
+    assert.deepEqual(deepseekFlash.modelKwargs?.thinking, { type: "disabled" });
+    assert.equal(deepseekFlash.modelKwargs?.enable_thinking, undefined);
+
     const anthropicProtocol = await resolveLLMClientOptions("openai", {
       apiKey: "test-key",
       model: "claude-sonnet-4-5",
@@ -274,6 +299,7 @@ test("resolveLLMClientOptions applies structured reasoning and token guardrails"
     setProviderSecretCache("custom_modelscope", null);
     setProviderSecretCache("qwen", null);
     setProviderSecretCache("openai", null);
+    setProviderSecretCache("deepseek", null);
   }
 });
 

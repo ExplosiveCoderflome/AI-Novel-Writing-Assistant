@@ -34,10 +34,7 @@ import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { titleGenerationService } from "../../../title/TitleGenerationService";
 import { isNearDuplicateTitle } from "../../../title/titleGeneration.shared";
 import type { NovelWorkflowResumeTarget } from "@ai-novel/shared/types/novelWorkflow";
-import type {
-  DirectorBookContractParsed,
-  DirectorCandidateResponse,
-} from "./novelDirectorSchemas";
+import type { DirectorBookContractParsed } from "./novelDirectorSchemas";
 
 export type LLMOptions = Pick<DirectorCandidatesRequest, "provider" | "model" | "temperature">;
 
@@ -57,6 +54,8 @@ export interface DirectorCandidateStageState {
 
 export interface DirectorWorkflowSeedPayload extends Record<string, unknown> {
   productionExperience?: "simple" | "professional";
+  pendingProductionExperience?: "professional";
+  startupPreparation?: DirectorConfirmRequest["startupPreparation"];
   novelId?: string | null;
   provider?: DirectorLLMOptions["provider"] | null;
   model?: string | null;
@@ -230,7 +229,7 @@ function resolveDirectorReviewScope(phase: DirectorSessionState["phase"]): Direc
 }
 
 export function normalizeCandidate(
-  candidate: DirectorCandidateResponse["candidates"][number],
+  candidate: Omit<DirectorCandidate, "id"> & { id?: string },
   index: number,
 ): DirectorCandidate {
   return {
@@ -246,6 +245,8 @@ export function normalizeCandidate(
     hookStrategy: candidate.hookStrategy.trim(),
     progressionLoop: candidate.progressionLoop.trim(),
     whyItFits: candidate.whyItFits.trim(),
+    recommendedWritingPlatform: candidate.recommendedWritingPlatform,
+    writingPlatformReason: candidate.writingPlatformReason?.trim(),
     toneKeywords: Array.from(
       new Set(candidate.toneKeywords.map((item) => item.trim()).filter(Boolean)),
     ).slice(0, 4),
@@ -256,19 +257,21 @@ export function normalizeCandidate(
 export async function enhanceCandidateTitles(
   candidate: DirectorCandidate,
   context: CandidateGenerationContext,
+  options: { excludedTitles?: string[] } = {},
 ): Promise<DirectorCandidate> {
-  const fallbackOptions = [buildFallbackTitleOption(candidate)];
+  const excludedTitles = options.excludedTitles ?? [];
+  const fallbackOptions = mergeTitleOptions([], candidate, excludedTitles);
 
   try {
     const response = await titleGenerationService.generateTitleIdeas({
       mode: "brief",
-      brief: buildCandidateTitleBrief(candidate, context),
+      brief: buildCandidateTitleBrief(candidate, context, excludedTitles),
       genreId: context.request.genreId ?? null,
       count: 4,
       provider: context.options.provider,
       model: context.options.model,
     });
-    const mergedOptions = mergeTitleOptions(response.titles, candidate);
+    const mergedOptions = mergeTitleOptions(response.titles, candidate, excludedTitles);
     const primaryTitle = mergedOptions[0]?.title?.trim();
     return {
       ...candidate,
@@ -286,6 +289,7 @@ export async function enhanceCandidateTitles(
 function buildCandidateTitleBrief(
   candidate: DirectorCandidate,
   context: CandidateGenerationContext,
+  excludedTitles: string[] = [],
 ): string {
   const lines = [
     `故事灵感：${context.idea.trim()}`,
@@ -299,8 +303,10 @@ function buildCandidateTitleBrief(
     candidate.toneKeywords.length > 0 ? `气质关键词：${candidate.toneKeywords.join("、")}` : "",
     context.request.title?.trim() ? `用户当前草拟标题：${context.request.title.trim()}` : "",
     `当前方案原始命名：${candidate.workingTitle}`,
+    excludedTitles.length > 0 ? `其他方案已占用书名：${excludedTitles.join("、")}` : "",
     "请生成更适合中文网文封面展示和点击测试的书名，突出卖点、反差、异常规则、主角优势或追更钩子。",
     "不要写成策划案标题、世界观概念短语、流水线土味套壳名，也不要为了文艺感牺牲点击感。",
+    excludedTitles.length > 0 ? "不得复用或近似改写其他方案已占用的书名。" : "",
   ].filter(Boolean);
   return lines.join("\n");
 }
@@ -308,20 +314,64 @@ function buildCandidateTitleBrief(
 function mergeTitleOptions(
   generatedTitles: TitleFactorySuggestion[],
   candidate: DirectorCandidate,
+  excludedTitles: string[] = [],
 ): TitleFactorySuggestion[] {
   const merged: TitleFactorySuggestion[] = [];
   for (const option of generatedTitles) {
-    if (!merged.some((existing) => isNearDuplicateTitle(existing.title, option.title))) {
+    const conflictsWithExcluded = excludedTitles.some((title) => isNearDuplicateTitle(title, option.title));
+    if (!conflictsWithExcluded && !merged.some((existing) => isNearDuplicateTitle(existing.title, option.title))) {
       merged.push(option);
     }
   }
 
   const originalOption = buildFallbackTitleOption(candidate);
-  if (!merged.some((existing) => isNearDuplicateTitle(existing.title, originalOption.title))) {
+  const originalConflictsWithExcluded = excludedTitles.some((title) => (
+    isNearDuplicateTitle(title, originalOption.title)
+  ));
+  if (
+    !originalConflictsWithExcluded
+    && !merged.some((existing) => isNearDuplicateTitle(existing.title, originalOption.title))
+  ) {
     merged.push(originalOption);
   }
 
   return merged.slice(0, 4);
+}
+
+export function selectDistinctCandidateTitle(
+  candidate: DirectorCandidate,
+  excludedTitles: string[],
+): DirectorCandidate | null {
+  const availableOptions: TitleFactorySuggestion[] = [];
+  for (const option of candidate.titleOptions ?? []) {
+    const conflictsWithExcluded = excludedTitles.some((title) => isNearDuplicateTitle(title, option.title));
+    if (
+      !conflictsWithExcluded
+      && !availableOptions.some((existing) => isNearDuplicateTitle(existing.title, option.title))
+    ) {
+      availableOptions.push(option);
+    }
+  }
+
+  const currentTitleAvailable = !excludedTitles.some((title) => (
+    isNearDuplicateTitle(title, candidate.workingTitle)
+  ));
+  const selectedOption = currentTitleAvailable
+    ? availableOptions.find((option) => isNearDuplicateTitle(option.title, candidate.workingTitle))
+      ?? buildFallbackTitleOption(candidate)
+    : availableOptions[0];
+  if (!selectedOption) {
+    return null;
+  }
+
+  return {
+    ...candidate,
+    workingTitle: selectedOption.title.trim(),
+    titleOptions: [
+      selectedOption,
+      ...availableOptions.filter((option) => !isNearDuplicateTitle(option.title, selectedOption.title)),
+    ].slice(0, 4),
+  };
 }
 
 function buildFallbackTitleOption(candidate: DirectorCandidate): TitleFactorySuggestion {
@@ -440,6 +490,7 @@ export function buildWorkflowSeedPayload(
     writingMode: input.writingMode ?? "original",
     projectMode: input.projectMode ?? "co_pilot",
     readerChannelPreference: input.readerChannelPreference ?? "ai_judge",
+    writingPlatformPreference: input.writingPlatformPreference ?? "ai_recommend",
     narrativePov: input.narrativePov ?? "third_person",
     pacePreference: input.pacePreference ?? "balanced",
     styleTone: input.styleTone?.trim() || "",
@@ -476,6 +527,7 @@ export function buildWorkflowSeedPayload(
     writingMode: basicForm.writingMode,
     projectMode: basicForm.projectMode,
     readerChannelPreference: basicForm.readerChannelPreference,
+    writingPlatformPreference: basicForm.writingPlatformPreference,
     narrativePov: basicForm.narrativePov,
     pacePreference: basicForm.pacePreference,
     styleTone: basicForm.styleTone || null,

@@ -235,6 +235,19 @@ export function buildChapterWriterContextBlocks(
   const includeContinuationConstraints = mode === "full" && writeContext.continuationConstraints.length > 0;
   const wordRange = resolveTargetWordRange(writeContext.chapterMission.targetWordCount);
   const blocks: Array<PromptContextBlock | null> = [
+    writeContext.productionFoundationPrompt
+      ? createContextBlock({
+        id: "production_foundation",
+        group: "production_foundation",
+        priority: 100,
+        required: true,
+        allowSummary: false,
+        content: [
+          "本书创作底座（正文、验收与修复必须共同遵守）：",
+          writeContext.productionFoundationPrompt,
+        ].join("\n"),
+      })
+      : null,
     createContextBlock({
       id: "chapter_mission",
       group: "chapter_mission",

@@ -131,6 +131,43 @@ export function registerNovelEventHandlers(
     });
   }, 100);
 
+  eventBus.on("chapter:finalized", async (event) => {
+    if (event.type !== "chapter:finalized" || event.payload.chapterOrder !== 1) {
+      return;
+    }
+    const directorTask = await prisma.novelWorkflowTask.findFirst({
+      where: {
+        novelId: event.payload.novelId,
+        lane: "auto_director",
+      },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      select: { seedPayloadJson: true },
+    });
+    let isFastStart = false;
+    try {
+      const seed = JSON.parse(directorTask?.seedPayloadJson ?? "{}") as {
+        startupPreparation?: {
+          strategy?: string;
+          backgroundEnrichment?: string;
+        };
+      };
+      isFastStart = seed.startupPreparation?.strategy === "fast_start"
+        && seed.startupPreparation.backgroundEnrichment === "after_first_draft";
+    } catch {
+      isFastStart = false;
+    }
+    if (!isFastStart) {
+      return;
+    }
+    await sideEffectJobs.enqueueJob({
+      novelId: event.payload.novelId,
+      jobType: "character.postDraftEnrichment",
+      idempotencyKey: `character.postDraftEnrichment:${event.payload.novelId}:first-draft`,
+      payload: { novelId: event.payload.novelId },
+      maxAttempts: 100,
+    });
+  }, 95);
+
   eventBus.on("book-contract:updated", async (event) => {
     if (event.type !== "book-contract:updated" || !event.payload.payoffChanged) {
       return;
