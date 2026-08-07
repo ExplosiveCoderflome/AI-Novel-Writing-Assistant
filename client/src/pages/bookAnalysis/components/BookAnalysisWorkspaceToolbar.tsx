@@ -1,6 +1,7 @@
 import type { BookAnalysisDetail } from "@ai-novel/shared/types/bookAnalysis";
 import { Columns2, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
+import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatStatus, isBookAnalysisBudgetExceeded } from "../bookAnalysis.utils";
@@ -122,6 +123,13 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
           <Button asChild size="sm" variant="outline">
             <Link to={`/tasks?kind=book_analysis&id=${selectedAnalysis.id}`}>任务详情</Link>
           </Button>
+          <OpenInCreativeHubButton
+            bindings={{
+              bookAnalysisId: selectedAnalysis.id,
+              knowledgeDocumentIds: selectedAnalysis.documentId ? [selectedAnalysis.documentId] : [],
+            }}
+            label="创作中枢引用"
+          />
         </div>
       </div>
 

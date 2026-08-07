@@ -17,21 +17,26 @@ function listSourceFiles(directory) {
   });
 }
 
-test("book analysis exposes the shared workspace header and recommended action", () => {
+test("book analysis reserves the large header and guidance for states that need them", () => {
   const page = read("src/pages/bookAnalysis/BookAnalysisPage.tsx");
+  const toolbar = read("src/pages/bookAnalysis/components/BookAnalysisWorkspaceToolbar.tsx");
+
+  assert.match(page, /!workspace\.selectedAnalysisId \? \(/);
   assert.match(page, /<WorkspaceHeader/);
   assert.match(page, /<WorkspaceNextAction/);
+  assert.match(page, /nextAction\.tone !== "success"/);
   assert.match(page, /<WorkspaceStateNotice/);
+  assert.match(toolbar, /<OpenInCreativeHubButton/);
+  assert.match(toolbar, /bookAnalysisId: selectedAnalysis\.id/);
 });
 
-test("book analysis keeps source version range stage and progress in the first-view contract", () => {
-  const page = read("src/pages/bookAnalysis/BookAnalysisPage.tsx");
-  assert.match(page, /来源：/);
-  assert.match(page, /documentVersionNumber/);
-  assert.match(page, /范围：/);
-  assert.match(page, /阶段：/);
-  assert.match(page, /进度：/);
-  assert.match(page, /计划小节：/);
+test("book analysis keeps status budget and publishing actions in the compact result toolbar", () => {
+  const toolbar = read("src/pages/bookAnalysis/components/BookAnalysisWorkspaceToolbar.tsx");
+  assert.match(toolbar, /formatStatus\(selectedAnalysis\.status\)/);
+  assert.match(toolbar, /预算/);
+  assert.match(toolbar, /onPublish/);
+  assert.match(toolbar, /onDownload/);
+  assert.match(toolbar, /onCreateStyleProfile/);
 });
 
 test("book analysis provides loading error and retry states for list and detail queries", () => {
