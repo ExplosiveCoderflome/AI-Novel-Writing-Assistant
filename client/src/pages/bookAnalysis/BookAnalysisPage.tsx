@@ -169,7 +169,7 @@ export default function BookAnalysisPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 pb-10">
       {workspace.selectedAnalysis ? (
         <BookAnalysisBudgetAdjustDialog
           open={budgetDialogMode !== null}
@@ -181,6 +181,7 @@ export default function BookAnalysisPage() {
         />
       ) : null}
       <WorkspaceHeader
+        className="rounded-[24px] border-b-0 bg-gradient-to-br from-card via-card to-muted/30 px-5 py-6 shadow-[0_18px_55px_rgba(15,23,42,0.05)] sm:px-7"
         icon={BookOpenText}
         context={workspace.analysisMode === "diagnosis" ? "稿件诊断 · 原文与结果工作台" : "参考拆书 · 原文与结果工作台"}
         title={workspace.selectedAnalysis?.title ?? "拆书分析"}
@@ -261,6 +262,7 @@ export default function BookAnalysisPage() {
         />
       ) : (
         <WorkspaceNextAction
+          className="rounded-2xl border-transparent px-5 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"
           tone={nextAction.tone}
           icon={nextAction.action === "view_results" ? ListChecks : undefined}
           title={nextAction.title}
@@ -277,8 +279,8 @@ export default function BookAnalysisPage() {
           ) : null}
         />
       )}
-      <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
-        <div className="order-2 min-w-0 xl:order-1">
+      <div className="grid gap-6 xl:grid-cols-[252px_minmax(0,1fr)]">
+        <div className="order-2 min-w-0 xl:order-1 xl:sticky xl:top-4 xl:self-start">
           <BookAnalysisSidebar
             keyword={workspace.keyword}
             status={workspace.status}
@@ -298,7 +300,7 @@ export default function BookAnalysisPage() {
           />
         </div>
 
-        <div className="order-1 min-w-0 space-y-4 xl:order-2">
+        <div className="order-1 min-w-0 space-y-5 xl:order-2">
           {workspace.analysisMode === "diagnosis" && workspace.selectedAnalysis ? (
             <BookAnalysisDiagnosisTipBanner documentTitle={workspace.selectedAnalysis.documentTitle} />
           ) : null}
