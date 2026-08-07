@@ -17,6 +17,7 @@ const knowledgeDocuments = readClientFile("src/pages/knowledge/components/Knowle
 const knowledgeOverview = readClientFile("src/pages/knowledge/components/KnowledgeLibraryOverview.tsx");
 const knowledgeOps = readClientFile("src/pages/knowledge/components/KnowledgeOpsTab.tsx");
 const knowledgeSettings = readClientFile("src/pages/knowledge/components/KnowledgeEmbeddingSettingsCard.tsx");
+const worldList = readClientFile("src/pages/worlds/WorldList.tsx");
 const genrePage = readClientFile("src/pages/genres/GenreManagementPage.tsx");
 const genreTreeBrowser = readClientFile("src/pages/genres/components/GenreTreeBrowser.tsx");
 const storyModePage = readClientFile("src/pages/storyModes/StoryModeManagementPage.tsx");
@@ -85,6 +86,18 @@ test("knowledge maintenance keeps recovery obvious and technical detail secondar
   assert.match(knowledgeSettings, /连接资料库/);
   assert.match(knowledgeSettings, /高级配置/);
   assert.match(knowledgeSettings, /保存检索设置/);
+});
+
+test("world library presents reusable story samples before handbook detail", () => {
+  assert.match(worldList, /如何把样本用于小说/);
+  assert.match(worldList, /展开创作线索/);
+  assert.match(worldList, /2xl:grid-cols-3/);
+  assert.match(worldList, /查看世界手册/);
+  assert.match(worldList, /整理样本/);
+  assert.match(worldList, /handleDelete/);
+  assert.match(worldList, /worldListQuery\.isLoading/);
+  assert.match(worldList, /worldListQuery\.isError/);
+  assert.doesNotMatch(worldList, /grid grid-cols-4 gap-2 text-center/);
 });
 
 test("genre library uses a compact tree browser with a separate detail surface", () => {
