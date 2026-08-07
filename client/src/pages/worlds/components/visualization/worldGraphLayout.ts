@@ -1,3 +1,14 @@
+import {
+  forceCenter,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+  forceX,
+  forceY,
+  type SimulationLinkDatum,
+  type SimulationNodeDatum,
+} from "d3-force";
 import type { WorldGeographyDirection } from "@ai-novel/shared/types/world";
 
 export type GraphNode = {
@@ -26,421 +37,225 @@ export type GraphEdge = {
 };
 
 export type Point = { x: number; y: number };
+export type GraphLayout = "graph" | "map";
 
-export type LabelPlacement = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+export const GRAPH_NODE_SIZE = {
+  graph: { width: 136, height: 62 },
+  map: { width: 148, height: 72 },
+} as const;
+
+export const ROUTE_STYLES: Record<string, { stroke: string; dash?: string; label: string }> = {
+  road: { stroke: "#64748b", label: "道路" },
+  river: { stroke: "#0284c7", dash: "6 5", label: "河流" },
+  sea: { stroke: "#2563eb", dash: "10 6", label: "海路" },
+  portal: { stroke: "#7c3aed", dash: "3 5", label: "传送" },
+  trade: { stroke: "#16a34a", dash: "8 5", label: "商道" },
+  military: { stroke: "#dc2626", dash: "5 4", label: "军道" },
+  border: { stroke: "#f59e0b", dash: "4 4", label: "边界" },
+  other: { stroke: "#64748b", label: "其他" },
 };
 
-export type EdgeLabelPlacement = LabelPlacement & {
-  label: string;
+const DIRECTION_COORDINATES: Record<WorldGeographyDirection, Point> = {
+  north: { x: 50, y: 14 },
+  south: { x: 50, y: 86 },
+  east: { x: 86, y: 50 },
+  west: { x: 14, y: 50 },
+  center: { x: 50, y: 50 },
+  northeast: { x: 78, y: 22 },
+  northwest: { x: 22, y: 22 },
+  southeast: { x: 78, y: 78 },
+  southwest: { x: 22, y: 78 },
 };
 
-type Obstacle = LabelPlacement & { id?: string };
-type Anchor = "top" | "bottom" | "left" | "right" | "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
-
-export const ROUTE_STYLES: Record<string, { stroke: string; dash?: string }> = {
-  road: { stroke: "#64748b" },
-  river: { stroke: "#0284c7", dash: "6 5" },
-  sea: { stroke: "#2563eb", dash: "10 6" },
-  portal: { stroke: "#7c3aed", dash: "3 5" },
-  trade: { stroke: "#16a34a", dash: "8 5" },
-  military: { stroke: "#dc2626", dash: "5 4" },
-  border: { stroke: "#f59e0b", dash: "4 4" },
-  other: { stroke: "#64748b" },
-};
-
-const DIRECTION_LABELS: Record<WorldGeographyDirection, string> = {
-  north: "北",
-  south: "南",
-  east: "东",
-  west: "西",
-  center: "中",
-  northeast: "东北",
-  northwest: "西北",
-  southeast: "东南",
-  southwest: "西南",
-};
-
-export function truncateText(text: string, maxLength: number): string {
-  const trimmed = text.trim();
-  if (trimmed.length <= maxLength) {
-    return trimmed;
-  }
-  return `${trimmed.slice(0, Math.max(1, maxLength - 1))}…`;
+interface ForceNode extends SimulationNodeDatum {
+  id: string;
+  anchorX: number;
+  anchorY: number;
 }
 
-export function getNodeBadgeText(label: string): string {
-  const trimmed = label.trim();
-  if (!trimmed) {
-    return "?";
-  }
-  return trimmed.length <= 2 ? trimmed : trimmed.slice(0, 2);
+interface ForceEdge extends SimulationLinkDatum<ForceNode> {
+  source: string | ForceNode;
+  target: string | ForceNode;
 }
 
-function wrapLabel(label: string, lineSize = 6, maxLines = 3): string[] {
-  const normalized = label.trim();
-  if (!normalized) {
-    return [];
+type Rect = { x: number; y: number; width: number; height: number };
+
+function hashGraph(nodes: GraphNode[], edges: GraphEdge[], layout: GraphLayout): number {
+  const input = `${layout}|${nodes.map((node) => node.id).sort().join("|")}|${edges
+    .map((edge) => `${edge.source}>${edge.target}:${edge.relation}`)
+    .sort()
+    .join("|")}`;
+  let hash = 2166136261;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
   }
-  const chunks: string[] = [];
-  for (let index = 0; index < normalized.length; index += lineSize) {
-    chunks.push(normalized.slice(index, index + lineSize));
-    if (chunks.length >= maxLines) {
-      break;
-    }
-  }
-  if (normalized.length > lineSize * maxLines && chunks.length > 0) {
-    const lastIndex = chunks.length - 1;
-    chunks[lastIndex] = `${chunks[lastIndex].slice(0, Math.max(1, lineSize - 1))}…`;
-  }
-  return chunks;
+  return hash >>> 0;
 }
 
-function getMapLabelMeta(node: GraphNode): string {
-  return [
-    node.directionHint ? DIRECTION_LABELS[node.directionHint] : "",
-    node.terrain ? truncateText(node.terrain, 8) : "",
-    node.risk ? "风险" : "",
-  ].filter(Boolean).join(" / ");
-}
-
-export function getLabelSize(node: GraphNode, layout: "graph" | "map") {
-  const labelLines = wrapLabel(node.label, layout === "map" ? 6 : 7, layout === "map" ? 2 : 2);
-  const metaText = layout === "map" ? getMapLabelMeta(node) : "";
-  const longestLine = Math.max(...labelLines.map((line) => line.length), metaText.length, 0);
-  return {
-    labelLines,
-    metaText,
-    width: Math.max(layout === "map" ? 94 : 86, Math.min(layout === "map" ? 146 : 158, longestLine * 12 + 24)),
-    height: Math.max(30, labelLines.length * 15 + 12 + (metaText ? 14 : 0)),
+function seededRandom(seed: number) {
+  let state = seed || 1;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
   };
-}
-
-export function buildFactionLayout(nodes: GraphNode[], width: number, height: number): Map<string, Point> {
-  const result = new Map<string, Point>();
-  if (nodes.length === 0) {
-    return result;
-  }
-  const centerX = width / 2;
-  const centerY = height / 2;
-  const radiusX = Math.min(width * 0.39, Math.max(210, nodes.length * 29));
-  const radiusY = Math.min(height * 0.34, Math.max(128, nodes.length * 14));
-  const grouped = new Map<string, GraphNode[]>();
-  nodes.forEach((node) => {
-    const key = node.type?.trim() || "other";
-    grouped.set(key, [...(grouped.get(key) ?? []), node]);
-  });
-  const ordered = Array.from(grouped.values()).flatMap((group, groupIndex) => (
-    groupIndex % 2 === 0 ? group : [...group].reverse()
-  ));
-  const angleOffset = -Math.PI / 2;
-  ordered.forEach((node, index) => {
-    const angle = angleOffset + (Math.PI * 2 * index) / Math.max(ordered.length, 1);
-    const ringOffset = nodes.length > 10 && index % 2 === 1 ? 0.78 : 1;
-    result.set(node.id, {
-      x: centerX + radiusX * ringOffset * Math.cos(angle),
-      y: centerY + radiusY * ringOffset * Math.sin(angle),
-    });
-  });
-  return result;
 }
 
 function spreadAxis(values: Array<number | undefined>, padding: number): Array<number | undefined> {
   const finite = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
-  if (finite.length < 2) {
-    return values;
-  }
+  if (finite.length < 2) return values;
   const min = Math.min(...finite);
   const max = Math.max(...finite);
   const range = max - min;
+  if (range < 0.5) return values;
   if (range >= 36) {
     return values.map((value) => value == null ? undefined : Math.max(4, Math.min(96, value)));
   }
-  if (range < 0.5) {
-    return values;
-  }
-  return values.map((value) => value == null
-    ? undefined
-    : padding + ((value - min) / range) * (100 - padding * 2));
+  return values.map((value) => value == null ? undefined : padding + ((value - min) / range) * (100 - padding * 2));
 }
 
-export function buildMapLayout(nodes: GraphNode[], width: number, height: number): Map<string, Point> {
-  const result = new Map<string, Point>();
-  const fallback = buildFactionLayout(nodes, width, height);
-  const paddingX = 88;
-  const paddingY = 68;
-  const innerWidth = width - paddingX * 2;
-  const innerHeight = height - paddingY * 2;
-  const spreadX = spreadAxis(nodes.map((node) => node.x), 18);
-  const spreadY = spreadAxis(nodes.map((node) => node.y), 18);
-  const duplicateCounts = new Map<string, number>();
-
-  nodes.forEach((node, index) => {
-    const rawX = spreadX[index];
-    const rawY = spreadY[index];
-    const fallbackPoint = fallback.get(node.id) ?? { x: width / 2, y: height / 2 };
-    let x = rawX == null ? fallbackPoint.x : paddingX + (Math.max(4, Math.min(96, rawX)) / 100) * innerWidth;
-    let y = rawY == null ? fallbackPoint.y : paddingY + (Math.max(4, Math.min(96, rawY)) / 100) * innerHeight;
-    const key = `${Math.round(x / 18)}:${Math.round(y / 18)}`;
-    const duplicateIndex = duplicateCounts.get(key) ?? 0;
-    duplicateCounts.set(key, duplicateIndex + 1);
-    if (duplicateIndex > 0) {
-      const angle = duplicateIndex * 2.4;
-      const distance = 30 + Math.floor(duplicateIndex / 3) * 12;
-      x += Math.cos(angle) * distance;
-      y += Math.sin(angle) * distance;
-    }
-    result.set(node.id, {
-      x: Math.max(54, Math.min(width - 54, x)),
-      y: Math.max(48, Math.min(height - 48, y)),
-    });
-  });
-  const minimumDistance = nodes.length <= 8 ? 108 : nodes.length <= 14 ? 88 : 72;
-  for (let iteration = 0; iteration < 14; iteration += 1) {
-    let moved = false;
-    const entries = [...result.entries()];
-    for (let firstIndex = 0; firstIndex < entries.length; firstIndex += 1) {
-      for (let secondIndex = firstIndex + 1; secondIndex < entries.length; secondIndex += 1) {
-        const [firstId, first] = entries[firstIndex];
-        const [secondId, second] = entries[secondIndex];
-        let dx = second.x - first.x;
-        let dy = second.y - first.y;
-        let distance = Math.hypot(dx, dy);
-        if (distance >= minimumDistance) {
-          continue;
-        }
-        if (distance < 1) {
-          const angle = (firstIndex + secondIndex + 1) * 2.17;
-          dx = Math.cos(angle);
-          dy = Math.sin(angle);
-          distance = 1;
-        }
-        const push = (minimumDistance - distance) / 2 + 1;
-        const unitX = dx / distance;
-        const unitY = dy / distance;
-        const nextFirst = {
-          x: Math.max(54, Math.min(width - 54, first.x - unitX * push)),
-          y: Math.max(48, Math.min(height - 48, first.y - unitY * push)),
-        };
-        const nextSecond = {
-          x: Math.max(54, Math.min(width - 54, second.x + unitX * push)),
-          y: Math.max(48, Math.min(height - 48, second.y + unitY * push)),
-        };
-        result.set(firstId, nextFirst);
-        result.set(secondId, nextSecond);
-        entries[firstIndex] = [firstId, nextFirst];
-        entries[secondIndex] = [secondId, nextSecond];
-        moved = true;
-      }
-    }
-    if (!moved) {
-      break;
-    }
-  }
-  return result;
-}
-
-function overlaps(a: LabelPlacement, b: LabelPlacement, gap = 8): boolean {
-  return a.x < b.x + b.width + gap
-    && a.x + a.width + gap > b.x
-    && a.y < b.y + b.height + gap
-    && a.y + a.height + gap > b.y;
-}
-
-function overlapArea(a: LabelPlacement, b: LabelPlacement): number {
-  const width = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
-  const height = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
-  return width * height;
-}
-
-function clampPlacement(candidate: LabelPlacement, width: number, height: number): LabelPlacement {
+function clampPosition(point: Point, width: number, height: number, layout: GraphLayout): Point {
+  const size = GRAPH_NODE_SIZE[layout];
+  const halfWidth = size.width / 2;
+  const halfHeight = size.height / 2;
   return {
-    ...candidate,
-    x: Math.max(12, Math.min(width - candidate.width - 12, candidate.x)),
-    y: Math.max(12, Math.min(height - candidate.height - 12, candidate.y)),
+    x: Math.max(halfWidth + 28, Math.min(width - halfWidth - 28, point.x)),
+    y: Math.max(halfHeight + 24, Math.min(height - halfHeight - 24, point.y)),
   };
 }
 
-function getNodeObstacle(id: string, point: Point, layout: "graph" | "map"): Obstacle {
-  const size = layout === "map" ? 62 : 68;
-  return { id, x: point.x - size / 2, y: point.y - size / 2, width: size, height: size };
-}
-
-function getCrowdingScore(node: GraphNode, positions: Map<string, Point>): number {
-  const point = positions.get(node.id);
-  if (!point) {
-    return 0;
-  }
-  let score = 0;
-  positions.forEach((other, otherId) => {
-    if (otherId !== node.id) {
-      score += 1 / Math.max(24, Math.hypot(point.x - other.x, point.y - other.y));
-    }
+function createFactionForceNodes(nodes: GraphNode[], width: number, height: number): ForceNode[] {
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const radiusX = Math.min(width * 0.36, Math.max(220, nodes.length * 28));
+  const radiusY = Math.min(height * 0.34, Math.max(140, nodes.length * 15));
+  return nodes.map((node, index) => {
+    const angle = -Math.PI / 2 + (Math.PI * 2 * index) / Math.max(nodes.length, 1);
+    const ring = nodes.length > 10 && index % 2 === 1 ? 0.72 : 1;
+    const x = centerX + radiusX * ring * Math.cos(angle);
+    const y = centerY + radiusY * ring * Math.sin(angle);
+    return { id: node.id, x, y, anchorX: x, anchorY: y };
   });
-  return score;
 }
 
-function pushAnchorCandidate(
-  candidates: Array<{ x: number; y: number }>,
-  point: Point,
-  width: number,
-  height: number,
-  anchor: Anchor,
-  distance: number,
-) {
-  const verticalGap = 32 + (distance - 1) * 32;
-  const horizontalGap = 34 + (distance - 1) * 38;
-  const diagonalGap = 22 + (distance - 1) * 34;
-  const placements: Record<Anchor, Point> = {
-    top: { x: point.x - width / 2, y: point.y - height - verticalGap },
-    bottom: { x: point.x - width / 2, y: point.y + verticalGap },
-    left: { x: point.x - width - horizontalGap, y: point.y - height / 2 },
-    right: { x: point.x + horizontalGap, y: point.y - height / 2 },
-    topLeft: { x: point.x - width - diagonalGap, y: point.y - height - diagonalGap },
-    topRight: { x: point.x + diagonalGap, y: point.y - height - diagonalGap },
-    bottomLeft: { x: point.x - width - diagonalGap, y: point.y + diagonalGap },
-    bottomRight: { x: point.x + diagonalGap, y: point.y + diagonalGap },
-  };
-  candidates.push(placements[anchor]);
-}
-
-function getLabelCandidates(
-  point: Point,
-  width: number,
-  height: number,
-  layout: "graph" | "map",
-  direction: WorldGeographyDirection | undefined,
-  index: number,
-) {
-  const candidates: Array<{ x: number; y: number }> = [];
-  const directionAnchors: Partial<Record<WorldGeographyDirection, Anchor[]>> = {
-    north: ["bottom", "bottomRight", "bottomLeft"],
-    south: ["top", "topRight", "topLeft"],
-    east: ["left", "bottomLeft", "topLeft"],
-    west: ["right", "bottomRight", "topRight"],
-    northeast: ["bottomLeft", "left", "bottom"],
-    northwest: ["bottomRight", "right", "bottom"],
-    southeast: ["topLeft", "left", "top"],
-    southwest: ["topRight", "right", "top"],
-  };
-  const anchors: Anchor[] = ["bottom", "top", "right", "left", "bottomRight", "bottomLeft", "topRight", "topLeft"];
-  const preferred = layout === "map" && direction ? directionAnchors[direction] ?? [] : [];
-  const rotated = anchors.map((_, offset) => anchors[(offset + index) % anchors.length]);
-  const ordered = [...preferred, ...rotated.filter((anchor) => !preferred.includes(anchor))];
-  for (const distance of [1, 2, 3]) {
-    ordered.forEach((anchor) => pushAnchorCandidate(candidates, point, width, height, anchor, distance));
-  }
-  return candidates;
-}
-
-export function buildLabelPlacements(
-  nodes: GraphNode[],
-  positions: Map<string, Point>,
-  width: number,
-  height: number,
-  layout: "graph" | "map",
-): Map<string, LabelPlacement> {
-  const result = new Map<string, LabelPlacement>();
-  const nodeObstacles = nodes
-    .map((node) => {
-      const point = positions.get(node.id);
-      return point ? getNodeObstacle(node.id, point, layout) : null;
-    })
-    .filter((item): item is Obstacle => Boolean(item));
-  const placed: LabelPlacement[] = [];
-  const sortedNodes = [...nodes].sort((a, b) => getCrowdingScore(b, positions) - getCrowdingScore(a, positions));
-
-  sortedNodes.forEach((node, index) => {
-    const point = positions.get(node.id);
-    if (!point) {
-      return;
-    }
-    const size = getLabelSize(node, layout);
-    const candidates = getLabelCandidates(point, size.width, size.height, layout, node.directionHint, index)
-      .map((candidate) => clampPlacement({ ...candidate, width: size.width, height: size.height }, width, height));
-    const scoreCandidate = (candidate: LabelPlacement) => {
-      const labelPenalty = placed.reduce((sum, item) => sum + overlapArea(candidate, item) * 20, 0);
-      const nodePenalty = nodeObstacles
-        .filter((item) => item.id !== node.id)
-        .reduce((sum, item) => sum + overlapArea(candidate, item) * 35, 0);
-      return labelPenalty + nodePenalty;
+function createMapForceNodes(nodes: GraphNode[], width: number, height: number): ForceNode[] {
+  const spreadX = spreadAxis(nodes.map((node) => node.x), 14);
+  const spreadY = spreadAxis(nodes.map((node) => node.y), 14);
+  const innerWidth = width - 196;
+  const innerHeight = height - 144;
+  return nodes.map((node, index) => {
+    const fallback = node.directionHint ? DIRECTION_COORDINATES[node.directionHint] : {
+      x: 18 + ((index * 31) % 64),
+      y: 18 + ((index * 47) % 64),
     };
-    const selected = candidates.find((candidate) => (
-      !placed.some((item) => overlaps(candidate, item))
-      && !nodeObstacles.some((item) => item.id !== node.id && overlaps(candidate, item))
-    )) ?? [...candidates].sort((a, b) => scoreCandidate(a) - scoreCandidate(b))[0];
-    if (selected) {
-      placed.push(selected);
-      result.set(node.id, selected);
-    }
+    const normalizedX = spreadX[index] ?? fallback.x;
+    const normalizedY = spreadY[index] ?? fallback.y;
+    const anchorX = 98 + (Math.max(4, Math.min(96, normalizedX)) / 100) * innerWidth;
+    const anchorY = 72 + (Math.max(4, Math.min(96, normalizedY)) / 100) * innerHeight;
+    return { id: node.id, x: anchorX, y: anchorY, anchorX, anchorY };
   });
-  return result;
 }
 
-export function buildEdgeLabelPlacements(
+export function buildGraphLayout(
+  nodes: GraphNode[],
   edges: GraphEdge[],
-  positions: Map<string, Point>,
-  nodeLabels: Map<string, LabelPlacement>,
   width: number,
   height: number,
-  layout: "graph" | "map",
-): EdgeLabelPlacement[] {
-  const pointObstacles = [...positions.values()].map((point) => ({
-    x: point.x - (layout === "map" ? 34 : 32),
-    y: point.y - (layout === "map" ? 34 : 32),
-    width: layout === "map" ? 68 : 64,
-    height: layout === "map" ? 68 : 64,
+  layout: GraphLayout,
+): Map<string, Point> {
+  if (nodes.length === 0) return new Map();
+  const forceNodes = layout === "map"
+    ? createMapForceNodes(nodes, width, height)
+    : createFactionForceNodes(nodes, width, height);
+  const nodeIds = new Set(forceNodes.map((node) => node.id));
+  const forceEdges: ForceEdge[] = edges
+    .filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target))
+    .map((edge) => ({ source: edge.source, target: edge.target }));
+  const simulation = forceSimulation<ForceNode>(forceNodes)
+    .randomSource(seededRandom(hashGraph(nodes, edges, layout)))
+    .force("collide", forceCollide<ForceNode>(layout === "map" ? 82 : 88).strength(0.96).iterations(3))
+    .stop();
+
+  if (layout === "map") {
+    simulation
+      .force("anchor-x", forceX<ForceNode>((node) => node.anchorX).strength(0.24))
+      .force("anchor-y", forceY<ForceNode>((node) => node.anchorY).strength(0.24))
+      .force("charge", forceManyBody<ForceNode>().strength(-70));
+  } else {
+    simulation
+      .force("links", forceLink<ForceNode, ForceEdge>(forceEdges).id((node) => node.id).distance(210).strength(0.24))
+      .force("charge", forceManyBody<ForceNode>().strength(-690))
+      .force("center", forceCenter(width / 2, height / 2).strength(0.08));
+  }
+  simulation.tick(layout === "map" ? 180 : 220);
+
+  return new Map(forceNodes.map((node) => [
+    node.id,
+    clampPosition({ x: node.x ?? node.anchorX, y: node.y ?? node.anchorY }, width, height, layout),
+  ]));
+}
+
+export function truncateText(text: string, maxLength: number): string {
+  const trimmed = text.trim();
+  return trimmed.length <= maxLength ? trimmed : `${trimmed.slice(0, Math.max(1, maxLength - 1))}…`;
+}
+
+export function getShortRelation(edge: GraphEdge): string {
+  return truncateText(edge.relation || "关系", 5);
+}
+
+export function getNodeBadgeText(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) return "?";
+  return trimmed.length <= 2 ? trimmed : trimmed.slice(0, 2);
+}
+
+export function getRouteStyle(routeType?: string) {
+  return ROUTE_STYLES[routeType ?? "other"] ?? ROUTE_STYLES.other;
+}
+
+function overlaps(first: Rect, second: Rect, gap = 8): boolean {
+  return first.x < second.x + second.width + gap
+    && first.x + first.width + gap > second.x
+    && first.y < second.y + second.height + gap
+    && first.y + first.height + gap > second.y;
+}
+
+export function getVisibleEdgeLabelIds(
+  edges: Array<GraphEdge & { id: string }>,
+  positions: Map<string, Point>,
+  layout: GraphLayout,
+): Set<string> {
+  const size = GRAPH_NODE_SIZE[layout];
+  const obstacles: Rect[] = [...positions.values()].map((point) => ({
+    x: point.x - size.width / 2,
+    y: point.y - size.height / 2,
+    width: size.width,
+    height: size.height,
   }));
-  const occupied = [...nodeLabels.values(), ...pointObstacles];
-  const result: EdgeLabelPlacement[] = [];
-  edges.forEach((edge, edgeIndex) => {
-    const from = positions.get(edge.source);
-    const to = positions.get(edge.target);
-    if (!from || !to) {
-      result.push({ x: 0, y: 0, width: 0, height: 0, label: "" });
-      return;
-    }
-    const label = truncateText(edge.relation, layout === "map" ? 7 : 9);
-    const labelWidth = Math.max(50, Math.min(126, label.length * 11 + 20));
-    const labelHeight = 22;
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const length = Math.hypot(dx, dy) || 1;
-    const normal = { x: -dy / length, y: dx / length };
-    const midpoints = [0.5, 0.38, 0.62].map((ratio) => ({
-      x: from.x + dx * ratio,
-      y: from.y + dy * ratio,
-    }));
-    const offsetSign = edgeIndex % 2 === 0 ? 1 : -1;
-    const offsets = [28 * offsetSign, -28 * offsetSign, 46 * offsetSign, -46 * offsetSign, 66 * offsetSign, -66 * offsetSign];
-    const candidates = midpoints.flatMap((midpoint) => offsets.map((offset) => clampPlacement({
-        x: midpoint.x + normal.x * offset - labelWidth / 2,
-        y: midpoint.y + normal.y * offset - labelHeight / 2,
-        width: labelWidth,
-        height: labelHeight,
-      }, width, height)));
-    const score = (candidate: LabelPlacement) => occupied.reduce((sum, item) => sum + overlapArea(candidate, item), 0);
-    const selected = candidates.find((candidate) => !occupied.some((item) => overlaps(candidate, item, 10)))
-      ?? [...candidates].sort((a, b) => score(a) - score(b))[0];
-    const placement = { ...(selected ?? candidates[0]), label };
-    occupied.push(placement);
-    result.push(placement);
+  const visible = new Set<string>();
+  edges.forEach((edge) => {
+    const source = positions.get(edge.source);
+    const target = positions.get(edge.target);
+    if (!source || !target) return;
+    const label = getShortRelation(edge);
+    const width = Math.max(44, Math.min(92, label.length * 12 + 20));
+    const rect: Rect = {
+      x: (source.x + target.x) / 2 - width / 2,
+      y: (source.y + target.y) / 2 - 12,
+      width,
+      height: 24,
+    };
+    if (obstacles.some((obstacle) => overlaps(rect, obstacle, 10))) return;
+    visible.add(edge.id);
+    obstacles.push(rect);
   });
-  return result;
+  return visible;
 }
 
 export function getRiskTone(risk?: string): string {
-  if (!risk) {
-    return "#0ea5e9";
-  }
-  if (/高|危险|封锁|暗杀|战争|失控|禁区|崩溃/.test(risk)) {
-    return "#dc2626";
-  }
-  if (/中|紧张|巡防|冲突|代价|压力/.test(risk)) {
-    return "#f59e0b";
-  }
+  if (!risk) return "#0ea5e9";
+  if (/高|危险|封锁|暗杀|战争|失控|禁区|崩溃/.test(risk)) return "#dc2626";
+  if (/中|紧张|巡防|冲突|代价|压力/.test(risk)) return "#f59e0b";
   return "#0ea5e9";
 }
