@@ -19,11 +19,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import SelectControl from "@/components/common/SelectControl";
 
 const IMAGE_STATUS_TEXT: Record<string, string> = {
-  queued: "排队中",
-  running: "生成中",
-  succeeded: "生成成功",
-  failed: "生成失败",
-  cancelled: "已取消",
+  queued: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+  running: "Generating",
+  succeeded: "Generated successfully",
+  failed: "Build failed",
+  cancelled: "Canceled",
 };
 
 type ImagePromptMode = "character_chain" | "direct";
@@ -49,8 +49,8 @@ export function CharacterImageDialog({
   const [directPromptSource, setDirectPromptSource] = useState<DirectPromptSource | null>(null);
   const [optimizedPromptLanguage, setOptimizedPromptLanguage] = useState<ImagePromptOutputLanguage>("zh");
   const [imageForm, setImageForm] = useState({
-    stylePreset: "写实人像",
-    negativePrompt: "低清晰度，畸形，多余肢体，文字水印",
+    stylePreset: "Realistic portrait",
+    negativePrompt: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
     provider: "" as LLMProvider,
     size: "1024x1024" as "512x512" | "768x768" | "1024x1024" | "1024x1536" | "1536x1024",
     count: 2,
@@ -121,8 +121,8 @@ export function CharacterImageDialog({
   const hasDirectPrompt = directPrompt.trim().length > 0;
 
   const currentSendModeLabel = promptMode === "direct"
-    ? (directPromptSource === "optimized" ? "AI优化 Prompt" : "手动编辑 Prompt")
-    : "原链路 Prompt";
+    ? (directPromptSource === "optimized" ? "AI Optimization Prompt" : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.")
+    : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   const currentSendModeClass = promptMode === "direct"
     ? (directPromptSource === "optimized"
       ? "rounded-full bg-emerald-50 px-3 py-1 text-emerald-700"
@@ -185,7 +185,7 @@ export function CharacterImageDialog({
   const optimizeMutation = useMutation({
     mutationFn: async () => {
       if (!character) {
-        throw new Error("请先选择角色。");
+        throw new Error("Please select a role first.");
       }
       return optimizeCharacterImagePrompt({
         sceneType: "character",
@@ -203,10 +203,10 @@ export function CharacterImageDialog({
   const generateMutation = useMutation({
     mutationFn: async () => {
       if (!character) {
-        throw new Error("请先选择角色。");
+        throw new Error("Please select a role first.");
       }
       if (!imageForm.provider) {
-        throw new Error("请先在系统设置中为一个厂商填写图像模型。");
+        throw new Error("Please first fill in the image model for a vendor in the system settings.");
       }
       return generateCharacterImages({
         sceneType: "character",
@@ -243,22 +243,22 @@ export function CharacterImageDialog({
       <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-[980px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0">
         <DialogHeader className="shrink-0 border-b border-slate-200 px-6 pb-4 pt-5">
           <DialogTitle className="text-[22px] font-semibold tracking-tight text-slate-900">
-            生成角色形象图
-            {character ? `：${character.name}` : ""}
+            Generate character image diagram
+                                  {character ? `：${character.name}` : ""}
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
           <section className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/65 p-4">
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-slate-900">角色描述 / AI优化输入</div>
+              <div className="text-sm font-semibold text-slate-900">Character description/AI optimized input</div>
               <div className="text-xs leading-5 text-slate-500">
-                这里填写角色描述。点击“AI优化Prompt”后，会把这段描述整理成图片生成专用 prompt。
-              </div>
+                Fill in the role description here. After clicking "AI Optimization Prompt", this description will be organized into a special prompt for image generation.
+                                            </div>
             </div>
             <textarea
               className="min-h-[190px] max-h-[38vh] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-              placeholder="输入角色描述，越具体越好。"
+              placeholder="Enter a description of your role, the more specific the better."
               value={sourcePrompt}
               onChange={(event) => updateSourcePrompt(event.target.value)}
             />
@@ -267,7 +267,7 @@ export function CharacterImageDialog({
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-2">
-                <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">优化输出语言</div>
+                <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Optimize output language</div>
                 <div className="inline-flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 sm:w-auto">
                   <Button
                     type="button"
@@ -276,8 +276,8 @@ export function CharacterImageDialog({
                     className="min-w-[92px] flex-1 rounded-lg sm:flex-none"
                     onClick={() => setOptimizedPromptLanguage("zh")}
                   >
-                    中文
-                  </Button>
+                    Chinese
+                                                        </Button>
                   <Button
                     type="button"
                     variant={optimizedPromptLanguage === "en" ? "default" : "ghost"}
@@ -299,7 +299,7 @@ export function CharacterImageDialog({
                     onClick={() => optimizeMutation.mutate()}
                     disabled={optimizeMutation.isPending || !sourcePrompt.trim()}
                   >
-                    {optimizeMutation.isPending ? "优化中..." : "AI优化Prompt"}
+                    {optimizeMutation.isPending ? "Optimizing..." : "AI Optimization Prompt"}
                   </Button>
                   <Button
                     type="button"
@@ -308,12 +308,12 @@ export function CharacterImageDialog({
                     onClick={restoreOriginalChainPrompt}
                     disabled={promptMode !== "direct" && !hasDirectPrompt}
                   >
-                    恢复原链路
-                  </Button>
+                    Restore original link
+                                                        </Button>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 text-sm xl:justify-end">
-                  <span className="text-slate-500">当前发送模式</span>
+                  <span className="text-slate-500">Current sending mode</span>
                   <span className={currentSendModeClass}>{currentSendModeLabel}</span>
                 </div>
               </div>
@@ -322,10 +322,10 @@ export function CharacterImageDialog({
 
           <section className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/55 p-4">
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-slate-900">最终发送 Prompt 预览</div>
+              <div className="text-sm font-semibold text-slate-900">Finally send Prompt preview</div>
               <div className="text-xs leading-5 text-slate-500">
-                这里展示最终会发送给图像模型的 prompt。你可以直接手动编辑；AI 优化后，也可以继续在这里修改。
-              </div>
+                Shown here is the prompt that will eventually be sent to the image model. You can edit manually directly; after AI optimization, you can continue to modify it here.
+                                            </div>
             </div>
             <textarea
               className="min-h-[240px] max-h-[42vh] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
@@ -339,19 +339,19 @@ export function CharacterImageDialog({
           <div className="grid gap-2 md:grid-cols-2">
             <input
               className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-              placeholder="风格预设，例如：电影感写实"
+              placeholder="Style presets, for example: cinematic realism"
               value={imageForm.stylePreset}
               onChange={(event) => updateStylePreset(event.target.value)}
             />
             <input
               className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-              placeholder="负向提示词，例如：低清晰度、畸形、多余肢体、文字水印"
+              placeholder="Negative prompt words, such as: low definition, deformity, extra limbs, text watermark"
               value={imageForm.negativePrompt}
               onChange={(event) => setImageForm((prev) => ({ ...prev, negativePrompt: event.target.value }))}
             />
 
             <label className="space-y-1 text-sm">
-              <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">模型厂商</div>
+              <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Model manufacturer</div>
               <SelectControl
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                 value={imageForm.provider}
@@ -363,7 +363,7 @@ export function CharacterImageDialog({
                   }))}
               >
                 {imageProviderOptions.length === 0 ? (
-                  <option value="">请先在系统设置中填写图像模型</option>
+                  <option value="">Please fill in the image model in the system settings first</option>
                 ) : null}
                 {imageProviderOptions.map((item) => (
                   <option key={item.provider} value={item.provider}>
@@ -374,7 +374,7 @@ export function CharacterImageDialog({
             </label>
 
             <label className="space-y-1 text-sm">
-              <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">尺寸</div>
+              <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</div>
               <SelectControl
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                 value={imageForm.size}
@@ -393,7 +393,7 @@ export function CharacterImageDialog({
             </label>
 
             <label className="space-y-1 text-sm md:col-span-2">
-              <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">生成张数</div>
+              <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Number of generated sheets</div>
               <SelectControl
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                 value={String(imageForm.count)}
@@ -403,17 +403,17 @@ export function CharacterImageDialog({
                     count: Number(event.target.value),
                   }))}
               >
-                <option value="1">1 张</option>
-                <option value="2">2 张</option>
-                <option value="3">3 张</option>
-                <option value="4">4 张</option>
+                <option value="1">1 piece</option>
+                <option value="2">2 sheets</option>
+                <option value="3">3 sheets</option>
+                <option value="4">4 pictures</option>
               </SelectControl>
             </label>
           </div>
 
           {activeTask ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-              <div>当前任务状态：{IMAGE_STATUS_TEXT[activeTask.status] ?? activeTask.status}</div>
+              <div>Current task status:{IMAGE_STATUS_TEXT[activeTask.status] ?? activeTask.status}</div>
               {activeTask.error ? (
                 <div className="mt-1 text-xs text-destructive">{activeTask.error}</div>
               ) : null}
@@ -425,7 +425,7 @@ export function CharacterImageDialog({
             onClick={() => generateMutation.mutate()}
             disabled={generateMutation.isPending || !finalPromptPreview.trim() || !imageForm.provider || Boolean(activeTaskId)}
           >
-            {generateMutation.isPending ? "提交任务中..." : "开始生成"}
+            {generateMutation.isPending ? "Submitting task..." : "Starting generation"}
           </Button>
         </div>
       </DialogContent>

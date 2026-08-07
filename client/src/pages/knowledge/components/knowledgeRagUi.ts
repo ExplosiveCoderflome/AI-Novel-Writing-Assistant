@@ -3,21 +3,21 @@ import type { RagJobSummary } from "@/api/knowledge";
 export function formatStatus(status: string): string {
   switch (status) {
     case "enabled":
-      return "已启用";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "disabled":
-      return "已停用";
+      return "Deactivated";
     case "archived":
-      return "已归档";
+      return "Archived";
     case "idle":
-      return "空闲";
+      return "idle";
     case "queued":
-      return "排队中";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "running":
-      return "执行中";
+      return "Executing";
     case "succeeded":
-      return "成功";
+      return "success";
     case "failed":
-      return "失败";
+      return "fail";
     default:
       return status;
   }

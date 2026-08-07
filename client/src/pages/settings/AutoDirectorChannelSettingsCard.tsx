@@ -27,7 +27,7 @@ function AutoDirectorEventMultiSelect(props: {
         onClick={() => setOpen((prev) => !prev)}
       >
         <span className={`min-w-0 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>{summarizeSelectedAutoDirectorEvents(value)}</span>
-        <span className="shrink-0 text-xs text-muted-foreground">{open ? "收起" : "展开"}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">{open ? "Collapse" : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}</span>
       </button>
       {open ? (
         <div className="min-w-0 space-y-2 rounded-md border bg-background p-3">
@@ -78,16 +78,16 @@ export function AutoDirectorChannelSettingsCard(props: {
     onSave,
     isSaving,
   } = props;
-  const toggleLabel = isOpen ? "收起导演跟进通道配置" : "展开导演跟进通道配置";
+  const toggleLabel = isOpen ? "Close director follow-up channel configuration" : "Expand director follow-up channel configuration";
 
   return (
     <Card className="min-w-0 overflow-hidden">
       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
         <div className="min-w-0 space-y-1.5">
-          <CardTitle>导演跟进通道配置</CardTitle>
+          <CardTitle>Director follow-up channel configuration</CardTitle>
           <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            集中配置钉钉与企微的 webhook、回调 token、用户映射和事件订阅。未配完整回调能力时，消息会自动降级成仅跳转站内。
-          </CardDescription>
+            Centrally configure webhooks, callback tokens, user mappings and event subscriptions for DingTalk and Qiwei. When the complete callback capability is not configured, the message will be automatically downgraded to only jump within the site.
+                                </CardDescription>
         </div>
         <Button
           type="button"
@@ -106,20 +106,20 @@ export function AutoDirectorChannelSettingsCard(props: {
       {isOpen ? (
         <CardContent id="auto-director-channel-settings-content" className="space-y-6">
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">站内访问地址</div>
+            <div className="text-xs text-muted-foreground">Site access address</div>
             <Input
               value={channelDraft.baseUrl}
               placeholder="https://book.example.com"
               onChange={(event) => onBaseUrlChange(event.target.value)}
             />
             <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-xs text-muted-foreground`}>
-              用于钉钉/企微消息里的“打开跟进中心 / 查看详情”链接。未填写时会回退到服务端环境中的站点地址。
-            </div>
+              Used for the "Open Follow-up Center/View Details" link in DingTalk/Qiwei messages. If not filled in, it will fall back to the site address in the server environment.
+                                      </div>
           </div>
 
           {(["dingtalk", "wecom"] as const).map((channelType) => (
             <div key={channelType} className="min-w-0 space-y-3 rounded-lg border p-3 sm:p-4">
-              <div className="font-medium">{channelType === "dingtalk" ? "钉钉" : "企业微信"}</div>
+              <div className="font-medium">{channelType === "dingtalk" ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Enterprise WeChat"}</div>
               <div className="grid min-w-0 gap-3 md:grid-cols-2">
                 <div className="space-y-1">
                   <div className="text-xs text-muted-foreground">Webhook URL</div>
@@ -130,16 +130,16 @@ export function AutoDirectorChannelSettingsCard(props: {
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">回调 Token</div>
+                  <div className="text-xs text-muted-foreground">Callback Token</div>
                   <Input
                     value={channelDraft[channelType].callbackToken}
-                    placeholder="可选；未配置则只保留站内跳转"
+                    placeholder="Optional; if not configured, only intra-site jumps will be retained."
                     onChange={(event) => onPatchChannelDraft(channelType, { callbackToken: event.target.value })}
                   />
                 </div>
               </div>
               <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">用户映射 JSON</div>
+                <div className="text-xs text-muted-foreground">User mapping JSON</div>
                 <Input
                   value={channelDraft[channelType].operatorMapJson}
                   placeholder='{"ding_user_1":"user_1"}'
@@ -147,7 +147,7 @@ export function AutoDirectorChannelSettingsCard(props: {
                 />
               </div>
               <div className="space-y-1">
-                <div className="text-xs text-muted-foreground">订阅事件</div>
+                <div className="text-xs text-muted-foreground">Subscribe to events</div>
                 <AutoDirectorEventMultiSelect
                   value={channelDraft[channelType].eventTypes}
                   onChange={(eventTypes) => onPatchChannelDraft(channelType, { eventTypes })}
@@ -158,10 +158,10 @@ export function AutoDirectorChannelSettingsCard(props: {
 
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.channelSettingsActionRow}>
             <Button variant="outline" asChild className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}>
-              <Link to="/settings/model-routes">去看模型路由</Link>
+              <Link to="/settings/model-routes">Go to model routing</Link>
             </Button>
             <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onSave} disabled={isSaving}>
-              {isSaving ? "保存中..." : "保存导演跟进通道配置"}
+              {isSaving ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Save director follow-up channel configuration"}
             </Button>
           </div>
         </CardContent>

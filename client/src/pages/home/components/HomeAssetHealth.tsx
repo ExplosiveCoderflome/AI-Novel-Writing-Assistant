@@ -9,7 +9,7 @@ const iconById: Record<string, typeof Boxes> = { world: Globe2, characters: User
 export function HomeAssetHealth(props: { items: HomeAssetHealthItem[]; showStarterActions?: boolean }) {
   return (
     <Card className="home-asset-health border-border/80 shadow-none">
-      <CardHeader className="pb-3"><CardTitle className="text-base tracking-normal">创作资产概览</CardTitle></CardHeader>
+      <CardHeader className="pb-3"><CardTitle className="text-base tracking-normal">Creation Asset Overview</CardTitle></CardHeader>
       <CardContent>
         <div className="space-y-1">
           {props.items.map((item) => {

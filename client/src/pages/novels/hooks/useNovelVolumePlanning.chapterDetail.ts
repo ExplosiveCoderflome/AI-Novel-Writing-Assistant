@@ -47,7 +47,7 @@ interface RunChapterDetailBatchGenerationArgs {
 }
 
 function describeChapterTarget(target: ChapterDetailTarget): string {
-  return `第${target.chapterOrder}章《${target.title || "未命名章节"}》`;
+  return `第${target.chapterOrder}章《${target.title || "Unnamed chapter"}》`;
 }
 
 function buildFallbackLabel(targets: ChapterDetailTarget[]): string {
@@ -57,7 +57,7 @@ function buildFallbackLabel(targets: ChapterDetailTarget[]): string {
   const first = targets[0];
   const last = targets[targets.length - 1];
   if (!first || !last) {
-    return "当前章节范围";
+    return "Current chapter scope";
   }
   return `第${first.chapterOrder}-${last.chapterOrder}章（共 ${targets.length} 章）`;
 }
@@ -117,24 +117,10 @@ export function buildChapterDetailBatchConfirmationMessage(
       ? `将基于当前内容为${batch.label} AI 补齐章节目标、执行边界和任务单。`
       : `将基于当前内容为${batch.label}连续补齐章节目标、执行边界和任务单。`,
     batch.hasExistingDrafts
-      ? "会优先沿用各章已填写结果，只修正空缺、模糊和不够可执行的部分。"
-      : "当前这些章节还是空白，AI 会先补出首版，再按现有标题和摘要逐章收束。",
-    "不会改动章节标题和摘要。",
-    batch.missingCount > 0 ? `有 ${batch.missingCount} 章已不在当前卷草稿中，会自动跳过。` : "",
-  ].filter(Boolean).join("\n\n");
-}
-
-export async function runChapterDetailBatchGeneration({
-  initialDraft,
-  label,
-  targetVolumeId,
-  targets,
-  setIsGenerating,
-  setCurrentChapterId,
-  setCurrentMode,
-  setStructuredMessage,
-  generateChapterDetail,
-}: RunChapterDetailBatchGenerationArgs): Promise<void> {
+      ? "Priority will be given to using the filled-in results of each chapter, and only the blank, vague and insufficiently executable parts will be corrected."
+      : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+    "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+    batch.missingCount > 0 ? `Chapters with ${batch.missingCount} are not in the current volume draft and will be automatically skipped. ` : "", ].filter(Boolean).join("\n\n"); } export async function runChapterDetailBatchGeneration({ initialDraft, label, targetVolumeId, targets, setIsGenerating, setCurrentChapterId, setCurrentMode, setStructuredMessage, generateChapterDetail, }: RunChapterDetailBatchGenerationArgs): Promise<void> {
   let workingDraft = initialDraft;
   let processedModeCount = 0;
   setIsGenerating(true);

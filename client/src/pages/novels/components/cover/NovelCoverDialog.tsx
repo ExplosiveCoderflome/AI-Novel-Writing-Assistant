@@ -33,16 +33,7 @@ import {
 } from "./novelCoverDraft";
 import SelectControl from "@/components/common/SelectControl";
 
-const IMAGE_STATUS_TEXT: Record<string, string> = {
-  queued: "排队中",
-  running: "生成中",
-  succeeded: "生成成功",
-  failed: "生成失败",
-  cancelled: "已取消",
-};
-
-type DirectPromptSource = "optimized" | "manual";
-type CoverSize = NonNullable<GenerateNovelCoverPayload["size"]>;
+const IMAGE_STATUS_TEXT: Record<string, string> = { queued: "queued", running: "generating", succeeded: "generating successfully", failed: "generating failed", cancelled: "cancelled", }; type DirectPromptSource = "optimized" | "manual"; type CoverSize = NonNullable<GenerateNovelCoverPayload["size"]>;
 
 interface GenreOption {
   id: string;
@@ -187,8 +178,8 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
   const hasDirectPrompt = directPrompt.trim().length > 0;
 
   const currentSendModeLabel = promptMode === "direct"
-    ? (directPromptSource === "optimized" ? "AI优化 Prompt" : "手动编辑 Prompt")
-    : "原链路 Prompt";
+    ? (directPromptSource === "optimized" ? "AI Optimization Prompt" : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.")
+    : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   const currentSendModeClass = promptMode === "direct"
     ? (directPromptSource === "optimized"
       ? "rounded-full bg-emerald-50 px-3 py-1 text-emerald-700"
@@ -264,7 +255,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
   const generateMutation = useMutation({
     mutationFn: async () => {
       if (!imageForm.provider) {
-        throw new Error("请先在系统设置里配置支持图像生成的厂商和模型。");
+        throw new Error("Please configure the manufacturers and models that support image generation in the system settings first.");
       }
       return generateNovelCover({
         sceneType: "novel_cover",
@@ -309,7 +300,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
   const activeTask = activeTaskQuery.data?.data;
 
   const handleDeleteAsset = async (asset: ImageAsset) => {
-    const confirmed = window.confirm("确认删除这张封面图？如果它是当前主封面，系统会自动补一张新的主图。");
+    const confirmed = window.confirm("Are you sure you want to delete this cover image? If it is the current main cover, the system will automatically add a new main image.");
     if (!confirmed) {
       return;
     }
@@ -329,37 +320,37 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
       <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-[1120px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-0">
         <DialogHeader className="shrink-0 border-b border-slate-200 px-6 pb-4 pt-5">
           <DialogTitle className="text-[22px] font-semibold tracking-tight text-slate-900">
-            生成小说封面主画面
-            {promptContext.title ? `：${promptContext.title}` : ""}
+            Generate novel cover main screen
+                                  {promptContext.title ? `：${promptContext.title}` : ""}
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
           {imageProviderOptions.length === 0 ? (
             <section className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              <div className="font-medium">还不能开始生成</div>
+              <div className="font-medium">Cannot start generating yet</div>
               <div className="mt-1 leading-6">
-                当前没有已配置的图像模型。请先到
-                {" "}
+                There are currently no image models configured. Please come first
+                                              {" "}
                 <Link className="font-medium underline underline-offset-2" to="/settings">
-                  系统设置
-                </Link>
+                  System settings
+                                                  </Link>
                 {" "}
-                补全支持图像生成的厂商和模型，再回到这里继续。
-              </div>
+                Complete the vendors and models that support image generation, and then come back here to continue.
+                                            </div>
             </section>
           ) : null}
 
           <section className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/65 p-4">
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-slate-900">小说信息整理稿 / AI优化输入</div>
+              <div className="text-sm font-semibold text-slate-900">Novel information draft/AI optimization input</div>
               <div className="text-xs leading-5 text-slate-500">
-                系统已经根据当前小说基础信息整理了一版封面输入草稿。你可以直接改，也可以先点“AI优化Prompt”再继续手动调整。
-              </div>
+                The system has compiled a draft of the cover input based on the basic information of the current novel. You can change it directly, or you can click "AI Optimization Prompt" first and then continue to adjust it manually.
+                                            </div>
             </div>
             <textarea
               className="min-h-[190px] max-h-[34vh] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-              placeholder="描述这本书想突出什么样的封面主画面。"
+              placeholder="Describe what kind of cover image you want to highlight in this book."
               value={sourcePrompt}
               onChange={(event) => updateSourcePrompt(event.target.value)}
             />
@@ -368,7 +359,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
           <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-2">
-                <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">优化输出语言</div>
+                <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Optimize output language</div>
                 <div className="inline-flex w-full rounded-xl border border-slate-200 bg-slate-50 p-1 sm:w-auto">
                   <Button
                     type="button"
@@ -377,8 +368,8 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                     className="min-w-[92px] flex-1 rounded-lg sm:flex-none"
                     onClick={() => setOptimizedPromptLanguage("zh")}
                   >
-                    中文
-                  </Button>
+                    Chinese
+                                                        </Button>
                   <Button
                     type="button"
                     variant={optimizedPromptLanguage === "en" ? "default" : "ghost"}
@@ -400,7 +391,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                     onClick={() => optimizeMutation.mutate()}
                     disabled={optimizeMutation.isPending || !sourcePrompt.trim()}
                   >
-                    {optimizeMutation.isPending ? "优化中..." : "AI优化Prompt"}
+                    {optimizeMutation.isPending ? "Optimizing..." : "AI Optimization Prompt"}
                   </Button>
                   <Button
                     type="button"
@@ -409,12 +400,12 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                     onClick={restoreOriginalChainPrompt}
                     disabled={promptMode !== "direct" && !hasDirectPrompt}
                   >
-                    恢复原链路
-                  </Button>
+                    Restore original link
+                                                        </Button>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 text-sm xl:justify-end">
-                  <span className="text-slate-500">当前发送模式</span>
+                  <span className="text-slate-500">Current sending mode</span>
                   <span className={currentSendModeClass}>{currentSendModeLabel}</span>
                 </div>
               </div>
@@ -423,10 +414,10 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
 
           <section className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50/55 p-4">
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-slate-900">最终发送 Prompt 预览</div>
+              <div className="text-sm font-semibold text-slate-900">Finally send Prompt preview</div>
               <div className="text-xs leading-5 text-slate-500">
-                这里展示最终会发送给图像模型的 prompt。你可以直接编辑，也可以在 AI 优化后继续做细调。
-              </div>
+                Shown here is the prompt that will eventually be sent to the image model. You can edit directly or continue to make fine adjustments after AI optimization.
+                                            </div>
             </div>
             <textarea
               className="min-h-[240px] max-h-[40vh] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-7 text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
@@ -440,19 +431,19 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <input
               className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 xl:col-span-2"
-              placeholder="风格预设，例如：电影感插画，高辨识度"
+              placeholder="Style presets, such as: cinematic illustrations, high recognition"
               value={imageForm.stylePreset}
               onChange={(event) => updateStylePreset(event.target.value)}
             />
             <input
               className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 xl:col-span-2"
-              placeholder="负向提示词，例如：文字、水印、低清晰度、畸形"
+              placeholder="Negative prompt words, such as: text, watermark, low definition, malformation"
               value={imageForm.negativePrompt}
               onChange={(event) => setImageForm((prev) => ({ ...prev, negativePrompt: event.target.value }))}
             />
 
             <label className="space-y-1 text-sm">
-              <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">模型厂商</div>
+              <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Model manufacturer</div>
               <SelectControl
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                 value={imageForm.provider}
@@ -464,7 +455,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                   }))}
               >
                 {imageProviderOptions.length === 0 ? (
-                  <option value="">请先在系统设置中填写图像模型</option>
+                  <option value="">Please fill in the image model in the system settings first</option>
                 ) : null}
                 {imageProviderOptions.map((item) => (
                   <option key={item.provider} value={item.provider}>
@@ -475,7 +466,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
             </label>
 
             <label className="space-y-1 text-sm">
-              <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">尺寸</div>
+              <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</div>
               <SelectControl
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                 value={imageForm.size}
@@ -485,14 +476,14 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                     size: event.target.value as CoverSize,
                   }))}
               >
-                <option value="1024x1536">1024x1536（推荐竖版）</option>
+                <option value="1024x1536">1024x1536 (vertical version recommended)</option>
                 <option value="1024x1024">1024x1024</option>
                 <option value="1536x1024">1536x1024</option>
               </SelectControl>
             </label>
 
             <label className="space-y-1 text-sm">
-              <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">生成张数</div>
+              <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Number of generated sheets</div>
               <SelectControl
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                 value={String(imageForm.count)}
@@ -502,10 +493,10 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                     count: Number(event.target.value),
                   }))}
               >
-                <option value="1">1 张</option>
-                <option value="2">2 张</option>
-                <option value="3">3 张</option>
-                <option value="4">4 张</option>
+                <option value="1">1 piece</option>
+                <option value="2">2 sheets</option>
+                <option value="3">3 sheets</option>
+                <option value="4">4 pictures</option>
               </SelectControl>
             </label>
 
@@ -520,26 +511,26 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                   || Boolean(activeTaskId)
                 }
               >
-                {generateMutation.isPending ? "提交任务中..." : "开始生成"}
+                {generateMutation.isPending ? "Submitting task..." : "Starting generation"}
               </Button>
             </div>
           </div>
 
           {optimizeMutation.isError ? (
             <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              {getErrorMessage(optimizeMutation.error, "AI 优化失败，请稍后重试。")}
+              {getErrorMessage(optimizeMutation.error, "AI optimization failed, please try again later.")}
             </div>
           ) : null}
 
           {generateMutation.isError ? (
             <div className="rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              {getErrorMessage(generateMutation.error, "提交图片任务失败，请稍后重试。")}
+              {getErrorMessage(generateMutation.error, "Failed to submit image task, please try again later.")}
             </div>
           ) : null}
 
           {activeTask ? (
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-              <div>当前任务状态：{IMAGE_STATUS_TEXT[activeTask.status] ?? activeTask.status}</div>
+              <div>Current task status:{IMAGE_STATUS_TEXT[activeTask.status] ?? activeTask.status}</div>
               {activeTask.error ? (
                 <div className="mt-1 text-xs text-destructive">{activeTask.error}</div>
               ) : null}
@@ -549,23 +540,23 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
           <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="text-sm font-semibold text-slate-900">封面图库</div>
+                <div className="text-sm font-semibold text-slate-900">Cover Gallery</div>
                 <div className="text-xs leading-5 text-slate-500">
-                  生成成功后会自动回到这里。第一张成功图会在当前没有主封面时自动设为主图。
-                </div>
+                  It will automatically return here after the generation is successful. The first successful image will be automatically set as the main image if there is currently no main cover.
+                                                  </div>
               </div>
             </div>
 
             {assetsQuery.isLoading ? (
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-500">
-                正在读取封面图库...
-              </div>
+                Loading cover gallery...
+                                            </div>
             ) : null}
 
             {!assetsQuery.isLoading && assets.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-sm text-slate-500">
-                还没有封面图。先提交一次生成任务，成功后会出现在这里。
-              </div>
+                No cover image yet. Submit the generation task first, and it will appear here after success.
+                                            </div>
             ) : null}
 
             {assets.length > 0 ? (
@@ -576,7 +567,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                       <div className="aspect-[2/3] w-full">
                         <img
                           src={resolveImageAssetUrl(asset.url)}
-                          alt={`${promptContext.title || "小说"}封面候选图`}
+                          alt={`Candidate cover image for ${promptContext.title || "Novel"}`}
                           className="h-full w-full object-cover"
                           loading="lazy"
                         />
@@ -588,16 +579,16 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                         ? "rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700"
                         : "rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700"}
                       >
-                        {asset.isPrimary ? "当前主封面" : "候选图"}
+                        {asset.isPrimary ? "Current main cover" : "candidate image"}
                       </span>
                       <span className="text-xs text-slate-500">
-                        {asset.width && asset.height ? `${asset.width} x ${asset.height}` : "尺寸待定"}
+                        {asset.width && asset.height ? `${asset.width} x ${asset.height}` : "Size to be determined"}
                       </span>
                     </div>
 
                     {asset.localPath ? (
                       <div className="text-[11px] leading-5 text-slate-500 break-all">
-                        本地路径：{asset.localPath}
+                        Local path:{asset.localPath}
                       </div>
                     ) : null}
 
@@ -609,7 +600,7 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                         disabled={asset.isPrimary || setPrimaryMutation.isPending || deleteAssetMutation.variables === asset.id}
                         onClick={() => setPrimaryMutation.mutate(asset.id)}
                       >
-                        {asset.isPrimary ? "当前主封面" : "设为当前封面"}
+                        {asset.isPrimary ? "Current main cover" : "Set as current cover"}
                       </Button>
                       <Button
                         type="button"
@@ -618,11 +609,11 @@ export function NovelCoverDialog(props: NovelCoverDialogProps) {
                         disabled={deleteAssetMutation.variables === asset.id}
                         onClick={() => {
                           void handleDeleteAsset(asset).catch((error) => {
-                            window.alert(getErrorMessage(error, "删除封面失败，请稍后重试。"));
+                            window.alert(getErrorMessage(error, "Failed to delete cover, please try again later."));
                           });
                         }}
                       >
-                        {deleteAssetMutation.variables === asset.id ? "删除中..." : "删除"}
+                        {deleteAssetMutation.variables === asset.id ? "deleting..." : "deleting"}
                       </Button>
                     </div>
                   </div>

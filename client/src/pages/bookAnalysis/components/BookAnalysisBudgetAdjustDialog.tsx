@@ -106,18 +106,18 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
-        title={mode === "resume" ? "扩容预算并续跑" : "调整拆书预算"}
+        title={mode === "resume" ? "Expand budget and continue running" : "Adjust budget for unpacking books"}
         description={mode === "resume"
-          ? "为这次拆书设置新的预算上限，并继续处理未完成的小节。"
-          : "修改预算上限后，累计用量保留，后续小节按新的上限检查。"}
+          ? "Set a new budget cap for this teardown and continue working on unfinished sections."
+          : "After the budget upper limit is modified, the accumulated usage is retained, and subsequent sections are checked according to the new upper limit."}
         className="max-w-xl"
         footer={
           <div className="flex w-full justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-              取消
-            </Button>
+              Cancel
+                                </Button>
             <Button type="button" onClick={handleSubmit} disabled={!canSubmit}>
-              {pending ? "提交中..." : mode === "resume" ? "扩容并续跑" : "保存调整"}
+              {pending ? "Submitting..." : mode === "resume" ? "Expand and continue running" : "Save adjustments"}
             </Button>
           </div>
         }
@@ -125,27 +125,27 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
         <div className="space-y-4">
           {mode === "resume" ? (
             <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-sm leading-6 text-foreground">
-              本次会重做 {retrySectionCount} 节，成功的 {succeededSectionCount} 节保留
-              {frozenSectionCount > 0 ? `，另有 ${frozenSectionCount} 节不纳入本次续跑` : ""}。
+              Will redo this time {retrySectionCount} festival, successful {succeededSectionCount} section reserved
+                                        {frozenSectionCount > 0 ? `，另有 ${frozenSectionCount} 节不纳入本次续跑` : ""}。
             </div>
           ) : null}
 
           <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm sm:grid-cols-3">
             <div>
-              <div className="text-xs text-muted-foreground">累计用量</div>
+              <div className="text-xs text-muted-foreground">Cumulative usage</div>
               <div className="mt-1 font-mono tabular-nums">{formatTokenCount(usedTokens)}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">预算上限</div>
+              <div className="text-xs text-muted-foreground">Budget cap</div>
               <div className="mt-1 font-mono tabular-nums">
-                {currentBudget ? formatTokenCount(currentBudget) : "不限"}
+                {currentBudget ? formatTokenCount(currentBudget) : "No limit"}
               </div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">调整后剩余</div>
+              <div className="text-xs text-muted-foreground">Remaining after adjustment</div>
               <div className="mt-1 font-mono tabular-nums">
                 {parsedBudget === null
-                  ? "不限"
+                  ? "No limit"
                   : remainingTokens === null
                     ? "-"
                     : formatTokenCount(remainingTokens)}
@@ -156,15 +156,15 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
               <label htmlFor="book-analysis-budget-input" className="text-sm font-medium">
-                新预算上限
-              </label>
+                New budget cap
+                                            </label>
               {mode === "resume" ? (
                 <button
                   type="button"
                   className="text-xs text-primary underline-offset-4 hover:underline"
                   onClick={() => setBudgetInput(String(recommendedResumeBudget))}
                 >
-                  使用建议值 {formatTokenCount(recommendedResumeBudget)}
+                  Use recommended values {formatTokenCount(recommendedResumeBudget)}
                 </button>
               ) : null}
             </div>
@@ -177,25 +177,25 @@ export default function BookAnalysisBudgetAdjustDialog(props: BookAnalysisBudget
                 step={1_000}
                 value={budgetInput}
                 onChange={(event) => setBudgetInput(event.target.value)}
-                placeholder={allowUnlimited ? "留空表示不限" : String(recommendedResumeBudget)}
+                placeholder={allowUnlimited ? "Leave blank to indicate no limit" : String(recommendedResumeBudget)}
                 className="text-right font-mono tabular-nums"
               />
               <span className="shrink-0 text-xs text-muted-foreground">tokens</span>
             </div>
             {!hasValidBudget ? (
               <div className="text-xs text-destructive">
-                请输入 {formatTokenCount(MIN_BUDGET_TOKENS)} 到 {formatTokenCount(MAX_BUDGET_TOKENS)} 之间的整数。
-              </div>
+                Please enter {formatTokenCount(MIN_BUDGET_TOKENS)} arrive {formatTokenCount(MAX_BUDGET_TOKENS)} integers between.
+                                            </div>
             ) : null}
             {mode === "adjust" && analysis.status === "running" ? (
               <div className="text-xs leading-5 text-muted-foreground">
-                调低预算不会立即终止当前小节，会在下个小节边界按新上限检查。
-              </div>
+                Lowering the budget will not immediately terminate the current section, but will check the new upper limit at the next section boundary.
+                                            </div>
             ) : null}
             {budgetIsFinite && remainingTokens !== null && remainingTokens < 0 ? (
               <div className="text-xs leading-5 text-warning">
-                新预算低于累计用量，继续生成时会触发预算停止。
-              </div>
+                The new budget is lower than the accumulated usage, and continuing to generate will trigger a budget stop.
+                                            </div>
             ) : null}
           </div>
         </div>

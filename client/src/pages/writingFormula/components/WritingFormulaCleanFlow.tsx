@@ -43,16 +43,16 @@ export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowPr
   return (
     <Card className="border-slate-200/80 bg-white/90 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
       <CardHeader>
-        <CardTitle>给这段稿子去 AI 味</CardTitle>
+        <CardTitle>Give this article an AI flavor</CardTitle>
         <div className="text-sm leading-7 text-muted-foreground">
-          检测先帮你指出哪一段写得像模板话，再给一版可以直接比较的修订稿。重复出现的问题，我会顺手整理成规则建议，方便你带回当前写法编辑继续处理。
-        </div>
+          The test will first help you point out which paragraph is written like a template, and then give you a revised version that can be directly compared. For recurring problems, I will organize them into rule suggestions so that you can take them back to your current writing method and edit them to continue processing.
+                          </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <section className="grid gap-5 xl:grid-cols-[minmax(0,1.08fr)_minmax(300px,0.92fr)]">
           <div className="space-y-3 rounded-2xl border bg-slate-50/70 p-4">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-medium text-slate-900">原稿输入</div>
+              <div className="text-sm font-medium text-slate-900">Original input</div>
               <SelectControl
                 className="rounded-md border bg-white px-3 py-2 text-sm"
                 value={selectedProfileId}
@@ -65,26 +65,26 @@ export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowPr
             </div>
             <textarea
               className="min-h-[280px] w-full rounded-xl border bg-white p-3 text-sm leading-7"
-              placeholder="粘贴你想先去 AI 味的一段正文。"
+              placeholder="Paste a piece of text that you want to remove the AI ​​flavor first."
               value={detectInput}
               onChange={(event) => onInputChange(event.target.value)}
             />
             <div className="flex flex-wrap justify-end gap-2">
               <Button type="button" variant="outline" onClick={onDetect} disabled={!selectedProfileId || !detectInput.trim() || detectionPending}>
-                {detectionPending ? "正在检测..." : "先做检测"}
+                {detectionPending ? "Detecting..." : "Perform detection first"}
               </Button>
               <Button type="button" onClick={onRewrite} disabled={!selectedProfileId || !detectInput.trim() || rewritePending}>
-                {rewritePending ? "正在生成修订稿..." : "一键生成修订稿"}
+                {rewritePending ? "Generating revised draft..." : "Generate revised draft with one click"}
               </Button>
             </div>
           </div>
 
           <div className="space-y-3 rounded-2xl border bg-white p-4">
-            <div className="text-sm font-medium text-slate-900">问题卡与风险分</div>
+            <div className="text-sm font-medium text-slate-900">Question Cards and Risk Score</div>
             {detectionReport ? (
               <>
                 <div className="rounded-2xl border bg-slate-950 p-4 text-white">
-                  <div className="text-xs uppercase tracking-[0.18em] text-slate-300">风险分</div>
+                  <div className="text-xs uppercase tracking-[0.18em] text-slate-300">Risk score</div>
                   <div className="mt-2 text-3xl font-semibold">{detectionReport.riskScore}</div>
                   <div className="mt-2 text-sm leading-7 text-slate-200">{detectionReport.summary}</div>
                 </div>
@@ -105,29 +105,29 @@ export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowPr
               </>
             ) : (
               <div className="rounded-xl border border-dashed p-4 text-sm leading-7 text-muted-foreground">
-                先跑一次检测，这里会告诉你哪些段落最像 AI 在说话，以及它们为什么让读者出戏。
-              </div>
+                Run a test first and it will tell you which passages are most like AI speaking and why they trip up readers.
+                                                </div>
             )}
           </div>
         </section>
 
         <section className="rounded-2xl border bg-white p-4">
-          <div className="text-sm font-medium text-slate-900">修订前后 diff</div>
+          <div className="text-sm font-medium text-slate-900">diff before and after revision</div>
           <div className="mt-1 text-xs leading-6 text-muted-foreground">
-            这里按段落行做轻量对比，方便你快速判断这次修正是在压模板感，还是把原有语气也一起削掉了。
-          </div>
+            Here is a light comparison based on paragraph lines, so that you can quickly judge whether this correction is to suppress the template feeling, or whether it also removes the original tone.
+                                </div>
           {rewritePreview ? (
             <div className="mt-4 grid gap-3">
               {diffRows.map((row, index) => (
                 <div key={row.id} className={`grid gap-3 rounded-2xl border p-3 xl:grid-cols-2 ${row.changed ? "border-sky-200 bg-sky-50/40" : "bg-slate-50/40"}`}>
                   <div className="space-y-2">
-                    <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">原稿 {index + 1}</div>
+                    <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">original manuscript {index + 1}</div>
                     <div className="min-h-[72px] rounded-xl border bg-white px-3 py-2 text-sm leading-7 text-slate-700">
                       {row.before || " "}
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">修订稿 {index + 1}</div>
+                    <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">revised manuscript {index + 1}</div>
                     <div className="min-h-[72px] rounded-xl border bg-white px-3 py-2 text-sm leading-7 text-slate-900">
                       {row.after || " "}
                     </div>
@@ -137,22 +137,22 @@ export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowPr
             </div>
           ) : (
             <div className="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-              一键修订后，这里会直接出现前后对照。
-            </div>
+              After one-click revision, a before-and-after comparison will appear directly here.
+                                          </div>
           )}
         </section>
 
         <section className="rounded-2xl border bg-slate-50/60 p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-sm font-medium text-slate-900">可沉淀成规则的重复问题</div>
+                <div className="text-sm font-medium text-slate-900">Repetitive questions that can be settled into rules</div>
                 <div className="mt-1 text-xs leading-6 text-muted-foreground">
-                  这一版不会强行替你落库，但会先把重复问题整理成建议，方便你带回当前写法编辑决定是否固化。
-                </div>
+                  This version will not force you to put it into the library, but it will first organize repeated questions into suggestions, so that you can bring back the current writing method and edit it to decide whether to solidify it.
+                                              </div>
               </div>
               <Button type="button" variant="outline" onClick={onOpenAdvanced}>
-                查看当前写法编辑
-              </Button>
+                View current writing styleEdit
+                                        </Button>
             </div>
           {suggestionDrafts.length > 0 ? (
             <div className="mt-4 grid gap-2">
@@ -164,8 +164,8 @@ export default function WritingFormulaCleanFlow(props: WritingFormulaCleanFlowPr
             </div>
           ) : (
             <div className="mt-4 rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-              检测出问题后，这里才会出现可沉淀的规则建议。
-            </div>
+              Only after problems are detected will precipitable rule suggestions appear here.
+                                          </div>
           )}
         </section>
       </CardContent>

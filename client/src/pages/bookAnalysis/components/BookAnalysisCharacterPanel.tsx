@@ -229,10 +229,10 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle>角色档案</CardTitle>
+          <CardTitle>character profile</CardTitle>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{generatedCharacters.length} 份档案</Badge>
-            {candidateCharacters.length > 0 ? <Badge variant="secondary">{candidateCharacters.length} 个候选</Badge> : null}
+            <Badge variant="outline">{generatedCharacters.length} files</Badge>
+            {candidateCharacters.length > 0 ? <Badge variant="secondary">{candidateCharacters.length} candidates</Badge> : null}
           </div>
         </div>
       </CardHeader>
@@ -253,7 +253,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
           <div className="space-y-3 rounded-md border p-3">
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" onClick={() => void onIdentify()} disabled={identifyDisabled}>
-                {pending.identify ? "识别中..." : characters.length > 0 ? "再识别角色" : "识别角色"}
+                {pending.identify ? "Recognizing..." : characters.length > 0 ? "Re-identify Role" : "Identify Role"}
               </Button>
               {candidateCharacters.length > 0 ? (
                 <Button
@@ -262,7 +262,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                   disabled={generateAllDisabled}
                   title={batchButtonTitle}
                 >
-                  {pending.generateAll ? "生成中..." : `全部生成 (${pendingCandidateCount})`}
+                  {pending.generateAll ? "Generating..." : `Generate All(${pendingCandidateCount})`}
                 </Button>
               ) : null}
               <SelectControl
@@ -271,13 +271,8 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                 onChange={(event) => setGenerationDepth(event.target.value as BookAnalysisCharacterGenerationDepth)}
                 disabled={disabled || operationPending}
               >
-                <option value="brief">简要</option>
-                <option value="standard">标准</option>
-                <option value="deep">深入</option>
-                <option value="exhaustive">完整</option>
-              </SelectControl>
-            </div>
-            <div className="flex flex-wrap gap-2">
+                <option value="brief">Brief</option> <option value="standard">Standard</option> <option value="deep">Go deeper</option>
+                <option value="exhaustive">Complete</option> </SelectControl> </div> <div className="flex flex-wrap gap-2">
               {DEFAULT_DIMENSIONS.map((dimension) => (
                 <Button
                   key={dimension}
@@ -296,25 +291,25 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
             <Input
               value={manualName}
               onChange={(event) => setManualName(event.target.value)}
-              placeholder="角色名"
+              placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
               disabled={disabled || pending.create}
             />
             <Input
               value={manualRole}
               onChange={(event) => setManualRole(event.target.value)}
-              placeholder="角色定位"
+              placeholder="role positioning"
               disabled={disabled || pending.create}
             />
             <textarea
               className="min-h-[72px] w-full rounded-md border bg-background px-3 py-2 text-sm"
               value={manualPersonality}
               onChange={(event) => setManualPersonality(event.target.value)}
-              placeholder="性格或关键表现"
+              placeholder="Character or key performance"
               disabled={disabled || pending.create}
             />
             <Button size="sm" variant="outline" onClick={() => void handleCreate()} disabled={createDisabled}>
-              手动添加
-            </Button>
+              Add manually
+                                      </Button>
           </div>
         </div>
 
@@ -337,18 +332,18 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                   {batchSummary.failed > 0 ? `失败 ${batchSummary.failed} 个` : ""}
                   {batchSummary.failed > 0 && batchSummary.pending > 0 ? "，" : ""}
                   {batchSummary.pending > 0 ? `因预算用尽未跑 ${batchSummary.pending} 个` : ""}
-                  。可调整预算或扩容后再点「全部生成」继续。
-                </div>
+                  . You can adjust the budget or expand the capacity before clicking "Generate All" to continue.
+                                                  </div>
               ) : null}
             </div>
             <Button size="sm" variant="ghost" onClick={onDismissBatchSummary}>
-              知道了
-            </Button>
+              Got it
+                                      </Button>
           </div>
         ) : null}
 
         {isLoading ? (
-          <div className="text-sm text-muted-foreground">正在读取角色档案。</div>
+          <div className="text-sm text-muted-foreground">Loading character profile.</div>
         ) : null}
 
         {!isLoading && candidateCharacters.length > 0 ? (
@@ -359,12 +354,12 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
               onClick={() => setCandidateExpanded((current) => !current)}
             >
               <div>
-                <div className="text-sm font-medium">待生成角色</div>
+                <div className="text-sm font-medium">Character to be generated</div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  {candidateCharacters.length} 个候选，可按需生成深度档案。
-                </div>
+                  {candidateCharacters.length} candidates, and in-depth archives can be generated on demand.
+                                                  </div>
               </div>
-              <Badge variant="outline">{candidateExpanded ? "收起" : "展开"}</Badge>
+              <Badge variant="outline">{candidateExpanded ? "Collapse" : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}</Badge>
             </button>
             {candidateExpanded ? (
               <div className="grid gap-3 border-t p-3 xl:grid-cols-2">
@@ -410,11 +405,11 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                     />
                     <div className="flex flex-wrap gap-2">
                       <Button size="sm" onClick={() => void saveEdit(character.id)} disabled={pending.update}>
-                        保存
-                      </Button>
+                        keep
+                                                          </Button>
                       <Button size="sm" variant="outline" onClick={cancelEdit} disabled={pending.update}>
-                        取消
-                      </Button>
+                        Cancel
+                                                          </Button>
                     </div>
                   </div>
                 ) : (
@@ -436,21 +431,21 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                             setConversationTarget({ characterId: character.id, chapterAnchor: anchors[anchors.length - 1] });
                           }}
                           disabled={disabled || availableChapterAnchors(character).length === 0}
-                          title={availableChapterAnchors(character).length === 0 ? "该角色缺少带章节号的原文证据，暂时无法开始证据访谈。" : undefined}
+                          title={availableChapterAnchors(character).length === 0 ? "This character lacks original evidence with chapter numbers, and evidence interviews cannot be started at the moment." : undefined}
                         >
-                          基于原文访谈
-                        </Button>
+                          Based on original interview
+                                                                    </Button>
                         <Button size="sm" variant="outline" onClick={() => startEdit(character)} disabled={disabled}>
-                          编辑
-                        </Button>
+                          edit
+                                                                    </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => void onDelete(character.id)}
                           disabled={disabled || pending.delete}
                         >
-                          删除
-                        </Button>
+                          delete
+                                                                    </Button>
                       </div>
                     </div>
                     <div className="mt-3 grid gap-2">
@@ -466,12 +461,12 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                     </div>
                     {character.arcs.length > 0 ? (
                       <div className="mt-3 space-y-2">
-                        <div className="font-medium">弧线节点</div>
+                        <div className="font-medium">Arc node</div>
                         {character.arcs.map((arc) => (
                           <div key={arc.id} className="rounded-md border bg-background p-2">
                             <div>{arc.stageLabel}</div>
                             {arc.chapterIndex !== null && arc.chapterIndex !== undefined ? (
-                              <div className="mt-1 text-xs text-muted-foreground">第 {arc.chapterIndex + 1} 章</div>
+                              <div className="mt-1 text-xs text-muted-foreground">Section {arc.chapterIndex + 1} chapter</div>
                             ) : null}
                           </div>
                         ))}
@@ -479,7 +474,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                     ) : null}
                     {character.scenes.length > 0 ? (
                       <div className="mt-3 space-y-2">
-                        <div className="font-medium">场景表现</div>
+                        <div className="font-medium">Scene performance</div>
                         {character.scenes.map((scene) => (
                           <div key={scene.id} className="rounded-md border bg-background p-2">
                             <div>{scene.sceneLabel}</div>
@@ -508,7 +503,7 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
         </div>
 
         {!isLoading && characters.length === 0 ? (
-          <div className="text-sm text-muted-foreground">可先识别角色候选，再选择需要深挖的角色生成档案。</div>
+          <div className="text-sm text-muted-foreground">You can first identify the role candidates, and then select the roles that need to be explored in depth to generate files.</div>
         ) : null}
       </CardContent>
     </Card>

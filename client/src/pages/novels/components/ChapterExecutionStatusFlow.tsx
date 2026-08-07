@@ -55,8 +55,8 @@ export default function ChapterExecutionStatusFlow(props: ChapterExecutionStatus
       </div>
       <div className="text-xs leading-6 text-muted-foreground">
         <span className="font-medium text-foreground">
-          当前阶段：
-          {stages.find((stage) => stage.key === currentStageKey)?.label ?? "未开始"}
+          Current stage:
+                            {stages.find((stage) => stage.key === currentStageKey)?.label ?? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
         </span>
         <span className="ml-2">{currentStageNote}</span>
       </div>

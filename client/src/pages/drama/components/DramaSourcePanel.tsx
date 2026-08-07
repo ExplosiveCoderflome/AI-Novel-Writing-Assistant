@@ -39,39 +39,32 @@ function SourceQualityChecklist(props: {
 }) {
   const checks = [
     {
-      label: "故事梗概",
+      label: "Story summary",
       ready: props.synopsisReady,
-      detail: props.synopsisReady ? "已整理为短剧素材" : "缺少故事梗概",
+      detail: props.synopsisReady ? "Organized into short play material" : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
     },
     {
-      label: "来源节拍",
+      label: "source beat",
       ready: props.beatCount >= 8,
-      detail: props.beatCount >= 8 ? `${props.beatCount} 个节拍` : `${props.beatCount} 个节拍，可能不足以支撑长集数`,
+      detail: props.beatCount >= 8 ? `${props.beatCount} beats` : `${props.beatCount} beats may not be enough to support a long episode.`,
     },
     {
-      label: "角色资源",
+      label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
       ready: props.characterCount >= 2,
-      detail: props.characterCount >= 2 ? `${props.characterCount} 个角色` : "主要角色不足",
+      detail: props.characterCount >= 2 ? `${props.characterCount} characters` : "Not enough main characters",
     },
     {
-      label: "硬事实",
+      label: "hard facts",
       ready: props.factCount > 0,
-      detail: props.factCount > 0 ? `${props.factCount} 条硬事实` : "缺少可约束后续台本的事实",
-    },
-  ];
-
-  return (
+      detail: props.factCount > 0 ? `${props.factCount} hard facts` : "Facts lacking to bind subsequent scripts", }, ]; return (
     <Card className="rounded-lg">
       <CardHeader>
-        <CardTitle className="text-lg">素材质量提示</CardTitle>
-        <CardDescription>这些提示决定后续策略、分集和台本是否有足够输入。</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-2 sm:grid-cols-2">
+        <CardTitle className="text-lg">Material Quality Hints</CardTitle> <CardDescription>These hints determine whether subsequent strategies, episode breaks, and scripts have sufficient input.</CardDescription> </CardHeader> <CardContent className="grid gap-2 sm:grid-cols-2">
         {checks.map((check) => (
           <div key={check.label} className="rounded-md border p-3 text-sm">
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium">{check.label}</span>
-              <Badge variant={check.ready ? "default" : "secondary"}>{check.ready ? "可用" : "需补充"}</Badge>
+              <Badge variant={check.ready ? "default" : "secondary"}>{check.ready ? "Available" : "Need to be supplemented"}</Badge>
             </div>
             <div className="mt-1 text-muted-foreground">{check.detail}</div>
           </div>
@@ -83,18 +76,18 @@ function SourceQualityChecklist(props: {
 
 function readinessLabel(readiness: DramaSourceSupplementGuidance["readiness"]): string {
   const labels: Record<DramaSourceSupplementGuidance["readiness"], string> = {
-    ready: "可继续",
-    needs_supplement: "建议补充",
-    needs_rebuild: "建议重整素材",
+    ready: "Can continue",
+    needs_supplement: "Suggestions to add",
+    needs_rebuild: "It is recommended to reorganize the material",
   };
   return labels[readiness];
 }
 
 function nextActionLabel(nextAction: DramaSourceSupplementGuidance["nextAction"]): string {
   const labels: Record<DramaSourceSupplementGuidance["nextAction"], string> = {
-    continue: "继续生成策略",
-    supplement_notes: "先补充说明",
-    rebuild_source_bundle: "补充后重整素材",
+    continue: "Continue to generate strategies",
+    supplement_notes: "Additional explanation first",
+    rebuild_source_bundle: "Reorganize material after supplement",
   };
   return labels[nextAction];
 }
@@ -109,7 +102,7 @@ function SourceSupplementPanel({ project }: { project: DramaProjectDetail }) {
     onSuccess: (response) => {
       if (response.data) {
         setGuidance(response.data);
-        toast.success("素材补充建议已生成。");
+        toast.success("Material supplement suggestions have been generated.");
       }
     },
   });
@@ -118,20 +111,15 @@ function SourceSupplementPanel({ project }: { project: DramaProjectDetail }) {
     <Card className="rounded-lg">
       <CardHeader className="gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <CardTitle className="text-lg">补充素材建议</CardTitle>
-          <CardDescription>让系统指出影响策略、分集和台本生成的素材缺口。</CardDescription>
-        </div>
-        <Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
-          {mutation.isPending ? "分析中..." : "生成补充建议"}
+          <CardTitle className="text-lg">Suggestions for Supplementary Materials</CardTitle> <CardDescription>This allows the system to identify material gaps that affect strategy, episode segmentation, and script generation.</CardDescription> </div> <Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
+          {mutation.isPending ? "Analysis in progress..." : "Generating supplementary suggestions"}
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
         <label className="block space-y-1.5 text-sm">
-          <span className="font-medium">可选补充说明</span>
-          <textarea
-            className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
+          <span className="font-medium">Optional supplementary notes</span> <textarea className="min-h-24 w-full rounded-md border bg-background px-3 py-2 text-sm"
             value={userSupplement}
-            placeholder="例如：主角必须保留复仇线，男女主感情线要更甜，反派不能太脸谱化。"
+            placeholder="For example: the protagonist must retain the revenge line, the male and female protagonist's emotional lines must be sweeter, and the villain must not be too facial."
             onChange={(event) => setUserSupplement(event.target.value)}
           />
         </label>
@@ -181,8 +169,8 @@ export function DramaSourcePanel({ project }: { project: DramaProjectDetail }) {
   if (!bundle) {
     return (
       <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
-        还没有整理来源素材。先点击“整理素材”，系统会把小说、灵感或导入文本整理成短剧可用的梗概、节拍、角色和硬事实。
-      </div>
+        The source material has not been compiled yet. First click "Organize Materials" and the system will organize the novel, inspiration or imported text into the synopsis, beats, characters and hard facts that can be used in the short drama.
+                  </div>
     );
   }
 
@@ -198,24 +186,24 @@ export function DramaSourcePanel({ project }: { project: DramaProjectDetail }) {
       <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <Card className="rounded-lg">
           <CardHeader>
-            <CardTitle className="text-lg">故事素材</CardTitle>
-            <CardDescription>用于后续策略、分集和台本生成的标准内容包。</CardDescription>
+            <CardTitle className="text-lg">story material</CardTitle>
+            <CardDescription>Standard content pack for subsequent strategy, episode and script generation.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <section className="space-y-2">
-              <h3 className="text-sm font-medium">梗概</h3>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{bundle.synopsis || "暂无梗概"}</p>
+              <h3 className="text-sm font-medium">Summary</h3>
+              <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{bundle.synopsis || "No summary yet"}</p>
             </section>
             <section className="space-y-2">
-              <h3 className="text-sm font-medium">设定要点</h3>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{bundle.worldNotes || "暂无设定要点"}</p>
+              <h3 className="text-sm font-medium">Setting points</h3>
+              <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{bundle.worldNotes || "No setting points yet"}</p>
             </section>
           </CardContent>
         </Card>
         <div className="space-y-4">
           <Card className="rounded-lg">
             <CardHeader>
-              <CardTitle className="text-lg">来源节拍</CardTitle>
+              <CardTitle className="text-lg">source beat</CardTitle>
             </CardHeader>
             <CardContent className="max-h-[360px] space-y-2 overflow-auto">
               {beats.length > 0 ? beats.slice(0, 24).map((beat, index) => (
@@ -223,19 +211,19 @@ export function DramaSourcePanel({ project }: { project: DramaProjectDetail }) {
                   <div className="font-medium">{compactText(beat.title || beat.summary || `节拍 ${index + 1}`)}</div>
                   <div className="mt-1 text-muted-foreground">{compactText(beat.summary || beat.description || beat)}</div>
                 </div>
-              )) : <div className="text-sm text-muted-foreground">暂无来源节拍。</div>}
+              )) : <div className="text-sm text-muted-foreground">No source beat yet.</div>}
             </CardContent>
           </Card>
           <Card className="rounded-lg">
             <CardHeader>
-              <CardTitle className="text-lg">硬事实</CardTitle>
+              <CardTitle className="text-lg">hard facts</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {facts.length > 0 ? facts.slice(0, 12).map((fact, index) => (
                 <div key={index} className="rounded-md border px-3 py-2 text-sm">
                   {fact.text || compactText(fact)}
                 </div>
-              )) : <div className="text-sm text-muted-foreground">暂无硬事实。</div>}
+              )) : <div className="text-sm text-muted-foreground">No hard facts yet.</div>}
             </CardContent>
           </Card>
         </div>

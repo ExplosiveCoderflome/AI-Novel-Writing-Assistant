@@ -39,29 +39,29 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
             <div className="mt-1 text-sm text-muted-foreground">{skeleton.concept.oneSentence}</div>
           </div>
           <div className="rounded-md border px-3 py-2 text-xs text-muted-foreground">
-            完整度 {Math.round(skeleton.assessment.completenessScore)} / 100
+            Completeness {Math.round(skeleton.assessment.completenessScore)} / 100
           </div>
         </div>
         <div className="mt-3 grid gap-2 md:grid-cols-3">
           <div className="rounded border p-2 text-xs">
-            <div className="text-muted-foreground">阅读感</div>
+            <div className="text-muted-foreground">sense of reading</div>
             <div className="mt-1 font-medium">{skeleton.concept.readerImpression}</div>
           </div>
           <div className="rounded border p-2 text-xs">
-            <div className="text-muted-foreground">类型承诺</div>
+            <div className="text-muted-foreground">type promise</div>
             <div className="mt-1 font-medium">{skeleton.concept.genrePromise}</div>
           </div>
           <div className="rounded border p-2 text-xs">
-            <div className="text-muted-foreground">可开书状态</div>
-            <div className="mt-1 font-medium">{skeleton.assessment.readyForNovelUse ? "可以进入世界手册" : "建议先补齐缺口"}</div>
+            <div className="text-muted-foreground">Open book status</div>
+            <div className="mt-1 font-medium">{skeleton.assessment.readyForNovelUse ? "Access to the world manual" : "It is recommended to fill in the gaps first"}</div>
           </div>
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionList
-          title="核心规则"
-          emptyText="暂无核心规则"
+          title="core rules"
+          emptyText="No core rules yet"
           items={structure.rules.axioms.map((item) =>
             [item.name, item.summary, item.cost && `代价：${item.cost}`, item.boundary && `边界：${item.boundary}`]
               .filter(Boolean)
@@ -69,8 +69,8 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           )}
         />
         <SectionList
-          title="主要势力"
-          emptyText="暂无势力"
+          title="main forces"
+          emptyText="No power yet"
           items={structure.forces.map((item) =>
             [
               item.name,
@@ -82,8 +82,8 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           )}
         />
         <SectionList
-          title="关键地点"
-          emptyText="暂无地点"
+          title="key locations"
+          emptyText="No location yet"
           items={structure.locations.map((item) =>
             [
               item.name,
@@ -96,8 +96,8 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           )}
         />
         <SectionList
-          title="势力关系"
-          emptyText="暂无势力关系"
+          title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+          emptyText="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
           items={structure.relations.forceRelations.map((item) =>
             [
               forceNameById.get(item.sourceForceId) ?? item.sourceForceId,
@@ -109,8 +109,8 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           )}
         />
         <SectionList
-          title="地理关系"
-          emptyText="暂无地理关系"
+          title="geographical relationship"
+          emptyText="No geographical relationship yet"
           items={(structure.relations.locationConnections ?? []).map((item) =>
             [
               locationNameById.get(item.sourceLocationId) ?? item.sourceLocationId,
@@ -122,8 +122,8 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
           )}
         />
         <SectionList
-          title="故事入口"
-          emptyText="暂无故事入口"
+          title="story entrance"
+          emptyText="No story entry yet"
           items={skeleton.storyEntrySuggestions.map((item) =>
             [item.title, item.description, item.firstConflict].filter(Boolean).join(" | "),
           )}
@@ -132,7 +132,7 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
 
       {skeleton.assessment.missingParts.length > 0 ? (
         <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-          <div className="font-semibold">完整度诊断</div>
+          <div className="font-semibold">Completeness diagnosis</div>
           <div className="mt-2 space-y-1">
             {skeleton.assessment.missingParts.map((item, index) => (
               <div key={`${item.area}-${index}`}>
@@ -145,10 +145,10 @@ export default function WorldGeneratorStepThree(props: WorldGeneratorStepThreePr
 
       <div className="flex flex-wrap gap-2">
         <Button variant="secondary" onClick={onBackToScale}>
-          返回调整规模
-        </Button>
+          Return to resize
+                          </Button>
         <Button onClick={onSave} disabled={savePending}>
-          {savePending ? "保存世界中..." : "保存并进入世界手册"}
+          {savePending ? "Saving the world..." : "Save and enter the world manual"}
         </Button>
       </div>
     </div>

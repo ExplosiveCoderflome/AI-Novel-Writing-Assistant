@@ -18,7 +18,7 @@ export default function WorkspaceNextAction(props: WorkspaceNextActionProps) {
   const Icon = props.icon ?? ArrowRight;
   return (
     <section
-      aria-label="推荐下一步"
+      aria-label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
       className={cn(
         "flex flex-col gap-4 rounded-md border px-4 py-3 sm:flex-row sm:items-center sm:justify-between",
         workspaceToneSurfaceClass[props.tone ?? "info"],
@@ -30,7 +30,7 @@ export default function WorkspaceNextAction(props: WorkspaceNextActionProps) {
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-foreground">{props.title}</h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">{props.description}</p>
-          {props.consequence ? <p className="mt-1 text-xs leading-5 text-muted-foreground">执行后：{props.consequence}</p> : null}
+          {props.consequence ? <p className="mt-1 text-xs leading-5 text-muted-foreground">After execution:{props.consequence}</p> : null}
         </div>
       </div>
       {props.action ? <div className="mobile-full-actions shrink-0">{props.action}</div> : null}

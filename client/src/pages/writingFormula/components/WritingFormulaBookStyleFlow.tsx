@@ -21,44 +21,44 @@ export default function WritingFormulaBookStyleFlow(props: WritingFormulaBookSty
   return (
     <Card className="border-slate-200/80 bg-white/90 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
       <CardHeader>
-        <CardTitle>从小说基础信息设置书级默认写法</CardTitle>
+        <CardTitle>Set the default book-level writing method from the basic information of the novel</CardTitle>
         <div className="text-sm leading-7 text-muted-foreground">
-          写法引擎负责创建、测试和整理写法资产。当前小说要使用哪套默认写法，请回到小说基础信息里确认，再带入后续导演和正文流程。
-        </div>
+          The writing engine is responsible for creating, testing and organizing writing assets. Which default writing method should be used for the current novel? Please go back to the basic information of the novel to confirm, and then enter the subsequent director and text process.
+                          </div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <div className="space-y-4 rounded-2xl border bg-slate-50/70 p-4">
-            <div className="text-sm font-medium text-slate-900">现在应该从哪里进入</div>
+            <div className="text-sm font-medium text-slate-900">Where should I enter now?</div>
             <div className="rounded-2xl border bg-white p-4 text-sm leading-7 text-slate-700">
               {novelId
                 ? `当前小说${novelTitle ? `《${novelTitle}》` : ""}的“默认写法”已经放到小说基础信息页里。`
-                : "请先进入某本小说的基础信息页，在那里确认书级默认写法。"}
+                : "Please first go to the basic information page of a certain novel and confirm the default writing method of the book level there."}
             </div>
             <div className="rounded-2xl border bg-slate-950 p-4 text-white">
-              <div className="text-sm font-medium">两个入口分别负责什么</div>
+              <div className="text-sm font-medium">What are the two entrances responsible for?</div>
               <div className="mt-3 space-y-2 text-sm leading-7 text-slate-200">
-                <div>小说页：为当前小说选择默认写法，触发推荐、比较候选，并决定何时带入自动导演。</div>
-                <div>写法引擎：继续负责整理写法资产、试写、去 AI 味和规则管理。</div>
+                <div>Novel page: Select the default writing method for the current novel, trigger recommendations, compare candidates, and decide when to bring in the automatic director.</div>
+                <div>Writing engine: continues to be responsible for organizing writing assets, trial writing, removing AI flavor and rule management.</div>
               </div>
             </div>
           </div>
 
           <div className="space-y-4 rounded-2xl border bg-white p-4">
-            <div className="text-sm font-medium text-slate-900">下一步</div>
+            <div className="text-sm font-medium text-slate-900">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</div>
             <div className="rounded-2xl border bg-slate-50/70 p-4 text-sm leading-7 text-slate-700">
-              先去小说页确认这本书的默认写法。如果当前资产库里还没有合适的写法，再回到写法引擎创建或整理资产。
-            </div>
+              First go to the novel page to confirm the default writing method of this book. If there is no suitable writing method in the current asset library, return to the writing method engine to create or organize assets.
+                                      </div>
             <div className="flex flex-wrap gap-3">
               <Button asChild type="button">
-                <Link to={novelRoute}>去小说页设置默认写法</Link>
+                <Link to={novelRoute}>Go to the novel page to set the default writing method</Link>
               </Button>
               <Button type="button" variant="outline" onClick={onOpenAdvanced}>
-                编辑当前写法
-              </Button>
+                Edit current writing
+                                            </Button>
               <Button type="button" variant="outline" onClick={onOpenCreate}>
-                新建一套写法
-              </Button>
+                Create a new writing style
+                                            </Button>
             </div>
           </div>
         </div>

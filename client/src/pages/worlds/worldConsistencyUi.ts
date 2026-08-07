@@ -2,50 +2,50 @@ import type { WorldConsistencyIssue, WorldConsistencyReport } from "@ai-novel/sh
 
 const ISSUE_CODE_LABELS: Record<string, string> = {
   THEMATIC_INCOHERENCE: "主题框架不一致",
-  REDUNDANT_AXIOM_APPLICATION: "世界公理重复套用",
-  AXIOM_VIOLATION: "世界公理冲突",
-  GENRE_MISMATCH: "题材信号冲突",
-  AXIOM_MAGIC_CONFLICT: "公理与力量体系冲突",
-  TECH_ERA_MISMATCH: "技术时代混杂",
-  CONFLICT_WEAK: "核心冲突偏弱",
-  BASELINE_PASS: "规则检查通过",
+  REDUNDANT_AXIOM_APPLICATION: "Repeated application of world axioms",
+  AXIOM_VIOLATION: "world justice conflict",
+  GENRE_MISMATCH: "Theme Signal Conflict",
+  AXIOM_MAGIC_CONFLICT: "Axiom and power system conflict",
+  TECH_ERA_MISMATCH: "Mixed technological times",
+  CONFLICT_WEAK: "The core conflict is weak",
+  BASELINE_PASS: "Rule check passed",
 };
 
 const ISSUE_MESSAGE_LABELS: Record<string, string> = {
-  THEMATIC_INCOHERENCE: "检索补充内容引入了与核心设定不一致的主题框架。",
-  REDUNDANT_AXIOM_APPLICATION: "补充内容重复复述了既有公理，没有增加新的有效约束。",
-  AXIOM_VIOLATION: "世界名或核心概念与既有公理、背景存在冲突。",
-  GENRE_MISMATCH: "题材信号与世界手册约束不一致。",
-  AXIOM_MAGIC_CONFLICT: "世界公理与力量体系设定发生冲突。",
-  TECH_ERA_MISMATCH: "技术时代感混杂，缺少足够解释。",
-  CONFLICT_WEAK: "核心冲突信息过薄，支撑力不足。",
-  BASELINE_PASS: "规则层面未发现明显硬冲突。",
+  THEMATIC_INCOHERENCE: "Searching for supplemental content introduces thematic frameworks that are inconsistent with the core setting.",
+  REDUNDANT_AXIOM_APPLICATION: "The supplementary content reiterates existing axioms without adding new valid constraints.",
+  AXIOM_VIOLATION: "The world name or core concept conflicts with existing axioms and background.",
+  GENRE_MISMATCH: "Theme signals are inconsistent with world manual constraints.",
+  AXIOM_MAGIC_CONFLICT: "The world's axioms conflict with the setting of the power system.",
+  TECH_ERA_MISMATCH: "The sense of the technological era is mixed and lacks sufficient explanation.",
+  CONFLICT_WEAK: "The core conflict information is too thin and lacks support.",
+  BASELINE_PASS: "No obvious hard conflicts were found at the rule level.",
 };
 
 const ISSUE_DETAIL_LABELS: Record<string, string> = {
-  THEMATIC_INCOHERENCE: "辅助上下文引入了原始设定里没有明确建立的主题表达，容易让世界主轴发生漂移。",
-  REDUNDANT_AXIOM_APPLICATION: "补充内容主要在重复已有规则，建议删去冗余复述，只保留真正新增的约束。",
-  AXIOM_VIOLATION: "命名、题材承诺或核心概念与既有世界底层规则不一致，需要统一主设定。",
-  GENRE_MISMATCH: "命名或关键词传递出了另一种题材预期，和世界手册强调的风格与规则不匹配。",
-  AXIOM_MAGIC_CONFLICT: "你在世界公理里限制了超自然/魔法内容，但力量体系或相关文本又重新引入了它。",
-  TECH_ERA_MISMATCH: "技术描述同时出现了不同时代层级的元素，但没有交代来源、限制或过渡逻辑。",
-  CONFLICT_WEAK: "建议补充冲突双方、触发事件、升级路径和失败代价，让世界主矛盾更清晰。",
+  THEMATIC_INCOHERENCE: "The auxiliary context introduces thematic expressions that are not clearly established in the original setting, which can easily cause the main axis of the world to drift.",
+  REDUNDANT_AXIOM_APPLICATION: "The supplementary content mainly repeats existing rules. It is recommended to delete redundant repetitions and only retain the truly new constraints.",
+  AXIOM_VIOLATION: "The naming, theme commitment or core concepts are inconsistent with the underlying rules of the existing world, and the main setting needs to be unified.",
+  GENRE_MISMATCH: "Naming or keywords convey another theme expectation, which does not match the style and rules emphasized in the World Manual.",
+  AXIOM_MAGIC_CONFLICT: "You limit supernatural/magical content in the world axioms, but the power system or related text reintroduces it.",
+  TECH_ERA_MISMATCH: "The technical description simultaneously presents elements from different era levels, but does not explain the sources, limitations or transition logic.",
+  CONFLICT_WEAK: "It is recommended to add conflicting parties, triggering events, escalation paths and failure costs to make the main conflict in the world clearer.",
 };
 
 const FIELD_LABELS: Record<string, string> = {
-  description: "世界概述",
-  background: "背景设定",
-  geography: "地理环境",
-  cultures: "文化习俗",
-  magicSystem: "力量体系",
-  politics: "政治结构",
-  races: "种族设定",
-  religions: "宗教信仰",
-  technology: "技术体系",
-  conflicts: "核心冲突",
-  history: "历史脉络",
-  economy: "经济系统",
-  factions: "势力关系",
+  description: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+  background: "background settings",
+  geography: "geographical environment",
+  cultures: "cultural customs",
+  magicSystem: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+  politics: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+  races: "Race settings",
+  religions: "religious beliefs",
+  technology: "Technical system",
+  conflicts: "core conflict",
+  history: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+  economy: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+  factions: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
 };
 
 function hasChinese(text: string): boolean {
@@ -57,7 +57,7 @@ function localizeSummary(summary: string, status: WorldConsistencyReport["status
     return summary;
   }
   if (/Consistency check passed/i.test(summary)) {
-    return "世界手册体检通过，未发现明显硬冲突。";
+    return "The World Manual physical examination passed and no obvious hard conflicts were found.";
   }
   const errorCount = issues.filter((item) => item.severity === "error").length;
   const warnCount = issues.filter((item) => item.severity === "warn").length;
@@ -67,7 +67,7 @@ function localizeSummary(summary: string, status: WorldConsistencyReport["status
   if (status === "warn") {
     return `检测到 ${warnCount} 个警告项，建议继续修正。`;
   }
-  return "世界手册体检已完成。";
+  return "World Handbook Physical Examination Completed.";
 }
 
 export function parseConsistencyReport(raw: string | null | undefined, issues: WorldConsistencyIssue[]): WorldConsistencyReport | null {
@@ -98,11 +98,11 @@ export function parseConsistencyReport(raw: string | null | undefined, issues: W
 export function localizeConsistencySeverity(severity: WorldConsistencyIssue["severity"]): string {
   switch (severity) {
     case "error":
-      return "严重冲突";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "warn":
-      return "警告";
+      return "warn";
     case "pass":
-      return "通过";
+      return "pass";
     default:
       return severity;
   }
@@ -111,29 +111,29 @@ export function localizeConsistencySeverity(severity: WorldConsistencyIssue["sev
 export function localizeConsistencyStatus(status: WorldConsistencyIssue["status"] | WorldConsistencyReport["status"]): string {
   switch (status) {
     case "open":
-      return "待处理";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "resolved":
-      return "已解决";
+      return "Resolved";
     case "ignored":
-      return "已忽略";
+      return "Ignored";
     case "error":
-      return "存在严重冲突";
+      return "There is a serious conflict";
     case "warn":
-      return "存在警告";
+      return "There is a warning";
     case "pass":
-      return "检查通过";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     default:
       return status;
   }
 }
 
 export function localizeConsistencySource(source: WorldConsistencyIssue["source"]): string {
-  return source === "llm" ? "模型审校" : "规则检查";
+  return source === "llm" ? "Model review" : "Rule checking";
 }
 
 export function localizeConsistencyField(targetField?: string | null): string {
   if (!targetField) {
-    return "未指定";
+    return "not specified";
   }
   return FIELD_LABELS[targetField] ?? targetField;
 }
@@ -147,7 +147,7 @@ export function localizeConsistencyIssueMessage(issue: WorldConsistencyIssue): s
     return issue.message;
   }
   return ISSUE_MESSAGE_LABELS[issue.code]
-    ?? `${localizeConsistencyField(issue.targetField)}存在一致性风险。`;
+    ?? `The function ${localizeConsistencyField(issue.targetField)} has a consistency risk.`;
 }
 
 export function localizeConsistencyIssueDetail(issue: WorldConsistencyIssue): string | null {

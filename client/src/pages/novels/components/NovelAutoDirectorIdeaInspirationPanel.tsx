@@ -23,11 +23,11 @@ export default function NovelAutoDirectorIdeaInspirationPanel({
     <div className="mt-5 w-full">
       <div className="flex items-center justify-between gap-3">
         <div className="text-xs text-muted-foreground">
-          这些只是临时灵感，使用后仍可继续改。
-        </div>
+          These are temporary inspirations only and can be modified after use.
+                          </div>
         <Button type="button" size="sm" variant="ghost" onClick={onGenerate} disabled={isGenerating}>
           <RefreshCw className="h-4 w-4" />
-          {isGenerating ? "生成中..." : ideas.length > 0 ? "换一组" : "生成灵感"}
+          {isGenerating ? "Generating..." : ideas.length > 0 ? "Change Group" : "Generate Inspiration"}
         </Button>
       </div>
       {ideas.length > 0 ? (
@@ -54,8 +54,8 @@ export default function NovelAutoDirectorIdeaInspirationPanel({
               </div>
               <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-primary opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
                 <Check className="h-4 w-4" />
-                使用
-              </span>
+                use
+                                    </span>
             </motion.button>
           ))}
         </div>

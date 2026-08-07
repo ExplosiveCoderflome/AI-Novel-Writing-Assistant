@@ -62,26 +62,26 @@ export default function CreativeHubConversation({
       <AssistantRuntimeProvider runtime={runtime}>
         <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg shadow-none">
           <CardHeader>
-            <CardTitle className="text-base">创作推进记录</CardTitle>
+            <CardTitle className="text-base">Creation Promotion Record</CardTitle>
           </CardHeader>
           <CardContent className="flex min-h-0 flex-1 flex-col">
             {loading ? (
               <WorkspaceStateNotice
                 loading
                 tone="info"
-                title="正在读取当前线程"
-                description="加载完成前不会显示上一线程的消息。"
+                title="Reading current thread"
+                description="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
               />
             ) : errorMessage ? (
               <WorkspaceStateNotice
                 tone="danger"
-                title="当前线程加载失败"
-                description={`${errorMessage} 已保存的小说和其他线程不会受影响。`}
+                title="Current thread failed to load"
+                description={`Saved novels and other threads will not be affected by ${errorMessage}.`}
                 action={onRetry ? (
                   <Button type="button" size="sm" variant="outline" onClick={onRetry}>
                     <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                    重新加载
-                  </Button>
+                    Reload
+                                          </Button>
                 ) : null}
               />
             ) : (
@@ -92,10 +92,10 @@ export default function CreativeHubConversation({
                 >
                   <ThreadPrimitive.Empty>
                     <div className="mx-auto mt-8 max-w-xl rounded-md border border-dashed border-border px-5 py-8 text-center">
-                      <h3 className="text-base font-semibold tracking-normal text-foreground">开始一轮创作推进</h3>
+                      <h3 className="text-base font-semibold tracking-normal text-foreground">Start a round of creative advancement</h3>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        使用上方推荐动作，或在下方补充作品问题、调整要求和希望 AI 推进的目标。
-                      </p>
+                        Use the recommended actions above, or add below the title questions, tuning requirements, and goals you want the AI to advance.
+                                                                            </p>
                     </div>
                   </ThreadPrimitive.Empty>
                   <ThreadPrimitive.Messages
@@ -109,17 +109,17 @@ export default function CreativeHubConversation({
                 <ComposerPrimitive.Root className="rounded-md border border-border bg-background p-3">
                   <ComposerPrimitive.Input
                     className="min-h-[110px] w-full resize-none rounded-md border border-input bg-muted/20 p-3 text-base text-foreground outline-none transition focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 md:text-sm"
-                    placeholder="补充作品问题、调整要求或本轮创作目标；Enter 发送，Shift+Enter 换行。"
+                    placeholder="Supplementary work questions, adjustment requirements, or creative goals for this round; Enter to send, Shift+Enter to wrap."
                     submitMode="enter"
                     disabled={actionDisabled}
-                    aria-label="本轮创作目标或调整要求"
+                    aria-label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
                   />
                   <div className="mt-3 flex gap-2">
                     <ComposerPrimitive.Send asChild>
-                      <Button type="button" size="sm" disabled={actionDisabled}>发送</Button>
+                      <Button type="button" size="sm" disabled={actionDisabled}>send</Button>
                     </ComposerPrimitive.Send>
                     <ComposerPrimitive.Cancel asChild>
-                      <Button type="button" size="sm" variant="outline">停止</Button>
+                      <Button type="button" size="sm" variant="outline">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</Button>
                     </ComposerPrimitive.Cancel>
                   </div>
                 </ComposerPrimitive.Root>

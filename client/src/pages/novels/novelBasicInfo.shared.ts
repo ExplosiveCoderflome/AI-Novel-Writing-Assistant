@@ -45,191 +45,39 @@ export interface BasicInfoOption<T extends string> {
 
 export const DEFAULT_ESTIMATED_CHAPTER_COUNT = 80;
 
-export const WRITING_MODE_OPTIONS: BasicInfoOption<NovelBasicFormState["writingMode"]>[] = [
-  {
-    value: "original",
-    label: "原创",
-    summary: "从零开始创建世界、角色和主线，适合大多数新项目。",
-    recommended: true,
-  },
-  {
-    value: "continuation",
-    label: "续写",
-    summary: "基于已有小说或知识文档继续创作，后续会优先注入既有设定和拆书内容。",
-  },
-];
-
-export const PROJECT_MODE_OPTIONS: BasicInfoOption<NovelBasicFormState["projectMode"]>[] = [
-  {
-    value: "co_pilot",
-    label: "AI 副驾",
-    summary: "你定方向，AI 提方案和草稿，适合前期打磨和高频人工决策。",
-    recommended: true,
-  },
-  {
-    value: "ai_led",
-    label: "AI 接管",
-    summary: "AI 负责主推进，你在关键节点审核，适合已有明确目标的项目。",
-  },
-  {
-    value: "draft_mode",
-    label: "草稿优先",
-    summary: "先快速产出文本和方向，结构约束较弱，适合试故事和找感觉。",
-  },
-  {
-    value: "auto_pipeline",
-    label: "流水线优先",
-    summary: "适合设定较完整后按规划、生成、审计、修复连续推进。",
-  },
-];
-
-export const READER_CHANNEL_OPTIONS: BasicInfoOption<NovelBasicFormState["readerChannelPreference"]>[] = [
-  {
-    value: "ai_judge",
-    label: "AI 判断",
-    summary: "让 AI 根据题材、卖点和起始想法判断默认读者频道倾向，适合作为默认选择。",
-    recommended: true,
-  },
-  {
-    value: "male_oriented",
-    label: "男频向",
-    summary: "更强调目标、升级、竞争、爽点兑现和外部事件推进。",
-  },
-  {
-    value: "female_oriented",
-    label: "女频向",
-    summary: "更强调关系线、情绪牵引、人物选择和细腻的阶段性反馈。",
-  },
-  {
-    value: "general",
-    label: "泛读者 / 不限定",
-    summary: "不限定频道倾向，让 AI 优先按故事本身和目标读者描述来规划。",
-  },
-];
-
-export const POV_OPTIONS: BasicInfoOption<NovelBasicFormState["narrativePov"]>[] = [
-  {
-    value: "third_person",
-    label: "第三人称",
-    summary: "最稳，适合多角色和复杂主线。",
-    recommended: true,
-  },
-  {
-    value: "first_person",
-    label: "第一人称",
-    summary: "代入感强，但信息受限，适合强主角视角叙事。",
-  },
-  {
-    value: "mixed",
-    label: "混合视角",
-    summary: "更灵活，但更容易失控，适合成熟项目。",
-  },
-];
-
-export const PACE_OPTIONS: BasicInfoOption<NovelBasicFormState["pacePreference"]>[] = [
-  {
-    value: "balanced",
-    label: "均衡",
-    summary: "推进和铺垫兼顾，适合作为默认选择。",
-    recommended: true,
-  },
-  {
-    value: "slow",
-    label: "慢节奏",
-    summary: "更重铺垫、氛围和情绪发酵。",
-  },
-  {
-    value: "fast",
-    label: "快节奏",
-    summary: "更重事件驱动、钩子和连续推进。",
-  },
-];
-
-export const EMOTION_OPTIONS: BasicInfoOption<NovelBasicFormState["emotionIntensity"]>[] = [
-  {
-    value: "medium",
-    label: "中情绪浓度",
-    summary: "保留起伏但不过载，适合作为默认值。",
-    recommended: true,
-  },
-  {
-    value: "low",
-    label: "低情绪浓度",
-    summary: "更克制，适合冷静叙事或偏理性作品。",
-  },
-  {
-    value: "high",
-    label: "高情绪浓度",
-    summary: "更强调爆发、冲突和强刺激场面。",
-  },
-];
-
-export const AI_FREEDOM_OPTIONS: BasicInfoOption<NovelBasicFormState["aiFreedom"]>[] = [
-  {
-    value: "medium",
-    label: "中自由度",
-    summary: "允许 AI 在设定内补充细节和局部推进，适合作为默认值。",
-    recommended: true,
-  },
-  {
-    value: "low",
-    label: "低自由度",
-    summary: "严格按设定和规划执行，适合前期控盘。",
-  },
-  {
-    value: "high",
-    label: "高自由度",
-    summary: "允许 AI 主动扩展剧情和细节，适合中后期稳定项目。",
-  },
-];
-
-export const PUBLICATION_STATUS_OPTIONS: BasicInfoOption<NovelBasicFormState["status"]>[] = [
-  {
-    value: "draft",
-    label: "草稿",
-    summary: "仍在开发和打磨阶段，适合绝大多数项目。",
-    recommended: true,
-  },
-  {
-    value: "published",
-    label: "已发布",
-    summary: "用于标记已成型或已对外发布的作品。",
-  },
-];
-
-export const PROJECT_STATUS_OPTIONS: Array<{ value: NovelBasicFormState["projectStatus"]; label: string }> = [
-  { value: "not_started", label: "未开始" },
-  { value: "in_progress", label: "进行中" },
-  { value: "completed", label: "已完成" },
-  { value: "rework", label: "返工" },
-  { value: "blocked", label: "阻塞" },
+export const WRITING_MODE_OPTIONS: BasicInfoOption<NovelBasicFormState["writingMode"]>[] = [ { value: "original", label: "Original", summary: "Create the world, characters, and main storyline from scratch, suitable for most new projects.", recommended: true, }, { value: "continuation", label: "Continuation", summary: "Continue the creation based on an existing novel or knowledge document, and will prioritize the injection of existing settings and book-breaking content.", }, ]; export const PROJECT_MODE_OPTIONS: BasicInfoOption<NovelBasicFormState["projectMode"]>[] = [ { value: "co_pilot", label: "AI Co-pilot", summary: "You set the direction, AI provides solutions and drafts, suitable for early polishing and high-frequency human decision-making.", recommended: true, }, { value: "ai_led", label: "AI Takes Over", summary: "AI is responsible for the main drive, you review at key nodes, suitable for projects with clear goals.", }, { value: "draft_mode", label: "draft priority", summary: "Quickly produce text and direction first, with weaker structural constraints, suitable for testing stories and getting a feel for the project.", }, { value: "auto_pipeline", label: "pipeline priority", summary: "Suitable for continuous progress according to planning, generation, auditing, and repair after a relatively complete setup.", }, ]; export const READER_CHANNEL_OPTIONS: BasicInfoOption<NovelBasicFormState["readerChannelPreference"]>[] = [ { value: "ai_judge", label: "AI Judgment", summary: "Let AI judge the default reader channel preference based on the theme, selling points, and initial idea, suitable as the default selection.", recommended: true, }, { value: "male_oriented", label: "Male-oriented", summary: "Emphasis on goals, upgrades, competition, fulfillment of satisfying moments, and external event progression.", }, { value: "female_oriented", label: "Female-oriented", summary: "Emphasis on relationship lines, emotional pull, character selection, and subtle stage-by-stage feedback.", }, { value: "general", label: "General Readers/Unrestricted", summary: "Unrestricted channel preference, let AI prioritize planning based on the story itself and the target reader description.", }, ]; export const POV_OPTIONS: BasicInfoOption<NovelBasicFormState["narrativePov"]>[] = [ { value: "third_person", label: "Third-person perspective", summary: "Most stable, suitable for multiple characters and complex storylines.", recommended: true, }, { value: "first_person", label: "First-person perspective", summary: "Strong sense of immersion, but limited information, suitable for strong protagonist-centric narratives.", }, { value: "mixed", label: "Mixed perspective", summary: "More flexible, but more prone to loss of control, suitable for mature projects.", }, ]; export const PACE_OPTIONS: BasicInfoOption<NovelBasicFormState["pacePreference"]>[] = [ { value: "balanced", label: "Balanced", summary: "Balances both progression and setup, suitable as the default choice.", recommended: true, }, { value: "slow", label: "Slow pace", summary: "Emphasis on setup, atmosphere, and emotional build-up.", }, { value: "fast", label: "Fast pace", summary: "Emphasis on event-driven, hook-based, and continuous progression.", }, ]; export const EMOTION_OPTIONS: BasicInfoOption<NovelBasicFormState["emotionIntensity"]>[] = [ { value: "medium", label: "Medium emotional intensity", summary: "Retains fluctuations but is not overloaded, suitable as a default value.", recommended: true, }, { value: "low", label: "Low emotional intensity", summary: "More restrained, suitable for calm narratives or more rational works.", }, { value: "high", label: "High emotional intensity", summary: "Emphasis on explosions, conflicts, and highly stimulating scenes.", }, ]; export const AI_FREEDOM_OPTIONS: BasicInfoOption<NovelBasicFormState["aiFreedom"]>[] = [ { value: "medium", label: "Medium freedom", summary: "Allows AI to supplement details and make local progress within the settings, suitable as the default value.", recommended: true, }, { value: "low", label: "Low freedom", summary: "Strictly follows the settings and plans, suitable for early-stage control.", }, { value: "high", label: "High freedom", summary: "Allows AI to actively expand the plot and details, suitable for mid-to-late-stage stable projects.", }, ]; export const PUBLICATION_STATUS_OPTIONS: BasicInfoOption<NovelBasicFormState["status"]>[] = [ { value: "draft", label: "draft", summary: "Still under development and polishing, suitable for most projects.", recommended: true, }, { value: "published", label: "published", summary: "Used to mark completed or publicly released works.", }, ]; export const PROJECT_STATUS_OPTIONS: Array<{ value: NovelBasicFormState["projectStatus"]; label: string }> = [
+  { value: "not_started", label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+  { value: "in_progress", label: "in progress" },
+  { value: "completed", label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+  { value: "rework", label: "Rework" },
+  { value: "blocked", label: "block" },
 ];
 
 export const BASIC_INFO_FIELD_HINTS = {
-  writingMode: "决定项目是从零开始，还是基于已有作品继续创作。它会直接影响后续优先使用哪些上下文来源。",
-  targetAudience: "说明这本书最主要写给谁看。不会写专业人群画像也没关系，按直觉描述即可。",
-  bookSellingPoint: "写清楚这本书最抓人的点，例如关系拉扯、逆袭爽点、悬念推进或设定新鲜感。",
-  competingFeel: "写成读者会联想到的阅读感，不是要求你模仿具体作品。",
-  first30ChapterPromise: "写清楚前 30 章一定要让读者看到什么、爽到什么、相信什么。",
-  commercialTagsText: "用逗号分隔 3-6 个标签即可，例如逆袭、强冲突、悬念拉满、职场博弈。",
-  projectMode: "决定你和 AI 的协作方式。会影响后续哪些步骤自动推进、哪些步骤更依赖人工确认。",
-  readerChannelPreference: "帮助 AI 判断默认爽点、情绪重心和关系线权重。不确定时保持 AI 判断。",
-  narrativePov: "决定章节生成默认采用哪种叙述视角，也会影响信息分发方式。",
-  pacePreference: "决定章节规划时是偏铺垫还是偏推进，会影响场景密度和钩子强度。",
-  emotionIntensity: "决定后续生成时情绪爆发和冲突的频率，不是越高越好。",
-  aiFreedom: "决定 AI 可以偏离既有规划和设定的程度。前期建议保持低或中。",
-  postGenerationStyleReviewEnabled: "控制正文生成后的去 AI 味检测与自动修正。生成前的写法和反 AI 提示仍按规则库执行。",
-  defaultChapterLength: "这是章节规划和生成时的参考字数，不是硬限制。常见推荐值是 2500 到 3500。",
-  estimatedChapterCount: "这是项目预估的总章节数，会作为结构化大纲、剧情拍点和流水线默认范围的参考，不是硬限制。",
-  resourceReadyScore: "用于标记设定、角色、主线资料是否充分。数值越高，越适合进入自动化生产阶段。",
-  styleTone: "写几个关键词即可，例如冷峻、克制、黑色幽默。它会影响生成的语言风格。",
-  genreId: "题材基底回答“这是什么书”，例如修仙、都市、历史架空。它会影响规划、标题和整体卖点倾向，建议尽量尽早确定。",
-  primaryStoryModeId: "主推进模式回答“这本书靠什么持续推进和兑现”，例如系统流、无敌流、种田流。后续规划和生成会优先服从它。",
-  secondaryStoryModeId: "副推进模式只负责补充风味，例如在治愈日常中叠加小店经营感，在无敌流中叠加马甲感，不能覆盖主模式的边界。",
-  worldId: "这里只记录一个参考样本，方便初始化本书世界。小说生成会优先读取页面上方“本书世界”卡片中的内容。",
-  status: "只是作品生命周期标记，不影响基础创作能力，但会影响列表和项目管理状态。",
-  continuationSourceType: "续写时选择是引用站内小说，还是知识库里的文档版本。",
-  continuationBookAnalysis: "拆书内容会作为高权重结构化上下文，适合续写项目保持风格和设定一致。",
+  writingMode: "Decide whether to start the project from scratch or build on existing work. It directly affects which contextual sources are prioritized for subsequent use.",
+  targetAudience: "Explain who this book is primarily written for. It doesn’t matter if you don’t know how to write portraits of professional people, just describe them intuitively.",
+  bookSellingPoint: "Write down clearly the most gripping points of the book, such as the relationship pull, the excitement of counterattack, the suspense advancement, or the freshness of the setting.",
+  competingFeel: "Writing to create a reading experience that readers will relate to does not require you to imitate specific works.",
+  first30ChapterPromise: "Write clearly what the readers will see, feel happy, and believe in the first 30 chapters.",
+  commercialTagsText: "Just use commas to separate 3-6 tags, such as counterattack, strong conflict, suspense, and workplace game.",
+  projectMode: "Decide how you and AI work together. It will affect which subsequent steps are automatically advanced and which steps rely more on manual confirmation.",
+  readerChannelPreference: "Help AI judgment to default to cool points, emotional focus and relationship line weights. Maintain AI judgment when in doubt.",
+  narrativePov: "Deciding which narrative perspective to use by default for chapter generation also affects how information is distributed.",
+  pacePreference: "Deciding whether to focus on foreshadowing or advancement when planning chapters will affect scene density and hook strength.",
+  emotionIntensity: "Determining the frequency of emotional outbursts and conflicts during subsequent generation, higher is not better.",
+  aiFreedom: "Determine how far the AI ​​can deviate from established plans and settings. It is recommended to keep it low or medium in the early stage.",
+  postGenerationStyleReviewEnabled: "Control AI deodorization detection and automatic correction after text generation. The writing method and anti-AI prompts before generation are still executed according to the rule base.",
+  defaultChapterLength: "This is a reference word count when planning and generating chapters, not a hard limit. Common recommendations are 2500 to 3500.",
+  estimatedChapterCount: "This is the estimated total number of chapters for the project, which will be used as a reference for the structured outline, plot points, and the default scope of the pipeline. It is not a hard limit.",
+  resourceReadyScore: "Used to mark whether settings, characters, and main story information are sufficient. The higher the value, the more suitable it is to enter the automated production stage.",
+  styleTone: "Just write a few keywords, such as coldness, restraint, and black humor. It affects the generated language style.",
+  genreId: "Answer \"What kind of book is this\" based on the subject matter, such as cultivating immortality, city, and historical fiction. It will affect the planning, title and overall selling point tendency, so it is recommended to determine it as early as possible.",
+  primaryStoryModeId: "The main promotion mode answers \"What does this book rely on to continue to promote and realize its fulfillment\", such as system flow, invincible flow, and farming flow. Subsequent planning and generation will obey it first.",
+  secondaryStoryModeId: "The secondary promotion mode is only responsible for supplementing the flavor, such as superimposing the sense of shop management in daily healing, and superimposing the sense of vest in invincible flow, and cannot cover the boundaries of the main mode.",
+  worldId: "Only a reference sample is recorded here to facilitate initializing the world of this book. The novel generation will give priority to reading the content in the \"Book World\" card at the top of the page.",
+  status: "It is just a work life cycle mark and does not affect basic creative capabilities, but will affect the list and project management status.",
+  continuationSourceType: "When continuing, choose whether to cite the novel on the site or the document version in the knowledge base.",
+  continuationBookAnalysis: "The content of the split book will serve as a high-weight structured context, suitable for continued projects to maintain a consistent style and setting.",
 } satisfies Record<string, string>;
 
 export function createDefaultNovelBasicFormState(): NovelBasicFormState {

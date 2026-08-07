@@ -102,7 +102,7 @@ export function resolveCustomVolumeCountInput(
   if (!Number.isFinite(parsed)) {
     return {
       value: null,
-      message: "请先输入有效的固定卷数。",
+      message: "Please enter a valid fixed volume number first.",
     };
   }
   if (
@@ -122,6 +122,6 @@ export function resolveCustomVolumeCountInput(
 
 export function buildGenerationNotice(strategyPlan: VolumeStrategyPlan | null): string {
   return strategyPlan
-    ? "当前工作区已进入二期链路：先审卷战略，再确认卷骨架，之后按卷生成节奏板和章节列表。"
-    : "先生成卷战略建议，让系统帮你决定卷数和硬/软规划，再进入卷骨架。";
+    ? "The current workspace has entered the second phase of the link: first review the volume strategy, then confirm the volume skeleton, and then generate a rhythm board and chapter list by volume."
+    : "First, create volume strategy suggestions, let the system help you decide the number of volumes and hard/soft planning, and then enter the volume skeleton.";
 }

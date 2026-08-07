@@ -198,7 +198,7 @@ export function useNovelVolumePlanning({
     if (hasCharacters) {
       return true;
     }
-    return window.confirm("当前小说还没有角色。继续生成会降低后续一致性，是否继续？");
+    return window.confirm("There are currently no characters in the novel. Continuing to generate will reduce subsequent consistency. Do you want to continue?");
   };
 
   const startStrategyGeneration = () => {
@@ -214,7 +214,7 @@ export function useNovelVolumePlanning({
 
   const startStrategyCritique = () => {
     if (!strategyPlan) {
-      setVolumeGenerationMessage("请先生成卷战略建议。");
+      setVolumeGenerationMessage("Please give me some strategic advice on how to make a volume.");
       return;
     }
     startStrategyCritiqueAction({
@@ -263,11 +263,11 @@ export function useNovelVolumePlanning({
     const targetVolume = normalizedVolumeDraft.find((volume) => volume.id === volumeId);
     const targetChapter = targetVolume?.chapters.find((chapter) => chapter.id === chapterId);
     if (!targetVolume || !targetChapter) {
-      setStructuredMessage("当前章节不存在，无法生成细化信息。");
+      setStructuredMessage("The current chapter does not exist and detailed information cannot be generated.");
       return;
     }
     if (!findBeatSheet(beatSheets, volumeId)) {
-      setStructuredMessage("请先生成当前卷节奏板，再细化章节。");
+      setStructuredMessage("Please generate the rhythm board for the current volume first, and then refine the chapters.");
       return;
     }
     if (!ensureCharacterGuard()) {
@@ -276,9 +276,9 @@ export function useNovelVolumePlanning({
     const confirmed = window.confirm([
       `将基于当前内容为第${targetChapter.chapterOrder}章《${targetChapter.title}》AI 修正${detailModeLabel(detailMode)}。`,
       hasChapterDetailDraft(targetChapter, detailMode)
-        ? "会优先沿用当前已填写结果，只修正空缺、模糊和不够可执行的部分。"
-        : "当前这块还是空白，AI 会先补出首版，再按现有标题和摘要收束。",
-      "不会改动本章标题和摘要，也不会影响其他章节。",
+        ? "Priority will be given to using the currently filled-in results, and only the blank, vague and insufficiently executable parts will be corrected."
+        : "Currently this section is still blank, AI will first make up the first edition, and then wrap it up with the existing title and abstract.",
+      "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
     ].join("\n\n"));
     if (!confirmed) {
       return;
@@ -298,15 +298,15 @@ export function useNovelVolumePlanning({
     const targetVolume = normalizedVolumeDraft.find((volume) => volume.id === volumeId);
     const batch = resolveChapterDetailBatch(targetVolume, request);
     if (!targetVolume) {
-      setStructuredMessage("当前卷不存在，无法生成章节细化。");
+      setStructuredMessage("The current volume does not exist and chapter refinement cannot be generated.");
       return;
     }
     if (batch.targets.length === 0) {
-      setStructuredMessage(typeof request === "string" ? "当前章节不存在，无法整套生成章节细化。" : "当前范围内没有可细化章节。");
+      setStructuredMessage(typeof request === "string" ? "The current chapter does not exist, and the entire set of chapter refinements cannot be generated." : "There are no chapters in the current scope that can be refined.");
       return;
     }
     if (!findBeatSheet(beatSheets, volumeId)) {
-      setStructuredMessage(batch.targets.length > 1 ? "请先生成当前卷节奏板，再做批量章节细化。" : "请先生成当前卷节奏板，再做单章整套细化。");
+      setStructuredMessage(batch.targets.length > 1 ? "Please generate the rhythm board for the current volume first, and then refine the chapters in batches." : "Please generate the rhythm board for the current volume first, and then refine the entire set of single chapters.");
       return;
     }
     if (!ensureCharacterGuard()) {
@@ -426,7 +426,7 @@ export function useNovelVolumePlanning({
   const applyCustomVolumeCount = () => {
     const resolved = resolveCustomVolumeCountInput(customVolumeCountInput, volumeCountGuidance);
     if (!resolved.value) {
-      setVolumeGenerationMessage(resolved.message ?? "请先输入有效的固定卷数。");
+      setVolumeGenerationMessage(resolved.message ?? "Please enter a valid fixed volume number first.");
       return;
     }
     setUserPreferredVolumeCount(resolved.value);

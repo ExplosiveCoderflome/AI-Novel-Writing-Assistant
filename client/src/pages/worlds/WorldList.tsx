@@ -123,10 +123,10 @@ function buildWorldLibraryProjection(world: {
   structureJson?: string | null;
 }): WorldLibraryCardProjection {
   const structured = parseStructuredWorldData(world.structureJson);
-  const legacySummary = buildPreview(world.description ?? world.overviewSummary, "等待补充世界概要", 120);
+  const legacySummary = buildPreview(world.description ?? world.overviewSummary, "Waiting for supplementary world summary", 120);
   const legacyDetail = buildPreview(
     world.conflicts ?? world.geography ?? world.background ?? world.factions,
-    "进入工作台整理核心规则、主要势力和故事舞台。",
+    "Enter the workbench to organize the core rules, main forces and story stages.",
     160,
   );
 
@@ -224,10 +224,10 @@ export default function WorldList() {
     mutationFn: (id: string) => deleteWorld(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
-      toast.success("世界样本已删除。");
+      toast.success("World samples have been removed.");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "删除世界样本失败。");
+      toast.error(error instanceof Error ? error.message : "Failed to delete world sample.");
     },
   });
 
@@ -245,15 +245,15 @@ export default function WorldList() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-normal">世界样本库</h1>
+          <h1 className="text-xl font-semibold tracking-normal">World Sample Library</h1>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            这里保存可复用的世界样本。小说需要使用世界时，从小说基础信息页导入为本书世界副本，再决定是否手动同步。
-          </p>
+            Reusable world samples are kept here. When the novel needs to use the world, import it from the basic information page of the novel as a copy of the world of this book, and then decide whether to synchronize manually.
+                                </p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           {featureFlags.worldWizardEnabled ? (
             <Button asChild>
-              <Link to="/worlds/generator">生成世界样本</Link>
+              <Link to="/worlds/generator">Generate world samples</Link>
             </Button>
           ) : null}
         </div>
@@ -262,18 +262,18 @@ export default function WorldList() {
       {worlds.length === 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>暂无世界样本</CardTitle>
-            <CardDescription>先生成一个世界样本，后续可以导入到小说中作为本书世界副本。</CardDescription>
+            <CardTitle>No world samples yet</CardTitle>
+            <CardDescription>First generate a world sample, which can later be imported into the novel as a copy of the world in this book.</CardDescription>
           </CardHeader>
         </Card>
       ) : (
         <>
         <div className="rounded-md border border-border/70 bg-muted/20 p-4">
-          <div className="text-sm font-medium text-foreground">世界样本的使用方式</div>
+          <div className="text-sm font-medium text-foreground">How to use world samples</div>
           <div className="mt-2 grid gap-3 text-sm leading-6 text-muted-foreground md:grid-cols-3">
-            <div>1. 在这里整理通用世界手册，让规则、势力、地点和张力清楚可复用。</div>
-            <div>2. 在小说基础信息页导入为“本书世界”，小说会使用自己的副本。</div>
-            <div>3. 本书副本和世界样本有差异时，由你手动决定推送或拉取。</div>
+            <div>1. Organize the general world manual here to make the rules, forces, locations and tensions clear and reusable.</div>
+            <div>2. Import it as "Book World" on the novel's basic information page, and the novel will use its own copy.</div>
+            <div>3. If there is a difference between the copy of this book and the world sample, it is up to you to manually decide whether to push or pull it.</div>
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
@@ -306,19 +306,19 @@ export default function WorldList() {
                   <div className="grid grid-cols-4 gap-2 text-center text-xs">
                     <div className="rounded-md border bg-muted/30 px-2 py-2">
                       <div className="font-semibold text-foreground">{preview.ruleCount}</div>
-                      <div className="mt-0.5 text-muted-foreground">核心规则</div>
+                      <div className="mt-0.5 text-muted-foreground">core rules</div>
                     </div>
                     <div className="rounded-md border bg-muted/30 px-2 py-2">
                       <div className="font-semibold text-foreground">{preview.forceCount}</div>
-                      <div className="mt-0.5 text-muted-foreground">势力</div>
+                      <div className="mt-0.5 text-muted-foreground">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</div>
                     </div>
                     <div className="rounded-md border bg-muted/30 px-2 py-2">
                       <div className="font-semibold text-foreground">{preview.locationCount}</div>
-                      <div className="mt-0.5 text-muted-foreground">地点</div>
+                      <div className="mt-0.5 text-muted-foreground">Place</div>
                     </div>
                     <div className="rounded-md border bg-muted/30 px-2 py-2">
                       <div className="font-semibold text-foreground">{preview.relationCount}</div>
-                      <div className="mt-0.5 text-muted-foreground">关系</div>
+                      <div className="mt-0.5 text-muted-foreground">relation</div>
                     </div>
                   </div>
 
@@ -326,7 +326,7 @@ export default function WorldList() {
                     <div className="space-y-1 rounded-md border-l-2 border-primary bg-muted/30 px-3 py-2 text-sm leading-6">
                       {preview.identity ? <div className="line-clamp-2 text-foreground">{preview.identity}</div> : null}
                       {preview.coreConflict ? (
-                        <div className="line-clamp-2 text-muted-foreground">关键张力：{preview.coreConflict}</div>
+                        <div className="line-clamp-2 text-muted-foreground">Key Tension:{preview.coreConflict}</div>
                       ) : null}
                     </div>
                   ) : null}
@@ -334,30 +334,30 @@ export default function WorldList() {
                   <div className="grid gap-3 text-sm sm:grid-cols-3">
                     <WorldSampleLine
                       icon={Sparkles}
-                      label="力量与规则"
+                      label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
                       items={preview.coreRules}
-                      fallback="进入工作台整理本世界必须遵守的规则。"
+                      fallback="Enter the workbench to organize the rules that must be followed in this world."
                     />
                     <WorldSampleLine
                       icon={Castle}
-                      label="势力舞台"
+                      label="power stage"
                       items={preview.majorForces}
-                      fallback="进入工作台补充会推动剧情的组织与阵营。"
+                      fallback="Entering the workbench to supplement will promote the organization and camp of the plot."
                     />
                     <WorldSampleLine
                       icon={MapPin}
-                      label="故事发生地"
+                      label="where the story takes place"
                       items={preview.storyLocations}
-                      fallback="进入工作台标记适合小说开局和冲突升级的地点。"
+                      fallback="Enter the workbench to mark locations suitable for the start of the novel and the escalation of conflict."
                     />
                   </div>
 
                   {preview.tensions.length > 0 ? (
                     <WorldSampleLine
                       icon={GitBranch}
-                      label="可抽取的冲突线"
+                      label="Extractable conflict lines"
                       items={preview.tensions}
-                      fallback="进入工作台整理世界矛盾，供小说生成使用。"
+                      fallback="Enter the workbench to sort out world conflicts for use in novel generation."
                     />
                   ) : null}
 
@@ -365,14 +365,14 @@ export default function WorldList() {
                     <Button asChild size="sm">
                       <Link to={`/worlds/${world.id}/workspace`}>
                         <Compass className="mr-1 h-4 w-4" aria-hidden="true" />
-                        查看世界手册
-                      </Link>
+                        View the world manual
+                                                          </Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
                       <Link to={`/worlds/${world.id}/workspace`}>
                         <Pencil className="mr-1 h-4 w-4" aria-hidden="true" />
-                        整理样本
-                      </Link>
+                        Organize samples
+                                                          </Link>
                     </Button>
                     <Button
                       size="sm"
@@ -381,7 +381,7 @@ export default function WorldList() {
                       disabled={deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id}
                     >
                       <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
-                      {deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id ? "删除中..." : "删除"}
+                      {deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "delete"}
                     </Button>
                   </div>
                 </CardContent>

@@ -28,16 +28,16 @@ export function getMobileNovelSaveState(
     case "basic":
       return {
         visible: true,
-        label: "保存基本信息",
-        savingLabel: "保存中...",
+        label: "Save basic information",
+        savingLabel: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
         isSaving: props.basicTab.isSaving,
         onSave: props.basicTab.onSave,
       };
     case "story_macro":
       return {
         visible: true,
-        label: "保存故事规划",
-        savingLabel: "保存中...",
+        label: "Save story plan",
+        savingLabel: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
         isSaving: props.storyMacroTab.isSaving,
         onSave: props.storyMacroTab.onSaveEdits,
       };
@@ -52,24 +52,24 @@ export function getMobileNovelSaveState(
     case "character":
       return {
         visible: true,
-        label: "保存角色",
-        savingLabel: "保存中...",
+        label: "save character",
+        savingLabel: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
         isSaving: props.characterTab.isSavingCharacter,
         onSave: props.characterTab.onSaveCharacter,
       };
     case "outline":
       return {
         visible: true,
-        label: "保存卷工作区",
-        savingLabel: "保存中...",
+        label: "Save volume workspace",
+        savingLabel: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
         isSaving: props.outlineTab.isSaving,
         onSave: props.outlineTab.onSave,
       };
     case "structured":
       return {
         visible: true,
-        label: "保存拆章",
-        savingLabel: "保存中...",
+        label: "Save the seal",
+        savingLabel: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
         isSaving: props.structuredTab.isSaving,
         onSave: props.structuredTab.onSave,
       };

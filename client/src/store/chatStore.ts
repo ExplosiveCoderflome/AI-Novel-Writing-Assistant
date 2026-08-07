@@ -69,7 +69,7 @@ export const useChatStore = create<ChatStoreState>((setState, getState) => ({
       hydrated: true,
     });
   },
-  createSession: async (title = "新对话") => {
+  createSession: async (title = "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.") => {
     const now = new Date().toISOString();
     const session: ChatSession = {
       id: generateId("session"),

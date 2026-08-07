@@ -21,9 +21,9 @@ interface BookAnalysisSourceRangePickerProps {
 }
 
 const CHAR_PRESETS = [
-  { label: "前 5 万字", value: 50_000 },
-  { label: "前 10 万字", value: 100_000 },
-  { label: "前 20 万字", value: 200_000 },
+  { label: "First 50,000 words", value: 50_000 },
+  { label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", value: 100_000 },
+  { label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", value: 200_000 },
 ];
 
 const numberFormatter = new Intl.NumberFormat("zh-CN");
@@ -50,7 +50,7 @@ function parseCharInput(input: string): number | null {
     return null;
   }
   const unit = match[2];
-  if (unit === "万") {
+  if (unit === "Ten thousand") {
     return Math.round(value * 10_000);
   }
   if (unit === "k") {
@@ -242,23 +242,23 @@ export default function BookAnalysisSourceRangePicker({
 
   const rangeTitle = selectedRange && selectedStartChapter && selectedEndChapter
     ? `第 ${selectedStartChapter.chapterIndex + 1} 章 ~ 第 ${selectedEndChapter.chapterIndex + 1} 章`
-    : "全文";
+    : "full text";
   const rangeDetail = selectedRange && selectedStartChapter && selectedEndChapter
     ? `${selectedChapterCount} 章 · 约 ${formatCount(selectedCharCount)} 字 · 占全文 ${Math.round(percent)}%`
     : `${sortedChapters.length > 0 ? `${sortedChapters.length} 章 · ` : ""}约 ${formatCount(sourceCharCount)} 字`;
   const charModeHint = selectedRange && selectedStartChapter && selectedEndChapter
     ? `按章节边界覆盖第 ${selectedStartChapter.chapterIndex + 1} 章 ~ 第 ${selectedEndChapter.chapterIndex + 1} 章`
-    : "输入字数后会自动换算为章节范围";
+    : "After entering the number of words, it will be automatically converted into a chapter range.";
 
   return (
     <div className="space-y-2 rounded-md border bg-background p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-medium">原文范围</div>
+        <div className="text-sm font-medium">Original scope</div>
         <div className="inline-flex rounded-md bg-muted/40 p-1">
           {([
-            ["full", "全文"],
-            ["chapter", "按章节"],
-            ["chars", "按字数"],
+            ["full", "full text"],
+            ["chapter", "by chapter"],
+            ["chars", "By word count"],
           ] as const).map(([key, label]) => (
             <button
               key={key}
@@ -292,7 +292,7 @@ export default function BookAnalysisSourceRangePicker({
               >
                 {sortedChapters.map((chapter) => (
                   <option key={chapter.id} value={chapter.chapterIndex}>
-                    起：第 {chapter.chapterIndex + 1} 章 · {shortTitle(chapter.title)}
+                    Starting from: No. {chapter.chapterIndex + 1} chapter · {shortTitle(chapter.title)}
                   </option>
                 ))}
               </SelectControl>
@@ -309,7 +309,7 @@ export default function BookAnalysisSourceRangePicker({
                   .filter((chapter) => chapter.chapterIndex >= (selectedRange?.startChapterIndex ?? sortedChapters[0]?.chapterIndex ?? 0))
                   .map((chapter) => (
                     <option key={chapter.id} value={chapter.chapterIndex}>
-                      止：第 {chapter.chapterIndex + 1} 章 · {shortTitle(chapter.title)}
+                      Stop: No. {chapter.chapterIndex + 1} chapter · {shortTitle(chapter.title)}
                     </option>
                   ))}
               </SelectControl>
@@ -334,7 +334,7 @@ export default function BookAnalysisSourceRangePicker({
               disabled={!canUseChapterRange}
               onChange={(event) => setCharStartInput(event.target.value)}
               onBlur={() => applyCharRange(charStartInput, charEndInput)}
-              placeholder="起始字数，如 5000"
+              placeholder="Starting word count, such as 5000"
             />
             <Input
               className="h-9 text-xs"
@@ -342,7 +342,7 @@ export default function BookAnalysisSourceRangePicker({
               disabled={!canUseChapterRange}
               onChange={(event) => setCharEndInput(event.target.value)}
               onBlur={() => applyCharRange(charStartInput, charEndInput)}
-              placeholder="结束字数，如 5万"
+              placeholder="End word count, such as 50,000"
             />
           </div>
           <div className="text-xs text-muted-foreground">{charModeHint}</div>
@@ -360,10 +360,10 @@ export default function BookAnalysisSourceRangePicker({
       {mode === "chapter" && canUseChapterRange ? (
         <div className="flex flex-wrap gap-1.5">
           <QuickButton onClick={() => applyChapterPreset("first5")}>前 5 章</QuickButton>
-          <QuickButton onClick={() => applyChapterPreset("last5")}>后 5 章</QuickButton>
-          <QuickButton onClick={() => applyChapterPreset("frontThird")}>前 1/3</QuickButton>
-          <QuickButton onClick={() => applyChapterPreset("middleThird")}>中 1/3</QuickButton>
-          <QuickButton onClick={() => applyChapterPreset("backThird")}>后 1/3</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("last5")}>Next 5 chapters</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("frontThird")}>First 1/3</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("middleThird")}>Medium 1/3</QuickButton>
+          <QuickButton onClick={() => applyChapterPreset("backThird")}>Back 1/3</QuickButton>
         </div>
       ) : null}
 
@@ -401,31 +401,7 @@ function QuickButton({ children, onClick }: { children: string; onClick: () => v
     <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={onClick}>
       {children}
     </Button>
-  );
-}
-
-function RangeLoadHint({
-  requested,
-  loading,
-  error,
-  sourceSelected,
-}: {
-  requested: boolean;
-  loading: boolean;
-  error?: string;
-  sourceSelected: boolean;
-}) {
-  let message = "选择文档后可按章节或字数限制本次分析输入。";
-  if (sourceSelected && loading) {
-    message = "正在加载章节范围...";
-  } else if (sourceSelected && error) {
-    message = "章节范围加载失败，可先按全文创建拆书。";
-  } else if (sourceSelected && requested) {
-    message = "当前文档章节不足，可按全文创建拆书。";
-  } else if (sourceSelected) {
-    message = "切换到范围模式后会加载章节范围。";
-  }
-  return (
+  ); } function RangeLoadHint({ requested, loading, error, sourceSelected, }: { requested: boolean; loading: boolean; error?: string; sourceSelected: boolean; }) { let message = "After selecting a document, you can limit the input for this analysis by chapter or word count."; if (sourceSelected && loading) { message = "Loading chapter range..."; } else if (sourceSelected && error) { message = "Chapter range loading failed, you can create a book breakdown by full text first."; } else if (sourceSelected && requested) { message = "The current document has insufficient chapters, you can create a book breakdown by full text."; } else if (sourceSelected) { message = "Chapter range will be loaded after switching to range mode."; } return (
     <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs leading-5 text-muted-foreground">
       {message}
     </div>

@@ -15,9 +15,9 @@ export interface ChapterDetailBatchSelection {
 export type ChapterDetailBundleRequest = string | ChapterDetailBatchSelection;
 
 export function detailModeLabel(mode: ChapterDetailMode): string {
-  if (mode === "purpose") return "章节目标";
-  if (mode === "boundary") return "执行边界";
-  return "任务单";
+  if (mode === "purpose") return "Chapter Objectives";
+  if (mode === "boundary") return "execution boundary";
+  return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
 }
 
 export function hasChapterDetailDraft(

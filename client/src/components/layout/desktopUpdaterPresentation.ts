@@ -11,21 +11,21 @@ export function formatDesktopVersion(version: string): string {
 export function getDesktopUpdaterStatusLabel(status: DesktopUpdaterSnapshot["status"]): string {
   switch (status) {
     case "disabled":
-      return "暂不可用";
+      return "Not available yet";
     case "idle":
-      return "等待检查";
+      return "Waiting for inspection";
     case "checking":
-      return "正在检查";
+      return "Checking";
     case "update-available":
-      return "发现新版本";
+      return "new version found";
     case "downloading":
-      return "正在下载";
+      return "Downloading";
     case "downloaded":
-      return "等待重启安装";
+      return "Waiting for restart installation";
     case "not-available":
-      return "版本较新";
+      return "Newer version";
     case "error":
-      return "检查失败";
+      return "Check failed";
     default:
       return status;
   }
@@ -34,44 +34,44 @@ export function getDesktopUpdaterStatusLabel(status: DesktopUpdaterSnapshot["sta
 export function getDesktopUpdaterHint(updater: DesktopUpdaterSnapshot): string {
   if (!updater.isSupported) {
     if (updater.isPortable) {
-      return "便携版需要下载新版安装包后手动替换，现有创作数据不会受到影响。";
+      return "The portable version needs to download the new version installation package and replace it manually. The existing creative data will not be affected.";
     }
     if (!updater.isPackaged) {
-      return "开发环境不会下载安装包，正式安装版可在这里检查和安装更新。";
+      return "The development environment will not download the installation package, and the official installation version can check and install updates here.";
     }
-    return "此安装包暂时无法连接版本更新服务。";
+    return "This installation package is temporarily unable to connect to the version update service.";
   }
 
   switch (updater.status) {
     case "idle":
-      return "可随时检查桌面版更新。发现新版本后，由你确认下载和重启安装。";
+      return "You can check for updates to the desktop version at any time. After a new version is discovered, it is up to you to confirm the download and restart the installation.";
     case "checking":
-      return "正在连接版本更新服务，请稍候。";
+      return "Connecting to version update service, please wait.";
     case "update-available":
-      return `${formatDesktopVersion(updater.availableVersion ?? "新版本")} 可用，下载期间可以继续使用应用。`;
+      return `${formatDesktopVersion(updater.availableVersion ?? "new version")} 可用，下载期间可以继续使用应用。`;
     case "downloading":
-      return "更新包正在后台下载，请保持应用打开。";
+      return "The update package is being downloaded in the background, please keep the app open.";
     case "downloaded":
-      return "更新包准备完成。重启应用后会自动安装，未保存的输入请先保存。";
+      return "The update package is ready. It will be installed automatically after restarting the application. Please save unsaved input first.";
     case "not-available":
-      return "当前安装包符合此更新通道的最新版本。";
+      return "The current installation package is compliant with the latest version of this update channel.";
     case "error":
-      return "未能完成版本检查，请确认网络连接后重试。";
+      return "Failed to complete version check, please confirm network connection and try again.";
     default:
-      return "可在这里查看桌面版版本状态。";
+      return "You can check the desktop version status here.";
   }
 }
 
 export function getDesktopInstallModeLabel(updater: DesktopUpdaterSnapshot): string {
   if (updater.isPortable) {
-    return "便携版";
+    return "Portable version";
   }
   if (!updater.isPackaged) {
-    return "开发环境";
+    return "development environment";
   }
-  return "安装版";
+  return "Installation version";
 }
 
 export function getDesktopChannelLabel(channel: string): string {
-  return channel === "beta" ? "测试通道" : channel === "latest" ? "稳定通道" : `${channel} 通道`;
+  return channel === "beta" ? "test channel" : channel === "latest" ? "stable channel" : `${channel} 通道`;
 }

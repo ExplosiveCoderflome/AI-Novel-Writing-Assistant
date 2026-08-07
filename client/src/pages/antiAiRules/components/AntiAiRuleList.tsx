@@ -27,15 +27,15 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
       <CardHeader className="gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <CardTitle className="text-xl">规则列表</CardTitle>
-            <CardDescription>快速启停规则、调整全局默认、维护生成指令和修正建议。</CardDescription>
+            <CardTitle className="text-xl">Rule list</CardTitle>
+            <CardDescription>Quickly start and stop rules, adjust global defaults, maintain generation instructions and correction suggestions.</CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             {[
-              ["all", "全部"],
-              ["global", "全局默认"],
-              ["style", "写法专属可用"],
-              ["disabled", "已停用"],
+              ["all", "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."],
+              ["global", "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."],
+              ["style", "Exclusive writing method available"],
+              ["disabled", "Deactivated"],
             ].map(([value, label]) => (
               <Button
                 key={value}
@@ -52,12 +52,12 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         {props.loading ? (
-          <div className="text-sm text-muted-foreground">正在加载反 AI 规则...</div>
+          <div className="text-sm text-muted-foreground">Loading anti-AI rules...</div>
         ) : null}
         {!props.loading && props.rules.length === 0 ? (
           <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-            这个筛选下没有规则。
-          </div>
+            There are no rules under this filter.
+                                </div>
         ) : null}
         {props.rules.map((rule) => {
           const isTesting = testingRuleIdSet.has(rule.id);
@@ -67,9 +67,9 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="text-base font-semibold text-foreground">{rule.name}</div>
-                    <Badge variant={rule.enabled ? "secondary" : "outline"}>{rule.enabled ? "启用" : "停用"}</Badge>
-                    {rule.globalBaselineEnabled ? <Badge>全局默认</Badge> : <Badge variant="outline">可绑定</Badge>}
-                    {isTesting ? <Badge variant="secondary">测试中</Badge> : null}
+                    <Badge variant={rule.enabled ? "secondary" : "outline"}>{rule.enabled ? "Enabled" : "Disabled"}</Badge>
+                    {rule.globalBaselineEnabled ? <Badge>Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</Badge> : <Badge variant="outline">Bindable</Badge>}
+                    {isTesting ? <Badge variant="secondary">Under testing</Badge> : null}
                     <Badge variant="outline">{typeLabels[rule.type]} / {severityLabels[rule.severity]}</Badge>
                   </div>
                   <div className="mt-2 text-sm leading-6 text-muted-foreground">{rule.description}</div>
@@ -84,46 +84,46 @@ export default function AntiAiRuleList(props: AntiAiRuleListProps) {
                     <div className="rounded-md border bg-muted/20 p-3">
                       <div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                         <FileText className="h-3.5 w-3.5" />
-                        生成指令
-                      </div>
-                      <div className="leading-6 text-foreground">{rule.promptInstruction || "未填写"}</div>
+                        Generate instructions
+                                                            </div>
+                      <div className="leading-6 text-foreground">{rule.promptInstruction || "Not filled in"}</div>
                     </div>
                     <div className="rounded-md border bg-muted/20 p-3">
                       <div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                         <CheckCircle2 className="h-3.5 w-3.5" />
-                        修正建议
-                      </div>
-                      <div className="leading-6 text-foreground">{rule.rewriteSuggestion || "未填写"}</div>
+                        Correction suggestions
+                                                            </div>
+                      <div className="leading-6 text-foreground">{rule.rewriteSuggestion || "Not filled in"}</div>
                     </div>
                   </div>
                 </div>
                 <div className="grid min-w-[210px] gap-2">
                   <AntiAiToggleLine
-                    label="启用"
+                    label="enable"
                     checked={rule.enabled}
                     disabled={props.isSaving}
                     onCheckedChange={(checked) => props.onQuickToggle(rule, "enabled", checked)}
                   />
                   <AntiAiToggleLine
-                    label="全局默认"
+                    label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
                     checked={rule.globalBaselineEnabled}
                     disabled={props.isSaving}
                     onCheckedChange={(checked) => props.onQuickToggle(rule, "globalBaselineEnabled", checked)}
                   />
                   <AntiAiToggleLine
-                    label="自动改写"
+                    label="Automatically rewrite"
                     checked={rule.autoRewrite}
                     disabled={props.isSaving}
                     onCheckedChange={(checked) => props.onQuickToggle(rule, "autoRewrite", checked)}
                   />
                   <Button type="button" variant={isTesting ? "secondary" : "outline"} size="sm" onClick={() => props.onToggleTestingRule(rule.id)}>
                     <FlaskConical className="h-4 w-4" />
-                    {isTesting ? "移出测试" : "加入测试"}
+                    {isTesting ? "Remove from test" : "Add to test"}
                   </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => props.onEditRule(rule)}>
                     <Edit3 className="h-4 w-4" />
-                    编辑
-                  </Button>
+                    edit
+                                                </Button>
                 </div>
               </div>
             </div>

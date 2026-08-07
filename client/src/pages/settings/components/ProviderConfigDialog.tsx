@@ -63,7 +63,7 @@ export default function ProviderConfigDialog({
   deleteDisabled,
   deleteLabel,
 }: ProviderConfigDialogProps) {
-  const primaryModelLabel = isCreatingCustomProvider ? "默认模型（可选）" : isCustomDialog ? "默认模型" : "模型名称";
+  const primaryModelLabel = isCreatingCustomProvider ? "Default model (optional)" : isCustomDialog ? "Default model" : "Model name";
   const canSelectListedModels = selectableModels.length > 0;
   const imageModelOptions = editingConfig?.imageModels ?? [];
   const canSelectImageModels = imageModelOptions.length > 0;
@@ -72,7 +72,7 @@ export default function ProviderConfigDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
         className="max-w-lg"
-        title={isCreatingCustomProvider ? "新增自定义厂商" : isCustomDialog ? "编辑自定义厂商" : "配置模型厂商"}
+        title={isCreatingCustomProvider ? "Add custom manufacturer" : isCustomDialog ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Configuration model vendor"}
         footer={(
           <>
             <Button className="w-full sm:w-auto" onClick={onSubmit} disabled={submitDisabled}>
@@ -85,8 +85,8 @@ export default function ProviderConfigDialog({
               onClick={onTest}
               disabled={testDisabled}
             >
-              测试连接
-            </Button>
+              test connection
+                                </Button>
 
             {editingConfig?.kind === "custom" ? (
               <Button
@@ -105,10 +105,10 @@ export default function ProviderConfigDialog({
         <div className="space-y-3">
           {isCustomDialog ? (
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">厂商名称</div>
+              <div className="text-xs text-muted-foreground">Manufacturer name</div>
               <Input
                 value={form.displayName}
-                placeholder="例如：我的模型网关"
+                placeholder="For example: my model gateway"
                 onChange={(event) => setForm((prev) => ({ ...prev, displayName: event.target.value }))}
               />
             </div>
@@ -116,14 +116,14 @@ export default function ProviderConfigDialog({
 
           {(isCustomDialog || editingConfig?.requiresApiKey === false) ? (
             <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              API Key 可以留空；填写 API 地址后可获取模型列表，系统会选择一个默认模型。
-            </div>
+              API Key can be left blank; after filling in the API address, you can get the model list, and the system will select a default model.
+                                      </div>
           ) : null}
 
           <Input
             type="password"
             value={form.key}
-            placeholder={editingConfig?.isConfigured ? "留空则沿用保存的 API Key" : "输入 API Key"}
+            placeholder={editingConfig?.isConfigured ? "Leave blank to use the saved API Key" : "Enter API Key"}
             onChange={(event) => {
               setForm((prev) => ({ ...prev, key: event.target.value }));
               if (isCreatingCustomProvider) {
@@ -133,7 +133,7 @@ export default function ProviderConfigDialog({
           />
 
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">API 地址</div>
+            <div className="text-xs text-muted-foreground">API address</div>
             <Input
               value={form.baseURL}
               placeholder={editingConfig?.defaultBaseURL ?? "https://api.example.com/v1"}
@@ -149,9 +149,7 @@ export default function ProviderConfigDialog({
               }}
             />
             <div className="text-xs text-muted-foreground">
-              {isCreatingCustomProvider
-                ? "填写 OpenAI 兼容 API 地址，通常以 /v1 结尾；本地 Ollama 常见地址是 http://127.0.0.1:11434/v1。"
-                : "留空会使用默认地址；本地 Ollama 常见地址是 http://127.0.0.1:11434/v1。"}
+              {isCreatingCustomProvider ? "Enter the OpenAI compatible API address, usually ending with /v1; a common local Ollam address is http://127.0.0.1:11434/v1." : "Leaving this blank will use the default address; a common local Ollam address is http://127.0.0.1:11434/v1."}
             </div>
           </div>
 
@@ -164,7 +162,7 @@ export default function ProviderConfigDialog({
                 onClick={onPreviewModels}
                 disabled={isPreviewingModels || !form.baseURL.trim()}
               >
-                {isPreviewingModels ? "获取中..." : "获取模型列表"}
+                {isPreviewingModels ? "Retrieving..." : "Retrieving model list"}
               </Button>
               {previewModelsResult ? (
                 <div className="break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
@@ -176,14 +174,14 @@ export default function ProviderConfigDialog({
 
           {canSelectListedModels ? (
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">可用模型</div>
+              <div className="text-xs text-muted-foreground">Available models</div>
               <SearchableSelect
                 value={form.model}
                 onValueChange={(value) => setForm((prev) => ({ ...prev, model: value }))}
                 options={selectableModels.map((model) => ({ value: model }))}
-                placeholder="选择模型"
-                searchPlaceholder="搜索模型"
-                emptyText="没有可用模型"
+                placeholder="Select model"
+                searchPlaceholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+                emptyText="No model available"
               />
             </div>
           ) : null}
@@ -191,25 +189,21 @@ export default function ProviderConfigDialog({
           <div className="space-y-1">
             <div className="text-xs text-muted-foreground">{primaryModelLabel}</div>
             <div className="text-xs text-muted-foreground">
-              {isCreatingCustomProvider
-                ? "获取模型列表后会自动填入第一个可用模型；接口不返回列表时，可以手动填写。"
-                : editingConfig?.kind === "custom" && !canSelectListedModels
-                  ? "可点击厂商卡片的“刷新模型”获取列表，也可以手动填写默认模型。"
-                  : "如果列表里没有目标模型，可以手动输入。"}
+              {isCreatingCustomProvider ? "The first available model will be automatically filled in after the model list is retrieved; if the interface does not return a list, you can fill it in manually." : editingConfig?.kind === "custom" && !canSelectListedModels ? "You can click 'Refresh Models' on the vendor card to get the list, or you can manually fill in the default model." : "If the target model is not in the list, you can enter it manually."}
             </div>
           </div>
           <Input
             value={form.model}
-            placeholder="也可以直接手动输入模型名"
+            placeholder="You can also directly enter the model name manually"
             onChange={(event) => setForm((prev) => ({ ...prev, model: event.target.value }))}
           />
 
           <div className="space-y-3 rounded-md border bg-muted/20 p-3">
             <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">图像模型（可选）</div>
+              <div className="text-xs text-muted-foreground">Image model (optional)</div>
               <div className="text-xs text-muted-foreground">
-                填写后，角色形象图生成可以选择这个厂商；留空则只用于文本模型。
-              </div>
+                After filling in, this manufacturer can be selected for character image generation; leaving it blank will only be used for text models.
+                                            </div>
             </div>
             {canSelectImageModels ? (
               <div className="space-y-1">
@@ -217,20 +211,20 @@ export default function ProviderConfigDialog({
                   value={form.imageModel}
                   onValueChange={(value) => setForm((prev) => ({ ...prev, imageModel: value }))}
                   options={imageModelOptions.map((model) => ({ value: model }))}
-                  placeholder="选择图像模型"
-                  searchPlaceholder="搜索图像模型"
-                  emptyText="没有可用的图像模型"
+                  placeholder="Select image model"
+                  searchPlaceholder="Search image model"
+                  emptyText="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
                 />
               </div>
             ) : null}
             <Input
               value={form.imageModel}
-              placeholder={editingConfig?.defaultImageModel ?? "输入图像模型名"}
+              placeholder={editingConfig?.defaultImageModel ?? "Enter the image model name"}
               onChange={(event) => setForm((prev) => ({ ...prev, imageModel: event.target.value }))}
             />
             <div className="text-xs text-muted-foreground">
-              图片生成会调用这个厂商的 OpenAI 兼容图像接口。
-            </div>
+              Image generation will call this vendor's OpenAI compatible image interface.
+                                      </div>
           </div>
 
           <ProviderRequestLimitFields

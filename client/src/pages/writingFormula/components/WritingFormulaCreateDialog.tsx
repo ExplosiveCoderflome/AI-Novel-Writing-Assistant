@@ -21,18 +21,18 @@ import type {
 const EXTRACTION_PRESET_OPTIONS = [
   {
     key: "imitate",
-    label: "尽量贴近原文",
-    summary: "尽量保留强烈指纹和表达习惯，适合短期临摹、风格试写和对照学习。",
+    label: "Try to be as close to the original text as possible",
+    summary: "Try to retain strong fingerprints and expression habits, which is suitable for short-term copying, style trial writing and comparative study.",
   },
   {
     key: "balanced",
-    label: "保留主要读感",
-    summary: "保留读感和推进节奏，弱化过强指纹，适合大多数项目直接使用。",
+    label: "Keep the main sense of reading",
+    summary: "It retains the sense of reading and advancement rhythm, weakens excessive fingerprints, and is suitable for direct use in most projects.",
   },
   {
     key: "transfer",
-    label: "只迁移可复用骨架",
-    summary: "更多保留可复用的节奏、结构和对白逻辑，适合长期项目和整书默认写法。",
+    label: "Only migrate reusable skeletons",
+    summary: "It retains more reusable rhythm, structure and dialogue logic, which is suitable for long-term projects and the default writing method of the entire book.",
   },
 ] as const;
 
@@ -43,18 +43,18 @@ const MATERIAL_SOURCE_OPTIONS: Array<{
 }> = [
   {
     key: "direct_text",
-    label: "直接粘贴文本",
-    summary: "把样本文本交给后台提取任务，适合手里已有片段或章节。",
+    label: "Paste text directly",
+    summary: "Submit the sample text to the background extraction task, which is suitable for existing fragments or chapters.",
   },
   {
     key: "knowledge_document",
-    label: "知识库原文",
-    summary: "选择知识库文档活动版本，系统冻结全文快照后用代表性样本学习写法。",
+    label: "Knowledge base original text",
+    summary: "Select the active version of the knowledge base document, and the system freezes the full-text snapshot and uses representative samples to learn how to write.",
   },
   {
     key: "book_analysis",
-    label: "拆书结果",
-    summary: "直接使用拆书里的文风与技法结果生成写法。",
+    label: "Results of opening the book",
+    summary: "Directly use the writing styles and techniques in the book to generate writing methods.",
   },
 ];
 
@@ -66,54 +66,54 @@ const KNOWLEDGE_SOURCE_PROCESSING_OPTIONS: Array<{
 }> = [
   {
     key: "representative_sample",
-    label: "智能抽样",
-    summary: "从开篇、中段、后段和收束抽取代表性样本，适合长篇原文，速度和稳定性更好。",
-    badge: "推荐",
+    label: "Smart sampling",
+    summary: "Select representative samples from the beginning, middle, end and conclusion, which is suitable for long original texts and has better speed and stability.",
+    badge: "recommend",
   },
   {
     key: "full_text",
-    label: "全文提取",
-    summary: "把活动版本全文作为模型输入，适合短文档；长篇可能更慢，也更容易触发模型上下文或超时限制。",
+    label: "Full text extraction",
+    summary: "Using the full text of the active version as model input is suitable for short documents; long documents may be slower and more likely to trigger model context or timeout restrictions.",
   },
 ];
 
 function formatTaskStatus(task: UnifiedTaskDetail | null): string {
   if (!task) {
-    return "暂无任务";
+    return "No tasks yet";
   }
   if (task.status === "queued") {
-    return "排队中";
+    return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   }
   if (task.status === "running") {
-    return "处理中";
+    return "Processing";
   }
   if (task.status === "succeeded") {
-    return "已完成";
+    return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   }
   if (task.status === "failed") {
-    return "失败";
+    return "fail";
   }
   if (task.status === "cancelled") {
-    return "已取消";
+    return "Canceled";
   }
-  return "等待审批";
+  return "Waiting for approval";
 }
 
 function formatCharCount(value: number | null | undefined): string {
   if (!value) {
-    return "0 字";
+    return "0 words";
   }
   return `${value.toLocaleString("zh-CN")} 字`;
 }
 
 function formatKnowledgeStatus(status: KnowledgeDocumentSummary["status"]): string {
   if (status === "enabled") {
-    return "可用";
+    return "Available";
   }
   if (status === "disabled") {
-    return "停用";
+    return "deactivate";
   }
-  return "归档";
+  return "Archive";
 }
 
 interface WritingFormulaCreateDialogProps {
@@ -194,32 +194,32 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
     || (form.materialSource === "knowledge_document" && !knowledgeDocumentReady)
     || (form.materialSource === "book_analysis" && !bookAnalysisReady);
   const materialSubmitLabel = form.materialSource === "book_analysis"
-    ? "从拆书结果创建写法"
+    ? "Create a writing method from the results of splitting the book"
     : form.materialSource === "knowledge_document"
-      ? "从知识库原文提取并自动保存"
-      : "提交提取任务并自动保存";
+      ? "Extract original text from the knowledge base and automatically save it"
+      : "Submit extraction task and save automatically";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[92vh] max-w-5xl flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>创建写法</DialogTitle>
+          <DialogTitle>Create writing style</DialogTitle>
           <DialogDescription>
-            先选最省力的起步方式。创建完成后会自动打开当前写法编辑，继续补规则、试写和绑定。
-          </DialogDescription>
+            Choose the least laborious way to start first. After the creation is completed, the current writing method will be automatically opened for editing, and you can continue to fill in the rules, test writing and binding.
+                                </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="flex min-h-0 flex-1 flex-col space-y-4">
           <TabsList className="grid w-full shrink-0 grid-cols-3">
-            <TabsTrigger value="quick_start">模板起步</TabsTrigger>
-            <TabsTrigger value="blank">空白 / AI</TabsTrigger>
-            <TabsTrigger value="extract">从素材提取</TabsTrigger>
+            <TabsTrigger value="quick_start">Template start</TabsTrigger>
+            <TabsTrigger value="blank">Blank/AI</TabsTrigger>
+            <TabsTrigger value="extract">Extract from material</TabsTrigger>
           </TabsList>
 
           <TabsContent value="quick_start" className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
             <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-              手里还没有明确规则时，先从模板起一套最省力。后面都可以继续改。
-            </div>
+              When you don’t have clear rules in hand, it’s easiest to start with a template. You can continue to change it later.
+                                      </div>
             <div className="grid gap-3 pr-1 md:grid-cols-2">
               {templates.map((template) => (
                 <div key={template.id} className="rounded-lg border p-4">
@@ -228,7 +228,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                       <div className="text-base font-semibold text-foreground">{template.name}</div>
                       <div className="mt-1 text-xs text-muted-foreground">{template.category}</div>
                     </div>
-                    <Badge variant="outline">模板</Badge>
+                    <Badge variant="outline">Template</Badge>
                   </div>
                   <div className="mt-3 text-sm leading-6 text-muted-foreground">{template.description}</div>
                   {template.tags.length > 0 ? (
@@ -240,7 +240,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                   ) : null}
                   {template.applicableGenres.length > 0 ? (
                     <div className="mt-3 text-xs text-muted-foreground">
-                      适合：{template.applicableGenres.join(" / ")}
+                      Suitable:{template.applicableGenres.join(" / ")}
                     </div>
                   ) : null}
                   <Button
@@ -249,7 +249,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     onClick={() => onCreateFromTemplate(template.id)}
                     disabled={createFromTemplatePending}
                   >
-                    {createFromTemplatePending ? "创建中..." : "基于这套创建"}
+                    {createFromTemplatePending ? "Creating..." : "Created based on this set"}
                   </Button>
                 </div>
               ))}
@@ -258,20 +258,20 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
 
           <TabsContent value="blank" className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
             <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-              你可以手动建一个空白写法，也可以先说一句想要的读感，让 AI 帮你搭第一版骨架。
-            </div>
+              You can manually create a blank writing method, or you can first tell the desired reading feeling and let AI help you build the first version of the skeleton.
+                                      </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-lg border p-4">
                 <div className="mb-3">
-                  <div className="text-sm font-medium text-foreground">手动空白创建</div>
+                  <div className="text-sm font-medium text-foreground">Manual blank creation</div>
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                    适合你已经知道自己要维护什么类型的写法，只想先建一个空壳。
-                  </div>
+                    It is suitable for you who already know what type of writing you want to maintain and just want to build an empty shell first.
+                                                        </div>
                 </div>
                 <div className="space-y-3">
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder="例如：都市强冲突快推流"
+                    placeholder="For example: Urban Strong Conflict Quick Push Streaming"
                     value={form.manualName}
                     onChange={(event) => onFormChange({ manualName: event.target.value })}
                   />
@@ -280,34 +280,34 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     onClick={onCreateManual}
                     disabled={!form.manualName.trim() || createManualPending}
                   >
-                    {createManualPending ? "创建中..." : "创建空白写法"}
+                    {createManualPending ? "Creating..." : "Create blank writing"}
                   </Button>
                 </div>
               </div>
 
               <div className="rounded-lg border p-4">
                 <div className="mb-3">
-                  <div className="text-sm font-medium text-foreground">AI 帮我先搭一套</div>
+                  <div className="text-sm font-medium text-foreground">AI helps me build a set first</div>
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                    适合你只知道想写成什么感觉，还不想先手填规则字段。
-                  </div>
+                    Suitable for you who only know how you want to write it, but don't want to fill in the rule fields first.
+                                                        </div>
                 </div>
                 <div className="space-y-3">
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder="写法名称（可选）"
+                    placeholder="Written name (optional)"
                     value={form.briefName}
                     onChange={(event) => onFormChange({ briefName: event.target.value })}
                   />
                   <input
                     className="w-full rounded-md border p-2 text-sm"
-                    placeholder="分类（可选）"
+                    placeholder="Classification (optional)"
                     value={form.briefCategory}
                     onChange={(event) => onFormChange({ briefCategory: event.target.value })}
                   />
                   <textarea
                     className="min-h-[180px] w-full rounded-md border p-2 text-sm"
-                    placeholder="例如：整体推进快，冲突密集，对话直接，情绪不拖泥带水，适合都市和热血升级文。"
+                    placeholder="For example: the overall advancement is fast, the conflicts are intensive, the dialogue is direct, and the emotions are not sloppy, it is suitable for urban and passionate upgrade stories."
                     value={form.briefPrompt}
                     onChange={(event) => onFormChange({ briefPrompt: event.target.value })}
                   />
@@ -316,7 +316,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     onClick={onCreateFromBrief}
                     disabled={!form.briefPrompt.trim() || createFromBriefPending}
                   >
-                    {createFromBriefPending ? "AI 生成中..." : "AI 生成一套写法"}
+                    {createFromBriefPending ? "AI generating..." : "AI generates a set of writing methods"}
                   </Button>
                 </div>
               </div>
@@ -325,21 +325,21 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
 
           <TabsContent value="extract" className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
             <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-              从素材中创建写法。文本和知识库原文会进入后台提取任务；拆书结果会直接使用文风与技法分析生成写法。
-            </div>
+              Create writing styles from materials. The original text and knowledge base text will enter the background extraction task; the book splitting results will be directly analyzed to generate writing style using style and technique analysis.
+                                      </div>
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
               <div className="space-y-4 rounded-lg border p-4">
                 <div className={form.materialSource === "book_analysis" ? "grid gap-3" : "grid gap-3 md:grid-cols-2"}>
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder="写法名称"
+                    placeholder="Written name"
                     value={form.extractName}
                     onChange={(event) => onFormChange({ extractName: event.target.value })}
                   />
                   {form.materialSource !== "book_analysis" ? (
                     <input
                       className="rounded-md border p-2 text-sm"
-                      placeholder="分类（可选）"
+                      placeholder="Classification (optional)"
                       value={form.extractCategory}
                       onChange={(event) => onFormChange({ extractCategory: event.target.value })}
                     />
@@ -372,7 +372,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 {form.materialSource === "direct_text" ? (
                   <textarea
                     className="min-h-[260px] w-full rounded-md border p-2 text-sm"
-                    placeholder="粘贴你想提取手感的参考文本。建议至少给一段完整场景。"
+                    placeholder="Paste the reference text you want to extract the feel from. It is recommended to give at least one complete scene."
                     value={form.extractSourceText}
                     onChange={(event) => onFormChange({ extractSourceText: event.target.value })}
                   />
@@ -382,20 +382,20 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                   <div className="space-y-3">
                     <input
                       className="w-full rounded-md border p-2 text-sm"
-                      placeholder="搜索知识库文档标题或文件名"
+                      placeholder="Search knowledge base document title or file name"
                       value={form.knowledgeSearchKeyword}
                       onChange={(event) => onFormChange({ knowledgeSearchKeyword: event.target.value })}
                     />
                     <div className="grid max-h-[220px] gap-2 overflow-y-auto pr-1">
                       {knowledgeDocumentsLoading && knowledgeDocuments.length === 0 ? (
                         <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                          检索知识库文档中...
-                        </div>
+                          Searching knowledge base documents...
+                                                                          </div>
                       ) : null}
                       {!knowledgeDocumentsLoading && knowledgeDocuments.length === 0 ? (
                         <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                          没有找到可用知识库文档。可以先到知识库上传原文，再回到这里创建写法。
-                        </div>
+                          No available knowledge base document found. You can upload the original text to the knowledge base first, and then come back here to create the writing method.
+                                                                          </div>
                       ) : null}
                       {knowledgeDocuments.map((document) => {
                         const selected = document.id === form.knowledgeDocumentId;
@@ -419,22 +419,22 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                                 <div className="mt-1 text-xs leading-5 text-slate-500">{document.fileName}</div>
                               </div>
                               <Badge variant={selected ? "default" : "outline"}>
-                                {selected ? "已选择" : formatKnowledgeStatus(document.status)}
+                                {selected ? "Selected" : formatKnowledgeStatus(document.status)}
                               </Badge>
                             </div>
                             <div className="mt-2 text-xs leading-5 text-slate-500">
-                              活动版本 v{document.activeVersionNumber} · {document.versionCount} 个版本 · {document.bookAnalysisCount} 个拆书结果
-                            </div>
+                              Active version v{document.activeVersionNumber} · {document.versionCount} versions · {document.bookAnalysisCount} Book splitting results
+                                                                </div>
                           </button>
                         );
                       })}
                     </div>
                     <div className="space-y-2 rounded-xl border bg-white p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="text-sm font-medium text-slate-950">原文处理方式</div>
+                        <div className="text-sm font-medium text-slate-950">Original text processing method</div>
                         {activeKnowledgeVersion ? (
                           <div className="text-xs text-slate-500">
-                            来源快照 {formatCharCount(activeKnowledgeVersion.charCount)}
+                            Source snapshot {formatCharCount(activeKnowledgeVersion.charCount)}
                           </div>
                         ) : null}
                       </div>
@@ -467,33 +467,33 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                       </div>
                       {form.knowledgeSourceProcessingMode === "representative_sample" ? (
                         <div className="text-xs leading-5 text-slate-500">
-                          写法资产会继续保留完整来源预览；模型只读取代表性样本，避免长篇全文一次性超出模型承载能力。
-                        </div>
+                          Writing assets will continue to retain the complete source preview; the model only reads representative samples to avoid long full text exceeding the model's carrying capacity at once.
+                                                                          </div>
                       ) : (
                         <div className="text-xs leading-5 text-amber-700">
-                          全文提取会把活动版本全文交给模型。长篇原文建议先使用智能抽样。
-                        </div>
+                          Full text extraction delivers the active version of the full text to the model. For long original articles, it is recommended to use smart sampling first.
+                                                                              </div>
                       )}
                     </div>
                     <div className="rounded-xl border bg-slate-50/80 p-3 text-sm leading-6 text-slate-700">
                       {selectedKnowledgeDocumentLoading ? (
-                        "读取所选文档的活动版本..."
+                        "Read the active version of the selected document..."
                       ) : selectedKnowledgeDocument ? (
                         <>
                           <div className="font-medium text-slate-950">{selectedKnowledgeDocument.title}</div>
                           {activeKnowledgeVersion ? (
                             <div className="mt-1 text-xs text-slate-500">
-                              活动版本 v{activeKnowledgeVersion.versionNumber} · {formatCharCount(activeKnowledgeVersion.charCount)}
+                              Active version v{activeKnowledgeVersion.versionNumber} · {formatCharCount(activeKnowledgeVersion.charCount)}
                             </div>
                           ) : (
-                            <div className="mt-1 text-xs text-amber-700">所选文档缺少活动版本，不能提交。</div>
+                            <div className="mt-1 text-xs text-amber-700">The selected document lacks an active version and cannot be submitted.</div>
                           )}
                           {activeKnowledgeVersion && !activeKnowledgeVersion.content.trim() ? (
-                            <div className="mt-1 text-xs text-amber-700">活动版本正文为空，不能提交。</div>
+                            <div className="mt-1 text-xs text-amber-700">The active version text is empty and cannot be submitted.</div>
                           ) : null}
                         </>
                       ) : (
-                        "选择一个知识库文档后，系统会读取活动版本全文并在提交任务时冻结快照。"
+                        "After selecting a knowledge base document, the system reads the full text of the active version and freezes the snapshot when the task is submitted."
                       )}
                     </div>
                   </div>
@@ -503,20 +503,20 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                   <div className="space-y-3">
                     <input
                       className="w-full rounded-md border p-2 text-sm"
-                      placeholder="搜索拆书标题或来源文档"
+                      placeholder="Search for book titles or source documents"
                       value={form.bookAnalysisSearchKeyword}
                       onChange={(event) => onFormChange({ bookAnalysisSearchKeyword: event.target.value })}
                     />
                     <div className="grid max-h-[290px] gap-2 overflow-y-auto pr-1">
                       {bookAnalysesLoading && bookAnalyses.length === 0 ? (
                         <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                          检索拆书结果中...
-                        </div>
+                          Searching for open book results...
+                                                                          </div>
                       ) : null}
                       {!bookAnalysesLoading && bookAnalyses.length === 0 ? (
                         <div className="rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
-                          没有找到可用拆书结果。完成拆书后，可以在这里直接生成写法。
-                        </div>
+                          No open book results found. After you finish unpacking the book, you can directly generate the writing method here.
+                                                                          </div>
                       ) : null}
                       {bookAnalyses.map((analysis) => {
                         const selected = analysis.id === form.bookAnalysisId;
@@ -539,11 +539,11 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                                 <div className="mt-1 text-xs leading-5 text-slate-500">{analysis.documentTitle}</div>
                               </div>
                               <Badge variant={selected ? "default" : "outline"}>
-                                {selected ? "已选择" : "可生成"}
+                                {selected ? "Selected" : "can generate"}
                               </Badge>
                             </div>
                             <div className="mt-2 text-xs leading-5 text-slate-500">
-                              来源版本 v{analysis.documentVersionNumber} · {analysis.summary || "拆书结果可用于生成写法"}
+                              Source version v{analysis.documentVersionNumber} · {analysis.summary || "The results of book splitting can be used to generate writing methods"}
                             </div>
                           </button>
                         );
@@ -559,9 +559,9 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                     disabled={materialSubmitDisabled}
                   >
                     {extractTaskSubmitting
-                      ? form.materialSource === "book_analysis" ? "生成中..." : "提交任务中..."
+                      ? form.materialSource === "book_analysis" ? "Generating..." : "Submitting task..."
                       : extractionTaskIsActive && form.materialSource !== "book_analysis"
-                        ? "后台任务进行中..."
+                        ? "Background task in progress..."
                         : materialSubmitLabel}
                   </Button>
                 </div>
@@ -571,34 +571,34 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 {form.materialSource === "book_analysis" ? (
                   <>
                     <div>
-                      <div className="text-sm font-medium text-foreground">拆书结果生成</div>
+                      <div className="text-sm font-medium text-foreground">Generate book-opening results</div>
                       <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                        这一路会直接读取拆书里的文风与技法小节，生成后立即打开写法编辑。
-                      </div>
+                        This step will directly read the writing style and technique sections in the open book, and open the writing editor immediately after generation.
+                                                                    </div>
                     </div>
                     <div className="rounded-xl border bg-slate-50/80 p-4 text-sm leading-6 text-slate-700">
                       {selectedBookAnalysis ? (
                         <>
                           <div className="font-medium text-slate-950">{selectedBookAnalysis.title}</div>
                           <div className="mt-1 text-xs text-slate-500">
-                            来源文档：{selectedBookAnalysis.documentTitle} · v{selectedBookAnalysis.documentVersionNumber}
+                            Source document:{selectedBookAnalysis.documentTitle} · v{selectedBookAnalysis.documentVersionNumber}
                           </div>
                           {selectedBookAnalysis.summary ? (
                             <div className="mt-3 text-xs leading-6 text-slate-600">{selectedBookAnalysis.summary}</div>
                           ) : null}
                         </>
                       ) : (
-                        "选择一个拆书结果后，系统会用文风与技法分析生成写法，不进入后台提取任务。"
+                        "After selecting a book-opening result, the system will use writing style and technique analysis to generate a writing method without entering the background extraction task."
                       )}
                     </div>
                   </>
                 ) : (
                   <>
                     <div>
-                      <div className="text-sm font-medium text-foreground">保留策略</div>
+                      <div className="text-sm font-medium text-foreground">Retention policy</div>
                       <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                        先决定你要保留多少原始指纹，系统会按这个策略自动生成并保存写法。
-                      </div>
+                        First decide how many original fingerprints you want to keep. The system will automatically generate and save the writing method according to this strategy.
+                                                                        </div>
                     </div>
                     <div className="grid gap-3">
                       {EXTRACTION_PRESET_OPTIONS.map((preset) => {
@@ -616,7 +616,7 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div className="text-base font-semibold">{preset.label}</div>
-                              {active ? <Badge variant="secondary" className="bg-white/10 text-white">当前方案</Badge> : null}
+                              {active ? <Badge variant="secondary" className="bg-white/10 text-white">Current plan</Badge> : null}
                             </div>
                             <div className={`mt-2 text-sm leading-6 ${active ? "text-slate-200" : "text-slate-600"}`}>
                               {preset.summary}
@@ -626,22 +626,22 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                       })}
                     </div>
                     <div className="rounded-xl border bg-amber-50/80 p-3 text-xs leading-6 text-amber-900">
-                      会按“{selectedPreset.label}”提交后台任务。任务完成后系统会自动保存，不需要再手动点一次保存成写法。
-                    </div>
+                      Will press "{selectedPreset.label}"Submit the background task. After the task is completed, the system will automatically save it. There is no need to manually click to save it as written.
+                                                                  </div>
                     {activeExtractionTask ? (
                       <div className="rounded-xl border bg-slate-50/80 p-4 text-sm text-slate-700">
                         <div className="flex items-center justify-between gap-3">
-                          <div className="font-medium text-slate-900">后台任务</div>
+                          <div className="font-medium text-slate-900">Background tasks</div>
                           <Badge variant={extractionTaskIsActive ? "secondary" : "outline"}>
                             {formatTaskStatus(activeExtractionTask)}
                           </Badge>
                         </div>
                         <div className="mt-3 space-y-2 text-xs leading-5 text-slate-600">
-                          <div>任务标题：{activeExtractionTask.title}</div>
-                          <div>执行阶段：{activeExtractionTask.currentStage ?? "等待调度"}</div>
-                          <div>任务进度：{Math.round(activeExtractionTask.progress * 100)}%</div>
+                          <div>Task title:{activeExtractionTask.title}</div>
+                          <div>Execution phase:{activeExtractionTask.currentStage ?? "Waiting for dispatch"}</div>
+                          <div>Task progress:{Math.round(activeExtractionTask.progress * 100)}%</div>
                           {activeExtractionTask.failureSummary ? (
-                            <div className="text-rose-600">异常原因：{activeExtractionTask.failureSummary}</div>
+                            <div className="text-rose-600">Exception reason:{activeExtractionTask.failureSummary}</div>
                           ) : null}
                         </div>
                         {onOpenTaskCenter ? (
@@ -651,14 +651,14 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                             className="mt-4 w-full"
                             onClick={() => onOpenTaskCenter(activeExtractionTask)}
                           >
-                            去任务中心查看
-                          </Button>
+                            Go to the mission center to view
+                                                                                    </Button>
                         ) : null}
                       </div>
                     ) : (
                       <div className="rounded-xl border border-dashed p-4 text-sm leading-6 text-muted-foreground">
-                        提交后系统会在后台完成提取、套用保留策略并自动保存写法。你可以先关掉弹窗，完成后会自动打开结果。
-                      </div>
+                        After submission, the system will complete the extraction, apply the retention policy and automatically save the writing in the background. You can close the pop-up window first, and the results will be opened automatically after completion.
+                                                                            </div>
                     )}
                   </>
                 )}

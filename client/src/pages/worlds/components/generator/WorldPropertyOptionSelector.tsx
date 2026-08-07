@@ -10,29 +10,10 @@ interface WorldPropertyOptionSelectorProps {
   onDetailChange: (optionId: string, detail: string) => void;
 }
 
-const WORLD_LAYER_LABELS: Record<WorldPropertyOption["targetLayer"], string> = {
-  foundation: "基础层",
-  power: "力量层",
-  society: "社会层",
-  culture: "文化层",
-  history: "历史层",
-  conflict: "冲突层",
-};
-
-export default function WorldPropertyOptionSelector({
-  options,
-  selectedIds,
-  details,
-  selectedChoiceIds,
-  onToggle,
-  onChoiceSelect,
-  onDetailChange,
-}: WorldPropertyOptionSelectorProps) {
-  if (options.length === 0) {
-    return (
+const WORLD_LAYER_LABELS: Record<WorldPropertyOption["targetLayer"], string> = { foundation: "foundation layer", power: "power layer", society: "society layer", culture: "culture layer", history: "history layer", conflict: "conflict layer", }; export default function WorldPropertyOptionSelector({ options, selectedIds, details, selectedChoiceIds, onToggle, onChoiceSelect, onDetailChange, }: WorldPropertyOptionSelectorProps) { if (options.length === 0) { return (
       <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-        当前还没有拿到可用的关键方向。通常说明上一步分析失败了，可以返回第 1 步重新生成。
-      </div>
+        There are currently no available key directions. It usually means that the previous step of analysis failed, and you can return to step 1 to regenerate.
+              </div>
     );
   }
 
@@ -56,13 +37,13 @@ export default function WorldPropertyOptionSelector({
                     {WORLD_LAYER_LABELS[option.targetLayer]}
                   </span>
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground">
-                    {option.source === "library" ? "素材库" : "系统建议"}
+                    {option.source === "library" ? "Material library" : "System recommendations"}
                   </span>
                 </div>
                 <div className="text-muted-foreground">{option.description}</div>
                 {option.reason ? (
                   <div className="text-xs text-muted-foreground">
-                    为什么建议先定它：{option.reason}
+                    Why is it recommended to set it first:{option.reason}
                   </div>
                 ) : null}
               </div>
@@ -72,7 +53,7 @@ export default function WorldPropertyOptionSelector({
               <div className="space-y-3">
                 {option.choices && option.choices.length > 0 ? (
                   <div className="space-y-2 rounded-md border border-dashed p-3">
-                    <div className="text-xs font-medium text-muted-foreground">先选一个方向</div>
+                    <div className="text-xs font-medium text-muted-foreground">Choose a direction first</div>
                     <div className="space-y-2">
                       {option.choices.map((choice) => {
                         const selected = selectedChoiceIds[option.id] === choice.id;
@@ -98,7 +79,7 @@ export default function WorldPropertyOptionSelector({
 
                 <textarea
                   className="min-h-[88px] w-full rounded-md border p-2 text-sm"
-                  placeholder="可选：补充你的偏好，比如希望保留什么、放大什么、限制什么。"
+                  placeholder="Optional: Add your preferences, such as what you want to keep, amplify, and limit."
                   value={details[option.id] ?? ""}
                   onChange={(event) => onDetailChange(option.id, event.target.value)}
                 />

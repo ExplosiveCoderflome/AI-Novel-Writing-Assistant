@@ -158,7 +158,7 @@ export function useWritingFormulaCreateFlow({
       }
       handledTerminalTaskIdRef.current = pendingExtractionTaskId;
       setPendingExtractionTaskId("");
-      onFlowMessage("写法提取任务不存在或已被清理，请重新提交。");
+      onFlowMessage("The writing extraction task does not exist or has been cleared. Please resubmit.");
       return;
     }
 
@@ -174,9 +174,9 @@ export function useWritingFormulaCreateFlow({
 
     if (task.status === "succeeded") {
       const profileId = readCreatedProfileId(task);
-      const profileName = readCreatedProfileName(task) || form.extractName.trim() || "新写法";
+      const profileName = readCreatedProfileName(task) || form.extractName.trim() || "New way of writing";
       if (!profileId) {
-        onFlowMessage("写法提取任务已完成，但没有拿到自动保存结果。");
+        onFlowMessage("The writing method extraction task has been completed, but the automatic saving result has not been obtained.");
         return;
       }
       resetCreateFlow();
@@ -189,8 +189,8 @@ export function useWritingFormulaCreateFlow({
     const failureMessage = task.failureSummary
       ?? task.lastError
       ?? (task.status === "cancelled"
-        ? "写法提取任务已取消。"
-        : "写法提取任务失败，请稍后重试。");
+        ? "The writing method extraction task has been cancelled."
+        : "The writing extraction task failed, please try again later.");
     onFlowMessage(failureMessage);
   }, [
     extractionTaskQuery.data,
@@ -261,7 +261,7 @@ export function useWritingFormulaCreateFlow({
     onSuccess: (response) => {
       const task = response.data;
       if (!task) {
-        onFlowMessage("写法提取任务提交成功，但没有拿到任务详情。");
+        onFlowMessage("The writing method extraction task was submitted successfully, but the task details were not obtained.");
         return;
       }
       handledTerminalTaskIdRef.current = "";
@@ -284,7 +284,7 @@ export function useWritingFormulaCreateFlow({
     onSuccess: (response) => {
       const task = response.data;
       if (!task) {
-        onFlowMessage("写法提取任务提交成功，但没有拿到任务详情。");
+        onFlowMessage("The writing method extraction task was submitted successfully, but the task details were not obtained.");
         return;
       }
       handledTerminalTaskIdRef.current = "";

@@ -19,7 +19,7 @@ export default function EffectiveRuleList(props: EffectiveRuleListProps) {
               <div className="flex flex-wrap items-center gap-2">
                 <div className="font-medium text-foreground">{item.rule.name}</div>
                 <Badge variant={item.source === "global_baseline" ? "default" : "secondary"}>
-                  {item.source === "global_baseline" ? "全局默认" : "写法规则"}
+                  {item.source === "global_baseline" ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Writing rules"}
                 </Badge>
                 <Badge variant="outline">{typeLabels[item.rule.type]} / {severityLabels[item.rule.severity]}</Badge>
               </div>

@@ -91,13 +91,13 @@ export default function KnowledgeDocumentDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
         className="max-w-4xl"
-        title={document?.title ?? "知识文档详情"}
+        title={document?.title ?? "Knowledge document details"}
         bodyClassName="min-w-0 space-y-4"
       >
           <div className="flex flex-wrap gap-2">
             {isArchived ? (
               <Button variant="outline" onClick={onRestoreDocument} disabled={restorePending}>
-                {restorePending ? "恢复中..." : "恢复启用"}
+                {restorePending ? "Restore in progress..." : "Restore enabled"}
               </Button>
             ) : (
               <input
@@ -117,50 +117,50 @@ export default function KnowledgeDocumentDetailDialog({
             )}
             {selectedDocumentId && !isArchived ? (
               <Button variant="outline" onClick={onReindex}>
-                手动重建索引
-              </Button>
+                Manually rebuild the index
+                                        </Button>
             ) : null}
           </div>
 
           {document ? (
             <>
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Badge variant="outline">文档状态：{formatStatus(document.status)}</Badge>
+                <Badge variant="outline">Document status:{formatStatus(document.status)}</Badge>
                 <Badge variant="outline">索引状态：{formatStatus(isArchived ? "idle" : (document.latestIndexStatus ?? "-"))}</Badge>
               </div>
               {document.latestIndexStatus === "failed" && document.latestIndexError ? (
                 <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-                  索引失败原因：{document.latestIndexError}
+                  Reason for index failure:{document.latestIndexError}
                 </div>
               ) : null}
 
               <Card>
                 <CardHeader>
-                  <CardTitle>召回测试</CardTitle>
+                  <CardTitle>recall test</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {isArchived ? (
                     <div className="text-sm text-muted-foreground">
-                      恢复启用并完成索引后，可以测试召回效果。
-                    </div>
+                      After reactivating and completing indexing, you can test the recall effect.
+                                                          </div>
                   ) : document.latestIndexStatus === "succeeded" ? (
                     <>
                       <div className="flex min-w-0 flex-col gap-2 md:flex-row">
                         <Input
                           value={recallQuery}
                           onChange={(event) => onRecallQueryChange(event.target.value)}
-                          placeholder="输入一句问题或片段，测试当前激活版本的召回效果"
+                          placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
                         />
                         <Button
                           onClick={onRecallTest}
                           disabled={recallPending || !selectedDocumentId || !recallQuery.trim()}
                         >
-                          {recallPending ? "测试中..." : "开始测试"}
+                          {recallPending ? "Testing..." : "Starting test"}
                         </Button>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        仅针对当前激活且已建立索引的版本执行召回测试。
-                      </div>
+                        Recall testing is only performed on the currently active and indexed version.
+                                                                    </div>
                       {recallErrorMessage ? (
                         <div className="text-sm text-destructive">{recallErrorMessage}</div>
                       ) : null}
@@ -168,16 +168,16 @@ export default function KnowledgeDocumentDetailDialog({
                         <div className="min-w-0 space-y-2 overflow-hidden">
                           {recallResult.hits.length === 0 ? (
                             <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-                              当前查询没有召回到任何分块内容。
-                            </div>
+                              The current query does not recall any chunked content.
+                                                                                      </div>
                           ) : (
                             recallResult.hits.map((hit, index) => (
                               <div key={hit.id} className="min-w-0 max-w-full overflow-hidden rounded-md border p-3">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <div className="min-w-0 break-all font-medium">
-                                    命中 {index + 1} | {hit.source === "reranked" ? "重排" : hit.source === "vector" ? "向量" : "关键词"} | 分块 #{hit.chunkOrder + 1}
+                                    hit {index + 1} | {hit.source === "reranked" ? "rearrange" : hit.source === "vector" ? "vector" : "keywords"} | Chunk #{hit.chunkOrder + 1}
                                   </div>
-                                  <Badge variant="outline">得分 {hit.score.toFixed(4)}</Badge>
+                                  <Badge variant="outline">Score {hit.score.toFixed(4)}</Badge>
                                 </div>
                                 {hit.title ? (
                                   <div className="mt-1 break-all text-xs text-muted-foreground">{hit.title}</div>
@@ -198,8 +198,8 @@ export default function KnowledgeDocumentDetailDialog({
                     </>
                   ) : (
                     <div className="text-sm text-muted-foreground">
-                      当前激活版本索引成功后，才可以执行召回测试。
-                    </div>
+                      The recall test can only be performed after the currently activated version is successfully indexed.
+                                                                  </div>
                   )}
                 </CardContent>
               </Card>
@@ -208,11 +208,11 @@ export default function KnowledgeDocumentDetailDialog({
                 {document.versions.map((version) => (
                   <div key={version.id} className="min-w-0 max-w-full overflow-hidden rounded-md border p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="font-medium">版本 v{version.versionNumber}</div>
-                      {version.isActive ? <Badge>当前激活</Badge> : null}
+                      <div className="font-medium">version v{version.versionNumber}</div>
+                      {version.isActive ? <Badge>Currently active</Badge> : null}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      字符数 {version.charCount} | {new Date(version.createdAt).toLocaleString()}
+                      Number of characters {version.charCount} | {new Date(version.createdAt).toLocaleString()}
                     </div>
                     {!version.isActive && !isArchived ? (
                       <div className="mt-2">
@@ -222,8 +222,8 @@ export default function KnowledgeDocumentDetailDialog({
                           onClick={() => onActivateVersion(version.id)}
                           disabled={activateVersionPending}
                         >
-                          切换为激活版本
-                        </Button>
+                          Switch to active version
+                                                            </Button>
                       </div>
                     ) : null}
                     <VersionContentPreview content={version.content} />
@@ -233,8 +233,8 @@ export default function KnowledgeDocumentDetailDialog({
             </>
           ) : (
             <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-              正在加载文档详情...
-            </div>
+              Loading document details...
+                                      </div>
           )}
       </AppDialogContent>
     </Dialog>

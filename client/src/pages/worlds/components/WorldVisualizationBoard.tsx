@@ -85,12 +85,12 @@ function getNodeBadgeText(label: string): string {
 }
 
 const FACTION_TYPE_LABELS: Record<string, string> = {
-  all: "全部类型",
-  state: "政权",
-  faction: "阵营",
-  race: "种族",
-  organization: "组织",
-  other: "其他",
+  all: "All types",
+  state: "regime",
+  faction: "camp",
+  race: "Race",
+  organization: "organize",
+  other: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
 };
 
 const FACTION_TYPE_COLORS: Record<string, string> = {
@@ -144,7 +144,7 @@ function getMapLabelMeta(node: GraphNode): string {
   return [
     node.directionHint ? DIRECTION_LABELS[node.directionHint] : "",
     node.terrain ? truncateText(node.terrain, 8) : "",
-    node.risk ? "风险" : "",
+    node.risk ? "risk" : "",
   ].filter(Boolean).join(" / ");
 }
 
@@ -372,14 +372,14 @@ const ROUTE_STYLES: Record<string, { stroke: string; dash?: string }> = {
 
 const DIRECTION_LABELS: Record<WorldGeographyDirection, string> = {
   north: "北",
-  south: "南",
-  east: "东",
-  west: "西",
-  center: "中",
-  northeast: "东北",
-  northwest: "西北",
-  southeast: "东南",
-  southwest: "西南",
+  south: "South",
+  east: "East",
+  west: "West",
+  center: "middle",
+  northeast: "northeast",
+  northwest: "northwest",
+  southeast: "southeast",
+  southwest: "southwest",
 };
 
 function DraggableGraph(props: {
@@ -431,7 +431,7 @@ function DraggableGraph(props: {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="font-medium">{title}</div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">缩放</span>
+          <span className="text-xs text-muted-foreground">Zoom</span>
           <input
             type="range"
             min={0.6}
@@ -441,8 +441,8 @@ function DraggableGraph(props: {
             onChange={(event) => setZoom(Number(event.target.value))}
           />
           <Button size="sm" variant="outline" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>
-            重置
-          </Button>
+            reset
+                                </Button>
         </div>
       </div>
       <div
@@ -480,9 +480,9 @@ function DraggableGraph(props: {
               />
               <g fontSize={13} fontWeight={700} fill="#475569">
                 <text x={width / 2} y={24} textAnchor="middle">北</text>
-                <text x={width / 2} y={height - 14} textAnchor="middle">南</text>
-                <text x={20} y={height / 2} textAnchor="middle">西</text>
-                <text x={width - 20} y={height / 2} textAnchor="middle">东</text>
+                <text x={width / 2} y={height - 14} textAnchor="middle">South</text>
+                <text x={20} y={height / 2} textAnchor="middle">West</text>
+                <text x={width - 20} y={height / 2} textAnchor="middle">East</text>
               </g>
             </g>
           ) : null}
@@ -626,8 +626,8 @@ function DraggableGraph(props: {
         </svg>
       </div>
       <div className="mt-2 text-xs text-muted-foreground">
-        拖动画布可移动视图，使用滑块调整缩放。
-      </div>
+        Drag the canvas to move the view, and use the slider to adjust zoom.
+                    </div>
     </div>
   );
 }
@@ -713,24 +713,24 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant={mode === "faction" ? "default" : "secondary"} onClick={() => setMode("faction")}>
-          势力图谱
-        </Button>
+          power map
+                          </Button>
         <Button size="sm" variant={mode === "geography" ? "default" : "secondary"} onClick={() => setMode("geography")}>
-          地理地图
-        </Button>
+          geographical map
+                          </Button>
         <Button size="sm" variant={mode === "power" ? "default" : "secondary"} onClick={() => setMode("power")}>
-          力量体系
-        </Button>
+          Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.
+                          </Button>
         <Button size="sm" variant={mode === "timeline" ? "default" : "secondary"} onClick={() => setMode("timeline")}>
-          世界时间线
-        </Button>
+          world timeline
+                          </Button>
       </div>
 
       <div className="grid gap-2 md:grid-cols-3">
         <Input
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
-          placeholder="按名称或关键词筛选"
+          placeholder="Filter by name or keywords"
         />
         {mode === "faction" ? (
           <SelectControl
@@ -749,7 +749,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
         )}
         {mode === "timeline" ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>显示数量</span>
+            <span>Display quantity</span>
             <input
               type="range"
               min={3}
@@ -801,7 +801,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
 
       {mode === "power" ? (
         <div className="rounded-md border p-3 text-sm">
-          <div className="mb-2 font-medium">力量体系（{filteredPower.length} 项）</div>
+          <div className="mb-2 font-medium">power system ({filteredPower.length} item)</div>
           <div className="space-y-2">
             {filteredPower.map((item) => (
               <div key={`${item.level}-${item.description}`} className="rounded border p-2">
@@ -810,7 +810,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
               </div>
             ))}
             {filteredPower.length === 0 ? (
-              <div className="text-xs text-muted-foreground">暂无匹配内容</div>
+              <div className="text-xs text-muted-foreground">No matching content yet</div>
             ) : null}
           </div>
         </div>
@@ -818,7 +818,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
 
       {mode === "timeline" ? (
         <div className="rounded-md border p-3 text-sm">
-          <div className="mb-2 font-medium">世界时间线（{filteredTimeline.length} 条）</div>
+          <div className="mb-2 font-medium">World Timeline ({filteredTimeline.length} strip)</div>
           <div className="space-y-2">
             {filteredTimeline.map((item, index) => (
               <div key={`${item.year}-${item.event}-${index}`} className="flex gap-3 rounded border p-2">
@@ -827,7 +827,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
               </div>
             ))}
             {filteredTimeline.length === 0 ? (
-              <div className="text-xs text-muted-foreground">暂无匹配内容</div>
+              <div className="text-xs text-muted-foreground">No matching content yet</div>
             ) : null}
           </div>
         </div>

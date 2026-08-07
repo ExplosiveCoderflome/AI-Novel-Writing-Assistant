@@ -34,11 +34,11 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
   const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState({
     name: "",
-    role: "主角",
+    role: "main character",
     personality: "",
     background: "",
     development: "",
-    category: "主角",
+    category: "main character",
   });
   const [aiDescription, setAIDescription] = useState("");
   const [constraints, setConstraints] = useState<CharacterGenerateConstraints>(createDefaultConstraints());
@@ -97,45 +97,45 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button>创建角色</Button>
+        <Button>Create a role</Button>
       </DialogTrigger>
       <DialogContent className="w-[96vw] max-h-[90vh] max-w-[1400px] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>创建角色</DialogTitle>
+          <DialogTitle>Create a role</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>手动创建角色</CardTitle>
+              <CardTitle>Create a role manually</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2 md:grid-cols-2">
               <input
                 className="rounded-md border p-2 text-sm"
-                placeholder="角色名称"
+                placeholder="Character name"
                 value={form.name}
                 onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
               />
               <input
                 className="rounded-md border p-2 text-sm"
-                placeholder="角色定位（主角/反派/配角）"
+                placeholder="Role positioning (protagonist/villain/supporting role)"
                 value={form.role}
                 onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}
               />
               <input
                 className="rounded-md border p-2 text-sm"
-                placeholder="性格特征"
+                placeholder="Character traits"
                 value={form.personality}
                 onChange={(event) => setForm((prev) => ({ ...prev, personality: event.target.value }))}
               />
               <input
                 className="rounded-md border p-2 text-sm"
-                placeholder="背景故事"
+                placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
                 value={form.background}
                 onChange={(event) => setForm((prev) => ({ ...prev, background: event.target.value }))}
               />
               <input
                 className="rounded-md border p-2 text-sm md:col-span-2"
-                placeholder="成长轨迹"
+                placeholder="Growth trajectory"
                 value={form.development}
                 onChange={(event) => setForm((prev) => ({ ...prev, development: event.target.value }))}
               />
@@ -144,33 +144,33 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                 onClick={() => createMutation.mutate()}
                 disabled={createMutation.isPending || !form.name.trim()}
               >
-                {createMutation.isPending ? "创建中..." : "创建角色"}
+                {createMutation.isPending ? "Creating..." : "Create a role"}
               </Button>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>AI 生成角色</CardTitle>
+              <CardTitle>AI-generated characters</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <textarea
                 className="min-h-[120px] w-full rounded-md border p-2 text-sm"
-                placeholder="输入角色描述，例如：冷静理智但背负家仇的年轻剑士"
+                placeholder="Enter a character description, for example: a calm and sensible young swordsman with a family feud."
                 value={aiDescription}
                 onChange={(event) => setAIDescription(event.target.value)}
               />
 
               <div className="space-y-2 rounded-md border p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-medium">高级设定（可选）</div>
+                  <div className="text-sm font-medium">Advanced settings (optional)</div>
                   <Button size="sm" variant="outline" onClick={() => setConstraints(createDefaultConstraints())}>
-                    一键清空高级设定
-                  </Button>
+                    Clear advanced settings with one click
+                                                        </Button>
                 </div>
                 <div className="grid gap-2 md:grid-cols-2">
                   <label className="space-y-1 text-sm">
-                    <div className="text-xs text-muted-foreground">角色功能位</div>
+                    <div className="text-xs text-muted-foreground">Role function bits</div>
                     <SelectControl
                       className="h-10 w-full rounded-md border bg-background px-2 text-sm"
                       value={constraints.storyFunction ?? ""}
@@ -180,17 +180,17 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                           storyFunction: (event.target.value || undefined) as CharacterGenerateConstraints["storyFunction"],
                         }))}
                     >
-                      <option value="">不指定</option>
-                      <option value="主角">主角</option>
-                      <option value="反派">反派</option>
-                      <option value="导师">导师</option>
-                      <option value="对照组">对照组</option>
-                      <option value="配角">配角</option>
+                      <option value="">Do not specify</option>
+                      <option value="main character">main character</option>
+                      <option value="Villain">Villain</option>
+                      <option value="tutor">tutor</option>
+                      <option value="control group">control group</option>
+                      <option value="supporting role">supporting role</option>
                     </SelectControl>
                   </label>
 
                   <label className="space-y-1 text-sm">
-                    <div className="text-xs text-muted-foreground">成长阶段</div>
+                    <div className="text-xs text-muted-foreground">Growth stage</div>
                     <SelectControl
                       className="h-10 w-full rounded-md border bg-background px-2 text-sm"
                       value={constraints.growthStage ?? ""}
@@ -200,60 +200,60 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                           growthStage: (event.target.value || undefined) as CharacterGenerateConstraints["growthStage"],
                         }))}
                     >
-                      <option value="">不指定</option>
-                      <option value="起点">起点</option>
-                      <option value="受挫">受挫</option>
-                      <option value="转折">转折</option>
-                      <option value="觉醒">觉醒</option>
-                      <option value="收束">收束</option>
+                      <option value="">Do not specify</option>
+                      <option value="starting point">starting point</option>
+                      <option value="frustrated">frustrated</option>
+                      <option value="turning point">turning point</option>
+                      <option value="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</option>
+                      <option value="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</option>
                     </SelectControl>
                   </label>
 
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder="外显目标（想达成什么）"
+                    placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
                     value={constraints.externalGoal ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, externalGoal: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder="内在需求（真正渴望）"
+                    placeholder="Intrinsic needs (real desires)"
                     value={constraints.internalNeed ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, internalNeed: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder="核心恐惧"
+                    placeholder="core fear"
                     value={constraints.coreFear ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, coreFear: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder="道德底线"
+                    placeholder="moral bottom line"
                     value={constraints.moralBottomLine ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, moralBottomLine: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder="不能说的秘密"
+                    placeholder="The secret that cannot be told"
                     value={constraints.secret ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, secret: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm"
-                    placeholder="核心缺陷"
+                    placeholder="core flaw"
                     value={constraints.coreFlaw ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, coreFlaw: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm md:col-span-2"
-                    placeholder="关系钩子（与他人的冲突/纠葛）"
+                    placeholder="Relationship hooks (conflicts/entanglements with others)"
                     value={constraints.relationshipHooks ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, relationshipHooks: event.target.value }))}
                   />
                   <input
                     className="rounded-md border p-2 text-sm md:col-span-2"
-                    placeholder="语气风格（如冷系克制、幽默辛辣）"
+                    placeholder="Tone style (such as cold and restrained, humorous and spicy)"
                     value={constraints.toneStyle ?? ""}
                     onChange={(event) => setConstraints((prev) => ({ ...prev, toneStyle: event.target.value }))}
                   />
@@ -262,13 +262,13 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">参考知识库（可多选）</div>
+                  <div className="text-sm font-medium">Reference knowledge base (multiple choices available)</div>
                   <div className="max-h-48 space-y-2 overflow-auto rounded-md border p-2">
                     {knowledgeDocumentsQuery.isLoading ? (
-                      <div className="text-sm text-muted-foreground">加载中...</div>
+                      <div className="text-sm text-muted-foreground">loading...</div>
                     ) : null}
                     {!knowledgeDocumentsQuery.isLoading && knowledgeDocuments.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">暂无可选知识文档。</div>
+                      <div className="text-sm text-muted-foreground">There is currently no optional knowledge document.</div>
                     ) : null}
                     {knowledgeDocuments.map((document) => (
                       <label key={document.id} className="flex items-start gap-2 rounded-md border p-2 text-sm">
@@ -288,17 +288,17 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                       </label>
                     ))}
                   </div>
-                  <div className="text-xs text-muted-foreground">未选择则不引用知识库内容。</div>
+                  <div className="text-xs text-muted-foreground">If not selected, the knowledge base content will not be referenced.</div>
                 </div>
 
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">参考拆书分析（可多选）</div>
+                  <div className="text-sm font-medium">Reference book analysis (multiple choices available)</div>
                   <div className="max-h-48 space-y-2 overflow-auto rounded-md border p-2">
                     {bookAnalysesQuery.isLoading ? (
-                      <div className="text-sm text-muted-foreground">加载中...</div>
+                      <div className="text-sm text-muted-foreground">loading...</div>
                     ) : null}
                     {!bookAnalysesQuery.isLoading && bookAnalyses.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">暂无可选拆书分析。</div>
+                      <div className="text-sm text-muted-foreground">There is currently no optional book analysis.</div>
                     ) : null}
                     {bookAnalyses.map((analysis) => (
                       <label key={analysis.id} className="flex items-start gap-2 rounded-md border p-2 text-sm">
@@ -318,18 +318,18 @@ export function CharacterCreateDialog({ onCreated }: CharacterCreateDialogProps)
                       </label>
                     ))}
                   </div>
-                  <div className="text-xs text-muted-foreground">仅展示已完成的拆书分析。</div>
+                  <div className="text-xs text-muted-foreground">Only display completed book split analysis.</div>
                 </div>
               </div>
 
               <div className="text-xs text-muted-foreground">
-                已选参考：知识库 {selectedKnowledgeDocumentIds.length} 项，拆书 {selectedBookAnalysisIds.length} 项。
-              </div>
+                Selected Reference: Knowledge Base {selectedKnowledgeDocumentIds.length} item, open book {selectedBookAnalysisIds.length} item.
+                                            </div>
               <Button
                 onClick={() => generateMutation.mutate()}
                 disabled={generateMutation.isPending || !aiDescription.trim()}
               >
-                {generateMutation.isPending ? "生成中..." : "生成并入库"}
+                {generateMutation.isPending ? "Generating..." : "Generate and merge into database"}
               </Button>
             </CardContent>
           </Card>

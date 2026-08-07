@@ -11,7 +11,7 @@ function Toaster(props: ToasterProps) {
       mobileOffset={mobileOffset ?? 12}
       toastOptions={{
         ...toastOptions,
-        closeButtonAriaLabel: toastOptions?.closeButtonAriaLabel ?? "关闭提示",
+        closeButtonAriaLabel: toastOptions?.closeButtonAriaLabel ?? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
         classNames: {
           ...toastOptions?.classNames,
           toast: `max-w-[calc(100vw-1.5rem)] overflow-visible ${toastOptions?.classNames?.toast ?? ""}`.trim(),

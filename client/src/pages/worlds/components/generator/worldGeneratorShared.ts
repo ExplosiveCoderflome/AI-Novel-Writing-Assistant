@@ -41,18 +41,18 @@ export const REFERENCE_MODE_OPTIONS: Array<{
 }> = [
   {
     value: "adapt_world",
-    label: "基于原作做架空改造",
-    description: "保留原作世界基底，再决定哪些规则、势力和地点结构可以改造。",
+    label: "An overhead transformation based on the original work",
+    description: "Keep the base of the original world and then decide which rules, forces and location structures can be modified.",
   },
   {
     value: "extract_base",
-    label: "提取原作世界基底",
-    description: "先稳定抽出原作世界骨架，后续扩写尽量围绕原作事实展开。",
+    label: "Extract the original world base",
+    description: "First, steadily extract the skeleton of the original world, and then try to expand the work around the facts of the original work.",
   },
   {
     value: "tone_rebuild",
     label: "只借原作气质与结构重建",
-    description: "保留氛围、关系结构与生活手感，但允许较大幅度重建世界事实。",
+    description: "The atmosphere, relationship structure and life feel are retained, but the facts of the world are allowed to be reconstructed to a greater extent.",
   },
 ];
 
@@ -66,12 +66,12 @@ export const DEFAULT_DIMENSIONS: Record<string, boolean> = {
 };
 
 const DIMENSION_LABELS: Record<string, string> = {
-  foundation: "基础层",
-  power: "力量层",
-  society: "社会层",
-  culture: "文化层",
-  history: "历史层",
-  conflict: "冲突层",
+  foundation: "base layer",
+  power: "strength layer",
+  society: "social layer",
+  culture: "cultural layer",
+  history: "historical layer",
+  conflict: "Conflict layer",
 };
 
 export const REFERENCE_SEED_SELECTION_KEYS: Record<
@@ -113,7 +113,7 @@ export function parseReferenceControlText(value: string): string[] {
 }
 
 export function getReferenceModeLabel(mode: WorldReferenceMode): string {
-  return REFERENCE_MODE_OPTIONS.find((item) => item.value === mode)?.label ?? "基于原作做架空改造";
+  return REFERENCE_MODE_OPTIONS.find((item) => item.value === mode)?.label ?? "An overhead transformation based on the original work";
 }
 
 export function buildDefaultPropertySelectionState(options: WorldPropertyOption[]) {

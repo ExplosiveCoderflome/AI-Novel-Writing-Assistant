@@ -38,7 +38,7 @@ export default function WritingFormulaAdvancedWorkspace(props: WritingFormulaAdv
       <div className="rounded-2xl border bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700">
         {props.selectedProfile
           ? `当前正在维护「${props.selectedProfile.name}」这套写法的设定说明。应用测试和去 AI 味已经拆到独立入口，这里只负责把写法本身整理清楚。`
-          : "当前还没有可编辑的写法。请先回到写法页列表，选中或新建一套写法。"}
+          : "There is currently no editable writing method. Please return to the writing method page list first, select or create a new writing method."}
       </div>
 
       <WritingFormulaEditorPanel

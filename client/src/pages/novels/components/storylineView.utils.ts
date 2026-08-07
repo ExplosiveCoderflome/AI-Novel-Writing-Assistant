@@ -46,27 +46,27 @@ function buildFallbackPhases(lines: string[]): { early: string; middle: string; 
 export function parseStorylineStructuredView(draftText: string): StorylineStructuredView {
   const lines = normalizeLines(draftText);
   const fallbackPhases = buildFallbackPhases(lines);
-  const coreTheme = findByKeywords(lines, ["核心主题", "主题"]);
-  const mainGoal = findByKeywords(lines, ["主线目标", "目标", "核心任务"]);
-  const earlyPhase = findByKeywords(lines, ["前期", "开篇", "第一阶段"]) || fallbackPhases.early;
-  const middlePhase = findByKeywords(lines, ["中期", "第二阶段", "转折"]) || fallbackPhases.middle;
-  const latePhase = findByKeywords(lines, ["后期", "第三阶段", "收束", "结局阶段"]) || fallbackPhases.late;
-  const growthCurve = findByKeywords(lines, ["成长", "成长路径", "成长弧"]);
-  const emotionTrend = findByKeywords(lines, ["情感", "情绪", "情感线"]);
-  const coreConflicts = findByKeywords(lines, ["冲突", "矛盾", "对抗"]);
-  const endingDirection = findByKeywords(lines, ["结局", "终局", "收尾"]);
-  const forbiddenItems = findByKeywords(lines, ["禁止", "避免", "禁忌"]);
+  const coreTheme = findByKeywords(lines, ["core themes", "theme"]);
+  const mainGoal = findByKeywords(lines, ["main objective", "Target", "core mission"]);
+  const earlyPhase = findByKeywords(lines, ["Early stage", "Beginning", "first stage"]) || fallbackPhases.early;
+  const middlePhase = findByKeywords(lines, ["Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", "second stage", "turning point"]) || fallbackPhases.middle;
+  const latePhase = findByKeywords(lines, ["later stage", "The third stage", "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."]) || fallbackPhases.late;
+  const growthCurve = findByKeywords(lines, ["growing up", "growth path", "growth arc"]);
+  const emotionTrend = findByKeywords(lines, ["emotion", "mood", "emotional line"]);
+  const coreConflicts = findByKeywords(lines, ["conflict", "contradiction", "confrontation"]);
+  const endingDirection = findByKeywords(lines, ["ending", "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", "ending"]);
+  const forbiddenItems = findByKeywords(lines, ["prohibit", "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", "Taboo"]);
 
   return {
-    coreTheme: coreTheme || "未标注",
-    mainGoal: mainGoal || "未标注",
-    earlyPhase: earlyPhase || "未标注",
-    middlePhase: middlePhase || "未标注",
-    latePhase: latePhase || "未标注",
-    growthCurve: growthCurve || "未标注",
-    emotionTrend: emotionTrend || "未标注",
-    coreConflicts: coreConflicts || "未标注",
-    endingDirection: endingDirection || "未标注",
-    forbiddenItems: forbiddenItems || "未标注",
+    coreTheme: coreTheme || "Not labeled",
+    mainGoal: mainGoal || "Not labeled",
+    earlyPhase: earlyPhase || "Not labeled",
+    middlePhase: middlePhase || "Not labeled",
+    latePhase: latePhase || "Not labeled",
+    growthCurve: growthCurve || "Not labeled",
+    emotionTrend: emotionTrend || "Not labeled",
+    coreConflicts: coreConflicts || "Not labeled",
+    endingDirection: endingDirection || "Not labeled",
+    forbiddenItems: forbiddenItems || "Not labeled",
   };
 }

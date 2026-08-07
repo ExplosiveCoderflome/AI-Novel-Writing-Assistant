@@ -2,47 +2,47 @@ import type { ModelRouteTaskType } from "@ai-novel/shared/types/novel";
 
 export const MODEL_ROUTE_LABELS: Record<ModelRouteTaskType, { title: string; description: string }> = {
   planner: {
-    title: "大纲策划",
-    description: "先理解创作目标，再安排这一段创作该怎样推进。",
+    title: "outline planning",
+    description: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
   },
   writer: {
-    title: "主笔写作",
-    description: "生成章节正文，把章节内容完整写出来。",
+    title: "Chief writing",
+    description: "Generate chapter text and write out the chapter content completely.",
   },
   review: {
-    title: "通用审校",
-    description: "检查剧情、节奏和文风，找出草稿里的质量问题。",
+    title: "General school",
+    description: "Check plot, pacing, and style to identify quality issues in your draft.",
   },
   light_review: {
-    title: "基础快审",
-    description: "快速判断章节是否能继续推进，用于正文后的轻量质量检查。",
+    title: "Basic quick review",
+    description: "Quickly determine whether a chapter can be advanced and used for lightweight quality checks after the main text.",
   },
   critical_review: {
-    title: "严格审校",
-    description: "处理会影响整本连续性的质量检查，适合高风险审校和复检。",
+    title: "Strict review",
+    description: "Handles quality checks that affect the continuity of the entire book, suitable for high-risk review and rechecking.",
   },
   repair: {
-    title: "章节修复",
-    description: "根据审校问题修正文稿，让章节回到可继续推进的状态。",
+    title: "Chapter fixes",
+    description: "Correct the manuscript according to the review issues and return the chapter to a state where it can be moved forward.",
   },
   replan: {
-    title: "窗口重规划",
-    description: "当局部修复不能收敛时，重新安排受影响章节的目标和衔接。",
+    title: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+    description: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
   },
   state_resolution: {
-    title: "状态解析",
-    description: "判断章节状态提案是否可信，帮助自动导演减少人工确认。",
+    title: "State analysis",
+    description: "Determine whether the chapter status proposal is credible and help automatic directors reduce manual confirmation.",
   },
   summary: {
-    title: "剧情摘要",
-    description: "把长章节整理成回顾、摘要和关键变化。",
+    title: "Plot summary",
+    description: "Organize long chapters into reviews, summaries, and key changes.",
   },
   fact_extraction: {
-    title: "设定考据",
-    description: "整理设定、时间线和关键事实，减少前后矛盾。",
+    title: "Setting testimonials",
+    description: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
   },
   chat: {
-    title: "灵感陪写",
-    description: "处理日常对话，并把结果整理成创作时能直接理解的内容。",
+    title: "Inspiration to accompany writing",
+    description: "Take everyday conversations and organize the results into content that can be directly understood at the time of creation.",
   },
 };

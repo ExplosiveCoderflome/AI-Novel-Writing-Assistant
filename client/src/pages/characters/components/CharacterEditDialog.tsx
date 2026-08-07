@@ -96,27 +96,27 @@ export function CharacterEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[96vw] max-h-[90vh] max-w-[1100px] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{character ? `编辑角色：${character.name}` : "编辑角色"}</DialogTitle>
+          <DialogTitle>{character ? `编辑角色：${character.name}` : "Edit role"}</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-2 md:grid-cols-2">
           <Input
-            placeholder="角色名称"
+            placeholder="Character name"
             value={form.name}
             onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
           />
           <Input
-            placeholder="角色定位"
+            placeholder="role positioning"
             value={form.role}
             onChange={(event) => setForm((prev) => ({ ...prev, role: event.target.value }))}
           />
           <Input
-            placeholder="角色类别"
+            placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
             value={form.category}
             onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
           />
           <Input
-            placeholder="标签（逗号分隔）"
+            placeholder="Tags (comma separated)"
             value={form.tags}
             onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))}
           />
@@ -125,43 +125,43 @@ export function CharacterEditDialog({
         <div className="space-y-2">
           <textarea
             className="min-h-[90px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="性格"
+            placeholder="character"
             value={form.personality}
             onChange={(event) => setForm((prev) => ({ ...prev, personality: event.target.value }))}
           />
           <textarea
             className="min-h-[90px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="背景故事"
+            placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
             value={form.background}
             onChange={(event) => setForm((prev) => ({ ...prev, background: event.target.value }))}
           />
           <textarea
             className="min-h-[90px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="成长轨迹"
+            placeholder="Growth trajectory"
             value={form.development}
             onChange={(event) => setForm((prev) => ({ ...prev, development: event.target.value }))}
           />
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="外貌/体态"
+            placeholder="Appearance/Physique"
             value={form.appearance ?? ""}
             onChange={(event) => setForm((prev) => ({ ...prev, appearance: event.target.value }))}
           />
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="弱点与代价"
+            placeholder="Weaknesses and costs"
             value={form.weaknesses ?? ""}
             onChange={(event) => setForm((prev) => ({ ...prev, weaknesses: event.target.value }))}
           />
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="习惯与特长"
+            placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
             value={form.interests ?? ""}
             onChange={(event) => setForm((prev) => ({ ...prev, interests: event.target.value }))}
           />
           <textarea
             className="min-h-[80px] w-full rounded-md border bg-background p-2 text-sm"
-            placeholder="关键事件"
+            placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
             value={form.keyEvents ?? ""}
             onChange={(event) => setForm((prev) => ({ ...prev, keyEvents: event.target.value }))}
           />
@@ -169,10 +169,10 @@ export function CharacterEditDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            取消
-          </Button>
+            Cancel
+                                </Button>
           <Button onClick={handleSubmit} disabled={saving || !hasRequiredFields || !character}>
-            {saving ? "保存中..." : "保存修改"}
+            {saving ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Save changes"}
           </Button>
         </DialogFooter>
       </DialogContent>

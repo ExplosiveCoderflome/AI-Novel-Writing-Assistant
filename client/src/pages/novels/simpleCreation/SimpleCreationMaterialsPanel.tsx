@@ -33,7 +33,7 @@ export default function SimpleCreationMaterialsPanel({
 }: SimpleCreationMaterialsPanelProps) {
   const sellingPoint = materials.story.coreSellingPoint
     || materials.description
-    || "AI 正在沉淀整书方向。";
+    || "AI is shaping the direction of the entire book.";
   const readingPromise = materials.story.readingPromise
     || materials.story.protagonistFantasy;
   const displayedCharacters = materials.characters.slice(0, 6);
@@ -50,76 +50,76 @@ export default function SimpleCreationMaterialsPanel({
             <Boxes className="h-4 w-4" />
           </span>
           <div>
-            <div className="font-medium text-foreground">AI 已准备的创作资源</div>
+            <div className="font-medium text-foreground">AI prepared creative resources</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              只读查看故事承诺、世界、角色和分卷成果；AI 会继续用这些资源保持后续章节一致。
-            </div>
+              Read-only view of story commitments, world, characters, and volume outcomes; AI will continue to use these resources to keep subsequent chapters consistent.
+                                      </div>
           </div>
         </div>
         <div className="hidden shrink-0 flex-wrap gap-2 text-xs sm:flex">
-          <Badge variant="outline">{materials.characterCount} 位角色</Badge>
-          <Badge variant="outline">{materials.volumeCount} 卷规划</Badge>
+          <Badge variant="outline">{materials.characterCount} role</Badge>
+          <Badge variant="outline">{materials.volumeCount} Volume planning</Badge>
         </div>
       </summary>
 
       <div className="grid gap-3 border-t border-border/60 p-4 md:grid-cols-2 xl:grid-cols-4">
-        <ResourceCard icon={Sparkles} title="整书方向" meta="故事承诺">
+        <ResourceCard icon={Sparkles} title="book direction" meta="story promise">
           <p className="text-foreground">{sellingPoint}</p>
           {readingPromise ? <p className="mt-2">{readingPromise}</p> : null}
           {materials.story.first30ChapterPromise ? (
-            <p className="mt-2">前期兑现：{materials.story.first30ChapterPromise}</p>
+            <p className="mt-2">Early redemption:{materials.story.first30ChapterPromise}</p>
           ) : null}
         </ResourceCard>
 
         <ResourceCard
           icon={Globe2}
-          title="故事世界"
-          meta={materials.world ? "准备完成" : "准备中"}
+          title="story world"
+          meta={materials.world ? "Ready to complete" : "In preparation"}
         >
           {materials.world ? (
             <>
               <p className="font-medium text-foreground">{materials.world.name}</p>
-              <p className="mt-1">{materials.world.summary || "核心世界规则已纳入章节生产。"}</p>
+              <p className="mt-1">{materials.world.summary || "Core world rules have been incorporated into chapter production."}</p>
             </>
           ) : (
-            <p>世界规则完成后会在这里显示摘要。</p>
+            <p>A summary of the world rules will be displayed here when completed.</p>
           )}
         </ResourceCard>
 
-        <ResourceCard icon={Users} title="角色阵容" meta={`${materials.characterCount} 位`}>
+        <ResourceCard icon={Users} title="Cast of characters" meta={`${materials.characterCount} 位`}>
           {materials.characters.length > 0 ? (
             <div className="space-y-2">
               {displayedCharacters.map((character) => (
                 <div key={character.id}>
                   <span className="font-medium text-foreground">{character.name}</span>
                   <span> · {character.storyFunction || character.role}</span>
-                  {character.currentGoal ? <div className="text-xs leading-5">当前目标：{character.currentGoal}</div> : null}
+                  {character.currentGoal ? <div className="text-xs leading-5">Current goals:{character.currentGoal}</div> : null}
                 </div>
               ))}
               {materials.characterCount > displayedCharacters.length ? (
-                <div className="text-xs">另有 {materials.characterCount - displayedCharacters.length} 位角色已纳入生产。</div>
+                <div className="text-xs">Also {materials.characterCount - displayedCharacters.length} characters have been incorporated into production.</div>
               ) : null}
             </div>
           ) : (
-            <p>角色阵容准备完成后会在这里显示。</p>
+            <p>The character lineup will be displayed here when it is ready.</p>
           )}
         </ResourceCard>
 
-        <ResourceCard icon={BookMarked} title="分卷路线" meta={`${materials.volumeCount} 卷`}>
+        <ResourceCard icon={BookMarked} title="reel route" meta={`${materials.volumeCount} 卷`}>
           {materials.volumes.length > 0 ? (
             <div className="space-y-2">
               {displayedVolumes.map((volume) => (
                 <div key={volume.id}>
-                  <span className="font-medium text-foreground">第 {volume.order} 卷 · {volume.title}</span>
+                  <span className="font-medium text-foreground">Section {volume.order} roll · {volume.title}</span>
                   <div className="text-xs leading-5">
-                    {volume.chapterCount} 章{volume.mainPromise ? ` · ${volume.mainPromise}` : ""}
+                    {volume.chapterCount} chapter{volume.mainPromise ? ` · ${volume.mainPromise}` : ""}
                   </div>
                 </div>
               ))}
-              {materials.volumeCount > displayedVolumes.length ? <div className="text-xs">其余分卷已纳入全书生产。</div> : null}
+              {materials.volumeCount > displayedVolumes.length ? <div className="text-xs">The remaining volumes have been incorporated into the production of the entire book.</div> : null}
             </div>
           ) : (
-            <p>卷战略与章节路线完成后会在这里显示。</p>
+            <p>Volume strategies and chapter routes will be displayed here when completed.</p>
           )}
         </ResourceCard>
       </div>

@@ -39,12 +39,12 @@ export default function WorldAxiomsCard(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>核心规则（公理）</CardTitle>
+        <CardTitle>Core Rules (Axioms)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="text-sm text-muted-foreground">
-          可以把它理解成“这个世界不能随便打破的底层规则”。后面的自动生成和手册体检都会参考这里。
-        </div>
+          It can be understood as "the underlying rules of this world that cannot be broken casually." You will refer to this for subsequent automatic generation and manual physical examination.
+                          </div>
         {draftAxioms.map((axiom, index) => (
           <Input
             key={`${index}-${axiom}`}
@@ -57,14 +57,14 @@ export default function WorldAxiomsCard(props: {
         ))}
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" onClick={() => setDraftAxioms((prev) => [...prev, ""])}>
-            新增一条
-          </Button>
+            Add a new item
+                                </Button>
           <Button
             type="button"
             onClick={() => onSave(normalizedDrafts)}
             disabled={savePending || normalizedDrafts.length === 0}
           >
-            {savePending ? "保存中..." : "保存核心规则"}
+            {savePending ? "Saving..." : "Saving core rules"}
           </Button>
         </div>
       </CardContent>

@@ -17,7 +17,7 @@ function updateSession(
       context: event.context,
       seq: event.seq,
       phase: "requesting",
-      phaseMessage: "正在连接模型",
+      phaseMessage: "Connecting model",
       preview: "",
       totalChars: 0,
       startedAt: event.at,
@@ -34,7 +34,7 @@ function updateSession(
       ...current,
       seq: event.seq,
       phase: current.phase === "requesting" ? "streaming" : current.phase,
-      phaseMessage: current.phase === "requesting" ? "模型正在返回内容" : current.phaseMessage,
+      phaseMessage: current.phase === "requesting" ? "The model is returning content" : current.phaseMessage,
       preview: preview.length > MAX_PREVIEW_CHARS ? preview.slice(-MAX_PREVIEW_CHARS) : preview,
       totalChars: event.totalChars,
       updatedAt: event.at,
@@ -57,7 +57,7 @@ function updateSession(
       ...current,
       seq: event.seq,
       phase: "completed",
-      phaseMessage: "模型结果已准备完成",
+      phaseMessage: "Model results are ready",
       totalChars: event.totalChars,
       updatedAt: event.at,
       completedAt: event.at,
@@ -148,7 +148,7 @@ export function useLlmLiveFeed(input: {
           { signal: controller.signal },
         );
         if (!response.ok || !response.body) {
-          throw new Error("生成实况连接失败");
+          throw new Error("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
         }
         setConnected(true);
         const reader = response.body.getReader();

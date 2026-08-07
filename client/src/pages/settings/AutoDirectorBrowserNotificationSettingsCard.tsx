@@ -16,13 +16,13 @@ import { AUTO_DIRECTOR_MOBILE_CLASSES } from "@/mobile/autoDirector";
 function formatPermission(permission: BrowserNotificationPermissionState): string {
   switch (permission) {
     case "granted":
-      return "已允许";
+      return "allowed";
     case "denied":
-      return "已阻止";
+      return "blocked";
     case "default":
-      return "待授权";
+      return "Pending authorization";
     case "unsupported":
-      return "不支持";
+      return "Not supported";
   }
 }
 
@@ -53,7 +53,7 @@ export function AutoDirectorBrowserNotificationSettingsCard(props: {
     if (nextPermission === "unsupported") {
       setAutoDirectorPauseNotificationEnabled(false);
       refreshState();
-      onActionResult("当前浏览器不支持桌面提醒。");
+      onActionResult("Current browsers do not support desktop reminders.");
       return;
     }
     if (nextPermission === "default") {
@@ -62,19 +62,19 @@ export function AutoDirectorBrowserNotificationSettingsCard(props: {
     if (nextPermission !== "granted") {
       setAutoDirectorPauseNotificationEnabled(false);
       refreshState();
-      onActionResult("浏览器未允许通知，自动导演暂停时不会发送桌面提醒。");
+      onActionResult("The browser does not allow notifications and desktop alerts will not be sent when Auto Director is paused.");
       return;
     }
     setAutoDirectorPauseNotificationEnabled(true);
     refreshState();
-    onActionResult("自动导演暂停提醒已开启。");
+    onActionResult("Automatic director pause reminder is on.");
   };
 
   const handleToggle = (checked: boolean) => {
     if (!checked) {
       setAutoDirectorPauseNotificationEnabled(false);
       refreshState();
-      onActionResult("自动导演暂停提醒已关闭。");
+      onActionResult("Automatic director pause reminder is turned off.");
       return;
     }
     void handleEnable();
@@ -89,35 +89,35 @@ export function AutoDirectorBrowserNotificationSettingsCard(props: {
         <div className="flex min-w-0 items-start gap-3">
           <BellRing className="mt-1 h-5 w-5 shrink-0 text-primary" />
           <div className="min-w-0 space-y-1.5">
-            <CardTitle>自动导演暂停提醒</CardTitle>
+            <CardTitle>Automatic director pause reminder</CardTitle>
             <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-              当自动导演等待确认、需要恢复或被校验拦住时，通过浏览器通知提醒你回到跟进中心。
-            </CardDescription>
+              When the automatic director is waiting for confirmation, needs to be restored, or is blocked by verification, a browser notification will remind you to return to the follow-up center.
+                                      </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex min-w-0 items-center justify-between gap-4 rounded-md border bg-muted/10 p-3">
           <div className="min-w-0 space-y-1">
-            <div className="text-sm font-medium">桌面提醒</div>
+            <div className="text-sm font-medium">Desktop reminder</div>
             <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-xs text-muted-foreground`}>
-              只影响这台电脑上的当前浏览器。
-            </div>
+              Only affects the current browser on this computer.
+                                      </div>
           </div>
           <Switch
             checked={enabled && permission === "granted"}
             onCheckedChange={handleToggle}
             disabled={permission === "unsupported"}
-            aria-label="开启或关闭自动导演暂停提醒"
+            aria-label="Turn on or off automatic director pause reminders"
           />
         </div>
 
         <div className="flex min-w-0 flex-col gap-3 rounded-md border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 space-y-1">
-            <div className="text-sm font-medium">通知权限：{permissionLabel}</div>
+            <div className="text-sm font-medium">Notification permissions:{permissionLabel}</div>
             <div className={`${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText} text-xs text-muted-foreground`}>
-              若浏览器已阻止通知，请在地址栏权限设置中允许本网站发送通知。
-            </div>
+              If your browser has blocked notifications, please allow this website to send notifications in the address bar permission settings.
+                                      </div>
           </div>
           {canRequestPermission ? (
             <Button
@@ -126,8 +126,8 @@ export function AutoDirectorBrowserNotificationSettingsCard(props: {
               className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction}
               onClick={() => void handleEnable()}
             >
-              授权浏览器通知
-            </Button>
+              Authorize browser notifications
+                                      </Button>
           ) : null}
         </div>
       </CardContent>

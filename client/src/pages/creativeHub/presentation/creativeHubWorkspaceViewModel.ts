@@ -39,17 +39,17 @@ export interface CreativeHubWorkspacePresentation {
 export function formatCreativeHubThreadStatus(
   status: CreativeHubThread["status"] | undefined,
 ): string {
-  if (status === "busy") return "执行中";
-  if (status === "interrupted") return "等待确认";
-  if (status === "error") return "运行异常";
-  if (status === "idle") return "等待指令";
-  return "正在初始化";
+  if (status === "busy") return "Executing";
+  if (status === "interrupted") return "Waiting for confirmation";
+  if (status === "error") return "Abnormal operation";
+  if (status === "idle") return "Waiting for instructions";
+  return "Initializing";
 }
 
 function formatSetupStage(stage: CreativeHubNovelSetupStatus["stage"] | undefined): string | null {
-  if (stage === "setup_in_progress") return "补齐开书信息";
-  if (stage === "ready_for_planning") return "准备故事规划";
-  if (stage === "ready_for_production") return "准备整本生产";
+  if (stage === "setup_in_progress") return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
+  if (stage === "ready_for_planning") return "Prepare story plan";
+  if (stage === "ready_for_production") return "Prepare for full production";
   return null;
 }
 
@@ -78,14 +78,14 @@ export function resolveCreativeHubWorkspacePresentation(input: {
   const objectTitle = input.currentNovelTitle?.trim()
     || input.productionStatus?.title?.trim()
     || input.novelSetup?.title?.trim()
-    || "未绑定小说";
+    || "Unbound novel";
   const stageLabel = input.latestTurnSummary?.currentStage?.trim()
     || input.productionStatus?.currentStage?.trim()
     || formatSetupStage(input.novelSetup?.stage)
-    || "等待创作目标";
+    || "Waiting for creation target";
   const threadStatusLabel = formatCreativeHubThreadStatus(input.thread?.status);
 
-  const threadsError = errorText(input.threadsError, "创作线程加载失败。");
+  const threadsError = errorText(input.threadsError, "The authoring thread failed to load.");
   if (threadsError) {
     return {
       objectTitle,
@@ -93,15 +93,15 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "danger",
-        title: "重新加载创作线程",
-        description: `${threadsError} 已保存的小说和线程内容不会被修改。`,
+        title: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+        description: `${threadsError} Saved novel and thread content will not be modified.`,
         action: "retry_threads",
-        actionLabel: "重新加载线程",
+        actionLabel: "reload thread",
       },
     };
   }
 
-  const createThreadError = errorText(input.createThreadError, "创作线程创建失败。");
+  const createThreadError = errorText(input.createThreadError, "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
   if (createThreadError) {
     return {
       objectTitle,
@@ -109,16 +109,16 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "danger",
-        title: "重新创建创作线程",
-        description: `${createThreadError} 已有小说和创作资料不会被修改。`,
+        title: "Recreate the authoring thread",
+        description: `${createThreadError} Existing novels and creative materials will not be modified.`,
         action: "retry_create_thread",
-        actionLabel: "重新创建线程",
+        actionLabel: "Re-create the thread",
       },
     };
   }
 
-  const stateError = errorText(input.stateError, "线程状态加载失败。")
-    || errorText(input.threadLoadError, "线程内容加载失败。");
+  const stateError = errorText(input.stateError, "Thread state loading failed.")
+    || errorText(input.threadLoadError, "Thread content loading failed.");
   if (stateError) {
     return {
       objectTitle,
@@ -126,15 +126,15 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "danger",
-        title: "重新加载当前创作现场",
-        description: `${stateError} 为避免混淆，旧线程内容不会继续显示。`,
+        title: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+        description: `To avoid confusion, the old thread's content will not be displayed in ${stateError}.`,
         action: input.threadLoadError ? "retry_thread" : "retry_state",
-        actionLabel: "重新加载当前线程",
+        actionLabel: "Reload the current thread",
       },
     };
   }
 
-  const novelsError = errorText(input.novelsError, "小说列表加载失败。");
+  const novelsError = errorText(input.novelsError, "The novel list failed to load.");
   if (novelsError) {
     return {
       objectTitle,
@@ -142,10 +142,10 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "danger",
-        title: "重新加载小说列表",
-        description: `${novelsError} 当前线程内容仍会保留。`,
+        title: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+        description: `${novelsError} The content of the current thread will still be preserved.`,
         action: "retry_novels",
-        actionLabel: "重新加载小说",
+        actionLabel: "reload novel",
       },
     };
   }
@@ -157,10 +157,10 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "warning",
-        title: input.interrupt.title || "处理待确认的创作操作",
-        description: input.interrupt.summary || "本轮执行正在等待你的确认，处理后才能继续当前动作。",
+        title: input.interrupt.title || "Handle pending authoring operations",
+        description: input.interrupt.summary || "This round of execution is waiting for your confirmation before the current action can be continued.",
         action: "review_interrupt",
-        actionLabel: "查看待确认项",
+        actionLabel: "View pending items",
       },
     };
   }
@@ -172,11 +172,11 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "warning",
-        title: "查看待确认的创作操作",
+        title: "View pending authoring actions",
         description: input.latestTurnSummary?.nextSuggestion?.trim()
-          || "当前线程仍在等待确认，请先查看执行记录中的待确认项。",
+          || "The current thread is still waiting for confirmation. Please check the pending items in the execution record first.",
         action: "view_activity",
-        actionLabel: "查看待确认项",
+        actionLabel: "View pending items",
       },
     };
   }
@@ -188,10 +188,10 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "info",
-        title: "AI 正在推进当前创作目标",
+        title: "AI is driving current creative goals",
         description: `当前阶段：${stageLabel}。执行记录、工具结果和需要确认的事项会持续显示在主工作区。`,
         action: "view_activity",
-        actionLabel: "查看执行记录",
+        actionLabel: "View execution records",
       },
     };
   }
@@ -203,22 +203,22 @@ export function resolveCreativeHubWorkspacePresentation(input: {
     || input.productionStatus?.failureSummary?.trim()
     || input.thread?.latestError?.trim()
     || failedTurn?.impactSummary?.trim()
-    || (input.thread?.status === "error" ? "当前创作线程处于异常状态。" : null);
+    || (input.thread?.status === "error" ? "The current authoring thread is in an abnormal state." : null);
   if (failureSummary) {
     const recoveryHint = input.diagnostics?.recoveryHint?.trim()
       || input.productionStatus?.recoveryHint?.trim()
       || failedTurn?.nextSuggestion?.trim()
-      || "分析当前失败原因并给出安全恢复步骤";
+      || "Analyze the current failure reasons and provide safe recovery steps";
     return {
       objectTitle,
       stageLabel,
       threadStatusLabel,
       recommendation: {
         tone: "danger",
-        title: "处理当前创作阻塞",
-        description: `${failureSummary} 恢复操作会继续使用现有小说资产和任务记录。`,
+        title: "Handle current creative block",
+        description: `The ${failureSummary} recovery operation will continue to use existing novel assets and quest records.`,
         action: "send_prompt",
-        actionLabel: "生成恢复方案",
+        actionLabel: "Generate recovery plan",
         prompt: recoveryHint,
       },
     };
@@ -233,11 +233,11 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "warning",
-        title: "继续补齐开书信息",
+        title: "Continue to complete the book opening information",
         description: input.novelSetup.nextQuestion?.trim()
-          || "先补齐影响后续规划的关键信息，再进入整本生产。",
+          || "First complete the key information that affects subsequent planning, and then enter the entire production.",
         action: prompt ? "send_prompt" : "open_production",
-        actionLabel: prompt ? "按 AI 建议继续" : "查看开书准备",
+        actionLabel: prompt ? "Continue with AI suggestions" : "View preparations for book opening",
         ...(prompt ? { prompt } : {}),
       },
     };
@@ -251,26 +251,26 @@ export function resolveCreativeHubWorkspacePresentation(input: {
       threadStatusLabel,
       recommendation: {
         tone: "info",
-        title: "继续当前创作目标",
+        title: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
         description: nextSuggestion,
         action: "send_prompt",
-        actionLabel: "按建议继续",
+        actionLabel: "Continue as suggested",
         prompt: nextSuggestion,
       },
     };
   }
 
-  if (objectTitle === "未绑定小说") {
+  if (objectTitle === "Unbound novel") {
     return {
       objectTitle,
       stageLabel,
       threadStatusLabel,
       recommendation: {
         tone: "info",
-        title: "选择本轮要推进的小说",
-        description: "绑定小说后，AI 才能读取对应的章节、世界、角色和生产状态。",
+        title: "Choose the novel to advance this round",
+        description: "Only after binding the novel can the AI ​​read the corresponding chapters, worlds, characters and production status.",
         action: "select_novel",
-        actionLabel: "选择小说",
+        actionLabel: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
       },
     };
   }
@@ -281,10 +281,10 @@ export function resolveCreativeHubWorkspacePresentation(input: {
     threadStatusLabel,
     recommendation: {
       tone: "neutral",
-      title: "说明本轮要推进的创作目标",
-      description: "可以补充作品问题、调整要求，或打开整本生产设置继续现有小说。",
+      title: "Explain the creative goals to be promoted in this round",
+      description: "You can add work questions, adjust requirements, or open the entire production setup to continue an existing novel.",
       action: "open_production",
-      actionLabel: "查看生产入口",
+      actionLabel: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
     },
   };
 }

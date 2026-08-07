@@ -27,8 +27,8 @@ export function buildReplanRecommendationFromAuditReports(
   return {
     recommended: blockingIssueIds.length > 0,
     reason: blockingIssueIds.length > 0
-      ? "存在未解决的高优先级审计问题，建议重规划后续章节。"
-      : "当前没有阻塞性审计问题，无需重规划后续章节。",
+      ? "There are unresolved high-priority audit issues, and it is recommended to re-plan subsequent chapters."
+      : "There are currently no blocking audit issues and there is no need to re-plan subsequent chapters.",
     blockingIssueIds,
   };
 }

@@ -37,7 +37,7 @@ export default function NovelChapterEdit() {
   if (novelDetailQuery.isLoading && !detail) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <PageStateCard message="正在加载章节编辑器..." />
+        <PageStateCard message="Loading chapter editor..." />
       </div>
     );
   }
@@ -45,7 +45,7 @@ export default function NovelChapterEdit() {
   if (novelDetailQuery.isError) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <PageStateCard message="章节数据加载失败，请刷新后重试。" />
+        <PageStateCard message="Chapter data loading failed, please refresh and try again." />
       </div>
     );
   }
@@ -53,7 +53,7 @@ export default function NovelChapterEdit() {
   if (!chapter) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-4">
-        <PageStateCard message="没有找到对应章节，可能已被删除或当前链接不完整。" />
+        <PageStateCard message="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." />
       </div>
     );
   }

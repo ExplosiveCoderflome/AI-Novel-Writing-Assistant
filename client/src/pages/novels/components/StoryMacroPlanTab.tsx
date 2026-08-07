@@ -34,24 +34,24 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
   return (
     <div className="space-y-4">
       <DirectorTakeoverEntryPanel
-        title="从故事宏观规划接管"
-        description="AI 会先判断 Story Macro / Book Contract 是否已经具备，再决定继续补缺失内容还是按你的选择重跑当前步。"
+        title="Taking over from story macro planning"
+        description="The AI ​​will first determine whether the Story Macro / Book Contract is already available, and then decide whether to continue filling in the missing content or rerun the current step according to your choice."
         entry={props.directorTakeoverEntry}
       />
       <StoryEngineStudio tab={props} />
 
       <DetailDisclosure
-        title="故事引擎与高级约束"
-        description="这些属于更细的故事引擎编辑和诊断内容。默认收起，避免新手在还没定方向时被大量字段淹没。"
+        title="Story Engine and Advanced Constraints"
+        description="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
       >
         <div className="space-y-4">
           {props.expansion ? (
             <Card>
               <CardHeader>
-                <CardTitle>故事引擎原型</CardTitle>
+                <CardTitle>Story Engine Prototype</CardTitle>
                 <CardDescription>
-                  这里定义故事为什么能一直写下去：主角如何被困、冲突怎样升级、未知如何驱动读者继续读。
-                </CardDescription>
+                  Define here why the story can keep being written: how the protagonist is trapped, how the conflict escalates, and how the unknown drives the reader to continue reading.
+                                                  </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 xl:grid-cols-2">
@@ -91,7 +91,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
 
                 <div className="space-y-2 rounded-xl border border-border/70 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-sm font-medium text-foreground">冲突层</div>
+                    <div className="text-sm font-medium text-foreground">Conflict layer</div>
                     <FieldActions
                       field="conflict_layers"
                       lockedFields={props.lockedFields}
@@ -103,38 +103,38 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                   </div>
                   <div className="grid gap-4 xl:grid-cols-3">
                     <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">外部压迫</div>
+                      <div className="text-sm text-muted-foreground">External oppression</div>
                       <textarea
                         value={expansion.conflict_layers.external}
                         onChange={(event) => props.onFieldChange("conflict_layers", {
                           ...expansion.conflict_layers,
                           external: event.target.value,
                         })}
-                        placeholder="外部系统、威胁或环境如何持续压迫主角。"
+                        placeholder="How external systems, threats, or circumstances continue to oppress the protagonist."
                         className={textareaClassName("min-h-24")}
                       />
                     </div>
                     <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">内部崩塌</div>
+                      <div className="text-sm text-muted-foreground">Internal collapse</div>
                       <textarea
                         value={expansion.conflict_layers.internal}
                         onChange={(event) => props.onFieldChange("conflict_layers", {
                           ...expansion.conflict_layers,
                           internal: event.target.value,
                         })}
-                        placeholder="主角内在恐惧、欲望或误判怎样反噬自己。"
+                        placeholder="How the protagonist’s inner fears, desires, or misjudgments come back to bite him."
                         className={textareaClassName("min-h-24")}
                       />
                     </div>
                     <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">关系压力</div>
+                      <div className="text-sm text-muted-foreground">Relationship stress</div>
                       <textarea
                         value={expansion.conflict_layers.relational}
                         onChange={(event) => props.onFieldChange("conflict_layers", {
                           ...expansion.conflict_layers,
                           relational: event.target.value,
                         })}
-                        placeholder="关键关系如何制造选择代价和情感张力。"
+                        placeholder="How critical relationships create choice costs and emotional tension."
                         className={textareaClassName("min-h-24")}
                       />
                     </div>
@@ -143,7 +143,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
 
                 <div className="space-y-2 rounded-xl border border-border/70 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-sm font-medium text-foreground">高张力场面种子</div>
+                    <div className="text-sm font-medium text-foreground">High tension scene seeds</div>
                     <FieldActions
                       field="setpiece_seeds"
                       lockedFields={props.lockedFields}
@@ -159,7 +159,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                       "setpiece_seeds",
                       event.target.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
                     )}
-                    placeholder="每行一个高张力场面。"
+                    placeholder="One high-tension scene per line."
                     className={textareaClassName("min-h-32")}
                   />
                 </div>
@@ -170,12 +170,12 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
           {props.issues.length > 0 ? (
             <Card>
               <CardHeader>
-                <CardTitle>冲突与信息缺口</CardTitle>
+                <CardTitle>Conflicts and information gaps</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {props.issues.map((issue, index) => (
                   <div key={`${issue.type}-${issue.field}-${index}`} className="rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                    <div className="font-medium">{issue.type === "conflict" ? "输入冲突" : "信息不足"}</div>
+                    <div className="font-medium">{issue.type === "conflict" ? "Input conflict" : "Insufficient information"}</div>
                     <div className="mt-1">{issue.message}</div>
                   </div>
                 ))}
@@ -185,14 +185,14 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle>硬约束</CardTitle>
+              <CardTitle>hard constraints</CardTitle>
               <CardDescription>
-                这里的规则会作为后续生成的硬边界，防止故事在下游被写散。
-              </CardDescription>
+                The rules here will serve as hard boundaries for subsequent generation to prevent the story from being scattered downstream.
+                                            </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm font-medium text-foreground">叙事规则</div>
+                <div className="text-sm font-medium text-foreground">narrative rules</div>
                 <FieldActions
                   field="constraints"
                   lockedFields={props.lockedFields}
@@ -208,7 +208,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                   "constraints",
                   event.target.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
                 )}
-                placeholder="每行一条必须遵守的叙事规则。"
+                placeholder="One narrative rule per line that must be followed."
                 className={textareaClassName("min-h-36")}
               />
             </CardContent>
@@ -216,29 +216,29 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle>约束引擎</CardTitle>
+              <CardTitle>constraint engine</CardTitle>
               <CardDescription>
-                当前保存的是后续角色、主线、章节规划可以直接消费的规则源。
-              </CardDescription>
+                What is currently saved is the rule source that can be directly consumed by subsequent characters, main lines, and chapter planning.
+                                            </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {props.constraintEngine ? (
                 <>
                   <div className="space-y-2 rounded-xl border border-border/70 p-4">
-                    <div className="text-sm font-medium text-foreground">故事前提</div>
+                    <div className="text-sm font-medium text-foreground">Story premise</div>
                     <div className="text-sm leading-7 text-muted-foreground">{props.constraintEngine.premise}</div>
                   </div>
                   <div className="grid gap-4 xl:grid-cols-2">
                     <div className="space-y-2 rounded-xl border border-border/70 p-4">
-                      <div className="text-sm font-medium text-foreground">核心未知</div>
+                      <div className="text-sm font-medium text-foreground">Core unknown</div>
                       <div className="text-sm text-muted-foreground">{props.constraintEngine.mystery_box}</div>
                     </div>
                     <div className="space-y-2 rounded-xl border border-border/70 p-4">
-                      <div className="text-sm font-medium text-foreground">冲突轴线</div>
+                      <div className="text-sm font-medium text-foreground">axis of conflict</div>
                       <div className="text-sm text-muted-foreground">{props.constraintEngine.conflict_axis}</div>
                     </div>
                     <div className="space-y-2 rounded-xl border border-border/70 p-4">
-                      <div className="text-sm font-medium text-foreground">压力角色槽位</div>
+                      <div className="text-sm font-medium text-foreground">pressure role slot</div>
                       <div className="space-y-2 text-sm text-muted-foreground">
                         {props.constraintEngine.pressure_roles.map((item) => (
                           <div key={item}>{item}</div>
@@ -246,7 +246,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                       </div>
                     </div>
                     <div className="space-y-2 rounded-xl border border-border/70 p-4">
-                      <div className="text-sm font-medium text-foreground">成长节点</div>
+                      <div className="text-sm font-medium text-foreground">Growth node</div>
                       <div className="space-y-2 text-sm text-muted-foreground">
                         {props.constraintEngine.growth_path.map((item) => (
                           <div key={item}>{item}</div>
@@ -254,7 +254,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                       </div>
                     </div>
                     <div className="space-y-2 rounded-xl border border-border/70 p-4">
-                      <div className="text-sm font-medium text-foreground">阶段模型</div>
+                      <div className="text-sm font-medium text-foreground">stage model</div>
                       <div className="space-y-2 text-sm text-muted-foreground">
                         {props.constraintEngine.phase_model.map((phase) => (
                           <div key={phase.name}>
@@ -266,7 +266,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                       </div>
                     </div>
                     <div className="space-y-2 rounded-xl border border-border/70 p-4">
-                      <div className="text-sm font-medium text-foreground">硬约束清单</div>
+                      <div className="text-sm font-medium text-foreground">hard constraint list</div>
                       <div className="space-y-2 text-sm text-muted-foreground">
                         {props.constraintEngine.hard_constraints.map((item) => (
                           <div key={item}>{item}</div>
@@ -274,7 +274,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                       </div>
                     </div>
                     <div className="space-y-2 rounded-xl border border-border/70 p-4 xl:col-span-2">
-                      <div className="text-sm font-medium text-foreground">兑现节点</div>
+                      <div className="text-sm font-medium text-foreground">Redeem node</div>
                       <div className="space-y-2 text-sm text-muted-foreground">
                         {props.constraintEngine.turning_points.map((item) => (
                           <div key={`${item.phase}-${item.title}`}>
@@ -286,7 +286,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                       </div>
                     </div>
                     <div className="space-y-2 rounded-xl border border-border/70 p-4">
-                      <div className="text-sm font-medium text-foreground">结局必须出现</div>
+                      <div className="text-sm font-medium text-foreground">The ending must happen</div>
                       <div className="space-y-2 text-sm text-muted-foreground">
                         {props.constraintEngine.ending_constraints.must_have.map((item) => (
                           <div key={item}>{item}</div>
@@ -294,7 +294,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                       </div>
                     </div>
                     <div className="space-y-2 rounded-xl border border-border/70 p-4">
-                      <div className="text-sm font-medium text-foreground">结局必须避免</div>
+                      <div className="text-sm font-medium text-foreground">Endings must be avoided</div>
                       <div className="space-y-2 text-sm text-muted-foreground">
                         {props.constraintEngine.ending_constraints.must_not_have.map((item) => (
                           <div key={item}>{item}</div>
@@ -305,22 +305,22 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                 </>
               ) : (
                 <div className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground">
-                  还没有约束引擎。先完成故事引擎拆解，再点击“构建约束引擎”。
-                </div>
+                  There is no constraint engine yet. Complete the story engine disassembly first, and then click "Build Constraint Engine".
+                                                      </div>
               )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>故事状态</CardTitle>
+              <CardTitle>story status</CardTitle>
               <CardDescription>
-                保存当前阶段和主角处境，方便后续章节推进时复用。
-              </CardDescription>
+                Save the current stage and the protagonist's situation for easy reuse when advancing in subsequent chapters.
+                                            </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 xl:grid-cols-[160px_160px_minmax(0,1fr)_auto]">
               <div className="space-y-2">
-                <div className="text-sm font-medium text-foreground">当前阶段</div>
+                <div className="text-sm font-medium text-foreground">Current stage</div>
                 <Input
                   type="number"
                   value={props.state.currentPhase}
@@ -329,7 +329,7 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                 />
               </div>
               <div className="space-y-2">
-                <div className="text-sm font-medium text-foreground">进度</div>
+                <div className="text-sm font-medium text-foreground">Progress</div>
                 <Input
                   type="number"
                   value={props.state.progress}
@@ -339,16 +339,16 @@ export default function StoryMacroPlanTab(props: StoryMacroTabProps) {
                 />
               </div>
               <div className="space-y-2">
-                <div className="text-sm font-medium text-foreground">主角当前处境</div>
+                <div className="text-sm font-medium text-foreground">The protagonist’s current situation</div>
                 <Input
                   value={props.state.protagonistState}
                   onChange={(event) => props.onStateChange("protagonistState", event.target.value)}
-                  placeholder="例如：仍在否认真相，但已经无法退出。"
+                  placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
                 />
               </div>
               <div className="flex items-end">
                 <Button variant="outline" onClick={props.onSaveState} disabled={props.isSavingState}>
-                  {props.isSavingState ? "保存中..." : "保存状态"}
+                  {props.isSavingState ? "Saving..." : "Saving status"}
                 </Button>
               </div>
             </CardContent>

@@ -148,8 +148,8 @@ export default function NovelCharacterPanel(props: NovelCharacterPanelProps) {
   return (
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel
-        title="从角色准备接管"
-        description="AI 会先判断角色资产是否齐备，再决定继续补角色还是按你的选择重跑当前步骤。"
+        title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+        description="The AI ​​will first determine whether the character's assets are complete, and then decide whether to continue adding characters or rerun the current steps according to your choice."
         entry={directorTakeoverEntry}
       />
       {characterMessage ? <div className="text-sm text-muted-foreground">{characterMessage}</div> : null}

@@ -32,7 +32,7 @@ function itemLabel(item: Record<string, unknown>): string {
   if (typeof item.id === "string" && item.id.trim()) {
     return item.id.trim();
   }
-  return "未命名条目";
+  return "Unnamed entry";
 }
 
 function compactText(value: string, max = 140): string {
@@ -46,15 +46,15 @@ function compactText(value: string, max = 140): string {
 function formatNovelProjectStatus(value: unknown): string | null {
   switch (value) {
     case "in_progress":
-      return "在写中";
+      return "in writing";
     case "not_started":
-      return "未开始";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "completed":
-      return "已完成";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "rework":
-      return "返工中";
+      return "Rework in progress";
     case "blocked":
-      return "已阻塞";
+      return "blocked";
     default:
       return null;
   }
@@ -87,8 +87,8 @@ function renderNovelList(output: Record<string, unknown>, onQuickAction?: (promp
   return (
     <div className="space-y-2">
       <div className="text-xs text-muted-foreground">
-        已发现 {total ?? items.length} 本小说
-        {total != null && total > items.length ? `，当前展示前 ${items.length} 本` : ""}
+        Found {total ?? items.length} this novel
+                      {total != null && total > items.length ? `，当前展示前 ${items.length} 本` : ""}
       </div>
       <div className="space-y-2">
         {items.map((item) => {
@@ -99,7 +99,7 @@ function renderNovelList(output: Record<string, unknown>, onQuickAction?: (promp
             <div key={`${item.id ?? title}`} className="rounded-md border border-border bg-muted/20 px-3 py-2">
               <div className="text-sm font-medium text-foreground">《{title}》</div>
               <div className="mt-1 text-xs text-muted-foreground">
-                {chapterCount != null ? `${chapterCount} 章` : "章节未知"}
+                {chapterCount != null ? `${chapterCount} 章` : "Chapter unknown"}
                 {projectStatus ? ` · ${projectStatus}` : ""}
               </div>
               {onQuickAction ? (
@@ -110,8 +110,8 @@ function renderNovelList(output: Record<string, unknown>, onQuickAction?: (promp
                     variant="outline"
                     onClick={() => onQuickAction(`把《${title}》设为当前工作区`)}
                   >
-                    设为当前工作区
-                  </Button>
+                    Set as current workspace
+                                                </Button>
                 </div>
               ) : null}
             </div>
@@ -127,25 +127,25 @@ function renderWorkspaceCard(
   variant: "created" | "selected",
   onQuickAction?: (prompt: string) => void,
 ) {
-  const title = typeof output.title === "string" && output.title.trim() ? output.title.trim() : "未命名小说";
+  const title = typeof output.title === "string" && output.title.trim() ? output.title.trim() : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   const chapterCount = typeof output.chapterCount === "number" ? output.chapterCount : 0;
   const actions = variant === "created"
     ? [
-      { label: "查看当前进度", prompt: "这本书当前写到哪一章" },
-      { label: "开始设计第一章", prompt: "为这本书规划第一章" },
+      { label: "View current progress", prompt: "Which chapter is this book currently on?" },
+      { label: "Start designing the first chapter", prompt: "Planning the first chapter of the book" },
     ]
     : [
-      { label: "查看当前进度", prompt: "这本书当前写到哪一章" },
-      { label: "查看前两章", prompt: "前两章都写了什么" },
+      { label: "View current progress", prompt: "Which chapter is this book currently on?" },
+      { label: "View the first two chapters", prompt: "What was written in the first two chapters?" },
     ];
   return (
     <div className="space-y-2">
       <div className="rounded-md border border-success/30 bg-success/5 px-3 py-3">
         <div className="text-sm font-medium text-foreground">《{title}》</div>
         <div className="mt-1 text-xs text-muted-foreground">
-          {variant === "created" ? "新小说已创建并绑定到当前线程。" : "当前线程已切换到该小说工作区。"}
+          {variant === "created" ? "A new novel is created and bound to the current thread." : "The current thread has been switched to the novel workspace."}
         </div>
-        <div className="mt-2 text-xs text-muted-foreground">当前章节数：{chapterCount}</div>
+        <div className="mt-2 text-xs text-muted-foreground">Current number of chapters:{chapterCount}</div>
       </div>
       {renderActionButtons(actions, onQuickAction)}
     </div>
@@ -155,19 +155,19 @@ function renderWorkspaceCard(
 function renderWorldBindingCard(output: Record<string, unknown>, onQuickAction?: (prompt: string) => void) {
   const novelTitle = typeof output.novelTitle === "string" && output.novelTitle.trim()
     ? output.novelTitle.trim()
-    : "当前小说";
+    : "current novel";
   const worldName = typeof output.worldName === "string" && output.worldName.trim()
     ? output.worldName.trim()
-    : "未命名世界观";
+    : "Unnamed world view";
   return (
     <div className="space-y-2">
       <div className="rounded-md border border-info/30 bg-info/5 px-3 py-3">
         <div className="text-sm font-medium text-foreground">《{novelTitle}》</div>
-        <div className="mt-1 text-xs text-muted-foreground">已绑定世界观《{worldName}》。</div>
+        <div className="mt-1 text-xs text-muted-foreground">Bound worldview《{worldName}》。</div>
       </div>
       {renderActionButtons([
-        { label: "查看世界观约束", prompt: "查看当前小说的世界观规则" },
-        { label: "检查世界观冲突", prompt: "检查当前小说和世界观是否存在冲突" },
+        { label: "View worldview constraints", prompt: "View the worldview rules of the current novel" },
+        { label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", prompt: "Check if there is any conflict between the current novel and the worldview" },
       ], onQuickAction)}
     </div>
   );
@@ -191,33 +191,33 @@ function renderProductionAssetCard(
 }
 
 function renderProductionStatusCard(output: Record<string, unknown>, onQuickAction?: (prompt: string) => void) {
-  const title = typeof output.title === "string" && output.title.trim() ? output.title.trim() : "当前小说";
+  const title = typeof output.title === "string" && output.title.trim() ? output.title.trim() : "current novel";
   const currentStage = typeof output.currentStage === "string" ? output.currentStage.trim() : "未知阶段";
   const chapterCount = typeof output.chapterCount === "number" ? output.chapterCount : 0;
   const targetChapterCount = typeof output.targetChapterCount === "number" ? output.targetChapterCount : null;
   const pipelineStatus = typeof output.pipelineStatus === "string" && output.pipelineStatus.trim()
     ? output.pipelineStatus.trim()
-    : "未启动";
+    : "Not started";
   const assetStages = asRecordArray(output.assetStages);
   return (
     <div className="space-y-2">
       <div className="rounded-md border border-info/30 bg-info/5 px-3 py-3">
         <div className="text-sm font-medium text-foreground">《{title}》</div>
-        <div className="mt-1 text-xs text-muted-foreground">当前阶段：{currentStage}</div>
+        <div className="mt-1 text-xs text-muted-foreground">Current stage:{currentStage}</div>
         <div className="mt-1 text-xs text-muted-foreground">
-          章节目录：{targetChapterCount != null ? `${chapterCount}/${targetChapterCount}` : chapterCount} 章
-        </div>
-        <div className="mt-1 text-xs text-muted-foreground">整本写作：{pipelineStatus}</div>
+          Chapter table of contents:{targetChapterCount != null ? `${chapterCount}/${targetChapterCount}` : chapterCount} chapter
+                          </div>
+        <div className="mt-1 text-xs text-muted-foreground">Whole writing:{pipelineStatus}</div>
         {typeof output.failureSummary === "string" && output.failureSummary.trim() ? (
-          <div className="mt-2 text-xs leading-5 text-muted-foreground">失败摘要：{output.failureSummary.trim()}</div>
+          <div className="mt-2 text-xs leading-5 text-muted-foreground">Failure summary:{output.failureSummary.trim()}</div>
         ) : null}
       </div>
       {assetStages.length > 0 ? (
         <div className="grid gap-2">
           {assetStages.slice(0, 8).map((stage) => (
             <div key={`${stage.key ?? stage.label}`} className="rounded-md border border-border bg-muted/20 px-3 py-2">
-              <div className="text-sm font-medium text-foreground">{String(stage.label ?? stage.key ?? "阶段")}</div>
-              <div className="mt-1 text-xs text-muted-foreground">状态：{String(stage.status ?? "unknown")}</div>
+              <div className="text-sm font-medium text-foreground">{String(stage.label ?? stage.key ?? "stage")}</div>
+              <div className="mt-1 text-xs text-muted-foreground">state:{String(stage.status ?? "unknown")}</div>
               {typeof stage.detail === "string" && stage.detail.trim() ? (
                 <div className="mt-1 text-xs text-muted-foreground">{stage.detail.trim()}</div>
               ) : null}
@@ -226,8 +226,8 @@ function renderProductionStatusCard(output: Record<string, unknown>, onQuickActi
         </div>
       ) : null}
       {renderActionButtons([
-        { label: "继续整本生成", prompt: "继续生成当前小说" },
-        { label: "查看整本进度", prompt: "整本生成到哪一步了" },
+        { label: "Continue to generate the entire book", prompt: "Continue to generate the current novel" },
+        { label: "Check the progress of the entire book", prompt: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
       ], onQuickAction)}
     </div>
   );
@@ -245,19 +245,19 @@ function renderPipelineRunCard(
     ? startOrder === endOrder
       ? `第 ${startOrder} 章`
       : `第 ${startOrder} 到第 ${endOrder} 章`
-    : "当前章节范围";
-  const title = toolName === "preview_pipeline_run" ? "整本写作预览" : "整本写作任务";
+    : "Current chapter scope";
+  const title = toolName === "preview_pipeline_run" ? "Full writing preview" : "Whole writing assignment";
   const description = toolName === "preview_pipeline_run"
     ? `${scope} 的整本写作预览已完成，当前可进入审批或继续诊断。`
     : `${scope} 的整本写作任务已启动${jobId ? `（任务 ${jobId}）` : ""}。`;
   const actions = toolName === "preview_pipeline_run"
     ? [
-      { label: "查看整本进度", prompt: "整本生成到哪一步了" },
-      { label: "查看阻塞", prompt: "为什么整本生成没有启动" },
+      { label: "Check the progress of the entire book", prompt: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+      { label: "View blocking", prompt: "Why does the entire build not start?" },
     ]
     : [
-      { label: "查看整本进度", prompt: "整本生成到哪一步了" },
-      { label: "查看任务状态", prompt: "列出当前系统任务状态" },
+      { label: "Check the progress of the entire book", prompt: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+      { label: "View task status", prompt: "List current system task status" },
     ];
   return renderProductionAssetCard(title, description, actions, onQuickAction);
 }
@@ -269,11 +269,11 @@ function renderDiagnosticCard(output: Record<string, unknown>, onQuickAction?: (
   return (
     <div className="space-y-2">
       {failureSummary ? <div className="text-sm font-medium text-foreground">{failureSummary}</div> : null}
-      {failureDetails ? <div className="text-xs leading-5 text-muted-foreground">详情：{failureDetails}</div> : null}
-      {recoveryHint ? <div className="text-xs leading-5 text-muted-foreground">建议：{recoveryHint}</div> : null}
+      {failureDetails ? <div className="text-xs leading-5 text-muted-foreground">Details:{failureDetails}</div> : null}
+      {recoveryHint ? <div className="text-xs leading-5 text-muted-foreground">suggestion:{recoveryHint}</div> : null}
       {renderActionButtons([
-        { label: "继续诊断", prompt: "继续解释失败原因和恢复建议" },
-        { label: "查看任务状态", prompt: "列出当前系统任务状态" },
+        { label: "continue diagnosis", prompt: "Continue to explain the cause of failure and recovery recommendations" },
+        { label: "View task status", prompt: "List current system task status" },
       ], onQuickAction)}
     </div>
   );
@@ -295,12 +295,12 @@ function renderListCard(
           <div key={`${item.id ?? itemLabel(item)}`} className="rounded-md border border-border bg-muted/20 px-3 py-2">
             <div className="text-sm font-medium text-foreground">{itemLabel(item)}</div>
             {"status" in item && typeof item.status === "string" ? (
-              <div className="mt-1 text-xs text-muted-foreground">状态：{item.status}</div>
+              <div className="mt-1 text-xs text-muted-foreground">state:{item.status}</div>
             ) : null}
           </div>
         ))}
       </div>
-      {renderActionButtons([{ label: "继续筛选", prompt: "继续细化这个列表结果" }], onQuickAction)}
+      {renderActionButtons([{ label: "Continue filtering", prompt: "Continue to refine this list of results" }], onQuickAction)}
     </div>
   );
 }
@@ -316,15 +316,15 @@ function renderChapterCard(output: Record<string, unknown>, onQuickAction?: (pro
   return (
     <div className="space-y-2">
       <div className="text-sm font-medium text-foreground">
-        {order != null ? `第${order}章` : "章节内容"}
+        {order != null ? `第${order}章` : "Chapter content"}
         {title ? `《${title}》` : ""}
       </div>
       <div className="rounded-md border border-border bg-muted/20 px-3 py-3 text-sm leading-6 text-muted-foreground">
-        {content || "当前没有可显示的章节内容。"}
+        {content || "There is currently no chapter content to display."}
       </div>
       {renderActionButtons([
-        { label: "继续总结", prompt: "总结这一段内容的关键剧情" },
-        { label: "检查冲突", prompt: "检查这一章是否和世界观或前文冲突" },
+        { label: "Continue to summarize", prompt: "Summarize the key plot of this paragraph" },
+        { label: "Check for conflicts", prompt: "Check whether this chapter conflicts with the world view or the previous text" },
       ], onQuickAction)}
     </div>
   );
@@ -341,7 +341,7 @@ export default function CreativeHubToolResultCard({
   const [expanded, setExpanded] = useState(false);
   const detailsId = useId();
   const payload = asRecord(output);
-  const summaryText = compactText(summary, 160) || "工具已返回结果。";
+  const summaryText = compactText(summary, 160) || "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   const cardContent = (() => {
     if (toolName === "list_novels") {
       return renderNovelList(payload, onQuickAction);
@@ -356,13 +356,13 @@ export default function CreativeHubToolResultCard({
       return renderWorldBindingCard(payload, onQuickAction);
     }
     if (toolName === "generate_world_for_novel") {
-      const worldName = typeof payload.worldName === "string" && payload.worldName.trim() ? payload.worldName.trim() : "未命名世界观";
+      const worldName = typeof payload.worldName === "string" && payload.worldName.trim() ? payload.worldName.trim() : "Unnamed world view";
       return renderProductionAssetCard(
-        "世界观已生成",
+        "World view has been generated",
         `已生成世界观《${worldName}》。`,
         [
-          { label: "继续整本生成", prompt: "继续生成当前小说" },
-          { label: "查看生产进度", prompt: "整本生成到哪一步了" },
+          { label: "Continue to generate the entire book", prompt: "Continue to generate the current novel" },
+          { label: "Check production progress", prompt: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
         ],
         onQuickAction,
       );
@@ -370,37 +370,37 @@ export default function CreativeHubToolResultCard({
     if (toolName === "generate_novel_characters") {
       const characterCount = typeof payload.characterCount === "number" ? payload.characterCount : 0;
       return renderProductionAssetCard(
-        "核心角色已生成",
+        "Core roles have been generated",
         `已生成 ${characterCount} 个核心角色。`,
         [
-          { label: "继续整本生成", prompt: "继续生成当前小说" },
-          { label: "查看角色状态", prompt: "查看当前小说角色状态" },
+          { label: "Continue to generate the entire book", prompt: "Continue to generate the current novel" },
+          { label: "View character status", prompt: "View current novel character status" },
         ],
         onQuickAction,
       );
     }
     if (toolName === "generate_story_bible") {
       return renderProductionAssetCard(
-        "小说圣经已生成",
+        "Novel Bible has been generated",
         typeof payload.mainPromise === "string" && payload.mainPromise.trim()
           ? payload.mainPromise.trim()
           : "当前小说圣经已生成。",
         [
-          { label: "继续整本生成", prompt: "继续生成当前小说" },
-          { label: "查看整本进度", prompt: "整本生成到哪一步了" },
+          { label: "Continue to generate the entire book", prompt: "Continue to generate the current novel" },
+          { label: "Check the progress of the entire book", prompt: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
         ],
         onQuickAction,
       );
     }
     if (toolName === "generate_novel_outline") {
       return renderProductionAssetCard(
-        "发展走向已生成",
+        "The development trend has been generated",
         typeof payload.outline === "string" && payload.outline.trim()
           ? payload.outline.trim()
-          : "当前小说发展走向已生成。",
+          : "The current development trend of the novel has been generated.",
         [
-          { label: "继续整本生成", prompt: "继续生成当前小说" },
-          { label: "查看整本进度", prompt: "整本生成到哪一步了" },
+          { label: "Continue to generate the entire book", prompt: "Continue to generate the current novel" },
+          { label: "Check the progress of the entire book", prompt: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
         ],
         onQuickAction,
       );
@@ -408,11 +408,11 @@ export default function CreativeHubToolResultCard({
     if (toolName === "generate_structured_outline") {
       const targetChapterCount = typeof payload.targetChapterCount === "number" ? payload.targetChapterCount : 0;
       return renderProductionAssetCard(
-        "结构化大纲已生成",
-        targetChapterCount > 0 ? `已生成 ${targetChapterCount} 章结构化大纲。` : "当前小说结构化大纲已生成。",
+        "Structured outline generated",
+        targetChapterCount > 0 ? `已生成 ${targetChapterCount} 章结构化大纲。` : "The structured outline of the current novel has been generated.",
         [
-          { label: "同步章节目录", prompt: "继续生成当前小说" },
-          { label: "查看整本进度", prompt: "整本生成到哪一步了" },
+          { label: "Synchronize chapter table of contents", prompt: "Continue to generate the current novel" },
+          { label: "Check the progress of the entire book", prompt: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
         ],
         onQuickAction,
       );
@@ -420,11 +420,11 @@ export default function CreativeHubToolResultCard({
     if (toolName === "sync_chapters_from_structured_outline") {
       const chapterCount = typeof payload.chapterCount === "number" ? payload.chapterCount : 0;
       return renderProductionAssetCard(
-        "章节目录已同步",
-        chapterCount > 0 ? `已同步 ${chapterCount} 个章节目录。` : "已同步章节目录。",
+        "Chapter table of contents has been synchronized",
+        chapterCount > 0 ? `已同步 ${chapterCount} 个章节目录。` : "Chapter table of contents has been synchronized.",
         [
-          { label: "查看整本进度", prompt: "整本生成到哪一步了" },
-          { label: "启动整本生成", prompt: "继续生成当前小说" },
+          { label: "Check the progress of the entire book", prompt: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+          { label: "Start full generation", prompt: "Continue to generate the current novel" },
         ],
         onQuickAction,
       );
@@ -454,7 +454,7 @@ export default function CreativeHubToolResultCard({
       || toolName === "list_writing_formulas"
       || toolName === "list_base_characters"
     ) {
-      return renderListCard(payload, "当前没有可展示的结果。", onQuickAction);
+      return renderListCard(payload, "There are currently no results to display.", onQuickAction);
     }
     if (
       toolName === "get_chapter_content"
@@ -475,7 +475,7 @@ export default function CreativeHubToolResultCard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-sm font-medium text-foreground">{summaryText}</div>
-          <Badge variant={success ? "secondary" : "destructive"}>{success ? "已解析结果" : "执行失败"}</Badge>
+          <Badge variant={success ? "secondary" : "destructive"}>{success ? "Parsed results" : "Execution failed"}</Badge>
         </div>
         <Button
           type="button"
@@ -485,7 +485,7 @@ export default function CreativeHubToolResultCard({
           aria-expanded={expanded}
           aria-controls={detailsId}
         >
-          {expanded ? "收起详情" : "展开详情"}
+          {expanded ? "Collapse details" : "Expand details"}
         </Button>
       </div>
       {expanded ? (
@@ -498,7 +498,7 @@ export default function CreativeHubToolResultCard({
           {cardContent}
         </div>
       ) : (
-        <div className="mt-2 text-xs text-muted-foreground">详细执行结果默认收起，可按需查看。</div>
+        <div className="mt-2 text-xs text-muted-foreground">Detailed execution results are hidden by default and can be viewed on demand.</div>
       )}
     </div>
   );

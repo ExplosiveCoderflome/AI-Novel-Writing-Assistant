@@ -87,18 +87,7 @@ export async function deleteCreativeDecision(id: string, decisionId: string) {
 }
 
 export async function batchInvalidateCreativeDecisions(id: string, decisionIds: string[]) {
-  const { data } = await apiClient.post<ApiResponse<{ count: number; expiresAt: number }>>(
-    `/novels/${id}/creative-decisions/batch-invalidate`,
-    { decisionIds },
-  );
-  return data;
-}
-
-/**
- * [开发工具] 重置指定小说的所有章节正文及相关生成数据，供测试重跑使用。
- * 清除范围：章节正文、生成状态、事实账本、章节摘要、质量报告等。
- */
-export async function devResetNovelChapters(id: string): Promise<{ resetCount: number }> {
+  const { data } = await apiClient.post<ApiResponse<{ count: number; expiresAt: number }>>( `/novels/${id}/creative-decisions/batch-invalidate`, { decisionIds }, ); return data; } /** * [Development Tools] Resets all chapter text and related generated data for the specified novel for testing reruns. * Scope of clearing: chapter text, generation status, fact ledger, chapter summary, quality report, etc. */ export async function devResetNovelChapters(id: string): Promise<{ resetCount: number }> {
   const { data } = await apiClient.post<ApiResponse<{ resetCount: number }>>(
     `/novels/${id}/dev/reset-chapters`,
     {},

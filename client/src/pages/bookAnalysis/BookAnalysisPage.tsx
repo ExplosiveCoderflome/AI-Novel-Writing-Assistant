@@ -182,39 +182,39 @@ export default function BookAnalysisPage() {
       ) : null}
       <WorkspaceHeader
         icon={BookOpenText}
-        context={workspace.analysisMode === "diagnosis" ? "稿件诊断 · 原文与结果工作台" : "参考拆书 · 原文与结果工作台"}
-        title={workspace.selectedAnalysis?.title ?? "拆书分析"}
+        context={workspace.analysisMode === "diagnosis" ? "Manuscript Diagnosis · Original Text and Results Workbench" : "Reference book · Original text and results workbench"}
+        title={workspace.selectedAnalysis?.title ?? "Book split analysis"}
         description={workspace.selectedAnalysis
-          ? "围绕来源文档阅读结构、人物、世界和写法结论；结果可以继续发布到小说知识库或交给创作中枢引用。"
-          : "选择来源文档并生成结构化拆书结果，完成后可直接阅读小节、回看原文证据和整理角色档案。"}
+          ? "Read the structure, characters, world, and writing conclusions around the source document; the results can continue to be published to the novel knowledge base or handed over to the creative center for reference."
+          : "Select source documents and generate structured book splitting results. After completion, you can directly read the sections, review the original evidence, and organize the character files."}
         meta={workspace.selectedAnalysis ? (
           <>
-            <span>来源：{workspace.selectedAnalysis.documentTitle} · v{workspace.selectedAnalysis.documentVersionNumber}</span>
+            <span>source:{workspace.selectedAnalysis.documentTitle} · v{workspace.selectedAnalysis.documentVersionNumber}</span>
             <span>
-              阶段：{workspace.selectedAnalysis.currentStage
+              stage:{workspace.selectedAnalysis.currentStage
                 ? formatStage(workspace.selectedAnalysis.currentStage)
                 : workspace.selectedAnalysis.status === "succeeded"
-                  ? "结果可阅读"
+                  ? "The result is readable"
                   : formatStatus(workspace.selectedAnalysis.status)}
             </span>
-            <span>进度：{Math.round(workspace.selectedAnalysis.progress * 100)}%</span>
-            <span>范围：{workspace.selectedAnalysis.sourceRange?.label ?? "全文"}</span>
-            <span>计划小节：{sectionSummary.readableExpected}/{sectionSummary.expected} 可阅读</span>
+            <span>schedule:{Math.round(workspace.selectedAnalysis.progress * 100)}%</span>
+            <span>scope:{workspace.selectedAnalysis.sourceRange?.label ?? "full text"}</span>
+            <span>Planning section:{sectionSummary.readableExpected}/{sectionSummary.expected} Readable</span>
           </>
         ) : null}
         actions={(
           <>
             <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(true)}>
               <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
-              新建拆书
-            </Button>
+              Create a new book
+                                </Button>
             {workspace.selectedAnalysis ? (
               <OpenInCreativeHubButton
                 bindings={{
                   bookAnalysisId: workspace.selectedAnalysisId || null,
                   knowledgeDocumentIds: workspace.selectedDocumentId ? [workspace.selectedDocumentId] : [],
                 }}
-                label="在创作中枢引用"
+                label="Cited in Creative Hub"
               />
             ) : null}
           </>
@@ -225,38 +225,38 @@ export default function BookAnalysisPage() {
         <WorkspaceStateNotice
           loading
           tone="info"
-          title="正在读取拆书结果"
-          description="结果加载完成后会直接显示可阅读小节和原文证据。"
+          title="Reading the book opening results"
+          description="After the results are loaded, readable sections and original text evidence will be displayed directly."
         />
       ) : workspace.selectedAnalysisId && workspace.queryState.detailError ? (
         <WorkspaceStateNotice
           tone="danger"
-          title="无法读取这份拆书结果"
-          description={`${workspace.queryState.detailError} 来源文档和已保存结果不会被覆盖。`}
+          title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+          description={`The source documentation and saved results will not be overwritten. (${workspace.queryState.detailError})`}
           action={(
             <Button type="button" size="sm" variant="outline" onClick={workspace.retryDetail}>
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-              重试详情
-            </Button>
+              Retry details
+                              </Button>
           )}
         />
       ) : !workspace.selectedAnalysisId && workspace.queryState.analysesLoading ? (
         <WorkspaceStateNotice
           loading
           tone="info"
-          title="正在读取拆书列表"
-          description="正在确认已有分析和最近进度，加载完成后会给出下一步。"
+          title="Reading open book list"
+          description="Existing analysis and recent progress are being confirmed. The next step will be given after the loading is completed."
         />
       ) : !workspace.selectedAnalysisId && workspace.queryState.analysesError ? (
         <WorkspaceStateNotice
           tone="danger"
-          title="无法读取拆书列表"
-          description={`${workspace.queryState.analysesError} 现有来源文档和分析结果不会被修改。`}
+          title="Unable to read open book list"
+          description={`${workspace.queryState.analysesError} Existing source documentation and analysis results will not be modified.`}
           action={(
             <Button type="button" size="sm" variant="outline" onClick={workspace.retryAnalyses}>
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-              重新加载
-            </Button>
+              Reload
+                              </Button>
           )}
         />
       ) : (
@@ -386,12 +386,9 @@ export default function BookAnalysisPage() {
           ) : (
             <WorkspaceStateNotice
               tone="neutral"
-              title={workspace.analyses.length > 0 ? "选择一份拆书分析" : "还没有拆书结果"}
-              description={workspace.analyses.length > 0
-                ? "从左侧选择分析后，这里会展示来源、生成阶段、可阅读结果和恢复动作。"
-                : "新建拆书后，AI 会把来源文档整理为可阅读、可发布和可引用的结果。"}
-              action={workspace.analyses.length === 0 ? (
-                <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>新建拆书</Button>
+              title={workspace.analyses.length > 0 ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "No result of opening the book yet"}
+              description={workspace.analyses.length > 0 ? "After selecting an analysis from the left, this will display the source, generation stage, readable results, and recovery action." : "After creating a new book breakdown, AI will organize the source document into readable, publishable, and citationable results."} action={workspace.analyses.length === 0 ? (
+                <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>Create a new book</Button>
               ) : null}
             />
           )}

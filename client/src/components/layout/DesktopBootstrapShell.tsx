@@ -23,15 +23,15 @@ interface DesktopBootstrapShellProps {
 function resolveStateLabel(snapshot: DesktopBootstrapSnapshot): string {
   switch (snapshot.state) {
     case "launching":
-      return "准备中";
+      return "In preparation";
     case "starting-server":
-      return "启动本地引擎";
+      return "Start local engine";
     case "loading-ui":
-      return "加载工作区";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "ready":
-      return "已就绪";
+      return "Ready";
     case "error":
-      return "启动受阻";
+      return "Start blocked";
     default:
       return snapshot.state;
   }
@@ -40,21 +40,21 @@ function resolveStateLabel(snapshot: DesktopBootstrapSnapshot): string {
 function resolveStageLabel(snapshot: DesktopBootstrapSnapshot): string {
   switch (snapshot.stage) {
     case "launching":
-      return "准备启动";
+      return "ready to start";
     case "app-ready":
-      return "应用已就绪";
+      return "Application is ready";
     case "splash-shown":
-      return "启动页已显示";
+      return "Start page is shown";
     case "server-starting":
-      return "本地服务启动中";
+      return "Local service starting";
     case "server-healthy":
-      return "本地服务已就绪";
+      return "Local service is ready";
     case "renderer-ready":
-      return "界面已准备";
+      return "The interface is ready";
     case "main-window-shown":
-      return "主窗口已显示";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "error":
-      return "启动失败";
+      return "Startup failed";
     default:
       return snapshot.stage;
   }
@@ -63,15 +63,15 @@ function resolveStageLabel(snapshot: DesktopBootstrapSnapshot): string {
 function resolveProgressHint(snapshot: DesktopBootstrapSnapshot): string {
   switch (snapshot.state) {
     case "launching":
-      return "正在准备桌面运行时和启动资源。";
+      return "Preparing desktop runtime and startup resources.";
     case "starting-server":
-      return "桌面版需要先拉起本地服务，随后才会进入主工作区。";
+      return "The desktop version needs to start the local service first, and then enter the main workspace.";
     case "loading-ui":
-      return "本地服务已经可用，正在切入主工作台。";
+      return "The local service is already available and is being cut into the main workbench.";
     case "ready":
-      return "启动链路已经完成。";
+      return "Starting the link has been completed.";
     case "error":
-      return "启动过程中遇到问题，建议先查看日志再重试。";
+      return "If you encounter a problem during the startup process, it is recommended to check the logs and try again.";
     default:
       return snapshot.detail;
   }
@@ -80,21 +80,21 @@ function resolveProgressHint(snapshot: DesktopBootstrapSnapshot): string {
 function resolveUpdaterStatusLabel(status: DesktopUpdaterSnapshot["status"]): string {
   switch (status) {
     case "disabled":
-      return "不可用";
+      return "Not available";
     case "idle":
-      return "待检查";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "checking":
-      return "检查中";
+      return "Under inspection";
     case "update-available":
-      return "发现更新";
+      return "Discover updates";
     case "downloading":
-      return "下载中";
+      return "Downloading";
     case "downloaded":
-      return "待安装";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "not-available":
-      return "无需更新";
+      return "No update required";
     case "error":
-      return "检查失败";
+      return "Check failed";
     default:
       return status;
   }
@@ -103,11 +103,11 @@ function resolveUpdaterStatusLabel(status: DesktopUpdaterSnapshot["status"]): st
 function resolveUpdaterHint(updater: DesktopUpdaterSnapshot, bootstrapState: DesktopBootstrapSnapshot["state"]): string {
   if (!updater.isSupported) {
     if (updater.isPortable) {
-      return "便携版需要下载新版安装包后手动替换。";
+      return "The portable version needs to download the new version installation package and replace it manually.";
     }
 
     if (!updater.isPackaged) {
-      return "开发运行不会连接发布更新通道，打包安装版会自动检查桌面版本。";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     }
 
     return updater.message;
@@ -116,20 +116,20 @@ function resolveUpdaterHint(updater: DesktopUpdaterSnapshot, bootstrapState: Des
   switch (updater.status) {
     case "idle":
       return bootstrapState === "error"
-        ? "启动受阻时会同步检查桌面版本，方便先安装可用修复。"
-        : "进入工作区前会检查桌面版本，有可用版本时会在这里提示。";
+        ? "When startup is blocked, the desktop version will be checked simultaneously to install available fixes first."
+        : "The desktop version will be checked before entering the workspace, and you will be prompted here if there is an available version.";
     case "checking":
-      return "版本检查中，有可用版本时会提示下载。";
+      return "During version checking, you will be prompted to download when a version is available.";
     case "update-available":
-      return `桌面版 ${updater.availableVersion ?? "新版本"} 可用，建议先下载更新包。`;
+      return `桌面版 ${updater.availableVersion ?? "new version"} 可用，建议先下载更新包。`;
     case "downloading":
-      return "更新包下载中，请保持应用打开。";
+      return "The update package is being downloaded, please keep the app open.";
     case "downloaded":
-      return "更新包已下载，重启应用后完成安装。";
+      return "The update package has been downloaded and the installation is completed after restarting the application.";
     case "not-available":
-      return "本机安装版本与发布通道保持同步。";
+      return "Natively installed versions are kept in sync with release channels.";
     case "error":
-      return updater.message || "版本检查失败，可以稍后重试。";
+      return updater.message || "Version check failed, you can try again later.";
     default:
       return updater.message;
   }
@@ -204,7 +204,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">版本检查</div>
+        <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Version check</div>
         <Badge
           variant="outline"
           className={cn(
@@ -218,15 +218,15 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
 
       <div className="mt-3 grid gap-2 text-sm text-slate-300">
         <div className="flex items-center justify-between gap-3">
-          <span>本机版本</span>
+          <span>Native version</span>
           <span className="font-medium text-slate-100">{updater.currentVersion}</span>
         </div>
         <div className="flex items-center justify-between gap-3">
-          <span>可用版本</span>
+          <span>Available versions</span>
           <span className="font-medium text-slate-100">{updater.availableVersion ?? "-"}</span>
         </div>
         <div className="flex items-center justify-between gap-3 text-slate-400">
-          <span>检查时间</span>
+          <span>Check time</span>
           <span className="font-medium text-slate-200">{formatSnapshotTime(updater.lastCheckedAt ?? "")}</span>
         </div>
       </div>
@@ -247,7 +247,7 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
             onClick={() => void runUpdaterAction("check")}
           >
             <RefreshCw className={cn("h-4 w-4", updater.status === "checking" ? "animate-spin" : null)} aria-hidden="true" />
-            {updater.status === "checking" ? "检查中" : updater.status === "error" || updater.status === "not-available" ? "重新检查" : "检查更新"}
+            {updater.status === "checking" ? "Checking" : updater.status === "error" || updater.status === "not-available" ? "Rechecking" : "Checking for updates"}
           </Button>
         ) : null}
         {showDownloadButton ? (
@@ -259,8 +259,8 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
             onClick={() => void runUpdaterAction("check")}
           >
             <Download className="h-4 w-4" aria-hidden="true" />
-            下载更新
-          </Button>
+            Download updates
+                                </Button>
         ) : null}
         {showInstallButton ? (
           <Button
@@ -271,8 +271,8 @@ function DesktopBootstrapUpdatePanel({ snapshot }: { snapshot: DesktopBootstrapS
             onClick={() => void runUpdaterAction("install")}
           >
             <RotateCw className="h-4 w-4" aria-hidden="true" />
-            重启安装
-          </Button>
+            Restart installation
+                                </Button>
         ) : null}
       </div>
     </div>
@@ -294,13 +294,13 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge className="bg-cyan-500/20 text-cyan-100 hover:bg-cyan-500/20">
-                    桌面版 · 测试通道
-                  </Badge>
+                    Desktop version · Test channel
+                                                        </Badge>
                   <Badge variant="outline" className="border-slate-600 bg-slate-900/70 text-slate-100">
                     {resolveStageLabel(snapshot)}
                   </Badge>
                 </div>
-                <h1 className="text-3xl font-semibold tracking-tight">AI 小说创作工作台</h1>
+                <h1 className="text-3xl font-semibold tracking-tight">AI Novel Creation Workbench</h1>
               </div>
             </div>
 
@@ -318,24 +318,24 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
                 )}
               </div>
               <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-4 text-sm leading-6 text-slate-300">
-                这个页面只会在桌面版启动时短暂出现，用来承接本地服务启动，避免先看到白屏或空白窗口。
-              </div>
+                This page will only appear briefly when the desktop version is started. It is used to start the local service to avoid seeing a white screen or blank window first.
+                                            </div>
             </div>
           </section>
 
           <section className="space-y-5 px-8 py-8">
             <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">当前进度</div>
+              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Current progress</div>
               <div className="mt-3 space-y-3 text-sm text-slate-200">
                 <div className="flex items-center justify-between gap-3">
-                  <span>状态</span>
+                  <span>Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</span>
                   <span className="font-medium">{resolveStateLabel(snapshot)}</span>
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3 text-slate-300">
                   {resolveProgressHint(snapshot)}
                 </div>
                 <div className="flex items-center justify-between gap-3 text-slate-400">
-                  <span>最近更新</span>
+                  <span>Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</span>
                   <span className="font-medium text-slate-200">{formatSnapshotTime(snapshot.updatedAt)}</span>
                 </div>
               </div>
@@ -344,32 +344,32 @@ export default function DesktopBootstrapShell({ snapshot, overlay = false }: Des
             <DesktopBootstrapUpdatePanel snapshot={snapshot} />
 
             <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-5">
-              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">日志与排查</div>
+              <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Logs and troubleshooting</div>
               <div className="mt-3 text-sm leading-6 text-slate-300">
-                如果启动卡住、本地服务提前退出，或者你要定位启动耗时，可以直接查看桌面端日志。
-              </div>
+                If the startup is stuck, the local service exits early, or you want to locate the startup time, you can directly check the desktop log.
+                                            </div>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Button
                   variant="secondary"
                   className="bg-slate-50 text-slate-950 hover:bg-white"
                   onClick={() => void openDesktopLogsDirectory()}
                 >
-                  打开日志目录
-                </Button>
+                  Open log directory
+                                                  </Button>
                 <Button
                   variant="outline"
                   className="border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700 hover:text-white"
                   onClick={() => void copyDesktopLogPath()}
                 >
-                  复制日志路径
-                </Button>
+                  Copy log path
+                                                  </Button>
                 {snapshot.state === "error" && snapshot.canRetry ? (
                   <Button
                     className="bg-cyan-400 text-slate-950 hover:bg-cyan-300"
                     onClick={() => void restartDesktopApp()}
                   >
-                    重新启动
-                  </Button>
+                    Restart
+                                                        </Button>
                 ) : null}
               </div>
             </div>

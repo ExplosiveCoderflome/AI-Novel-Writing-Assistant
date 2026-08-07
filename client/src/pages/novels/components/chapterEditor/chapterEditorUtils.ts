@@ -7,12 +7,12 @@ import type {
 } from "./chapterEditorTypes";
 
 export const CHAPTER_EDITOR_OPERATION_LABELS: Record<ChapterEditorOperation, string> = {
-  polish: "优化表达",
-  expand: "扩写",
-  compress: "精简",
-  emotion: "强化情绪",
-  conflict: "强化冲突",
-  custom: "自定义指令",
+  polish: "Optimize expression",
+  expand: "Expand",
+  compress: "streamline",
+  emotion: "Strengthen mood",
+  conflict: "intensify conflict",
+  custom: "custom directive",
 };
 
 export function normalizeEditorText(text: string): string {
@@ -333,13 +333,13 @@ export function buildAiRevisionRequest(input: ChapterEditorRequestBuilderInput) 
 
 export function getSaveStatusLabel(status: "idle" | "saving" | "saved" | "error", isDirty: boolean): string {
   if (status === "saving") {
-    return "保存中";
+    return "Saving";
   }
   if (status === "saved") {
-    return "已保存";
+    return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   }
   if (status === "error") {
-    return "保存失败";
+    return "Save failed";
   }
-  return isDirty ? "待保存" : "已同步";
+  return isDirty ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Synced";
 }

@@ -17,11 +17,11 @@ interface BookPositioningStudioProps {
 }
 
 const POSITIONING_FIELDS = [
-  { key: "title", label: "标题" },
-  { key: "description", label: "概述" },
-  { key: "targetAudience", label: "读者" },
-  { key: "bookSellingPoint", label: "卖点" },
-  { key: "first30ChapterPromise", label: "前 30 章" },
+  { key: "title", label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+  { key: "description", label: "Overview" },
+  { key: "targetAudience", label: "reader" },
+  { key: "bookSellingPoint", label: "selling point" },
+  { key: "first30ChapterPromise", label: "First 30 chapters" },
 ] satisfies Array<{ key: keyof NovelBasicFormState; label: string }>;
 
 function hasText(value: unknown): boolean {
@@ -67,7 +67,7 @@ function ReadinessRow(props: {
       {props.ready ? (
         <CheckCircle2 className="h-4 w-4 text-emerald-600" />
       ) : (
-        <span className="text-xs text-muted-foreground">待补</span>
+        <span className="text-xs text-muted-foreground">To be replenished</span>
       )}
     </div>
   );
@@ -87,14 +87,14 @@ export default function BookPositioningStudio(props: BookPositioningStudioProps)
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="border-primary/25 bg-primary/5 text-primary">
-                  书级资产
-                </Badge>
-                <span className="text-xs font-medium text-muted-foreground">后续规划、角色和章节生成会优先读取这里</span>
+                  book-level assets
+                                                  </Badge>
+                <span className="text-xs font-medium text-muted-foreground">Subsequent planning, character and chapter generation will be read here first.</span>
               </div>
-              <h2 className="mt-3 text-lg font-semibold leading-7 text-foreground">定位这本书的读者承诺</h2>
+              <h2 className="mt-3 text-lg font-semibold leading-7 text-foreground">Position the book's readership commitments</h2>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-                先把标题、主冲突、读者期待和前 30 章必须兑现的内容收束清楚，再让 AI 继续展开世界、角色和章节。
-              </p>
+                First, wrap up the title, main conflict, reader expectations, and what must be fulfilled in the first 30 chapters, and then let the AI ​​continue to develop the world, characters, and chapters.
+                                            </p>
             </div>
             {projectQuickStart ? <div className="shrink-0">{projectQuickStart}</div> : null}
           </div>
@@ -102,11 +102,11 @@ export default function BookPositioningStudio(props: BookPositioningStudioProps)
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.85fr),minmax(20rem,1.15fr)]">
             <div className="space-y-3 rounded-lg border border-border/60 bg-muted/10 p-3">
               <div className="space-y-2">
-                <FieldLabel htmlFor="basic-title">小说标题</FieldLabel>
+                <FieldLabel htmlFor="basic-title">Novel title</FieldLabel>
                 <Input
                   id="basic-title"
                   value={basicForm.title}
-                  placeholder="例如：雾港审判局"
+                  placeholder="For example: Fog Harbor Trial Bureau"
                   onChange={(event) => onFormChange({ title: event.target.value })}
                   className="h-11 bg-background text-base font-semibold"
                 />
@@ -114,13 +114,13 @@ export default function BookPositioningStudio(props: BookPositioningStudioProps)
               </div>
 
               <div className="space-y-2">
-                <FieldLabel htmlFor="basic-description">一句话概述</FieldLabel>
+                <FieldLabel htmlFor="basic-description">One sentence summary</FieldLabel>
                 <textarea
                   id="basic-description"
                   rows={6}
                   className="min-h-[168px] w-full resize-y rounded-md border bg-background px-3 py-2 text-sm leading-6 outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                   value={basicForm.description}
-                  placeholder="用 2-4 句话说明主角、核心冲突和故事看点。"
+                  placeholder="Describe the protagonist, central conflict, and story highlights in 2-4 sentences."
                   onChange={(event) => onFormChange({ description: event.target.value })}
                 />
               </div>
@@ -139,8 +139,8 @@ export default function BookPositioningStudio(props: BookPositioningStudioProps)
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-foreground">定位完成度</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{completedCount} / {POSITIONING_FIELDS.length} 项已就绪</div>
+                  <div className="text-sm font-semibold text-foreground">Positioning completion</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{completedCount} / {POSITIONING_FIELDS.length} Item is ready</div>
                 </div>
                 <div className="text-2xl font-semibold text-foreground">{readinessPercent}%</div>
               </div>
@@ -152,20 +152,20 @@ export default function BookPositioningStudio(props: BookPositioningStudioProps)
             <div className="rounded-lg border border-border/60 bg-background/85 p-3">
               <ReadinessRow
                 icon={<Users className="h-3.5 w-3.5" />}
-                label="目标读者"
-                value={createPreview(basicForm.targetAudience, "写清楚谁会追这本书")}
+                label="target audience"
+                value={createPreview(basicForm.targetAudience, "Write clearly who will pursue this book")}
                 ready={hasText(basicForm.targetAudience)}
               />
               <ReadinessRow
                 icon={<Target className="h-3.5 w-3.5" />}
-                label="核心卖点"
-                value={createPreview(basicForm.bookSellingPoint, "明确最抓人的爽点或悬念")}
+                label="core selling point"
+                value={createPreview(basicForm.bookSellingPoint, "Identify the most gripping points or suspense")}
                 ready={hasText(basicForm.bookSellingPoint)}
               />
               <ReadinessRow
                 icon={<Compass className="h-3.5 w-3.5" />}
-                label="前 30 章牵引"
-                value={createPreview(basicForm.first30ChapterPromise, "告诉 AI 前期必须兑现什么")}
+                label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+                value={createPreview(basicForm.first30ChapterPromise, "Tell AI what must be fulfilled in the early stage")}
                 ready={hasText(basicForm.first30ChapterPromise)}
               />
             </div>
@@ -173,8 +173,8 @@ export default function BookPositioningStudio(props: BookPositioningStudioProps)
             <div className="space-y-3 rounded-lg border border-border/60 bg-background/85 p-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Sparkles className="h-4 w-4 text-primary" />
-                商业标签
-              </div>
+                business label
+                                            </div>
               {commercialTags.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {commercialTags.map((tag) => (
@@ -185,23 +185,23 @@ export default function BookPositioningStudio(props: BookPositioningStudioProps)
                 </div>
               ) : (
                 <p className="text-sm leading-6 text-muted-foreground">
-                  填入 3-6 个标签，帮助后续标题、简介、章节钩子保持统一。
-                </p>
+                  Fill in 3-6 tags to help keep the subsequent titles, introductions, and chapter hooks unified.
+                                                      </p>
               )}
             </div>
 
             <div className="grid gap-2 text-xs text-muted-foreground">
               <div className="flex items-start gap-2 rounded-md bg-background/70 p-2">
                 <BookOpenCheck className="mt-0.5 h-3.5 w-3.5 text-emerald-600" />
-                <span>故事规划会读取读者承诺与商业标签。</span>
+                <span>Story planning reads reader commitments and business tags.</span>
               </div>
               <div className="flex items-start gap-2 rounded-md bg-background/70 p-2">
                 <Map className="mt-0.5 h-3.5 w-3.5 text-sky-600" />
-                <span>世界资产可在下方继续具现为规则、地点和势力。</span>
+                <span>World assets can continue to manifest themselves as rules, locations, and powers below.</span>
               </div>
               <div className="flex items-start gap-2 rounded-md bg-background/70 p-2">
                 <FileText className="mt-0.5 h-3.5 w-3.5 text-amber-600" />
-                <span>章节执行会用前 30 章牵引约束早期正文。</span>
+                <span>Chapter implementation will use the first 30 chapters to pull constraint early text.</span>
               </div>
             </div>
 
@@ -209,8 +209,8 @@ export default function BookPositioningStudio(props: BookPositioningStudioProps)
               <div className="rounded-lg border border-border/60 bg-background/85 px-3 pb-3 [&>section]:border-t-0 [&>section]:pt-3">
                 <div className="flex items-center gap-2 pt-3 text-sm font-semibold text-foreground">
                   <Image className="h-4 w-4 text-primary" />
-                  封面视觉
-                </div>
+                  cover visual
+                                                  </div>
                 {coverSection}
               </div>
             ) : null}

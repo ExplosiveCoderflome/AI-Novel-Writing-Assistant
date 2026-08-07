@@ -7,13 +7,13 @@ export default function WorldSetupTab(props: BasicTabProps) {
   return (
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel
-        title="让 AI 完成本书世界观"
-        description="先确定世界规则、势力和关键约束，再让角色、卷规划与章节生产围绕同一份世界观继续推进。"
+        title="Let AI complete the world view of this book"
+        description="First determine the world rules, forces, and key constraints, and then continue to advance the characters, volume planning, and chapter production around the same worldview."
         entry={props.directorTakeoverEntry}
       />
       <SectionBlock
-        title="世界观准备"
-        description="这里维护本书实际使用的世界观。生成、检查和确认世界观时，AI 会以这些资产为依据。"
+        title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+        description="The worldview in which this book is actually used is maintained here. AI relies on these assets when generating, examining, and validating its worldview."
       >
         <NovelWorldManagerCard
           view={props.novelWorldView}

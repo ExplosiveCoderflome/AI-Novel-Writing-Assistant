@@ -1,121 +1,58 @@
 import type { NovelMaterialImportance, PromptCatalogItem } from "@/api/promptWorkbench";
 
-export const LOCKED_FIELD_LABELS: Record<string, string> = {
-  outputSchema: "输出格式",
-  postValidate: "输出校验",
-  postValidateFailureRecovery: "校验失败恢复",
-  semanticRetryPolicy: "语义重试策略",
-  taskType: "任务类型",
-  mode: "输出模式",
-  contextPolicy: "上下文策略",
-  toolCatalog: "工具目录",
-  approvalBoundary: "审批边界",
+export const LOCKED_FIELD_LABELS: Record<string, string> = { outputSchema: "Output Format", postValidate: "Output Validation", postValidateFailureRecovery: "Validation Failure Recovery", semanticRetryPolicy: "Semantic Retry Policy", taskType: "Task Type", mode: "Output Mode", contextPolicy: "Context Policy", toolCatalog: "Tool Catalog", approvalBoundary: "Approval Boundary", }; export const SLOT_KIND_LABELS: Record<string, string> = { replace: "Rewrite", append: "Add Constraints", choice: "Options", toggle: "Switch", token: "Inline Value", }; export const CONTEXT_GROUP_LABELS: Record<string, string> = {
+  book_contract: "full book contract",
+  chapter_boundary: "Chapter boundaries",
+  chapter_mission: "Tasks in this chapter",
+  character_dynamics: "Role relationship dynamics",
+  character_hard_facts: "character hard facts",
+  character_resource_context: "Role resource status",
+  continuation_constraints: "continuation constraints",
+  custom_slot: "Custom constraints",
+  historical_issues: "Historical review issues",
+  incremental_round_context: "Incremental generation rounds",
+  local_state: "current situation",
+  narrative_progress_hint: "Narrative progress prompts",
+  obligation_contract: "obligation contract",
+  open_conflicts: "open conflict",
+  opening_constraints: "opening constraints",
+  participant_subset: "participation role",
+  payoff_directives: "Foreshadowing operation instructions",
+  payoff_ledger: "Foreshadowing account",
+  previous_chapter_hook: "Chapter hook",
+  previous_chapter_tail: "End of last chapter",
+  rag_context: "Search supplement",
+  recent_chapters: "Summary of recent chapters",
+  repair_boundaries: "Revision scope constraints",
+  repair_issues: "List of revision questions",
+  state_goal: "status and goals",
+  story_macro: "macro story structure",
+  structure_obligations: "structural obligations",
+  style_contract: "style contract",
+  timeline_context: "timeline",
+  volume_window: "Volume level progress",
+  world_rules: "world rules",
+  world_slice: "world fragment",
 };
 
-export const SLOT_KIND_LABELS: Record<string, string> = {
-  replace: "改写",
-  append: "追加约束",
-  choice: "选项",
-  toggle: "开关",
-  token: "内联值",
-};
-
-export const CONTEXT_GROUP_LABELS: Record<string, string> = {
-  book_contract: "全书合约",
-  chapter_boundary: "章节边界",
-  chapter_mission: "本章任务",
-  character_dynamics: "角色关系动态",
-  character_hard_facts: "角色硬事实",
-  character_resource_context: "角色资源状态",
-  continuation_constraints: "续写约束",
-  custom_slot: "自定义约束",
-  historical_issues: "历史审校问题",
-  incremental_round_context: "增量生成轮次",
-  local_state: "当前局面",
-  narrative_progress_hint: "叙事进度提示",
-  obligation_contract: "义务合约",
-  open_conflicts: "开放冲突",
-  opening_constraints: "开篇约束",
-  participant_subset: "参与角色",
-  payoff_directives: "伏笔操作指令",
-  payoff_ledger: "伏笔台账",
-  previous_chapter_hook: "上章钩子",
-  previous_chapter_tail: "上章结尾",
-  rag_context: "检索补充",
-  recent_chapters: "近期章节摘要",
-  repair_boundaries: "修文范围约束",
-  repair_issues: "修文问题清单",
-  state_goal: "状态与目标",
-  story_macro: "宏观故事架构",
-  structure_obligations: "结构义务",
-  style_contract: "风格合约",
-  timeline_context: "时间线",
-  volume_window: "卷级进度",
-  world_rules: "世界规则",
-  world_slice: "世界片段",
-};
-
-export const SOURCE_TYPE_LABELS: Record<string, string> = {
-  novel: "小说",
-  chapter: "章节",
-  plan: "计划",
-  state: "状态",
-  character: "角色",
-  world: "世界设定",
-  style: "风格",
-  audit: "审校",
-  task: "任务",
-};
-
-export const MESSAGE_ROLE_LABELS: Record<string, string> = {
-  system: "系统",
-  human: "用户",
-  assistant: "模型",
-  ai: "模型",
-};
-
-export const TASK_TYPE_LABELS: Record<string, string> = {
-  writer: "写作",
-  light_review: "轻审校",
-  critical_review: "完整审校",
-  repair: "修文",
-  summary: "摘要",
-  planning: "规划",
-  translation: "翻译",
-  analysis: "分析",
-  classification: "分类",
-};
-
-export const OUTPUT_TYPE_LABELS: Record<string, string> = {
-  structured: "结构化输出",
-  text: "文本输出",
-};
-
-export const ENTRYPOINT_OPTIONS = [
-  { value: "creative_hub", label: "创作中枢" },
-  { value: "auto_director", label: "自动导演" },
-  { value: "chapter_pipeline", label: "章节流水线" },
-  { value: "manual_test", label: "手动测试" },
-];
-
-export const MANAGEMENT_STATUS_LABELS: Record<PromptCatalogItem["managementStatus"], string> = {
-  complete: "元数据完整",
-  missing_context_requirements: "缺上下文需求",
-  missing_slots: "缺槽位声明",
+export const SOURCE_TYPE_LABELS: Record<string, string> = { novel: "novel", chapter: "chapter", plan: "plan", state: "state", character: "character", world: "world setting", style: "style", audit: "auditor", task: "task", }; export const MESSAGE_ROLE_LABELS: Record<string, string> = { system: "System", human: "User", assistant: "Model", ai: "Model", }; export const TASK_TYPE_LABELS: Record<string, string> = { writer: "writing", light_review: "light review", critical_review: "critical review", repair: "repair", summary: "summary", planning: "planning", translation: "translation", analysis: "analysis", classification: "classification", }; export const OUTPUT_TYPE_LABELS: Record<string, string> = { structured: "Structured Output", text: "Text Output", }; export const ENTRYPOINT_OPTIONS = [ { value: "creative_hub", label: "Creative Hub" }, { value: "auto_director", label: "Auto Director" }, { value: "chapter_pipeline", label: "Chapter Pipeline" }, { value: "manual_test", label: "Manual Test" }, ]; export const MANAGEMENT_STATUS_LABELS: Record<PromptCatalogItem["managementStatus"], string> = {
+  complete: "Metadata is complete",
+  missing_context_requirements: "Missing contextual requirements",
+  missing_slots: "Missing slot statement",
 };
 
 export const MATERIAL_IMPORTANCE_LABELS: Record<NovelMaterialImportance, string> = {
-  must: "必需",
-  high: "重要",
-  medium: "辅助",
-  low: "参考",
+  must: "required",
+  high: "important",
+  medium: "Auxiliary",
+  low: "reference",
 };
 
 export const CONTEXT_STATUS_LABELS = {
-  selected: "已注入",
-  dropped: "已裁剪",
-  summarized: "已摘要",
-  available: "候选",
+  selected: "Injected",
+  dropped: "Cropped",
+  summarized: "Summary",
+  available: "candidate",
 } as const;
 
 export const LOCKED_CONTEXT_GROUPS = new Set([

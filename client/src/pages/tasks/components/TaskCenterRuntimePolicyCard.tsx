@@ -19,23 +19,23 @@ interface TaskCenterRuntimePolicyCardProps {
 const POLICY_OPTIONS: Array<{ value: DirectorPolicyMode; label: string; description: string }> = [
   {
     value: "suggest_only",
-    label: "只给建议",
-    description: "只分析和给出建议，不自动写入规划或正文。",
+    label: "Just give suggestions",
+    description: "It only analyzes and gives suggestions, and does not automatically write plans or text.",
   },
   {
     value: "run_next_step",
-    label: "推进下一步",
-    description: "只执行当前最小步骤，完成后停下来让你检查。",
+    label: "Proceed to the next step",
+    description: "Only take the smallest step you can, pausing for you to check when you're done.",
   },
   {
     value: "run_until_gate",
-    label: "推进到检查点",
-    description: "连续推进到下一个需要确认的节点。",
+    label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+    description: "Continuously advance to the next node that requires confirmation.",
   },
   {
     value: "auto_safe_scope",
-    label: "安全范围自动推进",
-    description: "仅在系统判断风险较低的范围内继续自动处理。",
+    label: "Safe range automatic advancement",
+    description: "Continue automated processing only to the extent the system judges the risk to be low.",
   },
 ];
 
@@ -64,10 +64,10 @@ export default function TaskCenterRuntimePolicyCard({
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.tasks.directorRuntime(taskId) });
-      toast.success("导演推进方式已更新");
+      toast.success("Director advancement method has been updated");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "更新导演推进方式失败");
+      toast.error(error instanceof Error ? error.message : "Failed to update director advancement method");
     },
   });
 
@@ -85,10 +85,10 @@ export default function TaskCenterRuntimePolicyCard({
     <div className="rounded-md border bg-muted/20 p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="font-medium">导演推进方式</div>
+          <div className="font-medium">Director's advancement method</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">
-            选择系统接下来怎么推进这个导演任务。
-          </div>
+            Choose how the system will advance this director task next.
+                                </div>
         </div>
         <Badge variant="outline">{formatPolicyMode(snapshot.policy.mode)}</Badge>
       </div>
@@ -113,10 +113,10 @@ export default function TaskCenterRuntimePolicyCard({
             onChange={(event) => setAllowExpensiveReview(event.target.checked)}
           />
           <span>
-            <span className="block font-medium">允许执行更完整的审校</span>
+            <span className="block font-medium">Allows a more complete review</span>
             <span className="block text-xs leading-5 text-muted-foreground">
-              用于章节质量检查、近期章节复盘等步骤，系统会在执行前记录策略。
-            </span>
+              Used for chapter quality inspection, recent chapter review and other steps, the system will record the strategy before execution.
+                                      </span>
           </span>
         </label>
         <label className="flex items-start gap-2 text-sm">
@@ -127,10 +127,10 @@ export default function TaskCenterRuntimePolicyCard({
             onChange={(event) => setMayOverwriteUserContent(event.target.checked)}
           />
           <span>
-            <span className="block font-medium">允许改写受保护的内容</span>
+            <span className="block font-medium">Allow rewriting of protected content</span>
             <span className="block text-xs leading-5 text-muted-foreground">
-              仅在你确认要让系统处理已编辑正文或关键设定时开启。
-            </span>
+              Only turn it on if you are sure you want the system to process edited text or key settings.
+                                      </span>
           </span>
         </label>
       </div>
@@ -147,7 +147,7 @@ export default function TaskCenterRuntimePolicyCard({
             )
           }
         >
-          {mutation.isPending ? "保存中..." : "保存推进方式"}
+          {mutation.isPending ? "Saving..." : "Saving the progress method"}
         </Button>
       </div>
     </div>

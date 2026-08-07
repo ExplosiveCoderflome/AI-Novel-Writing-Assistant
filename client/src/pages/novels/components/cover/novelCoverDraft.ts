@@ -33,29 +33,12 @@ export interface BuildNovelCoverDraftInput {
 }
 
 const NARRATIVE_POV_LABELS: Record<NovelBasicFormState["narrativePov"], string> = {
-  first_person: "第一人称",
-  third_person: "第三人称",
-  mixed: "混合视角",
+  first_person: "first person",
+  third_person: "third person",
+  mixed: "mixed perspective",
 };
 
-const PACE_PREFERENCE_LABELS: Record<NovelBasicFormState["pacePreference"], string> = {
-  slow: "慢节奏",
-  balanced: "均衡",
-  fast: "快节奏",
-};
-
-const EMOTION_INTENSITY_LABELS: Record<NovelBasicFormState["emotionIntensity"], string> = {
-  low: "低情绪浓度",
-  medium: "中情绪浓度",
-  high: "高情绪浓度",
-};
-
-function normalizeOptionalText(value: string | null | undefined): string | null {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-function findNamedOption<T extends { id: string }>(
+const PACE_PREFERENCE_LABELS: Record<NovelBasicFormState["pacePreference"], string> = { slow: "slow tempo", balanced: "balanced", fast: "fast tempo", }; const EMOTION_INTENSITY_LABELS: Record<NovelBasicFormState["emotionIntensity"], string> = { low: "low emotional concentration", medium: "medium emotional concentration", high: "high emotional concentration", }; function normalizeOptionalText(value: string | null | undefined): string | null { const trimmed = value?.trim(); return trimmed ? trimmed : null; } function findNamedOption<T extends { id: string }>(
   options: T[],
   selectedId: string,
 ): T | null {
@@ -76,7 +59,7 @@ export function buildNovelCoverDraftContext(
   const commercialTags = normalizeCommercialTags(input.basicForm.commercialTagsText);
 
   return {
-    title: normalizeOptionalText(input.basicForm.title) ?? "这本小说",
+    title: normalizeOptionalText(input.basicForm.title) ?? "this novel",
     description: normalizeOptionalText(input.basicForm.description),
     targetAudience: normalizeOptionalText(input.basicForm.targetAudience),
     bookSellingPoint: normalizeOptionalText(input.basicForm.bookSellingPoint),

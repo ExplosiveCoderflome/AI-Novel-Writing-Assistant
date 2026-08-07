@@ -22,7 +22,7 @@ const toneClass: Record<AssetLibraryTone, string> = {
 
 export default function AssetLibraryStatusGrid(props: { items: AssetLibraryStatusItem[] }) {
   return (
-    <section aria-label="资产状态" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <section aria-label="Asset status" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {props.items.map((item) => {
         const Icon = item.icon;
         return (

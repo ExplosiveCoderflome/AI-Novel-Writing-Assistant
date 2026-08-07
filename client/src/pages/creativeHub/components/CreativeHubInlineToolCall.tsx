@@ -33,23 +33,23 @@ function formatToolLabel(toolName: string): string {
     case "list_book_analyses":
     case "list_writing_formulas":
     case "list_base_characters":
-      return "读取创作资料";
+      return "Read creative data";
     case "create_novel":
     case "select_novel_workspace":
     case "bind_world_to_novel":
-      return "更新小说工作区";
+      return "Update novel workspace";
     case "generate_world_for_novel":
     case "generate_novel_characters":
     case "generate_story_bible":
     case "generate_novel_outline":
     case "generate_structured_outline":
     case "sync_chapters_from_structured_outline":
-      return "生成小说资产";
+      return "Generate novel assets";
     case "start_full_novel_pipeline":
     case "get_novel_production_status":
     case "preview_pipeline_run":
     case "queue_pipeline_run":
-      return "推进整本写作";
+      return "Promote the writing of the entire book";
     case "get_task_failure_reason":
     case "get_run_failure_reason":
     case "get_index_failure_reason":
@@ -57,13 +57,13 @@ function formatToolLabel(toolName: string): string {
     case "explain_generation_blocker":
     case "explain_world_conflict":
     case "failure_diagnostic":
-      return "诊断创作问题";
+      return "Diagnose authoring issues";
     case "get_chapter_content":
     case "get_chapter_content_by_order":
     case "summarize_chapter_range":
-      return "读取章节内容";
+      return "Read chapter content";
     default:
-      return "执行创作辅助操作";
+      return "Perform authoring assistance operations";
   }
 }
 
@@ -101,39 +101,31 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
   const success = artifact.success ?? !("isError" in props && props.isError === true);
   const args = "args" in props && props.args && typeof props.args === "object" && !Array.isArray(props.args)
     ? props.args as Record<string, unknown>
-    : {};
-
-  if (props.toolName === "approval_gate") {
-    const approvalDisabled = inlineControls.approvalPending || inlineControls.actionDisabled;
-    const title = typeof args.title === "string" ? args.title : "等待审批";
-    const summary = typeof args.summary === "string" ? args.summary : "当前高影响操作等待确认。";
-    const targetType = typeof args.targetType === "string" ? args.targetType : inlineControls.interrupt?.targetType ?? "未知目标";
-    const targetId = typeof args.targetId === "string" ? args.targetId : inlineControls.interrupt?.targetId ?? "-";
-    return (
+    : {}; if ( props . toolName === " approval_gate " ) { const approvalDisabled = inlineControls . approvalPending || inlineControls . actionDisabled ; const title = typeof args.title === "string" ? args.title : "Close-up title"; const summary = typeof args.summary === "string" ? args.summary : "Specifying the logical configuration"; const targetType = typeof args.targetType === "string" ? args.targetType : inlineControls.interrupt?.targetType ?? "Current spell"; const targetId = typeof args.targetId === "string" ? args.targetId : inlineControls.interrupt?.targetId ?? "-"; return (
       <div
         className="mt-3 rounded-md border border-warning/30 bg-warning/5 p-4"
         aria-busy={inlineControls.approvalPending}
       >
         <div className="flex items-center justify-between gap-2">
           <div className="text-sm font-medium text-foreground">{title}</div>
-          <Badge variant="secondary">等待确认</Badge>
+          <Badge variant="secondary">Waiting for confirmation</Badge>
         </div>
         <div className="mt-3 text-sm leading-6 text-foreground">{summary}</div>
         <details className="mt-3 rounded-md border border-border/70 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-          <summary className="cursor-pointer">审批目标信息</summary>
-          <div className="mt-2 break-all">类型：{targetType}</div>
-          <div className="mt-1 break-all">资源 ID：{targetId}</div>
+          <summary className="cursor-pointer">Approval target information</summary>
+          <div className="mt-2 break-all">type:{targetType}</div>
+          <div className="mt-1 break-all">Resource ID:{targetId}</div>
         </details>
         <label htmlFor={approvalNoteId} className="mt-3 block text-xs font-medium text-muted-foreground">
-          审批备注（可选）
-        </label>
+          Approval notes (optional)
+                        </label>
         <textarea
           id={approvalNoteId}
           className="mt-2 min-h-[88px] w-full rounded-md border border-input bg-background p-3 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 md:text-sm"
           value={inlineControls.approvalNote}
           disabled={approvalDisabled}
           onChange={(event) => inlineControls.onApprovalNoteChange?.(event.target.value)}
-          placeholder="审批备注（可选）"
+          placeholder="Approval notes (optional)"
         />
         <div className="mt-3 flex gap-2">
           <Button
@@ -142,7 +134,7 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
             disabled={approvalDisabled}
             onClick={() => inlineControls.onResolveInterrupt?.("approve")}
           >
-            {inlineControls.approvalPending ? "正在处理..." : "同意并继续"}
+            {inlineControls.approvalPending ? "Processing..." : "Agree and continue"}
           </Button>
           <Button
             type="button"
@@ -151,8 +143,8 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
             disabled={approvalDisabled}
             onClick={() => inlineControls.onResolveInterrupt?.("reject")}
           >
-            拒绝
-          </Button>
+            reject
+                              </Button>
         </div>
       </div>
     );
@@ -197,10 +189,10 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
               aria-expanded={showArgs}
               aria-controls={argsPanelId}
             >
-              {showArgs ? "收起参数" : "查看参数"}
+              {showArgs ? "Collapse parameters" : "View parameters"}
             </Button>
           ) : null}
-          <Badge variant="outline">工具执行</Badge>
+          <Badge variant="outline">Tool execution</Badge>
         </div>
       </div>
       {argsText && showArgs ? (
@@ -208,13 +200,13 @@ export default function CreativeHubInlineToolCall(props: ToolCallMessagePartProp
           {argsText}
         </pre>
       ) : argsText ? (
-        <div className="mt-2 text-xs text-muted-foreground">请求参数默认收起，可按需查看。</div>
+        <div className="mt-2 text-xs text-muted-foreground">Request parameters are hidden by default and can be viewed on demand.</div>
       ) : null}
       {(resultText || artifact.summary) ? (
         <div className="mt-3">
           <CreativeHubToolResultCard
             toolName={props.toolName}
-            summary={artifact.summary ?? resultText ?? "工具已返回结果。"}
+            summary={artifact.summary ?? resultText ?? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
             success={success}
             output={artifact.output}
             errorCode={artifact.errorCode}

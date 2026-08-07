@@ -22,7 +22,7 @@ export function useDirectorChapterTitleRepair(options: DirectorChapterTitleRepai
     mutationFn: async (task: UnifiedTaskDetail) => {
       const warning = resolveChapterTitleWarning(task);
       if (!warning) {
-        throw new Error("当前任务没有可直接 AI 修复的章节标题提醒。");
+        throw new Error("The current mission does not have a chapter title reminder that can be directly AI fixed.");
       }
       const response = await repairNovelWorkflowChapterTitles(task.id, {
         volumeId: warning.volumeId ?? undefined,
@@ -52,10 +52,10 @@ export function useDirectorChapterTitleRepair(options: DirectorChapterTitleRepai
           warning,
         })).catch(() => {});
       }
-      toast.success("已开始 AI 修复章节标题，系统正在重写当前卷拆章。");
+      toast.success("AI repair of chapter titles has started, and the system is rewriting the current chapter chapters.");
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : "AI 修复章节标题失败。";
+      const message = error instanceof Error ? error.message : "AI failed to fix chapter titles.";
       toast.error(message);
     },
   });
@@ -63,7 +63,7 @@ export function useDirectorChapterTitleRepair(options: DirectorChapterTitleRepai
   return {
     startRepair: (task: UnifiedTaskDetail | null | undefined) => {
       if (!task) {
-        toast.error("当前没有可修复的自动导演任务。");
+        toast.error("There are currently no autodirector tasks to fix.");
         return;
       }
       mutation.mutate(task);

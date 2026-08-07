@@ -21,11 +21,11 @@ export default function BookAnalysisWorkbenchViewTabs(props: BookAnalysisWorkben
       <TabsList>
         <TabsTrigger value="sections" className="gap-1.5">
           <BookOpen className="h-3.5 w-3.5" />
-          <span>小节分析</span>
+          <span>Section analysis</span>
         </TabsTrigger>
         <TabsTrigger value="characters" className="gap-1.5">
           <Users className="h-3.5 w-3.5" />
-          <span>角色档案</span>
+          <span>character profile</span>
           {generatedCharacterCount > 0 ? (
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
               {generatedCharacterCount}
@@ -33,8 +33,8 @@ export default function BookAnalysisWorkbenchViewTabs(props: BookAnalysisWorkben
           ) : null}
           {candidateCharacterCount > 0 ? (
             <Badge variant="outline" className="ml-1 h-5 px-1.5 text-xs">
-              {candidateCharacterCount} 候选
-            </Badge>
+              {candidateCharacterCount} candidate
+                                      </Badge>
           ) : null}
         </TabsTrigger>
       </TabsList>

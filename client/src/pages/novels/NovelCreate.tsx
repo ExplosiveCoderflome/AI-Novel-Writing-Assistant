@@ -169,22 +169,22 @@ export default function NovelCreate() {
     <div className="mx-auto max-w-5xl space-y-7 px-3 py-4 sm:px-4 lg:px-0">
       <section className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-3xl">
-          <h1 className="text-3xl font-semibold tracking-normal text-foreground">创建小说项目</h1>
+          <h1 className="text-3xl font-semibold tracking-normal text-foreground">Create a novel project</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            推荐先让 AI 自动导演从一句灵感整理方向、世界、角色和章节准备。需要完全手动填写时，也可以继续使用下方表单。
-          </p>
+            It is recommended to first let the AI automatic director organize the direction, world, characters and chapter preparation from a sentence of inspiration. If you need to fill it out completely manually, you can continue to use the form below.
+                                </p>
         </div>
         <Button type="button" asChild className="shrink-0">
-          <Link to="/novels/auto-director">AI 自动导演开书</Link>
+          <Link to="/novels/auto-director">AI automatic director opens book</Link>
         </Button>
       </section>
 
       <section className="space-y-4">
         <div>
-          <div className="text-lg font-semibold leading-7 text-foreground">手动创建</div>
+          <div className="text-lg font-semibold leading-7 text-foreground">Create manually</div>
           <div className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            手动路径适合你已经清楚题材、卖点和前期承诺的项目；创建后仍可在工作台继续调整。
-          </div>
+            The manual path is suitable for projects where you already know the theme, selling points, and early commitments; you can continue to adjust it on the workbench after creation.
+                                </div>
         </div>
         <NovelBasicInfoForm
           basicForm={basicForm}
@@ -199,7 +199,7 @@ export default function NovelCreate() {
           onFormChange={(patch) => setBasicForm((prev) => patchNovelBasicForm(prev, patch))}
           onSubmit={() => createNovelMutation.mutate()}
           isSubmitting={createNovelMutation.isPending}
-          submitLabel="创建并进入项目"
+          submitLabel="Create and enter the project"
           showPublicationStatus={false}
           framingQuickFill={(
             <BookFramingQuickFillButton

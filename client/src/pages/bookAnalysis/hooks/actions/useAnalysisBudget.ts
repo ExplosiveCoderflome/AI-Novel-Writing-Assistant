@@ -22,12 +22,12 @@ export function useAnalysisBudget(input: {
         return;
       }
       onAnalysisUpdated(response.data);
-      toast.success("拆书预算已保存。");
+      toast.success("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
       await queryClient.invalidateQueries({ queryKey: ["book-analysis"] });
       await refreshAnalysisData(payload.id);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "预算保存失败。");
+      toast.error(error instanceof Error ? error.message : "Budget save failed.");
     },
   });
 
@@ -39,12 +39,12 @@ export function useAnalysisBudget(input: {
         return;
       }
       onAnalysisUpdated(response.data);
-      toast.success("已提交续跑任务。");
+      toast.success("The continuation task has been submitted.");
       await queryClient.invalidateQueries({ queryKey: ["book-analysis"] });
       await refreshAnalysisData(payload.id);
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "续跑任务提交失败。");
+      toast.error(error instanceof Error ? error.message : "Submission of the continuation task failed.");
     },
   });
 

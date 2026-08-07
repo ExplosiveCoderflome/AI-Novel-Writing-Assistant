@@ -13,9 +13,9 @@ export default function CharacterFocusSummary(props: CharacterFocusSummaryProps)
   const { selectedCharacter, lastAppearanceChapter } = props;
   const isProtagonist = isProtagonistCharacter(selectedCharacter);
   const primaryLine = isProtagonist
-    ? selectedCharacter.currentGoal || selectedCharacter.storyFunction || "待补全主角目标"
-    : selectedCharacter.relationToProtagonist || selectedCharacter.role || "待补全与主角关系";
-  const avatarText = selectedCharacter.name.trim().slice(0, 2) || "角";
+    ? selectedCharacter.currentGoal || selectedCharacter.storyFunction || "Protagonist goals to be completed"
+    : selectedCharacter.relationToProtagonist || selectedCharacter.role || "The relationship with the protagonist to be completed";
+  const avatarText = selectedCharacter.name.trim().slice(0, 2) || "horn";
 
   return (
     <section className="overflow-hidden rounded-2xl border border-border/70 bg-background shadow-sm">
@@ -32,33 +32,33 @@ export default function CharacterFocusSummary(props: CharacterFocusSummaryProps)
                 {isProtagonist ? (
                   <Badge className="gap-1 bg-emerald-600 text-white hover:bg-emerald-600">
                     <Crown className="h-3 w-3" />
-                    主角
-                  </Badge>
+                    main character
+                                                        </Badge>
                 ) : (
                   <Badge variant="outline">{getCastRoleLabel(selectedCharacter.castRole)}</Badge>
                 )}
                 <Badge variant="secondary">{getCharacterGenderLabel(selectedCharacter.gender)}</Badge>
               </div>
               <div className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                {isProtagonist ? "当前目标" : "关系锚点"}：<span className="font-medium text-foreground">{primaryLine}</span>
+                {isProtagonist ? "Current Target" : "Relationship Anchor"}:<span className="font-medium text-foreground">{primaryLine}</span>
               </div>
               <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                <SignalPill icon={<BookOpen className="h-3.5 w-3.5" />} label="身份" value={selectedCharacter.role || "未定义"} />
-                <SignalPill icon={<Activity className="h-3.5 w-3.5" />} label="状态" value={selectedCharacter.currentState || "待补全"} />
-                <SignalPill icon={<Target className="h-3.5 w-3.5" />} label="最近出场" value={lastAppearanceChapter ? `第${lastAppearanceChapter}章` : "暂无"} />
+                <SignalPill icon={<BookOpen className="h-3.5 w-3.5" />} label="identity" value={selectedCharacter.role || "undefined"} />
+                <SignalPill icon={<Activity className="h-3.5 w-3.5" />} label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." value={selectedCharacter.currentState || "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."} />
+                <SignalPill icon={<Target className="h-3.5 w-3.5" />} label="recent appearances" value={lastAppearanceChapter ? `第${lastAppearanceChapter}章` : "None yet"} />
               </div>
             </div>
           </div>
         </div>
 
         <div className="border-t border-border/60 bg-muted/15 p-5 lg:border-l lg:border-t-0">
-          <div className="text-xs font-medium text-muted-foreground">故事作用</div>
+          <div className="text-xs font-medium text-muted-foreground">Story function</div>
           <div className="mt-2 line-clamp-3 text-sm leading-6">
-            {selectedCharacter.storyFunction || "待补全"}
+            {selectedCharacter.storyFunction || "To be completed"}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-            <MiniMetric label="当前目标" value={selectedCharacter.currentGoal || "待补全"} />
-            <MiniMetric label="出场状态" value={selectedCharacter.currentState || "待补全"} />
+            <MiniMetric label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." value={selectedCharacter.currentGoal || "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."} />
+            <MiniMetric label="Appearance status" value={selectedCharacter.currentState || "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."} />
           </div>
         </div>
       </div>

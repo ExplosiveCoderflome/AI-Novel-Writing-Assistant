@@ -14,7 +14,7 @@ export default function WorldHandbookForceSection(props: {
   const { draftStructure, setDraftStructure } = props;
   const forceSummary = useMemo(() => {
     const forceNames = draftStructure.forces.map((force) => force.name).filter(Boolean).slice(0, 4);
-    return forceNames.length > 0 ? forceNames.join(" / ") : "补充主要势力后，角色身份、阵营冲突和章节压力会更稳定。";
+    return forceNames.length > 0 ? forceNames.join(" / ") : "After replenishing the main forces, character identities, camp conflicts and chapter pressure will be more stable.";
   }, [draftStructure.forces]);
 
   const addForce = () => {
@@ -46,7 +46,7 @@ export default function WorldHandbookForceSection(props: {
     <section className="rounded-md border p-4">
       <SectionHeader
         icon={Castle}
-        title="主要势力"
+        title="main forces"
         description={`让作者先看懂谁在争夺资源、谁会制造阻力、角色可能从哪里来。${forceSummary}`}
         count={draftStructure.forces.length}
       />
@@ -54,7 +54,7 @@ export default function WorldHandbookForceSection(props: {
         {draftStructure.forces.map((force: WorldForce, index) => (
           <div key={force.id || index} className="rounded-md border bg-muted/20 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm font-medium">势力 {index + 1}</div>
+              <div className="text-sm font-medium">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know. {index + 1}</div>
               <Button
                 type="button"
                 size="sm"
@@ -63,11 +63,11 @@ export default function WorldHandbookForceSection(props: {
                   setDraftStructure((prev) => (prev ? { ...prev, forces: removeItem(prev.forces, index) } : prev))
                 }
               >
-                移除
-              </Button>
+                Remove
+                                      </Button>
             </div>
             <div className="mt-3 grid gap-3">
-              <HandbookField title="势力名称" hint="角色可能出身、投靠、背叛或对抗的组织。">
+              <HandbookField title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." hint="An organization that a character may originate from, join, betray, or fight against.">
                 <Input
                   value={force.name}
                   onChange={(event) =>
@@ -75,10 +75,10 @@ export default function WorldHandbookForceSection(props: {
                       prev ? { ...prev, forces: updateItem(prev.forces, index, { name: event.target.value }) } : prev,
                     )
                   }
-                  placeholder="星皇朝廷、天机阁、异魔联盟"
+                  placeholder="Star Emperor Court, Tianji Pavilion, Alien Demon Alliance"
                 />
               </HandbookField>
-              <HandbookField title="势力类型" hint="帮助 AI 判断它的行动方式和组织质感。">
+              <HandbookField title="Force type" hint="Help the AI ​​judge its behavior and texture.">
                 <Input
                   value={force.type}
                   onChange={(event) =>
@@ -86,10 +86,10 @@ export default function WorldHandbookForceSection(props: {
                       prev ? { ...prev, forces: updateItem(prev.forces, index, { type: event.target.value }) } : prev,
                     )
                   }
-                  placeholder="王朝、宗门、公司、地下组织..."
+                  placeholder="Dynasties, sects, companies, underground organizations..."
                 />
               </HandbookField>
-              <HandbookField title="它在世界里代表什么" hint="写清它的立场、资源和读者应当记住的特征。">
+              <HandbookField title="what does it mean in the world" hint="Write out its position, resources, and characteristics that readers should remember.">
                 <HandbookTextarea
                   value={force.summary}
                   onChange={(value) =>
@@ -97,11 +97,11 @@ export default function WorldHandbookForceSection(props: {
                       prev ? { ...prev, forces: updateItem(prev.forces, index, { summary: value }) } : prev,
                     )
                   }
-                  placeholder="这个势力在世界中代表什么？"
+                  placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
                   minRows={3}
                 />
               </HandbookField>
-              <HandbookField title="当前目标" hint="目标会转化为章节事件和角色冲突。">
+              <HandbookField title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." hint="Objectives translate into chapter events and character conflicts.">
                 <Input
                   value={force.currentObjective}
                   onChange={(event) =>
@@ -111,10 +111,10 @@ export default function WorldHandbookForceSection(props: {
                         : prev,
                     )
                   }
-                  placeholder="争夺矿脉、封锁真相、寻找失落继承人"
+                  placeholder="Fight for mineral veins, seal the truth, and find the lost heir."
                 />
               </HandbookField>
-              <HandbookField title="给故事带来的压力" hint="主角或其他势力会因此被迫选择、逃亡、交易或开战。">
+              <HandbookField title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." hint="The protagonist or other forces will be forced to choose, escape, trade, or go to war.">
                 <Input
                   value={force.pressure}
                   onChange={(event) =>
@@ -122,7 +122,7 @@ export default function WorldHandbookForceSection(props: {
                       prev ? { ...prev, forces: updateItem(prev.forces, index, { pressure: event.target.value }) } : prev,
                     )
                   }
-                  placeholder="追捕主角、控制资源、制造战争、引发信任危机"
+                  placeholder="Hunt down the protagonist, control resources, create war, and trigger a crisis of trust"
                 />
               </HandbookField>
             </div>
@@ -131,8 +131,8 @@ export default function WorldHandbookForceSection(props: {
       </div>
       <Button type="button" className="mt-3" variant="outline" onClick={addForce}>
         <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-        增加主要势力
-      </Button>
+        Increase major forces
+                    </Button>
     </section>
   );
 }

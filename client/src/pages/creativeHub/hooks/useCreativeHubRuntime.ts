@@ -138,7 +138,7 @@ async function requireCheckpointIdForBranch(
   if (checkpointId || parentMessages.length === 0) {
     return checkpointId;
   }
-  const message = "未能匹配到对应的历史检查点，当前消息无法生成新分支。";
+  const message = "The corresponding historical checkpoint cannot be matched, and the current message cannot generate a new branch.";
   toast.error(message);
   throw new Error(message);
 }
@@ -198,7 +198,7 @@ export function useCreativeHubRuntime({
     () =>
       async function* streamCallback(messages, config) {
         if (!isThreadReady) {
-          throw new Error("创作中枢线程尚未初始化。");
+          throw new Error("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
         }
         const streamSessionId = streamSessionRef.current;
         const streamThreadId = threadId;
@@ -493,7 +493,7 @@ export function useCreativeHubRuntime({
           threadId,
           message: error instanceof Error && error.message.trim()
             ? error.message.trim()
-            : "当前线程内容加载失败。",
+            : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
         });
       });
     return () => {

@@ -71,7 +71,7 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
 
   const handleGenerateSupplementalCharacters = async () => {
     if (supplementalMode === "linked" && characters.length === 0) {
-      setSupplementalStatusMessage("当前还没有已建角色，不能基于关系补充角色。可以先建一个核心角色，或改用独立补位。");
+      setSupplementalStatusMessage("There are currently no existing roles, and roles cannot be added based on relationships. You can build a core character first, or use independent fill-ins instead.");
       return;
     }
 
@@ -88,9 +88,9 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
           : undefined,
       });
       setSupplementalResult(response.data ?? null);
-      setSupplementalStatusMessage(response.message ?? "补充角色候选已生成。");
+      setSupplementalStatusMessage(response.message ?? "Candidates for the supplementary role have been generated.");
     } catch (error) {
-      setSupplementalStatusMessage(error instanceof Error ? error.message : "补充角色生成失败。");
+      setSupplementalStatusMessage(error instanceof Error ? error.message : "Supplemental character generation failed.");
     }
   };
 
@@ -110,7 +110,7 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
         ?? `${createdName} 已加入当前小说${relationCount > 0 ? `，并同步 ${relationCount} 条关系` : ""}。`,
       );
     } catch (error) {
-      setSupplementalStatusMessage(error instanceof Error ? error.message : "应用补充角色失败。");
+      setSupplementalStatusMessage(error instanceof Error ? error.message : "Applying supplementary role failed.");
     }
   };
 
@@ -118,35 +118,35 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-5xl flex-col overflow-hidden p-0">
         <DialogHeader className="shrink-0 px-6 pb-0 pt-6">
-          <DialogTitle>补充角色</DialogTitle>
+          <DialogTitle>supplementary roles</DialogTitle>
           <DialogDescription>
-            适合补齐对手、同盟、压力源或关键关系人物。AI 会结合现有阵容给出可创建候选。
-          </DialogDescription>
+            Suitable for complementing opponents, allies, stressors or key relationship figures. AI will combine the existing lineup to provide candidates that can be created.
+                                </DialogDescription>
         </DialogHeader>
         <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 pb-6 pt-4 xl:grid-cols-[minmax(320px,0.9fr)_minmax(0,1.1fr)] xl:overflow-hidden">
           <div className="space-y-4 rounded-xl border border-border/70 bg-muted/10 p-4 xl:min-h-0 xl:overflow-y-auto">
             <div className="space-y-1">
-              <div className="font-medium">补位方式</div>
+              <div className="font-medium">filling method</div>
               <div className="text-xs text-muted-foreground">
-                默认交给 AI 判断；只有明确知道要补哪类人物时再手动指定。
-              </div>
+                By default, it is left to AI judgment; you can only specify it manually when you clearly know what type of character you want to fill.
+                                            </div>
             </div>
             <SelectControl
               className="w-full rounded-md border bg-background p-2 text-sm"
               value={supplementalMode}
               onChange={(event) => setSupplementalMode(event.target.value as SupplementalCharacterGenerationMode)}
             >
-              <option value="auto">AI 判断当前更需要哪种补位</option>
-              <option value="linked">基于现有角色衍生关系角色</option>
-              <option value="independent">生成相对独立角色</option>
+              <option value="auto">AI determines which fill position is more needed currently</option>
+              <option value="linked">Derive relationship roles based on existing roles</option>
+              <option value="independent">Generate relatively independent roles</option>
             </SelectControl>
 
             {characters.length > 0 && supplementalMode !== "independent" ? (
               <div className="space-y-2">
-                <div className="font-medium">参考已有角色</div>
+                <div className="font-medium">Reference to existing roles</div>
                 <div className="text-xs text-muted-foreground">
-                  可不选；不选时 AI 会自己判断应该围绕谁补位。
-                </div>
+                  Optional; if not selected, the AI ​​will decide who should fill the position.
+                                                  </div>
                 <div className="max-h-40 space-y-2 overflow-auto rounded-xl border bg-background/70 p-3">
                   {characters.map((character) => (
                     <label key={character.id} className="flex items-start gap-2 text-sm">
@@ -167,43 +167,43 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
-                <div className="font-medium">期望角色功能</div>
+                <div className="font-medium">Desired role functionality</div>
                 <SelectControl
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={supplementalTargetRole}
                   onChange={(event) => setSupplementalTargetRole(event.target.value as CharacterCastRole | "auto")}
                 >
-                  <option value="auto">AI 判断</option>
-                  <option value="protagonist">主角</option>
-                  <option value="antagonist">主对手</option>
-                  <option value="ally">同盟</option>
-                  <option value="foil">镜像角色</option>
-                  <option value="mentor">导师</option>
-                  <option value="love_interest">情感牵引</option>
-                  <option value="pressure_source">压力源</option>
-                  <option value="catalyst">催化者</option>
+                  <option value="auto">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</option>
+                  <option value="protagonist">main character</option>
+                  <option value="antagonist">main opponent</option>
+                  <option value="ally">alliance</option>
+                  <option value="foil">mirror role</option>
+                  <option value="mentor">tutor</option>
+                  <option value="love_interest">emotional pull</option>
+                  <option value="pressure_source">stressor</option>
+                  <option value="catalyst">Catalyst</option>
                 </SelectControl>
               </div>
               <div className="space-y-2">
-                <div className="font-medium">生成数量</div>
+                <div className="font-medium">Generate quantity</div>
                 <SelectControl
                   className="w-full rounded-md border bg-background p-2 text-sm"
                   value={supplementalCount}
                   onChange={(event) => setSupplementalCount(event.target.value as "auto" | "1" | "2" | "3")}
                 >
-                  <option value="auto">AI 判断</option>
-                  <option value="1">1 个</option>
-                  <option value="2">2 个</option>
-                  <option value="3">3 个</option>
+                  <option value="auto">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
                 </SelectControl>
               </div>
             </div>
 
             <div className="space-y-2">
-              <div className="font-medium">额外说明</div>
+              <div className="font-medium">Additional instructions</div>
               <textarea
                 className="min-h-[140px] w-full rounded-xl border bg-background p-3 text-sm"
-                placeholder="例如：补一个能持续给主角施压、但又不是纯反派的人；或补一个和母亲线相关的旧识。"
+                placeholder="For example: adding a person who can continue to put pressure on the protagonist, but is not a pure villain; or adding an old acquaintance related to the mother line."
                 value={supplementalPrompt}
                 onChange={(event) => setSupplementalPrompt(event.target.value)}
               />
@@ -215,18 +215,18 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
                 checked={supplementalUseWorldContext}
                 onChange={(event) => setSupplementalUseWorldContext(event.target.checked)}
               />
-              基于本书世界生成
-            </label>
+              Generate a world based on this book
+                                      </label>
 
             <div className="flex flex-wrap gap-2">
               <AiButton
                 onClick={handleGenerateSupplementalCharacters}
                 disabled={isGeneratingSupplementalCharacters || (supplementalMode === "linked" && characters.length === 0)}
               >
-                {isGeneratingSupplementalCharacters ? "生成中..." : "生成补充角色候选"}
+                {isGeneratingSupplementalCharacters ? "Generating..." : "Generate candidates for complementary roles"}
               </AiButton>
-              <Badge variant="outline">数量不选时由 AI 判断</Badge>
-              <Badge variant="outline">关系角色会优先围绕现有角色补位</Badge>
+              <Badge variant="outline">If the quantity is not selected, it will be judged by AI.</Badge>
+              <Badge variant="outline">Relationship roles will be filled first around existing roles.</Badge>
             </div>
 
             {supplementalStatusMessage ? (
@@ -238,20 +238,20 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
 
           <div className="space-y-3 rounded-xl border border-border/70 bg-background p-4 xl:min-h-0 xl:overflow-y-auto">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="font-medium">候选结果</div>
-              {supplementalResult ? <Badge variant="outline">{supplementalResult.candidates.length} 个候选</Badge> : null}
-              {supplementalResult?.mode ? <Badge variant="outline">本轮模式：{SUPPLEMENTAL_MODE_LABELS[supplementalResult.mode]}</Badge> : null}
+              <div className="font-medium">Candidate results</div>
+              {supplementalResult ? <Badge variant="outline">{supplementalResult.candidates.length} candidates</Badge> : null}
+              {supplementalResult?.mode ? <Badge variant="outline">This round mode:{SUPPLEMENTAL_MODE_LABELS[supplementalResult.mode]}</Badge> : null}
             </div>
             {supplementalResult?.planningSummary ? (
               <div className="rounded-xl border border-amber-200/60 bg-amber-50/50 p-3 text-xs text-muted-foreground">
-                AI 判断：{supplementalResult.planningSummary}
+                AI judgment:{supplementalResult.planningSummary}
               </div>
             ) : null}
 
             {isGeneratingSupplementalCharacters ? (
               <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed text-sm text-muted-foreground">
-                正在分析当前角色网并生成补位候选...
-              </div>
+                Analyzing the current character network and generating fill-in candidates...
+                                            </div>
             ) : supplementalResult?.candidates.length ? (
               <div className="space-y-3">
                 {supplementalResult.candidates.map((candidate) => (
@@ -265,8 +265,8 @@ export default function SupplementalCharacterDialog(props: SupplementalCharacter
               </div>
             ) : (
               <div className="flex min-h-[320px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm text-muted-foreground">
-                先说明你想补哪类角色，或直接交给 AI 判断，再生成候选。
-              </div>
+                First explain what kind of role you want to fill, or directly let the AI ​​judge and then generate candidates.
+                                                    </div>
             )}
           </div>
         </div>
@@ -290,49 +290,49 @@ function SupplementalCandidateCard(props: {
             <div className="font-medium">{candidate.name}</div>
             <Badge variant="outline">{candidate.role}</Badge>
             <Badge variant="secondary">{getCastRoleLabel(candidate.castRole)}</Badge>
-            <Badge variant="outline">性别：{getCharacterGenderLabel(candidate.gender)}</Badge>
+            <Badge variant="outline">gender:{getCharacterGenderLabel(candidate.gender)}</Badge>
           </div>
           <div className="text-sm text-muted-foreground">{candidate.summary}</div>
         </div>
         <Button size="sm" onClick={onApply} disabled={isApplyingSupplementalCharacter}>
-          {isApplyingSupplementalCharacter ? "创建中..." : "创建这个角色"}
+          {isApplyingSupplementalCharacter ? "Creating..." : "Create this role"}
         </Button>
       </div>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-          <div>故事作用：{candidate.storyFunction}</div>
-          <div>与主角关系：{candidate.relationToProtagonist || "AI 未指定"}</div>
-          <div>外在目标：{candidate.outerGoal || "待补全"}</div>
-          <div>当前目标：{candidate.currentGoal || "待补全"}</div>
+          <div>Story function:{candidate.storyFunction}</div>
+          <div>Relationship with the protagonist:{candidate.relationToProtagonist || "AI unspecified"}</div>
+          <div>External goals:{candidate.outerGoal || "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}</div>
+          <div>Current goals:{candidate.currentGoal || "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}</div>
         </div>
         <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-          <div>第一印象：{candidate.firstImpression || "待补全"}</div>
-          <div>核心恐惧：{candidate.fear || "待补全"}</div>
-          <div>错误信念：{candidate.misbelief || "待补全"}</div>
-          <div>补位原因：{candidate.whyNow || "AI 未额外说明"}</div>
+          <div>First impression:{candidate.firstImpression || "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}</div>
+          <div>Core Fear:{candidate.fear || "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}</div>
+          <div>False belief:{candidate.misbelief || "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}</div>
+          <div>Reason for replacement:{candidate.whyNow || "AI No additional explanation"}</div>
         </div>
       </div>
 
       {candidate.relations.length > 0 ? (
         <div className="mt-3 space-y-2">
-          <div className="text-xs font-medium text-muted-foreground">建议同步的关系</div>
+          <div className="text-xs font-medium text-muted-foreground">Recommended synchronized relationships</div>
           <div className="grid gap-2 sm:grid-cols-2">
             {candidate.relations.map((relation, index) => (
               <div key={`${candidate.name}-${relation.sourceName}-${relation.targetName}-${index}`} className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
                 <div className="font-medium text-foreground">{getSupplementalRelationLabel(candidate, relation)}</div>
-                <div>表层关系：{relation.surfaceRelation}</div>
-                {relation.hiddenTension ? <div>隐藏张力：{relation.hiddenTension}</div> : null}
-                {relation.conflictSource ? <div>冲突来源：{relation.conflictSource}</div> : null}
-                {relation.nextTurnPoint ? <div>下一反转点：{relation.nextTurnPoint}</div> : null}
+                <div>Surface relationship:{relation.surfaceRelation}</div>
+                {relation.hiddenTension ? <div>Hidden tension:{relation.hiddenTension}</div> : null}
+                {relation.conflictSource ? <div>Source of conflict:{relation.conflictSource}</div> : null}
+                {relation.nextTurnPoint ? <div>Next reversal point:{relation.nextTurnPoint}</div> : null}
               </div>
             ))}
           </div>
         </div>
       ) : (
         <div className="mt-3 rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-          这名角色更偏向独立补位，不强制写入角色关系。
-        </div>
+          Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.
+                              </div>
       )}
     </div>
   );

@@ -570,18 +570,7 @@ export async function downloadDramaEpisodeExport(id: string, order: number, form
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getDramaCharacterImageStatus(id: string, characterId: string) {
-  const { data } = await apiClient.get<ApiResponse<{ portrait: DramaCharacterPortraitData; threeView: DramaCharacterThreeViewItem[] }>>(
-    `/drama/projects/${id}/characters/${characterId}/image-status`,
-  );
-  return data;
-}
-
-/** 生成角色设计稿（面部特写 + 三视图合图，推荐使用） */
-export async function prepareDramaCharacterSheet(
-  id: string,
-  characterId: string,
-  provider?: string,
-): Promise<ApiResponse<ImageGenerationPreview>> {
+  const { data } = await apiClient.get<ApiResponse<{ portrait: DramaCharacterPortraitData; threeView: DramaCharacterThreeViewItem[] }>>( `/drama/projects/${id}/characters/${characterId}/image-status`, ); return data; } /** Generate character design drafts (facial close-up + three-view composite image, recommended) */ export async function prepareDramaCharacterSheet( id: string, characterId: string, provider?: string, ): Promise<ApiResponse<ImageGenerationPreview>> {
   const { data } = await apiClient.post<ApiResponse<ImageGenerationPreview>>(
     `/drama/projects/${id}/characters/${characterId}/prepare-character-sheet`,
     provider ? { provider } : {},

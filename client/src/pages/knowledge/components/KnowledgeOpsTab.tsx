@@ -51,16 +51,16 @@ export default function KnowledgeOpsTab({
     <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
       <Card>
         <CardHeader>
-          <CardTitle>基础统计</CardTitle>
+          <CardTitle>basic statistics</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
-          <div>当前列表文档数：{visibleDocumentsCount}</div>
-          <div>启用文档数：{enabledCount}</div>
-          <div>停用文档数：{disabledCount}</div>
+          <div>Current number of list documents:{visibleDocumentsCount}</div>
+          <div>Number of enabled documents:{enabledCount}</div>
+          <div>Number of deactivated documents:{disabledCount}</div>
           <div>
-            RAG 健康：
-            <Badge variant="outline" className="ml-2">
-              {ragHealth?.ok ? "正常" : "异常"}
+            RAG Health:
+                                  <Badge variant="outline" className="ml-2">
+              {ragHealth?.ok ? "Normal" : "Abnormal"}
             </Badge>
           </div>
         </CardContent>
@@ -69,7 +69,7 @@ export default function KnowledgeOpsTab({
       <div className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle>健康状态</CardTitle>
+            <CardTitle>health status</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {ragHealthNotice ? (
@@ -94,10 +94,10 @@ export default function KnowledgeOpsTab({
         <Card>
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 space-y-1">
-              <CardTitle>最近任务</CardTitle>
+              <CardTitle>recent tasks</CardTitle>
               <div className="text-xs text-muted-foreground">
-                清理已结束的索引记录，排队中和执行中的任务会保留。
-              </div>
+                The ended index records are cleared, and the queued and executing tasks will be retained.
+                                            </div>
             </div>
             <Button
               type="button"
@@ -108,7 +108,7 @@ export default function KnowledgeOpsTab({
               disabled={isClearingJobs || finishedJobCount === 0}
             >
               <Trash2 className="h-4 w-4" />
-              {isClearingJobs ? "清理中..." : `清理已结束 ${finishedJobCount}`}
+              {isClearingJobs ? "Clearing in progress..." : `Clearing completed ${finishedJobCount}`}
             </Button>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -118,7 +118,7 @@ export default function KnowledgeOpsTab({
               </div>
             ) : null}
             {jobs.length === 0 ? (
-              <div className="text-sm text-muted-foreground">当前还没有 RAG 任务。</div>
+              <div className="text-sm text-muted-foreground">There are currently no RAG tasks.</div>
             ) : null}
             {jobs.map((job) => (
               <div key={job.id} className="rounded-md border p-2 text-sm">
@@ -136,16 +136,16 @@ export default function KnowledgeOpsTab({
                         className="h-8 px-2"
                         onClick={() => onDeleteJob(job.id)}
                         disabled={deletingJobId === job.id}
-                        aria-label="删除任务记录"
+                        aria-label="Delete task record"
                       >
                         <Trash2 className="h-4 w-4" />
-                        {deletingJobId === job.id ? "删除中..." : "删除"}
+                        {deletingJobId === job.id ? "deleting..." : "deleting"}
                       </Button>
                     ) : null}
                   </div>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {job.jobType} | 尝试 {job.attempts}/{job.maxAttempts}
+                  {job.jobType} | try {job.attempts}/{job.maxAttempts}
                 </div>
                 {job.progress ? (
                   <div className="mt-2 space-y-2">
@@ -173,11 +173,11 @@ export default function KnowledgeOpsTab({
 
         <Card>
           <CardHeader>
-            <CardTitle>最近失败任务</CardTitle>
+            <CardTitle>Recent failed tasks</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {failedJobs.length === 0 ? (
-              <div className="text-sm text-muted-foreground">没有失败任务。</div>
+              <div className="text-sm text-muted-foreground">No failed tasks.</div>
             ) : null}
             {failedJobs.map((job) => (
               <div key={job.id} className="rounded-md border p-2 text-sm">

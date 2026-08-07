@@ -24,16 +24,16 @@ export function AutoDirectorApprovalPreferenceCard(props: {
     onSave,
     isSaving,
   } = props;
-  const toggleLabel = isOpen ? "收起审批授权偏好" : "展开审批授权偏好";
+  const toggleLabel = isOpen ? "收起审批授权偏好" : "Expand approval authorization preferences";
 
   return (
     <Card className="min-w-0 overflow-hidden">
       <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
         <div className="min-w-0 space-y-1.5">
-          <CardTitle>审批授权偏好</CardTitle>
+          <CardTitle>Approval authorization preferences</CardTitle>
           <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            自动导演按范围执行时，会先带入这里的默认授权。未授权的审批点仍会停下等待你确认。
-          </CardDescription>
+            When the automatic director is executed according to the scope, the default authorization here will be brought in first. Unauthorized approval points will still be stopped waiting for your confirmation.
+                                </CardDescription>
         </div>
         <Button
           type="button"
@@ -52,7 +52,7 @@ export function AutoDirectorApprovalPreferenceCard(props: {
       {isOpen ? (
         <CardContent id="auto-director-approval-preference-content" className="space-y-4">
           <div className={`rounded-md border bg-muted/15 p-3 text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            当前默认：{summarizeDirectorAutoApprovalPoints(draftCodes)}
+            Current default:{summarizeDirectorAutoApprovalPoints(draftCodes)}
           </div>
           <AutoDirectorApprovalPointMultiSelect
             value={draftCodes}
@@ -62,7 +62,7 @@ export function AutoDirectorApprovalPreferenceCard(props: {
           />
           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsActionRow}>
             <Button className={AUTO_DIRECTOR_MOBILE_CLASSES.fullWidthAction} onClick={onSave} disabled={isSaving}>
-              {isSaving ? "保存中..." : "保存审批授权偏好"}
+              {isSaving ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
             </Button>
           </div>
         </CardContent>

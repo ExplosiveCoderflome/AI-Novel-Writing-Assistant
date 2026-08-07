@@ -69,7 +69,7 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
               <DesktopBrandMark className="h-8 w-8 shrink-0 drop-shadow-none" />
               <div className="min-w-0 leading-tight">
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <span className="min-w-0 truncate text-sm font-semibold">AI 小说创作工作台</span>
+                  <span className="min-w-0 truncate text-sm font-semibold">AI Novel Creation Workbench</span>
                   <AppVersionBadge />
                 </div>
                 <div className="truncate text-[11px] text-muted-foreground">{pageTitle}</div>
@@ -82,8 +82,8 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
             <Button asChild size="sm" className="h-8 px-3">
               <Link to="/novels/auto-director" onClick={() => setMoreOpen(false)}>
                 <Plus className="h-3.5 w-3.5" />
-                开书
-              </Link>
+                open book
+                                            </Link>
             </Button>
             <Button
               type="button"
@@ -91,7 +91,7 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
               size="icon"
               className="h-8 w-8"
               onClick={() => setMoreOpen((current) => !current)}
-              aria-label={moreOpen ? "关闭更多入口" : "打开更多入口"}
+              aria-label={moreOpen ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Open more entrances"}
             >
               {moreOpen ? <X className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
             </Button>
@@ -101,8 +101,8 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
               size="icon"
               className="h-8 w-8"
               onClick={() => setVisualAssetLibraryOpen(true)}
-              aria-label="打开视觉资源库"
-              title="视觉资源库"
+              aria-label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+              title="Visual Resource Library"
             >
               <Images className="h-4 w-4" />
             </Button>
@@ -119,8 +119,8 @@ export default function MobileSiteShell({ children }: MobileSiteShellProps) {
           <div className="max-h-full overflow-y-auto rounded-3xl border bg-background p-4 shadow-2xl">
             <div className="mb-3 flex items-center justify-between gap-2">
               <div>
-                <div className="text-base font-semibold">更多入口</div>
-                <div className="text-xs text-muted-foreground">选择要继续处理的工作区。</div>
+                <div className="text-base font-semibold">More entrances</div>
+                <div className="text-xs text-muted-foreground">Select a workspace to continue working on.</div>
               </div>
               <Button type="button" variant="ghost" size="icon" onClick={() => setMoreOpen(false)}>
                 <X className="h-4 w-4" />

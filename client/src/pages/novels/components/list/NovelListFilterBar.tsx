@@ -9,15 +9,15 @@ export function NovelListFilterBar(props: {
 }) {
   return (
     <section className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 pb-4">
-      <FilterGroup label="状态">
-        <SegmentButton active={props.status === "all"} onClick={() => props.onStatusChange("all")}>全部</SegmentButton>
-        <SegmentButton active={props.status === "draft"} onClick={() => props.onStatusChange("draft")}>草稿</SegmentButton>
-        <SegmentButton active={props.status === "published"} onClick={() => props.onStatusChange("published")}>已发布</SegmentButton>
+      <FilterGroup label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.">
+        <SegmentButton active={props.status === "all"} onClick={() => props.onStatusChange("all")}>Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</SegmentButton>
+        <SegmentButton active={props.status === "draft"} onClick={() => props.onStatusChange("draft")}>draft</SegmentButton>
+        <SegmentButton active={props.status === "published"} onClick={() => props.onStatusChange("published")}>Published</SegmentButton>
       </FilterGroup>
-      <FilterGroup label="类型">
-        <SegmentButton active={props.writingMode === "all"} onClick={() => props.onWritingModeChange("all")}>全部</SegmentButton>
-        <SegmentButton active={props.writingMode === "original"} onClick={() => props.onWritingModeChange("original")}>原创</SegmentButton>
-        <SegmentButton active={props.writingMode === "continuation"} onClick={() => props.onWritingModeChange("continuation")}>续写</SegmentButton>
+      <FilterGroup label="type">
+        <SegmentButton active={props.writingMode === "all"} onClick={() => props.onWritingModeChange("all")}>Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</SegmentButton>
+        <SegmentButton active={props.writingMode === "original"} onClick={() => props.onWritingModeChange("original")}>Original</SegmentButton>
+        <SegmentButton active={props.writingMode === "continuation"} onClick={() => props.onWritingModeChange("continuation")}>Continue writing</SegmentButton>
       </FilterGroup>
     </section>
   );

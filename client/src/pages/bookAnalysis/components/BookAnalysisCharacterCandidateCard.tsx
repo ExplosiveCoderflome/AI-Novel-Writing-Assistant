@@ -42,7 +42,7 @@ export default function BookAnalysisCharacterCandidateCard(props: BookAnalysisCh
           <div className="flex flex-wrap items-center gap-2">
             <div className="font-medium">{character.name}</div>
             <Badge variant={failed ? "destructive" : "outline"}>
-              {generating ? "生成中" : failed ? "生成失败" : "候选"}
+              {generating ? "generating in progress" : failed ? "generating failed" : "candidate"}
             </Badge>
             {character.importance ? <Badge variant="secondary">{character.importance}</Badge> : null}
           </div>
@@ -54,7 +54,7 @@ export default function BookAnalysisCharacterCandidateCard(props: BookAnalysisCh
             onClick={() => void onGenerate(character.id, { generationDepth, selectedDimensions })}
             disabled={disabled || generating || selectedDimensions.length === 0}
           >
-            {generating ? "生成中..." : failed ? "重试生成" : "生成档案"}
+            {generating ? "Generating..." : failed ? "Retry generating" : "Generating archive"}
           </Button>
           <Button
             size="sm"
@@ -62,8 +62,8 @@ export default function BookAnalysisCharacterCandidateCard(props: BookAnalysisCh
             onClick={() => void onDelete(character.id)}
             disabled={disabled || generating}
           >
-            删除
-          </Button>
+            delete
+                                </Button>
         </div>
       </div>
       {character.briefDescription ? (

@@ -81,20 +81,20 @@ function getSectionSource(input: {
   const { globalOverride, novelOverride, scope } = input;
   if (scope === "novel") {
     if (isOfficialDefaultEntry(novelOverride)) {
-      return { source: "novel_official_default", sourceLabel: "本书使用官方默认" };
+      return { source: "novel_official_default", sourceLabel: "This book uses the official default" };
     }
     if (novelOverride) {
-      return { source: "novel", sourceLabel: "本书覆盖" };
+      return { source: "novel", sourceLabel: "This book covers" };
     }
     if (globalOverride && !isOfficialDefaultEntry(globalOverride)) {
-      return { source: "global", sourceLabel: "全局覆盖" };
+      return { source: "global", sourceLabel: "global coverage" };
     }
-    return { source: "official", sourceLabel: "官方默认" };
+    return { source: "official", sourceLabel: "Official default" };
   }
   if (globalOverride && !isOfficialDefaultEntry(globalOverride)) {
-    return { source: "global", sourceLabel: "全局覆盖" };
+    return { source: "global", sourceLabel: "global coverage" };
   }
-  return { source: "official", sourceLabel: "官方默认" };
+  return { source: "official", sourceLabel: "Official default" };
 }
 
 export function buildPromptEditorSections(input: {
@@ -221,7 +221,7 @@ export function usePromptDraftSlots(prompt: PromptCatalogItem | null) {
   useEffect(() => {
     if (saveMutation.isError) {
       const error = saveMutation.error;
-      setSaveError(error instanceof Error ? error.message : "保存失败，请重试。");
+      setSaveError(error instanceof Error ? error.message : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
     }
   }, [saveMutation.error, saveMutation.isError]);
 

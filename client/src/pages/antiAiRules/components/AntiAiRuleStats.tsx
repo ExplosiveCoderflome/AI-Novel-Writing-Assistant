@@ -24,10 +24,10 @@ interface AntiAiRuleStatsProps {
 export default function AntiAiRuleStats(props: AntiAiRuleStatsProps) {
   return (
     <div className="grid gap-3 md:grid-cols-4">
-      <StatTile label="规则总数" value={props.total} hint="规则库中可查看和编辑的全部规则。" />
-      <StatTile label="启用规则" value={props.enabled} hint="会参与全局或写法绑定解析的规则。" />
-      <StatTile label="全局默认" value={props.global} hint="不绑定写法时也会进入正文生成。" />
-      <StatTile label="自动改写" value={props.autoRewrite} hint="检测命中后可进入改写建议链路。" />
+      <StatTile label="Total number of rules" value={props.total} hint="All rules in the rule base can be viewed and edited." />
+      <StatTile label="Enable rules" value={props.enabled} hint="Rules that will participate in global or written binding parsing." />
+      <StatTile label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." value={props.global} hint="Text generation will also occur when the writing method is not bound." />
+      <StatTile label="Automatically rewrite" value={props.autoRewrite} hint="After detecting a hit, you can enter the rewriting suggestion link." />
     </div>
   );
 }

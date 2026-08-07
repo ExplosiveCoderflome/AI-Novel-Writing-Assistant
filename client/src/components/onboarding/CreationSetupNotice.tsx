@@ -23,14 +23,14 @@ export default function CreationSetupNotice() {
           <KeyRound className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <div className="font-semibold text-amber-950">完成快捷配置后就可以启动 AI 创作</div>
+          <div className="font-semibold text-amber-950">After completing the quick configuration, you can start AI creation</div>
           <p className="mt-1 text-sm leading-6 text-amber-900/80">
-            {status?.blockingReasons[0] ?? "选择一个文本模型，系统会自动准备规划、正文、审校和修复所需的任务路由。"}
+            {status?.blockingReasons[0] ?? "Select a text model, and the system will automatically prepare the task routes required for planning, body text, proofreading, and repair."}
           </p>
         </div>
       </div>
       <Button className="shrink-0" onClick={openQuickSetup}>
-        快捷配置 <ArrowRight className="h-4 w-4" />
+        Quick configuration <ArrowRight className="h-4 w-4" />
       </Button>
     </section>
   );
