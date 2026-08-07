@@ -36,15 +36,15 @@ export default function BookAnalysisCharacterCandidateCard(props: BookAnalysisCh
   const failed = character.status === "failed";
 
   return (
-    <div className="rounded-md border bg-background p-3 text-sm">
+    <div className="rounded-xl bg-background/75 p-4 text-sm shadow-[inset_0_0_0_1px_hsl(var(--border)/0.35)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <div className="font-medium">{character.name}</div>
-            <Badge variant={failed ? "destructive" : "outline"}>
+            <Badge variant={failed ? "destructive" : "secondary"} className="border-0 font-normal">
               {generating ? "生成中" : failed ? "生成失败" : "候选"}
             </Badge>
-            {character.importance ? <Badge variant="secondary">{character.importance}</Badge> : null}
+            {character.importance ? <span className="text-xs text-muted-foreground">{character.importance}</span> : null}
           </div>
           <div className="text-muted-foreground">{character.role}</div>
         </div>
@@ -70,9 +70,9 @@ export default function BookAnalysisCharacterCandidateCard(props: BookAnalysisCh
         <div className="mt-2 leading-6 text-muted-foreground">{character.briefDescription}</div>
       ) : null}
       {character.occurringChapters && character.occurringChapters.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-1">
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {character.occurringChapters.slice(0, 6).map((chapter) => (
-            <Badge key={chapter} variant="outline" className="text-[11px]">
+            <Badge key={chapter} variant="secondary" className="border-0 bg-muted/60 text-[11px] font-normal">
               {chapter}
             </Badge>
           ))}

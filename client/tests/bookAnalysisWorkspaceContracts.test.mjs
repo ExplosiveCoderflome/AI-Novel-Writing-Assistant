@@ -102,6 +102,21 @@ test("book analysis history rows are route links instead of event-only buttons",
   assert.doesNotMatch(page, /workspace\.openAnalysis\(analysisId, documentId\)/);
 });
 
+test("book analysis character profiles prioritize reading over maintenance controls", () => {
+  const panel = read("src/pages/bookAnalysis/components/BookAnalysisCharacterPanel.tsx");
+  const candidate = read("src/pages/bookAnalysis/components/BookAnalysisCharacterCandidateCard.tsx");
+
+  assert.match(panel, /<details className="group overflow-hidden rounded-2xl/);
+  assert.match(panel, /生成与添加角色/);
+  assert.match(panel, /aria-pressed=\{selectedDimensions\.includes\(dimension\)\}/);
+  assert.match(panel, /<article/);
+  assert.match(panel, /成长轨迹/);
+  assert.match(panel, /关键场景/);
+  assert.match(panel, /形象与视觉资料/);
+  assert.match(candidate, /rounded-xl bg-background\/75/);
+  assert.doesNotMatch(panel, /rounded-md bg-muted\/30 p-2/);
+});
+
 test("book analysis stays on semantic tokens without decorative gradients", () => {
   const sources = listSourceFiles(bookAnalysisRoot).map((path) => readFileSync(path, "utf8")).join("\n");
   assert.doesNotMatch(sources, /#[0-9a-f]{3,8}/i);
