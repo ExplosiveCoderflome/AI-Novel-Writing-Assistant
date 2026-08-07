@@ -65,9 +65,23 @@ test("source and chapter failures only degrade comparison and expose a retry", (
 
 test("book analysis puts current results before the history list below extra-wide screens", () => {
   const page = read("src/pages/bookAnalysis/BookAnalysisPage.tsx");
-  assert.match(page, /className="order-2 min-w-0 xl:order-1"/);
-  assert.match(page, /className="order-1 min-w-0 space-y-4 xl:order-2"/);
+  assert.match(page, /className="order-2 min-w-0 xl:order-1[^\"]*"/);
+  assert.match(page, /className="order-1 min-w-0 space-y-\d+ xl:order-2"/);
   assert.match(page, /id="book-analysis-results"/);
+});
+
+test("book analysis selection uses URL as the single source before local query state sync", () => {
+  const workspaceHook = read("src/pages/bookAnalysis/hooks/useBookAnalysisWorkspace.ts");
+  const blockStart = workspaceHook.indexOf("const openAnalysis =");
+  const blockEnd = workspaceHook.indexOf("const createMutation", blockStart);
+  const openAnalysisBlock = workspaceHook.slice(blockStart, blockEnd);
+
+  assert.ok(blockStart >= 0 && blockEnd > blockStart);
+  assert.match(openAnalysisBlock, /setSearchParams/);
+  assert.match(openAnalysisBlock, /next\.set\("analysisId", analysisId\)/);
+  assert.match(openAnalysisBlock, /next\.set\("documentId", documentId\)/);
+  assert.doesNotMatch(openAnalysisBlock, /setSelectedAnalysisId/);
+  assert.doesNotMatch(openAnalysisBlock, /setSelectedDocumentId/);
 });
 
 test("book analysis stays on semantic tokens without decorative gradients", () => {

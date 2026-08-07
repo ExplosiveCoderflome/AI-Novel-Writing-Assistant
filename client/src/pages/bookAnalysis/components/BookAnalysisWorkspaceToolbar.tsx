@@ -73,7 +73,7 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold tracking-normal text-foreground">结果工具</h2>
             <Badge variant="secondary" className="border-0 bg-muted/70 font-normal">
-              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${selectedAnalysis.status === "succeeded" ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
+              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${selectedAnalysis.status === "succeeded" ? "bg-success" : "bg-muted-foreground/50"}`} />
               {formatStatus(selectedAnalysis.status)}
             </Badge>
             {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary" className="border-0 font-normal">已发布</Badge> : null}
