@@ -34,9 +34,22 @@ test("deepseek v4 pro behavior maps reasoning toggle to thinking mode", () => {
 
 test("deepseek thinking mode detection is limited to toggle-capable models", () => {
   assert.equal(isDeepSeekThinkingModeProvider("deepseek", undefined, "deepseek-v4-pro"), true);
+  assert.equal(isDeepSeekThinkingModeProvider("deepseek", undefined, "deepseek-v4-flash"), true);
   assert.equal(isDeepSeekThinkingModeProvider("custom_gateway", "https://api.deepseek.com/v1", "deepseek-reasoner"), true);
   assert.equal(isDeepSeekThinkingModeProvider("deepseek", undefined, "deepseek-chat"), false);
   assert.equal(isDeepSeekThinkingModeProvider("openai", "https://api.openai.com/v1", "deepseek-v4-pro"), false);
+});
+
+test("deepseek v4 flash can disable thinking for structured generation", () => {
+  const disabled = resolveProviderReasoningBehavior({
+    provider: "deepseek",
+    baseURL: "https://api.deepseek.com/v1",
+    model: "deepseek-v4-flash",
+    reasoningEnabled: false,
+  });
+
+  assert.equal(disabled.reasoningEnabled, false);
+  assert.deepEqual(disabled.modelKwargs, { thinking: { type: "disabled" } });
 });
 
 test("minimax provider behavior enables reasoning_split and raw response parsing", () => {

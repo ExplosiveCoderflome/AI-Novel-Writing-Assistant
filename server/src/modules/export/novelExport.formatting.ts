@@ -33,6 +33,8 @@ function hasMeaningfulText(input: string | null | undefined): boolean {
 export interface NovelTxtRecord {
   title: string;
   description: string | null;
+  narrativeForm?: "short_story" | "long_novel";
+  shortStoryContent?: string | null;
   chapters: Array<{
     order: number;
     title: string;
@@ -82,6 +84,11 @@ export function buildTxtContent(novel: NovelTxtRecord): string {
     lines.push("【简介】");
     lines.push(description);
     lines.push("");
+  }
+
+  if (novel.narrativeForm === "short_story") {
+    lines.push(normalizeText(novel.shortStoryContent) || "（暂无正文）");
+    return lines.join("\n");
   }
 
   if (novel.chapters.length === 0) {

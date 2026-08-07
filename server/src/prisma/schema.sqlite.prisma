@@ -204,6 +204,12 @@ enum AgentRunStatus {
 enum NovelWorkflowLane {
   manual_create
   auto_director
+  creation_studio
+}
+
+enum NarrativeForm {
+  short_story
+  long_novel
 }
 
 enum NovelWorkflowTaskStatus {
@@ -328,6 +334,12 @@ model Novel {
   writingMode       String      @default("original")
   projectMode       ProjectMode?
   creationExperience CreationExperience @default(professional)
+  narrativeForm     NarrativeForm @default(long_novel)
+  targetWordCount   Int?
+  derivedFromNovelId String?
+  writingPlatform    String?
+  writingPlatformProfileVersion Int?
+  writingPlatformSnapshotJson String?
   narrativePov      NarrativePov?
   pacePreference    PacePreference?
   styleTone         String?
@@ -359,6 +371,8 @@ model Novel {
   world             World?      @relation(fields: [worldId], references: [id], onDelete: SetNull)
   sourceNovel       Novel?      @relation("NovelContinuation", fields: [sourceNovelId], references: [id], onDelete: SetNull)
   continuationNovels Novel[]    @relation("NovelContinuation")
+  derivedFromNovel  Novel?      @relation("NovelDerivation", fields: [derivedFromNovelId], references: [id], onDelete: SetNull)
+  derivedNovels     Novel[]     @relation("NovelDerivation")
   sourceKnowledgeDocument KnowledgeDocument? @relation("NovelKnowledgeContinuation", fields: [sourceKnowledgeDocumentId], references: [id], onDelete: SetNull)
   continuationBookAnalysis BookAnalysis? @relation("NovelContinuationBookAnalysis", fields: [continuationBookAnalysisId], references: [id], onDelete: SetNull)
   chapters          Chapter[]
@@ -416,6 +430,10 @@ model Novel {
   sideEffectJobs     NovelSideEffectJob[]
   novelWorld         NovelWorld?
   factEntries        NovelFactEntry[]
+  intentVersions     NovelIntentVersion[]
+  shortStoryPlan     ShortStoryPlan?
+  shortStorySegments ShortStorySegment[]
+  creationStudioConfirmations CreationStudioConfirmation[]
   createdAt          DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
@@ -425,8 +443,98 @@ model Novel {
   @@index([worldId])
   @@index([writingMode])
   @@index([sourceNovelId])
+  @@index([derivedFromNovelId])
+  @@index([narrativeForm])
+  @@index([writingPlatform])
   @@index([sourceKnowledgeDocumentId])
   @@index([continuationBookAnalysisId])
+}
+
+model NovelIntentVersion {
+  id                    String   @id @default(cuid())
+  novelId               String?
+  workflowTaskId        String
+  previousVersionId     String?
+  version               Int
+  status                String   @default("proposed")
+  source                String   @default("initial")
+  originalExpression    String
+  structuredIntentJson  String
+  impactScopeJson       String?
+  schemaVersion         Int      @default(1)
+  novel                 Novel?   @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  workflowTask          NovelWorkflowTask @relation(fields: [workflowTaskId], references: [id], onDelete: Cascade)
+  previousVersion       NovelIntentVersion? @relation("NovelIntentVersionHistory", fields: [previousVersionId], references: [id], onDelete: SetNull)
+  nextVersions          NovelIntentVersion[] @relation("NovelIntentVersionHistory")
+  shortStoryPlans       ShortStoryPlan[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([workflowTaskId, version])
+  @@index([novelId, status, version])
+  @@index([previousVersionId])
+}
+
+model CreationStudioConfirmation {
+  id                String   @id @default(cuid())
+  workflowTaskId    String   @unique
+  idempotencyKey    String
+  narrativeForm     NarrativeForm
+  novelId           String?
+  productionTaskId  String?
+  status            String   @default("claimed")
+  workflowTask      NovelWorkflowTask @relation(fields: [workflowTaskId], references: [id], onDelete: Cascade)
+  novel             Novel?   @relation(fields: [novelId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([workflowTaskId, idempotencyKey])
+  @@index([novelId])
+  @@index([productionTaskId])
+}
+
+model ShortStoryPlan {
+  id                String   @id @default(cuid())
+  novelId           String   @unique
+  intentVersionId   String
+  status            String   @default("planning")
+  targetWordCount   Int
+  endingPromise     String
+  structureJson     String
+  qualityDebtJson   String?
+  auditResultJson   String?
+  schemaVersion     Int      @default(1)
+  novel             Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  intentVersion     NovelIntentVersion @relation(fields: [intentVersionId], references: [id], onDelete: Restrict)
+  segments          ShortStorySegment[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([intentVersionId])
+  @@index([status, updatedAt])
+}
+
+model ShortStorySegment {
+  id                String   @id @default(cuid())
+  planId            String
+  novelId           String
+  order             Int
+  targetWordCount   Int
+  content           String   @default("")
+  status            String   @default("pending")
+  version           Int      @default(1)
+  qualityResultJson String?
+  humanSnapshotJson String?
+  userEditedAt      DateTime?
+  generatedAt       DateTime?
+  plan              ShortStoryPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  novel             Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([planId, order])
+  @@index([novelId, order])
+  @@index([status, updatedAt])
 }
 
 model PromptAddendum {
@@ -491,6 +599,30 @@ model PromptTemplateVersion {
   notes           String?
   override        PromptTemplateOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
   createdAt       DateTime               @default(now())
+
+  @@unique([overrideId, versionNo])
+  @@index([overrideId, createdAt])
+}
+
+model WritingPlatformProfileOverride {
+  id              String   @id @default(cuid())
+  platform        String   @unique
+  activeVersionId String?
+  versions        WritingPlatformProfileVersion[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([activeVersionId])
+}
+
+model WritingPlatformProfileVersion {
+  id          String   @id @default(cuid())
+  overrideId  String
+  versionNo   Int
+  profileJson String
+  notes       String?
+  override    WritingPlatformProfileOverride @relation(fields: [overrideId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
 
   @@unique([overrideId, versionNo])
   @@index([overrideId, createdAt])
@@ -2084,6 +2216,8 @@ model NovelWorkflowTask {
   directorEvents     DirectorEvent[]
   directorArtifacts  DirectorArtifact[]
   directorLlmUsageRecords DirectorLlmUsageRecord[]
+  intentVersions     NovelIntentVersion[]
+  creationStudioConfirmation CreationStudioConfirmation?
   createdAt          DateTime                @default(now())
   updatedAt          DateTime                @updatedAt
 

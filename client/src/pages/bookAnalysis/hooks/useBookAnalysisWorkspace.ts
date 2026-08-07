@@ -235,8 +235,6 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   };
 
   const openAnalysis = (analysisId: string, documentId: string, mode: BookAnalysisMode = analysisMode) => {
-    setSelectedAnalysisId(analysisId);
-    setSelectedDocumentId(documentId);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set("analysisId", analysisId);

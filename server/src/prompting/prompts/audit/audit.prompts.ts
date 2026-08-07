@@ -198,6 +198,16 @@ export const auditChapterPrompt: PromptAsset<AuditChapterPromptInput, z.infer<ty
     { group: "participant_subset", priority: 68 },
     { group: "open_conflicts", priority: 66 },
   ],
+  editableSlots: [
+    {
+      key: "audit.reportStyle",
+      label: "完整审校报告表达",
+      description: "调整完整审校的报告表达方式和标准。",
+      riskLevel: "low",
+      maxLength: 600,
+      defaultValue: "所有问题都必须具体，evidence 指向明确现象，fixSuggestion 必须可执行。",
+    },
+  ],
   slots: [
     {
       kind: "replace" as const,

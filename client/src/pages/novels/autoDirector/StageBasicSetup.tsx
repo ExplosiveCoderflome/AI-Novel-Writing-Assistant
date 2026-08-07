@@ -6,6 +6,7 @@ import {
   PACE_OPTIONS,
   POV_OPTIONS,
   READER_CHANNEL_OPTIONS,
+  WRITING_PLATFORM_OPTIONS,
 } from "../novelBasicInfo.shared";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,31 @@ export default function StageBasicSetup({
         </div>
       </div>
 
+      <div className="flex items-start gap-3 border-y border-border/60 py-4">
+        <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+        <div>
+          <div className="text-sm font-medium text-foreground">AI 会自动确定创作底座</div>
+          <div className={`mt-1 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+            系统会根据起始想法确定题材和主要推进方式，并贯穿方向规划、正文、检查与修复。创建后仍可在作品设置中调整后续写法。
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-x-8 gap-y-6 md:grid-cols-2">
+        <div className="space-y-2">
+          <FieldLabel htmlFor="director-basic-platform" hint="决定规划、正文、审校和修复采用哪类平台读感。">目标平台</FieldLabel>
+          <SelectControl
+            id="director-basic-platform"
+            className={controlClassName}
+            value={basicForm.writingPlatformPreference}
+            onChange={(event) => onBasicFormChange({ writingPlatformPreference: event.target.value as NovelBasicFormState["writingPlatformPreference"] })}
+          >
+            {WRITING_PLATFORM_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </SelectControl>
+          <div className={`text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+            {findOptionSummary(WRITING_PLATFORM_OPTIONS, basicForm.writingPlatformPreference)}
+          </div>
+        </div>
         <div className="space-y-2">
           <FieldLabel htmlFor="director-basic-reader-channel" hint={BASIC_INFO_FIELD_HINTS.readerChannelPreference}>读者频道倾向</FieldLabel>
           <SelectControl

@@ -7,6 +7,11 @@ import { normalizeStoryModeOutput } from "../storyMode/storyModeProfile";
 export interface PaginationInput {
   page: number;
   limit: number;
+  search?: string;
+  status?: "draft" | "published";
+  narrativeForm?: "short_story" | "long_novel";
+  writingMode?: "original" | "continuation";
+  sort?: "updated" | "created" | "progress";
 }
 
 export interface CreateNovelInput {
@@ -24,6 +29,9 @@ export interface CreateNovelInput {
   writingMode?: "original" | "continuation";
   projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline";
   creationExperience?: "simple" | "professional";
+  narrativeForm?: "short_story" | "long_novel";
+  targetWordCount?: number | null;
+  derivedFromNovelId?: string | null;
   narrativePov?: "first_person" | "third_person" | "mixed";
   pacePreference?: "slow" | "balanced" | "fast";
   styleTone?: string;
@@ -54,6 +62,7 @@ export interface UpdateNovelInput {
   writingMode?: "original" | "continuation";
   projectMode?: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline" | null;
   creationExperience?: "professional";
+  targetWordCount?: number | null;
   narrativePov?: "first_person" | "third_person" | "mixed" | null;
   pacePreference?: "slow" | "balanced" | "fast" | null;
   styleTone?: string | null;

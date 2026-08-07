@@ -11,6 +11,8 @@ test("listNovels attaches latest visible auto director summary, skips archived t
     workflowFindMany: prisma.novelWorkflowTask.findMany,
     workflowGroupBy: prisma.novelWorkflowTask.groupBy,
     generationJobFindMany: prisma.generationJob.findMany,
+    imageAssetFindMany: prisma.imageAsset.findMany,
+    imageTaskFindMany: prisma.imageGenerationTask.findMany,
     archiveFindMany: prisma.taskCenterArchive.findMany,
   };
 
@@ -201,6 +203,9 @@ test("listNovels attaches latest visible auto director summary, skips archived t
     },
   ]);
 
+  prisma.imageAsset.findMany = async () => [];
+  prisma.imageGenerationTask.findMany = async () => [];
+
   prisma.taskCenterArchive.findMany = async () => ([
     {
       taskId: "task_archived",
@@ -232,6 +237,8 @@ test("listNovels attaches latest visible auto director summary, skips archived t
     prisma.novelWorkflowTask.findMany = originals.workflowFindMany;
     prisma.novelWorkflowTask.groupBy = originals.workflowGroupBy;
     prisma.generationJob.findMany = originals.generationJobFindMany;
+    prisma.imageAsset.findMany = originals.imageAssetFindMany;
+    prisma.imageGenerationTask.findMany = originals.imageTaskFindMany;
     prisma.taskCenterArchive.findMany = originals.archiveFindMany;
   }
 });

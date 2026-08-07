@@ -54,7 +54,7 @@ function buildRun() {
 }
 
 function mockProjectionData(command, options) {
-  const { taskStatus = "running" } = options ?? {};
+  const { taskStatus = "running", seedPayloadJson = null } = options ?? {};
   const originals = {
     runFindUnique: prisma.directorRun.findUnique,
     commandFindFirst: prisma.directorRunCommand.findFirst,
@@ -74,7 +74,7 @@ function mockProjectionData(command, options) {
   prisma.directorRuntimeInstance.findFirst = async () => null;
   prisma.novelWorkflowTask.findUnique = async ({ where }) => {
     assert.equal(where.id, "task-1");
-    return { status: taskStatus };
+    return { status: taskStatus, seedPayloadJson };
   };
   directorUsageTelemetryQueryService.getTaskUsage = async (taskId) => {
     assert.equal(taskId, "task-1");
@@ -109,6 +109,23 @@ test("runtime projection shows queued candidate confirmation after direction sel
     assert.equal(projection.headline, "AI 正在处理书级方向");
     assert.equal(projection.currentLabel, "书级方向提交完成，等待 AI 创建小说项目。");
     assert.equal(projection.detail, "后台执行器接手后，会创建小说并继续后续流程。");
+  } finally {
+    restore();
+  }
+});
+
+test("runtime projection restores the fast-start strategy from the workflow seed", async () => {
+  const startupPreparation = {
+    strategy: "fast_start",
+    routeWindow: { min: 3, target: 5, detailAhead: 1 },
+    backgroundEnrichment: "after_first_draft",
+  };
+  const restore = mockProjectionData(null, {
+    seedPayloadJson: JSON.stringify({ startupPreparation }),
+  });
+  try {
+    const projection = await loadPersistentDirectorRuntimeProjection("task-1");
+    assert.deepEqual(projection.startupPreparation, startupPreparation);
   } finally {
     restore();
   }

@@ -8,10 +8,12 @@ const Home = lazy(() => import("@/pages/Home"));
 const HelpPage = lazy(() => import("@/pages/help/HelpPage"));
 const NovelList = lazy(() => import("@/pages/novels/NovelList"));
 const NovelCreate = lazy(() => import("@/pages/novels/NovelCreate"));
+const CreationStudioPage = lazy(() => import("@/pages/creationStudio/CreationStudioPage"));
+const ShortStoryStudioPage = lazy(() => import("@/pages/shortStory/ShortStoryStudioPage"));
 const AutoDirectorCreatePage = lazy(() => import("@/pages/novels/autoDirector/AutoDirectorCreatePage"));
 const SimpleNovelShelfPage = lazy(() => import("@/pages/novels/simpleCreation/SimpleNovelShelfPage"));
 const NovelPreview = lazy(() => import("@/pages/novels/NovelPreview"));
-const NovelEdit = lazy(() => import("@/pages/novels/NovelEdit"));
+const NarrativeFormNovelEditRoute = lazy(() => import("@/pages/novels/NarrativeFormNovelEditRoute"));
 const NovelChapterEdit = lazy(() => import("@/pages/novels/NovelChapterEdit"));
 const DramaWorkspacePage = lazy(() => import("@/pages/drama/DramaWorkspacePage"));
 const DramaProjectPage = lazy(() => import("@/pages/drama/DramaProjectPage"));
@@ -44,11 +46,13 @@ const routes: RouteObject[] = [
       { index: true, element: <Home /> },
       { path: "help", element: <HelpPage /> },
       { path: "novels", element: <NovelList /> },
+      { path: "create", element: <CreationStudioPage /> },
       { path: "novels/create", element: <NovelCreate /> },
       { path: "novels/auto-director", element: <AutoDirectorCreatePage /> },
       { path: "novels/:id/simple", element: <SimpleNovelShelfPage /> },
+      { path: "novels/:id/story", element: <ShortStoryStudioPage /> },
       { path: "novels/:id/preview", element: <NovelPreview /> },
-      { path: "novels/:id/edit", element: <NovelEdit /> },
+      { path: "novels/:id/edit", element: <NarrativeFormNovelEditRoute /> },
       { path: "novels/:id/chapters/:chapterId", element: <NovelChapterEdit /> },
       { path: "drama", element: <DramaWorkspacePage /> },
       { path: "drama/projects/:id", element: <DramaProjectPage /> },

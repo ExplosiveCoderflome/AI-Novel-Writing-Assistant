@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { DirectorIdeaInspiration } from "@ai-novel/shared/types/novelDirector";
+import type { NovelResourceRecommendationSource } from "@ai-novel/shared/types/novelResourceRecommendation";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Layers3, Route, Sparkles, X } from "lucide-react";
+import type { GenreTreeNode } from "@/api/genre";
+import type { StoryModeTreeNode } from "@/api/storyMode";
 import { Button } from "@/components/ui/button";
 import NovelAutoDirectorIdeaInspirationPanel from "../components/NovelAutoDirectorIdeaInspirationPanel";
 import OnboardingTip from "@/components/onboarding/OnboardingTip";
+import CreationFoundationPickerDialog from "./CreationFoundationPickerDialog";
 
 interface StageIdeaProps {
   idea: string;
@@ -16,6 +20,31 @@ interface StageIdeaProps {
   onQuickGenerate: () => void;
   canContinue: boolean;
   isGenerating: boolean;
+  genreTree: GenreTreeNode[];
+  storyModeTree: StoryModeTreeNode[];
+  selectedGenreId: string;
+  selectedGenreLabel: string;
+  selectedGenreSource?: NovelResourceRecommendationSource;
+  selectedStoryModeId: string;
+  selectedStoryModeLabel: string;
+  selectedStoryModeSource?: NovelResourceRecommendationSource;
+  genreLoading: boolean;
+  genreError: boolean;
+  storyModeLoading: boolean;
+  storyModeError: boolean;
+  isUpdatingFoundation: boolean;
+  onRetryGenres: () => void;
+  onRetryStoryModes: () => void;
+  onFoundationChange: (patch: Partial<{
+    genreId: string;
+    primaryStoryModeId: string;
+  }>) => Promise<boolean>;
+}
+
+function sourceLabel(source: NovelResourceRecommendationSource | undefined): string | null {
+  if (source === "user_selected") return "你的选择";
+  if (source === "ai_recommended") return "AI 匹配";
+  return null;
 }
 
 export default function StageIdea({
@@ -28,9 +57,27 @@ export default function StageIdea({
   onQuickGenerate,
   canContinue,
   isGenerating,
+  genreTree,
+  storyModeTree,
+  selectedGenreId,
+  selectedGenreLabel,
+  selectedGenreSource,
+  selectedStoryModeId,
+  selectedStoryModeLabel,
+  selectedStoryModeSource,
+  genreLoading,
+  genreError,
+  storyModeLoading,
+  storyModeError,
+  isUpdatingFoundation,
+  onRetryGenres,
+  onRetryStoryModes,
+  onFoundationChange,
 }: StageIdeaProps) {
   const reducedMotion = useReducedMotion();
   const [showInspirations, setShowInspirations] = useState(false);
+  const [genreDialogOpen, setGenreDialogOpen] = useState(false);
+  const [storyModeDialogOpen, setStoryModeDialogOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const typingTimersRef = useRef<number[]>([]);
 
@@ -99,7 +146,7 @@ export default function StageIdea({
         <OnboardingTip
           storageKey="auto-director-idea"
           title="一句话不需要写成完整大纲"
-          description="写清主角、处境或最想看的冲突即可。题材、卖点和长篇推进方式会由 AI 在下一步整理。"
+          description="写清主角、处境或最想看的冲突即可。故事类型和推进方式可以交给 AI，也可以在下方先指定。"
           next="AI 生成两套差异明确的整书方向。"
         />
       </div>
@@ -117,6 +164,71 @@ export default function StageIdea({
           onChange={(event) => onIdeaChange(event.target.value)}
           placeholder="例如：普通女大学生误入异能组织，一边上学打工，一边调查父亲失踪真相。"
         />
+        <div className="border-t border-border/60 pt-3">
+          <div className="mb-2 text-xs font-medium text-muted-foreground">创作偏好（可选）</div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex min-w-0 flex-1 items-center rounded-md bg-background/65 ring-1 ring-border/70">
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-muted/45 disabled:opacity-50"
+                onClick={() => setGenreDialogOpen(true)}
+                disabled={isGenerating || isUpdatingFoundation}
+              >
+                <Layers3 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">
+                  {selectedGenreLabel || "故事类型：AI 自动匹配"}
+                </span>
+                {sourceLabel(selectedGenreSource) ? (
+                  <span className="shrink-0 text-[11px] text-muted-foreground">{sourceLabel(selectedGenreSource)}</span>
+                ) : null}
+              </button>
+              {selectedGenreId ? (
+                <button
+                  type="button"
+                  className="mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  aria-label="清除故事类型"
+                  disabled={isGenerating || isUpdatingFoundation}
+                  onClick={() => void onFoundationChange({ genreId: "" })}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+
+            <div className="flex min-w-0 flex-1 items-center rounded-md bg-background/65 ring-1 ring-border/70">
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-muted/45 disabled:opacity-50"
+                onClick={() => setStoryModeDialogOpen(true)}
+                disabled={isGenerating || isUpdatingFoundation}
+              >
+                <Route className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">
+                  {selectedStoryModeLabel || "推进方式：AI 自动搭配"}
+                </span>
+                {sourceLabel(selectedStoryModeSource) ? (
+                  <span className="shrink-0 text-[11px] text-muted-foreground">{sourceLabel(selectedStoryModeSource)}</span>
+                ) : null}
+              </button>
+              {selectedStoryModeId ? (
+                <button
+                  type="button"
+                  className="mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  aria-label="清除推进方式"
+                  disabled={isGenerating || isUpdatingFoundation}
+                  onClick={() => void onFoundationChange({ primaryStoryModeId: "" })}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+          {(genreError || storyModeError) ? (
+            <div className="mt-2 text-xs text-muted-foreground">
+              部分可选方向暂时未加载，你仍可交给 AI 自动搭配后继续。
+            </div>
+          ) : null}
+        </div>
         <div className="flex flex-col gap-2 pt-3 sm:flex-row sm:items-center sm:justify-between">
           <button
             type="button"
@@ -159,6 +271,40 @@ export default function StageIdea({
           />
         </motion.div>
       ) : null}
+
+      <CreationFoundationPickerDialog
+        open={genreDialogOpen}
+        onOpenChange={setGenreDialogOpen}
+        title="选择故事类型"
+        description="这个选择会约束后续方向、世界、人物与剧情规划；不确定时交给 AI 即可。"
+        treeTitle="题材目录"
+        nodes={genreTree}
+        selectedId={selectedGenreId}
+        autoLabel="交给 AI 匹配故事类型"
+        emptyLabel="题材基底库暂时为空，可以先交给 AI 自动处理。"
+        loading={genreLoading}
+        error={genreError}
+        applying={isUpdatingFoundation}
+        onRetry={onRetryGenres}
+        onApply={(genreId) => onFoundationChange({ genreId })}
+      />
+
+      <CreationFoundationPickerDialog
+        open={storyModeDialogOpen}
+        onOpenChange={setStoryModeDialogOpen}
+        title="选择主要推进方式"
+        description="它决定故事主要靠什么持续变精彩；辅助推进方式仍由 AI 自动补充。"
+        treeTitle="推进模式目录"
+        nodes={storyModeTree}
+        selectedId={selectedStoryModeId}
+        autoLabel="交给 AI 搭配推进方式"
+        emptyLabel="推进模式库暂时为空，可以先交给 AI 自动处理。"
+        loading={storyModeLoading}
+        error={storyModeError}
+        applying={isUpdatingFoundation}
+        onRetry={onRetryStoryModes}
+        onApply={(primaryStoryModeId) => onFoundationChange({ primaryStoryModeId })}
+      />
     </section>
   );
 }

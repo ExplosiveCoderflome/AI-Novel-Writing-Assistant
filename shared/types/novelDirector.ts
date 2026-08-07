@@ -13,6 +13,8 @@ import type { LLMProvider } from "./llm";
 import type { ArtifactSyncMode } from "./novel";
 import type { BookAnalysisSectionKey } from "./bookAnalysis";
 import type { NovelWorkflowResumeTarget, NovelWorkflowStage } from "./novelWorkflow";
+import type { WritingPlatformPreference } from "./writingPlatform";
+import type { NovelCreateResourceRecommendation } from "./novelResourceRecommendation";
 import type { StoryMacroPlan } from "./storyMacro";
 import type { BookContract, BookContractDraft } from "./novelWorkflow";
 import type { TitleFactorySuggestion } from "./title";
@@ -391,9 +393,32 @@ export interface DirectorCandidate {
   hookStrategy: string;
   progressionLoop: string;
   whyItFits: string;
+  recommendedWritingPlatform?: "fanqie_free" | "qidian_male" | "jinjiang_female";
+  writingPlatformReason?: string;
   toneKeywords: string[];
   targetChapterCount: number;
+  productionFoundation?: NovelCreateResourceRecommendation;
 }
+
+export interface DirectorStartupPreparation {
+  strategy: "fast_start";
+  routeWindow: {
+    min: 3;
+    target: 5;
+    detailAhead: 1;
+  };
+  backgroundEnrichment: "after_first_draft";
+}
+
+export const DEFAULT_DIRECTOR_STARTUP_PREPARATION: DirectorStartupPreparation = {
+  strategy: "fast_start",
+  routeWindow: {
+    min: 3,
+    target: 5,
+    detailAhead: 1,
+  },
+  backgroundEnrichment: "after_first_draft",
+};
 
 export interface DirectorCandidateBatch {
   id: string;
@@ -421,6 +446,7 @@ export interface DirectorTaskNotice {
 export interface DirectorTaskSeedPayloadSnapshot {
   idea?: string;
   batches?: DirectorCandidateBatch[];
+  productionFoundation?: NovelCreateResourceRecommendation;
   directorCommandResults?: Record<string, unknown>;
   worldId?: string | null;
   worldSetupMode?: "auto_generate" | "skip" | null;
@@ -576,11 +602,13 @@ export interface DirectorProjectContextInput {
   genreId?: string;
   primaryStoryModeId?: string;
   secondaryStoryModeId?: string;
+  productionFoundationPrompt?: string;
   worldId?: string;
   worldSetupMode?: "auto_generate" | "skip";
   writingMode?: "original" | "continuation";
   projectMode?: ProjectMode;
   readerChannelPreference?: "ai_judge" | "male_oriented" | "female_oriented" | "general";
+  writingPlatformPreference?: WritingPlatformPreference;
   narrativePov?: NarrativePov;
   pacePreference?: PacePreference;
   styleTone?: string;
@@ -611,8 +639,11 @@ export interface DirectorCandidatesRequest extends DirectorProjectContextInput, 
 export interface DirectorIdeaInspirationRequest extends DirectorProjectContextInput, DirectorLLMOptions {
   currentIdea?: string;
   genreLabel?: string;
+  genreDescription?: string;
   primaryStoryModeLabel?: string;
+  primaryStoryModeDescription?: string;
   secondaryStoryModeLabel?: string;
+  secondaryStoryModeDescription?: string;
   worldName?: string;
 }
 
@@ -661,6 +692,7 @@ export interface DirectorConfirmRequest extends DirectorProjectContextInput, Dir
   workflowTaskId?: string;
   autoExecutionPlan?: DirectorAutoExecutionPlan;
   autoApproval?: DirectorAutoApprovalConfig;
+  startupPreparation?: DirectorStartupPreparation;
   stepCalibrationInstruction?: string | null;
 }
 

@@ -2,6 +2,7 @@ import { parseChapterScenePlan } from "@ai-novel/shared/types/chapterLengthContr
 import type { ChapterTaskSheetQualityMode } from "@ai-novel/shared/types/chapterTaskSheetQuality";
 import { prisma } from "../../../db/prisma";
 import { novelFactService } from "../fact/NovelFactService";
+import type { ChapterRouteWindowOptions, ChapterRouteWindowResult } from "./ChapterRouteWindowService";
 
 /**
  * 章节规划即时生成服务（Just-In-Time）
@@ -28,6 +29,11 @@ export interface ChapterPlanJITDeps {
       chapterTaskSheetQualityMode?: ChapterTaskSheetQualityMode;
     },
   ) => Promise<unknown>;
+  ensureRouteWindow?: (
+    novelId: string,
+    fromChapterOrder: number,
+    options?: ChapterRouteWindowOptions,
+  ) => Promise<ChapterRouteWindowResult>;
 }
 
 export class ChapterPlanJITService {
@@ -39,7 +45,11 @@ export class ChapterPlanJITService {
    * 调用时机：GenerationContextAssembler.assemble 中，plannerService.ensureChapterPlan 之前。
    * 仅在 advanceMode === "full_book_autopilot" 时调用。
    */
-  async ensureExecutionReady(novelId: string, chapterId: string): Promise<void> {
+  async ensureExecutionReady(
+    novelId: string,
+    chapterId: string,
+    routeOptions: ChapterRouteWindowOptions = {},
+  ): Promise<void> {
     const chapter = await prisma.chapter.findFirst({
       where: { id: chapterId, novelId },
       select: {
@@ -56,6 +66,8 @@ export class ChapterPlanJITService {
     if (!chapter) {
       return;
     }
+
+    await this.deps.ensureRouteWindow?.(novelId, chapter.order, routeOptions);
 
     const hasCompleteTaskSheet = Boolean(chapter.taskSheet?.trim())
       && Boolean(chapter.sceneCards?.trim())

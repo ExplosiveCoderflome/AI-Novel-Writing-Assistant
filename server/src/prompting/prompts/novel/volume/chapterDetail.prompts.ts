@@ -273,6 +273,10 @@ function createExecutionContractSystemPrompt(): string {
     "taskSheet 和 sceneCards 只能执行当前章的合同，不得提前占用相邻章的一次性事件，也不得重写上一章已经完成的里程碑。",
     "如果 conflict_level_curve 标出用户锚定的 conflictLevel，该数值是硬约束，不得改写。",
     "如果最近章节已经连续使用相同开场、相同推进路数或同类钩子，本章必须通过 sceneCards 主动做出差异化。",
+    "purpose、边界字段和 readerExperience 各字段只写 1 句，单字段不超过 120 个汉字；taskSheet 不超过 300 个汉字。",
+    "每个 sceneCard 的文本字段只写执行所需信息，单字段不超过 120 个汉字；不得扩写正文或对白。",
+    "targetWordCount 必须沿用当前目标章节的字数预算，范围只能是 200-20000，不能误用全书或全卷字数。",
+    "完成最后一个 sceneCard 后立即结束 JSON，禁止续写解释、复读或自我修正。",
   ].join("\n");
 }
 
@@ -356,7 +360,7 @@ export const volumeChapterExecutionContractPrompt: PromptAsset<
   ReturnType<typeof createChapterExecutionContractSchema>["_output"]
 > = {
   id: "novel.volume.chapter_execution_contract",
-  version: "v2",
+  version: "v3",
   taskType: "planner",
   mode: "structured",
   language: "zh",

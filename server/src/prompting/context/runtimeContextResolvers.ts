@@ -25,6 +25,11 @@ import { buildDirectorWorkspaceAnalysisContextBlocks } from "../prompts/novel/di
 import type { PromptContextResolver, PromptExecutionContext } from "./types";
 
 const CHAPTER_CONTEXT_GROUPS = [
+  "writing_platform",
+  "creation_intent",
+  "short_story_plan",
+  "short_story_continuity",
+  "book_style",
   "book_contract",
   "story_macro",
   "chapter_mission",

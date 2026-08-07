@@ -42,6 +42,18 @@ function buildChapterOrderRangeLabel(startOrder: number, endOrder: number): stri
   return startOrder === endOrder ? `第 ${startOrder} 章` : `第 ${startOrder}-${endOrder} 章`;
 }
 
+function buildFastStartPlanningGuidance(request: DirectorConfirmRequest): string | undefined {
+  const preparation = request.startupPreparation;
+  if (!preparation || preparation.strategy !== "fast_start") {
+    return undefined;
+  }
+  return [
+    "本次采用快速开篇：首个可执行节奏段只规划开篇路线，不提前锁死远期章节。",
+    `首批路线必须覆盖 ${preparation.routeWindow.min}-${preparation.routeWindow.target} 章，优先形成可立即进入正文的因果链。`,
+    `正文前只需要完整细化未来 ${preparation.routeWindow.detailAhead} 章，其余章节保留为简略路线。`,
+  ].join("\n");
+}
+
 function findMissingSelectedChapterOrders(
   selectedOrders: number[],
   range: { startOrder: number; endOrder: number },
@@ -199,6 +211,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
       ? request.autoExecutionPlan
       : undefined,
   );
+  const fastStartGuidance = buildFastStartPlanningGuidance(request);
   const sortedVolumes = baseWorkspace.volumes
     .slice()
     .sort((left, right) => left.sortOrder - right.sortOrder);
@@ -266,6 +279,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
           model: request.model,
           temperature: request.temperature,
           scope: "beat_sheet",
+          guidance: fastStartGuidance,
           targetVolumeId: targetVolume.id,
           draftWorkspace: workspace,
           taskId,
@@ -314,6 +328,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
           model: request.model,
           temperature: request.temperature,
           scope: "chapter_list",
+          guidance: fastStartGuidance,
           targetVolumeId: targetVolume.id,
           generationMode: "single_beat",
           targetBeatKey,
@@ -505,14 +520,6 @@ export async function runDirectorStructuredOutlinePhase(input: {
     emitEvent: false,
     syncPayoffLedger: false,
   });
-  await dependencies.characterDynamicsService.rebuildDynamics(novelId, {
-    sourceType: "rebuild_projection",
-  }).catch((error) => {
-    console.warn(
-      `[director.structured_outline] event=character_dynamics_rebuild_failed taskId=${taskId} novelId=${novelId} error=${JSON.stringify(error instanceof Error ? error.message : String(error))}`,
-    );
-  });
-
   const syncCursor = resolveStructuredOutlineRecoveryCursor({
     workspace: persistedOutlineWorkspace,
     plan: detailPlan,
@@ -604,10 +611,12 @@ export async function runDirectorStructuredOutlinePhase(input: {
     volumeChapterListComplete: syncCursor.volumeChapterListComplete,
   });
 
+  const fastStart = isFullBookAutopilotRunMode(request.runMode)
+    && request.startupPreparation?.strategy === "fast_start";
   const pausedSession = buildDirectorSessionState({
     runMode: request.runMode,
     phase: "chapter_execution",
-    isBackgroundRunning: false,
+    isBackgroundRunning: fastStart,
   });
   const chapterResumeTarget = buildNovelEditResumeTarget({
     novelId,
@@ -618,9 +627,13 @@ export async function runDirectorStructuredOutlinePhase(input: {
   });
   await dependencies.workflowService.recordCheckpoint(taskId, {
     stage: "chapter_execution",
-    checkpointType: "production_experience_required",
-    checkpointSummary: `《${request.candidate.workingTitle.trim() || request.title?.trim() || "当前项目"}》已完成前期准备，请选择正文生产方式。`,
-    itemLabel: `${autoExecutionScopeLabel}已可开写，等待选择生产方式`,
+    checkpointType: fastStart ? "chapter_batch_ready" : "production_experience_required",
+    checkpointSummary: fastStart
+      ? `《${request.candidate.workingTitle.trim() || request.title?.trim() || "当前项目"}》的开篇路线已准备好，AI 将开始生成正文。`
+      : `《${request.candidate.workingTitle.trim() || request.title?.trim() || "当前项目"}》已完成前期准备，请选择正文生产方式。`,
+    itemLabel: fastStart
+      ? `${autoExecutionScopeLabel}开篇路线已就绪，正在开始第 1 章`
+      : `${autoExecutionScopeLabel}已可开写，等待选择生产方式`,
     volumeId: selectedChapters[0]?.volumeId ?? firstVolume.id,
     chapterId: selectedChapters[0]?.id ?? null,
     progress: DIRECTOR_PROGRESS.chapterBatchReady,
@@ -628,6 +641,10 @@ export async function runDirectorStructuredOutlinePhase(input: {
       directorSession: pausedSession,
       resumeTarget: chapterResumeTarget,
       autoExecution: autoExecutionState,
+      ...(fastStart ? {
+        productionExperience: "simple",
+        startupPreparation: request.startupPreparation,
+      } : {}),
     }),
   });
   logMemoryUsage({
@@ -636,7 +653,7 @@ export async function runDirectorStructuredOutlinePhase(input: {
     taskId,
     novelId,
     stage: "structured_outline",
-    itemKey: "production_experience_required",
+    itemKey: fastStart ? "chapter_batch_ready" : "production_experience_required",
     scope: autoExecutionScopeLabel,
     entrypoint: "auto_director",
     volumeCount: persistedOutlineWorkspace.volumes.length,

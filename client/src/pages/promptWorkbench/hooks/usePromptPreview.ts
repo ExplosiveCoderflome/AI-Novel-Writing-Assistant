@@ -145,6 +145,18 @@ function buildPreviewPromptInput(
     };
   }
 
+  if (prompt.id === "novel.short_story.segment.write") {
+    return {
+      originalIdea: "一个能听见谎言的女孩，遇见唯一无法判断真假的人。",
+      understanding: "用真假判断失效制造信任危机，并在一次完整事件中兑现关系与真相。",
+      direction: { id: "preview", title: "沉默证词", premise: "女孩必须与无法判断的证人合作。", coreExperience: "悬疑与信任", protagonist: "能听见谎言的女孩", centralConflict: "能力失效与迫近的危险", endingPromise: "揭开能力失效的原因", styleKeywords: ["快开场", "连续揭示"] },
+      plan: { title: "沉默证词", targetWordCount: 8000, endingPromise: "揭开真相", segments: [] },
+      segment: { order: 1, purpose: "建立异常与合作压力", targetWordCount: 2600, openingState: "能力一向可靠", openingHook: "唯一的沉默", immediateGoal: "判断证人是否可信", progressionBeats: ["危险逼近", "被迫合作"], turningPoint: "能力并非失效", payoff: "发现第一层真相", closingPull: "真正的谎言来自身边人", closingState: "两人暂时结盟" },
+      previousContinuity: "",
+      previousContentTail: "",
+    };
+  }
+
   if (prompt.id === "novel.chapter_editor.workspace_diagnosis") {
     return {
       chapterTitle: "示例章节",

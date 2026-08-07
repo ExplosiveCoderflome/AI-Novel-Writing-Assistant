@@ -1,12 +1,11 @@
 import { useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Database, Search } from "lucide-react";
 import type { EmbeddingProvider, RagEmbeddingModelStatus, RagProviderStatus } from "@/api/settings";
 import SearchableSelect from "@/components/common/SearchableSelect";
 import SelectField from "@/components/common/SelectField";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 export interface KnowledgeEmbeddingSettingsFormState {
@@ -97,26 +96,40 @@ export default function KnowledgeEmbeddingSettingsCard({
     : form.collectionName.trim();
 
   return (
-    <Card>
-      <CardHeader className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <CardTitle>知识检索设置</CardTitle>
-          <Badge variant="outline">集合版本 v{form.collectionVersion}</Badge>
-          {currentProvider ? <Badge variant="outline">{currentProvider.name}</Badge> : null}
-          <Badge variant={form.enabled ? "default" : "outline"}>
-            {form.enabled ? "RAG 启用" : "RAG 暂停"}
+    <section className="space-y-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/[0.07] text-primary">
+            <Search className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">让资料参与创作</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+              选择向量模型并连接资料库，已建立索引的资料就能用于拆书、规划和正文创作。
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          {currentProvider ? (
+            <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{currentProvider.name}</Badge>
+          ) : null}
+          <Badge variant="secondary" className={`border-0 font-normal ${form.enabled ? "bg-success/10 text-success" : "bg-muted/60"}`}>
+            {form.enabled ? "资料检索已开启" : "资料检索已暂停"}
           </Badge>
         </div>
-        <div className="text-sm text-muted-foreground">
-          选择向量模型和向量库地址即可开始检索。需要精细控制召回质量或任务性能时，再展开高级配置。
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <section className="space-y-4">
-          <div className="space-y-1">
-            <div className="text-sm font-medium">向量模型</div>
-            <div className="text-xs text-muted-foreground">
-              选择用于生成向量的服务商和模型。
+      </header>
+
+      <div className="space-y-5">
+        <section className="space-y-5 rounded-3xl bg-muted/20 p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-background text-muted-foreground shadow-sm">
+              <Search className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <div>
+              <div className="font-medium">选择资料理解方式</div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                推荐使用已配置且可用的服务商；模型用于理解资料含义，不会改动原文。
+              </div>
             </div>
           </div>
 
@@ -138,10 +151,10 @@ export default function KnowledgeEmbeddingSettingsCard({
               />
               {currentProvider ? (
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <Badge variant={currentProvider.isConfigured ? "default" : "outline"}>
+                  <Badge variant="secondary" className={`border-0 font-normal ${currentProvider.isConfigured ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
                     {currentProvider.isConfigured ? "连接已配置" : "待配置连接"}
                   </Badge>
-                  <Badge variant={currentProvider.isActive ? "default" : "outline"}>
+                  <Badge variant="secondary" className={`border-0 font-normal ${currentProvider.isActive ? "bg-success/10 text-success" : "bg-muted/60"}`}>
                     {currentProvider.isActive ? "可用" : "未启用"}
                   </Badge>
                 </div>
@@ -182,11 +195,16 @@ export default function KnowledgeEmbeddingSettingsCard({
 
         </section>
 
-        <section className="space-y-4 rounded-md border bg-background/60 p-4">
-          <div className="space-y-1">
-            <div className="text-sm font-medium">向量库连接</div>
-            <div className="text-xs text-muted-foreground">
-              填写 Qdrant Cloud、自托管 Qdrant 或本机向量库地址。
+        <section className="space-y-5 rounded-3xl border border-border/35 bg-card/70 p-5 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/[0.07] text-primary">
+              <Database className="h-4 w-4" aria-hidden="true" />
+            </div>
+            <div>
+              <div className="font-medium">连接资料库</div>
+              <div className="mt-1 text-xs leading-5 text-muted-foreground">
+                支持 Qdrant Cloud、自托管 Qdrant 或本机资料库。
+              </div>
             </div>
           </div>
 
@@ -206,7 +224,7 @@ export default function KnowledgeEmbeddingSettingsCard({
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-medium">向量库 API Key</div>
-                <Badge variant={form.qdrantApiKeyConfigured ? "default" : "outline"}>
+                <Badge variant="secondary" className={`border-0 font-normal ${form.qdrantApiKeyConfigured ? "bg-success/10 text-success" : "bg-muted/60"}`}>
                   {form.qdrantApiKeyConfigured ? "Key 可用" : "未设置"}
                 </Badge>
               </div>
@@ -223,7 +241,7 @@ export default function KnowledgeEmbeddingSettingsCard({
               />
             </div>
 
-            <label className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+            <label className="flex items-center gap-2 rounded-2xl bg-muted/25 px-4 py-3 text-sm">
               <input
                 type="checkbox"
                 checked={form.clearQdrantApiKey}
@@ -239,12 +257,12 @@ export default function KnowledgeEmbeddingSettingsCard({
           </div>
         </section>
 
-        <details className="group rounded-md border bg-muted/10 p-4">
+        <details className="group rounded-3xl bg-muted/20 p-5 sm:p-6">
           <summary className="flex cursor-pointer list-none flex-col gap-2 md:flex-row md:items-center md:justify-between">
             <div className="space-y-1">
-              <div className="text-sm font-semibold">高级配置</div>
+              <div className="font-medium">高级配置</div>
               <div className="text-xs text-muted-foreground">
-                集合命名、索引重建、检索质量、超时和后台任务参数都收在这里。
+                集合版本 v{form.collectionVersion} · 集合命名、索引重建、检索质量和后台任务参数
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
@@ -640,19 +658,23 @@ export default function KnowledgeEmbeddingSettingsCard({
           </div>
         </details>
 
-        <Button
-          onClick={onSave}
-          disabled={
-            isSaving
-            || modelQuery.isLoading
-            || !form.embeddingModel.trim()
-            || !collectionNameToDisplay.trim()
-            || !form.qdrantUrl.trim()
-          }
-        >
-          {isSaving ? "保存中..." : "保存知识检索设置"}
-        </Button>
-      </CardContent>
-    </Card>
+        <div className="flex flex-col gap-3 border-t border-border/30 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs leading-5 text-muted-foreground">保存后，新建或重建索引的资料会使用这套检索设置。</p>
+          <Button
+            className="w-full rounded-full sm:w-auto"
+            onClick={onSave}
+            disabled={
+              isSaving
+              || modelQuery.isLoading
+              || !form.embeddingModel.trim()
+              || !collectionNameToDisplay.trim()
+              || !form.qdrantUrl.trim()
+            }
+          >
+            {isSaving ? "保存中..." : "保存检索设置"}
+          </Button>
+        </div>
+      </div>
+    </section>
   );
 }

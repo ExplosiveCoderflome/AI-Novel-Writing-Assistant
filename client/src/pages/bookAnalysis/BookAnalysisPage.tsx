@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpenText, ListChecks, Plus, RefreshCw } from "lucide-react";
-import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
+import { ListChecks, Plus, RefreshCw } from "lucide-react";
 import {
   WorkspaceHeader,
   WorkspaceNextAction,
@@ -19,11 +18,7 @@ import { useBookAnalysisActiveView } from "./hooks/useBookAnalysisActiveView";
 import { useBookAnalysisChapterReader } from "./hooks/useBookAnalysisChapterReader";
 import { useBookAnalysisDualPanePreference } from "./hooks/useBookAnalysisDualPanePreference";
 import { useBookAnalysisWorkspace } from "./hooks/useBookAnalysisWorkspace";
-import {
-  resolveBookAnalysisNextAction,
-  summarizeBookAnalysisSections,
-} from "./bookAnalysisWorkspaceViewModel";
-import { formatStage, formatStatus } from "./bookAnalysis.utils";
+import { resolveBookAnalysisNextAction } from "./bookAnalysisWorkspaceViewModel";
 
 export default function BookAnalysisPage() {
   const workspace = useBookAnalysisWorkspace();
@@ -104,10 +99,6 @@ export default function BookAnalysisPage() {
   ) : null;
 
   const sectionsViewDualPaneAvailable = activeView === "sections" && dualPanePreference.dualPaneAvailable;
-  const sectionSummary = useMemo(
-    () => summarizeBookAnalysisSections(workspace.selectedAnalysis),
-    [workspace.selectedAnalysis],
-  );
   const nextAction = useMemo(
     () => resolveBookAnalysisNextAction({
       analysis: workspace.selectedAnalysis,
@@ -169,7 +160,7 @@ export default function BookAnalysisPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 pb-10">
       {workspace.selectedAnalysis ? (
         <BookAnalysisBudgetAdjustDialog
           open={budgetDialogMode !== null}
@@ -180,46 +171,19 @@ export default function BookAnalysisPage() {
           onSubmit={handleBudgetSubmit}
         />
       ) : null}
-      <WorkspaceHeader
-        icon={BookOpenText}
-        context={workspace.analysisMode === "diagnosis" ? "稿件诊断 · 原文与结果工作台" : "参考拆书 · 原文与结果工作台"}
-        title={workspace.selectedAnalysis?.title ?? "拆书分析"}
-        description={workspace.selectedAnalysis
-          ? "围绕来源文档阅读结构、人物、世界和写法结论；结果可以继续发布到小说知识库或交给创作中枢引用。"
-          : "选择来源文档并生成结构化拆书结果，完成后可直接阅读小节、回看原文证据和整理角色档案。"}
-        meta={workspace.selectedAnalysis ? (
-          <>
-            <span>来源：{workspace.selectedAnalysis.documentTitle} · v{workspace.selectedAnalysis.documentVersionNumber}</span>
-            <span>
-              阶段：{workspace.selectedAnalysis.currentStage
-                ? formatStage(workspace.selectedAnalysis.currentStage)
-                : workspace.selectedAnalysis.status === "succeeded"
-                  ? "结果可阅读"
-                  : formatStatus(workspace.selectedAnalysis.status)}
-            </span>
-            <span>进度：{Math.round(workspace.selectedAnalysis.progress * 100)}%</span>
-            <span>范围：{workspace.selectedAnalysis.sourceRange?.label ?? "全文"}</span>
-            <span>计划小节：{sectionSummary.readableExpected}/{sectionSummary.expected} 可阅读</span>
-          </>
-        ) : null}
-        actions={(
-          <>
+      {!workspace.selectedAnalysisId ? (
+        <WorkspaceHeader
+          className="rounded-[24px] border-b-0 bg-card px-5 py-6 shadow-[0_18px_55px_rgba(15,23,42,0.05)] sm:px-7"
+          title="拆书分析"
+          description="选择来源文档并生成结构化拆书结果，完成后可直接阅读小节、回看原文证据和整理角色档案。"
+          actions={(
             <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(true)}>
               <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
               新建拆书
             </Button>
-            {workspace.selectedAnalysis ? (
-              <OpenInCreativeHubButton
-                bindings={{
-                  bookAnalysisId: workspace.selectedAnalysisId || null,
-                  knowledgeDocumentIds: workspace.selectedDocumentId ? [workspace.selectedDocumentId] : [],
-                }}
-                label="在创作中枢引用"
-              />
-            ) : null}
-          </>
-        )}
-      />
+          )}
+        />
+      ) : null}
 
       {workspace.selectedAnalysisId && workspace.queryState.detailLoading ? (
         <WorkspaceStateNotice
@@ -259,8 +223,9 @@ export default function BookAnalysisPage() {
             </Button>
           )}
         />
-      ) : (
+      ) : nextAction.tone !== "success" ? (
         <WorkspaceNextAction
+          className="rounded-2xl border-transparent px-5 py-4 shadow-[0_10px_30px_rgba(15,23,42,0.04)]"
           tone={nextAction.tone}
           icon={nextAction.action === "view_results" ? ListChecks : undefined}
           title={nextAction.title}
@@ -276,10 +241,11 @@ export default function BookAnalysisPage() {
             </Button>
           ) : null}
         />
-      )}
-      <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
-        <div className="order-2 min-w-0 xl:order-1">
+      ) : null}
+      <div className="grid gap-6 xl:grid-cols-[252px_minmax(0,1fr)]">
+        <div className="order-2 min-w-0 xl:order-1 xl:sticky xl:top-4 xl:self-start">
           <BookAnalysisSidebar
+            analysisMode={workspace.analysisMode}
             keyword={workspace.keyword}
             status={workspace.status}
             analyses={workspace.analyses}
@@ -288,9 +254,8 @@ export default function BookAnalysisPage() {
             errorMessage={workspace.queryState.analysesError}
             onKeywordChange={workspace.setKeyword}
             onStatusChange={workspace.setStatus}
-            onOpenAnalysis={(analysisId, documentId) => {
+            onOpenAnalysis={(analysisId) => {
               pendingResultFocusIdRef.current = analysisId;
-              workspace.openAnalysis(analysisId, documentId);
               setActiveView("sections");
             }}
             onOpenCreateDialog={() => setCreateDialogOpen(true)}
@@ -298,7 +263,7 @@ export default function BookAnalysisPage() {
           />
         </div>
 
-        <div className="order-1 min-w-0 space-y-4 xl:order-2">
+        <div className="order-1 min-w-0 space-y-5 xl:order-2">
           {workspace.analysisMode === "diagnosis" && workspace.selectedAnalysis ? (
             <BookAnalysisDiagnosisTipBanner documentTitle={workspace.selectedAnalysis.documentTitle} />
           ) : null}

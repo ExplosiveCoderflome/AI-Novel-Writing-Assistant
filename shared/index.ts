@@ -31,4 +31,5 @@ export * from "./types/novelWorkflow";
 export * from "./types/onboarding";
 export * from "./types/volumePlanning";
 export * from "./types/canonicalState";
+export * from "./types/creationStudio";
 export * from "./utils/bookAnalysisTimeline";

@@ -14,9 +14,11 @@ function buildVisibleProfileSummary(
     character.appearance || character.physique
       ? `样貌/体态=${compactText([character.appearance, character.physique].filter(Boolean).join("；"))}`
       : "",
+    character.attireStyle ? `常见穿着=${compactText(character.attireStyle)}` : "",
     character.signatureDetail ? `标志=${compactText(character.signatureDetail)}` : "",
     character.voiceTexture ? `声音=${compactText(character.voiceTexture)}` : "",
-  ], 3);
+    character.presenceImpression ? `登场印象=${compactText(character.presenceImpression)}` : "",
+  ], 6);
   return parts.length > 0 ? parts.join(" | ") : null;
 }
 

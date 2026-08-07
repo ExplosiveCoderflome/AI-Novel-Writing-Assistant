@@ -50,6 +50,32 @@ body {
 }
 
 @layer utilities {
+  .live-execution-scrollbar {
+    scrollbar-color: rgb(52 211 153 / 0.42) transparent;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+
+  .live-execution-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .live-execution-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .live-execution-scrollbar::-webkit-scrollbar-thumb {
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: rgb(52 211 153 / 0.34);
+    background-clip: padding-box;
+  }
+
+  .live-execution-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgb(52 211 153 / 0.58);
+    background-clip: padding-box;
+  }
+
   .mobile-novel-workspace-panel {
     overflow-wrap: anywhere;
   }

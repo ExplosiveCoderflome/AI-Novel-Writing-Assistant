@@ -48,6 +48,16 @@ export const chapterEditorRewriteCandidatesPrompt: PromptAsset<
     { group: "world_slice", priority: 76, sourceHint: "World constraints that local edits must preserve." },
     { group: "recent_chapters", priority: 64, sourceHint: "Nearby continuity for editor preview." },
   ],
+  editableSlots: [
+    {
+      key: "chapterEditor.candidateStyle",
+      label: "候选改写风格",
+      description: "调整候选版本之间的差异化方向和表达偏向。",
+      riskLevel: "low",
+      maxLength: 600,
+      defaultValue: "候选要形成清晰差异，例如更自然、更克制、更强化情绪，但都要可用。",
+    },
+  ],
   slots: [
     {
       kind: "replace" as const,

@@ -9,6 +9,7 @@ import type {
   NovelStoryMode,
   PlotBeat,
 } from "@ai-novel/shared/types/novel";
+import type { ImageAsset, ImageTaskStatus } from "@ai-novel/shared/types/image";
 
 export type NovelListItem = Pick<
   Novel,
@@ -23,11 +24,17 @@ export type NovelListItem = Pick<
   | "status"
   | "writingMode"
   | "projectMode"
+  | "narrativeForm"
+  | "targetWordCount"
+  | "derivedFromNovelId"
+  | "writingPlatform"
+  | "writingPlatformProfileVersion"
   | "narrativePov"
   | "pacePreference"
   | "styleTone"
   | "emotionIntensity"
   | "aiFreedom"
+  | "postGenerationStyleReviewEnabled"
   | "defaultChapterLength"
   | "estimatedChapterCount"
   | "projectStatus"
@@ -46,6 +53,11 @@ export type NovelListItem = Pick<
   | "createdAt"
   | "updatedAt"
 > & {
+  primaryCover?: ImageAsset | null;
+  coverGeneration?: {
+    taskId: string;
+    status: ImageTaskStatus;
+  } | null;
   _count: {
     chapters: number;
     characters: number;
@@ -61,6 +73,7 @@ export type NovelListItem = Pick<
     worldType?: string | null;
   } | null;
   latestAutoDirectorTask?: NovelAutoDirectorTaskSummary | null;
+  latestCreationStudioTask?: NovelAutoDirectorTaskSummary | null;
 };
 
 export interface NovelListResponse {

@@ -25,8 +25,8 @@ import type {
   PromptTemplateVersionView,
 } from "./templateTypes";
 import {
-  ADVANCED_TEMPLATE_PROMPT_ID,
   ADVANCED_TEMPLATE_SCOPE,
+  supportsAdvancedPromptTemplate,
 } from "./templateTypes";
 
 type UnknownPromptAsset = PromptAsset<unknown, unknown, unknown>;
@@ -123,14 +123,11 @@ function toOfficialView(input: {
 }
 
 function assertAdvancedTemplatePrompt(promptId: string): UnknownPromptAsset {
-  if (promptId !== ADVANCED_TEMPLATE_PROMPT_ID) {
-    throw new Error("第一阶段仅支持正文写作提示词的高级模板。");
-  }
   const asset = findRegisteredPromptAssetById(promptId);
   if (!asset) {
     throw new Error(`提示词未注册：${promptId}`);
   }
-  if (asset.id !== ADVANCED_TEMPLATE_PROMPT_ID || asset.mode !== "text") {
+  if (!supportsAdvancedPromptTemplate(promptId) || !asset.management?.editModes.includes("advanced_template")) {
     throw new Error("该提示词不支持高级模板。");
   }
   return asset;
@@ -341,7 +338,7 @@ export class PromptTemplateOverrideService {
     versionId: string;
     basePromptVersion: string;
   } | null> {
-    if (input.promptId !== ADVANCED_TEMPLATE_PROMPT_ID || !input.novelId) {
+    if (!supportsAdvancedPromptTemplate(input.promptId) || !input.novelId) {
       return null;
     }
     try {
