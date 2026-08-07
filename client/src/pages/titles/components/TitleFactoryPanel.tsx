@@ -1,5 +1,3 @@
-import { useTranslation } from "react-i18next";
-import i18next from "i18next";
 import { useMemo, useState } from "react";
 import type { TitleFactorySuggestion } from "@ai-novel/shared/types/title";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -27,16 +25,16 @@ type FactoryMode = "novel" | "brief" | "adapt";
 
 const MODE_COPY: Record<FactoryMode, { title: string; description: string }> = {
   novel: {
-    title: i18next.t("dict.gen_c0b5a8ae"),
-    description: i18next.t("dict.gen_5a1a30d0"),
+    title: "按小说生成",
+    description: "读取已保存的小说项目资料，直接产出更贴近当前作品的标题候选。",
   },
   brief: {
-    title: i18next.t("dict.gen_5375d812"),
-    description: i18next.t("dict.gen_697ece5c"),
+    title: "自由工坊",
+    description: "只写一句题材、主角卖点或核心冲突，快速试一批不同方向的标题。",
   },
   adapt: {
-    title: i18next.t("dict.gen_6907616c"),
-    description: i18next.t("dict.gen_36c8377c"),
+    title: "参考改编",
+    description: "参考一个标题的节奏和命名结构，再结合你的作品信息重新生成。",
   },
 };
 
@@ -49,7 +47,6 @@ function sortSuggestions<T extends { clickRate: number }>(items: T[]): T[] {
 }
 
 export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPanelProps) {
-  const { t } = useTranslation();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const genreOptions = useMemo(() => flattenGenreTreeOptions(genreTree), [genreTree]);
@@ -72,7 +69,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     mutationFn: async () => {
       if (mode === "novel") {
         if (!selectedNovelId) {
-          throw new Error(i18next.t("dict.gen_bc7b49a8"));
+          throw new Error("请先选择一个小说项目。");
         }
         const response = await generateNovelTitles(selectedNovelId, {
           provider: llm.provider,
@@ -109,7 +106,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     mutationFn: (suggestion: TitleFactorySuggestion) => {
       const resolvedGenreId = mode === "novel" ? selectedNovel?.genre?.id ?? null : genreId || null;
       const description = mode === "novel"
-        ? `来源项目：${selectedNovel?.title ?? i18next.t("dict.gen_e47afac6")}`
+        ? `来源项目：${selectedNovel?.title ?? "未命名项目"}`
         : mode === "adapt"
           ? `参考标题：${referenceTitle.trim()}`
           : brief.trim().slice(0, 400);
@@ -128,14 +125,14 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success(i18next.t("dict.gen_fccedc6f"));
+      toast.success("标题已加入标题库。");
     },
   });
 
   const handleCopy = async (suggestion: TitleFactorySuggestion) => {
     await navigator.clipboard.writeText(suggestion.title);
     setSelectedTitle(suggestion.title);
-    toast.success(i18next.t("dict.gen_3257008e"));
+    toast.success("标题已复制到剪贴板。");
   };
 
   const handlePrimaryAction = async (suggestion: TitleFactorySuggestion) => {
@@ -147,31 +144,29 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
   return (
     <div className="space-y-6">
       <Tabs value={mode} onValueChange={(value) => setMode(value as FactoryMode)}>
-        <section className="rounded-2xl bg-muted/[0.18] p-4 shadow-[0_18px_52px_rgba(15,23,42,0.07)] sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold tracking-normal text-foreground">{modeCopy.title}</h2>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{modeCopy.description}</p>
-            </div>
-
-            <TabsList className="grid h-10 w-full grid-cols-3 bg-background/70 p-1 shadow-sm lg:w-[420px]">
-              <TabsTrigger value="novel">{i18next.t("dict.gen_c0b5a8ae")}</TabsTrigger>
-              <TabsTrigger value="brief">{i18next.t("dict.gen_5375d812")}</TabsTrigger>
-              <TabsTrigger value="adapt">{i18next.t("dict.gen_6907616c")}</TabsTrigger>
+        <section className="rounded-3xl bg-muted/[0.18] p-4 sm:p-6">
+          <div className="mx-auto max-w-3xl">
+            <TabsList className="grid h-11 w-full grid-cols-3 rounded-full bg-background/70 p-1 shadow-sm">
+              <TabsTrigger value="novel" className="rounded-full">按小说生成</TabsTrigger>
+              <TabsTrigger value="brief" className="rounded-full">自由工坊</TabsTrigger>
+              <TabsTrigger value="adapt" className="rounded-full">参考改编</TabsTrigger>
             </TabsList>
+            <p className="mt-3 text-center text-sm leading-6 text-muted-foreground">{modeCopy.description}</p>
           </div>
 
-          <div className="mt-6">
+          <div className="mx-auto mt-6 max-w-4xl">
             <TabsContent value="novel" className="mt-0 space-y-3">
-              <div className="grid gap-3 md:grid-cols-[132px_minmax(0,1fr)] md:items-center">
-                <label htmlFor="title-factory-novel" className="text-sm font-medium text-foreground">{i18next.t("titles.titleFactoryPanel.skvpcq")}</label>
+              <div className="space-y-2">
+                <label htmlFor="title-factory-novel" className="text-sm font-medium text-foreground">
+                  想为哪本小说取名？
+                </label>
                 <SelectControl
                   id="title-factory-novel"
                   className={controlClassName}
                   value={selectedNovelId}
                   onChange={(event) => setSelectedNovelId(event.target.value)}
                 >
-                  <option value="">{i18next.t("dict.gen_9fc2e26b")}</option>
+                  <option value="">请选择项目</option>
                   {novels.map((novel) => (
                     <option key={novel.id} value={novel.id}>
                       {novel.title}
@@ -179,60 +174,72 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                   ))}
                 </SelectControl>
               </div>
-              <div className="pl-0 text-xs leading-5 text-muted-foreground md:pl-[132px]">{i18next.t("titles.titleFactoryPanel.hi5g5")}</div>
+              <div className="text-xs leading-5 text-muted-foreground">
+                适合已填写简介和类型的作品，系统会结合项目资料生成候选标题。
+              </div>
             </TabsContent>
 
             <TabsContent value="brief" className="mt-0 grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
               <div className="space-y-3">
-                <label htmlFor="title-factory-brief" className="text-sm font-medium text-foreground">{i18next.t("titles.titleFactoryPanel.ap15l2")}</label>
+                <label htmlFor="title-factory-brief" className="text-sm font-medium text-foreground">
+                  创作简报
+                </label>
                 <textarea
                   id="title-factory-brief"
                   className={`${textareaClassName} min-h-[176px]`}
                   value={brief}
                   onChange={(event) => setBrief(event.target.value)}
-                  placeholder={i18next.t("dict.gen_224614a8")}
+                  placeholder="描述题材、主角卖点、冲突、文风和读者期待。越具体，标题越有区分度。"
                 />
               </div>
               <div className="space-y-3">
-                <label htmlFor="title-factory-genre" className="text-sm font-medium text-foreground">{i18next.t("titles.titleFactoryPanel.g2qjcd")}</label>
+                <label htmlFor="title-factory-genre" className="text-sm font-medium text-foreground">
+                  类型过滤
+                </label>
                 <SelectControl
                   id="title-factory-genre"
                   className={controlClassName}
                   value={genreId}
                   onChange={(event) => setGenreId(event.target.value)}
                 >
-                  <option value="">{i18next.t("dict.unspecifiedType")}</option>
+                  <option value="">不指定类型</option>
                   {genreOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.path}
                     </option>
                   ))}
                 </SelectControl>
-                <p className="text-xs leading-5 text-muted-foreground">{i18next.t("titles.titleFactoryPanel.yfukcj")}</p>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  不确定类型时可以留空，让模型先按简报自行判断标题方向。
+                </p>
               </div>
             </TabsContent>
 
             <TabsContent value="adapt" className="mt-0 space-y-4">
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
                 <div className="space-y-3">
-                  <label htmlFor="title-factory-reference" className="text-sm font-medium text-foreground">{i18next.t("novels.novelCreateTitleQuickFill.b3krzm")}</label>
+                  <label htmlFor="title-factory-reference" className="text-sm font-medium text-foreground">
+                    参考标题
+                  </label>
                   <Input
                     id="title-factory-reference"
                     value={referenceTitle}
                     onChange={(event) => setReferenceTitle(event.target.value)}
-                    placeholder={i18next.t("dict.exampleScavengePropertiesDust")}
+                    placeholder="例如：我在废土捡属性"
                     className={inputClassName}
                   />
                 </div>
                 <div className="space-y-3">
-                  <label htmlFor="title-factory-adapt-genre" className="text-sm font-medium text-foreground">{i18next.t("titles.titleFactoryPanel.g2qjcd")}</label>
+                  <label htmlFor="title-factory-adapt-genre" className="text-sm font-medium text-foreground">
+                    类型过滤
+                  </label>
                   <SelectControl
                     id="title-factory-adapt-genre"
                     className={controlClassName}
                     value={genreId}
                     onChange={(event) => setGenreId(event.target.value)}
                   >
-                    <option value="">{i18next.t("dict.unspecifiedType")}</option>
+                    <option value="">不指定类型</option>
                     {genreOptions.map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.path}
@@ -242,31 +249,33 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                 </div>
               </div>
               <div className="space-y-3">
-                <label htmlFor="title-factory-adapt-brief" className="text-sm font-medium text-foreground">{i18next.t("titles.titleFactoryPanel.adcpu2")}</label>
+                <label htmlFor="title-factory-adapt-brief" className="text-sm font-medium text-foreground">
+                  作品简报
+                </label>
                 <textarea
                   id="title-factory-adapt-brief"
                   className={`${textareaClassName} min-h-[132px]`}
                   value={brief}
                   onChange={(event) => setBrief(event.target.value)}
-                  placeholder={i18next.t("dict.gen_7bf3fd6a")}
+                  placeholder="说明你的作品题材、人物与卖点。系统会参考标题节奏，但不会直接照抄。"
                 />
               </div>
             </TabsContent>
           </div>
 
-          <div className="mt-5 flex flex-col gap-3 border-t border-border/55 pt-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="mx-auto mt-6 flex max-w-4xl flex-col gap-3 border-t border-border/40 pt-4 lg:flex-row lg:items-center lg:justify-between">
             <button
               type="button"
               className="inline-flex items-center gap-2 text-left text-xs text-muted-foreground transition hover:text-foreground"
               onClick={() => setShowModelSettings((value) => !value)}
             >
               <Settings2 className="h-3.5 w-3.5" />
-              <span>{i18next.t("dict.gen_4a6ca1bb")}</span>
+              <span>模型 {llm.provider} · {llm.model}</span>
             </button>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
               <label className="flex items-center gap-2 text-sm">
-                <span className="font-medium text-foreground">{i18next.t("dict.gen_0bf60b32")}</span>
+                <span className="font-medium text-foreground">数量</span>
                 <Input
                   type="number"
                   min={3}
@@ -279,40 +288,46 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
               </label>
               <Button
                 type="button"
-                className="h-10 gap-2 px-5"
+                className="h-10 gap-2 rounded-full px-6"
                 onClick={() => generateMutation.mutate()}
                 disabled={generateMutation.isPending}
               >
                 <Sparkles className="h-4 w-4" />
-                {generateMutation.isPending ? i18next.t("dict.gen_4d020ba3") : i18next.t("dict.gen_5a237b85")}
+                {generateMutation.isPending ? "生成中..." : "生成标题"}
               </Button>
             </div>
           </div>
 
           {showModelSettings ? (
-            <div className="mt-4 border-t border-border/55 pt-4">
+            <div className="mx-auto mt-4 max-w-4xl border-t border-border/40 pt-4">
               <LLMSelector showParameters showBadge={false} />
+            </div>
+          ) : null}
+          {generateMutation.error ? (
+            <div className="mx-auto mt-4 max-w-4xl rounded-xl bg-destructive/[0.055] px-4 py-3 text-sm text-destructive">
+              {generateMutation.error instanceof Error ? generateMutation.error.message : "标题生成失败，请重试。"}
             </div>
           ) : null}
         </section>
       </Tabs>
 
-      <section className="space-y-3">
+      <section className="space-y-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <h3 className="text-base font-semibold text-foreground">{i18next.t("dict.gen_e995da4f")}</h3>
+          <h3 className="text-base font-semibold text-foreground">候选结果</h3>
           <div className="text-xs text-muted-foreground">
-            {suggestions.length > 0 ? `已按点击潜力排序，共 ${suggestions.length} 个` : i18next.t("dict.gen_0df2129e")}
+            {suggestions.length > 0 ? `已按点击潜力排序，共 ${suggestions.length} 个` : "结果会在生成后显示"}
           </div>
         </div>
         <TitleSuggestionList
+          layout="grid"
           suggestions={suggestions}
           selectedTitle={selectedTitle}
-          primaryActionLabel={i18next.t("dict.gen_6f3398e0")}
+          primaryActionLabel="复制标题"
           onPrimaryAction={handlePrimaryAction}
           onCopy={handleCopy}
           onSave={(suggestion) => saveMutation.mutate(suggestion)}
           savingTitle={saveMutation.isPending ? saveMutation.variables?.title ?? "" : ""}
-          emptyMessage={i18next.t("dict.gen_44832a62")}
+          emptyMessage={`${modeCopy.title}准备好后，点击“生成标题”查看不同命名方向。`}
         />
       </section>
     </div>
