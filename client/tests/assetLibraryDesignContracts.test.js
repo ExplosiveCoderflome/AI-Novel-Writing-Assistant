@@ -25,6 +25,9 @@ const worldLayers = readClientFile("src/pages/worlds/components/workspace/WorldL
 const worldDeepening = readClientFile("src/pages/worlds/components/workspace/WorldDeepeningTab.tsx");
 const worldConsistency = readClientFile("src/pages/worlds/components/workspace/WorldConsistencyTab.tsx");
 const worldAssets = readClientFile("src/pages/worlds/components/workspace/WorldAssetsTab.tsx");
+const worldVisualization = readClientFile("src/pages/worlds/components/WorldVisualizationBoard.tsx");
+const worldGraphCanvas = readClientFile("src/pages/worlds/components/visualization/WorldGraphCanvas.tsx");
+const worldGraphLayout = readClientFile("src/pages/worlds/components/visualization/worldGraphLayout.ts");
 const genrePage = readClientFile("src/pages/genres/GenreManagementPage.tsx");
 const genreTreeBrowser = readClientFile("src/pages/genres/components/GenreTreeBrowser.tsx");
 const storyModePage = readClientFile("src/pages/storyModes/StoryModeManagementPage.tsx");
@@ -123,6 +126,22 @@ test("world workspace keeps handbook reading primary and AI maintenance guided",
   assert.match(worldAssets, /版本快照/);
   assert.match(worldAssets, /导出备份/);
   assert.match(worldAssets, /导入文本/);
+});
+
+test("world visualizations separate layout, canvas, and view controls", () => {
+  assert.match(worldVisualization, /WorldGraphCanvas/);
+  assert.match(worldVisualization, /势力图谱 ·/);
+  assert.match(worldVisualization, /世界地图 ·/);
+  assert.match(worldGraphCanvas, /buildEdgeLabelPlacements/);
+  assert.match(worldGraphCanvas, /节点按势力类型分散排布/);
+  assert.match(worldGraphCanvas, /地点会按相对方位铺开/);
+  assert.match(worldGraphLayout, /buildFactionLayout/);
+  assert.match(worldGraphLayout, /spreadAxis/);
+  assert.match(worldGraphLayout, /duplicateCounts/);
+  assert.match(worldGraphLayout, /buildLabelPlacements/);
+  assert.ok(worldVisualization.split("\n").length < 350);
+  assert.ok(worldGraphCanvas.split("\n").length < 500);
+  assert.ok(worldGraphLayout.split("\n").length < 500);
 });
 
 test("genre library uses a compact tree browser with a separate detail surface", () => {
