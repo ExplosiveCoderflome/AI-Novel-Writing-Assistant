@@ -146,7 +146,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
         temperature: 0.4,
       }),
     onSuccess: async () => {
-      setCharacterMessage("角色信息已按时间线完成演进更新。");
+      setCharacterMessage("The character information has been updated according to the timeline.");
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
   });
@@ -161,10 +161,10 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       }),
     onSuccess: (response) => {
       const count = Object.keys(response.data?.fields ?? {}).length;
-      setCharacterMessage(count > 0 ? `已生成 ${count} 项外显资料建议，请确认后写入。` : "当前角色没有可补写的外显资料。");
+      setCharacterMessage(count > 0 ? `已生成 ${count} 项外显资料建议，请确认后写入。` : "There is no explicit data for the current character to be rewritten.");
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "外显资料生成失败。");
+      setCharacterMessage(error instanceof Error ? error.message : "Explicit data generation failed.");
     },
   });
 
@@ -178,11 +178,11 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
     },
     onSuccess: async (response) => {
       const count = response.data?.appliedFields.length ?? 0;
-      setCharacterMessage(count > 0 ? `已写入 ${count} 项外显资料。` : "没有新的外显资料需要写入。");
+      setCharacterMessage(count > 0 ? `已写入 ${count} 项外显资料。` : "No new explicit data needs to be written.");
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "外显资料写入失败。");
+      setCharacterMessage(error instanceof Error ? error.message : "Writing of explicit data failed.");
     },
   });
 
@@ -196,10 +196,10 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       }),
     onSuccess: (response) => {
       const count = response.data?.results.filter((item) => item.hasApplicableChanges).length ?? 0;
-      setCharacterMessage(count > 0 ? `已生成 ${count} 个角色的外显资料建议，请确认后写入。` : "当前角色资料暂时没有需要补写的外显内容。");
+      setCharacterMessage(count > 0 ? `已生成 ${count} 个角色的外显资料建议，请确认后写入。` : "There is no explicit content that needs to be written in the current character profile.");
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "批量外显资料生成失败。");
+      setCharacterMessage(error instanceof Error ? error.message : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
     },
   });
 
@@ -216,11 +216,11 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
     },
     onSuccess: async (response) => {
       const count = response.data?.results.reduce((sum, item) => sum + item.appliedFields.length, 0) ?? 0;
-      setCharacterMessage(count > 0 ? `已批量写入 ${count} 项外显资料。` : "没有新的外显资料需要批量写入。");
+      setCharacterMessage(count > 0 ? `已批量写入 ${count} 项外显资料。` : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "批量外显资料写入失败。");
+      setCharacterMessage(error instanceof Error ? error.message : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
     },
   });
 
@@ -240,7 +240,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       setCharacterMessage(`世界规则检查(${status}) ${warningText} ${issueText}`.trim());
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "世界规则检查失败。");
+      setCharacterMessage(error instanceof Error ? error.message : "World rules check failed.");
     },
   });
 
@@ -263,7 +263,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
         currentGoal: characterForm.currentGoal,
       }),
     onSuccess: async () => {
-      setCharacterMessage("角色信息已保存。");
+      setCharacterMessage("Role information saved.");
       await invalidateCharacterViews(queryClient, id, selectedCharacterId || "none");
     },
   });
@@ -271,7 +271,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
   const importBaseCharacterMutation = useMutation({
     mutationFn: async () => {
       if (!selectedBaseCharacter) {
-        throw new Error("请先选择要导入的基础角色。");
+        throw new Error("Please select the base role to import first.");
       }
       return createNovelCharacter(id, {
         name: selectedBaseCharacter.name,
@@ -283,21 +283,21 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       });
     },
     onSuccess: async (response) => {
-      setCharacterMessage(response.message ?? "基础角色已导入到当前小说。");
+      setCharacterMessage(response.message ?? "The base character has been imported into the current novel.");
       if (response.data?.id) {
         setSelectedCharacterId(response.data.id);
       }
       await invalidateCharacterViews(queryClient, id, response.data?.id ?? selectedCharacterId ?? "none");
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "导入基础角色失败。");
+      setCharacterMessage(error instanceof Error ? error.message : "Failed to import base character.");
     },
   });
 
   const quickCreateCharacterMutation = useMutation({
     mutationFn: async (payload?: QuickCharacterCreatePayload) => {
       const nextName = payload?.name?.trim() || quickCharacterForm.name.trim();
-      const nextRole = payload?.role?.trim() || quickCharacterForm.role.trim() || "主角";
+      const nextRole = payload?.role?.trim() || quickCharacterForm.role.trim() || "main character";
       const generatedProfile = payload ? buildCharacterProfileFromWizard(payload) : {};
       return createNovelCharacter(id, {
         name: nextName,
@@ -308,7 +308,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       });
     },
     onSuccess: async (response) => {
-      setCharacterMessage(response.message ?? "角色创建成功。");
+      setCharacterMessage(response.message ?? "The character was created successfully.");
       setQuickCharacterForm((prev) => ({ ...prev, name: "" }));
       if (response.data?.id) {
         setSelectedCharacterId(response.data.id);
@@ -316,14 +316,14 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       await invalidateCharacterViews(queryClient, id, response.data?.id ?? selectedCharacterId ?? "none");
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "角色创建失败。");
+      setCharacterMessage(error instanceof Error ? error.message : "Character creation failed.");
     },
   });
 
   const deleteCharacterMutation = useMutation({
     mutationFn: (characterId: string) => deleteNovelCharacter(id, characterId),
     onSuccess: async (_response, deletedCharacterId) => {
-      setCharacterMessage("角色已删除。");
+      setCharacterMessage("The role has been deleted.");
       if (selectedCharacterId === deletedCharacterId) {
         const fallback = characters.find((item) => item.id !== deletedCharacterId);
         setSelectedCharacterId(fallback?.id ?? "");
@@ -331,7 +331,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       await invalidateCharacterViews(queryClient, id, deletedCharacterId);
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "删除角色失败。");
+      setCharacterMessage(error instanceof Error ? error.message : "Failed to delete role.");
     },
   });
 
@@ -344,7 +344,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
         temperature: payload.temperature ?? 0.55,
       }),
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "补充角色生成失败。");
+      setCharacterMessage(error instanceof Error ? error.message : "Supplemental character generation failed.");
     },
   });
 
@@ -363,7 +363,7 @@ export function useNovelCharacterMutations(input: UseNovelCharacterMutationsInpu
       await invalidateCharacterViews(queryClient, id, createdCharacterId || selectedCharacterId || "none");
     },
     onError: (error) => {
-      setCharacterMessage(error instanceof Error ? error.message : "应用补充角色失败。");
+      setCharacterMessage(error instanceof Error ? error.message : "Applying supplementary role failed.");
     },
   });
 

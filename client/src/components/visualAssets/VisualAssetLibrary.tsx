@@ -149,7 +149,7 @@ export function VisualAssetLibrary({
   };
 
   return (
-    <section className={cn("flex h-full min-h-0 flex-col bg-background", className)} aria-label="视觉资源库">
+    <section className={cn("flex h-full min-h-0 flex-col bg-background", className)} aria-label="Visual Resource Library">
       <div className="shrink-0 border-b px-5 py-3.5">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
           <label className="relative block min-w-0 flex-1">
@@ -159,20 +159,20 @@ export function VisualAssetLibrary({
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="搜索素材名称、描述或提示词"
               className="h-10 bg-background pl-9"
-              aria-label="搜索视觉素材"
+              aria-label="Search for visual assets"
             />
           </label>
           <div className="flex flex-wrap items-center gap-2">
-            <FilterGroup label="类型" icon={<SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />}>
-              <FilterButton active={!selectedKind} onClick={() => setSelectedKind(undefined)}>全部</FilterButton>
+            <FilterGroup label="type" icon={<SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />}>
+              <FilterButton active={!selectedKind} onClick={() => setSelectedKind(undefined)}>Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</FilterButton>
               {kindFacets.map((facet) => (
                 <FilterButton key={facet.value} active={selectedKind === facet.value} onClick={() => setSelectedKind(facet.value)}>
                   {getVisualAssetKindLabel(facet.value)} <span className="text-muted-foreground">{facet.count}</span>
                 </FilterButton>
               ))}
             </FilterGroup>
-            <FilterGroup label="来源">
-              <FilterButton active={!selectedSource} onClick={() => setSelectedSource(undefined)}>全部</FilterButton>
+            <FilterGroup label="source">
+              <FilterButton active={!selectedSource} onClick={() => setSelectedSource(undefined)}>Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</FilterButton>
               {sourceFacets.map((facet) => (
                 <FilterButton key={facet.value} active={selectedSource === facet.value} onClick={() => setSelectedSource(facet.value)}>
                   {getVisualAssetSourceLabel(facet.value)} <span className="text-muted-foreground">{facet.count}</span>
@@ -186,77 +186,18 @@ export function VisualAssetLibrary({
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1 overflow-y-auto">
           <div className="flex items-center justify-between gap-3 px-5 py-3 text-sm text-muted-foreground">
-            <span>{typeof total === "number" ? `找到 ${total} 项素材` : "正在准备素材"}</span>
-            {hasActiveFilters ? (
-              <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={clearFilters}>
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
-                清除筛选
-              </Button>
-            ) : null}
-          </div>
-          <div className="px-5 pb-5">
-            {catalogQuery.isLoading ? <VisualAssetGridLoading /> : null}
-            {catalogQuery.isError ? (
-              <InlineState
-                title="暂时无法加载视觉素材"
-                description="请检查连接后重新加载。"
-                actionLabel="重新加载"
-                onAction={() => void catalogQuery.refetch()}
-              />
-            ) : null}
-            {!catalogQuery.isLoading && !catalogQuery.isError && items.length === 0 ? (
-              <InlineState
-                title="没有找到匹配的视觉素材"
-                description={hasActiveFilters ? "调整搜索或筛选条件后继续查看。" : "完成图片创作后，素材会显示在这里。"}
-                actionLabel={hasActiveFilters ? "清除筛选" : undefined}
-                onAction={hasActiveFilters ? clearFilters : undefined}
-              />
-            ) : null}
-            {items.length ? (
-              <>
-                <VisualAssetGrid
-                  items={items}
-                  selectedIds={selectedIds}
-                  selectionMode={selectionMode}
-                  onSelect={updateSelection}
-                  onOpenDetails={openDetails}
-                />
-                {catalogQuery.hasNextPage ? (
-                  <div className="flex justify-center pt-5">
-                    <Button type="button" variant="outline" disabled={catalogQuery.isFetchingNextPage} onClick={() => void catalogQuery.fetchNextPage()}>
-                      {catalogQuery.isFetchingNextPage ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
-                      {catalogQuery.isFetchingNextPage ? "正在加载" : "加载更多"}
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            ) : null}
-          </div>
-        </div>
-        {detailAssetId ? (
-          <VisualAssetDetails
-            asset={detailAsset}
-            isLoading={detailQuery.isLoading}
-            isError={detailQuery.isError}
-            onClose={() => setDetailAssetId(null)}
-            onRetry={() => void detailQuery.refetch()}
-          />
-        ) : null}
-      </div>
-
-      {selectionMode !== "browse" ? (
-        <div className="flex shrink-0 flex-col gap-3 border-t bg-background px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>{typeof total === "number" ? `找到 ${total} 项素材` : "Preparing materials"}</span> {hasActiveFilters ? ( <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={clearFilters}> <X className="h-3.5 w-3.5" aria-hidden="true" /> Clear Filters</Button> ) : null} </div> <div className="px-5 pb-5"> {catalogQuery.isLoading ? <VisualAssetGridLoading /> : null} {catalogQuery.isError ? ( <InlineState title="Unable to load visual materials temporarily" description="Please check the connection and reload." actionLabel="Reload" onAction={() => void catalogQuery.refetch()} /> ) : null} {!catalogQuery.isLoading && !catalogQuery.isError && items.length === 0 ? ( <InlineState title="No matching visual materials found" description={hasActiveFilters ? "Continue viewing after adjusting search or filter conditions." : "The materials will be displayed here after the image creation is completed."} actionLabel={hasActiveFilters ? "Clear filters" : undefined} onAction={hasActiveFilters ? clearFilters : undefined} /> ) : null} {items.length ? ( <> <VisualAssetGrid items={items} selectedIds={selectedIds} selectionMode={selectionMode} onSelect={updateSelection} onOpenDetails={openDetails} /> {catalogQuery.hasNextPage ? ( <div className="flex justify-center pt-5"> <Button type="button" variant="outline" disabled={catalogQuery.isFetchingNextPage} onClick={() => void catalogQuery.fetchNextPage()}> {catalogQuery.isFetchingNextPage ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : null} {catalogQuery.isFetchingNextPage ? "Loading" : "Loading more"} </Button> </div> ) : null} </> ) : null} </div> </div> {detailAssetId ? ( <VisualAssetDetails asset={detailAsset} isLoading={detailQuery.isLoading} isError={detailQuery.isError} onClose={() => setDetailAssetId(null)} onRetry={() => void detailQuery.refetch()} /> ) : null} </div> {selectionMode !== "browse" ? ( <div className="flex shrink-0 flex-col gap-3 border-t bg-background px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted-foreground">
-            已选择 <span className="font-medium text-foreground">{selectedItems.length}</span> 项素材
-          </div>
+            Selected <span className="font-medium text-foreground">{selectedItems.length}</span> item material
+                            </div>
           <div className="flex items-center justify-end gap-2">
             {selectedItems.length ? (
-              <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedById(new Map())}>清空选择</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedById(new Map())}>Clear selection</Button>
             ) : null}
             <Button type="button" disabled={!selectedItems.length || !onSelect} onClick={() => onSelect?.(selectedItems)}>
               <Check className="h-4 w-4" aria-hidden="true" />
-              使用已选素材
-            </Button>
+              Use selected material
+                                  </Button>
           </div>
         </div>
       ) : null}
@@ -288,7 +229,7 @@ function FilterButton({ active, children, onClick }: { active: boolean; children
 
 function VisualAssetGridLoading() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" aria-label="正在加载视觉素材">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" aria-label="Loading visual assets">
       {Array.from({ length: 10 }, (_, index) => (
         <div key={index} className="overflow-hidden rounded-md border">
           <div className="aspect-[4/3] animate-pulse bg-muted" />

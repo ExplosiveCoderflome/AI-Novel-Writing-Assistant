@@ -43,7 +43,7 @@ export default function ModelRouteFields({
   return (
     <div className={`grid gap-3 ${showProtocolFields ? "md:grid-cols-6" : "md:grid-cols-4"}`}>
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">服务商</div>
+        <div className="text-xs text-muted-foreground">service provider</div>
         <Select
           value={draft.provider}
           onValueChange={(value) => {
@@ -55,7 +55,7 @@ export default function ModelRouteFields({
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder="选择服务商" />
+            <SelectValue placeholder="Choose a service provider" />
           </SelectTrigger>
           <SelectContent>
             {providerOptions.map((provider) => (
@@ -68,13 +68,13 @@ export default function ModelRouteFields({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">模型</div>
+        <div className="text-xs text-muted-foreground">Model</div>
         <SearchableSelect
           value={draft.model || undefined}
           onValueChange={(value) => onPatch({ model: value })}
           options={modelOptions.map((model) => ({ value: model }))}
-          placeholder="选择模型"
-          searchPlaceholder="搜索模型"
+          placeholder="Select model"
+          searchPlaceholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
           emptyText={modelEmptyText}
         />
         <Input
@@ -85,7 +85,7 @@ export default function ModelRouteFields({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">温度</div>
+        <div className="text-xs text-muted-foreground">temperature</div>
         <Input
           value={draft.temperature}
           placeholder={temperaturePlaceholder}
@@ -94,7 +94,7 @@ export default function ModelRouteFields({
       </div>
 
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">最大输出长度</div>
+        <div className="text-xs text-muted-foreground">Maximum output length</div>
         <Input
           value={draft.maxTokens}
           placeholder={maxTokensPlaceholder}
@@ -104,7 +104,7 @@ export default function ModelRouteFields({
 
       {showProtocolFields ? (
         <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">请求协议</div>
+          <div className="text-xs text-muted-foreground">request protocol</div>
           <Select
             value={draft.requestProtocol}
             onValueChange={(value) => {
@@ -118,11 +118,11 @@ export default function ModelRouteFields({
             }}
           >
             <SelectTrigger>
-              <SelectValue placeholder="自动选择" />
+              <SelectValue placeholder="automatic selection" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="auto">自动选择</SelectItem>
-              <SelectItem value="openai_compatible">OpenAI 兼容</SelectItem>
+              <SelectItem value="auto">automatic selection</SelectItem>
+              <SelectItem value="openai_compatible">OpenAI compatible</SelectItem>
               <SelectItem value="anthropic">Anthropic</SelectItem>
             </SelectContent>
           </Select>
@@ -131,7 +131,7 @@ export default function ModelRouteFields({
 
       {showProtocolFields ? (
         <div className="space-y-1">
-          <div className="text-xs text-muted-foreground">结构化格式</div>
+          <div className="text-xs text-muted-foreground">structured format</div>
           <Select
             value={draft.structuredResponseFormat}
             onValueChange={(value) => onPatch({
@@ -139,12 +139,12 @@ export default function ModelRouteFields({
             })}
           >
             <SelectTrigger>
-              <SelectValue placeholder="自动选择" />
+              <SelectValue placeholder="automatic selection" />
             </SelectTrigger>
             <SelectContent>
               {getStructuredResponseFormatOptions(draft.requestProtocol).map((format) => (
                 <SelectItem key={format} value={format}>
-                  {format === "auto" ? "自动选择" : format}
+                  {format === "auto" ? "Auto-select" : format}
                 </SelectItem>
               ))}
             </SelectContent>

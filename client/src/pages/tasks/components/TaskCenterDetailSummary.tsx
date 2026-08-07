@@ -28,8 +28,8 @@ export default function TaskCenterDetailSummary({
   const progressPercent = typeof dashboardView?.progressPercent === "number"
     ? dashboardView.progressPercent
     : Math.round(task.progress * 100);
-  const currentStage = dashboardView?.stageLabel ?? task.currentStage ?? "暂无";
-  const currentItem = dashboardView?.currentAction ?? task.currentItemLabel ?? "暂无";
+  const currentStage = dashboardView?.stageLabel ?? task.currentStage ?? "None yet";
+  const currentItem = dashboardView?.currentAction ?? task.currentItemLabel ?? "None yet";
   const tone = getTaskQueueTone(task);
 
   return (
@@ -37,7 +37,7 @@ export default function TaskCenterDetailSummary({
       <div className="space-y-1">
         <div className="font-medium">{task.title}</div>
         <div className="text-xs text-muted-foreground">
-          {formatKind(task.kind)} | 归属：{task.ownerLabel}
+          {formatKind(task.kind)} | Attribution:{task.ownerLabel}
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -46,37 +46,37 @@ export default function TaskCenterDetailSummary({
         <TaskQueueStatusBadge label={`进度 ${progressPercent}%`} tone="neutral" />
       </div>
       <div className="space-y-1 text-muted-foreground">
-        <div>展示状态：{dashboardView?.statusLabel ?? task.displayStatus ?? formatStatus(task.status)}</div>
-        <div>当前阶段：{currentStage}</div>
-        <div>当前项：{currentItem}</div>
+        <div>Display status:{dashboardView?.statusLabel ?? task.displayStatus ?? formatStatus(task.status)}</div>
+        <div>Current stage:{currentStage}</div>
+        <div>Current item:{currentItem}</div>
         {task.kind === "novel_workflow" ? (
           <>
-            <div>最近检查点：{formatCheckpoint(task.checkpointType, task.executionScopeLabel)}</div>
-            <div>恢复目标页：{formatResumeTarget(task.resumeTarget)}</div>
-            <div>建议继续：{task.resumeAction ?? task.nextActionLabel ?? "继续小说主流程"}</div>
-            <div>最近健康阶段：{task.lastHealthyStage ?? "暂无"}</div>
+            <div>Recent checkpoints:{formatCheckpoint(task.checkpointType, task.executionScopeLabel)}</div>
+            <div>Restore target page:{formatResumeTarget(task.resumeTarget)}</div>
+            <div>It is recommended to continue:{task.resumeAction ?? task.nextActionLabel ?? "Continue the main flow of the novel"}</div>
+            <div>Recent health stage:{task.lastHealthyStage ?? "None yet"}</div>
           </>
         ) : null}
         {task.blockingReason ? (
-          <div>阻塞原因：{task.blockingReason}</div>
+          <div>Reason for blocking:{task.blockingReason}</div>
         ) : null}
-        <div>最近心跳：{formatDate(task.heartbeatAt)}</div>
-        <div>开始时间：{formatDate(task.startedAt)}</div>
-        <div>结束时间：{formatDate(task.finishedAt)}</div>
-        <div>重试计数：{task.retryCountLabel}</div>
+        <div>Recent heartbeat:{formatDate(task.heartbeatAt)}</div>
+        <div>Start time:{formatDate(task.startedAt)}</div>
+        <div>End time:{formatDate(task.finishedAt)}</div>
+        <div>Retry count:{task.retryCountLabel}</div>
         {(task.provider || task.model) ? (
-          <div>调用模型：{task.provider ?? "暂无"} / {task.model ?? "暂无"}</div>
+          <div>Call model:{task.provider ?? "None yet"} / {task.model ?? "None yet"}</div>
         ) : null}
         {isAutoDirectorTask ? (
-          <div>当前界面模型：{currentModelLabel}</div>
+          <div>Current interface model:{currentModelLabel}</div>
         ) : null}
         {(task.tokenUsage || task.provider || task.model) ? (
           <>
-            <div>累计调用：{formatTokenCount(task.tokenUsage?.llmCallCount ?? 0)}</div>
-            <div>输入 Tokens：{formatTokenCount(task.tokenUsage?.promptTokens ?? 0)}</div>
-            <div>输出 Tokens：{formatTokenCount(task.tokenUsage?.completionTokens ?? 0)}</div>
-            <div>累计总 Tokens：{formatTokenCount(task.tokenUsage?.totalTokens ?? 0)}</div>
-            <div>最近记录：{formatDate(task.tokenUsage?.lastRecordedAt)}</div>
+            <div>Cumulative calls:{formatTokenCount(task.tokenUsage?.llmCallCount ?? 0)}</div>
+            <div>Enter Tokens:{formatTokenCount(task.tokenUsage?.promptTokens ?? 0)}</div>
+            <div>Output Tokens:{formatTokenCount(task.tokenUsage?.completionTokens ?? 0)}</div>
+            <div>Cumulative total Tokens:{formatTokenCount(task.tokenUsage?.totalTokens ?? 0)}</div>
+            <div>Recent records:{formatDate(task.tokenUsage?.lastRecordedAt)}</div>
           </>
         ) : null}
       </div>

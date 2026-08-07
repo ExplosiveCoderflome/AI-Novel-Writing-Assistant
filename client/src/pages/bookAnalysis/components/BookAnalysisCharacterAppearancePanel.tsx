@@ -31,16 +31,16 @@ interface BookAnalysisCharacterAppearancePanelProps {
 const COVERAGE_MARKS = [25, 50, 75, 100];
 const SNAPSHOT_PAGE_SIZE = 12;
 const IMAGE_STATUS_TEXT: Record<string, string> = {
-  queued: "排队中",
-  running: "生成中",
-  succeeded: "生成成功",
-  failed: "生成失败",
-  cancelled: "已取消",
+  queued: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+  running: "Generating",
+  succeeded: "Generated successfully",
+  failed: "Build failed",
+  cancelled: "Canceled",
 };
 
 function formatJsonSummary(value: Record<string, unknown> | null | undefined): string {
   if (!value || Object.keys(value).length === 0) {
-    return "暂无稳定特征";
+    return "No stable features yet";
   }
   return Object.entries(value)
     .slice(0, 6)
@@ -212,7 +212,7 @@ export default function BookAnalysisCharacterAppearancePanel({
       generate: async (overrides) => {
         const response = await generateBookAnalysisCharacterAppearanceImage(analysisId, character.id, snapshotId, {
           count: 2,
-          stylePreset: "同一角色章节形象演变图",
+          stylePreset: "Image evolution chart of the same character in chapters",
           referenceImageAssetIds: selectedReferenceAssetIds,
           overrides,
         });
@@ -243,9 +243,9 @@ export default function BookAnalysisCharacterAppearancePanel({
       <ImageGenerationConfirmDialog {...flow.dialogProps} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">形象演变</span>
+          <span className="font-medium">Image evolution</span>
           <Badge variant="outline">{appearance?.coveragePercent ?? 0}%</Badge>
-          <Badge variant="secondary">{appearance?.snapshots.length ?? 0} 个章节快照</Badge>
+          <Badge variant="secondary">{appearance?.snapshots.length ?? 0} Chapter snapshots</Badge>
         </div>
         <Button
           size="sm"
@@ -253,23 +253,23 @@ export default function BookAnalysisCharacterAppearancePanel({
           onClick={() => scanMutation.mutate()}
           disabled={disabled || scanActive}
         >
-          {scanActive ? "扫描中..." : "增量扫描"}
+          {scanActive ? "Scanning..." : "incremental scan"}
         </Button>
       </div>
 
       <div className="rounded-md border bg-background p-2 text-sm">
-        <div className="text-xs text-muted-foreground">当前外貌</div>
-        <div className="mt-1 whitespace-pre-wrap">{currentAppearance || "暂无外貌描述"}</div>
+        <div className="text-xs text-muted-foreground">current appearance</div>
+        <div className="mt-1 whitespace-pre-wrap">{currentAppearance || "No physical description yet"}</div>
       </div>
 
       {characterImages.length > 0 ? (
         <div className="rounded-md border bg-background p-2 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-xs text-muted-foreground">基础形象参考</div>
-              <div className="mt-1 text-sm">生成章节形象图时保持同一角色的脸型、发型和标志细节。</div>
+              <div className="text-xs text-muted-foreground">Basic image reference</div>
+              <div className="mt-1 text-sm">Keep the same character's face shape, hairstyle, and logo details when generating chapter avatars.</div>
             </div>
-            <Badge variant="outline">{selectedReferenceAssetIds.length} 张参考图</Badge>
+            <Badge variant="outline">{selectedReferenceAssetIds.length} Reference picture</Badge>
           </div>
           <div className="mt-2 grid gap-2 sm:grid-cols-3">
             {characterImages.map((image) => (
@@ -291,7 +291,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                   loading="lazy"
                 />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{image.isPrimary ? "主图" : `参考 ${image.sortOrder + 1}`}</span>
+                    <span className="block truncate font-medium">{image.isPrimary ? "Main picture" : `参考 ${image.sortOrder + 1}`}</span>
                   <span className="block text-muted-foreground">
                     {image.width && image.height ? `${image.width}×${image.height}` : image.provider}
                   </span>
@@ -301,7 +301,7 @@ export default function BookAnalysisCharacterAppearancePanel({
           </div>
         </div>
       ) : characterImagesQuery.isLoading ? (
-        <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">正在读取基础形象图。</div>
+        <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">Loading base image map.</div>
       ) : null}
 
       <div className="space-y-2">
@@ -328,35 +328,35 @@ export default function BookAnalysisCharacterAppearancePanel({
           onChange={(event) => setTargetPercent(Number(event.target.value))}
           className="w-full accent-primary"
           disabled={disabled || scanActive}
-          aria-label="目标覆盖率"
+          aria-label="target coverage"
         />
       </div>
 
-      {appearanceQuery.isLoading ? <div className="text-xs text-muted-foreground">正在读取形象演变。</div> : null}
+      {appearanceQuery.isLoading ? <div className="text-xs text-muted-foreground">Reading image evolution.</div> : null}
       {scanMutation.error ? (
         <div className="text-xs text-destructive">
-          {scanMutation.error instanceof Error ? scanMutation.error.message : "形象扫描失败。"}
+          {scanMutation.error instanceof Error ? scanMutation.error.message : "Image scan failed."}
         </div>
       ) : null}
       {scanJob || lastScanJob ? (
         <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">
-          形象扫描：{(scanJob ?? lastScanJob)?.status === "queued" ? "排队中" : (scanJob ?? lastScanJob)?.status === "running" ? "扫描中" : (scanJob ?? lastScanJob)?.status === "succeeded" ? "已完成" : "扫描失败"}
+          Image scan:{(scanJob ?? lastScanJob)?.status === "queued" ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : (scanJob ?? lastScanJob)?.status === "running" ? "Scanning" : (scanJob ?? lastScanJob)?.status === "succeeded" ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Scan failed"}
           {(scanJob ?? lastScanJob)?.error ? <span className="ml-2 text-destructive">{(scanJob ?? lastScanJob)?.error}</span> : null}
         </div>
       ) : null}
       {scanJobQuery.error ? (
         <div className="text-xs text-destructive">
-          {scanJobQuery.error instanceof Error ? scanJobQuery.error.message : "读取扫描进度失败。"}
+          {scanJobQuery.error instanceof Error ? scanJobQuery.error.message : "Failed to read scan progress."}
         </div>
       ) : null}
       {mergeTermsMutation.error ? (
         <div className="text-xs text-destructive">
-          {mergeTermsMutation.error instanceof Error ? mergeTermsMutation.error.message : "融合外貌失败。"}
+          {mergeTermsMutation.error instanceof Error ? mergeTermsMutation.error.message : "Failed to merge appearance."}
         </div>
       ) : null}
       {activeTask ? (
         <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">
-          当前图片任务：{IMAGE_STATUS_TEXT[activeTask.status] ?? activeTask.status}
+          Current picture tasks:{IMAGE_STATUS_TEXT[activeTask.status] ?? activeTask.status}
           {activeTask.error ? <span className="ml-2 text-destructive">{activeTask.error}</span> : null}
         </div>
       ) : null}
@@ -366,8 +366,8 @@ export default function BookAnalysisCharacterAppearancePanel({
           <div className="rounded-md border bg-background p-2 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-xs text-muted-foreground">待确认外貌词条</div>
-                <div className="mt-1 text-sm">{pendingTerms.length > 0 ? "勾选可信词条后添加到角色外貌。" : "暂无待确认词条"}</div>
+                <div className="text-xs text-muted-foreground">Appearance entry to be confirmed</div>
+                <div className="mt-1 text-sm">{pendingTerms.length > 0 ? "Check the trusted entry and add it to the character's appearance." : "No entries to be confirmed yet"}</div>
               </div>
               <Button
                 type="button"
@@ -375,10 +375,10 @@ export default function BookAnalysisCharacterAppearancePanel({
                 onClick={() => mergeTermsMutation.mutate()}
                 disabled={disabled || selectedTermIds.length === 0 || mergeTermsMutation.isPending}
               >
-                {mergeTermsMutation.isPending ? "融合中..." : "融合外貌"}
+                {mergeTermsMutation.isPending ? "Integrating..." : "Fusion appearance"}
               </Button>
             </div>
-            {termsQuery.isLoading ? <div className="mt-2 text-xs text-muted-foreground">正在读取词条。</div> : null}
+            {termsQuery.isLoading ? <div className="mt-2 text-xs text-muted-foreground">Reading entries.</div> : null}
             {pendingTerms.length > 0 ? (
               <div className="mt-2 flex flex-wrap gap-2">
                 {pendingTerms.map((term) => (
@@ -394,8 +394,8 @@ export default function BookAnalysisCharacterAppearancePanel({
                       className="size-3 accent-primary"
                     />
                     <span className="font-medium">{term.text}</span>
-                    <span className="text-muted-foreground">第 {term.chapterIndex + 1} 章</span>
-                    {term.evidence.length > 0 ? <span className="text-muted-foreground">{term.evidence.length} 证据</span> : null}
+                    <span className="text-muted-foreground">Section {term.chapterIndex + 1} chapter</span>
+                    {term.evidence.length > 0 ? <span className="text-muted-foreground">{term.evidence.length} evidence</span> : null}
                     <Button
                       type="button"
                       size="sm"
@@ -407,15 +407,15 @@ export default function BookAnalysisCharacterAppearancePanel({
                       }}
                       disabled={disabled || rejectTermMutation.isPending}
                     >
-                      忽略词条
-                    </Button>
+                      Ignore entry
+                                                </Button>
                   </label>
                 ))}
               </div>
             ) : null}
           </div>
           <div className="rounded-md border bg-background p-2 text-sm">
-            <div className="text-xs text-muted-foreground">稳定特征</div>
+            <div className="text-xs text-muted-foreground">stable characteristics</div>
             <div className="mt-1 whitespace-pre-wrap">{formatJsonSummary(appearance.consolidatedAppearance)}</div>
           </div>
           {appearance.variantPolicy && Object.keys(appearance.variantPolicy).length > 0 ? (
@@ -427,7 +427,7 @@ export default function BookAnalysisCharacterAppearancePanel({
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-2">
                 <div>
-                  <div className="text-sm font-medium">章节快照</div>
+                  <div className="text-sm font-medium">Chapter Snapshot</div>
                   <div className="mt-0.5 text-xs text-muted-foreground">
                     {showAllSnapshots
                       ? `显示全部 ${appearance.snapshots.length} 个章节快照`
@@ -441,7 +441,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                     variant={showAllSnapshots ? "outline" : "secondary"}
                     onClick={() => setShowAllSnapshots((current) => !current)}
                   >
-                    {showAllSnapshots ? "只看关键章节" : "查看全部章节"}
+                    {showAllSnapshots ? "Only read key chapters" : "View all chapters"}
                   </Button>
                   {snapshotPageCount > 1 ? (
                     <div className="flex items-center gap-1">
@@ -452,8 +452,8 @@ export default function BookAnalysisCharacterAppearancePanel({
                         onClick={() => setSnapshotPage((current) => Math.max(0, current - 1))}
                         disabled={currentSnapshotPage === 0}
                       >
-                        上一页
-                      </Button>
+                        Previous page
+                                                                    </Button>
                       <span className="min-w-16 text-center text-xs text-muted-foreground">
                         {currentSnapshotPage + 1} / {snapshotPageCount}
                       </span>
@@ -464,8 +464,8 @@ export default function BookAnalysisCharacterAppearancePanel({
                         onClick={() => setSnapshotPage((current) => Math.min(snapshotPageCount - 1, current + 1))}
                         disabled={currentSnapshotPage >= snapshotPageCount - 1}
                       >
-                        下一页
-                      </Button>
+                        Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.
+                                                                    </Button>
                     </div>
                   ) : null}
                 </div>
@@ -474,11 +474,11 @@ export default function BookAnalysisCharacterAppearancePanel({
                 <div key={snapshot.id} className="rounded-md border bg-background p-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="font-medium">第 {snapshot.chapterIndex + 1} 章</div>
-                      {snapshot.manuallyEdited ? <Badge variant="outline">手动保留</Badge> : null}
+                      <div className="font-medium">Section {snapshot.chapterIndex + 1} chapter</div>
+                      {snapshot.manuallyEdited ? <Badge variant="outline">Manual reservation</Badge> : null}
                       {(() => {
                         const readyCount = snapshot.images.filter((image) => image.imageAsset).length;
-                        return readyCount > 0 ? <Badge variant="secondary">{readyCount} 张图</Badge> : null;
+                        return readyCount > 0 ? <Badge variant="secondary">{readyCount} Picture</Badge> : null;
                       })()}
                     </div>
                     <Button
@@ -488,8 +488,8 @@ export default function BookAnalysisCharacterAppearancePanel({
                       onClick={() => startGenerateSnapshotImage(snapshot.id)}
                       disabled={disabled || Boolean(activeTaskId)}
                     >
-                      生成图
-                    </Button>
+                      Generate graph
+                                                  </Button>
                   </div>
                   {snapshot.chapterTitle ? (
                     <div className="mt-1 text-xs text-muted-foreground">{snapshot.chapterTitle}</div>
@@ -498,7 +498,7 @@ export default function BookAnalysisCharacterAppearancePanel({
                     <div className="mt-2 text-sm">{snapshot.summaryCaption}</div>
                   ) : null}
                   <div className="mt-2 text-xs text-muted-foreground">
-                    {snapshot.evidence.length > 0 ? `${snapshot.evidence.length} 条证据` : "暂无证据"}
+                    {snapshot.evidence.length > 0 ? `${snapshot.evidence.length} 条证据` : "No evidence yet"}
                   </div>
                   {snapshot.images.some((image) => image.imageAsset) ? (
                     <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -519,14 +519,14 @@ export default function BookAnalysisCharacterAppearancePanel({
               ))}
               {visibleSnapshots.length === 0 ? (
                 <div className="rounded-md border border-dashed bg-background p-4 text-sm text-muted-foreground">
-                  暂无带形象信息的章节。可以查看全部章节，或继续增量扫描。
-                </div>
+                  There are currently no chapters with image information. You can view all chapters, or continue incremental scanning.
+                                                  </div>
               ) : null}
             </div>
           ) : null}
         </>
       ) : (
-        <div className="text-xs text-muted-foreground">选择覆盖率后增量扫描，系统会按章节抽取这个角色的形象变化。</div>
+        <div className="text-xs text-muted-foreground">After selecting coverage and performing an incremental scan, the system will extract the character's image changes by chapter.</div>
       )}
     </div>
   );

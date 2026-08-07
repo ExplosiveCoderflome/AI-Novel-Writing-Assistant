@@ -272,11 +272,11 @@ export default function WorldWorkspace() {
     mutationFn: (worldId: string) => deleteWorld(worldId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.worlds.all });
-      toast.success("世界样本已删除。");
+      toast.success("World samples have been removed.");
       navigate("/worlds", { replace: true });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "删除世界样本失败。");
+      toast.error(error instanceof Error ? error.message : "Failed to delete world sample.");
     },
   });
 
@@ -304,7 +304,7 @@ export default function WorldWorkspace() {
     <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>世界工作台：{world?.name ?? "加载中..."} {world?.version ? `(v${world.version})` : ""}</CardTitle>
+          <CardTitle>World Workbench:{world?.name ?? "loading..."} {world?.version ? `(v${world.version})` : ""}</CardTitle>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <LLMSelector />
             <Button
@@ -313,7 +313,7 @@ export default function WorldWorkspace() {
               onClick={handleDelete}
               disabled={!id || !world || deleteWorldMutation.isPending}
             >
-              {deleteWorldMutation.isPending ? "删除中..." : "删除世界样本"}
+              {deleteWorldMutation.isPending ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Delete world sample"}
             </Button>
           </div>
         </CardHeader>
@@ -330,12 +330,12 @@ export default function WorldWorkspace() {
         className="space-y-4"
       >
         <TabsList className="flex flex-wrap">
-          <TabsTrigger value="structure">整理世界手册</TabsTrigger>
-          <TabsTrigger value="overview">查看手册{featureFlags.worldVisEnabled ? "/可视化" : ""}</TabsTrigger>
-          <TabsTrigger value="layers">分层草稿</TabsTrigger>
-          <TabsTrigger value="deepening">补齐手册</TabsTrigger>
-          <TabsTrigger value="consistency">手册体检</TabsTrigger>
-          <TabsTrigger value="assets">资料与版本</TabsTrigger>
+          <TabsTrigger value="structure">Organizing the World Handbook</TabsTrigger>
+          <TabsTrigger value="overview">View manual{featureFlags.worldVisEnabled ? "/visualization" : ""}</TabsTrigger>
+          <TabsTrigger value="layers">layered draft</TabsTrigger>
+          <TabsTrigger value="deepening">Complete manual</TabsTrigger>
+          <TabsTrigger value="consistency">Manual Physical Examination</TabsTrigger>
+          <TabsTrigger value="assets">Information and version</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -388,14 +388,14 @@ export default function WorldWorkspace() {
             <>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between gap-3">
-                  <CardTitle>高级字段维护</CardTitle>
+                  <CardTitle>Advanced field maintenance</CardTitle>
                   <Button variant="outline" size="sm" onClick={() => setAdvancedStructureOpen(false)}>
-                    返回整理手册
-                  </Button>
+                    Return to organizing manual
+                                                            </Button>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
-                  这里用于处理势力关系、地点控制权、结构导入等细节。普通整理优先回到世界手册。
-                </CardContent>
+                  This is used to handle details such as power relations, location control rights, and structure import. Ordinary sorting will give priority to returning to the world manual.
+                                                      </CardContent>
               </Card>
               {id ? (
                 <WorldAxiomsCard

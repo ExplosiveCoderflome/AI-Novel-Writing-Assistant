@@ -25,33 +25,33 @@ export interface AutoDirectorChannelDraft {
 export const AUTO_DIRECTOR_EVENT_OPTIONS: AutoDirectorEventOption[] = [
   {
     code: "auto_director.approval_required",
-    label: "自动继续待处理",
-    description: "自动导演卡在需要继续或确认的节点时通知你处理。",
+    label: "Automatically continue to be processed",
+    description: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
   },
   {
     code: "auto_director.auto_approved",
-    label: "AI 已自动通过",
-    description: "系统按审批授权通过检查点并继续执行时通知你。",
+    label: "AI has automatically passed",
+    description: "The system notifies you when it passes the checkpoint and continues execution as authorized by the approval.",
   },
   {
     code: "auto_director.exception",
-    label: "运行异常",
-    description: "自动导演执行报错、失败或进入异常状态时通知你。",
+    label: "Abnormal operation",
+    description: "Notify you when the automatic director execution reports an error, fails, or enters an abnormal state.",
   },
   {
     code: "auto_director.recovered",
-    label: "异常恢复",
-    description: "之前异常的自动导演任务恢复执行时通知你。",
+    label: "Exception recovery",
+    description: "You will be notified when the previously abnormal automatic director task resumes execution.",
   },
   {
     code: "auto_director.completed",
-    label: "执行完成",
-    description: "自动导演任务顺利完成当前阶段或整体流程时通知你。",
+    label: "Execution completed",
+    description: "Automatically notify you when a director task successfully completes the current stage or overall process.",
   },
   {
     code: "auto_director.progress_changed",
-    label: "进度变化",
-    description: "自动导演跨阶段或关键进度变化时通知你。",
+    label: "Progress changes",
+    description: "Automatically notify you of cross-stage or critical progress changes.",
   },
 ];
 
@@ -98,7 +98,7 @@ export function summarizeSelectedAutoDirectorEvents(codes: string[]): string {
     .map((code) => AUTO_DIRECTOR_EVENT_LABEL_MAP.get(code))
     .filter((label): label is string => Boolean(label));
   if (labels.length === 0) {
-    return "未订阅事件";
+    return "Not subscribed to events";
   }
   if (labels.length <= 2) {
     return labels.join("、");

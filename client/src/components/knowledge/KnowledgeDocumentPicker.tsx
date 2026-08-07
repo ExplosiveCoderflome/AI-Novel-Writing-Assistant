@@ -17,7 +17,7 @@ interface KnowledgeDocumentPickerProps {
 }
 
 function formatDocumentKind(kind: "user_upload" | "analysis_published"): string {
-  return kind === "analysis_published" ? "拆书发布" : "上传文档";
+  return kind === "analysis_published" ? "Open book release" : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
 }
 
 export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerProps) {
@@ -53,35 +53,27 @@ export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerPr
             className={`rounded-md border px-3 py-1 text-sm ${isAuto ? "bg-accent" : ""}`}
             onClick={() => props.onChange(null)}
           >
-            自动
-          </button>
+            automatic
+                                </button>
           <button
             type="button"
             className={`rounded-md border px-3 py-1 text-sm ${!isAuto ? "bg-accent" : ""}`}
             onClick={() => props.onChange(selectedIds)}
           >
-            自定义
-          </button>
+            Customize
+                                </button>
         </div>
       ) : null}
 
       {isAuto ? (
-        <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          当前使用自动规则：若有实体绑定文档则优先使用绑定文档，否则回退到全部启用文档。
-        </div>
-      ) : (
-        <>
-          <Input
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-            placeholder="搜索知识文档"
+        <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground"> Currently using automatic rules: If there are entity-bound documents, the bound documents will be used first; otherwise, it will fall back to all documents being enabled. </div> ) : ( <> <Input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="Search knowledge documents"
           />
           <div className="max-h-64 space-y-2 overflow-auto rounded-md border p-2">
             {documentsQuery.isLoading ? (
-              <div className="text-sm text-muted-foreground">加载中...</div>
+              <div className="text-sm text-muted-foreground">loading...</div>
             ) : null}
             {visibleDocuments.length === 0 && !documentsQuery.isLoading ? (
-              <div className="text-sm text-muted-foreground">没有可选文档。</div>
+              <div className="text-sm text-muted-foreground">There is no optional documentation.</div>
             ) : null}
             {visibleDocuments.map((item) => {
               const checked = selectedIds.includes(item.id);
@@ -117,8 +109,8 @@ export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerPr
                         className="text-xs text-primary hover:underline"
                         onClick={(event) => event.stopPropagation()}
                       >
-                        查看来源拆书
-                      </Link>
+                        View source split book
+                                                        </Link>
                     ) : null}
                   </div>
                 </label>
@@ -126,8 +118,8 @@ export default function KnowledgeDocumentPicker(props: KnowledgeDocumentPickerPr
             })}
           </div>
           <div className="text-xs text-muted-foreground">
-            已选择 {selectedIds.length} 个文档。保持为空会显式关闭知识库检索。
-          </div>
+            Selected {selectedIds.length} documents. Leave empty to explicitly turn off knowledge base retrieval.
+                                </div>
         </>
       )}
     </div>

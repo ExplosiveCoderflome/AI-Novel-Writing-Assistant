@@ -28,33 +28,33 @@ interface CharacterCastOptionsSectionProps {
 }
 
 const CAST_ROLE_LABELS: Record<CharacterCastRole, string> = {
-  protagonist: "主角",
-  antagonist: "主对手",
-  ally: "同盟",
-  foil: "镜像角色",
-  mentor: "导师",
-  love_interest: "情感牵引",
-  pressure_source: "压力源",
-  catalyst: "催化者",
+  protagonist: "main character",
+  antagonist: "main opponent",
+  ally: "alliance",
+  foil: "mirror role",
+  mentor: "tutor",
+  love_interest: "emotional pull",
+  pressure_source: "stressor",
+  catalyst: "Catalyst",
 };
 
 const CHARACTER_GENDER_LABELS: Record<CharacterGender, string> = {
-  male: "男",
-  female: "女",
-  other: "其他",
-  unknown: "未知",
+  male: "male",
+  female: "female",
+  other: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+  unknown: "unknown",
 };
 
 function getCastRoleLabel(castRole?: CharacterCastRole | null): string {
   if (!castRole) {
-    return "未分类";
+    return "Uncategorized";
   }
   return CAST_ROLE_LABELS[castRole] ?? castRole;
 }
 
 function getCharacterGenderLabel(gender?: CharacterGender | null): string {
   if (!gender) {
-    return "未知";
+    return "unknown";
   }
   return CHARACTER_GENDER_LABELS[gender] ?? gender;
 }
@@ -81,7 +81,7 @@ function buildCharacterCastApplyConfirmMessage(option: CharacterCastOption, warn
   return [
     `阵容「${option.title}」和当前故事设定还有不完全匹配的地方。`,
     warningText,
-    "仍然应用到角色资产工作台吗？应用后可以继续在角色资产里调整。",
+    "Still applied to the Character Asset Workbench? After application, you can continue to adjust it in the character assets.",
   ].filter((line) => line.trim().length > 0).join("\n\n");
 }
 
@@ -161,7 +161,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
   function handleRejectAll() {
     const confirmed = window.confirm(
       appliedOption
-        ? "确认清空当前所有阵容方案记录？已同步的角色与关系不会自动回滚。"
+        ? "Confirm to clear all current lineup plan records? Synchronized roles and relationships will not be automatically rolled back."
         : `确认清空当前 ${castOptions.length} 套阵容方案？`,
     );
     if (!confirmed) {
@@ -195,12 +195,12 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
           : undefined,
       }),
     onSuccess: async (response) => {
-      setStatusMessage(response.message ?? "角色阵容方案已生成。");
+      setStatusMessage(response.message ?? "The character lineup plan has been generated.");
       setIsPlannerExpanded(true);
       await refreshCastOptions();
     },
     onError: (error) => {
-      setStatusMessage(error instanceof Error ? error.message : "角色阵容方案生成失败。");
+      setStatusMessage(error instanceof Error ? error.message : "Character lineup plan generation failed.");
     },
   });
 
@@ -220,7 +220,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       }
       const createdCount = response.data?.createdCount ?? 0;
       const updatedCount = response.data?.updatedCount ?? 0;
-      const backgroundHint = "外显资料和角色动态会在后台补齐，稍后刷新角色资产即可查看。";
+      const backgroundHint = "Explicit information and character dynamics will be completed in the background, and you can view them by refreshing the character assets later.";
       setStatusMessage(
         response.data?.qualityOverrideApplied
           ? `已按你的确认应用这套阵容，同步 ${createdCount} 个新角色，更新 ${updatedCount} 个既有角色。${backgroundHint}`
@@ -230,7 +230,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       await refreshAppliedCharacterWorkspace();
     },
     onError: (error) => {
-      setStatusMessage(error instanceof Error ? error.message : "角色阵容方案应用失败。");
+      setStatusMessage(error instanceof Error ? error.message : "Role lineup scheme application failed.");
     },
   });
 
@@ -251,14 +251,14 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
     mutationFn: (optionId: string) => deleteCharacterCastOption(novelId, optionId),
     onSuccess: async (response) => {
       if (response.data?.deletedAppliedOption) {
-        setStatusMessage("方案记录已删除；角色库和关系网中的对应数据会保留。");
+        setStatusMessage("The plan record has been deleted; the corresponding data in the role library and relationship network will be retained.");
       } else {
-        setStatusMessage("这套阵容方案已删除。");
+        setStatusMessage("This lineup plan has been deleted.");
       }
       await refreshCastOptions();
     },
     onError: (error) => {
-      setStatusMessage(error instanceof Error ? error.message : "删除阵容方案失败。");
+      setStatusMessage(error instanceof Error ? error.message : "Failed to delete lineup plan.");
     },
   });
 
@@ -268,7 +268,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       const deletedCount = response.data?.deletedCount ?? 0;
       const deletedAppliedCount = response.data?.deletedAppliedCount ?? 0;
       if (deletedCount === 0) {
-        setStatusMessage("没有可清空的阵容方案。");
+        setStatusMessage("There are no lineup plans to clear.");
       } else if (deletedAppliedCount > 0) {
         setStatusMessage(`已清空 ${deletedCount} 套阵容方案记录；已同步的角色与关系不会自动回滚。`);
       } else {
@@ -278,7 +278,7 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
       await refreshCastOptions();
     },
     onError: (error) => {
-      setStatusMessage(error instanceof Error ? error.message : "清空阵容方案失败。");
+      setStatusMessage(error instanceof Error ? error.message : "The plan to clear the lineup failed.");
     },
   });
   const isWorking =
@@ -293,15 +293,15 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
         <CardHeader className="gap-3">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-1">
-              <CardTitle>AI 角色阵容方案</CardTitle>
+              <CardTitle>AI character lineup plan</CardTitle>
               <div className="text-sm text-muted-foreground">
-                更适合前期搭建角色系统，或在故事方向大改后重新规划阵容。
-              </div>
+                It is more suitable for building a character system in the early stage, or re-planning the lineup after a major change in the direction of the story.
+                                            </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{castOptions.length} 套候选方案</Badge>
-              <Badge variant="outline">{relations.length} 条角色关系</Badge>
-              {appliedOption ? <Badge variant="secondary">已应用方案</Badge> : null}
+              <Badge variant="outline">{castOptions.length} set of candidates</Badge>
+              <Badge variant="outline">{relations.length} role relationship</Badge>
+              {appliedOption ? <Badge variant="secondary">Applied scheme</Badge> : null}
             </div>
           </div>
         </CardHeader>
@@ -311,23 +311,23 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="font-medium">{appliedOption.title}</div>
-                  <Badge variant="secondary">当前生效</Badge>
+                  <Badge variant="secondary">Currently effective</Badge>
                 </div>
                 <div className="text-sm text-muted-foreground">{appliedOption.summary}</div>
                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span>{appliedOption.members.length} 个核心角色</span>
-                  <span>{appliedOption.relations.length} 条关键关系</span>
-                  {appliedOption.recommendedReason ? <span>推荐：{appliedOption.recommendedReason}</span> : null}
+                  <span>{appliedOption.members.length} core role</span>
+                  <span>{appliedOption.relations.length} key relationships</span>
+                  {appliedOption.recommendedReason ? <span>recommend:{appliedOption.recommendedReason}</span> : null}
                 </div>
                 {statusMessage ? <div className="text-xs text-muted-foreground">{statusMessage}</div> : null}
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => setIsPlannerExpanded(true)}>
-                  查看其余方案
-                </Button>
+                  See the rest of the options
+                                                  </Button>
                 <Button variant="secondary" onClick={() => setIsPlannerExpanded(true)}>
-                  重新规划阵容
-                </Button>
+                  Re-planning the lineup
+                                                  </Button>
               </div>
             </div>
           ) : (
@@ -335,14 +335,14 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
               <div className="grid gap-4 xl:grid-cols-[minmax(280px,0.72fr)_minmax(0,1.28fr)]">
                 <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
                   <div className="space-y-1">
-                    <div className="text-sm font-medium">生成指令</div>
+                    <div className="text-sm font-medium">Generate instructions</div>
                     <div className="text-xs text-muted-foreground">
-                      可补充主角欲望、对手压力、关系张力，或你想重点强化的人物方向。
-                    </div>
+                      It can supplement the protagonist's desire, opponent's pressure, relationship tension, or the character direction you want to focus on strengthening.
+                                                                  </div>
                   </div>
                   <textarea
                     className="min-h-[140px] w-full rounded-xl border bg-background p-3 text-sm"
-                    placeholder="例如：主角必须在家族责任与个人自由之间二选一；反派不要是纯恶，而是带有保护欲和控制欲。"
+                    placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
                     value={storyInput}
                     onChange={(event) => setStoryInput(event.target.value)}
                   />
@@ -353,8 +353,8 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                         checked={useWorldContext}
                         onChange={(event) => setUseWorldContext(event.target.checked)}
                       />
-                      基于本书世界生成
-                    </label>
+                      Generate a world based on this book
+                                                                  </label>
                     {useWorldContext ? (
                       <label className="flex items-center gap-2 text-xs text-muted-foreground">
                         <input
@@ -362,32 +362,32 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                           checked={forceWorldCompliance}
                           onChange={(event) => setForceWorldCompliance(event.target.checked)}
                         />
-                        检查世界规则合规
-                      </label>
+                        Check World Rules Compliance
+                                                                        </label>
                     ) : null}
                   </div>
                   {useWorldContext ? (
                     <div className="grid gap-2 rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-muted-foreground">
                       {worldSliceQuery.isLoading ? (
-                        <div>正在读取本书世界使用范围...</div>
+                        <div>Reading this book world usage scope...</div>
                       ) : !hasUsableWorld ? (
                         <div>
-                          本书世界还没有准备好。本轮会优先根据书级信息和你的生成指令设计角色。
-                        </div>
+                          The book world is not ready yet. In this round, priority will be given to character design based on book-level information and your generation instructions.
+                                                                                  </div>
                       ) : !hasWorldSlice ? (
                         <div>
-                          本书世界存在，但使用范围还未整理。建议先到基础信息页整理本书使用范围，或继续让 AI 按世界手册保守生成。
-                        </div>
+                          The world of this book exists, but its scope of use has not yet been sorted out. It is recommended to first go to the basic information page to sort out the scope of use of this book, or continue to let the AI ​​generate it conservatively according to the world manual.
+                                                                                      </div>
                       ) : null}
                       <label className="space-y-1">
-                        <span className="font-medium text-foreground">势力倾向</span>
+                        <span className="font-medium text-foreground">sectarian tendencies</span>
                         <SelectControl
                           className="w-full rounded-md border bg-background p-2 text-sm"
                           value={preferredWorldFaction}
                           onChange={(event) => setPreferredWorldFaction(event.target.value)}
                           disabled={!hasWorldSlice || activeWorldForces.length === 0}
                         >
-                          <option value="">由 AI 判断</option>
+                          <option value="">Judged by AI</option>
                           {activeWorldForces.map((force) => (
                             <option key={force.id} value={force.name}>{force.name}</option>
                           ))}
@@ -395,29 +395,29 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                       </label>
                       <div>
                         {hasWorldSlice
-                          ? "角色会优先贴合本书世界的势力、地点、身份边界和禁止搭配。"
-                          : "本书世界使用范围整理后，可进一步指定势力倾向。"}
+                          ? "Characters will give priority to the forces, locations, identity boundaries and prohibited combinations in the world of this book."
+                          : "After the world usage scope of this book is sorted out, the influence tendency can be further specified."}
                       </div>
                     </div>
                   ) : null}
                   <div className="flex flex-wrap gap-2">
                     <AiButton onClick={() => generateMutation.mutate()} disabled={isWorking}>
-                      {generateMutation.isPending ? "生成中..." : "生成 3 套阵容"}
+                      {generateMutation.isPending ? "Generating..." : "Generate 3 lineups"}
                     </AiButton>
                     {castOptions.length > 0 ? (
                       <Button variant="outline" onClick={handleRejectAll} disabled={isWorking}>
-                        {clearMutation.isPending ? "清空中..." : "都不喜欢"}
+                        {clearMutation.isPending ? "Clear the air..." : "Don't like it"}
                       </Button>
                     ) : null}
                     {appliedOption ? (
                       <Button variant="outline" onClick={() => setIsPlannerExpanded(false)} disabled={isWorking}>
-                        收起方案区
-                      </Button>
+                        Collapse plan area
+                                                                        </Button>
                     ) : null}
                   </div>
                   <div className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-                    应用某套阵容后，会同步创建/更新角色，并刷新角色资产工作台。
-                  </div>
+                    After applying a certain lineup, characters will be created/updated simultaneously and the character asset workbench will be refreshed.
+                                                            </div>
                   {statusMessage ? (
                     <div className="rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-muted-foreground">
                       {statusMessage}
@@ -427,8 +427,8 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
 
                 {castOptionsQuery.isLoading ? (
                   <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed text-sm text-muted-foreground">
-                    正在加载阵容方案...
-                  </div>
+                    Loading lineup plan...
+                                                            </div>
                 ) : castOptions.length > 0 ? (
                   <div className="grid gap-3 2xl:grid-cols-2">
                     {castOptions.map((option) => {
@@ -446,9 +446,9 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                             <div className="space-y-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <div className="font-medium">{option.title}</div>
-                                {option.status === "applied" ? <Badge variant="secondary">已应用</Badge> : null}
-                                {option.recommendedReason ? <Badge variant="outline">推荐</Badge> : null}
-                                {requiresQualityConfirmation ? <Badge variant="outline">需确认</Badge> : null}
+                                {option.status === "applied" ? <Badge variant="secondary">Applied</Badge> : null}
+                                {option.recommendedReason ? <Badge variant="outline">recommend</Badge> : null}
+                                {requiresQualityConfirmation ? <Badge variant="outline">Confirmation required</Badge> : null}
                               </div>
                               <div className="text-xs leading-5 text-muted-foreground">{option.summary}</div>
                             </div>
@@ -460,12 +460,12 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                                 variant={option.status === "applied" ? "outline" : "default"}
                               >
                                 {isApplyingThisOption
-                                  ? "应用中..."
+                                  ? "Applying..."
                                   : option.status === "applied"
-                                    ? "重新应用"
+                                    ? "reapply"
                                     : requiresQualityConfirmation
-                                      ? "确认后应用"
-                                      : "应用这套阵容"}
+                                      ? "Apply after confirmation"
+                                      : "Apply this lineup"}
                               </Button>
                               <Button
                                 size="sm"
@@ -474,16 +474,16 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                                 onClick={() => handleDeleteOption(option)}
                                 disabled={isWorking}
                               >
-                                {deleteMutation.isPending && deleteMutation.variables === option.id ? "删除中..." : "删除"}
+                                {deleteMutation.isPending && deleteMutation.variables === option.id ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "delete"}
                               </Button>
                             </div>
                           </div>
                           {requiresQualityConfirmation ? (
                             <div className="mt-3 rounded-xl border border-amber-300/70 bg-amber-50/70 p-3 text-xs text-amber-900">
-                              <div className="font-medium">这套阵容需要你确认后再应用</div>
+                              <div className="font-medium">This lineup requires your confirmation before applying it</div>
                               <div className="mt-1">
-                                系统发现它和当前故事设定还有不完全匹配的地方。你可以先应用，再到角色资产里调整。
-                              </div>
+                                The system found that it did not completely match the current story settings. You can apply it first and then adjust it in the character assets.
+                                                                        </div>
                               <ul className="mt-2 list-disc space-y-1 pl-4">
                                 {qualityWarnings.slice(0, 3).map((warning) => (
                                   <li key={warning}>{warning}</li>
@@ -493,11 +493,11 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                           ) : null}
                           {option.recommendedReason ? (
                             <div className="mt-3 rounded-xl border border-amber-200/60 bg-amber-50/50 p-3 text-xs text-muted-foreground">
-                              推荐理由：{option.recommendedReason}
+                              Reasons for recommendation:{option.recommendedReason}
                             </div>
                           ) : null}
                           {option.whyItWorks ? (
-                            <div className="mt-2 text-xs text-muted-foreground">成立原因：{option.whyItWorks}</div>
+                            <div className="mt-2 text-xs text-muted-foreground">Reasons for establishment:{option.whyItWorks}</div>
                           ) : null}
                           <div className="mt-3 grid gap-2 sm:grid-cols-2">
                             {option.members.map((member) => (
@@ -508,14 +508,14 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                                   <Badge variant="secondary">{getCharacterGenderLabel(member.gender)}</Badge>
                                 </div>
                                 <div className="mt-1 text-xs text-muted-foreground">{member.role}</div>
-                                <div className="mt-2 text-xs text-muted-foreground">作用：{member.storyFunction}</div>
+                                <div className="mt-2 text-xs text-muted-foreground">effect:{member.storyFunction}</div>
                                 {member.relationToProtagonist ? (
                                   <div className="text-xs text-muted-foreground">
-                                    与主角关系：{member.relationToProtagonist}
+                                    Relationship with the protagonist:{member.relationToProtagonist}
                                   </div>
                                 ) : null}
                                 {member.outerGoal ? (
-                                  <div className="text-xs text-muted-foreground">外在目标：{member.outerGoal}</div>
+                                  <div className="text-xs text-muted-foreground">External goals:{member.outerGoal}</div>
                                 ) : null}
                               </div>
                             ))}
@@ -526,8 +526,8 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                   </div>
                 ) : (
                   <div className="flex min-h-[260px] items-center justify-center rounded-2xl border border-dashed px-6 text-center text-sm text-muted-foreground">
-                    还没有阵容方案。先输入一点人物方向，再点击“生成 3 套阵容”。
-                  </div>
+                    There is no lineup plan yet. First enter a bit of character direction, then click "Generate 3 lineups".
+                                                                    </div>
                 )}
               </div>
             </>
@@ -537,26 +537,26 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
 
       <Card>
         <CardHeader>
-          <CardTitle>角色关系网</CardTitle>
+          <CardTitle>role network</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           {selectedCharacter ? (
             <div className="text-xs text-muted-foreground">
-              当前聚焦：{selectedCharacter.name}（{selectedCharacter.role || "未定义"}）
+              Current focus:{selectedCharacter.name}（{selectedCharacter.role || "undefined"}）
             </div>
           ) : (
-            <div className="text-xs text-muted-foreground">未选中角色时，默认展示最近的关系条目。</div>
+            <div className="text-xs text-muted-foreground">When the role is not selected, the most recent relationship entries are displayed by default.</div>
           )}
           {relationsQuery.isLoading ? (
-            <div className="text-muted-foreground">正在加载关系网络...</div>
+            <div className="text-muted-foreground">Loading relationship network...</div>
           ) : filteredRelations.length > 0 ? (
             <div className="grid gap-2 lg:grid-cols-2">
               {filteredRelations.map((relation) => {
                 const selectedIsSource = selectedCharacter ? relation.sourceCharacterId === selectedCharacter.id : false;
                 const counterpartId = selectedIsSource ? relation.targetCharacterId : relation.sourceCharacterId;
                 const counterpartName = selectedIsSource
-                  ? relation.targetCharacterName || characterNameById.get(counterpartId) || "未命名角色"
-                  : relation.sourceCharacterName || characterNameById.get(counterpartId) || "未命名角色";
+                  ? relation.targetCharacterName || characterNameById.get(counterpartId) || "unnamed role"
+                  : relation.sourceCharacterName || characterNameById.get(counterpartId) || "unnamed role";
                 return (
                   <button
                     key={relation.id}
@@ -573,13 +573,13 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
                       <Badge variant="outline">{relation.surfaceRelation}</Badge>
                     </div>
                     {relation.hiddenTension ? (
-                      <div className="mt-2 text-xs text-muted-foreground">隐藏张力：{relation.hiddenTension}</div>
+                      <div className="mt-2 text-xs text-muted-foreground">Hidden tension:{relation.hiddenTension}</div>
                     ) : null}
                     {relation.conflictSource ? (
-                      <div className="text-xs text-muted-foreground">冲突来源：{relation.conflictSource}</div>
+                      <div className="text-xs text-muted-foreground">Source of conflict:{relation.conflictSource}</div>
                     ) : null}
                     {relation.nextTurnPoint ? (
-                      <div className="text-xs text-muted-foreground">下一反转点：{relation.nextTurnPoint}</div>
+                      <div className="text-xs text-muted-foreground">Next reversal point:{relation.nextTurnPoint}</div>
                     ) : null}
                   </button>
                 );
@@ -587,8 +587,8 @@ export default function CharacterCastOptionsSection(props: CharacterCastOptionsS
             </div>
           ) : (
             <div className="rounded-xl border border-dashed p-4 text-muted-foreground">
-              还没有角色关系。应用一套角色阵容后会在这里出现。
-            </div>
+              Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.
+                                              </div>
           )}
         </CardContent>
       </Card>

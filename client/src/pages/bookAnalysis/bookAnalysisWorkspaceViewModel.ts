@@ -121,7 +121,7 @@ export function getPreferredBookAnalysisSection(
 function describeMissingExpectedSections(sections: BookAnalysisSectionSummary): string {
   return sections.missingExpected > 0
     ? `仍有 ${sections.missingExpected} 个计划小节缺少可读结果。`
-    : "计划范围内没有缺失小节。";
+    : "There are no missing sections within the scope of the plan.";
 }
 
 export function resolveBookAnalysisNextAction(input: {
@@ -134,17 +134,17 @@ export function resolveBookAnalysisNextAction(input: {
     if (input.analysesCount > 0) {
       return {
         tone: "info",
-        title: "选择一份拆书分析",
-        description: "从分析列表选择记录后，这里会显示来源、生成阶段和可阅读结果。",
+        title: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+        description: "After selecting a record from the analysis list, the source, generation stage, and human-readable results are displayed here.",
         action: "select",
       };
     }
     return {
       tone: "info",
-      title: "创建第一份拆书分析",
-      description: "选择一份知识文档和分析范围，AI 会把结果整理为可阅读、可引用的小节。",
+      title: "Create your first book-opening analysis",
+      description: "Select a knowledge document and scope of analysis, and AI will organize the results into readable, quoteable sections.",
       action: "create",
-      actionLabel: "新建拆书",
+      actionLabel: "Create a new book",
     };
   }
 
@@ -154,22 +154,22 @@ export function resolveBookAnalysisNextAction(input: {
     const hasReadableResults = sections.readable > 0;
     return {
       tone: "info",
-      title: status === "queued" ? "拆书分析正在排队" : "拆书分析正在生成",
+      title: status === "queued" ? "Book splitting analysis is queuing up" : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
       description: hasReadableResults
         ? `当前进度 ${Math.round(analysis.progress * 100)}%，已有 ${sections.readable} 个小节可阅读；其余计划小节继续生成。`
         : `当前进度 ${Math.round(analysis.progress * 100)}%。已完成的小节会直接保留，全部完成后可在“拆书内容”中阅读。`,
       action: hasReadableResults ? "view_results" : null,
-      actionLabel: hasReadableResults ? "查看已有结果" : undefined,
+      actionLabel: hasReadableResults ? "View existing results" : undefined,
     };
   }
 
   if ((status === "failed" || status === "cancelled") && isBookAnalysisBudgetExceeded(analysis.lastError)) {
     return {
       tone: "warning",
-      title: "扩容预算后继续生成",
+      title: "Continue generation after expansion budget",
       description: `已有 ${sections.readable} 个可阅读小节会保留。${describeMissingExpectedSections(sections)}扩容续跑只处理尚未成功的部分。`,
       action: "resume_budget",
-      actionLabel: "扩容预算并续跑",
+      actionLabel: "Expand budget and continue running",
     };
   }
 
@@ -177,36 +177,36 @@ export function resolveBookAnalysisNextAction(input: {
     if (sections.readable === 0) {
       return {
         tone: "danger",
-        title: "任务完成，但没有可展示的拆书内容",
-        description: "源文档不会受影响。请重新生成分析，或打开任务中心查看这次任务的详细记录。",
+        title: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+        description: "The source document will not be affected. Please regenerate the analysis, or open the task center to view the detailed records of this task.",
         action: "rebuild",
-        actionLabel: "重新生成分析",
+        actionLabel: "Regenerate analysis",
       };
     }
     if (sections.missingExpected > 0) {
       return {
         tone: "warning",
-        title: "先查看已有拆书结果",
+        title: "Check the results of existing book openings first",
         description: `已有 ${sections.readableExpected}/${sections.expected} 个计划生成的小节可阅读，仍有 ${sections.missingExpected} 个小节可通过重新生成补齐。`,
         action: "view_results",
-        actionLabel: "查看已有结果",
+        actionLabel: "View existing results",
       };
     }
     if (sections.failedExpected > 0) {
       return {
         tone: "warning",
-        title: "结果可阅读，部分小节需要复核",
-        description: `${sections.readableExpected}/${sections.expected} 个计划小节均有可读内容，其中 ${sections.failedExpected} 个小节最近一次生成失败。先检查保留内容，再决定是否重新生成。`,
+        title: "The results are readable, but some sections require review.",
+        description: `All planned sections ${sections.readableExpected}/${sections.expected} have readable content, of which ${sections.failedExpected} sections failed to be generated most recently. First, check the retained content, then decide whether to regenerate.`,
         action: "view_results",
-        actionLabel: "查看已有结果",
+        actionLabel: "View existing results",
       };
     }
     return {
       tone: "success",
-      title: "拆书结果可以阅读",
+      title: "The result of opening the book can be read",
       description: `共 ${sections.readable} 个小节已生成，可继续查看证据、整理角色，或发布到小说知识库。`,
       action: "view_results",
-      actionLabel: "查看拆书结果",
+      actionLabel: "Check the results of opening the book",
     };
   }
 
@@ -214,38 +214,38 @@ export function resolveBookAnalysisNextAction(input: {
     if (sections.readable > 0) {
       return {
         tone: "warning",
-        title: "分析已停止，已有结果仍可阅读",
+        title: "Analysis has been stopped, existing results can still be read",
         description: `已保留 ${sections.readable} 个可阅读小节。${describeMissingExpectedSections(sections)}先检查已有结果，再决定是否重新生成。`,
         action: "view_results",
-        actionLabel: "查看已有结果",
+        actionLabel: "View existing results",
       };
     }
     return {
       tone: "danger",
-      title: "拆书分析需要重新生成",
-      description: analysis.lastError?.trim() || "本次分析没有生成可阅读结果，源文档不会受影响。",
+      title: "Open book analysis needs to be regenerated",
+      description: analysis.lastError?.trim() || "This analysis produced no readable results and the source documents will not be affected.",
       action: "rebuild",
-      actionLabel: "重新生成分析",
+      actionLabel: "Regenerate analysis",
     };
   }
 
   if (status === "archived") {
     return {
       tone: "neutral",
-      title: sections.readable > 0 ? "查看归档结果" : "复制归档分析后继续",
+      title: sections.readable > 0 ? "View archived results" : "Continue after copying archive analysis",
       description: sections.readable > 0
-        ? "归档分析保持只读，已有结果、证据和角色档案仍可查看。"
-        : "这份归档分析没有可阅读结果，可复制为新分析后重新生成。",
+        ? "Archived analyzes remain read-only and existing results, evidence, and role profiles can still be viewed."
+        : "This archived analysis has no readable results and can be copied as a new analysis and regenerated.",
       action: sections.readable > 0 ? "view_results" : "copy",
-      actionLabel: sections.readable > 0 ? "查看归档结果" : "复制为新分析",
+      actionLabel: sections.readable > 0 ? "View archived results" : "Copy as new analysis",
     };
   }
 
   return {
     tone: "info",
-    title: "开始生成拆书结果",
-    description: "AI 会按选定范围逐项生成结构、人物、世界和写法结论，并保留每个已完成小节。",
+    title: "Start generating book-opening results",
+    description: "The AI ​​will generate structure, characters, world, and writing conclusions item by item according to the selected scope, and retain each completed section.",
     action: "rebuild",
-    actionLabel: "开始生成",
+    actionLabel: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
   };
 }

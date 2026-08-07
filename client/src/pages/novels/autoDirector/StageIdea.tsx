@@ -49,7 +49,7 @@ export default function StageIdea({
 
   const useIdeaInspiration = (text: string) => {
     if (idea.trim()) {
-      const confirmed = window.confirm("上方起始想法已有内容。确认使用这条灵感并覆盖原内容吗？");
+      const confirmed = window.confirm("The starting idea above already has content. Are you sure to use this inspiration and overwrite the original content?");
       if (!confirmed) {
         return;
       }
@@ -88,19 +88,19 @@ export default function StageIdea({
         className="w-full text-center"
       >
         <h1 className="text-3xl font-semibold tracking-normal text-foreground sm:text-[32px]">
-          用一句话，开始你的整本书
-        </h1>
+          Start your entire book with one sentence
+                          </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-          写下你想看的故事，AI 会先帮你整理成可选择的整本书方向。
-        </p>
+          Write down the story you want to read, and AI will help you organize it into optional directions for the entire book.
+                          </p>
       </motion.div>
 
       <div className="mt-6 w-full">
         <OnboardingTip
           storageKey="auto-director-idea"
-          title="一句话不需要写成完整大纲"
-          description="写清主角、处境或最想看的冲突即可。题材、卖点和长篇推进方式会由 AI 在下一步整理。"
-          next="AI 生成两套差异明确的整书方向。"
+          title="One sentence does not need to be a complete outline"
+          description="Just write down the protagonist, situation, or conflict you want to see most. The subject matter, selling points, and novel advancement methods will be sorted out by AI in the next step."
+          next="AI generates two distinct directions for the entire book."
         />
       </div>
 
@@ -115,7 +115,7 @@ export default function StageIdea({
           className="min-h-[180px] w-full resize-none bg-transparent px-1 py-1 text-base leading-7 text-foreground outline-none placeholder:text-muted-foreground/60 sm:text-lg sm:leading-8"
           value={idea}
           onChange={(event) => onIdeaChange(event.target.value)}
-          placeholder="例如：普通女大学生误入异能组织，一边上学打工，一边调查父亲失踪真相。"
+          placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
         />
         <div className="flex flex-col gap-2 pt-3 sm:flex-row sm:items-center sm:justify-between">
           <button
@@ -125,7 +125,7 @@ export default function StageIdea({
             disabled={isGeneratingIdeaInspirations}
           >
             <Sparkles className="h-4 w-4" />
-            {isGeneratingIdeaInspirations ? "正在准备几个开头..." : "没有想法？看几个开头"}
+            {isGeneratingIdeaInspirations ? "Preparing a few openings..." : "No ideas? Looking at a few openings"}
           </button>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <button
@@ -134,11 +134,11 @@ export default function StageIdea({
               onClick={onQuickGenerate}
               disabled={!canContinue || isGenerating}
             >
-              {isGenerating ? "生成中..." : "用默认设置直接生成方向"}
+              {isGenerating ? "Generating..." : "Generating direction directly using default settings"}
             </button>
             <Button type="button" onClick={onContinue} disabled={!canContinue}>
-              继续完善设定
-              <ArrowRight className="h-4 w-4" />
+              Continue to improve settings
+                                        <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </div>

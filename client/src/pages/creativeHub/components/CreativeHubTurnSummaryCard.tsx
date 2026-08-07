@@ -10,15 +10,15 @@ interface CreativeHubTurnSummaryCardProps {
 function toStatusLabel(status: CreativeHubTurnSummary["status"]): string {
   switch (status) {
     case "succeeded":
-      return "已完成";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "interrupted":
-      return "待确认";
+      return "To be confirmed";
     case "failed":
-      return "失败";
+      return "fail";
     case "cancelled":
-      return "已取消";
+      return "Canceled";
     case "running":
-      return "进行中";
+      return "in progress";
     default:
       return status;
   }
@@ -42,9 +42,9 @@ export default function CreativeHubTurnSummaryCard({
     <div className="mt-3 rounded-md border border-border bg-muted/20 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="text-sm font-medium text-foreground">创作推进摘要</div>
+          <div className="text-sm font-medium text-foreground">Creation Promotion Summary</div>
           <div className="mt-1 text-xs text-muted-foreground">
-            当前阶段：{summary.currentStage}
+            Current stage:{summary.currentStage}
           </div>
         </div>
         <Badge variant={toVariant(summary.status)}>{toStatusLabel(summary.status)}</Badge>
@@ -52,19 +52,19 @@ export default function CreativeHubTurnSummaryCard({
 
       <div className="mt-4 divide-y divide-border rounded-md border border-border bg-background px-3">
         <div className="py-3">
-          <div className="text-xs font-medium text-muted-foreground">本轮判断</div>
+          <div className="text-xs font-medium text-muted-foreground">Judgment of this round</div>
           <div className="mt-2 text-sm leading-6 text-foreground">{summary.intentSummary}</div>
         </div>
         <div className="py-3">
-          <div className="text-xs font-medium text-muted-foreground">本轮推进</div>
+          <div className="text-xs font-medium text-muted-foreground">This round of advancement</div>
           <div className="mt-2 text-sm leading-6 text-foreground">{summary.actionSummary}</div>
         </div>
         <div className="py-3">
-          <div className="text-xs font-medium text-muted-foreground">已确认变化</div>
+          <div className="text-xs font-medium text-muted-foreground">Change confirmed</div>
           <div className="mt-2 text-sm leading-6 text-foreground">{summary.impactSummary}</div>
         </div>
         <div className="py-3">
-          <div className="text-xs font-medium text-muted-foreground">建议下一轮</div>
+          <div className="text-xs font-medium text-muted-foreground">Suggest next round</div>
           <div className="mt-2 text-sm leading-6 text-foreground">{summary.nextSuggestion}</div>
           {onQuickAction && summary.nextSuggestion.trim() ? (
             <div className="mt-3">
@@ -74,8 +74,8 @@ export default function CreativeHubTurnSummaryCard({
                 variant="outline"
                 onClick={() => onQuickAction(summary.nextSuggestion)}
               >
-                沿这个方向继续
-              </Button>
+                continue in this direction
+                                            </Button>
             </div>
           ) : null}
         </div>

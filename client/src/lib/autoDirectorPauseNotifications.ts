@@ -99,7 +99,7 @@ export function showAutoDirectorPauseNotification(input: {
     return false;
   }
 
-  const notification = new window.Notification("自动导演需要你处理", {
+  const notification = new window.Notification("Auto Director needs you to handle it", {
     body: buildAutoDirectorPauseNotificationBody(input.item),
     tag: NOTIFICATION_TAG,
   });

@@ -37,10 +37,10 @@ function connectorTone(
 }
 
 function statusLabel(status: DirectorPreparationStepStatus): string {
-  if (status === "completed") return "准备完成";
-  if (status === "running") return "AI 正在处理";
-  if (status === "failed") return "需要处理";
-  return "等待推进";
+  if (status === "completed") return "Ready to complete";
+  if (status === "running") return "AI is processing";
+  if (status === "failed") return "Need to be processed";
+  return "Waiting for advancement";
 }
 
 export default function NovelDirectorPreparationJourney({
@@ -51,19 +51,19 @@ export default function NovelDirectorPreparationJourney({
     <div className="space-y-4">
       <OnboardingTip
         storageKey="director-preparation"
-        title="这段准备不需要逐项审核"
-        description="AI 会把已完成的故事方向转成角色、卷战略、节奏和章节执行资源；页面上的成果可以随时展开查看。"
-        next="所有开写资源准备好后，再选择简易创作或专业创作。"
+        title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+        description="AI will transform completed story directions into characters, volume strategies, pacing, and chapter execution resources; the results on the page can be expanded and viewed at any time."
+        next="After all the writing resources are ready, choose simple creation or professional creation."
       />
       <section className="rounded-2xl border border-border/70 bg-background px-4 py-5 shadow-[0_18px_45px_-38px_hsl(var(--foreground)/0.45)] sm:px-6">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="text-sm font-semibold text-foreground">开写前准备</div>
+            <div className="text-sm font-semibold text-foreground">Preparation before writing</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              AI 正在依次完成整本书的方向、角色和卷章资源。
-            </div>
+              The AI is completing the direction, characters, and chapter resources for the entire book in sequence.
+                                      </div>
           </div>
-          <div className="text-xs text-muted-foreground">正文尚未开始生成</div>
+          <div className="text-xs text-muted-foreground">The text has not been generated yet</div>
         </div>
 
         <ol className={cn(
@@ -115,19 +115,19 @@ export default function NovelDirectorPreparationJourney({
               <Sparkles className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground">准备完成后，由你选择正文生产方式</div>
+              <div className="text-sm font-semibold text-foreground">After the preparation is completed, it is up to you to choose the text production method</div>
               <div className="mt-1 text-xs leading-5 text-muted-foreground">
-                系统会停在开写前，不会提前生成正文。
-              </div>
+                The system will stop before starting to write and will not generate the text in advance.
+                                            </div>
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2 text-xs">
             <span className="rounded-full bg-primary px-3 py-1.5 font-medium text-primary-foreground">
-              简易创作 · AI 写完整本书
-            </span>
+              Simple Creation · AI to write a complete book
+                                      </span>
             <span className="rounded-full border border-border bg-background px-3 py-1.5 font-medium text-foreground">
-              专业创作 · 进入完整工作台
-            </span>
+              Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.
+                                      </span>
           </div>
         </div>
       </section>

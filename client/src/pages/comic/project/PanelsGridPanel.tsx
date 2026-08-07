@@ -56,11 +56,11 @@ function parseImageData(
 }
 
 const REF_KIND_LABEL: Record<string, string> = {
-  character_sheet: "三视图",
-  character_expression: "表情稿",
-  character_face: "面部裁剪",
-  asset: "资产",
-  scene: "场景",
+  character_sheet: "Three views",
+  character_expression: "Expressions",
+  character_face: "face cropping",
+  asset: "assets",
+  scene: "Scene",
 };
 
 const REF_KIND_COLOR: Record<string, string> = {
@@ -72,13 +72,13 @@ const REF_KIND_COLOR: Record<string, string> = {
 };
 
 const DENSITY_BADGE: Record<string, { label: string; className: string }> = {
-  low: { label: "低密度", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-  medium: { label: "中密度", className: "border-sky-200 bg-sky-50 text-sky-700" },
-  high: { label: "高密度", className: "border-amber-200 bg-amber-50 text-amber-700" },
+  low: { label: "low density", className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
+  medium: { label: "medium density", className: "border-sky-200 bg-sky-50 text-sky-700" },
+  high: { label: "high density", className: "border-amber-200 bg-amber-50 text-amber-700" },
 };
 
 function densityBadge(value: string | null | undefined): { label: string; className: string } {
-  return DENSITY_BADGE[value ?? ""] ?? { label: "未标注", className: "border-border bg-muted text-muted-foreground" };
+  return DENSITY_BADGE[value ?? ""] ?? { label: "Not labeled", className: "border-border bg-muted text-muted-foreground" };
 }
 
 function parseLayoutData(raw: string | null | undefined): {
@@ -175,7 +175,7 @@ function BatchBar({
           onClick={() => startMut.mutate()}
         >
           {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-          {isRunning ? "批量生成中..." : `批量生成 ${pendingCount > 0 ? `(${pendingCount}格)` : ""}`}
+          {isRunning ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : `批量生成 ${pendingCount > 0 ? `(${pendingCount}格)` : ""}`}
         </Button>
 
         {hasFailures && (
@@ -187,22 +187,22 @@ function BatchBar({
             onClick={() => retryMut.mutate()}
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            重试 {progress!.failedPanelIds.length} 格
-          </Button>
+            Try again {progress!.failedPanelIds.length} grid
+                                </Button>
         )}
 
         {estimate && pendingCount > 0 && (
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <CircleDollarSign className="h-3.5 w-3.5" />
-            约 {estimate.estimatedCentsCost} ¢
+            about {estimate.estimatedCentsCost} ¢
           </span>
         )}
 
         {job?.status === "completed" && (
-          <span className="text-xs font-medium text-green-600 dark:text-green-400">全部完成</span>
+          <span className="text-xs font-medium text-green-600 dark:text-green-400">All done</span>
         )}
         {job?.status === "partial" && !hasFailures && (
-          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">部分完成</span>
+          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">partially completed</span>
         )}
       </div>
 
@@ -224,9 +224,9 @@ function BatchBar({
           </div>
           <div className="flex justify-between text-[10px] text-muted-foreground">
             <span>
-              {progress.done} / {progress.total} 完成
-              {progress.failed > 0 && (
-                <span className="ml-1.5 text-destructive">{progress.failed} 失败</span>
+              {progress.done} / {progress.total} Finish
+                                        {progress.failed > 0 && (
+                <span className="ml-1.5 text-destructive">{progress.failed} fail</span>
               )}
             </span>
             <span>
@@ -284,8 +284,8 @@ function StripView({
                   />
                   {imageStale && (
                     <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                      待重抽
-                    </span>
+                      To be drawn again
+                                                        </span>
                   )}
                   {dialogues.length > 0 && (
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
@@ -310,7 +310,7 @@ function StripView({
             </div>
 
             <div className="flex items-center gap-2 bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">第 {panel.order} 格</span>
+              <span className="font-medium text-foreground">Section {panel.order} grid</span>
               <span className="opacity-60">{panel.panelType}</span>
               {panel.focus && <span className="flex-1 truncate">{panel.focus}</span>}
               <div className="ml-auto flex shrink-0 items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
@@ -323,8 +323,8 @@ function StripView({
                     onClick={() => onGenerate(panel.id)}
                   >
                     <Sparkles className="h-3 w-3" />
-                    生图
-                  </Button>
+                    raw picture
+                                                  </Button>
                 ) : (
                   <Button
                     type="button"
@@ -335,8 +335,8 @@ function StripView({
                     onClick={() => onGenerate(panel.id)}
                   >
                     <RefreshCw className="h-3 w-3" />
-                    重抽
-                  </Button>
+                    redraw
+                                                      </Button>
                 )}
                 <Button
                   type="button"
@@ -386,7 +386,7 @@ function PanelDetailDialog({
     onSuccess: (updatedPanel) => {
       onSaved(updatedPanel);
       setIsEditing(false);
-      toast.success("画面脚本已保存");
+      toast.success("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
     },
     onError: (e) => toast.error(String(e)),
   });
@@ -407,7 +407,7 @@ function PanelDetailDialog({
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <AppDialogContent
         title={`第 ${panel.order} 格 · ${panel.panelType}`}
-        description="检查并调整这一格的画面描述；重新生图会使用保存后的内容。"
+        description="Check and adjust the description for this grid; regenerating the grid will use the saved content."
         className="max-w-4xl"
         bodyClassName="p-0"
       >
@@ -422,8 +422,8 @@ function PanelDetailDialog({
                 />
                 {imageStale && (
                   <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                    待重抽
-                  </span>
+                    To be drawn again
+                                                        </span>
                 )}
               </div>
             ) : (
@@ -444,26 +444,26 @@ function PanelDetailDialog({
               {imageData.status === "done" ? (
                 <>
                   <RefreshCw className="h-3 w-3" />
-                  重抽
-                </>
+                  redraw
+                                                  </>
               ) : (
                 <>
                   <Sparkles className="h-3 w-3" />
-                  生图
-                </>
+                  raw picture
+                                                      </>
               )}
             </Button>
             {imageStale && (
               <p className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs leading-relaxed text-amber-800">
-                画面脚本已在上次生图后修改，重抽后图片才会使用新的脚本。
-              </p>
+                The picture script has been modified since the last drawing, and the new script will only be used after the picture is redrawn.
+                                            </p>
             )}
           </div>
 
           <div className="min-w-0 flex-1 space-y-4 p-4">
             <div>
               <div className="mb-1 flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-muted-foreground">动作描述</span>
+                <span className="text-xs font-semibold text-muted-foreground">Action description</span>
                 <span className={`rounded border px-2 py-0.5 text-[11px] ${density.className}`}>{density.label}</span>
               </div>
               <div className="rounded bg-muted px-2 py-1.5 text-sm">{panel.action}</div>
@@ -471,16 +471,15 @@ function PanelDetailDialog({
 
             {panel.focus && (
               <div>
-                <div className="mb-1 text-xs font-semibold text-muted-foreground">主视觉焦点</div>
-                <div className="rounded bg-muted/60 px-2 py-1.5 text-sm">{panel.focus}</div>
+                <div className="mb-1 text-xs font-semibold text-muted-foreground">Main visual focus</div> <div className="rounded bg-muted/60 px-2 py-1.5 text-sm">{panel.focus}</div>
               </div>
             )}
 
             {layoutData.layout && (
               <div>
-                <div className="mb-1 text-xs font-semibold text-muted-foreground">版式结构</div>
+                <div className="mb-1 text-xs font-semibold text-muted-foreground">Format structure</div>
                 <div className="rounded border bg-muted/40 px-2 py-2 text-xs leading-relaxed text-muted-foreground">
-                  <div className="font-medium text-foreground">{layoutData.layout === "four_koma" ? "四格起承转合" : layoutData.layout}</div>
+                  <div className="font-medium text-foreground">{layoutData.layout === "four_koma" ? "Four grids starting, inheriting and combining" : layoutData.layout}</div>
                   {layoutData.subPanels?.length ? (
                     <div className="mt-1 space-y-1">
                       {layoutData.subPanels.map((subPanel) => (
@@ -496,7 +495,7 @@ function PanelDetailDialog({
 
             <div>
               <div className="mb-1 flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold text-muted-foreground">画面脚本</span>
+                <span className="text-xs font-semibold text-muted-foreground">screen script</span>
                 <Button
                   type="button"
                   size="sm"
@@ -509,7 +508,7 @@ function PanelDetailDialog({
                   }}
                 >
                   <Pencil className="h-3 w-3" />
-                  {isEditing ? "取消编辑" : "编辑"}
+                  {isEditing ? "Cancel edit" : "edit"}
                 </Button>
               </div>
               <textarea
@@ -524,7 +523,7 @@ function PanelDetailDialog({
                 ].join(" ")}
               />
               <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-                <span>保存后，下一次生图会使用这段画面脚本。</span>
+                <span>After saving, this screen script will be used in the next drawing.</span>
                 <span>{draftVisualPrompt.length}/400</span>
               </div>
               {isEditing && (
@@ -536,8 +535,8 @@ function PanelDetailDialog({
                     onClick={() => savePromptMut.mutate()}
                   >
                     {savePromptMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                    保存
-                  </Button>
+                    keep
+                                                        </Button>
                   <Button
                     type="button"
                     size="sm"
@@ -546,8 +545,8 @@ function PanelDetailDialog({
                     onClick={saveAndGenerate}
                   >
                     <Sparkles className="h-3.5 w-3.5" />
-                    保存并生图
-                  </Button>
+                    Save and create images
+                                                        </Button>
                 </div>
               )}
             </div>
@@ -556,8 +555,8 @@ function PanelDetailDialog({
               <div>
                 <div className="mb-1.5 flex items-center gap-1 text-xs font-semibold text-muted-foreground">
                   <ImageIcon className="h-3 w-3" />
-                  本次生图使用的参考素材
-                  <span className="rounded border bg-muted px-1 py-px text-[10px] font-normal text-muted-foreground">
+                  Reference materials used in this drawing
+                                                    <span className="rounded border bg-muted px-1 py-px text-[10px] font-normal text-muted-foreground">
                     {imageData.referenceImages.length}
                   </span>
                 </div>
@@ -594,16 +593,16 @@ function PanelDetailDialog({
                   })}
                 </div>
                 <p className="mt-1.5 text-[10px] text-muted-foreground">
-                  这些素材会被合成为雪碧图后传给图像模型，用于锁定角色外形、服装、道具与场景。
-                </p>
+                  These materials will be synthesized into sprites and then passed to the image model to lock the character's appearance, clothing, props and scenes.
+                                                  </p>
               </div>
             )}
 
             <div>
               <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-muted-foreground">
                 <FileText className="h-3 w-3" />
-                上次发送给图像模型的 Prompt
-              </div>
+                The last prompt sent to the image model
+                                            </div>
               {imageData.prompt ? (
                 <>
                   <textarea
@@ -614,14 +613,14 @@ function PanelDetailDialog({
                   />
                   {imageData.provider && (
                     <div className="mt-1 text-[11px] text-muted-foreground">
-                      模型：{imageData.provider}{imageData.generatedAt ? ` · 生成于 ${new Date(imageData.generatedAt).toLocaleString("zh-CN")}` : ""}
+                      Model:{imageData.provider}{imageData.generatedAt ? ` · 生成于 ${new Date(imageData.generatedAt).toLocaleString("zh-CN")}` : ""}
                     </div>
                   )}
                 </>
               ) : (
                 <div className="rounded bg-muted/50 px-2 py-2 text-xs text-muted-foreground">
-                  生图后可在这里查看模型实际收到的完整 prompt。
-                </div>
+                  After the drawing is generated, you can view the complete prompts actually received by the model here.
+                                                      </div>
               )}
             </div>
           </div>
@@ -693,14 +692,14 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                 onClick={() => setSelectedEpisodeId(episode.id)}
                 className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${(activeEpisode?.id === episode.id) ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-accent"}`}
               >
-                第 {episode.order} 话
-              </button>
+                Section {episode.order} talk
+                                  </button>
             ))}
           </div>
           <div className="ml-auto flex rounded-md border bg-background p-0.5">
             <button
               type="button"
-              title="格子视图"
+              title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
               className={`rounded p-1.5 transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
               onClick={() => setViewMode("grid")}
             >
@@ -708,7 +707,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
             </button>
             <button
               type="button"
-              title="条带视图（阅读流）"
+              title="Strip view (reading stream)"
               className={`rounded p-1.5 transition-colors ${viewMode === "strip" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
               onClick={() => setViewMode("strip")}
             >
@@ -729,11 +728,11 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
         />
       )}
 
-      {panelsLoading && <div className="py-8 text-center text-sm text-muted-foreground">加载中...</div>}
+      {panelsLoading && <div className="py-8 text-center text-sm text-muted-foreground">loading...</div>}
       {!panelsLoading && panels.length === 0 && activeEpisode && (
         <div className="py-8 text-center text-sm text-muted-foreground">
-          该话尚无格子脚本，请先在「分话大纲」中生成分格脚本。
-        </div>
+          There is no grid script for this episode yet. Please generate a grid script in "Episode Outline" first.
+                          </div>
       )}
 
       {selectedPanel && (
@@ -784,8 +783,8 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                     />
                     {imageStale && (
                       <span className="absolute left-2 top-2 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                        待重抽
-                      </span>
+                        To be drawn again
+                                                          </span>
                     )}
                   </div>
                 ) : (
@@ -799,7 +798,7 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                 )}
                 <div className="p-1.5 text-xs text-muted-foreground">
                   <div className="flex items-center justify-between gap-1">
-                    <span className="font-medium">第 {panel.order} 格</span>
+                    <span className="font-medium">Section {panel.order} grid</span>
                     <span className={`rounded border px-1.5 py-0.5 text-[10px] ${density.className}`}>{density.label}</span>
                   </div>
                   <div className="mt-1 truncate">
@@ -820,8 +819,8 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                       }}
                     >
                       <Sparkles className="h-3 w-3" />
-                      生图
-                    </Button>
+                      raw picture
+                                                    </Button>
                   )}
                   {imageData.status === "done" && (
                     <Button
@@ -836,8 +835,8 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                       }}
                     >
                       <RefreshCw className="h-3 w-3" />
-                      重抽
-                    </Button>
+                      redraw
+                                                    </Button>
                   )}
                   <Button
                     type="button"
@@ -850,8 +849,8 @@ export function PanelsGridPanel({ projectId, provider }: { projectId: string; pr
                     }}
                   >
                     <FileText className="h-3 w-3" />
-                    提示词
-                  </Button>
+                    Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.
+                                              </Button>
                 </div>
               </div>
             );

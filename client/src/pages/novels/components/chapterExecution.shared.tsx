@@ -94,13 +94,13 @@ interface ResolveChapterExecutionFlowInput {
 }
 
 const CHAPTER_EXECUTION_FLOW_ORDER: Array<{ key: ChapterExecutionFlowStageKey; label: string }> = [
-  { key: "execution_plan", label: "执行计划" },
-  { key: "writing", label: "正文写作" },
-  { key: "review", label: "审核" },
-  { key: "repair", label: "修复" },
-  { key: "state_sync", label: "状态同步" },
-  { key: "payoff_sync", label: "伏笔回填" },
-  { key: "ready", label: "可继续推进" },
+  { key: "execution_plan", label: "execution plan" },
+  { key: "writing", label: "text writing" },
+  { key: "review", label: "review" },
+  { key: "repair", label: "repair" },
+  { key: "state_sync", label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+  { key: "payoff_sync", label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+  { key: "ready", label: "Can continue to advance" },
 ];
 
 function hasOpenAuditIssues(reports: AuditReport[]): boolean {
@@ -147,35 +147,35 @@ function buildCurrentStageNote(stage: ChapterExecutionFlowStage): string {
   switch (stage.key) {
     case "execution_plan":
       return stage.status === "done"
-        ? "这一章的执行计划已经齐备。"
-        : "这章还缺执行计划，系统会先准备任务单或场景拆解。";
+        ? "The execution plan for this chapter is ready."
+        : "This chapter still lacks an execution plan. The system will first prepare a task list or scene breakdown.";
     case "writing":
       return stage.status === "in_progress"
-        ? "AI 正在写这一章的正文。"
-        : "执行计划已具备，可以开始写正文。";
+        ? "AI is writing the main text of this chapter."
+        : "The execution plan is now ready and you can start writing the text.";
     case "review":
       return stage.status === "in_progress"
-        ? "正文已生成，系统正在审核。"
-        : "正文已有内容，下一步会进入审核。";
+        ? "The text has been generated and is being reviewed by the system."
+        : "The text already contains content, and the next step will be review.";
     case "repair":
       return stage.status === "in_progress"
-        ? "系统正在根据问题修复正文。"
-        : "如果审核发现问题，这里会进入修复阶段。";
+        ? "The system is fixing the text based on the problem."
+        : "If problems are found during the review, the repair phase will be entered.";
     case "state_sync":
       return stage.status === "in_progress"
-        ? "正文可读，系统正在回灌本章状态、角色变化和关键资源。"
-        : "正文可读后，系统会回灌本章状态和关键资源。";
+        ? "The text is readable, and the system is feeding back the status of this chapter, character changes, and key resources."
+        : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "payoff_sync":
       return stage.status === "in_progress"
-        ? "系统正在校准本章涉及的伏笔账本。"
-        : "资产回灌后，系统会按风险和节奏校准伏笔账本。";
+        ? "The system is calibrating the foreshadowing ledger involved in this chapter."
+        : "After the assets are reintroduced, the system will calibrate the foreshadowing ledger according to risk and rhythm.";
     case "ready":
     default:
       return stage.status === "done"
-        ? "这章已经达到可继续推进的状态。"
+        ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
         : stage.status === "in_progress"
-          ? "这章已经完成当前轮审核。你可以继续编辑，也可以先处理建议。"
-          : "完成前面步骤后，这章就可以继续推进。";
+          ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+          : "After completing the previous steps, you can move forward with this chapter.";
   }
 }
 
@@ -320,55 +320,55 @@ export function resolveDisplayedChapterStatus(chapter: Chapter): Chapter["chapte
 export function chapterStatusLabel(status?: Chapter["chapterStatus"] | null): string {
   switch (status) {
     case "unplanned":
-      return "待准备";
+      return "To be prepared";
     case "pending_generation":
-      return "待写作";
+      return "To be written";
     case "generating":
-      return "写作中";
+      return "Writing";
     case "pending_review":
-      return "已审校";
+      return "Reviewed";
     case "needs_repair":
-      return "建议修复";
+      return "Suggested fixes";
     case "completed":
-      return "已完成";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     default:
-      return "未设置";
+      return "not set";
   }
 }
 
 export function chapterStatusDescription(status?: Chapter["chapterStatus"] | null): string {
   switch (status) {
     case "unplanned":
-      return "待准备：这章还缺少执行素材，通常要先补章节目标、任务单或场景卡。";
+      return "To be prepared: This chapter still lacks execution materials. Usually, chapter objectives, task lists or scene cards need to be supplemented first.";
     case "pending_generation":
-      return "待写作：章节计划已基本齐备，可以开始生成正文。";
+      return "To be written: The chapter plan is basically ready and the text can be started.";
     case "generating":
-      return "写作中：AI 正在生成本章正文，或正在做生成后的收尾处理。";
+      return "Writing: AI is generating the text of this chapter, or is finishing the post-generation process.";
     case "pending_review":
-      return "已审校：正文已经完成当前轮审核。你可以查看建议、直接继续编辑，或按需处理问题。";
+      return "Reviewed: The text has completed the current round of review. You can view suggestions, continue editing directly, or address issues as needed.";
     case "needs_repair":
-      return "建议修复：审核发现了问题，但不会阻止继续编辑。你可以一键修复，也可以先继续写。";
+      return "Recommended fix: The review uncovered the problem but does not prevent further editing. You can fix it with one click or continue writing first.";
     case "completed":
-      return "已完成：本章已通过当前流程，可以继续润色或进入下一章。";
+      return "Completed: This chapter has passed the current process and can be polished or moved on to the next chapter.";
     default:
-      return "未设置：当前章节还没有明确的流程状态。";
+      return "Not set: The current chapter has no clear process status.";
   }
 }
 
 export function generationStateLabel(state?: Chapter["generationState"] | null): string {
   switch (state) {
     case "planned":
-      return "已入目录";
+      return "Already cataloged";
     case "drafted":
-      return "已成稿";
+      return "Completed";
     case "reviewed":
-      return "已审校";
+      return "Reviewed";
     case "repaired":
-      return "已修复";
+      return "Fixed";
     case "approved":
-      return "已确认";
+      return "Confirmed";
     case "published":
-      return "已发布";
+      return "Published";
     default:
       return "";
   }
@@ -377,17 +377,17 @@ export function generationStateLabel(state?: Chapter["generationState"] | null):
 export function generationStateDescription(state?: Chapter["generationState"] | null): string {
   switch (state) {
     case "planned":
-      return "已入目录：章节已进入目录或拆章结果，但还没有正文草稿。";
+      return "Already included in the Table of Contents: The chapter has been included in the Table of Contents or has been split into chapters, but there is no text draft yet.";
     case "drafted":
-      return "已成稿：已经生成过正文草稿，但还没完成审校确认。";
+      return "Completed: A draft of the text has been generated, but the review and confirmation has not yet been completed.";
     case "reviewed":
-      return "已审校：已经完成一轮审校，后续可能继续修复或确认。";
+      return "Reviewed: A round of review has been completed and may be repaired or confirmed later.";
     case "repaired":
-      return "已修复：已经根据问题修过一轮，通常下一步是再次审校或确认。";
+      return "Fixed: It has been repaired based on the problem. Usually the next step is to review or confirm again.";
     case "approved":
-      return "已确认：本章已通过当前质量门槛，自动执行时会视为已完成并跳过。";
+      return "Confirmed: This chapter has passed the current quality threshold and will be considered completed and skipped when automatically executed.";
     case "published":
-      return "已发布：本章已进入发布状态，自动执行不会再重复生成。";
+      return "Published: This chapter has entered the published state and will not be regenerated automatically.";
     default:
       return "";
   }
@@ -402,53 +402,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function stringifyRiskLabel(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-}
-
-function qualityLoopActionLabel(value: unknown): string | null {
-  switch (value) {
-    case "continue":
-      return "质量可继续";
-    case "patch_repair":
-      return "建议补写修复";
-    case "replan":
-      return "建议重规划";
-    case "manual_gate":
-      return "需要确认修复边界";
-    default:
-      return null;
-  }
-}
-
-function qualityLoopStatusLabel(value: unknown): string | null {
-  switch (value) {
-    case "risk":
-      return "质量有风险";
-    case "invalid":
-      return "质量需修复";
-    case "missing":
-      return "质量信息缺失";
-    default:
-      return null;
-  }
-}
-
-function qualityLoopArtifactLabel(value: unknown): string | null {
-  switch (value) {
-    case "chapter_retention_contract":
-      return "留存风险";
-    case "continuity_state":
-      return "连贯性风险";
-    case "rolling_window_review":
-      return "章节衔接风险";
-    case "prose_quality":
-      return "正文自然度/退化检测";
-    default:
-      return null;
-  }
-}
-
-function parseStructuredRiskFlagsObject(input: string): Record<string, unknown> | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null; } function qualityLoopActionLabel(value: unknown): string | null { switch (value) { case "continue": return "Quality can continue"; case "patch_repair": return "Repair is recommended"; case "replan": return "Replanning is recommended"; case "manual_gate": return "Repair boundary needs to be confirmed"; default: return null; } } function qualityLoopStatusLabel(value: unknown): string | null { switch (value) { case "risk": return "Quality is at risk"; case "invalid": return "Quality needs to be repaired"; case "missing": return "Quality information is missing"; default: return null; } } function qualityLoopArtifactLabel(value: unknown): string | null { switch (value) { case "chapter_retention_contract": return "Retention risk"; case "continuity_state": return "Continuity risk"; case "rolling_window_review": return "Chapter transition risk"; case "prose_quality": return "Text naturalness/degradation detection"; default: return null; } } function parseStructuredRiskFlagsObject(input: string): Record<string, unknown> | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(input);
@@ -470,7 +424,7 @@ function parseStructuredRiskFlags(input: string): string[] | null {
   if (isRecord(qualityLoop)) {
     const qualityLoopRisk = classifyChapterQualityLoopRisk(qualityLoop);
     if (qualityLoopRisk === "non_blocking_quality_debt") {
-      labels.push("已记录质量债务");
+      labels.push("Recorded quality debt");
     } else {
       const actionLabel = qualityLoopActionLabel(qualityLoop.recommendedAction);
       const statusLabel = qualityLoopStatusLabel(qualityLoop.overallStatus);
@@ -507,79 +461,7 @@ export function parseRiskFlags(input: string | null | undefined): string[] {
   return input
     .split(/[\n,，;；|]/g)
     .map((item) => item.trim())
-    .filter((item) => item.length > 0)
-    .slice(0, 4);
-}
-
-export function hasText(input: string | null | undefined): boolean {
-  return Boolean(input?.trim());
-}
-
-export function chapterHasPreparationAssets(chapter: Chapter): boolean {
-  return hasText(chapter.expectation) || hasText(chapter.taskSheet) || hasText(chapter.sceneCards);
-}
-
-export function parseChapterScenePlanForDisplay(chapter: Chapter) {
-  return parseChapterScenePlan(chapter.sceneCards, {
-    targetWordCount: chapter.targetWordCount ?? undefined,
-  });
-}
-
-export function resolveChapterQueuePreview(chapter: Chapter): string {
-  if (hasText(chapter.expectation)) {
-    return chapter.expectation!.trim();
-  }
-  if (hasText(chapter.taskSheet)) {
-    return chapter.taskSheet!.trim();
-  }
-  const scenePlan = parseChapterScenePlanForDisplay(chapter);
-  if (scenePlan) {
-    const firstScene = scenePlan.scenes[0];
-    return firstScene
-      ? `${firstScene.title} · ${firstScene.purpose}`
-      : "这一章已生成场景预算合同。";
-  }
-  if (hasText(chapter.sceneCards)) {
-    return "这章存在旧版场景拆解，建议重新生成。";
-  }
-  return "这一章还没有明确目标，适合先补章节计划。";
-}
-
-export function chapterSuggestedActionLabel(chapter: Chapter): string {
-  if (chapterHasContinuableQualityLoop(chapter)) {
-    return hasText(chapter.content) ? "继续下一章" : "写本章";
-  }
-  const status = resolveDisplayedChapterStatus(chapter);
-  if (status === "generating") return "等待生成";
-  if (status === "needs_repair") return "一键修复";
-  if (status === "pending_review") {
-    return chapter.generationState === "reviewed" || chapter.generationState === "approved"
-      ? "查看建议"
-      : "运行审校";
-  }
-  if (status === "completed") return "继续润色";
-  if (status === "unplanned" || !chapterHasPreparationAssets(chapter)) return "补章节计划";
-  if (!hasText(chapter.content) || status === "pending_generation") return "写本章";
-  if (chapter.generationState === "drafted") return "运行审校";
-  return "打开编辑器";
-}
-
-export function chapterMatchesQueueFilter(chapter: Chapter, filter: QueueFilterKey): boolean {
-  const status = resolveDisplayedChapterStatus(chapter);
-  if (filter === "all") return true;
-  if (filter === "completed") {
-    return status === "completed"
-      || chapter.generationState === "approved"
-      || chapter.generationState === "published";
-  }
-  if (filter === "review") {
-    return status === "pending_review"
-      || status === "needs_repair"
-      || chapter.generationState === "drafted"
-      || chapter.generationState === "reviewed";
-  }
-  if (filter === "setup") {
-    return status === "unplanned" || (!chapterHasPreparationAssets(chapter) && !hasText(chapter.content));
+    .filter((item) => item.length > 0) .slice(0, 4); } export function hasText(input: string | null | undefined): boolean { return Boolean(input?.trim()); } export function chapterHasPreparationAssets(chapter: Chapter): boolean { return hasText(chapter.expectation) || hasText(chapter.taskSheet) || hasText(chapter.sceneCards); } export function parseChapterScenePlanForDisplay(chapter: Chapter) { return parseChapterScenePlan(chapter.sceneCards, { targetWordCount: chapter.targetWordCount ?? undefined, }); } export function resolveChapterQueuePreview(chapter: Chapter): string { if (hasText(chapter.expectation)) { return chapter.expectation!.trim(); } if (hasText(chapter.taskSheet)) { return chapter.taskSheet!.trim(); } const scenePlan = parseChapterScenePlanForDisplay(chapter); if (scenePlan) { const firstScene = scenePlan.scenes[0]; return firstScene ? `${firstScene.title} · ${firstScene.purpose}` : "This chapter has generated a scene budget contract."; } if (hasText(chapter.sceneCards)) { return "This chapter has an old version of scene breakdown, it is recommended to regenerate."; } return "This chapter does not yet have a clear goal, it is suitable to fill in the chapter plan first."; } export function chapterSuggestedActionLabel(chapter: Chapter): string { if (chapterHasContinuableQualityLoop(chapter)) { return hasText(chapter.content) ? "Continue to the next chapter" : "Write this chapter"; } const status = resolveDisplayedChapterStatus(chapter); if (status === "generating") return "Waiting for generation"; if (status === "needs_repair") return "One-click repair"; if (status === "pending_review") { return chapter.generationState === "reviewed" || chapter.generationState === "approved" ? "View suggestions" : "Run proofreading"; } if (status === "completed") return "Continue polishing"; if (status === "unplanned" || !chapterHasPreparationAssets(chapter)) return "Supplementing chapter plan"; if (!hasText(chapter.content) || status === "pending_generation") return "Writing this chapter"; if (chapter.generationState === "drafted") return "Run proofreading"; return "Open editor"; } export function chapterMatchesQueueFilter(chapter: Chapter, filter: QueueFilterKey): boolean { const status = resolveDisplayedChapterStatus(chapter); if (filter === "all") return true; if (filter === "completed") { return status === "completed" || chapter.generationState === "approved" || chapter.generationState === "published"; } if (filter === "review") { return status === "pending_review" || status === "needs_repair" || chapter.generationState === "drafted" || chapter.generationState === "reviewed"; } if (filter === "setup") { return status === "unplanned" || (!chapterHasPreparationAssets(chapter) && !hasText(chapter.content));
   }
   if (filter === "draft") {
     return status === "pending_generation"

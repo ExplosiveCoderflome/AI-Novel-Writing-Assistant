@@ -1,9 +1,9 @@
 import type { Character, CharacterTimeline } from "@ai-novel/shared/types/novel";
 
-const RELATION_POSITIVE_KEYWORDS = ["伙伴", "盟友", "信任", "守护", "亲密", "喜欢", "合作"];
-const RELATION_NEGATIVE_KEYWORDS = ["敌对", "对立", "怀疑", "背叛", "利用", "冲突", "压制"];
-const TREND_UP_KEYWORDS = ["升温", "缓和", "靠近", "修复", "合作加深", "信任增加"];
-const TREND_DOWN_KEYWORDS = ["恶化", "破裂", "紧张", "决裂", "冲突升级", "敌意加深"];
+const RELATION_POSITIVE_KEYWORDS = ["Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", "ally", "trust", "guard", "close", "like", "cooperate"];
+const RELATION_NEGATIVE_KEYWORDS = ["hostility", "opposition", "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", "betray", "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", "conflict", "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."];
+const TREND_UP_KEYWORDS = ["heating up", "ease", "near", "repair", "Cooperation deepens", "Trust increases"];
+const TREND_DOWN_KEYWORDS = ["Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", "rupture", "nervous", "break", "Conflict escalates", "Hostility deepens"];
 
 function compactText(input: string | null | undefined): string {
   return (input ?? "").trim();
@@ -55,7 +55,7 @@ export function buildCharacterProfileFromWizard(payload: QuickCharacterCreatePay
     .split(/[，,\s]+/g)
     .map((item) => item.trim())
     .filter((item) => item.length > 0);
-  const keywordText = keywordList.length > 0 ? keywordList.join("、") : "待补充";
+  const keywordText = keywordList.length > 0 ? keywordList.join("、") : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
 
   const personality = `核心特征：${keywordText}`;
   const background = joinSegments([
@@ -73,39 +73,39 @@ export function buildCharacterProfileFromWizard(payload: QuickCharacterCreatePay
     personality: personality || undefined,
     background: background || undefined,
     development: development || undefined,
-    currentState: payload.relationToProtagonist ? `关系推进中（${payload.relationToProtagonist}）` : "待上场",
-    currentGoal: payload.storyFunction || "推动主线关键节点",
+    currentState: payload.relationToProtagonist ? `关系推进中（${payload.relationToProtagonist}）` : "Waiting to play",
+    currentGoal: payload.storyFunction || "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
   };
 }
 
 function inferCurrentRelation(source: string): string {
   if (!source) {
-    return "待定义";
+    return "To be defined";
   }
   const positiveHits = countHits(source, RELATION_POSITIVE_KEYWORDS);
   const negativeHits = countHits(source, RELATION_NEGATIVE_KEYWORDS);
   if (positiveHits > negativeHits) {
-    return "合作 / 亲近";
+    return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   }
   if (negativeHits > positiveHits) {
-    return "对立 / 紧张";
+    return "opposition / tension";
   }
-  return "复杂 / 待观察";
+  return "Complex / to be seen";
 }
 
 function inferTrend(source: string): string {
   if (!source) {
-    return "待观察";
+    return "To be seen";
   }
   const upHits = countHits(source, TREND_UP_KEYWORDS);
   const downHits = countHits(source, TREND_DOWN_KEYWORDS);
   if (upHits > downHits) {
-    return "升温";
+    return "heating up";
   }
   if (downHits > upHits) {
-    return "恶化";
+    return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   }
-  return "平稳";
+  return "smooth";
 }
 
 function includesCharacterName(source: string, characterName: string): boolean {
@@ -117,7 +117,7 @@ function includesCharacterName(source: string, characterName: string): boolean {
 
 function buildLatestEvidence(event?: CharacterTimeline): string {
   if (!event) {
-    return "暂无章节证据";
+    return "No chapter evidence yet";
   }
   const excerpt = compactText(event.content).slice(0, 36);
   return excerpt.length > 0 ? excerpt : event.title;

@@ -84,25 +84,25 @@ function compareNullableNumber(a: number | null | undefined, b: number | null | 
 function getChangedFields(existing: OutlineSyncChapter, chapter: StructuredChapter): string[] {
   const changed: string[] = [];
   if (!compareNullableString(existing.title, chapter.title)) {
-    changed.push("标题");
+    changed.push("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
   }
   if (!compareNullableString(existing.expectation, chapter.summary)) {
-    changed.push("摘要");
+    changed.push("summary");
   }
   if (!compareNullableNumber(existing.targetWordCount, chapter.targetWordCount)) {
-    changed.push("目标字数");
+    changed.push("target word count");
   }
   if (!compareNullableNumber(existing.conflictLevel, chapter.conflictLevel)) {
-    changed.push("冲突等级");
+    changed.push("conflict level");
   }
   if (!compareNullableNumber(existing.revealLevel, chapter.revealLevel)) {
-    changed.push("揭露等级");
+    changed.push("reveal level");
   }
   if (!compareNullableString(existing.mustAvoid, chapter.mustAvoid)) {
-    changed.push("禁止事项");
+    changed.push("Prohibited matters");
   }
   if (chapter.taskSheet?.trim() && !compareNullableString(existing.taskSheet, chapter.taskSheet)) {
-    changed.push("任务单");
+    changed.push("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
   }
   return changed;
 }
@@ -133,7 +133,7 @@ export function buildStructuredOutlineSyncPreview(
         order: chapter.order,
         nextTitle: chapter.title,
         hasContent: false,
-        changedFields: ["新章节"],
+        changedFields: ["new chapter"],
       });
       continue;
     }
@@ -180,7 +180,7 @@ export function buildStructuredOutlineSyncPreview(
         order: chapter.order,
         nextTitle: chapter.title,
         hasContent,
-        changedFields: ["从大纲移除"],
+        changedFields: ["Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."],
       });
     } else {
       deleteCandidateCount += 1;
@@ -189,7 +189,7 @@ export function buildStructuredOutlineSyncPreview(
         order: chapter.order,
         nextTitle: chapter.title,
         hasContent,
-        changedFields: ["待确认删除"],
+        changedFields: ["Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."],
       });
     }
   }

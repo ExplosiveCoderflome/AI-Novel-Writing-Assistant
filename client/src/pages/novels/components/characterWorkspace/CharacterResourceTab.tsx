@@ -34,7 +34,7 @@ export default function CharacterResourceTab(props: CharacterResourceTabProps) {
       <section className="rounded-xl border border-border/70 bg-muted/10 p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-sm font-medium">关键资源</div>
+            <div className="text-sm font-medium">key resources</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">{resourceDisplayMode.helper}</div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -45,11 +45,11 @@ export default function CharacterResourceTab(props: CharacterResourceTabProps) {
               onClick={() => onBackfillCharacterResources?.()}
               disabled={isBackfillingCharacterResources || !onBackfillCharacterResources}
             >
-              {isBackfillingCharacterResources ? "回填中..." : "回填最近章节"}
+              {isBackfillingCharacterResources ? "Backfilling..." : "Backfilling the most recent chapter"}
             </Button>
             <Badge variant="outline">{resourceDisplayMode.label}</Badge>
             {pendingCharacterResourceCount > 0 ? (
-              <Badge variant="secondary">{pendingCharacterResourceCount} 条资源变更待确认</Badge>
+              <Badge variant="secondary">{pendingCharacterResourceCount} Resource changes pending confirmation</Badge>
             ) : null}
           </div>
         </div>
@@ -68,13 +68,13 @@ export default function CharacterResourceTab(props: CharacterResourceTabProps) {
               </div>
               <div className="mt-1 text-xs leading-5 text-muted-foreground">{resource.summary}</div>
               <div className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-                <div>持有者：{resource.holderCharacterName || selectedCharacter.name}</div>
-                <div>读者知情：{resource.readerKnows ? "知情" : "未公开"}</div>
+                <div>Holder:{resource.holderCharacterName || selectedCharacter.name}</div>
+                <div>Reader information:{resource.readerKnows ? "Informed" : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}</div>
                 {resource.expectedUseEndChapterOrder ? (
-                  <div>使用窗口：第{resource.expectedUseStartChapterOrder ?? "?"}章至第{resource.expectedUseEndChapterOrder}章</div>
+                  <div>Use window: No.{resource.expectedUseStartChapterOrder ?? "?"}Chapter to Chapter{resource.expectedUseEndChapterOrder}chapter</div>
                 ) : null}
                 {resource.constraints.length > 0 ? (
-                  <div>限制：{resource.constraints.slice(0, 2).join(" / ")}</div>
+                  <div>limit:{resource.constraints.slice(0, 2).join(" / ")}</div>
                 ) : null}
               </div>
             </div>
@@ -82,8 +82,8 @@ export default function CharacterResourceTab(props: CharacterResourceTabProps) {
         </div>
       ) : (
         <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-          关键道具、线索、身份凭证或底牌会在章节写作后沉淀到这里；临时角色只保留会影响后续章节的资源。
-        </div>
+          Key props, clues, identity credentials or trump cards will be deposited here after the chapter is written; temporary characters only retain resources that will affect subsequent chapters.
+                              </div>
       )}
     </div>
   );

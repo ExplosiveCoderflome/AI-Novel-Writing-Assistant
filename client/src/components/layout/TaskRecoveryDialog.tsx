@@ -11,18 +11,18 @@ import { useTaskRecovery } from "./TaskRecoveryContext";
 
 function formatTaskKind(kind: RecoverableTaskSummary["kind"]): string {
   if (kind === "novel_workflow") {
-    return "小说主流程";
+    return "The main flow of the novel";
   }
   if (kind === "novel_pipeline") {
-    return "章节流水线";
+    return "Chapter Pipeline";
   }
   if (kind === "book_analysis") {
-    return "拆书任务";
+    return "Book opening task";
   }
   if (kind === "style_extraction") {
-    return "写法提取";
+    return "Writing extraction";
   }
-  return "图片任务";
+  return "picture task";
 }
 
 export default function TaskRecoveryDialog() {
@@ -40,15 +40,15 @@ export default function TaskRecoveryDialog() {
   return (
     <Dialog open={isOpen} onOpenChange={(nextOpen) => { if (!nextOpen) closeDialog(); }}>
       <AppDialogContent
-        title="检测到待恢复任务"
-        description="系统启动时发现有后台任务在服务重启前中断了。现在不会自动继续执行，你可以先逐个确认，再决定是否恢复。"
+        title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+        description="When the system started, it was found that a background task was interrupted before the service was restarted. Now the execution will not continue automatically. You can confirm one by one before deciding whether to resume."
         footer={(
           <>
             <Button variant="outline" onClick={closeDialog}>
-              稍后处理
-            </Button>
+              deal with it later
+                                </Button>
             <Button onClick={resumeAll} disabled={isResumeSinglePending || isResumeAllPending}>
-              {isResumeAllPending ? "恢复全部中..." : "继续全部"}
+              {isResumeAllPending ? "Restore all..." : "continue all"}
             </Button>
           </>
         )}
@@ -62,11 +62,11 @@ export default function TaskRecoveryDialog() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant="outline">{formatTaskKind(item.kind)}</Badge>
                       <Badge variant={item.status === "running" ? "default" : "secondary"}>
-                        {item.status === "running" ? "运行中断" : "排队中断"}
+                        {item.status === "running" ? "Running interrupted" : "Queue interrupted"}
                       </Badge>
                     </div>
                     <div className="text-base font-semibold">{item.title}</div>
-                    <div className="text-sm text-muted-foreground">所属对象：{item.ownerLabel}</div>
+                    <div className="text-sm text-muted-foreground">Belonging object:{item.ownerLabel}</div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
@@ -74,18 +74,18 @@ export default function TaskRecoveryDialog() {
                       onClick={() => resumeSingle({ kind: item.kind, id: item.id })}
                       disabled={isResumeAllPending || (isResumeSinglePending && busyTaskId !== item.id)}
                     >
-                      {isResumeSinglePending && busyTaskId === item.id ? "恢复中..." : "继续单个"}
+                      {isResumeSinglePending && busyTaskId === item.id ? "Resume in progress..." : "Continue with single task"}
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link to={item.sourceRoute} onClick={closeDialog}>打开任务位置</Link>
+                      <Link to={item.sourceRoute} onClick={closeDialog}>Open task location</Link>
                     </Button>
                   </div>
                 </div>
 
                 <div className="grid gap-2 text-sm text-muted-foreground">
-                  {item.currentStage ? <div>当前阶段：{item.currentStage}</div> : null}
-                  {item.currentItemLabel ? <div>中断位置：{item.currentItemLabel}</div> : null}
-                  {item.resumeAction ? <div>建议动作：{item.resumeAction}</div> : null}
+                  {item.currentStage ? <div>Current stage:{item.currentStage}</div> : null}
+                  {item.currentItemLabel ? <div>Interrupt location:{item.currentItemLabel}</div> : null}
+                  {item.resumeAction ? <div>Recommended action:{item.resumeAction}</div> : null}
                   {item.recoveryHint ? <div>恢复建议：{item.recoveryHint}</div> : null}
                 </div>
               </CardContent>

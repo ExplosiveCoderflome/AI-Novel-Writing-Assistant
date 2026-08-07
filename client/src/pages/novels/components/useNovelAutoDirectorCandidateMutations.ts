@@ -115,7 +115,7 @@ export function useNovelAutoDirectorCandidateMutations({
     },
     onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId }) => {
       if (!batch) {
-        toast.error("自动导演没有返回可用方案。");
+        toast.error("Auto Director returned no available options.");
         return;
       }
       if (nextWorkflowTaskId && nextWorkflowTaskId !== workflowTaskId) {
@@ -133,7 +133,7 @@ export function useNovelAutoDirectorCandidateMutations({
     },
     onError: (error) => {
       setDialogMode("execution_failed");
-      setExecutionError(error instanceof Error ? error.message : "导演候选方案生成失败。");
+      setExecutionError(error instanceof Error ? error.message : "Director candidate generation failed.");
     },
   });
 
@@ -163,18 +163,18 @@ export function useNovelAutoDirectorCandidateMutations({
     },
     onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId, candidateId }) => {
       if (!batch) {
-        toast.error("定向修正失败，未返回更新后的方案。");
+        toast.error("Orientation correction failed and the updated plan was not returned.");
         return;
       }
       applyUpdatedBatch(batch, nextWorkflowTaskId);
       setCandidatePatchFeedbacks((prev) => ({ ...prev, [candidateId]: "" }));
       setDialogMode("candidate_selection");
       setCandidateDialogOpen(true);
-      toast.success("已按你的意见修正这套方案。");
+      toast.success("This plan has been revised according to your opinions.");
     },
     onError: (error) => {
       setDialogMode("execution_failed");
-      setExecutionError(error instanceof Error ? error.message : "定向修正方案失败。");
+      setExecutionError(error instanceof Error ? error.message : "Orientation correction plan failed.");
     },
   });
 
@@ -204,18 +204,18 @@ export function useNovelAutoDirectorCandidateMutations({
     },
     onSuccess: ({ batch, workflowTaskId: nextWorkflowTaskId, candidateId }) => {
       if (!batch) {
-        toast.error("标题组修正失败，未返回更新后的书名组。");
+        toast.error("Title group modification failed and the updated title group was not returned.");
         return;
       }
       applyUpdatedBatch(batch, nextWorkflowTaskId);
       setTitlePatchFeedbacks((prev) => ({ ...prev, [candidateId]: "" }));
       setDialogMode("candidate_selection");
       setCandidateDialogOpen(true);
-      toast.success("已重做这套方案的标题组。");
+      toast.success("The title group for this scheme has been redone.");
     },
     onError: (error) => {
       setDialogMode("execution_failed");
-      setExecutionError(error instanceof Error ? error.message : "标题组修正失败。");
+      setExecutionError(error instanceof Error ? error.message : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
     },
   });
 

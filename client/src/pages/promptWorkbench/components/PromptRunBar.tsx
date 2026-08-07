@@ -46,14 +46,14 @@ export function PromptRunBar(props: PromptRunBarProps) {
     onRunTest,
     onSave,
     officialVersionDisabled,
-    officialVersionLabel = "官方版本",
+    officialVersionLabel = "official version",
     previewDisabled,
     prompt,
     resetDisabled,
     saveDisabled,
     saveError,
-    saveLabel = "保存覆盖",
-    savePendingLabel = "保存中...",
+    saveLabel = "save override",
+    savePendingLabel = "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
     testLlm,
     onTestLlmChange,
     testRunDisabled,
@@ -71,23 +71,23 @@ export function PromptRunBar(props: PromptRunBarProps) {
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
           <div className="rounded-md bg-[#f2f8f6] px-3 py-2">
-            <span className="text-xs text-muted-foreground">上下文估算</span>
+            <span className="text-xs text-muted-foreground">Contextual estimation</span>
             <div className="font-semibold text-[#25443f]">
               {estimatedTokens ?? "--"}
               {maxBudget ? <span className="ml-1 text-xs font-normal text-muted-foreground">/ {maxBudget}</span> : null}
             </div>
           </div>
           <div className="rounded-md bg-[#f4f7ff] px-3 py-2">
-            <span className="text-xs text-muted-foreground">测试模型</span>
-            <div className="font-semibold text-[#344d7a]">可选覆盖</div>
+            <span className="text-xs text-muted-foreground">Test model</span>
+            <div className="font-semibold text-[#344d7a]">Optional overlay</div>
           </div>
           <div className="rounded-md bg-[#fff7e8] px-3 py-2">
-            <span className="text-xs text-muted-foreground">保存状态</span>
+            <span className="text-xs text-muted-foreground">Save status</span>
             <div className={cn(
               "font-semibold",
               saveError ? "text-destructive" : isSaveSuccess ? "text-[#0f766e]" : "text-[#7a5620]",
             )}>
-              {saveError ? "保存失败" : isSaveSuccess ? "已保存" : dirtyCount > 0 ? `${dirtyCount} 个未保存` : "无未保存修改"}
+              {saveError ? "Save failed" : isSaveSuccess ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : dirtyCount > 0 ? `${dirtyCount} 个未保存` : "No unsaved changes"}
             </div>
           </div>
           {saveError ? <div className="text-xs text-destructive">{saveError}</div> : null}
@@ -112,7 +112,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
             className="border-[#b8d9d0] bg-white text-[#0f5f59] hover:bg-[#eaf7f2] hover:text-[#0f5f59]"
           >
             <Eye className="mr-2 h-4 w-4" />
-            {isPreviewPending ? "预览中..." : "生成预览"}
+            {isPreviewPending ? "Previewing..." : "Generate preview"}
           </Button>
           <Button
             type="button"
@@ -122,7 +122,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
             className="border-[#c9b46a] bg-white text-[#7a5620] hover:bg-[#fff7e8] hover:text-[#7a5620]"
           >
             <FlaskConical className="mr-2 h-4 w-4" />
-            {isTestRunPending ? "测试中..." : "测试产出"}
+            {isTestRunPending ? "Testing..." : "test output"}
           </Button>
           <Button
             type="button"
@@ -141,21 +141,21 @@ export function PromptRunBar(props: PromptRunBarProps) {
             className="text-[#52606d] hover:bg-[#eef4ff] hover:text-[#344d7a]"
           >
             <RotateCcw className="mr-2 h-4 w-4" />
-            重置修改
-          </Button>
+            Reset modifications
+                                </Button>
         </div>
       </div>
       <Dialog open={testDialogOpen} onOpenChange={setTestDialogOpen}>
         <AppDialogContent
-          title="测试产出"
-          description="选择本次测试使用的模型参数，系统会用当前未保存草稿生成一次结果。"
+          title="test output"
+          description="Select the model parameters used in this test, and the system will generate the results once using the currently unsaved draft."
           className="max-w-2xl"
           bodyClassName="bg-[#fbfdfb]"
           footer={(
             <>
               <Button type="button" variant="ghost" onClick={() => setTestDialogOpen(false)}>
-                取消
-              </Button>
+                Cancel
+                                    </Button>
               <Button
                 type="button"
                 onClick={handleStartTestRun}
@@ -163,7 +163,7 @@ export function PromptRunBar(props: PromptRunBarProps) {
                 className="bg-[#0f766e] text-white hover:bg-[#0b5f59]"
               >
                 <FlaskConical className="mr-2 h-4 w-4" />
-                {isTestRunPending ? "测试中..." : "开始测试"}
+                {isTestRunPending ? "Testing..." : "Start testing"}
               </Button>
             </>
           )}
@@ -178,8 +178,8 @@ export function PromptRunBar(props: PromptRunBarProps) {
               />
             </div>
             <div className="rounded-md bg-[#fff7e8] px-3 py-2 text-xs leading-relaxed text-[#7a5620]">
-              测试产出会调用真实模型并消耗额度；结果只用于调试，不会保存为章节正文。
-            </div>
+              The test output will call the real model and consume credits; the results are only used for debugging and will not be saved as the chapter text.
+                                      </div>
           </div>
         </AppDialogContent>
       </Dialog>

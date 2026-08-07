@@ -35,17 +35,17 @@ export function buildVolumePlanningReadiness(params: {
   const { volumes, strategyPlan, critiqueReport, beatSheets } = params;
   const blockingReasons: string[] = [];
   if (!strategyPlan) {
-    blockingReasons.push("请先生成卷战略建议，再确认卷骨架。");
+    blockingReasons.push("Please first create a volume strategy suggestion, and then confirm the volume skeleton.");
   }
   const hasHighRiskCritique = critiqueReport?.overallRisk === "high";
   if (hasHighRiskCritique) {
-    blockingReasons.push("当前卷战略审查为高风险，请先重新生成或修订卷战略。");
+    blockingReasons.push("The current volume strategy review is high risk, please regenerate or revise the volume strategy first.");
   }
   if (volumes.length === 0) {
-    blockingReasons.push("当前还没有卷骨架。");
+    blockingReasons.push("There is currently no volume skeleton.");
   }
   if (!beatSheets.some((sheet) => sheet.beats.length > 0)) {
-    blockingReasons.push("当前卷还没有节奏板，默认不能直接拆章节列表。");
+    blockingReasons.push("There is no rhythm board in the current volume, so the chapter list cannot be directly opened by default.");
   }
   return {
     canGenerateStrategy: true,
@@ -114,7 +114,7 @@ export function createEmptyChapter(chapterOrder: number): VolumeChapterPlan {
 
 export function buildTaskSheetFromVolumeChapter(chapter: VolumeChapterPlan): string {
   const lines = [
-    `章节目标：${chapter.purpose || chapter.summary || "推进主线"}`,
+    `章节目标：${chapter.purpose || chapter.summary || "Advance the main line"}`,
     typeof chapter.conflictLevel === "number" ? `冲突等级：${chapter.conflictLevel}` : "",
     typeof chapter.revealLevel === "number" ? `揭露等级：${chapter.revealLevel}` : "",
     typeof chapter.targetWordCount === "number" ? `目标字数：${chapter.targetWordCount}` : "",
@@ -164,8 +164,7 @@ export function buildOutlinePreviewFromVolumes(volumes: VolumePlan[]): string {
     .map((volume) => {
       const chapterSpan = volume.chapters.length > 0
         ? `${volume.chapters[0]?.chapterOrder ?? "-"}-${volume.chapters[volume.chapters.length - 1]?.chapterOrder ?? "-"}`
-        : "未拆章";
-      return [
+        : "Unopened seal"; return [
         `【第${volume.sortOrder}卷】${volume.title}`,
         volume.summary?.trim() ? `卷摘要：${volume.summary.trim()}` : "",
         volume.openingHook?.trim() ? `开卷抓手：${volume.openingHook.trim()}` : "",
@@ -256,14 +255,14 @@ function compareNumber(a: number | null | undefined, b: number | null | undefine
 }
 
 function getChangedFields(existing: ExistingOutlineChapter, chapter: VolumeChapterPlan, action: "update" | "move"): string[] {
-  const changed: string[] = action === "move" ? ["章节顺序"] : [];
-  if (!compareText(existing.title, chapter.title)) changed.push("标题");
-  if (!compareText(existing.expectation, chapter.summary)) changed.push("摘要");
-  if (!compareNumber(existing.targetWordCount, chapter.targetWordCount)) changed.push("目标字数");
-  if (!compareNumber(existing.conflictLevel, chapter.conflictLevel)) changed.push("冲突等级");
-  if (!compareNumber(existing.revealLevel, chapter.revealLevel)) changed.push("揭露等级");
-  if (!compareText(existing.mustAvoid, chapter.mustAvoid)) changed.push("禁止事项");
-  if (!compareText(existing.taskSheet, chapter.taskSheet)) changed.push("任务单");
+  const changed: string[] = action === "move" ? ["Chapter order"] : [];
+  if (!compareText(existing.title, chapter.title)) changed.push("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
+  if (!compareText(existing.expectation, chapter.summary)) changed.push("summary");
+  if (!compareNumber(existing.targetWordCount, chapter.targetWordCount)) changed.push("target word count");
+  if (!compareNumber(existing.conflictLevel, chapter.conflictLevel)) changed.push("conflict level");
+  if (!compareNumber(existing.revealLevel, chapter.revealLevel)) changed.push("reveal level");
+  if (!compareText(existing.mustAvoid, chapter.mustAvoid)) changed.push("Prohibited matters");
+  if (!compareText(existing.taskSheet, chapter.taskSheet)) changed.push("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
   return changed;
 }
 
@@ -317,7 +316,7 @@ export function buildVolumeSyncPreview(
         chapterOrder: entry.chapter.chapterOrder,
         nextTitle: entry.chapter.title,
         hasContent: false,
-        changedFields: ["新章节"],
+        changedFields: ["new chapter"],
       });
       continue;
     }
@@ -371,23 +370,23 @@ export function buildVolumeSyncPreview(
       deleteCount += 1;
       items.push({
         action: "delete",
-        volumeTitle: "未匹配",
+        volumeTitle: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
         chapterOrder: chapter.order,
         nextTitle: chapter.title,
         previousTitle: chapter.title,
         hasContent,
-        changedFields: ["从卷纲移除"],
+        changedFields: ["Removed from syllabus"],
       });
     } else {
       deleteCandidateCount += 1;
       items.push({
         action: "delete_candidate",
-        volumeTitle: "未匹配",
+        volumeTitle: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
         chapterOrder: chapter.order,
         nextTitle: chapter.title,
         previousTitle: chapter.title,
         hasContent,
-        changedFields: ["待确认删除"],
+        changedFields: ["Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."],
       });
     }
   }

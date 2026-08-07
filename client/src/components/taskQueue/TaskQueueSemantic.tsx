@@ -11,9 +11,9 @@ const severityTone = {
 } as const;
 
 const severityLabel = {
-  blocking: "阻塞",
-  quality: "质量提醒",
-  normal: "普通状态",
+  blocking: "block",
+  quality: "Quality reminder",
+  normal: "Normal state",
 } as const;
 
 export function TaskQueueSeverityBadge(props: { severity: TaskQueueSeverity; label?: string }) {

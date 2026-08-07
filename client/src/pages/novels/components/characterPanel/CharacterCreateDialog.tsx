@@ -73,21 +73,21 @@ export default function CharacterCreateDialog(props: CharacterCreateDialogFullPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>新增角色</DialogTitle>
+          <DialogTitle>Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</DialogTitle>
           <DialogDescription>
-            适合快速补齐阵容占位。创建后可在角色资产控制台继续完善档案、外显、资源和事件。
-          </DialogDescription>
+            Suitable for quickly filling up the lineup. After creation, you can continue to improve the profile, appearance, resources and events in the character asset console.
+                                </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
           <div className="space-y-3 rounded-xl border border-border/70 bg-muted/10 p-4">
             <div className="space-y-1">
-              <div className="font-medium">快速创建</div>
+              <div className="font-medium">Create quickly</div>
               <div className="text-xs text-muted-foreground">
-                先建立可上场的人物，再让 AI 补齐性格、背景和当前目标。
-              </div>
+                Create a playable character first, and then let the AI complete the personality, background, and current goals.
+                                            </div>
             </div>
             <Input
-              placeholder="角色名称（必填）"
+              placeholder="Role name (required)"
               value={quickCharacterForm.name}
               onChange={(event) => onQuickCharacterFormChange("name", event.target.value)}
             />
@@ -96,25 +96,25 @@ export default function CharacterCreateDialog(props: CharacterCreateDialogFullPr
               value={quickCharacterForm.role}
               onChange={(event) => onQuickCharacterFormChange("role", event.target.value)}
             >
-              <option value="主角">主角</option>
-              <option value="配角">配角</option>
-              <option value="反派">反派</option>
-              <option value="导师">导师</option>
-              <option value="情感线">情感线</option>
-              <option value="功能角色">功能角色</option>
+              <option value="main character">main character</option>
+              <option value="supporting role">supporting role</option>
+              <option value="Villain">Villain</option>
+              <option value="tutor">tutor</option>
+              <option value="emotional line">emotional line</option>
+              <option value="functional role">functional role</option>
             </SelectControl>
             <Input
-              placeholder="与主角关系（如：试探合作）"
+              placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
               value={relationToProtagonist}
               onChange={(event) => setRelationToProtagonist(event.target.value)}
             />
             <Input
-              placeholder="在故事中的作用（如：推动真相线）"
+              placeholder="Role in the story (e.g.: advancing the line of truth)"
               value={storyFunction}
               onChange={(event) => setStoryFunction(event.target.value)}
             />
             <Input
-              placeholder="角色关键词（逗号分隔）"
+              placeholder="Role keywords (comma separated)"
               value={wizardKeywords}
               onChange={(event) => setWizardKeywords(event.target.value)}
             />
@@ -124,19 +124,19 @@ export default function CharacterCreateDialog(props: CharacterCreateDialogFullPr
                 checked={autoGenerateProfile}
                 onChange={(event) => setAutoGenerateProfile(event.target.checked)}
               />
-              自动补齐性格、背景、成长弧和当前状态
-            </label>
+              Automatically complete character, background, growth arc and current status
+                                      </label>
             <AiButton onClick={handleQuickCreate} disabled={isQuickCreating || !quickCharacterForm.name.trim()}>
-              {isQuickCreating ? "生成中..." : "AI 生成角色卡"}
+              {isQuickCreating ? "Generating..." : "AI-generated character cards"}
             </AiButton>
           </div>
 
           <div className="space-y-3 rounded-xl border border-border/70 bg-background p-4">
             <div className="space-y-1">
-              <div className="font-medium">从基础角色库导入</div>
+              <div className="font-medium">Import from basic character library</div>
               <div className="text-xs text-muted-foreground">
-                适合复用已有模板，再按当前小说需求继续调整。
-              </div>
+                It is suitable for reusing existing templates and then continuing to adjust them according to the needs of the current novel.
+                                            </div>
             </div>
             {baseCharacters.length > 0 ? (
               <>
@@ -156,11 +156,11 @@ export default function CharacterCreateDialog(props: CharacterCreateDialogFullPr
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-medium">{selectedBaseCharacter.name}</span>
                       <Badge variant={importedBaseCharacterIds.has(selectedBaseCharacter.id) ? "outline" : "secondary"}>
-                        {importedBaseCharacterIds.has(selectedBaseCharacter.id) ? "已关联" : "未关联"}
+                        {importedBaseCharacterIds.has(selectedBaseCharacter.id) ? "Associated" : "Not Associated"}
                       </Badge>
                     </div>
                     <div className="line-clamp-3 text-xs text-muted-foreground">
-                      性格：{selectedBaseCharacter.personality || "暂无"}
+                      character:{selectedBaseCharacter.personality || "None yet"}
                     </div>
                   </div>
                 ) : null}
@@ -173,17 +173,17 @@ export default function CharacterCreateDialog(props: CharacterCreateDialogFullPr
                       || importedBaseCharacterIds.has(selectedBaseCharacter.id)
                     }
                   >
-                    {isImportingBaseCharacter ? "导入中..." : "导入为小说角色"}
+                    {isImportingBaseCharacter ? "Importing..." : "Importing as a novel character"}
                   </Button>
                   <Button asChild variant="outline">
-                    <Link to="/base-characters">管理基础角色库</Link>
+                    <Link to="/base-characters">Manage basic role library</Link>
                   </Button>
                 </div>
               </>
             ) : (
               <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                基础角色库为空，请先创建。
-              </div>
+                The basic character library is empty, please create it first.
+                                                </div>
             )}
           </div>
         </div>

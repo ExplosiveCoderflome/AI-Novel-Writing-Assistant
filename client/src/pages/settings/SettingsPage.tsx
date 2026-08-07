@@ -38,12 +38,12 @@ function formatConnectionTestResult(response: Awaited<ReturnType<typeof testLLMC
     ? plain.ok
       ? `普通连通正常${plain.latency != null ? ` (${plain.latency}ms)` : ""}`
       : `普通连通失败${plain.error ? `：${plain.error}` : ""}`
-    : "普通连通未检测";
+    : "Normal connectivity not detected";
   const structuredText = structured
     ? structured.ok
-      ? `结构化正常${structured.strategy ? `，策略 ${structured.strategy}` : ""}${structured.reasoningForcedOff ? "，已强制关闭 thinking" : ""}`
+      ? `结构化正常${structured.strategy ? `，策略 ${structured.strategy}` : ""}${structured.reasoningForcedOff ? ", thinking has been forcibly closed" : ""}`
       : `结构化失败${structured.errorCategory ? `，分类 ${structured.errorCategory}` : ""}${structured.error ? `：${structured.error}` : ""}`
-    : "结构化未检测";
+    : "Structured not detected";
   return `连接成功，总耗时 ${latency}ms · ${plainText} · ${structuredText}`;
 }
 
@@ -207,11 +207,11 @@ export default function SettingsPage() {
       }),
     onSuccess: async (response) => {
       resetDialogState();
-      setActionResult(response.message ?? "保存成功。");
+      setActionResult(response.message ?? "Saved successfully.");
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "保存失败。");
+      setActionResult(error instanceof Error ? error.message : "Save failed.");
     },
   });
 
@@ -227,11 +227,11 @@ export default function SettingsPage() {
     }) => createCustomProvider(payload),
     onSuccess: async (response) => {
       resetDialogState();
-      setActionResult(response.message ?? "自定义厂商创建成功。");
+      setActionResult(response.message ?? "The custom manufacturer was created successfully.");
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "创建自定义厂商失败。");
+      setActionResult(error instanceof Error ? error.message : "Failed to create custom vendor.");
     },
   });
 
@@ -248,7 +248,7 @@ export default function SettingsPage() {
     },
     onError: (error) => {
       setPreviewModels([]);
-      setPreviewModelsResult(error instanceof Error ? error.message : "获取模型列表失败。");
+      setPreviewModelsResult(error instanceof Error ? error.message : "Failed to get model list.");
     },
   });
 
@@ -256,11 +256,11 @@ export default function SettingsPage() {
     mutationFn: (provider: LLMProvider) => deleteCustomProvider(provider),
     onSuccess: async (response) => {
       resetDialogState();
-      setActionResult(response.message ?? "自定义厂商已删除。");
+      setActionResult(response.message ?? "Custom vendor deleted.");
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "删除自定义厂商失败。");
+      setActionResult(error instanceof Error ? error.message : "Failed to delete custom vendor.");
     },
   });
 
@@ -280,7 +280,7 @@ export default function SettingsPage() {
       await invalidateProviderAuxiliaryQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "刷新模型列表失败。");
+      setActionResult(error instanceof Error ? error.message : "Failed to refresh model list.");
     },
   });
 
@@ -291,11 +291,11 @@ export default function SettingsPage() {
       }),
     onSuccess: async (_response, variables) => {
       const providerName = providerConfigs.find((item) => item.provider === variables.provider)?.name ?? variables.provider;
-      setActionResult(`${providerName} 思考功能已${variables.reasoningEnabled ? "开启" : "关闭"}。`);
+      setActionResult(`${providerName} 思考功能已${variables.reasoningEnabled ? "turn on" : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}。`);
       await invalidateProviderQueries();
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "更新思考开关失败。");
+      setActionResult(error instanceof Error ? error.message : "Failed to update think switch.");
     },
   });
 
@@ -307,7 +307,7 @@ export default function SettingsPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.settings.apiKeyBalances });
     },
     onError: (error) => {
-      setActionResult(error instanceof Error ? error.message : "刷新余额失败。");
+      setActionResult(error instanceof Error ? error.message : "Failed to refresh balance.");
     },
   });
 
@@ -413,7 +413,7 @@ export default function SettingsPage() {
         onError: (error) => {
           setProviderTestResults((prev) => ({
             ...prev,
-            [provider.provider]: error instanceof Error ? error.message : "连接测试失败。",
+            [provider.provider]: error instanceof Error ? error.message : "Connection test failed.",
           }));
         },
       },
@@ -434,7 +434,7 @@ export default function SettingsPage() {
           setDialogTestResult(formatConnectionTestResult(response));
         },
         onError: (error) => {
-          setDialogTestResult(error instanceof Error ? error.message : "连接测试失败。");
+          setDialogTestResult(error instanceof Error ? error.message : "Connection test failed.");
         },
       },
     );
@@ -457,13 +457,13 @@ export default function SettingsPage() {
     || (isCustomDialog && !form.displayName.trim())
     || (isCreatingCustomProvider && !form.baseURL.trim())
     || (!isCustomDialog && editingConfig?.requiresApiKey !== false && !form.key.trim() && !editingConfig?.isConfigured);
-  const providerSubmitLabel = isSavingProvider ? "保存中..." : isCreatingCustomProvider ? "创建厂商" : "保存";
+  const providerSubmitLabel = isSavingProvider ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : isCreatingCustomProvider ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "keep";
 
   return (
     <div className={AUTO_DIRECTOR_MOBILE_CLASSES.settingsPageRoot}>
       <SettingsSectionGroup
-        title="开始创作必需"
-        description="先让模型和任务路由可用，新手就能进入自动导演、开书和章节生产。"
+        title="Required to start creating"
+        description="By first making the model and task routing available, novices can access automatic directing, book opening, and chapter production."
         status="required"
       >
         <SettingsReadinessCard items={readinessItems} />
@@ -499,8 +499,8 @@ export default function SettingsPage() {
       </SettingsSectionGroup>
 
       <SettingsSectionGroup
-        title="写作质量增强"
-        description="这些设置会提高长篇连续性、资料召回和写法学习效果；不影响你先开始创作。"
+        title="Writing quality enhancement"
+        description="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
         status="enhancement"
       >
         <SettingsNavigationCards mode="knowledge" />
@@ -508,16 +508,16 @@ export default function SettingsPage() {
       </SettingsSectionGroup>
 
       <SettingsSectionGroup
-        title="自动导演高级"
-        description="需要自动确认审批点或接入钉钉、企业微信跟进时，再展开这里配置。"
+        title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+        description="Expand this configuration when you need to automatically confirm the approval point or access DingTalk or Enterprise WeChat for follow-up."
         status="advanced"
       >
         <AutoDirectorSettingsSection onActionResult={setActionResult} />
       </SettingsSectionGroup>
 
       <SettingsSectionGroup
-        title="系统维护"
-        description="桌面更新和旧数据导入放在这里，避免打断日常创作配置。"
+        title="System maintenance"
+        description="Desktop updates and old data import are placed here to avoid interrupting daily creative configuration."
         status="maintenance"
       >
         <SettingsMaintenanceSection />
@@ -550,7 +550,7 @@ export default function SettingsPage() {
         testResult={dialogTestResult}
         onDeleteCustomProvider={handleDeleteCustomProvider}
         deleteDisabled={deleteCustomProviderMutation.isPending}
-        deleteLabel={deleteCustomProviderMutation.isPending ? "删除中..." : "删除"}
+        deleteLabel={deleteCustomProviderMutation.isPending ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "delete"}
       />
     </div>
   );

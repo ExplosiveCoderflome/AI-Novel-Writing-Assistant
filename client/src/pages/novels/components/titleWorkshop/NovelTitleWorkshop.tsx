@@ -58,7 +58,7 @@ export default function NovelTitleWorkshop({
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success("标题已加入标题库。");
+      toast.success("The title has been added to the title library.");
     },
   });
 
@@ -71,14 +71,14 @@ export default function NovelTitleWorkshop({
     }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success("当前标题已加入标题库。");
+      toast.success("The current title has been added to the title library.");
     },
   });
 
   const handleCopy = async (suggestion: TitleFactorySuggestion) => {
     await navigator.clipboard.writeText(suggestion.title);
     setSelectedTitle(suggestion.title);
-    toast.success("标题已复制到剪贴板。");
+    toast.success("Title copied to clipboard.");
   };
 
   const handleApply = (suggestion: TitleFactorySuggestion) => {
@@ -92,20 +92,20 @@ export default function NovelTitleWorkshop({
       <div className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
-            <div className="text-sm font-semibold text-foreground">项目内标题工坊</div>
+            <div className="text-sm font-semibold text-foreground">In-project title workshop</div>
             <div className="text-sm leading-6 text-muted-foreground">
-              基于当前已保存的小说简介和类型生成候选。如果刚修改过简介或类型，建议先保存基本信息再生成。
-            </div>
+              Generate candidates based on the currently saved novel synopsis and genre. If you have just modified the introduction or type, it is recommended to save the basic information before generating it.
+                                      </div>
           </div>
           <Button type="button" variant="outline" disabled={!currentTitle.trim() || saveCurrentMutation.isPending} onClick={() => saveCurrentMutation.mutate()}>
-            {saveCurrentMutation.isPending ? "保存中..." : "保存当前标题"}
+            {saveCurrentMutation.isPending ? "Saving..." : "Saving the current title"}
           </Button>
         </div>
         <div className="space-y-3">
           <LLMSelector />
           <div className="flex justify-end">
             <AiButton type="button" onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending}>
-              {generateMutation.isPending ? "生成中..." : "生成标题候选"}
+              {generateMutation.isPending ? "Generating..." : "Generating title candidates"}
             </AiButton>
           </div>
         </div>
@@ -114,12 +114,12 @@ export default function NovelTitleWorkshop({
       <TitleSuggestionList
         suggestions={suggestions}
         selectedTitle={selectedTitle}
-        primaryActionLabel="应用到项目"
+        primaryActionLabel="Apply to project"
         onPrimaryAction={handleApply}
         onCopy={handleCopy}
         onSave={(suggestion) => saveMutation.mutate(suggestion)}
         savingTitle={saveMutation.isPending ? saveMutation.variables?.title ?? "" : ""}
-        emptyMessage="点一次生成，就能得到一批基于当前项目设定的标题候选。"
+        emptyMessage="Click Generate once to get a batch of title candidates based on the current project settings."
       />
     </div>
   );

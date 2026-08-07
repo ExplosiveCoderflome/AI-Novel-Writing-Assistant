@@ -36,60 +36,60 @@ function ProductionField(props: {
 }
 
 function fromNarrativePov(value: "first_person" | "third_person" | "mixed" | null | undefined): string {
-  if (value === "first_person") return "第一人称";
-  if (value === "third_person") return "第三人称";
-  if (value === "mixed") return "混合视角";
+  if (value === "first_person") return "first person";
+  if (value === "third_person") return "third person";
+  if (value === "mixed") return "mixed perspective";
   return "";
 }
 
 function toNarrativePov(value: string): "first_person" | "third_person" | "mixed" | null {
-  if (value === "第一人称") return "first_person";
-  if (value === "第三人称") return "third_person";
-  if (value === "混合视角") return "mixed";
+  if (value === "first person") return "first_person";
+  if (value === "third person") return "third_person";
+  if (value === "mixed perspective") return "mixed";
   return null;
 }
 
 function fromPacePreference(value: "slow" | "balanced" | "fast" | null | undefined): string {
-  if (value === "slow") return "慢节奏";
-  if (value === "balanced") return "均衡节奏";
-  if (value === "fast") return "快节奏";
+  if (value === "slow") return "slow pace";
+  if (value === "balanced") return "balanced rhythm";
+  if (value === "fast") return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   return "";
 }
 
 function toPacePreference(value: string): "slow" | "balanced" | "fast" | null {
-  if (value === "慢节奏") return "slow";
-  if (value === "均衡节奏") return "balanced";
-  if (value === "快节奏") return "fast";
+  if (value === "slow pace") return "slow";
+  if (value === "balanced rhythm") return "balanced";
+  if (value === "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.") return "fast";
   return null;
 }
 
 function fromProjectMode(value: "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline" | null | undefined): string {
-  if (value === "ai_led") return "AI 主导";
-  if (value === "co_pilot") return "人机协作";
-  if (value === "draft_mode") return "草稿优先";
-  if (value === "auto_pipeline") return "自动流水线";
+  if (value === "ai_led") return "AI-driven";
+  if (value === "co_pilot") return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
+  if (value === "draft_mode") return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
+  if (value === "auto_pipeline") return "Automatic assembly line";
   return "";
 }
 
 function toProjectMode(value: string): "ai_led" | "co_pilot" | "draft_mode" | "auto_pipeline" | null {
-  if (value === "AI 主导") return "ai_led";
-  if (value === "人机协作") return "co_pilot";
-  if (value === "草稿优先") return "draft_mode";
-  if (value === "自动流水线") return "auto_pipeline";
+  if (value === "AI-driven") return "ai_led";
+  if (value === "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.") return "co_pilot";
+  if (value === "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.") return "draft_mode";
+  if (value === "Automatic assembly line") return "auto_pipeline";
   return null;
 }
 
 function fromLevel(value: "low" | "medium" | "high" | null | undefined): string {
-  if (value === "low") return "低";
-  if (value === "medium") return "中";
-  if (value === "high") return "高";
+  if (value === "low") return "Low";
+  if (value === "medium") return "middle";
+  if (value === "high") return "high";
   return "";
 }
 
 function toLevel(value: string): "low" | "medium" | "high" | null {
-  if (value === "低") return "low";
-  if (value === "中") return "medium";
-  if (value === "高") return "high";
+  if (value === "Low") return "low";
+  if (value === "middle") return "medium";
+  if (value === "high") return "high";
   return null;
 }
 
@@ -143,7 +143,7 @@ function buildProductionPrompt(input: {
       segments.push(`情绪强度：${emotionIntensity}。`);
     }
     if (aiFreedom) {
-      segments.push(`AI 自由度：${aiFreedom}。`);
+      segments.push(`AI freedom：${aiFreedom}。`);
     }
     if (defaultChapterLength) {
       segments.push(`默认章长：约 ${defaultChapterLength} 字。`);
@@ -177,7 +177,7 @@ function buildProductionPrompt(input: {
     segments.push(`情绪强度：${emotionIntensity}。`);
   }
   if (aiFreedom) {
-    segments.push(`AI 自由度：${aiFreedom}。`);
+    segments.push(`AI freedom：${aiFreedom}。`);
   }
   if (defaultChapterLength) {
     segments.push(`默认章长：约 ${defaultChapterLength} 字。`);
@@ -259,7 +259,7 @@ export default function NovelProductionStarterCard({
   const detailErrorMessage = novelDetailQuery.error instanceof Error
     ? novelDetailQuery.error.message
     : isContinueMode && novelDetailQuery.isSuccess && !novelDetailQuery.data?.data
-      ? "没有读取到当前小说的生产设置。"
+      ? "The production settings for the current novel were not read."
       : "";
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -294,7 +294,7 @@ export default function NovelProductionStarterCard({
       }));
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "整本生产启动失败。");
+      toast.error(error instanceof Error ? error.message : "The entire production startup failed.");
     },
   });
   const formDisabled = actionDisabled
@@ -317,30 +317,30 @@ export default function NovelProductionStarterCard({
 
   return (
     <div className="space-y-3" aria-busy={novelDetailQuery.isFetching || submitMutation.isPending}>
-      <div className="text-xs font-medium text-muted-foreground">整本生产</div>
+      <div className="text-xs font-medium text-muted-foreground">Entire production</div>
       <div className="space-y-3">
         <div className="rounded-md border border-info/25 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
           {isContinueMode
-            ? `当前将继续生产《${resolvedTitle || "当前小说"}》。`
-            : "当前处于全局模式，可直接创建新书并启动整本生产。"}
+            ? `当前将继续生产《${resolvedTitle || "current novel"}》。`
+            : "Currently in global mode, you can directly create a new book and start the entire production."}
         </div>
         <div className="rounded-md border border-dashed border-border bg-background px-3 py-2 text-xs leading-5 text-muted-foreground">
-          建议先确认：题材、风格、视角、节奏、章长、AI 自由度。条件越完整，整本生产偏差越小。
-        </div>
+          It is recommended to confirm first: subject matter, style, perspective, rhythm, chapter length, and AI freedom. The more complete the conditions, the smaller the overall production deviation.
+                          </div>
 
         {novelDetailQuery.isFetching ? (
           <WorkspaceStateNotice
             compact
             loading
             tone="info"
-            title="正在读取小说设置"
-            description="读取完成前不会提交整本生产，避免用空设置覆盖当前小说。"
+            title="Loading novel settings"
+            description="The entire production will not be committed until the read is complete to avoid overwriting the current novel with empty settings."
           />
         ) : detailErrorMessage ? (
           <WorkspaceStateNotice
             compact
             tone="danger"
-            title="小说设置读取失败"
+            title="Failed to read novel settings"
             description={`${detailErrorMessage} 请重新读取后再启动整本生产。`}
             action={(
               <Button
@@ -351,7 +351,7 @@ export default function NovelProductionStarterCard({
                 onClick={() => void novelDetailQuery.refetch()}
               >
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                {novelDetailQuery.isFetching ? "正在重试..." : "重新读取"}
+                {novelDetailQuery.isFetching ? "Trying again..." : "reread"}
               </Button>
             )}
           />
@@ -360,13 +360,13 @@ export default function NovelProductionStarterCard({
         {!isContinueMode ? (
           <ProductionField
             htmlFor="creative-hub-production-title"
-            label="小说标题"
-            hint="创建新小说时必填。"
+            label="Novel title"
+            hint="Required when creating a new novel."
           >
             <input
               id="creative-hub-production-title"
               className={fieldClassName}
-              placeholder="例如：长夜巡灯人"
+              placeholder="For example: Night Light Watcher"
               value={title}
               disabled={formDisabled}
               required
@@ -375,11 +375,11 @@ export default function NovelProductionStarterCard({
           </ProductionField>
         ) : null}
 
-        <ProductionField htmlFor="creative-hub-production-description" label="简介与核心设定">
+        <ProductionField htmlFor="creative-hub-production-description" label="Introduction and core settings">
           <textarea
             id="creative-hub-production-description"
             className={`${fieldClassName} min-h-[88px] resize-y`}
-            placeholder="概括主角处境、核心冲突和这本书最想兑现的体验"
+            placeholder="Summarize the protagonist's situation, core conflict, and the experience that this book most wants to fulfill."
             value={description}
             disabled={formDisabled}
             onChange={(event) => setDescription(event.target.value)}
@@ -387,21 +387,21 @@ export default function NovelProductionStarterCard({
         </ProductionField>
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <ProductionField htmlFor="creative-hub-production-genre" label="题材类型">
+          <ProductionField htmlFor="creative-hub-production-genre" label="Subject type">
             <input
               id="creative-hub-production-genre"
               className={fieldClassName}
-              placeholder="例如：东方玄幻"
+              placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
               value={genre}
               disabled={formDisabled}
               onChange={(event) => setGenre(event.target.value)}
             />
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-style" label="风格基调">
+          <ProductionField htmlFor="creative-hub-production-style" label="style tone">
             <input
               id="creative-hub-production-style"
               className={fieldClassName}
-              placeholder="例如：轻快热血"
+              placeholder="For example: brisk and passionate"
               value={styleTone}
               disabled={formDisabled}
               onChange={(event) => setStyleTone(event.target.value)}
@@ -410,7 +410,7 @@ export default function NovelProductionStarterCard({
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2">
-          <ProductionField htmlFor="creative-hub-production-pov" label="叙事视角">
+          <ProductionField htmlFor="creative-hub-production-pov" label="narrative perspective">
             <SelectControl
               id="creative-hub-production-pov"
               className={fieldClassName}
@@ -418,13 +418,13 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setNarrativePov(event.target.value)}
             >
-              <option value="">交给 AI 判断</option>
-              <option value="第一人称">第一人称</option>
-              <option value="第三人称">第三人称</option>
-              <option value="混合视角">混合视角</option>
+              <option value="">Leave it to AI judgment</option>
+              <option value="first person">first person</option>
+              <option value="third person">third person</option>
+              <option value="mixed perspective">mixed perspective</option>
             </SelectControl>
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-pace" label="推进节奏">
+          <ProductionField htmlFor="creative-hub-production-pace" label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.">
             <SelectControl
               id="creative-hub-production-pace"
               className={fieldClassName}
@@ -432,16 +432,16 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setPacePreference(event.target.value)}
             >
-              <option value="">交给 AI 判断</option>
-              <option value="慢节奏">慢节奏</option>
-              <option value="均衡节奏">均衡节奏</option>
-              <option value="快节奏">快节奏</option>
+              <option value="">Leave it to AI judgment</option>
+              <option value="slow pace">slow pace</option>
+              <option value="balanced rhythm">balanced rhythm</option>
+              <option value="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</option>
             </SelectControl>
           </ProductionField>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-3">
-          <ProductionField htmlFor="creative-hub-production-mode" label="协作模式">
+          <ProductionField htmlFor="creative-hub-production-mode" label="Collaboration mode">
             <SelectControl
               id="creative-hub-production-mode"
               className={fieldClassName}
@@ -449,14 +449,14 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setProjectMode(event.target.value)}
             >
-              <option value="">使用小说默认值</option>
-              <option value="AI 主导">AI 主导</option>
-              <option value="人机协作">人机协作</option>
-              <option value="草稿优先">草稿优先</option>
-              <option value="自动流水线">自动流水线</option>
+              <option value="">Use novel defaults</option>
+              <option value="AI-driven">AI-driven</option>
+              <option value="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</option>
+              <option value="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</option>
+              <option value="Automatic assembly line">Automatic assembly line</option>
             </SelectControl>
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-emotion" label="情绪强度">
+          <ProductionField htmlFor="creative-hub-production-emotion" label="emotional intensity">
             <SelectControl
               id="creative-hub-production-emotion"
               className={fieldClassName}
@@ -464,13 +464,13 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setEmotionIntensity(event.target.value)}
             >
-              <option value="">使用小说默认值</option>
-              <option value="低">低</option>
-              <option value="中">中</option>
-              <option value="高">高</option>
+              <option value="">Use novel defaults</option>
+              <option value="Low">Low</option>
+              <option value="middle">middle</option>
+              <option value="high">high</option>
             </SelectControl>
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-freedom" label="AI 自由度">
+          <ProductionField htmlFor="creative-hub-production-freedom" label="AI freedom">
             <SelectControl
               id="creative-hub-production-freedom"
               className={fieldClassName}
@@ -478,16 +478,16 @@ export default function NovelProductionStarterCard({
               disabled={formDisabled}
               onChange={(event) => setAiFreedom(event.target.value)}
             >
-              <option value="">使用小说默认值</option>
-              <option value="低">低</option>
-              <option value="中">中</option>
-              <option value="高">高</option>
+              <option value="">Use novel defaults</option>
+              <option value="Low">Low</option>
+              <option value="middle">middle</option>
+              <option value="high">high</option>
             </SelectControl>
           </ProductionField>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-3">
-          <ProductionField htmlFor="creative-hub-production-chapters" label="目标章节数">
+          <ProductionField htmlFor="creative-hub-production-chapters" label="Target number of chapters">
             <input
               id="creative-hub-production-chapters"
               className={fieldClassName}
@@ -499,7 +499,7 @@ export default function NovelProductionStarterCard({
               onChange={(event) => setTargetChapterCount(Number(event.target.value || 20))}
             />
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-length" label="默认章长（字）">
+          <ProductionField htmlFor="creative-hub-production-length" label="Default chapter length (words)">
             <input
               id="creative-hub-production-length"
               className={fieldClassName}
@@ -511,11 +511,11 @@ export default function NovelProductionStarterCard({
               onChange={(event) => setDefaultChapterLength(Number(event.target.value || 2500))}
             />
           </ProductionField>
-          <ProductionField htmlFor="creative-hub-production-world" label="世界观类型（可选）">
+          <ProductionField htmlFor="creative-hub-production-world" label="Worldview type (optional)">
             <input
               id="creative-hub-production-world"
               className={fieldClassName}
-              placeholder="例如：末日废土"
+              placeholder="For example: Doomsday Wasteland"
               value={worldType}
               disabled={formDisabled}
               onChange={(event) => setWorldType(event.target.value)}
@@ -528,32 +528,32 @@ export default function NovelProductionStarterCard({
             disabled={submitDisabled}
             onClick={startProduction}
           >
-            {submitMutation.isPending ? "正在启动..." : isContinueMode ? "继续整本生产" : "启动整本生产"}
+            {submitMutation.isPending ? "Starting..." : isContinueMode ? "Continuing full book production" : "Starting full book production"}
           </Button>
           <Button
             type="button"
             variant="outline"
             disabled={formDisabled}
-            onClick={() => onQuickAction?.("整本生成到哪一步了")}
+            onClick={() => onQuickAction?.("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.")}
           >
-            查看进度
-          </Button>
+            Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.
+                                </Button>
           <Button
             type="button"
             variant="outline"
             disabled={formDisabled}
-            onClick={() => onQuickAction?.("为什么整本生成没有启动")}
+            onClick={() => onQuickAction?.("Why does the entire build not start?")}
           >
-            查看阻塞
-          </Button>
+            View blocking
+                                </Button>
           <Button
             type="button"
             variant="outline"
             disabled={formDisabled}
-            onClick={() => onQuickAction?.("基于当前小说信息，为生产前的题材、风格、视角、节奏、章长和 AI 自由度各给出 3 个备选答案。")}
+            onClick={() => onQuickAction?.("Based on the current novel information, give 3 alternative answers each for pre-production theme, style, perspective, pacing, chapter length, and AI freedom.")}
           >
-            生成备选
-          </Button>
+            Generate alternatives
+                                </Button>
         </div>
       </div>
     </div>

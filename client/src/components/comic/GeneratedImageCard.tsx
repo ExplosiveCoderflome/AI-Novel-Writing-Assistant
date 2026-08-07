@@ -11,10 +11,10 @@ const STATUS_DOT: Record<GeneratedImageCardStatus, string> = {
 };
 
 const STATUS_TITLE: Record<GeneratedImageCardStatus, string> = {
-  idle: "未生成",
-  generating: "生成中",
-  done: "已就绪",
-  error: "生成失败",
+  idle: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+  generating: "Generating",
+  done: "Ready",
+  error: "Build failed",
 };
 
 const SIZE_STYLE: Record<NonNullable<GeneratedImageCardProps["size"]>, string> = {
@@ -112,7 +112,7 @@ export function GeneratedImageCard({
       {onDelete && (
         <button
           type="button"
-          title="删除"
+          title="delete"
           disabled={busy}
           className="absolute top-1.5 left-1.5 z-10 rounded-md bg-background/85 p-1 text-muted-foreground/70 opacity-0 backdrop-blur-sm transition-opacity hover:bg-destructive hover:text-white group-hover:opacity-100 disabled:opacity-50"
           onClick={() => {
@@ -135,19 +135,19 @@ export function GeneratedImageCard({
         ) : isGenerating ? (
           <div className="flex flex-col items-center gap-1.5 text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin" />
-            <span className="text-[10px]">生成中</span>
+            <span className="text-[10px]">Generating</span>
           </div>
         ) : status === "error" ? (
           <div className="flex flex-col items-center gap-1 px-2 text-center text-rose-600 dark:text-rose-400" title={errorMessage}>
             <ImageIcon className="h-6 w-6 opacity-50" />
-            <span className="text-[10px]">生成失败，可重试</span>
+            <span className="text-[10px]">Generation failed, you can try again</span>
           </div>
         ) : emptyHint ? (
           <>{emptyHint}</>
         ) : (
           <div className="flex flex-col items-center gap-1 text-muted-foreground/50">
             <ImageIcon className="h-7 w-7" />
-            <span className="text-[10px]">待生成</span>
+            <span className="text-[10px]">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</span>
           </div>
         )}
       </div>
@@ -179,13 +179,13 @@ export function GeneratedImageCard({
                 onClick={onGenerate}
               >
                 {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                {generateLabel ?? (hasDoneImage ? "重新生成" : "AI 生图")}
+                {generateLabel ?? (hasDoneImage ? "Regenerate" : "AI generated pictures")}
               </button>
             )}
             {onUpload && (
               <button
                 type="button"
-                title="上传图片替代 AI 生成"
+                title="Upload images instead of AI generation"
                 disabled={isGenerating}
                 className="rounded-md border px-1.5 py-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
                 onClick={() => fileInputRef.current?.click()}

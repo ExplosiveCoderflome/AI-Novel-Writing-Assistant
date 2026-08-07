@@ -32,25 +32,25 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
   return (
     <Card>
       <CardHeader>
-        <CardTitle>去 AI 味</CardTitle>
+        <CardTitle>Get rid of AI flavor</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         {selectedProfile ? (
           <div className="rounded-2xl border bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700">
-            当前按「{selectedProfile.name}」这套写法来做检测和修正。这里只处理正文的 AI 味，不会改写法字段本身。
-          </div>
+            Currently pressing "{selectedProfile.name}"This set of writing methods is used for testing and correction. This only handles the AI ​​flavor of the text and does not rewrite the method field itself.
+                                </div>
         ) : (
           <div className="rounded-2xl border bg-slate-50/70 px-4 py-3 text-sm leading-7 text-slate-700">
-            先从列表里选中一套写法，再来检测正文。
-          </div>
+            First select a writing method from the list, and then check the text.
+                                    </div>
         )}
 
         <div className="space-y-4 rounded-2xl border p-4">
           <div className="space-y-1">
-            <div className="text-base font-semibold text-slate-950">当前会优先参考的反 AI 约束</div>
+            <div className="text-base font-semibold text-slate-950">Anti-AI constraints that will currently be referenced first</div>
             <div className="text-sm leading-6 text-slate-500">
-              如果这套写法绑了反 AI 规则，检测和修正会优先按这些约束去判断问题。
-            </div>
+              If this set of writing is tied to anti-AI rules, detection and correction will give priority to judging the problem according to these constraints.
+                                      </div>
           </div>
           {antiAiRuleNames.length > 0 ? (
             <div className="flex flex-wrap gap-2">
@@ -62,41 +62,41 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
             </div>
           ) : (
             <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">
-              这套写法还没有绑定明确的反 AI 规则。当前检测会更依赖通用风险判断，结果可能不够贴合你的预期。
-            </div>
+              This set of writing has not yet been bound to clear anti-AI rules. The current test will rely more on general risk judgment, and the results may not be consistent with your expectations.
+                                          </div>
           )}
         </div>
 
         <div className="space-y-4 rounded-2xl border p-4">
           <div className="space-y-1">
-            <div className="text-base font-semibold text-slate-950">检测正文</div>
+            <div className="text-base font-semibold text-slate-950">Detect text</div>
             <div className="text-sm leading-6 text-slate-500">
-              粘贴你想检查的正文。建议一次给一段完整场景，这样更容易看出叙述腔、对白腔和解释腔的问题。
-            </div>
+              Paste the text you want to check. It is recommended to give a complete scene at a time, so that it is easier to see the problems of narrative, dialogue and exposition.
+                                      </div>
           </div>
 
           <textarea
             data-writing-formula-detect-input
             autoFocus
             className="min-h-[220px] w-full rounded-md border p-3 text-sm"
-            placeholder="粘贴待检测正文"
+            placeholder="Paste the text to be detected"
             value={detectInput}
             onChange={(event) => onDetectInputChange(event.target.value)}
           />
 
           <div className="flex flex-wrap gap-2">
             <Button onClick={onDetect} disabled={detectionPending || !selectedProfile || !detectInput.trim()}>
-              执行检测
-            </Button>
+              Perform detection
+                                      </Button>
             <Button variant="secondary" onClick={onRewrite} disabled={rewritePending || !selectedProfile || !detectInput.trim()}>
-              一键修正
-            </Button>
+              One-click correction
+                                      </Button>
           </div>
 
           {detectionReport ? (
             <div className="space-y-3 rounded-2xl border p-4 text-sm">
               <div className="space-y-1">
-                <div className="font-medium text-slate-900">风险分：{detectionReport.riskScore}</div>
+                <div className="font-medium text-slate-900">Risk score:{detectionReport.riskScore}</div>
                 <div className="leading-6 text-slate-600">{detectionReport.summary}</div>
               </div>
               <div className="space-y-2">
@@ -113,13 +113,13 @@ export default function WritingFormulaCleanPanel(props: WritingFormulaCleanPanel
             </div>
           ) : (
             <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">
-              检测结果会在这里显示，重点告诉你哪些句段最像 AI 腔、为什么会被判成风险，以及可以往什么方向改。
-            </div>
+              The test results will be displayed here, focusing on telling you which segments are most like AI accents, why they are judged as risks, and what direction they can be changed.
+                                          </div>
           )}
 
           {rewritePreview ? (
             <div className="space-y-2">
-              <div className="text-sm font-medium text-slate-900">修正结果</div>
+              <div className="text-sm font-medium text-slate-900">Correction results</div>
               <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded-xl border bg-muted/20 p-4 text-sm">
                 {rewritePreview}
               </pre>

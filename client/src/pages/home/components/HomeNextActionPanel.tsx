@@ -35,8 +35,8 @@ export function HomeNextActionPanel(props: {
         <CardContent className="p-7">
           <div className="flex items-center gap-3 text-sm text-slate-300">
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            正在整理你的创作工作台...
-          </div>
+            Organizing your creative workbench...
+                              </div>
           <div className="mt-7 space-y-3">
             <div className="h-8 w-2/3 animate-pulse rounded bg-white/10" />
             <div className="h-5 w-full animate-pulse rounded bg-white/10" />
@@ -51,12 +51,12 @@ export function HomeNextActionPanel(props: {
     return (
       <Card className="home-next-action-panel border-destructive/35 shadow-sm">
         <CardContent className="space-y-4 p-6">
-          <Badge variant="destructive">暂时无法读取项目</Badge>
+          <Badge variant="destructive">The item cannot be read at the moment</Badge>
           <div>
-            <h1 className="text-2xl font-semibold tracking-normal">还不能为你判断下一步</h1>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">重新加载项目后，系统会继续为你整理最合适的创作入口。</p>
+            <h1 className="text-2xl font-semibold tracking-normal">I can’t decide the next step for you yet</h1>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">After reloading the project, the system will continue to organize the most suitable creation entry for you.</p>
           </div>
-          <Button onClick={props.onRetry}>重新加载项目</Button>
+          <Button onClick={props.onRetry}>Reload project</Button>
         </CardContent>
       </Card>
     );
@@ -81,7 +81,7 @@ export function HomeNextActionPanel(props: {
             </span>
             {workflowBadge ? <Badge className="border-white/15 bg-white/10 text-slate-100 hover:bg-white/10">{workflowBadge.label}</Badge> : null}
             <Badge className="border-white/15 bg-white/10 text-slate-200 hover:bg-white/10">
-              {novel.status === "published" ? "发布态" : "草稿"}
+              {novel.status === "published" ? "Published Status" : "Draft"}
             </Badge>
           </div>
 
@@ -94,15 +94,15 @@ export function HomeNextActionPanel(props: {
             <div className="border-l border-sky-300/70 pl-4">
               <div className="mb-2 flex items-center gap-2 text-sm font-medium text-sky-100">
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                为什么是现在
-              </div>
+                why now
+                                            </div>
               <p className="text-sm leading-6 text-slate-300">{props.action.reason}</p>
             </div>
             <div className="grid grid-cols-2 gap-x-5 gap-y-3 border-l border-white/10 pl-5 text-xs text-slate-400 sm:grid-cols-4 lg:grid-cols-2">
-              <HeroFact label="章节" value={String(novel._count.chapters)} />
-              <HeroFact label="角色" value={String(novel._count.characters)} />
-              <HeroFact label="世界观" value={novel.world?.name ?? "未绑定"} />
-              <HeroFact label="最近更新" value={formatHomeDate(novel.updatedAt)} />
+              <HeroFact label="chapter" value={String(novel._count.chapters)} />
+              <HeroFact label="Role" value={String(novel._count.characters)} />
+              <HeroFact label="world view" value={novel.world?.name ?? "Not bound"} />
+              <HeroFact label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." value={formatHomeDate(novel.updatedAt)} />
             </div>
           </div>
         </div>
@@ -111,8 +111,8 @@ export function HomeNextActionPanel(props: {
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
               <BookOpenText className="h-4 w-4 text-sky-200" aria-hidden="true" />
-              正在创作
-            </div>
+              Creating
+                                      </div>
             <div className="line-clamp-2 text-xl font-semibold leading-snug">{novel.title}</div>
             {task?.currentStage ? <p className="text-sm leading-6 text-slate-300">{task.currentStage}</p> : null}
           </div>
@@ -122,7 +122,7 @@ export function HomeNextActionPanel(props: {
             </div>
             <Button asChild size="lg" variant="outline" className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white">
               <Link to={task ? `/novels/${novel.id}/edit?directorTaskId=${task.id}&taskPanel=1` : `/novels/${novel.id}/edit`}>
-                {task ? "查看执行详情" : "打开项目"}
+                {task ? "View execution details" : "Open project"}
               </Link>
             </Button>
           </div>
@@ -149,10 +149,10 @@ function StarterPanel(props: { action: HomeNextAction }) {
         </div>
         <div className="grid gap-2">
           <Button asChild size="lg" className="bg-white text-slate-950 hover:bg-slate-100">
-            <Link to={DIRECTOR_CREATE_LINK}><PlusCircle className="mr-2 h-4 w-4" aria-hidden="true" />让 AI 带我开始</Link>
+            <Link to={DIRECTOR_CREATE_LINK}><PlusCircle className="mr-2 h-4 w-4" aria-hidden="true" />Let AI take me started</Link>
           </Button>
           <Button asChild size="lg" variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
-            <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
+            <Link to={MANUAL_CREATE_LINK}>Create a novel manually</Link>
           </Button>
         </div>
       </CardContent>

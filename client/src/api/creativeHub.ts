@@ -12,7 +12,7 @@ import { apiClient } from "./client";
 function ensureThreadId(threadId: string): string {
   const normalized = threadId.trim();
   if (!normalized) {
-    throw new Error("创作中枢线程不存在，请先创建线程。");
+    throw new Error("The creation hub thread does not exist, please create a thread first.");
   }
   return normalized;
 }

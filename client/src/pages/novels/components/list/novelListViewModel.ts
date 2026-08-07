@@ -57,18 +57,18 @@ export function filterNovelList(input: {
 
 export function formatProgressStatus(status?: ProjectProgressStatus | null): string {
   if (status === "completed") {
-    return "已完成";
+    return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   }
   if (status === "in_progress") {
-    return "进行中";
+    return "in progress";
   }
   if (status === "rework") {
-    return "待返工";
+    return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   }
   if (status === "blocked") {
-    return "受阻";
+    return "blocked";
   }
-  return "未开始";
+  return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
 }
 
 export function formatTokenCount(value?: number | null): string {
@@ -91,95 +91,24 @@ export function buildNovelListSummary(novels: NovelListItem[]): NovelListSummary
   }).length;
 
   return [
-    { id: "running", label: "推进中", value: running, tone: running > 0 ? "info" : "neutral" },
-    { id: "waiting", label: "待确认", value: waiting, tone: waiting > 0 ? "warning" : "neutral" },
-    { id: "ready", label: "可写章节", value: ready, tone: ready > 0 ? "success" : "neutral" },
-    { id: "issue", label: "暂停/失败", value: issue, tone: issue > 0 ? "danger" : "neutral" },
-  ];
-}
-
-export function getWorkflowTone(task?: NovelAutoDirectorTaskSummary | null): NovelListTone {
-  if (!task) {
-    return "neutral";
-  }
-  if (task.status === "failed" || task.status === "cancelled") {
-    return "danger";
-  }
-  if (task.status === "waiting_approval") {
-    return "warning";
-  }
-  if (canEnterChapterExecution(task)) {
-    return "success";
-  }
-  if (task.status === "running" || task.status === "queued") {
-    return "info";
-  }
-  return "neutral";
-}
-
-export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay {
-  const task = novel.latestAutoDirectorTask ?? null;
-  const description = getWorkflowDescription(task);
-  if (!task) {
-    return {
-      tone: "neutral",
-      label: "资料项目",
-      description: novel.description?.trim() || "没有自动导演任务，可以进入项目继续完善资料或章节。",
-      progress: 0,
-      currentStage: "未进入自动导演",
-      currentAction: "",
-      lastHealthyStage: "",
-      running: false,
-    };
-  }
-  const currentAction = task.currentItemLabel?.trim() || "";
-  return {
-    tone: getWorkflowTone(task),
-    label: task.displayStatus?.trim() || task.resumeAction?.trim() || task.nextActionLabel?.trim() || "自动导演",
-    description: description || "系统保留推进状态，可以继续查看或恢复。",
-    progress: Math.round(task.progress * 100),
-    currentStage: task.currentStage ?? "自动导演",
-    currentAction,
-    lastHealthyStage: task.lastHealthyStage ?? "",
-    running: isWorkflowRunningInBackground(task),
-  };
-}
-
-export function getPrimaryActionLabel(novel: NovelListItem): string {
-  const task = novel.latestAutoDirectorTask ?? null;
-  if (canContinueChapterBatchAutoExecution(task)) {
-    return task?.resumeAction ?? `继续自动执行${task?.executionScopeLabel ?? "当前章节范围"}`;
-  }
-  if (canContinueDirector(task)) {
-    return task?.resumeAction ?? "继续导演";
-  }
-  if (requiresCandidateSelection(task)) {
-    return task?.resumeAction ?? "继续确认方向";
-  }
-  if (canEnterChapterExecution(task)) {
-    return "进入章节执行";
-  }
-  if (task) {
-    return "查看推进状态";
-  }
-  return "编辑小说";
-}
-
-export function getProjectAssetRows(novel: NovelListItem): Array<{
+    { id: "running", label: "Advancing", value: running, tone: running > 0 ? "info" : "neutral" },
+    { id: "waiting", label: "To be confirmed", value: waiting, tone: waiting > 0 ? "warning" : "neutral" },
+    { id: "ready", label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", value: ready, tone: ready > 0 ? "success" : "neutral" },
+    { id: "issue", label: "pause/fail", value: issue, tone: issue > 0 ? "danger" : "neutral" }, ]; } export function getWorkflowTone(task?: NovelAutoDirectorTaskSummary | null): NovelListTone { if (!task) { return "neutral"; } if (task.status === "failed" || task.status === "cancelled") { return "danger"; } if (task.status === "waiting_approval") { return "warning"; } if (canEnterChapterExecution(task)) { return "success"; } if (task.status === "running" || task.status === "queued") { return "info"; } return "neutral"; } export function buildWorkflowDisplay(novel: NovelListItem): WorkflowDisplay { const task = novel.latestAutoDirectorTask ?? null; const description = getWorkflowDescription(task); if (!task) { return { tone: "neutral", label: "Data Project", description: novel.description?.trim() || "No auto-director task. You can enter the project to continue improving the data or chapters.", progress: 0, currentStage: "Not in auto-director", currentAction: "", lastHealthyStage: "", running: false, }; } const currentAction = task.currentItemLabel?.trim() || ""; return { tone: getWorkflowTone(task), label: task.displayStatus?.trim() || task.resumeAction?.trim() || task.nextActionLabel?.trim() || "Auto-director", description: description || "The system retains the progress status. You can continue to view or resume.", progress: Math.round(task.progress * 100), currentStage: task.currentStage ?? "Auto-director", currentAction, lastHealthyStage: task.lastHealthyStage ?? "", running: isWorkflowRunningInBackground(task), }; } export function getPrimaryActionLabel(novel: NovelListItem): string { const task = novel.latestAutoDirectorTask ?? null; if (canContinueChapterBatchAutoExecution(task)) { return task?.resumeAction ?? `Continue automatic execution ${task?.executionScopeLabel ?? "Current chapter scope"}`; } if (canContinueDirector(task)) { return task?.resumeAction ?? "Continue directing"; } if (requiresCandidateSelection(task)) { return task?.resumeAction ?? "Continue confirming direction"; } if (canEnterChapterExecution(task)) { return "Enter chapter execution"; } if (task) { return "Check progress status"; } return "Edit novel"; } export function getProjectAssetRows(novel: NovelListItem): Array<{
   label: string;
   value: string;
   tone?: NovelListTone;
 }> {
   return [
-    { label: "章节", value: String(novel._count.chapters) },
-    { label: "角色", value: String(novel._count.characters) },
+    { label: "chapter", value: String(novel._count.chapters) },
+    { label: "Role", value: String(novel._count.characters) },
     {
-      label: "世界观",
-      value: novel.world?.name ?? "未绑定",
+      label: "world view",
+      value: novel.world?.name ?? "Not bound",
       tone: novel.world?.name ? "neutral" : "warning",
     },
     {
-      label: "资源",
+      label: "resource",
       value: `${novel.resourceReadyScore ?? 0}/100`,
       tone: (novel.resourceReadyScore ?? 0) >= 60 ? "success" : "warning",
     },

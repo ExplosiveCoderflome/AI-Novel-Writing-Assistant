@@ -70,32 +70,32 @@ export default function GenreManagementPage() {
   const statusItems = useMemo<AssetLibraryStatusItem[]>(() => [
     {
       key: "genres",
-      label: "题材基底",
+      label: "Theme base",
       value: statusUnavailable ? "—" : totalGenres,
-      detail: "可供小说选择的分类节点",
+      detail: "Category nodes for novel selection",
       icon: Tags,
       tone: statusUnavailable ? "neutral" : "info",
     },
     {
       key: "roots",
-      label: "根分类",
+      label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
       value: statusUnavailable ? "—" : genreTree.length,
-      detail: "用于划分主要创作方向",
+      detail: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
       icon: Layers3,
     },
     {
       key: "novels",
-      label: "关联小说",
+      label: "Relevant novels",
       value: statusUnavailable ? "—" : linkedNovelCount,
-      detail: "正在使用这些题材的作品",
+      detail: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
       icon: BookOpen,
       tone: statusUnavailable ? "neutral" : linkedNovelCount > 0 ? "success" : "neutral",
     },
     {
       key: "descriptions",
-      label: "说明完整",
+      label: "Complete instructions",
       value: statusUnavailable ? "—" : `${describedGenreCount}/${totalGenres}`,
-      detail: "有明确定位说明的题材",
+      detail: "Subject matter with clear positioning description",
       icon: FileText,
       tone: statusUnavailable
         ? "neutral"
@@ -113,7 +113,7 @@ export default function GenreManagementPage() {
     mutationFn: (genreId: string) => deleteGenre(genreId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.genres.all });
-      toast.success("题材基底已删除。");
+      toast.success("Theme base has been deleted.");
     },
   });
 
@@ -142,39 +142,39 @@ export default function GenreManagementPage() {
   const recommendation = genreTreeQuery.isError ? (
     <AssetLibraryRecommendation
       icon={CircleAlert}
-      title="重新加载题材基底"
-      description="暂时无法读取题材结构。重新加载后，可以继续查看、编辑和维护题材。"
+      title="Reload theme base"
+      description="The theme structure cannot be read at the moment. After reloading, you can continue to view, edit and maintain themes."
       tone="danger"
       action={(
         <Button type="button" variant="outline" onClick={() => void genreTreeQuery.refetch()}>
-          重新加载
-        </Button>
+          Reload
+                      </Button>
       )}
     />
   ) : genreTreeQuery.isLoading ? (
     <AssetLibraryRecommendation
       icon={LoaderCircle}
-      title="正在确认题材基底状态"
-      description="加载完成后，会根据题材覆盖和说明完整度给出下一步建议。"
+      title="Confirming the theme base status"
+      description="After the loading is completed, suggestions for the next step will be given based on the subject coverage and completeness of the instructions."
       tone="neutral"
     />
   ) : totalGenres === 0 ? (
     <AssetLibraryRecommendation
       icon={Sparkles}
-      title="先建立第一棵题材基底树"
-      description="描述你想覆盖的创作方向，可以手动搭建层级，也可以让 AI 生成草稿后再调整。"
+      title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+      description="Describe the creative direction you want to cover. You can build the hierarchy manually, or you can let AI generate a draft and then adjust it."
       action={(
         <Button type="button" onClick={handleCreateRoot}>
           <Plus className="h-4 w-4" aria-hidden="true" />
-          创建题材基底
-        </Button>
+          Create a theme base
+                      </Button>
       )}
     />
   ) : firstGenreWithoutDescription ? (
     <AssetLibraryRecommendation
       icon={FileText}
       title={`补充「${firstGenreWithoutDescription.name}」的题材说明`}
-      description="明确作品定位、读者期待和核心冲突，能帮助 AI 在开书和规划时更准确地理解这个题材。"
+      description="Clarifying the positioning of the work, readers' expectations, and core conflicts can help AI understand the subject matter more accurately when opening and planning the book."
       tone="warning"
       action={(
         <Button
@@ -182,21 +182,21 @@ export default function GenreManagementPage() {
           variant="outline"
           onClick={() => setEditingGenreId(firstGenreWithoutDescription.id)}
         >
-          补充说明
-        </Button>
+          Additional information
+                      </Button>
       )}
     />
   ) : (
     <AssetLibraryRecommendation
       icon={Sparkles}
-      title="题材基底可以支持开书选择"
-      description="现有题材都有明确说明。需要覆盖新的创作方向时，再新增根题材或细分子类。"
+      title="The theme base can support book opening selection"
+      description="Existing themes are clearly stated. When you need to cover a new creative direction, add a new root theme or subcategory."
       tone="success"
       action={(
         <Button type="button" variant="outline" onClick={handleCreateRoot}>
           <Plus className="h-4 w-4" aria-hidden="true" />
-          扩充题材
-        </Button>
+          Expand the theme
+                      </Button>
       )}
     />
   );
@@ -224,14 +224,14 @@ export default function GenreManagementPage() {
 
       <AssetLibraryHeader
         icon={Tags}
-        context="创作资产 / 小说定位"
-        title="题材基底库"
-        description="维护小说可复用的题材定位与分类层级。开书时选择合适的题材基底，AI 会据此理解作品类型、读者期待和主要创作方向。"
+        context="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+        title="Theme base library"
+        description="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
         actions={(
           <Button type="button" onClick={handleCreateRoot}>
             <Plus className="h-4 w-4" aria-hidden="true" />
-            新建题材基底树
-          </Button>
+            Create a new theme base tree
+                          </Button>
         )}
       />
 
@@ -240,8 +240,8 @@ export default function GenreManagementPage() {
       {recommendation}
 
       <AssetLibrarySection
-        title="题材结构"
-        description="从主要题材逐层展开细分方向。正在被小说使用的分类，需要先调整关联小说的题材后才能删除。"
+        title="Theme structure"
+        description="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
       >
         {genreTreeQuery.isLoading ? (
           <div
@@ -249,20 +249,20 @@ export default function GenreManagementPage() {
             role="status"
           >
             <LoaderCircle className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
-            <div className="mt-3 text-sm font-semibold text-foreground">正在加载题材结构</div>
-            <div className="mt-1 text-sm text-muted-foreground">请稍候，题材与小说关联正在同步。</div>
+            <div className="mt-3 text-sm font-semibold text-foreground">Loading theme structure</div>
+            <div className="mt-1 text-sm text-muted-foreground">Please wait, the subject matter and novel relationship are being synchronized.</div>
           </div>
         ) : null}
 
         {genreTreeQuery.isError ? (
           <AssetLibraryEmptyState
             icon={CircleAlert}
-            title="题材基底暂时无法加载"
-            description="请检查服务连接后重新加载。已有题材不会受到影响。"
+            title="The theme base cannot be loaded temporarily."
+            description="Please check the service connection and reload. Existing themes will not be affected."
             action={(
               <Button type="button" variant="outline" onClick={() => void genreTreeQuery.refetch()}>
-                重新加载
-              </Button>
+                Reload
+                                  </Button>
             )}
           />
         ) : null}
@@ -270,13 +270,13 @@ export default function GenreManagementPage() {
         {!genreTreeQuery.isLoading && !genreTreeQuery.isError && genreTree.length === 0 ? (
           <AssetLibraryEmptyState
             icon={Tags}
-            title="还没有可供开书选择的题材基底"
-            description="先创建一个主要题材。你可以手动填写，也可以描述创作方向，让 AI 生成包含子类的题材树草稿。"
+            title="There is no theme base to choose from for opening a book."
+            description="Start by creating a main theme. You can fill it in manually, or you can describe the creative direction and let AI generate a draft theme tree containing subcategories."
             action={(
               <Button type="button" onClick={handleCreateRoot}>
                 <Plus className="h-4 w-4" aria-hidden="true" />
-                创建第一棵题材树
-              </Button>
+                Create the first theme tree
+                                  </Button>
             )}
           />
         ) : null}

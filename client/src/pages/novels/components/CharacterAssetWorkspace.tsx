@@ -19,14 +19,14 @@ import CharacterVisibleProfileTab from "./characterWorkspace/CharacterVisiblePro
 import type { CharacterAssetWorkspaceProps } from "./characterWorkspace/characterWorkspace.types";
 
 const WORKSPACE_TABS: Array<{ value: string; label: string; icon: LucideIcon }> = [
-  { value: "overview", label: "总览", icon: ScrollText },
-  { value: "profile", label: "档案", icon: UserRound },
-  { value: "visible", label: "外显", icon: Eye },
-  { value: "resources", label: "资源", icon: Package },
-  { value: "timeline", label: "时间线", icon: Clock3 },
-  { value: "relations", label: "关系", icon: Network },
-  { value: "dynamics", label: "动态", icon: Activity },
-  { value: "intelligence", label: "智能层", icon: Brain },
+  { value: "overview", label: "Overview", icon: ScrollText },
+  { value: "profile", label: "file", icon: UserRound },
+  { value: "visible", label: "Explicit", icon: Eye },
+  { value: "resources", label: "resource", icon: Package },
+  { value: "timeline", label: "timeline", icon: Clock3 },
+  { value: "relations", label: "relation", icon: Network },
+  { value: "dynamics", label: "dynamic", icon: Activity },
+  { value: "intelligence", label: "Intelligence layer", icon: Brain },
 ];
 
 export default function CharacterAssetWorkspace(props: CharacterAssetWorkspaceProps) {
@@ -87,15 +87,15 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
       <CardHeader className="border-b border-border/60 bg-[linear-gradient(180deg,hsl(var(--muted)/0.35)_0%,hsl(var(--background))_100%)]">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-1">
-            <CardTitle>角色资产控制台</CardTitle>
+            <CardTitle>Character Asset Console</CardTitle>
             <div className="text-sm text-muted-foreground">
-              左侧切换阵容，右侧按场景查看和维护当前角色，减少长篇表单滚动。
-            </div>
+              Switch the lineup on the left, and view and maintain current roles by scene on the right, reducing scrolling of long forms.
+                                      </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{characters.length} 个已建角色</Badge>
-            {selectedCharacter ? <Badge variant="secondary">当前编辑：{selectedCharacter.name}</Badge> : null}
-            {isSelectedProtagonist ? <Badge variant="outline">主角</Badge> : null}
+            <Badge variant="outline">{characters.length} created roles</Badge>
+            {selectedCharacter ? <Badge variant="secondary">Current editor:{selectedCharacter.name}</Badge> : null}
+            {isSelectedProtagonist ? <Badge variant="outline">main character</Badge> : null}
           </div>
         </div>
       </CardHeader>
@@ -113,8 +113,8 @@ export default function CharacterAssetWorkspace(props: CharacterAssetWorkspacePr
 
         {!selectedCharacter ? (
           <div className="flex min-h-[360px] items-center justify-center rounded-xl border border-dashed px-6 text-center text-sm text-muted-foreground">
-            先从左侧选择一个角色，再进入档案、外显、资源、时间线和关系维护。
-          </div>
+            First select a role on the left, then enter Archives, Exhibits, Resources, Timeline and Relationship Maintenance.
+                                </div>
         ) : (
           <div className="min-w-0 space-y-4">
             <CharacterFocusSummary

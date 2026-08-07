@@ -10,12 +10,12 @@ import { cn } from "@/lib/utils";
 
 export function getTimelineCheckLabel(status: TimelineCheckSummary["status"]): string {
   if (status === "failed") {
-    return "需修复";
+    return "Needs repair";
   }
   if (status === "warning") {
-    return "需复查";
+    return "Need to review";
   }
-  return "通过";
+  return "pass";
 }
 
 function getTimelineCheckTone(status: TimelineCheckSummary["status"]): string {
@@ -40,7 +40,7 @@ function getTimelineCheckBadgeVariant(status: TimelineCheckSummary["status"]): N
 
 function formatTimelineTimeLabel(context?: TimelineContextForChapter | null): string {
   if (!context) {
-    return "未设置";
+    return "not set";
   }
   const parts = [
     typeof context.currentTime?.storyDayIndex === "number" ? `第${context.currentTime.storyDayIndex}天` : "",
@@ -51,15 +51,15 @@ function formatTimelineTimeLabel(context?: TimelineContextForChapter | null): st
 
 function formatIssueSeverity(issue: TimelineIssue): string {
   if (issue.severity === "blocking") {
-    return "阻断";
+    return "block";
   }
   if (issue.severity === "error") {
-    return "错误";
+    return "mistake";
   }
   if (issue.severity === "warning") {
-    return "提醒";
+    return "remind";
   }
-  return "信息";
+  return "information";
 }
 
 function TimelineItemList(props: {
@@ -110,9 +110,9 @@ function TimelineCheckPanel(props: {
       <div className="rounded-xl border border-border/70 bg-muted/20 p-3 text-xs leading-6 text-muted-foreground">
         <div className="flex items-center gap-2 font-medium text-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          时间线检测读取中
-        </div>
-        <div className="mt-1">章节切换后会在这里显示最新检测结果。</div>
+          Timeline detection reading
+                        </div>
+        <div className="mt-1">After switching chapters, the latest test results will be displayed here.</div>
       </div>
     );
   }
@@ -120,16 +120,16 @@ function TimelineCheckPanel(props: {
   if (!hasChapter) {
     return (
       <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">
-        选中章节后，这里显示本章时间线检测结果。
-      </div>
+        After selecting a chapter, the chapter timeline detection results are displayed here.
+                  </div>
     );
   }
 
   if (!timelineCheck) {
     return (
       <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">
-        本章还没有时间线检测结果。
-      </div>
+        There are no timeline check results for this chapter yet.
+                  </div>
     );
   }
 
@@ -137,7 +137,7 @@ function TimelineCheckPanel(props: {
     <div className={cn("rounded-xl border p-3 text-sm", getTimelineCheckTone(timelineCheck.status))}>
       <div className="flex items-center justify-between gap-2">
         <div className="font-medium">{getTimelineCheckLabel(timelineCheck.status)}</div>
-        <Badge variant={getTimelineCheckBadgeVariant(timelineCheck.status)}>分数 {Math.round(timelineCheck.score * 100)}</Badge>
+        <Badge variant={getTimelineCheckBadgeVariant(timelineCheck.status)}>Fraction {Math.round(timelineCheck.score * 100)}</Badge>
       </div>
       {timelineCheck.issues.length > 0 ? (
         <div className="mt-3 space-y-2">
@@ -152,7 +152,7 @@ function TimelineCheckPanel(props: {
           ))}
         </div>
       ) : (
-        <div className="mt-2 text-xs leading-6 opacity-80">本章未见明显未来泄漏、钩子断接或关键状态冲突。</div>
+        <div className="mt-2 text-xs leading-6 opacity-80">There are no obvious future leaks, broken hooks, or critical state conflicts in this chapter.</div>
       )}
     </div>
   );
@@ -168,7 +168,7 @@ export default function TimelinePanel(props: {
   const context = chapterTimeline?.context ?? null;
   const timelineCheck = (chapterTimeline?.latestReport ?? chapterRuntimePackage?.timelineCheck ?? null) as TimelineCheckSummary | null;
   const hasChapter = Boolean(selectedChapter);
-  const chapterLabel = selectedChapter ? `第${selectedChapter.order}章` : "未选择章节";
+  const chapterLabel = selectedChapter ? `第${selectedChapter.order}章` : "No chapter selected";
   const timeLabel = formatTimelineTimeLabel(context);
 
   return (
@@ -177,7 +177,7 @@ export default function TimelinePanel(props: {
         <div className="rounded-xl border border-border/70 bg-background p-3">
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <Clock3 className="h-4 w-4" />
-            <span>时间锚点</span>
+            <span>time anchor</span>
           </div>
           <div className="mt-2 text-sm font-medium text-foreground">{timeLabel}</div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">{chapterLabel}</div>
@@ -185,13 +185,13 @@ export default function TimelinePanel(props: {
         <div className="rounded-xl border border-border/70 bg-background p-3">
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <ShieldAlert className="h-4 w-4" />
-            <span>检测结果</span>
+            <span>Test results</span>
           </div>
           <div className="mt-2 text-sm font-medium text-foreground">
-            {timelineCheck ? getTimelineCheckLabel(timelineCheck.status) : isLoadingChapterTimeline ? "读取中" : "未检测"}
+            {timelineCheck ? getTimelineCheckLabel(timelineCheck.status) : isLoadingChapterTimeline ? "Reading" : "Not detected"}
           </div>
           <div className="mt-1 text-xs leading-5 text-muted-foreground">
-            {timelineCheck ? `分数 ${Math.round(timelineCheck.score * 100)}` : "章节切换后会读取最新检查结果。"}
+            {timelineCheck ? `分数 ${Math.round(timelineCheck.score * 100)}` : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
           </div>
         </div>
       </div>
@@ -199,29 +199,29 @@ export default function TimelinePanel(props: {
       {context ? (
         <>
           <TimelineItemList
-            title="上一章钩子"
+            title="Previous chapter hook"
             icon={<ArrowRight className="h-4 w-4" />}
             items={context.openHooks.map((hook) => ({ title: hook.title, summary: hook.description }))}
-            emptyText="没有需要承接的遗留钩子。"
+            emptyText="There are no legacy hooks to take over."
             tone={context.openHooks.length > 0 ? "warning" : "default"}
           />
           <TimelineItemList
-            title="本章计划推进"
+            title="This chapter is planned to advance"
             icon={<Sparkles className="h-4 w-4" />}
             items={context.plannedEventsThisChapter.map((event) => ({ title: event.title, summary: event.summary }))}
-            emptyText="本章暂未设置计划推进。"
+            emptyText="This chapter has no plans to advance."
           />
           <TimelineItemList
-            title="禁止提前发生"
+            title="Prohibited from occurring in advance"
             icon={<AlertTriangle className="h-4 w-4" />}
             items={context.forbiddenEvents.map((item) => ({ title: item.title, summary: item.reason }))}
-            emptyText="本章没有提前发生限制。"
+            emptyText="There are no early occurrence restrictions in this chapter."
             tone={context.forbiddenEvents.length > 0 ? "critical" : "default"}
           />
           <div className="rounded-xl border border-border/70 bg-background p-3">
             <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
               <UsersRound className="h-4 w-4" />
-              <span>最近关键事件</span>
+              <span>recent key events</span>
             </div>
             {context.previousEvents.length > 0 ? (
               <div className="mt-2 space-y-2">
@@ -233,18 +233,18 @@ export default function TimelinePanel(props: {
                 ))}
               </div>
             ) : (
-              <div className="mt-2 text-xs leading-5 text-muted-foreground">没有可显示的最近事件。</div>
+              <div className="mt-2 text-xs leading-5 text-muted-foreground">No recent events to display.</div>
             )}
           </div>
           <div className="space-y-2">
-            <div className="text-xs font-medium text-muted-foreground">最新时间线检测</div>
+            <div className="text-xs font-medium text-muted-foreground">Latest timeline detection</div>
             <TimelineCheckPanel timelineCheck={timelineCheck} isLoading={isLoadingChapterTimeline} hasChapter={hasChapter} />
           </div>
         </>
       ) : (
         <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-3 text-xs leading-6 text-muted-foreground">
-          选中章节后，这里显示本章时间锚点、上一章钩子、计划推进和禁止事项。
-        </div>
+          After selecting a chapter, the time anchor of this chapter, hook of the previous chapter, plan advancement and prohibited items are displayed here.
+                              </div>
       )}
     </div>
   );

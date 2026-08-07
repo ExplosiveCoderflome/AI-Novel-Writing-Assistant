@@ -150,7 +150,7 @@ export function useSSE(options?: UseSSEOptions) {
         }
       } catch (streamError) {
         if ((streamError as Error).name !== "AbortError") {
-          setError(streamError instanceof Error ? streamError.message : "流式请求失败。");
+          setError(streamError instanceof Error ? streamError.message : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
           setIsStreaming(false);
         }
       } finally {

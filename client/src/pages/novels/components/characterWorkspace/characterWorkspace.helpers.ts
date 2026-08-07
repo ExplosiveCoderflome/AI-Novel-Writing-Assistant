@@ -7,34 +7,34 @@ export const VISIBLE_PROFILE_FIELDS: Array<{
   label: string;
   placeholder: string;
 }> = [
-  { key: "appearance", label: "样貌记忆点", placeholder: "眉眼、发型、表情习惯等能被读者记住的样貌特征" },
-  { key: "physique", label: "体态基底", placeholder: "年龄感、身形、行动姿态、身体状态基底" },
-  { key: "attireStyle", label: "常见穿着", placeholder: "日常穿着、身份外观、阶层或职业痕迹" },
-  { key: "signatureDetail", label: "标志细节", placeholder: "标志物、动作、微习惯、气味或反复可用的细节" },
-  { key: "voiceTexture", label: "声音口吻", placeholder: "声线、说话节奏、句式习惯、口吻" },
-  { key: "presenceImpression", label: "登场印象", placeholder: "首次或常规登场时给读者的直观感受" },
+  { key: "appearance", label: "Appearance memory point", placeholder: "Eyebrows, hairstyle, facial expressions and other facial features that can be remembered by readers" },
+  { key: "physique", label: "body base", placeholder: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+  { key: "attireStyle", label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", placeholder: "Daily wear, status appearance, class or occupation traces" },
+  { key: "signatureDetail", label: "Logo details", placeholder: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+  { key: "voiceTexture", label: "tone of voice", placeholder: "Voice, speaking rhythm, sentence patterns, tone of voice" },
+  { key: "presenceImpression", label: "First impression", placeholder: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
 ];
 
 export function getSecretStatus(selectedCharacter?: Character): string {
   if (!selectedCharacter) {
-    return "暂无";
+    return "None yet";
   }
   if (selectedCharacter.secret?.trim()) {
-    return "存在明确秘密";
+    return "There is a clear secret";
   }
   const runtimeSignal = `${selectedCharacter.currentState ?? ""} ${selectedCharacter.currentGoal ?? ""}`;
-  return /秘密|隐瞒|卧底|伪装/.test(runtimeSignal) ? "已隐藏关键信息" : "暂无显性秘密";
+  return /秘密|隐瞒|卧底|伪装/.test(runtimeSignal) ? "Key information has been hidden" : "No explicit secret yet";
 }
 
 export function getEmotionSignal(selectedCharacter?: Character): string {
   const runtimeSignal = `${selectedCharacter?.currentState ?? ""} ${selectedCharacter?.currentGoal ?? ""}`;
   if (/愤|怒|焦虑|崩溃|绝望/.test(runtimeSignal)) {
-    return "高压";
+    return "high pressure";
   }
   if (/平静|稳|冷静|从容/.test(runtimeSignal)) {
-    return "平稳";
+    return "smooth";
   }
-  return "待观察";
+  return "To be seen";
 }
 
 export function getResourceDisplayMode(character?: Character): {
@@ -46,16 +46,16 @@ export function getResourceDisplayMode(character?: Character): {
   const roleText = `${character?.role ?? ""} ${character?.castRole ?? ""}`;
   if (isProtagonistCharacter(character)) {
     return {
-      label: "主角完整资源",
-      helper: "主角会完整展示道具、线索、身份凭证、底牌和消耗状态，后续章节会优先参考这些行动边界。",
+      label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+      helper: "The protagonist will fully display the props, clues, identity credentials, trump cards and consumption status. Subsequent chapters will give priority to referring to these action boundaries.",
       limit: 10,
       shouldShowResource: () => true,
     };
   }
   if (/临时|路人|客串|一次性/.test(roleText)) {
     return {
-      label: "临时角色资源",
-      helper: "临时角色只展示会跨章复用、牵动冲突、绑定伏笔或被主角带走的资源。",
+      label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+      helper: "Temporary characters only display resources that will be reused across chapters, affect conflicts, bind foreshadowing, or be taken away by the protagonist.",
       limit: 5,
       shouldShowResource: (item) => (
         item.narrativeFunction === "promise"
@@ -66,8 +66,8 @@ export function getResourceDisplayMode(character?: Character): {
     };
   }
   return {
-    label: "长期角色关键资源",
-    helper: "长期角色优先展示会改变行动选择、关系筹码、读者知情或伏笔兑现的资源。",
+    label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+    helper: "Long-term characters prioritize resources that change action choices, relationship stakes, reader knowledge, or foreshadowing.",
     limit: 6,
     shouldShowResource: (item) => item.status !== "stale",
   };
@@ -75,30 +75,30 @@ export function getResourceDisplayMode(character?: Character): {
 
 export function getResourceStatusLabel(status: CharacterResourceLedgerItem["status"]): string {
   const labels: Record<CharacterResourceLedgerItem["status"], string> = {
-    available: "可用",
-    hidden: "隐藏",
-    borrowed: "借用",
-    transferred: "转交",
-    lost: "丢失",
-    consumed: "已消耗",
-    damaged: "受损",
-    destroyed: "毁坏",
-    stale: "淡出",
+    available: "Available",
+    hidden: "hide",
+    borrowed: "borrow",
+    transferred: "transfer",
+    lost: "lost",
+    consumed: "Consumed",
+    damaged: "damaged",
+    destroyed: "destruction",
+    stale: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
   };
   return labels[status] ?? status;
 }
 
 export function getResourceFunctionLabel(value: CharacterResourceLedgerItem["narrativeFunction"]): string {
   const labels: Record<CharacterResourceLedgerItem["narrativeFunction"], string> = {
-    tool: "工具",
-    clue: "线索",
-    weapon: "武器",
-    proof: "证据",
-    key: "钥匙",
-    cost: "代价",
-    promise: "伏笔",
-    hidden_card: "底牌",
-    constraint: "限制",
+    tool: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+    clue: "clue",
+    weapon: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+    proof: "evidence",
+    key: "key",
+    cost: "cost",
+    promise: "Foreshadowing",
+    hidden_card: "trump card",
+    constraint: "limit",
   };
   return labels[value] ?? value;
 }

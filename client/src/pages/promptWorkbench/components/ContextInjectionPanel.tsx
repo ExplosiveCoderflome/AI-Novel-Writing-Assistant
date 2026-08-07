@@ -137,14 +137,14 @@ export function ContextInjectionPanel(props: {
       <div className="shrink-0 border-b border-[#d8e2de] bg-[#fbfdfb] px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-[#25443f]">上下文注入</h3>
+            <h3 className="text-sm font-semibold text-[#25443f]">Context injection</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              查看本次预览使用的资料块、裁剪和摘要状态
-            </p>
+              View the chunk, crop, and summary status used for this preview
+                                      </p>
           </div>
           <span className="rounded-md bg-[#eaf7f2] px-2 py-1 text-xs font-medium text-[#0f766e]">
-            {visibleBlocks.length} 块
-          </span>
+            {visibleBlocks.length} piece
+                                </span>
         </div>
 
         <div className="mt-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_136px]">
@@ -153,7 +153,7 @@ export function ContextInjectionPanel(props: {
             <Input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索 group、来源或内容"
+              placeholder="Search for group, source or content"
               className="h-9 border-[#cbdad6] bg-white pl-9 shadow-sm"
             />
           </div>
@@ -164,10 +164,10 @@ export function ContextInjectionPanel(props: {
               onChange={(event) => setSortMode(event.target.value as SortMode)}
               className="h-9 w-full rounded-md border border-[#cbdad6] bg-white pl-9 pr-3 text-sm shadow-sm"
             >
-              <option value="status">按状态</option>
-              <option value="priority">按优先级</option>
-              <option value="tokens">按 Token</option>
-              <option value="group">按分组</option>
+              <option value="status">By status</option>
+              <option value="priority">By priority</option>
+              <option value="tokens">Press Token</option>
+              <option value="group">By group</option>
             </SelectControl>
           </div>
         </div>
@@ -175,15 +175,15 @@ export function ContextInjectionPanel(props: {
 
       {!preview ? (
         <div className="m-4 rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-4 text-sm text-muted-foreground">
-          生成预览后，这里会显示已注入、被裁剪和被摘要的上下文块。
-        </div>
+          Once the preview is generated, the injected, cropped, and digested context blocks are shown here.
+                          </div>
       ) : (
         <>
           <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-3">
             {visibleBlocks.length === 0 ? (
               <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/70 p-4 text-sm text-muted-foreground">
-                没有匹配的上下文块。
-              </div>
+                No matching context block.
+                                                </div>
             ) : (
               visibleBlocks.map((block) => (
                 <button
@@ -223,13 +223,13 @@ export function ContextInjectionPanel(props: {
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                    <span>{block.required ? "必需" : "可选"}</span>
+                    <span>{block.required ? "required" : "Optional"}</span>
                     <span>·</span>
                     <span>P{block.priority}</span>
                     {block.locked ? (
                       <>
                         <span>·</span>
-                        <span>锁定</span>
+                        <span>Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</span>
                       </>
                     ) : null}
                   </div>
@@ -260,8 +260,8 @@ export function ContextInjectionPanel(props: {
                       className="w-full border-[#b8d9d0] text-[#0f5f59]"
                     >
                       <Plus className="mr-1.5 h-3.5 w-3.5" />
-                      插入到模板
-                    </Button>
+                      Insert into template
+                                                                  </Button>
                   </div>
                 ) : null}
                 <pre className="max-h-64 overflow-auto whitespace-pre-wrap p-3 text-xs leading-relaxed text-[#1f2937]">

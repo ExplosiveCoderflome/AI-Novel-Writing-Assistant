@@ -37,7 +37,7 @@ const DialogContent = React.forwardRef<
       {children}
       <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring">
         <X className="h-4 w-4" />
-        <span className="sr-only">关闭</span>
+        <span className="sr-only">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</span>
       </DialogClose>
     </DialogPrimitive.Content>
   </DialogPortal>

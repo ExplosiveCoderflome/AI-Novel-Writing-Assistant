@@ -107,7 +107,7 @@ export default function AutoDirectorCreatePage() {
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "恢复自动导演任务失败。");
+      toast.error(error instanceof Error ? error.message : "Failed to resume automatic director task.");
     },
   });
 
@@ -158,8 +158,8 @@ export default function AutoDirectorCreatePage() {
     candidates: controller.batches.length > 0
       ? `已生成 ${controller.batches.length} 批方向候选`
       : controller.hasActiveDirectorTask
-        ? "导演任务进行中"
-        : "等待生成方向候选",
+        ? "Director assignment in progress"
+        : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
   }), [
     controller.batches.length,
     controller.directorBasicForm,
@@ -268,13 +268,13 @@ export default function AutoDirectorCreatePage() {
       {showSummaryBar ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <div className="text-2xl font-semibold tracking-normal text-foreground">AI 自动导演创建</div>
+            <div className="text-2xl font-semibold tracking-normal text-foreground">AI automatic director creation</div>
             <div className="mt-1 text-sm leading-6 text-muted-foreground">
-              从一个起始想法开始，AI 完成整本规划准备后，再由你选择正文生产方式。
-            </div>
+              Start with a starting idea, and after AI completes the entire planning and preparation, you will then choose the text production method.
+                                      </div>
           </div>
           <Button type="button" variant="outline" asChild>
-            <Link to="/novels/create">手动创建</Link>
+            <Link to="/novels/create">Create manually</Link>
           </Button>
         </div>
       ) : null}
@@ -304,8 +304,8 @@ export default function AutoDirectorCreatePage() {
 
       {restoreWorkflowMutation.isPending && normalizedTaskId ? (
         <div className="rounded-lg bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-          正在恢复自动导演现场。
-        </div>
+          Resuming automatic director scene.
+                          </div>
       ) : null}
 
       <AnimatePresence mode="wait">

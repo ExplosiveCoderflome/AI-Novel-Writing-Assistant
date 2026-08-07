@@ -111,20 +111,20 @@ export default function AntiAiRulesPage() {
     mutationFn: (payload: ReturnType<typeof buildPayload>) => createAntiAiRule(payload),
     onSuccess: async () => {
       await refreshRules();
-      toast.success("反 AI 规则已创建。");
+      toast.success("Anti-AI rules created.");
       setDialogOpen(false);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "创建规则失败。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Failed to create rule."),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: Partial<ReturnType<typeof buildPayload>> }) => updateAntiAiRule(id, payload),
     onSuccess: async () => {
       await refreshRules();
-      toast.success("反 AI 规则已保存。");
+      toast.success("Anti-AI rules saved.");
       setDialogOpen(false);
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "保存规则失败。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Failed to save rules."),
   });
 
   const aiDraftMutation = useMutation({
@@ -148,7 +148,7 @@ export default function AntiAiRulesPage() {
     onSuccess: (response) => {
       const result = response.data;
       if (!result) {
-        toast.error("AI 没有返回可用草稿。");
+        toast.error("The AI ​​did not return a usable draft.");
         return;
       }
       setForm({
@@ -164,9 +164,9 @@ export default function AntiAiRulesPage() {
         globalBaselineEnabled: result.draft.globalBaselineEnabled,
         autoRewrite: result.draft.autoRewrite,
       });
-      toast.success("草稿填入表单，请检查后保存。");
+      toast.success("Fill in the form as a draft, please check it and save it.");
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "AI 生成草稿失败。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "AI failed to generate draft."),
   });
 
   const detectionMutation = useMutation({
@@ -179,7 +179,7 @@ export default function AntiAiRulesPage() {
       temperature: 0.2,
     }),
     onSuccess: () => setRewritePreview(""),
-    onError: (error) => toast.error(error instanceof Error ? error.message : "检测失败。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Detection failed."),
   });
 
   const rewriteMutation = useMutation({
@@ -212,7 +212,7 @@ export default function AntiAiRulesPage() {
       });
     },
     onSuccess: (response) => setRewritePreview(response.data?.content ?? ""),
-    onError: (error) => toast.error(error instanceof Error ? error.message : "修正失败。"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."),
   });
 
   useEffect(() => {
@@ -239,7 +239,7 @@ export default function AntiAiRulesPage() {
     event.preventDefault();
     const payload = buildPayload(form);
     if (!payload.key || !payload.name || !payload.description) {
-      toast.error("请填写规则标识、名称和说明。");
+      toast.error("Please fill in the rule ID, name and description.");
       return;
     }
     if (editingRule) {
@@ -268,16 +268,16 @@ export default function AntiAiRulesPage() {
           <div className="space-y-1">
             <CardTitle className="flex items-center gap-2">
               <ShieldCheck className="h-5 w-5" />
-              反 AI 规则
-            </CardTitle>
+              Anti-AI rules
+                                      </CardTitle>
             <CardDescription>
-              管理正文生成会参考的反 AI 规则，控制哪些规则进入全局默认，哪些只留给写法资产绑定使用。
-            </CardDescription>
+              Manage the anti-AI rules that will be referenced when generating text, and control which rules enter the global default and which ones are only reserved for writing asset binding.
+                                      </CardDescription>
           </div>
           <Button type="button" onClick={openCreateDialog}>
             <Plus className="h-4 w-4" />
-            新建规则
-          </Button>
+            New rule
+                                </Button>
         </CardHeader>
         <CardContent>
           <AntiAiRuleStats {...stats} />

@@ -27,19 +27,19 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
 
   const isIdle = session.status === "idle";
   const statusText = isIdle
-    ? "选中正文后可发起局部 AI 改写"
+    ? "After selecting the text, you can initiate partial AI rewriting"
     : session.status === "loading"
-      ? "正在生成候选版本"
+      ? "Building candidate release"
       : session.status === "error"
-        ? session.errorMessage || "生成失败"
-        : session.requestLabel || "查看待确认改写";
+        ? session.errorMessage || "Build failed"
+        : session.requestLabel || "View pending rewrites";
 
   return (
     <div className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:min-h-0">
       <div className="shrink-0 space-y-3 border-b border-border/70 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-medium text-foreground">AI 改写结果</div>
+            <div className="text-sm font-medium text-foreground">AI rewrites the results</div>
             <div className="text-xs text-muted-foreground">{statusText}</div>
           </div>
           <div className="flex items-center gap-2">
@@ -49,16 +49,16 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
               onClick={() => onChangeViewMode("block")}
               disabled={isIdle}
             >
-              段落对比
-            </Button>
+              Paragraph comparison
+                                      </Button>
             <Button
               size="sm"
               variant={session.viewMode === "inline" ? "default" : "outline"}
               onClick={() => onChangeViewMode("inline")}
               disabled={isIdle}
             >
-              细节标记
-            </Button>
+              detail mark
+                                      </Button>
           </div>
         </div>
 
@@ -82,26 +82,26 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
         {isIdle ? (
           <>
             <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm leading-6 text-muted-foreground">
-              右侧结果面板已固定保留。你可以先在正文中选中一段，再从浮动工具条发起“优化表达、扩写、精简、强化情绪、强化冲突或自定义指令”。
-            </div>
+              The results panel on the right is fixed. You can first select a paragraph in the text, and then initiate "optimize expression, expand, streamline, strengthen emotion, strengthen conflict, or customize instructions" from the floating toolbar.
+                                      </div>
             <div className="rounded-2xl border border-border/70 bg-muted/10 p-4">
-              <div className="text-sm font-medium text-foreground">等待改写</div>
+              <div className="text-sm font-medium text-foreground">Waiting for rewriting</div>
               <div className="mt-2 text-sm leading-6 text-muted-foreground">
-                发起改写后，这里会展示 2 到 3 个候选版本、改写摘要和段落对比。
-              </div>
+                After initiating a rewrite, 2 to 3 candidate versions, a summary of the rewrite, and a paragraph comparison are displayed here.
+                                            </div>
             </div>
           </>
         ) : null}
 
         {session.status === "loading" ? (
           <div className="rounded-2xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted-foreground">
-            正在基于选中文本生成 2 到 3 个候选版本，请稍候。
-          </div>
+            Generating 2 to 3 candidate versions based on the selected text, please wait.
+                                </div>
         ) : null}
 
         {session.status === "error" ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">
-            {session.errorMessage || "候选生成失败，请重试。"}
+            {session.errorMessage || "Candidate generation failed, please try again."}
           </div>
         ) : null}
 
@@ -127,12 +127,12 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
 
             {session.viewMode === "block" ? (
               <div className="rounded-2xl border border-border/70 bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">
-                中间正文区正在显示段落 patch 对比。原文会以淡红块保留，改写会以浅绿块落在同一位置，便于按小说阅读顺序直接判断是否采纳。
-              </div>
+                The middle text area is showing paragraph patch comparison. The original text will be retained in light red blocks, and the rewritten text will be in light green blocks in the same position, making it easier to directly judge whether to adopt it according to the reading order of the novel.
+                                            </div>
             ) : (
               <div className="rounded-2xl border border-border/70 bg-muted/10 p-3 text-sm leading-6 text-muted-foreground">
-                中间正文区正在显示细节标记 diff，适合确认具体删改位置；如果更想顺着小说去读，切回“段落对比”会更轻松。
-              </div>
+                The middle text area is showing the detail mark diff, which is suitable for confirming the specific deletion position; if you prefer to read along the novel, it will be easier to switch back to "Paragraph Comparison".
+                                                </div>
             )}
           </>
         ) : null}
@@ -140,13 +140,13 @@ export default function AIDiffPanel(props: AIDiffPanelProps) {
 
       <div className="shrink-0 flex flex-wrap items-center justify-end gap-2 border-t border-border/70 px-4 py-4">
         <Button size="sm" variant="outline" onClick={onReject} disabled={isIdle || session.status === "loading" || isApplying}>
-          拒绝全部
-        </Button>
+          reject all
+                          </Button>
         <Button size="sm" variant="outline" onClick={onRegenerate} disabled={isIdle || session.status === "loading" || isApplying}>
-          再生成
-        </Button>
+          regenerate
+                          </Button>
         <Button size="sm" onClick={onAccept} disabled={session.status !== "ready" || !activeCandidate || isApplying}>
-          {isApplying ? "应用中..." : "接受全部"}
+          {isApplying ? "In application..." : "Accept all"}
         </Button>
       </div>
     </div>

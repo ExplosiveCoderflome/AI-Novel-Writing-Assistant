@@ -82,21 +82,21 @@ interface PipelineTabProps {
 
 function repairModeLabel(mode: PipelineTabProps["pipelineForm"]["repairMode"]): string {
   const mapping: Record<PipelineTabProps["pipelineForm"]["repairMode"], string> = {
-    detect_only: "只检测不修复",
-    light_repair: "自动轻修",
-    heavy_repair: "自动重修",
-    continuity_only: "只修连续性",
-    character_only: "只修人设",
-    ending_only: "只修结尾力度",
+    detect_only: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+    light_repair: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+    heavy_repair: "Automatic rebuild",
+    continuity_only: "Only practice continuity",
+    character_only: "Only repair the character",
+    ending_only: "Only the ending intensity is modified",
   };
   return mapping[mode];
 }
 
 function stageStatusLabel(state: "pending" | "active" | "completed" | "failed"): string {
-  if (state === "active") return "进行中";
-  if (state === "completed") return "已完成";
-  if (state === "failed") return "异常";
-  return "待执行";
+  if (state === "active") return "in progress";
+  if (state === "completed") return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
+  if (state === "failed") return "abnormal";
+  return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
 }
 
 export default function PipelineTab(props: PipelineTabProps) {
@@ -168,36 +168,36 @@ export default function PipelineTab(props: PipelineTabProps) {
   return (
     <div className="space-y-4">
       <DirectorTakeoverEntryPanel
-        title="从质量修复接管"
-        description="AI 会优先判断当前是否有活动中的章节批次或待修检查点，再决定恢复当前修复还是新开批次。"
+        title="Takeover from Quality Repair"
+        description="The AI ​​will first determine whether there are currently active chapter batches or checkpoints to be repaired, and then decide whether to resume the current repair or open a new batch."
         entry={directorTakeoverEntry}
       />
       <Card className="border-0 bg-transparent shadow-none">
         <CardHeader className="rounded-2xl bg-muted/20 px-5 py-4">
-          <CardTitle>批量生成与质检</CardTitle>
+          <CardTitle>Batch production and quality inspection</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 px-0 pt-5">
           <WorldInjectionHint worldInjectionSummary={worldInjectionSummary} />
           {!hasCharacters ? (
             <div className="flex items-center justify-between gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-xs text-amber-800">
-              <span>请先添加至少 1 个角色，再执行流水线。</span>
-              <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>去角色管理</Button>
+              <span>Please add at least 1 role before executing the pipeline.</span>
+              <Button size="sm" variant="outline" onClick={onGoToCharacterTab}>Go to character management</Button>
             </div>
           ) : null}
           <div className="grid gap-3 md:grid-cols-3">
             <div className="rounded-xl bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">当前重点</div>
+              <div className="text-xs text-muted-foreground">Current focus</div>
               <div className="mt-1 text-sm font-semibold text-foreground">
-                {pendingRepairCount > 0 ? `先处理 ${pendingRepairCount} 个低分章节` : "当前没有明显低分章节"}
+                {pendingRepairCount > 0 ? `先处理 ${pendingRepairCount} 个低分章节` : "There are currently no chapters with obviously low scores"}
               </div>
             </div>
             <div className="rounded-xl bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">质量阈值</div>
+              <div className="text-xs text-muted-foreground">quality threshold</div>
               <div className="mt-1 text-sm font-semibold text-foreground">{pipelineForm.qualityThreshold}</div>
             </div>
             <div className="rounded-xl bg-muted/15 p-3">
-              <div className="text-xs text-muted-foreground">当前运行模式</div>
-              <div className="mt-1 text-sm font-semibold text-foreground">{pipelineForm.runMode === "polish" ? "精修" : "快速"}</div>
+              <div className="text-xs text-muted-foreground">Current operating mode</div>
+              <div className="mt-1 text-sm font-semibold text-foreground">{pipelineForm.runMode === "polish" ? "Refinement" : "Quick"}</div>
             </div>
           </div>
           {pipelineMessage ? <div className="text-sm text-muted-foreground">{pipelineMessage}</div> : null}
@@ -206,7 +206,7 @@ export default function PipelineTab(props: PipelineTabProps) {
 
       <Card className="border-0 bg-muted/15 shadow-none">
         <CardHeader>
-          <CardTitle>质量风险队列</CardTitle>
+          <CardTitle>Quality risk queue</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <SelectControl
@@ -215,37 +215,37 @@ export default function PipelineTab(props: PipelineTabProps) {
             onChange={(event) => onSelectedChapterChange(event.target.value)}
           >
             {chapters.map((chapter) => (
-              <option key={chapter.id} value={chapter.id}>第{chapter.order}章 - {chapter.title}</option>
+              <option key={chapter.id} value={chapter.id}>Section{chapter.order}chapter - {chapter.title}</option>
             ))}
           </SelectControl>
           <div className="flex flex-wrap gap-2">
-            <AiButton onClick={onReviewChapter} disabled={isReviewing || !selectedChapterId}>执行审校</AiButton>
-            <AiButton variant="secondary" onClick={onRepairChapter} disabled={isRepairing || !selectedChapterId}>执行修复</AiButton>
-            <AiButton variant="outline" onClick={onGenerateHook} disabled={isGeneratingHook || !selectedChapterId}>生成钩子</AiButton>
+            <AiButton onClick={onReviewChapter} disabled={isReviewing || !selectedChapterId}>Perform review</AiButton>
+            <AiButton variant="secondary" onClick={onRepairChapter} disabled={isRepairing || !selectedChapterId}>Perform repair</AiButton>
+            <AiButton variant="outline" onClick={onGenerateHook} disabled={isGeneratingHook || !selectedChapterId}>Generate hook</AiButton>
           </div>
           {reviewResult ? (
             <div className="rounded-xl bg-background/70 p-3 text-sm">
-              <div className="mb-2 font-medium">审校评分</div>
+              <div className="mb-2 font-medium">Reviewer rating</div>
               <div className="grid gap-1 md:grid-cols-2">
-                <div>连贯性：{reviewResult.score.coherence}</div>
+                <div>Continuity:{reviewResult.score.coherence}</div>
                 <div>重复率：{reviewResult.score.repetition}</div>
-                <div>节奏：{reviewResult.score.pacing}</div>
-                <div>口吻：{reviewResult.score.voice}</div>
-                <div>追更感：{reviewResult.score.engagement}</div>
-                <div>综合：{reviewResult.score.overall}</div>
+                <div>Rhythm:{reviewResult.score.pacing}</div>
+                <div>Tone:{reviewResult.score.voice}</div>
+                <div>Follow up:{reviewResult.score.engagement}</div>
+                <div>comprehensive:{reviewResult.score.overall}</div>
               </div>
             </div>
           ) : null}
           <StreamOutput content={repairStreamContent} isStreaming={isRepairStreaming} onAbort={onAbortRepair} />
           {(repairBeforeContent || repairAfterContent) ? (
             <div className="grid gap-3 md:grid-cols-2">
-              <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl bg-background/70 p-3 text-xs">{repairBeforeContent || "暂无"}</pre>
-              <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl bg-background/70 p-3 text-xs">{repairAfterContent || "修复执行后显示"}</pre>
+              <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl bg-background/70 p-3 text-xs">{repairBeforeContent || "None yet"}</pre>
+              <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap rounded-xl bg-background/70 p-3 text-xs">{repairAfterContent || "Displayed after repair execution"}</pre>
             </div>
           ) : null}
           {lowScoreReports.length > 0 ? (
             <div className="space-y-2 rounded-xl bg-background/70 p-3 text-xs">
-              <div className="font-medium">低分章节筛选（阈值 {pipelineForm.qualityThreshold}）</div>
+              <div className="font-medium">Low-scoring chapter filtering (threshold {pipelineForm.qualityThreshold}）</div>
               {lowScoreReports.map((item, index) => (
                 <div key={`${item.chapterId}-${index}`} className="flex items-center justify-between">
                   <span>{item.chapterId}</span>
@@ -260,21 +260,21 @@ export default function PipelineTab(props: PipelineTabProps) {
       <details className="group border-t border-border/60 pt-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
-            title="流水线配置、运行与模型设置"
-            description="批量任务、模型和高级参数都收在这里。默认先处理当前问题章节，只有需要批量推进时再展开。"
+            title="Pipeline configuration, operation and model setup"
+            description="Batch tasks, models and advanced parameters are collected here. By default, the current problem chapter will be processed first, and will only be expanded when batch advancement is needed."
           />
         </summary>
 
         <div className="mt-4 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>模型与配置</CardTitle>
+              <CardTitle>Models and configurations</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <LLMSelector />
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">起始章节</div>
+                  <div className="text-xs font-medium text-muted-foreground">Starting chapter</div>
                   <Input
                     type="number"
                     min={1}
@@ -284,7 +284,7 @@ export default function PipelineTab(props: PipelineTabProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">结束章节</div>
+                  <div className="text-xs font-medium text-muted-foreground">end chapter</div>
                   <Input
                     type="number"
                     min={1}
@@ -294,7 +294,7 @@ export default function PipelineTab(props: PipelineTabProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">失败重试</div>
+                  <div className="text-xs font-medium text-muted-foreground">Retry on failure</div>
                   <Input
                     type="number"
                     min={0}
@@ -306,18 +306,18 @@ export default function PipelineTab(props: PipelineTabProps) {
               </div>
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">运行模式</div>
+                  <div className="text-xs font-medium text-muted-foreground">operating mode</div>
                   <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={pipelineForm.runMode}
                     onChange={(event) => onPipelineFormChange("runMode", event.target.value)}
                   >
-                    <option value="fast">快速</option>
-                    <option value="polish">精修</option>
+                    <option value="fast">Quick</option>
+                    <option value="polish">Refinement</option>
                   </SelectControl>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">质量阈值</div>
+                  <div className="text-xs font-medium text-muted-foreground">quality threshold</div>
                   <Input
                     type="number"
                     min={0}
@@ -327,18 +327,18 @@ export default function PipelineTab(props: PipelineTabProps) {
                   />
                 </div>
                 <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">修复模式</div>
+                  <div className="text-xs font-medium text-muted-foreground">repair mode</div>
                   <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={pipelineForm.repairMode}
                     onChange={(event) => onPipelineFormChange("repairMode", event.target.value)}
                   >
-                    <option value="detect_only">只检测不修复</option>
-                    <option value="light_repair">自动轻修</option>
-                    <option value="heavy_repair">自动重修</option>
-                    <option value="continuity_only">只修连续性</option>
-                    <option value="character_only">只修人设</option>
-                    <option value="ending_only">只修结尾力度</option>
+                    <option value="detect_only">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</option>
+                    <option value="light_repair">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</option>
+                    <option value="heavy_repair">Automatic rebuild</option>
+                    <option value="continuity_only">Only practice continuity</option>
+                    <option value="character_only">Only repair the character</option>
+                    <option value="ending_only">Only the ending intensity is modified</option>
                   </SelectControl>
                 </div>
               </div>
@@ -349,16 +349,16 @@ export default function PipelineTab(props: PipelineTabProps) {
                     checked={pipelineForm.autoReview}
                     onChange={(event) => onPipelineFormChange("autoReview", event.target.checked)}
                   />
-                  自动审校
-                </label>
+                  Automatic review
+                                                  </label>
                 <label className="flex items-center gap-1">
                   <input
                     type="checkbox"
                     checked={pipelineForm.autoRepair}
                     onChange={(event) => onPipelineFormChange("autoRepair", event.target.checked)}
                   />
-                  自动修复
-                </label>
+                  Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.
+                                                  </label>
                 <label className="flex items-center gap-1">
                   <input
                     type="checkbox"
@@ -369,7 +369,7 @@ export default function PipelineTab(props: PipelineTabProps) {
                 </label>
               </div>
               <div className="rounded-md border bg-muted/20 p-2 text-xs text-muted-foreground">
-                当前设置：{pipelineForm.runMode === "polish" ? "精修" : "快速"} | 阈值 {pipelineForm.qualityThreshold} | {repairModeLabel(pipelineForm.repairMode)}
+                Current settings:{pipelineForm.runMode === "polish" ? "Refinement" : "Quick"} | Threshold {pipelineForm.qualityThreshold} | {repairModeLabel(pipelineForm.repairMode)}
               </div>
             </CardContent>
           </Card>
@@ -377,7 +377,7 @@ export default function PipelineTab(props: PipelineTabProps) {
           <div className="grid gap-4 xl:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>阶段可视化</CardTitle>
+                <CardTitle>Stage visualization</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {PIPELINE_STAGE_ITEMS.map((stage) => {
@@ -407,11 +407,11 @@ export default function PipelineTab(props: PipelineTabProps) {
 
             <Card>
               <CardHeader>
-                <CardTitle>运行面板</CardTitle>
+                <CardTitle>Run panel</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  <AiButton onClick={() => onRunPipeline()} disabled={isRunningPipeline || !hasCharacters}>启动批量生成</AiButton>
+                  <AiButton onClick={() => onRunPipeline()} disabled={isRunningPipeline || !hasCharacters}>Start batch generation</AiButton>
                   <AiButton
                     variant="outline"
                     onClick={() => {
@@ -426,37 +426,37 @@ export default function PipelineTab(props: PipelineTabProps) {
                     }}
                     disabled={isRunningPipeline || !lowScoreRange}
                   >
-                    仅重跑低分章节
-                  </AiButton>
-                  <Button variant="outline" onClick={exportPipelineReport}>导出任务报告</Button>
-                  <AiButton onClick={onGenerateBible} disabled={isBibleStreaming || !hasCharacters}>生成圣经</AiButton>
-                  <Button variant="secondary" onClick={onAbortBible} disabled={!isBibleStreaming}>停止圣经</Button>
-                  <AiButton onClick={onGenerateBeats} disabled={isBeatsStreaming || !hasCharacters}>生成拍点</AiButton>
-                  <Button variant="secondary" onClick={onAbortBeats} disabled={!isBeatsStreaming}>停止拍点</Button>
+                    Only rerun low score chapters
+                                                        </AiButton>
+                  <Button variant="outline" onClick={exportPipelineReport}>Export task report</Button>
+                  <AiButton onClick={onGenerateBible} disabled={isBibleStreaming || !hasCharacters}>generate bible</AiButton>
+                  <Button variant="secondary" onClick={onAbortBible} disabled={!isBibleStreaming}>stop bible</Button>
+                  <AiButton onClick={onGenerateBeats} disabled={isBeatsStreaming || !hasCharacters}>Generate beat points</AiButton>
+                  <Button variant="secondary" onClick={onAbortBeats} disabled={!isBeatsStreaming}>Stop shooting</Button>
                 </div>
                 {lowScoreRange ? (
                   <div className="text-xs text-muted-foreground">
-                    低分章节 {lowScoreRange.count} 个，可重跑范围：第 {lowScoreRange.startOrder} 章 - 第 {lowScoreRange.endOrder} 章。
-                  </div>
+                    Low score chapter {lowScoreRange.count} , rerunable range: No. {lowScoreRange.startOrder} Chapter - Chapter {lowScoreRange.endOrder} chapter.
+                                                        </div>
                 ) : (
-                  <div className="text-xs text-muted-foreground">当前无低于阈值的章节。</div>
+                  <div className="text-xs text-muted-foreground">There are currently no chapters below the threshold.</div>
                 )}
                 <div className="rounded-md border p-3 text-sm">
-                  <div className="mb-2 font-medium">任务状态</div>
+                  <div className="mb-2 font-medium">Task status</div>
                   {pipelineJob ? (
                     <div className="space-y-1">
-                      <div>任务ID：{pipelineJob.id}</div>
-                      <div>状态：{pipelineJob.status}</div>
-                      <div>当前阶段：{pipelineJob.currentStage || "-"}</div>
-                      <div>当前章节：{pipelineJob.currentItemLabel || "-"}</div>
-                      <div>进度：{Math.round((pipelineJob.progress ?? 0) * 100)}%</div>
-                      <div>完成：{pipelineJob.completedCount}/{pipelineJob.totalCount}</div>
-                      <div>重试：{pipelineJob.retryCount}/{pipelineJob.maxRetries}</div>
-                      {pipelineJob.lastErrorType ? <div>失败分类：{pipelineJob.lastErrorType}</div> : null}
-                      {pipelineJob.error ? <div className="text-red-600">错误：{pipelineJob.error}</div> : null}
+                      <div>Task ID:{pipelineJob.id}</div>
+                      <div>state:{pipelineJob.status}</div>
+                      <div>Current stage:{pipelineJob.currentStage || "-"}</div>
+                      <div>Current chapter:{pipelineJob.currentItemLabel || "-"}</div>
+                      <div>schedule:{Math.round((pipelineJob.progress ?? 0) * 100)}%</div>
+                      <div>Finish:{pipelineJob.completedCount}/{pipelineJob.totalCount}</div>
+                      <div>Try again:{pipelineJob.retryCount}/{pipelineJob.maxRetries}</div>
+                      {pipelineJob.lastErrorType ? <div>Failure classification:{pipelineJob.lastErrorType}</div> : null}
+                      {pipelineJob.error ? <div className="text-red-600">mistake:{pipelineJob.error}</div> : null}
                     </div>
                   ) : (
-                    <div className="text-muted-foreground">暂无运行中的流水线任务。</div>
+                    <div className="text-muted-foreground">There are currently no running pipeline tasks.</div>
                   )}
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
@@ -472,35 +472,35 @@ export default function PipelineTab(props: PipelineTabProps) {
       <details className="group rounded-2xl border border-border/70 bg-background/95 p-4">
         <summary className="cursor-pointer list-none">
           <CollapsibleSummary
-            title="质量报告与衍生产物"
-            description="全量质量报告、已保存圣经和拍点都属于查看型信息，默认收起。"
+            title="Quality reporting and derived products"
+            description="The full quality report, saved Bibles and shooting points are all viewable information and are closed by default."
           />
         </summary>
 
         <div className="mt-4 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>质量报告总览</CardTitle>
+              <CardTitle>Quality Report Overview</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {qualitySummary ? (
                 <div className="grid gap-2 md:grid-cols-3">
-                  <Badge variant="outline">连贯性：{qualitySummary.coherence}</Badge>
+                  <Badge variant="outline">Continuity:{qualitySummary.coherence}</Badge>
                   <Badge variant="outline">重复率：{qualitySummary.repetition}</Badge>
-                  <Badge variant="outline">节奏：{qualitySummary.pacing}</Badge>
-                  <Badge variant="outline">口吻：{qualitySummary.voice}</Badge>
-                  <Badge variant="outline">追更感：{qualitySummary.engagement}</Badge>
-                  <Badge variant="default">综合：{qualitySummary.overall}</Badge>
+                  <Badge variant="outline">Rhythm:{qualitySummary.pacing}</Badge>
+                  <Badge variant="outline">Tone:{qualitySummary.voice}</Badge>
+                  <Badge variant="outline">Follow up:{qualitySummary.engagement}</Badge>
+                  <Badge variant="default">comprehensive:{qualitySummary.overall}</Badge>
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground">暂无质量报告。</div>
+                <div className="text-sm text-muted-foreground">There is no quality report yet.</div>
               )}
               <div className="space-y-2 text-sm">
                 {chapterReports.slice(0, 10).map((item, index) => (
                   <div key={`${item.chapterId ?? "novel"}-${index}`} className="rounded-md border p-2">
-                    <div>章节：{item.chapterId ?? "全书"}</div>
+                    <div>chapter:{item.chapterId ?? "whole book"}</div>
                     <div className="text-muted-foreground">
-                      综合：{item.overall}，连贯性：{item.coherence}，重复率：{item.repetition}
+                      comprehensive:{item.overall}, coherence:{item.coherence},repetition rate:{item.repetition}
                     </div>
                   </div>
                 ))}
@@ -510,40 +510,40 @@ export default function PipelineTab(props: PipelineTabProps) {
 
           <div className="grid gap-4 xl:grid-cols-2">
             <Card>
-              <CardHeader><CardTitle>已保存圣经</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Bible saved</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
                 {bible ? (
                   <>
-                    <div className="rounded-md border p-2"><div className="font-medium">主线承诺</div><div className="text-muted-foreground">{bible.mainPromise ?? "暂无"}</div></div>
-                    <div className="rounded-md border p-2"><div className="font-medium">核心设定</div><div className="text-muted-foreground">{bible.coreSetting ?? "暂无"}</div></div>
+                    <div className="rounded-md border p-2"><div className="font-medium">Mainline Commitment</div><div className="text-muted-foreground">{bible.mainPromise ?? "None yet"}</div></div>
+                    <div className="rounded-md border p-2"><div className="font-medium">Core Settings</div><div className="text-muted-foreground">{bible.coreSetting ?? "None yet"}</div></div>
                     <div className="rounded-md border p-2">
-                      <div className="font-medium">Bible 世界记录</div>
+                      <div className="font-medium">Bible World Records</div>
                       <div className="text-xs leading-5 text-muted-foreground">
-                        这里是作品圣经里的文字记录；章节生成优先读取“本书世界”里的世界手册和使用范围。
-                      </div>
-                      <div className="mt-2 text-muted-foreground">{bible.worldRules ?? "暂无"}</div>
+                        Here is the text record in the work Bible; chapter generation gives priority to reading the world manual and usage scope in the "book world".
+                                                                    </div>
+                      <div className="mt-2 text-muted-foreground">{bible.worldRules ?? "None yet"}</div>
                     </div>
                   </>
                 ) : (
-                  <div className="text-muted-foreground">暂无作品圣经。</div>
+                  <div className="text-muted-foreground">There is currently no work Bible.</div>
                 )}
               </CardContent>
             </Card>
             <Card>
-              <CardHeader><CardTitle>已保存拍点</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Saved shot</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">
                 {plotBeats.length > 0 ? (
                   plotBeats.slice(0, 20).map((beat) => (
                     <div key={beat.id} className="rounded-md border p-2">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="font-medium">第 {beat.chapterOrder ?? "-"} 章 · {beat.title}</div>
+                        <div className="font-medium">Section {beat.chapterOrder ?? "-"} chapter · {beat.title}</div>
                         <Badge variant="outline">{beat.status}</Badge>
                       </div>
-                      <div className="text-xs text-muted-foreground">类型：{beat.beatType}</div>
+                      <div className="text-xs text-muted-foreground">type:{beat.beatType}</div>
                     </div>
                   ))
                 ) : (
-                  <div className="text-muted-foreground">暂无剧情拍点。</div>
+                  <div className="text-muted-foreground">There is no plot filming yet.</div>
                 )}
               </CardContent>
             </Card>

@@ -17,12 +17,12 @@ interface TitleSuggestionListProps {
 export default function TitleSuggestionList({
   suggestions,
   selectedTitle = "",
-  primaryActionLabel = "复制标题",
+  primaryActionLabel = "Copy title",
   onPrimaryAction,
   onCopy,
   onSave,
   savingTitle = "",
-  emptyMessage = "还没有生成任何标题。",
+  emptyMessage = "No titles have been generated yet.",
 }: TitleSuggestionListProps) {
   if (suggestions.length === 0) {
     return (
@@ -36,11 +36,11 @@ export default function TitleSuggestionList({
     <div className="divide-y divide-border/55">
       {suggestions.map((suggestion) => {
         const isSelected = selectedTitle === suggestion.title;
-        const showSecondaryCopy = Boolean(onCopy && primaryActionLabel !== "复制标题");
+        const showSecondaryCopy = Boolean(onCopy && primaryActionLabel !== "Copy title");
         const metadata = [
           getTitleStyleLabel(suggestion.style),
           suggestion.angle,
-          isSelected ? "当前选中" : null,
+          isSelected ? "Currently selected" : null,
         ].filter((item): item is string => Boolean(item));
         return (
           <div
@@ -51,8 +51,7 @@ export default function TitleSuggestionList({
           >
             <div className="grid gap-3 lg:grid-cols-[64px_minmax(0,1fr)_auto] lg:items-start">
               <div className="text-xs leading-5 text-muted-foreground">
-                <div className="font-medium text-foreground">预估</div>
-                <div className="text-lg font-semibold tabular-nums text-foreground">{suggestion.clickRate}</div>
+                <div className="font-medium text-foreground">Estimated</div> <div className="text-lg font-semibold tabular-nums text-foreground">{suggestion.clickRate}</div>
               </div>
 
               <div className="min-w-0 space-y-2">
@@ -70,15 +69,15 @@ export default function TitleSuggestionList({
               <div className="flex flex-wrap items-center gap-2 lg:justify-end">
                 {onPrimaryAction ? (
                   <Button type="button" size="sm" className="gap-1.5" onClick={() => onPrimaryAction(suggestion)}>
-                    {primaryActionLabel === "复制标题" ? <Copy className="h-3.5 w-3.5" /> : null}
+                    {primaryActionLabel === "Copy title" ? <Copy className="h-3.5 w-3.5" /> : null}
                     {primaryActionLabel}
                   </Button>
                 ) : null}
                 {showSecondaryCopy ? (
                   <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={() => onCopy?.(suggestion)}>
                     <Copy className="h-3.5 w-3.5" />
-                    复制
-                  </Button>
+                    Copy
+                                                  </Button>
                 ) : null}
                 {onSave ? (
                   <Button
@@ -92,13 +91,13 @@ export default function TitleSuggestionList({
                     {savingTitle === suggestion.title ? (
                       <>
                         <Check className="h-3.5 w-3.5" />
-                        保存中
-                      </>
+                        Saving
+                                                              </>
                     ) : (
                       <>
                         <BookmarkPlus className="h-3.5 w-3.5" />
-                        入库
-                      </>
+                        Warehouse
+                                                                  </>
                     )}
                   </Button>
                 ) : null}

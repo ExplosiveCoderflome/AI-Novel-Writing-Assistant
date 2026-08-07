@@ -49,8 +49,8 @@ export default function DirectorBookAutomationCard({
       {onSwitchToProjectNav ? (
         <Button type="button" size="sm" variant="ghost" className="w-full" onClick={onSwitchToProjectNav}>
           <LayoutDashboard className="h-4 w-4" />
-          项目导航
-        </Button>
+          Project navigation
+                          </Button>
       ) : null}
     </div>
   );

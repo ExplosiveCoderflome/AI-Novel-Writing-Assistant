@@ -13,7 +13,7 @@ const metricIcons: Record<HomeTone, typeof Activity> = {
 
 export function HomeStatusStrip(props: { metrics: HomeMetric[]; pending?: boolean }) {
   return (
-    <section className="home-status-summary-grid grid gap-5 border-y border-border/80 py-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="创作状态摘要">
+    <section className="home-status-summary-grid grid gap-5 border-y border-border/80 py-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.">
       {props.metrics.map((metric, index) => {
         const Icon = metricIcons[metric.tone];
         return (

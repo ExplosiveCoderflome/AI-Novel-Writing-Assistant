@@ -41,28 +41,21 @@ export default function StageWorldStyle({
     <section className="mx-auto w-full max-w-5xl space-y-7 py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="text-2xl font-semibold tracking-normal text-foreground">给故事一个世界底色</div>
+          <div className="text-2xl font-semibold tracking-normal text-foreground">Give the story a world background</div>
           <div className={`mt-2 max-w-2xl text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            可以选一个世界样本给 AI 参考，也可以让它根据起始想法自动整理本书世界。写法会作为后续规划和正文的默认语气。
-          </div>
+            You can select a world sample for the AI ​​to refer to, or you can let it automatically organize the world in this book based on your starting ideas. The writing method will serve as the default tone for subsequent planning and text.
+                                </div>
         </div>
-        <div className="rounded-full bg-muted/55 px-3 py-1 text-xs text-muted-foreground">
-          可保持默认
-        </div>
-      </div>
-
-      <div className="space-y-5">
+        <div className="rounded-full bg-muted/55 px-3 py-1 text-xs text-muted-foreground"> Keep the default settings</div> </div> <div className="space-y-5">
         <div className="space-y-2">
-          <FieldLabel htmlFor="director-basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>规划参考世界样本</FieldLabel>
+          <FieldLabel htmlFor="director-basic-world" hint={BASIC_INFO_FIELD_HINTS.worldId}>Planning Reference World Sample</FieldLabel>
           <SelectControl
             id="director-basic-world"
             className={controlClassName}
             value={basicForm.worldId}
             onChange={(event) => onBasicFormChange({ worldId: event.target.value })}
           >
-            <option value="">不指定参考世界</option>
-            {worldOptions.length === 0 ? (
-              <option value="" disabled>暂无可选世界样本</option>
+            <option value="">Do not specify a reference world</option> {worldOptions.length === 0 ? ( <option value="" disabled>There are currently no world samples to choose from.</option>
             ) : null}
             {worldOptions.map((world) => (
               <option key={world.id} value={world.id}>{world.name}</option>
@@ -70,17 +63,17 @@ export default function StageWorldStyle({
           </SelectControl>
           <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
             {worldOptions.length > 0
-              ? "这里只给自动导演提供快速参考。完整导入、生成和同步请在小说页的“本书世界”中完成。"
-              : "没有可选世界样本时，可以先用起始想法开书。"}
+              ? "This is just a quick reference for Auto Director. Please complete the complete import, generation and synchronization in the \"Book World\" on the novel page."
+              : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
           </div>
         </div>
 
         <div className="space-y-3 pt-2">
-          <div className="text-sm font-medium text-foreground">本书世界处理</div>
+          <div className="text-sm font-medium text-foreground">Book World Processing</div>
           {selectedWorld ? (
             <div className={`text-sm leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              自动导演会参考「{selectedWorld.name}」这个世界样本，并在角色准备前整理可用于本书的世界约束。
-            </div>
+              The automatic director will refer to "{selectedWorld.name}” sample world and organize the world constraints that can be used in this book before character preparation.
+                                      </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               <button
@@ -89,13 +82,9 @@ export default function StageWorldStyle({
                   worldSetupMode === "auto_generate"
                     ? "bg-foreground text-background ring-foreground shadow-sm"
                     : "bg-background/60 text-foreground ring-border/25 hover:bg-background"
-                }`}
-                onClick={() => onWorldSetupModeChange("auto_generate")}
-              >
-                <div className="text-sm font-medium">根据宏观规划生成本书世界</div>
-                <div className={`mt-2 text-xs leading-5 ${worldSetupMode === "auto_generate" ? "text-background/70" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                  适合奇幻、玄幻、科幻、悬疑等需要世界规则支撑的项目。
-                </div>
+                }`} onClick={() => onWorldSetupModeChange("auto_generate")} > <div className="text-sm font-medium">Generate the world of this book based on the macro plan</div> <div className={`mt-2 text-xs leading-5 ${worldSetupMode === "auto_generate" ? "text-background/70" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                  Suitable for fantasy, fantasy, science fiction, suspense and other projects that require the support of world rules.
+                                                      </div>
               </button>
               <button
                 type="button"
@@ -103,47 +92,43 @@ export default function StageWorldStyle({
                   worldSetupMode === "skip"
                     ? "bg-foreground text-background ring-foreground shadow-sm"
                     : "bg-background/60 text-foreground ring-border/25 hover:bg-background"
-                }`}
-                onClick={() => onWorldSetupModeChange("skip")}
-              >
-                <div className="text-sm font-medium">暂不使用世界观</div>
-                <div className={`mt-2 text-xs leading-5 ${worldSetupMode === "skip" ? "text-background/70" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                  适合现实题材、轻设定项目，角色和章节会主要依据书级规划推进。
-                </div>
+                }`} onClick={() => onWorldSetupModeChange("skip")} > <div className="text-sm font-medium">Do not use world view for now</div> <div className={`mt-2 text-xs leading-5 ${worldSetupMode === "skip" ? "text-background/70" : "text-muted-foreground"} ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
+                  Suitable for realistic themes and light setting projects, characters and chapters will be mainly developed based on book-level planning.
+                                                      </div>
               </button>
             </div>
           )}
         </div>
 
         <div className="space-y-2">
-          <FieldLabel htmlFor="director-basic-style-profile" hint="可选。选定后，导演前半段会只读取轻量写法摘要，正文阶段再继续使用完整写法规则。">
-            书级默认写法
-          </FieldLabel>
+          <FieldLabel htmlFor="director-basic-style-profile" hint="Optional. After selection, the director will only read the lightweight writing summary in the first half, and continue to use the full writing rules in the main text stage.">
+            Book level default writing method
+                                </FieldLabel>
           <SelectControl
             id="director-basic-style-profile"
             className={controlClassName}
             value={selectedStyleProfileId}
             onChange={(event) => onStyleProfileChange(event.target.value)}
           >
-            <option value="">先只用文风关键词</option>
+            <option value="">First use only style keywords</option>
             {styleProfileOptions.map((option) => (
               <option key={option.id} value={option.id}>{option.name}</option>
             ))}
           </SelectControl>
           <div className={`text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-            {selectedStyleSummary?.stageSummaryLines[0] ?? "有沉淀好的写法资产时，建议直接选一套，帮助你更清楚地预期导演会怎样写。"}
+            {selectedStyleSummary?.stageSummaryLines[0] ?? "When you have good writing assets, it is recommended to choose a set directly to help you more clearly anticipate how the director will write."}
           </div>
           {selectedStyleSummary?.stageSummaryLines.length ? (
             <div className={`pt-1 text-xs leading-6 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-              这套写法会影响后续章节的语气和节奏：{selectedStyleSummary.stageSummaryLines.join("；")}
+              This way of writing will affect the tone and rhythm of subsequent chapters:{selectedStyleSummary.stageSummaryLines.join("；")}
             </div>
           ) : null}
         </div>
       </div>
 
       <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-between">
-        <Button type="button" variant="ghost" onClick={onBack}>返回起始设置</Button>
-        <Button type="button" onClick={onConfirm}>确认世界与写法</Button>
+        <Button type="button" variant="ghost" onClick={onBack}>Return to initial settings</Button>
+        <Button type="button" onClick={onConfirm}>Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</Button>
       </div>
     </section>
   );

@@ -74,7 +74,7 @@ export function useNovelEditChapterRuntime({
       temperature: llm.temperature,
     }),
     onSuccess: async () => {
-      setChapterOperationMessage("章节执行计划已生成，可直接开始写本章。");
+      setChapterOperationMessage("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterPlan(novelId, selectedChapterId) }),
         invalidateNovelDetail(),
@@ -99,7 +99,7 @@ export function useNovelEditChapterRuntime({
       setChapterOperationMessage(
         affectedOrders.length > 0
           ? `已重规划第 ${affectedOrders.join("、")} 章。`
-          : "章节已完成重规划。",
+          : "The chapter has been re-planned.",
       );
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(novelId) });
@@ -121,7 +121,7 @@ export function useNovelEditChapterRuntime({
     }),
     onSuccess: async (response) => {
       setReviewResult(response.data ?? null);
-      setChapterOperationMessage("完整审校已完成。");
+      setChapterOperationMessage("Full review completed.");
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.chapterAuditReports(novelId, selectedChapterId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.qualityReport(novelId) });
     },
@@ -139,42 +139,12 @@ export function useNovelEditChapterRuntime({
     if (!selectedChapter) {
       return;
     }
-    setChapterOperationMessage("正在生成本章正文...");
+    setChapterOperationMessage("Generating the text of this chapter...");
     setActiveChapterStream({
       chapterId: selectedChapter.id,
-      chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}`,
+      chapterLabel: `第${selectedChapter.order}章 ${selectedChapter.title || "Unnamed chapter"}`,
     });
-    void chapterSSE.start(`/novels/${novelId}/chapters/${selectedChapter.id}/generate`, {
-      provider: llm.provider,
-      model: llm.model,
-      previousChaptersSummary: [],
-    });
-  };
-
-  const handleAbortChapterStream = () => {
-    chapterSSE.abort();
-    setChapterOperationMessage("已停止当前章节生成，你可以保留当前输出继续查看，或重新发起本章写作。");
-  };
-
-  const handleAbortRepair = () => {
-    repairSSE.abort();
-    setActiveRepairStream(null);
-    setChapterOperationMessage("已停止当前章节修复，你可以先查看当前修复结果，再决定是否继续。");
-  };
-
-  const startChapterRepair = (issues: ReviewIssue[]) => {
-    if (!selectedChapterId) {
-      setChapterOperationMessage("请先选择章节。");
-      return;
-    }
-    setChapterOperationMessage("正在生成修复稿...");
-    setRepairBeforeContent(selectedChapter?.content ?? "");
-    setRepairAfterContent("");
-    setActiveRepairStream({
-      chapterId: selectedChapterId,
-      chapterLabel: selectedChapter ? `第${selectedChapter.order}章 ${selectedChapter.title || "未命名章节"}` : "当前章节",
-    });
-    void repairSSE.start(`/novels/${novelId}/chapters/${selectedChapterId}/repair`, {
+    void chapterSSE.start(`/novels/${novelId}/chapters/${selectedChapter.id}/generate`, { provider: llm.provider, model: llm.model, previousChaptersSummary: [], }); }; const handleAbortChapterStream = () => { chapterSSE.abort(); setChapterOperationMessage("Current chapter generation has stopped. You can keep the current output and continue viewing, or restart writing this chapter."); }; const handleAbortRepair = () => { repairSSE.abort(); setActiveRepairStream(null); setChapterOperationMessage("Current chapter repair has stopped. You can first view the current repair results, and then decide whether to continue."); }; const startChapterRepair = (issues: ReviewIssue[]) => { if (!selectedChapterId) { setChapterOperationMessage("Please select a chapter first."); return; } setChapterOperationMessage("Generating the repaired manuscript..."); setRepairBeforeContent(selectedChapter?.content ?? ""); setRepairAfterContent(""); setActiveRepairStream({ chapterId: selectedChapterId, chapterLabel: selectedChapter ? `第${selectedChapter.order}章 ${selectedChapter.title || "Unnamed chapter"}` : "Current Chapter", }); void repairSSE.start(`/novels/${novelId}/chapters/${selectedChapterId}/repair`, {
       provider: llm.provider,
       model: llm.model,
       reviewIssues: issues,

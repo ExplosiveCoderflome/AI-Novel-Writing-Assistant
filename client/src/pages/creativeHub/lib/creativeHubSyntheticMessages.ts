@@ -14,19 +14,19 @@ function compactArgs(record: Record<string, string | boolean | null | undefined>
 function toStatusLabel(status: string): string {
   switch (status) {
     case "running":
-      return "运行中";
+      return "Running";
     case "queued":
-      return "排队中";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "waiting_approval":
-      return "等待审批";
+      return "Waiting for approval";
     case "succeeded":
-      return "已完成";
+      return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
     case "failed":
-      return "失败";
+      return "fail";
     case "cancelled":
-      return "已取消";
+      return "Canceled";
     case "interrupted":
-      return "待确认";
+      return "To be confirmed";
     default:
       return status;
   }
@@ -173,8 +173,8 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `run_status_${sequence}`,
-        kind: "运行状态",
-        title: "运行状态",
+        kind: "Running status",
+        title: "Running status",
         summary: frame.data.message || `当前状态：${toStatusLabel(frame.data.status)}`,
         meta: [toStatusLabel(frame.data.status), `Run ${runId.slice(0, 8)}`],
         tone: frame.data.status === "failed" || frame.data.status === "cancelled"
@@ -195,9 +195,9 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `tool_call_${sequence}`,
-        kind: "工具调用",
+        kind: "Tool call",
         title: frame.data.toolName,
-        summary: frame.data.inputSummary || "正在准备工具输入。",
+        summary: frame.data.inputSummary || "Preparing tool input.",
         meta: [
           `Run ${runId.slice(0, 8)}`,
           frame.data.stepId ? `Step ${frame.data.stepId.slice(0, 8)}` : "",
@@ -215,11 +215,11 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `tool_result_${sequence}`,
-        kind: frame.data.success ? "工具完成" : "工具失败",
+        kind: frame.data.success ? "Tool complete" : "Tool failed",
         title: frame.data.toolName,
-        summary: frame.data.outputSummary || "工具返回了空结果。",
+        summary: frame.data.outputSummary || "The tool returned empty results.",
         meta: [
-          frame.data.success ? "成功" : "失败",
+          frame.data.success ? "success" : "fail",
           `Run ${runId.slice(0, 8)}`,
         ],
         tone: frame.data.success ? "default" : "destructive",
@@ -236,9 +236,9 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `approval_${sequence}`,
-        kind: "审批结果",
-        title: frame.data.action === "approved" ? "审批通过" : "审批拒绝",
-        summary: frame.data.note?.trim() || "当前审批动作已记录。",
+        kind: "Approval results",
+        title: frame.data.action === "approved" ? "Approval passed" : "Approval rejected",
+        summary: frame.data.note?.trim() || "The current approval action has been recorded.",
         meta: [
           `Approval ${frame.data.approvalId.slice(0, 8)}`,
         ],
@@ -256,8 +256,8 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `error_${sequence}`,
-        kind: "运行异常",
-        title: "运行异常",
+        kind: "Abnormal operation",
+        title: "Abnormal operation",
         summary: frame.data.message,
         meta: [`Run ${runId.slice(0, 8)}`],
         tone: "destructive",
@@ -274,8 +274,8 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `reasoning_${sequence}`,
-        kind: "推理更新",
-        title: "推理更新",
+        kind: "Reasoning update",
+        title: "Reasoning update",
         summary: frame.data.reasoning,
         meta: [`Run ${runId.slice(0, 8)}`],
       },
@@ -292,8 +292,8 @@ function buildDebugTraceEntry(
       runId,
       entry: {
         id: `planner_${sequence}`,
-        kind: "意图识别",
-        title: "意图识别",
+        kind: "Intent recognition",
+        title: "Intent recognition",
         summary: `来源：${getPlannerSourceDisplayLabel(planner.source)}；意图：${getIntentDisplayLabel(planner.intent)}`,
         meta: [
           "confidence" in planner ? `置信度 ${String(planner.confidence ?? "-")}` : "",
@@ -315,7 +315,7 @@ function buildDebugTraceEntry(
       entry: {
         id: `checkpoint_${sequence}`,
         kind: "Checkpoint",
-        title: "检查点已写回",
+        title: "Checkpoint has been written back",
         summary: `Checkpoint ${frame.data.checkpointId.slice(0, 8)} 已写回线程历史。`,
         meta: [`Run ${runId.slice(0, 8)}`],
       },

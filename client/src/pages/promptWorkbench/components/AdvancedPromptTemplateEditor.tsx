@@ -28,7 +28,7 @@ function formatDiagnosticKeys(
   keys: string[],
   kind: Extract<PromptTemplateTokenKind, "context" | "input" | "slot">,
 ) {
-  return keys.map((key) => labelTemplateToken({ kind, key })).join("、") || "无";
+  return keys.map((key) => labelTemplateToken({ kind, key })).join("、") || "none";
 }
 
 function VersionRow(props: {
@@ -44,7 +44,7 @@ function VersionRow(props: {
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-semibold text-[#25443f]">v{props.version.versionNo}</span>
-          {active ? <Badge className="bg-[#0f766e] text-white hover:bg-[#0f766e]">启用中</Badge> : null}
+          {active ? <Badge className="bg-[#0f766e] text-white hover:bg-[#0f766e]">Activating</Badge> : null}
           <span className="font-mono text-[11px] text-muted-foreground">{props.version.compiledHash}</span>
         </div>
         <div className="mt-1 text-xs text-muted-foreground">{formatDate(props.version.createdAt)}</div>
@@ -54,8 +54,8 @@ function VersionRow(props: {
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" size="sm" onClick={() => props.onLoad(props.version)}>
-          查看
-        </Button>
+          Check
+                          </Button>
         <Button
           type="button"
           variant="outline"
@@ -64,8 +64,8 @@ function VersionRow(props: {
           disabled={props.disabled || active}
           className="border-[#b8d9d0] text-[#0f5f59]"
         >
-          回滚
-        </Button>
+          rollback
+                          </Button>
       </div>
     </div>
   );
@@ -92,7 +92,7 @@ export function AdvancedPromptTemplateEditor(props: {
   const tokenItems = templateState.references?.items ?? [];
   const templateDiagnostics = preview?.diagnostics.template?.diagnostics;
   const view = templateState.view;
-  const modeLabel = view?.mode === "custom" ? "本书自定义" : "官方模板";
+  const modeLabel = view?.mode === "custom" ? "Book customization" : "Official template";
   const isBusy = templateState.saveMutation.isPending
     || templateState.restoreMutation.isPending
     || templateState.activateMutation.isPending;
@@ -108,8 +108,8 @@ export function AdvancedPromptTemplateEditor(props: {
   if (!templateState.enabled) {
     return (
       <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/75 p-5 text-sm text-muted-foreground">
-        选择正文写作提示词、本书范围和具体小说后可编辑高级模板。
-      </div>
+        Advanced templates can be edited after selecting text writing prompts, book scope, and specific novels.
+                  </div>
     );
   }
 
@@ -135,8 +135,8 @@ export function AdvancedPromptTemplateEditor(props: {
               </span>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
-              高级模板会影响本书正文生成；必需上下文缺失时生成会停止。
-            </p>
+              Advanced templates affect book text generation; generation stops when required context is missing.
+                                      </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -147,8 +147,8 @@ export function AdvancedPromptTemplateEditor(props: {
               className="border-[#b8d9d0] text-[#0f5f59]"
             >
               <ShieldCheck className="mr-2 h-4 w-4" />
-              恢复官方模板
-            </Button>
+              Restore official template
+                                      </Button>
             <Button
               type="button"
               onClick={() => templateState.saveMutation.mutate()}
@@ -156,15 +156,15 @@ export function AdvancedPromptTemplateEditor(props: {
               className="bg-[#0f766e] text-white hover:bg-[#0b5f59]"
             >
               <Save className="mr-2 h-4 w-4" />
-              保存为新版本
-            </Button>
+              Save as new version
+                                      </Button>
           </div>
         </div>
       </div>
 
       <VisualTemplateEditor
         role="system"
-        label="System 模板"
+        label="System Template"
         value={templateState.systemContent}
         disabled={disabled || isBusy}
         textareaRef={templateState.systemRef}
@@ -182,7 +182,7 @@ export function AdvancedPromptTemplateEditor(props: {
 
       <VisualTemplateEditor
         role="human"
-        label="Human 模板"
+        label="Human Template"
         value={templateState.humanContent}
         disabled={disabled || isBusy}
         textareaRef={templateState.humanRef}
@@ -200,13 +200,13 @@ export function AdvancedPromptTemplateEditor(props: {
 
       <div className="rounded-md border border-[#d7e4e0] bg-white p-4">
         <label className="text-sm font-semibold text-[#25443f]" htmlFor="prompt-template-notes">
-          版本说明
-        </label>
+          Release Notes
+                          </label>
         <Input
           id="prompt-template-notes"
           value={templateState.notes}
           onChange={(event) => templateState.setNotes(event.target.value)}
-          placeholder="说明本次模板调整目标"
+          placeholder="Explain the goals of this template adjustment"
           className="mt-2 border-[#cbdad6]"
           disabled={disabled || isBusy}
         />
@@ -216,13 +216,13 @@ export function AdvancedPromptTemplateEditor(props: {
         <div className="rounded-md border border-[#c8d8f0] bg-[#f5f8ff] p-4">
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#344d7a]">
             <GitBranch className="h-4 w-4" />
-            预览注入结果
-          </div>
+            Preview injection results
+                                </div>
           <div className="grid gap-2 text-sm text-[#52606d] md:grid-cols-2">
-            <div>显式上下文：{formatDiagnosticKeys(templateDiagnostics.referencedContextGroups, "context")}</div>
-            <div>保底追加：{formatDiagnosticKeys(templateDiagnostics.fallbackRequiredGroups, "context")}</div>
-            <div>运行变量：{formatDiagnosticKeys(templateDiagnostics.referencedInputFields, "input")}</div>
-            <div>槽位引用：{formatDiagnosticKeys(templateDiagnostics.referencedSlotKeys, "slot")}</div>
+            <div>Explicit context:{formatDiagnosticKeys(templateDiagnostics.referencedContextGroups, "context")}</div>
+            <div>Additional guarantee:{formatDiagnosticKeys(templateDiagnostics.fallbackRequiredGroups, "context")}</div>
+            <div>Run variables:{formatDiagnosticKeys(templateDiagnostics.referencedInputFields, "input")}</div>
+            <div>Slot reference:{formatDiagnosticKeys(templateDiagnostics.referencedSlotKeys, "slot")}</div>
           </div>
         </div>
       ) : null}
@@ -236,8 +236,8 @@ export function AdvancedPromptTemplateEditor(props: {
       {previewMessages.length > 0 ? (
         <div className="rounded-md border border-[#d7e4e0] bg-white">
           <div className="border-b border-[#e1ebe8] px-4 py-3 text-sm font-semibold text-[#25443f]">
-            最终 Messages
-          </div>
+            Final Messages
+                                </div>
           <div className="space-y-3 p-4">
             {previewMessages.map((message, index) => (
               <div key={`${message.role}:${index}`} className="rounded-md bg-[#f7faf9] p-3">
@@ -254,8 +254,8 @@ export function AdvancedPromptTemplateEditor(props: {
       <div className="rounded-md border border-[#d7e4e0] bg-[#fbfdfb] p-4">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#25443f]">
           <History className="h-4 w-4" />
-          版本历史
-        </div>
+          Version history
+                          </div>
         {view?.versions.length ? (
           <div className="space-y-2">
             {view.versions.map((version) => (
@@ -271,8 +271,8 @@ export function AdvancedPromptTemplateEditor(props: {
           </div>
         ) : (
           <div className="rounded-md border border-dashed border-[#cbdad6] bg-white/75 p-4 text-sm text-muted-foreground">
-            保存自定义模板后会生成版本历史。
-          </div>
+            A version history is generated after saving a custom template.
+                                    </div>
         )}
       </div>
 
@@ -285,8 +285,8 @@ export function AdvancedPromptTemplateEditor(props: {
           className="text-[#52606d] hover:bg-[#eef4ff] hover:text-[#344d7a]"
         >
           <RotateCcw className="mr-2 h-4 w-4" />
-          放弃未保存修改
-        </Button>
+          Discard unsaved changes
+                          </Button>
       </div>
     </div>
   );

@@ -21,10 +21,10 @@ export function NovelListHeader(props: {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0 space-y-3">
           <div>
-            <h1 className="text-3xl font-semibold tracking-normal">小说列表</h1>
+            <h1 className="text-3xl font-semibold tracking-normal">Novel list</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              管理正在推进的小说项目，快速判断哪些可以继续写、哪些需要先处理状态。
-            </p>
+              Manage ongoing novel projects and quickly determine which ones can be continued and which ones need to be processed first.
+                                      </p>
           </div>
         </div>
 
@@ -32,18 +32,18 @@ export function NovelListHeader(props: {
           <Button asChild>
             <Link to={DIRECTOR_CREATE_LINK}>
               <Sparkles className="mr-2 h-4 w-4" aria-hidden="true" />
-              AI 自动导演开书
-            </Link>
+              AI automatic director opens book
+                                      </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
+            <Link to={MANUAL_CREATE_LINK}>Create a novel manually</Link>
           </Button>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-border/60 py-3 text-sm">
-        <HeaderMetric label="当前" value={`第 ${props.page} / ${props.totalPages} 页`} />
-        <HeaderMetric label="总数" value={`${props.totalNovels} 本`} />
+        <HeaderMetric label="current" value={`第 ${props.page} / ${props.totalPages} 页`} />
+        <HeaderMetric label="total" value={`${props.totalNovels} 本`} />
         {props.summary.map((item) => (
           <HeaderMetric
             key={item.id}
@@ -55,7 +55,7 @@ export function NovelListHeader(props: {
         {props.recoveryCandidateCount > 0 ? (
           <Button type="button" size="sm" variant="ghost" className="h-8 px-2" onClick={props.onOpenRecovery}>
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-            待恢复 {props.recoveryCandidateCount}
+            To be restored {props.recoveryCandidateCount}
           </Button>
         ) : null}
       </div>

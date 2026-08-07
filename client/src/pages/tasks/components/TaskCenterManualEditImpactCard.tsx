@@ -13,15 +13,15 @@ interface TaskCenterManualEditImpactCardProps {
 
 function formatImpactLevel(level: DirectorManualEditImpactLevel): string {
   if (level === "none") {
-    return "没有发现影响";
+    return "No impact found";
   }
   if (level === "low") {
-    return "轻微影响";
+    return "slight impact";
   }
   if (level === "medium") {
-    return "中等影响";
+    return "medium impact";
   }
-  return "高影响";
+  return "high impact";
 }
 
 function impactVariant(level: DirectorManualEditImpactLevel): "default" | "outline" | "secondary" | "destructive" {
@@ -43,24 +43,24 @@ function renderImpactResult(impact: DirectorManualEditImpact) {
       <div className="flex flex-wrap gap-2">
         <Badge variant={impactVariant(impact.impactLevel)}>{formatImpactLevel(impact.impactLevel)}</Badge>
         <Badge variant={impact.safeToContinue ? "default" : "secondary"}>
-          {impact.safeToContinue ? "可以继续推进" : "建议先处理影响"}
+          {impact.safeToContinue ? "Can proceed" : "It is recommended to address the impact first"}
         </Badge>
-        {impact.requiresApproval ? <Badge variant="outline">需要确认</Badge> : null}
+        {impact.requiresApproval ? <Badge variant="outline">Confirmation required</Badge> : null}
       </div>
       <div className="text-sm leading-6 text-muted-foreground">{impact.summary}</div>
       {impact.changedChapters.length > 0 ? (
         <div className="space-y-2">
-          <div className="text-xs font-medium text-muted-foreground">受影响章节</div>
+          <div className="text-xs font-medium text-muted-foreground">Affected chapters</div>
           {impact.changedChapters.slice(0, 4).map((chapter) => (
             <div key={chapter.chapterId} className="rounded-md border bg-background px-3 py-2 text-xs">
-              第 {chapter.order} 章：{chapter.title}
+              Section {chapter.order} chapter:{chapter.title}
             </div>
           ))}
         </div>
       ) : null}
       {impact.minimalRepairPath.length > 0 ? (
         <div className="space-y-2">
-          <div className="text-xs font-medium text-muted-foreground">推荐处理路径</div>
+          <div className="text-xs font-medium text-muted-foreground">Recommended processing path</div>
           {impact.minimalRepairPath.map((step, index) => (
             <div key={`${step.action}:${index}`} className="rounded-md border bg-muted/20 px-3 py-2 text-xs leading-5">
               <div className="font-medium text-foreground">{step.label}</div>
@@ -71,7 +71,7 @@ function renderImpactResult(impact: DirectorManualEditImpact) {
       ) : null}
       {impact.riskNotes.length > 0 ? (
         <div className="text-xs leading-5 text-muted-foreground">
-          风险提示：{impact.riskNotes.join("；")}
+          Risk warning:{impact.riskNotes.join("；")}
         </div>
       ) : null}
     </div>
@@ -90,7 +90,7 @@ export default function TaskCenterManualEditImpactCard({
       ai: true,
     }),
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "检查章节改动影响失败");
+      toast.error(error instanceof Error ? error.message : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
     },
   });
 
@@ -107,10 +107,10 @@ export default function TaskCenterManualEditImpactCard({
     <div className="rounded-md border bg-muted/20 p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="font-medium">章节改动影响</div>
+          <div className="font-medium">Impact of chapter changes</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">
-            检查当前正文和导演运行记录的差异，给出最小复查或修复路径。
-          </div>
+            Check the differences between the current text and the director's run record, and give the minimum review or repair path.
+                                </div>
         </div>
         <Button
           size="sm"
@@ -118,7 +118,7 @@ export default function TaskCenterManualEditImpactCard({
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending}
         >
-          {mutation.isPending ? "检查中..." : "检查影响"}
+          {mutation.isPending ? "Under investigation..." : "Checking for impact"}
         </Button>
       </div>
       {impact ? renderImpactResult(impact) : null}

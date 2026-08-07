@@ -16,10 +16,10 @@ export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
   const emotionSignal = getEmotionSignal(selectedCharacter);
   const secretStatus = getSecretStatus(selectedCharacter);
   const arcItems = [
-    { label: "起点", value: selectedCharacter.arcStart },
-    { label: "中段", value: selectedCharacter.arcMidpoint },
-    { label: "高潮", value: selectedCharacter.arcClimax },
-    { label: "终点", value: selectedCharacter.arcEnd },
+    { label: "starting point", value: selectedCharacter.arcStart },
+    { label: "middle section", value: selectedCharacter.arcMidpoint },
+    { label: "climax", value: selectedCharacter.arcClimax },
+    { label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", value: selectedCharacter.arcEnd },
   ];
 
   return (
@@ -29,34 +29,34 @@ export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
           <div className="border-b border-border/60 bg-muted/20 px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="text-sm font-medium">角色运行状态</div>
-                <div className="mt-1 text-xs text-muted-foreground">先看角色下一章能做什么、想要什么、受什么限制。</div>
+                <div className="text-sm font-medium">Role running status</div>
+                <div className="mt-1 text-xs text-muted-foreground">First look at what the character can do in the next chapter, what he wants, and what limitations he is subject to.</div>
               </div>
-              <Badge variant="outline">最近出场：{lastAppearanceChapter ? `第${lastAppearanceChapter}章` : "暂无"}</Badge>
+              <Badge variant="outline">Recent appearances:{lastAppearanceChapter ? `第${lastAppearanceChapter}章` : "None yet"}</Badge>
             </div>
           </div>
           <div className="grid gap-0 md:grid-cols-2">
             <StatusPanel
               icon={<Activity className="h-4 w-4" />}
-              label="当前状态"
-              value={selectedCharacter.currentState || "待补全"}
+              label="Current status"
+              value={selectedCharacter.currentState || "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
               tone="emerald"
             />
             <StatusPanel
               icon={<Target className="h-4 w-4" />}
-              label="当前目标"
-              value={selectedCharacter.currentGoal || "待补全"}
+              label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+              value={selectedCharacter.currentGoal || "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
               tone="sky"
             />
             <StatusPanel
               icon={<HeartPulse className="h-4 w-4" />}
-              label="情绪信号"
+              label="emotional signals"
               value={emotionSignal}
               tone="rose"
             />
             <StatusPanel
               icon={<EyeOff className="h-4 w-4" />}
-              label="秘密状态"
+              label="secret state"
               value={secretStatus}
               tone="amber"
             />
@@ -65,18 +65,17 @@ export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
 
         <section className="rounded-2xl border border-border/70 bg-[linear-gradient(135deg,hsl(var(--background))_0%,hsl(var(--muted)/0.45)_100%)] p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm font-medium">行动边界</div>
+            <div className="text-sm font-medium">action boundary</div>
             <Badge variant={pendingCharacterResourceCount > 0 ? "secondary" : "outline"}>
-              {pendingCharacterResourceCount > 0 ? `${pendingCharacterResourceCount} 条资源待确认` : "资源已同步"}
+              {pendingCharacterResourceCount > 0 ? `${pendingCharacterResourceCount} 条资源待确认` : "Resources synchronized"}
             </Badge>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <BoundaryMetric icon={<Box className="h-4 w-4" />} label="关键资源" value={`${resourceCount} 条`} />
-            <BoundaryMetric icon={<AlertTriangle className="h-4 w-4" />} label="风险提示" value={pendingCharacterResourceCount > 0 ? "先核对资源变更" : "可继续推进"} />
+            <BoundaryMetric icon={<Box className="h-4 w-4" />} label="key resources" value={`${resourceCount} items`} />
+            <BoundaryMetric icon={<AlertTriangle className="h-4 w-4" />} label="Risk warning" value={pendingCharacterResourceCount > 0 ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Can continue to advance"} />
           </div>
           <div className="mt-4 rounded-xl border border-border/70 bg-background/80 p-3">
-            <div className="text-xs font-medium text-muted-foreground">与主角关系</div>
-            <div className="mt-2 text-sm leading-6">{selectedCharacter.relationToProtagonist || "待补全"}</div>
+            <div className="text-xs font-medium text-muted-foreground">Relationship with the main character</div> <div className="mt-2 text-sm leading-6">{selectedCharacter.relationToProtagonist || "To be completed"}</div>
           </div>
         </section>
       </div>
@@ -84,23 +83,19 @@ export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <section className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="text-sm font-medium">戏剧引擎</div>
-            <Badge variant="outline">角色功能</Badge>
+            <div className="text-sm font-medium">Drama Engine</div> <Badge variant="outline">role function</Badge>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <NarrativeBlock label="故事作用" value={selectedCharacter.storyFunction} />
-            <NarrativeBlock label="外在目标" value={selectedCharacter.outerGoal} />
-            <NarrativeBlock label="内在需求" value={selectedCharacter.innerNeed} />
-            <NarrativeBlock label="恐惧 / 伤口" value={selectedCharacter.fear || selectedCharacter.wound} />
+            <NarrativeBlock label="Story function" value={selectedCharacter.storyFunction} />
+            <NarrativeBlock label="external goals" value={selectedCharacter.outerGoal} />
+            <NarrativeBlock label="intrinsic needs" value={selectedCharacter.innerNeed} />
+            <NarrativeBlock label="fear/wound" value={selectedCharacter.fear || selectedCharacter.wound} />
           </div>
         </section>
 
         <section className="rounded-2xl border border-border/70 bg-background p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm font-medium">成长轨道</div>
-            <Badge variant="outline">可后续接入思路线</Badge>
-          </div>
-          <div className="mt-4 space-y-3">
+            <div className="text-sm font-medium">Growth Track</div> <Badge variant="outline">This can be used to integrate subsequent thought processes</Badge> </div> <div className="mt-4 space-y-3">
             {arcItems.map((item, index) => (
               <div key={item.label} className="grid grid-cols-[28px_minmax(0,1fr)] gap-3">
                 <div className="flex flex-col items-center">
@@ -111,14 +106,14 @@ export default function CharacterOverviewTab(props: CharacterOverviewTabProps) {
                 </div>
                 <div className="min-w-0 pb-2">
                   <div className="text-xs font-medium text-muted-foreground">{item.label}</div>
-                  <div className="mt-1 line-clamp-2 text-sm leading-6">{item.value || "待补全"}</div>
+                  <div className="mt-1 line-clamp-2 text-sm leading-6">{item.value || "To be completed"}</div>
                 </div>
               </div>
             ))}
           </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <NarrativeBlock label="错误信念" value={selectedCharacter.misbelief} compact />
-            <NarrativeBlock label="道德底线" value={selectedCharacter.moralLine} compact />
+            <NarrativeBlock label="false belief" value={selectedCharacter.misbelief} compact />
+            <NarrativeBlock label="moral bottom line" value={selectedCharacter.moralLine} compact />
           </div>
         </section>
       </div>
@@ -166,7 +161,7 @@ function NarrativeBlock(props: { label: string; value?: string | null; compact?:
   return (
     <div className={`min-w-0 rounded-xl border border-border/70 bg-muted/10 p-3 ${props.compact ? "" : "min-h-[96px]"}`}>
       <div className="text-xs font-medium text-muted-foreground">{props.label}</div>
-      <div className="mt-2 text-sm leading-6">{props.value || "待补全"}</div>
+      <div className="mt-2 text-sm leading-6">{props.value || "To be completed"}</div>
     </div>
   );
 }

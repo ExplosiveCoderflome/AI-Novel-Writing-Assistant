@@ -11,13 +11,13 @@ export default function BasicInfoTab(props: BasicTabProps) {
   return (
     <div className="space-y-5">
       <DirectorTakeoverEntryPanel
-        title="让 AI 从当前项目继续接管"
-        description="如果基础信息较完整，可以直接从选定步骤开始自动接管，并选择继续已有进度或重跑当前步。"
+        title="Let AI take over from current project"
+        description="If the basic information is complete, you can automatically take over directly from the selected step, and choose to continue the existing progress or rerun the current step."
         entry={props.directorTakeoverEntry}
       />
       <SectionBlock
-        title="书级定位"
-        description="先确认这本书面向谁、靠什么吸引读者、前期必须兑现什么，再让后续世界、角色和章节围绕同一组承诺展开。"
+        title="book level positioning"
+        description="First confirm who the book is for, what attracts readers, and what must be fulfilled in the early stages, and then let the subsequent world, characters, and chapters revolve around the same set of promises."
       >
         <NovelBasicInfoForm
           basicForm={props.basicForm}
@@ -32,7 +32,7 @@ export default function BasicInfoTab(props: BasicTabProps) {
           onFormChange={props.onFormChange}
           onSubmit={props.onSave}
           isSubmitting={props.isSaving}
-          submitLabel="保存基本信息"
+          submitLabel="Save basic information"
           titleQuickFill={(
             <NovelCreateTitleQuickFill
               basicForm={props.basicForm}
@@ -61,9 +61,9 @@ export default function BasicInfoTab(props: BasicTabProps) {
       </SectionBlock>
 
       <DetailDisclosure
-        title="写法建议"
-        description="确认本书的叙述口味、表达密度和风格参考，帮助后续章节保持统一。"
-        meta="写法参考"
+        title="Writing suggestions"
+        description="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+        meta="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
       >
         <NovelStyleRecommendationCard novelId={props.novelId} />
       </DetailDisclosure>

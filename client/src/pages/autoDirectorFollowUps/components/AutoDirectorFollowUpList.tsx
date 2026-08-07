@@ -50,56 +50,56 @@ interface AutoDirectorFollowUpListPanelProps {
 }
 
 function formatStatus(status: TaskStatus): string {
-  if (status === "waiting_approval") return "等待审批";
-  if (status === "failed") return "失败";
-  if (status === "cancelled") return "已取消";
-  if (status === "running") return "运行中";
-  if (status === "queued") return "排队中";
-  return "已完成";
+  if (status === "waiting_approval") return "Waiting for approval";
+  if (status === "failed") return "fail";
+  if (status === "cancelled") return "Canceled";
+  if (status === "running") return "Running";
+  if (status === "queued") return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
+  return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
 }
 
 function formatReason(reason: AutoDirectorFollowUpItem["reason"]): string {
   const labels: Record<AutoDirectorFollowUpItem["reason"], string> = {
-    manual_recovery_required: "人工恢复待处理",
-    runtime_failed: "失败待重试",
-    candidate_selection_required: "待确认书级方向",
-    replan_required: "待处理重规划",
-    runtime_cancelled: "已取消待恢复",
-    chapter_batch_execution_pending: "自动执行待继续",
-    quality_repair_pending: "质量修复待继续",
-    auto_progress_running: "自动推进中",
-    auto_approval_completed: "最近自动通过",
-    runtime_replaced: "任务已替代",
-    validation_required: "需要重新校验",
+    manual_recovery_required: "Manual recovery pending",
+    runtime_failed: "Failed to try again",
+    candidate_selection_required: "Book level direction to be confirmed",
+    replan_required: "Pending re-planning",
+    runtime_cancelled: "Canceled pending restoration",
+    chapter_batch_execution_pending: "Automatic execution to be continued",
+    quality_repair_pending: "Quality fixes to be continued",
+    auto_progress_running: "Automatically advancing",
+    auto_approval_completed: "Recently passed automatically",
+    runtime_replaced: "Task has been replaced",
+    validation_required: "Need to recheck",
   };
   return labels[reason];
 }
 
 function formatSection(section: AutoDirectorFollowUpSection): string {
-  if (section === "needs_validation") return "需校验";
-  if (section === "exception") return "异常";
-  if (section === "pending") return "待处理";
-  if (section === "auto_progress") return "自动推进";
-  return "已替代";
+  if (section === "needs_validation") return "Need to verify";
+  if (section === "exception") return "abnormal";
+  if (section === "pending") return "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
+  if (section === "auto_progress") return "automatic advance";
+  return "replaced";
 }
 
 function formatActiveSection(section: AutoDirectorFollowUpSection | ""): string {
-  return section ? formatSection(section) : "全部分区";
+  return section ? formatSection(section) : "All partitions";
 }
 
 function buildChannelBadges(item: AutoDirectorFollowUpItem): string[] {
   const labels: string[] = [];
   if (item.channelCapabilities.dingtalk) {
-    labels.push("钉钉可直达");
+    labels.push("Direct access to DingTalk");
   }
   if (item.channelCapabilities.wecom) {
-    labels.push("企微可直达");
+    labels.push("Direct access to Qiwei");
   }
   return labels;
 }
 
 function formatItemType(item: AutoDirectorFollowUpItem): string {
-  return item.itemType === "auto_approval_record" ? "最近自动通过" : "正在推进";
+  return item.itemType === "auto_approval_record" ? "Recently passed automatically" : "Advancing";
 }
 
 export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPanelProps) {
@@ -108,17 +108,17 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
   return (
     <TaskQueueSection
       title={formatActiveSection(props.activeSection)}
-      description="按结构化原因和状态筛选；质量提醒与阻塞任务使用不同等级。"
+      description="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
       className="min-w-0 overflow-hidden"
     >
       <div className="space-y-4">
         <div className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterGrid}>
           <Select value={props.activeReason || "__all__"} onValueChange={(value) => props.onFilterChange("reason", value === "__all__" ? "" : value)}>
-            <SelectTrigger aria-label="按跟进原因筛选" className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
-              <SelectValue placeholder="全部原因" />
+            <SelectTrigger aria-label="Filter by reason for follow-up" className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
+              <SelectValue placeholder="all reasons" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">全部原因</SelectItem>
+              <SelectItem value="__all__">all reasons</SelectItem>
               {(props.filters?.reasons ?? []).map((reason) => (
                 <SelectItem key={reason} value={reason}>{formatReason(reason)}</SelectItem>
               ))}
@@ -126,11 +126,11 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
           </Select>
 
           <Select value={props.activeStatus || "__all__"} onValueChange={(value) => props.onFilterChange("status", value === "__all__" ? "" : value)}>
-            <SelectTrigger aria-label="按任务状态筛选" className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
-              <SelectValue placeholder="全部状态" />
+            <SelectTrigger aria-label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
+              <SelectValue placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">全部状态</SelectItem>
+              <SelectItem value="__all__">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</SelectItem>
               {(props.filters?.statuses ?? []).map((status) => (
                 <SelectItem key={status} value={status}>{formatStatus(status)}</SelectItem>
               ))}
@@ -138,13 +138,13 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
           </Select>
 
           <Select value={props.activeSupportsBatch || "__all__"} onValueChange={(value) => props.onFilterChange("supportsBatch", value === "__all__" ? "" : value)}>
-            <SelectTrigger aria-label="按批量操作能力筛选" className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
-              <SelectValue placeholder="批量能力" />
+            <SelectTrigger aria-label="Filter by batch operation capability" className={AUTO_DIRECTOR_MOBILE_CLASSES.followUpFilterTrigger}>
+              <SelectValue placeholder="Batch capacity" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">全部</SelectItem>
-              <SelectItem value="true">仅可批量</SelectItem>
-              <SelectItem value="false">仅不可批量</SelectItem>
+              <SelectItem value="__all__">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</SelectItem>
+              <SelectItem value="true">Batch only</SelectItem>
+              <SelectItem value="false">Not available in batches only</SelectItem>
             </SelectContent>
           </Select>
 
@@ -152,27 +152,27 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
 
         <div className="space-y-3">
           {props.loading ? (
-            <WorkspaceStateNotice compact loading title="正在读取跟进项" description="正在同步导演任务和最近自动通过记录。" />
+            <WorkspaceStateNotice compact loading title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." description="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." />
           ) : null}
 
           {props.errorMessage ? (
             <WorkspaceStateNotice
               compact
               tone="danger"
-              title="跟进列表读取失败"
+              title="Failed to read follow-up list"
               description={props.errorMessage}
-              action={<Button size="sm" variant="outline" onClick={props.onRetry}>重新读取</Button>}
+              action={<Button size="sm" variant="outline" onClick={props.onRetry}>reread</Button>}
             />
           ) : null}
 
           {!props.loading && !props.errorMessage && props.items.length === 0 ? (
             <TaskQueueEmptyState
-              title="当前没有符合条件的跟进项"
+              title="There are currently no eligible follow-up items"
               description={props.activeSection === "auto_progress"
-                ? "当前没有正在推进的任务或最近自动通过记录。"
+                ? "There are currently no tasks in progress or recent automatic passes recorded."
                 : props.activeSection === "replaced"
-                  ? "当前没有被新任务替代的旧任务。"
-                  : "可以切换分区或清除筛选条件查看其他导演任务。"}
+                  ? "There are old tasks that are not currently replaced by new tasks."
+                  : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
             />
           ) : null}
 
@@ -205,19 +205,19 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
                   <TaskQueueStatusBadge label={item.reasonLabel} tone="neutral" />
                   <TaskQueueStatusBadge label={getFollowUpPriorityLabel(item.priority, item.reason)} tone={tone} />
                   {item.executionScope ? <TaskQueueStatusBadge label={item.executionScope} tone="neutral" className={`max-w-full whitespace-normal text-left ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`} /> : null}
-                  {item.supportsBatch ? <TaskQueueStatusBadge label="可批量" tone="info" /> : null}
+                  {item.supportsBatch ? <TaskQueueStatusBadge label="Available in batches" tone="info" /> : null}
                   {buildChannelBadges(item).map((label) => (
                     <TaskQueueStatusBadge key={`${item.directorTaskId}:${label}`} label={label} tone="info" />
                   ))}
                 </div>
 
                 <div className={`mt-2 text-xs text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-                  当前阶段：{item.currentStage ?? "暂无"} · 当前模型：{item.currentModel ?? "暂无"} · 更新时间：{new Date(item.updatedAt).toLocaleString()}
+                  Current stage:{item.currentStage ?? "None yet"} · Current model:{item.currentModel ?? "None yet"} · Update time:{new Date(item.updatedAt).toLocaleString()}
                 </div>
                 </TaskQueueItem>
                 {item.supportsBatch ? (
                   <label className="absolute right-4 top-4 flex h-6 w-6 items-center justify-center">
-                    <span className="sr-only">选择 {item.novelTitle} 进行批量操作</span>
+                    <span className="sr-only">choose {item.novelTitle} Perform batch operations</span>
                     <input
                       type="checkbox"
                       checked={checked}
@@ -233,8 +233,8 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs text-muted-foreground">
-            第 {props.pagination?.page ?? 1} / {totalPages} 页，共 {props.pagination?.total ?? 0} 条
-          </div>
+            Section {props.pagination?.page ?? 1} / {totalPages} Pages, total {props.pagination?.total ?? 0} strip
+                                </div>
           <div className="grid grid-cols-2 gap-2 sm:flex">
             <Button
               variant="outline"
@@ -243,8 +243,8 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
               disabled={(props.pagination?.page ?? 1) <= 1}
               onClick={() => props.onPageChange((props.pagination?.page ?? 1) - 1)}
             >
-              上一页
-            </Button>
+              Previous page
+                                      </Button>
             <Button
               variant="outline"
               size="sm"
@@ -252,8 +252,8 @@ export function AutoDirectorFollowUpListPanel(props: AutoDirectorFollowUpListPan
               disabled={(props.pagination?.page ?? 1) >= totalPages}
               onClick={() => props.onPageChange((props.pagination?.page ?? 1) + 1)}
             >
-              下一页
-            </Button>
+              Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.
+                                      </Button>
           </div>
         </div>
       </div>

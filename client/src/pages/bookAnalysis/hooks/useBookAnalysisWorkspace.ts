@@ -30,7 +30,7 @@ import { useAnalysisPublishing } from "./actions/useAnalysisPublishing";
 import { useAnalysisCharacters } from "./character/useAnalysisCharacters";
 import { useSectionDrafts } from "./drafts/useSectionDrafts";
 
-const DIAGNOSIS_FOCUS_INSTRUCTION = "请从作者自检角度诊断当前稿子，优先指出节奏断点、人物模糊点、主题表达不清、伏笔回收风险和后续改稿优先级。";
+const DIAGNOSIS_FOCUS_INSTRUCTION = "Please diagnose the current manuscript from the perspective of author self-examination, and give priority to pointing out rhythm breakpoints, character ambiguity, unclear theme expression, foreshadowing recycling risks, and priorities for subsequent revisions.";
 
 function buildNovelOptions(items: Array<{ id: string; title: string }>): NovelOption[] {
   return items.map((item) => ({ id: item.id, title: item.title }));
@@ -160,7 +160,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
   const sourceChaptersError = sourceChaptersQuery.error instanceof Error
     ? sourceChaptersQuery.error.message
     : sourceChaptersQuery.error
-      ? "章节范围加载失败。"
+      ? "Chapter range loading failed."
       : "";
   const versionOptions = sourceDocumentQuery.data?.data?.versions ?? [];
   const selectedPreset = useMemo(
@@ -271,7 +271,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       const documentResponse = await exportNovelAsKnowledgeDocument(selectedDiagnosisNovelId);
       const document = documentResponse.data;
       if (!document) {
-        throw new Error("小说正文导出失败。");
+        throw new Error("Export of novel text failed.");
       }
       const analysisResponse = await createBookAnalysis({
         documentId: document.id,
@@ -302,7 +302,7 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
       await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.documents("book-analysis-source") });
       await queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.detail(result.document.id) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.bookAnalysis.list(listKey) });
-      toast.success("已导出小说正文并创建诊断拆书。");
+      toast.success("The novel text has been exported and a diagnostic split has been created.");
     },
   });
 
@@ -581,13 +581,13 @@ export function useBookAnalysisWorkspace(): BookAnalysisWorkspace {
     },
     queryState: {
       analysesLoading: analysesQuery.isLoading,
-      analysesError: getQueryErrorMessage(analysesQuery.error, "拆书列表加载失败。"),
+      analysesError: getQueryErrorMessage(analysesQuery.error, "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."),
       detailLoading: detailQuery.isLoading,
-      detailError: getQueryErrorMessage(detailQuery.error, "拆书详情加载失败。"),
+      detailError: getQueryErrorMessage(detailQuery.error, "Failed to load book details."),
       sourceLoading: sourceDocumentQuery.isLoading,
-      sourceError: getQueryErrorMessage(sourceDocumentQuery.error, "来源文档加载失败。"),
+      sourceError: getQueryErrorMessage(sourceDocumentQuery.error, "Source document failed to load."),
       chaptersLoading: documentChaptersQuery.isLoading,
-      chaptersError: getQueryErrorMessage(documentChaptersQuery.error, "原文章节加载失败。"),
+      chaptersError: getQueryErrorMessage(documentChaptersQuery.error, "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."),
     },
     setKeyword,
     setStatus,

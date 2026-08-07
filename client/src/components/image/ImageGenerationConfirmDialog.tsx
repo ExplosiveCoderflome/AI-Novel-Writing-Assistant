@@ -18,18 +18,18 @@ import { toast } from "@/components/ui/toast";
 import SelectControl from "@/components/common/SelectControl";
 
 const SIZE_OPTIONS = [
-  { value: "1024x1024", label: "1024×1024（方形 1:1）" },
-  { value: "1024x1536", label: "1024×1536（竖版 2:3，漫画/角色）" },
-  { value: "1536x1024", label: "1536×1024（横版 3:2，三视图/表情稿）" },
+  { value: "1024x1024", label: "1024×1024 (square 1:1)" },
+  { value: "1024x1536", label: "1024×1536 (vertical 2:3, comic/character)" },
+  { value: "1536x1024", label: "1536×1024 (Landscape 3:2, Three-view drawing/Emoji)" },
 ];
 
 const REF_KIND_LABEL: Record<string, string> = {
-  character_sheet: "三视图",
-  character_expression: "表情稿",
-  character_face: "面部裁剪",
-  book_analysis_character_base: "基础形象",
-  asset: "资产",
-  scene: "场景",
+  character_sheet: "Three views",
+  character_expression: "Expressions",
+  character_face: "face cropping",
+  book_analysis_character_base: "basic image",
+  asset: "assets",
+  scene: "Scene",
 };
 
 const REF_KIND_COLOR: Record<string, string> = {
@@ -166,16 +166,16 @@ export function ImageGenerationConfirmDialog({
         })),
       });
       if (!response.data) {
-        throw new Error("没有收到 Prompt 处理结果。");
+        throw new Error("No prompt processing result was received.");
       }
       if (action === "optimize" && response.data.optimizedPrompt?.trim()) {
         setPrompt(response.data.optimizedPrompt.trim());
       }
       setPromptAssistResult(response.data);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Prompt 处理失败。";
+      const message = error instanceof Error ? error.message : "Prompt processing failed.";
       setPromptAssistError(message);
-      toast.error("Prompt 处理失败", { description: message });
+      toast.error("Prompt processing failed", { description: message });
     } finally {
       setPromptAssistLoading(null);
     }
@@ -184,15 +184,15 @@ export function ImageGenerationConfirmDialog({
   const footer = preview ? (
     <div className="flex w-full items-center justify-between gap-3">
       <p className="text-[11px] text-muted-foreground">
-        {anyDirty ? "本次将使用上方修改后的参数生图（仅一次性，不保存到角色）" : "点击「开始生图」按当前参数生成"}
+        {anyDirty ? "This time, the modified parameters above will be used to generate the picture (one-time only, not saved to the character)" : "Click \"Start Generating Picture\" to generate according to the current parameters."}
       </p>
       <div className="flex gap-2">
         <Button type="button" size="sm" variant="outline" onClick={onCancel} disabled={submitting}>
-          取消
-        </Button>
+          Cancel
+                          </Button>
         <Button type="button" size="sm" onClick={handleConfirm} disabled={submitting || !prompt.trim()}>
           {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-          {submitting ? "生成中..." : "开始生图"}
+          {submitting ? "Generating..." : "Start drawing"}
         </Button>
       </div>
     </div>
@@ -201,7 +201,7 @@ export function ImageGenerationConfirmDialog({
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel(); }}>
       <AppDialogContent
-        title="生图前确认"
+        title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
         description={preview?.title}
         footer={footer}
         className="max-w-3xl"
@@ -210,18 +210,18 @@ export function ImageGenerationConfirmDialog({
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
-            正在准备生图素材...
-          </div>
+            Preparing photo material...
+                                </div>
         ) : !preview ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">无预览数据</div>
+          <div className="py-12 text-center text-sm text-muted-foreground">No preview data</div>
         ) : (
           <div className="space-y-4">
             {/* 参考图素材 */}
             <div>
               <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                 <ImageIcon className="h-3 w-3" />
-                参考素材
-                <span className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-normal">
+                Reference material
+                                                      <span className="rounded border bg-muted px-1.5 py-0.5 text-[10px] font-normal">
                   {referenceImages.length}/{preview.referenceImages.length}
                 </span>
                 {referenceDirty && (
@@ -231,18 +231,18 @@ export function ImageGenerationConfirmDialog({
                     onClick={() => setIncludedReferenceImageUrls(preview.referenceImages.map((ref) => ref.url))}
                     disabled={submitting || !!promptAssistLoading}
                   >
-                    恢复全部
-                  </button>
+                    Restore all
+                                                                </button>
                 )}
               </div>
               {preview.referenceImages.length === 0 ? (
                 <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-center text-[11px] text-muted-foreground">
-                  本次生图不附带参考图（纯文生图）
-                </div>
+                  This drawing does not come with reference pictures (pure text drawings)
+                                                          </div>
               ) : referenceImages.length === 0 ? (
                 <div className="rounded-md border border-dashed bg-muted/20 px-3 py-3 text-center text-[11px] text-muted-foreground">
-                  本次生成不会发送参考图
-                </div>
+                  Reference images will not be sent during this generation.
+                                                              </div>
               ) : (
                 <div className="flex flex-wrap items-end gap-2 rounded-md border bg-muted/10 p-2">
                   {referenceImages.map((ref, i) => {
@@ -250,27 +250,7 @@ export function ImageGenerationConfirmDialog({
                     const kindLabel = REF_KIND_LABEL[ref.kind] ?? ref.kind;
                     return (
                       <div
-                        key={`${ref.url}-${i}`}
-                        className="group relative flex flex-col overflow-hidden rounded border bg-background transition-colors hover:border-primary"
-                      >
-                        <button
-                          type="button"
-                          className="absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full border bg-background/95 text-muted-foreground shadow-sm hover:text-destructive"
-                          title="本次不发送这张参考图"
-                          onClick={() => {
-                            setIncludedReferenceImageUrls((urls) => urls.filter((url) => url !== ref.url));
-                            clearPromptAssistResult();
-                          }}
-                          disabled={submitting || !!promptAssistLoading}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                        {/* 高度固定 h-32，宽度按图片比例自适应 */}
-                        <a
-                          href={resolveImageAssetUrl(ref.url)}
-                          target="_blank"
-                          rel="noreferrer"
-                          title={`${kindLabel} · ${ref.label}（点击查看大图）`}
+                        key={`${ref.url}-${i}`} className="group relative flex flex-col overflow-hidden rounded border bg-background transition-colors hover:border-primary" > <button type="button" className="absolute right-1 top-1 z-10 inline-flex h-6 w-6 items-center justify-center rounded-full border bg-background/95 text-muted-foreground shadow-sm hover:text-destructive" title="This reference image will not be sent this time" onClick={() => { setIncludedReferenceImageUrls((urls) => urls.filter((url) => url !== ref.url)); clearPromptAssistResult(); }} disabled={submitting || !!promptAssistLoading} > <X className="h-3.5 w-3.5" /> </button> {/* Fixed height h-32, width adapts to image ratio */} <a href={resolveImageAssetUrl(ref.url)} target="_blank" rel="noreferrer" title={`${kindLabel} · ${ref.label}（点击查看大图）`}
                           className="flex h-32 items-center justify-center bg-muted/30"
                         >
                           <img
@@ -297,7 +277,7 @@ export function ImageGenerationConfirmDialog({
               <div className="mb-1 flex items-center justify-between">
                 <p className="text-xs font-semibold text-muted-foreground">
                   Prompt
-                  {promptDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">已修改</span>}
+                  {promptDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Modified</span>}
                 </p>
                 <div className="flex flex-wrap items-center justify-end gap-1.5">
                   <Button
@@ -309,8 +289,8 @@ export function ImageGenerationConfirmDialog({
                     disabled={submitting || !!promptAssistLoading || !prompt.trim()}
                   >
                     {promptAssistLoading === "explain" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Info className="h-3.5 w-3.5" />}
-                    解释 Prompt
-                  </Button>
+                    Explanation Prompt
+                                                                </Button>
                   {promptDirty && (
                     <button
                       type="button"
@@ -321,8 +301,8 @@ export function ImageGenerationConfirmDialog({
                       }}
                       disabled={submitting || !!promptAssistLoading}
                     >
-                      恢复默认
-                    </button>
+                      Restore default
+                                                                      </button>
                   )}
                 </div>
               </div>
@@ -336,7 +316,7 @@ export function ImageGenerationConfirmDialog({
                 }}
                 disabled={submitting || !!promptAssistLoading}
               />
-              <p className="mt-1 text-[10px] text-muted-foreground">{prompt.length} 字符 · 临时修改不会改动角色/项目设置</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">{prompt.length} Characters · Temporary modifications will not change character/item settings</p>
               <div className="mt-2">
                 <div className="mb-1 flex items-center justify-between">
                   <p className="text-xs font-semibold text-muted-foreground">优化要求</p>
@@ -350,8 +330,8 @@ export function ImageGenerationConfirmDialog({
                       disabled={submitting || !!promptAssistLoading || !prompt.trim()}
                     >
                       {promptAssistLoading === "optimize" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-                      优化 Prompt
-                    </Button>
+                      Optimize Prompt
+                                                                      </Button>
                     {optimizationInstruction && (
                       <button
                         type="button"
@@ -362,8 +342,8 @@ export function ImageGenerationConfirmDialog({
                         }}
                         disabled={submitting || !!promptAssistLoading}
                       >
-                        清空
-                      </button>
+                        Clear
+                                                                            </button>
                     )}
                   </div>
                 </div>
@@ -375,10 +355,10 @@ export function ImageGenerationConfirmDialog({
                     setOptimizationInstruction(e.target.value);
                     clearPromptAssistResult();
                   }}
-                  placeholder="例如：更像水彩、画面更温柔、保留服装和发型"
+                  placeholder="For example: more like watercolor, softer picture, retaining clothing and hairstyle"
                   disabled={submitting || !!promptAssistLoading}
                 />
-                <p className="mt-1 text-[10px] text-muted-foreground">{optimizationInstruction.length} 字符 · 仅用于「优化 Prompt」</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">{optimizationInstruction.length} Character · Only used for "Optimize Prompt"</p>
               </div>
               {(promptAssistResult || promptAssistError) && (
                 <div className="mt-2 rounded-md border bg-muted/20 p-2.5 text-xs">
@@ -401,7 +381,7 @@ export function ImageGenerationConfirmDialog({
                       </ul>
                       {promptAssistAction === "optimize" && promptAssistResult.changes.length > 0 && (
                         <div className="rounded border bg-background/70 px-2 py-1.5">
-                          <p className="mb-1 text-[11px] font-semibold text-muted-foreground">已调整</p>
+                          <p className="mb-1 text-[11px] font-semibold text-muted-foreground">Adjusted</p>
                           <ul className="space-y-1 pl-4 text-muted-foreground">
                             {promptAssistResult.changes.map((item, index) => (
                               <li key={`change-${index}`} className="list-disc leading-relaxed">{item}</li>
@@ -411,7 +391,7 @@ export function ImageGenerationConfirmDialog({
                       )}
                       {promptAssistResult.risks.length > 0 && (
                         <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-                          <p className="mb-1 text-[11px] font-semibold">注意事项</p>
+                          <p className="mb-1 text-[11px] font-semibold">Things to note</p>
                           <ul className="space-y-1 pl-4">
                             {promptAssistResult.risks.map((item, index) => (
                               <li key={`risk-${index}`} className="list-disc leading-relaxed">{item}</li>
@@ -429,8 +409,8 @@ export function ImageGenerationConfirmDialog({
               <div>
                 <div className="mb-1 flex items-center justify-between">
                   <p className="text-xs font-semibold text-muted-foreground">
-                    负面 Prompt
-                    {negativePromptDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">已修改</span>}
+                    Negative Prompt
+                                                                  {negativePromptDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Modified</span>}
                   </p>
                   {negativePromptDirty && (
                     <button
@@ -442,8 +422,8 @@ export function ImageGenerationConfirmDialog({
                       }}
                       disabled={submitting || !!promptAssistLoading}
                     >
-                      恢复默认
-                    </button>
+                      Restore default
+                                                                      </button>
                   )}
                 </div>
                 <textarea
@@ -456,7 +436,7 @@ export function ImageGenerationConfirmDialog({
                   }}
                   disabled={submitting || !!promptAssistLoading}
                 />
-                <p className="mt-1 text-[10px] text-muted-foreground">{negativePrompt.length} 字符 · 仅用于本次生成</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">{negativePrompt.length} Character · Only used for this generation</p>
               </div>
             )}
 
@@ -464,8 +444,8 @@ export function ImageGenerationConfirmDialog({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <p className="mb-1 text-xs font-semibold text-muted-foreground">
-                  图片模型
-                  {providerDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">已修改</span>}
+                  Picture model
+                                                            {providerDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Modified</span>}
                 </p>
                 <SelectControl
                   className="w-full rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
@@ -477,7 +457,7 @@ export function ImageGenerationConfirmDialog({
                   disabled={submitting || !!promptAssistLoading}
                 >
                   {providerChoices.length === 0 ? (
-                    <option value="">无可用图片服务，请先在系统设置配置</option>
+                    <option value="">No image service available, please configure it in the system settings first</option>
                   ) : (
                     providerChoices.map((p) => (
                       <option key={p.value} value={p.value}>{p.label}</option>
@@ -487,8 +467,8 @@ export function ImageGenerationConfirmDialog({
               </div>
               <div>
                 <p className="mb-1 text-xs font-semibold text-muted-foreground">
-                  图片尺寸
-                  {sizeDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">已修改</span>}
+                  Image size
+                                                            {sizeDirty && <span className="ml-1.5 rounded bg-amber-100 px-1 py-px text-[9px] text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Modified</span>}
                 </p>
                 <SelectControl
                   className="w-full rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"

@@ -86,8 +86,8 @@ export function SelectionCard<T extends string>({
         <div className="text-sm font-medium text-foreground">{option.label}</div>
         {option.recommended ? (
           <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
-            推荐
-          </span>
+            recommend
+                                </span>
         ) : null}
       </div>
       <div className="mt-1 text-xs leading-5 text-muted-foreground">{option.summary}</div>

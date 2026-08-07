@@ -25,16 +25,16 @@ type FactoryMode = "novel" | "brief" | "adapt";
 
 const MODE_COPY: Record<FactoryMode, { title: string; description: string }> = {
   novel: {
-    title: "按小说生成",
-    description: "读取已保存的小说项目资料，直接产出更贴近当前作品的标题候选。",
+    title: "Generate by novel",
+    description: "Read the saved novel project data and directly generate title candidates that are closer to the current work.",
   },
   brief: {
-    title: "自由工坊",
-    description: "只写一句题材、主角卖点或核心冲突，快速试一批不同方向的标题。",
+    title: "free workshop",
+    description: "Just write one sentence about the theme, the protagonist’s selling point or the core conflict, and quickly try out a batch of titles in different directions.",
   },
   adapt: {
-    title: "参考改编",
-    description: "参考一个标题的节奏和命名结构，再结合你的作品信息重新生成。",
+    title: "Reference adaptation",
+    description: "Refer to the rhythm and naming structure of a title, and then regenerate it based on your work information.",
   },
 };
 
@@ -69,7 +69,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     mutationFn: async () => {
       if (mode === "novel") {
         if (!selectedNovelId) {
-          throw new Error("请先选择一个小说项目。");
+          throw new Error("Please select a fiction project first.");
         }
         const response = await generateNovelTitles(selectedNovelId, {
           provider: llm.provider,
@@ -106,7 +106,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     mutationFn: (suggestion: TitleFactorySuggestion) => {
       const resolvedGenreId = mode === "novel" ? selectedNovel?.genre?.id ?? null : genreId || null;
       const description = mode === "novel"
-        ? `来源项目：${selectedNovel?.title ?? "未命名项目"}`
+        ? `来源项目：${selectedNovel?.title ?? "Unnamed project"}`
         : mode === "adapt"
           ? `参考标题：${referenceTitle.trim()}`
           : brief.trim().slice(0, 400);
@@ -125,14 +125,14 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.titles.all });
-      toast.success("标题已加入标题库。");
+      toast.success("The title has been added to the title library.");
     },
   });
 
   const handleCopy = async (suggestion: TitleFactorySuggestion) => {
     await navigator.clipboard.writeText(suggestion.title);
     setSelectedTitle(suggestion.title);
-    toast.success("标题已复制到剪贴板。");
+    toast.success("Title copied to clipboard.");
   };
 
   const handlePrimaryAction = async (suggestion: TitleFactorySuggestion) => {
@@ -152,9 +152,9 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
             </div>
 
             <TabsList className="grid h-10 w-full grid-cols-3 bg-background/70 p-1 shadow-sm lg:w-[420px]">
-              <TabsTrigger value="novel">按小说生成</TabsTrigger>
-              <TabsTrigger value="brief">自由工坊</TabsTrigger>
-              <TabsTrigger value="adapt">参考改编</TabsTrigger>
+              <TabsTrigger value="novel">Generate by novel</TabsTrigger>
+              <TabsTrigger value="brief">free workshop</TabsTrigger>
+              <TabsTrigger value="adapt">Reference adaptation</TabsTrigger>
             </TabsList>
           </div>
 
@@ -162,15 +162,15 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
             <TabsContent value="novel" className="mt-0 space-y-3">
               <div className="grid gap-3 md:grid-cols-[132px_minmax(0,1fr)] md:items-center">
                 <label htmlFor="title-factory-novel" className="text-sm font-medium text-foreground">
-                  选择小说项目
-                </label>
+                  Select a novel project
+                                                  </label>
                 <SelectControl
                   id="title-factory-novel"
                   className={controlClassName}
                   value={selectedNovelId}
                   onChange={(event) => setSelectedNovelId(event.target.value)}
                 >
-                  <option value="">请选择项目</option>
+                  <option value="">Please select an item</option>
                   {novels.map((novel) => (
                     <option key={novel.id} value={novel.id}>
                       {novel.title}
@@ -179,34 +179,34 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                 </SelectControl>
               </div>
               <div className="pl-0 text-xs leading-5 text-muted-foreground md:pl-[132px]">
-                适合已填写简介和类型的作品，系统会结合项目资料生成候选标题。
-              </div>
+                Suitable for works that have filled in the introduction and type, the system will generate candidate titles based on the project information.
+                                            </div>
             </TabsContent>
 
             <TabsContent value="brief" className="mt-0 grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
               <div className="space-y-3">
                 <label htmlFor="title-factory-brief" className="text-sm font-medium text-foreground">
-                  创作简报
-                </label>
+                  Create a brief
+                                                  </label>
                 <textarea
                   id="title-factory-brief"
                   className={`${textareaClassName} min-h-[176px]`}
                   value={brief}
                   onChange={(event) => setBrief(event.target.value)}
-                  placeholder="描述题材、主角卖点、冲突、文风和读者期待。越具体，标题越有区分度。"
+                  placeholder="Describe the subject matter, protagonist’s selling point, conflict, writing style, and reader expectations. The more specific the title, the more distinguishing it will be."
                 />
               </div>
               <div className="space-y-3">
                 <label htmlFor="title-factory-genre" className="text-sm font-medium text-foreground">
-                  类型过滤
-                </label>
+                  Type filtering
+                                                  </label>
                 <SelectControl
                   id="title-factory-genre"
                   className={controlClassName}
                   value={genreId}
                   onChange={(event) => setGenreId(event.target.value)}
                 >
-                  <option value="">不指定类型</option>
+                  <option value="">No type specified</option>
                   {genreOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.path}
@@ -214,8 +214,8 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                   ))}
                 </SelectControl>
                 <p className="text-xs leading-5 text-muted-foreground">
-                  不确定类型时可以留空，让模型先按简报自行判断标题方向。
-                </p>
+                  If you are not sure about the type, you can leave it blank and let the model determine the title direction based on the briefing first.
+                                                  </p>
               </div>
             </TabsContent>
 
@@ -223,27 +223,27 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
                 <div className="space-y-3">
                   <label htmlFor="title-factory-reference" className="text-sm font-medium text-foreground">
-                    参考标题
-                  </label>
+                    Reference title
+                                                        </label>
                   <Input
                     id="title-factory-reference"
                     value={referenceTitle}
                     onChange={(event) => setReferenceTitle(event.target.value)}
-                    placeholder="例如：我在废土捡属性"
+                    placeholder="For example: I am picking up attributes in the wasteland"
                     className={inputClassName}
                   />
                 </div>
                 <div className="space-y-3">
                   <label htmlFor="title-factory-adapt-genre" className="text-sm font-medium text-foreground">
-                    类型过滤
-                  </label>
+                    Type filtering
+                                                        </label>
                   <SelectControl
                     id="title-factory-adapt-genre"
                     className={controlClassName}
                     value={genreId}
                     onChange={(event) => setGenreId(event.target.value)}
                   >
-                    <option value="">不指定类型</option>
+                    <option value="">No type specified</option>
                     {genreOptions.map((option) => (
                       <option key={option.id} value={option.id}>
                         {option.path}
@@ -254,14 +254,14 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
               </div>
               <div className="space-y-3">
                 <label htmlFor="title-factory-adapt-brief" className="text-sm font-medium text-foreground">
-                  作品简报
-                </label>
+                  Work Brief
+                                                  </label>
                 <textarea
                   id="title-factory-adapt-brief"
                   className={`${textareaClassName} min-h-[132px]`}
                   value={brief}
                   onChange={(event) => setBrief(event.target.value)}
-                  placeholder="说明你的作品题材、人物与卖点。系统会参考标题节奏，但不会直接照抄。"
+                  placeholder="Explain the subject matter, characters and selling points of your work. The system will refer to the title rhythm, but will not copy it directly."
                 />
               </div>
             </TabsContent>
@@ -274,12 +274,12 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
               onClick={() => setShowModelSettings((value) => !value)}
             >
               <Settings2 className="h-3.5 w-3.5" />
-              <span>模型 {llm.provider} · {llm.model}</span>
+              <span>Model {llm.provider} · {llm.model}</span>
             </button>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
               <label className="flex items-center gap-2 text-sm">
-                <span className="font-medium text-foreground">数量</span>
+                <span className="font-medium text-foreground">quantity</span>
                 <Input
                   type="number"
                   min={3}
@@ -297,7 +297,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                 disabled={generateMutation.isPending}
               >
                 <Sparkles className="h-4 w-4" />
-                {generateMutation.isPending ? "生成中..." : "生成标题"}
+                {generateMutation.isPending ? "Generating..." : "generate title"}
               </Button>
             </div>
           </div>
@@ -312,20 +312,20 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
 
       <section className="space-y-3">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <h3 className="text-base font-semibold text-foreground">候选结果</h3>
+          <h3 className="text-base font-semibold text-foreground">Candidate results</h3>
           <div className="text-xs text-muted-foreground">
-            {suggestions.length > 0 ? `已按点击潜力排序，共 ${suggestions.length} 个` : "结果会在生成后显示"}
+            {suggestions.length > 0 ? `已按点击潜力排序，共 ${suggestions.length} 个` : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
           </div>
         </div>
         <TitleSuggestionList
           suggestions={suggestions}
           selectedTitle={selectedTitle}
-          primaryActionLabel="复制标题"
+          primaryActionLabel="Copy title"
           onPrimaryAction={handlePrimaryAction}
           onCopy={handleCopy}
           onSave={(suggestion) => saveMutation.mutate(suggestion)}
           savingTitle={saveMutation.isPending ? saveMutation.variables?.title ?? "" : ""}
-          emptyMessage="选择一种工坊模式后开始生成，结果会在这里出现。"
+          emptyMessage="Start generating after selecting a workshop mode, and the results will appear here."
         />
       </section>
     </div>

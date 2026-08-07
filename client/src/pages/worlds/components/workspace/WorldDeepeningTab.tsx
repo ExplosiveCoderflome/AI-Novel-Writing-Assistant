@@ -43,18 +43,18 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>补齐世界手册</CardTitle>
+        <CardTitle>Completing the World Manual</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col gap-3 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-sm font-medium">补齐世界手册的关键空白</div>
+            <div className="text-sm font-medium">Filling in critical gaps in the World Handbook</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              系统会根据这份世界手册提出少量问题。回答后会整合进世界设定，帮助规则、势力、地点和冲突更清晰。
-            </div>
+              The system will ask a small number of questions based on this world manual. The answers will be integrated into the world setting to help make rules, forces, locations, and conflicts clearer.
+                                      </div>
           </div>
           <Button onClick={onGenerate} disabled={generatePending}>
-            {generatePending ? "生成中..." : "生成补齐问题"}
+            {generatePending ? "Generating..." : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
           </Button>
         </div>
 
@@ -62,7 +62,7 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
           <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)]">
             <div className="space-y-2 rounded-md border p-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-medium">待补问题</div>
+                <div className="text-sm font-medium">Questions to be answered</div>
                 <div className="text-xs text-muted-foreground">{answeredCount}/{questions.length}</div>
               </div>
               {questions.map((question, index) => {
@@ -79,9 +79,9 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                     onClick={() => setActiveQuestionId(question.id)}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-foreground">问题 {index + 1}</span>
+                      <span className="font-medium text-foreground">question {index + 1}</span>
                       <span className={answered ? "text-xs text-primary" : "text-xs text-muted-foreground"}>
-                        {answered ? "有回答" : "待回答"}
+                        {answered ? "There is an answer" : "To be answered"}
                       </span>
                     </div>
                     <div className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
@@ -97,12 +97,12 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                 <div>
                   <div className="text-sm font-medium text-foreground">{activeQuestion.question}</div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    这条回答会用于补齐世界手册。
-                  </div>
+                    This answer will be used to complete the World Manual.
+                                                        </div>
                 </div>
                 {activeQuickOptions.length > 0 ? (
                   <div className="space-y-2">
-                    <div className="text-xs text-muted-foreground">可直接采用的回答方向</div>
+                    <div className="text-xs text-muted-foreground">Answer directions that can be taken directly</div>
                     <div className="flex flex-wrap gap-2">
                       {activeQuickOptions.map((option) => (
                         <Button
@@ -121,8 +121,8 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                   </div>
                 ) : (
                   <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                    可以直接写你的设定答案，也可以先用一句话描述方向。
-                  </div>
+                    You can write your set answer directly, or you can describe the direction in one sentence first.
+                                                            </div>
                 )}
                 <textarea
                   className="min-h-[100px] w-full rounded-md border bg-background p-2 text-sm"
@@ -130,22 +130,22 @@ export default function WorldDeepeningTab(props: WorldDeepeningTabProps) {
                   onChange={(event) =>
                     setAnswerDrafts((prev) => ({ ...prev, [activeQuestion.id]: event.target.value }))
                   }
-                  placeholder="填写这条设定补充"
+                  placeholder="Fill out this setting supplement"
                 />
               </div>
             ) : null}
           </div>
         ) : (
           <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            这里会展示能帮助世界成型的问题。生成问题后，逐条补充即可。
-          </div>
+            Questions that help shape the world are presented here. After generating the questions, just add them one by one.
+                                    </div>
         )}
         <div className="flex justify-end">
           <Button
             onClick={onSubmit}
             disabled={submitPending || answeredCount === 0 || questions.length === 0}
           >
-            {submitPending ? "整合中..." : "提交并整合回答"}
+            {submitPending ? "Integrating..." : "Submitting and integrating the answer"}
           </Button>
         </div>
       </CardContent>

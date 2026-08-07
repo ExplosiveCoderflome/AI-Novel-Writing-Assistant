@@ -55,7 +55,7 @@ export default function DesktopLegacyDataImportCard({
       })
       .catch((error) => {
         if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : "旧数据探测失败。");
+          toast.error(error instanceof Error ? error.message : "Old data detection failed.");
         }
       })
       .finally(() => {
@@ -74,10 +74,10 @@ export default function DesktopLegacyDataImportCard({
   }
 
   const hasSuggestedSource = Boolean(snapshot?.suggestedSourcePath);
-  const title = hasSuggestedSource ? "检测到旧版本地数据库" : "导入旧版本地数据库";
+  const title = hasSuggestedSource ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Import old version database";
   const description = hasSuggestedSource
-    ? "桌面版检测到了你之前 web/开发版使用的本地数据库，可以一键导入并接管原有小说、API Key 和知识库数据。"
-    : "桌面版默认使用独立数据目录。如果你之前在 web/开发版里已经有本地数据，可以选择旧的 dev.db 导入到桌面版。";
+    ? "The desktop version has detected the local database used by your previous web/development version, and can import and take over the original novel, API Key and knowledge base data with one click."
+    : "The desktop version uses a separate data directory by default. If you already have local data in the web/development version, you can choose the old dev.db to import to the desktop version.";
 
   const importData = async (preferSuggested: boolean) => {
     try {
@@ -87,10 +87,10 @@ export default function DesktopLegacyDataImportCard({
         return;
       }
       if (result?.scheduled) {
-        toast("正在准备导入旧数据，应用会自动重启一次。");
+        toast("Preparing to import old data, the application will automatically restart.");
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "导入旧数据失败。");
+      toast.error(error instanceof Error ? error.message : "Failed to import old data.");
     } finally {
       setIsImporting(false);
     }
@@ -102,30 +102,30 @@ export default function DesktopLegacyDataImportCard({
         <div className="flex flex-wrap items-center gap-2">
           <CardTitle>{title}</CardTitle>
           <Badge variant="outline">Desktop</Badge>
-          {snapshot?.currentDatabaseLikelyFresh ? <Badge variant="outline">当前桌面库看起来是空的</Badge> : null}
+          {snapshot?.currentDatabaseLikelyFresh ? <Badge variant="outline">The current desktop library appears to be empty</Badge> : null}
         </div>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {snapshot?.suggestedSourcePath ? (
           <div className="rounded-md border border-dashed bg-background/70 p-3 text-sm text-muted-foreground">
-            已检测到旧库：{snapshot.suggestedSourcePath}
+            Old library detected:{snapshot.suggestedSourcePath}
             {snapshot.suggestedSourceLabel ? ` (${snapshot.suggestedSourceLabel})` : ""}
           </div>
         ) : null}
 
         <div className="rounded-md border border-dashed bg-background/70 p-3 text-sm text-muted-foreground">
-          导入前会自动备份当前桌面数据库到：{snapshot?.backupDirectory ?? "-"}
+          Before importing, the current desktop database will be automatically backed up to:{snapshot?.backupDirectory ?? "-"}
         </div>
 
         <div className="text-xs text-muted-foreground">
-          导入前请先关闭旧的 web/开发版进程，避免同一份 SQLite 文件还在被写入。
-        </div>
+          Please close the old web/development version process before importing to avoid that the same SQLite file is still being written.
+                          </div>
 
         <div className="flex flex-wrap gap-3">
           {hasSuggestedSource ? (
             <Button onClick={() => void importData(true)} disabled={isImporting || isLoadingSnapshot}>
-              {isImporting ? "Preparing..." : "导入检测到的旧数据"}
+              {isImporting ? "Preparing..." : "Importing detected old data"}
             </Button>
           ) : null}
           <Button
@@ -133,7 +133,7 @@ export default function DesktopLegacyDataImportCard({
             onClick={() => void importData(false)}
             disabled={isImporting || isLoadingSnapshot}
           >
-            {isImporting ? "Preparing..." : hasSuggestedSource ? "选择其他 dev.db" : "选择旧 dev.db 导入"}
+            {isImporting ? "Preparing..." : hasSuggestedSource ? "Select another dev.db" : "Select an old dev.db to import"}
           </Button>
         </div>
       </CardContent>

@@ -311,11 +311,11 @@ export default function WritingFormulaPage() {
   const reextractFeaturesMutation = useMutation({
     mutationFn: async () => {
       if (!selectedProfileId || !editor.sourceContent.trim()) {
-        throw new Error("请先准备原文样本。");
+        throw new Error("Please prepare the original text sample first.");
       }
 
       return extractStyleFeaturesFromText({
-        name: editor.name.trim() || selectedProfile?.name || "文本提取写法",
+        name: editor.name.trim() || selectedProfile?.name || "Text extraction writing method",
         category: editor.category || undefined,
         sourceText: editor.sourceContent,
         provider: llm.provider,
@@ -343,7 +343,7 @@ export default function WritingFormulaPage() {
       setMessage(
         extractedFeatures.length > 0
           ? `已重新提取 ${extractedFeatures.length} 条特征，请确认后保存。`
-          : "这次仍然没有生成可用特征，建议检查原文样本是否足够完整。",
+          : "This time there are still no usable features generated. It is recommended to check whether the original text sample is complete enough.",
       );
     },
   });
@@ -371,7 +371,7 @@ export default function WritingFormulaPage() {
       });
     },
     onSuccess: async () => {
-      setMessage("写法资产保存完成。");
+      setMessage("Writing assets are saved.");
       await refreshStyleData();
     },
   });
@@ -379,7 +379,7 @@ export default function WritingFormulaPage() {
   const deleteProfileMutation = useMutation({
     mutationFn: (id: string) => deleteStyleProfile(id),
     onSuccess: async (_response, deletedProfileId) => {
-      setMessage("这套写法已删除。");
+      setMessage("This set of writing has been deleted.");
       if (deletedProfileId === selectedProfileId) {
         setSelectedProfileId("");
         setActiveWorkspaceDialog(null);
@@ -409,7 +409,7 @@ export default function WritingFormulaPage() {
       });
     },
     onSuccess: async () => {
-      setMessage("这套写法会参与目标对象的生成。");
+      setMessage("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
       await refreshStyleData();
     },
   });
@@ -424,7 +424,7 @@ export default function WritingFormulaPage() {
   const testWriteMutation = useMutation({
     mutationFn: () => {
       if (!selectedProfileId) {
-        throw new Error("请先选择写法资产。");
+        throw new Error("Please select the writing asset first.");
       }
 
       return testWriteWithStyleProfile(selectedProfileId, {
@@ -443,7 +443,7 @@ export default function WritingFormulaPage() {
   const detectionMutation = useMutation({
     mutationFn: () => {
       if (!selectedProfileId) {
-        throw new Error("请先选择写法资产。");
+        throw new Error("Please select the writing asset first.");
       }
 
       return detectStyleIssues({
@@ -459,7 +459,7 @@ export default function WritingFormulaPage() {
   const rewriteMutation = useMutation({
     mutationFn: async () => {
       if (!selectedProfileId) {
-        throw new Error("请先选择写法资产。");
+        throw new Error("Please select the writing asset first.");
       }
 
       const report = detectionMutation.data?.data ?? (await detectStyleIssues({
@@ -489,7 +489,7 @@ export default function WritingFormulaPage() {
     },
     onSuccess: (response) => {
       setRewritePreview(response.data?.content ?? "");
-      setMessage("修订稿已经生成，可以继续在去 AI 味里检查和调整。");
+      setMessage("The revised manuscript has been generated and can continue to be checked and adjusted in AI flavor removal.");
     },
   });
 
@@ -504,9 +504,9 @@ export default function WritingFormulaPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="text-sm font-medium uppercase tracking-[0.18em] text-slate-500">Style Engine V2</div>
-          <div className="text-2xl font-semibold tracking-tight text-slate-950">写法引擎</div>
+          <div className="text-2xl font-semibold tracking-tight text-slate-950">Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.</div>
         </div>
-        <OpenInCreativeHubButton bindings={{ styleProfileId: selectedProfileId || null }} label="把这套写法带去创作中枢" />
+        <OpenInCreativeHubButton bindings={{ styleProfileId: selectedProfileId || null }} label="Take this set of writing methods to the creative center" />
       </div>
 
       {message ? <div className="rounded-2xl border bg-muted/30 px-4 py-3 text-sm">{message}</div> : null}
@@ -528,7 +528,7 @@ export default function WritingFormulaPage() {
         onUseProfileForClean={(profileId) => openWorkspaceDialog("clean", profileId)}
         onDeleteProfile={(profileId) => {
           const profile = profiles.find((item) => item.id === profileId);
-          const profileName = profile?.name ?? "这套写法";
+          const profileName = profile?.name ?? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
           const confirmed = window.confirm(`确认删除“${profileName}”吗？删除后无法恢复。`);
           if (!confirmed) {
             return;
@@ -577,10 +577,10 @@ export default function WritingFormulaPage() {
       >
         <DialogContent ref={editorDialogRef} className="!flex h-[88vh] w-[min(1180px,96vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5 pr-14">
-            <DialogTitle>编辑当前写法</DialogTitle>
+            <DialogTitle>Edit current writing</DialogTitle>
             <DialogDescription>
-              这里专门整理写法本身的设定说明。应用测试和去 AI 味已经拆到独立入口，避免混在一个窗口里。
-            </DialogDescription>
+              Here we specifically organize the setting instructions for the writing method itself. Application testing and AI deodorization have been split into separate entrances to avoid being mixed in one window.
+                                      </DialogDescription>
           </DialogHeader>
 
           <div className="h-full min-h-0 overflow-hidden p-6 pt-4">
@@ -626,10 +626,10 @@ export default function WritingFormulaPage() {
       >
         <DialogContent className="!flex h-[84vh] w-[min(1080px,94vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5 pr-14">
-            <DialogTitle>当前写法的应用与测试</DialogTitle>
+            <DialogTitle>Application and testing of current writing methods</DialogTitle>
             <DialogDescription>
-              这里专门处理绑定到小说、章节和试写验证，不修改写法字段本身。
-            </DialogDescription>
+              This section specifically deals with binding to novels, chapters and trial writing verification, without modifying the writing field itself.
+                                      </DialogDescription>
           </DialogHeader>
 
           <div className="h-full min-h-0 overflow-auto p-6 pt-4">
@@ -659,10 +659,10 @@ export default function WritingFormulaPage() {
       >
         <DialogContent className="!flex h-[84vh] w-[min(980px,92vw)] max-w-none flex-col gap-0 overflow-hidden p-0">
           <DialogHeader className="border-b px-6 py-5 pr-14">
-            <DialogTitle>去 AI 味</DialogTitle>
+            <DialogTitle>Get rid of AI flavor</DialogTitle>
             <DialogDescription>
-              这里专门做正文检测和修正，不进入写法字段编辑，也不混入绑定和试写操作。
-            </DialogDescription>
+              This is dedicated to text detection and correction. It does not enter the writing field editing, nor does it mix in binding and trial writing operations.
+                                      </DialogDescription>
           </DialogHeader>
 
           <div className="h-full min-h-0 overflow-auto p-6 pt-4">

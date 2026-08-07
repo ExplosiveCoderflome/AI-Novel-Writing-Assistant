@@ -15,23 +15,23 @@ const GROUP_META: Record<
   }
 > = {
   rules: {
-    title: "原作规则",
-    description: "这个世界默认怎么运转，后面自动生成会参考这些底层规则。",
+    title: "original rules",
+    description: "This world operates by default, and subsequent automatic generation will refer to these underlying rules.",
     selectionKey: "ruleIds",
   },
   factions: {
-    title: "阵营立场",
-    description: "谁站哪边、信什么、想推动什么。适合保留原作里的大方向。",
+    title: "camp position",
+    description: "Who is on which side, what you believe in, what you want to promote. Suitable for retaining the general direction of the original work.",
     selectionKey: "factionIds",
   },
   forces: {
-    title: "组织与势力",
-    description: "具体公司、部门、帮派、人脉圈这类可直接上场的组织。",
+    title: "Organization and power",
+    description: "Specific companies, departments, gangs, and networks are organizations that can be directly involved.",
     selectionKey: "forceIds",
   },
   locations: {
-    title: "地点与场景",
-    description: "城市、街区、公司、住处等可以直接拿来用的场景。",
+    title: "Places and Scenes",
+    description: "Scenarios that can be used directly in cities, neighborhoods, companies, residences, etc.",
     selectionKey: "locationIds",
   },
 };
@@ -61,18 +61,18 @@ export default function WorldReferenceSeedSelector(props: {
   if (visibleGroups.length === 0) {
     return (
       <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-        这次没有从参考作品里稳定提取出可直接沿用的组织、地点或规则，后面会继续按你的改造方向生成。
-      </div>
+        This time, no organizations, locations or rules have been stably extracted from the reference works that can be directly used. They will continue to be generated according to your transformation direction later.
+                  </div>
     );
   }
 
   return (
     <div className="rounded-md border p-3 text-sm space-y-4">
       <div className="space-y-1">
-        <div className="font-medium">直接沿用原作设定</div>
+        <div className="font-medium">Directly use the original settings</div>
         <div className="text-xs text-muted-foreground">
-          系统会从参考作品里提取一批可沿用设定，并默认勾选。保留它们可以明显减少后续手动填写。
-        </div>
+          The system will extract a batch of inheritable settings from the reference works and check them by default. Keeping them can significantly reduce subsequent manual filling.
+                          </div>
       </div>
 
       {visibleGroups.map((group) => {
@@ -93,7 +93,7 @@ export default function WorldReferenceSeedSelector(props: {
                 variant="outline"
                 onClick={() => onToggleAll(group, !allSelected)}
               >
-                {allSelected ? "全部取消" : "全部保留"}
+                {allSelected ? "Cancel all" : "keep all"}
               </Button>
             </div>
 
@@ -114,7 +114,7 @@ export default function WorldReferenceSeedSelector(props: {
                       {summary ? (
                         <div className="text-xs text-muted-foreground">{summary}</div>
                       ) : (
-                        <div className="text-xs text-muted-foreground">已识别为可直接沿用的原作设定。</div>
+                        <div className="text-xs text-muted-foreground">Identified settings from the original that can be directly inherited.</div>
                       )}
                     </div>
                   </label>

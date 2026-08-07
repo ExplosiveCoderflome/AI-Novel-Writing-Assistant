@@ -17,8 +17,8 @@ export default function CollapsibleSummary(props: CollapsibleSummaryProps) {
     description,
     meta,
     className,
-    collapsedLabel = "展开查看",
-    expandedLabel = "收起内容",
+    collapsedLabel = "Expand to view",
+    expandedLabel = "Collapse content",
   } = props;
 
   return (

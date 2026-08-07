@@ -21,7 +21,7 @@ import {
 } from "./knowledgeRagUi";
 
 function formatDocumentKind(kind: KnowledgeDocumentSummary["kind"]): string {
-  return kind === "analysis_published" ? "拆书发布" : "上传文档";
+  return kind === "analysis_published" ? "Open book release" : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
 }
 
 interface KnowledgeDocumentsTabProps {
@@ -109,10 +109,10 @@ export default function KnowledgeDocumentsTab({
     if (!open) setSelectedFile(null);
   };
   const statusOptions = [
-    { value: "", label: "全部未归档" },
-    { value: "enabled", label: "仅启用" },
-    { value: "disabled", label: "仅停用" },
-    { value: "archived", label: "仅归档" },
+    { value: "", label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+    { value: "enabled", label: "Enable only" },
+    { value: "disabled", label: "Deactivate only" },
+    { value: "archived", label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
   ] as const;
 
   const confirmArchiveDocument = (document: KnowledgeDocumentSummary) => {
@@ -144,9 +144,9 @@ export default function KnowledgeDocumentsTab({
           <div className="min-w-0 space-y-1">
             <div className="font-medium">{document.title}</div>
             <div className="text-xs text-muted-foreground">
-              {document.fileName} | 版本数 {document.versionCount} | 当前 v{document.activeVersionNumber}
+              {document.fileName} | Number of versions {document.versionCount} | current v{document.activeVersionNumber}
             </div>
-            <div className="text-xs text-muted-foreground">拆书项目 {document.bookAnalysisCount}</div>
+            <div className="text-xs text-muted-foreground">Open book project {document.bookAnalysisCount}</div>
             {documentJob?.progress && (documentJob.status === "queued" || documentJob.status === "running") ? (
               <div className="mt-2 rounded-md border border-dashed p-2">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -166,7 +166,7 @@ export default function KnowledgeDocumentsTab({
               </div>
             ) : null}
             {document.latestIndexStatus === "failed" && document.latestIndexError ? (
-              <div className="text-xs text-destructive">失败原因：{document.latestIndexError}</div>
+              <div className="text-xs text-destructive">Reason for failure:{document.latestIndexError}</div>
             ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
@@ -179,62 +179,62 @@ export default function KnowledgeDocumentsTab({
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" onClick={() => onSelectDocument(document.id)}>
-            查看版本
-          </Button>
+            View version
+                              </Button>
           {document.status === "archived" ? (
             <Button
               size="sm"
               variant="outline"
               onClick={() => onUpdateStatus(document.id, "enabled")}
             >
-              恢复启用
-            </Button>
+              Restore enabled
+                                    </Button>
           ) : (
             <>
               <OpenInCreativeHubButton
                 bindings={{ knowledgeDocumentIds: [document.id] }}
-                label="在创作中枢中继续"
+                label="Continue in Creative Hub"
               />
               <Button asChild size="sm" variant="outline">
-                <Link to={`/book-analysis?documentId=${document.id}`}>新建拆书</Link>
+                <Link to={`/book-analysis?documentId=${document.id}`}>Create a new book</Link>
               </Button>
               {document.kind === "analysis_published" && document.sourceAnalysisId ? (
                 <Button asChild size="sm" variant="outline">
-                  <Link to={`/book-analysis?analysisId=${document.sourceAnalysisId}`}>查看来源拆书</Link>
+                  <Link to={`/book-analysis?analysisId=${document.sourceAnalysisId}`}>View source split book</Link>
                 </Button>
               ) : null}
               {document.latestIndexStatus === "succeeded" ? (
                 <Button size="sm" variant="outline" onClick={() => onOpenRecallTest(document.id)}>
-                  召回测试
-                </Button>
+                  recall test
+                                                    </Button>
               ) : null}
               <Button size="sm" variant="outline" onClick={() => onReindexDocument(document.id)}>
-                重建索引
-              </Button>
+                Rebuild index
+                                              </Button>
               {document.status === "enabled" ? (
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => onUpdateStatus(document.id, "disabled")}
                 >
-                  停用
-                </Button>
+                  deactivate
+                                                    </Button>
               ) : document.status === "disabled" ? (
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => onUpdateStatus(document.id, "enabled")}
                 >
-                  启用
-                </Button>
+                  enable
+                                                        </Button>
               ) : null}
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => confirmArchiveDocument(document)}
               >
-                归档
-              </Button>
+                Archive
+                                              </Button>
             </>
           )}
         </div>
@@ -250,8 +250,8 @@ export default function KnowledgeDocumentsTab({
         <div className="flex min-h-40 items-center justify-center rounded-md border border-dashed border-border px-5 py-8 text-center" role="status">
           <div>
             <LoaderCircle className="mx-auto h-5 w-5 animate-spin text-muted-foreground" aria-hidden="true" />
-            <p className="mt-3 text-sm font-medium text-foreground">正在加载创作资料</p>
-            <p className="mt-1 text-sm text-muted-foreground">正在确认资料版本和索引状态。</p>
+            <p className="mt-3 text-sm font-medium text-foreground">Loading creative data</p>
+            <p className="mt-1 text-sm text-muted-foreground">Confirming data version and index status.</p>
           </div>
         </div>
       );
@@ -261,13 +261,13 @@ export default function KnowledgeDocumentsTab({
       return (
         <AssetLibraryEmptyState
           icon={CircleAlert}
-          title="创作资料暂时无法加载"
+          title="The creative data cannot be loaded temporarily."
           description={`${errorMessage} 重新加载不会修改已有资料。`}
           action={(
             <Button type="button" size="sm" variant="outline" onClick={onRetry}>
               <RefreshCw className="h-4 w-4" />
-              重新加载
-            </Button>
+              Reload
+                              </Button>
           )}
         />
       );
@@ -277,19 +277,19 @@ export default function KnowledgeDocumentsTab({
       return (
         <AssetLibraryEmptyState
           icon={FileText}
-          title={hasFilters ? "没有符合条件的资料" : "还没有创作资料"}
+          title={hasFilters ? "No matching data" : "No creative information yet"}
           description={hasFilters
-            ? "调整搜索词或状态筛选，返回其他资料。"
-            : "上传 TXT 资料后，系统会建立可供拆书、规划和正文创作使用的检索索引。"}
+            ? "Adjust search terms or status filters to return additional information."
+            : "After uploading TXT data, the system will create a search index that can be used for book opening, planning, and text creation."}
           action={hasFilters ? (
             <Button type="button" size="sm" variant="outline" onClick={onClearFilters}>
-              清除筛选
-            </Button>
+              Clear filters
+                              </Button>
           ) : (
             <Button type="button" size="sm" onClick={() => onUploadDialogOpenChange(true)}>
               <Upload className="h-4 w-4" />
-              上传第一份资料
-            </Button>
+              Upload the first information
+                                  </Button>
           )}
         />
       );
@@ -302,13 +302,13 @@ export default function KnowledgeDocumentsTab({
     <>
       <AssetLibrarySection
         className="scroll-mt-5"
-        title="创作资料"
-        description="按标题或状态查找资料，确认索引完成后再用于拆书和正文创作。"
+        title="Creative materials"
+        description="Search for information by title or status, and confirm that the index is complete before opening the book and creating the text."
         actions={(
           <Button type="button" size="sm" variant="outline" onClick={() => onUploadDialogOpenChange(true)}>
             <Upload className="mr-2 h-4 w-4" />
-            上传资料
-          </Button>
+            Upload information
+                          </Button>
         )}
       >
         <div id="knowledge-documents" className="space-y-4 scroll-mt-5">
@@ -316,13 +316,13 @@ export default function KnowledgeDocumentsTab({
             <Input
               value={keyword}
               onChange={(event) => onKeywordChange(event.target.value)}
-              placeholder="按标题或文件名搜索"
+              placeholder="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
             />
             <SelectField
               value={status}
               onValueChange={(value) => onStatusChange(value as KnowledgeDocumentStatus | "")}
               options={statusOptions.map((option) => ({ ...option }))}
-              placeholder="筛选状态"
+              placeholder="filter status"
               className="space-y-0"
               triggerClassName="h-10"
             />
@@ -334,14 +334,14 @@ export default function KnowledgeDocumentsTab({
       <Dialog open={uploadDialogOpen} onOpenChange={handleDialogOpenChange}>
         <AppDialogContent
           className="max-w-lg"
-          title="上传文档"
-          description="添加可用于检索、拆书和创作参考的文本资料。"
+          title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
+          description="Add text material that can be used for searching, unpacking, and creating references."
         >
           <div className="space-y-4">
             <Input
               value={uploadTitle}
               onChange={(event) => onUploadTitleChange(event.target.value)}
-              placeholder="可选标题，留空则使用文件名"
+              placeholder="Optional title, leave blank to use filename"
             />
 
             {/* 拖拽上传区域 */}
@@ -358,7 +358,7 @@ export default function KnowledgeDocumentsTab({
               }}
               role={selectedFile ? undefined : "button"}
               tabIndex={selectedFile ? undefined : 0}
-              aria-label={selectedFile ? undefined : "选择要上传的 TXT 文本资料"}
+              aria-label={selectedFile ? undefined : "Select the TXT text data to upload"}
               className={[
                 "relative flex flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed p-8 text-center transition-all",
                 dragOver
@@ -392,7 +392,7 @@ export default function KnowledgeDocumentsTab({
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
                     className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                    aria-label="移除已选择的文件"
+                    aria-label="Remove selected files"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -407,9 +407,9 @@ export default function KnowledgeDocumentsTab({
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-medium">
-                      {dragOver ? "松开鼠标上传" : "拖拽文件到此处，或点击选择"}
+                      {dragOver ? "Release the mouse to upload" : "Drag and drop files here, or click to select"}
                     </p>
-                    <p className="text-xs text-muted-foreground">仅支持 .txt 文本文件</p>
+                    <p className="text-xs text-muted-foreground">Only supports .txt text files</p>
                   </div>
                 </>
               )}
@@ -417,15 +417,15 @@ export default function KnowledgeDocumentsTab({
 
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-muted-foreground leading-5">
-                同名标题会追加为新版本并设为当前版本
-              </p>
+                The title with the same name will be appended as a new version and set as the current version
+                                            </p>
               <Button
                 type="button"
                 size="sm"
                 disabled={!selectedFile || uploadBusy}
                 onClick={() => void handleConfirmUpload()}
               >
-                {uploadBusy ? "上传中…" : "确认上传"}
+                {uploadBusy ? "Uploading…" : "Confirm upload"}
               </Button>
             </div>
           </div>

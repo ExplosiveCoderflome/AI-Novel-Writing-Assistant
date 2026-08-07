@@ -21,7 +21,7 @@ export default function MobileNovelStepNav({
   const steps = [...NOVEL_WORKSPACE_FLOW_STEPS, ...NOVEL_WORKSPACE_TOOL_TABS];
 
   return (
-    <nav className="mobile-novel-step-nav -mx-4 flex gap-2 overflow-x-auto px-4 pb-1" aria-label="小说创作步骤">
+    <nav className="mobile-novel-step-nav -mx-4 flex gap-2 overflow-x-auto px-4 pb-1" aria-label="Novel Writing Steps">
       {steps.map((step, index) => {
         const isActive = activeTab === step.key;
         const isRecommended = workflowCurrentTab === step.key && workflowCurrentTab !== activeTab;
@@ -46,8 +46,8 @@ export default function MobileNovelStepNav({
               <span className="max-w-32 truncate">{step.label}</span>
               {isRecommended ? (
                 <Badge variant="secondary" className="rounded-full px-1.5 py-0 text-[10px]">
-                  流程推荐
-                </Badge>
+                  Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.
+                                            </Badge>
               ) : null}
             </span>
           </Button>

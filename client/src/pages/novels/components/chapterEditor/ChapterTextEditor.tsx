@@ -117,11 +117,11 @@ function renderLoadingPreview(
 
       <div className="space-y-3">
         <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4">
-          <div className="mb-2 text-xs font-medium text-amber-700">待改写原文</div>
+          <div className="mb-2 text-xs font-medium text-amber-700">Original text to be rewritten</div>
           <TextBlock text={preview.originalText} className="text-amber-950" />
         </div>
         <div className="rounded-2xl border border-dashed border-border/70 bg-background/80 p-4">
-          <div className="mb-2 text-xs font-medium text-muted-foreground">AI 正在生成候选版本</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">AI is generating release candidates</div>
           <div className="space-y-2">
             <div className="h-4 w-11/12 rounded-full bg-muted/70" />
             <div className="h-4 w-full rounded-full bg-muted/60" />
@@ -150,7 +150,7 @@ function renderBlockPreview(
           <TextBlock text={preview.originalText} className="text-rose-950" />
         </div>
         <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/90 p-4">
-          <div className="mb-2 text-xs font-medium text-emerald-700">改写</div>
+          <div className="mb-2 text-xs font-medium text-emerald-700">rewrite</div>
           <TextBlock text={preview.candidateText} className="text-emerald-950" />
         </div>
       </div>
@@ -253,14 +253,14 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
   );
 
   const helperText = preview?.mode === "inline"
-    ? "当前正在显示细节标记 diff，适合确认具体删改。"
+    ? "The detail mark diff is currently being displayed, suitable for confirming specific deletions."
     : preview?.mode === "loading"
-      ? "AI 正在基于选中内容生成候选版本，原文位置会持续保留。"
+      ? "AI is generating candidate versions based on the selected content, and the original text location will continue to be retained."
       : preview?.mode === "block"
-        ? "当前正在显示段落 patch 对比，原文和改写会在正文原位置并排落成红绿块。"
+        ? "Paragraph patch comparison is currently being displayed. The original text and the rewritten text will be placed side by side into red and green blocks at the original position of the text."
         : readOnly
-          ? "当前有待确认候选，正文暂时锁定，可在右侧切换候选或接受、拒绝。"
-      : "可直接编辑正文，选中内容后可发起 AI 改写。";
+          ? "There are currently candidates to be confirmed, and the text is temporarily locked. You can switch candidates or accept or reject on the right."
+      : "The text can be edited directly, and AI rewriting can be initiated after selecting the content.";
 
   useEffect(() => {
     const surface = surfaceRef.current;
@@ -360,7 +360,7 @@ export default function ChapterTextEditor(props: ChapterTextEditorProps) {
   return (
     <div ref={containerRef} className="relative flex h-full min-h-[540px] flex-col overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm xl:min-h-0">
       <div className="shrink-0 flex items-center justify-between border-b border-border/70 px-4 py-3">
-        <div className="text-sm font-medium text-foreground">正文</div>
+        <div className="text-sm font-medium text-foreground">text</div>
         <div className="text-xs text-muted-foreground">{helperText}</div>
       </div>
 

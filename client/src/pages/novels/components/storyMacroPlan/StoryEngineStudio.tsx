@@ -18,11 +18,11 @@ interface StoryEngineStudioProps {
 }
 
 const readinessItems = [
-  { key: "storyInput", label: "故事意图", icon: <FileText className="h-3.5 w-3.5" /> },
-  { key: "sellingPoint", label: "卖点", icon: <Sparkles className="h-3.5 w-3.5" /> },
-  { key: "conflict", label: "长期对立", icon: <Flame className="h-3.5 w-3.5" /> },
-  { key: "hook", label: "主线钩子", icon: <Target className="h-3.5 w-3.5" /> },
-  { key: "loop", label: "推进回路", icon: <GitBranch className="h-3.5 w-3.5" /> },
+  { key: "storyInput", label: "story intent", icon: <FileText className="h-3.5 w-3.5" /> },
+  { key: "sellingPoint", label: "selling point", icon: <Sparkles className="h-3.5 w-3.5" /> },
+  { key: "conflict", label: "long-term antagonism", icon: <Flame className="h-3.5 w-3.5" /> },
+  { key: "hook", label: "main line hook", icon: <Target className="h-3.5 w-3.5" /> },
+  { key: "loop", label: "Propulsion circuit", icon: <GitBranch className="h-3.5 w-3.5" /> },
 ] as const;
 
 function hasText(value: unknown): boolean {
@@ -44,28 +44,28 @@ function resolveNextAction(tab: StoryMacroTabProps): {
 } {
   if (!tab.storyInput.trim()) {
     return {
-      title: "先写下故事想法",
-      description: "不用写专业大纲，先说明主角处境、长期压力、想要的读者感受和想避免的方向。",
+      title: "Write down story ideas first",
+      description: "You don’t need to write a professional outline. First describe the protagonist’s situation, long-term stress, how you want the reader to feel, and the directions you want to avoid.",
       tone: "warning",
     };
   }
   if (!tab.hasPlan) {
     return {
-      title: "生成故事引擎",
-      description: "让 AI 把想法拆成卖点、长期对立、主线钩子、推进回路和关键兑现点。",
+      title: "Generate story engine",
+      description: "Let AI break down the idea into selling points, long-term antagonisms, main hooks, propulsion loops, and key fulfillment points.",
       tone: "info",
     };
   }
   if (!tab.constraintEngine) {
     return {
-      title: "构建约束引擎",
-      description: "把已确认的故事骨架整理成后续角色、卷规划和章节生成都能遵守的硬边界。",
+      title: "Build a constraint engine",
+      description: "Organize the confirmed story skeleton into hard boundaries that can be adhered to by subsequent characters, volume planning, and chapter generation.",
       tone: "info",
     };
   }
   return {
-    title: "进入下游规划前先保存",
-    description: "当前故事骨架已经具备可消费的约束，保存后可以继续推进角色、卷战略和拆章。",
+    title: "Save before entering downstream planning",
+    description: "The current story skeleton already has consumable constraints. After saving, you can continue to advance the characters, volume strategies, and chapters.",
     tone: "success",
   };
 }
@@ -87,8 +87,8 @@ function StoryReadinessPanel({ tab }: { tab: StoryMacroTabProps }) {
     <aside className="space-y-4 rounded-lg border border-border/70 bg-muted/10 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-foreground">宏观规划就绪度</div>
-          <div className="mt-1 text-xs text-muted-foreground">{readyCount} / {readinessItems.length} 个核心条件已具备</div>
+          <div className="text-sm font-semibold text-foreground">Macro planning readiness</div>
+          <div className="mt-1 text-xs text-muted-foreground">{readyCount} / {readinessItems.length} The core conditions are met</div>
         </div>
         <div className="text-2xl font-semibold text-foreground">{percent}%</div>
       </div>
@@ -110,7 +110,7 @@ function StoryReadinessPanel({ tab }: { tab: StoryMacroTabProps }) {
             {readiness[item.key] ? (
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
             ) : (
-              <span className="text-xs text-muted-foreground">待补</span>
+              <span className="text-xs text-muted-foreground">To be replenished</span>
             )}
           </div>
         ))}
@@ -133,11 +133,11 @@ function StoryReadinessPanel({ tab }: { tab: StoryMacroTabProps }) {
       <div className="grid gap-2 text-xs text-muted-foreground">
         <div className="flex items-start gap-2 rounded-md bg-background/70 p-2">
           <Lock className="mt-0.5 h-3.5 w-3.5 text-primary" />
-          <span>{lockedCount > 0 ? `${lockedCount} 个字段已锁定，重生成时会被保护。` : "确认满意的字段后可以锁定，再让 AI 只重生成其他部分。"}</span>
+          <span>{lockedCount > 0 ? `${lockedCount} 个字段已锁定，重生成时会被保护。` : "After confirming the fields you are satisfied with, you can lock them and let the AI ​​regenerate only the other parts."}</span>
         </div>
         <div className="flex items-start gap-2 rounded-md bg-background/70 p-2">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 text-amber-600" />
-          <span>{tab.issues.length > 0 ? `${tab.issues.length} 条冲突或缺口需要处理。` : "当前没有显式冲突提醒。"}</span>
+          <span>{tab.issues.length > 0 ? `${tab.issues.length} 条冲突或缺口需要处理。` : "There are currently no explicit conflict reminders."}</span>
         </div>
       </div>
     </aside>
@@ -193,38 +193,38 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="border-primary/25 bg-primary/5 text-primary">
-                  故事引擎
-                </Badge>
-                <span className="text-xs font-medium text-muted-foreground">把书级承诺拆成后续规划可以执行的骨架</span>
+                  story engine
+                                                  </Badge>
+                <span className="text-xs font-medium text-muted-foreground">Break down book-level commitments into executable skeletons for follow-up planning</span>
               </div>
-              <h2 className="mt-3 text-lg font-semibold leading-7 text-foreground">控制主线如何持续推进</h2>
+              <h2 className="mt-3 text-lg font-semibold leading-7 text-foreground">Control how the main line continues to advance</h2>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-                这里不急着写章节，而是先定义读者为什么追、长期对立如何升级、主角怎样变化，以及前中后期必须兑现哪些节点。
-              </p>
+                There is no rush to write chapters here, but to first define why readers follow the story, how the long-term confrontation escalates, how the protagonist changes, and what nodes must be fulfilled in the early, middle and late stages.
+                                            </p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <AiButton onClick={tab.onDecompose} disabled={tab.isDecomposing || !tab.storyInput.trim()}>
-                {tab.isDecomposing ? "生成中..." : tab.hasPlan ? "重新生成故事引擎" : "生成故事引擎"}
+                {tab.isDecomposing ? "Generating..." : tab.hasPlan ? "Regenerate the story engine" : "Generate story engine"}
               </AiButton>
               <AiButton
                 variant="secondary"
                 onClick={tab.onBuildConstraintEngine}
                 disabled={tab.isBuilding || !tab.decomposition.selling_point.trim()}
               >
-                {tab.isBuilding ? "构建中..." : "构建约束引擎"}
+                {tab.isBuilding ? "Under construction..." : "Build a constraint engine"}
               </AiButton>
               <Button variant="outline" onClick={tab.onSaveEdits} disabled={tab.isSaving}>
-                {tab.isSaving ? "保存中..." : "保存修改"}
+                {tab.isSaving ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : "Save changes"}
               </Button>
             </div>
           </div>
 
           <div className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-3">
-            <div className="text-sm font-medium text-foreground">故事想法输入</div>
+            <div className="text-sm font-medium text-foreground">Story idea input</div>
             <textarea
               value={tab.storyInput}
               onChange={(event) => tab.onStoryInputChange(event.target.value)}
-              placeholder="用自然语言描述故事想法、想要的压迫感、想避免的风格和结局倾向。"
+              placeholder="Use natural language to describe story ideas, desired pressures, styles and ending tendencies you want to avoid."
               className={textareaClassName("min-h-36")}
             />
             {tab.message ? (
@@ -236,21 +236,21 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
 
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="rounded-lg border border-border/60 bg-muted/10 p-3">
-              <div className="text-xs font-medium text-muted-foreground">读者追更理由</div>
+              <div className="text-xs font-medium text-muted-foreground">Reasons for readers to follow updates</div>
               <div className="mt-2 text-sm font-semibold leading-6 text-foreground">
-                {previewText(tab.decomposition.selling_point, "等待生成一句话卖点")}
+                {previewText(tab.decomposition.selling_point, "Waiting to generate a sentence selling point")}
               </div>
             </div>
             <div className="rounded-lg border border-border/60 bg-muted/10 p-3">
-              <div className="text-xs font-medium text-muted-foreground">长期压力源</div>
+              <div className="text-xs font-medium text-muted-foreground">chronic stressors</div>
               <div className="mt-2 text-sm font-semibold leading-6 text-foreground">
-                {previewText(tab.decomposition.core_conflict, "等待生成长期对立")}
+                {previewText(tab.decomposition.core_conflict, "Waiting to generate long-term confrontation")}
               </div>
             </div>
             <div className="rounded-lg border border-border/60 bg-muted/10 p-3">
-              <div className="text-xs font-medium text-muted-foreground">关键兑现点</div>
+              <div className="text-xs font-medium text-muted-foreground">Key redemption points</div>
               <div className="mt-2 text-sm font-semibold leading-6 text-foreground">
-                {payoffs.length > 0 ? `${payoffs.length} 个节点` : "等待拆出兑现节点"}
+                {payoffs.length > 0 ? `${payoffs.length} 个节点` : "Waiting to split the redemption node"}
               </div>
             </div>
           </div>
@@ -264,15 +264,15 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
       <div className="border-t border-border/70 bg-muted/5 p-4 lg:p-5">
         <div className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h3 className="text-base font-semibold text-foreground">主线骨架</h3>
+            <h3 className="text-base font-semibold text-foreground">Main line skeleton</h3>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              这组字段会进入后续角色、卷战略、节奏拆章和章节任务，是故事能否持续推进的核心资产。
-            </p>
+              This set of fields will enter subsequent characters, volume strategies, rhythm chapters and chapter tasks, and is a core asset that determines whether the story can continue to advance.
+                                      </p>
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span>满意的字段先锁定</span>
+            <span>The fields you are satisfied with are locked first.</span>
             <ArrowRight className="h-3.5 w-3.5" />
-            <span>再局部重生成</span>
+            <span>regenerate locally</span>
           </div>
         </div>
 
@@ -285,7 +285,7 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
           <SummaryFieldCard tab={tab} field="growth_path" />
           <div className="space-y-2 rounded-lg border border-border/60 bg-background p-3 xl:col-span-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-sm font-medium text-foreground">关键兑现点</div>
+              <div className="text-sm font-medium text-foreground">Key redemption points</div>
               <FieldActions
                 field="major_payoffs"
                 lockedFields={tab.lockedFields}
@@ -301,7 +301,7 @@ export default function StoryEngineStudio({ tab }: StoryEngineStudioProps) {
                 "major_payoffs",
                 event.target.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
               )}
-              placeholder="每行一个关键兑现点。"
+              placeholder="One key redemption point per row."
               className={textareaClassName("min-h-32")}
             />
           </div>

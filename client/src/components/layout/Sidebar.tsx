@@ -50,39 +50,39 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    title: "创作",
+    title: "Creation",
     items: [
-      { to: "/", label: "首页", icon: House },
-      { to: "/help", label: "创作向导", icon: CircleHelp },
-      { to: "/novels", label: "小说列表", icon: BookOpenText },
-      { to: "/drama", label: "短剧工作台", icon: MonitorPlay, disabled: true },
-      { to: "/comic", label: "漫画工作台", icon: SquareStack },
-      { to: "/creative-hub", label: "创作中枢", icon: LayoutDashboard },
-      { to: "/book-analysis", label: "拆书", icon: ScanSearch },
-      { to: "/tasks", label: "运行记录", icon: ListTodo },
-      { to: "/auto-director/follow-ups", label: "导演跟进", icon: Workflow },
+      { to: "/", label: "Home", icon: House },
+      { to: "/help", label: "Creation Wizard", icon: CircleHelp },
+      { to: "/novels", label: "Novel List", icon: BookOpenText },
+      { to: "/drama", label: "Drama Workbench", icon: MonitorPlay, disabled: true },
+      { to: "/comic", label: "Comic Workbench", icon: SquareStack },
+      { to: "/creative-hub", label: "Creative Hub", icon: LayoutDashboard },
+      { to: "/book-analysis", label: "Book Analysis", icon: ScanSearch },
+      { to: "/tasks", label: "Execution Logs", icon: ListTodo },
+      { to: "/auto-director/follow-ups", label: "Director Follow-up", icon: Workflow },
     ],
   },
   {
-    title: "资产",
+    title: "Assets",
     items: [
-      { to: "/genres", label: "题材基底库", icon: Tags },
-      { to: "/story-modes", label: "推进模式库", icon: Workflow },
-      { to: "/titles", label: "标题工坊", icon: SquarePen },
-      { to: "/knowledge", label: "知识库", icon: Database },
-      { to: "/worlds", label: "世界样本库", icon: Globe2 },
-      { to: "/style-engine", label: "写法引擎", icon: WandSparkles },
-      { to: "/anti-ai-rules", label: "反 AI 规则", icon: ShieldCheck },
-      { to: "/base-characters", label: "基础角色库", icon: UsersRound },
-      { to: "#visual-assets", label: "视觉资源库", icon: Images, action: "visual_asset_library" },
+      { to: "/genres", label: "Genre Database", icon: Tags },
+      { to: "/story-modes", label: "Story Modes Database", icon: Workflow },
+      { to: "/titles", label: "Title Workshop", icon: SquarePen },
+      { to: "/knowledge", label: "Knowledge Base", icon: Database },
+      { to: "/worlds", label: "World Sample Base", icon: Globe2 },
+      { to: "/style-engine", label: "Writing Engine", icon: WandSparkles },
+      { to: "/anti-ai-rules", label: "Anti-AI Rules", icon: ShieldCheck },
+      { to: "/base-characters", label: "Base Character Library", icon: UsersRound },
+      { to: "#visual-assets", label: "Visual Asset Library", icon: Images, action: "visual_asset_library" },
     ],
   },
   {
-    title: "系统",
+    title: "System",
     items: [
-      { to: "/prompt-workbench", label: "提示词管理", icon: Braces },
-      { to: "/settings/model-routes", label: "模型路由", icon: Route },
-      { to: "/settings", label: "系统设置", icon: Settings2 },
+      { to: "/prompt-workbench", label: "Prompt Management", icon: Braces },
+      { to: "/settings/model-routes", label: "Model Routing", icon: Route },
+      { to: "/settings", label: "System Settings", icon: Settings2 },
     ],
   },
 ];
@@ -143,7 +143,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <Badge
           variant="outline"
           className="ml-auto h-5 border-amber-300 bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700"
-          title="漫画工作台仍在 Beta 阶段"
+          title="Comic Workbench is still in Beta"
         >
           Beta
         </Badge>
@@ -211,8 +211,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           size="icon"
           className="h-8 w-8 text-muted-foreground"
           onClick={onToggle}
-          aria-label={collapsed ? "展开导航栏" : "收起导航栏"}
-          title={collapsed ? "展开导航栏" : "收起导航栏"}
+          aria-label={collapsed ? "Expand Navigation" : "Collapse Navigation"}
+          title={collapsed ? "Expand Navigation" : "Collapse Navigation"}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
@@ -255,7 +255,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 return (
                   <div
                     key={item.to}
-                    title={collapsed ? item.label : "即将推出"}
+                    title={collapsed ? item.label : "Coming Soon"}
                     className={cn(
                       "relative flex cursor-not-allowed items-center rounded-md text-sm opacity-40",
                       collapsed ? "justify-center px-2 py-2.5" : "py-2 pl-4 pr-2",
@@ -266,7 +266,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       <span className="truncate">{item.label}</span>
                     ) : null}
                     {!collapsed ? (
-                      <span className="ml-auto text-[10px] text-muted-foreground/60">即将推出</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground/60">Coming Soon</span>
                     ) : null}
                   </div>
                 );

@@ -195,7 +195,7 @@ export default function StoryModeManagementPage() {
     }),
     onSuccess: async () => {
       await invalidate();
-      toast.success("推进模式已创建。");
+      toast.success("Propulsion pattern created.");
       setCreateDialogOpen(false);
     },
   });
@@ -203,7 +203,7 @@ export default function StoryModeManagementPage() {
   const createSelectedChildrenMutation = useMutation({
     mutationFn: async () => {
       if (!defaultParentId) {
-        throw new Error("父级推进模式不存在。");
+        throw new Error("Parent push mode does not exist.");
       }
 
       const drafts = selectedGeneratedChildIndexes
@@ -216,7 +216,7 @@ export default function StoryModeManagementPage() {
         }));
 
       if (drafts.length === 0) {
-        throw new Error("请至少选择一个子类候选。");
+        throw new Error("Please select at least one subcategory candidate.");
       }
 
       return createStoryModeChildren({
@@ -235,7 +235,7 @@ export default function StoryModeManagementPage() {
   const updateMutation = useMutation({
     mutationFn: () => {
       if (!editingStoryMode) {
-        throw new Error("推进模式不存在。");
+        throw new Error("Advance mode does not exist.");
       }
       return updateStoryMode(editingStoryMode.id, {
         name: editState.name.trim(),
@@ -246,7 +246,7 @@ export default function StoryModeManagementPage() {
     },
     onSuccess: async () => {
       await invalidate();
-      toast.success("推进模式已更新。");
+      toast.success("Propulsion mode has been updated.");
       setEditingStoryModeId("");
     },
   });
@@ -255,7 +255,7 @@ export default function StoryModeManagementPage() {
     mutationFn: (id: string) => deleteStoryMode(id),
     onSuccess: async () => {
       await invalidate();
-      toast.success("推进模式已删除。");
+      toast.success("Push mode has been removed.");
     },
   });
 
@@ -312,7 +312,7 @@ export default function StoryModeManagementPage() {
       }
       setGeneratedChildCandidates([]);
       setCreateDraft(cloneDraft(result.draft));
-      toast.success("AI 推进模式树草稿已生成。");
+      toast.success("Draft AI propulsion mode tree generated.");
     },
   });
 
@@ -365,9 +365,9 @@ export default function StoryModeManagementPage() {
 
   const selectedParentLabel = useMemo(() => {
     if (!defaultParentId) {
-      return "作为根推进模式创建";
+      return "Created as root push mode";
     }
-    return parentOptions.find((item) => item.id === defaultParentId)?.path ?? "作为根推进模式创建";
+    return parentOptions.find((item) => item.id === defaultParentId)?.path ?? "Created as root push mode";
   }, [defaultParentId, parentOptions]);
 
   const editParentOptions = useMemo(
@@ -380,43 +380,39 @@ export default function StoryModeManagementPage() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-5xl overflow-auto">
           <DialogHeader>
-            <DialogTitle>{isCreatingChild ? "新增推进模式子类" : "新建推进模式"}</DialogTitle>
+            <DialogTitle>{isCreatingChild ? "Add a new propulsion mode subclass" : "Create a new propulsion mode"}</DialogTitle>
             <DialogDescription>
-              {isCreatingChild
-                ? "当前会在指定父类下新增子类。你可以手动填写，也可以先让 AI 基于父类和现有兄弟节点生成多个子类候选，再多选批量保存。"
-                : "先确定挂载位置，再手动填写 profile，或者先让 AI 生成一份两级树草稿。"}
+              {isCreatingChild ? "Currently, a new subclass will be added under the specified parent class. You can fill it in manually, or you can first let the AI ​​generate multiple subclass candidates based on the parent class and existing sibling nodes, and then save them in batches." : "First determine the mounting location, then manually fill in the profile, or first let the AI ​​generate a two-level tree draft."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-              <div className="text-sm font-semibold text-foreground">当前挂载位置</div>
+              <div className="text-sm font-semibold text-foreground">Current mounting location</div>
               <div className="mt-1 text-sm text-muted-foreground">{selectedParentLabel}</div>
             </div>
 
             <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
               <div className="space-y-1">
-                <div className="text-sm font-semibold text-foreground">{isCreatingChild ? "AI 生成子类草稿" : "AI 生成草稿"}</div>
+                <div className="text-sm font-semibold text-foreground">{isCreatingChild ? "AI Generated Subclass Draft" : "AI Generated Draft"}</div>
                 <div className="text-xs leading-5 text-muted-foreground">
-                  {isCreatingChild
-                    ? "AI 会基于当前父类和现有兄弟节点输出一个或多个子类节点草稿，不会再生成整棵树。补充方向可以留空。保存前仍然会校验 profile 结构。"
-                    : "AI 会输出一个可直接编辑的推进模式树草稿，保存前仍然会校验 profile 结构。"}
+                  {isCreatingChild ? "AI will output one or more child node drafts based on the current parent and existing sibling nodes, without generating the entire tree. The supplementary direction can be left blank. The profile structure will still be validated before saving." : "AI will output a directly editable advance mode tree draft; the profile structure will still be validated before saving."}
                 </div>
               </div>
               <LLMSelector />
               {isCreatingChild ? (
                 <label className="space-y-2 text-sm">
-                  <span className="font-medium text-foreground">衍生数量</span>
+                  <span className="font-medium text-foreground">Derived quantity</span>
                   <SelectControl
                     className="w-full rounded-md border bg-background p-2 text-sm"
                     value={childDerivationCount}
                     onChange={(event) => setChildDerivationCount(Number(event.target.value))}
                   >
-                    <option value={1}>1 个</option>
-                    <option value={2}>2 个</option>
-                    <option value={3}>3 个</option>
-                    <option value={4}>4 个</option>
-                    <option value={5}>5 个</option>
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                    <option value={3}>3</option>
+                    <option value={4}>4</option>
+                    <option value={5}>5</option>
                   </SelectControl>
                 </label>
               ) : null}
@@ -426,8 +422,8 @@ export default function StoryModeManagementPage() {
                 value={generationPrompt}
                 onChange={(event) => setGenerationPrompt(event.target.value)}
                 placeholder={isCreatingChild
-                  ? "可选：补充你想偏向的子类方向。不填则 AI 会直接基于父类和现有兄弟节点衍生。"
-                  : "请输入你希望生成的推进模式树方向。"}
+                  ? "Optional: Supplement the subcategory direction you want to prefer. If left blank, the AI ​​will be directly derived based on the parent class and existing sibling nodes."
+                  : "Please enter the direction you wish to generate the push mode tree."}
               />
               <div className="flex gap-2">
                 <Button
@@ -435,9 +431,7 @@ export default function StoryModeManagementPage() {
                   onClick={() => generateMutation.mutate()}
                   disabled={(!generationPrompt.trim() && !isCreatingChild) || generateMutation.isPending}
                 >
-                  {generateMutation.isPending
-                    ? "生成中..."
-                    : isCreatingChild ? "生成子类草稿" : "生成推进模式草稿"}
+                  {generateMutation.isPending ? "Generating..." : isCreatingChild ? "Generating subclass draft" : "Generating advance mode draft"}
                 </Button>
                 <Button
                   type="button"
@@ -447,20 +441,20 @@ export default function StoryModeManagementPage() {
                     setCreateDraft(createEmptyDraft());
                   }}
                 >
-                  重置草稿
-                </Button>
+                  Reset draft
+                                                  </Button>
               </div>
               {isCreatingChild && generatedChildCandidates.length > 0 ? (
                 <div className="space-y-2 rounded-lg border border-border/70 bg-background/60 p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-medium text-foreground">已生成的子类候选</div>
+                    <div className="text-sm font-medium text-foreground">Generated subcategory candidates</div>
                     <div className="text-xs text-muted-foreground">
-                      已选 {selectedGeneratedChildIndexes.length} / {generatedChildCandidates.length}
+                      Selected {selectedGeneratedChildIndexes.length} / {generatedChildCandidates.length}
                     </div>
                   </div>
                   <div className="text-xs leading-5 text-muted-foreground">
-                    勾选后可批量保存；点击候选卡片会切换到下方表单进行单独编辑。
-                  </div>
+                    After checking, you can save them in batches; clicking on the candidate card will switch to the form below for individual editing.
+                                                        </div>
                   <div className="grid gap-2">
                     {generatedChildCandidates.map((candidate, index) => (
                       <div
@@ -486,7 +480,7 @@ export default function StoryModeManagementPage() {
                             <div className="flex items-center justify-between gap-3">
                               <div className="text-sm font-medium text-foreground">{candidate.name}</div>
                               <span className="text-xs text-muted-foreground">
-                                {activeGeneratedChildIndex === index ? "当前编辑" : `候选 ${index + 1}`}
+                                {activeGeneratedChildIndex === index ? "Current editor" : `候选 ${index + 1}`}
                               </span>
                             </div>
                             <div className="mt-1 text-sm text-muted-foreground">
@@ -502,11 +496,11 @@ export default function StoryModeManagementPage() {
             </div>
 
             <label className="space-y-2 text-sm">
-              <span className="font-medium text-foreground">名称</span>
+              <span className="font-medium text-foreground">name</span>
               <Input value={createDraft.name} onChange={(event) => updateCreateDraft((prev) => ({ ...prev, name: event.target.value }))} />
             </label>
             <label className="space-y-2 text-sm">
-              <span className="font-medium text-foreground">描述</span>
+              <span className="font-medium text-foreground">Description</span>
               <textarea
                 rows={3}
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -515,7 +509,7 @@ export default function StoryModeManagementPage() {
               />
             </label>
             <label className="space-y-2 text-sm">
-              <span className="font-medium text-foreground">人工模板补充</span>
+              <span className="font-medium text-foreground">Manual template supplement</span>
               <textarea
                 rows={3}
                 className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -532,18 +526,14 @@ export default function StoryModeManagementPage() {
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              取消
-            </Button>
+              Cancel
+                                      </Button>
             {isCreatingChild && generatedChildCandidates.length > 0 ? (
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => createSelectedChildrenMutation.mutate()}
-                disabled={createSelectedChildrenMutation.isPending || selectedGeneratedChildIndexes.length === 0}
-              >
-                {createSelectedChildrenMutation.isPending
-                  ? "批量保存中..."
-                  : `批量保存选中子类 (${selectedGeneratedChildIndexes.length})`}
+                disabled={createSelectedChildrenMutation.isPending || selectedGeneratedChildIndexes.length === 0} > {createSelectedChildrenMutation.isPending ? "Batch saving in progress..." : `批量保存选中子类 (${selectedGeneratedChildIndexes.length})`}
               </Button>
             ) : null}
             <Button
@@ -551,7 +541,7 @@ export default function StoryModeManagementPage() {
               onClick={() => createMutation.mutate()}
               disabled={createMutation.isPending || createSelectedChildrenMutation.isPending || !createDraft.name.trim()}
             >
-              {createMutation.isPending ? "保存中..." : isCreatingChild ? "保存当前子类" : "保存推进模式"}
+              {createMutation.isPending ? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." : isCreatingChild ? "Save current subclass" : "Save push mode"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -560,23 +550,23 @@ export default function StoryModeManagementPage() {
       <Dialog open={Boolean(editingStoryMode)} onOpenChange={(open) => { if (!open) setEditingStoryModeId(""); }}>
         <DialogContent className="max-h-[90vh] max-w-4xl overflow-auto">
           <DialogHeader>
-            <DialogTitle>编辑推进模式</DialogTitle>
+            <DialogTitle>Edit advance mode</DialogTitle>
             <DialogDescription>
-              可以修改名称、描述、模板和 profile。两级树限制仍会保留。
-            </DialogDescription>
+              Name, description, template and profile can be modified. The two-level tree restriction will remain.
+                                      </DialogDescription>
           </DialogHeader>
 
           {editingStoryMode ? (
             <div className="space-y-4">
               <div className="rounded-lg border bg-muted/20 p-3 text-sm text-muted-foreground">
-                当前父级：{editingStoryMode.parentId ? (editParentOptions.find((item) => item.id === editingStoryMode.parentId)?.path ?? "未找到") : "根节点"}
+                Current parent:{editingStoryMode.parentId ? (editParentOptions.find((item) => item.id === editingStoryMode.parentId)?.path ?? "not found") : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
               </div>
               <label className="space-y-2 text-sm">
-                <span className="font-medium text-foreground">名称</span>
+                <span className="font-medium text-foreground">name</span>
                 <Input value={editState.name} onChange={(event) => setEditState((prev) => ({ ...prev, name: event.target.value }))} />
               </label>
               <label className="space-y-2 text-sm">
-                <span className="font-medium text-foreground">描述</span>
+                <span className="font-medium text-foreground">Description</span>
                 <textarea
                   rows={3}
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -585,7 +575,7 @@ export default function StoryModeManagementPage() {
                 />
               </label>
               <label className="space-y-2 text-sm">
-                <span className="font-medium text-foreground">人工模板补充</span>
+                <span className="font-medium text-foreground">Manual template supplement</span>
                 <textarea
                   rows={3}
                   className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -602,10 +592,10 @@ export default function StoryModeManagementPage() {
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={() => setEditingStoryModeId("")}>
-              取消
-            </Button>
+              Cancel
+                                      </Button>
             <Button type="button" onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending || !editState.name.trim()}>
-              {updateMutation.isPending ? "保存中..." : "保存修改"}
+              {updateMutation.isPending ? "Saving..." : "Saving changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -614,33 +604,33 @@ export default function StoryModeManagementPage() {
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div className="space-y-1">
-            <CardTitle>推进模式库</CardTitle>
+            <CardTitle>Advancing Pattern Library</CardTitle>
             <CardDescription>
-              这里维护作品的推进模式，例如系统流、无敌流、种田流、治愈日常。它回答的是“这本书靠什么持续推进和兑现”，会作为后续规划和生成的硬约束输入。
-            </CardDescription>
+              The advancement modes of the work are maintained here, such as system flow, invincible flow, farming flow, and daily healing. It answers "what does this book rely on to continue to advance and be realized?" and will serve as a hard constraint input for subsequent planning and generation.
+                                      </CardDescription>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <div className="text-sm text-muted-foreground">当前推进模式数：{totalStoryModes}</div>
+            <div className="text-sm text-muted-foreground">Current number of advancement modes:{totalStoryModes}</div>
             <Button type="button" onClick={handleCreateRoot}>
-              新建推进模式树
-            </Button>
+              Create a new propulsion mode tree
+                                      </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {storyModeTreeQuery.isLoading ? (
-            <div className="text-sm text-muted-foreground">正在加载推进模式树...</div>
+            <div className="text-sm text-muted-foreground">Loading push mode tree...</div>
           ) : null}
 
           {!storyModeTreeQuery.isLoading && storyModeTree.length === 0 ? (
             <div className="rounded-xl border border-dashed p-6 text-center">
-              <div className="text-sm font-medium text-foreground">还没有任何推进模式</div>
+              <div className="text-sm font-medium text-foreground">There is no push mode yet</div>
               <div className="mt-1 text-sm text-muted-foreground">
-                可以先手动建一个根推进模式，也可以直接让 AI 生成一份结构化草稿。
-              </div>
+                You can manually create a root advancement pattern first, or you can directly let AI generate a structured draft.
+                                            </div>
               <div className="mt-4">
                 <Button type="button" onClick={handleCreateRoot}>
-                  开始创建
-                </Button>
+                  Start creating
+                                                  </Button>
               </div>
             </div>
           ) : null}

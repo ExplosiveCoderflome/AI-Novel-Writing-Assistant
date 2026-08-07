@@ -9,10 +9,10 @@ export default function SettingsMaintenanceSection() {
     return (
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <CardTitle>系统维护</CardTitle>
+          <CardTitle>System maintenance</CardTitle>
           <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            当前环境没有需要处理的桌面维护事项。
-          </CardDescription>
+            There are no desktop maintenance matters that need to be addressed in the current environment.
+                              </CardDescription>
         </CardHeader>
       </Card>
     );
@@ -22,14 +22,14 @@ export default function SettingsMaintenanceSection() {
     <div className="min-w-0 space-y-4">
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <CardTitle>系统维护</CardTitle>
+          <CardTitle>System maintenance</CardTitle>
           <CardDescription className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
-            检查桌面更新或导入本机旧数据；这些操作不会影响当前创作配置。
-          </CardDescription>
+            Check for desktop updates or import native legacy data; these operations will not affect the current authoring configuration.
+                                </CardDescription>
         </CardHeader>
         <CardContent className={`text-sm text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-          没有维护需求时，可以直接回到上面的创作配置。
-        </CardContent>
+          When there is no need for maintenance, you can directly return to the creation configuration above.
+                          </CardContent>
       </Card>
       <DesktopUpdateCard />
       <DesktopLegacyDataImportCard compact />

@@ -24,16 +24,16 @@ function BranchControls() {
     >
       <BranchPickerPrimitive.Previous asChild>
         <Button type="button" size="sm" variant="ghost" className="h-6 px-1 text-[11px]" disabled={actionDisabled}>
-          上一支
-        </Button>
+          Previous one
+                          </Button>
       </BranchPickerPrimitive.Previous>
       <span className="tabular-nums">
         <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
       </span>
       <BranchPickerPrimitive.Next asChild>
         <Button type="button" size="sm" variant="ghost" className="h-6 px-1 text-[11px]" disabled={actionDisabled}>
-          下一支
-        </Button>
+          Next one
+                          </Button>
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
   );
@@ -53,8 +53,8 @@ function UserMessageActions() {
     >
       <ActionBarPrimitive.Edit asChild>
         <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[11px]" disabled={actionDisabled}>
-          编辑
-        </Button>
+          edit
+                          </Button>
       </ActionBarPrimitive.Edit>
     </ActionBarPrimitive.Root>
   );
@@ -75,8 +75,8 @@ function AssistantMessageActions() {
     >
       <ActionBarPrimitive.Reload asChild>
         <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-[11px]" disabled={actionDisabled}>
-          重新生成
-        </Button>
+          Regenerate
+                          </Button>
       </ActionBarPrimitive.Reload>
     </ActionBarPrimitive.Root>
   );
@@ -118,7 +118,7 @@ export function CreativeHubAssistantMessage() {
               ),
               Reasoning: ({ text }: { text: string }) => (
                 <div className="mb-3 rounded-md border border-warning/30 bg-warning/5 p-3 text-xs">
-                  <div className="mb-1 text-[11px] text-warning">推理过程</div>
+                  <div className="mb-1 text-[11px] text-warning">reasoning process</div>
                   <MarkdownViewer content={text} />
                 </div>
               ),
@@ -141,21 +141,21 @@ export function CreativeHubEditComposer() {
     <ComposerPrimitive.Root className="mt-3 rounded-md border border-info/30 bg-info/5 p-3">
       <ComposerPrimitive.Input
         className="min-h-[88px] w-full resize-none rounded-md border border-input bg-background p-3 text-base outline-none transition focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
-        placeholder="编辑这条消息后生成新的分支"
+        placeholder="Generate a new branch after editing this message"
         submitMode="enter"
         disabled={actionDisabled}
-        aria-label="编辑消息并生成新分支"
+        aria-label="Edit message and generate new branch"
       />
       <div className="mt-3 flex gap-2">
         <ComposerPrimitive.Cancel asChild>
           <Button type="button" size="sm" variant="outline" disabled={actionDisabled}>
-            取消
-          </Button>
+            Cancel
+                                </Button>
         </ComposerPrimitive.Cancel>
         <ComposerPrimitive.Send asChild>
           <Button type="button" size="sm" disabled={actionDisabled}>
-            发送新分支
-          </Button>
+            Send new branch
+                                </Button>
         </ComposerPrimitive.Send>
       </div>
     </ComposerPrimitive.Root>

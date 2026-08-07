@@ -23,18 +23,18 @@ export default function WritingFormulaRulesPanel(props: WritingFormulaRulesPanel
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ShieldCheck className="h-5 w-5" />
-          反 AI 规则
-        </CardTitle>
+          Anti-AI rules
+                          </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="rounded-md border bg-muted/20 p-3 text-sm">
-          启用 {enabledCount} / {antiAiRules.length} 条规则
-        </div>
+          enable {enabledCount} / {antiAiRules.length} rules
+                          </div>
         <div className="text-sm leading-6 text-muted-foreground">
-          在规则中心查看、创建和调整反 AI 规则；写法编辑区继续负责选择哪些规则绑定到当前写法。
-        </div>
+          View, create and adjust anti-AI rules in the Rule Center; the writing editing area continues to be responsible for selecting which rules are bound to the current writing.
+                          </div>
         <Button className="w-full" variant="secondary" asChild>
-          <Link to="/anti-ai-rules">进入规则中心</Link>
+          <Link to="/anti-ai-rules">Enter the rule center</Link>
         </Button>
       </CardContent>
     </Card>

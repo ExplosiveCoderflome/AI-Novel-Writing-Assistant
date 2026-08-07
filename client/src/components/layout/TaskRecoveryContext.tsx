@@ -80,12 +80,12 @@ export function TaskRecoveryProvider({ children }: { children: ReactNode }) {
         next.add(recoveryItemKey(variables));
         return next;
       });
-      toast.success("已开始恢复任务。");
+      toast.success("The recovery task has started.");
       refreshTaskState();
       void recoveryQuery.refetch();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "恢复任务失败。");
+      toast.error(error instanceof Error ? error.message : "Recovery task failed.");
     },
   });
 
@@ -100,12 +100,12 @@ export function TaskRecoveryProvider({ children }: { children: ReactNode }) {
         }
         return next;
       });
-      toast.success(resumedCount > 0 ? `已开始恢复 ${resumedCount} 个任务。` : "当前没有可恢复任务。");
+      toast.success(resumedCount > 0 ? `已开始恢复 ${resumedCount} 个任务。` : "There are currently no resumable tasks.");
       refreshTaskState();
       void recoveryQuery.refetch();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "批量恢复任务失败。");
+      toast.error(error instanceof Error ? error.message : "The batch recovery task failed.");
     },
   });
 

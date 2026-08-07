@@ -64,7 +64,7 @@ export function useNovelWorldSlice({
       temperature: llm.temperature,
     }),
     onSuccess: async () => {
-      setWorldSliceMessage("已重新整理这本书会用到的世界设定。");
+      setWorldSliceMessage("The world settings used in this book have been rearranged.");
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) });
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.detail(novelId) });
     },
@@ -73,7 +73,7 @@ export function useNovelWorldSlice({
   const saveWorldSliceOverridesMutation = useMutation({
     mutationFn: (payload: StoryWorldSliceOverrides) => updateNovelWorldSliceOverrides(novelId, payload),
     onSuccess: async () => {
-      setWorldSliceMessage("已保存这本书的世界设定保留项。");
+      setWorldSliceMessage("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
       await queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) });
     },
   });
@@ -92,7 +92,7 @@ export function useNovelWorldSlice({
     mutationFn: (payload: NovelWorldImportInput) => importNovelWorldFromLibrary(novelId, payload),
     onSuccess: async (_response, payload) => {
       onNovelWorldImported?.(payload.worldId);
-      setWorldSliceMessage("已导入为这本书的世界，后续会按本书内容重新整理可用设定。");
+      setWorldSliceMessage("The world has been imported as this book, and the available settings will be rearranged according to the content of this book.");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
@@ -104,7 +104,7 @@ export function useNovelWorldSlice({
   const generateNovelWorldMutation = useMutation({
     mutationFn: (payload: NovelWorldGenerateInput) => generateNovelWorldFromTheme(novelId, payload),
     onSuccess: async () => {
-      setWorldSliceMessage("已根据本书主题生成世界，并保存到世界库供后续复用。");
+      setWorldSliceMessage("The world has been generated based on the theme of this book and saved to the world library for subsequent reuse.");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
@@ -117,7 +117,7 @@ export function useNovelWorldSlice({
   const createManualNovelWorldMutation = useMutation({
     mutationFn: (payload: NovelWorldManualInput) => createManualNovelWorld(novelId, payload),
     onSuccess: async () => {
-      setWorldSliceMessage("本书自定义世界已创建并保存到世界库，可以继续补充规则、势力和故事舞台。");
+      setWorldSliceMessage("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.worldSlice(novelId) }),
@@ -130,7 +130,7 @@ export function useNovelWorldSlice({
   const saveNovelWorldToLibraryMutation = useMutation({
     mutationFn: (payload: NovelWorldSaveToLibraryInput) => saveNovelWorldToLibrary(novelId, payload),
     onSuccess: async () => {
-      setWorldSliceMessage("本书世界已保存到世界库。");
+      setWorldSliceMessage("Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorldSyncDiff(novelId) }),
@@ -145,10 +145,10 @@ export function useNovelWorldSlice({
     onSuccess: async (_response, payload) => {
       setWorldSliceMessage(
         payload.direction === "none"
-          ? "本书世界会保留为独立副本。"
+          ? "The world of this book will remain as a separate copy."
           : payload.direction === "push"
-            ? "已将本书世界推送到世界库。"
-            : "已从世界库拉取更新到本书世界。",
+            ? "The world of this book has been pushed to the world library."
+            : "The world of this book has been updated from the world library.",
       );
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.novels.novelWorld(novelId) }),

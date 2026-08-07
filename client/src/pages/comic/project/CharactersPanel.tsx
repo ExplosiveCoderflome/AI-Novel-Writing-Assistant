@@ -104,10 +104,10 @@ function CharacterStatusBadges({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Badge variant={sheetData.status === "done" ? "default" : "secondary"} className="text-[11px]">
-        三视图{sheetData.status === "done" ? ` v${sheetData.version ?? 1}` : "待生成"}
+        Three views{sheetData.status === "done" ? ` v${sheetData.version ?? 1}` : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
       </Badge>
       <Badge variant={expressionData.status === "done" ? "default" : "secondary"} className="text-[11px]">
-        表情稿{expressionData.status === "done" ? ` v${expressionData.version ?? 1}` : "待生成"}
+        Expressions{expressionData.status === "done" ? ` v${expressionData.version ?? 1}` : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
       </Badge>
     </div>
   );
@@ -125,8 +125,8 @@ function CharacterList({
   return (
     <aside className="overflow-hidden rounded-lg border bg-background">
       <div className="border-b px-3 py-3">
-        <p className="text-sm font-semibold">角色列表</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{characters.length} 个角色</p>
+        <p className="text-sm font-semibold">role list</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{characters.length} role</p>
       </div>
       <div className="max-h-[720px] overflow-y-auto p-2">
         <div className="space-y-1">
@@ -180,9 +180,9 @@ function CharacterList({
                       </p>
                     )}
                     <div className="mt-2 flex items-center gap-2 text-[10px] text-muted-foreground">
-                      <span className={hasSheet ? "text-primary" : ""}>三视图</span>
+                      <span className={hasSheet ? "text-primary" : ""}>Three views</span>
                       <span className="text-border">/</span>
-                      <span className={expressionData.status === "done" ? "text-primary" : ""}>表情稿</span>
+                      <span className={expressionData.status === "done" ? "text-primary" : ""}>Expressions</span>
                     </div>
                   </div>
                 </div>
@@ -200,10 +200,10 @@ function CharacterList({
 // 古风/韩漫语境里"鹅蛋脸/桃花眼"等描述男女通用，必须显式声明性别，否则模型偏向韩漫美男。
 
 const GENDER_LABELS: Record<ComicCharacterGender, string> = {
-  unknown: "未指定",
-  male: "男",
-  female: "女",
-  other: "中性",
+  unknown: "not specified",
+  male: "male",
+  female: "female",
+  other: "neutral",
 };
 
 const GENDER_BADGE_STYLE: Record<ComicCharacterGender, string> = {
@@ -221,7 +221,7 @@ function GenderSelector({ character }: { character: ComicCharacter }) {
     mutationFn: (g: ComicCharacterGender) => updateCharacterGender(character.id, g),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
-      toast.success("性别已更新，下次生图生效");
+      toast.success("Gender has been updated and will take effect next time you give birth");
     },
     onError: (e) => toast.error(String(e)),
   });
@@ -232,7 +232,7 @@ function GenderSelector({ character }: { character: ComicCharacter }) {
         className={`rounded border px-1.5 py-0.5 text-[11px] leading-tight ${GENDER_BADGE_STYLE[current]} disabled:opacity-50`}
         value={current}
         disabled={mut.isPending}
-        title="角色性别（GENDER LOCK）：避免生图把女画成男或反之"
+        title="GENDER LOCK: Avoid drawings that portray women as men or vice versa."
         onChange={(e) => mut.mutate(e.target.value as ComicCharacterGender)}
       >
         {(Object.keys(GENDER_LABELS) as ComicCharacterGender[]).map((g) => (
@@ -247,15 +247,15 @@ function GenderSelector({ character }: { character: ComicCharacter }) {
 // 一次编辑，所有生图（三视图/表情稿/资产/格子图）后续生成都会读新版
 
 const FACE_PRESETS: Array<{ key: string; label: string; snippet: string }> = [
-  { key: "round", label: "圆脸", snippet: "脸型圆润饱满，下巴线条柔和不尖锐，round soft face, gentle rounded jawline" },
-  { key: "square", label: "方脸", snippet: "脸型方正，下颌角清晰，square face shape, defined jawline angle" },
-  { key: "oval", label: "鹅蛋脸", snippet: "脸型为标准鹅蛋脸，oval face shape, balanced proportions" },
-  { key: "long", label: "长脸", snippet: "脸型偏长，long face shape, vertically elongated" },
-  { key: "young", label: "童颜", snippet: "面部线条柔和带婴儿肥，年龄感偏小，youthful baby face, soft cheeks" },
-  { key: "mature", label: "成熟", snippet: "面部骨骼明显，气质成熟，mature defined bone structure, adult features" },
-  { key: "sharp", label: "棱角分明", snippet: "颧骨与下颌线条分明，sharp cheekbones, well-defined jawline" },
-  { key: "wide_eyes", label: "眼距偏宽", snippet: "双眼间距偏宽，wide-set eyes" },
-  { key: "narrow_eyes", label: "丹凤眼", snippet: "眼型为细长丹凤眼，narrow phoenix eyes, upturned outer corners" },
+  { key: "round", label: "round face", snippet: "Round soft face, gentle rounded jawline" },
+  { key: "square", label: "square face", snippet: "Square face shape, defined jawline angle" },
+  { key: "oval", label: "Oval face", snippet: "The face shape is a standard oval face, oval face shape, balanced proportions" },
+  { key: "long", label: "long face", snippet: "Long face shape, vertically elongated" },
+  { key: "young", label: "Childlike face", snippet: "The facial lines are soft with baby fat, making you look younger, youthful baby face, soft cheeks" },
+  { key: "mature", label: "Mature", snippet: "The facial bones are obvious, the temperament is mature, mature defined bone structure, adult features" },
+  { key: "sharp", label: "sharp edges", snippet: "Sharp cheekbones, well-defined jawline" },
+  { key: "wide_eyes", label: "Wide distance between eyes", snippet: "Wide-set eyes" },
+  { key: "narrow_eyes", label: "red phoenix eye", snippet: "The eye shape is narrow phoenix eyes, upturned outer corners" },
 ];
 
 function getFaceShapeOverride(character: ComicCharacter): string {
@@ -296,7 +296,7 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comic", "project"] });
-      toast.success("外貌锚点已保存，下次生图生效");
+      toast.success("The appearance anchor point has been saved and will take effect next time you create a drawing.");
       setEditing(false);
     },
     onError: (e) => toast.error(String(e)),
@@ -319,7 +319,7 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
     if (suggestion.faceShapeOverride !== undefined) setOverride(suggestion.faceShapeOverride);
     setSuggestion(null);
     setShowAIBox(false);
-    toast.success("已采用 AI 建议，请检查后保存");
+    toast.success("AI suggestions have been adopted, please check and save");
   };
 
   const setPresetAsOverride = (snippet: string) => {
@@ -342,20 +342,20 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
   return (
     <div className="border-b px-4 py-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">外貌锚点</p>
+        <p className="text-sm font-medium">appearance anchor</p>
         {!editing && (
           <button
             type="button"
             className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             onClick={() => setEditing(true)}
           >
-            编辑
-          </button>
+            edit
+                                </button>
         )}
       </div>
       <p className="mt-1 text-[11px] text-muted-foreground">
-        所有生图的源头：三视图、表情稿、资产、格子图都读这里。改一次，后续生成全部跟上。
-      </p>
+        The source of all drawings: three-dimensional views, expression drafts, assets, and grid diagrams can be found here. Change it once and all subsequent builds will follow.
+                    </p>
 
       {editing ? (
         <>
@@ -364,25 +364,25 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
             <div className="flex items-center justify-between gap-2">
               <p className="flex items-center gap-1 text-[10px] font-semibold text-violet-700 dark:text-violet-300">
                 <Bot className="h-3 w-3" />
-                AI 协助优化
-              </p>
+                AI-assisted optimization
+                                            </p>
               <button
                 type="button"
                 className="text-[10px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                 onClick={() => { setShowAIBox((v) => !v); setSuggestion(null); }}
               >
-                {showAIBox ? "收起" : "展开"}
+                {showAIBox ? "Collapse" : "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."}
               </button>
             </div>
             {showAIBox && (
               <>
                 <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                  AI 会消除主外貌里的矛盾词、按你期望微调、保留人设亮点。结果会显示在下方供你审阅，确认后才会替换当前内容。
-                </p>
+                  AI will eliminate contradictory words in the main appearance, fine-tune it according to your expectations, and retain the highlights of the character. The results will be displayed below for your review, and the current content will be replaced only after confirmation.
+                                                  </p>
                 <input
                   type="text"
                   className="mt-1.5 w-full rounded border bg-background px-2 py-1 text-xs"
-                  placeholder="（可选）告诉 AI 怎么改，比如：脸更圆、年龄感更小、像古风少年"
+                  placeholder="(Optional) Tell AI how to change it, for example: make the face rounder, look younger, look like an old-fashioned boy"
                   value={aiInstruction}
                   onChange={(e) => setAiInstruction(e.target.value)}
                   disabled={rewriteMut.isPending}
@@ -396,29 +396,29 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
                     onClick={() => rewriteMut.mutate()}
                   >
                     {rewriteMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                    {rewriteMut.isPending ? "生成中..." : "让 AI 优化"}
+                    {rewriteMut.isPending ? "Generating..." : "Let AI optimize"}
                   </Button>
                 </div>
                 {suggestion && (
                   <div className="mt-2 space-y-2 rounded border bg-background p-2 text-xs">
-                    <p className="text-[10px] font-semibold text-muted-foreground">AI 建议（待采用）</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground">AI suggestions (to be adopted)</p>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">修改说明</p>
+                      <p className="text-[10px] text-muted-foreground">Modification instructions</p>
                       <p className="mt-0.5 leading-relaxed">{suggestion.rationale}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-muted-foreground">新的主外貌</p>
+                      <p className="text-[10px] text-muted-foreground">New main appearance</p>
                       <p className="mt-0.5 whitespace-pre-wrap rounded bg-muted/50 p-1.5 leading-relaxed">{suggestion.appearance}</p>
                     </div>
                     {suggestion.faceShapeOverride && (
                       <div>
-                        <p className="text-[10px] text-amber-700 dark:text-amber-300">新的脸型强覆盖</p>
+                        <p className="text-[10px] text-amber-700 dark:text-amber-300">New face shape strong coverage</p>
                         <p className="mt-0.5 whitespace-pre-wrap rounded bg-amber-50/60 p-1.5 leading-relaxed dark:bg-amber-900/20">{suggestion.faceShapeOverride}</p>
                       </div>
                     )}
                     <div className="flex gap-2 pt-1">
-                      <Button type="button" size="sm" onClick={adoptSuggestion}>采用</Button>
-                      <Button type="button" size="sm" variant="outline" onClick={() => setSuggestion(null)}>丢弃</Button>
+                      <Button type="button" size="sm" onClick={adoptSuggestion}>use</Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => setSuggestion(null)}>throw away</Button>
                     </div>
                   </div>
                 )}
@@ -426,40 +426,40 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
             )}
           </div>
 
-          <p className="mt-3 mb-1 text-[10px] font-semibold text-muted-foreground">主外貌描述</p>
+          <p className="mt-3 mb-1 text-[10px] font-semibold text-muted-foreground">Main appearance description</p>
           <textarea
             className="w-full resize-y rounded-md border bg-background px-2.5 py-1.5 text-xs leading-relaxed"
             style={{ minHeight: 100 }}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="描述角色外貌：五官、肤色、发型、年龄、体格、标志特征..."
+            placeholder="Describe the character's appearance: facial features, skin color, hairstyle, age, physique, iconic features..."
           />
 
           <div className="mt-3 rounded-md border border-amber-300/50 bg-amber-50/40 px-2.5 py-2 dark:border-amber-700/50 dark:bg-amber-900/10">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">脸型强覆盖（FINAL OVERRIDE）</p>
+              <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">Strong coverage for face shape (FINAL OVERRIDE)</p>
               {override && (
                 <button
                   type="button"
                   className="text-[10px] text-muted-foreground hover:text-destructive"
                   onClick={() => setOverride("")}
                 >
-                  清除
-                </button>
+                  Clear
+                                                  </button>
               )}
             </div>
             <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
-              当主外貌里有「锐利如刀刻」「三角眼」等与你期望脸型矛盾的词时，把脸型描述填到这里——生图 prompt 会以最高优先级压制冲突词，无需删原描述。
-            </p>
+              When the main appearance contains words such as "sharp as a knife" or "triangular eyes" that conflict with your desired face shape, fill in the description of the face shape here - the picture prompt will suppress the conflicting words with the highest priority, without deleting the original description.
+                                      </p>
             <textarea
               className="mt-1.5 w-full resize-y rounded border bg-background px-2 py-1 text-xs leading-relaxed"
               style={{ minHeight: 48 }}
               value={override}
               onChange={(e) => setOverride(e.target.value)}
-              placeholder="留空 = 不启用。例如：脸型圆润饱满，下巴柔和不尖锐"
+              placeholder="Leave blank = not enabled. For example: the face is round and full, the chin is soft and not sharp"
             />
             <div className="mt-1.5">
-              <p className="mb-1 text-[10px] text-muted-foreground">骨相速记（点击设为覆盖；已有覆盖时追加）：</p>
+              <p className="mb-1 text-[10px] text-muted-foreground">Bone phase shorthand (click to set as overlay; add if already covered):</p>
               <div className="flex flex-wrap gap-1">
                 {FACE_PRESETS.map((p) => (
                   <button
@@ -484,8 +484,8 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
               onClick={() => saveMut.mutate()}
             >
               {saveMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              保存
-            </Button>
+              keep
+                                      </Button>
             <Button
               type="button"
               size="sm"
@@ -493,18 +493,18 @@ function VisualAnchorEditor({ character }: { character: ComicCharacter }) {
               disabled={saveMut.isPending}
               onClick={() => { setText(initial); setOverride(initialOverride); setEditing(false); }}
             >
-              取消
-            </Button>
+              Cancel
+                                      </Button>
           </div>
         </>
       ) : (
         <>
           <p className="mt-2 whitespace-pre-wrap rounded-md bg-muted/50 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
-            {initial || "该角色还没有外貌锚点。"}
+            {initial || "The character doesn't have an appearance anchor yet."}
           </p>
           {initialOverride && (
             <div className="mt-1.5 rounded-md border border-amber-300/50 bg-amber-50/40 px-2.5 py-1.5 text-[11px] text-amber-800 dark:border-amber-700/50 dark:bg-amber-900/10 dark:text-amber-300">
-              <span className="font-semibold">脸型强覆盖：</span>{initialOverride}
+              <span className="font-semibold">Strong coverage for face shapes:</span>{initialOverride}
             </div>
           )}
         </>
@@ -592,8 +592,8 @@ function CharacterDetail({
           <div className="border-b px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium">三视图主设计稿</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">正面、侧面、背面和面部特写用于锁定角色外观。</p>
+                <p className="text-sm font-medium">Three-view main design draft</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Front, side, back and facial close-ups are used to lock in the character's appearance.</p>
               </div>
               {hasSheet && (
                 <Button
@@ -604,8 +604,8 @@ function CharacterDetail({
                   onClick={openSheetTuning}
                 >
                   <Wand2 className="h-4 w-4" />
-                  调整三视图
-                </Button>
+                  Adjust three views
+                                                      </Button>
               )}
             </div>
           </div>
@@ -620,19 +620,19 @@ function CharacterDetail({
             ) : isGenerating ? (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin" />
-                <span className="text-sm">三视图生成中</span>
+                <span className="text-sm">Three views are being generated</span>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3 text-muted-foreground">
                 <ImageIcon className="h-10 w-10 opacity-40" />
                 <div className="text-center">
-                  <p className="text-sm font-medium text-foreground">还没有三视图</p>
-                  <p className="mt-1 text-xs">先生成主设计稿，再继续制作表情稿和格子图参考。</p>
+                  <p className="text-sm font-medium text-foreground">No three views yet</p>
+                  <p className="mt-1 text-xs">Generate the main design draft first, and then continue to create the expression draft and grid diagram for reference.</p>
                 </div>
                 <Button type="button" size="sm" disabled={isGenerating} onClick={() => startSheetGeneration(undefined)}>
                   <Sparkles className="h-4 w-4" />
-                  生成三视图
-                </Button>
+                  Generate three views
+                                                              </Button>
               </div>
             )}
           </div>
@@ -644,8 +644,8 @@ function CharacterDetail({
           <div className="border-t px-4 py-3">
             <div className="mb-2 flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium">表情设计稿</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">常用表情会在分格生成时作为情绪参考。</p>
+                <p className="text-sm font-medium">Expression design draft</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Commonly used expressions will be used as emotional references when generating grids.</p>
               </div>
               <Button
                 type="button"
@@ -657,18 +657,18 @@ function CharacterDetail({
                 {isExpressionGenerating ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    生成中
-                  </>
+                    Generating
+                                                            </>
                 ) : expressionData.status === "done" ? (
                   <>
                     <RefreshCw className="h-4 w-4" />
-                    更新表情稿
-                  </>
+                    Update emoticons
+                                                                </>
                 ) : (
                   <>
                     <Smile className="h-4 w-4" />
-                    生成表情稿
-                  </>
+                    Generate emoticons
+                                                                    </>
                 )}
               </Button>
             </div>
@@ -684,8 +684,8 @@ function CharacterDetail({
             ) : (
               <div className="flex min-h-24 items-center justify-center rounded-md border border-dashed bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
                 {expressionData.status === "error"
-                  ? expressionData.error ?? "表情稿生成失败"
-                  : "生成三视图后，可继续生成 6 个核心表情。"}
+                  ? expressionData.error ?? "Expression generation failed"
+                  : "After generating three views, you can continue to generate 6 core expressions."}
               </div>
             )}
           </div>
@@ -696,7 +696,7 @@ function CharacterDetail({
 
 
           <div className="border-b px-4 py-3">
-            <p className="text-sm font-medium">三视图提示词</p>
+            <p className="text-sm font-medium">Three-view prompt words</p>
             <div className="mt-2 max-h-48 overflow-y-auto rounded-md border bg-muted/20 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
               {sheetData.prompt || recommendedSheetPrompt}
             </div>
@@ -705,8 +705,8 @@ function CharacterDetail({
           <div className="px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium">三视图微调</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">编辑提示词后重新生成，成功后替换当前主设计稿。</p>
+                <p className="text-sm font-medium">Three view fine-tuning</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Edit the prompt word and regenerate it, and replace the current main design draft after success.</p>
               </div>
             </div>
 
@@ -715,7 +715,7 @@ function CharacterDetail({
                 <div className="mt-3 space-y-3">
                   <div className="rounded-md border bg-muted/30 px-3 py-2">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-xs font-medium">可编辑提示词</p>
+                      <p className="text-xs font-medium">Editable prompt words</p>
                       <Button
                         type="button"
                         size="sm"
@@ -724,22 +724,22 @@ function CharacterDetail({
                         disabled={isGenerating}
                         onClick={() => setDraftPrompt(recommendedSheetPrompt)}
                       >
-                        恢复推荐提示词
-                      </Button>
+                        Restore recommended prompt words
+                                                                        </Button>
                     </div>
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      常规微调只改风格、服装细节或姿态；角色脸型、发型和标志特征会随外貌锚点一起锁定。
-                    </p>
+                      Regular fine-tuning only changes the style, clothing details or posture; the character's face shape, hairstyle and iconic features will be locked together with the appearance anchor point.
+                                                                  </p>
                   </div>
                   <textarea
                     className="min-h-[180px] w-full resize-y rounded-md border bg-background px-3 py-2 text-xs leading-relaxed"
                     value={draftPrompt}
-                    placeholder="输入本次三视图生成提示词"
+                    placeholder="Enter the three views to generate prompt words."
                     disabled={isGenerating}
                     onChange={(event) => setDraftPrompt(event.target.value)}
                   />
                   {!sheetData.prompt && (
-                    <p className="text-xs text-muted-foreground">已填入推荐提示词，可直接微调后生成。</p>
+                    <p className="text-xs text-muted-foreground">The recommended prompt words have been filled in and can be generated directly after fine-tuning.</p>
                   )}
                   <div className="space-y-2 rounded-md border bg-background px-3 py-2">
                     <label className="flex items-start gap-2 text-xs text-muted-foreground">
@@ -750,7 +750,7 @@ function CharacterDetail({
                         disabled={isGenerating}
                         onChange={(event) => setUseCurrentImageAsReference(event.target.checked)}
                       />
-                      <span>使用这张三视图作为参考图</span>
+                      <span>Use this three-view diagram as a reference</span>
                     </label>
                     <label className="flex items-start gap-2 text-xs text-muted-foreground">
                       <input
@@ -760,19 +760,19 @@ function CharacterDetail({
                         disabled={isGenerating}
                         onChange={(event) => setLockAppearance(event.target.checked)}
                       />
-                      <span>锁定角色样貌</span>
+                      <span>Lock character appearance</span>
                     </label>
                     {lockAppearance && (
                       <div className="space-y-1">
                         <textarea
                           className="min-h-16 w-full resize-y rounded-md border bg-muted/20 px-2 py-1.5 text-xs leading-relaxed"
                           value={appearanceOverride}
-                          placeholder="补充用于锁定角色相貌的关键词，例如发型、眼睛、体型、服装和标志特征"
+                          placeholder="Supplement keywords used to lock the character's appearance, such as hairstyle, eyes, body shape, clothing and iconic features"
                           disabled={isGenerating}
                           onChange={(event) => setAppearanceOverride(event.target.value)}
                         />
                         {!appearanceOverride.trim() && (
-                          <p className="text-[11px] text-muted-foreground">填写样貌关键词后，生成时会优先保持这些特征。</p>
+                          <p className="text-[11px] text-muted-foreground">After filling in the appearance keywords, these characteristics will be given priority when generating.</p>
                         )}
                       </div>
                     )}
@@ -794,13 +794,13 @@ function CharacterDetail({
                       {isGenerating ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          生成中
-                        </>
+                          Generating
+                                                                              </>
                       ) : (
                         <>
                           <Sparkles className="h-4 w-4" />
-                          生成微调图
-                        </>
+                          Generate fine-tuning graph
+                                                                                  </>
                       )}
                     </Button>
                     <Button
@@ -810,8 +810,8 @@ function CharacterDetail({
                       disabled={isGenerating}
                       onClick={() => setShowSheetTuning(false)}
                     >
-                      取消
-                    </Button>
+                      Cancel
+                                                                  </Button>
                   </div>
                 </div>
               ) : (
@@ -823,13 +823,13 @@ function CharacterDetail({
                   onClick={openSheetTuning}
                 >
                   <Wand2 className="h-4 w-4" />
-                  打开提示词微调
-                </Button>
+                  Turn on prompt word fine-tuning
+                                                          </Button>
               )
             ) : (
               <div className="mt-3 rounded-md border border-dashed bg-muted/30 px-3 py-4 text-xs leading-relaxed text-muted-foreground">
-                先生成三视图，系统会保存本次提示词，并允许基于当前图继续微调。
-              </div>
+                First generate three views, the system will save this prompt word and allow continued fine-tuning based on the current image.
+                                                    </div>
             )}
           </div>
         </aside>
@@ -844,12 +844,12 @@ function CharacterDetail({
 // ─── Asset Section ────────────────────────────────────────────────────────────
 
 const ASSET_TYPE_LABELS: Record<CharacterAssetType, string> = {
-  costume: "服装",
-  weapon: "武器",
-  item: "道具",
-  vehicle: "载具",
-  ability: "技能",
-  other: "其他",
+  costume: "clothing",
+  weapon: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+  item: "tool",
+  vehicle: "vehicle",
+  ability: "Skill",
+  other: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
 };
 
 const ASSET_TYPE_ORDER: CharacterAssetType[] = ["costume", "weapon", "item", "vehicle", "ability", "other"];
@@ -871,10 +871,10 @@ const STATUS_DOT_STYLE: Record<string, string> = {
 };
 
 const STATUS_DOT_TITLE: Record<string, string> = {
-  idle: "未生成",
-  generating: "生成中",
-  done: "已就绪",
-  error: "生成失败",
+  idle: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.",
+  generating: "Generating",
+  done: "Ready",
+  error: "Build failed",
 };
 
 function parseAssetImageData(raw: string | null): AssetImageData {
@@ -1008,7 +1008,7 @@ function AssetAddRow({
   });
 
   const accent = ASSET_TYPE_ACCENT[type];
-  const placeholderName = type === "costume" ? "战斗套装" : type === "weapon" ? "月光剑" : type === "vehicle" ? "踏雪马" : type === "ability" ? "破云剑诀" : "宗门腰牌";
+  const placeholderName = type === "costume" ? "战斗套装" : type === "weapon" ? "月光剑" : type === "vehicle" ? "Snow horse" : type === "ability" ? "Cloud Breaking Sword Technique" : "Sect waist card";
 
   return (
     <div className="mb-3 rounded-lg border-2 border-dashed border-primary/30 bg-background px-3 py-2.5">
@@ -1016,17 +1016,17 @@ function AssetAddRow({
         <div className="flex items-center gap-1.5">
           <span className={`h-1.5 w-1.5 rounded-full ${accent.dot}`} />
           <p className="text-[11px] font-semibold text-foreground">
-            新增{ASSET_TYPE_LABELS[type]}
+            New{ASSET_TYPE_LABELS[type]}
           </p>
-          <span className="text-[10px] text-muted-foreground">回车提交 · Esc 关闭 · 可连续添加</span>
+          <span className="text-[10px] text-muted-foreground">Enter to submit · Esc to close · Can be added continuously</span>
         </div>
         <button
           type="button"
           className="text-[11px] text-muted-foreground hover:text-foreground"
           onClick={onClose}
         >
-          完成
-        </button>
+          Finish
+                          </button>
       </div>
       <div className="flex gap-2">
         <input
@@ -1043,7 +1043,7 @@ function AssetAddRow({
         />
         <input
           className="flex-[1.2] rounded-md border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary/20"
-          placeholder="外观描述（可选，注入生图提示词）"
+          placeholder="Appearance description (optional, inject prompt words for drawing)"
           value={desc}
           disabled={createMut.isPending}
           onChange={(e) => setDesc(e.target.value)}
@@ -1058,7 +1058,7 @@ function AssetAddRow({
           className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
           onClick={() => createMut.mutate()}
         >
-          {createMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "添加"}
+          {createMut.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Add to"}
         </button>
       </div>
     </div>
@@ -1094,17 +1094,17 @@ function AssetSection({
     <div className="border-t bg-muted/10 px-4 py-4">
       {/* 标题 */}
       <div className="mb-2.5 flex items-baseline gap-2">
-        <p className="text-sm font-semibold">角色资产库</p>
+        <p className="text-sm font-semibold">Character asset library</p>
         <span className="text-[11px] text-muted-foreground">
           {assets.length > 0
             ? `${assets.length} 个资产 · 已按类型分组`
-            : "服装、武器、道具一旦录入，生格子图会自动注入到参考图，提升一致性"}
+            : "Once clothing, weapons, and props are entered, the grid image will be automatically injected into the reference image to improve consistency."}
         </span>
       </div>
 
       {/* 类型快捷条 = 主入口 */}
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] text-muted-foreground">添加：</span>
+        <span className="text-[10px] text-muted-foreground">Add to:</span>
         {ASSET_TYPE_ORDER.map((t) => (
           <AssetTypeChip
             key={t}
@@ -1129,8 +1129,8 @@ function AssetSection({
       {isLoading && (
         <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          加载中...
-        </div>
+          loading...
+                          </div>
       )}
 
       {isEmpty && !activeAddType && (
@@ -1138,11 +1138,11 @@ function AssetSection({
           <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <Plus className="h-5 w-5" />
           </div>
-          <p className="text-xs font-semibold text-foreground">还没有资产</p>
+          <p className="text-xs font-semibold text-foreground">No assets yet</p>
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-            点击上方任意彩色标签即可快速添加。<br />
-            生格子图时会自动把对应资产合成到参考图，锁定服装 / 武器 / 道具外形。
-          </p>
+            Click on any colored label above to quickly add it.<br />
+            When generating the grid image, the corresponding assets will be automatically synthesized into the reference image to lock the appearance of clothing/weapons/props.
+                                </p>
         </div>
       )}
 
@@ -1183,9 +1183,9 @@ const FACT_CATEGORY_BADGE: Record<
   string,
   { label: string; className: string }
 > = {
-  completed: { label: "已发生", className: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300" },
-  revealed: { label: "首次登场", className: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300" },
-  state_changed: { label: "状态变化", className: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300" },
+  completed: { label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.", className: "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-900/20 dark:text-sky-300" },
+  revealed: { label: "first appearance", className: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300" },
+  state_changed: { label: "status change", className: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-300" },
 };
 
 function FactsSection({ projectId }: { projectId: string }) {
@@ -1215,25 +1215,25 @@ function FactsSection({ projectId }: { projectId: string }) {
     <div className="border-t px-4 py-4">
       <div className="mb-3 flex items-center gap-2">
         <BookMarked className="h-4 w-4 text-muted-foreground" />
-        <p className="text-sm font-medium">跨话事实库</p>
+        <p className="text-sm font-medium">Inter-conversational fact base</p>
         <span className="rounded border bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{facts.length}</span>
       </div>
       <p className="mb-3 text-xs text-muted-foreground">
-        生成分格脚本后系统自动提取，用于保证跨话剧情与角色状态一致性。可手动删除不准确的条目。
-      </p>
+        After the grid script is generated, the system automatically extracts it to ensure the consistency of the cross-session plot and character status. Inaccurate entries can be deleted manually.
+                    </p>
 
-      {isLoading && <div className="text-xs text-muted-foreground">加载中...</div>}
+      {isLoading && <div className="text-xs text-muted-foreground">loading...</div>}
 
       {!isLoading && facts.length === 0 && (
         <div className="rounded-md border border-dashed bg-muted/30 px-3 py-4 text-center text-xs text-muted-foreground">
-          尚无事实条目。生成至少一话的分格脚本后会自动提取。
-        </div>
+          There are no fact entries yet. After generating a grid script of at least one episode, it will be automatically extracted.
+                          </div>
       )}
 
       <div className="space-y-3">
         {sortedOrders.map((order) => (
           <div key={order}>
-            <div className="mb-1.5 text-[11px] font-semibold text-muted-foreground">第 {order} 话</div>
+            <div className="mb-1.5 text-[11px] font-semibold text-muted-foreground">Section {order} talk</div>
             <div className="space-y-1">
               {grouped[order].map((fact) => {
                 const badge = FACT_CATEGORY_BADGE[fact.category] ?? {
@@ -1251,7 +1251,7 @@ function FactsSection({ projectId }: { projectId: string }) {
                     <span className="flex-1 leading-relaxed text-muted-foreground">{fact.text}</span>
                     <button
                       type="button"
-                      title="删除此条目"
+                      title="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
                       disabled={deleteMut.isPending}
                       className="ml-1 mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive"
                       onClick={() => deleteMut.mutate(fact.id)}
@@ -1282,8 +1282,8 @@ export function CharactersPanel({
     return (
       <div className="space-y-2 py-12 text-center text-sm text-muted-foreground">
         <Users className="mx-auto h-10 w-10 opacity-30" />
-        <p>暂无角色。</p>
-        <p className="text-xs">导入内容源后，角色会自动提取到这里。</p>
+        <p>There are no roles yet.</p>
+        <p className="text-xs">After importing the content source, the roles will be automatically extracted here.</p>
       </div>
     );
   }

@@ -31,19 +31,19 @@ apiClient.interceptors.response.use(
     const backendError = error.response?.data?.error;
     const backendMessage = error.response?.data?.message;
     const silentErrorStatuses = error.config?.silentErrorStatuses ?? [];
-    let title = backendError ?? error.message ?? "请求失败。";
+    let title = backendError ?? error.message ?? "The request failed.";
     let description = backendMessage && backendMessage !== backendError ? backendMessage : undefined;
 
     if (!status) {
-      title = "网络连接失败，请检查网络后重试。";
+      title = "Network connection failed, please check the network and try again.";
       description = undefined;
     } else if (status >= 500) {
-      title = backendError ?? "服务器错误，请稍后重试。";
+      title = backendError ?? "Server error, please try again later.";
       description = backendMessage && backendMessage !== title ? backendMessage : undefined;
     }
 
     if (!status || !silentErrorStatuses.includes(status)) {
-      const isGenericServerErrorToast = title === "服务器错误，请稍后重试。";
+      const isGenericServerErrorToast = title === "Server error, please try again later.";
 
       if (description) {
         toast.error(

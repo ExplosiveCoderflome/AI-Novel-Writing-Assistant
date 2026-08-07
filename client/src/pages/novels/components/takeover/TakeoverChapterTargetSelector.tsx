@@ -34,7 +34,7 @@ export default function TakeoverChapterTargetSelector({
   return (
     <div className="rounded-lg border bg-background/70 p-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-sm font-medium text-foreground">推进至</div>
+        <div className="text-sm font-medium text-foreground">Advance to</div>
         <Input
           className="h-10 sm:w-40"
           type="number"
@@ -57,11 +57,11 @@ export default function TakeoverChapterTargetSelector({
               commitDraftValue();
             }
           }}
-          aria-label="推进至章节"
+          aria-label="Advance to chapter"
         />
       </div>
       <div className={`mt-2 text-xs leading-5 text-muted-foreground ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
-        {target.summary} 可输入范围：第 {target.startOrder}-{target.maxOrder} 章。
+        The input range for {target.summary} is: Chapters {target.startOrder}-{target.maxOrder}.
       </div>
     </div>
   );

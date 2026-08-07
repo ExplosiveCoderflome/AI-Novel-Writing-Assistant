@@ -21,7 +21,7 @@ export function AssetLibraryRecommendation(props: {
   const Icon = props.icon;
   return (
     <section
-      aria-label="推荐下一步"
+      aria-label="Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know."
       className={cn(
         "flex flex-col gap-4 rounded-md border px-4 py-3 sm:flex-row sm:items-center sm:justify-between",
         recommendationToneClass[props.tone ?? "info"],

@@ -14,18 +14,18 @@ export type NovelWorkspaceFlowTab =
 export type NovelWorkspaceTab = NovelWorkspaceFlowTab | "history";
 
 export const NOVEL_WORKSPACE_FLOW_STEPS: Array<{ key: NovelWorkspaceFlowTab; label: string }> = [
-  { key: "basic", label: "项目设定" },
-  { key: "story_macro", label: "故事宏观规划" },
-  { key: "world", label: "世界观准备" },
-  { key: "character", label: "角色准备" },
-  { key: "outline", label: "卷战略 / 卷骨架" },
-  { key: "structured", label: "节奏 / 拆章" },
-  { key: "chapter", label: "章节执行" },
-  { key: "pipeline", label: "质量修复" },
+  { key: "basic", label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+  { key: "story_macro", label: "Big story plan" },
+  { key: "world", label: "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." },
+  { key: "character", label: "role preparation" },
+  { key: "outline", label: "Volume Strategy / Volume Skeleton" },
+  { key: "structured", label: "Rhythm / Breaking Chapter" },
+  { key: "chapter", label: "Chapter execution" },
+  { key: "pipeline", label: "Quality fix" },
 ];
 
 export const NOVEL_WORKSPACE_TOOL_TABS: Array<{ key: Extract<NovelWorkspaceTab, "history">; label: string }> = [
-  { key: "history", label: "版本历史" },
+  { key: "history", label: "Version history" },
 ];
 
 const NOVEL_WORKSPACE_TAB_SET = new Set<NovelWorkspaceTab>([
@@ -69,7 +69,7 @@ export function getNextNovelWorkspaceFlowTab(value: string | null | undefined): 
 
 export function getNovelWorkspaceTabLabel(value: string | null | undefined): string {
   const normalized = normalizeNovelWorkspaceTab(value);
-  return [...NOVEL_WORKSPACE_FLOW_STEPS, ...NOVEL_WORKSPACE_TOOL_TABS].find((item) => item.key === normalized)?.label ?? "项目设定";
+  return [...NOVEL_WORKSPACE_FLOW_STEPS, ...NOVEL_WORKSPACE_TOOL_TABS].find((item) => item.key === normalized)?.label ?? "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
 }
 
 export function scopeFromWorkspaceTab(tab: string): DirectorLockScope | null {

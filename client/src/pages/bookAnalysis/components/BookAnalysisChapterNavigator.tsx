@@ -27,8 +27,8 @@ export default function BookAnalysisChapterNavigator({
             disabled={!canGoPrev}
             onClick={() => onSelectChapter(chapters[currentPosition - 1].chapterIndex)}
           >
-            上一章
-          </Button>
+            Previous chapter
+                                </Button>
           <Button
             type="button"
             size="sm"
@@ -36,8 +36,8 @@ export default function BookAnalysisChapterNavigator({
             disabled={!canGoNext}
             onClick={() => onSelectChapter(chapters[currentPosition + 1].chapterIndex)}
           >
-            下一章
-          </Button>
+            next chapter
+                                </Button>
         </div>
       </div>
 
@@ -58,7 +58,7 @@ export default function BookAnalysisChapterNavigator({
                 title={chapter.title}
               >
                 <div className="font-medium">{chapter.chapterIndex + 1}. {chapter.title}</div>
-                <div className="mt-0.5 text-[11px] text-muted-foreground">{chapter.charCount} 字</div>
+                <div className="mt-0.5 text-[11px] text-muted-foreground">{chapter.charCount} Character</div>
               </button>
             );
           })}

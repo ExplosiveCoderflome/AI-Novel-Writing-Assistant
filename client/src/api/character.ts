@@ -4,7 +4,7 @@ import type { BaseCharacter } from "@ai-novel/shared/types/novel";
 import { apiClient } from "./client";
 
 export interface CharacterGenerateConstraints {
-  storyFunction?: "主角" | "反派" | "导师" | "对照组" | "配角";
+  storyFunction?: "main character" | "Villain" | "tutor" | "control group" | "supporting role";
   externalGoal?: string;
   internalNeed?: string;
   coreFear?: string;
@@ -12,7 +12,7 @@ export interface CharacterGenerateConstraints {
   secret?: string;
   coreFlaw?: string;
   relationshipHooks?: string;
-  growthStage?: "起点" | "受挫" | "转折" | "觉醒" | "收束";
+  growthStage?: "starting point" | "frustrated" | "turning point" | "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know." | "Error 500 (Server Error)!!1500.That’s an error.There was an error. Please try again later.That’s all we know.";
   toneStyle?: string;
 }
 

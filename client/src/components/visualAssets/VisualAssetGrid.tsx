@@ -53,7 +53,7 @@ export function VisualAssetGrid({ items, selectedIds, selectionMode, onSelect, o
                 {isSelected ? (
                   <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span className="sr-only">已选择</span>
+                    <span className="sr-only">Selected</span>
                   </span>
                 ) : null}
               </div>
