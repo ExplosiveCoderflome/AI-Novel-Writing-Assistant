@@ -1,5 +1,3 @@
-import i18next from "i18next";
-const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BookAnalysisCharacter } from "@ai-novel/shared/types/bookAnalysisCharacter";
@@ -22,11 +20,11 @@ import { AppDialogContent, Dialog } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 
 const IMAGE_STATUS_TEXT: Record<string, string> = {
-  queued: i18next.t("tasks.filterStatusQueued"),
-  running: i18next.t("dict.gen_1ae3a984"),
-  succeeded: i18next.t("dict.gen_b6c4a445"),
-  failed: i18next.t("dict.gen_7f7de8a2"),
-  cancelled: i18next.t("tasks.filterStatusCancelled"),
+  queued: "排队中",
+  running: "生成中",
+  succeeded: "生成成功",
+  failed: "生成失败",
+  cancelled: "已取消",
 };
 
 interface BookAnalysisCharacterImagePanelProps {
@@ -94,7 +92,7 @@ export default function BookAnalysisCharacterImagePanel({
     onSuccess: async (response) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.baseCharacters.all });
       setPromoteOpen(false);
-      toast.success(response.data?.baseCharacter.name ? `已加入角色库：${response.data.baseCharacter.name}` : i18next.t("dict.gen_846f92e4"));
+      toast.success(response.data?.baseCharacter.name ? `已加入角色库：${response.data.baseCharacter.name}` : "已加入角色库。");
     },
   });
 
@@ -104,7 +102,7 @@ export default function BookAnalysisCharacterImagePanel({
       generate: async (overrides) => {
         const response = await generateBookAnalysisCharacterImage(analysisId, character.id, {
           count: 2,
-          stylePreset: i18next.t("dict.gen_13e2f7b7"),
+          stylePreset: "写实角色设定图",
           overrides,
         });
         if (response.data?.id) {
@@ -118,60 +116,70 @@ export default function BookAnalysisCharacterImagePanel({
   const activeTask = taskQuery.data?.data;
 
   return (
-    <div className="mt-3 space-y-3 rounded-md border bg-muted/10 p-3">
+    <div className="mt-5 space-y-4 border-t border-border/35 pt-4">
       <ImageGenerationConfirmDialog {...flow.dialogProps} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{i18next.t("dict.gen_6da70687")}</span>
-          <Badge variant="outline">{i18next.t("dict.gen_f10a01b8")}</Badge>
-          {primaryAsset ? <Badge variant="secondary">{i18next.t("dict.gen_71c474b0")}</Badge> : null}
+          <span className="font-medium">形象图</span>
+          <span className="text-xs text-muted-foreground">{assets.length} 张</span>
+          {primaryAsset ? <Badge variant="secondary" className="border-0 font-normal">已设主图</Badge> : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={startGenerate} disabled={disabled || Boolean(activeTaskId)}>{i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.qi098y")}</Button>
-          <Button size="sm" variant="outline" onClick={() => setPromoteOpen(true)} disabled={disabled || promoteMutation.isPending}>{i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.l8xpv6")}</Button>
+          <Button size="sm" variant="secondary" className="rounded-full" onClick={startGenerate} disabled={disabled || Boolean(activeTaskId)}>
+            生成形象图
+          </Button>
+          <Button size="sm" variant="ghost" className="rounded-full" onClick={() => setPromoteOpen(true)} disabled={disabled || promoteMutation.isPending}>
+            加入角色库
+          </Button>
         </div>
       </div>
 
       {activeTask ? (
-        <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">
+        <div className="rounded-xl bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           当前任务：{IMAGE_STATUS_TEXT[activeTask.status] ?? activeTask.status}
           {activeTask.error ? <span className="ml-2 text-destructive">{activeTask.error}</span> : null}
         </div>
       ) : null}
 
-      {assetsQuery.isLoading ? <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_c5cd0e81")}</div> : null}
+      {assetsQuery.isLoading ? <div className="text-xs text-muted-foreground">正在读取形象图。</div> : null}
       {!assetsQuery.isLoading && assets.length === 0 ? (
-        <div className="text-xs text-muted-foreground">{i18next.t("dict.gen_6936f5f5")}</div>
+        <div className="text-xs text-muted-foreground">可生成一张角色形象图，再决定是否加入角色库。</div>
       ) : null}
       {assets.length > 0 ? (
         <div className="grid gap-2 sm:grid-cols-2">
           {assets.map((asset) => (
-            <div key={asset.id} className="space-y-2 rounded-md border bg-background p-2">
+            <div key={asset.id} className="space-y-2 overflow-hidden rounded-xl bg-muted/20 p-2">
               <img
                 src={resolveImageAssetUrl(asset.url)}
                 alt={`${character.name}-形象图`}
-                className="aspect-square w-full rounded-md object-cover"
+                className="aspect-square w-full rounded-lg object-cover"
                 loading="lazy"
               />
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">{i18next.t("dict.gen_5237e99c")}</span>
+                <span className="text-xs text-muted-foreground">{asset.isPrimary ? "主图" : "候选图"}</span>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
+                    className="rounded-full"
                     onClick={() => setPrimaryMutation.mutate(asset.id)}
                     disabled={asset.isPrimary || setPrimaryMutation.isPending}
-                  >{i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.kun35")}</Button>
+                  >
+                    设主图
+                  </Button>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="ghost"
+                    className="rounded-full text-muted-foreground hover:text-destructive"
                     onClick={() => {
-                      if (window.confirm(i18next.t("dict.gen_99345c1b"))) {
+                      if (window.confirm("确认删除这张形象图？")) {
                         deleteMutation.mutate(asset);
                       }
                     }}
                     disabled={deleteMutation.isPending && deleteMutation.variables?.id === asset.id}
-                  >{i18next.t("dict.gen_2f4aaddd")}</Button>
+                  >
+                    删除
+                  </Button>
                 </div>
               </div>
             </div>
@@ -185,25 +193,29 @@ export default function BookAnalysisCharacterImagePanel({
           bodyClassName="space-y-3"
           footer={(
             <>
-              <Button type="button" variant="outline" onClick={() => setPromoteOpen(false)} disabled={promoteMutation.isPending}>{i18next.t("common.cancel")}</Button>
+              <Button type="button" variant="outline" onClick={() => setPromoteOpen(false)} disabled={promoteMutation.isPending}>
+                取消
+              </Button>
               <Button type="button" onClick={() => promoteMutation.mutate()} disabled={promoteMutation.isPending}>
-                {promoteMutation.isPending ? i18next.t("dict.gen_49ac5fc6") : i18next.t("dict.gen_a7b4e2cf")}
+                {promoteMutation.isPending ? "加入中..." : "确认加入"}
               </Button>
             </>
           )}
         >
-          <div className="text-sm text-muted-foreground">{i18next.t("bookAnalysis.bookAnalysisCharacterImagePanel.hijc67")}</div>
+          <div className="text-sm text-muted-foreground">
+            会把该角色的人物字段复制到角色库；拆书证据和场景记录仍保留在拆书档案中。
+          </div>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
               checked={includePrimaryImage}
               onChange={(event) => setIncludePrimaryImage(event.target.checked)}
             />
-            <span>{i18next.t("dict.gen_6014e7fe")}</span>
+            <span>同时把主图加入角色库</span>
           </label>
           {promoteMutation.error ? (
             <div className="text-sm text-destructive">
-              {promoteMutation.error instanceof Error ? promoteMutation.error.message : i18next.t("dict.gen_ebb6f767")}
+              {promoteMutation.error instanceof Error ? promoteMutation.error.message : "加入角色库失败。"}
             </div>
           ) : null}
         </AppDialogContent>
