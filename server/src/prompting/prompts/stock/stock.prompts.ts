@@ -10,6 +10,7 @@ export interface StockAllocationPromptInput {
   positionsJson: string;
   watchlistJson?: string;
   marketIntelContext: string;
+  knowledgeGraphContext?: string;                       // DB / 动态知识图谱上下文
   // === 记忆治理与 P&L 输入 ===
   generationMode?: "FRESH" | "REPLAN" | "ADJUST";       // 生成模式
   currentTotalPnLContext?: string;                       // HOT: 当前实时 P&L（已格式化）
@@ -42,9 +43,18 @@ export const stockAllocationPrompt: PromptAsset<StockAllocationPromptInput, Dail
 
     return [
       new SystemMessage(
-        `你是一位顶级华尔街量化投资经理与资深美股策略师。你的任务是根据用户的美股持仓、可用资金/预算、风险偏好以及隔夜美股宏观新闻，推演并给出每日仓位调整策略建议 (Daily Allocation Blueprint)。
+        `你是一位顶级华尔街量化投资经理与资深美股策略师。你的任务是根据用户的美股持仓、可用资金/预算、风险偏好以及隔夜美股宏观新闻，**沿着图谱优先推演链条 (Graph-First Reasoning Chain)** 推导并给出每日仓位调整策略建议 (Daily Allocation Blueprint)。
 
 ${modeInstruction}
+
+【★ 强制三阶图谱优先推理链 (Graph-First Reasoning Workflow)】
+你必须严格按照以下逻辑步骤进行推演，并在输出中体现这一推导逻辑：
+1. **第一阶：实体节点提取 (Nodes Extraction)**
+   从所有输入信息（持仓、自选池、隔夜新闻与宏观）中，提取关键金融实体节点（包含 ROOT_STOCK 主股票、SUPPLIER 供应商、CLIENT 大单客户、COMPETITOR 同业竞争对手、MACRO 宏观因子、CONCEPT 概念板块）。
+2. **第二阶：关系边推导与意义定义 (Edges Derivation & Relation Definition)**
+   推导节点间的定向传导边 (source ➔ target)，并【显式定义这条边所代表的具体业务/经济意义】(relation，如“CoWoS晶圆封装产能制约”、“美联储降息对长久期资产估值提振”) 及影响方向 (impact: POSITIVE / NEGATIVE / NEUTRAL)。
+3. **第三阶：图谱影响传导与调仓决策 (Impact Propagation ➔ Action)**
+   沿着推导出的关系边网络，计算事件对各目标股票价格与风险的影响传导，进而得出最终的买卖调仓指令 (actions: BUY/SELL/TRIM/HOLD、建议股数、目标价、止损价与预期 P&L)。
 
 【重要安全原则与写作要求】
 1. 本指令仅为投资研究与调仓建议 (Advisory Only)，绝不会自动下单。
@@ -57,8 +67,7 @@ ${modeInstruction}
    - existingPositionGuidance：【指南一：已有仓位的增减】
    - newPositionGuidance：【指南二：新仓位的建立】
    - retrospectiveGuidance：【指南三：昨日指南复盘与沉淀优化】— 必须包含具体盈亏归因数字。
-8. 【每股真实知识图谱 (Knowledge Graph Triples)】：严禁硬编码假节点。
-9. 策略解读 (narrativeReport)：采用清晰、严谨、条理分明且极具实操价值的专业金融研报结构。`
+8. 策略解读 (narrativeReport)：采用清晰、严谨、条理分明且极具实操价值的专业金融研报结构。`
       ),
       new HumanMessage(
         `【日期】：${input.strategyDate}
@@ -71,6 +80,10 @@ ${input.positionsJson}
 
 【★ 用户 MooMoo 自选关注股票池 (优先推荐池)】：
 ${input.watchlistJson || "暂无自选"}
+
+${input.knowledgeGraphContext ? `【🕸 既有股票知识图谱积累 (DB 存量)】：
+${input.knowledgeGraphContext}
+` : ""}
 ${input.positionChangesContext ? `
 【⚡ 持仓变化记录（REPLAN 触发原因）】：
 ${input.positionChangesContext}
@@ -87,7 +100,7 @@ ${input.warmStrategySummaries}
 【美股隔夜宏观与持仓/自选个股情报】：
 ${input.marketIntelContext}
 
-请输出包含【指南一：已有仓位增减】、【指南二：新仓位建立】与【指南三：昨日指南复盘沉淀】的今日调仓建议清单、各股票知识图谱实体与三元组边、风控警报与专业机构研报。
+请按照【实体提取 ➔ 关系边与意义推导 ➔ 调仓决策】的三阶图谱推理链，输出包含【指南一：已有仓位增减】、【指南二：新仓位建立】与【指南三：昨日指南复盘沉淀】的今日调仓建议清单、各股票知识图谱实体与三元组边、风控警报与专业机构研报。
 【P&L 输出要求】：每条 action 必须包含 targetPrice, stopLossPrice, projectedPnL, projectedPnLPct, timeHorizon。`
       ),
     ];

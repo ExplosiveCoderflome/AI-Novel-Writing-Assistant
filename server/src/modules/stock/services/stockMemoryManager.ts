@@ -449,6 +449,10 @@ export function computeRetroPnL(
 // 6. 记忆压缩：将旧指南浓缩为 ~150 tokens 摘要
 // ==================================================================
 
+// ==================================================================
+// 6. 记忆压缩：将旧指南总结为高效文本摘要
+// ==================================================================
+
 export function compressStrategyToSummary(strategy: {
   strategyDate: string;
   mode?: string;
@@ -461,23 +465,25 @@ export function compressStrategyToSummary(strategy: {
     actions = JSON.parse(strategy.actionsJson);
   } catch {}
 
-  const actionSummary = actions
-    .filter((a) => a.action !== "HOLD")
-    .slice(0, 4)
-    .map((a) => {
-      const pnl = a.projectedPnL ? ` 预期${a.projectedPnL >= 0 ? "+" : ""}$${a.projectedPnL.toFixed(0)}` : "";
-      return `${a.action} ${a.symbol} ${a.suggestedShares}股${pnl}`;
-    })
-    .join(", ");
+  const activeActions = actions.filter((a) => a.action !== "HOLD");
+  const actionSummary = activeActions.length > 0
+    ? activeActions
+        .map((a) => {
+          const pnl = a.projectedPnL ? ` 预期${a.projectedPnL >= 0 ? "+" : ""}$${a.projectedPnL.toFixed(0)}` : "";
+          const target = a.targetPrice ? ` 目标$${a.targetPrice}` : "";
+          return `${a.action} ${a.symbol} ${a.suggestedShares}股${target}${pnl}`;
+        })
+        .join("; ")
+    : "全仓观望/无调仓建议";
 
   const scoreStr = strategy.retroPnLScore != null ? `复盘得分${strategy.retroPnLScore.toFixed(0)}分` : "待复盘";
   const modeStr = strategy.mode ?? "FRESH";
 
-  return `[${strategy.strategyDate}|${modeStr}|${scoreStr}] ${actionSummary || "无操盘建议"}`;
+  return `[${strategy.strategyDate}|${modeStr}|${scoreStr}] ${actionSummary}`;
 }
 
 // ==================================================================
-// 7. 记忆组装：4 层 token 预算 context
+// 7. 记忆组装：多维动态 Context 组装
 // ==================================================================
 
 export async function assembleContextBudget(
@@ -502,15 +508,15 @@ export async function assembleContextBudget(
   const mode = options?.generationMode ?? "FRESH";
   const totalPnL = computeTotalPnL(positions, cashBalance, quotesMap);
 
-  // === HOT MEMORY (~500 tokens) ===
+  // === HOT MEMORY ===
   const hotContext = formatTotalPnLContext(totalPnL) +
     `\n可用资金: 现金 $${cashBalance.toFixed(2)} + 计划预算 $${customBudget.toFixed(2)} = 合计 $${(cashBalance + customBudget).toFixed(2)}`;
 
-  // === WARM MEMORY (~1200 tokens) — 最近 3 条指南压缩摘要 + KG ===
+  // === WARM MEMORY — 最近历史指南记录 + 知识图谱 ===
   const recentStrategies = await (prisma as any).stockDailyStrategy.findMany({
     where: { portfolioId, isArchived: false },
     orderBy: { createdAt: "desc" },
-    take: 3,
+    take: 5,
     select: {
       strategyDate: true,
       mode: true,
@@ -525,15 +531,15 @@ export async function assembleContextBudget(
     s.compressedSummary ?? compressStrategyToSummary(s)
   );
 
-  // KG 摘要：每只股票最多 2 条新闻 + 1 条关系
+  // 知识图谱催化剂与关系链
   const kgSummaries: string[] = [];
-  for (const pos of positions.slice(0, 6)) {
+  for (const pos of positions) {
     const kg = await stockKnowledgeGraphStoreService.getKnowledgeGraph(portfolioId, pos.symbol);
     if (kg) {
-      const newsSnippet = (kg.newsCatalysts ?? []).slice(0, 2).join(" | ");
-      const edgeSnippet = (kg.edges ?? []).slice(0, 1).map((e: any) => `${e.source}→${e.target}: ${e.relation}`).join("");
+      const newsSnippet = (kg.newsCatalysts ?? []).join(" | ");
+      const edgeSnippet = (kg.edges ?? []).map((e: any) => `${e.source}→${e.target}: ${e.relation}`).join("; ");
       if (newsSnippet || edgeSnippet) {
-        kgSummaries.push(`${pos.symbol}: ${newsSnippet}${edgeSnippet ? " | " + edgeSnippet : ""}`);
+        kgSummaries.push(`${pos.symbol}: ${newsSnippet}${edgeSnippet ? " | 关系链: " + edgeSnippet : ""}`);
       }
     }
   }
@@ -548,21 +554,20 @@ export async function assembleContextBudget(
     const retro = options.retroPnL;
     warmContext += `\n\n上次指南复盘 (${retro.strategyDate}, 得分${retro.accuracyScore}/100, 跟单率${(retro.executionMatchRate * 100).toFixed(0)}%):`;
     if (retro.followedActions.length > 0) {
-      warmContext += `\n  已执行: ${retro.followedActions.slice(0, 3).map((a) => `${a.action} ${a.symbol} 实现P&L${a.realizedPnL >= 0 ? "+" : ""}$${a.realizedPnL.toFixed(0)}`).join(", ")}`;
+      warmContext += `\n  已执行: ${retro.followedActions.map((a) => `${a.action} ${a.symbol} 实现P&L${a.realizedPnL >= 0 ? "+" : ""}$${a.realizedPnL.toFixed(0)}`).join(", ")}`;
     }
     if (retro.missedActions.length > 0) {
-      warmContext += `\n  未执行: ${retro.missedActions.slice(0, 3).map((a) => `${a.action} ${a.symbol} 机会成本${a.opportunityCost >= 0 ? "+" : ""}$${a.opportunityCost.toFixed(0)}`).join(", ")}`;
+      warmContext += `\n  未执行: ${retro.missedActions.map((a) => `${a.action} ${a.symbol} 机会成本${a.opportunityCost >= 0 ? "+" : ""}$${a.opportunityCost.toFixed(0)}`).join(", ")}`;
     }
     if (retro.avoidedLoss > 0) {
       warmContext += `\n  避免损失: +$${retro.avoidedLoss.toFixed(0)}`;
     }
   }
 
-  // === COLD MEMORY (~800 tokens) — 纪律账本 + P&L 统计 ===
+  // === COLD MEMORY — 交易纪律账本 + P&L 统计 ===
   const disciplines = await (prisma as any).stockTradingDiscipline.findMany({
     where: { portfolioId, isDeprecated: false },
     orderBy: [{ isPinned: "desc" }, { confidence: "desc" }, { reinforceCount: "desc" }],
-    take: 15,
   });
 
   let coldContext = `【COLD MEMORY 交易纪律账本 (${disciplines.length} 条)】`;
@@ -592,7 +597,7 @@ export async function assembleContextBudget(
     coldContext += `\n\n累积指南统计 (近${allStrategies.length}次): 平均质量得分${avgScore.toFixed(0)}/100`;
   }
 
-  // === FRESH CONTEXT (~1000 tokens) — 今日新鲜数据 ===
+  // === FRESH CONTEXT — 今日新鲜数据 ===
   let freshContext = `【当日生成模式: ${mode}】`;
 
   if (mode === "REPLAN" && options?.driftResult) {
@@ -607,8 +612,6 @@ export async function assembleContextBudget(
   }
 
   const fullContextText = [hotContext, warmContext, coldContext, freshContext].join("\n\n");
-
-  // 粗略 token 估算（中文 1 token ≈ 1.5 字符，英文 1 token ≈ 4 字符）
   const totalTokenEstimate = Math.round(fullContextText.length / 2);
 
   return {
@@ -622,11 +625,35 @@ export async function assembleContextBudget(
 }
 
 // ==================================================================
-// 8. 纪律蒸馏
+// 8. 纪律蒸馏与同类项合并 (Discipline Deduplication & Consolidation)
 // ==================================================================
 
 /**
- * 从复盘结果蒸馏新的交易纪律，并更新已有纪律的强化计数
+ * 规范化判断两条交易纪律是否属于同类法则
+ */
+function isSimilarDiscipline(d1Text: string, d2Text: string, symbol1?: string | null, symbol2?: string | null): boolean {
+  if (symbol1 && symbol2 && symbol1.toUpperCase() !== symbol2.toUpperCase()) {
+    return false;
+  }
+  // 提取两段文本的核心关键词（去除标点与助词）
+  const clean1 = d1Text.replace(/[^\w\u4e00-\u9fa5]/g, "").toLowerCase();
+  const clean2 = d2Text.replace(/[^\w\u4e00-\u9fa5]/g, "").toLowerCase();
+
+  if (clean1.includes(clean2) || clean2.includes(clean1)) {
+    return true;
+  }
+
+  // 提取关键词交集比例
+  const words1 = Array.from(new Set(clean1.split("")));
+  const words2 = Array.from(new Set(clean2.split("")));
+  const intersection = words1.filter((w) => words2.includes(w));
+  const overlapRatio = intersection.length / Math.min(words1.length, words2.length);
+
+  return overlapRatio > 0.75;
+}
+
+/**
+ * 从复盘结果蒸馏新的交易纪律，并智能归并同类项更新强化计数
  */
 export async function distillDisciplineFromRetro(
   portfolioId: string,
@@ -636,36 +663,36 @@ export async function distillDisciplineFromRetro(
   const today = new Date().toISOString().split("T")[0];
 
   for (const disciplineText of retro.distilledDisciplines) {
-    if (!disciplineText || disciplineText.length < 10) continue;
+    if (!disciplineText || disciplineText.length < 5) continue;
 
-    // 查找相似纪律（基于文本前 20 字符）
-    const prefix = disciplineText.substring(0, 20);
-    const existing = await (prisma as any).stockTradingDiscipline.findFirst({
-      where: {
-        portfolioId,
-        disciplineText: { contains: prefix },
-        isDeprecated: false,
-      },
+    // 提取相关股票 Symbol
+    const symbolMatch = disciplineText.match(/^([A-Z]{2,5})\s/);
+    const relatedSymbol = symbolMatch ? symbolMatch[1].toUpperCase() : null;
+
+    // 获取当前库中存活的全部纪律，做规范化语义/关键词重合度比对（代替原先死板的前20字截取）
+    const activeDisciplines = await (prisma as any).stockTradingDiscipline.findMany({
+      where: { portfolioId, isDeprecated: false },
     });
 
-    if (existing) {
-      // 强化已有纪律
-      const newConfidence = Math.min(1.0, existing.confidence + 0.1);
+    const existingMatch = activeDisciplines.find((d: any) =>
+      isSimilarDiscipline(d.disciplineText, disciplineText, d.relatedSymbol, relatedSymbol)
+    );
+
+    if (existingMatch) {
+      // 归并强化已有纪律
+      const newConfidence = Math.min(1.0, existingMatch.confidence + 0.1);
       await (prisma as any).stockTradingDiscipline.update({
-        where: { id: existing.id },
+        where: { id: existingMatch.id },
         data: {
           reinforceCount: { increment: 1 },
           confidence: newConfidence,
-          pnlEvidence: existing.pnlEvidence + (retro.avoidedLoss - Math.abs(retro.totalRealizedPnL < 0 ? retro.totalRealizedPnL : 0)),
+          pnlEvidence: existingMatch.pnlEvidence + (retro.avoidedLoss - Math.abs(retro.totalRealizedPnL < 0 ? retro.totalRealizedPnL : 0)),
           lastReinforced: today,
         },
       });
     } else {
       // 创建新纪律
       const pnlEvidence = retro.avoidedLoss > 0 ? retro.avoidedLoss : retro.totalRealizedPnL;
-      // 从文本中提取相关股票
-      const symbolMatch = disciplineText.match(/^([A-Z]{2,5})\s/);
-      const relatedSymbol = symbolMatch ? symbolMatch[1] : null;
 
       await (prisma as any).stockTradingDiscipline.create({
         data: {
@@ -684,20 +711,16 @@ export async function distillDisciplineFromRetro(
     }
   }
 
-  // 去重/合并：超过 20 条纪律时，将低置信度重复纪律标记为过时
-  const allDisciplines = await (prisma as any).stockTradingDiscipline.findMany({
-    where: { portfolioId, isDeprecated: false, isPinned: false },
-    orderBy: { confidence: "asc" },
+  // 后台维护：归档过度沉淀且置信度低过 0.2 的陈旧过时纪律
+  const deprecatedThreshold = await (prisma as any).stockTradingDiscipline.findMany({
+    where: { portfolioId, isDeprecated: false, isPinned: false, confidence: { lt: 0.2 } },
   });
 
-  if (allDisciplines.length > 20) {
-    const toDeprecate = allDisciplines.slice(0, allDisciplines.length - 20);
-    for (const d of toDeprecate) {
-      await (prisma as any).stockTradingDiscipline.update({
-        where: { id: d.id },
-        data: { isDeprecated: true },
-      });
-    }
+  for (const d of deprecatedThreshold) {
+    await (prisma as any).stockTradingDiscipline.update({
+      where: { id: d.id },
+      data: { isDeprecated: true },
+    });
   }
 }
 

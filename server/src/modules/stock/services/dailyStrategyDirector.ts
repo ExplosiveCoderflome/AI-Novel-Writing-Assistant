@@ -220,7 +220,7 @@ export class DailyStrategyDirector {
 
     const marketIntelContext = `【OpenD 真实即时行情】(买卖建议估价必须以此价格为准)：\n${quotesTextList}\n\n- 宏观分析: 美股高位震荡，算力芯片与科技龙头表现坚挺。\n- 【严禁虚构价格指令】：调仓建议 actions 中的 estimatedPrice 必须与上述真实即时现价一致！`;
 
-    // STEP 8: 调用 AI 生成
+    // STEP 8: 调用 AI 生成 (图谱优先推理链驱动)
     const runResult = await runStructuredPrompt({
       asset: stockAllocationPrompt,
       promptInput: {
@@ -231,6 +231,7 @@ export class DailyStrategyDirector {
         positionsJson: positionsFormatted,
         watchlistJson: watchlistFormatted,
         marketIntelContext,
+        knowledgeGraphContext: memoryContext.warmContext,
         generationMode,
         currentTotalPnLContext: formatTotalPnLContext(totalPnL),
         positionChangesContext: driftResult.hasChanges ? driftResult.summary + "\n" + driftResult.changes.map((c) => `  ${c.type} ${c.symbol}: ${c.oldShares ?? 0}→${c.newShares ?? 0}股`).join("\n") : undefined,
