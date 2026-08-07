@@ -117,6 +117,20 @@ test("book analysis character profiles prioritize reading over maintenance contr
   assert.doesNotMatch(panel, /rounded-md bg-muted\/30 p-2/);
 });
 
+test("book analysis character appearance reads as a visual timeline", () => {
+  const appearance = read("src/pages/bookAnalysis/components/BookAnalysisCharacterAppearancePanel.tsx");
+  const images = read("src/pages/bookAnalysis/components/BookAnalysisCharacterImagePanel.tsx");
+
+  assert.match(appearance, /当前形象/);
+  assert.match(appearance, /aspect-\[4\/3\]/);
+  assert.match(appearance, /aria-pressed=\{targetPercent === value\}/);
+  assert.match(appearance, /章节形象记录/);
+  assert.match(appearance, /border-l border-primary\/20/);
+  assert.doesNotMatch(appearance, /type="range"/);
+  assert.match(images, /border-t border-border\/35/);
+  assert.match(images, /rounded-xl bg-muted\/20/);
+});
+
 test("book analysis stays on semantic tokens without decorative gradients", () => {
   const sources = listSourceFiles(bookAnalysisRoot).map((path) => readFileSync(path, "utf8")).join("\n");
   assert.doesNotMatch(sources, /#[0-9a-f]{3,8}/i);

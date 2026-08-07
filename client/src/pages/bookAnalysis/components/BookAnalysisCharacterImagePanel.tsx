@@ -116,26 +116,26 @@ export default function BookAnalysisCharacterImagePanel({
   const activeTask = taskQuery.data?.data;
 
   return (
-    <div className="mt-3 space-y-3 rounded-md border bg-muted/10 p-3">
+    <div className="mt-5 space-y-4 border-t border-border/35 pt-4">
       <ImageGenerationConfirmDialog {...flow.dialogProps} />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">形象图</span>
-          <Badge variant="outline">{assets.length} 张</Badge>
-          {primaryAsset ? <Badge variant="secondary">已设主图</Badge> : null}
+          <span className="text-xs text-muted-foreground">{assets.length} 张</span>
+          {primaryAsset ? <Badge variant="secondary" className="border-0 font-normal">已设主图</Badge> : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={startGenerate} disabled={disabled || Boolean(activeTaskId)}>
+          <Button size="sm" variant="secondary" className="rounded-full" onClick={startGenerate} disabled={disabled || Boolean(activeTaskId)}>
             生成形象图
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setPromoteOpen(true)} disabled={disabled || promoteMutation.isPending}>
+          <Button size="sm" variant="ghost" className="rounded-full" onClick={() => setPromoteOpen(true)} disabled={disabled || promoteMutation.isPending}>
             加入角色库
           </Button>
         </div>
       </div>
 
       {activeTask ? (
-        <div className="rounded-md border bg-background p-2 text-xs text-muted-foreground">
+        <div className="rounded-xl bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           当前任务：{IMAGE_STATUS_TEXT[activeTask.status] ?? activeTask.status}
           {activeTask.error ? <span className="ml-2 text-destructive">{activeTask.error}</span> : null}
         </div>
@@ -148,11 +148,11 @@ export default function BookAnalysisCharacterImagePanel({
       {assets.length > 0 ? (
         <div className="grid gap-2 sm:grid-cols-2">
           {assets.map((asset) => (
-            <div key={asset.id} className="space-y-2 rounded-md border bg-background p-2">
+            <div key={asset.id} className="space-y-2 overflow-hidden rounded-xl bg-muted/20 p-2">
               <img
                 src={resolveImageAssetUrl(asset.url)}
                 alt={`${character.name}-形象图`}
-                className="aspect-square w-full rounded-md object-cover"
+                className="aspect-square w-full rounded-lg object-cover"
                 loading="lazy"
               />
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -160,7 +160,8 @@ export default function BookAnalysisCharacterImagePanel({
                 <div className="flex flex-wrap gap-2">
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
+                    className="rounded-full"
                     onClick={() => setPrimaryMutation.mutate(asset.id)}
                     disabled={asset.isPrimary || setPrimaryMutation.isPending}
                   >
@@ -168,7 +169,8 @@ export default function BookAnalysisCharacterImagePanel({
                   </Button>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="ghost"
+                    className="rounded-full text-muted-foreground hover:text-destructive"
                     onClick={() => {
                       if (window.confirm("确认删除这张形象图？")) {
                         deleteMutation.mutate(asset);
