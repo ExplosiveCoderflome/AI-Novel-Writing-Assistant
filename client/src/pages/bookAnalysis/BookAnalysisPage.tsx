@@ -181,7 +181,7 @@ export default function BookAnalysisPage() {
         />
       ) : null}
       <WorkspaceHeader
-        className="rounded-[24px] border-b-0 bg-gradient-to-br from-card via-card to-muted/30 px-5 py-6 shadow-[0_18px_55px_rgba(15,23,42,0.05)] sm:px-7"
+        className="rounded-[24px] border-b-0 bg-card px-5 py-6 shadow-[0_18px_55px_rgba(15,23,42,0.05)] sm:px-7"
         icon={BookOpenText}
         context={workspace.analysisMode === "diagnosis" ? "稿件诊断 · 原文与结果工作台" : "参考拆书 · 原文与结果工作台"}
         title={workspace.selectedAnalysis?.title ?? "拆书分析"}

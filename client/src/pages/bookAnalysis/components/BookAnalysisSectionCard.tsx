@@ -98,7 +98,7 @@ export default function BookAnalysisSectionCard(props: BookAnalysisSectionCardPr
           <div className="flex items-center gap-2">
             <CardTitle>{section.title}</CardTitle>
             <Badge variant="secondary" className="border-0 bg-muted/65 font-normal">
-              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${section.status === "succeeded" ? "bg-emerald-500" : "bg-muted-foreground/50"}`} />
+              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${section.status === "succeeded" ? "bg-success" : "bg-muted-foreground/50"}`} />
               {unselectedSection ? "本次未选择" : formatStatus(section.status)}
             </Badge>
             {draft.frozen && !unselectedSection ? <Badge variant="secondary" className="border-0 font-normal">已冻结</Badge> : null}

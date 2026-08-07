@@ -110,7 +110,7 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
                     <Badge variant="secondary" className="border-0 bg-muted px-1.5 text-[10px] font-normal">已发布</Badge>
                   )}
                   <Badge variant="secondary" className="border-0 bg-transparent px-1 text-[10px] font-normal text-muted-foreground">
-                    <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${item.status === "succeeded" ? "bg-emerald-500" : item.status === "failed" ? "bg-destructive" : "bg-muted-foreground/50"}`} />
+                    <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${item.status === "succeeded" ? "bg-success" : item.status === "failed" ? "bg-destructive" : "bg-muted-foreground/50"}`} />
                     {formatStatus(item.status)}
                   </Badge>
                 </div>
