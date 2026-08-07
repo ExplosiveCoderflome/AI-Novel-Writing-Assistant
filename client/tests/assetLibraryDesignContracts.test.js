@@ -29,6 +29,7 @@ const worldVisualization = readClientFile("src/pages/worlds/components/WorldVisu
 const worldGraphCanvas = readClientFile("src/pages/worlds/components/visualization/WorldGraphCanvas.tsx");
 const worldGraphElements = readClientFile("src/pages/worlds/components/visualization/WorldGraphElements.tsx");
 const worldGraphLayout = readClientFile("src/pages/worlds/components/visualization/worldGraphLayout.ts");
+const worldTimeline = readClientFile("src/pages/worlds/components/visualization/WorldTimelinePanel.tsx");
 const genrePage = readClientFile("src/pages/genres/GenreManagementPage.tsx");
 const genreTreeBrowser = readClientFile("src/pages/genres/components/GenreTreeBrowser.tsx");
 const storyModePage = readClientFile("src/pages/storyModes/StoryModeManagementPage.tsx");
@@ -133,6 +134,7 @@ test("world visualizations separate layout, canvas, and view controls", () => {
   assert.match(worldVisualization, /WorldGraphCanvas/);
   assert.match(worldVisualization, /势力图谱 ·/);
   assert.match(worldVisualization, /世界地图 ·/);
+  assert.match(worldVisualization, /WorldTimelinePanel/);
   assert.match(worldGraphCanvas, /ReactFlow/);
   assert.match(worldGraphCanvas, /WorldGraphNode/);
   assert.match(worldGraphCanvas, /WorldGraphEdge/);
@@ -155,10 +157,16 @@ test("world visualizations separate layout, canvas, and view controls", () => {
   assert.match(worldGraphLayout, /spreadAxis/);
   assert.match(worldGraphLayout, /seededRandom/);
   assert.match(worldGraphLayout, /getVisibleEdgeLabelIds/);
+  assert.match(worldTimeline, /横向世界时间线，可左右滚动/);
+  assert.match(worldTimeline, /gridTemplateColumns/);
+  assert.match(worldTimeline, /bottom-\[calc\(50%\+38px\)\]/);
+  assert.match(worldTimeline, /md:hidden/);
+  assert.match(worldTimeline, /FullscreenView/);
   assert.ok(worldVisualization.split("\n").length < 350);
   assert.ok(worldGraphCanvas.split("\n").length < 500);
   assert.ok(worldGraphElements.split("\n").length < 350);
   assert.ok(worldGraphLayout.split("\n").length < 500);
+  assert.ok(worldTimeline.split("\n").length < 250);
 });
 
 test("genre library uses a compact tree browser with a separate detail surface", () => {

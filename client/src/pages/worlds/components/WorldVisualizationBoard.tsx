@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SelectControl from "@/components/common/SelectControl";
 import WorldGraphCanvas from "./visualization/WorldGraphCanvas";
+import WorldTimelinePanel from "./visualization/WorldTimelinePanel";
 
 interface WorldVisualizationBoardProps {
   payload?: WorldVisualizationPayload;
@@ -184,18 +185,7 @@ export default function WorldVisualizationBoard({ payload }: WorldVisualizationB
       ) : null}
 
       {mode === "timeline" ? (
-        <div className="rounded-3xl border border-border/35 bg-card/70 p-5">
-          <div className="mb-3 font-medium">世界时间线 · {filteredTimeline.length} 条</div>
-          <div className="space-y-2">
-            {filteredTimeline.map((item, index) => (
-              <div key={`${item.year}-${item.event}-${index}`} className="flex gap-4 rounded-2xl bg-muted/20 p-4">
-                <div className="w-24 shrink-0 text-xs font-semibold text-primary">{item.year}</div>
-                <div className="text-sm leading-6">{item.event}</div>
-              </div>
-            ))}
-            {filteredTimeline.length === 0 ? <div className="text-sm text-muted-foreground">暂无匹配内容</div> : null}
-          </div>
-        </div>
+        <WorldTimelinePanel items={filteredTimeline} />
       ) : null}
     </section>
   );
