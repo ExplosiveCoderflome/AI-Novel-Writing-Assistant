@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Minus, Plus, RotateCcw } from "lucide-react";
-import FullscreenView from "@/components/common/FullscreenView";
+import { Maximize2, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ROUTE_STYLES,
@@ -33,7 +32,6 @@ export default function WorldGraphCanvas({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [lastPoint, setLastPoint] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement | null>(null);
   const width = layout === "map" ? 1040 : 960;
@@ -72,18 +70,14 @@ export default function WorldGraphCanvas({
   };
 
   return (
-    <FullscreenView
-      title={title}
-      description={layout === "map" ? "地点按相对方位铺开，地点、名称和路线文字会自动避让。" : "节点按势力类型分散排布，势力名称和关系文字会自动避让。"}
-      fullscreen={isFullscreen}
-      onFullscreenChange={setIsFullscreen}
-      toggleLabel="全屏查看图谱"
-      exitLabel="退出图谱全屏"
-      className="rounded-3xl border-border/35 shadow-none"
-      headerClassName="bg-none px-5 py-4"
-      bodyClassName="flex min-h-0 flex-col"
-      fullscreenBodyClassName="h-full"
-      actions={(
+    <section className="overflow-hidden rounded-3xl border border-border/35 bg-card/70">
+      <div className="flex flex-col gap-3 border-b border-border/30 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="font-medium">{title}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            {layout === "map" ? "地点会按相对方位铺开，虚线连接名称与地标。" : "节点按势力类型分散排布，关系文字会自动避让名称。"}
+          </div>
+        </div>
         <div className="flex items-center gap-1 rounded-full bg-muted/35 p-1">
           <Button
             type="button"
@@ -107,15 +101,14 @@ export default function WorldGraphCanvas({
             <Plus className="h-4 w-4" />
           </Button>
           <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={resetView} aria-label="重置图谱视图">
-            <RotateCcw className="h-4 w-4" />
+            <Maximize2 className="h-4 w-4" />
           </Button>
         </div>
-      )}
-    >
+      </div>
 
       <div
         ref={containerRef}
-        className={`min-h-0 flex-1 overflow-hidden bg-muted/[0.12] ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+        className={`overflow-hidden bg-muted/[0.12] ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={() => setDragging(false)}
@@ -123,10 +116,7 @@ export default function WorldGraphCanvas({
         role="img"
         aria-label={title}
       >
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className={isFullscreen ? "h-full min-h-[520px] w-full" : layout === "map" ? "h-[500px] w-full" : "h-[450px] w-full"}
-        >
+        <svg viewBox={`0 0 ${width} ${height}`} className={layout === "map" ? "h-[500px] w-full" : "h-[450px] w-full"}>
           {layout === "map" ? (
             <g>
               <defs>
@@ -243,6 +233,6 @@ export default function WorldGraphCanvas({
         </svg>
       </div>
       <div className="border-t border-border/25 px-5 py-3 text-xs text-muted-foreground">拖动画布移动视图，使用右上角按钮缩放或重置。</div>
-    </FullscreenView>
+    </section>
   );
 }

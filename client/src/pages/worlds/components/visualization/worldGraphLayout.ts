@@ -198,48 +198,6 @@ export function buildMapLayout(nodes: GraphNode[], width: number, height: number
       y: Math.max(48, Math.min(height - 48, y)),
     });
   });
-  const minimumDistance = nodes.length <= 8 ? 108 : nodes.length <= 14 ? 88 : 72;
-  for (let iteration = 0; iteration < 14; iteration += 1) {
-    let moved = false;
-    const entries = [...result.entries()];
-    for (let firstIndex = 0; firstIndex < entries.length; firstIndex += 1) {
-      for (let secondIndex = firstIndex + 1; secondIndex < entries.length; secondIndex += 1) {
-        const [firstId, first] = entries[firstIndex];
-        const [secondId, second] = entries[secondIndex];
-        let dx = second.x - first.x;
-        let dy = second.y - first.y;
-        let distance = Math.hypot(dx, dy);
-        if (distance >= minimumDistance) {
-          continue;
-        }
-        if (distance < 1) {
-          const angle = (firstIndex + secondIndex + 1) * 2.17;
-          dx = Math.cos(angle);
-          dy = Math.sin(angle);
-          distance = 1;
-        }
-        const push = (minimumDistance - distance) / 2 + 1;
-        const unitX = dx / distance;
-        const unitY = dy / distance;
-        const nextFirst = {
-          x: Math.max(54, Math.min(width - 54, first.x - unitX * push)),
-          y: Math.max(48, Math.min(height - 48, first.y - unitY * push)),
-        };
-        const nextSecond = {
-          x: Math.max(54, Math.min(width - 54, second.x + unitX * push)),
-          y: Math.max(48, Math.min(height - 48, second.y + unitY * push)),
-        };
-        result.set(firstId, nextFirst);
-        result.set(secondId, nextSecond);
-        entries[firstIndex] = [firstId, nextFirst];
-        entries[secondIndex] = [secondId, nextSecond];
-        moved = true;
-      }
-    }
-    if (!moved) {
-      break;
-    }
-  }
   return result;
 }
 
@@ -388,13 +346,7 @@ export function buildEdgeLabelPlacements(
   height: number,
   layout: "graph" | "map",
 ): EdgeLabelPlacement[] {
-  const pointObstacles = [...positions.values()].map((point) => ({
-    x: point.x - (layout === "map" ? 34 : 32),
-    y: point.y - (layout === "map" ? 34 : 32),
-    width: layout === "map" ? 68 : 64,
-    height: layout === "map" ? 68 : 64,
-  }));
-  const occupied = [...nodeLabels.values(), ...pointObstacles];
+  const occupied = [...nodeLabels.values()];
   const result: EdgeLabelPlacement[] = [];
   edges.forEach((edge, edgeIndex) => {
     const from = positions.get(edge.source);
@@ -410,20 +362,17 @@ export function buildEdgeLabelPlacements(
     const dy = to.y - from.y;
     const length = Math.hypot(dx, dy) || 1;
     const normal = { x: -dy / length, y: dx / length };
-    const midpoints = [0.5, 0.38, 0.62].map((ratio) => ({
-      x: from.x + dx * ratio,
-      y: from.y + dy * ratio,
-    }));
+    const midpoint = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
     const offsetSign = edgeIndex % 2 === 0 ? 1 : -1;
-    const offsets = [28 * offsetSign, -28 * offsetSign, 46 * offsetSign, -46 * offsetSign, 66 * offsetSign, -66 * offsetSign];
-    const candidates = midpoints.flatMap((midpoint) => offsets.map((offset) => clampPlacement({
-        x: midpoint.x + normal.x * offset - labelWidth / 2,
-        y: midpoint.y + normal.y * offset - labelHeight / 2,
-        width: labelWidth,
-        height: labelHeight,
-      }, width, height)));
+    const offsets = [20 * offsetSign, -20 * offsetSign, 36 * offsetSign, -36 * offsetSign, 0];
+    const candidates = offsets.map((offset) => clampPlacement({
+      x: midpoint.x + normal.x * offset - labelWidth / 2,
+      y: midpoint.y + normal.y * offset - labelHeight / 2,
+      width: labelWidth,
+      height: labelHeight,
+    }, width, height));
     const score = (candidate: LabelPlacement) => occupied.reduce((sum, item) => sum + overlapArea(candidate, item), 0);
-    const selected = candidates.find((candidate) => !occupied.some((item) => overlaps(candidate, item, 10)))
+    const selected = candidates.find((candidate) => !occupied.some((item) => overlaps(candidate, item, 5)))
       ?? [...candidates].sort((a, b) => score(a) - score(b))[0];
     const placement = { ...(selected ?? candidates[0]), label };
     occupied.push(placement);
