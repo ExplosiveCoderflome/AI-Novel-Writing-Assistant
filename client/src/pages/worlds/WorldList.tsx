@@ -1,10 +1,9 @@
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Castle, Compass, GitBranch, MapPin, Pencil, Sparkles, Trash2 } from "lucide-react";
+import { BookOpen, Castle, ChevronDown, Compass, GitBranch, LibraryBig, MapPin, Pencil, Sparkles, Trash2 } from "lucide-react";
 import type { WorldStructuredData } from "@ai-novel/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { deleteWorld, getWorldList } from "@/api/world";
 import { queryKeys } from "@/api/queryKeys";
 import { featureFlags } from "@/config/featureFlags";
@@ -242,96 +241,112 @@ export default function WorldList() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-normal">世界样本库</h1>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            这里保存可复用的世界样本。小说需要使用世界时，从小说基础信息页导入为本书世界副本，再决定是否手动同步。
-          </p>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/[0.07] text-primary">
+            <LibraryBig className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight">世界样本库</h1>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+              浏览可复用的世界设定，从中寻找适合新故事的规则、势力、舞台和冲突线索。
+            </p>
+          </div>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
           {featureFlags.worldWizardEnabled ? (
-            <Button asChild>
+            <Button asChild className="rounded-full">
               <Link to="/worlds/generator">生成世界样本</Link>
             </Button>
           ) : null}
         </div>
       </div>
 
-      {worlds.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>暂无世界样本</CardTitle>
-            <CardDescription>先生成一个世界样本，后续可以导入到小说中作为本书世界副本。</CardDescription>
-          </CardHeader>
-        </Card>
-      ) : (
-        <>
-        <div className="rounded-md border border-border/70 bg-muted/20 p-4">
-          <div className="text-sm font-medium text-foreground">世界样本的使用方式</div>
-          <div className="mt-2 grid gap-3 text-sm leading-6 text-muted-foreground md:grid-cols-3">
-            <div>1. 在这里整理通用世界手册，让规则、势力、地点和张力清楚可复用。</div>
-            <div>2. 在小说基础信息页导入为“本书世界”，小说会使用自己的副本。</div>
-            <div>3. 本书副本和世界样本有差异时，由你手动决定推送或拉取。</div>
-          </div>
+      <details className="group rounded-2xl bg-muted/20 px-5 py-3">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm marker:hidden">
+          <span className="font-medium">如何把样本用于小说</span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+        </summary>
+        <div className="mt-3 grid gap-3 border-t border-border/30 pt-3 text-sm leading-6 text-muted-foreground md:grid-cols-3">
+          <div><span className="mr-2 font-medium text-foreground">1</span>整理可复用的世界规则、势力、地点和张力。</div>
+          <div><span className="mr-2 font-medium text-foreground">2</span>从小说基础信息页导入，小说会建立自己的世界副本。</div>
+          <div><span className="mr-2 font-medium text-foreground">3</span>样本和本书世界有差异时，再决定推送或拉取。</div>
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
+      </details>
+
+      {worldListQuery.isLoading ? (
+        <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3" aria-label="正在加载世界样本">
+          {[0, 1, 2].map((item) => (
+            <div key={item} className="h-80 animate-pulse rounded-3xl bg-muted/30" />
+          ))}
+        </div>
+      ) : worldListQuery.isError ? (
+        <div className="flex min-h-52 flex-col items-center justify-center rounded-3xl bg-destructive/[0.04] px-6 text-center">
+          <div className="font-medium">世界样本加载失败</div>
+          <div className="mt-1 text-sm text-muted-foreground">请检查网络连接后重试。</div>
+          <Button type="button" variant="outline" className="mt-4 rounded-full" onClick={() => void worldListQuery.refetch()}>
+            重新加载
+          </Button>
+        </div>
+      ) : worlds.length === 0 ? (
+        <div className="flex min-h-64 flex-col items-center justify-center rounded-3xl bg-muted/20 px-6 text-center">
+          <BookOpen className="h-7 w-7 text-muted-foreground/60" aria-hidden="true" />
+          <div className="mt-3 font-medium">还没有世界样本</div>
+          <div className="mt-1 text-sm text-muted-foreground">生成一个可复用世界，为后续小说准备规则、舞台和冲突来源。</div>
+          {featureFlags.worldWizardEnabled ? (
+            <Button asChild className="mt-5 rounded-full">
+              <Link to="/worlds/generator">生成第一个世界样本</Link>
+            </Button>
+          ) : null}
+        </div>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
           {worlds.map((world) => {
             const preview = buildWorldLibraryProjection(world);
 
             return (
-              <Card key={world.id} className="overflow-hidden">
-                <CardHeader className="space-y-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <CardTitle className="line-clamp-2 text-lg">{world.name}</CardTitle>
-                      <CardDescription className="mt-2 line-clamp-3 text-sm leading-6">
-                        {preview.summary}
-                      </CardDescription>
-                    </div>
-                    <div className="flex h-10 w-10 flex-none items-center justify-center rounded-md bg-primary/10 text-primary">
-                      <BookOpen className="h-5 w-5" aria-hidden="true" />
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {world.worldType ? <Badge variant="secondary">{world.worldType}</Badge> : null}
-                    <Badge variant="outline">可复用样本</Badge>
-                    {preview.tone ? <Badge variant="outline">{preview.tone}</Badge> : null}
-                    <Badge variant="outline">v{world.version}</Badge>
-                    <Badge variant="outline">{world.status}</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                    <div className="rounded-md border bg-muted/30 px-2 py-2">
-                      <div className="font-semibold text-foreground">{preview.ruleCount}</div>
-                      <div className="mt-0.5 text-muted-foreground">核心规则</div>
-                    </div>
-                    <div className="rounded-md border bg-muted/30 px-2 py-2">
-                      <div className="font-semibold text-foreground">{preview.forceCount}</div>
-                      <div className="mt-0.5 text-muted-foreground">势力</div>
-                    </div>
-                    <div className="rounded-md border bg-muted/30 px-2 py-2">
-                      <div className="font-semibold text-foreground">{preview.locationCount}</div>
-                      <div className="mt-0.5 text-muted-foreground">地点</div>
-                    </div>
-                    <div className="rounded-md border bg-muted/30 px-2 py-2">
-                      <div className="font-semibold text-foreground">{preview.relationCount}</div>
-                      <div className="mt-0.5 text-muted-foreground">关系</div>
+              <article
+                key={world.id}
+                className="flex min-h-[390px] flex-col rounded-3xl border border-border/35 bg-card/70 p-5 transition-all hover:border-border/60 hover:shadow-[0_14px_36px_rgba(15,23,42,0.04)]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="line-clamp-2 text-lg font-semibold tracking-tight">{world.name}</h2>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {world.worldType ? <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{world.worldType}</Badge> : null}
+                      {preview.tone ? <Badge variant="secondary" className="border-0 bg-primary/[0.06] font-normal text-primary">{preview.tone}</Badge> : null}
                     </div>
                   </div>
+                  <div className="flex h-10 w-10 flex-none items-center justify-center rounded-2xl bg-primary/[0.07] text-primary">
+                    <BookOpen className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                </div>
 
-                  {preview.identity || preview.coreConflict ? (
-                    <div className="space-y-1 rounded-md border-l-2 border-primary bg-muted/30 px-3 py-2 text-sm leading-6">
-                      {preview.identity ? <div className="line-clamp-2 text-foreground">{preview.identity}</div> : null}
-                      {preview.coreConflict ? (
-                        <div className="line-clamp-2 text-muted-foreground">关键张力：{preview.coreConflict}</div>
-                      ) : null}
-                    </div>
-                  ) : null}
+                <p className="mt-4 line-clamp-3 text-sm leading-6 text-muted-foreground">{preview.summary}</p>
 
-                  <div className="grid gap-3 text-sm sm:grid-cols-3">
+                {preview.identity || preview.coreConflict ? (
+                  <div className="mt-4 rounded-2xl bg-muted/25 px-4 py-3 text-sm leading-6">
+                    {preview.identity ? <div className="line-clamp-2 font-medium text-foreground">{preview.identity}</div> : null}
+                    {preview.coreConflict ? (
+                      <div className="mt-1 line-clamp-2 text-muted-foreground">{preview.coreConflict}</div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
+                  <span><strong className="font-semibold tabular-nums text-foreground">{preview.ruleCount}</strong> 条规则</span>
+                  <span><strong className="font-semibold tabular-nums text-foreground">{preview.forceCount}</strong> 个势力</span>
+                  <span><strong className="font-semibold tabular-nums text-foreground">{preview.locationCount}</strong> 个地点</span>
+                  <span><strong className="font-semibold tabular-nums text-foreground">{preview.relationCount}</strong> 条关系</span>
+                </div>
+
+                <details className="group mt-4 border-t border-border/30 pt-3">
+                  <summary className="flex cursor-pointer list-none items-center justify-between text-xs text-muted-foreground marker:hidden">
+                    <span>展开创作线索</span>
+                    <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" aria-hidden="true" />
+                  </summary>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <WorldSampleLine
                       icon={Sparkles}
                       label="力量与规则"
@@ -350,46 +365,45 @@ export default function WorldList() {
                       items={preview.storyLocations}
                       fallback="进入工作台标记适合小说开局和冲突升级的地点。"
                     />
-                  </div>
-
-                  {preview.tensions.length > 0 ? (
                     <WorldSampleLine
                       icon={GitBranch}
                       label="可抽取的冲突线"
                       items={preview.tensions}
                       fallback="进入工作台整理世界矛盾，供小说生成使用。"
                     />
-                  ) : null}
-
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <Button asChild size="sm">
-                      <Link to={`/worlds/${world.id}/workspace`}>
-                        <Compass className="mr-1 h-4 w-4" aria-hidden="true" />
-                        查看世界手册
-                      </Link>
-                    </Button>
-                    <Button asChild size="sm" variant="outline">
-                      <Link to={`/worlds/${world.id}/workspace`}>
-                        <Pencil className="mr-1 h-4 w-4" aria-hidden="true" />
-                        整理样本
-                      </Link>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDelete(world.id, world.name)}
-                      disabled={deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id}
-                    >
-                      <Trash2 className="mr-1 h-4 w-4" aria-hidden="true" />
-                      {deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id ? "删除中..." : "删除"}
-                    </Button>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="mt-4 text-[11px] text-muted-foreground">版本 v{world.version} · {world.status}</div>
+                </details>
+
+                <div className="mt-auto flex flex-wrap items-center gap-1 border-t border-border/30 pt-4">
+                  <Button asChild size="sm" className="rounded-full">
+                    <Link to={`/worlds/${world.id}/workspace`}>
+                      <Compass className="mr-1 h-4 w-4" aria-hidden="true" />
+                      查看世界手册
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" variant="ghost" className="rounded-full text-muted-foreground">
+                    <Link to={`/worlds/${world.id}/workspace`}>
+                      <Pencil className="mr-1 h-4 w-4" aria-hidden="true" />
+                      整理样本
+                    </Link>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="ml-auto rounded-full px-2 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleDelete(world.id, world.name)}
+                    disabled={deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id}
+                    aria-label={`删除世界样本 ${world.name}`}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    {deleteWorldMutation.isPending && deleteWorldMutation.variables === world.id ? "删除中..." : "删除"}
+                  </Button>
+                </div>
+              </article>
             );
           })}
         </div>
-        </>
       )}
     </div>
   );

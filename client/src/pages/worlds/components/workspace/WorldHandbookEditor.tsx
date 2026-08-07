@@ -8,7 +8,6 @@ import type {
 import type { WorldStructurePayload } from "@/api/world";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   HandbookField,
@@ -87,14 +86,13 @@ export default function WorldHandbookEditor(props: {
 
   if (!draftStructure || !draftBindingSupport) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>整理世界手册</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="text-sm leading-6 text-muted-foreground">正在读取世界手册内容。</div>
+      <section className="flex min-h-56 flex-col items-center justify-center rounded-3xl bg-muted/20 px-6 text-center">
+          <BookOpen className="h-6 w-6 text-muted-foreground/60" aria-hidden="true" />
+          <div className="mt-3 font-medium">正在读取世界手册</div>
+          <div className="mt-1 text-sm leading-6 text-muted-foreground">需要时可以让 AI 把已有设定整理成完整手册。</div>
           <Button
-            variant="secondary"
+            className="mt-4 rounded-full"
+            variant="outline"
             onClick={async () => {
               const result = await onBackfill();
               if (result) {
@@ -106,8 +104,7 @@ export default function WorldHandbookEditor(props: {
           >
             {backfillPending ? "整理中..." : "让 AI 整理世界手册"}
           </Button>
-        </CardContent>
-      </Card>
+      </section>
     );
   }
 
@@ -124,34 +121,31 @@ export default function WorldHandbookEditor(props: {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="space-y-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <CardTitle>整理世界手册</CardTitle>
-            <div className="mt-2 text-sm leading-6 text-muted-foreground">
-              先看清这个世界的阅读印象、核心规则、主要势力、故事舞台和冲突张力；需要细调时再进入对应区块。
-            </div>
+            <h2 className="text-xl font-semibold tracking-tight">整理世界手册</h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+              先确认世界给读者的印象与核心矛盾，再按需整理规则、势力、地点和冲突张力。
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" onClick={onOpenOverview}>
+            <Button type="button" size="sm" variant="ghost" className="rounded-full" onClick={onOpenOverview}>
               <BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />
               查看手册
             </Button>
-            <Button type="button" onClick={saveDraft} disabled={savePending}>
+            <Button type="button" size="sm" className="rounded-full" onClick={saveDraft} disabled={savePending}>
               <Save className="mr-2 h-4 w-4" aria-hidden="true" />
               {savePending ? "保存中..." : "保存手册"}
             </Button>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="rounded-md border-l-2 border-primary bg-muted/30 p-4">
+        <div className="rounded-3xl bg-muted/20 p-5 sm:p-6">
           <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">世界样本</Badge>
-            {draftStructure.profile.tone ? <Badge variant="outline">{draftStructure.profile.tone}</Badge> : null}
+            <Badge variant="secondary" className="border-0 bg-primary/[0.07] font-normal text-primary">世界印象</Badge>
+            {draftStructure.profile.tone ? <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{draftStructure.profile.tone}</Badge> : null}
             {draftStructure.profile.themes.slice(0, 4).map((theme) => (
-              <Badge key={theme} variant="outline">
+              <Badge key={theme} variant="secondary" className="border-0 bg-muted/60 font-normal">
                 {theme}
               </Badge>
             ))}
@@ -179,7 +173,7 @@ export default function WorldHandbookEditor(props: {
             />
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection("profile")}>
+            <Button type="button" size="sm" variant="ghost" className="rounded-full" onClick={() => setEditingSection("profile")}>
               <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
               整理世界概要
             </Button>
@@ -256,7 +250,7 @@ export default function WorldHandbookEditor(props: {
           ) : null}
         </div>
 
-        <div className="rounded-md border bg-background p-4">
+        <div className="rounded-2xl border border-border/35 bg-card/70 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-sm font-medium">AI 辅助整理</div>
@@ -276,13 +270,14 @@ export default function WorldHandbookEditor(props: {
                   key={item.key}
                   type="button"
                   size="sm"
-                  variant={activeAiSection === item.key ? "default" : "outline"}
+                  variant={activeAiSection === item.key ? "default" : "ghost"}
+                  className="rounded-full"
                   onClick={() => setActiveAiSection(item.key as WorldStructureSectionKey)}
                 >
                   {item.label}
                 </Button>
               ))}
-              <Button type="button" size="sm" variant="secondary" onClick={generateSection} disabled={generatePending}>
+              <Button type="button" size="sm" variant="secondary" className="rounded-full" onClick={generateSection} disabled={generatePending}>
                 <WandSparkles className="mr-2 h-4 w-4" aria-hidden="true" />
                 {generatePending ? "补齐中..." : "补齐选中区块"}
               </Button>
@@ -414,13 +409,13 @@ export default function WorldHandbookEditor(props: {
         </div>
 
         {editingSection ? (
-          <div className="rounded-md border border-primary/30 bg-primary/5 p-4">
+          <div className="rounded-2xl bg-primary/[0.055] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <AlertTriangle className="h-4 w-4 text-primary" aria-hidden="true" />
                 正在整理选中区块，保存后会更新上方手册概览。
               </div>
-              <Button type="button" size="sm" variant="outline" onClick={() => setEditingSection(null)}>
+              <Button type="button" size="sm" variant="ghost" className="rounded-full" onClick={() => setEditingSection(null)}>
                 收起编辑
               </Button>
             </div>
@@ -445,7 +440,6 @@ export default function WorldHandbookEditor(props: {
             onOpenAdvanced={onOpenAdvanced}
           />
         ) : null}
-      </CardContent>
-    </Card>
+    </section>
   );
 }

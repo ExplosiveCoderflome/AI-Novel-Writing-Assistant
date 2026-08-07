@@ -534,17 +534,7 @@ export default function TaskCenterPage() {
         icon={ListChecks}
         context="执行历史与恢复"
         title="运行记录"
-        description="按需查询创作、拆书、知识索引和图片任务的历史、异常与恢复信息；实时生成请从顶部“AI 实况”查看。"
-        meta={(
-          <>
-            <span>当前显示 {visibleRows.length} 项</span>
-            <span>全局执行 {runningCount + queuedCount} 项</span>
-            <span>等待操作 {waitingActionCount} 项</span>
-            <span>失败 {failedTaskCount} 项</span>
-            <span>可恢复 {recoveryCandidateCount} 项</span>
-            <span>质量提醒 {qualityReminderCount} 项</span>
-          </>
-        )}
+        description="查看创作、拆书、知识索引和图片任务，优先处理需要你介入的记录。实时生成过程可从顶部“AI 实况”查看。"
         actions={(
           <Button
             type="button"
@@ -559,6 +549,7 @@ export default function TaskCenterPage() {
       />
 
       <WorkspaceNextAction
+        className="rounded-2xl border-transparent px-5 py-3 shadow-none"
         icon={overviewErrorMessage ? RefreshCw : hasMustHandleTask ? ShieldAlert : Activity}
         tone={overviewQuery.isLoading ? "info" : overviewErrorMessage ? "danger" : hasMustHandleTask ? "danger" : waitingActionCount > 0 ? "info" : qualityReminderCount > 0 ? "warning" : runningCount + queuedCount > 0 ? "info" : allRows.length > 0 ? "success" : "neutral"}
         title={overviewQuery.isLoading ? "正在读取全局任务状态" : overviewErrorMessage ? "重新读取任务概览" : hasMustHandleTask ? "先查看必须处理的任务" : waitingActionCount > 0 ? "完成等待中的操作" : qualityReminderCount > 0 ? "查看质量提醒" : runningCount + queuedCount > 0 ? "关注正在推进的任务" : allRows.length > 0 ? "当前没有阻塞任务" : "任务会在执行后汇总到这里"}
@@ -629,20 +620,20 @@ export default function TaskCenterPage() {
         qualityReminderCount={qualityReminderCount}
       />
 
-      <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)_360px]">
-        <TaskCenterFilterPanel
-          kind={kind}
-          status={status}
-          keyword={keyword}
-          onlyAnomaly={onlyAnomaly}
-          sortMode={sortMode}
-          onKindChange={setKind}
-          onStatusChange={setStatus}
-          onKeywordChange={setKeyword}
-          onOnlyAnomalyChange={setOnlyAnomaly}
-          onSortModeChange={setSortMode}
-        />
+      <TaskCenterFilterPanel
+        kind={kind}
+        status={status}
+        keyword={keyword}
+        onlyAnomaly={onlyAnomaly}
+        sortMode={sortMode}
+        onKindChange={setKind}
+        onStatusChange={setStatus}
+        onKeywordChange={setKeyword}
+        onOnlyAnomalyChange={setOnlyAnomaly}
+        onSortModeChange={setSortMode}
+      />
 
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(380px,0.75fr)]">
         <TaskCenterListPanel
           tasks={visibleRows}
           selectedKind={selectedKind}

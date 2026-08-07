@@ -10,6 +10,8 @@ import {
   formatHomeDate,
   type HomeNextAction,
   MANUAL_CREATE_LINK,
+  SHORT_STORY_CREATE_LINK,
+  getHomeNovelTask,
   type HomeNovelItem,
 } from "../homeViewModel";
 
@@ -67,7 +69,7 @@ export function HomeNextActionPanel(props: {
   }
 
   const novel = props.primaryNovel;
-  const task = novel.latestAutoDirectorTask ?? null;
+  const task = getHomeNovelTask(novel);
   const workflowBadge = getWorkflowBadge(task);
 
   return (
@@ -121,8 +123,10 @@ export function HomeNextActionPanel(props: {
               {props.renderNovelPrimaryAction(novel, { size: "lg" })}
             </div>
             <Button asChild size="lg" variant="outline" className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white">
-              <Link to={task ? `/novels/${novel.id}/edit?directorTaskId=${task.id}&taskPanel=1` : `/novels/${novel.id}/edit`}>
-                {task ? "查看执行详情" : "打开项目"}
+              <Link to={novel.narrativeForm === "short_story"
+                ? `/novels/${novel.id}/story`
+                : task ? `/novels/${novel.id}/edit?directorTaskId=${task.id}&taskPanel=1` : `/novels/${novel.id}/edit`}>
+                {novel.narrativeForm === "short_story" ? "打开完整作品" : task ? "查看执行详情" : "打开项目"}
               </Link>
             </Button>
           </div>
@@ -149,8 +153,16 @@ function StarterPanel(props: { action: HomeNextAction }) {
         </div>
         <div className="grid gap-2">
           <Button asChild size="lg" className="bg-white text-slate-950 hover:bg-slate-100">
-            <Link to={DIRECTOR_CREATE_LINK}><PlusCircle className="mr-2 h-4 w-4" aria-hidden="true" />让 AI 带我开始</Link>
+            <Link to={DIRECTOR_CREATE_LINK}><PlusCircle className="mr-2 h-4 w-4" aria-hidden="true" />自动导演写长篇</Link>
           </Button>
+          {SHORT_STORY_CREATE_LINK ? (
+            <Button asChild size="lg" variant="secondary" className="bg-sky-100 text-slate-950 hover:bg-sky-200">
+              <Link to={SHORT_STORY_CREATE_LINK}>
+                <BookOpenText className="mr-2 h-4 w-4" aria-hidden="true" />
+                创作一篇短篇
+              </Link>
+            </Button>
+          ) : null}
           <Button asChild size="lg" variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white">
             <Link to={MANUAL_CREATE_LINK}>手动创建小说</Link>
           </Button>

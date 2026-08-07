@@ -1,8 +1,11 @@
+export type NovelResourceRecommendationSource = "user_selected" | "ai_recommended";
+
 export interface NovelResourceRecommendationOption {
   id: string;
   name: string;
   path: string;
   reason: string;
+  source?: NovelResourceRecommendationSource;
 }
 
 export interface NovelCreateResourceRecommendation {

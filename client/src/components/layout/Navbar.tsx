@@ -49,7 +49,12 @@ export default function Navbar(props: NavbarProps) {
         ) : null}
         <LiveExecutionDialog />
         <div className={useMobileAutoDirectorShell ? AUTO_DIRECTOR_MOBILE_CLASSES.navbarModelSelector : undefined}>
-          <LLMSelector compact showBadge={false} showHelperText={false} />
+          <LLMSelector
+            compact
+            showBadge={false}
+            showHelperText={false}
+            showCompactTemperature
+          />
         </div>
       </div>
     </header>

@@ -197,6 +197,18 @@ export interface PromptStructuredOutputHint<I, R> {
   note?: string | ((input: I, context: PromptRenderContext) => string | undefined);
 }
 
+export type PromptManagementEditMode = "readonly" | "slots" | "advanced_template";
+
+export interface PromptManagementCapabilities {
+  productPrompt: boolean;
+  proseGeneration?: boolean;
+  editModes: PromptManagementEditMode[];
+  advancedTemplate?: {
+    scope: "novel";
+    requiredContextGroups: string[];
+  };
+}
+
 export interface PromptAsset<I, O, R = O> {
   id: string;
   version: string;
@@ -211,6 +223,7 @@ export interface PromptAsset<I, O, R = O> {
   editableSlots?: PromptEditableSlot[];
   slots?: PromptSlotDef[];
   contextRequirements?: PromptContextRequirement[];
+  management?: PromptManagementCapabilities;
   render: (input: I, context: PromptRenderContext) => BaseMessage[];
   postValidate?: (output: R, input: I, context: PromptRenderContext) => O;
   postValidateFailureRecovery?: (input: PromptPostValidateFailureRecoveryInput<I, R>) => O;

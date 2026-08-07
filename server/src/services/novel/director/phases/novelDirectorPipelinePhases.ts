@@ -183,6 +183,9 @@ export async function runDirectorCharacterSetupPhase(input: {
     callbacks,
     run: async () => {
       await dependencies.characterPreparationService.applyCharacterCastOption(novelId, targetOption.id, {
+        postApplyMode: request.startupPreparation?.backgroundEnrichment === "after_first_draft"
+          ? "deferred"
+          : "sync",
         visibleProfileGeneration: {
           provider: request.provider,
           model: request.model,

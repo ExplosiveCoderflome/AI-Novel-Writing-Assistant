@@ -2,6 +2,7 @@ import { toJSONSchema, type ZodType } from "zod";
 import type { LLMProvider } from "@ai-novel/shared/types/llm";
 import type { ModelRouteRequestProtocol } from "@ai-novel/shared/types/novel";
 import { isBuiltInProvider } from "./providers";
+import { isDeepSeekThinkingModeProvider } from "./reasoning";
 
 export type StructuredExecutionMode = "plain" | "structured";
 export type StructuredOutputStrategy = "json_schema" | "json_object" | "prompt_json";
@@ -186,10 +187,17 @@ export function resolveStructuredOutputProfile(input: {
     });
   }
   if (input.provider === "deepseek" || DEEPSEEK_HOST_PATTERN.test(host) || model.startsWith("deepseek-")) {
+    const supportsReasoningToggle = isDeepSeekThinkingModeProvider(
+      input.provider,
+      input.baseURL,
+      input.model,
+    );
     return buildProfile({
       family: "deepseek",
       nativeJsonObject: true,
       preferredStructuredStrategy: "json_object",
+      requiresNonThinkingForStructured: supportsReasoningToggle,
+      supportsReasoningToggle,
     });
   }
   if (input.provider === "grok" || GROK_HOST_PATTERN.test(host) || model.startsWith("grok-")) {

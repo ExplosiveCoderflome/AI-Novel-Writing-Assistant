@@ -16,6 +16,8 @@ AI 判断仍是意图识别、规划、路由和下一步推荐的主实现；�
 
 - Creative Hub 可以理解用户意图、解释当前小说进度、推荐下一步、发起受控命令。
 - Creative Hub 不直接承担自动导演长任务、章节生产、质量修复或 RAG 索引的重型执行。
+- Creative Hub 可以把模糊想法交给创作工作室解释和推荐，但不能在对话请求内直接执行短篇计划、分段生成、全篇审校、修复或正文重写。
+- 短篇创作和修改必须通过 `creation_studio` workflow、Prompt Registry 与任务投影执行，确保刷新恢复、幂等和人工正文保护使用同一套事实状态。
 - 当用户目标属于开书、接管、继续、恢复、章节执行或批量生产时，应交给自动导演 runtime、章节 runtime 或任务中心。
 - 工具调用应绑定明确资源和可审计记录，不用自由文本分支替代 AI-first 结构化理解。
 - 面向新手时，Creative Hub 应给出单一推荐下一步、原因和影响范围，不要求用户自己判断复杂工程或小说结构状态。
@@ -74,6 +76,8 @@ Creative Hub 前端按“创作线程 + 当前小说 + 执行活动”组织，�
 - `server/src/graphs/`
 - `server/src/services/novel/director/`
 - `server/src/services/novel/runtime/`
+- `server/src/modules/novel/creation-studio/`
+- `server/src/modules/novel/short-story/`
 - `client/src/pages/creativeHub/`
 - `client/src/components/workspace/`
 - `client/src/pages/tasks/TaskCenterPage.tsx`

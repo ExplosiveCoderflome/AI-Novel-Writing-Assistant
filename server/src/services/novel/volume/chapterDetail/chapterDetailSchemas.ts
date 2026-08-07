@@ -2,6 +2,35 @@ import { z } from "zod";
 import { generatedChapterSceneCardSchema } from "@ai-novel/shared/types/chapterLengthControl";
 import { generatedReaderExperienceContractSchema } from "@ai-novel/shared/types/novel/readerExperience";
 
+const conciseRequiredText = z.string().trim().min(1).max(240);
+const conciseTextList = z.array(z.string().trim().min(1).max(160)).max(8).default([]);
+const boundedReaderExperienceSchema = generatedReaderExperienceContractSchema.extend({
+  readerQuestion: conciseRequiredText,
+  promisedReward: conciseRequiredText,
+  protagonistWant: conciseRequiredText,
+  primaryResistance: conciseRequiredText,
+  keyTurn: conciseRequiredText,
+  emotionalShift: conciseRequiredText,
+  informationReveal: conciseRequiredText,
+  netChange: conciseRequiredText,
+  inheritedHookResponsibilities: z.array(z.string().trim().min(1).max(160)).max(4),
+  endingHook: conciseRequiredText,
+});
+const boundedSceneCardSchema = generatedChapterSceneCardSchema.extend({
+  key: z.string().trim().min(1).max(48),
+  title: z.string().trim().min(1).max(64),
+  purpose: conciseRequiredText,
+  mustAdvance: conciseTextList,
+  mustPreserve: conciseTextList,
+  entryState: conciseRequiredText,
+  exitState: conciseRequiredText,
+  forbiddenExpansion: conciseTextList,
+  resistance: conciseRequiredText,
+  turn: conciseRequiredText,
+  emotionalShift: conciseRequiredText,
+  readerValue: conciseRequiredText,
+});
+
 function normalizeObjectAlias(raw: unknown, aliasMap: Record<string, string[]>): unknown {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return raw;
@@ -114,6 +143,9 @@ function normalizeBoundaryPayload(raw: unknown): unknown {
     conflictLevel: normalizeInteger(record.conflictLevel),
     revealLevel: normalizeInteger(record.revealLevel),
     targetWordCount: normalizeInteger(record.targetWordCount),
+    mustAvoid: Array.isArray(record.mustAvoid)
+      ? record.mustAvoid.map((item) => String(item).trim()).filter(Boolean).join("；")
+      : record.mustAvoid,
     payoffRefs: normalizeStringArray(record.payoffRefs),
   };
 }
@@ -124,50 +156,50 @@ export function createChapterPurposeSchema() {
       purpose: ["章节目标", "chapterGoal", "goal", "objective"],
     }),
     z.object({
-      purpose: z.string().trim().min(1),
+      purpose: conciseRequiredText,
     }),
   );
 }
 
 export function createChapterBoundarySchema() {
   return z.preprocess(normalizeBoundaryPayload, z.object({
-    exclusiveEvent: z.string().trim().min(1),
-    endingState: z.string().trim().min(1),
-    nextChapterEntryState: z.string().trim().min(1),
+    exclusiveEvent: conciseRequiredText,
+    endingState: conciseRequiredText,
+    nextChapterEntryState: conciseRequiredText,
     conflictLevel: z.number().int().min(0).max(100),
     revealLevel: z.number().int().min(0).max(100),
     targetWordCount: z.number().int().min(200).max(20000),
-    mustAvoid: z.string().trim().min(1),
-    payoffRefs: z.array(z.string().trim().min(1)).default([]),
+    mustAvoid: conciseRequiredText,
+    payoffRefs: z.array(z.string().trim().min(1).max(160)).max(8).default([]),
   }));
 }
 
 export function createChapterTaskSheetSchema() {
   return z.preprocess(normalizeScenePlanPayload, z.object({
-    taskSheet: z.string().trim().min(1),
-    readerExperience: generatedReaderExperienceContractSchema,
-    sceneCards: z.array(z.preprocess(normalizeSceneCardPayload, generatedChapterSceneCardSchema)).min(3).max(8),
+    taskSheet: z.string().trim().min(1).max(600),
+    readerExperience: boundedReaderExperienceSchema,
+    sceneCards: z.array(z.preprocess(normalizeSceneCardPayload, boundedSceneCardSchema)).min(3).max(8),
   }));
 }
 
 export function createChapterExecutionContractSchema() {
   return z.preprocess(
     (raw) => normalizeScenePlanPayload(normalizeBoundaryPayload(normalizeObjectAlias(raw, {
-      purpose: ["绔犺妭鐩爣", "chapterGoal", "goal", "objective"],
+      purpose: ["章节目标", "chapterGoal", "goal", "objective"],
     }))),
     z.object({
-      purpose: z.string().trim().min(1),
-      exclusiveEvent: z.string().trim().min(1),
-      endingState: z.string().trim().min(1),
-      nextChapterEntryState: z.string().trim().min(1),
+      purpose: conciseRequiredText,
+      exclusiveEvent: conciseRequiredText,
+      endingState: conciseRequiredText,
+      nextChapterEntryState: conciseRequiredText,
       conflictLevel: z.number().int().min(0).max(100),
       revealLevel: z.number().int().min(0).max(100),
       targetWordCount: z.number().int().min(200).max(20000),
-      mustAvoid: z.string().trim().min(1),
-      payoffRefs: z.array(z.string().trim().min(1)).default([]),
-      taskSheet: z.string().trim().min(1),
-      readerExperience: generatedReaderExperienceContractSchema,
-      sceneCards: z.array(z.preprocess(normalizeSceneCardPayload, generatedChapterSceneCardSchema)).min(3).max(8),
+      mustAvoid: conciseRequiredText,
+      payoffRefs: z.array(z.string().trim().min(1).max(160)).max(8).default([]),
+      taskSheet: z.string().trim().min(1).max(600),
+      readerExperience: boundedReaderExperienceSchema,
+      sceneCards: z.array(z.preprocess(normalizeSceneCardPayload, boundedSceneCardSchema)).min(3).max(8),
     }),
   );
 }

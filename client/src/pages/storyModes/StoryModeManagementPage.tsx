@@ -29,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { useLLMStore } from "@/store/llmStore";
 import StoryModeProfileFields from "./components/StoryModeProfileFields";
-import StoryModeTreeCard from "./components/StoryModeTreeCard";
+import StoryModeTreeBrowser from "./components/StoryModeTreeBrowser";
 import SelectControl from "@/components/common/SelectControl";
 
 type StoryModeProfileDraft = StoryModeProfile;
@@ -645,16 +645,15 @@ export default function StoryModeManagementPage() {
             </div>
           ) : null}
 
-          {storyModeTree.map((node) => (
-            <StoryModeTreeCard
-              key={node.id}
-              node={node}
+          {!storyModeTreeQuery.isLoading && storyModeTree.length > 0 ? (
+            <StoryModeTreeBrowser
+              nodes={storyModeTree}
               onCreateChild={handleCreateChild}
               onEdit={setEditingStoryModeId}
               onDelete={handleDelete}
               deletingId={deleteMutation.isPending ? deleteMutation.variables : undefined}
             />
-          ))}
+          ) : null}
         </CardContent>
       </Card>
     </div>

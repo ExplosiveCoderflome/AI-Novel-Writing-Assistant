@@ -118,6 +118,7 @@ const promptKey = (asset) => `${asset.id}@${asset.version}`;
 
 function buildWriterRequiredContextBlocks() {
   return [
+    "writing_platform",
     "book_contract",
     "chapter_mission",
     "reader_experience",
@@ -149,7 +150,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "agent.runtime.setup_guidance@v1",
     "agent.runtime.setup_ideation@v1",
     "planner.chapter.plan@v1",
-    "novel.director.candidates@v1",
+    "novel.director.candidates@v2",
     "novel.director.candidate_patch@v1",
     "novel.director.blueprint@v1",
     "novel.character.castOptions@v2",
@@ -163,7 +164,7 @@ test("prompt registry exposes versioned planning assets", () => {
     "novel.story_macro.decomposition@v1",
     "novel.volume.strategy@v2",
     "novel.volume.strategy.critique@v1",
-    "novel.volume.skeleton@v2",
+    "novel.volume.skeleton@v3",
     "title.generation@v1",
     "audit.chapter.full@v2",
     "bookAnalysis.source.note@v1",
@@ -665,16 +666,16 @@ test("chapter writer prompt does not expose scene contract controls", () => {
 
 test("novel main-chain prompt assets declare explicit non-zero context budgets", () => {
   const expectedBudgets = new Map([
-    ["novel.director.candidates@v1", NOVEL_PROMPT_BUDGETS.directorCandidates],
+    ["novel.director.candidates@v2", NOVEL_PROMPT_BUDGETS.directorCandidates],
     ["novel.director.candidate_patch@v1", NOVEL_PROMPT_BUDGETS.directorCandidatePatch],
     ["novel.director.blueprint@v1", NOVEL_PROMPT_BUDGETS.directorBlueprint],
     ["novel.story_macro.decomposition@v1", NOVEL_PROMPT_BUDGETS.storyMacroDecomposition],
     ["novel.story_macro.field_regeneration@v1", NOVEL_PROMPT_BUDGETS.storyMacroFieldRegeneration],
     ["novel.volume.strategy@v2", NOVEL_PROMPT_BUDGETS.volumeStrategy],
     ["novel.volume.strategy.critique@v1", NOVEL_PROMPT_BUDGETS.volumeStrategyCritique],
-    ["novel.volume.skeleton@v2", NOVEL_PROMPT_BUDGETS.volumeSkeleton],
-    ["novel.volume.beat_sheet@v2", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
-    ["novel.volume.chapter_list@v7", NOVEL_PROMPT_BUDGETS.volumeChapterList],
+    ["novel.volume.skeleton@v3", NOVEL_PROMPT_BUDGETS.volumeSkeleton],
+    ["novel.volume.beat_sheet@v3", NOVEL_PROMPT_BUDGETS.volumeBeatSheet],
+    ["novel.volume.chapter_list@v8", NOVEL_PROMPT_BUDGETS.volumeChapterList],
     ["novel.volume.chapter_purpose@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_boundary@v1", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],
     ["novel.volume.chapter_task_sheet@v3", NOVEL_PROMPT_BUDGETS.volumeChapterDetail],

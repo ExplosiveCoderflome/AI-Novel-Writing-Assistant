@@ -70,7 +70,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 border-b border-border/60 pb-5 md:grid-cols-[minmax(0,1fr)_220px_180px]">
+      <div className="grid gap-3 rounded-2xl bg-muted/20 p-4 md:grid-cols-[minmax(0,1fr)_220px_180px]">
         <label className="space-y-2 text-sm">
           <span className="font-medium text-foreground">搜索</span>
           <Input
@@ -124,36 +124,33 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
         </div>
       ) : null}
 
-      <div className="divide-y divide-border/55">
+      <div className="grid gap-3 md:grid-cols-2">
         {rows.map((entry) => (
-          <div key={entry.id} className="group py-4 transition hover:bg-muted/[0.18]">
-            <div className="grid gap-3 px-2 lg:grid-cols-[64px_minmax(0,1fr)_auto] lg:items-start">
-              <div className="text-xs leading-5 text-muted-foreground">
-                <div className="font-medium text-foreground">预估</div>
-                <div className="text-lg font-semibold tabular-nums text-foreground">
-                  {typeof entry.clickRate === "number" ? entry.clickRate : "-"}
-                </div>
-              </div>
-
-              <div className="min-w-0 space-y-2">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          <article key={entry.id} className="flex min-h-56 flex-col rounded-2xl border border-border/35 bg-card/70 p-5 transition-all hover:border-border/65 hover:shadow-[0_12px_32px_rgba(15,23,42,0.035)]">
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap gap-x-2 gap-y-1">
                   {entry.genre?.name ? <span>{entry.genre.name}</span> : null}
                   <span>使用 {entry.usedCount}</span>
                   <span>{new Date(entry.createdAt).toLocaleDateString("zh-CN")}</span>
+                  </div>
+                  <span className="rounded-full bg-muted/60 px-2.5 py-1 font-medium tabular-nums text-foreground">
+                    潜力 {typeof entry.clickRate === "number" ? entry.clickRate : "-"}
+                  </span>
                 </div>
-                <div className="text-xl font-semibold tracking-normal text-foreground">{entry.title}</div>
+                <div className="pt-2 text-xl font-semibold leading-8 tracking-normal text-foreground">{entry.title}</div>
                 {entry.description ? (
-                  <div className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                  <div className="line-clamp-3 text-sm leading-6 text-muted-foreground">
                     {truncateText(entry.description, 180)}
                   </div>
                 ) : null}
                 {entry.keywords ? (
-                  <div className="text-xs text-muted-foreground">{truncateText(entry.keywords, 140)}</div>
+                  <div className="line-clamp-2 text-xs leading-5 text-muted-foreground">{truncateText(entry.keywords, 140)}</div>
                 ) : null}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                <Button type="button" size="sm" className="gap-1.5" onClick={() => void handleCopy(entry.title)}>
+              <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
+                <Button type="button" size="sm" className="gap-1.5 rounded-full" onClick={() => void handleCopy(entry.title)}>
                   <Copy className="h-3.5 w-3.5" />
                   复制
                 </Button>
@@ -161,7 +158,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
                   type="button"
                   size="sm"
                   variant="secondary"
-                  className="gap-1.5"
+                  className="gap-1.5 rounded-full"
                   disabled={markUsedMutation.isPending && markUsedMutation.variables === entry.id}
                   onClick={() => markUsedMutation.mutate(entry.id)}
                 >
@@ -172,7 +169,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
                   type="button"
                   size="sm"
                   variant="ghost"
-                  className="gap-1.5 text-muted-foreground hover:text-destructive"
+                  className="gap-1.5 rounded-full text-muted-foreground hover:text-destructive"
                   disabled={deleteMutation.isPending && deleteMutation.variables === entry.id}
                   onClick={() => {
                     const confirmed = window.confirm(`确认删除标题「${entry.title}」？`);
@@ -185,8 +182,7 @@ export default function TitleLibraryPanel({ genreOptions }: TitleLibraryPanelPro
                   {deleteMutation.isPending && deleteMutation.variables === entry.id ? "删除中" : "删除"}
                 </Button>
               </div>
-            </div>
-          </div>
+          </article>
         ))}
       </div>
 

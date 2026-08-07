@@ -35,6 +35,7 @@ interface LLMSelectorProps {
   onChange?: (value: LLMSelectorValue) => void;
   showModel?: boolean;
   showParameters?: boolean;
+  showCompactTemperature?: boolean;
   compact?: boolean;
   showBadge?: boolean;
   showHelperText?: boolean;
@@ -54,6 +55,7 @@ export default function LLMSelector({
   onChange,
   showModel = true,
   showParameters = false,
+  showCompactTemperature = false,
   compact = false,
   showBadge = true,
   showHelperText = true,
@@ -303,6 +305,45 @@ export default function LLMSelector({
             triggerClassName={compact ? "h-9 px-2.5" : undefined}
             disabled={!hasRunnableProviders}
           />
+        ) : null}
+
+        {showCompactTemperature ? (
+          <label
+            className="flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-input bg-background px-2 text-xs text-muted-foreground shadow-sm"
+            title="温度越高越发散；结构规划建议使用 0.3～0.7"
+          >
+            <span>温度</span>
+            <Input
+              aria-label="模型温度"
+              type="number"
+              step="0.1"
+              min={0}
+              max={2}
+              value={resolvedTemperature}
+              className="h-7 w-14 border-0 bg-transparent px-1 text-center text-xs text-foreground shadow-none focus-visible:ring-1"
+              onChange={(event) => {
+                const parsed = Number(event.target.value);
+                if (!Number.isFinite(parsed)) {
+                  return;
+                }
+                updateValue({
+                  provider: effectiveProvider,
+                  model: resolvedModel,
+                  temperature: parsed,
+                  maxTokens: resolvedMaxTokens,
+                });
+              }}
+              onBlur={() => {
+                updateValue({
+                  provider: effectiveProvider,
+                  model: resolvedModel,
+                  temperature: clampTemperature(resolvedTemperature),
+                  maxTokens: resolvedMaxTokens,
+                });
+              }}
+              disabled={!hasRunnableProviders}
+            />
+          </label>
         ) : null}
       </div>
 

@@ -250,13 +250,14 @@ async function prepareDirectorNovelWorld(input: {
       temperature: input.request.temperature,
       storyMacroContext: compactPlanningContext(storyMacro),
       bookContractContext: compactPlanningContext(bookContract),
+      openingOnly: input.request.startupPreparation?.strategy === "fast_start",
     });
     hasWorld = true;
     generated = true;
   }
   await gateway.getWorldContextBlock(input.novelId, {
     purpose: "character",
-    forceRefresh: true,
+    forceRefresh: false,
     storyInput: input.request.idea,
     provider: input.request.provider,
     model: input.request.model,

@@ -72,6 +72,12 @@ function formatToneKeywords(candidate: DirectorCandidate): string {
   return candidate.toneKeywords.filter(Boolean).slice(0, 4).join(" · ");
 }
 
+function foundationSourceLabel(source: "user_selected" | "ai_recommended" | undefined): string {
+  if (source === "user_selected") return "你的选择";
+  if (source === "ai_recommended") return "AI 补充";
+  return "创作基础";
+}
+
 export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirectorCandidateBatchesProps) {
   const {
     batches,
@@ -175,6 +181,32 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                         {candidate.logline}
                       </p>
 
+                      {candidate.productionFoundation ? (
+                        <div className="mt-4 flex max-w-3xl flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                          <span className="font-medium text-muted-foreground">创作基础</span>
+                          <span className="text-foreground">
+                            <span className="mr-1 text-muted-foreground">
+                              {foundationSourceLabel(candidate.productionFoundation.genre.source)}
+                            </span>
+                            {candidate.productionFoundation.genre.path}
+                          </span>
+                          <span className="text-foreground">
+                            <span className="mr-1 text-muted-foreground">
+                              {foundationSourceLabel(candidate.productionFoundation.primaryStoryMode.source)}
+                            </span>
+                            {candidate.productionFoundation.primaryStoryMode.path}
+                          </span>
+                          {candidate.productionFoundation.secondaryStoryMode ? (
+                            <span className="text-foreground">
+                              <span className="mr-1 text-muted-foreground">
+                                {foundationSourceLabel(candidate.productionFoundation.secondaryStoryMode.source)}
+                              </span>
+                              {candidate.productionFoundation.secondaryStoryMode.path}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
+
                       <dl className="mt-6 grid gap-x-8 gap-y-4 text-sm md:grid-cols-3">
                         {renderPrimaryCandidateDetails(candidate).map((item) => (
                           <div key={item.label} className={`min-w-0 ${AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}`}>
@@ -200,6 +232,11 @@ export default function NovelAutoDirectorCandidateBatches(props: NovelAutoDirect
                         <div className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>
                           <div className="text-xs font-medium text-muted-foreground">为什么值得选</div>
                           <div className="mt-1 line-clamp-5 break-words leading-6 text-foreground/90 [overflow-wrap:anywhere]">{candidate.whyItFits}</div>
+                          {candidate.writingPlatformReason ? (
+                            <div className="mt-2 rounded-lg bg-muted/45 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                              平台建议：{candidate.recommendedWritingPlatform === "qidian_male" ? "起点男频" : candidate.recommendedWritingPlatform === "jinjiang_female" ? "晋江女频" : "番茄免费网文"} · {candidate.writingPlatformReason}
+                            </div>
+                          ) : null}
                         </div>
                         {toneSummary ? (
                           <div className={AUTO_DIRECTOR_MOBILE_CLASSES.wrapText}>

@@ -242,32 +242,33 @@ export class CharacterVisibleProfileService {
         novelTitle: novel.title,
         genreName: novel.genre?.name ?? "未指定",
         projectMode: novel.projectMode ?? "co_pilot",
-        storyModeBlock,
-        bookContractText: extractBookContractText(novel.bookContract),
-        worldContextText: worldContext?.promptBlock ?? "",
-        bibleText: [
+        storyModeBlock: compactText(storyModeBlock, 900),
+        bookContractText: compactText(extractBookContractText(novel.bookContract), 1_200),
+        worldContextText: compactText(worldContext?.promptBlock, 1_600),
+        bibleText: compactText([
           novel.bible?.mainPromise ? `主线承诺：${novel.bible.mainPromise}` : "",
           novel.bible?.coreSetting ? `核心设定：${novel.bible.coreSetting}` : "",
           novel.bible?.characterArcs ? `角色成长：${novel.bible.characterArcs}` : "",
-        ].filter(Boolean).join("\n"),
-        storyMacroText: [
+        ].filter(Boolean).join("\n"), 1_000),
+        storyMacroText: compactText([
           novel.storyMacroPlan?.storyInput ? `故事输入：${novel.storyMacroPlan.storyInput}` : "",
           novel.storyMacroPlan?.decompositionJson ? `拆解：${compactText(novel.storyMacroPlan.decompositionJson, 500)}` : "",
           novel.storyMacroPlan?.constraintEngineJson ? `约束：${compactText(novel.storyMacroPlan.constraintEngineJson, 500)}` : "",
-        ].filter(Boolean).join("\n"),
+        ].filter(Boolean).join("\n"), 1_200),
         characterName: character.name,
         characterRole: character.role,
         characterFunction: character.storyFunction ?? character.castRole ?? "",
         relationToProtagonist: character.relationToProtagonist ?? "",
         existingCharacterProfile: buildCharacterProfileText(character),
         existingVisibleProfile: buildExistingVisibleProfileText(character),
-        relationText,
+        relationText: compactText(relationText, 1_200),
         userGuidance: compactText(options.userGuidance, 800),
       },
       options: {
         provider: options.provider,
         model: options.model,
         temperature: options.temperature ?? 0.45,
+        maxTokens: 1_400,
       },
     });
 

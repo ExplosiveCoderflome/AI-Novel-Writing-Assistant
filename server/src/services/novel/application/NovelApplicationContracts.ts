@@ -96,6 +96,7 @@ export interface NovelApplicationServices {
   listCharacterCastOptions: NovelApplicationMethod;
   generateCharacterCastOptions: NovelApplicationMethod;
   applyCharacterCastOption: NovelApplicationMethod;
+  runDeferredCharacterEnhancements: NovelApplicationMethod;
   generateSupplementalCharacters: NovelApplicationMethod;
   applySupplementalCharacter: NovelApplicationMethod;
   deleteCharacterCastOption: NovelApplicationMethod;
@@ -213,6 +214,7 @@ export const novelApplicationServiceMethodNames = [
   "listCharacterCastOptions",
   "generateCharacterCastOptions",
   "applyCharacterCastOption",
+  "runDeferredCharacterEnhancements",
   "generateSupplementalCharacters",
   "applySupplementalCharacter",
   "deleteCharacterCastOption",

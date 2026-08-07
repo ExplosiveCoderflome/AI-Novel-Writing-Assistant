@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { ChapterRuntimePackage, GenerationContextPackage } from "@ai-novel/shared/types/chapterRuntime";
 import { prisma } from "../../../db/prisma";
+import { novelEventBus } from "../../../events";
 import { openConflictService } from "../../state/OpenConflictService";
 import { directorAutomationLedgerEventService } from "../director/runtime/DirectorAutomationLedgerEventService";
 import { filterAcceptedFactItems, type FactLedgerExcludedItem } from "../fact/factLedgerFilter";
@@ -152,6 +153,17 @@ export class ChapterContentFinalizationService {
     }
 
     await this.finishTraceRun(input.runId, finalContent.length, input.startMs);
+
+    if (!needsRepair) {
+      void novelEventBus.emit({
+        type: "chapter:finalized",
+        payload: {
+          novelId: input.novelId,
+          chapterId: input.chapterId,
+          chapterOrder: input.contextPackage.chapter.order,
+        },
+      });
+    }
 
     return {
       finalContent,

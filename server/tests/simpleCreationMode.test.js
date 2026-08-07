@@ -21,6 +21,8 @@ function candidate(title) {
     hookStrategy: "用迫近危险和连续兑现推动追读",
     progressionLoop: "发现问题、作出选择、承担后果并升级目标",
     whyItFits: "承接用户的一句话灵感",
+    recommendedWritingPlatform: "fanqie_free",
+    writingPlatformReason: "适合高冲突、快推进的移动端长篇阅读。",
     toneKeywords: ["紧张", "成长"],
     targetChapterCount: 120,
   };
@@ -38,7 +40,7 @@ function directorSeed() {
   };
 }
 
-test("automatic director starts in preparation-only mode", () => {
+test("legacy explicit auto_to_ready seed remains compatible", () => {
   const seed = buildWorkflowSeedPayload({
     idea: "一座城市只剩七天。",
     runMode: "auto_to_ready",

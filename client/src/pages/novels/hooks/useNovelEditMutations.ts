@@ -12,6 +12,8 @@ import {
   updateNovel,
   syncNovelVolumeChapters,
   updateNovelVolumes,
+  recommendNovelWritingPlatform,
+  updateNovelWritingPlatform,
 } from "@/api/novel";
 import { queryKeys } from "@/api/queryKeys";
 import { buildNovelUpdatePayload, type NovelBasicFormState } from "../novelBasicInfo.shared";
@@ -97,7 +99,15 @@ export function useNovelEditMutations({
   invalidateNovelDetail,
 }: UseNovelEditMutationsArgs) {
   const saveBasicMutation = useMutation({
-    mutationFn: () => updateNovel(id, buildNovelUpdatePayload(basicForm)),
+    mutationFn: async () => {
+      const updated = await updateNovel(id, buildNovelUpdatePayload(basicForm));
+      const platform = basicForm.writingPlatformPreference === "ai_recommend"
+        ? (await recommendNovelWritingPlatform(id)).data?.platform
+        : basicForm.writingPlatformPreference;
+      if (!platform) throw new Error("AI 未返回可用的平台建议，请重试。");
+      await updateNovelWritingPlatform(id, platform);
+      return updated;
+    },
     onSuccess: async () => {
       await syncNovelWorkflowStageSilently({
         novelId: id,

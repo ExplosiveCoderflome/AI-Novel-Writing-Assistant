@@ -3,7 +3,6 @@ import { GitCompareArrows, GitFork, Map, Network, Workflow } from "lucide-react"
 import type { World, WorldSnapshot } from "@ai-novel/shared/types/world";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import KnowledgeBindingPanel from "@/components/knowledge/KnowledgeBindingPanel";
 import SelectControl from "@/components/common/SelectControl";
@@ -109,13 +108,13 @@ function AssetToolButton({
     <button
       type="button"
       className={[
-        "rounded-md border p-3 text-left transition-colors",
-        selected ? "border-primary bg-primary/5" : "border-border/70 bg-background hover:bg-muted/40",
+        "shrink-0 rounded-full px-4 py-2 text-sm transition-colors",
+        selected ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
       ].join(" ")}
       onClick={onClick}
+      title={description}
     >
-      <div className="text-sm font-medium text-foreground">{label}</div>
-      <div className="mt-1 text-xs leading-5 text-muted-foreground">{description}</div>
+      {label}
     </button>
   );
 }
@@ -162,12 +161,13 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
   } = props;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>世界资料与版本</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+    <section className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">世界资料与版本</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">管理参考资料、可复用素材、版本备份以及导入导出，地图与图谱能力也从这里进入。</p>
+        </div>
+
+        <div className="flex gap-1 overflow-x-auto rounded-full bg-muted/30 p-1">
           <AssetToolButton
             label="地图与图谱"
             description="预留世界资产入口。"
@@ -207,7 +207,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
         </div>
 
         {activeTool === "visualAssets" ? (
-          <div className="rounded-md border p-4">
+          <div className="rounded-3xl border border-border/35 bg-card/70 p-5">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="font-medium">世界资产规划</div>
@@ -215,19 +215,19 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                   地图、势力图谱、时间线和体系树都从世界手册延伸出来。先把规则、势力、地点和张力整理清楚，再生成可视化资产。
                 </div>
               </div>
-              <Badge variant="outline">预留能力</Badge>
+              <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">预留能力</Badge>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {WORLD_ASSET_PRESETS.map((asset) => {
                 const Icon = asset.icon;
                 return (
-                  <div key={asset.title} className="rounded-md border border-dashed border-border/80 bg-muted/20 p-3">
+                  <div key={asset.title} className="rounded-2xl bg-muted/20 p-4">
                     <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                       <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
                       {asset.title}
                     </div>
                     <div className="mt-2 text-xs leading-5 text-muted-foreground">{asset.description}</div>
-                    <div className="mt-3 rounded-md bg-background p-2 text-xs leading-5 text-muted-foreground">
+                    <div className="mt-3 rounded-xl bg-background/70 p-3 text-xs leading-5 text-muted-foreground">
                       {asset.readiness}
                     </div>
                   </div>
@@ -238,14 +238,14 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
         ) : null}
 
         {activeTool === "references" ? (
-          <div className="rounded-md border p-3">
+          <div className="rounded-3xl border border-border/35 bg-card/70 p-5">
             <div className="mb-3 font-medium">参考资料</div>
             <KnowledgeBindingPanel targetType="world" targetId={props.worldId} title="参考资料" />
           </div>
         ) : null}
 
         {activeTool === "library" ? (
-          <div className="rounded-md border p-3 space-y-2">
+          <div className="space-y-4 rounded-3xl border border-border/35 bg-card/70 p-5">
             <div className="font-medium">世界素材</div>
             <div className="grid gap-2 md:grid-cols-3">
               <Input
@@ -272,7 +272,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
                 刷新
               </Button>
             </div>
-            <div className="rounded-md border p-2 space-y-2">
+            <div className="space-y-3 rounded-2xl bg-muted/20 p-4">
               <div className="text-xs font-semibold text-muted-foreground">
                 保存当前设定为世界素材
               </div>
@@ -308,7 +308,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
               />
             </div>
             {libraryItems.map((item) => (
-              <div key={item.id} className="rounded border p-3 text-sm space-y-2">
+              <div key={item.id} className="space-y-3 rounded-2xl border border-border/35 p-4 text-sm">
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <div>{item.name}</div>
@@ -334,7 +334,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
         ) : null}
 
         {activeTool === "snapshots" ? (
-          <div className="rounded-md border p-3 space-y-2">
+          <div className="space-y-4 rounded-3xl border border-border/35 bg-card/70 p-5">
           <div className="font-medium">版本快照</div>
           <div className="flex gap-2">
             <Input
@@ -347,7 +347,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
             </Button>
           </div>
           {snapshots.map((snapshot) => (
-            <div key={snapshot.id} className="flex items-center justify-between rounded border p-2 text-sm">
+            <div key={snapshot.id} className="flex items-center justify-between rounded-2xl bg-muted/20 p-3 text-sm">
               <div>
                 {snapshot.label ?? snapshot.id.slice(0, 8)} / {new Date(snapshot.createdAt).toLocaleString()}
               </div>
@@ -386,7 +386,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
             </Button>
           </div>
           {diffChanges.map((change) => (
-            <div key={change.field} className="rounded border p-2 text-xs">
+            <div key={change.field} className="rounded-2xl bg-muted/20 p-3 text-xs">
               {change.field}: {change.before ?? "空"} {"->"} {change.after ?? "空"}
             </div>
           ))}
@@ -394,7 +394,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
         ) : null}
 
         {activeTool === "export" ? (
-          <div className="rounded-md border p-3 space-y-2">
+          <div className="space-y-3 rounded-3xl border border-border/35 bg-card/70 p-5">
           <div className="font-medium">导出备份</div>
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => void onExport("markdown")}>
@@ -408,7 +408,7 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
         ) : null}
 
         {activeTool === "import" ? (
-          <div className="rounded-md border p-3 space-y-2">
+          <div className="space-y-3 rounded-3xl border border-border/35 bg-card/70 p-5">
           <div className="font-medium">导入文本</div>
           <SelectControl
             className="w-full rounded-md border bg-background p-2 text-sm"
@@ -430,7 +430,6 @@ export default function WorldAssetsTab(props: WorldAssetsTabProps) {
           </Button>
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+    </section>
   );
 }

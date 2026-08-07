@@ -102,6 +102,7 @@ export const MANAGEMENT_STATUS_LABELS: Record<PromptCatalogItem["managementStatu
   complete: "元数据完整",
   missing_context_requirements: "缺上下文需求",
   missing_slots: "缺槽位声明",
+  missing_advanced_template: "缺高级模板",
 };
 
 export const MATERIAL_IMPORTANCE_LABELS: Record<NovelMaterialImportance, string> = {
@@ -141,5 +142,6 @@ export function capabilityLabels(prompt: PromptCatalogItem): string[] {
     prompt.capabilities.hasSemanticRetryPolicy ? "SemanticRetry" : null,
     prompt.capabilities.hasRepairPolicy ? "Repair" : null,
     prompt.capabilities.hasStructuredOutputHint ? "OutputHint" : null,
+    prompt.capabilities.supportsAdvancedTemplate ? "高级模板" : null,
   ].filter(Boolean) as string[];
 }

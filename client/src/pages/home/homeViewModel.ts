@@ -9,10 +9,14 @@ import {
   isWorkflowRunningInBackground,
   requiresCandidateSelection,
 } from "@/lib/novelWorkflowTaskUi";
+import { featureFlags } from "@/config/featureFlags";
 
 export const HOME_NOVEL_FETCH_LIMIT = 12;
 export const HOME_RECENT_LIMIT = 6;
 export const DIRECTOR_CREATE_LINK = "/novels/auto-director";
+export const SHORT_STORY_CREATE_LINK = featureFlags.creationStudioEnabled
+  ? "/create?form=short_story"
+  : null;
 export const MANUAL_CREATE_LINK = "/novels/create";
 
 export type HomeNovelItem = NovelListResponse["items"][number];
@@ -52,6 +56,12 @@ export interface HomeNextAction {
   tone: HomeTone;
 }
 
+export function getHomeNovelTask(novel: HomeNovelItem) {
+  return novel.narrativeForm === "short_story"
+    ? novel.latestCreationStudioTask ?? null
+    : novel.latestAutoDirectorTask ?? null;
+}
+
 export function formatHomeDate(value: string | undefined): string {
   if (!value) {
     return "暂无";
@@ -64,7 +74,7 @@ export function formatHomeDate(value: string | undefined): string {
 }
 
 export function getNovelPriorityScore(novel: HomeNovelItem): number {
-  const task = novel.latestAutoDirectorTask ?? null;
+  const task = getHomeNovelTask(novel);
   if (canContinueChapterBatchAutoExecution(task)) {
     return 0;
   }
@@ -87,7 +97,7 @@ export function getNovelPriorityScore(novel: HomeNovelItem): number {
 }
 
 export function getNovelLeadSummary(novel: HomeNovelItem): string {
-  const workflowDescription = getWorkflowDescription(novel.latestAutoDirectorTask ?? null);
+  const workflowDescription = getWorkflowDescription(getHomeNovelTask(novel));
   if (workflowDescription) {
     return workflowDescription;
   }
@@ -119,14 +129,26 @@ export function buildHomeNextAction(primaryNovel: HomeNovelItem | null): HomeNex
     return {
       kind: "starter",
       eyebrow: "开始第一本小说",
-      title: "用一句灵感启动自动导演",
-      description: "先给 AI 一个模糊想法，系统会帮你整理方向、角色、世界观和章节准备。",
-      reason: "适合还没想清楚题材、卖点和前期承诺的新手。",
+      title: "选择适合你的第一种创作方式",
+      description: "想完成长篇，可以交给自动导演准备整本结构；想更快看到完整作品，可以直接从短篇开始。",
+      reason: "两种方式都只需要先说出一个模糊想法，AI 会继续帮你整理创作方向。",
       tone: "info",
     };
   }
 
-  const task = primaryNovel.latestAutoDirectorTask ?? null;
+  const task = getHomeNovelTask(primaryNovel);
+  if (primaryNovel.narrativeForm === "short_story") {
+    return {
+      kind: "novel",
+      eyebrow: task?.status === "succeeded" ? "完整作品" : "创作进行中",
+      title: task?.status === "succeeded" ? `继续完善《${primaryNovel.title}》` : `查看《${primaryNovel.title}》的成稿进度`,
+      description: getNovelLeadSummary(primaryNovel),
+      reason: task?.status === "succeeded"
+        ? "作品已完整生成，可以直接阅读、编辑、修改或导出。"
+        : "短篇正在后台写成一篇连续作品，打开后即可查看实时进度。",
+      tone: task?.status === "succeeded" ? "success" : "info",
+    };
+  }
   if (canContinueChapterBatchAutoExecution(task)) {
     return {
       kind: "novel",
@@ -202,13 +224,15 @@ export function buildHomeMetrics(input: {
   taskOverview?: TaskOverviewSummary | null;
 }): HomeMetric[] {
   const liveWorkflowCount = input.novels.filter((novel) => (
-    isWorkflowRunningInBackground(novel.latestAutoDirectorTask ?? null)
+    isWorkflowRunningInBackground(getHomeNovelTask(novel))
   )).length;
   const actionRequiredCount = input.novels.filter((novel) => (
-    isWorkflowActionRequired(novel.latestAutoDirectorTask ?? null)
+    isWorkflowActionRequired(getHomeNovelTask(novel))
   )).length;
   const readyForExecutionCount = input.novels.filter((novel) => (
-    canEnterChapterExecution(novel.latestAutoDirectorTask ?? null)
+    novel.narrativeForm === "short_story"
+      ? getHomeNovelTask(novel)?.status === "succeeded"
+      : canEnterChapterExecution(getHomeNovelTask(novel))
   )).length;
   const failedTaskCount = input.taskOverview?.failedCount ?? 0;
 
@@ -249,10 +273,12 @@ export function buildHomeAttentionItems(input: {
   taskOverview?: TaskOverviewSummary | null;
 }): HomeAttentionItem[] {
   const actionRequiredCount = input.novels.filter((novel) => (
-    isWorkflowActionRequired(novel.latestAutoDirectorTask ?? null)
+    isWorkflowActionRequired(getHomeNovelTask(novel))
   )).length;
   const readyForExecutionCount = input.novels.filter((novel) => (
-    canEnterChapterExecution(novel.latestAutoDirectorTask ?? null)
+    novel.narrativeForm === "short_story"
+      ? getHomeNovelTask(novel)?.status === "succeeded"
+      : canEnterChapterExecution(getHomeNovelTask(novel))
   )).length;
   const runningCount = input.taskOverview?.runningCount ?? 0;
   const waitingApprovalCount = input.taskOverview?.waitingApprovalCount ?? 0;

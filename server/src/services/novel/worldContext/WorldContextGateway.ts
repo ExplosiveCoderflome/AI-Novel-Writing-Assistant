@@ -52,6 +52,7 @@ export interface WorldContextGatewayOptions {
 export interface WorldContextGatewayGenerateOptions extends NovelWorldGenerateInput {
   storyMacroContext?: string;
   bookContractContext?: string;
+  openingOnly?: boolean;
 }
 
 function compactList(items: string[], fallback = "暂无"): string {
@@ -251,6 +252,7 @@ export class WorldContextGateway {
       temperature: options.temperature,
       storyMacroContext: options.storyMacroContext,
       bookContractContext: options.bookContractContext,
+      openingOnly: options.openingOnly,
     });
   }
 }

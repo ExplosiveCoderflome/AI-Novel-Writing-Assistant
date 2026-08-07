@@ -50,10 +50,22 @@ import {
   toggleDirectorCorrectionPreset,
 } from "../components/directorCandidateSelectionHandlers";
 import { useNovelAutoDirectorCandidateMutations } from "../components/useNovelAutoDirectorCandidateMutations";
+import { hasCreationFoundationChanged } from "./creationFoundationPickerState";
 
 interface UseAutoDirectorCreateControllerInput {
   basicForm: NovelBasicFormState;
-  genreOptions: Array<{ id: string; path: string; label: string }>;
+  genreOptions: Array<{
+    id: string;
+    path: string;
+    label: string;
+    description?: string | null;
+  }>;
+  storyModeOptions: Array<{
+    id: string;
+    path: string;
+    label: string;
+    description?: string | null;
+  }>;
   worldOptions: Array<{ id: string; name: string }>;
   workflowTaskId?: string;
   restoredTask?: UnifiedTaskDetail | null;
@@ -78,6 +90,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const {
     basicForm,
     genreOptions,
+    storyModeOptions,
     worldOptions,
     workflowTaskId: workflowTaskIdProp,
     restoredTask,
@@ -104,6 +117,7 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const [ideaInspirations, setIdeaInspirations] = useState<DirectorIdeaInspiration[]>([]);
   const [candidatePatchFeedbacks, setCandidatePatchFeedbacks] = useState<Record<string, string>>({});
   const [titlePatchFeedbacks, setTitlePatchFeedbacks] = useState<Record<string, string>>({});
+  const [isUpdatingFoundation, setIsUpdatingFoundation] = useState(false);
   const confirmSubmitLockedRef = useRef(false);
   const autoApprovalDraft = useDirectorAutoApprovalDraft(true);
   const { applySnapshot: applyAutoApprovalSnapshot } = autoApprovalDraft;
@@ -197,6 +211,12 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
   const ideaInspirationMutation = useMutation({
     mutationFn: async () => {
       const genre = genreOptions.find((item) => item.id === directorBasicForm.genreId);
+      const primaryStoryMode = storyModeOptions.find(
+        (item) => item.id === directorBasicForm.primaryStoryModeId,
+      );
+      const secondaryStoryMode = storyModeOptions.find(
+        (item) => item.id === directorBasicForm.secondaryStoryModeId,
+      );
       const world = worldOptions.find((item) => item.id === directorBasicForm.worldId);
       return generateDirectorIdeaInspirations({
         ...buildAutoDirectorRequestPayload(directorBasicForm, idea || directorBasicForm.description, llm, runMode, undefined, {
@@ -205,6 +225,11 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
         }),
         currentIdea: idea.trim() || undefined,
         genreLabel: genre?.path || genre?.label,
+        genreDescription: genre?.description || undefined,
+        primaryStoryModeLabel: primaryStoryMode?.path || primaryStoryMode?.label,
+        primaryStoryModeDescription: primaryStoryMode?.description || undefined,
+        secondaryStoryModeLabel: secondaryStoryMode?.path || secondaryStoryMode?.label,
+        secondaryStoryModeDescription: secondaryStoryMode?.description || undefined,
         worldName: world?.name,
       });
     },
@@ -485,6 +510,72 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
 
   const canGenerate = idea.trim().length > 0 && !generateMutation.isPending;
 
+  const updateProductionFoundation = async (patch: Partial<{
+    genreId: string;
+    primaryStoryModeId: string;
+  }>): Promise<boolean> => {
+    if (!hasCreationFoundationChanged(directorBasicForm, patch)) {
+      return true;
+    }
+
+    const shouldInvalidateCandidates = batches.length > 0;
+    if (
+      shouldInvalidateCandidates
+      && !window.confirm("修改故事类型或推进方式后，旧方向需要重新适配并重新生成。确认修改吗？")
+    ) {
+      return false;
+    }
+
+    const nextPatch: Partial<NovelBasicFormState> = {
+      ...patch,
+      secondaryStoryModeId: "",
+    };
+    const nextForm = patchNovelBasicForm(directorBasicForm, nextPatch);
+
+    setIsUpdatingFoundation(true);
+    try {
+      if (shouldInvalidateCandidates && workflowTaskId) {
+        await bootstrapNovelWorkflow({
+          workflowTaskId,
+          lane: "auto_director",
+          title: nextForm.title.trim() || undefined,
+          seedPayload: {
+            basicForm: nextForm,
+            genreId: nextForm.genreId || null,
+            primaryStoryModeId: nextForm.primaryStoryModeId || null,
+            secondaryStoryModeId: null,
+            productionFoundation: null,
+            batches: [],
+            candidateStage: null,
+          },
+        });
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.tasks.detail("novel_workflow", workflowTaskId),
+        });
+      }
+
+      onBasicFormChange(nextPatch);
+      if (shouldInvalidateCandidates) {
+        setBatches([]);
+        setFeedback("");
+        setSelectedPresets([]);
+        setCandidatePatchFeedbacks({});
+        setTitlePatchFeedbacks({});
+        setCandidateDialogOpen(false);
+        setDialogMode("candidate_selection");
+        setExecutionRequested(false);
+        setExecutionError("");
+        toast.success("创作偏好已更新，请按新选择重新生成方向。");
+      }
+      return true;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "更新创作偏好失败，请稍后重试。");
+      return false;
+    } finally {
+      setIsUpdatingFoundation(false);
+    }
+  };
+
   const handleConfirmCandidate = async (candidate: DirectorCandidate) => {
     if (confirmSubmitLockedRef.current || confirmMutation.isPending) {
       return;
@@ -560,6 +651,8 @@ export function useAutoDirectorCreateController(input: UseAutoDirectorCreateCont
     setCandidatePatchFeedbacks,
     titlePatchFeedbacks,
     setTitlePatchFeedbacks,
+    isUpdatingFoundation,
+    updateProductionFoundation,
     canGenerate,
     generateMutation,
     patchCandidateMutation,

@@ -1,6 +1,7 @@
 import type { BookAnalysisDetail } from "@ai-novel/shared/types/bookAnalysis";
 import { Columns2, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
+import OpenInCreativeHubButton from "@/components/creativeHub/OpenInCreativeHubButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatStatus, isBookAnalysisBudgetExceeded } from "../bookAnalysis.utils";
@@ -67,14 +68,17 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
   const canAdjustBudget = selectedAnalysis.status !== "archived";
 
   return (
-    <div className="rounded-md border border-border/80 bg-card">
-      <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="overflow-hidden rounded-2xl border border-border/45 bg-card/70 shadow-[0_10px_32px_rgba(15,23,42,0.035)]">
+      <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold tracking-normal text-foreground">结果工具</h2>
-            <Badge variant="outline">{formatStatus(selectedAnalysis.status)}</Badge>
-            {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary">已发布</Badge> : null}
-            <Badge variant={budgetExceeded ? "destructive" : "outline"}>
+            <Badge variant="secondary" className="border-0 bg-muted/70 font-normal">
+              <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${selectedAnalysis.status === "succeeded" ? "bg-success" : "bg-muted-foreground/50"}`} />
+              {formatStatus(selectedAnalysis.status)}
+            </Badge>
+            {selectedAnalysis.publishedDocumentId ? <Badge variant="secondary" className="border-0 font-normal">已发布</Badge> : null}
+            <Badge variant={budgetExceeded ? "destructive" : "secondary"} className="border-0 font-normal">
               预算 {budgetTokens
                 ? `${formatTokenCount(usedTokens)}/${formatTokenCount(budgetTokens)}`
                 : `${formatTokenCount(usedTokens)}/不限`}
@@ -119,10 +123,17 @@ export default function BookAnalysisWorkspaceToolbar(props: BookAnalysisWorkspac
           <Button asChild size="sm" variant="outline">
             <Link to={`/tasks?kind=book_analysis&id=${selectedAnalysis.id}`}>任务详情</Link>
           </Button>
+          <OpenInCreativeHubButton
+            bindings={{
+              bookAnalysisId: selectedAnalysis.id,
+              knowledgeDocumentIds: selectedAnalysis.documentId ? [selectedAnalysis.documentId] : [],
+            }}
+            label="创作中枢引用"
+          />
         </div>
       </div>
 
-      <details className="border-t border-border/70 px-4 py-3">
+      <details className="border-t border-border/35 px-5 py-3">
         <summary className="cursor-pointer text-xs font-medium text-muted-foreground">更多维护操作</summary>
         <div className="mobile-full-actions mt-3 flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={onCopy} disabled={pending.copy}>复制分析</Button>

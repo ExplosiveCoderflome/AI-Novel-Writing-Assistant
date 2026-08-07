@@ -7,6 +7,7 @@ import type {
 import { BOOK_ANALYSIS_CHARACTER_DIMENSION_LABELS } from "@ai-novel/shared/types/bookAnalysisCharacter";
 import { CHARACTER_PROFILE_FIELD_LABELS } from "@ai-novel/shared/types/characterProfile";
 import type { CharacterProfile } from "@ai-novel/shared/types/characterProfile";
+import { MessageCircle, Pencil, Sparkles, Trash2, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -226,17 +227,20 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-0 bg-transparent shadow-none">
+      <CardHeader className="px-0 pb-5 pt-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle>角色档案</CardTitle>
+          <div>
+            <CardTitle className="text-xl">角色档案</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">阅读人物动机、成长变化与关键场景，按需继续深挖。</p>
+          </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{generatedCharacters.length} 份档案</Badge>
-            {candidateCharacters.length > 0 ? <Badge variant="secondary">{candidateCharacters.length} 个候选</Badge> : null}
+            <Badge variant="secondary" className="border-0 bg-muted/70 font-normal">{generatedCharacters.length} 份档案</Badge>
+            {candidateCharacters.length > 0 ? <Badge variant="secondary" className="border-0 bg-muted/70 font-normal">{candidateCharacters.length} 个候选</Badge> : null}
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5 px-0">
         {conversationTarget && conversationCharacter ? (
           <CharacterConversationWorkbench
             subject={{ kind: "book_analysis_character", id: conversationCharacter.id, scopeKind: "book_analysis", scopeId: analysisId }}
@@ -249,8 +253,20 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
             onClose={() => setConversationTarget(null)}
           />
         ) : null}
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px]">
-          <div className="space-y-3 rounded-md border p-3">
+        <details className="group overflow-hidden rounded-2xl border border-border/40 bg-card/60">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 marker:hidden">
+            <div>
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+                生成与添加角色
+              </div>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">识别原文人物、选择档案深度，或手动补充角色。</p>
+            </div>
+            <span className="shrink-0 text-xs text-muted-foreground group-open:hidden">展开</span>
+            <span className="hidden shrink-0 text-xs text-muted-foreground group-open:inline">收起</span>
+          </summary>
+          <div className="grid gap-4 border-t border-border/35 p-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="space-y-4 rounded-xl bg-muted/25 p-4">
             <div className="flex flex-wrap items-center gap-2">
               <Button size="sm" onClick={() => void onIdentify()} disabled={identifyDisabled}>
                 {pending.identify ? "识别中..." : characters.length > 0 ? "再识别角色" : "识别角色"}
@@ -277,22 +293,30 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                 <option value="exhaustive">完整</option>
               </SelectControl>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div>
+              <div className="mb-2 text-xs font-medium text-muted-foreground">档案包含内容</div>
+              <div className="flex flex-wrap gap-1.5">
               {DEFAULT_DIMENSIONS.map((dimension) => (
                 <Button
                   key={dimension}
                   size="sm"
-                  variant={selectedDimensions.includes(dimension) ? "default" : "outline"}
+                  variant="ghost"
+                  className={selectedDimensions.includes(dimension)
+                    ? "h-8 rounded-full bg-primary/10 px-3 text-primary hover:bg-primary/15 hover:text-primary"
+                    : "h-8 rounded-full px-3 text-muted-foreground hover:bg-muted"}
                   onClick={() => setSelectedDimensions((current) => toggleDimension(current, dimension))}
                   disabled={disabled || operationPending}
+                  aria-pressed={selectedDimensions.includes(dimension)}
                 >
                   {BOOK_ANALYSIS_CHARACTER_DIMENSION_LABELS[dimension]}
                 </Button>
               ))}
+              </div>
             </div>
           </div>
 
-          <div className="space-y-2 rounded-md border p-3">
+          <div className="space-y-2 rounded-xl bg-muted/25 p-4">
+            <div className="pb-1 text-xs font-medium text-muted-foreground">手动补充角色</div>
             <Input
               value={manualName}
               onChange={(event) => setManualName(event.target.value)}
@@ -316,7 +340,8 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
               手动添加
             </Button>
           </div>
-        </div>
+          </div>
+        </details>
 
         {batchSummary ? (
           <div
@@ -352,10 +377,10 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
         ) : null}
 
         {!isLoading && candidateCharacters.length > 0 ? (
-          <section className="rounded-md border bg-muted/20">
+          <section className="overflow-hidden rounded-2xl border border-border/40 bg-card/60">
             <button
               type="button"
-              className="flex w-full flex-wrap items-center justify-between gap-3 p-3 text-left"
+              className="flex w-full flex-wrap items-center justify-between gap-3 px-5 py-4 text-left transition-colors hover:bg-muted/30"
               onClick={() => setCandidateExpanded((current) => !current)}
             >
               <div>
@@ -364,10 +389,10 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                   {candidateCharacters.length} 个候选，可按需生成深度档案。
                 </div>
               </div>
-              <Badge variant="outline">{candidateExpanded ? "收起" : "展开"}</Badge>
+              <span className="text-xs text-muted-foreground">{candidateExpanded ? "收起" : "展开"}</span>
             </button>
             {candidateExpanded ? (
-              <div className="grid gap-3 border-t p-3 xl:grid-cols-2">
+              <div className="grid gap-3 border-t border-border/35 p-4 xl:grid-cols-2">
                 {candidateCharacters.map((character) => (
                   <BookAnalysisCharacterCandidateCard
                     key={character.id}
@@ -385,11 +410,14 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
           </section>
         ) : null}
 
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="grid gap-5 xl:grid-cols-2">
           {generatedCharacters.map((character) => {
             const isEditing = editingId === character.id && editDraft;
             return (
-              <div key={character.id} className="rounded-md border p-3 text-sm">
+              <article
+                key={character.id}
+                className="rounded-2xl border border-border/40 bg-card/80 p-5 text-sm shadow-[0_12px_36px_rgba(15,23,42,0.035)]"
+              >
                 {isEditing ? (
                   <div className="space-y-2">
                     <Input
@@ -419,15 +447,21 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                   </div>
                 ) : (
                   <>
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <div className="text-base font-medium">{character.name}</div>
-                        <div className="mt-1 text-muted-foreground">{character.role}</div>
+                    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/35 pb-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/[0.08] text-primary">
+                          <UserRound className="h-5 w-5" aria-hidden="true" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate text-lg font-semibold tracking-tight">{character.name}</div>
+                          <div className="mt-0.5 line-clamp-2 text-muted-foreground">{character.role}</div>
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap items-center gap-1">
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="secondary"
+                          className="rounded-full"
                           onClick={() => {
                             const anchors = availableChapterAnchors(character);
                             if (anchors.length === 0) {
@@ -438,71 +472,91 @@ export default function BookAnalysisCharacterPanel(props: BookAnalysisCharacterP
                           disabled={disabled || availableChapterAnchors(character).length === 0}
                           title={availableChapterAnchors(character).length === 0 ? "该角色缺少带章节号的原文证据，暂时无法开始证据访谈。" : undefined}
                         >
+                          <MessageCircle className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
                           基于原文访谈
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => startEdit(character)} disabled={disabled}>
+                        <Button size="sm" variant="ghost" className="rounded-full px-2.5" onClick={() => startEdit(character)} disabled={disabled}>
+                          <Pencil className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                           编辑
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
+                          className="rounded-full px-2.5 text-muted-foreground hover:text-destructive"
                           onClick={() => void onDelete(character.id)}
                           disabled={disabled || pending.delete}
                         >
+                          <Trash2 className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                           删除
                         </Button>
                       </div>
                     </div>
-                    <div className="mt-3 grid gap-2">
+                    <div className="grid gap-x-8 md:grid-cols-2">
                       {PROFILE_TEXT_FIELDS.map((field) => {
                         const value = character.profile[field];
                         return typeof value === "string" && value.trim() ? (
-                          <div key={field} className="rounded-md bg-muted/30 p-2">
-                            <div className="text-xs text-muted-foreground">{CHARACTER_PROFILE_FIELD_LABELS[field]}</div>
-                            <div className="mt-1 whitespace-pre-wrap">{value}</div>
+                          <div key={field} className="border-b border-border/30 py-4 last:border-b-0">
+                            <div className="text-[11px] font-medium tracking-wide text-muted-foreground">{CHARACTER_PROFILE_FIELD_LABELS[field]}</div>
+                            <div className="mt-1.5 whitespace-pre-wrap leading-6 text-foreground/90">{value}</div>
                           </div>
                         ) : null;
                       })}
                     </div>
-                    {character.arcs.length > 0 ? (
-                      <div className="mt-3 space-y-2">
-                        <div className="font-medium">弧线节点</div>
-                        {character.arcs.map((arc) => (
-                          <div key={arc.id} className="rounded-md border bg-background p-2">
-                            <div>{arc.stageLabel}</div>
-                            {arc.chapterIndex !== null && arc.chapterIndex !== undefined ? (
-                              <div className="mt-1 text-xs text-muted-foreground">第 {arc.chapterIndex + 1} 章</div>
-                            ) : null}
-                          </div>
-                        ))}
+                    {character.arcs.length > 0 || character.scenes.length > 0 ? (
+                      <div className="mt-5 grid gap-6 border-t border-border/35 pt-4 md:grid-cols-2">
+                        {character.arcs.length > 0 ? (
+                          <section>
+                            <div className="mb-3 font-medium">成长轨迹</div>
+                            <div className="space-y-3 border-l border-primary/20 pl-4">
+                              {character.arcs.map((arc) => (
+                                <div key={arc.id} className="relative">
+                                  <span className="absolute -left-[19px] top-1.5 h-2 w-2 rounded-full bg-primary/55" aria-hidden="true" />
+                                  <div className="leading-5">{arc.stageLabel}</div>
+                                  {arc.chapterIndex !== null && arc.chapterIndex !== undefined ? (
+                                    <div className="mt-0.5 text-xs text-muted-foreground">第 {arc.chapterIndex + 1} 章</div>
+                                  ) : null}
+                                </div>
+                              ))}
+                            </div>
+                          </section>
+                        ) : null}
+                        {character.scenes.length > 0 ? (
+                          <section>
+                            <div className="mb-3 font-medium">关键场景</div>
+                            <div className="flex flex-wrap gap-2">
+                              {character.scenes.map((scene) => (
+                                <div key={scene.id} className="rounded-xl bg-muted/45 px-3 py-2">
+                                  <div className="leading-5">{scene.sceneLabel}</div>
+                                  {scene.sceneType ? (
+                                    <div className="mt-0.5 text-[11px] text-muted-foreground">{scene.sceneType}</div>
+                                  ) : null}
+                                </div>
+                              ))}
+                            </div>
+                          </section>
+                        ) : null}
                       </div>
                     ) : null}
-                    {character.scenes.length > 0 ? (
-                      <div className="mt-3 space-y-2">
-                        <div className="font-medium">场景表现</div>
-                        {character.scenes.map((scene) => (
-                          <div key={scene.id} className="rounded-md border bg-background p-2">
-                            <div>{scene.sceneLabel}</div>
-                            {scene.sceneType ? (
-                              <div className="mt-1 text-xs text-muted-foreground">{scene.sceneType}</div>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                    <BookAnalysisCharacterAppearancePanel
-                      analysisId={analysisId}
-                      character={character}
-                      disabled={disabled}
-                    />
-                    <BookAnalysisCharacterImagePanel
-                      analysisId={analysisId}
-                      character={character}
-                      disabled={disabled}
-                    />
+                    <details className="group mt-5 border-t border-border/35 pt-4">
+                      <summary className="flex cursor-pointer list-none items-center justify-between marker:hidden">
+                        <span className="font-medium">形象与视觉资料</span>
+                        <span className="text-xs text-muted-foreground group-open:hidden">展开</span>
+                        <span className="hidden text-xs text-muted-foreground group-open:inline">收起</span>
+                      </summary>
+                      <BookAnalysisCharacterAppearancePanel
+                        analysisId={analysisId}
+                        character={character}
+                        disabled={disabled}
+                      />
+                      <BookAnalysisCharacterImagePanel
+                        analysisId={analysisId}
+                        character={character}
+                        disabled={disabled}
+                      />
+                    </details>
                   </>
                 )}
-              </div>
+              </article>
             );
           })}
         </div>

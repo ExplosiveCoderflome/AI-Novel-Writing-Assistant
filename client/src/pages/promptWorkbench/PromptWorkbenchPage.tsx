@@ -17,6 +17,7 @@ import { usePromptCatalog } from "./hooks/usePromptCatalog";
 import { usePromptDraftSlots } from "./hooks/usePromptDraftSlots";
 import { usePromptPreview } from "./hooks/usePromptPreview";
 import { usePromptTemplateEditor } from "./hooks/usePromptTemplateEditor";
+import { WritingPlatformProfileManager } from "./components/WritingPlatformProfileManager";
 
 type PromptEditMode = "slots" | "advanced";
 
@@ -28,6 +29,7 @@ export default function PromptWorkbenchPage() {
   const [immersiveMode, setImmersiveMode] = useState(false);
   const [selectedChapterId, setSelectedChapterId] = useState("");
   const [editMode, setEditMode] = useState<PromptEditMode>("slots");
+  const [platformManagerOpen, setPlatformManagerOpen] = useState(false);
   const globalLlmProvider = useLLMStore((state) => state.provider);
   const globalLlmModel = useLLMStore((state) => state.model);
   const globalLlmTemperature = useLLMStore((state) => state.temperature);
@@ -64,7 +66,7 @@ export default function PromptWorkbenchPage() {
     () => chapters.find((chapter) => chapter.id === selectedChapterId) ?? null,
     [chapters, selectedChapterId],
   );
-  const advancedTemplateSupported = selectedPrompt?.id === "novel.chapter.writer";
+  const advancedTemplateSupported = Boolean(selectedPrompt?.capabilities.supportsAdvancedTemplate);
   const advancedTemplateEnabled = Boolean(
     advancedTemplateSupported
     && slotState.scope === "novel"
@@ -205,6 +207,7 @@ export default function PromptWorkbenchPage() {
             isFetching={catalog.query.isFetching}
             onSelect={handleSelectPrompt}
             onRefresh={() => void catalog.refetch()}
+            onManagePlatforms={() => setPlatformManagerOpen(true)}
           />
         </div>
       ) : null}
@@ -346,6 +349,7 @@ export default function PromptWorkbenchPage() {
           </div>
         )}
       </main>
+      <WritingPlatformProfileManager open={platformManagerOpen} onOpenChange={setPlatformManagerOpen} />
     </div>
   );
 }
