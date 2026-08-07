@@ -69,69 +69,6 @@ test("phase one asset pages expose purpose status recommendation and recovery st
   assert.match(characterPage, /characterListQuery\.isLoading/);
   assert.match(characterPage, /characterListQuery\.isError/);
 });
-<<<<<<< HEAD
-=======
-
-test("knowledge library presents a document shelf before maintenance controls", () => {
-  assert.match(knowledgeOverview, /aria-label="知识资料状态"/);
-  assert.match(knowledgeOverview, /recommendation\.tone !== "success"/);
-  assert.match(knowledgePage, /TabsTrigger value="documents" className="rounded-full/);
-  assert.match(knowledgeDocuments, /资料书架/);
-  assert.match(knowledgeDocuments, /xl:grid-cols-2/);
-  assert.match(knowledgeDocuments, /更多操作/);
-  assert.match(knowledgeDocuments, /label="继续创作"/);
-  assert.match(knowledgeDocuments, /onOpenRecallTest/);
-  assert.match(knowledgeDocuments, /onReindexDocument/);
-  assert.match(knowledgeDocuments, /confirmArchiveDocument/);
-});
-
-test("knowledge maintenance keeps recovery obvious and technical detail secondary", () => {
-  assert.match(knowledgeOps, /资料检索可用状态/);
-  assert.match(knowledgeOps, /检查检索设置/);
-  assert.match(knowledgeOps, /资料同步记录/);
-  assert.match(knowledgeOps, /任务详情/);
-  assert.doesNotMatch(knowledgeOps, /最近失败任务/);
-  assert.match(knowledgeSettings, /让资料参与创作/);
-  assert.match(knowledgeSettings, /选择资料理解方式/);
-  assert.match(knowledgeSettings, /连接资料库/);
-  assert.match(knowledgeSettings, /高级配置/);
-  assert.match(knowledgeSettings, /保存检索设置/);
-});
-
-test("world library presents reusable story samples before handbook detail", () => {
-  assert.match(worldList, /如何把样本用于小说/);
-  assert.match(worldList, /展开创作线索/);
-  assert.match(worldList, /2xl:grid-cols-3/);
-  assert.match(worldList, /查看世界手册/);
-  assert.match(worldList, /整理样本/);
-  assert.match(worldList, /handleDelete/);
-  assert.match(worldList, /worldListQuery\.isLoading/);
-  assert.match(worldList, /worldListQuery\.isError/);
-  assert.doesNotMatch(worldList, /grid grid-cols-4 gap-2 text-center/);
-});
-
-test("world workspace keeps handbook reading primary and AI maintenance guided", () => {
-  assert.match(worldWorkspace, /返回世界样本库/);
-  assert.match(worldWorkspace, /创作模型/);
-  assert.match(worldWorkspace, /TabsTrigger value="structure" className="rounded-full/);
-  assert.match(worldHandbook, /先确认世界给读者的印象与核心矛盾/);
-  assert.match(worldOverview, /阅读世界与图谱/);
-  assert.match(worldOverview, /条核心规则/);
-  assert.match(worldLayers, /AI 分层整理/);
-  assert.match(worldLayers, /AI 精修当前内容/);
-  assert.match(worldDeepening, /补齐关键设定/);
-  assert.match(worldConsistency, /检查世界一致性/);
-  assert.match(worldAssets, /rounded-full px-4 py-2/);
-  assert.match(worldAssets, /地图与图谱/);
-  assert.match(worldAssets, /版本快照/);
-  assert.match(worldAssets, /导出备份/);
-  assert.match(worldAssets, /导入文本/);
-});
-
-test("world visualizations separate layout, canvas, and view controls", () => {
-  assert.match(worldVisualization, /WorldGraphCanvas/);
-  assert.match(worldVisualization, /势力图谱 ·/);
-  assert.match(worldVisualization, /世界地图 ·/);
   assert.match(worldVisualization, /WorldTimelinePanel/);
   assert.match(worldGraphCanvas, /ReactFlow/);
   assert.match(worldGraphCanvas, /WorldGraphNode/);
@@ -152,6 +89,15 @@ test("world visualizations separate layout, canvas, and view controls", () => {
   assert.match(worldGraphLayout, /forceSimulation/);
   assert.match(worldGraphLayout, /forceLink/);
   assert.match(worldGraphLayout, /forceX/);
+=======
+  assert.match(worldGraphCanvas, /buildEdgeLabelPlacements/);
+  assert.match(worldGraphCanvas, /节点按势力类型分散排布/);
+  assert.match(worldGraphCanvas, /地点按相对方位铺开/);
+  assert.match(worldGraphCanvas, /FullscreenView/);
+  assert.match(worldGraphCanvas, /全屏查看图谱/);
+  assert.match(worldGraphCanvas, /退出图谱全屏/);
+  assert.match(worldGraphLayout, /buildFactionLayout/);
+>>>>>>> 6721e833 (fix(ui): refine world map fullscreen layout)
   assert.match(worldGraphLayout, /spreadAxis/);
   assert.match(worldGraphLayout, /seededRandom/);
   assert.match(worldGraphLayout, /getVisibleEdgeLabelIds/);

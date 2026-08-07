@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  GRAPH_NODE_SIZE,
-  buildGraphLayout,
-  getShortRelation,
-  getVisibleEdgeLabelIds,
+  buildEdgeLabelPlacements,
+  buildFactionLayout,
+  buildLabelPlacements,
+  buildMapLayout,
 } from "./worldGraphLayout.ts";
 
 const factionNodes = Array.from({ length: 9 }, (_, index) => ({
@@ -12,69 +12,47 @@ const factionNodes = Array.from({ length: 9 }, (_, index) => ({
   label: `测试势力${index + 1}`,
   type: index < 6 ? "organization" : "faction",
 }));
-const factionEdges = factionNodes.slice(1).map((node, index) => ({
-  source: factionNodes[index].id,
-  target: node.id,
-  relation: index % 2 === 0 ? "合作" : "竞争",
-}));
 
-test("faction force layout is deterministic and uses the available canvas", () => {
-  assert.ok(GRAPH_NODE_SIZE.graph.width >= 200);
-  assert.ok(GRAPH_NODE_SIZE.graph.height >= 80);
-  const first = buildGraphLayout(factionNodes, factionEdges, 1040, 560, "graph");
-  const second = buildGraphLayout(factionNodes, factionEdges, 1040, 560, "graph");
-  assert.deepEqual([...first], [...second]);
-  const xs = [...first.values()].map((point) => point.x);
-  const ys = [...first.values()].map((point) => point.y);
-  assert.ok(Math.max(...xs) - Math.min(...xs) > 440);
-  assert.ok(Math.max(...ys) - Math.min(...ys) > 240);
-  const distances = [...first.values()].flatMap((point, index, points) => (
-    points.slice(index + 1).map((other) => Math.hypot(point.x - other.x, point.y - other.y))
-  ));
-  assert.ok(Math.min(...distances) > 120);
+test("faction layout uses the wide canvas instead of clustering in the center", () => {
+  const positions = buildFactionLayout(factionNodes, 960, 480);
+  const xs = [...positions.values()].map((point) => point.x);
+  const ys = [...positions.values()].map((point) => point.y);
+  assert.ok(Math.max(...xs) - Math.min(...xs) > 400);
+  assert.ok(Math.max(...ys) - Math.min(...ys) > 200);
 });
 
-test("map force layout keeps direction semantics and separates duplicate coordinates", () => {
-  const directionalNodes = [
-    { id: "north", label: "北境", x: 50, y: 5, directionHint: "north" },
-    { id: "south", label: "南境", x: 50, y: 95, directionHint: "south" },
-    { id: "west", label: "西境", x: 5, y: 50, directionHint: "west" },
-    { id: "east", label: "东境", x: 95, y: 50, directionHint: "east" },
+test("map layout expands narrow AI coordinate ranges and separates duplicates", () => {
+  const nodes = [
+    { id: "a", label: "地点甲", x: 48, y: 49 },
+    { id: "b", label: "地点乙", x: 50, y: 50 },
+    { id: "c", label: "地点丙", x: 52, y: 53 },
+    { id: "d", label: "地点丁", x: 50, y: 50 },
   ];
-  const directional = buildGraphLayout(directionalNodes, [], 1120, 620, "map");
-  assert.ok(directional.get("north").y < directional.get("south").y);
-  assert.ok(directional.get("west").x < directional.get("east").x);
-
-  const duplicates = Array.from({ length: 4 }, (_, index) => ({
-    id: `duplicate-${index}`,
-    label: `重复地点${index + 1}`,
-    x: 50,
-    y: 50,
-  }));
-  const positions = buildGraphLayout(duplicates, [], 1120, 620, "map");
+  const positions = buildMapLayout(nodes, 1040, 540);
+  const xs = [...positions.values()].map((point) => point.x);
   const points = [...positions.values()];
-  const distances = points.flatMap((point, index) => (
-    points.slice(index + 1).map((other) => Math.hypot(point.x - other.x, point.y - other.y))
-  ));
-  assert.equal(new Set(points.map((point) => `${point.x}:${point.y}`)).size, duplicates.length);
-  assert.ok(Math.min(...distances) > 120);
+  const uniquePoints = new Set([...positions.values()].map((point) => `${Math.round(point.x)}:${Math.round(point.y)}`));
+  assert.ok(Math.max(...xs) - Math.min(...xs) > 450);
+  assert.equal(uniquePoints.size, nodes.length);
+  const distances = points.flatMap((point, index) => points.slice(index + 1).map((other) => Math.hypot(point.x - other.x, point.y - other.y)));
+  assert.ok(Math.min(...distances) > 90);
 });
 
-test("relation labels stay compact and only non-overlapping labels remain visible", () => {
-  assert.equal(getShortRelation({ source: "a", target: "b", relation: "表面合作但暗中竞争" }), "表面合作…");
-  assert.equal(getShortRelation({ source: "a", target: "b", relation: "" }), "关系");
-
-  const positions = new Map([
-    ["left", { x: 100, y: 100 }],
-    ["right", { x: 500, y: 100 }],
-    ["top", { x: 300, y: 20 }],
-    ["bottom", { x: 300, y: 180 }],
-  ]);
-  const edges = [
-    { id: "horizontal", source: "left", target: "right", relation: "合作" },
-    { id: "same-midpoint", source: "top", target: "bottom", relation: "竞争" },
-  ];
-  const visible = getVisibleEdgeLabelIds(edges, positions, "graph");
-  assert.ok(visible.has("horizontal"));
-  assert.ok(!visible.has("same-midpoint"));
+test("node and relation labels receive independent placements", () => {
+  const positions = buildFactionLayout(factionNodes, 960, 480);
+  const nodeLabels = buildLabelPlacements(factionNodes, positions, 960, 480, "graph");
+  const edges = factionNodes.slice(1).map((node, index) => ({
+    source: factionNodes[index].id,
+    target: node.id,
+    relation: `关系${index + 1}`,
+  }));
+  const edgeLabels = buildEdgeLabelPlacements(edges, positions, nodeLabels, 960, 480, "graph");
+  assert.equal(nodeLabels.size, factionNodes.length);
+  assert.equal(edgeLabels.length, edges.length);
+  assert.ok(edgeLabels.every((label) => label.width > 0 && label.height > 0 && Number.isFinite(label.x) && Number.isFinite(label.y)));
+  const overlaps = (first, second) => first.x < second.x + second.width
+    && first.x + first.width > second.x
+    && first.y < second.y + second.height
+    && first.y + first.height > second.y;
+  assert.ok(edgeLabels.every((edgeLabel) => [...nodeLabels.values()].every((nodeLabel) => !overlaps(edgeLabel, nodeLabel))));
 });
