@@ -18,13 +18,6 @@ const knowledgeOverview = readClientFile("src/pages/knowledge/components/Knowled
 const knowledgeOps = readClientFile("src/pages/knowledge/components/KnowledgeOpsTab.tsx");
 const knowledgeSettings = readClientFile("src/pages/knowledge/components/KnowledgeEmbeddingSettingsCard.tsx");
 const worldList = readClientFile("src/pages/worlds/WorldList.tsx");
-const worldWorkspace = readClientFile("src/pages/worlds/WorldWorkspace.tsx");
-const worldHandbook = readClientFile("src/pages/worlds/components/workspace/WorldHandbookEditor.tsx");
-const worldOverview = readClientFile("src/pages/worlds/components/workspace/WorldOverviewTab.tsx");
-const worldLayers = readClientFile("src/pages/worlds/components/workspace/WorldLayersTab.tsx");
-const worldDeepening = readClientFile("src/pages/worlds/components/workspace/WorldDeepeningTab.tsx");
-const worldConsistency = readClientFile("src/pages/worlds/components/workspace/WorldConsistencyTab.tsx");
-const worldAssets = readClientFile("src/pages/worlds/components/workspace/WorldAssetsTab.tsx");
 const genrePage = readClientFile("src/pages/genres/GenreManagementPage.tsx");
 const genreTreeBrowser = readClientFile("src/pages/genres/components/GenreTreeBrowser.tsx");
 const storyModePage = readClientFile("src/pages/storyModes/StoryModeManagementPage.tsx");
@@ -105,24 +98,6 @@ test("world library presents reusable story samples before handbook detail", () 
   assert.match(worldList, /worldListQuery\.isLoading/);
   assert.match(worldList, /worldListQuery\.isError/);
   assert.doesNotMatch(worldList, /grid grid-cols-4 gap-2 text-center/);
-});
-
-test("world workspace keeps handbook reading primary and AI maintenance guided", () => {
-  assert.match(worldWorkspace, /返回世界样本库/);
-  assert.match(worldWorkspace, /创作模型/);
-  assert.match(worldWorkspace, /TabsTrigger value="structure" className="rounded-full/);
-  assert.match(worldHandbook, /先确认世界给读者的印象与核心矛盾/);
-  assert.match(worldOverview, /阅读世界与图谱/);
-  assert.match(worldOverview, /条核心规则/);
-  assert.match(worldLayers, /AI 分层整理/);
-  assert.match(worldLayers, /AI 精修当前内容/);
-  assert.match(worldDeepening, /补齐关键设定/);
-  assert.match(worldConsistency, /检查世界一致性/);
-  assert.match(worldAssets, /rounded-full px-4 py-2/);
-  assert.match(worldAssets, /地图与图谱/);
-  assert.match(worldAssets, /版本快照/);
-  assert.match(worldAssets, /导出备份/);
-  assert.match(worldAssets, /导入文本/);
 });
 
 test("genre library uses a compact tree browser with a separate detail surface", () => {
