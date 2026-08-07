@@ -22,7 +22,7 @@ export function SectionHeader({
         </div>
         <div className="mt-1 text-sm leading-6 text-muted-foreground">{description}</div>
       </div>
-      {typeof count === "number" ? <Badge variant="secondary">{count} 条</Badge> : null}
+      {typeof count === "number" ? <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{count} 条</Badge> : null}
     </div>
   );
 }
@@ -35,7 +35,7 @@ export function HandbookTextarea(props: {
 }) {
   return (
     <textarea
-      className="min-h-[96px] w-full rounded-md border bg-background p-3 text-sm leading-6"
+      className="min-h-[96px] w-full rounded-2xl border border-border/45 bg-background/80 p-3 text-sm leading-6"
       style={{ minHeight: `${(props.minRows ?? 4) * 24 + 24}px` }}
       value={props.value}
       onChange={(event) => props.onChange(event.target.value)}
@@ -54,7 +54,7 @@ export function HandbookField({
   children: ReactNode;
 }) {
   return (
-    <label className="block rounded-md border bg-background p-3">
+    <label className="block rounded-2xl bg-muted/20 p-4">
       <span className="block text-sm font-medium text-foreground">{title}</span>
       {hint ? <span className="mt-1 block text-xs leading-5 text-muted-foreground">{hint}</span> : null}
       <span className="mt-3 block">{children}</span>
@@ -76,7 +76,7 @@ export function HandbookPreviewCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-md border bg-background p-4">
+    <section className="rounded-2xl border border-border/35 bg-card/70 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -104,7 +104,7 @@ export function HandbookPreviewLine({
   const text = value?.trim() || fallback;
 
   return (
-    <div className="rounded-md bg-muted/30 p-3">
+    <div className="rounded-xl bg-muted/25 p-3">
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
       <div className="mt-1 text-sm leading-6 text-foreground">{text}</div>
     </div>

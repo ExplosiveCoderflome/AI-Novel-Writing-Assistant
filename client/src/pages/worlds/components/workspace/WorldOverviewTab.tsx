@@ -15,7 +15,6 @@ import {
 import type { WorldStructuredData, WorldVisualizationPayload } from "@ai-novel/shared/types/world";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { featureFlags } from "@/config/featureFlags";
 import WorldVisualizationBoard from "../WorldVisualizationBoard";
 
@@ -53,7 +52,7 @@ function HandbookBlock({
   accent?: "default" | "primary";
 }) {
   return (
-    <div className={accent === "primary" ? "rounded-md border border-primary/30 bg-primary/5 p-3" : "rounded-md border bg-background p-3"}>
+    <div className={accent === "primary" ? "rounded-2xl bg-primary/[0.055] p-4" : "rounded-2xl bg-muted/20 p-4"}>
       <div className="flex items-center gap-2 text-sm font-medium">
         <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
         {title}
@@ -79,7 +78,7 @@ function EmptyHandbookBlock({
   description: string;
 }) {
   return (
-    <div className="rounded-md border border-dashed bg-background p-3">
+    <div className="rounded-2xl border border-dashed border-border/45 bg-background/70 p-4">
       <div className="flex items-center gap-2 text-sm font-medium">
         <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
         {title}
@@ -101,13 +100,13 @@ function WorldAssetPreviewBlock({
   status: string;
 }) {
   return (
-    <div className="rounded-md border border-dashed bg-background p-3">
+    <div className="rounded-2xl border border-dashed border-border/45 bg-background/70 p-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
           {title}
         </div>
-        <Badge variant="outline">{status}</Badge>
+        <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{status}</Badge>
       </div>
       <div className="mt-2 text-xs leading-5 text-muted-foreground">{description}</div>
     </div>
@@ -152,32 +151,32 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
   );
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle>{featureFlags.worldVisEnabled ? "世界手册与可视化" : "世界手册"}</CardTitle>
+    <section className="space-y-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">{featureFlags.worldVisEnabled ? "阅读世界与图谱" : "阅读世界手册"}</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">从读者视角理解世界承诺、规则边界、主要势力与故事舞台。</p>
+          </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="secondary" onClick={onOpenStructure}>
+            <Button type="button" size="sm" variant="secondary" className="rounded-full" onClick={onOpenStructure}>
               <Pencil className="mr-2 h-4 w-4" aria-hidden="true" />
               编修手册
             </Button>
-            <Button type="button" size="sm" variant="outline" onClick={onOpenLayers}>
+            <Button type="button" size="sm" variant="ghost" className="rounded-full" onClick={onOpenLayers}>
               <WandSparkles className="mr-2 h-4 w-4" aria-hidden="true" />
               AI 构建
             </Button>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
         {hasHandbook ? (
           <>
             <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
-              <div className="rounded-md border-l-2 border-primary bg-muted/30 p-4">
+              <div className="rounded-3xl bg-muted/20 p-5 sm:p-6">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">世界样本</Badge>
-                  {profile?.tone ? <Badge variant="outline">{profile.tone}</Badge> : null}
+                  <Badge variant="secondary" className="border-0 bg-primary/[0.07] font-normal text-primary">世界样本</Badge>
+                  {profile?.tone ? <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">{profile.tone}</Badge> : null}
                   {profile?.themes?.slice(0, 4).map((theme) => (
-                    <Badge key={theme} variant="outline">
+                    <Badge key={theme} variant="secondary" className="border-0 bg-muted/60 font-normal">
                       {theme}
                     </Badge>
                   ))}
@@ -193,7 +192,7 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
                 </div>
               </div>
 
-              <div className="rounded-md border bg-background p-4">
+              <div className="rounded-3xl border border-border/35 bg-card/70 p-5">
                 <div className="text-sm font-medium">作为世界样本可提供</div>
                 <div className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">
                   <div>角色身份边界、势力归属与禁忌组合。</div>
@@ -203,25 +202,11 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
               </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-4">
-              <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                <div className="text-lg font-semibold">{structure?.rules.axioms.length ?? 0}</div>
-                <div className="text-muted-foreground">核心规则</div>
-              </div>
-              <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                <div className="text-lg font-semibold">{(structure?.forces.length ?? 0) + (structure?.factions.length ?? 0)}</div>
-                <div className="text-muted-foreground">势力与阵营</div>
-              </div>
-              <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                <div className="text-lg font-semibold">{structure?.locations.length ?? 0}</div>
-                <div className="text-muted-foreground">故事地点</div>
-              </div>
-              <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                <div className="text-lg font-semibold">
-                  {(structure?.relations.forceRelations.length ?? 0) + (structure?.relations.locationControls.length ?? 0)}
-                </div>
-                <div className="text-muted-foreground">关系线索</div>
-              </div>
+            <div className="flex flex-wrap gap-x-7 gap-y-2 px-1 text-sm text-muted-foreground">
+              <span><strong className="font-semibold tabular-nums text-foreground">{structure?.rules.axioms.length ?? 0}</strong> 条核心规则</span>
+              <span><strong className="font-semibold tabular-nums text-foreground">{(structure?.forces.length ?? 0) + (structure?.factions.length ?? 0)}</strong> 个势力与阵营</span>
+              <span><strong className="font-semibold tabular-nums text-foreground">{structure?.locations.length ?? 0}</strong> 个故事地点</span>
+              <span><strong className="font-semibold tabular-nums text-foreground">{(structure?.relations.forceRelations.length ?? 0) + (structure?.relations.locationControls.length ?? 0)}</strong> 条关系线索</span>
             </div>
 
             <div className="grid gap-3 lg:grid-cols-2">
@@ -243,8 +228,8 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
         ) : (
           <div className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-[1.35fr_0.85fr]">
-              <div className="rounded-md border-l-2 border-primary bg-muted/30 p-4">
-                <Badge variant="secondary">世界手册待成型</Badge>
+              <div className="rounded-3xl bg-muted/20 p-5">
+                <Badge variant="secondary" className="border-0 bg-primary/[0.07] font-normal text-primary">世界手册待成型</Badge>
                 <div className="mt-3 text-lg font-semibold leading-7">
                   {compactText(summary, "先让 AI 或手册编修整理世界骨架，再把它作为可复用世界样本。", 160)}
                 </div>
@@ -253,7 +238,7 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
                 </div>
               </div>
 
-              <div className="rounded-md border bg-background p-4">
+              <div className="rounded-3xl border border-border/35 bg-card/70 p-5">
                 <div className="text-sm font-medium">建议下一步</div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button type="button" size="sm" onClick={onOpenLayers}>
@@ -276,11 +261,11 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
             </div>
 
             {sections.length > 0 ? (
-              <div className="rounded-md border p-3">
+              <div className="rounded-3xl border border-border/35 p-4">
                 <div className="mb-2 text-sm font-medium">已有设定片段</div>
                 <div className="grid gap-3 lg:grid-cols-2">
                   {sections.map((section) => (
-                    <div key={section.key} className="rounded-md border bg-background p-3 text-sm">
+                    <div key={section.key} className="rounded-2xl bg-muted/20 p-4 text-sm">
                       <div className="mb-1 font-medium">{section.title}</div>
                       <div className="line-clamp-4 whitespace-pre-wrap text-muted-foreground">{section.content}</div>
                     </div>
@@ -293,7 +278,7 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
         {featureFlags.worldVisEnabled ? (
           <WorldVisualizationBoard payload={visualization} />
         ) : (
-          <div className="rounded-md border p-4">
+          <div className="rounded-3xl border border-border/35 p-5">
             <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -304,7 +289,7 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
                   地图和图谱是世界手册的可视化资产，不参与自动同步覆盖，也不替代世界手册的规则来源。
                 </div>
               </div>
-              <Badge variant="outline">预留入口</Badge>
+              <Badge variant="secondary" className="border-0 bg-muted/60 font-normal">预留入口</Badge>
             </div>
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <WorldAssetPreviewBlock
@@ -334,7 +319,6 @@ export default function WorldOverviewTab(props: WorldOverviewTabProps) {
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </section>
   );
 }

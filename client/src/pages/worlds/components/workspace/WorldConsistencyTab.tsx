@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import type { WorldConsistencyIssue, WorldConsistencyReport } from "@ai-novel/shared/types/world";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   localizeConsistencyField,
   localizeConsistencyIssueDetail,
@@ -38,63 +37,55 @@ export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
   const ignoredCount = issues.filter((issue) => issue.status === "ignored").length;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>世界手册体检</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-col gap-3 rounded-md border p-3 lg:flex-row lg:items-center lg:justify-between">
+    <section className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">检查世界一致性</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">确认规则、题材信号、力量体系和冲突来源能共同支撑同一个故事。</p>
+        </div>
+
+        <div className="flex flex-col gap-4 rounded-3xl bg-primary/[0.055] p-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <div className="text-sm font-medium">世界手册体检</div>
+            <div className="font-medium">让 AI 阅读整份世界手册</div>
             <div className="mt-1 text-xs leading-5 text-muted-foreground">
-              检查核心规则、题材信号、力量体系和冲突支撑是否互相冲突。发现问题后逐条处理即可。
+              发现设定互相冲突或无法支撑剧情时，会给出可逐条处理的问题。
             </div>
           </div>
-          <Button onClick={onCheck} disabled={checkPending}>
+          <Button className="shrink-0 rounded-full" onClick={onCheck} disabled={checkPending}>
             {checkPending ? "检查中..." : "运行手册体检"}
           </Button>
         </div>
 
         {report ? (
-          <div className="grid gap-3 md:grid-cols-5">
-            <div className="rounded-md border p-3 text-sm">
-              <div className="text-xs text-muted-foreground">检查状态</div>
-              <div className="mt-1 font-semibold">{localizeConsistencyStatus(report.status)}</div>
-            </div>
-            <div className="rounded-md border p-3 text-sm">
-              <div className="text-xs text-muted-foreground">一致性分数</div>
-              <div className="mt-1 font-semibold">{report.score}</div>
-            </div>
-            <div className="rounded-md border p-3 text-sm">
-              <div className="text-xs text-muted-foreground">待处理</div>
-              <div className="mt-1 font-semibold">{openIssues.length}</div>
-            </div>
-            <div className="rounded-md border p-3 text-sm">
-              <div className="text-xs text-muted-foreground">严重/警告</div>
-              <div className="mt-1 font-semibold">{errorCount}/{warnCount}</div>
-            </div>
-            <div className="rounded-md border p-3 text-sm">
-              <div className="text-xs text-muted-foreground">已处理</div>
-              <div className="mt-1 font-semibold">{resolvedCount + ignoredCount}</div>
-            </div>
-            <div className="rounded-md border p-3 text-sm md:col-span-5">
-              <div className="text-xs text-muted-foreground">检查摘要</div>
-              <div className="mt-1 font-medium">{report.summary}</div>
-              <div className="mt-2 text-xs text-muted-foreground">
-                生成时间：{report.generatedAt ? new Date(report.generatedAt).toLocaleString() : "未知"}
+          <div className="rounded-3xl border border-border/35 bg-card/70 p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="text-lg font-semibold">{localizeConsistencyStatus(report.status)}</div>
+                <div className="mt-1 text-sm leading-6 text-muted-foreground">{report.summary}</div>
               </div>
+              <div className="shrink-0 text-left sm:text-right">
+                <div className="text-2xl font-semibold tabular-nums">{report.score}</div>
+                <div className="text-xs text-muted-foreground">一致性分数</div>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-t border-border/30 pt-4 text-sm text-muted-foreground">
+              <span><strong className="font-semibold tabular-nums text-foreground">{openIssues.length}</strong> 项待处理</span>
+              <span><strong className="font-semibold tabular-nums text-foreground">{errorCount}</strong> 项严重</span>
+              <span><strong className="font-semibold tabular-nums text-foreground">{warnCount}</strong> 项提醒</span>
+              <span><strong className="font-semibold tabular-nums text-foreground">{resolvedCount + ignoredCount}</strong> 项已处理</span>
+              <span className="text-xs">{report.generatedAt ? new Date(report.generatedAt).toLocaleString() : "检查时间未知"}</span>
             </div>
           </div>
         ) : (
-          <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            运行检查后，这里会展示世界手册的体检结果和需要处理的问题。
+          <div className="flex min-h-44 flex-col items-center justify-center rounded-3xl bg-muted/20 px-6 text-center">
+            <div className="font-medium">还没有一致性检查结果</div>
+            <div className="mt-1 text-sm text-muted-foreground">运行检查后，这里会显示整体判断和需要处理的问题。</div>
           </div>
         )}
 
         {issues.length > 0 ? (
-          <div className="grid gap-3 lg:grid-cols-[280px_minmax(0,1fr)]">
-            <div className="space-y-2 rounded-md border p-3">
-              <div className="text-sm font-medium">问题清单</div>
+          <div className="grid gap-4 lg:grid-cols-[270px_minmax(0,1fr)]">
+            <div className="space-y-2 rounded-3xl bg-muted/20 p-3">
+              <div className="px-2 py-1 text-sm font-medium">问题清单</div>
               {issues.map((issue) => {
                 const selected = activeIssue?.id === issue.id;
                 return (
@@ -102,8 +93,8 @@ export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
                     key={issue.id}
                     type="button"
                     className={[
-                      "w-full rounded-md border p-2 text-left text-sm transition-colors",
-                      selected ? "border-primary bg-primary/5" : "border-border/70 bg-background hover:bg-muted/40",
+                      "w-full rounded-2xl px-3 py-2.5 text-left text-sm transition-colors",
+                      selected ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-background/60",
                     ].join(" ")}
                     onClick={() => setActiveIssueId(issue.id)}
                   >
@@ -124,26 +115,26 @@ export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
             </div>
 
             {activeIssue ? (
-              <div className="rounded-md border p-3 space-y-3">
+              <div className="space-y-4 rounded-3xl border border-border/35 bg-card/70 p-5">
                 <div>
                   <div className="font-medium">
                     [{localizeConsistencySeverity(activeIssue.severity)}] {localizeConsistencyIssueTitle(activeIssue.code)}
                   </div>
                   <div className="mt-2 text-sm">{localizeConsistencyIssueMessage(activeIssue)}</div>
                 </div>
-                <div className="rounded-md border border-dashed p-3 text-sm leading-6 text-muted-foreground">
+                <div className="rounded-2xl bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
                   {localizeConsistencyIssueDetail(activeIssue) ?? "可以结合世界手册复核这条风险。"}
                 </div>
                 <div className="grid gap-2 md:grid-cols-3">
-                  <div className="rounded-md border p-3 text-xs">
+                  <div className="rounded-2xl bg-muted/20 p-3 text-xs">
                     <div className="text-muted-foreground">检查来源</div>
                     <div className="mt-1 font-medium text-foreground">{localizeConsistencySource(activeIssue.source)}</div>
                   </div>
-                  <div className="rounded-md border p-3 text-xs">
+                  <div className="rounded-2xl bg-muted/20 p-3 text-xs">
                     <div className="text-muted-foreground">影响内容</div>
                     <div className="mt-1 font-medium text-foreground">{localizeConsistencyField(activeIssue.targetField)}</div>
                   </div>
-                  <div className="rounded-md border p-3 text-xs">
+                  <div className="rounded-2xl bg-muted/20 p-3 text-xs">
                     <div className="text-muted-foreground">处理状态</div>
                     <div className="mt-1 font-medium text-foreground">{localizeConsistencyStatus(activeIssue.status)}</div>
                   </div>
@@ -152,6 +143,7 @@ export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
                   <Button
                     size="sm"
                     variant="secondary"
+                    className="rounded-full"
                     onClick={() => onPatchIssue({ issueId: activeIssue.id, status: "resolved" })}
                     disabled={activeIssue.status === "resolved"}
                   >
@@ -159,7 +151,8 @@ export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
                   </Button>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="ghost"
+                    className="rounded-full"
                     onClick={() => onPatchIssue({ issueId: activeIssue.id, status: "ignored" })}
                     disabled={activeIssue.status === "ignored"}
                   >
@@ -170,11 +163,8 @@ export default function WorldConsistencyTab(props: WorldConsistencyTabProps) {
             ) : null}
           </div>
         ) : (
-          <div className="rounded-md border p-3 text-sm text-muted-foreground">
-            还没有一致性问题记录，运行检查后会在这里展示结果。
-          </div>
+          report ? <div className="rounded-2xl bg-success/[0.055] px-4 py-3 text-sm text-muted-foreground">没有需要逐条处理的一致性问题。</div> : null
         )}
-      </CardContent>
-    </Card>
+    </section>
   );
 }
