@@ -59,6 +59,19 @@ test("phase one asset pages expose purpose status recommendation and recovery st
   assert.match(characterPage, /characterListQuery\.isError/);
 });
 
+test("knowledge library presents a document shelf before maintenance controls", () => {
+  assert.match(knowledgeOverview, /aria-label="知识资料状态"/);
+  assert.match(knowledgeOverview, /recommendation\.tone !== "success"/);
+  assert.match(knowledgePage, /TabsTrigger value="documents" className="rounded-full/);
+  assert.match(knowledgeDocuments, /资料书架/);
+  assert.match(knowledgeDocuments, /xl:grid-cols-2/);
+  assert.match(knowledgeDocuments, /更多操作/);
+  assert.match(knowledgeDocuments, /label="继续创作"/);
+  assert.match(knowledgeDocuments, /onOpenRecallTest/);
+  assert.match(knowledgeDocuments, /onReindexDocument/);
+  assert.match(knowledgeDocuments, /confirmArchiveDocument/);
+});
+
 test("genre library uses a compact tree browser with a separate detail surface", () => {
   assert.match(genrePage, /GenreTreeBrowser/);
   assert.match(genreTreeBrowser, /AssetTreeNavigator/);

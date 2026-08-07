@@ -527,10 +527,10 @@ export default function KnowledgePage() {
         onValueChange={(value) => setSearchParams({ tab: value })}
         className="space-y-4"
       >
-        <TabsList className="h-auto w-full justify-start overflow-x-auto">
-          <TabsTrigger value="documents">创作资料</TabsTrigger>
-          <TabsTrigger value="ops">索引与任务</TabsTrigger>
-          <TabsTrigger value="settings">检索设置</TabsTrigger>
+        <TabsList className="h-11 w-full justify-start gap-1 overflow-x-auto rounded-full bg-muted/30 p-1">
+          <TabsTrigger value="documents" className="rounded-full px-5">创作资料</TabsTrigger>
+          <TabsTrigger value="ops" className="rounded-full px-5">索引与任务</TabsTrigger>
+          <TabsTrigger value="settings" className="rounded-full px-5">检索设置</TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents">
