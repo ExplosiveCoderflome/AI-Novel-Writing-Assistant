@@ -1,5 +1,3 @@
-import i18next from "i18next";
-import { useTranslation } from "react-i18next";
 import type {
   BookAnalysis,
   BookAnalysisStatus,
@@ -27,7 +25,6 @@ interface BookAnalysisSidebarProps {
 }
 
 export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
-  const { t } = useTranslation();
   const {
     keyword,
     status,
@@ -43,50 +40,58 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
   } = props;
 
   return (
-    <Card>
-      <CardHeader className="space-y-3">
+    <Card className="overflow-hidden rounded-2xl border-border/50 bg-card/80 shadow-[0_14px_40px_rgba(15,23,42,0.04)] backdrop-blur-sm">
+      <CardHeader className="space-y-4 border-b border-border/40 px-4 pb-4 pt-5">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle>{i18next.t("dict.gen_ff1eb893")}</CardTitle>
-          <Badge variant="outline">{analyses.length}</Badge>
+          <CardTitle className="text-lg tracking-tight">分析列表</CardTitle>
+          <Badge variant="secondary" className="border-0 bg-muted/70 font-normal">{analyses.length}</Badge>
         </div>
-        <Button type="button" size="sm" className="w-full" onClick={onOpenCreateDialog}>
-          <Plus className="mr-1.5 h-4 w-4" />{i18next.t("dict.gen_989a71a3")}</Button>
+        <Button type="button" size="sm" className="h-10 w-full rounded-xl shadow-none" onClick={onOpenCreateDialog}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          新建拆书
+        </Button>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <Input value={keyword} onChange={(event) => onKeywordChange(event.target.value)} placeholder={i18next.t("dict.gen_b6228286")} />
+      <CardContent className="space-y-3 px-3 pb-4 pt-4">
+        <Input className="h-10 rounded-xl border-border/50 bg-muted/20 shadow-none" value={keyword} onChange={(event) => onKeywordChange(event.target.value)} placeholder="搜索标题或关键词" />
         <SelectControl
-          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+          className="h-10 w-full rounded-xl border border-border/50 bg-muted/20 px-3 text-sm shadow-none"
           value={status}
           onChange={(event) => onStatusChange(event.target.value as BookAnalysisStatus | "")}
         >
-          <option value="">{i18next.t("tasks.filterStatusAll")}</option>
-          <option value="draft">{i18next.t("common.draft")}</option>
-          <option value="queued">{i18next.t("tasks.filterStatusQueued")}</option>
-          <option value="running">{i18next.t("tasks.filterStatusRunning")}</option>
-          <option value="succeeded">{i18next.t("dict.gen_330363df")}</option>
-          <option value="failed">{i18next.t("tasks.filterStatusFailed")}</option>
-          <option value="cancelled">{i18next.t("tasks.filterStatusCancelled")}</option>
-          <option value="archived">{i18next.t("dict.gen_c3ba167c")}</option>
+          <option value="">全部状态</option>
+          <option value="draft">草稿</option>
+          <option value="queued">排队中</option>
+          <option value="running">运行中</option>
+          <option value="succeeded">成功</option>
+          <option value="failed">失败</option>
+          <option value="cancelled">已取消</option>
+          <option value="archived">已归档</option>
         </SelectControl>
 
-        <div className="space-y-2">
+        <div className="space-y-1 pt-1">
           {loading ? (
             <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-4 text-xs text-muted-foreground" aria-live="polite">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{i18next.t("bookAnalysis.bookAnalysisSidebar.5s4mf2")}</div>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              正在加载拆书分析...
+            </div>
           ) : null}
           {!loading && errorMessage ? (
             <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive" role="alert">
               <div>{errorMessage}</div>
               <Button type="button" size="sm" variant="outline" className="mt-3" onClick={onRetry}>
-                <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />{i18next.t("common.retry")}</Button>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                重新加载
+              </Button>
             </div>
           ) : null}
           {!loading && !errorMessage ? analyses.map((item) => (
             <button
               key={item.id}
               type="button"
-              className={`w-full rounded-md border p-3 text-left transition-colors ${
-                item.id === selectedAnalysisId ? "border-primary bg-primary/5" : "hover:bg-muted/30"
+              className={`relative w-full rounded-xl border-0 px-3 py-3 text-left transition-all ${
+                item.id === selectedAnalysisId
+                  ? "bg-primary/[0.07] shadow-[inset_3px_0_0_hsl(var(--primary))]"
+                  : "hover:bg-muted/45"
               }`}
               onClick={() => onOpenAnalysis(item.id, item.documentId)}
             >
@@ -102,9 +107,12 @@ export default function BookAnalysisSidebar(props: BookAnalysisSidebarProps) {
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   {item.publishedDocumentId && (
-                    <Badge variant="secondary" className="text-[10px]">{i18next.t("common.published")}</Badge>
+                    <Badge variant="secondary" className="border-0 bg-muted px-1.5 text-[10px] font-normal">已发布</Badge>
                   )}
-                  <Badge variant="outline" className="text-[10px]">{formatStatus(item.status)}</Badge>
+                  <Badge variant="secondary" className="border-0 bg-transparent px-1 text-[10px] font-normal text-muted-foreground">
+                    <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${item.status === "succeeded" ? "bg-emerald-500" : item.status === "failed" ? "bg-destructive" : "bg-muted-foreground/50"}`} />
+                    {formatStatus(item.status)}
+                  </Badge>
                 </div>
               </div>
               <div className="mt-2 text-[11px] text-muted-foreground">
