@@ -144,25 +144,21 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
   return (
     <div className="space-y-6">
       <Tabs value={mode} onValueChange={(value) => setMode(value as FactoryMode)}>
-        <section className="rounded-2xl bg-muted/[0.18] p-4 shadow-[0_18px_52px_rgba(15,23,42,0.07)] sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold tracking-normal text-foreground">{modeCopy.title}</h2>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">{modeCopy.description}</p>
-            </div>
-
-            <TabsList className="grid h-10 w-full grid-cols-3 bg-background/70 p-1 shadow-sm lg:w-[420px]">
-              <TabsTrigger value="novel">按小说生成</TabsTrigger>
-              <TabsTrigger value="brief">自由工坊</TabsTrigger>
-              <TabsTrigger value="adapt">参考改编</TabsTrigger>
+        <section className="rounded-3xl bg-muted/[0.18] p-4 sm:p-6">
+          <div className="mx-auto max-w-3xl">
+            <TabsList className="grid h-11 w-full grid-cols-3 rounded-full bg-background/70 p-1 shadow-sm">
+              <TabsTrigger value="novel" className="rounded-full">按小说生成</TabsTrigger>
+              <TabsTrigger value="brief" className="rounded-full">自由工坊</TabsTrigger>
+              <TabsTrigger value="adapt" className="rounded-full">参考改编</TabsTrigger>
             </TabsList>
+            <p className="mt-3 text-center text-sm leading-6 text-muted-foreground">{modeCopy.description}</p>
           </div>
 
-          <div className="mt-6">
+          <div className="mx-auto mt-6 max-w-4xl">
             <TabsContent value="novel" className="mt-0 space-y-3">
-              <div className="grid gap-3 md:grid-cols-[132px_minmax(0,1fr)] md:items-center">
+              <div className="space-y-2">
                 <label htmlFor="title-factory-novel" className="text-sm font-medium text-foreground">
-                  选择小说项目
+                  想为哪本小说取名？
                 </label>
                 <SelectControl
                   id="title-factory-novel"
@@ -178,7 +174,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
                   ))}
                 </SelectControl>
               </div>
-              <div className="pl-0 text-xs leading-5 text-muted-foreground md:pl-[132px]">
+              <div className="text-xs leading-5 text-muted-foreground">
                 适合已填写简介和类型的作品，系统会结合项目资料生成候选标题。
               </div>
             </TabsContent>
@@ -267,7 +263,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
             </TabsContent>
           </div>
 
-          <div className="mt-5 flex flex-col gap-3 border-t border-border/55 pt-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="mx-auto mt-6 flex max-w-4xl flex-col gap-3 border-t border-border/40 pt-4 lg:flex-row lg:items-center lg:justify-between">
             <button
               type="button"
               className="inline-flex items-center gap-2 text-left text-xs text-muted-foreground transition hover:text-foreground"
@@ -292,7 +288,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
               </label>
               <Button
                 type="button"
-                className="h-10 gap-2 px-5"
+                className="h-10 gap-2 rounded-full px-6"
                 onClick={() => generateMutation.mutate()}
                 disabled={generateMutation.isPending}
               >
@@ -303,14 +299,19 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
           </div>
 
           {showModelSettings ? (
-            <div className="mt-4 border-t border-border/55 pt-4">
+            <div className="mx-auto mt-4 max-w-4xl border-t border-border/40 pt-4">
               <LLMSelector showParameters showBadge={false} />
+            </div>
+          ) : null}
+          {generateMutation.error ? (
+            <div className="mx-auto mt-4 max-w-4xl rounded-xl bg-destructive/[0.055] px-4 py-3 text-sm text-destructive">
+              {generateMutation.error instanceof Error ? generateMutation.error.message : "标题生成失败，请重试。"}
             </div>
           ) : null}
         </section>
       </Tabs>
 
-      <section className="space-y-3">
+      <section className="space-y-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
           <h3 className="text-base font-semibold text-foreground">候选结果</h3>
           <div className="text-xs text-muted-foreground">
@@ -318,6 +319,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
           </div>
         </div>
         <TitleSuggestionList
+          layout="grid"
           suggestions={suggestions}
           selectedTitle={selectedTitle}
           primaryActionLabel="复制标题"
@@ -325,7 +327,7 @@ export default function TitleFactoryPanel({ genreTree, novels }: TitleFactoryPan
           onCopy={handleCopy}
           onSave={(suggestion) => saveMutation.mutate(suggestion)}
           savingTitle={saveMutation.isPending ? saveMutation.variables?.title ?? "" : ""}
-          emptyMessage="选择一种工坊模式后开始生成，结果会在这里出现。"
+          emptyMessage={`${modeCopy.title}准备好后，点击“生成标题”查看不同命名方向。`}
         />
       </section>
     </div>
