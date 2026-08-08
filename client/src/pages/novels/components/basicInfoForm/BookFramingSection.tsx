@@ -13,18 +13,18 @@ export function BookFramingSection(props: BookFramingSectionProps) {
   const { basicForm, onFormChange, quickFill } = props;
 
   return (
-    <div className="space-y-4 rounded-xl border border-primary/15 bg-primary/[0.025] p-4">
+    <div className="space-y-4 pt-2">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="text-sm font-semibold text-foreground">读者会为哪个瞬间留下来？</div>
+          <div className="text-sm font-semibold text-foreground">读者与卖点</div>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">
-            不用写专业策划词。按直觉告诉 AI：谁会喜欢、最想看什么，以及前期会获得什么回报。
+            用最直白的话说清楚：这本书写给谁、卖点是什么、读者前 30 章会得到什么。不会写专业策划词也没关系，按你的直觉描述即可。
           </div>
         </div>
         {quickFill ? <div className="shrink-0">{quickFill}</div> : null}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-2">
           <FieldLabel htmlFor="basic-target-audience" hint={BASIC_INFO_FIELD_HINTS.targetAudience}>
             目标读者
@@ -68,7 +68,7 @@ export function BookFramingSection(props: BookFramingSectionProps) {
           <textarea
             id="basic-book-selling-point"
             rows={3}
-            className="min-h-[96px] w-full rounded-lg border border-border/70 bg-background px-3 py-2 text-sm leading-6 outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            className="min-h-[96px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             value={basicForm.bookSellingPoint}
             placeholder="例如：主角每次解决现实困局都会撬动更大的关系链和利益链，读者会一直期待下一次反压。"
             onChange={(event) => onFormChange({ bookSellingPoint: event.target.value })}
@@ -76,14 +76,14 @@ export function BookFramingSection(props: BookFramingSectionProps) {
         </div>
       </div>
 
-      <div className="space-y-2 rounded-lg border border-border/55 bg-background/70 p-3">
+      <div className="space-y-2">
         <FieldLabel htmlFor="basic-first30-promise" hint={BASIC_INFO_FIELD_HINTS.first30ChapterPromise}>
           前 30 章承诺
         </FieldLabel>
         <textarea
           id="basic-first30-promise"
           rows={5}
-          className="min-h-[116px] w-full rounded-lg border border-border/70 bg-background px-3 py-2 text-sm leading-6 outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="min-h-[128px] w-full rounded-md border bg-background px-3 py-2 text-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           value={basicForm.first30ChapterPromise}
           placeholder="例如：前 30 章必须让读者看到主角站稳第一阶段立场、核心对手浮出水面、关系线第一次强反转，并明确这本书后面会越写越狠。"
           onChange={(event) => onFormChange({ first30ChapterPromise: event.target.value })}
