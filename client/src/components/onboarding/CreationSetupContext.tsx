@@ -45,6 +45,7 @@ export function useCreationSetup(): CreationSetupContextValue {
 export function CreationSetupProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [forceConfiguration, setForceConfiguration] = useState(false);
   const [automaticPromptChecked, setAutomaticPromptChecked] = useState(false);
   const statusQuery = useQuery({
     queryKey: queryKeys.settings.quickSetup,
@@ -55,6 +56,7 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
   const readyForCreation = statusQuery.data?.data?.readyForCreation === true;
 
   const openQuickSetup = useCallback(() => {
+    setForceConfiguration(true);
     setDialogOpen(true);
   }, []);
 
@@ -62,6 +64,7 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
     if (readyForCreation) {
       return true;
     }
+    setForceConfiguration(false);
     setDialogOpen(true);
     return false;
   }, [readyForCreation]);
@@ -76,6 +79,7 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (window.localStorage.getItem(DISMISSED_STORAGE_KEY) !== "true") {
+      setForceConfiguration(false);
       setDialogOpen(true);
     }
   }, [automaticPromptChecked, readyForCreation, statusQuery.isError, statusQuery.isPending]);
@@ -85,6 +89,9 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
       !readyForCreation
       && GATED_ROUTE_PREFIXES.some((prefix) => location.pathname.startsWith(prefix))
     ) {
+      setForceConfiguration(false);
+      setDialogOpen(true);
+    }
       setDialogOpen(true);
     }
   }, [location.pathname, readyForCreation, statusQuery.isError, statusQuery.isPending]);
@@ -93,6 +100,9 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
     setDialogOpen(open);
     if (!open && !readyForCreation) {
       window.localStorage.setItem(DISMISSED_STORAGE_KEY, "true");
+    }
+    if (!open) {
+      setForceConfiguration(false);
     }
   };
 
@@ -120,6 +130,7 @@ export function CreationSetupProvider({ children }: { children: ReactNode }) {
         loading={statusQuery.isPending}
         error={statusQuery.isError}
         onRetry={() => void statusQuery.refetch()}
+        forceConfiguration={forceConfiguration}
       />
     </CreationSetupContext.Provider>
   );

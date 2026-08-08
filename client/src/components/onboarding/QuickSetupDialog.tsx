@@ -38,6 +38,7 @@ interface QuickSetupDialogProps {
   loading: boolean;
   error: boolean;
   onRetry: () => void;
+  forceConfiguration?: boolean;
 }
 
 interface SetupForm {
@@ -76,6 +77,12 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
   const [form, setForm] = useState<SetupForm>(EMPTY_FORM);
   const [customModels, setCustomModels] = useState<string[]>([]);
   const [customModelsMessage, setCustomModelsMessage] = useState("");
+
+  useEffect(() => {
+    if (props.open && props.forceConfiguration) {
+      setStep(1);
+    }
+  }, [props.forceConfiguration, props.open]);
 
   const selectedProvider = useMemo(
     () => props.status?.providers.find((provider) => provider.id === form.provider) ?? null,
@@ -189,7 +196,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
     });
   };
 
-  const footer = props.loading || props.error || props.status?.readyForCreation
+  const footer = props.loading || props.error || (props.status?.readyForCreation && !props.forceConfiguration)
     ? null
     : step === 1
       ? (
@@ -257,7 +264,7 @@ export default function QuickSetupDialog(props: QuickSetupDialogProps) {
             </div>
             <Button variant="outline" onClick={props.onRetry}>{i18next.t("common.retry")}</Button>
           </div>
-        ) : props.status?.readyForCreation && !completeMutation.isSuccess ? (
+        ) : props.status?.readyForCreation && !props.forceConfiguration && !completeMutation.isSuccess ? (
           <div className="flex min-h-56 flex-col items-center justify-center gap-4 text-center">
             <CheckCircle2 className="h-10 w-10 text-emerald-600" />
             <div>
