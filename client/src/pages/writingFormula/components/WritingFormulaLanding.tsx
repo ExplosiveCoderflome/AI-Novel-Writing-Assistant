@@ -83,8 +83,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
   const renderProfileCard = (profile: LandingProfileItem) => {
     const isSelected = profile.id === selectedProfileId;
     const selectedStyle = profile.isStarter
-      ? "border-sky-300 border-l-4 border-l-sky-500 bg-sky-50/55 shadow-[0_10px_28px_rgba(14,165,233,0.09)]"
-      : "border-slate-300 border-l-4 border-l-slate-900 bg-[linear-gradient(135deg,rgba(248,250,252,0.98),rgba(255,255,255,0.96))] shadow-[0_10px_28px_rgba(15,23,42,0.06)]";
+      ? "border-sky-300 bg-sky-50/55 shadow-[0_6px_18px_rgba(14,165,233,0.07)]"
+      : "border-slate-400 bg-[linear-gradient(135deg,rgba(248,250,252,0.98),rgba(255,255,255,0.96))] shadow-[0_6px_18px_rgba(15,23,42,0.045)]";
     const idleStyle = profile.isStarter
       ? "border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50/30"
       : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70";
