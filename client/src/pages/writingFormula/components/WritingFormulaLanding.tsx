@@ -1,4 +1,5 @@
 import type { KeyboardEvent, ReactNode } from "react";
+import { BookOpenText, FlaskConical, PencilLine, Sparkles, WandSparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -64,6 +65,20 @@ function SummaryCard(props: { title: string; summary: string }) {
   );
 }
 
+function WorkflowCue(props: { icon: ReactNode; title: string; description: string }) {
+  return (
+    <div className="flex min-w-0 gap-3 rounded-2xl border border-slate-200/80 bg-white/75 p-3">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white">
+        {props.icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-slate-900">{props.title}</div>
+        <div className="mt-0.5 text-xs leading-5 text-slate-500">{props.description}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function WritingFormulaLanding(props: WritingFormulaLandingProps) {
   const {
     onOpenCreate,
@@ -99,7 +114,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
         tabIndex={0}
         onClick={() => onSelectProfile(profile.id)}
         onKeyDown={(event) => handleSelectableKeyDown(event, () => onSelectProfile(profile.id))}
-        className={`rounded-2xl border px-4 py-4 text-left transition ${isSelected ? selectedStyle : idleStyle}`}
+        className={`rounded-3xl border px-4 py-4 text-left transition duration-200 ${isSelected ? selectedStyle : idleStyle}`}
       >
         <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
           <div className="min-w-0 flex-1 space-y-2">
@@ -134,7 +149,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 xl:justify-end">
+          <div className="flex flex-wrap gap-2 xl:max-w-[340px] xl:justify-end">
             <Button
               type="button"
               size="sm"
@@ -144,6 +159,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 onEditProfile(profile.id);
               }}
             >
+              <PencilLine className="size-3.5" />
               编辑设定
             </Button>
             <Button
@@ -155,6 +171,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 onOpenWorkbench(profile.id);
               }}
             >
+              <FlaskConical className="size-3.5" />
               应用与测试
             </Button>
             <Button
@@ -166,6 +183,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                 onUseProfileForClean(profile.id);
               }}
             >
+              <Sparkles className="size-3.5" />
               去 AI 味
             </Button>
             <Button
@@ -185,6 +203,23 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
 
         {isSelected ? (
           <div className="mt-4 space-y-4 border-t border-slate-200/80 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-950 px-4 py-3 text-sm text-slate-100">
+              <div className="flex min-w-0 items-center gap-2">
+                <WandSparkles className="size-4 shrink-0 text-amber-300" />
+                <span>已选中这套写法。先试写确认读感，再决定是否绑定到作品。</span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="shrink-0 bg-white text-slate-950 hover:bg-slate-100"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenWorkbench(profile.id);
+                }}
+              >
+                试写看看
+              </Button>
+            </div>
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_280px]">
               <DetailPanel
                 title="读感与定位"
@@ -293,12 +328,12 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
 
                 <DetailPanel
                   title="下一步"
-                  description="三个按钮现在各自只负责一件事，不会再跳到同一块内容里。"
+                  description="按这个顺序操作，就能把读感带进正在写的故事。"
                 >
-                  <div className="space-y-2 text-sm leading-6 text-slate-700">
-                    <div>编辑设定：维护这套写法本身的说明、规则和反 AI 约束。</div>
-                    <div>应用与测试：绑定到小说或章节，并做试写验证。</div>
-                    <div>去 AI 味：只处理正文检测和修正，不改写法字段。</div>
+                  <div className="space-y-3 text-sm leading-6 text-slate-700">
+                    <div className="flex gap-2"><span className="font-semibold text-slate-950">1.</span><span>先试写一段，确认推进、对白和语气。</span></div>
+                    <div className="flex gap-2"><span className="font-semibold text-slate-950">2.</span><span>满意后绑定到作品或章节，让生成自动带上它。</span></div>
+                    <div className="flex gap-2"><span className="font-semibold text-slate-950">3.</span><span>需要修正文稿时，再进入去 AI 味单独处理。</span></div>
                   </div>
                 </DetailPanel>
               </div>
@@ -312,18 +347,18 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
   return (
     <div className="space-y-6">
       <Card className="overflow-hidden border-slate-200/80 bg-white/90 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-        <CardContent className="space-y-5 p-5 md:p-6">
+        <CardContent className="space-y-6 p-5 md:p-7">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">
               <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-700">
-                我的写法资产
+                <BookOpenText className="mr-1 size-3.5" /> 我的写法资产
               </Badge>
               <div className="space-y-2">
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
-                  先选一套写法，再决定要编辑、应用还是去 AI 味。
+                <h1 className="text-2xl font-semibold tracking-tight text-slate-950 md:text-3xl">
+                  给故事挑一套能被读出来的写法。
                 </h1>
                 <p className="max-w-3xl text-sm leading-7 text-slate-600">
-                  首页负责看清你已有的写法资产。展开后会直接展示这套写法的读感定位、规则摘要、反 AI 约束和当前成熟度。
+                  从读感、节奏和适用题材开始挑选。写法的规则、试写和正文修订会在需要时自然展开，不必一次看完所有设置。
                 </p>
               </div>
             </div>
@@ -333,7 +368,13 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
             </Button>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-[linear-gradient(135deg,rgba(241,245,249,0.9),rgba(248,250,252,0.95))] px-4 py-3 text-sm leading-7 text-slate-700">
+          <div className="grid gap-3 md:grid-cols-3">
+            <WorkflowCue icon={<BookOpenText className="size-4" />} title="挑选读感" description="从已有写法中选择最接近这本书气质的一套。" />
+            <WorkflowCue icon={<FlaskConical className="size-4" />} title="先试一段" description="用同一个主题对照推进、对白和语言质感。" />
+            <WorkflowCue icon={<WandSparkles className="size-4" />} title="带入创作" description="确认后回到小说基础信息设置书级默认写法。" />
+          </div>
+
+          <div className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-sm leading-7 text-slate-700">
             书级默认写法请从小说基础信息进入，由小说来选择要使用的写法资产，再带入后续导演和正文流程。
           </div>
 

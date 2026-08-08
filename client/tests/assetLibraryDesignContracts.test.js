@@ -36,6 +36,8 @@ const storyModePage = readClientFile("src/pages/storyModes/StoryModeManagementPa
 const storyModeTreeBrowser = readClientFile("src/pages/storyModes/components/StoryModeTreeBrowser.tsx");
 const assetTreeNavigator = readClientFile("src/components/assetLibrary/AssetTreeNavigator.tsx");
 const characterPage = readClientFile("src/pages/characters/CharacterLibrary.tsx");
+const writingFormulaLanding = readClientFile("src/pages/writingFormula/components/WritingFormulaLanding.tsx");
+const writingFormulaWorkbench = readClientFile("src/pages/writingFormula/components/WritingFormulaWorkbenchPanel.tsx");
 
 test("asset library semantic status colors are registered as theme tokens", () => {
   for (const token of ["success", "warning", "info"]) {
@@ -191,4 +193,22 @@ test("story mode library reuses the tree navigator and keeps mode contracts in t
   assert.match(storyModeTreeBrowser, /推进单元/);
   assert.match(storyModeTreeBrowser, /冲突上限/);
   assert.doesNotMatch(storyModeTreeBrowser, /shadow-(?:sm|md|lg|xl|2xl)/);
+});
+
+test("writing formula guides authors from selecting a reading experience to testing and binding it", () => {
+  assert.match(writingFormulaLanding, /给故事挑一套能被读出来的写法/);
+  assert.match(writingFormulaLanding, /挑选读感/);
+  assert.match(writingFormulaLanding, /先试一段/);
+  assert.match(writingFormulaLanding, /带入创作/);
+  assert.match(writingFormulaLanding, /试写看看/);
+  assert.match(writingFormulaLanding, /编辑设定/);
+  assert.match(writingFormulaLanding, /应用与测试/);
+  assert.match(writingFormulaLanding, /去 AI 味/);
+  assert.match(writingFormulaWorkbench, /把写法放进故事里验证/);
+  assert.match(writingFormulaWorkbench, /绑定到目标/);
+  assert.match(writingFormulaWorkbench, /先试写一段/);
+  assert.match(writingFormulaWorkbench, /开始试写/);
+  assert.match(writingFormulaWorkbench, /bindingTargetLabel/);
+  assert.ok(writingFormulaLanding.split("\n").length < 500);
+  assert.ok(writingFormulaWorkbench.split("\n").length < 350);
 });
