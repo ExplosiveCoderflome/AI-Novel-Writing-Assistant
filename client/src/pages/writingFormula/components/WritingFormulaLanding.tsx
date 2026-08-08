@@ -136,56 +136,6 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
             </div>
           </div>
 
-          <div className="hidden flex-wrap gap-2 xl:max-w-[340px] xl:justify-end">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={(event) => {
-                event.stopPropagation();
-                onEditProfile(profile.id);
-              }}
-            >
-              <PencilLine className="size-3.5" />
-              编辑设定
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={(event) => {
-                event.stopPropagation();
-                onOpenWorkbench(profile.id);
-              }}
-            >
-              <FlaskConical className="size-3.5" />
-              应用与测试
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={(event) => {
-                event.stopPropagation();
-                onUseProfileForClean(profile.id);
-              }}
-            >
-              <Sparkles className="size-3.5" />
-              去 AI 味
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="destructive"
-              disabled={deletePending}
-              onClick={(event) => {
-                event.stopPropagation();
-                onDeleteProfile(profile.id);
-              }}
-            >
-              {deletePending ? "删除中..." : "删除"}
-            </Button>
-          </div>
         </div>
 
       </div>
@@ -215,6 +165,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
             <Button type="button" onClick={() => onOpenWorkbench(selectedProfile.id)}><FlaskConical className="size-4" />先试一段</Button>
             <Button type="button" variant="outline" onClick={() => onEditProfile(selectedProfile.id)}><PencilLine className="size-4" />调整写法</Button>
             <Button type="button" variant="secondary" onClick={() => onUseProfileForClean(selectedProfile.id)}><Sparkles className="size-4" />去 AI 味</Button>
+            <Button type="button" size="sm" variant="ghost" disabled={deletePending} onClick={() => onDeleteProfile(selectedProfile.id)}>{deletePending ? "删除中..." : "删除"}</Button>
           </div>
         </div>
 
@@ -308,9 +259,11 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
-              {customProfiles.length > 0 ? (
-                <section className="space-y-3">
+            <div className="grid gap-6 xl:grid-cols-[minmax(280px,0.72fr)_minmax(0,1.28fr)] xl:items-start">
+              <aside className="space-y-6 rounded-3xl border border-slate-200 bg-slate-50/50 p-3 md:p-4">
+                <div className="px-1 text-xs leading-5 text-slate-500">选择一套写法，右侧会立即显示完整读感与可执行操作。</div>
+                {customProfiles.length > 0 ? (
+                  <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-slate-950">你自己创建的写法</div>
@@ -322,14 +275,14 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                       {customProfiles.length} 套
                     </Badge>
                   </div>
-                  <div className="grid gap-3 lg:grid-cols-2">
+                  <div className="grid gap-2">
                     {customProfiles.map(renderProfileCard)}
                   </div>
-                </section>
-              ) : null}
+                  </section>
+                ) : null}
 
               {starterProfiles.length > 0 ? (
-                <section className="space-y-3">
+                  <section className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-slate-950">可直接改的起步写法</div>
@@ -341,13 +294,14 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                       {starterProfiles.length} 套
                     </Badge>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-2">
                     {starterProfiles.map(renderProfileCard)}
                   </div>
-                </section>
-              ) : null}
+                  </section>
+                ) : null}
+              </aside>
 
-              {renderSelectedProfile()}
+              <div className="xl:sticky xl:top-4">{renderSelectedProfile()}</div>
             </div>
           )}
         </CardContent>
