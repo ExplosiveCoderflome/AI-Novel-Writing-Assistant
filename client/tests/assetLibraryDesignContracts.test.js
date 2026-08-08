@@ -196,28 +196,22 @@ test("story mode library reuses the tree navigator and keeps mode contracts in t
   assert.doesNotMatch(storyModeTreeBrowser, /shadow-(?:sm|md|lg|xl|2xl)/);
 });
 
-test("writing formula guides authors from selecting a reading experience to testing and binding it", () => {
-  assert.match(writingFormulaLanding, /给故事挑一套能被读出来的写法/);
-  assert.match(writingFormulaLanding, /挑选读感/);
-  assert.match(writingFormulaLanding, /带入创作/);
-  assert.match(writingFormulaLanding, /先试一段/);
-  assert.match(writingFormulaLanding, /正在查看/);
-  assert.match(writingFormulaLanding, /适合怎么使用/);
-  assert.match(writingFormulaLanding, /xl:grid-cols-\[minmax\(280px,0\.72fr\)_minmax\(0,1\.28fr\)\]/);
-  assert.match(writingFormulaLanding, /xl:sticky xl:top-4/);
-  assert.match(writingFormulaLanding, /调整写法/);
+test("writing formula keeps a compact asset list and reveals the selected profile in place", () => {
+  assert.match(writingFormulaLanding, /先选一套写法，再决定要编辑、应用还是去 AI 味/);
+  assert.match(writingFormulaLanding, /isSelected \? \(/);
+  assert.match(writingFormulaLanding, /读感与定位/);
+  assert.match(writingFormulaLanding, /规则摘要/);
+  assert.match(writingFormulaLanding, /资产概览/);
+  assert.match(writingFormulaLanding, /编辑设定/);
+  assert.match(writingFormulaLanding, /应用与测试/);
   assert.match(writingFormulaLanding, /去 AI 味/);
-  assert.match(writingFormulaWorkbench, /把写法放进故事里验证/);
-  assert.match(writingFormulaWorkbench, /绑定到目标/);
-  assert.match(writingFormulaWorkbench, /先试写一段/);
-  assert.match(writingFormulaWorkbench, /开始试写/);
-  assert.match(writingFormulaWorkbench, /bindingTargetLabel/);
+  assert.doesNotMatch(writingFormulaLanding, /xl:sticky xl:top-4/);
   assert.match(writingFormulaCreateDialog, /从一种读感开始/);
   assert.match(writingFormulaCreateDialog, /用模板开始/);
   assert.match(writingFormulaCreateDialog, /说一句想法/);
   assert.match(writingFormulaCreateDialog, /从素材学习/);
   assert.match(writingFormulaCreateDialog, /AI 帮我先搭一套/);
-  assert.ok(writingFormulaLanding.split("\n").length < 500);
+  assert.ok(writingFormulaLanding.split("\n").length < 450);
   assert.ok(writingFormulaWorkbench.split("\n").length < 350);
   assert.ok(writingFormulaCreateDialog.split("\n").length < 700);
 });
