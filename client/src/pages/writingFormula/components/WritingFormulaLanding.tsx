@@ -33,20 +33,6 @@ function handleSelectableKeyDown(event: KeyboardEvent<HTMLDivElement>, onSelect:
   onSelect();
 }
 
-function DetailPanel(props: { title: string; description?: string; children: ReactNode }) {
-  return (
-    <div className="space-y-3 rounded-2xl border bg-white/80 p-4">
-      <div className="space-y-1">
-        <div className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{props.title}</div>
-        {props.description ? (
-          <div className="text-xs leading-6 text-slate-500">{props.description}</div>
-        ) : null}
-      </div>
-      {props.children}
-    </div>
-  );
-}
-
 function DetailStatRow(props: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3 text-sm leading-6">
@@ -94,6 +80,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
 
   const customProfiles = profileItems.filter((item) => !item.isStarter);
   const starterProfiles = profileItems.filter((item) => item.isStarter);
+  const selectedProfile = profileItems.find((item) => item.id === selectedProfileId) ?? profileItems[0] ?? null;
 
   const renderProfileCard = (profile: LandingProfileItem) => {
     const isSelected = profile.id === selectedProfileId;
@@ -149,7 +136,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 xl:max-w-[340px] xl:justify-end">
+          <div className="hidden flex-wrap gap-2 xl:max-w-[340px] xl:justify-end">
             <Button
               type="button"
               size="sm"
@@ -201,146 +188,76 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
           </div>
         </div>
 
-        {isSelected ? (
-          <div className="mt-4 space-y-4 border-t border-slate-200/80 pt-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-950 px-4 py-3 text-sm text-slate-100">
-              <div className="flex min-w-0 items-center gap-2">
-                <WandSparkles className="size-4 shrink-0 text-amber-300" />
-                <span>已选中这套写法。先试写确认读感，再决定是否绑定到作品。</span>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                className="shrink-0 bg-white text-slate-950 hover:bg-slate-100"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onOpenWorkbench(profile.id);
-                }}
-              >
-                试写看看
-              </Button>
+      </div>
+    );
+  };
+
+  const renderSelectedProfile = () => {
+    if (!selectedProfile) {
+      return null;
+    }
+
+    return (
+      <section className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,rgba(15,23,42,0.03),rgba(255,255,255,0.96)_46%,rgba(240,249,255,0.82))] p-5 md:p-6">
+        <div className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary" className="bg-slate-950 text-white">正在查看</Badge>
+              <Badge variant="outline" className="border-slate-200 bg-white/70 text-slate-600">{selectedProfile.originLabel}</Badge>
+              {selectedProfile.category ? <Badge variant="outline" className="border-slate-200 bg-white/70 text-slate-600">{selectedProfile.category}</Badge> : null}
             </div>
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_280px]">
-              <DetailPanel
-                title="读感与定位"
-                description="这一列帮助你快速判断这套写法想写成什么感觉，适合先拿来做哪类项目。"
-              >
-                <div className="rounded-xl border bg-slate-50/80 p-4 text-sm leading-7 text-slate-700">
-                  {profile.description}
-                </div>
-                {profile.detailLines.length > 0 ? (
-                  <div className="grid gap-2">
-                    {profile.detailLines.map((line) => (
-                      <div key={`${profile.id}-${line}`} className="rounded-xl border bg-white px-3 py-3 text-sm leading-6 text-slate-700">
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-                {profile.sourceContentPreview ? (
-                  <div className="rounded-xl border bg-slate-950 px-4 py-4 text-sm leading-7 text-slate-100">
-                    <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-slate-400">原文样本片段</div>
-                    <div>{profile.sourceContentPreview}</div>
-                  </div>
-                ) : null}
-              </DetailPanel>
-
-              <div className="space-y-4">
-                <DetailPanel
-                  title="规则摘要"
-                  description="这里把这套写法真正控制读感的四层规则读出来，方便你在列表里先看懂。"
-                >
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <SummaryCard title="剧情推进" summary={profile.narrativeSummary} />
-                    <SummaryCard title="人物表达" summary={profile.characterSummary} />
-                    <SummaryCard title="语言质感" summary={profile.languageSummary} />
-                    <SummaryCard title="节奏控制" summary={profile.rhythmSummary} />
-                  </div>
-                </DetailPanel>
-
-                <DetailPanel
-                  title="反 AI 约束"
-                  description="这部分决定系统在检测和修正文稿时会优先盯住哪些风险。"
-                >
-                  {profile.antiAiFocus.length > 0 || profile.antiAiRuleNames.length > 0 || profile.extractionAntiAiRecommendationCount > 0 ? (
-                    <div className="space-y-3">
-                      {profile.antiAiFocus.length > 0 ? (
-                        <div className="grid gap-2">
-                          {profile.antiAiFocus.map((line) => (
-                            <div key={`${profile.id}-${line}`} className="rounded-xl border bg-amber-50/80 px-3 py-3 text-sm leading-6 text-amber-900">
-                              {line}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                      {profile.antiAiRuleNames.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {profile.antiAiRuleNames.map((ruleName) => (
-                            <Badge key={`${profile.id}-${ruleName}`} variant="secondary" className="bg-slate-100 text-slate-700">
-                              {ruleName}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : null}
-                      {profile.extractionAntiAiRecommendationCount > 0 ? (
-                        <div className="rounded-xl border bg-slate-50/80 px-3 py-3 text-sm leading-6 text-slate-600">
-                          这套写法在提取阶段额外建议了 {profile.extractionAntiAiRecommendationCount} 条反 AI 规则，适合后续继续精配。
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="rounded-xl border border-dashed px-3 py-3 text-sm leading-6 text-slate-500">
-                      这套写法还没有绑定明确的反 AI 约束，所以“去 AI 味”时可读性会偏弱。
-                    </div>
-                  )}
-                </DetailPanel>
-              </div>
-
-              <div className="space-y-4">
-                <DetailPanel
-                  title="资产概览"
-                  description="这一列主要帮你判断这套写法现在成熟到什么程度。"
-                >
-                  <div className="space-y-2">
-                    <DetailStatRow label="来源" value={profile.sourceTypeLabel} />
-                    <DetailStatRow label="最近更新" value={profile.updatedAtLabel} />
-                    <DetailStatRow label="启用特征" value={`${profile.extractedFeatureCount} 项`} />
-                    <DetailStatRow label="高风险指纹" value={`${profile.highRiskFeatureCount} 项`} />
-                    <DetailStatRow
-                      label="当前预设"
-                      value={profile.selectedPresetLabel || "未锁定"}
-                    />
-                    <DetailStatRow
-                      label="可选预设"
-                      value={profile.presetLabels.length > 0 ? profile.presetLabels.join(" / ") : "暂无"}
-                    />
-                    <DetailStatRow label="已绑定目标" value={`${profile.bindingCount} 个`} />
-                    <DetailStatRow
-                      label="最近小说"
-                      value={profile.recentNovelTitle || "还没有绑定到小说"}
-                    />
-                    <DetailStatRow
-                      label="适用题材"
-                      value={profile.applicableGenres.length > 0 ? profile.applicableGenres.join(" / ") : "未填写"}
-                    />
-                  </div>
-                </DetailPanel>
-
-                <DetailPanel
-                  title="下一步"
-                  description="按这个顺序操作，就能把读感带进正在写的故事。"
-                >
-                  <div className="space-y-3 text-sm leading-6 text-slate-700">
-                    <div className="flex gap-2"><span className="font-semibold text-slate-950">1.</span><span>先试写一段，确认推进、对白和语气。</span></div>
-                    <div className="flex gap-2"><span className="font-semibold text-slate-950">2.</span><span>满意后绑定到作品或章节，让生成自动带上它。</span></div>
-                    <div className="flex gap-2"><span className="font-semibold text-slate-950">3.</span><span>需要修正文稿时，再进入去 AI 味单独处理。</span></div>
-                  </div>
-                </DetailPanel>
-              </div>
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-950">{selectedProfile.name}</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">{selectedProfile.description}</p>
             </div>
           </div>
-        ) : null}
-      </div>
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <Button type="button" onClick={() => onOpenWorkbench(selectedProfile.id)}><FlaskConical className="size-4" />先试一段</Button>
+            <Button type="button" variant="outline" onClick={() => onEditProfile(selectedProfile.id)}><PencilLine className="size-4" />调整写法</Button>
+            <Button type="button" variant="secondary" onClick={() => onUseProfileForClean(selectedProfile.id)}><Sparkles className="size-4" />去 AI 味</Button>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.75fr)]">
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <SummaryCard title="剧情推进" summary={selectedProfile.narrativeSummary} />
+              <SummaryCard title="人物表达" summary={selectedProfile.characterSummary} />
+              <SummaryCard title="语言质感" summary={selectedProfile.languageSummary} />
+              <SummaryCard title="节奏控制" summary={selectedProfile.rhythmSummary} />
+            </div>
+            {selectedProfile.sourceContentPreview ? (
+              <div className="rounded-2xl bg-slate-950 px-4 py-4 text-sm leading-7 text-slate-100">
+                <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-400"><BookOpenText className="size-3.5" /> 原文读感样本</div>
+                {selectedProfile.sourceContentPreview}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-2xl border border-white/80 bg-white/75 p-4">
+            <div className="text-sm font-semibold text-slate-950">适合怎么使用</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(selectedProfile.applicableGenres.length > 0 ? selectedProfile.applicableGenres : selectedProfile.tags).slice(0, 6).map((item) => (
+                <Badge key={`${selectedProfile.id}-use-${item}`} variant="outline" className="border-slate-200 bg-white text-slate-700">{item}</Badge>
+              ))}
+            </div>
+            <div className="mt-5 space-y-3 border-t border-slate-100 pt-4">
+              <DetailStatRow label="已绑定" value={`${selectedProfile.bindingCount} 个目标`} />
+              <DetailStatRow label="可用特征" value={`${selectedProfile.extractedFeatureCount} 项`} />
+              <DetailStatRow label="最近更新" value={selectedProfile.updatedAtLabel} />
+              {selectedProfile.recentNovelTitle ? <DetailStatRow label="最近用于" value={selectedProfile.recentNovelTitle} /> : null}
+            </div>
+            {selectedProfile.antiAiRuleNames.length > 0 ? (
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <div className="text-xs font-medium text-slate-500">已关联的反 AI 规则</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedProfile.antiAiRuleNames.slice(0, 3).map((rule) => <Badge key={`${selectedProfile.id}-${rule}`} variant="secondary" className="bg-amber-50 text-amber-900">{rule}</Badge>)}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
     );
   };
 
@@ -405,7 +322,7 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                       {customProfiles.length} 套
                     </Badge>
                   </div>
-                  <div className="grid gap-3">
+                  <div className="grid gap-3 lg:grid-cols-2">
                     {customProfiles.map(renderProfileCard)}
                   </div>
                 </section>
@@ -429,6 +346,8 @@ export default function WritingFormulaLanding(props: WritingFormulaLandingProps)
                   </div>
                 </section>
               ) : null}
+
+              {renderSelectedProfile()}
             </div>
           )}
         </CardContent>
