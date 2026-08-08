@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BookOpenText, MessageCircleMore, Sparkles, WandSparkles } from "lucide-react";
 import type { BookAnalysis } from "@ai-novel/shared/types/bookAnalysis";
 import type { KnowledgeDocumentDetail, KnowledgeDocumentSummary } from "@ai-novel/shared/types/knowledge";
 import type { StyleExtractionSourceProcessingMode, StyleTemplate } from "@ai-novel/shared/types/styleEngine";
@@ -201,28 +202,33 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92vh] max-w-5xl flex-col overflow-hidden">
-        <DialogHeader className="shrink-0">
-          <DialogTitle>创建写法</DialogTitle>
+      <DialogContent className="flex h-[min(780px,92vh)] max-w-5xl flex-col overflow-hidden p-0">
+        <DialogHeader className="shrink-0 border-b border-slate-100 bg-[linear-gradient(135deg,rgba(248,250,252,0.95),rgba(255,255,255,0.98))] px-6 py-5 pr-14">
+          <div className="flex items-start gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white"><WandSparkles className="size-5" /></div>
+            <div>
+              <DialogTitle>从一种读感开始</DialogTitle>
           <DialogDescription>
-            先选最省力的起步方式。创建完成后会自动打开当前写法编辑，继续补规则、试写和绑定。
+                选择你手上已有的起点。系统会先帮你落成一套可以试写的写法，细节之后随时再调。
           </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="flex min-h-0 flex-1 flex-col space-y-4">
-          <TabsList className="grid w-full shrink-0 grid-cols-3">
-            <TabsTrigger value="quick_start">模板起步</TabsTrigger>
-            <TabsTrigger value="blank">空白 / AI</TabsTrigger>
-            <TabsTrigger value="extract">从素材提取</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)} className="flex min-h-0 flex-1 flex-col space-y-4 px-6 pb-6 pt-4">
+          <TabsList className="grid h-auto w-full shrink-0 grid-cols-3 rounded-2xl bg-slate-100/80 p-1">
+            <TabsTrigger value="quick_start" className="gap-1.5 rounded-xl py-2.5"><BookOpenText className="size-4" />用模板开始</TabsTrigger>
+            <TabsTrigger value="blank" className="gap-1.5 rounded-xl py-2.5"><MessageCircleMore className="size-4" />说一句想法</TabsTrigger>
+            <TabsTrigger value="extract" className="gap-1.5 rounded-xl py-2.5"><Sparkles className="size-4" />从素材学习</TabsTrigger>
           </TabsList>
 
           <TabsContent value="quick_start" className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-            <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-              手里还没有明确规则时，先从模板起一套最省力。后面都可以继续改。
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4 text-sm leading-6 text-slate-700">
+              不确定从哪里开始时，先选一套接近的写法。创建后可以继续换题材、调节奏，再用试写确认读感。
             </div>
             <div className="grid gap-3 pr-1 md:grid-cols-2">
               {templates.map((template) => (
-                <div key={template.id} className="rounded-lg border p-4">
+                <div key={template.id} className="rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-slate-400 hover:shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-base font-semibold text-foreground">{template.name}</div>
@@ -257,13 +263,13 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
           </TabsContent>
 
           <TabsContent value="blank" className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-            <div className="rounded-lg border bg-muted/20 p-4 text-sm leading-6 text-muted-foreground">
-              你可以手动建一个空白写法，也可以先说一句想要的读感，让 AI 帮你搭第一版骨架。
+            <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4 text-sm leading-6 text-slate-700">
+              只要说清楚你希望读者读到什么感觉，AI 会先搭出可试写的第一版；熟悉规则时，也可以从空白开始维护。
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-lg border p-4">
+              <div className="order-2 rounded-2xl border border-slate-200 bg-white p-4 lg:order-1">
                 <div className="mb-3">
-                  <div className="text-sm font-medium text-foreground">手动空白创建</div>
+                  <div className="text-sm font-medium text-foreground">自己从空白开始</div>
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">
                     适合你已经知道自己要维护什么类型的写法，只想先建一个空壳。
                   </div>
@@ -285,9 +291,9 @@ export default function WritingFormulaCreateDialog(props: WritingFormulaCreateDi
                 </div>
               </div>
 
-              <div className="rounded-lg border p-4">
+              <div className="order-1 rounded-2xl border border-slate-950 bg-[linear-gradient(135deg,rgba(15,23,42,0.04),rgba(240,249,255,0.86))] p-4 lg:order-2">
                 <div className="mb-3">
-                  <div className="text-sm font-medium text-foreground">AI 帮我先搭一套</div>
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground"><Sparkles className="size-4 text-sky-700" />AI 帮我先搭一套</div>
                   <div className="mt-1 text-xs leading-5 text-muted-foreground">
                     适合你只知道想写成什么感觉，还不想先手填规则字段。
                   </div>

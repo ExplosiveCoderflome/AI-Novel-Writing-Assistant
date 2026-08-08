@@ -38,6 +38,7 @@ const assetTreeNavigator = readClientFile("src/components/assetLibrary/AssetTree
 const characterPage = readClientFile("src/pages/characters/CharacterLibrary.tsx");
 const writingFormulaLanding = readClientFile("src/pages/writingFormula/components/WritingFormulaLanding.tsx");
 const writingFormulaWorkbench = readClientFile("src/pages/writingFormula/components/WritingFormulaWorkbenchPanel.tsx");
+const writingFormulaCreateDialog = readClientFile("src/pages/writingFormula/components/WritingFormulaCreateDialog.tsx");
 
 test("asset library semantic status colors are registered as theme tokens", () => {
   for (const token of ["success", "warning", "info"]) {
@@ -211,6 +212,12 @@ test("writing formula guides authors from selecting a reading experience to test
   assert.match(writingFormulaWorkbench, /先试写一段/);
   assert.match(writingFormulaWorkbench, /开始试写/);
   assert.match(writingFormulaWorkbench, /bindingTargetLabel/);
+  assert.match(writingFormulaCreateDialog, /从一种读感开始/);
+  assert.match(writingFormulaCreateDialog, /用模板开始/);
+  assert.match(writingFormulaCreateDialog, /说一句想法/);
+  assert.match(writingFormulaCreateDialog, /从素材学习/);
+  assert.match(writingFormulaCreateDialog, /AI 帮我先搭一套/);
   assert.ok(writingFormulaLanding.split("\n").length < 500);
   assert.ok(writingFormulaWorkbench.split("\n").length < 350);
+  assert.ok(writingFormulaCreateDialog.split("\n").length < 700);
 });
