@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   shouldOpenAutomaticSetupPrompt,
   shouldOpenSetupPromptForRoute,
+  shouldShowFirstNovelHandoff,
 } from "./creationSetupState.ts";
 
 test("does not open setup while creation status is still loading", () => {
@@ -48,4 +49,19 @@ test("opens setup only when a resolved status says configuration is required", (
     readyForCreation: false,
     pathname: "/creative-hub",
   }), true);
+});
+
+test("shows the first novel handoff only after automatic configuration succeeds", () => {
+  assert.equal(shouldShowFirstNovelHandoff({
+    configurationSucceeded: true,
+    forceConfiguration: false,
+  }), true);
+  assert.equal(shouldShowFirstNovelHandoff({
+    configurationSucceeded: true,
+    forceConfiguration: true,
+  }), false);
+  assert.equal(shouldShowFirstNovelHandoff({
+    configurationSucceeded: false,
+    forceConfiguration: false,
+  }), false);
 });
