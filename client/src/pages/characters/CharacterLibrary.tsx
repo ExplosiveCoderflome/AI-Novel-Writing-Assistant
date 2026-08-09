@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ImageAsset } from "@ai-novel/shared/types/image";
 import type { BaseCharacter } from "@ai-novel/shared/types/novel";
@@ -24,6 +25,7 @@ import { CharacterImageDialog } from "./components/CharacterImageDialog";
 type EditableBaseCharacter = Omit<BaseCharacter, "id" | "createdAt" | "updatedAt">;
 
 export default function CharacterLibrary() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [selectedImageCharacter, setSelectedImageCharacter] = useState<BaseCharacter | null>(null);

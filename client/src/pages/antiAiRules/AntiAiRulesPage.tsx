@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -35,6 +36,7 @@ import AntiAiRuleList from "./components/AntiAiRuleList";
 import AntiAiRuleStats from "./components/AntiAiRuleStats";
 
 export default function AntiAiRulesPage() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const llm = useLLMStore();
   const [filter, setFilter] = useState<RuleFilter>("all");

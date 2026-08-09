@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useMemo, useState } from "react";
@@ -47,6 +48,7 @@ function RouteStatusDot({ state }: { state: ConnectivityState }) {
 }
 
 export default function ModelRoutesPage() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [actionResult, setActionResult] = useState("");
   const [routeDrafts, setRouteDrafts] = useState<Record<string, RouteDraft>>({});

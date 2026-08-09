@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 const t = (key: string, options?: any) => i18next.t(key, options) as string;
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -50,6 +51,7 @@ import { normalizeWritingFormulaMode } from "./writingFormulaV2.shared";
 type WorkspaceDialog = null | "editor" | "workbench" | "clean";
 
 export default function WritingFormulaPage() {
+  const { t, i18n } = useTranslation();
   const llm = useLLMStore();
   const queryClient = useQueryClient();
   const navigate = useNavigate();

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { ArrowRight, BookOpenText, Loader2, PlusCircle, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ export function HomeNextActionPanel(props: {
   onRetry?: () => void;
   renderNovelPrimaryAction: RenderNovelPrimaryAction;
 }) {
+  const { t } = useTranslation();
   if (props.loading) {
     return (
       <Card className="home-next-action-panel overflow-hidden border-0 bg-[#122033] text-white shadow-[0_18px_50px_rgba(15,23,42,0.18)]">
