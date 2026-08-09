@@ -118,14 +118,14 @@ If you prefer to write and manage your novel workspace in a local terminal using
 - **Behavior Trees & LLM Scheduler**: Employs LOD 2 Behavior Trees tracking hunger, energy, and sanity for background characters, while scheduling LOD 1 protagonist decisions using the Sandbox LLM Scheduler.
 - **Dramatic Tension & Consistency Audit**: Tracks local and global tension, registers encounters, and audits narrative consistency (such as geography flash-teleportation or deceased characters speaking in drafts) using a virtual camera narrative engine.
 
-### 8. Multi-Modal Adaptation Workbenches
+### 9. Multi-Modal Adaptation Workbenches
 - **Comic Workbench**: Generates panels and sheets. Employs user verification prompts prior to generating images to save credits. Automatically ports book profiles (factions, landmarks, character visuals) into the comic generator.
 - **VellumReel Video & Short Drama Pipeline**: Integrated engine mapping storyboard scripts into 9:16 vertical short dramas.
   - **Completely Offline Rendering**: Built-in 6 high-definition hand-drawn ink landscape illustrations for offline fallbacks.
   - **Local High-Fidelity TTS**: Native FastAPI speech server powered by Kokoro-ONNX v1.0 and `misaki[zh]`, enabling offline Chinese/English narration.
   - **Voice Mapping & Prompt Cleaning**: Automatically maps gender attributes (`am_*`/`bm_*` to male voice `zm_yunjian`, `af_*`/`bf_*` to female voice `zf_xiaoxiao`). Cleans character names and stage directions (e.g., `(sighs)`) from the voiceover texts using regex filters.
 
-### 9. US Stock Investment Research Agent & MooMoo OpenD Direct Strategy Engine
+### 10. US Stock Investment Research Agent & MooMoo OpenD Direct Strategy Engine
 - **MooMoo OpenD Direct TCP Connection**: Direct 44-byte binary native header socket protocol communication with OpenD (`127.0.0.1:11111`) handling 64-bit `uint64` account IDs via dedicated Python SDK bridge (`moomoo-api`).
 - **3 Core Guidance Blueprint**:
   - **Guide 1 (Existing Position Adjustments)**: Dynamic concentration risk diagnostics (>30% risk alert) & profit-taking/stop-loss guidance.
@@ -137,10 +137,7 @@ If you prefer to write and manage your novel workspace in a local terminal using
   - **Prisma DB Persistence (`StockKnowledgeGraphStore`) & API (`/api/stock/knowledge-graph/update`)**: Saves each stock's dedicated graph and manual edits (`✏️ 人工修改图谱`) permanently in DB across server restarts and daily refreshes.
 - **Deterministic Guardrails Layer**: 100% mathematical formula calculations for buying power limits and real quote overrides to eliminate AI hallucinations.
 
-### 9. Internationalization (i18n) Support
-- Fully integrated with `i18next` and `react-i18next` on the client. UI elements, logs, page labels, and settings routes support complete localization between English and Chinese. User language selections are persisted locally.
-
-### 10. PAI Core Infrastructure Architecture (Insights #1 - #8)
+### 11. PAI Core Infrastructure Architecture (Insights #1 - #8)
 Fully implemented Daniel Miessler's Personal AI Infrastructure (PAI) architecture principles tailored for long-form narrative synthesis:
 - **Insight #1 (Determinism-First Architecture)**: Pure-code lexical JSON repair (`tryFixSyntacticJson`) & coercion across 250+ LLM invocation points, avoiding unnecessary LLM retries and saving latency/tokens.
 - **Insight #2 (User/System Separation & Asset Protection)**: Non-destructive setting management (`UserSettingProtectionService`) and project backup packaging gateway (`UserAssetBackupGateway`). Maintain single canonical prompt templates.
@@ -151,7 +148,7 @@ Fully implemented Daniel Miessler's Personal AI Infrastructure (PAI) architectur
 - **Insight #7 (CLI-First Automation Engine & UNIX Philosophy)**: Standalone CLI automation gateway (`CLIAutomationService` & `cliRunner.ts`) for headless health auditing, asset exports, and RAG index rebuilding via `pnpm --filter server run:cli`.
 - **Insight #8 (Specs-First & Anti-Hallucination Guard)**: Quantitative knowledge confidence evaluation (`evaluateKnowledgeConfidence`). Automatically appends `ALLOW "I DON'T KNOW"` prompt instructions when context is missing, preventing AI hallucinations.
 
-### 11. OpenRSI Evolutionary Operator Engine & Crossover Recombination
+### 12. OpenRSI Evolutionary Operator Engine & Crossover Recombination
 Integrated Frontis OpenRSI Recursive Self-Improvement (RSI) principles to build standardized atomic program/text evolution operators under [server/src/services/novel/director/operators/](./server/src/services/novel/director/operators/):
 - **`Draft` Operator**: Generates initial chapter candidates based on outline context, 3-tier memory, and creator profile (TELOS).
 - **`Improve` Operator**: Applies non-destructive prose & pacing enhancements guided by `AuditService` diagnostics while preserving parent text highlights.
@@ -159,7 +156,7 @@ Integrated Frontis OpenRSI Recursive Self-Improvement (RSI) principles to build 
 - **`Crossover` Operator (Core Innovation)**: Deconstructs Parent A (e.g. action pacing / climax payoff) & Parent B (e.g. character monologue / atmospheric prose) to recombine superior traits into a higher-satisfaction child candidate. Full mutation lineage is logged via `MutationTraceNode`.
 - **Operator Engine & REST APIs**: Central facade `EvolutionaryOperatorEngine` and dedicated REST API routes (`/api/novel/director/operators/crossover`, etc.) serving both Creative Hub and Auto-Director.
 
-### 12. Agent Team Architecture & Digital Employee Infrastructure
+### 13. Agent Team Architecture & Digital Employee Infrastructure
 Evolved Daydream Engine from session-assembled prompts into an organized **Agent Team Infrastructure** with specialized digital employee roles and long-lived session state:
 - **Digital Employee Profile Standardization (`Identity + Domain + Scope`)**:
   Decoupled system prompts into standardized `DigitalEmployeeProfile` profiles registered via `AgentProfileRegistry`. Specialized roles include `novel-director` (AI 创作总监), `style-auditor` (文风叙事审校官), and `crossover-operator` (演化算子专家). Each role defines explicit capabilities, tools, RAG collections, and 4-tier risk scopes (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
@@ -189,12 +186,8 @@ Evolved Daydream Engine from session-assembled prompts into an organized **Agent
 - **Empirical Automated Benchmarking**:
   Includes [real-empirical-agent-test.js](./scripts/real-empirical-agent-test.js), [stageHandoffTwoLayer.test.js](./server/tests/stageHandoffTwoLayer.test.js), [autoWakeScheduler.test.js](./server/tests/autoWakeScheduler.test.js), [agentKanbanTodo.test.js](./server/tests/agentKanbanTodo.test.js), and [evidenceTraceLogger.test.js](./server/tests/evidenceTraceLogger.test.js) for verifying prompt head exact-matching, two-layer handoff gates, auto-wake heartbeat recovery, durable Kanban claiming, and mutation trace logging.
 
-### 13. US Stock Investment Research & Daily Rebalancing Agent (MooMoo OpenD Integration)
-- **Zero-Auto-Order Advisory Blueprint**: Combines local holdings, cash balances, and budget constraints to generate pre-market BUY/SELL/TRIM/HOLD actions and concentration risk alerts (**Advisory Only, no auto-trading**).
-- **MooMoo OpenD Native Connection & Auto-Daemon**: Backend integrates `OpenDaemonManager` to probe port `11111`, auto-spawn `moomoo_OpenD`, detect GUI unlock status, and sync live positions and cash.
-- **MooMoo Watchlist Priority Recommendation**: Automatically queries the user's MooMoo stock Watchlist (Cmd 3213) without trade passwords, prioritizing recommendations from the user's personal favorites pool.
-- **100% Real-Time Market Price Data Integrity**: Fetches live quotes via OpenD `Cmd 3001` & `Cmd 3004` and runs a deterministic post-processing layer to overwrite all action numerical fields with real market prices, eliminating AI hallucinations.
-- **Deduction State Glassmorphism Blur**: Applies a frosted glass blur overlay (`Backdrop Blur`) to updating regions during AI strategy generation, seamlessly unblurring once generation completes.
+### 14. Internationalization (i18n) Support
+- Fully integrated with `i18next` and `react-i18next` on the client. UI elements, logs, page labels, and settings routes support complete localization between English and Chinese. User language selections are persisted locally.
 
 ---
 
